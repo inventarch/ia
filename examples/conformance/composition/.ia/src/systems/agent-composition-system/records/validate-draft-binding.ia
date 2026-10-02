@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@execution-binding validate-draft-binding
+  meaning
+    says "Fixture validate-draft-binding text 1."
+    answers "Fixture validate-draft-binding text 2."
+  binding
+    kind operation
+    target @operation validate-draft
+    implementation draft-validate-v1

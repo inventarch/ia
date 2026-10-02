@@ -1,0 +1,9 @@
+#! ia 1.0
+
+@agent session-steward
+  meaning
+    says "The designated expert for identity and declared state of governed runs."
+    answers "Who owns the vocabulary and authoring method of session-system?"
+  governance
+    applies [run]
+    requires "Use the owning schema and the current spec, plan and validation evidence before changing this system."

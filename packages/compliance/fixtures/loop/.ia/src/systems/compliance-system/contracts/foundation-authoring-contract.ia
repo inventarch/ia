@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@contract foundation-authoring-contract
+  version "0.1.0"
+  meaning
+    says "Author records only when their declared structure and ownership can be checked."
+    answers "What must foundation authoring establish?"
+  relationships
+    governs @check instance-schema-check
+  inputs
+    REQ-FOUNDATION-INPUT "Supply the intended owner, complete native registry closure and authored record source."
+  outputs
+    REQ-FOUNDATION-VALID "A structurally valid owned record receives a passing schema and system assessment."
+  failures
+    REQ-FOUNDATION-REFUSE "Missing required fields or foreign vocabulary receives a named refusal and is not reported as conforming."

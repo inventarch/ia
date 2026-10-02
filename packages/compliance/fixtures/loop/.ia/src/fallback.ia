@@ -1,0 +1,9 @@
+#! ia 1.0
+@playbook fallback
+  meaning
+    says "Fixture procedure fallback"
+    answers "What does this procedure do?"
+  cognition
+    orient
+      primary Memory
+      Memory means "Fallback fixture memory"

@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@execution-binding sample-entry
+  meaning
+    says "Fixture sample-entry text 1."
+    answers "Fixture sample-entry text 2."
+  binding
+    kind entry
+    target @agent-profile sample-author-profile
+    implementation harness-entry-v1
+    mapping identity-v1

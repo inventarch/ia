@@ -1,0 +1,114 @@
+#! ia 1.0
+@system fixture-system
+  provider "conformance"
+  version "1.0.0"
+  discriminators
+    playbook lowers to governance
+      category process
+      facets [head]
+      schema @schema playbook
+    law lowers to governance
+      category process
+      facets [head]
+      schema @schema law
+    contract lowers to contract
+      category process
+      facets [head]
+      schema @schema contract
+    case lowers to check
+      category process
+      facets [head]
+      schema @schema case
+  edges
+    govern * using *
+    enforce * using *
+    ground * using *
+    constrain * using *
+    implement * using *
+    produce * using *
+    consume * using *
+    record-lineage-from * using *
+    grant-access-to * using *
+    run-before * using *
+    trigger * using *
+    cite * using *
+    supersede * using *
+    require * using *
+    use * using *
+    forbid * using *
+    route * using *
+    land * using *
+@schema playbook
+  lowers to governance
+  sections
+    open
+@schema law
+  lowers to governance
+  sections
+    open
+@schema contract
+  lowers to contract
+  sections
+    open
+@schema case
+  lowers to check
+  sections
+    open
+@playbook target
+@playbook author-record
+  relationships
+    govern @playbook target
+    governed-by fixture-system/governance/head/target
+    enforce @playbook target
+    enforced-by fixture-system/governance/head/target
+    ground @playbook target
+    grounded-by fixture-system/governance/head/target
+    constrain @playbook target
+    constrained-by fixture-system/governance/head/target
+    implement @playbook target
+    implemented-by fixture-system/governance/head/target
+    produce @playbook target
+    produced-by fixture-system/governance/head/target
+    consume @playbook target
+    consumed-by fixture-system/governance/head/target
+    record-lineage-from @playbook target
+    lineage-recorded-by fixture-system/governance/head/target
+    grant-access-to @playbook target
+    access-granted-by fixture-system/governance/head/target
+    run-before @playbook target
+    run-after fixture-system/governance/head/target
+    trigger @playbook target
+    triggered-by fixture-system/governance/head/target
+    cite @playbook target
+    cited-by fixture-system/governance/head/target
+    supersede @playbook target
+    superseded-by fixture-system/governance/head/target
+    require @playbook target
+    required-by fixture-system/governance/head/target
+    use @playbook target
+    used-by fixture-system/governance/head/target
+    forbid @playbook target
+    forbidden-by fixture-system/governance/head/target
+    route @playbook target
+    routed-by fixture-system/governance/head/target
+    land @playbook target
+    landed-by fixture-system/governance/head/target
+    governs @playbook target
+    enforces fixture-system/governance/head/target
+    grounds @playbook target
+    constrains fixture-system/governance/head/target
+    implements @playbook target
+    produces fixture-system/governance/head/target
+    consumes @playbook target
+    records lineage from fixture-system/governance/head/target
+    grants access to @playbook target
+    runs before fixture-system/governance/head/target
+    triggers @playbook target
+    cites fixture-system/governance/head/target
+    supersedes @playbook target
+    requires fixture-system/governance/head/target
+    uses @playbook target
+    forbids fixture-system/governance/head/target
+    routes to @playbook target
+    lands at fixture-system/governance/head/target
+    cites @playbook target#act/Decision

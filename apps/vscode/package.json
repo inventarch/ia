@@ -1,0 +1,86 @@
+{
+  "name": "inventarch-ia",
+  "displayName": "IA Language",
+  "description": "Local IA language diagnostics, completion, navigation and formatting.",
+  "version": "1.0.0",
+  "publisher": "inventarch",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inventarch/ia.git",
+    "directory": "apps/vscode"
+  },
+  "icon": "media/inventarch.png",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.138.0",
+    "node": ">=22.22.0 <23"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization",
+    "Other"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onLanguage:inventarch-ia"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Local language analysis only."
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "inventarch-ia",
+        "aliases": [
+          "InventArch IA",
+          "IA"
+        ],
+        "extensions": [
+          ".ia"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./media/ia-file.svg",
+          "dark": "./media/ia-file.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "inventarch-ia",
+        "scopeName": "source.ia",
+        "path": "./syntaxes/ia.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@ia/runtime": "workspace:*",
+    "vscode-languageclient": "10.1.1",
+    "vscode-languageserver": "10.1.1",
+    "vscode-languageserver-textdocument": "1.0.14",
+    "vscode-uri": "3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/vscode": "^1.100.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

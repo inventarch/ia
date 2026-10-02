@@ -1,0 +1,27 @@
+#! ia 1.0
+
+@playbook sample-cells
+  meaning
+    says "Fixture sample-cells text 1."
+    answers "Fixture sample-cells text 2."
+  cognition
+    orient
+      primary Attention
+      Attention means "Fixture sample-cells text 3."
+      Memory means "Fixture sample-cells text 4."
+      Decision means "Fixture sample-cells text 5."
+    plan
+      primary Inference
+      Inference means "Fixture sample-cells text 6."
+      Attention means "Fixture sample-cells text 7."
+      Decision means "Fixture sample-cells text 8."
+    act
+      primary Decision
+      Decision means "Fixture sample-cells text 9."
+      Escalation means "Fixture sample-cells text 10."
+      Attention means "Fixture sample-cells text 11."
+    learn
+      primary Learning
+      Learning means "Fixture sample-cells text 12."
+  activation
+    activate when category is capability

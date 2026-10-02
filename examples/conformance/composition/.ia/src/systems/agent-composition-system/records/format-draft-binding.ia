@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@execution-binding format-draft-binding
+  meaning
+    says "Fixture format-draft-binding text 1."
+    answers "Fixture format-draft-binding text 2."
+  binding
+    kind operation
+    target @operation format-draft
+    implementation draft-format-v1

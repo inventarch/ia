@@ -1,0 +1,156 @@
+{
+  "name": "@ia/service-contracts",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./sources": {
+      "development": "./src/sources.ts",
+      "types": "./dist/sources.d.ts",
+      "default": "./dist/sources.js"
+    },
+    "./tenancy": {
+      "development": "./src/tenancy.ts",
+      "types": "./dist/tenancy.d.ts",
+      "default": "./dist/tenancy.js"
+    },
+    "./session-lifecycle": {
+      "development": "./src/session-lifecycle.ts",
+      "types": "./dist/session-lifecycle.d.ts",
+      "default": "./dist/session-lifecycle.js"
+    },
+    "./source-apply": {
+      "development": "./src/source-apply.ts",
+      "types": "./dist/source-apply.d.ts",
+      "default": "./dist/source-apply.js"
+    },
+    "./marketplace": {
+      "development": "./src/marketplace.ts",
+      "types": "./dist/marketplace.d.ts",
+      "default": "./dist/marketplace.js"
+    },
+    "./installation": {
+      "development": "./src/installation.ts",
+      "types": "./dist/installation.d.ts",
+      "default": "./dist/installation.js"
+    },
+    "./internal/index": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal/installation": {
+      "types": "./dist/installation.d.ts",
+      "default": "./dist/installation.js"
+    },
+    "./internal/marketplace": {
+      "types": "./dist/marketplace.d.ts",
+      "default": "./dist/marketplace.js"
+    },
+    "./internal/session-lifecycle": {
+      "types": "./dist/session-lifecycle.d.ts",
+      "default": "./dist/session-lifecycle.js"
+    },
+    "./internal/source-apply": {
+      "types": "./dist/source-apply.d.ts",
+      "default": "./dist/source-apply.js"
+    },
+    "./internal/sources": {
+      "types": "./dist/sources.d.ts",
+      "default": "./dist/sources.js"
+    },
+    "./internal/tenancy": {
+      "types": "./dist/tenancy.d.ts",
+      "default": "./dist/tenancy.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./sources": {
+        "types": "./dist/sources.d.ts",
+        "default": "./dist/sources.js"
+      },
+      "./tenancy": {
+        "types": "./dist/tenancy.d.ts",
+        "default": "./dist/tenancy.js"
+      },
+      "./session-lifecycle": {
+        "types": "./dist/session-lifecycle.d.ts",
+        "default": "./dist/session-lifecycle.js"
+      },
+      "./source-apply": {
+        "types": "./dist/source-apply.d.ts",
+        "default": "./dist/source-apply.js"
+      },
+      "./marketplace": {
+        "types": "./dist/marketplace.d.ts",
+        "default": "./dist/marketplace.js"
+      },
+      "./installation": {
+        "types": "./dist/installation.d.ts",
+        "default": "./dist/installation.js"
+      },
+      "./internal/index": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./internal/installation": {
+        "types": "./dist/installation.d.ts",
+        "default": "./dist/installation.js"
+      },
+      "./internal/marketplace": {
+        "types": "./dist/marketplace.d.ts",
+        "default": "./dist/marketplace.js"
+      },
+      "./internal/session-lifecycle": {
+        "types": "./dist/session-lifecycle.d.ts",
+        "default": "./dist/session-lifecycle.js"
+      },
+      "./internal/source-apply": {
+        "types": "./dist/source-apply.d.ts",
+        "default": "./dist/source-apply.js"
+      },
+      "./internal/sources": {
+        "types": "./dist/sources.d.ts",
+        "default": "./dist/sources.js"
+      },
+      "./internal/tenancy": {
+        "types": "./dist/tenancy.d.ts",
+        "default": "./dist/tenancy.js"
+      }
+    },
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  }
+}

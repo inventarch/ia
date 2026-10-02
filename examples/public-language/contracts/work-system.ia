@@ -1,0 +1,43 @@
+#! ia 1.0
+
+@system work-system
+  provider "inventarch.local"
+  version "0.1.0"
+  describes "Public work-system vocabulary contracts"
+  steward @agent public-work-system-steward
+  requires
+    - agent-system
+    - governance-system
+    - compliance-system
+  discriminators
+    plan lowers to definition
+      category process
+      facets [plan]
+      schema @schema plan
+    milestone lowers to definition
+      category state
+      facets [milestone]
+      schema @schema milestone
+    task lowers to definition
+      category process
+      facets [task]
+      schema @schema task
+    decision lowers to definition
+      category decision
+      facets [decision]
+      schema @schema decision
+  edges
+    cite * using *
+    require task, milestone, decision using task, milestone
+    supersede plan using plan
+    supersede milestone using milestone
+    supersede task using task
+    supersede decision using decision
+    ground plan, milestone, task using decision
+
+@agent public-work-system-steward
+  meaning
+    says "Identifies the owner of work-system contracts in this example."
+    answers "Who owns the plan, milestone, task and decision words in this example?"
+  governance
+    applies [plan, milestone, task, decision]

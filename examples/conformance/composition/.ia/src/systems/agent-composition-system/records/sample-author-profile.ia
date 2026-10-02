@@ -1,0 +1,16 @@
+#! ia 1.0
+
+@agent-profile sample-author-profile
+  meaning
+    says "Fixture sample-author-profile text 1."
+    answers "Fixture sample-author-profile text 2."
+  composition
+    agent @agent sample-author
+    voice @voice sample-voice
+    mandate @mandate sample-task
+    capabilities [@capability fixture-readion, @capability secondary-read]
+    delegates [@agent-profile sample-architect-profile]
+  execution
+    role author
+    outcomes sample-outcomes-v1
+    mandate-contract sample-task-v1

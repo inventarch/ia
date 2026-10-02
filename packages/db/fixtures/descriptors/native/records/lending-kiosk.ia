@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@app-composition lending-kiosk
+  meaning
+    says "Self-service kiosk that lists overdue loans and opens new loans."
+    answers "Which screens, actions and configuration does the lending kiosk compose?"
+  app
+    format 1
+    app-id lending-kiosk
+    version "0.3.0"
+    resource "lending-kiosk.app.json"
+    digest "sha256:eec7c5595ebd4295183c5935e770c9a535bd3445ac65bb00e3eace42070f3e73"
+    capabilities [@capability lending-desk]

@@ -1,0 +1,321 @@
+name: Public quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Bypass every local and remote task reuse
+        type: boolean
+        default: false
+  schedule:
+    # Weekly full verification of all declared variants, with no task reuse at all. It skips every job after the plan
+    # when main has not moved since the last successful scheduled run.
+    - cron: '0 3 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Every env key here, at any level, is either an Nx { "env": … } input or listed in tools/testing/inventory.test.ts as
+# unable to change a task's result: package tasks do not hash this file, so a key a task reads is otherwise ignored.
+env:
+  # Bump to invalidate results a defect has made unsound. It is a hashed input of every task.
+  NX_CACHE_EPOCH: '1'
+  # Scheduled and dispatched full runs execute everything; ordinary runs may reuse task results.
+  IA_FULL: ${{ (github.event_name == 'schedule' || inputs.full) && 'true' || '' }}
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Reading this workflow's earlier runs needs actions: read; only this job reads them.
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      tests: ${{ steps.matrices.outputs.tests }}
+      build: ${{ steps.matrices.outputs.build }}
+      static: ${{ steps.matrices.outputs.static }}
+      emitted: ${{ steps.matrices.outputs.emitted }}
+      gate: ${{ steps.matrices.outputs.gate }}
+      platforms: ${{ steps.matrices.outputs.platforms }}
+      run: ${{ steps.matrices.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Check dependency advisories
+        run: pnpm audit --audit-level=moderate
+      # The full required task set for this checkout. A new unassigned test fails here, before
+      # anything is scheduled; a deleted file cannot silently remove an obligation.
+      - name: Validate the test inventory
+        run: pnpm tests:inventory
+      # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed
+      # lookup costs minutes, never coverage.
+      - name: Find the commit the last scheduled run verified
+        id: verified
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          sha="$(gh api "repos/${{ github.repository }}/actions/workflows/platform-quality.yml/runs?event=schedule&status=success&branch=main&per_page=1" --jq '.workflow_runs[0].head_sha // empty')" || { echo "::warning::could not read the last successful scheduled run; verifying anyway"; sha=""; }
+          echo "Last successful scheduled run verified ${sha:-nothing}; main is at ${{ github.sha }}."
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      # Public source tasks use four general lanes on Linux/Windows and two on macOS.
+      # The event selects the platforms: a pull request plans Linux alone, every other event all three. The planner also
+      # emits the gate's rows from that selection and, for a scheduled run on an already verified main, run=false.
+      - name: Assign tasks to shards
+        id: matrices
+        run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=4,macos=2 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: plan
+    # A scheduled run on a main the last scheduled run already verified skips this job.
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.build) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/cache/restore@v6
+        if: env.IA_FULL == ''
+        with:
+          path: |
+            .nx/cache
+            .nx/workspace-data
+          key: public-build-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+          restore-keys: public-build-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
+      - name: Run assigned tasks
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+      - uses: actions/cache/save@v6
+        if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: |
+            .nx/cache
+            .nx/workspace-data
+          key: public-build-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evidence-${{ matrix.platform }}-build
+          path: artifacts/evidence
+          if-no-files-found: warn
+          retention-days: 14
+
+  static:
+    name: Static checks (${{ matrix.os }})
+    needs: [plan, build]
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.static) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/cache/restore@v6
+        if: env.IA_FULL == ''
+        with:
+          path: |
+            .nx/cache
+            .nx/workspace-data
+          key: public-static-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+          restore-keys: public-static-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
+      - name: Run assigned tasks
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+      - uses: actions/cache/save@v6
+        if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: |
+            .nx/cache
+            .nx/workspace-data
+          key: public-static-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evidence-${{ matrix.platform }}-static
+          path: artifacts/evidence
+          if-no-files-found: warn
+          retention-days: 14
+
+  tests:
+    name: Tests — ${{ matrix.tasks }} (${{ matrix.os }})
+    needs: [plan, build]
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.tests) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      # Each job rebuilds missing prerequisites through the declared task dependency graph.
+      - uses: actions/cache/restore@v6
+        if: env.IA_FULL == ''
+        with:
+          path: |
+            .nx/cache
+            .nx/workspace-data
+          key: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+          restore-keys: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
+      - name: Run assigned tasks
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+      - uses: actions/cache/save@v6
+        if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: |
+            .nx/cache
+            .nx/workspace-data
+          key: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evidence-${{ matrix.platform }}-tests-${{ matrix.shard }}
+          path: artifacts/evidence
+          if-no-files-found: warn
+          retention-days: 14
+
+  emitted:
+    name: Emitted qualification (${{ matrix.os }})
+    needs: [plan, build]
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.emitted) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/cache/restore@v6
+        if: env.IA_FULL == ''
+        with:
+          path: |
+            .nx/cache
+            .nx/workspace-data
+          key: public-emitted-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+          restore-keys: public-emitted-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
+      - name: Run assigned tasks
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+      - uses: actions/cache/save@v6
+        if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: |
+            .nx/cache
+            .nx/workspace-data
+          key: public-emitted-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evidence-${{ matrix.platform }}-emitted
+          path: artifacts/evidence
+          if-no-files-found: warn
+          retention-days: 14
+
+  homebrew-node:
+    # Homebrew's Node links the macOS system zlib, which encodes archives differently from official Node builds.
+    # The CLI's bundled archives must still verify there: initialize, register and validate a workspace with it.
+    # It uses node@22, the declared Node major, never Homebrew's floating `node`, and it refuses to run unless
+    # `ia doctor` places that runtime inside the declared target and the build links the system zlib.
+    # It runs only when the plan includes macOS (never on a pull request) and the run has something to verify, and it
+    # starts as soon as the plan says so; every platform's gate row waits for it.
+    name: Homebrew Node smoke (macos-26)
+    needs: plan
+    if: needs.plan.outputs.run == 'true' && contains(fromJSON(needs.plan.outputs.platforms), 'macos')
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      # The whole root build: only it writes the bundled base archive and the host payload (language-base:generate,
+      # host-payload:generate). A filtered `@ia/cli...` build leaves `init` without apps/cli/assets/base.json.
+      - name: Build the CLI and its bundled archives
+        run: pnpm build
+      # The runner image's formulae, not a `brew update` in the middle of the job, and nothing else is cleaned up.
+      - name: Install Homebrew's Node 22
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+          HOMEBREW_NO_INSTALL_CLEANUP: '1'
+        run: brew install node@22
+      - name: Initialize, register and validate a workspace with Homebrew's Node
+        shell: bash
+        run: |
+          set -euo pipefail
+          node_bin="$(brew --prefix node@22)/bin/node"
+          "$node_bin" -p '`Homebrew Node ${process.version}, zlib ${process.versions.zlib}`'
+          scratch="$(python3 -c 'import os,tempfile;print(os.path.realpath(tempfile.mkdtemp()))')"
+          mkdir -p "$scratch/home"
+          export HOME="$scratch/home" IA_HOME="$scratch/ia-home"
+          cli="$GITHUB_WORKSPACE/apps/cli/dist/main.js"
+          # The doctor's exit class also covers workspace state; only its support-target check matters here.
+          (cd "$scratch" && "$node_bin" "$cli" doctor --json) > "$scratch/doctor.json" || true
+          "$node_bin" -e '
+            const target = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).checks.find((check) => check.id === "support-target");
+            console.log(`Support target: ${target.status}, ${target.detail}`);
+            if (target.status !== "ok") process.exit(1);
+            if (process.config.variables.node_shared_zlib !== true) { console.log("This Node bundles its own zlib instead of linking the system one"); process.exit(1); }
+          ' "$scratch/doctor.json"
+          "$node_bin" "$cli" init "$scratch/demo" --apply --yes
+          "$node_bin" "$cli" host claude --root "$scratch/demo" --apply --yes
+          "$node_bin" "$cli" validate --root "$scratch/demo"
+
+  qualify:
+    # The existing required check names. This job is the gate; it is never cached and runs whatever its prerequisites
+    # did, unless the plan decided the run had nothing to verify. Its rows are the planned platforms (Linux alone on a
+    # pull request); a plan that produced none fails this job rather than skipping it.
+    name: Emitted platform (${{ matrix.os }})
+    needs: [plan, build, static, tests, emitted, homebrew-node]
+    if: always() && needs.plan.outputs.run != 'false'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.gate) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: evidence-${{ matrix.platform }}-*
+          merge-multiple: true
+          path: artifacts/tests
+      # Reported even when it fails, so the findings are visible rather than only the exit code.
+      - name: Compare received results against the required task set
+        id: gate
+        continue-on-error: true
+        run: pnpm tests:gate --evidence artifacts/tests --platform ${{ matrix.platform }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: gate-${{ matrix.platform }}
+          path: artifacts/tests
+          if-no-files-found: warn
+          # The merged evidence tests:plan --record reads to re-record durations; the per-job uploads above only feed it.
+          retention-days: 30
+      # A skipped or cancelled prerequisite must not read as a green aggregate. The comparison
+      # above catches a missing result too; this names the job that did not finish. The Homebrew smoke is required only
+      # when the plan includes macOS; otherwise its skip is expected.
+      - name: Refuse an aggregate built on unfinished work
+        shell: bash
+        run: |
+          failed=""
+          for pair in "plan:${{ needs.plan.result }}" "build:${{ needs.build.result }}" "static:${{ needs.static.result }}" "tests:${{ needs.tests.result }}" "emitted:${{ needs.emitted.result }}" "homebrew-node:${{ (needs.homebrew-node.result == 'skipped' && !contains(fromJSON(needs.plan.outputs.platforms), 'macos')) && 'not-planned' || needs.homebrew-node.result }}"; do
+            name="${pair%%:*}"; outcome="${pair#*:}"
+            if [ "$outcome" = "not-planned" ]; then continue; fi
+            if [ "$outcome" != "success" ]; then echo "::error::required job $name finished as $outcome"; failed="yes"; fi
+          done
+          if [ "${{ steps.gate.outcome }}" != "success" ]; then echo "::error::the received results do not cover the required task set"; failed="yes"; fi
+          [ -z "$failed" ]

@@ -1,0 +1,689 @@
+#! ia 1.0
+
+@authoring-guide public-agent-system-agent
+  meaning
+    says "Names a participant and the vocabulary to which its governance applies. It does not grant host permissions."
+    answers "What does @agent represent?"
+  reference
+    owner agent-system
+    word agent
+    schema @schema agent
+    document ".ia/src/systems/authoring-system/reference/agent.md"
+  guidance
+    select-when "Names a participant and the vocabulary to which its governance applies. It does not grant host permissions."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema agent
+
+@authoring-guide public-agent-composition-system-agent-profile
+  meaning
+    says "Composes an agent, capabilities, optional mandate/voice/delegates and installed execution contracts."
+    answers "What does @agent-profile represent?"
+  reference
+    owner agent-composition-system
+    word agent-profile
+    schema @schema agent-profile
+    document ".ia/src/systems/authoring-system/reference/agent-profile.md"
+  guidance
+    select-when "Composes an agent, capabilities, optional mandate/voice/delegates and installed execution contracts."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema agent-profile
+
+@authoring-guide public-taxonomy-artifact-set
+  meaning
+    says "Defines a closed grouping of artifact genres."
+    answers "What does @artifact-set represent?"
+  reference
+    owner taxonomy
+    word artifact-set
+    schema @schema kernel-artifact-set
+    document ".ia/src/systems/authoring-system/reference/artifact-set.md"
+  guidance
+    select-when "Defines a closed grouping of artifact genres."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-artifact-set
+
+@authoring-guide public-authoring-system-authoring-guide
+  meaning
+    says "Associates a vocabulary owner and schema with an authoring reference and usage guidance."
+    answers "What does @authoring-guide represent?"
+  reference
+    owner authoring-system
+    word authoring-guide
+    schema @schema authoring-guide
+    document ".ia/src/systems/authoring-system/reference/authoring-guide.md"
+  guidance
+    select-when "Associates a vocabulary owner and schema with an authoring reference and usage guidance."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema authoring-guide
+
+@authoring-guide public-taxonomy-axis
+  meaning
+    says "Defines a closed coordinate axis for selection."
+    answers "What does @axis represent?"
+  reference
+    owner taxonomy
+    word axis
+    schema @schema kernel-axis
+    document ".ia/src/systems/authoring-system/reference/axis.md"
+  guidance
+    select-when "Defines a closed coordinate axis for selection."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-axis
+
+@authoring-guide public-agent-composition-system-capability
+  meaning
+    says "Groups operations, procedures, templates, checks and included capabilities with declared execution bounds."
+    answers "What does @capability represent?"
+  reference
+    owner agent-composition-system
+    word capability
+    schema @schema capability
+    document ".ia/src/systems/authoring-system/reference/capability.md"
+  guidance
+    select-when "Groups operations, procedures, templates, checks and included capabilities with declared execution bounds."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema capability
+
+@authoring-guide public-taxonomy-cardinality
+  meaning
+    says "Defines relationship multiplicity constraints."
+    answers "What does @cardinality represent?"
+  reference
+    owner taxonomy
+    word cardinality
+    schema @schema kernel-cardinality
+    document ".ia/src/systems/authoring-system/reference/cardinality.md"
+  guidance
+    select-when "Defines relationship multiplicity constraints."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-cardinality
+
+@authoring-guide public-compliance-system-case
+  meaning
+    says "Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result."
+    answers "What does @case represent?"
+  reference
+    owner compliance-system
+    word case
+    schema @schema case
+    document ".ia/src/systems/authoring-system/reference/case.md"
+  guidance
+    select-when "Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema case
+
+@authoring-guide public-taxonomy-category
+  meaning
+    says "Defines a closed concept classification used by record shapes and contextual selection."
+    answers "What does @category represent?"
+  reference
+    owner taxonomy
+    word category
+    schema @schema kernel-category
+    document ".ia/src/systems/authoring-system/reference/category.md"
+  guidance
+    select-when "Defines a closed concept classification used by record shapes and contextual selection."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-category
+
+@authoring-guide public-compliance-system-check
+  meaning
+    says "Names a check implementation and scope. Declaring an implementation name does not install or execute it."
+    answers "What does @check represent?"
+  reference
+    owner compliance-system
+    word check
+    schema @schema check
+    document ".ia/src/systems/authoring-system/reference/check.md"
+  guidance
+    select-when "Names a check implementation and scope. Declaring an implementation name does not install or execute it."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema check
+
+@authoring-guide public-compliance-system-contract
+  meaning
+    says "Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence."
+    answers "What does @contract represent?"
+  reference
+    owner compliance-system
+    word contract
+    schema @schema contract
+    document ".ia/src/systems/authoring-system/reference/contract.md"
+  guidance
+    select-when "Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema contract
+
+@authoring-guide public-governance-system-convention
+  meaning
+    says "Declares a convention in the shared governance shape."
+    answers "What does @convention represent?"
+  reference
+    owner governance-system
+    word convention
+    schema @schema convention
+    document ".ia/src/systems/authoring-system/reference/convention.md"
+  guidance
+    select-when "Declares a convention in the shared governance shape."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema convention
+
+@authoring-guide public-work-system-decision
+  meaning
+    says "Represents a choice that is needed or has been made: the question, options and decider, and once made, the choice and rationale."
+    answers "What does @decision represent?"
+  reference
+    owner work-system
+    word decision
+    schema @schema decision
+    document ".ia/src/systems/authoring-system/reference/decision.md"
+  guidance
+    select-when "Represents a choice that is needed or has been made: the question, options and decider, and once made, the choice and rationale."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema decision
+
+@authoring-guide public-taxonomy-dimension
+  meaning
+    says "Defines a supported record dimension used by conditions and lookup."
+    answers "What does @dimension represent?"
+  reference
+    owner taxonomy
+    word dimension
+    schema @schema kernel-dimension
+    document ".ia/src/systems/authoring-system/reference/dimension.md"
+  guidance
+    select-when "Defines a supported record dimension used by conditions and lookup."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-dimension
+
+@authoring-guide public-workspace-system-distribution
+  meaning
+    says "Declares root records from which a distributable closure is selected."
+    answers "What does @distribution represent?"
+  reference
+    owner workspace-system
+    word distribution
+    schema @schema distribution
+    document ".ia/src/systems/authoring-system/reference/distribution.md"
+  guidance
+    select-when "Declares root records from which a distributable closure is selected."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema distribution
+
+@authoring-guide public-agent-composition-system-execution-binding
+  meaning
+    says "Connects a native target to a host-installed entry or operation descriptor."
+    answers "What does @execution-binding represent?"
+  reference
+    owner agent-composition-system
+    word execution-binding
+    schema @schema execution-binding
+    document ".ia/src/systems/authoring-system/reference/execution-binding.md"
+  guidance
+    select-when "Connects a native target to a host-installed entry or operation descriptor."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema execution-binding
+
+@authoring-guide public-agent-composition-system-harness
+  meaning
+    says "Composes profiles and execution bindings in a workspace under a host contract."
+    answers "What does @harness represent?"
+  reference
+    owner agent-composition-system
+    word harness
+    schema @schema harness
+    document ".ia/src/systems/authoring-system/reference/harness.md"
+  guidance
+    select-when "Composes profiles and execution bindings in a workspace under a host contract."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema harness
+
+@authoring-guide public-hook-authoring-system-hook
+  meaning
+    says "Represents a host event, tool/path selection and guard message. Registration and executing a guard require a host adapter."
+    answers "What does @hook represent?"
+  reference
+    owner hook-authoring-system
+    word hook
+    schema @schema hook
+    document ".ia/src/systems/authoring-system/reference/hook.md"
+  guidance
+    select-when "Represents a host event, tool/path selection and guard message. Registration and executing a guard require a host adapter."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema hook
+
+@authoring-guide public-learning-system-improvement
+  meaning
+    says "Represents a proposed change, review metadata and publication metadata. It does not authorize or apply the proposal."
+    answers "What does @improvement represent?"
+  reference
+    owner learning-system
+    word improvement
+    schema @schema improvement
+    document ".ia/src/systems/authoring-system/reference/improvement.md"
+  guidance
+    select-when "Represents a proposed change, review metadata and publication metadata. It does not authorize or apply the proposal."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema improvement
+
+@authoring-guide public-taxonomy-intent-shape
+  meaning
+    says "Defines a request framing and its retrieval defaults."
+    answers "What does @intent-shape represent?"
+  reference
+    owner taxonomy
+    word intent-shape
+    schema @schema kernel-intent-shape
+    document ".ia/src/systems/authoring-system/reference/intent-shape.md"
+  guidance
+    select-when "Defines a request framing and its retrieval defaults."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-intent-shape
+
+@authoring-guide public-taxonomy-kind
+  meaning
+    says "Defines a closed semantic role for records; lowering determines the role of each registered word."
+    answers "What does @kind represent?"
+  reference
+    owner taxonomy
+    word kind
+    schema @schema kernel-kind
+    document ".ia/src/systems/authoring-system/reference/kind.md"
+  guidance
+    select-when "Defines a closed semantic role for records; lowering determines the role of each registered word."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-kind
+
+@authoring-guide public-taxonomy-lane
+  meaning
+    says "Defines a retrieval lane associated with record kinds."
+    answers "What does @lane represent?"
+  reference
+    owner taxonomy
+    word lane
+    schema @schema kernel-lane
+    document ".ia/src/systems/authoring-system/reference/lane.md"
+  guidance
+    select-when "Defines a retrieval lane associated with record kinds."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-lane
+
+@authoring-guide public-governance-system-law
+  meaning
+    says "Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose."
+    answers "What does @law represent?"
+  reference
+    owner governance-system
+    word law
+    schema @schema law
+    document ".ia/src/systems/authoring-system/reference/law.md"
+  guidance
+    select-when "Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema law
+
+@authoring-guide public-agent-system-mandate
+  meaning
+    says "States bounded authority and conditions for a participant. Host authorization remains independent."
+    answers "What does @mandate represent?"
+  reference
+    owner agent-system
+    word mandate
+    schema @schema mandate
+    document ".ia/src/systems/authoring-system/reference/mandate.md"
+  guidance
+    select-when "States bounded authority and conditions for a participant. Host authorization remains independent."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema mandate
+
+@authoring-guide public-work-system-milestone
+  meaning
+    says "Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it."
+    answers "What does @milestone represent?"
+  reference
+    owner work-system
+    word milestone
+    schema @schema milestone
+    document ".ia/src/systems/authoring-system/reference/milestone.md"
+  guidance
+    select-when "Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema milestone
+
+@authoring-guide public-taxonomy-move
+  meaning
+    says "Defines the closed classification of an agent action or activity."
+    answers "What does @move represent?"
+  reference
+    owner taxonomy
+    word move
+    schema @schema kernel-move
+    document ".ia/src/systems/authoring-system/reference/move.md"
+  guidance
+    select-when "Defines the closed classification of an agent action or activity."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-move
+
+@authoring-guide public-learning-system-observation
+  meaning
+    says "Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing."
+    answers "What does @observation represent?"
+  reference
+    owner learning-system
+    word observation
+    schema @schema observation
+    document ".ia/src/systems/authoring-system/reference/observation.md"
+  guidance
+    select-when "Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema observation
+
+@authoring-guide public-authoring-system-operation
+  meaning
+    says "Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations."
+    answers "What does @operation represent?"
+  reference
+    owner authoring-system
+    word operation
+    schema @schema operation
+    document ".ia/src/systems/authoring-system/reference/operation.md"
+  guidance
+    select-when "Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema operation
+
+@authoring-guide public-taxonomy-phase
+  meaning
+    says "Defines a cognitive phase coordinate: orient, plan, act or learn."
+    answers "What does @phase represent?"
+  reference
+    owner taxonomy
+    word phase
+    schema @schema kernel-phase
+    document ".ia/src/systems/authoring-system/reference/phase.md"
+  guidance
+    select-when "Defines a cognitive phase coordinate: orient, plan, act or learn."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-phase
+
+@authoring-guide public-taxonomy-placement
+  meaning
+    says "Defines source authority and reach metadata."
+    answers "What does @placement represent?"
+  reference
+    owner taxonomy
+    word placement
+    schema @schema kernel-placement
+    document ".ia/src/systems/authoring-system/reference/placement.md"
+  guidance
+    select-when "Defines source authority and reach metadata."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-placement
+
+@authoring-guide public-work-system-plan
+  meaning
+    says "Represents an arrangement of milestones toward an intent; it heads the work hierarchy and has no parent. Plans do not nest."
+    answers "What does @plan represent?"
+  reference
+    owner work-system
+    word plan
+    schema @schema plan
+    document ".ia/src/systems/authoring-system/reference/plan.md"
+  guidance
+    select-when "Represents an arrangement of milestones toward an intent; it heads the work hierarchy and has no parent. Plans do not nest."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema plan
+
+@authoring-guide public-governance-system-playbook
+  meaning
+    says "Represents a procedure as phase/primitive cells. Cell delivery is generic; the authored method belongs to its author."
+    answers "What does @playbook represent?"
+  reference
+    owner governance-system
+    word playbook
+    schema @schema playbook
+    document ".ia/src/systems/authoring-system/reference/playbook.md"
+  guidance
+    select-when "Represents a procedure as phase/primitive cells. Cell delivery is generic; the authored method belongs to its author."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema playbook
+
+@authoring-guide public-taxonomy-predicate
+  meaning
+    says "Defines a directed relationship and its inverse spelling."
+    answers "What does @predicate represent?"
+  reference
+    owner taxonomy
+    word predicate
+    schema @schema kernel-predicate
+    document ".ia/src/systems/authoring-system/reference/predicate.md"
+  guidance
+    select-when "Defines a directed relationship and its inverse spelling."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-predicate
+
+@authoring-guide public-taxonomy-primitive
+  meaning
+    says "Defines a cognitive primitive coordinate; a cell is selected using its phase and primitive."
+    answers "What does @primitive represent?"
+  reference
+    owner taxonomy
+    word primitive
+    schema @schema kernel-primitive
+    document ".ia/src/systems/authoring-system/reference/primitive.md"
+  guidance
+    select-when "Defines a cognitive primitive coordinate; a cell is selected using its phase and primitive."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-primitive
+
+@authoring-guide public-governance-system-principle
+  meaning
+    says "Declares a governing rationale in the shared governance shape."
+    answers "What does @principle represent?"
+  reference
+    owner governance-system
+    word principle
+    schema @schema principle
+    document ".ia/src/systems/authoring-system/reference/principle.md"
+  guidance
+    select-when "Declares a governing rationale in the shared governance shape."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema principle
+
+@authoring-guide public-session-system-run
+  meaning
+    says "Represents a governed run identity, declared phase, status and owner. Declaration does not start execution."
+    answers "What does @run represent?"
+  reference
+    owner session-system
+    word run
+    schema @schema run
+    document ".ia/src/systems/authoring-system/reference/run.md"
+  guidance
+    select-when "Represents a governed run identity, declared phase, status and owner. Declaration does not start execution."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema run
+
+@authoring-guide public-floor-schema
+  meaning
+    says "Declares the structural contract for exactly one registered discriminator."
+    answers "What does @schema represent?"
+  reference
+    owner floor
+    word schema
+    schema @schema schema
+    document ".ia/src/systems/authoring-system/reference/schema.md"
+  guidance
+    select-when "Declares the structural contract for exactly one registered discriminator."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema schema
+
+@authoring-guide public-floor-system
+  meaning
+    says "Registers vocabulary, direct system dependencies, a local steward and consent for relationships."
+    answers "What does @system represent?"
+  reference
+    owner floor
+    word system
+    schema @schema system
+    document ".ia/src/systems/authoring-system/reference/system.md"
+  guidance
+    select-when "Registers vocabulary, direct system dependencies, a local steward and consent for relationships."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema system
+
+@authoring-guide public-work-system-task
+  meaning
+    says "Represents one owner's action toward exactly one milestone. Whether it is ready to start is computed by a work evaluator, never stored on the record."
+    answers "What does @task represent?"
+  reference
+    owner work-system
+    word task
+    schema @schema task
+    document ".ia/src/systems/authoring-system/reference/task.md"
+  guidance
+    select-when "Represents one owner's action toward exactly one milestone. Whether it is ready to start is computed by a work evaluator, never stored on the record."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema task
+
+@authoring-guide public-template-system-template
+  meaning
+    says "Represents bounded rendering inputs and output structure. Rendering does not publish or install output."
+    answers "What does @template represent?"
+  reference
+    owner template-system
+    word template
+    schema @schema template
+    document ".ia/src/systems/authoring-system/reference/template.md"
+  guidance
+    select-when "Represents bounded rendering inputs and output structure. Rendering does not publish or install output."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema template
+
+@authoring-guide public-taxonomy-value-type
+  meaning
+    says "Defines the field types that schemas may require."
+    answers "What does @value-type represent?"
+  reference
+    owner taxonomy
+    word value-type
+    schema @schema kernel-value-type
+    document ".ia/src/systems/authoring-system/reference/value-type.md"
+  guidance
+    select-when "Defines the field types that schemas may require."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema kernel-value-type
+
+@authoring-guide public-agent-composition-system-voice
+  meaning
+    says "Declares communication attributes separate from authority and procedure."
+    answers "What does @voice represent?"
+  reference
+    owner agent-composition-system
+    word voice
+    schema @schema voice
+    document ".ia/src/systems/authoring-system/reference/voice.md"
+  guidance
+    select-when "Declares communication attributes separate from authority and procedure."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema voice
+
+@authoring-guide public-workspace-system-workspace
+  meaning
+    says "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries."
+    answers "What does @workspace represent?"
+  reference
+    owner workspace-system
+    word workspace
+    schema @schema workspace
+    document ".ia/src/systems/authoring-system/reference/workspace.md"
+  guidance
+    select-when "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema workspace

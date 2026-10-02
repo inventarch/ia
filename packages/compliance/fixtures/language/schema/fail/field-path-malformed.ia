@@ -1,0 +1,7 @@
+#! ia 1.0
+@schema s
+  lowers to definition
+  sections
+    closed
+  fields
+    must have says as text

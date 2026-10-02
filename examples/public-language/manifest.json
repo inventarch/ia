@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "floor": [
+    ".ia/src/floor/artifact-set.ia",
+    ".ia/src/floor/axis.ia",
+    ".ia/src/floor/cardinality.ia",
+    ".ia/src/floor/category.ia",
+    ".ia/src/floor/dimension.ia",
+    ".ia/src/floor/floor.schema.ia",
+    ".ia/src/floor/intent-shape.ia",
+    ".ia/src/floor/kernel.schema.ia",
+    ".ia/src/floor/kind.ia",
+    ".ia/src/floor/lane.ia",
+    ".ia/src/floor/move.ia",
+    ".ia/src/floor/phase.ia",
+    ".ia/src/floor/placement.ia",
+    ".ia/src/floor/predicate.ia",
+    ".ia/src/floor/primitive.ia",
+    ".ia/src/floor/taxonomy.system.ia",
+    ".ia/src/floor/value-type.ia"
+  ],
+  "systems": [
+    {
+      "name": "agent-system",
+      "declaration": "contracts/agent-system.ia",
+      "schemas": [
+        ".ia/src/systems/agent-system/schemas/agent.schema.ia",
+        ".ia/src/systems/agent-system/schemas/mandate.schema.ia"
+      ]
+    },
+    {
+      "name": "compliance-system",
+      "declaration": "contracts/compliance-system.ia",
+      "schemas": [
+        ".ia/src/systems/compliance-system/schemas/case.schema.ia",
+        ".ia/src/systems/compliance-system/schemas/check.schema.ia",
+        ".ia/src/systems/compliance-system/schemas/contract.schema.ia"
+      ]
+    },
+    {
+      "name": "workspace-system",
+      "declaration": "contracts/workspace-system.ia",
+      "schemas": [
+        ".ia/src/systems/workspace-system/schemas/distribution.schema.ia",
+        ".ia/src/systems/workspace-system/schemas/workspace.schema.ia"
+      ]
+    },
+    {
+      "name": "governance-system",
+      "declaration": "contracts/governance-system.ia",
+      "schemas": [
+        ".ia/src/systems/governance-system/schemas/convention.schema.ia",
+        ".ia/src/systems/governance-system/schemas/law.schema.ia",
+        ".ia/src/systems/governance-system/schemas/playbook.schema.ia",
+        ".ia/src/systems/governance-system/schemas/principle.schema.ia"
+      ]
+    },
+    {
+      "name": "session-system",
+      "declaration": "contracts/session-system.ia",
+      "schemas": [
+        ".ia/src/systems/session-system/schemas/run.schema.ia"
+      ]
+    },
+    {
+      "name": "authoring-system",
+      "declaration": "contracts/authoring-system.ia",
+      "schemas": [
+        ".ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia",
+        ".ia/src/systems/authoring-system/schemas/operation.schema.ia"
+      ]
+    },
+    {
+      "name": "agent-composition-system",
+      "declaration": "contracts/agent-composition-system.ia",
+      "schemas": [
+        ".ia/src/systems/agent-composition-system/schemas/agent-profile.schema.ia",
+        ".ia/src/systems/agent-composition-system/schemas/capability.schema.ia",
+        ".ia/src/systems/agent-composition-system/schemas/execution-binding.schema.ia",
+        ".ia/src/systems/agent-composition-system/schemas/harness.schema.ia",
+        ".ia/src/systems/agent-composition-system/schemas/voice.schema.ia"
+      ]
+    },
+    {
+      "name": "template-system",
+      "declaration": "contracts/template-system.ia",
+      "schemas": [
+        ".ia/src/systems/template-system/schemas/template.schema.ia"
+      ]
+    },
+    {
+      "name": "hook-authoring-system",
+      "declaration": "contracts/hook-authoring-system.ia",
+      "schemas": [
+        ".ia/src/systems/hook-authoring-system/schemas/hook.schema.ia"
+      ]
+    },
+    {
+      "name": "learning-system",
+      "declaration": "contracts/learning-system.ia",
+      "schemas": [
+        ".ia/src/systems/learning-system/schemas/improvement.schema.ia",
+        ".ia/src/systems/learning-system/schemas/observation.schema.ia"
+      ]
+    },
+    {
+      "name": "work-system",
+      "declaration": "contracts/work-system.ia",
+      "schemas": [
+        ".ia/src/systems/work-system/schemas/decision.schema.ia",
+        ".ia/src/systems/work-system/schemas/milestone.schema.ia",
+        ".ia/src/systems/work-system/schemas/plan.schema.ia",
+        ".ia/src/systems/work-system/schemas/task.schema.ia"
+      ]
+    }
+  ],
+  "examples": [
+    {
+      "file": "records/composition.ia",
+      "system": "agent-composition-system"
+    },
+    {
+      "file": "records/quality.ia",
+      "system": "workspace-system"
+    },
+    {
+      "file": "records/architecture.ia",
+      "system": "workspace-system"
+    },
+    {
+      "file": "records/evidence.ia",
+      "system": "learning-system"
+    },
+    {
+      "file": "records/language.ia",
+      "system": "workspace-system"
+    },
+    {
+      "file": "records/work.ia",
+      "system": "work-system"
+    }
+  ]
+}

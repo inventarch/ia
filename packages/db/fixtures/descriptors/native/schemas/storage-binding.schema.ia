@@ -1,0 +1,20 @@
+#! ia 1.0
+
+@schema storage-binding
+  lowers to binding
+  sections
+    must have meaning
+    must have storage
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have storage.format as number
+    must have storage.model as ref to domain-model
+    must have storage.model-version as text
+    must have storage.port as id
+    must have storage.adapter as id
+    must have storage.schema-version as text
+    must have storage.resource as text
+    must have storage.digest as text

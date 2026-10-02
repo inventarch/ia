@@ -1,0 +1,23 @@
+#! ia 1.0
+
+@cardinality one
+  meaning
+    says "At most one distinct target; a must obligation also requires its presence."
+    answers "Is the row limited to at most one distinct target?"
+  data
+    order 0
+
+@cardinality one-or-more
+  meaning
+    says "No upper bound; a must obligation requires at least one distinct target."
+    answers "May the row have several distinct targets?"
+  data
+    order 1
+
+@cardinality optional
+  meaning
+    says "Zero or one distinct target, including when the schema row uses must."
+    answers "May the row have no target even when it says must?"
+  data
+    order 2
+

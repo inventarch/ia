@@ -1,0 +1,22 @@
+name: Prepare workspace
+description: Installs the pinned toolchain and, on Windows, selects the physical temporary directory fixtures require.
+
+runs:
+  using: composite
+  steps:
+    # A third-party action runs pinned to a commit: v6.0.10, the commit its moving v6 tag named on 2026-09-25.
+    - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '22.22.0'
+        cache: pnpm
+    # Fixtures create real files and processes; a virtualised temporary root breaks path identity.
+    - name: Select physical Windows temporary directory
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        node tools/testing/canonical-temp.mjs
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile

@@ -1,0 +1,37 @@
+#! ia 1.0
+
+@move Observation
+  meaning
+    says "Take in what is actually there — the move that reads state without changing it."
+    answers "Is this routed to where something is looked at rather than acted on?"
+  data
+    order 0
+
+@move Execution
+  meaning
+    says "Carry out the authorized action — the move that changes state."
+    answers "Is this routed to where work is performed?"
+  data
+    order 1
+
+@move Delegation
+  meaning
+    says "Hand bounded work to another actor — the move that transfers responsibility, not authority."
+    answers "Is this routed to where work is given to someone else?"
+  data
+    order 2
+
+@move Synthesis
+  meaning
+    says "Combine separate findings into one account — the move that produces a whole from parts."
+    answers "Is this routed to where pieces are drawn together?"
+  data
+    order 3
+
+@move Verification
+  meaning
+    says "Check a claim against evidence — the move that decides whether something holds."
+    answers "Is this routed to where a claim is tested?"
+  data
+    order 4
+

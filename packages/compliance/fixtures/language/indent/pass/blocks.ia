@@ -1,0 +1,9 @@
+#! ia 1.0
+@law x
+  version "1"
+    note "a head field may open a block"
+  meaning
+    holds
+      deeper
+        deepest "d"
+      - item

@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@operation format-draft
+  meaning
+    says "Fixture format-draft text 1."
+    answers "Fixture format-draft text 2."
+  execution
+    handler draft-format-v1
+    effects draft-only
+    input draft-text-v1
+    output draft-result-v1
+    profile governed-v1
+    recovery repeatable

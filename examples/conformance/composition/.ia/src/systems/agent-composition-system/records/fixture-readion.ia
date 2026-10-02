@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@capability fixture-readion
+  meaning
+    says "Fixture fixture-readion text 1."
+    answers "Fixture fixture-readion text 2."
+  composition
+    operations [@operation sample-read]
+    playbooks [@playbook sample-cells]
+  execution
+    input task-text-v1
+    outcomes sample-outcomes-v1
+    context-profile captured-context-v1
+    mapping-profile identity-v1
+    effects [read]

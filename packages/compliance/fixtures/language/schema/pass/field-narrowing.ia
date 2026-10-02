@@ -1,0 +1,13 @@
+#! ia 1.0
+@schema Task
+  lowers to definition
+  sections
+    must have work
+    closed
+  fields
+    must have work.status as id in [todo, doing, done]
+    may have work.tags as list of id in [urgent, blocked]
+    must have work.milestone as ref to milestone "the parent"
+    may have work.depends as list of ref to task
+    may have work.due as text form iso-date "YYYY-MM-DD"
+    may have work.dates as list of text form iso-date

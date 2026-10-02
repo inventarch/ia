@@ -1,0 +1,36 @@
+#! ia 1.0
+
+@system compliance-system
+  provider "inventarch.foundation"
+  version "1.0.0"
+  describes "Public compliance-system vocabulary contracts"
+  steward @agent public-compliance-system-steward
+  requires
+    - agent-system
+  discriminators
+    contract lowers to contract
+      category relation
+      facets [signature]
+      schema @schema contract
+    check lowers to check
+      category rule
+      facets [gate]
+      schema @schema check
+    case lowers to definition
+      category evidence
+      facets [scenario]
+      schema @schema case
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+
+@agent public-compliance-system-steward
+  meaning
+    says "Identifies the owner of compliance-system contracts in this example."
+    answers "Who owns the contract, check and case words in this example?"
+  governance
+    applies [contract, check, case]

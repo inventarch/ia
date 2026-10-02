@@ -1,0 +1,16 @@
+#! ia 1.0
+
+@schema hook
+  lowers to binding
+  sections
+    must have meaning
+    must have hook
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have hook.event as id
+    must have hook.tools as list of id
+    must have hook.paths as list of text
+    must have hook.message as text

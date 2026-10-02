@@ -1,0 +1,9 @@
+#! ia 1.0
+@playbook choice-b
+  meaning
+    says "Fixture procedure choice-b"
+    answers "What does this procedure do?"
+  cognition
+    act
+      primary Decision
+      Decision means "Equal choice"

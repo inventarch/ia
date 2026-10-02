@@ -1,0 +1,585 @@
+{
+  "name": "@ia/distribution",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "ia-distribution": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@ia/db": "workspace:*",
+    "@ia/graph": "workspace:*",
+    "@ia/language": "workspace:*",
+    "@ia/authoring-system": "workspace:*",
+    "@ia/agent-composition-system": "workspace:*",
+    "@ia/session-system": "workspace:*",
+    "smol-toml": "1.7.1",
+    "jsonc-parser": "3.3.1",
+    "@ia/steward-hook": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "exports": {
+    "./archive": {
+      "development": "./src/archive.ts",
+      "types": "./dist/archive.d.ts",
+      "default": "./dist/archive.js"
+    },
+    "./ustar": {
+      "development": "./src/ustar.ts",
+      "types": "./dist/ustar.d.ts",
+      "default": "./dist/ustar.js"
+    },
+    "./pack": {
+      "development": "./src/pack.ts",
+      "types": "./dist/pack.d.ts",
+      "default": "./dist/pack.js"
+    },
+    "./resolve": {
+      "development": "./src/resolve.ts",
+      "types": "./dist/resolve.d.ts",
+      "default": "./dist/resolve.js"
+    },
+    "./install": {
+      "development": "./src/install.ts",
+      "types": "./dist/install.d.ts",
+      "default": "./dist/install.js"
+    },
+    "./snapshot": {
+      "development": "./src/snapshot.ts",
+      "types": "./dist/snapshot.d.ts",
+      "default": "./dist/snapshot.js"
+    },
+    "./installation-core": {
+      "development": "./src/installation-core.ts",
+      "types": "./dist/installation-core.d.ts",
+      "default": "./dist/installation-core.js"
+    },
+    "./transfer": {
+      "development": "./src/transfer.ts",
+      "types": "./dist/transfer.d.ts",
+      "default": "./dist/transfer.js"
+    },
+    "./inventory": {
+      "development": "./src/inventory.ts",
+      "types": "./dist/inventory.d.ts",
+      "default": "./dist/inventory.js"
+    },
+    "./host": {
+      "development": "./src/host.ts",
+      "types": "./dist/host.d.ts",
+      "default": "./dist/host.js"
+    },
+    "./hosts": {
+      "development": "./src/hosts.ts",
+      "types": "./dist/hosts.d.ts",
+      "default": "./dist/hosts.js"
+    },
+    "./host-modes": {
+      "development": "./src/host-modes.ts",
+      "types": "./dist/host-modes.d.ts",
+      "default": "./dist/host-modes.js"
+    },
+    "./host-home": {
+      "development": "./src/host-home.ts",
+      "types": "./dist/host-home.d.ts",
+      "default": "./dist/host-home.js"
+    },
+    "./ia-home": {
+      "development": "./src/ia-home.ts",
+      "types": "./dist/ia-home.d.ts",
+      "default": "./dist/ia-home.js"
+    },
+    "./plugin-home": {
+      "development": "./src/plugin-home.ts",
+      "types": "./dist/plugin-home.d.ts",
+      "default": "./dist/plugin-home.js"
+    },
+    "./decisions": {
+      "development": "./src/decisions.ts",
+      "types": "./dist/decisions.d.ts",
+      "default": "./dist/decisions.js"
+    },
+    "./guard-registration": {
+      "development": "./src/guard-registration.ts",
+      "types": "./dist/guard-registration.d.ts",
+      "default": "./dist/guard-registration.js"
+    },
+    "./projection": {
+      "development": "./src/projection.ts",
+      "types": "./dist/projection.d.ts",
+      "default": "./dist/projection.js"
+    },
+    "./host-observe": {
+      "development": "./src/host-observe.ts",
+      "types": "./dist/host-observe.d.ts",
+      "default": "./dist/host-observe.js"
+    },
+    "./lifecycle-registration": {
+      "development": "./src/lifecycle-registration.ts",
+      "types": "./dist/lifecycle-registration.d.ts",
+      "default": "./dist/lifecycle-registration.js"
+    },
+    "./minting": {
+      "development": "./src/minting.ts",
+      "types": "./dist/minting.d.ts",
+      "default": "./dist/minting.js"
+    },
+    "./registry": {
+      "development": "./src/registry.ts",
+      "types": "./dist/registry.d.ts",
+      "default": "./dist/registry.js"
+    },
+    "./registry-build": {
+      "development": "./src/registry-build.ts",
+      "types": "./dist/registry-build.d.ts",
+      "default": "./dist/registry-build.js"
+    },
+    "./updates": {
+      "development": "./src/updates.ts",
+      "types": "./dist/updates.d.ts",
+      "default": "./dist/updates.js"
+    },
+    "./services": {
+      "development": "./src/services.ts",
+      "types": "./dist/services.d.ts",
+      "default": "./dist/services.js"
+    },
+    "./internal/acquire": {
+      "types": "./dist/acquire.d.ts",
+      "default": "./dist/acquire.js"
+    },
+    "./internal/archive": {
+      "types": "./dist/archive.d.ts",
+      "default": "./dist/archive.js"
+    },
+    "./internal/authoring-assets": {
+      "types": "./dist/authoring-assets.d.ts",
+      "default": "./dist/authoring-assets.js"
+    },
+    "./internal/bounded-fetch": {
+      "types": "./dist/bounded-fetch.d.ts",
+      "default": "./dist/bounded-fetch.js"
+    },
+    "./internal/command": {
+      "types": "./dist/command.d.ts",
+      "default": "./dist/command.js"
+    },
+    "./internal/config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./internal/decisions": {
+      "types": "./dist/decisions.d.ts",
+      "default": "./dist/decisions.js"
+    },
+    "./internal/files": {
+      "types": "./dist/files.d.ts",
+      "default": "./dist/files.js"
+    },
+    "./internal/guard-registration": {
+      "types": "./dist/guard-registration.d.ts",
+      "default": "./dist/guard-registration.js"
+    },
+    "./internal/host-home": {
+      "types": "./dist/host-home.d.ts",
+      "default": "./dist/host-home.js"
+    },
+    "./internal/host-modes": {
+      "types": "./dist/host-modes.d.ts",
+      "default": "./dist/host-modes.js"
+    },
+    "./internal/host-observe": {
+      "types": "./dist/host-observe.d.ts",
+      "default": "./dist/host-observe.js"
+    },
+    "./internal/host": {
+      "types": "./dist/host.d.ts",
+      "default": "./dist/host.js"
+    },
+    "./internal/hosts": {
+      "types": "./dist/hosts.d.ts",
+      "default": "./dist/hosts.js"
+    },
+    "./internal/ia-home": {
+      "types": "./dist/ia-home.d.ts",
+      "default": "./dist/ia-home.js"
+    },
+    "./internal/install": {
+      "types": "./dist/install.d.ts",
+      "default": "./dist/install.js"
+    },
+    "./internal/installation-core": {
+      "types": "./dist/installation-core.d.ts",
+      "default": "./dist/installation-core.js"
+    },
+    "./internal/inventory": {
+      "types": "./dist/inventory.d.ts",
+      "default": "./dist/inventory.js"
+    },
+    "./internal/json-edit": {
+      "types": "./dist/json-edit.d.ts",
+      "default": "./dist/json-edit.js"
+    },
+    "./internal/lifecycle-registration": {
+      "types": "./dist/lifecycle-registration.d.ts",
+      "default": "./dist/lifecycle-registration.js"
+    },
+    "./internal/minting": {
+      "types": "./dist/minting.d.ts",
+      "default": "./dist/minting.js"
+    },
+    "./internal/native-command": {
+      "types": "./dist/native-command.d.ts",
+      "default": "./dist/native-command.js"
+    },
+    "./internal/pack": {
+      "types": "./dist/pack.d.ts",
+      "default": "./dist/pack.js"
+    },
+    "./internal/plugin-home": {
+      "types": "./dist/plugin-home.d.ts",
+      "default": "./dist/plugin-home.js"
+    },
+    "./internal/projection": {
+      "types": "./dist/projection.d.ts",
+      "default": "./dist/projection.js"
+    },
+    "./internal/publication": {
+      "types": "./dist/publication.d.ts",
+      "default": "./dist/publication.js"
+    },
+    "./internal/registry-admission": {
+      "types": "./dist/registry-admission.d.ts",
+      "default": "./dist/registry-admission.js"
+    },
+    "./internal/registry-build": {
+      "types": "./dist/registry-build.d.ts",
+      "default": "./dist/registry-build.js"
+    },
+    "./internal/registry-config": {
+      "types": "./dist/registry-config.d.ts",
+      "default": "./dist/registry-config.js"
+    },
+    "./internal/registry-layout": {
+      "types": "./dist/registry-layout.d.ts",
+      "default": "./dist/registry-layout.js"
+    },
+    "./internal/registry-resolve": {
+      "types": "./dist/registry-resolve.d.ts",
+      "default": "./dist/registry-resolve.js"
+    },
+    "./internal/registry-source": {
+      "types": "./dist/registry-source.d.ts",
+      "default": "./dist/registry-source.js"
+    },
+    "./internal/registry": {
+      "types": "./dist/registry.d.ts",
+      "default": "./dist/registry.js"
+    },
+    "./internal/resolve": {
+      "types": "./dist/resolve.d.ts",
+      "default": "./dist/resolve.js"
+    },
+    "./internal/services": {
+      "types": "./dist/services.d.ts",
+      "default": "./dist/services.js"
+    },
+    "./internal/snapshot": {
+      "types": "./dist/snapshot.d.ts",
+      "default": "./dist/snapshot.js"
+    },
+    "./internal/transfer": {
+      "types": "./dist/transfer.d.ts",
+      "default": "./dist/transfer.js"
+    },
+    "./internal/updates": {
+      "types": "./dist/updates.d.ts",
+      "default": "./dist/updates.js"
+    },
+    "./internal/ustar": {
+      "types": "./dist/ustar.d.ts",
+      "default": "./dist/ustar.js"
+    }
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./archive": {
+        "types": "./dist/archive.d.ts",
+        "default": "./dist/archive.js"
+      },
+      "./ustar": {
+        "types": "./dist/ustar.d.ts",
+        "default": "./dist/ustar.js"
+      },
+      "./pack": {
+        "types": "./dist/pack.d.ts",
+        "default": "./dist/pack.js"
+      },
+      "./resolve": {
+        "types": "./dist/resolve.d.ts",
+        "default": "./dist/resolve.js"
+      },
+      "./install": {
+        "types": "./dist/install.d.ts",
+        "default": "./dist/install.js"
+      },
+      "./snapshot": {
+        "types": "./dist/snapshot.d.ts",
+        "default": "./dist/snapshot.js"
+      },
+      "./installation-core": {
+        "types": "./dist/installation-core.d.ts",
+        "default": "./dist/installation-core.js"
+      },
+      "./transfer": {
+        "types": "./dist/transfer.d.ts",
+        "default": "./dist/transfer.js"
+      },
+      "./inventory": {
+        "types": "./dist/inventory.d.ts",
+        "default": "./dist/inventory.js"
+      },
+      "./host": {
+        "types": "./dist/host.d.ts",
+        "default": "./dist/host.js"
+      },
+      "./hosts": {
+        "types": "./dist/hosts.d.ts",
+        "default": "./dist/hosts.js"
+      },
+      "./host-modes": {
+        "types": "./dist/host-modes.d.ts",
+        "default": "./dist/host-modes.js"
+      },
+      "./host-home": {
+        "types": "./dist/host-home.d.ts",
+        "default": "./dist/host-home.js"
+      },
+      "./ia-home": {
+        "types": "./dist/ia-home.d.ts",
+        "default": "./dist/ia-home.js"
+      },
+      "./plugin-home": {
+        "types": "./dist/plugin-home.d.ts",
+        "default": "./dist/plugin-home.js"
+      },
+      "./decisions": {
+        "types": "./dist/decisions.d.ts",
+        "default": "./dist/decisions.js"
+      },
+      "./guard-registration": {
+        "types": "./dist/guard-registration.d.ts",
+        "default": "./dist/guard-registration.js"
+      },
+      "./projection": {
+        "types": "./dist/projection.d.ts",
+        "default": "./dist/projection.js"
+      },
+      "./host-observe": {
+        "types": "./dist/host-observe.d.ts",
+        "default": "./dist/host-observe.js"
+      },
+      "./lifecycle-registration": {
+        "types": "./dist/lifecycle-registration.d.ts",
+        "default": "./dist/lifecycle-registration.js"
+      },
+      "./minting": {
+        "types": "./dist/minting.d.ts",
+        "default": "./dist/minting.js"
+      },
+      "./registry": {
+        "types": "./dist/registry.d.ts",
+        "default": "./dist/registry.js"
+      },
+      "./registry-build": {
+        "types": "./dist/registry-build.d.ts",
+        "default": "./dist/registry-build.js"
+      },
+      "./updates": {
+        "types": "./dist/updates.d.ts",
+        "default": "./dist/updates.js"
+      },
+      "./services": {
+        "types": "./dist/services.d.ts",
+        "default": "./dist/services.js"
+      },
+      "./internal/acquire": {
+        "types": "./dist/acquire.d.ts",
+        "default": "./dist/acquire.js"
+      },
+      "./internal/archive": {
+        "types": "./dist/archive.d.ts",
+        "default": "./dist/archive.js"
+      },
+      "./internal/authoring-assets": {
+        "types": "./dist/authoring-assets.d.ts",
+        "default": "./dist/authoring-assets.js"
+      },
+      "./internal/bounded-fetch": {
+        "types": "./dist/bounded-fetch.d.ts",
+        "default": "./dist/bounded-fetch.js"
+      },
+      "./internal/command": {
+        "types": "./dist/command.d.ts",
+        "default": "./dist/command.js"
+      },
+      "./internal/config": {
+        "types": "./dist/config.d.ts",
+        "default": "./dist/config.js"
+      },
+      "./internal/decisions": {
+        "types": "./dist/decisions.d.ts",
+        "default": "./dist/decisions.js"
+      },
+      "./internal/files": {
+        "types": "./dist/files.d.ts",
+        "default": "./dist/files.js"
+      },
+      "./internal/guard-registration": {
+        "types": "./dist/guard-registration.d.ts",
+        "default": "./dist/guard-registration.js"
+      },
+      "./internal/host-home": {
+        "types": "./dist/host-home.d.ts",
+        "default": "./dist/host-home.js"
+      },
+      "./internal/host-modes": {
+        "types": "./dist/host-modes.d.ts",
+        "default": "./dist/host-modes.js"
+      },
+      "./internal/host-observe": {
+        "types": "./dist/host-observe.d.ts",
+        "default": "./dist/host-observe.js"
+      },
+      "./internal/host": {
+        "types": "./dist/host.d.ts",
+        "default": "./dist/host.js"
+      },
+      "./internal/hosts": {
+        "types": "./dist/hosts.d.ts",
+        "default": "./dist/hosts.js"
+      },
+      "./internal/ia-home": {
+        "types": "./dist/ia-home.d.ts",
+        "default": "./dist/ia-home.js"
+      },
+      "./internal/install": {
+        "types": "./dist/install.d.ts",
+        "default": "./dist/install.js"
+      },
+      "./internal/installation-core": {
+        "types": "./dist/installation-core.d.ts",
+        "default": "./dist/installation-core.js"
+      },
+      "./internal/inventory": {
+        "types": "./dist/inventory.d.ts",
+        "default": "./dist/inventory.js"
+      },
+      "./internal/json-edit": {
+        "types": "./dist/json-edit.d.ts",
+        "default": "./dist/json-edit.js"
+      },
+      "./internal/lifecycle-registration": {
+        "types": "./dist/lifecycle-registration.d.ts",
+        "default": "./dist/lifecycle-registration.js"
+      },
+      "./internal/minting": {
+        "types": "./dist/minting.d.ts",
+        "default": "./dist/minting.js"
+      },
+      "./internal/native-command": {
+        "types": "./dist/native-command.d.ts",
+        "default": "./dist/native-command.js"
+      },
+      "./internal/pack": {
+        "types": "./dist/pack.d.ts",
+        "default": "./dist/pack.js"
+      },
+      "./internal/plugin-home": {
+        "types": "./dist/plugin-home.d.ts",
+        "default": "./dist/plugin-home.js"
+      },
+      "./internal/projection": {
+        "types": "./dist/projection.d.ts",
+        "default": "./dist/projection.js"
+      },
+      "./internal/publication": {
+        "types": "./dist/publication.d.ts",
+        "default": "./dist/publication.js"
+      },
+      "./internal/registry-admission": {
+        "types": "./dist/registry-admission.d.ts",
+        "default": "./dist/registry-admission.js"
+      },
+      "./internal/registry-build": {
+        "types": "./dist/registry-build.d.ts",
+        "default": "./dist/registry-build.js"
+      },
+      "./internal/registry-config": {
+        "types": "./dist/registry-config.d.ts",
+        "default": "./dist/registry-config.js"
+      },
+      "./internal/registry-layout": {
+        "types": "./dist/registry-layout.d.ts",
+        "default": "./dist/registry-layout.js"
+      },
+      "./internal/registry-resolve": {
+        "types": "./dist/registry-resolve.d.ts",
+        "default": "./dist/registry-resolve.js"
+      },
+      "./internal/registry-source": {
+        "types": "./dist/registry-source.d.ts",
+        "default": "./dist/registry-source.js"
+      },
+      "./internal/registry": {
+        "types": "./dist/registry.d.ts",
+        "default": "./dist/registry.js"
+      },
+      "./internal/resolve": {
+        "types": "./dist/resolve.d.ts",
+        "default": "./dist/resolve.js"
+      },
+      "./internal/services": {
+        "types": "./dist/services.d.ts",
+        "default": "./dist/services.js"
+      },
+      "./internal/snapshot": {
+        "types": "./dist/snapshot.d.ts",
+        "default": "./dist/snapshot.js"
+      },
+      "./internal/transfer": {
+        "types": "./dist/transfer.d.ts",
+        "default": "./dist/transfer.js"
+      },
+      "./internal/updates": {
+        "types": "./dist/updates.d.ts",
+        "default": "./dist/updates.js"
+      },
+      "./internal/ustar": {
+        "types": "./dist/ustar.d.ts",
+        "default": "./dist/ustar.js"
+      }
+    }
+  }
+}

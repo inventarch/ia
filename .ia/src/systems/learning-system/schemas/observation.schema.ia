@@ -1,0 +1,30 @@
+#! ia 1.0
+
+@schema observation
+  lowers to definition
+  sections
+    must have meaning
+    must have evidence
+    must have interpretation
+    must have retention
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have evidence.origin as id
+    must have evidence.actor as text
+    must have evidence.observed-at as text
+    must have evidence.captured-at as text
+    must have evidence.workspace as text
+    must have evidence.locator as text
+    must have evidence.revision as text
+    must have evidence.bundle as text
+    must have evidence.digest as text
+    must have evidence.availability as id
+    must have interpretation.applies as text
+    must have interpretation.limits as text
+    must have interpretation.reason as text
+    must have interpretation.basis as id
+    must have retention.status as id
+    may have retention.explanation as text

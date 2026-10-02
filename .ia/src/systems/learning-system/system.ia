@@ -1,0 +1,36 @@
+#! ia 1.0
+
+@system learning-system
+  provider "inventarch.local"
+  version "1.0.0"
+  describes "Public learning-system vocabulary contracts"
+  steward @agent public-learning-system-steward
+  requires
+    - agent-system
+    - governance-system
+    - compliance-system
+    - authoring-system
+  discriminators
+    observation lowers to definition
+      category evidence
+      facets [observation]
+      schema @schema observation
+    improvement lowers to definition
+      category intent
+      facets [improvement]
+      schema @schema improvement
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+    supersede * using *
+
+@agent public-learning-system-steward
+  meaning
+    says "Identifies the owner of learning-system contracts in this example."
+    answers "Who owns the observation and improvement words in this example?"
+  governance
+    applies [observation, improvement]

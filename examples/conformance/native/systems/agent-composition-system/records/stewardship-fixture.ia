@@ -1,0 +1,39 @@
+#! ia 1.0
+@voice steward-voice
+  meaning
+    says "A neutral communication fixture."
+    answers "Which voice does the fixture reference?"
+  communication
+    tone "Plain."
+    terminology "Fixture labels."
+    explanation "Report the fixture."
+    uncertainty "State unknowns."
+@capability agent-system-stewardship
+  meaning
+    says "A neutral capability fixture."
+    answers "Which capability does the fixture reference?"
+  composition
+    playbooks []
+  execution
+    effects [read]
+@capability governance-system-stewardship
+  meaning
+    says "A neutral typed playbook reference fixture."
+    answers "Which capability references the sample procedure?"
+  composition
+    playbooks [@playbook sample-procedure]
+  execution
+    effects [read]
+@agent-profile agent-steward-profile
+  meaning
+    says "A neutral composition reference fixture."
+    answers "Which typed references are indexed?"
+  composition
+    agent @agent agent-steward
+    voice @voice steward-voice
+    mandate @mandate agent-system-stewardship
+    capabilities [@capability agent-system-stewardship]
+  execution
+    role fixture-reader
+    outcomes fixture-outcomes
+    mandate-contract fixture-steward-v1

@@ -1,0 +1,26 @@
+#! ia 1.0
+
+@observation example-check-result
+  meaning
+    says "An illustrative account of a check result, not a signed execution receipt."
+    answers "How can an author represent a finding and its evidence limitations?"
+  evidence
+    origin check
+    actor "example evaluator"
+    observed-at "2026-09-20T00:00:00Z"
+    captured-at "2026-09-20T00:00:00Z"
+    workspace "example-module"
+    locator "example-quality#REQ-EXAMPLE-NEWLINE"
+    revision "unversioned"
+    bundle ".ia/learning/observations/example.json"
+    digest "0000000000000000000000000000000000000000000000000000000000000000"
+    availability unavailable
+  interpretation
+    applies "The supplied module source only."
+    limits "This example declares a result shape; no external execution is attested."
+    reason "The final byte can be checked independently of a quality methodology."
+    basis inference
+  retention
+    status retained
+  relationships
+    cites @contract example-quality#REQ-EXAMPLE-NEWLINE

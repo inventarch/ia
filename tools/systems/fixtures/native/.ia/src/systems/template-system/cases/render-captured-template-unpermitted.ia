@@ -1,0 +1,17 @@
+#! ia 1.0
+
+@case render-captured-template-unpermitted
+  meaning
+    says "render-captured-template refuses a template whose required resource the caller did not permit with IA-RESOURCE-INVALID."
+    answers "Does render-captured-template refuse when the allowed resources omit the template's required captured JSON resource?"
+  scenario
+    kind refusal
+    given "The fixture structured-document from agent-composition-system tests/templates.test.ts, in the current scope with its envelope digest pinned."
+    request "Call renderCapturedTemplate with an empty allowedResources list and values {title: Fixture design}."
+    expected "Status refused with IA-RESOURCE-INVALID and no artifact."
+    evaluator ".ia/src/systems/agent-composition-system/tests/templates.test.ts"
+    operation @operation render-captured-template
+    code IA-RESOURCE-INVALID
+  relationships
+    implements @contract template-rendering-contract#REQ-TMPL-SCOPE
+    implements @contract template-rendering-contract#REQ-TMPL-REFUSE

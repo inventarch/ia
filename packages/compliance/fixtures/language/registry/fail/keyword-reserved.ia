@@ -1,0 +1,9 @@
+#! ia 1.0
+@system s
+  provider "p"
+  version "1.0.0"
+  discriminators
+    system lowers to definition
+      category boundary
+      facets [system]
+      schema @schema system

@@ -1,0 +1,7 @@
+#! ia 1.0
+
+# retained before record
+@agent   writer
+  meaning
+    says    "Author # is content" # retained tail
+    values [ first ,second , @agent   target ]

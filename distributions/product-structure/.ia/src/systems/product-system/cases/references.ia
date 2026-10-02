@@ -1,0 +1,13 @@
+#! ia 1.0
+@case product-references
+  meaning
+    says "Refuses dangling, wrong-word and duplicate plan references"
+    answers "Which structural consumer behavior is qualified?"
+  scenario
+    kind refusal
+    given "The emitted canonical language and separately selected product structural archives."
+    request "Run the named test: refuses dangling, wrong-word and duplicate plan references."
+    expected "All explicit assertions in the named test pass; installation alone is not execution."
+    evaluator "apps/distribution/tests/product-structure.test.ts"
+  relationships
+    implements @contract product-structure#REQ-PRODUCT-REFERENCES

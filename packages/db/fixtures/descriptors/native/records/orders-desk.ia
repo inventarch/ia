@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@app-composition orders-desk
+  meaning
+    says "Back-office desk for listing, placing and cancelling orders."
+    answers "Which screens, actions and configuration does the orders desk compose?"
+  app
+    format 1
+    app-id orders-desk
+    version "1.2.0"
+    resource "orders-desk.app.json"
+    digest "sha256:8111826f3ad4d1997d553c9a48a4b5ac8fc0723e8fd109ed414a12a93c8f8e0c"
+    capabilities [@capability orders-write]

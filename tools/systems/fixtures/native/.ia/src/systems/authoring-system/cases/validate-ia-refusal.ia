@@ -1,0 +1,17 @@
+#! ia 1.0
+
+@case validate-ia-refusal
+  meaning
+    says "validate-ia refuses an input object without path and text as IA-EXEC-INPUT-INVALID."
+    answers "Does validate-ia refuse an input object without path and text as IA-EXEC-INPUT-INVALID?"
+  scenario
+    kind refusal
+    given "The admitted native corpus and its fixed implementation catalog."
+    request "Invoke validate-ia with scenario.input JSON."
+    expected "Refuse missing required inputs without artifacts."
+    evaluator "tools/systems/scenarios.ts"
+    operation @operation validate-ia
+    input "{}"
+    code IA-EXEC-INPUT-INVALID
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-REFUSE

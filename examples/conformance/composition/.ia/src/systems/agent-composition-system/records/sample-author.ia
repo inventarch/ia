@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@agent sample-author
+  meaning
+    says "Fixture sample-author text 1."
+    answers "Fixture sample-author text 2."
+  governance
+    applies []
+    requires
+      - "Fixture sample-author text 3."
+      - "Fixture sample-author text 4."
+      - "Fixture sample-author text 5."
+      - "Fixture sample-author text 6."

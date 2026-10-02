@@ -1,0 +1,9 @@
+#! ia 1.0
+
+@agent workspace-steward
+  meaning
+    says "The designated expert for composed work boundaries and distributable record closures."
+    answers "Who owns the vocabulary and authoring method of workspace-system?"
+  governance
+    applies [workspace, distribution]
+    requires "Use the owning schema and the current spec, plan and validation evidence before changing this system."

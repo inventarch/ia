@@ -1,0 +1,10 @@
+#! ia 1.0
+@mandate agent-system-stewardship
+  meaning
+    says "A neutral authority fixture."
+    answers "Which mandate does the fixture reference?"
+  governance
+    requires
+      - "Read the supplied fixture only."
+  execution
+    contract fixture-steward-v1

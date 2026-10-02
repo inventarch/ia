@@ -1,0 +1,2221 @@
+[
+  {
+    "identity": "floor/definition/system/fixture-system",
+    "system": "floor",
+    "kind": "definition",
+    "facet": "system",
+    "name": "fixture-system",
+    "displayName": "fixture-system",
+    "discriminator": "system",
+    "source": {
+      "path": "edges/pass/all-verbs-and-addresses.ia",
+      "line": 2,
+      "endLine": 40
+    },
+    "head": [
+      {
+        "key": "provider",
+        "value": {
+          "kind": "string",
+          "text": "conformance"
+        },
+        "span": {
+          "line": 3,
+          "endLine": 3
+        }
+      },
+      {
+        "key": "version",
+        "value": {
+          "kind": "string",
+          "text": "1.0.0"
+        },
+        "span": {
+          "line": 4,
+          "endLine": 4
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "discriminators",
+        "span": {
+          "line": 5,
+          "endLine": 21
+        },
+        "fields": [
+          {
+            "key": "playbook",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to governance"
+            },
+            "span": {
+              "line": 6,
+              "endLine": 9
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 7,
+                  "endLine": 7
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 8,
+                  "endLine": 8
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "playbook"
+                },
+                "span": {
+                  "line": 9,
+                  "endLine": 9
+                }
+              }
+            ]
+          },
+          {
+            "key": "law",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to governance"
+            },
+            "span": {
+              "line": 10,
+              "endLine": 13
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 11,
+                  "endLine": 11
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 12,
+                  "endLine": 12
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "law"
+                },
+                "span": {
+                  "line": 13,
+                  "endLine": 13
+                }
+              }
+            ]
+          },
+          {
+            "key": "contract",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to contract"
+            },
+            "span": {
+              "line": 14,
+              "endLine": 17
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 15,
+                  "endLine": 15
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 16,
+                  "endLine": 16
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "contract"
+                },
+                "span": {
+                  "line": 17,
+                  "endLine": 17
+                }
+              }
+            ]
+          },
+          {
+            "key": "case",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to check"
+            },
+            "span": {
+              "line": 18,
+              "endLine": 21
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 19,
+                  "endLine": 19
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 20,
+                  "endLine": 20
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "case"
+                },
+                "span": {
+                  "line": 21,
+                  "endLine": 21
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "edges",
+        "span": {
+          "line": 22,
+          "endLine": 40
+        },
+        "fields": [
+          {
+            "key": "govern",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 23,
+              "endLine": 23
+            }
+          },
+          {
+            "key": "enforce",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 24,
+              "endLine": 24
+            }
+          },
+          {
+            "key": "ground",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 25,
+              "endLine": 25
+            }
+          },
+          {
+            "key": "constrain",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 26,
+              "endLine": 26
+            }
+          },
+          {
+            "key": "implement",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 27,
+              "endLine": 27
+            }
+          },
+          {
+            "key": "produce",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 28,
+              "endLine": 28
+            }
+          },
+          {
+            "key": "consume",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 29,
+              "endLine": 29
+            }
+          },
+          {
+            "key": "record-lineage-from",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 30,
+              "endLine": 30
+            }
+          },
+          {
+            "key": "grant-access-to",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 31,
+              "endLine": 31
+            }
+          },
+          {
+            "key": "run-before",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 32,
+              "endLine": 32
+            }
+          },
+          {
+            "key": "trigger",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 33,
+              "endLine": 33
+            }
+          },
+          {
+            "key": "cite",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 34,
+              "endLine": 34
+            }
+          },
+          {
+            "key": "supersede",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 35,
+              "endLine": 35
+            }
+          },
+          {
+            "key": "require",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 36,
+              "endLine": 36
+            }
+          },
+          {
+            "key": "use",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 37,
+              "endLine": 37
+            }
+          },
+          {
+            "key": "forbid",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 38,
+              "endLine": 38
+            }
+          },
+          {
+            "key": "route",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 39,
+              "endLine": 39
+            }
+          },
+          {
+            "key": "land",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 40,
+              "endLine": 40
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "playbook"
+        },
+        "target": "floor/contract/head/playbook",
+        "span": {
+          "line": 6,
+          "endLine": 9
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "law"
+        },
+        "target": "floor/contract/head/law",
+        "span": {
+          "line": 10,
+          "endLine": 13
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "contract"
+        },
+        "target": "floor/contract/head/contract",
+        "span": {
+          "line": 14,
+          "endLine": 17
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "case"
+        },
+        "target": "floor/contract/head/case",
+        "span": {
+          "line": 18,
+          "endLine": 21
+        }
+      }
+    ],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/system",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/playbook",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "playbook",
+    "displayName": "playbook",
+    "discriminator": "schema",
+    "source": {
+      "path": "edges/pass/all-verbs-and-addresses.ia",
+      "line": 41,
+      "endLine": 44
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "governance"
+        },
+        "span": {
+          "line": 42,
+          "endLine": 42
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 43,
+          "endLine": 44
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 44,
+              "endLine": 44
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/law",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "law",
+    "displayName": "law",
+    "discriminator": "schema",
+    "source": {
+      "path": "edges/pass/all-verbs-and-addresses.ia",
+      "line": 45,
+      "endLine": 48
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "governance"
+        },
+        "span": {
+          "line": 46,
+          "endLine": 46
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 47,
+          "endLine": 48
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 48,
+              "endLine": 48
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/contract",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "contract",
+    "displayName": "contract",
+    "discriminator": "schema",
+    "source": {
+      "path": "edges/pass/all-verbs-and-addresses.ia",
+      "line": 49,
+      "endLine": 52
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "contract"
+        },
+        "span": {
+          "line": 50,
+          "endLine": 50
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 51,
+          "endLine": 52
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 52,
+              "endLine": 52
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/case",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "case",
+    "displayName": "case",
+    "discriminator": "schema",
+    "source": {
+      "path": "edges/pass/all-verbs-and-addresses.ia",
+      "line": 53,
+      "endLine": 56
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "check"
+        },
+        "span": {
+          "line": 54,
+          "endLine": 54
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 55,
+          "endLine": 56
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 56,
+              "endLine": 56
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "fixture-system/governance/head/target",
+    "system": "fixture-system",
+    "kind": "governance",
+    "facet": "head",
+    "name": "target",
+    "displayName": "target",
+    "discriminator": "playbook",
+    "source": {
+      "path": "edges/pass/all-verbs-and-addresses.ia",
+      "line": 57,
+      "endLine": 57
+    },
+    "head": [],
+    "sections": [],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/playbook",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "fixture-system/governance/head/author-record",
+    "system": "fixture-system",
+    "kind": "governance",
+    "facet": "head",
+    "name": "author-record",
+    "displayName": "author-record",
+    "discriminator": "playbook",
+    "source": {
+      "path": "edges/pass/all-verbs-and-addresses.ia",
+      "line": 58,
+      "endLine": 114
+    },
+    "head": [],
+    "sections": [
+      {
+        "name": "relationships",
+        "span": {
+          "line": 59,
+          "endLine": 114
+        },
+        "fields": [
+          {
+            "key": "govern",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 60,
+              "endLine": 60
+            }
+          },
+          {
+            "key": "governed-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 61,
+              "endLine": 61
+            }
+          },
+          {
+            "key": "enforce",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 62,
+              "endLine": 62
+            }
+          },
+          {
+            "key": "enforced-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 63,
+              "endLine": 63
+            }
+          },
+          {
+            "key": "ground",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 64,
+              "endLine": 64
+            }
+          },
+          {
+            "key": "grounded-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 65,
+              "endLine": 65
+            }
+          },
+          {
+            "key": "constrain",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 66,
+              "endLine": 66
+            }
+          },
+          {
+            "key": "constrained-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 67,
+              "endLine": 67
+            }
+          },
+          {
+            "key": "implement",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 68,
+              "endLine": 68
+            }
+          },
+          {
+            "key": "implemented-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 69,
+              "endLine": 69
+            }
+          },
+          {
+            "key": "produce",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 70,
+              "endLine": 70
+            }
+          },
+          {
+            "key": "produced-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 71,
+              "endLine": 71
+            }
+          },
+          {
+            "key": "consume",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 72,
+              "endLine": 72
+            }
+          },
+          {
+            "key": "consumed-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 73,
+              "endLine": 73
+            }
+          },
+          {
+            "key": "record-lineage-from",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 74,
+              "endLine": 74
+            }
+          },
+          {
+            "key": "lineage-recorded-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 75,
+              "endLine": 75
+            }
+          },
+          {
+            "key": "grant-access-to",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 76,
+              "endLine": 76
+            }
+          },
+          {
+            "key": "access-granted-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 77,
+              "endLine": 77
+            }
+          },
+          {
+            "key": "run-before",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 78,
+              "endLine": 78
+            }
+          },
+          {
+            "key": "run-after",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 79,
+              "endLine": 79
+            }
+          },
+          {
+            "key": "trigger",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 80,
+              "endLine": 80
+            }
+          },
+          {
+            "key": "triggered-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 81,
+              "endLine": 81
+            }
+          },
+          {
+            "key": "cite",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 82,
+              "endLine": 82
+            }
+          },
+          {
+            "key": "cited-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 83,
+              "endLine": 83
+            }
+          },
+          {
+            "key": "supersede",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 84,
+              "endLine": 84
+            }
+          },
+          {
+            "key": "superseded-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 85,
+              "endLine": 85
+            }
+          },
+          {
+            "key": "require",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 86,
+              "endLine": 86
+            }
+          },
+          {
+            "key": "required-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 87,
+              "endLine": 87
+            }
+          },
+          {
+            "key": "use",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 88,
+              "endLine": 88
+            }
+          },
+          {
+            "key": "used-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 89,
+              "endLine": 89
+            }
+          },
+          {
+            "key": "forbid",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 90,
+              "endLine": 90
+            }
+          },
+          {
+            "key": "forbidden-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 91,
+              "endLine": 91
+            }
+          },
+          {
+            "key": "route",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 92,
+              "endLine": 92
+            }
+          },
+          {
+            "key": "routed-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 93,
+              "endLine": 93
+            }
+          },
+          {
+            "key": "land",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 94,
+              "endLine": 94
+            }
+          },
+          {
+            "key": "landed-by",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 95,
+              "endLine": 95
+            }
+          },
+          {
+            "key": "governs",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 96,
+              "endLine": 96
+            }
+          },
+          {
+            "key": "enforces",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 97,
+              "endLine": 97
+            }
+          },
+          {
+            "key": "grounds",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 98,
+              "endLine": 98
+            }
+          },
+          {
+            "key": "constrains",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 99,
+              "endLine": 99
+            }
+          },
+          {
+            "key": "implements",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 100,
+              "endLine": 100
+            }
+          },
+          {
+            "key": "produces",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 101,
+              "endLine": 101
+            }
+          },
+          {
+            "key": "consumes",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 102,
+              "endLine": 102
+            }
+          },
+          {
+            "key": "records",
+            "value": {
+              "kind": "scalar",
+              "text": "lineage from fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 103,
+              "endLine": 103
+            }
+          },
+          {
+            "key": "grants access to",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 104,
+              "endLine": 104
+            }
+          },
+          {
+            "key": "runs",
+            "value": {
+              "kind": "scalar",
+              "text": "before fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 105,
+              "endLine": 105
+            }
+          },
+          {
+            "key": "triggers",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 106,
+              "endLine": 106
+            }
+          },
+          {
+            "key": "cites",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 107,
+              "endLine": 107
+            }
+          },
+          {
+            "key": "supersedes",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 108,
+              "endLine": 108
+            }
+          },
+          {
+            "key": "requires",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 109,
+              "endLine": 109
+            }
+          },
+          {
+            "key": "uses",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 110,
+              "endLine": 110
+            }
+          },
+          {
+            "key": "forbids",
+            "value": {
+              "kind": "scalar",
+              "text": "fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 111,
+              "endLine": 111
+            }
+          },
+          {
+            "key": "routes to",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target"
+            },
+            "span": {
+              "line": 112,
+              "endLine": 112
+            }
+          },
+          {
+            "key": "lands",
+            "value": {
+              "kind": "scalar",
+              "text": "at fixture-system/governance/head/target"
+            },
+            "span": {
+              "line": 113,
+              "endLine": 113
+            }
+          },
+          {
+            "key": "cites",
+            "value": {
+              "kind": "ref",
+              "discriminator": "playbook",
+              "name": "target",
+              "fragment": "act/Decision"
+            },
+            "span": {
+              "line": 114,
+              "endLine": 114
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "predicate": "govern",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 60,
+          "endLine": 60
+        }
+      },
+      {
+        "predicate": "govern",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 61,
+          "endLine": 61
+        }
+      },
+      {
+        "predicate": "enforce",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 62,
+          "endLine": 62
+        }
+      },
+      {
+        "predicate": "enforce",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 63,
+          "endLine": 63
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 64,
+          "endLine": 64
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 65,
+          "endLine": 65
+        }
+      },
+      {
+        "predicate": "constrain",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 66,
+          "endLine": 66
+        }
+      },
+      {
+        "predicate": "constrain",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 67,
+          "endLine": 67
+        }
+      },
+      {
+        "predicate": "implement",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 68,
+          "endLine": 68
+        }
+      },
+      {
+        "predicate": "implement",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 69,
+          "endLine": 69
+        }
+      },
+      {
+        "predicate": "produce",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 70,
+          "endLine": 70
+        }
+      },
+      {
+        "predicate": "produce",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 71,
+          "endLine": 71
+        }
+      },
+      {
+        "predicate": "consume",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 72,
+          "endLine": 72
+        }
+      },
+      {
+        "predicate": "consume",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 73,
+          "endLine": 73
+        }
+      },
+      {
+        "predicate": "record-lineage-from",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 74,
+          "endLine": 74
+        }
+      },
+      {
+        "predicate": "record-lineage-from",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 75,
+          "endLine": 75
+        }
+      },
+      {
+        "predicate": "grant-access-to",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 76,
+          "endLine": 76
+        }
+      },
+      {
+        "predicate": "grant-access-to",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 77,
+          "endLine": 77
+        }
+      },
+      {
+        "predicate": "run-before",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 78,
+          "endLine": 78
+        }
+      },
+      {
+        "predicate": "run-before",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 79,
+          "endLine": 79
+        }
+      },
+      {
+        "predicate": "trigger",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 80,
+          "endLine": 80
+        }
+      },
+      {
+        "predicate": "trigger",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 81,
+          "endLine": 81
+        }
+      },
+      {
+        "predicate": "cite",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 82,
+          "endLine": 82
+        }
+      },
+      {
+        "predicate": "cite",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 83,
+          "endLine": 83
+        }
+      },
+      {
+        "predicate": "supersede",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 84,
+          "endLine": 84
+        }
+      },
+      {
+        "predicate": "supersede",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 85,
+          "endLine": 85
+        }
+      },
+      {
+        "predicate": "require",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 86,
+          "endLine": 86
+        }
+      },
+      {
+        "predicate": "require",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 87,
+          "endLine": 87
+        }
+      },
+      {
+        "predicate": "use",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 88,
+          "endLine": 88
+        }
+      },
+      {
+        "predicate": "use",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 89,
+          "endLine": 89
+        }
+      },
+      {
+        "predicate": "forbid",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 90,
+          "endLine": 90
+        }
+      },
+      {
+        "predicate": "forbid",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 91,
+          "endLine": 91
+        }
+      },
+      {
+        "predicate": "route",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 92,
+          "endLine": 92
+        }
+      },
+      {
+        "predicate": "route",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 93,
+          "endLine": 93
+        }
+      },
+      {
+        "predicate": "land",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 94,
+          "endLine": 94
+        }
+      },
+      {
+        "predicate": "land",
+        "direction": "in",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 95,
+          "endLine": 95
+        }
+      },
+      {
+        "predicate": "govern",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 96,
+          "endLine": 96
+        }
+      },
+      {
+        "predicate": "enforce",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 97,
+          "endLine": 97
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 98,
+          "endLine": 98
+        }
+      },
+      {
+        "predicate": "constrain",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 99,
+          "endLine": 99
+        }
+      },
+      {
+        "predicate": "implement",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 100,
+          "endLine": 100
+        }
+      },
+      {
+        "predicate": "produce",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 101,
+          "endLine": 101
+        }
+      },
+      {
+        "predicate": "consume",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 102,
+          "endLine": 102
+        }
+      },
+      {
+        "predicate": "record-lineage-from",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 103,
+          "endLine": 103
+        }
+      },
+      {
+        "predicate": "grant-access-to",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 104,
+          "endLine": 104
+        }
+      },
+      {
+        "predicate": "run-before",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 105,
+          "endLine": 105
+        }
+      },
+      {
+        "predicate": "trigger",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 106,
+          "endLine": 106
+        }
+      },
+      {
+        "predicate": "cite",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 107,
+          "endLine": 107
+        }
+      },
+      {
+        "predicate": "supersede",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 108,
+          "endLine": 108
+        }
+      },
+      {
+        "predicate": "require",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 109,
+          "endLine": 109
+        }
+      },
+      {
+        "predicate": "use",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 110,
+          "endLine": 110
+        }
+      },
+      {
+        "predicate": "forbid",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 111,
+          "endLine": 111
+        }
+      },
+      {
+        "predicate": "route",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 112,
+          "endLine": 112
+        }
+      },
+      {
+        "predicate": "land",
+        "direction": "out",
+        "reference": {
+          "kind": "identity",
+          "identity": "fixture-system/governance/head/target"
+        },
+        "target": "fixture-system/governance/head/target",
+        "span": {
+          "line": 113,
+          "endLine": 113
+        }
+      },
+      {
+        "predicate": "cite",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "playbook",
+          "name": "target",
+          "fragment": "act/Decision"
+        },
+        "target": "fixture-system/governance/head/target",
+        "fragment": "act/Decision",
+        "span": {
+          "line": 114,
+          "endLine": 114
+        }
+      }
+    ],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/playbook",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  }
+]

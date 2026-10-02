@@ -1,0 +1,6 @@
+#! ia 1.0
+@case c
+  relationships
+    implements @contract x#REQ-1
+    cites @law y#part-2 when severity is blocking
+    requires [@law a, @law b#frag]

@@ -1,0 +1,34 @@
+#! ia 1.0
+
+@system authoring-system
+  provider "inventarch.local"
+  version "0.1.0"
+  describes "Public authoring-system vocabulary contracts"
+  steward @agent public-authoring-system-steward
+  requires
+    - agent-system
+    - governance-system
+    - compliance-system
+  discriminators
+    authoring-guide lowers to definition
+      category representation
+      facets [authoring-guide]
+      schema @schema authoring-guide
+    operation lowers to binding
+      category capability
+      facets [operation]
+      schema @schema operation
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+
+@agent public-authoring-system-steward
+  meaning
+    says "Identifies the owner of authoring-system contracts in this example."
+    answers "Who owns the authoring-guide and operation words in this example?"
+  governance
+    applies [authoring-guide, operation]

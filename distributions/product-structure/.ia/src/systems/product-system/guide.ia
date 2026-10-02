@@ -1,0 +1,17 @@
+#! ia 1.0
+
+@authoring-guide product-system-product
+  meaning
+    says "Author a stable product and its typed plan associations without confusing domain ownership with access rights."
+    answers "When should an author select product and how is its consumer contract checked?"
+  reference
+    owner product-system
+    word product
+    schema @schema product
+    document ".ia/src/systems/product-system/schemas/product.SPEC.md"
+  guidance
+    select-when "A stable product identity groups work plans across service resource bindings."
+    avoid-when "Only composition, a release archive, an obligation or a single work plan is needed."
+    consider "Use a local agent and real plan references; exact source revision and directory authority are separate service inputs."
+  relationships
+    cites @schema product

@@ -1,0 +1,44 @@
+#! ia 1.0
+
+@value-type text
+  meaning
+    says "Scalar, quoted string or folded prose text, including empty quoted text."
+    answers "What does text designate in the value-type domain?"
+  data
+    order 0
+
+@value-type id
+  meaning
+    says "An ASCII-letter-led identifier containing letters, digits and hyphens."
+    answers "What does id designate in the value-type domain?"
+  data
+    order 1
+
+@value-type qname
+  meaning
+    says "A canonical four-slot system/kind/facet/name identity."
+    answers "What does qname designate in the value-type domain?"
+  data
+    order 2
+
+@value-type number
+  meaning
+    says "A finite decimal number with optional sign, fraction and exponent."
+    answers "What does number designate in the value-type domain?"
+  data
+    order 3
+
+@value-type ref
+  meaning
+    says "A typed sigil reference to a record, optionally with a fragment."
+    answers "What does ref designate in the value-type domain?"
+  data
+    order 4
+
+@value-type flag
+  meaning
+    says "A bare field key, or an unquoted true or false scalar."
+    answers "What does flag designate in the value-type domain?"
+  data
+    order 5
+

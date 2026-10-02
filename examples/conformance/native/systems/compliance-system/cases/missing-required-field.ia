@@ -1,0 +1,14 @@
+#! ia 1.0
+
+@case missing-required-field
+  meaning
+    says "A structural authoring scenario: missing-required-field."
+    answers "What observation establishes the authoring outcome?"
+  scenario
+    kind failure
+    given "A native agent record whose governance.applies field is missing."
+    request "Validate the incomplete agent record."
+    expected "FIELD-MISSING names governance.applies and the assessment fails."
+    evaluator "Native corpus mutation tests in tools/native/check.test.ts; structural outcomes only, no model execution."
+  relationships
+    implements @contract foundation-authoring-contract#REQ-FOUNDATION-REFUSE

@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@schema convention
+  lowers to governance
+  sections
+    must have meaning
+    must have governance
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have governance.severity as id

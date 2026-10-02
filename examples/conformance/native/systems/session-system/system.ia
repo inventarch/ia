@@ -1,0 +1,24 @@
+#! ia 1.0
+
+@system session-system
+  provider "inventarch.foundation"
+  version "0.1.0"
+  describes "Public session-system vocabulary contracts"
+  steward @agent session-steward
+  requires
+    - agent-system
+    - workspace-system
+    - governance-system
+  discriminators
+    run lowers to definition
+      category event
+      facets [run]
+      schema @schema run
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+

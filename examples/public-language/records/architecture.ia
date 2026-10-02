@@ -1,0 +1,54 @@
+#! ia 1.0
+
+@workspace example-interface
+  meaning
+    says "A boundary representing the example's interface layer."
+    answers "Which boundary depends on the storage boundary?"
+  composition
+    systems [@system compliance-system]
+  relationships
+    uses @workspace example-storage
+    requires @contract example-boundary
+
+@workspace example-storage
+  meaning
+    says "A boundary representing the example's storage layer."
+    answers "Which boundary is referenced by the interface?"
+  composition
+    systems [@system compliance-system]
+
+@contract example-boundary
+  version "1.0.0"
+  meaning
+    says "A sample architectural dependency constraint."
+    answers "What dependency must this representation declare?"
+  invariants
+    REQ-EXAMPLE-BOUNDARY "The interface boundary declares a use edge to the storage boundary."
+  relationships
+    governs @workspace example-interface
+
+@case example-boundary-case
+  meaning
+    says "A declared scenario for the dependency constraint."
+    answers "Which architectural relationship is checked?"
+  scenario
+    kind success
+    given "The interface and storage boundary records."
+    request "Resolve the use edge from interface to storage."
+    expected "The use edge resolves to the storage boundary."
+    evaluator "example-boundary-edge"
+  relationships
+    implements @contract example-boundary#REQ-EXAMPLE-BOUNDARY
+
+@case example-boundary-failure
+  meaning
+    says "A declared failure scenario for the example dependency."
+    answers "What happens when the required dependency is absent?"
+  scenario
+    kind failure
+    given "An interface without a declared storage dependency."
+    request "Inspect the resolved dependency edges."
+    expected "The dependency requirement fails."
+    evaluator "example-boundary"
+  relationships
+    implements @contract example-boundary#REQ-EXAMPLE-BOUNDARY

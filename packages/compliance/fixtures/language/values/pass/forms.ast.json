@@ -1,0 +1,177 @@
+{
+  "kind": "file",
+  "path": "values/pass/forms.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "law",
+      "name": "x",
+      "head": [
+        {
+          "kind": "field",
+          "key": "category",
+          "words": [
+            "category",
+            "is",
+            "capability"
+          ],
+          "value": {
+            "kind": "scalar",
+            "text": "capability"
+          },
+          "assertive": true,
+          "span": {
+            "line": 3,
+            "endLine": 3
+          },
+          "children": []
+        }
+      ],
+      "sections": [
+        {
+          "kind": "section",
+          "name": "meaning",
+          "span": {
+            "line": 4,
+            "endLine": 11
+          },
+          "children": [
+            {
+              "kind": "field",
+              "key": "says",
+              "words": [
+                "says",
+                "spaced",
+                "scalar"
+              ],
+              "value": {
+                "kind": "scalar",
+                "text": "spaced scalar"
+              },
+              "span": {
+                "line": 5,
+                "endLine": 5
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "state",
+              "words": [
+                "state",
+                "active"
+              ],
+              "value": {
+                "kind": "scalar",
+                "text": "active"
+              },
+              "when": [
+                "phase",
+                "is",
+                "orient"
+              ],
+              "span": {
+                "line": 6,
+                "endLine": 6
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "cites",
+              "words": [
+                "cites"
+              ],
+              "value": {
+                "kind": "ref",
+                "discriminator": "law",
+                "name": "y",
+                "raw": "@law y"
+              },
+              "when": [
+                "\"even when quoted\""
+              ],
+              "span": {
+                "line": 7,
+                "endLine": 7
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "label",
+              "words": [
+                "label"
+              ],
+              "value": {
+                "kind": "string",
+                "text": "héllo ✓",
+                "raw": "\"héllo ✓\""
+              },
+              "span": {
+                "line": 8,
+                "endLine": 8
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "empty",
+              "words": [
+                "empty"
+              ],
+              "value": {
+                "kind": "none"
+              },
+              "span": {
+                "line": 9,
+                "endLine": 9
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "holds",
+              "words": [
+                "holds"
+              ],
+              "value": {
+                "kind": "block"
+              },
+              "span": {
+                "line": 10,
+                "endLine": 11
+              },
+              "children": [
+                {
+                  "kind": "field",
+                  "key": "child",
+                  "words": [
+                    "child"
+                  ],
+                  "value": {
+                    "kind": "string",
+                    "text": "c",
+                    "raw": "\"c\""
+                  },
+                  "span": {
+                    "line": 11,
+                    "endLine": 11
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "nested": [],
+      "span": {
+        "line": 2,
+        "endLine": 11
+      }
+    }
+  ],
+  "trivia": []
+}

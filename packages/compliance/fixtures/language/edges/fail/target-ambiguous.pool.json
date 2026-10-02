@@ -1,0 +1,26 @@
+[
+  {
+    "path": "pool/one.ia",
+    "source": "#! ia 1.0\n@playbook external\n",
+    "location": {
+      "placement": {
+        "kind": "authored",
+        "band": 100,
+        "reach": ""
+      },
+      "provenance": "workspace"
+    }
+  },
+  {
+    "path": "pool/two.ia",
+    "source": "#! ia 1.0\n@playbook external\n",
+    "location": {
+      "placement": {
+        "kind": "floor",
+        "band": 10,
+        "reach": ""
+      },
+      "provenance": "bootstrap"
+    }
+  }
+]

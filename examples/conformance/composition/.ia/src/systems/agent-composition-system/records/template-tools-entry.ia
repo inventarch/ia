@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@execution-binding template-tools-entry
+  meaning
+    says "Fixture template-tools-entry text 1."
+    answers "Fixture template-tools-entry text 2."
+  binding
+    kind entry
+    target @agent-profile template-tools-profile
+    implementation harness-entry-v1
+    mapping identity-v1

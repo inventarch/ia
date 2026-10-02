@@ -1,0 +1,29 @@
+#! ia 1.0
+
+@dimension severity
+  meaning
+    says "The governance stakes read from governance.severity; a declared request may raise them."
+    answers "Should the condition depend on how much is at stake if the governing rule is broken?"
+  data
+    order 0
+    values [blocking, advisory, informational]
+    path "governance.severity"
+
+@dimension provenance
+  meaning
+    says "The source provenance supplied by the loader, never inferred from prose."
+    answers "Should the condition depend on where the loader says a source came from, never on what its prose claims?"
+  data
+    order 1
+    values [workspace, methodology, bootstrap, runtime]
+    path "provenance"
+
+@dimension artifact-set
+  meaning
+    says "The subject artifact classification supplied by the classification consumer."
+    answers "Should the condition depend on which role the subject artifact itself serves?"
+  data
+    order 2
+    values [inquiry, decision, contract, product-definition, execution, operational, evidence, projection, principle]
+    path "classification"
+

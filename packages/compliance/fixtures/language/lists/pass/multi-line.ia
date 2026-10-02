@@ -1,0 +1,9 @@
+#! ia 1.0
+@law x
+  meaning
+    tags [  # opener
+      one,   # first
+      "two words",
+      @law y,  # a reference
+    ]
+    single [a, "b c", @law z]

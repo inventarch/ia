@@ -1,0 +1,16 @@
+#! ia 1.0
+
+@contract template-rendering-contract
+  version "0.1.0"
+  meaning
+    says "Structured-v1 captured rendering returns bounded, pinned draft bytes or a refusal, and writes nothing."
+    answers "What must render-captured-template require of its template, scope, resource and values, return as a draft and refuse?"
+  relationships
+    governs @operation render-captured-template
+  inputs
+    REQ-TMPL-SCOPE "Render only a structured-v1 @template occurrence in the selected capture and the explicit current scope, with a fixed portable filename, empty parameters and lines, and one required captured JSON template resource that the caller permits and the expected resources digest pins."
+    REQ-TMPL-VALUES "Accept values as a JSON object, or JSON text without duplicate fields, that supplies every required declared input with its declared type, no unknown input or item field, within TEMPLATE_LIMITS."
+  outputs
+    REQ-TMPL-DRAFT "Return the draft path, text, byte count and sha256 with the capture, view and resources pins and a metadata digest; check .json output as JSON and .ia output by contextual preview in a complete scope; write nothing."
+  failures
+    REQ-TMPL-REFUSE "Return status refused and no artifact: IA-EXEC-INPUT-INVALID when values break the declared inputs, IA-RESOURCE-INVALID when the resource envelope is malformed, stale or unpermitted, and IA-EXEC-TEMPLATE-INVALID for any other template, scope, profile or output failure."

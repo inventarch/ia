@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@distribution public-language
+  meaning
+    says "The public language contracts and neutral examples."
+    answers "Which roots form the public language distribution?"
+  distribution
+    records [@workspace example-workspace, @workspace example-module, @workspace example-interface]

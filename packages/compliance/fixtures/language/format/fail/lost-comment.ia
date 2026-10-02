@@ -1,0 +1,5 @@
+#! ia 1.0
+# This comment must survive.
+@agent writer
+  meaning
+    says "Author records."

@@ -1,0 +1,16 @@
+#! ia 1.0
+
+@schema domain-model
+  lowers to definition
+  sections
+    must have meaning
+    must have model
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have model.format as number
+    must have model.version as text
+    must have model.resource as text
+    must have model.digest as text

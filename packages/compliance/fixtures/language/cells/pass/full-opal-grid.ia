@@ -1,0 +1,92 @@
+#! ia 1.0
+@system fixture-system
+  provider "conformance"
+  version "1.0.0"
+  discriminators
+    playbook lowers to governance
+      category process
+      facets [head]
+      schema @schema playbook
+    law lowers to governance
+      category process
+      facets [head]
+      schema @schema law
+    contract lowers to contract
+      category process
+      facets [head]
+      schema @schema contract
+    case lowers to check
+      category process
+      facets [head]
+      schema @schema case
+  edges
+    govern * using *
+    enforce * using *
+    ground * using *
+    constrain * using *
+    implement * using *
+    produce * using *
+    consume * using *
+    record-lineage-from * using *
+    grant-access-to * using *
+    run-before * using *
+    trigger * using *
+    cite * using *
+    supersede * using *
+    require * using *
+    use * using *
+    forbid * using *
+    route * using *
+    land * using *
+@schema playbook
+  lowers to governance
+  sections
+    open
+@schema law
+  lowers to governance
+  sections
+    open
+@schema contract
+  lowers to contract
+  sections
+    open
+@schema case
+  lowers to check
+  sections
+    open
+@playbook target
+@playbook author-record
+  describes "A representative authoring procedure with every cell address."
+  cognition
+    orient
+      primary Memory
+      Memory means "Recall the operator intent and the last verified revision."
+      Attention means "Sample fixture statement 3. system registration and schema."
+      Inference means "Identify the existing word, kind and facet that fit the request."
+      Decision means "Choose the existing record or artifact to update."
+      Escalation means "Ask only when a required decision or authority is absent."
+      Learning means "Retain a newly discovered constraint with its source."
+    plan
+      primary Inference
+      Memory means "Read the owning spec section and current plan task."
+      Attention means "Identify affected consumers and acceptance cases."
+      Inference means "Derive the smallest change that connects the required behavior."
+      Decision means "Prepare a bounded work packet before implementation."
+      Escalation means "Resolve an incompatible requirement before dependent work."
+      Learning means "Record why the chosen scope fits the current foundation."
+    act
+      primary Decision
+      Memory means "Keep the accepted contract and source revision available."
+      Attention means "Watch diagnostics and preserve primary refusal ownership."
+      Inference means "Use the shared parser and compiler to interpret records."
+      Decision means "Author the record and run its applicable validation stages."
+      Escalation means "Stop publication when an error or essential decision remains."
+      Learning means "Retain observed validation evidence with the changed artifact."
+    learn
+      primary Learning
+      Memory means "Recall the original acceptance and actual changes."
+      Attention means "Compare the produced artifact with each promised outcome."
+      Inference means "Separate demonstrated behavior from unimplemented consumers."
+      Decision means "Commit the verified change and update the next task."
+      Escalation means "Report unresolved evidence without claiming completion."
+      Learning means "Preserve reusable findings in their owning maintained artifact."

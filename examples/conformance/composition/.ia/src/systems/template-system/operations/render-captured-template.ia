@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@operation render-captured-template
+  meaning
+    says "Fixture render-captured-template text 1."
+    answers "Fixture render-captured-template text 2."
+  execution
+    handler captured-template-render-v1
+    effects draft-only
+    input captured-template-input-v1
+    output draft-result-v1
+    profile governed-v1
+    recovery repeatable

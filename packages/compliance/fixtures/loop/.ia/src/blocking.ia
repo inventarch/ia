@@ -1,0 +1,8 @@
+#! ia 1.0
+@law always-check-inputs
+  meaning
+    says "Inspect required input before acting."
+    answers "What input must be retained?"
+  governance
+    severity blocking
+    requires "Keep the supplied scope and revision attached to every result."

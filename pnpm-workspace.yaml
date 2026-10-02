@@ -1,0 +1,18 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+  - ".ia/src/systems/*"
+allowBuilds:
+  lefthook: true
+  nx: true
+catalog:
+  "@types/node": ^22.19.0
+  tsx: ^4.22.3
+  typescript: ^5.9.3
+  vitest: ^4.1.4
+nodeLinker: hoisted
+# Keep Nx's pinned transitive dependencies on patched releases.
+overrides:
+  "nx>axios": "1.20.0"
+  "nx>brace-expansion": "5.0.12"
+  "nx>smol-toml": "1.7.1"

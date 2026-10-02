@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@schema check
+  lowers to check
+  sections
+    must have meaning
+    must have check
+    may have relationships
+    may have governance
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have check.runs as id
+    must have check.scope as text

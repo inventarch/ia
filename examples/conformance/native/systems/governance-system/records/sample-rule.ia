@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@law sample-rule
+  meaning
+    says "Sample fixture statement 1."
+    answers "Sample fixture statement 2."
+  governance
+    severity blocking
+    requires "Sample fixture statement 3."
+    requires "Sample fixture statement 4."
+      when primitive is Memory and severity is blocking
+  relationships
+    enforced-by @check instance-schema-check when phase is act and severity is blocking

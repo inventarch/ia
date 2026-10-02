@@ -1,0 +1,13 @@
+#! ia 1.0
+@contract product-structure
+  version "1.0.0"
+  meaning
+    says "Defines the explicit public structural product reader boundary."
+    answers "Which behavior must a product consumer qualify?"
+  outputs
+    REQ-PRODUCT-ADOPTION "Product is available only after explicit structural adoption; canonical language excludes it."
+    REQ-PRODUCT-IDENTITY "Descriptive and domain status changes preserve identity; stale snapshot revisions refuse."
+    REQ-PRODUCT-SHAPE "Native fields and strict reader format/title constraints must pass before returning a product."
+    REQ-PRODUCT-REFERENCES "Owner and unique plan references must resolve to their declared words."
+  relationships
+    governs @workspace product-structure

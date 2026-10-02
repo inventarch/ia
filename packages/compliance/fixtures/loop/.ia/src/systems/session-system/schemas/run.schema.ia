@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@schema run
+  lowers to definition
+  sections
+    must have meaning
+    must have execution
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have execution.status as id
+    must have execution.phase as id
+    must have execution.owner as ref

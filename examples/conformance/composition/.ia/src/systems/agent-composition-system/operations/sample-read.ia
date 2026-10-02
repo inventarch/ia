@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@operation sample-read
+  meaning
+    says "Fixture sample-read text 1."
+    answers "Fixture sample-read text 2."
+  execution
+    handler fixture-read-v1
+    effects read-only
+    input corpus-input-v1
+    output corpus-output-v1
+    profile governed-v1
+    recovery repeatable

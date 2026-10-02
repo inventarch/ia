@@ -1,0 +1,20 @@
+#! ia 1.0
+@system agent-system
+  provider "agent-system"
+  version "0.1.0"
+  requires
+    - taxonomy
+  discriminators
+    agent lowers to binding
+      category capability
+      facets [head, steward]
+      schema @schema agent
+  edges
+    cite * using agent
+@schema agent
+  lowers to binding
+  sections
+    must have meaning
+    closed
+@agent same
+@agent Same

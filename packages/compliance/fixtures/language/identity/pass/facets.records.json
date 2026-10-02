@@ -1,0 +1,300 @@
+[
+  {
+    "identity": "floor/definition/system/agent-system",
+    "system": "floor",
+    "kind": "definition",
+    "facet": "system",
+    "name": "agent-system",
+    "displayName": "agent-system",
+    "discriminator": "system",
+    "source": {
+      "path": "identity/pass/facets.ia",
+      "line": 2,
+      "endLine": 13
+    },
+    "head": [
+      {
+        "key": "provider",
+        "value": {
+          "kind": "string",
+          "text": "agent-system"
+        },
+        "span": {
+          "line": 3,
+          "endLine": 3
+        }
+      },
+      {
+        "key": "version",
+        "value": {
+          "kind": "string",
+          "text": "0.1.0"
+        },
+        "span": {
+          "line": 4,
+          "endLine": 4
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "requires",
+        "span": {
+          "line": 5,
+          "endLine": 6
+        },
+        "fields": [
+          {
+            "item": {
+              "kind": "scalar",
+              "text": "taxonomy"
+            },
+            "span": {
+              "line": 6,
+              "endLine": 6
+            }
+          }
+        ]
+      },
+      {
+        "name": "discriminators",
+        "span": {
+          "line": 7,
+          "endLine": 11
+        },
+        "fields": [
+          {
+            "key": "agent",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to binding"
+            },
+            "span": {
+              "line": 8,
+              "endLine": 11
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "capability"
+                },
+                "span": {
+                  "line": 9,
+                  "endLine": 9
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    },
+                    {
+                      "kind": "scalar",
+                      "text": "steward"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 10,
+                  "endLine": 10
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "agent"
+                },
+                "span": {
+                  "line": 11,
+                  "endLine": 11
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "edges",
+        "span": {
+          "line": 12,
+          "endLine": 13
+        },
+        "fields": [
+          {
+            "key": "cite",
+            "value": {
+              "kind": "scalar",
+              "text": "* using agent"
+            },
+            "span": {
+              "line": 13,
+              "endLine": 13
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "target": "floor/contract/head/agent",
+        "span": {
+          "line": 8,
+          "endLine": 11
+        },
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "agent"
+        }
+      }
+    ],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/system",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/agent",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "agent",
+    "displayName": "agent",
+    "discriminator": "schema",
+    "source": {
+      "path": "identity/pass/facets.ia",
+      "line": 14,
+      "endLine": 18
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "binding"
+        },
+        "span": {
+          "line": 15,
+          "endLine": 15
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 16,
+          "endLine": 18
+        },
+        "fields": [
+          {
+            "key": "must have",
+            "value": {
+              "kind": "scalar",
+              "text": "meaning"
+            },
+            "span": {
+              "line": 17,
+              "endLine": 17
+            }
+          },
+          {
+            "key": "closed",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 18,
+              "endLine": 18
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "agent-system/binding/steward/a",
+    "system": "agent-system",
+    "kind": "binding",
+    "facet": "steward",
+    "name": "a",
+    "displayName": "A",
+    "discriminator": "agent",
+    "source": {
+      "path": "identity/pass/facets.ia",
+      "line": 19,
+      "endLine": 20
+    },
+    "head": [],
+    "sections": [],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/agent",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "agent-system/binding/head/b",
+    "system": "agent-system",
+    "kind": "binding",
+    "facet": "head",
+    "name": "b",
+    "displayName": "B",
+    "discriminator": "agent",
+    "source": {
+      "path": "identity/pass/facets.ia",
+      "line": 21,
+      "endLine": 21
+    },
+    "head": [],
+    "sections": [],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/agent",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  }
+]

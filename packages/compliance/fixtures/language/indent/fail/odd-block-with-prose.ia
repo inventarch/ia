@@ -1,0 +1,6 @@
+#! ia 1.0
+@law x
+   odd "o"
+      says """a
+  b"""
+  other

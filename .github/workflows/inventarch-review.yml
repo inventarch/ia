@@ -1,0 +1,73 @@
+name: InventArch advisory review
+
+on:
+  workflow_run:
+    workflows: [Public quality]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Completed Public quality pull-request run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inventarch-review-${{ github.event.workflow_run.id || inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    # This switch admits the caller, not the API or a model. Deployment/binding/model
+    # prerequisites and the proposed history-aware review entry are in tools/review/README.md.
+    if: vars.IA_REVIEW_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+      pull-requests: write
+      id-token: write
+    steps:
+      # This workflow and caller always come from the default branch. Never check out PR code.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.0'
+      - name: Validate upstream run and current PR
+        id: subject
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IA_REVIEW_RUN_ID: ${{ inputs.run_id }}
+        run: node tools/review/runner.mjs --prepare
+      - name: Read upstream execution evidence
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: gate-linux
+          run-id: ${{ steps.subject.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/upstream-evidence
+      - name: Review and publish advisory
+        # runner.mjs exchanges GitHub OIDC, uploads the pinned subject and advances
+        # the API-owned review. Inference credentials and model selection stay in API.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IA_REVIEW_RUN_ID: ${{ steps.subject.outputs.run_id }}
+          IA_REVIEW_API: ${{ vars.IA_REVIEW_API }}
+          IA_REVIEW_BINDING: ${{ vars.IA_REVIEW_BINDING }}
+          IA_REVIEW_EVIDENCE: artifacts/upstream-evidence
+        run: node tools/review/runner.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: inventarch-review
+          path: artifacts/review
+          if-no-files-found: ignore
+          retention-days: 14

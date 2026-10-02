@@ -1,0 +1,37 @@
+#! ia 1.0
+
+@move Observation
+  meaning
+    says "Take in what is actually there — the move that reads state without changing it."
+    answers "Does the request read what is there and leave it unchanged?"
+  data
+    order 0
+
+@move Execution
+  meaning
+    says "Carry out the authorized action — the move that changes state."
+    answers "Does the request change state by carrying out authorized work itself?"
+  data
+    order 1
+
+@move Delegation
+  meaning
+    says "Hand bounded work to another actor — the move that assigns work while the delegator keeps responsibility and grants no new authority."
+    answers "Does the request pass bounded work to another actor while keeping responsibility for it?"
+  data
+    order 2
+
+@move Synthesis
+  meaning
+    says "Combine separate findings into one account — the move that produces a whole from parts."
+    answers "Does the request pull separate findings into one account?"
+  data
+    order 3
+
+@move Verification
+  meaning
+    says "Check a claim against evidence — the move that decides whether something holds."
+    answers "Does the request test a claim against evidence to settle whether it holds?"
+  data
+    order 4
+

@@ -1,0 +1,32 @@
+#! ia 1.0
+
+@system agent-system
+  provider "inventarch.foundation"
+  version "1.0.0"
+  describes "Public agent-system vocabulary contracts"
+  steward @agent public-agent-system-steward
+  requires
+    - floor
+  discriminators
+    agent lowers to binding
+      category capability
+      facets [agent]
+      schema @schema agent
+    mandate lowers to policy
+      category rule
+      facets [mandate]
+      schema @schema mandate
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+
+@agent public-agent-system-steward
+  meaning
+    says "Identifies the owner of agent-system contracts in this example."
+    answers "Who owns the agent and mandate words in this example?"
+  governance
+    applies [agent, mandate]

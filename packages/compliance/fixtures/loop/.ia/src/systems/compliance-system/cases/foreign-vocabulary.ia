@@ -1,0 +1,14 @@
+#! ia 1.0
+
+@case foreign-vocabulary
+  meaning
+    says "A structural authoring scenario: foreign-vocabulary."
+    answers "What observation establishes the authoring outcome?"
+  scenario
+    kind refusal
+    given "An agent-system record declared with the workspace discriminator without requiring workspace-system."
+    request "Validate the system folder."
+    expected "DISCRIMINATOR-FOREIGN identifies the missing dependency."
+    evaluator "Native corpus mutation tests in tools/native/check.test.ts; structural outcomes only, no model execution."
+  relationships
+    implements @contract foundation-authoring-contract#REQ-FOUNDATION-REFUSE

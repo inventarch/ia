@@ -1,0 +1,65 @@
+#! ia 1.0
+
+@artifact-set inquiry
+  meaning
+    says "Questions, exploration and research whose result is understanding."
+    answers "What does inquiry designate in the artifact-set domain?"
+  data
+    order 0
+
+@artifact-set decision
+  meaning
+    says "A retained choice with its reasons and constraints."
+    answers "What does decision designate in the artifact-set domain?"
+  data
+    order 1
+
+@artifact-set contract
+  meaning
+    says "An agreement or structural obligation consumers rely on."
+    answers "What does contract designate in the artifact-set domain?"
+  data
+    order 2
+
+@artifact-set product-definition
+  meaning
+    says "A definition of intended product behavior or structure."
+    answers "What does product-definition designate in the artifact-set domain?"
+  data
+    order 3
+
+@artifact-set execution
+  meaning
+    says "Work instructions, plans and implementations used to act."
+    answers "What does execution designate in the artifact-set domain?"
+  data
+    order 4
+
+@artifact-set operational
+  meaning
+    says "Configuration and records that maintain an operating environment."
+    answers "What does operational designate in the artifact-set domain?"
+  data
+    order 5
+
+@artifact-set evidence
+  meaning
+    says "An attributable observation used to verify a claim."
+    answers "What does evidence designate in the artifact-set domain?"
+  data
+    order 6
+
+@artifact-set projection
+  meaning
+    says "A generated rendering whose authored source remains authoritative."
+    answers "What does projection designate in the artifact-set domain?"
+  data
+    order 7
+
+@artifact-set principle
+  meaning
+    says "A durable guiding judgement applied across situations."
+    answers "What does principle designate in the artifact-set domain?"
+  data
+    order 8
+

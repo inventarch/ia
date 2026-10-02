@@ -1,0 +1,17 @@
+#! ia 1.0
+
+@schema template
+  lowers to template
+  sections
+    must have meaning
+    must have template
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have template.filename as text
+    must have template.parameters as list of id
+    must have template.lines as list of text
+    may have template.profile as id
+    may have template.resource as text

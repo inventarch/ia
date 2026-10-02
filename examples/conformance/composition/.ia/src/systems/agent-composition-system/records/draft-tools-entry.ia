@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@execution-binding draft-tools-entry
+  meaning
+    says "Fixture draft-tools-entry text 1."
+    answers "Fixture draft-tools-entry text 2."
+  binding
+    kind entry
+    target @agent-profile draft-tools-profile
+    implementation harness-entry-v1
+    mapping identity-v1

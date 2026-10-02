@@ -1,0 +1,73 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "sharedGlobals": [
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/pnpm-lock.yaml",
+      "{workspaceRoot}/pnpm-workspace.yaml",
+      "{workspaceRoot}/tsconfig.base.json",
+      "{workspaceRoot}/tsconfig.tools.json",
+      "{workspaceRoot}/vitest.tools.config.mts",
+      "{workspaceRoot}/nx.json",
+      "{workspaceRoot}/biome.jsonc",
+      "{workspaceRoot}/LICENSE",
+      "{workspaceRoot}/NOTICE*",
+      "{workspaceRoot}/**/THIRD_PARTY_NOTICES*",
+      "{workspaceRoot}/examples/**/*",
+      "{workspaceRoot}/apps/cli/assets/**/*",
+      "{workspaceRoot}/apps/distribution/assets/**/*",
+      "{workspaceRoot}/tools/testing/inventory.ts",
+      "{workspaceRoot}/tools/testing/orchestrate.ts",
+      "{workspaceRoot}/tools/testing/plan.ts",
+      "{workspaceRoot}/tools/testing/report.ts",
+      "{workspaceRoot}/tools/testing/resources.ts",
+      "{workspaceRoot}/tools/testing/run.ts",
+      "{workspaceRoot}/tools/testing/subprocess.ts",
+      "{workspaceRoot}/tools/testing/timeouts.ts",
+      "{workspaceRoot}/tools/testing/workflow.ts",
+      "{workspaceRoot}/tools/temp/physical-temp.mjs",
+      { "runtime": "node -p \"process.version+' '+process.versions.modules+' '+process.platform+' '+process.arch\"" },
+      { "env": "NX_CACHE_EPOCH" },
+      { "env": "ImageOS" },
+      { "env": "RUNNER_OS" }
+    ],
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "owner-source": ["{projectRoot}/**/*", "sharedGlobals"],
+    "dependency-source": ["{projectRoot}/**/*", "!{projectRoot}/**/*.test.*", "sharedGlobals"],
+    "workspace-records": [
+      "{projectRoot}/**/*",
+      "{workspaceRoot}/.ia/src/**/*",
+      "{workspaceRoot}/.ia/authoring.resources.json",
+      "{workspaceRoot}/LICENSE",
+      "{workspaceRoot}/examples/**/*",
+      "{workspaceRoot}/apps/marketplace/native/**/*",
+      "sharedGlobals"
+    ],
+    "development-native-build": [
+      "workspace-records",
+      "{workspaceRoot}/tools/native/language-base.ts",
+      "{workspaceRoot}/tools/native/public-language.ts"
+    ],
+    "tooling": ["{workspaceRoot}/tools/**/*", "sharedGlobals"],
+    "repository-inventory": ["{workspaceRoot}/**/*", "sharedGlobals"],
+    "emitted": [
+      "{workspaceRoot}/tools/services/*.mjs",
+      "{workspaceRoot}/tools/projections/*.mjs",
+      "{workspaceRoot}/tools/distribution/*.mjs",
+      "{workspaceRoot}/tools/projections/fixtures/**/*",
+      "{workspaceRoot}/.ia/src/**/*",
+      "{workspaceRoot}/.ia/authoring.resources.json",
+      "{workspaceRoot}/LICENSE",
+      "{workspaceRoot}/apps/marketplace/native/**/*",
+      "sharedGlobals"
+    ]
+  },
+  "targetDefaults": {},
+  "pluginsConfig": { "@nx/js": { "analyzeSourceFiles": true } },
+  "plugins": ["./tools/testing/nx-plugin.mjs"],
+  "cacheDirectory": ".nx/cache",
+  "parallel": 1,
+  "useInferencePlugins": true,
+  "defaultBase": "main",
+  "neverConnectToCloud": true
+}

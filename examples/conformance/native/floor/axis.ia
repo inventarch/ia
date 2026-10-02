@@ -1,0 +1,74 @@
+#! ia 1.0
+
+@axis shape
+  meaning
+    says "The intent framing of a request; a derived hint unless explicitly declared."
+    answers "Should selection depend on how the request is framed, whether declared or derived from its text?"
+  data
+    order 0
+    values [context, governance, execution, sequence, learning]
+
+@axis category
+  meaning
+    says "The sort of concept requested; request category is distinct from discriminator classification."
+    answers "Should selection depend on the sort of concept sought, whatever the record is registered as?"
+  data
+    order 1
+    values [thing, kind, property, state, event, relation, rule, capability, intent, decision, evidence, representation, process, measure, boundary]
+
+@axis phase
+  meaning
+    says "The declared position in orient, plan, act and learn."
+    answers "Should selection depend on where the work stands in the cycle from orienting to learning?"
+  data
+    order 2
+    values [orient, plan, act, learn]
+
+@axis primitive
+  meaning
+    says "The cognitive operation the actor declares it is performing."
+    answers "Should selection depend on the cognitive operation the actor declares, rather than the action mode?"
+  data
+    order 3
+    values [Memory, Attention, Inference, Decision, Escalation, Learning]
+
+@axis move
+  meaning
+    says "The requested action mode, distinct from a cognitive primitive."
+    answers "Should selection depend on the action mode, rather than the cognitive operation?"
+  data
+    order 4
+    values [Observation, Execution, Delegation, Synthesis, Verification]
+
+@axis kind
+  meaning
+    says "The closed semantic kind a request selects."
+    answers "Should selection depend on the semantic role of the record wanted?"
+  data
+    order 5
+    values [governance, contract, definition, template, check, policy, binding]
+
+@axis lane
+  meaning
+    says "The structural lane derived from kind, with the authority-facet contract exception."
+    answers "Should selection depend on the structural grouping a record's role places it in, rather than the role itself?"
+  data
+    order 6
+    values [authority, contracts, definitions, templates, enforcement, bindings]
+
+@axis predicate
+  meaning
+    says "The active relationship family a request follows or selects."
+    answers "Should selection depend on the relationship family a request follows, named by its active form?"
+  data
+    order 7
+    values [govern, enforce, ground, constrain, implement, produce, consume, record-lineage-from, grant-access-to, run-before, trigger, cite, supersede, require, use, forbid, route, land]
+
+@axis artifact-set
+  meaning
+    says "The artifact classification used in routing and subject conditions."
+    answers "Should selection depend on the artifact role requested, or a condition on the subject artifact's role?"
+  data
+    order 8
+    values [inquiry, decision, contract, product-definition, execution, operational, evidence, projection, principle]
+

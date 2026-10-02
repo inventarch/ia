@@ -1,0 +1,20 @@
+#! ia 1.0
+
+@schema contract
+  lowers to contract
+  sections
+    must have meaning
+    must have relationships
+    may have inputs
+    may have outputs
+    may have preconditions
+    may have invariants
+    may have failures
+    may have authority
+    may have context
+    may have evolution
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have head.version as text

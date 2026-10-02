@@ -1,0 +1,32 @@
+#! ia 1.0
+
+@schema capability
+  lowers to definition
+  sections
+    must have meaning
+    may have composition
+    must have execution
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    may have composition.operations as list of ref
+    may have composition.playbooks as list of ref
+    may have composition.templates as list of ref
+    may have composition.checks as list of ref
+    may have composition.includes as list of ref
+    may have execution.input as id
+    may have execution.outcomes as id
+    may have execution.context-profile as id
+    may have execution.procedure-profile as id
+    may have execution.mapping-profile as id
+    must have execution.effects as list of id
+    may have execution.limit-steps as number
+    may have execution.limit-model-calls as number
+    may have execution.limit-operations as number
+    may have execution.limit-tokens as number
+    may have execution.limit-children as number
+    may have execution.limit-depth as number
+    may have execution.limit-bytes as number
+    may have execution.limit-duration-ms as number

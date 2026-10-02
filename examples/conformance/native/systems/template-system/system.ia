@@ -1,0 +1,25 @@
+#! ia 1.0
+
+@system template-system
+  provider "inventarch.local"
+  version "0.1.0"
+  describes "Public template-system vocabulary contracts"
+  steward @agent template-steward
+  requires
+    - agent-system
+    - governance-system
+    - compliance-system
+    - authoring-system
+  discriminators
+    template lowers to template
+      category representation
+      facets [template]
+      schema @schema template
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+

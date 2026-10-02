@@ -1,0 +1,20 @@
+# @ia/db
+
+Filesystem composition of language, graph and compliance. [SPEC.md](SPEC.md) owns admitted views, revisions, read scopes and the disposable cache.
+
+Use `open(workspacePath)` to discover `.ia/src`, then `resolveScope({root, phase})` and pass its `token` as `within` to `snapshot`, `records`, `get`, `referencedBy`, `resolve`, `search` and `traverse`. Runtime consumers must use tokens. Unscoped methods and independent scope issuance are privileged host inspection. A child scope intersects physical occurrences; changing its effective registry refuses. Identity allowlists only narrow. `report` and `refused` expose root-view admission evidence to the privileged host.
+
+`refresh()` rebuilds and verifies stable inputs before replacing the state. A failed refresh preserves the previous view. A source change stales existing scopes even if those bytes are subsequently restored. `close()` refuses future reads. Cached root graphs are always verified against a fresh build; corrupt or forged payloads are replaced, equal bytes are not rewritten, and unavailable cache storage leaves in-memory reads usable with a warning. Set `cache:false` for a fully read-only open.
+
+The package writes no authored source. An explicit `floor` wins; otherwise an existing local floor directory is authoritative as a whole, and an absent local directory uses the language's generated source embed. Higher systems are never implicit. Paths escaping the workspace, source aliases and invalid UTF-8 refuse by name. Per-source `locations` supply explicit placement/provenance overrides. No historical retention or source writer is implemented.
+
+`preview([{path,text}])` validates an in-memory draft against the current source snapshot through the same admission pipeline. It returns base/candidate revisions, admitted records and full refusal/report evidence without mutating files, caches, scopes or the handle. It is a privileged authoring-host API; callers must check current source freshness before using its result. Floor edits and malformed/aliased draft paths refuse.
+# Editor snapshots
+
+Installed native distributions are discovered through `.ia/distributions/active.json` and the matching portable lock. Every fresh snapshot verifies selected manifests, complete file inventories, generation bytes and compatibility before ordinary admission. Sources retain their physical store paths and adopted placement; the generated installation workspace records direct distribution use. Missing/corrupt/drifted state and pending recovery refuse instead of silently dropping content. Database reads perform no installation write or network access. The public `@ia/db/distribution` entrypoint owns shared strict decoders and candidate-generation verification for the installer.
+
+Activation identity and its monotonic counter participate in view/source revisions, including editor overlays and draft previews. Rollback therefore cannot revive prior scopes. The host-only `candidateInstallation` option selects a verified staged pointer for admission; explicit `null` captures authored/bound sources without an installation. Editor metadata reports installed sources and generated installation state as read-only. Matching authored system declarations may override installed authority only under the locked provider/version contract and ordinary whole-tree admission.
+
+`@ia/db/editor` provides `EditorDatabase` and immutable `EditorSnapshot` readers. Overlay buffers (including explicit deletion) reuse normal discovery, registry, graph and admission rules without writing source/cache files. Reads preserve the existing location/phase/scope restrictions. Captures expose saved/dirty/source-origin/version metadata; embedded sources remain read-only. Failed refresh retains the last reader; hosts must surface unavailability and refuse stale actions. See the colocated spec and editor tests.
+
+`@ia/db/descriptors` compiles OS09 domain, storage and app descriptor resources against a host-built trusted registry without I/O or code execution; see [its SPEC](src/descriptors/SPEC.md).

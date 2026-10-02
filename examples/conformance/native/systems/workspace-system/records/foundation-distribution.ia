@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@distribution foundation-distribution
+  meaning
+    says "The declared root record of the local foundation closure."
+    answers "What local record begins this distribution?"
+  distribution
+    records [@workspace foundation-workspace]

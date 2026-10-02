@@ -1,0 +1,48 @@
+{
+  "kind": "file",
+  "path": "prose/pass/paragraphs.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "law",
+      "name": "x",
+      "head": [],
+      "sections": [
+        {
+          "kind": "section",
+          "name": "meaning",
+          "span": {
+            "line": 3,
+            "endLine": 7
+          },
+          "children": [
+            {
+              "kind": "field",
+              "key": "says",
+              "words": [
+                "says"
+              ],
+              "value": {
+                "kind": "prose",
+                "text": "First line continues here.\nSecond paragraph with # and \" and [ inside.",
+                "raw": "\"\"\"First line\n      continues here.\n\n      Second paragraph with # and \" and [ inside.\"\"\""
+              },
+              "span": {
+                "line": 4,
+                "endLine": 7
+              },
+              "children": []
+            }
+          ]
+        }
+      ],
+      "nested": [],
+      "span": {
+        "line": 2,
+        "endLine": 7
+      }
+    }
+  ],
+  "trivia": []
+}

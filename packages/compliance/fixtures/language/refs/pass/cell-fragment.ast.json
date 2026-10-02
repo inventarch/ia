@@ -1,0 +1,50 @@
+{
+  "kind": "file",
+  "path": "refs/pass/cell-fragment.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "playbook",
+      "name": "authoring",
+      "head": [],
+      "sections": [
+        {
+          "kind": "section",
+          "name": "relationships",
+          "span": {
+            "line": 3,
+            "endLine": 4
+          },
+          "children": [
+            {
+              "kind": "field",
+              "key": "uses",
+              "words": [
+                "uses"
+              ],
+              "value": {
+                "kind": "ref",
+                "discriminator": "playbook",
+                "name": "procedure",
+                "fragment": "act/Decision",
+                "raw": "@playbook procedure#act/Decision"
+              },
+              "span": {
+                "line": 4,
+                "endLine": 4
+              },
+              "children": []
+            }
+          ]
+        }
+      ],
+      "nested": [],
+      "span": {
+        "line": 2,
+        "endLine": 4
+      }
+    }
+  ],
+  "trivia": []
+}

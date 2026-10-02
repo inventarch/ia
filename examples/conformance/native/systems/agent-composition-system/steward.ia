@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent agent-composition-steward
+  meaning
+    says "Identifies the owner of agent-composition-system contracts in this example."
+    answers "Who owns the voice, agent-profile, harness, capability and execution-binding words in this example?"
+  governance
+    applies [voice, agent-profile, harness, capability, execution-binding]

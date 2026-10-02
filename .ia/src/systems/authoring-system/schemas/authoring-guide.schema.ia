@@ -1,0 +1,20 @@
+#! ia 1.0
+
+@schema authoring-guide
+  lowers to definition
+  sections
+    must have meaning
+    must have reference
+    must have guidance
+    must have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have reference.owner as id
+    must have reference.word as id
+    must have reference.schema as ref
+    must have reference.document as text
+    must have guidance.select-when as text
+    must have guidance.avoid-when as text
+    must have guidance.consider as text

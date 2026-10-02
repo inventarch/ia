@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@workspace foundation-workspace
+  meaning
+    says "The work boundary composing the five foundational systems."
+    answers "Which systems support foundation authoring?"
+  composition
+    systems [@system agent-system, @system compliance-system, @system workspace-system, @system governance-system, @system session-system]
+  relationships
+    requires @contract foundation-authoring-contract

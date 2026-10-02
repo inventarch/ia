@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent descriptor-candidate-steward
+  meaning
+    says "Fixture steward for the isolated OS09 descriptor candidate; it exists only inside a preview overlay."
+    answers "Which agent applies the candidate descriptor words during isolated admission?"
+  governance
+    applies [domain-model, storage-binding, app-composition]

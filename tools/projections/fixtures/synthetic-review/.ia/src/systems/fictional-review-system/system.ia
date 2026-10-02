@@ -1,0 +1,17 @@
+#! ia 1.0
+# Contract: tools/projections/fixtures/synthetic-review/SPEC.md
+
+@system fictional-review-system
+  provider "inventarch.test"
+  version "0.1.0"
+  describes "Synthetic prose review fixture with no new vocabulary"
+  steward @agent fictional-review-steward
+  requires
+    - agent-system
+    - governance-system
+    - agent-composition-system
+  edges
+    cite * using *
+    govern * using *
+    require * using *
+    use * using *

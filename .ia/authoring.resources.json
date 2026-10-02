@@ -1,0 +1,1969 @@
+{
+  "format": "ia.authoring-resources.v1",
+  "files": [
+    {
+      "path": ".ia/src/floor/README.md",
+      "bytes": 207,
+      "sha256": "2b55a0ce57ab4423967f370b5b6654d0654c0b100f1fa339840126dc2a4dcdc4",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/floor/SPEC.md",
+      "bytes": 263,
+      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/README.md",
+      "bytes": 110,
+      "sha256": "bf20df16ac49c69378544ee0ca6e4d1072cb71fd2b25b720b2b569bcf0efb2bc",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/SPEC.md",
+      "bytes": 318,
+      "sha256": "602d6f8b087476c30fd2ae486133b2f1c7251a80bc461945af759bb575dcec3c",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/README.md",
+      "bytes": 98,
+      "sha256": "f2504209cad658be12bc810b15ed51a2cc2096a7b1cbb16223852a4e885c6652",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/SPEC.md",
+      "bytes": 306,
+      "sha256": "547764372b0e3c03d9d7f2721fe4c0cf8ef2df47e627a38a99eeb66370d9a970",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/README.md",
+      "bytes": 102,
+      "sha256": "baaeec9a40e808745f18fd2f2ca7a63b2622bbb84a7d428e95756cb2852426a8",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/SPEC.md",
+      "bytes": 310,
+      "sha256": "0c09f8d8422396e1eb6519dc3245e0500ea1bb56a4e28ed44e16c4eaf55a253c",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/agent-profile.md",
+      "bytes": 1399,
+      "sha256": "5c50fc91ad542f3880a5958668f396c589567f3bcdb5f6d50fecb821947a7e7c",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/agent.md",
+      "bytes": 633,
+      "sha256": "e4e42eeca05e1b4743a78379cd73b1f08ff31ba1df4052ea05ebed835721f672",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/artifact-set.md",
+      "bytes": 507,
+      "sha256": "1cb76cb638b5780d3f6fc5738cc947bae32f984831881846a02c7802565ca7c9",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/authoring-guide.md",
+      "bytes": 896,
+      "sha256": "4a246a0d6e7aec8346c507337d672e369fadca72ec2fdd038eb46a0490d36246",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/axis.md",
+      "bytes": 530,
+      "sha256": "7a6e3308a25d9db87cc3a43afb36da27a5bf52dd23f80804eb37a90431afbf9c",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/capability.md",
+      "bytes": 1517,
+      "sha256": "d492e5212ed46172251afafcbc8689a2fa10cee41491d2ebed922b93a50e03c9",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/cardinality.md",
+      "bytes": 506,
+      "sha256": "2a2c540bfba9ee496d0a46c2dbf7523416ad1c225dd96351ea341dc847f637d7",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/case.md",
+      "bytes": 893,
+      "sha256": "8fa05058fc8f4a3128ff9a3a5c23f6bea44009a41b2fa478734f7124792b8548",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/category.md",
+      "bytes": 541,
+      "sha256": "09614110a79b51b92ab06ed43df1d0681e2128d29249ac8a3b9fbda69fe70ab2",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/check.md",
+      "bytes": 682,
+      "sha256": "5da70db0657e9842cae10c8ee37a71f74d66eb7766b4fd6e2fcb0525a40066e4",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/contract.md",
+      "bytes": 853,
+      "sha256": "4f2950b211f623f95748568c937e9f28547c059a25ac6e7d8daba49d6e438470",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/convention.md",
+      "bytes": 605,
+      "sha256": "c2464f440483f95e47b1582d70874a8f95c05094d9fd2ab82910ad1a56668da5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/decision.md",
+      "bytes": 1219,
+      "sha256": "f81f63aa5b42624b4864f99bff351a8c8ddb1774ce7d73c9bec1f6f27985d1fb",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/dimension.md",
+      "bytes": 589,
+      "sha256": "d0ff04c106c2ce76e38dfc562bbdec3ee457601abe694cea4549ab72d20af4f4",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/distribution.md",
+      "bytes": 636,
+      "sha256": "fe51409856e6d68aaf0420e66b887cf898a8f07d6f1b0ade8349d2404f7c6a7a",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/execution-binding.md",
+      "bytes": 906,
+      "sha256": "db338d757adf26318ac24239d0a9917998978bf04a5199c8c943149f898d0e2f",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/harness.md",
+      "bytes": 1174,
+      "sha256": "1a8d2b496038c9da1ac969f744527be62c44dfccd1ad4394c1b93feebe81bb3b",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/hook.md",
+      "bytes": 756,
+      "sha256": "725d2896f3bcb36f1c6aee126d7ca233d09bb228f72b36ce441c0f99f1d28fda",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/improvement.md",
+      "bytes": 1354,
+      "sha256": "7455ec8170eb8762c427748d6a6d7fac28da52d0262c1c5e7ef2cc42ea3c2c88",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/intent-shape.md",
+      "bytes": 839,
+      "sha256": "04267f896409f95fd84cb45223b56b6b79ddd4c170af3cc4a9d01486f3ee3226",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/kind.md",
+      "bytes": 607,
+      "sha256": "c2caae16ea5881ae190693cc659546a700911808f39b5890ee59aca7a927dad3",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/lane.md",
+      "bytes": 500,
+      "sha256": "69e0d7073d85e0d9f2af6ac12badb519dc490eb584237e178b2cd8adb83c012a",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/law.md",
+      "bytes": 638,
+      "sha256": "eca380b83f5263dbd9b7bd0141628796941032d3b36f084e9821be3aea450b12",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/mandate.md",
+      "bytes": 1015,
+      "sha256": "c0ec369228711fa69369aed36ce1eb88ebf38979753eddabbf04a0b27b018cb6",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/milestone.md",
+      "bytes": 1193,
+      "sha256": "fc8a7ace46b2a44f11e11928df7e06216341c02c9e52356da018cdd27ba3d956",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/move.md",
+      "bytes": 511,
+      "sha256": "2c48471be5dc67545d7f817c8ca446ca776bf5310c5f2059b8c6b1aa3ee924fd",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/observation.md",
+      "bytes": 1312,
+      "sha256": "43da92cf0ce01a876cc0af4efb0c50b1dc1433e3ae4cd028b6243c938009ae02",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/operation.md",
+      "bytes": 825,
+      "sha256": "3130787d605c82d3c964f914950cdd55235374208997356c9066b71d57a33b50",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/phase.md",
+      "bytes": 513,
+      "sha256": "7037c7fc57a44147120646862ead35ff89b91439636d6373a83d434806173c22",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/placement.md",
+      "bytes": 531,
+      "sha256": "939ffe81342f4c9cb009e7fdfcccb4a5d41f01ba0679f4bfed1a64ed42c05edd",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/plan.md",
+      "bytes": 948,
+      "sha256": "d62ddee1a52e2b3d9863525ed8ebc89a92eb52f510d7a6d882ccb0c1a4e0b398",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/playbook.md",
+      "bytes": 656,
+      "sha256": "aa83015fd9bb40533afc760529768113424e0f4a012dcd21a28ce20822fa200a",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/predicate.md",
+      "bytes": 574,
+      "sha256": "a2dbb710716958cfce1514fe5180cf783cd029530f8dfa5a4a50a9e15b878d83",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/primitive.md",
+      "bytes": 576,
+      "sha256": "4b93be70f601d536724679a86a8a5f5070f260f458dffd1e2a9a8a80930da522",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/principle.md",
+      "bytes": 611,
+      "sha256": "123e6dacb608549defeca387db351d8c394383fa50e84929aaf300c5f8647385",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/run.md",
+      "bytes": 692,
+      "sha256": "0f1df9f3565ba37ce88ea9c8adbda1655ecdaf44604ed80b60447ea2a9281935",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/schema.md",
+      "bytes": 442,
+      "sha256": "545ca1a7bab05f8c5e3734787929a64ba515e27c196d6d5d3d5484be6f9b0d13",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/system.md",
+      "bytes": 639,
+      "sha256": "0fd5faafc7543e4b68d128bc3f825a9a79039e7ce20a122ace60ed5421b650b5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/task.md",
+      "bytes": 1188,
+      "sha256": "796ee5b0078a5ed125b56a39c52f8b527debee6db36feb91bb1580bf2eccff36",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/template.md",
+      "bytes": 797,
+      "sha256": "ec7fd1477123fed4c2ad50bf77bfd4d3eec630d1d3fe57e108c7a0d7f3935243",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/value-type.md",
+      "bytes": 507,
+      "sha256": "b7807f348d1cdf203b01fcb4de0de8ecd541acc8901b36dec219c917e6617eee",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/voice.md",
+      "bytes": 852,
+      "sha256": "bfa481393528db67bb7ddd1e32a1f8e265ec0afc5a4b2f37f1016792ec9f165d",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/workspace.md",
+      "bytes": 662,
+      "sha256": "28e82b231449eff65366d2992e3f23073a59d88d2316f78a0ca4ec8ab261f872",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/README.md",
+      "bytes": 245,
+      "sha256": "d453d5d68aef010a6c3dae4b4a7ad949ca768ef6b3a0c2efd7200f4ca19466d1",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/SPEC.md",
+      "bytes": 263,
+      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/README.md",
+      "bytes": 245,
+      "sha256": "cb6c5b7f2fbf7364fb86ee857bc701508cb2458da5cee432c93c44c0ccd129f0",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/SPEC.md",
+      "bytes": 263,
+      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/README.md",
+      "bytes": 249,
+      "sha256": "02e96367920b4020f128935ab919f8825f083077800b3e91957e098b0858af5b",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/SPEC.md",
+      "bytes": 263,
+      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/README.md",
+      "bytes": 243,
+      "sha256": "35d18b88266c8a4c192784ef5782f3d46dee727261403725f9a053f173faff17",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/SPEC.md",
+      "bytes": 263,
+      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/session-system/README.md",
+      "bytes": 100,
+      "sha256": "41fb90f2381636dad3e459459e11fc141cc070ab27ee411081120297ae114902",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/session-system/SPEC.md",
+      "bytes": 308,
+      "sha256": "7423e71c6e7321836bf42b83299f89d440c6d7cd72147bbb00e197b977d2b286",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/template-system/README.md",
+      "bytes": 101,
+      "sha256": "41800ef89967e736e660957a6440cf599888faa6e21f759b6659818d636f3af0",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/template-system/SPEC.md",
+      "bytes": 309,
+      "sha256": "963a4e5ced36d855617b5db7561fea757e2f175baff996be80981de839c93a29",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/work-system/README.md",
+      "bytes": 239,
+      "sha256": "ca718055509c0cf981bedae39685a34e707b2bb7902ced4378f58ef1e2b120a3",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/work-system/SPEC.md",
+      "bytes": 263,
+      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/README.md",
+      "bytes": 244,
+      "sha256": "5b1c549020f7209cd4a07e3ef2e6a5d6d1798aa60d1e8554222960c8bdea66fa",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/SPEC.md",
+      "bytes": 263,
+      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    }
+  ],
+  "associations": [
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-agent-system-agent"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/agent.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-agent-composition-system-agent-profile"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/agent-profile.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-artifact-set"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/artifact-set.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-authoring-system-authoring-guide"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/authoring-guide.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-axis"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/axis.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-agent-composition-system-capability"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/capability.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-cardinality"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/cardinality.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-compliance-system-case"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/case.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-category"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/category.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-compliance-system-check"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/check.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-compliance-system-contract"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/contract.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-governance-system-convention"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/convention.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-work-system-decision"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/decision.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-dimension"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/dimension.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-workspace-system-distribution"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/distribution.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-agent-composition-system-execution-binding"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/execution-binding.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-agent-composition-system-harness"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/harness.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-hook-authoring-system-hook"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/hook.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-learning-system-improvement"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/improvement.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-intent-shape"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/intent-shape.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-kind"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/kind.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-lane"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/lane.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-governance-system-law"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/law.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-agent-system-mandate"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/mandate.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-work-system-milestone"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/milestone.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-move"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/move.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-learning-system-observation"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/observation.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-authoring-system-operation"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/operation.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-phase"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/phase.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-placement"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/placement.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-work-system-plan"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/plan.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-governance-system-playbook"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/playbook.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-predicate"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/predicate.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-primitive"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/primitive.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-governance-system-principle"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/principle.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-session-system-run"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/run.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-floor-schema"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/schema.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-floor-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/system.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-work-system-task"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/task.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-template-system-template"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/template.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-taxonomy-value-type"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/value-type.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-agent-composition-system-voice"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/voice.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-workspace-system-workspace"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/workspace.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/agent-system/system.ia",
+        "identity": "floor/definition/system/agent-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/compliance-system/system.ia",
+        "identity": "floor/definition/system/compliance-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/compliance-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/compliance-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/workspace-system/system.ia",
+        "identity": "floor/definition/system/workspace-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/workspace-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/workspace-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/governance-system/system.ia",
+        "identity": "floor/definition/system/governance-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/governance-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/governance-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/session-system/system.ia",
+        "identity": "floor/definition/system/session-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/session-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/session-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/system.ia",
+        "identity": "floor/definition/system/authoring-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/agent-composition-system/system.ia",
+        "identity": "floor/definition/system/agent-composition-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/template-system/system.ia",
+        "identity": "floor/definition/system/template-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/template-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/template-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/hook-authoring-system/system.ia",
+        "identity": "floor/definition/system/hook-authoring-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/hook-authoring-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/hook-authoring-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/learning-system/system.ia",
+        "identity": "floor/definition/system/learning-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/learning-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/learning-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/work-system/system.ia",
+        "identity": "floor/definition/system/work-system"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/work-system/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/work-system/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "floor",
+        "path": ".ia/src/floor/taxonomy.system.ia",
+        "identity": "floor/definition/system/taxonomy"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/floor/README.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/floor/SPEC.md"
+          },
+          "role": "support",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    }
+  ],
+  "index": {
+    "systems": [
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/agent-system/system.ia",
+          "identity": "floor/definition/system/agent-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/agent-system/system.ia",
+          "identity": "agent-system/binding/agent/public-agent-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/compliance-system/system.ia",
+          "identity": "floor/definition/system/compliance-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/compliance-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/compliance-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/compliance-system/system.ia",
+          "identity": "agent-system/binding/agent/public-compliance-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/workspace-system/system.ia",
+          "identity": "floor/definition/system/workspace-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/workspace-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/workspace-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/workspace-system/system.ia",
+          "identity": "agent-system/binding/agent/public-workspace-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/governance-system/system.ia",
+          "identity": "floor/definition/system/governance-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/governance-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/governance-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/governance-system/system.ia",
+          "identity": "agent-system/binding/agent/public-governance-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/session-system/system.ia",
+          "identity": "floor/definition/system/session-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/session-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/session-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/session-system/system.ia",
+          "identity": "agent-system/binding/agent/public-session-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/authoring-system/system.ia",
+          "identity": "floor/definition/system/authoring-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/authoring-system/system.ia",
+          "identity": "agent-system/binding/agent/public-authoring-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/agent-composition-system/system.ia",
+          "identity": "floor/definition/system/agent-composition-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/agent-composition-system/system.ia",
+          "identity": "agent-system/binding/agent/public-agent-composition-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/template-system/system.ia",
+          "identity": "floor/definition/system/template-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/template-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/template-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/template-system/system.ia",
+          "identity": "agent-system/binding/agent/public-template-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/hook-authoring-system/system.ia",
+          "identity": "floor/definition/system/hook-authoring-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/hook-authoring-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/hook-authoring-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/hook-authoring-system/system.ia",
+          "identity": "agent-system/binding/agent/public-hook-authoring-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/learning-system/system.ia",
+          "identity": "floor/definition/system/learning-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/learning-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/learning-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/learning-system/system.ia",
+          "identity": "agent-system/binding/agent/public-learning-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "self",
+          "path": ".ia/src/systems/work-system/system.ia",
+          "identity": "floor/definition/system/work-system"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/work-system/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/systems/work-system/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": {
+          "source": "self",
+          "path": ".ia/src/systems/work-system/system.ia",
+          "identity": "agent-system/binding/agent/public-work-system-steward"
+        },
+        "base": null
+      },
+      {
+        "system": {
+          "source": "floor",
+          "path": ".ia/src/floor/taxonomy.system.ia",
+          "identity": "floor/definition/system/taxonomy"
+        },
+        "authoring": [
+          {
+            "source": "self",
+            "path": ".ia/src/floor/README.md"
+          }
+        ],
+        "architecture": [
+          {
+            "source": "self",
+            "path": ".ia/src/floor/SPEC.md"
+          }
+        ],
+        "extensions": [],
+        "methods": [],
+        "steward": null,
+        "base": null
+      }
+    ],
+    "artifacts": [],
+    "profiles": [],
+    "documents": [],
+    "lifecycles": []
+  }
+}

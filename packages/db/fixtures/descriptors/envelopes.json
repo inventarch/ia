@@ -1,0 +1,69 @@
+{
+  "orders": {
+    "kind": "domain-model",
+    "owner": "descriptor-candidate/definition/domain-model/orders",
+    "source": ".ia/src/systems/descriptor-candidate/records/orders.ia",
+    "fields": {
+      "format": "1",
+      "version": "1.0.0",
+      "resource": "orders.domain.json",
+      "digest": "sha256:7c9f3de8d826f6c861bc93bca62b3fcc01524ae5f7727bf6a081ae6f383231aa"
+    }
+  },
+  "lending": {
+    "kind": "domain-model",
+    "owner": "descriptor-candidate/definition/domain-model/lending",
+    "source": ".ia/src/systems/descriptor-candidate/records/lending.ia",
+    "fields": {
+      "format": "1",
+      "version": "2.1.0",
+      "resource": "lending.domain.json",
+      "digest": "sha256:682cf6f1cb44370fffe9bbef427f270467089ff65895ff4c0fdd691f35687a58"
+    }
+  },
+  "orders-store": {
+    "kind": "storage-binding",
+    "owner": "descriptor-candidate/binding/storage-binding/orders-store",
+    "source": ".ia/src/systems/descriptor-candidate/records/orders-store.ia",
+    "fields": {
+      "format": "1",
+      "model": "@domain-model orders",
+      "model-version": "1.0.0",
+      "port": "order-repository",
+      "adapter": "relational-store",
+      "schema-version": "4.0.0",
+      "resource": "orders.storage.json",
+      "digest": "sha256:a5a43c3a914a2b50f99dde33c088dcb94cd80410b5c0058082f04ea5a8820670"
+    }
+  },
+  "orders-desk": {
+    "kind": "app-composition",
+    "owner": "descriptor-candidate/definition/app-composition/orders-desk",
+    "source": ".ia/src/systems/descriptor-candidate/records/orders-desk.ia",
+    "fields": {
+      "format": "1",
+      "app-id": "orders-desk",
+      "version": "1.2.0",
+      "resource": "orders-desk.app.json",
+      "digest": "sha256:8111826f3ad4d1997d553c9a48a4b5ac8fc0723e8fd109ed414a12a93c8f8e0c",
+      "capabilities": [
+        "@capability orders-write"
+      ]
+    }
+  },
+  "lending-kiosk": {
+    "kind": "app-composition",
+    "owner": "descriptor-candidate/definition/app-composition/lending-kiosk",
+    "source": ".ia/src/systems/descriptor-candidate/records/lending-kiosk.ia",
+    "fields": {
+      "format": "1",
+      "app-id": "lending-kiosk",
+      "version": "0.3.0",
+      "resource": "lending-kiosk.app.json",
+      "digest": "sha256:eec7c5595ebd4295183c5935e770c9a535bd3445ac65bb00e3eace42070f3e73",
+      "capabilities": [
+        "@capability lending-desk"
+      ]
+    }
+  }
+}

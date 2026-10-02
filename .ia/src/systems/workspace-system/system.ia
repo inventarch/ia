@@ -1,0 +1,33 @@
+#! ia 1.0
+
+@system workspace-system
+  provider "inventarch.foundation"
+  version "1.0.0"
+  describes "Public workspace-system vocabulary contracts"
+  steward @agent public-workspace-system-steward
+  requires
+    - agent-system
+    - compliance-system
+  discriminators
+    workspace lowers to definition
+      category boundary
+      facets [workspace]
+      schema @schema workspace
+    distribution lowers to definition
+      category representation
+      facets [distribution]
+      schema @schema distribution
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+
+@agent public-workspace-system-steward
+  meaning
+    says "Identifies the owner of workspace-system contracts in this example."
+    answers "Who owns the workspace and distribution words in this example?"
+  governance
+    applies [workspace, distribution]

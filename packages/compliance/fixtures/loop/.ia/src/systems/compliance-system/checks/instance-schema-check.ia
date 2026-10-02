@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@check instance-schema-check
+  meaning
+    says "Validate every admitted record against its registered structural schema."
+    answers "Which evaluator checks required structure?"
+  check
+    runs COMP-SCHEMA
+    scope "every admitted native record"
+  governance
+    severity blocking
+  relationships
+    enforces @contract foundation-authoring-contract

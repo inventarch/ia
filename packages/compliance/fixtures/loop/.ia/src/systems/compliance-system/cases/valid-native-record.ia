@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@case valid-native-record
+  meaning
+    says "A structural authoring scenario: valid-native-record."
+    answers "What observation establishes the authoring outcome?"
+  scenario
+    kind success
+    given "A valid agent record under agent-system with its required meaning and applies fields."
+    request "Validate the native record with its complete closure."
+    expected "The record has pass schema and system assessments."
+    evaluator "Native corpus mutation tests in tools/native/check.test.ts; structural outcomes only, no model execution."
+  relationships
+    implements @contract foundation-authoring-contract#REQ-FOUNDATION-INPUT
+    implements @contract foundation-authoring-contract#REQ-FOUNDATION-VALID

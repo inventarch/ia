@@ -1,0 +1,73 @@
+#! ia 1.0
+
+@intent-shape context
+  meaning
+    says "Need context — pull the source documents, evidence and prerequisites a request rests on. Select the relevant entity and traverse its relations. Also the safe default when no signal dominates."
+    answers "Is this request asking what exists, where it is, or what it means?"
+  data
+    order 0
+  routing
+    category relation
+    primitive Attention
+    tie-precedence 4
+    kind-focus [definition, contract]
+    lane-focus [definitions, contracts]
+    predicate-focus [cite, ground, require]
+
+@intent-shape governance
+  meaning
+    says "Need governance — pull the rules, boundaries, prohibitions and checks that bear on a request. Notice the applicable rule, then infer compliance. First in tie precedence because a missed guardrail is the costliest classification error."
+    answers "Is this request asking what is permitted, forbidden or enforced?"
+  data
+    order 1
+  routing
+    category rule
+    primitive Inference
+    tie-precedence 0
+    kind-focus [governance, policy, check]
+    lane-focus [authority, enforcement]
+    predicate-focus [govern, constrain, forbid, enforce]
+    priming-order [govern, constrain, forbid, enforce, implement]
+
+@intent-shape execution
+  meaning
+    says "Need execution — pull the bindings, tools, dispatch paths and inputs a request would run through. Choose the invocation surface."
+    answers "Is this request asking how something is run, built or invoked?"
+  data
+    order 2
+  routing
+    category capability
+    primitive Decision
+    tie-precedence 3
+    kind-focus [binding, template]
+    lane-focus [bindings, templates]
+    predicate-focus [implement, trigger, route, consume]
+
+@intent-shape sequence
+  meaning
+    says "Need sequence — pull the ordering, the blockers and the current version. The framing that infers the next step in a process."
+    answers "Is this request asking what comes before, after or instead of something?"
+  data
+    order 3
+  routing
+    category process
+    primitive Inference
+    tie-precedence 1
+    kind-focus [contract, binding]
+    lane-focus [contracts, bindings]
+    predicate-focus [run-before, require, supersede]
+
+@intent-shape learning
+  meaning
+    says "Need learning — pull the derivation, the outputs and the evidence. Store the proof and learn from the outcome."
+    answers "Is this request asking what a run taught, produced or derived from?"
+  data
+    order 4
+  routing
+    category evidence
+    primitive Learning
+    tie-precedence 2
+    kind-focus [definition]
+    lane-focus [definitions]
+    predicate-focus [record-lineage-from, produce, cite]
+

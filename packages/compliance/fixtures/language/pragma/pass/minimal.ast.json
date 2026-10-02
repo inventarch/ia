@@ -1,0 +1,20 @@
+{
+  "kind": "file",
+  "path": "pragma/pass/minimal.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "law",
+      "name": "x",
+      "head": [],
+      "sections": [],
+      "nested": [],
+      "span": {
+        "line": 2,
+        "endLine": 2
+      }
+    }
+  ],
+  "trivia": []
+}

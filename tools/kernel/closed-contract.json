@@ -1,0 +1,225 @@
+{
+  "KINDS": [
+    "governance",
+    "contract",
+    "definition",
+    "template",
+    "check",
+    "policy",
+    "binding"
+  ],
+  "CATEGORIES": [
+    "thing",
+    "kind",
+    "property",
+    "state",
+    "event",
+    "relation",
+    "rule",
+    "capability",
+    "intent",
+    "decision",
+    "evidence",
+    "representation",
+    "process",
+    "measure",
+    "boundary"
+  ],
+  "PREDICATE_PAIRS": [
+    [
+      "govern",
+      "governed-by"
+    ],
+    [
+      "enforce",
+      "enforced-by"
+    ],
+    [
+      "ground",
+      "grounded-by"
+    ],
+    [
+      "constrain",
+      "constrained-by"
+    ],
+    [
+      "implement",
+      "implemented-by"
+    ],
+    [
+      "produce",
+      "produced-by"
+    ],
+    [
+      "consume",
+      "consumed-by"
+    ],
+    [
+      "record-lineage-from",
+      "lineage-recorded-by"
+    ],
+    [
+      "grant-access-to",
+      "access-granted-by"
+    ],
+    [
+      "run-before",
+      "run-after"
+    ],
+    [
+      "trigger",
+      "triggered-by"
+    ],
+    [
+      "cite",
+      "cited-by"
+    ],
+    [
+      "supersede",
+      "superseded-by"
+    ],
+    [
+      "require",
+      "required-by"
+    ],
+    [
+      "use",
+      "used-by"
+    ],
+    [
+      "forbid",
+      "forbidden-by"
+    ],
+    [
+      "route",
+      "routed-by"
+    ],
+    [
+      "land",
+      "landed-by"
+    ]
+  ],
+  "PHASES": [
+    "orient",
+    "plan",
+    "act",
+    "learn"
+  ],
+  "PRIMITIVES": [
+    "Memory",
+    "Attention",
+    "Inference",
+    "Decision",
+    "Escalation",
+    "Learning"
+  ],
+  "MOVES": [
+    "Observation",
+    "Execution",
+    "Delegation",
+    "Synthesis",
+    "Verification"
+  ],
+  "AXES": [
+    "shape",
+    "category",
+    "phase",
+    "primitive",
+    "move",
+    "kind",
+    "lane",
+    "predicate",
+    "artifact-set"
+  ],
+  "LANES": [
+    "authority",
+    "contracts",
+    "definitions",
+    "templates",
+    "enforcement",
+    "bindings"
+  ],
+  "SHAPES": [
+    "context",
+    "governance",
+    "execution",
+    "sequence",
+    "learning"
+  ],
+  "ARTIFACT_SETS": [
+    "inquiry",
+    "decision",
+    "contract",
+    "product-definition",
+    "execution",
+    "operational",
+    "evidence",
+    "projection",
+    "principle"
+  ],
+  "SEVERITIES": [
+    "blocking",
+    "advisory",
+    "informational"
+  ],
+  "PROVENANCES": [
+    "workspace",
+    "methodology",
+    "bootstrap",
+    "runtime"
+  ],
+  "BANDS": [
+    100,
+    90,
+    50,
+    10,
+    0
+  ],
+  "PLACEMENT_KINDS": [
+    "authored",
+    "adopted",
+    "open",
+    "floor",
+    "runtime"
+  ],
+  "BAND_OF": {
+    "authored": 100,
+    "adopted": 90,
+    "open": 50,
+    "floor": 10,
+    "runtime": 0
+  },
+  "VALUE_TYPES": [
+    "text",
+    "id",
+    "qname",
+    "number",
+    "ref",
+    "flag"
+  ],
+  "CARDINALITIES": [
+    "one",
+    "one-or-more",
+    "optional"
+  ],
+  "PRESENT_PHRASES": [
+    "governs",
+    "enforces",
+    "grounds",
+    "constrains",
+    "implements",
+    "produces",
+    "consumes",
+    "records lineage from",
+    "grants access to",
+    "runs before",
+    "triggers",
+    "cites",
+    "supersedes",
+    "requires",
+    "uses",
+    "forbids",
+    "routes to",
+    "lands at"
+  ]
+}

@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@workspace product-structure
+  meaning
+    says "The independently selected public product structural vocabulary."
+    answers "Which system does the product structure release own?"
+  composition
+    systems [@system product-system]
+
+@distribution product-structure
+  meaning
+    says "A public structural product release, separate from canonical language and private product methods."
+    answers "Which owned roots are shipped in inventarch/product-structure?"
+  distribution
+    records [@workspace product-structure]

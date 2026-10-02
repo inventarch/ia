@@ -1,0 +1,2899 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "unit": {
+      "hookTimeoutMs": 10000,
+      "testTimeoutMs": 5000,
+      "subprocessTimeoutMs": 10000,
+      "workerLimit": 2,
+      "taskTimeoutMs": 600000
+    },
+    "corpus": {
+      "hookTimeoutMs": 30000,
+      "testTimeoutMs": 30000,
+      "subprocessTimeoutMs": 15000,
+      "workerLimit": 2,
+      "taskTimeoutMs": 600000
+    },
+    "database": {
+      "hookTimeoutMs": 30000,
+      "testTimeoutMs": 30000,
+      "subprocessTimeoutMs": 15000,
+      "workerLimit": 1,
+      "taskTimeoutMs": 900000
+    },
+    "http": {
+      "hookTimeoutMs": 30000,
+      "testTimeoutMs": 30000,
+      "subprocessTimeoutMs": 20000,
+      "workerLimit": 1,
+      "taskTimeoutMs": 1200000
+    },
+    "native": {
+      "hookTimeoutMs": 60000,
+      "testTimeoutMs": 120000,
+      "subprocessTimeoutMs": 60000,
+      "workerLimit": 1,
+      "taskTimeoutMs": 1800000
+    },
+    "installed": {
+      "hookTimeoutMs": 60000,
+      "testTimeoutMs": 300000,
+      "subprocessTimeoutMs": 120000,
+      "workerLimit": 1,
+      "taskTimeoutMs": 2700000
+    }
+  },
+  "inputProfiles": {
+    "owner-source": "The owning package sources, tests and its workspace dependency closure, plus shared execution configuration and runtime identity.",
+    "workspace-records": "owner-source plus the authored .ia record tree, schemas, guides and native fixture inventories these tasks read through filesystem discovery.",
+    "tooling": "The tools tree, root TypeScript and Vitest configuration, and the repository manifests and lockfile.",
+    "repository-inventory": "Every tracked and nonignored file, because these checks assert over repository membership itself.",
+    "emitted": "Built package outputs, packed archive bytes, the native corpus and the host scripts an independent installed consumer executes.",
+    "development-native-build": "CLI source, canonical generator source, native owners and their captured teaching manifest."
+  },
+  "tasks": [
+    {
+      "id": "agent-composition-system:build",
+      "kind": "command",
+      "project": ".ia/src/systems/agent-composition-system",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-system:build",
+        "authoring-system:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "session-system:build",
+        "template-system:build"
+      ],
+      "outputs": [
+        ".ia/src/systems/agent-composition-system/dist",
+        "artifacts/tests/agent-composition-system-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "agent-system:build",
+      "kind": "command",
+      "project": ".ia/src/systems/agent-system",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "session-system:build"
+      ],
+      "outputs": [
+        ".ia/src/systems/agent-system/dist",
+        "artifacts/tests/agent-system-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "authoring-system:build",
+      "kind": "command",
+      "project": ".ia/src/systems/authoring-system",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "db:build",
+        "language:build",
+        "runtime:build"
+      ],
+      "outputs": [
+        ".ia/src/systems/authoring-system/dist",
+        "artifacts/tests/authoring-system-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "session-system:build",
+      "kind": "command",
+      "project": ".ia/src/systems/session-system",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [],
+      "outputs": [
+        ".ia/src/systems/session-system/dist",
+        "artifacts/tests/session-system-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "template-system:build",
+      "kind": "command",
+      "project": ".ia/src/systems/template-system",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "language:build",
+        "runtime:build"
+      ],
+      "outputs": [
+        ".ia/src/systems/template-system/dist",
+        "artifacts/tests/template-system-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "cli:build",
+      "kind": "command",
+      "project": "apps/cli",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "compliance:build",
+        "db:build",
+        "distribution:build",
+        "language-base:generate",
+        "mcp-door:build",
+        "runtime:build",
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "apps/cli/dist",
+        "artifacts/tests/cli-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "distribution:build",
+      "kind": "command",
+      "project": "apps/distribution",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "authoring-system:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "session-system:build",
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "apps/distribution/dist",
+        "artifacts/tests/distribution-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "mcp-door:build",
+      "kind": "command",
+      "project": "apps/mcp-door",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "runtime:build",
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "apps/mcp-door/dist",
+        "artifacts/tests/mcp-door-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "steward-hook:build",
+      "kind": "command",
+      "project": "apps/steward-hook",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "db:build",
+        "runtime:build"
+      ],
+      "outputs": [
+        "apps/steward-hook/dist",
+        "artifacts/tests/steward-hook-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "vscode:build",
+      "kind": "command",
+      "project": "apps/vscode",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "runtime:build"
+      ],
+      "outputs": [
+        "apps/vscode/dist",
+        "artifacts/tests/vscode-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "compliance:build",
+      "kind": "command",
+      "project": "packages/compliance",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "graph:build",
+        "language:build"
+      ],
+      "outputs": [
+        "packages/compliance/dist",
+        "artifacts/tests/compliance-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "db:build",
+      "kind": "command",
+      "project": "packages/db",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "compliance:build",
+        "graph:build",
+        "language:build"
+      ],
+      "outputs": [
+        "packages/db/dist",
+        "artifacts/tests/db-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "graph:build",
+      "kind": "command",
+      "project": "packages/graph",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "language:build"
+      ],
+      "outputs": [
+        "packages/graph/dist",
+        "artifacts/tests/graph-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "language:build",
+      "kind": "command",
+      "project": "packages/language",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [],
+      "outputs": [
+        "packages/language/dist",
+        "artifacts/tests/language-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "runtime:build",
+      "kind": "command",
+      "project": "packages/runtime",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "db:build",
+        "graph:build",
+        "language:build"
+      ],
+      "outputs": [
+        "packages/runtime/dist",
+        "artifacts/tests/runtime-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "service-contracts:build",
+      "kind": "command",
+      "project": "packages/service-contracts",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [],
+      "outputs": [
+        "packages/service-contracts/dist",
+        "artifacts/tests/service-contracts-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "agent-composition-system:typecheck",
+      "kind": "command",
+      "project": ".ia/src/systems/agent-composition-system",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/agent-composition-system-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "agent-composition-system:test",
+      "kind": "vitest",
+      "project": ".ia/src/systems/agent-composition-system",
+      "files": [
+        "tests/adapters.test.ts",
+        "tests/authoring-base.test.ts",
+        "tests/authoring-bytes.test.ts",
+        "tests/authoring-integrity.test.ts",
+        "tests/authoring-lifecycle.test.ts",
+        "tests/authoring-shipped.test.ts",
+        "tests/authoring.test.ts",
+        "tests/contracts.test.ts",
+        "tests/compile.test.ts",
+        "tests/execution.test.ts",
+        "tests/installed-sources.test.ts",
+        "tests/lifecycle-profile.test.ts",
+        "tests/lifecycle-segments.test.ts",
+        "tests/lifecycle.test.ts",
+        "tests/local-store.test.ts",
+        "tests/projections.test.ts",
+        "tests/publication.test.ts",
+        "tests/resource-context.test.ts",
+        "tests/resources.test.ts",
+        "tests/sources.test.ts",
+        "tests/templates.test.ts",
+        "tests/tools.test.ts"
+      ],
+      "profile": "native",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/agent-composition-system-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "native-heavy",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS clears a failed acknowledgement only with a new exact reconciliation receipt",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS keeps partial effects waiting and bounds charged inspections",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS keeps unknown effects waiting and bounds charged inspections",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at before-prepare without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at dispatched without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at observed without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at prepared without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at published without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at staged without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after binding changes at the last authority boundary",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after control changes at the last authority boundary",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after grant changes at the last authority boundary",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after owner changes at the last authority boundary",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current expiry changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current grant changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current preflight changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current quota changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current source changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains a charged interrupted lookup across another process death",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains bounded evidence after reconciliation invalid-output",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains bounded evidence after reconciliation timeout",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS settles uncertain publication before applying cancel",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS settles uncertain publication before applying pause",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "agent-system:typecheck",
+      "kind": "command",
+      "project": ".ia/src/systems/agent-system",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "agent-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/agent-system-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "agent-system:test",
+      "kind": "vitest",
+      "project": ".ia/src/systems/agent-system",
+      "files": [
+        "tests/contracts.test.ts",
+        "tests/engine.test.ts",
+        "tests/governed.test.ts",
+        "tests/recovery.test.ts",
+        "tests/renewal.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "agent-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/agent-system-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "authoring-system:typecheck",
+      "kind": "command",
+      "project": ".ia/src/systems/authoring-system",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "authoring-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/authoring-system-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "authoring-system:test",
+      "kind": "vitest",
+      "project": ".ia/src/systems/authoring-system",
+      "files": [
+        "tests/drafts.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "authoring-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/authoring-system-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "session-system:typecheck",
+      "kind": "command",
+      "project": ".ia/src/systems/session-system",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "session-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/session-system-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "session-system:test",
+      "kind": "vitest",
+      "project": ".ia/src/systems/session-system",
+      "files": [
+        "tests/contracts.test.ts",
+        "tests/renewal.test.ts",
+        "tests/replay.test.ts",
+        "tests/store.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "session-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/session-system-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "template-system:typecheck",
+      "kind": "command",
+      "project": ".ia/src/systems/template-system",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "template-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/template-system-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "template-system:test",
+      "kind": "vitest",
+      "project": ".ia/src/systems/template-system",
+      "files": [
+        "tests/structured.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "template-system:build"
+      ],
+      "outputs": [
+        "artifacts/tests/template-system-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:typecheck",
+      "kind": "command",
+      "project": "apps/cli",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "cli:build"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "cli:test",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/args.test.ts",
+        "tests/briefing.test.ts",
+        "tests/channel.test.ts",
+        "tests/cli.test.ts",
+        "tests/consumer.test.ts",
+        "tests/decline.test.ts",
+        "tests/distribution-verbs.test.ts",
+        "tests/equivalence.test.ts",
+        "tests/host-projection.test.ts",
+        "tests/host.test.ts",
+        "tests/init.test.ts",
+        "tests/protocols.test.ts",
+        "tests/registry.test.ts",
+        "tests/render.test.ts",
+        "tests/session-hook.test.ts",
+        "tests/user-host.test.ts",
+        "tests/workspace-verbs.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "distribution:typecheck",
+      "kind": "command",
+      "project": "apps/distribution",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "distribution:build"
+      ],
+      "outputs": [
+        "artifacts/tests/distribution-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "distribution:test",
+      "kind": "vitest",
+      "project": "apps/distribution",
+      "files": [
+        "tests/archive.test.ts",
+        "tests/authoring-assets.test.ts",
+        "tests/authoring-consumers.test.ts",
+        "tests/command.test.ts",
+        "tests/context-launcher.test.ts",
+        "tests/decisions.test.ts",
+        "tests/dependent-authoring.test.ts",
+        "tests/guard-registration.test.ts",
+        "tests/host-home.test.ts",
+        "tests/host-observe.test.ts",
+        "tests/host.test.ts",
+        "tests/hosts.test.ts",
+        "tests/ia-home.test.ts",
+        "tests/installation-core.test.ts",
+        "tests/installed.test.ts",
+        "tests/inventory.test.ts",
+        "tests/json-edit.test.ts",
+        "tests/lifecycle-registration.test.ts",
+        "tests/minting.test.ts",
+        "tests/plugin-home.test.ts",
+        "tests/product-structure.test.ts",
+        "tests/projection.test.ts",
+        "tests/publication.test.ts",
+        "tests/registry-build.test.ts",
+        "tests/registry-config.test.ts",
+        "tests/registry-layout.test.ts",
+        "tests/registry-resolve.test.ts",
+        "tests/registry-selected.test.ts",
+        "tests/registry-source.test.ts",
+        "tests/resolve-select.test.ts",
+        "tests/selected-cache.test.ts",
+        "tests/services.test.ts",
+        "tests/snapshot.test.ts",
+        "tests/source-policy.test.ts",
+        "tests/transfer.test.ts",
+        "tests/updates.test.ts",
+        "tests/ustar.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "distribution:build"
+      ],
+      "outputs": [
+        "artifacts/tests/distribution-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/registry-build.test.ts > writes every registry file world-readable (0644), whatever the umask",
+          "reason": "POSIX file modes have no Windows equivalent; Linux runs the case against a forced 077 umask.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/ia-home.test.ts > writes the file mode 0o600",
+          "reason": "POSIX file modes have no Windows equivalent; Linux asserts the 0o600 mode the IA home writes.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/plugin-home.test.ts > a genuinely open file refuses materialize as INSTALL-BUSY, and removeMarketplace never leaves the tree partial",
+          "reason": "Only Windows refuses to rename or delete a file another handle holds open; POSIX has no busy file to observe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mcp-door:typecheck",
+      "kind": "command",
+      "project": "apps/mcp-door",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "mcp-door:build"
+      ],
+      "outputs": [
+        "artifacts/tests/mcp-door-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "mcp-door:test",
+      "kind": "vitest",
+      "project": "apps/mcp-door",
+      "files": [
+        "tests/protocol.test.ts",
+        "tests/stdio.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "mcp-door:build"
+      ],
+      "outputs": [
+        "artifacts/tests/mcp-door-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "steward-hook:typecheck",
+      "kind": "command",
+      "project": "apps/steward-hook",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "artifacts/tests/steward-hook-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "steward-hook:test",
+      "kind": "vitest",
+      "project": "apps/steward-hook",
+      "files": [
+        "tests/consumer-guard.test.ts",
+        "tests/context-binding.test.ts",
+        "tests/context-guard.test.ts",
+        "tests/context-inventory.test.ts",
+        "tests/context.test.ts",
+        "tests/hook.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "artifacts/tests/steward-hook-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "vscode:typecheck",
+      "kind": "command",
+      "project": "apps/vscode",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "vscode:build"
+      ],
+      "outputs": [
+        "artifacts/tests/vscode-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "vscode:test",
+      "kind": "vitest",
+      "project": "apps/vscode",
+      "files": [
+        "tests/icons.test.ts",
+        "tests/refresh.test.ts",
+        "tests/server.test.ts",
+        "tests/workspace-tree.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "vscode:build"
+      ],
+      "outputs": [
+        "artifacts/tests/vscode-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "compliance:typecheck",
+      "kind": "command",
+      "project": "packages/compliance",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "compliance:build"
+      ],
+      "outputs": [
+        "artifacts/tests/compliance-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "compliance:test",
+      "kind": "vitest",
+      "project": "packages/compliance",
+      "files": [
+        "tests/evaluator-catalog.test.ts",
+        "tests/field-relations-baseline.test.ts",
+        "tests/graph.test.ts",
+        "tests/host-plugin.test.ts",
+        "tests/report.test.ts",
+        "tests/schema.test.ts",
+        "tests/variants-adoption.test.ts",
+        "tests/workspace-projection.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "compliance:build"
+      ],
+      "outputs": [
+        "artifacts/tests/compliance-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/host-plugin.test.ts > hook: with no ia on PATH it reports not found without starting a shell, whatever the shell would print (LKI-40)",
+          "reason": "The case points ComSpec at node so that a started shell would print an unrecognizable message; only Windows would start that shell, so elsewhere the case cannot fail. Linux and macOS assert not-found through the relative and empty PATH entry cases.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: an ia.cmd planted in the project never runs; the one on PATH does (LKI-41)",
+          "reason": "Plants .cmd launchers, which only cmd.exe runs, against cmd.exe's search of the current directory; Linux and macOS cover plants in the project through the relative and empty PATH entry cases.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: an ia.cmd that exists only in the project is not found and never runs (LKI-41)",
+          "reason": "Plants .cmd launchers, which only cmd.exe runs, against cmd.exe's search of the current directory; Linux and macOS cover plants in the project through the relative and empty PATH entry cases.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: the ia found runs through cmd.exe when ComSpec names node or spells cmd.exe with forward slashes (LKI-41)",
+          "reason": "Starts a real cmd.exe from SystemRoot under a ComSpec that only Windows reads; the emulated Windows cases check the same launch on Linux and macOS: the cmd.exe under SystemRoot whatever ComSpec names, /d /v:off /s /c and verbatim arguments.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: a launcher on PATH that starts node by name cannot reach a node.cmd planted in the project (LKI-41)",
+          "reason": "cmd.exe's search of the current directory and NoDefaultCurrentDirectoryInExePath exist only on Windows; the POSIX launcher case covers a node behind a relative PATH entry on Linux and macOS.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: doctor started from the recorded entry cannot reach a program in the project directory (LKI-41)",
+          "reason": "Only Windows' libuv searches the working directory first, and the plant is a copy of hostname.exe from System32; the POSIX doctor case covers a program behind a relative PATH entry on Linux and macOS.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: a folder named ia and an ia without execute permission are passed over for the next PATH entry, as the shell would",
+          "reason": "Execute permission is POSIX-only; on Windows the lookup matches program extensions instead, which the emulated Windows lookup cases check on every platform.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: an ia in a PATH directory whose name holds a quote runs, with that entry byte for byte in its PATH (LKI-41)",
+          "reason": "A directory name can hold a quote on Linux and macOS but not on Windows, so the case cannot build its PATH there; the platform-independent child PATH case checks that Windows drops the quotes and POSIX keeps each entry as written.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: a launcher on PATH that runs node by name cannot reach one behind a relative PATH entry (LKI-41)",
+          "reason": "The launcher is a #!/usr/bin/env node script, which Windows cannot start; the Windows launcher case covers a node.cmd planted in the project.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: doctor started from the recorded entry cannot reach a program behind a relative PATH entry (LKI-41)",
+          "reason": "The planted probe is a #!/bin/sh script, which Windows cannot start; the Windows doctor case covers a program planted in the project directory.",
+          "platforms": [
+            "windows"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "db:typecheck",
+      "kind": "command",
+      "project": "packages/db",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "db:build"
+      ],
+      "outputs": [
+        "artifacts/tests/db-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "db:test",
+      "kind": "vitest",
+      "project": "packages/db",
+      "files": [
+        "tests/acceptance.test.ts",
+        "tests/complete-scope.test.ts",
+        "tests/descriptors.test.ts",
+        "tests/distribution-contracts.test.ts",
+        "tests/editor.test.ts",
+        "tests/handle.test.ts",
+        "tests/inputs.test.ts",
+        "tests/preview.test.ts",
+        "tests/scope.test.ts",
+        "tests/view.test.ts",
+        "tests/workspace-config.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "db:build"
+      ],
+      "outputs": [
+        "artifacts/tests/db-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "graph:typecheck",
+      "kind": "command",
+      "project": "packages/graph",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "graph:build"
+      ],
+      "outputs": [
+        "artifacts/tests/graph-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "graph:test",
+      "kind": "vitest",
+      "project": "packages/graph",
+      "files": [
+        "tests/field-relations-baseline.test.ts",
+        "tests/floor-citation.test.ts",
+        "tests/load.test.ts",
+        "tests/primitives.test.ts",
+        "tests/queries.test.ts",
+        "tests/text.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "graph:build"
+      ],
+      "outputs": [
+        "artifacts/tests/graph-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "language:typecheck",
+      "kind": "command",
+      "project": "packages/language",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "language:build"
+      ],
+      "outputs": [
+        "artifacts/tests/language-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "language:test",
+      "kind": "vitest",
+      "project": "packages/language",
+      "files": [
+        "tests/compile/compile.test.ts",
+        "tests/compile/semantic-integration.test.ts",
+        "tests/compile/syntax-ownership.test.ts",
+        "tests/compile/values.test.ts",
+        "tests/diagnostics.test.ts",
+        "tests/editor.test.ts",
+        "tests/fixtures.test.ts",
+        "tests/fold.test.ts",
+        "tests/formatter.test.ts",
+        "tests/identity.test.ts",
+        "tests/parser/fields.test.ts",
+        "tests/parser/fragments.test.ts",
+        "tests/parser/records.test.ts",
+        "tests/parser/trivia.test.ts",
+        "tests/parser/values.test.ts",
+        "tests/paths.test.ts",
+        "tests/registry/consent.test.ts",
+        "tests/registry/extract.test.ts",
+        "tests/registry/fields.test.ts",
+        "tests/registry/floor-consent.test.ts",
+        "tests/registry/index.test.ts",
+        "tests/registry/merge.test.ts",
+        "tests/registry/order.test.ts",
+        "tests/registry/schemas.test.ts",
+        "tests/scanner/lines.test.ts",
+        "tests/scanner/scan.test.ts",
+        "tests/scanner/tokenize.test.ts",
+        "tests/semantic/cases.test.ts",
+        "tests/semantic/cells.test.ts",
+        "tests/semantic/conditions.test.ts",
+        "tests/semantic/contracts.test.ts",
+        "tests/semantic/edges.test.ts",
+        "tests/semantic/placement.test.ts",
+        "tests/semantic/public.test.ts",
+        "tests/semantic/requirements.test.ts",
+        "tests/semantic/resolve.test.ts",
+        "tests/semantic/selectors.test.ts",
+        "tests/semantic/variants.test.ts",
+        "tests/semantic/vocabulary.test.ts",
+        "tests/smoke.test.ts",
+        "tests/taxonomy.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "language:build"
+      ],
+      "outputs": [
+        "artifacts/tests/language-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "runtime:typecheck",
+      "kind": "command",
+      "project": "packages/runtime",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "runtime:build"
+      ],
+      "outputs": [
+        "artifacts/tests/runtime-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "runtime:test",
+      "kind": "vitest",
+      "project": "packages/runtime",
+      "files": [
+        "tests/authoring.test.ts",
+        "tests/composition.test.ts",
+        "tests/context.test.ts",
+        "tests/coordinate.test.ts",
+        "tests/editor.test.ts",
+        "tests/entry.test.ts",
+        "tests/loop.test.ts",
+        "tests/publication.test.ts",
+        "tests/select-door.test.ts",
+        "tests/steward.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "runtime:build"
+      ],
+      "outputs": [
+        "artifacts/tests/runtime-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication checks current authority under the inspection lock and releases on refusal",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication distinguishes absence, partial bytes, different provenance and tampering",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication holds destination ownership across processes and releases it on actual process death",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication publishes exact bytes and inventory only after an exclusive final directory claim",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses a second destination owner, preexisting empty directories, and a late destination race",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses bounds, case and file/directory collisions before staging",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses junction ancestors without touching their destination",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses timeout volume qualification without creating output or caching failure",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses invalid-json volume qualification without creating output or caching failure",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses remote volume qualification without creating output or caching failure",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication refuses non-ntfs volume qualification without creating output or caching failure",
+          "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "service-contracts:typecheck",
+      "kind": "command",
+      "project": "packages/service-contracts",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/service-contracts-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "service-contracts:test",
+      "kind": "vitest",
+      "project": "packages/service-contracts",
+      "files": [
+        "tests/contracts.test.ts",
+        "tests/installation.test.ts",
+        "tests/marketplace.test.ts",
+        "tests/session-lifecycle.test.ts",
+        "tests/source-apply.test.ts",
+        "tests/sources.test.ts",
+        "tests/tenancy.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/service-contracts-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-compliance",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/compliance/check.test.ts",
+        "tools/compliance/foundation-adoption.test.ts",
+        "tools/compliance/publication-fixtures.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/tools-test-compliance"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/compliance/publication-fixtures.test.ts > observes every publication refusal through the actual qualified Windows primitive",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tools:test-dependencies",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/dependencies/check.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-dependencies"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-distribution",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/distribution/host-payload.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "language-base:generate",
+        "distribution:build",
+        "cli:build",
+        "mcp-door:build",
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "artifacts/tests/tools-test-distribution"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-docs",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/docs/audit.test.ts",
+        "tools/docs/link-parity.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/tools-test-docs"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-entry",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/entry/is-entry.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-entry"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-kernel",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/kernel/generate.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-kernel"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-native",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/native/public-language.test.ts",
+        "tools/native/check.test.ts",
+        "tools/native/language-base.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-native"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-projections",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/projections/generate.test.ts",
+        "tools/projections/membership.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-projections"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-systems",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/systems/authoring-manifest.test.ts",
+        "tools/systems/authoring-guides.test.ts",
+        "tools/systems/execute.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/tools-test-systems"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/systems/execute.test.ts > publishes new draft artifacts and a manifest, refuses overwrite and leaves source unchanged",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tools:test-testing",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/testing/inventory.test.ts",
+        "tools/testing/plan.test.ts",
+        "tools/testing/report.test.ts",
+        "tools/testing/resources.test.ts",
+        "tools/testing/subprocess.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [
+        "runtime:build"
+      ],
+      "outputs": [
+        "artifacts/tests/tools-test-testing"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-temp",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/temp/physical-temp.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-temp"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-cache",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/testing/cache.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-cache"
+      ],
+      "cache": false,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "reason": "The probe mutates real inputs and drives Nx itself; reusing its result would assert nothing about the current tree."
+    },
+    {
+      "id": "docs:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm docs:check --all",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/docs-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm docs:check --all"
+      ]
+    },
+    {
+      "id": "docs:audit",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm docs:audit",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/docs-audit"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --import tsx tools/docs/audit.ts",
+        "node tools/docs/catalog.mjs",
+        "node tools/docs/catalog.mjs --links"
+      ]
+    },
+    {
+      "id": "dependencies:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm dependencies:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/dependencies-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --import tsx tools/dependencies/check.ts"
+      ]
+    },
+    {
+      "id": "kernel:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm kernel:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/kernel-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/kernel/generate.ts --check"
+      ]
+    },
+    {
+      "id": "authoring:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm authoring:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/authoring-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/systems/generate-authoring.ts --check"
+      ]
+    },
+    {
+      "id": "projections:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm projections:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/projections-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/projections/generate.ts --check"
+      ]
+    },
+    {
+      "id": "native:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm native:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/native-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/native/check.ts"
+      ]
+    },
+    {
+      "id": "compliance:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm compliance:check",
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/compliance-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/compliance/check.ts"
+      ]
+    },
+    {
+      "id": "systems:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm systems:check",
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/systems-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/systems/scenarios.ts"
+      ]
+    },
+    {
+      "id": "tools:typecheck",
+      "kind": "command",
+      "project": ".",
+      "command": "tsc -p tsconfig.tools.json",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/tools-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "tsc -p tsconfig.tools.json"
+      ]
+    },
+    {
+      "id": "resources:qualify",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm resources:qualify",
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "emitted",
+      "inputProfile": "emitted",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/resources-qualify"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "node tools/projections/qualify-resources.mjs"
+      ]
+    },
+    {
+      "id": "projections:qualify",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm projections:qualify",
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "emitted",
+      "inputProfile": "emitted",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build"
+      ],
+      "outputs": [
+        "artifacts/tests/projections-qualify"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "node tools/projections/qualify-projections.mjs"
+      ]
+    },
+    {
+      "id": "public-language:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm public-language:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/public-language-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/native/public-language.ts"
+      ]
+    },
+    {
+      "id": "vocabulary:check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm vocabulary:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/vocabulary-check"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/native/public-vocabulary.ts --check"
+      ]
+    },
+    {
+      "id": "language-base:generate",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm language-base:generate",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "apps/cli/assets/base",
+        "apps/cli/assets/base.json",
+        "artifacts/tests/language-base-generate"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/native/language-base.ts --write"
+      ]
+    },
+    {
+      "id": "host-payload:generate",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm host-payload:generate",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [
+        "language-base:generate",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "apps/cli/assets/host",
+        "apps/cli/assets/host.json",
+        "artifacts/tests/host-payload-generate"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node tools/distribution/host-payload.mjs --write"
+      ]
+    },
+    {
+      "id": "tools:test-review",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/review/runner.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-review"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "public:qualify",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm public:qualify",
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "emitted",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [
+        "host-payload:generate",
+        "service-contracts:build",
+        "vscode:build"
+      ],
+      "outputs": [
+        "artifacts/tests/public-qualify"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "node tools/distribution/generate-public.mjs --check",
+        "node tools/distribution/qualify-public.mjs",
+        "node tools/distribution/qualify-packages.mjs"
+      ]
+    },
+    {
+      "id": "source:lint",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm lint",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/source-lint"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "biome lint ."
+      ]
+    },
+    {
+      "id": "source:format",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm format:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/source-format"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "biome format ."
+      ]
+    }
+  ]
+}

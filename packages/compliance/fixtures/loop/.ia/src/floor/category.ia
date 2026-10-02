@@ -1,0 +1,107 @@
+#! ia 1.0
+
+@category thing
+  meaning
+    says "A concrete entity — an object or instance that exists in its own right."
+    answers "Is this node a concrete entity?"
+  data
+    order 0
+
+@category kind
+  meaning
+    says "A type or class — the category an instance belongs to."
+    answers "Is this node a type or class?"
+  data
+    order 1
+
+@category property
+  meaning
+    says "An attribute or quality — a characteristic a node carries."
+    answers "Is this node an attribute or quality?"
+  data
+    order 2
+
+@category state
+  meaning
+    says "A condition or status — the configuration a node is in at a moment."
+    answers "Is this node a condition or status?"
+  data
+    order 3
+
+@category event
+  meaning
+    says "An occurrence in time — something that happens or is emitted."
+    answers "Is this node an occurrence in time?"
+  data
+    order 4
+
+@category relation
+  meaning
+    says "A link between nodes — an edge or association connecting two things."
+    answers "Is this node a link between things?"
+  data
+    order 5
+
+@category rule
+  meaning
+    says "A normative constraint — what must, may, or must not hold."
+    answers "Is this node a normative constraint?"
+  data
+    order 6
+
+@category capability
+  meaning
+    says "An ability or affordance — what an actor or system can do."
+    answers "Is this node an ability or affordance?"
+  data
+    order 7
+
+@category intent
+  meaning
+    says "A goal or purpose — the aim a node is directed toward."
+    answers "Is this node a goal or purpose?"
+  data
+    order 8
+
+@category decision
+  meaning
+    says "A committed choice — a selection among alternatives, with the bet stated."
+    answers "Is this node a committed choice?"
+  data
+    order 9
+
+@category evidence
+  meaning
+    says "A grounding observation — a checkable fact that supports a claim."
+    answers "Is this node grounding evidence?"
+  data
+    order 10
+
+@category representation
+  meaning
+    says "A data shape or encoding — how information is structured or rendered."
+    answers "Is this node a data shape or encoding?"
+  data
+    order 11
+
+@category process
+  meaning
+    says "An activity or transformation — work that takes inputs to outputs over steps."
+    answers "Is this node an activity or transformation?"
+  data
+    order 12
+
+@category measure
+  meaning
+    says "A quantity or metric — a measured value or unit of assessment."
+    answers "Is this node a quantity or metric?"
+  data
+    order 13
+
+@category boundary
+  meaning
+    says "A scope or limit — the edge of a domain, where reach or authority stops."
+    answers "Is this node a scope or limit?"
+  data
+    order 14
+

@@ -1,0 +1,17 @@
+#! ia 1.0
+
+@case render-template-refusal
+  meaning
+    says "render-template refuses an empty object with IA-EXEC-INPUT-INVALID."
+    answers "Does render-template refuse an input with no template or values and return no artifact?"
+  scenario
+    kind refusal
+    given "The admitted native corpus and its fixed implementation catalog."
+    request "Invoke render-template with scenario.input JSON."
+    expected "Refuse missing required inputs without artifacts."
+    evaluator "tools/systems/scenarios.ts"
+    operation @operation render-template
+    input "{}"
+    code IA-EXEC-INPUT-INVALID
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-REFUSE

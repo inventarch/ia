@@ -1,0 +1,18 @@
+#! ia 1.0
+
+@schema app-composition
+  lowers to definition
+  sections
+    must have meaning
+    must have app
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have app.format as number
+    must have app.app-id as id
+    must have app.version as text
+    must have app.resource as text
+    must have app.digest as text
+    must have app.capabilities as list of ref to capability

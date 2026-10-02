@@ -1,0 +1,12 @@
+#! ia 1.0
+
+@mandate sample-task
+  meaning
+    says "Fixture sample-task text 1."
+    answers "Fixture sample-task text 2."
+  governance
+    requires "Fixture sample-task text 3."
+  execution
+    contract sample-task-v1
+    limit-model-calls 12
+    limit-tokens 400000

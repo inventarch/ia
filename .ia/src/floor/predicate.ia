@@ -1,0 +1,164 @@
+#! ia 1.0
+
+@predicate govern
+  meaning
+    says "X governs Y — Y is subject to X's authority and rules (inverse: governed-by). The authority edge."
+    answers "Does X supply the authority or rules that Y is subject to?"
+  data
+    order 0
+    inverse governed-by
+    phrase "governs"
+
+@predicate enforce
+  meaning
+    says "X enforces Y — X actively applies or checks Y at a crossing (inverse: enforced-by). The enforcement edge."
+    answers "Does X apply or check Y's obligation, rather than state it?"
+  data
+    order 1
+    inverse enforced-by
+    phrase "enforces"
+
+@predicate ground
+  meaning
+    says "X grounds Y — X is the evidence or basis Y rests on (inverse: grounded-by). The grounding edge."
+    answers "Is X evidence Y rests on, not merely a source it mentions?"
+  data
+    order 2
+    inverse grounded-by
+    phrase "grounds"
+
+@predicate constrain
+  meaning
+    says "X constrains Y — X bounds what Y may be or do (inverse: constrained-by). The constraint edge."
+    answers "Does X bound what Y may be or do without prohibiting it outright?"
+  data
+    order 3
+    inverse constrained-by
+    phrase "constrains"
+
+@predicate implement
+  meaning
+    says "X implements Y — X is the concrete realization of the interface, requirement or intent Y, or a case that exercises requirement Y for coverage (inverse: implemented-by). The realization edge."
+    answers "Does X realize Y's interface, requirement or intent, or exercise that requirement as a case?"
+  data
+    order 4
+    inverse implemented-by
+    phrase "implements"
+
+@predicate produce
+  meaning
+    says "X produces Y — X yields Y as an output or artifact (inverse: produced-by). The production edge."
+    answers "Does X yield Y as an output, rather than record where Y came from?"
+  data
+    order 5
+    inverse produced-by
+    phrase "produces"
+
+@predicate consume
+  meaning
+    says "X consumes Y — X takes Y as an input (inverse: consumed-by). The consumption edge."
+    answers "Does X take Y as an input, rather than depend on Y being present?"
+  data
+    order 6
+    inverse consumed-by
+    phrase "consumes"
+
+@predicate record-lineage-from
+  meaning
+    says "X records lineage from Y — X traces its provenance to the source Y (inverse: lineage-recorded-by). The lineage edge."
+    answers "Does X derive from Y as its source, rather than yield it?"
+  data
+    order 7
+    inverse lineage-recorded-by
+    phrase "records lineage from"
+
+@predicate grant-access-to
+  meaning
+    says "X grants access to Y — X declares that reaching the resource Y is permitted, which an access consumer must enforce (inverse: access-granted-by). The access-grant edge."
+    answers "Does X declare that reaching resource Y is permitted?"
+  data
+    order 8
+    inverse access-granted-by
+    phrase "grants access to"
+
+@predicate run-before
+  meaning
+    says "X runs before Y — X precedes Y in execution order (inverse: run-after). The ordering edge."
+    answers "Must X come before Y in execution order, without starting it?"
+  data
+    order 9
+    inverse run-after
+    phrase "runs before"
+
+@predicate trigger
+  meaning
+    says "X triggers Y — X fires or initiates Y at a lifecycle moment (inverse: triggered-by). The trigger edge."
+    answers "Does X start Y at a lifecycle moment, rather than only precede it?"
+  data
+    order 10
+    inverse triggered-by
+    phrase "triggers"
+
+@predicate cite
+  meaning
+    says "X cites Y — X references Y as a source or prior art (inverse: cited-by). The citation edge."
+    answers "Does X reference Y while asserting nothing stronger?"
+  data
+    order 11
+    inverse cited-by
+    phrase "cites"
+
+@predicate supersede
+  meaning
+    says "X supersedes Y — X replaces and obsoletes Y (inverse: superseded-by). The supersession edge."
+    answers "Does X replace Y and leave it obsolete?"
+  data
+    order 12
+    inverse superseded-by
+    phrase "supersedes"
+
+@predicate require
+  meaning
+    says "X requires Y — X depends on Y being present to function (inverse: required-by). The dependency edge."
+    answers "Does X need Y to be present in order to function?"
+  data
+    order 13
+    inverse required-by
+    phrase "requires"
+
+@predicate use
+  meaning
+    says "X uses Y — X draws on or adopts Y; a @workspace `uses @distribution <name>` edge declares one install (inverse: used-by). The usage edge."
+    answers "Does X draw on or adopt Y without needing it present to function?"
+  data
+    order 14
+    inverse used-by
+    phrase "uses"
+
+@predicate forbid
+  meaning
+    says "X forbids Y — X prohibits Y (inverse: forbidden-by). The prohibition edge."
+    answers "Does X prohibit Y outright?"
+  data
+    order 15
+    inverse forbidden-by
+    phrase "forbids"
+
+@predicate route
+  meaning
+    says "X routes to Y — X directs dispatch or flow to Y (inverse: routed-by). The routing edge."
+    answers "Does X direct dispatch or flow to Y, rather than start it?"
+  data
+    order 16
+    inverse routed-by
+    phrase "routes to"
+
+@predicate land
+  meaning
+    says "X lands at Y — X's published content materializes at the target Y when a consumer adopts it (inverse: landed-by). The distribution landing edge."
+    answers "Does X's published content materialize at Y once a consumer adopts it?"
+  data
+    order 17
+    inverse landed-by
+    phrase "lands at"
+

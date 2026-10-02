@@ -1,0 +1,11 @@
+#! ia 1.0
+@law x
+  category is capability
+  meaning
+    says   spaced    scalar
+    state active when phase is orient
+    cites @law y when "even when quoted"
+    label "héllo ✓"
+    empty
+    holds
+      child "c"

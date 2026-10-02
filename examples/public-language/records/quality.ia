@@ -1,0 +1,56 @@
+#! ia 1.0
+
+@workspace example-module
+  meaning
+    says "The scope of a toy module conformance example."
+    answers "Which scope adopts the module requirement?"
+  composition
+    systems [@system compliance-system]
+  relationships
+    requires @contract example-quality
+
+@contract example-quality
+  version "1.0.0"
+  meaning
+    says "A sample obligation that a module source ends with a newline."
+    answers "Which machine-observable requirement is adopted here?"
+  outputs
+    REQ-EXAMPLE-NEWLINE "The supplied module source ends with a line-feed byte."
+  relationships
+    governs @workspace example-module
+
+@check example-newline-check
+  meaning
+    says "Names an evaluator for the example module requirement."
+    answers "Which evaluator must the host supply?"
+  check
+    runs COMP-ADOPTION
+    scope "supplied module source"
+  relationships
+    enforces @contract example-quality#REQ-EXAMPLE-NEWLINE
+
+@case example-newline-case
+  meaning
+    says "A declared scenario for the example requirement."
+    answers "What input and result does the scenario describe?"
+  scenario
+    kind success
+    given "A supplied module source ending with a line-feed byte."
+    request "Evaluate the final byte."
+    expected "The newline requirement passes."
+    evaluator "example-newline"
+  relationships
+    implements @contract example-quality#REQ-EXAMPLE-NEWLINE
+
+@case example-newline-failure
+  meaning
+    says "A declared failure scenario for the example requirement."
+    answers "What happens when the supplied source lacks a newline?"
+  scenario
+    kind failure
+    given "A supplied module source without a final line-feed byte."
+    request "Evaluate the final byte."
+    expected "The newline requirement fails."
+    evaluator "example-newline"
+  relationships
+    implements @contract example-quality#REQ-EXAMPLE-NEWLINE

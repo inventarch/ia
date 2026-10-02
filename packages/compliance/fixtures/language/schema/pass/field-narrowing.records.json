@@ -1,0 +1,170 @@
+[
+  {
+    "identity": "floor/contract/head/task",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "task",
+    "displayName": "Task",
+    "discriminator": "schema",
+    "source": {
+      "path": "schema/pass/field-narrowing.ia",
+      "line": 2,
+      "endLine": 13
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "definition"
+        },
+        "span": {
+          "line": 3,
+          "endLine": 3
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 4,
+          "endLine": 6
+        },
+        "fields": [
+          {
+            "key": "must have",
+            "value": {
+              "kind": "scalar",
+              "text": "work"
+            },
+            "span": {
+              "line": 5,
+              "endLine": 5
+            }
+          },
+          {
+            "key": "closed",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 6,
+              "endLine": 6
+            }
+          }
+        ]
+      },
+      {
+        "name": "fields",
+        "span": {
+          "line": 7,
+          "endLine": 13
+        },
+        "fields": [
+          {
+            "key": "must have work.status as id in",
+            "value": {
+              "kind": "list",
+              "items": [
+                {
+                  "kind": "scalar",
+                  "text": "todo"
+                },
+                {
+                  "kind": "scalar",
+                  "text": "doing"
+                },
+                {
+                  "kind": "scalar",
+                  "text": "done"
+                }
+              ]
+            },
+            "span": {
+              "line": 8,
+              "endLine": 8
+            }
+          },
+          {
+            "key": "may have work.tags as list of id in",
+            "value": {
+              "kind": "list",
+              "items": [
+                {
+                  "kind": "scalar",
+                  "text": "urgent"
+                },
+                {
+                  "kind": "scalar",
+                  "text": "blocked"
+                }
+              ]
+            },
+            "span": {
+              "line": 9,
+              "endLine": 9
+            }
+          },
+          {
+            "key": "must have work.milestone as ref to milestone",
+            "value": {
+              "kind": "string",
+              "text": "the parent"
+            },
+            "span": {
+              "line": 10,
+              "endLine": 10
+            }
+          },
+          {
+            "key": "may have",
+            "value": {
+              "kind": "scalar",
+              "text": "work.depends as list of ref to task"
+            },
+            "span": {
+              "line": 11,
+              "endLine": 11
+            }
+          },
+          {
+            "key": "may have work.due as text form iso-date",
+            "value": {
+              "kind": "string",
+              "text": "YYYY-MM-DD"
+            },
+            "span": {
+              "line": 12,
+              "endLine": 12
+            }
+          },
+          {
+            "key": "may have",
+            "value": {
+              "kind": "scalar",
+              "text": "work.dates as list of text form iso-date"
+            },
+            "span": {
+              "line": 13,
+              "endLine": 13
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  }
+]

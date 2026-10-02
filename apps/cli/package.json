@@ -1,0 +1,256 @@
+{
+  "name": "@ia/cli",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@ia/distribution": "workspace:*",
+    "@ia/compliance": "workspace:*",
+    "@ia/agent-composition-system": "workspace:*",
+    "@ia/db": "workspace:*",
+    "@ia/runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "bin": {
+    "ia": "./dist/main.js"
+  },
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./internal/args": {
+      "types": "./dist/args.d.ts",
+      "default": "./dist/args.js"
+    },
+    "./internal/briefing": {
+      "types": "./dist/briefing.d.ts",
+      "default": "./dist/briefing.js"
+    },
+    "./internal/channel": {
+      "types": "./dist/channel.d.ts",
+      "default": "./dist/channel.js"
+    },
+    "./internal/claude-cli": {
+      "types": "./dist/claude-cli.d.ts",
+      "default": "./dist/claude-cli.js"
+    },
+    "./internal/commands": {
+      "types": "./dist/commands.d.ts",
+      "default": "./dist/commands.js"
+    },
+    "./internal/compile": {
+      "types": "./dist/compile.d.ts",
+      "default": "./dist/compile.js"
+    },
+    "./internal/consumer": {
+      "types": "./dist/consumer.d.ts",
+      "default": "./dist/consumer.js"
+    },
+    "./internal/decline": {
+      "types": "./dist/decline.d.ts",
+      "default": "./dist/decline.js"
+    },
+    "./internal/distribute": {
+      "types": "./dist/distribute.d.ts",
+      "default": "./dist/distribute.js"
+    },
+    "./internal/doctor-user": {
+      "types": "./dist/doctor-user.d.ts",
+      "default": "./dist/doctor-user.js"
+    },
+    "./internal/doctor": {
+      "types": "./dist/doctor.d.ts",
+      "default": "./dist/doctor.js"
+    },
+    "./internal/format": {
+      "types": "./dist/format.d.ts",
+      "default": "./dist/format.js"
+    },
+    "./internal/home-remedy": {
+      "types": "./dist/home-remedy.d.ts",
+      "default": "./dist/home-remedy.js"
+    },
+    "./internal/host-projection": {
+      "types": "./dist/host-projection.d.ts",
+      "default": "./dist/host-projection.js"
+    },
+    "./internal/host": {
+      "types": "./dist/host.d.ts",
+      "default": "./dist/host.js"
+    },
+    "./internal/init": {
+      "types": "./dist/init.d.ts",
+      "default": "./dist/init.js"
+    },
+    "./internal/inspect": {
+      "types": "./dist/inspect.d.ts",
+      "default": "./dist/inspect.js"
+    },
+    "./internal/main": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./internal/operation-help": {
+      "types": "./dist/operation-help.d.ts",
+      "default": "./dist/operation-help.js"
+    },
+    "./internal/pack": {
+      "types": "./dist/pack.d.ts",
+      "default": "./dist/pack.js"
+    },
+    "./internal/render": {
+      "types": "./dist/render.d.ts",
+      "default": "./dist/render.js"
+    },
+    "./internal/session": {
+      "types": "./dist/session.d.ts",
+      "default": "./dist/session.js"
+    },
+    "./internal/user-host": {
+      "types": "./dist/user-host.d.ts",
+      "default": "./dist/user-host.js"
+    },
+    "./internal/validate": {
+      "types": "./dist/validate.d.ts",
+      "default": "./dist/validate.js"
+    },
+    "./internal/vocabulary": {
+      "types": "./dist/vocabulary.d.ts",
+      "default": "./dist/vocabulary.js"
+    }
+  },
+  "peerDependencies": {},
+  "peerDependenciesMeta": {},
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.ts",
+        "default": "./dist/main.js"
+      },
+      "./internal/args": {
+        "types": "./dist/args.d.ts",
+        "default": "./dist/args.js"
+      },
+      "./internal/briefing": {
+        "types": "./dist/briefing.d.ts",
+        "default": "./dist/briefing.js"
+      },
+      "./internal/channel": {
+        "types": "./dist/channel.d.ts",
+        "default": "./dist/channel.js"
+      },
+      "./internal/claude-cli": {
+        "types": "./dist/claude-cli.d.ts",
+        "default": "./dist/claude-cli.js"
+      },
+      "./internal/commands": {
+        "types": "./dist/commands.d.ts",
+        "default": "./dist/commands.js"
+      },
+      "./internal/compile": {
+        "types": "./dist/compile.d.ts",
+        "default": "./dist/compile.js"
+      },
+      "./internal/consumer": {
+        "types": "./dist/consumer.d.ts",
+        "default": "./dist/consumer.js"
+      },
+      "./internal/decline": {
+        "types": "./dist/decline.d.ts",
+        "default": "./dist/decline.js"
+      },
+      "./internal/distribute": {
+        "types": "./dist/distribute.d.ts",
+        "default": "./dist/distribute.js"
+      },
+      "./internal/doctor-user": {
+        "types": "./dist/doctor-user.d.ts",
+        "default": "./dist/doctor-user.js"
+      },
+      "./internal/doctor": {
+        "types": "./dist/doctor.d.ts",
+        "default": "./dist/doctor.js"
+      },
+      "./internal/format": {
+        "types": "./dist/format.d.ts",
+        "default": "./dist/format.js"
+      },
+      "./internal/home-remedy": {
+        "types": "./dist/home-remedy.d.ts",
+        "default": "./dist/home-remedy.js"
+      },
+      "./internal/host-projection": {
+        "types": "./dist/host-projection.d.ts",
+        "default": "./dist/host-projection.js"
+      },
+      "./internal/host": {
+        "types": "./dist/host.d.ts",
+        "default": "./dist/host.js"
+      },
+      "./internal/init": {
+        "types": "./dist/init.d.ts",
+        "default": "./dist/init.js"
+      },
+      "./internal/inspect": {
+        "types": "./dist/inspect.d.ts",
+        "default": "./dist/inspect.js"
+      },
+      "./internal/main": {
+        "types": "./dist/main.d.ts",
+        "default": "./dist/main.js"
+      },
+      "./internal/operation-help": {
+        "types": "./dist/operation-help.d.ts",
+        "default": "./dist/operation-help.js"
+      },
+      "./internal/pack": {
+        "types": "./dist/pack.d.ts",
+        "default": "./dist/pack.js"
+      },
+      "./internal/render": {
+        "types": "./dist/render.d.ts",
+        "default": "./dist/render.js"
+      },
+      "./internal/session": {
+        "types": "./dist/session.d.ts",
+        "default": "./dist/session.js"
+      },
+      "./internal/user-host": {
+        "types": "./dist/user-host.d.ts",
+        "default": "./dist/user-host.js"
+      },
+      "./internal/validate": {
+        "types": "./dist/validate.d.ts",
+        "default": "./dist/validate.js"
+      },
+      "./internal/vocabulary": {
+        "types": "./dist/vocabulary.d.ts",
+        "default": "./dist/vocabulary.js"
+      }
+    },
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  }
+}

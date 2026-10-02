@@ -1,0 +1,23 @@
+#! ia 1.0
+
+@schema system
+  lowers to definition
+  sections
+    may have discriminators
+    may have requires
+    may have edges
+    may have relationships
+    open
+  fields
+    must have head.provider as text
+    must have head.version as text
+    may have head.steward as ref
+    may have head.describes as text
+
+@schema schema
+  lowers to contract
+  sections
+    must have sections
+    may have fields
+    may have edges
+    closed

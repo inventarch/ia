@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@capability secondary-read
+  meaning
+    says "Fixture secondary-read text 1."
+    answers "Fixture secondary-read text 2."
+  composition
+    operations [@operation fixture-secondary-read]
+    playbooks [@playbook sample-cells]
+  execution
+    input task-text-v1
+    outcomes secondary-read-outcomes-v1
+    context-profile captured-context-v1
+    mapping-profile identity-v1
+    effects [read]

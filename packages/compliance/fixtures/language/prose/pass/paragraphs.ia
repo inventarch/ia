@@ -1,0 +1,7 @@
+#! ia 1.0
+@law x
+  meaning
+    says """First line
+      continues here.
+
+      Second paragraph with # and " and [ inside."""

@@ -1,0 +1,18 @@
+#! ia 1.0
+
+@case validate-ia-success
+  meaning
+    says "validate-ia admits a well-formed agent draft in agent-system and returns evidence with no artifact."
+    answers "Does validate-ia admit a well-formed agent draft in agent-system and return evidence with zero artifacts?"
+  scenario
+    kind success
+    given "The admitted native corpus and its fixed implementation catalog."
+    request "Invoke validate-ia with scenario.input JSON."
+    expected "Return contextual admission evidence and a candidate revision with no artifacts."
+    evaluator "tools/systems/scenarios.ts"
+    operation @operation validate-ia
+    input "{\"path\":\".ia/src/systems/agent-system/records/example-expert.ia\",\"text\":\"#! ia 1.0\\n@agent example-expert\\n  meaning\\n    says \\\"A bounded expert\\\"\\n    answers \\\"Who performs this work?\\\"\\n  governance\\n    applies [agent]\\n\"}"
+    code pass
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-INPUT
+    implements @contract executable-authoring-contract#REQ-EXEC-RESULT

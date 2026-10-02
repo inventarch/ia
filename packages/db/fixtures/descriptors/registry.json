@@ -1,0 +1,166 @@
+{
+  "format": 1,
+  "targets": [
+    "browser",
+    "headless"
+  ],
+  "contracts": [
+    {
+      "kind": "command",
+      "id": "place-order",
+      "version": 1,
+      "implementation": "sha256:2187101f457b6365dbe5c64166060d1affa6f5b963d7d69c28c795e8c9d92990",
+      "input": "place-order-input@1",
+      "output": "order-summary@1",
+      "error": "order-error@1"
+    },
+    {
+      "kind": "command",
+      "id": "cancel-order",
+      "version": 1,
+      "implementation": "sha256:dd231068f0ad69557d6f42b05cade7dc48300d56b691f093437ee41dbf648255",
+      "input": "order-ref@1",
+      "output": "order-summary@1",
+      "error": "order-error@1"
+    },
+    {
+      "kind": "query",
+      "id": "list-orders",
+      "version": 1,
+      "implementation": "sha256:842731ad5ac37158da654f9b03a8351ef15f97224f108523758d12ec450caffd",
+      "input": "order-filter@1",
+      "output": "order-page@1",
+      "error": "order-error@1",
+      "targets": [
+        "browser",
+        "headless"
+      ]
+    },
+    {
+      "kind": "command",
+      "id": "open-loan",
+      "version": 2,
+      "implementation": "sha256:241ce3a1d126d4352e43b750a2dda245a6d72288d1e434e8657d2c3a777c31ff",
+      "input": "loan-request@2",
+      "output": "loan-summary@2",
+      "error": "loan-error@1"
+    },
+    {
+      "kind": "query",
+      "id": "overdue-loans",
+      "version": 1,
+      "implementation": "sha256:053bd67cd5fae2d895aa93ab9709a004a0de81944486883e833b0708746b03f6",
+      "input": "overdue-filter@1",
+      "output": "loan-page@1",
+      "error": "loan-error@1",
+      "targets": [
+        "browser",
+        "headless"
+      ]
+    },
+    {
+      "kind": "validator",
+      "id": "order-total-matches-lines",
+      "version": 1,
+      "implementation": "sha256:ace8ca578b4c41deffc7072da9de2b61ac82d72f4070d96fa5d256ffa7eefe3d"
+    },
+    {
+      "kind": "validator",
+      "id": "member-in-good-standing",
+      "version": 1,
+      "implementation": "sha256:9118aa3154d3ae1adb08a4a0645d98a574e33a043b1ee03a9ff4e0f3fdd39329"
+    },
+    {
+      "kind": "view",
+      "id": "list-view",
+      "version": 1,
+      "implementation": "sha256:777720f8ff9c326b46b91c40199e07d31d98e756cb033790bd0f3de10f461295",
+      "targets": [
+        "browser",
+        "headless"
+      ]
+    },
+    {
+      "kind": "view",
+      "id": "detail-view",
+      "version": 1,
+      "implementation": "sha256:1cc7d3dcd8118b1adbd00a4482c7c276a71b6e734d1cace3d17aa75ce788effb",
+      "targets": [
+        "browser",
+        "headless"
+      ]
+    },
+    {
+      "kind": "view",
+      "id": "map-view",
+      "version": 1,
+      "implementation": "sha256:29eba5ffcca9c7f4f731eadadb8c1674f4ed790345e1e3264dd9e2aef7ad98e2",
+      "targets": [
+        "browser"
+      ]
+    },
+    {
+      "kind": "operation",
+      "id": "place-order",
+      "version": 1,
+      "implementation": "sha256:2187101f457b6365dbe5c64166060d1affa6f5b963d7d69c28c795e8c9d92990",
+      "input": "place-order-input@1",
+      "output": "order-summary@1",
+      "effect": "write",
+      "targets": [
+        "browser",
+        "headless"
+      ]
+    },
+    {
+      "kind": "operation",
+      "id": "cancel-order",
+      "version": 1,
+      "implementation": "sha256:dd231068f0ad69557d6f42b05cade7dc48300d56b691f093437ee41dbf648255",
+      "input": "order-ref@1",
+      "output": "order-summary@1",
+      "effect": "write",
+      "targets": [
+        "browser",
+        "headless"
+      ]
+    },
+    {
+      "kind": "operation",
+      "id": "open-loan",
+      "version": 2,
+      "implementation": "sha256:241ce3a1d126d4352e43b750a2dda245a6d72288d1e434e8657d2c3a777c31ff",
+      "input": "loan-request@2",
+      "output": "loan-summary@2",
+      "effect": "write",
+      "targets": [
+        "browser",
+        "headless"
+      ]
+    },
+    {
+      "kind": "port",
+      "id": "order-repository",
+      "version": 1,
+      "implementation": "sha256:4b268764fe932e99f7a1757305cad544a4c1fa28f1b16d0f0e84e7aea36f2163"
+    },
+    {
+      "kind": "adapter",
+      "id": "relational-store",
+      "version": 2,
+      "implementation": "sha256:701dbbef1a17968b8115ec786a2cbbf45cf3beb1569e4a3f79059b7d3ebb90f1",
+      "port": "order-repository@1",
+      "transactions": [
+        "entity",
+        "model"
+      ],
+      "isolation": true
+    },
+    {
+      "kind": "migration-policy",
+      "id": "reviewed-forward-only",
+      "version": 1,
+      "implementation": "sha256:81d4815b8af3a33b3427881433afa95de4949821a7a0717a27190c3e7c0ea1ce"
+    }
+  ]
+}

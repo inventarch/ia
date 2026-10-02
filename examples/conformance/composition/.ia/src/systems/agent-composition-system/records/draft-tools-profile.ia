@@ -1,0 +1,16 @@
+#! ia 1.0
+
+@agent-profile draft-tools-profile
+  meaning
+    says "Fixture draft-tools-profile text 1."
+    answers "Fixture draft-tools-profile text 2."
+  composition
+    agent @agent sample-author
+    voice @voice sample-voice
+    mandate @mandate sample-task
+    capabilities [@capability fixture-readion, @capability draft-tools]
+    delegates []
+  execution
+    role author
+    outcomes sample-outcomes-v1
+    mandate-contract sample-task-v1

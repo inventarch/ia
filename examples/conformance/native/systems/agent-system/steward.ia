@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent agent-steward
+  meaning
+    says "Identifies the owner of agent-system contracts in this example."
+    answers "Who owns the agent and mandate words in this example?"
+  governance
+    applies [agent, mandate]

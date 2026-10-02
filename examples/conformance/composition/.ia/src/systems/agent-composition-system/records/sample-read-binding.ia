@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@execution-binding sample-read-binding
+  meaning
+    says "Fixture sample-read-binding text 1."
+    answers "Fixture sample-read-binding text 2."
+  binding
+    kind operation
+    target @operation sample-read
+    implementation fixture-read-v1

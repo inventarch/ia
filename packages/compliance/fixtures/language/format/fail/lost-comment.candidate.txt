@@ -1,0 +1,5 @@
+#! ia 1.0
+
+@agent writer
+  meaning
+    says "Author records."

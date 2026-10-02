@@ -1,0 +1,117 @@
+{
+  "kind": "file",
+  "path": "lists/pass/multi-line.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "law",
+      "name": "x",
+      "head": [],
+      "sections": [
+        {
+          "kind": "section",
+          "name": "meaning",
+          "span": {
+            "line": 3,
+            "endLine": 9
+          },
+          "children": [
+            {
+              "kind": "field",
+              "key": "tags",
+              "words": [
+                "tags"
+              ],
+              "value": {
+                "kind": "list",
+                "items": [
+                  {
+                    "kind": "scalar",
+                    "text": "one"
+                  },
+                  {
+                    "kind": "string",
+                    "text": "two words",
+                    "raw": "\"two words\""
+                  },
+                  {
+                    "kind": "ref",
+                    "discriminator": "law",
+                    "name": "y",
+                    "raw": "@law y"
+                  }
+                ]
+              },
+              "span": {
+                "line": 4,
+                "endLine": 8
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "single",
+              "words": [
+                "single"
+              ],
+              "value": {
+                "kind": "list",
+                "items": [
+                  {
+                    "kind": "scalar",
+                    "text": "a"
+                  },
+                  {
+                    "kind": "string",
+                    "text": "b c",
+                    "raw": "\"b c\""
+                  },
+                  {
+                    "kind": "ref",
+                    "discriminator": "law",
+                    "name": "z",
+                    "raw": "@law z"
+                  }
+                ]
+              },
+              "span": {
+                "line": 9,
+                "endLine": 9
+              },
+              "children": []
+            }
+          ]
+        }
+      ],
+      "nested": [],
+      "span": {
+        "line": 2,
+        "endLine": 9
+      }
+    }
+  ],
+  "trivia": [
+    {
+      "kind": "comment",
+      "line": 4,
+      "text": "# opener",
+      "attachedTo": 0,
+      "trailing": false
+    },
+    {
+      "kind": "comment",
+      "line": 5,
+      "text": "# first",
+      "attachedTo": 0,
+      "trailing": false
+    },
+    {
+      "kind": "comment",
+      "line": 7,
+      "text": "# a reference",
+      "attachedTo": 0,
+      "trailing": false
+    }
+  ]
+}

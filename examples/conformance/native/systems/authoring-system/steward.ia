@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent authoring-steward
+  meaning
+    says "Identifies the owner of authoring-system contracts in this example."
+    answers "Who owns the authoring-guide and operation words in this example?"
+  governance
+    applies [authoring-guide, operation]

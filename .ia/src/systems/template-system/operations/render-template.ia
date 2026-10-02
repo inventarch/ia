@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@operation render-template
+  meaning
+    says "Render one admitted scalar @template with exactly its declared string parameters into one draft artifact; nothing is written."
+    answers "Which local pnpm system:run operation renders a scalar @template from exact string values into one draft artifact?"
+  execution
+    handler template-render
+    effects draft-only
+    input json
+    output operation-result

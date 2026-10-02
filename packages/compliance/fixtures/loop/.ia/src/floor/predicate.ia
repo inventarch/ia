@@ -1,0 +1,164 @@
+#! ia 1.0
+
+@predicate govern
+  meaning
+    says "X governs Y — Y is subject to X's authority and rules (inverse: governed-by). The authority edge."
+    answers "Is this edge an authority relation?"
+  data
+    order 0
+    inverse governed-by
+    phrase "governs"
+
+@predicate enforce
+  meaning
+    says "X enforces Y — X actively applies or checks Y at a crossing (inverse: enforced-by). The enforcement edge."
+    answers "Is this edge an enforcement relation?"
+  data
+    order 1
+    inverse enforced-by
+    phrase "enforces"
+
+@predicate ground
+  meaning
+    says "X grounds Y — X is the evidence or basis Y rests on (inverse: grounded-by). The grounding edge."
+    answers "Is this edge a grounding relation?"
+  data
+    order 2
+    inverse grounded-by
+    phrase "grounds"
+
+@predicate constrain
+  meaning
+    says "X constrains Y — X bounds what Y may be or do (inverse: constrained-by). The constraint edge."
+    answers "Is this edge a constraint relation?"
+  data
+    order 3
+    inverse constrained-by
+    phrase "constrains"
+
+@predicate implement
+  meaning
+    says "X implements Y — X is the concrete realization of the interface or intent Y (inverse: implemented-by). The realization edge."
+    answers "Is this edge a realization relation?"
+  data
+    order 4
+    inverse implemented-by
+    phrase "implements"
+
+@predicate produce
+  meaning
+    says "X produces Y — X yields Y as an output or artifact (inverse: produced-by). The production edge."
+    answers "Is this edge a production relation?"
+  data
+    order 5
+    inverse produced-by
+    phrase "produces"
+
+@predicate consume
+  meaning
+    says "X consumes Y — X takes Y as an input (inverse: consumed-by). The consumption edge."
+    answers "Is this edge a consumption relation?"
+  data
+    order 6
+    inverse consumed-by
+    phrase "consumes"
+
+@predicate record-lineage-from
+  meaning
+    says "X records lineage from Y — X traces its provenance to the source Y (inverse: lineage-recorded-by). The lineage edge."
+    answers "Is this edge a lineage relation?"
+  data
+    order 7
+    inverse lineage-recorded-by
+    phrase "records lineage from"
+
+@predicate grant-access-to
+  meaning
+    says "X grants access to Y — X authorizes reaching the resource Y (inverse: access-granted-by). The access-grant edge."
+    answers "Is this edge an access-grant relation?"
+  data
+    order 8
+    inverse access-granted-by
+    phrase "grants access to"
+
+@predicate run-before
+  meaning
+    says "X runs before Y — X precedes Y in execution order (inverse: run-after). The ordering edge."
+    answers "Is this edge an ordering relation?"
+  data
+    order 9
+    inverse run-after
+    phrase "runs before"
+
+@predicate trigger
+  meaning
+    says "X triggers Y — X fires or initiates Y at a lifecycle moment (inverse: triggered-by). The trigger edge."
+    answers "Is this edge a trigger relation?"
+  data
+    order 10
+    inverse triggered-by
+    phrase "triggers"
+
+@predicate cite
+  meaning
+    says "X cites Y — X references Y as a source or prior art (inverse: cited-by). The citation edge."
+    answers "Is this edge a citation relation?"
+  data
+    order 11
+    inverse cited-by
+    phrase "cites"
+
+@predicate supersede
+  meaning
+    says "X supersedes Y — X replaces and obsoletes Y (inverse: superseded-by). The supersession edge."
+    answers "Is this edge a supersession relation?"
+  data
+    order 12
+    inverse superseded-by
+    phrase "supersedes"
+
+@predicate require
+  meaning
+    says "X requires Y — X depends on Y being present to function (inverse: required-by). The dependency edge."
+    answers "Is this edge a dependency relation?"
+  data
+    order 13
+    inverse required-by
+    phrase "requires"
+
+@predicate use
+  meaning
+    says "X uses Y — X installs or draws on Y; a @workspace `uses @distribution <name>` edge is one install (inverse: used-by). The install edge."
+    answers "Is this edge an install relation?"
+  data
+    order 14
+    inverse used-by
+    phrase "uses"
+
+@predicate forbid
+  meaning
+    says "X forbids Y — X prohibits Y (inverse: forbidden-by). The prohibition edge."
+    answers "Is this edge a prohibition relation?"
+  data
+    order 15
+    inverse forbidden-by
+    phrase "forbids"
+
+@predicate route
+  meaning
+    says "X routes to Y — X directs dispatch or flow to Y (inverse: routed-by). The routing edge."
+    answers "Is this edge a routing relation?"
+  data
+    order 16
+    inverse routed-by
+    phrase "routes to"
+
+@predicate land
+  meaning
+    says "X lands at Y — X's published content materializes at tier Y when a consumer adopts it (inverse: landed-by). The distribution landing edge."
+    answers "Is this edge a distribution landing relation?"
+  data
+    order 17
+    inverse landed-by
+    phrase "lands at"
+

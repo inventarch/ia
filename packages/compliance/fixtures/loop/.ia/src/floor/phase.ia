@@ -1,0 +1,30 @@
+#! ia 1.0
+
+@phase orient
+  meaning
+    says "Establish the objective, context and constraints before selecting work."
+    answers "What does orient designate in the phase domain?"
+  data
+    order 0
+
+@phase plan
+  meaning
+    says "Derive a bounded approach and the evidence that will establish its result."
+    answers "What does plan designate in the phase domain?"
+  data
+    order 1
+
+@phase act
+  meaning
+    says "Perform the authorized work and observe its actual effects."
+    answers "What does act designate in the phase domain?"
+  data
+    order 2
+
+@phase learn
+  meaning
+    says "Compare the outcome with the intent and retain attributable knowledge."
+    answers "What does learn designate in the phase domain?"
+  data
+    order 3
+

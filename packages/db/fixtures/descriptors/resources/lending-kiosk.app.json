@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "app": "lending-kiosk",
+  "version": "0.3.0",
+  "features": [],
+  "targets": ["headless", "browser"],
+  "screens": [
+    { "name": "overdue", "title": "Overdue loans", "view": "list-view@1", "layout": { "columns": 2 }, "queries": ["overdue-loans@1"], "actions": ["open-loan"] }
+  ],
+  "navigation": [],
+  "actions": [
+    { "name": "open-loan", "capability": "lending-desk", "operation": "open-loan@2", "input": "loan-request@2", "output": "loan-summary@2", "effect": "write" }
+  ],
+  "configuration": [
+    { "key": "kiosk-label", "visibility": "public", "secret": false, "default": "Front desk" }
+  ],
+  "requirements": [
+    { "name": "lending-model", "kind": "domain-model", "id": "lending", "version": "2.1.0" }
+  ]
+}

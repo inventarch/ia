@@ -1,0 +1,9 @@
+#! ia 1.0
+@playbook foreign-procedure
+  meaning
+    says "Fixture procedure foreign-procedure"
+    answers "What does this procedure do?"
+  cognition
+    act
+      primary Decision
+      Decision means "Foreign fixture"

@@ -1,0 +1,21 @@
+{
+  "kind": "file",
+  "path": "strings/pass/structural-words.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "reference",
+      "name": "r",
+      "head": [],
+      "sections": [
+        { "kind": "section", "name": "meaning", "span": { "line": 3, "endLine": 4 }, "children": [
+          { "kind": "field", "key": "says", "words": ["says"], "value": { "kind": "string", "text": "lowers to body @x #! ia", "raw": "\"lowers to body @x #! ia\"" }, "span": { "line": 4, "endLine": 4 }, "children": [] }
+        ] }
+      ],
+      "nested": [],
+      "span": { "line": 2, "endLine": 4 }
+    }
+  ],
+  "trivia": []
+}

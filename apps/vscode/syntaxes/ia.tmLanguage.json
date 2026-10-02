@@ -1,0 +1,13 @@
+{
+  "scopeName": "source.ia",
+  "name": "InventArch IA",
+  "patterns": [
+    { "name": "meta.pragma.ia", "match": "^(?:\\x{FEFF})?#! ia [0-9]+\\.[0-9]+$" },
+    { "name": "comment.line.number-sign.ia", "match": "(?<![^\\s\\\"\\],])#.*$" },
+    { "name": "string.quoted.triple.ia", "begin": "\"\"\"", "end": "\"\"\"" },
+    { "name": "string.quoted.double.ia", "begin": "\"", "end": "\"", "patterns": [{ "name": "constant.character.escape.ia", "match": "\\\\[\\\\\"]" }] },
+    { "name": "entity.name.type.ia", "match": "@[a-z][a-z0-9-]*" },
+    { "name": "punctuation.separator.ia", "match": "[\\[\\],]" },
+    { "name": "constant.numeric.ia", "match": "(?<!\\S)[+-]?[0-9]+(?:\\.[0-9]+)?(?!\\S)" }
+  ]
+}

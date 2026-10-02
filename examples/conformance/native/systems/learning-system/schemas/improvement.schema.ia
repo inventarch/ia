@@ -1,0 +1,33 @@
+#! ia 1.0
+
+@schema improvement
+  lowers to definition
+  sections
+    must have meaning
+    must have proposal
+    must have review
+    must have publication
+    must have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have proposal.target as qname
+    must have proposal.system as id
+    must have proposal.path as text
+    must have proposal.before as text
+    must have proposal.candidate as text
+    must have proposal.digest as text
+    must have proposal.applies as text
+    must have proposal.verification as text
+    must have proposal.reversal as text
+    must have review.status as id
+    may have review.digest as text
+    may have review.reviewer as text
+    may have review.authority as text
+    may have review.at as text
+    may have review.rationale as text
+    may have review.revisit as text
+    must have publication.status as id
+    may have publication.receipt as text
+    may have publication.digest as text

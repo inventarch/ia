@@ -1,0 +1,104 @@
+{
+  "kind": "file",
+  "path": "refs/pass/fragments.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "case",
+      "name": "c",
+      "head": [],
+      "sections": [
+        {
+          "kind": "section",
+          "name": "relationships",
+          "span": {
+            "line": 3,
+            "endLine": 6
+          },
+          "children": [
+            {
+              "kind": "field",
+              "key": "implements",
+              "words": [
+                "implements"
+              ],
+              "value": {
+                "kind": "ref",
+                "discriminator": "contract",
+                "name": "x",
+                "fragment": "REQ-1",
+                "raw": "@contract x#REQ-1"
+              },
+              "span": {
+                "line": 4,
+                "endLine": 4
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "cites",
+              "words": [
+                "cites"
+              ],
+              "value": {
+                "kind": "ref",
+                "discriminator": "law",
+                "name": "y",
+                "fragment": "part-2",
+                "raw": "@law y#part-2"
+              },
+              "when": [
+                "severity",
+                "is",
+                "blocking"
+              ],
+              "span": {
+                "line": 5,
+                "endLine": 5
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "requires",
+              "words": [
+                "requires"
+              ],
+              "value": {
+                "kind": "list",
+                "items": [
+                  {
+                    "kind": "ref",
+                    "discriminator": "law",
+                    "name": "a",
+                    "raw": "@law a"
+                  },
+                  {
+                    "kind": "ref",
+                    "discriminator": "law",
+                    "name": "b",
+                    "fragment": "frag",
+                    "raw": "@law b#frag"
+                  }
+                ]
+              },
+              "span": {
+                "line": 6,
+                "endLine": 6
+              },
+              "children": []
+            }
+          ]
+        }
+      ],
+      "nested": [],
+      "span": {
+        "line": 2,
+        "endLine": 6
+      }
+    }
+  ],
+  "trivia": []
+}

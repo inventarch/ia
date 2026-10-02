@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@schema agent
+  lowers to binding
+  sections
+    must have meaning
+    must have governance
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have governance.applies as list of id

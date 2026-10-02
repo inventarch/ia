@@ -1,0 +1,18 @@
+#! ia 1.0
+
+@schema product
+  lowers to definition
+  sections
+    must have meaning
+    must have product
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have product.format as number
+    must have product.title as text
+    must have product.status as id in [proposed, active, retired]
+    must have product.owner as ref to agent
+    must have product.plans as list of ref to plan
+    may have product.description as text

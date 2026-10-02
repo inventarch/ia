@@ -1,0 +1,405 @@
+{
+  "name": "@ia/language",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./editor": {
+      "development": "./src/editor/index.ts",
+      "types": "./dist/editor/index.d.ts",
+      "default": "./dist/editor/index.js"
+    },
+    "./internal/ast": {
+      "types": "./dist/ast.d.ts",
+      "default": "./dist/ast.js"
+    },
+    "./internal/compile/compile": {
+      "types": "./dist/compile/compile.d.ts",
+      "default": "./dist/compile/compile.js"
+    },
+    "./internal/compile/index": {
+      "types": "./dist/compile/index.d.ts",
+      "default": "./dist/compile/index.js"
+    },
+    "./internal/compile/spellings": {
+      "types": "./dist/compile/spellings.d.ts",
+      "default": "./dist/compile/spellings.js"
+    },
+    "./internal/compile/values": {
+      "types": "./dist/compile/values.d.ts",
+      "default": "./dist/compile/values.js"
+    },
+    "./internal/diagnostics": {
+      "types": "./dist/diagnostics.d.ts",
+      "default": "./dist/diagnostics.js"
+    },
+    "./internal/editor/index": {
+      "types": "./dist/editor/index.d.ts",
+      "default": "./dist/editor/index.js"
+    },
+    "./internal/fold": {
+      "types": "./dist/fold.d.ts",
+      "default": "./dist/fold.js"
+    },
+    "./internal/formatter": {
+      "types": "./dist/formatter.d.ts",
+      "default": "./dist/formatter.js"
+    },
+    "./internal/identity": {
+      "types": "./dist/identity.d.ts",
+      "default": "./dist/identity.js"
+    },
+    "./internal/index": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal/kernel.generated": {
+      "types": "./dist/kernel.generated.d.ts",
+      "default": "./dist/kernel.generated.js"
+    },
+    "./internal/parser/index": {
+      "types": "./dist/parser/index.d.ts",
+      "default": "./dist/parser/index.js"
+    },
+    "./internal/parser/parser": {
+      "types": "./dist/parser/parser.d.ts",
+      "default": "./dist/parser/parser.js"
+    },
+    "./internal/parser/values": {
+      "types": "./dist/parser/values.d.ts",
+      "default": "./dist/parser/values.js"
+    },
+    "./internal/paths": {
+      "types": "./dist/paths.d.ts",
+      "default": "./dist/paths.js"
+    },
+    "./internal/references": {
+      "types": "./dist/references.d.ts",
+      "default": "./dist/references.js"
+    },
+    "./internal/registry/consent": {
+      "types": "./dist/registry/consent.d.ts",
+      "default": "./dist/registry/consent.js"
+    },
+    "./internal/registry/extract": {
+      "types": "./dist/registry/extract.d.ts",
+      "default": "./dist/registry/extract.js"
+    },
+    "./internal/registry/fields": {
+      "types": "./dist/registry/fields.d.ts",
+      "default": "./dist/registry/fields.js"
+    },
+    "./internal/registry/floor": {
+      "types": "./dist/registry/floor.d.ts",
+      "default": "./dist/registry/floor.js"
+    },
+    "./internal/registry/index": {
+      "types": "./dist/registry/index.d.ts",
+      "default": "./dist/registry/index.js"
+    },
+    "./internal/registry/merge": {
+      "types": "./dist/registry/merge.d.ts",
+      "default": "./dist/registry/merge.js"
+    },
+    "./internal/registry/order": {
+      "types": "./dist/registry/order.d.ts",
+      "default": "./dist/registry/order.js"
+    },
+    "./internal/registry/records": {
+      "types": "./dist/registry/records.d.ts",
+      "default": "./dist/registry/records.js"
+    },
+    "./internal/registry/schemas": {
+      "types": "./dist/registry/schemas.d.ts",
+      "default": "./dist/registry/schemas.js"
+    },
+    "./internal/registry/types": {
+      "types": "./dist/registry/types.d.ts",
+      "default": "./dist/registry/types.js"
+    },
+    "./internal/scanner/index": {
+      "types": "./dist/scanner/index.d.ts",
+      "default": "./dist/scanner/index.js"
+    },
+    "./internal/scanner/lines": {
+      "types": "./dist/scanner/lines.d.ts",
+      "default": "./dist/scanner/lines.js"
+    },
+    "./internal/scanner/tokenize": {
+      "types": "./dist/scanner/tokenize.d.ts",
+      "default": "./dist/scanner/tokenize.js"
+    },
+    "./internal/scanner/tokens": {
+      "types": "./dist/scanner/tokens.d.ts",
+      "default": "./dist/scanner/tokens.js"
+    },
+    "./internal/semantic/cases": {
+      "types": "./dist/semantic/cases.d.ts",
+      "default": "./dist/semantic/cases.js"
+    },
+    "./internal/semantic/cells": {
+      "types": "./dist/semantic/cells.d.ts",
+      "default": "./dist/semantic/cells.js"
+    },
+    "./internal/semantic/conditions": {
+      "types": "./dist/semantic/conditions.d.ts",
+      "default": "./dist/semantic/conditions.js"
+    },
+    "./internal/semantic/contracts": {
+      "types": "./dist/semantic/contracts.d.ts",
+      "default": "./dist/semantic/contracts.js"
+    },
+    "./internal/semantic/edges": {
+      "types": "./dist/semantic/edges.d.ts",
+      "default": "./dist/semantic/edges.js"
+    },
+    "./internal/semantic/placement": {
+      "types": "./dist/semantic/placement.d.ts",
+      "default": "./dist/semantic/placement.js"
+    },
+    "./internal/semantic/requirements": {
+      "types": "./dist/semantic/requirements.d.ts",
+      "default": "./dist/semantic/requirements.js"
+    },
+    "./internal/semantic/resolve": {
+      "types": "./dist/semantic/resolve.d.ts",
+      "default": "./dist/semantic/resolve.js"
+    },
+    "./internal/semantic/selectors": {
+      "types": "./dist/semantic/selectors.d.ts",
+      "default": "./dist/semantic/selectors.js"
+    },
+    "./internal/semantic/types": {
+      "types": "./dist/semantic/types.d.ts",
+      "default": "./dist/semantic/types.js"
+    },
+    "./internal/semantic/variants": {
+      "types": "./dist/semantic/variants.d.ts",
+      "default": "./dist/semantic/variants.js"
+    },
+    "./internal/semantic/vocabulary": {
+      "types": "./dist/semantic/vocabulary.d.ts",
+      "default": "./dist/semantic/vocabulary.js"
+    },
+    "./internal/taxonomy": {
+      "types": "./dist/taxonomy.d.ts",
+      "default": "./dist/taxonomy.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./editor": {
+        "types": "./dist/editor/index.d.ts",
+        "default": "./dist/editor/index.js"
+      },
+      "./internal/ast": {
+        "types": "./dist/ast.d.ts",
+        "default": "./dist/ast.js"
+      },
+      "./internal/compile/compile": {
+        "types": "./dist/compile/compile.d.ts",
+        "default": "./dist/compile/compile.js"
+      },
+      "./internal/compile/index": {
+        "types": "./dist/compile/index.d.ts",
+        "default": "./dist/compile/index.js"
+      },
+      "./internal/compile/spellings": {
+        "types": "./dist/compile/spellings.d.ts",
+        "default": "./dist/compile/spellings.js"
+      },
+      "./internal/compile/values": {
+        "types": "./dist/compile/values.d.ts",
+        "default": "./dist/compile/values.js"
+      },
+      "./internal/diagnostics": {
+        "types": "./dist/diagnostics.d.ts",
+        "default": "./dist/diagnostics.js"
+      },
+      "./internal/editor/index": {
+        "types": "./dist/editor/index.d.ts",
+        "default": "./dist/editor/index.js"
+      },
+      "./internal/fold": {
+        "types": "./dist/fold.d.ts",
+        "default": "./dist/fold.js"
+      },
+      "./internal/formatter": {
+        "types": "./dist/formatter.d.ts",
+        "default": "./dist/formatter.js"
+      },
+      "./internal/identity": {
+        "types": "./dist/identity.d.ts",
+        "default": "./dist/identity.js"
+      },
+      "./internal/index": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./internal/kernel.generated": {
+        "types": "./dist/kernel.generated.d.ts",
+        "default": "./dist/kernel.generated.js"
+      },
+      "./internal/parser/index": {
+        "types": "./dist/parser/index.d.ts",
+        "default": "./dist/parser/index.js"
+      },
+      "./internal/parser/parser": {
+        "types": "./dist/parser/parser.d.ts",
+        "default": "./dist/parser/parser.js"
+      },
+      "./internal/parser/values": {
+        "types": "./dist/parser/values.d.ts",
+        "default": "./dist/parser/values.js"
+      },
+      "./internal/paths": {
+        "types": "./dist/paths.d.ts",
+        "default": "./dist/paths.js"
+      },
+      "./internal/references": {
+        "types": "./dist/references.d.ts",
+        "default": "./dist/references.js"
+      },
+      "./internal/registry/consent": {
+        "types": "./dist/registry/consent.d.ts",
+        "default": "./dist/registry/consent.js"
+      },
+      "./internal/registry/extract": {
+        "types": "./dist/registry/extract.d.ts",
+        "default": "./dist/registry/extract.js"
+      },
+      "./internal/registry/fields": {
+        "types": "./dist/registry/fields.d.ts",
+        "default": "./dist/registry/fields.js"
+      },
+      "./internal/registry/floor": {
+        "types": "./dist/registry/floor.d.ts",
+        "default": "./dist/registry/floor.js"
+      },
+      "./internal/registry/index": {
+        "types": "./dist/registry/index.d.ts",
+        "default": "./dist/registry/index.js"
+      },
+      "./internal/registry/merge": {
+        "types": "./dist/registry/merge.d.ts",
+        "default": "./dist/registry/merge.js"
+      },
+      "./internal/registry/order": {
+        "types": "./dist/registry/order.d.ts",
+        "default": "./dist/registry/order.js"
+      },
+      "./internal/registry/records": {
+        "types": "./dist/registry/records.d.ts",
+        "default": "./dist/registry/records.js"
+      },
+      "./internal/registry/schemas": {
+        "types": "./dist/registry/schemas.d.ts",
+        "default": "./dist/registry/schemas.js"
+      },
+      "./internal/registry/types": {
+        "types": "./dist/registry/types.d.ts",
+        "default": "./dist/registry/types.js"
+      },
+      "./internal/scanner/index": {
+        "types": "./dist/scanner/index.d.ts",
+        "default": "./dist/scanner/index.js"
+      },
+      "./internal/scanner/lines": {
+        "types": "./dist/scanner/lines.d.ts",
+        "default": "./dist/scanner/lines.js"
+      },
+      "./internal/scanner/tokenize": {
+        "types": "./dist/scanner/tokenize.d.ts",
+        "default": "./dist/scanner/tokenize.js"
+      },
+      "./internal/scanner/tokens": {
+        "types": "./dist/scanner/tokens.d.ts",
+        "default": "./dist/scanner/tokens.js"
+      },
+      "./internal/semantic/cases": {
+        "types": "./dist/semantic/cases.d.ts",
+        "default": "./dist/semantic/cases.js"
+      },
+      "./internal/semantic/cells": {
+        "types": "./dist/semantic/cells.d.ts",
+        "default": "./dist/semantic/cells.js"
+      },
+      "./internal/semantic/conditions": {
+        "types": "./dist/semantic/conditions.d.ts",
+        "default": "./dist/semantic/conditions.js"
+      },
+      "./internal/semantic/contracts": {
+        "types": "./dist/semantic/contracts.d.ts",
+        "default": "./dist/semantic/contracts.js"
+      },
+      "./internal/semantic/edges": {
+        "types": "./dist/semantic/edges.d.ts",
+        "default": "./dist/semantic/edges.js"
+      },
+      "./internal/semantic/placement": {
+        "types": "./dist/semantic/placement.d.ts",
+        "default": "./dist/semantic/placement.js"
+      },
+      "./internal/semantic/requirements": {
+        "types": "./dist/semantic/requirements.d.ts",
+        "default": "./dist/semantic/requirements.js"
+      },
+      "./internal/semantic/resolve": {
+        "types": "./dist/semantic/resolve.d.ts",
+        "default": "./dist/semantic/resolve.js"
+      },
+      "./internal/semantic/selectors": {
+        "types": "./dist/semantic/selectors.d.ts",
+        "default": "./dist/semantic/selectors.js"
+      },
+      "./internal/semantic/types": {
+        "types": "./dist/semantic/types.d.ts",
+        "default": "./dist/semantic/types.js"
+      },
+      "./internal/semantic/variants": {
+        "types": "./dist/semantic/variants.d.ts",
+        "default": "./dist/semantic/variants.js"
+      },
+      "./internal/semantic/vocabulary": {
+        "types": "./dist/semantic/vocabulary.d.ts",
+        "default": "./dist/semantic/vocabulary.js"
+      },
+      "./internal/taxonomy": {
+        "types": "./dist/taxonomy.d.ts",
+        "default": "./dist/taxonomy.js"
+      }
+    },
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  }
+}

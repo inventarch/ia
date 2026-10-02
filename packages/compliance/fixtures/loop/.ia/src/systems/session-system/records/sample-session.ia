@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@run sample-session
+  meaning
+    says "Sample fixture statement 1."
+    answers "Sample fixture statement 2."
+  execution
+    status proposed
+    phase orient
+    owner @agent session-steward

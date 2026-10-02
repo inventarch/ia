@@ -1,0 +1,44 @@
+#! ia 1.0
+
+@value-type text
+  meaning
+    says "Scalar, quoted string or folded prose text, including empty quoted text."
+    answers "Is the value prose for people to read, possibly empty?"
+  data
+    order 0
+
+@value-type id
+  meaning
+    says "An ASCII-letter-led identifier containing letters, digits and hyphens."
+    answers "Is the value a bare symbolic name, not a reference to a record?"
+  data
+    order 1
+
+@value-type qname
+  meaning
+    says "A canonical four-slot system/kind/facet/name identity."
+    answers "Is the value a record's complete four-part identity, written without a sigil?"
+  data
+    order 2
+
+@value-type number
+  meaning
+    says "A finite decimal number with optional sign, fraction and exponent."
+    answers "Is the value a finite quantity?"
+  data
+    order 3
+
+@value-type ref
+  meaning
+    says "A typed sigil reference to a record, optionally with a fragment."
+    answers "Is the value a typed pointer to a record, possibly to one of its fragments?"
+  data
+    order 4
+
+@value-type flag
+  meaning
+    says "A bare field key, or an unquoted true or false scalar."
+    answers "Is the value an on/off switch?"
+  data
+    order 5
+

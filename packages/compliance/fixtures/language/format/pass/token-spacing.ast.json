@@ -1,0 +1,100 @@
+{
+  "kind": "file",
+  "path": "format/pass/token-spacing.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "agent",
+      "name": "writer",
+      "head": [],
+      "sections": [
+        {
+          "kind": "section",
+          "name": "meaning",
+          "span": {
+            "line": 5,
+            "endLine": 7
+          },
+          "children": [
+            {
+              "kind": "field",
+              "key": "says",
+              "words": [
+                "says"
+              ],
+              "value": {
+                "kind": "string",
+                "text": "Author # is content",
+                "raw": "\"Author # is content\""
+              },
+              "span": {
+                "line": 6,
+                "endLine": 6
+              },
+              "children": []
+            },
+            {
+              "kind": "field",
+              "key": "values",
+              "words": [
+                "values"
+              ],
+              "value": {
+                "kind": "list",
+                "items": [
+                  {
+                    "kind": "scalar",
+                    "text": "first"
+                  },
+                  {
+                    "kind": "scalar",
+                    "text": "second"
+                  },
+                  {
+                    "kind": "ref",
+                    "discriminator": "agent",
+                    "name": "target",
+                    "raw": "@agent target"
+                  }
+                ]
+              },
+              "span": {
+                "line": 7,
+                "endLine": 7
+              },
+              "children": []
+            }
+          ]
+        }
+      ],
+      "nested": [],
+      "span": {
+        "line": 4,
+        "endLine": 7
+      }
+    }
+  ],
+  "trivia": [
+    {
+      "kind": "blank",
+      "line": 2,
+      "attachedTo": 0,
+      "trailing": false
+    },
+    {
+      "kind": "comment",
+      "line": 3,
+      "text": "# retained before record",
+      "attachedTo": 0,
+      "trailing": false
+    },
+    {
+      "kind": "comment",
+      "line": 6,
+      "text": "# retained tail",
+      "attachedTo": 0,
+      "trailing": true
+    }
+  ]
+}

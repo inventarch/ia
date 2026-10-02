@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@execution-binding architect-entry
+  meaning
+    says "Fixture architect-entry text 1."
+    answers "Fixture architect-entry text 2."
+  binding
+    kind entry
+    target @agent-profile sample-architect-profile
+    implementation harness-entry-v1
+    mapping identity-v1

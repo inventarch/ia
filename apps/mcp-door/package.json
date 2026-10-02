@@ -1,0 +1,83 @@
+{
+  "name": "@ia/mcp-door",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@ia/runtime": "workspace:*",
+    "@ia/agent-composition-system": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "bin": {
+    "ia-mcp-door": "./dist/main.js"
+  },
+  "license": "Apache-2.0",
+  "exports": {
+    "./internal/main": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./internal/presentation": {
+      "types": "./dist/presentation.d.ts",
+      "default": "./dist/presentation.js"
+    },
+    "./internal/protocol": {
+      "types": "./dist/protocol.d.ts",
+      "default": "./dist/protocol.js"
+    },
+    "./internal/tools": {
+      "types": "./dist/tools.d.ts",
+      "default": "./dist/tools.js"
+    },
+    "./internal/vocabulary": {
+      "types": "./dist/vocabulary.d.ts",
+      "default": "./dist/vocabulary.js"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./internal/main": {
+        "types": "./dist/main.d.ts",
+        "default": "./dist/main.js"
+      },
+      "./internal/presentation": {
+        "types": "./dist/presentation.d.ts",
+        "default": "./dist/presentation.js"
+      },
+      "./internal/protocol": {
+        "types": "./dist/protocol.d.ts",
+        "default": "./dist/protocol.js"
+      },
+      "./internal/tools": {
+        "types": "./dist/tools.d.ts",
+        "default": "./dist/tools.js"
+      },
+      "./internal/vocabulary": {
+        "types": "./dist/vocabulary.d.ts",
+        "default": "./dist/vocabulary.js"
+      }
+    },
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  }
+}

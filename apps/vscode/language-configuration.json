@@ -1,0 +1,7 @@
+{
+  "comments": { "lineComment": "#" },
+  "brackets": [["[", "]"]],
+  "autoClosingPairs": [{ "open": "[", "close": "]" }, { "open": "\"", "close": "\"", "notIn": ["string", "comment"] }],
+  "surroundingPairs": [["[", "]"], ["\"", "\""]],
+  "indentationRules": { "increaseIndentPattern": "^\\s*(?:@[a-z][a-z0-9-]*\\s+[A-Za-z][A-Za-z0-9-]*|[a-z][a-z0-9-]*)\\s*$" }
+}

@@ -1,0 +1,12 @@
+#! ia 1.0
+
+@harness native-draft-tools
+  meaning
+    says "Fixture native-draft-tools text 1."
+    answers "Fixture native-draft-tools text 2."
+  composition
+    workspace @workspace sample-workspace
+    profiles [@agent-profile draft-tools-profile]
+    bindings [@execution-binding sample-read-binding, @execution-binding validate-draft-binding, @execution-binding format-draft-binding, @execution-binding draft-tools-entry]
+  execution
+    host-profile captured-sample-v1

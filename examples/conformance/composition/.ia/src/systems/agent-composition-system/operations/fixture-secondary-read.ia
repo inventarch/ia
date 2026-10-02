@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@operation fixture-secondary-read
+  meaning
+    says "Fixture fixture-secondary-read text 1."
+    answers "Fixture fixture-secondary-read text 2."
+  execution
+    handler fixture-secondary-v1
+    effects read-only
+    input fixture-secondary-input-v1
+    output fixture-secondary-output-v1
+    profile governed-v1
+    recovery repeatable

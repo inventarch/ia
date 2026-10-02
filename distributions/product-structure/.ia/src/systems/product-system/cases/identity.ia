@@ -1,0 +1,13 @@
+#! ia 1.0
+@case product-identity
+  meaning
+    says "Preserves stable identity across descriptive and domain status edits"
+    answers "Which structural consumer behavior is qualified?"
+  scenario
+    kind success
+    given "The emitted canonical language and separately selected product structural archives."
+    request "Run the named test: keeps product identity stable through title/status changes and refuses stale revisions."
+    expected "All explicit assertions in the named test pass; installation alone is not execution."
+    evaluator "apps/distribution/tests/product-structure.test.ts"
+  relationships
+    implements @contract product-structure#REQ-PRODUCT-IDENTITY

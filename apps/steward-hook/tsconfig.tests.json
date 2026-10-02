@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "rootDir": "../..", "paths": { "@tools/testing/*": ["../../tools/testing/*"] } },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

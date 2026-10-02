@@ -1,0 +1,18 @@
+#! ia 1.0
+
+@schema operation
+  lowers to binding
+  sections
+    must have meaning
+    must have execution
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have execution.handler as id
+    must have execution.effects as id
+    must have execution.input as id
+    must have execution.output as id
+    may have execution.profile as id
+    may have execution.recovery as id

@@ -1,0 +1,9 @@
+#! ia 1.0
+
+@convention sample-convention
+  meaning
+    says "Sample fixture statement 1."
+    answers "Sample fixture statement 2."
+  governance
+    severity advisory
+    requires "Sample fixture statement 3."

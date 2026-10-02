@@ -1,0 +1,28 @@
+#! ia 1.0
+
+@schema decision
+  lowers to definition
+  sections
+    must have meaning
+    must have work
+    must have decision
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    may have meaning.answers as text
+    must have work.title as text
+    must have work.status as id in [open, made, superseded, withdrawn]
+    may have work.owner as text
+    may have work.start as text form iso-date
+    may have work.due as text form iso-date
+    may have work.ended as text form iso-date
+    may have work.source as text
+    must have decision.question as text
+    may have decision.options as list of text
+    may have decision.decider as text
+    may have decision.choice as text
+    may have decision.rationale as text
+    may have decision.constraints as list of text
+  edges
+    may supersede decision one

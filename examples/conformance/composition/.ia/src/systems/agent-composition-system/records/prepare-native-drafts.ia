@@ -1,0 +1,21 @@
+#! ia 1.0
+
+@playbook prepare-native-drafts
+  meaning
+    says "Fixture prepare-native-drafts text 1."
+    answers "Fixture prepare-native-drafts text 2."
+  cognition
+    orient
+      primary Attention
+      Attention means "Fixture prepare-native-drafts text 3."
+    plan
+      primary Inference
+      Inference means "Fixture prepare-native-drafts text 4."
+    act
+      primary Decision
+      Decision means "Fixture prepare-native-drafts text 5."
+    learn
+      primary Learning
+      Learning means "Fixture prepare-native-drafts text 6."
+  activation
+    activate when category is capability

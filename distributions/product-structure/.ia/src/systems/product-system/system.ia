@@ -1,0 +1,20 @@
+#! ia 1.0
+
+@system product-system
+  provider "inventarch"
+  version "0.1.0"
+  describes "Stable product identity and typed plan associations, without service authority or execution policy."
+  steward @agent product-steward
+  requires
+    - agent-system
+    - work-system
+    - workspace-system
+    - compliance-system
+    - authoring-system
+  discriminators
+    product lowers to definition
+      category thing
+      facets [product]
+      schema @schema product
+  edges
+    cite * using *

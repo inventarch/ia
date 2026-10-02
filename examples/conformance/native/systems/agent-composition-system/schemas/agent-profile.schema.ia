@@ -1,0 +1,30 @@
+#! ia 1.0
+
+@schema agent-profile
+  lowers to binding
+  sections
+    must have meaning
+    must have composition
+    must have execution
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have composition.agent as ref
+    must have composition.capabilities as list of ref
+    may have composition.voice as ref
+    may have composition.mandate as ref
+    may have composition.delegates as list of ref
+    must have execution.role as id
+    must have execution.outcomes as id
+    must have execution.mandate-contract as id
+    may have execution.model-profile as id
+    may have execution.limit-steps as number
+    may have execution.limit-model-calls as number
+    may have execution.limit-operations as number
+    may have execution.limit-tokens as number
+    may have execution.limit-children as number
+    may have execution.limit-depth as number
+    may have execution.limit-bytes as number
+    may have execution.limit-duration-ms as number

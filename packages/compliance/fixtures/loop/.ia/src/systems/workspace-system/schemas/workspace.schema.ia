@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@schema workspace
+  lowers to definition
+  sections
+    must have meaning
+    must have composition
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have composition.systems as list of ref

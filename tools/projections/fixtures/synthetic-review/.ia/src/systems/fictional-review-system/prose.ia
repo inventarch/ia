@@ -1,0 +1,104 @@
+#! ia 1.0
+
+@agent fictional-review-steward
+  meaning
+    says "Own the fictional review system and its guidance."
+    answers "Who maintains this fixture?"
+  governance
+    applies []
+
+@agent fictional-reviewer
+  meaning
+    says "Review a fictional note for an owner and an observable outcome."
+    answers "Who performs the prose review?"
+  governance
+    applies [review]
+    requires "Report absent evidence as unknown."
+  relationships
+    uses @playbook fictional-review-method
+
+@voice fictional-concise
+  meaning
+    says "Concise source-grounded review language."
+    answers "How should the reviewer explain findings?"
+  communication
+    tone "Use plain, concise language."
+    terminology "Use the note's own terms and name its owner."
+    explanation "Lead with the finding and cite its supporting evidence."
+    uncertainty "Distinguish a proposed check from an executed check."
+
+@mandate fictional-read-only
+  meaning
+    says "Review captured evidence without changing source."
+    answers "What may the reviewer do?"
+  governance
+    requires "Return guidance only; do not claim execution permission."
+
+@playbook fictional-review-method
+  meaning
+    says "A bounded review of ownership and outcomes."
+    answers "How is a fictional note reviewed?"
+  cognition
+    orient
+      primary Attention
+      Attention means "Locate the named owner and stated outcome."
+    act
+      primary Decision
+      Decision means "Report gaps with citations and a proposed next action."
+  activation
+    activate when category is process
+  relationships
+    cites @convention fictional-evidence
+
+@convention fictional-evidence
+  meaning
+    says "Keep observed and proposed evidence distinct."
+    answers "When is a review claim supported?"
+  governance
+    severity advisory
+    requires "Cite the observed outcome."
+      when phase is act
+  relationships
+    governs @agent fictional-reviewer
+
+@capability fictional-review-details
+  meaning
+    says "Supply the common review method."
+    answers "Which guidance is shared?"
+  composition
+    playbooks [@playbook fictional-review-method]
+  execution
+    effects [read]
+
+@capability fictional-review
+  meaning
+    says "Review a note with the shared method and a supporting guide."
+    answers "What does the review skill offer?"
+  composition
+    includes [@capability fictional-review-details]
+  execution
+    effects [read]
+
+@agent-profile fictional-review-profile
+  meaning
+    says "Compose the prose reviewer without a runnable harness."
+    answers "Which native components supply this projection?"
+  composition
+    agent @agent fictional-reviewer
+    voice @voice fictional-concise
+    mandate @mandate fictional-read-only
+    capabilities [@capability fictional-review]
+  execution
+    role reviewer
+    outcomes fictional-guidance
+    mandate-contract fictional-read-only
+
+@voice fictional-alternative
+  meaning
+    says "A different synthetic voice for profile mismatch tests."
+    answers "Which other voice is selected?"
+  communication
+    tone "Use a different fixture tone."
+    terminology "Use fixture labels."
+    explanation "State the fixture result."
+    uncertainty "Mark unknown fixture values."

@@ -1,0 +1,16 @@
+#! ia 1.0
+@schema Playbook
+  lowers to definition
+  sections
+    must have meaning
+    must have cognition
+    may have activation
+    closed
+  fields
+    must have meaning.says as text "one-line identity"
+    must have meaning.answers as text
+    may have lifecycle.state as id
+    may have meaning.tags as list of id
+  edges
+    must cite governance one-or-more
+    may use playbook optional

@@ -1,0 +1,11 @@
+#! ia 1.0
+@system a
+  provider "a"
+  version "1.0.0"
+  requires
+    - b
+@system b
+  provider "b"
+  version "1.0.0"
+  requires
+    - a

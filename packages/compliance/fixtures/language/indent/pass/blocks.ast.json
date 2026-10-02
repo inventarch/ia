@@ -1,0 +1,127 @@
+{
+  "kind": "file",
+  "path": "indent/pass/blocks.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "law",
+      "name": "x",
+      "head": [
+        {
+          "kind": "field",
+          "key": "version",
+          "words": [
+            "version"
+          ],
+          "value": {
+            "kind": "string",
+            "text": "1",
+            "raw": "\"1\""
+          },
+          "span": {
+            "line": 3,
+            "endLine": 4
+          },
+          "children": [
+            {
+              "kind": "field",
+              "key": "note",
+              "words": [
+                "note"
+              ],
+              "value": {
+                "kind": "string",
+                "text": "a head field may open a block",
+                "raw": "\"a head field may open a block\""
+              },
+              "span": {
+                "line": 4,
+                "endLine": 4
+              },
+              "children": []
+            }
+          ]
+        }
+      ],
+      "sections": [
+        {
+          "kind": "section",
+          "name": "meaning",
+          "span": {
+            "line": 5,
+            "endLine": 9
+          },
+          "children": [
+            {
+              "kind": "field",
+              "key": "holds",
+              "words": [
+                "holds"
+              ],
+              "value": {
+                "kind": "block"
+              },
+              "span": {
+                "line": 6,
+                "endLine": 9
+              },
+              "children": [
+                {
+                  "kind": "field",
+                  "key": "deeper",
+                  "words": [
+                    "deeper"
+                  ],
+                  "value": {
+                    "kind": "block"
+                  },
+                  "span": {
+                    "line": 7,
+                    "endLine": 8
+                  },
+                  "children": [
+                    {
+                      "kind": "field",
+                      "key": "deepest",
+                      "words": [
+                        "deepest"
+                      ],
+                      "value": {
+                        "kind": "string",
+                        "text": "d",
+                        "raw": "\"d\""
+                      },
+                      "span": {
+                        "line": 8,
+                        "endLine": 8
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "kind": "item",
+                  "value": {
+                    "kind": "scalar",
+                    "text": "item"
+                  },
+                  "span": {
+                    "line": 9,
+                    "endLine": 9
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "nested": [],
+      "span": {
+        "line": 2,
+        "endLine": 9
+      }
+    }
+  ],
+  "trivia": []
+}

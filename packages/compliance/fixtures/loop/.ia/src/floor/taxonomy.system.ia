@@ -1,0 +1,67 @@
+#! ia 1.0
+
+@system taxonomy
+  provider "inventarch.kernel"
+  version "1.0.0"
+  describes "Closed vocabulary and routing defaults for the language foundation."
+  requires
+    - floor
+  discriminators
+    kind lowers to definition
+      category kind
+      facets [kind]
+      schema @schema kernel-kind
+    category lowers to definition
+      category kind
+      facets [category]
+      schema @schema kernel-category
+    lane lowers to definition
+      category kind
+      facets [lane]
+      schema @schema kernel-lane
+    phase lowers to definition
+      category kind
+      facets [phase]
+      schema @schema kernel-phase
+    primitive lowers to definition
+      category kind
+      facets [primitive]
+      schema @schema kernel-primitive
+    move lowers to definition
+      category kind
+      facets [move]
+      schema @schema kernel-move
+    predicate lowers to definition
+      category kind
+      facets [predicate]
+      schema @schema kernel-predicate
+    axis lowers to definition
+      category kind
+      facets [axis]
+      schema @schema kernel-axis
+    dimension lowers to definition
+      category kind
+      facets [dimension]
+      schema @schema kernel-dimension
+    intent-shape lowers to definition
+      category kind
+      facets [intent-shape]
+      schema @schema kernel-intent-shape
+    artifact-set lowers to definition
+      category kind
+      facets [artifact-set]
+      schema @schema kernel-artifact-set
+    placement lowers to definition
+      category kind
+      facets [placement]
+      schema @schema kernel-placement
+    value-type lowers to definition
+      category kind
+      facets [value-type]
+      schema @schema kernel-value-type
+    cardinality lowers to definition
+      category kind
+      facets [cardinality]
+      schema @schema kernel-cardinality
+  edges
+    cite * using *

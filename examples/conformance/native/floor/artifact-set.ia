@@ -1,0 +1,65 @@
+#! ia 1.0
+
+@artifact-set inquiry
+  meaning
+    says "Questions, exploration and research whose result is understanding."
+    answers "Is the artifact mainly there to settle an open question?"
+  data
+    order 0
+
+@artifact-set decision
+  meaning
+    says "A retained choice with its reasons and constraints."
+    answers "Is the artifact mainly there to keep a choice, with the reasons that made it?"
+  data
+    order 1
+
+@artifact-set contract
+  meaning
+    says "An agreement or structural obligation consumers rely on."
+    answers "Is the artifact mainly there to state what consumers may rely on?"
+  data
+    order 2
+
+@artifact-set product-definition
+  meaning
+    says "A definition of intended product behavior or structure."
+    answers "Is the artifact mainly there to say how a product should behave or be built?"
+  data
+    order 3
+
+@artifact-set execution
+  meaning
+    says "Work instructions, plans and implementations used to act."
+    answers "Is the artifact mainly there to direct or carry out work?"
+  data
+    order 4
+
+@artifact-set operational
+  meaning
+    says "Configuration and records that maintain an operating environment."
+    answers "Is the artifact mainly there to keep an environment configured and running?"
+  data
+    order 5
+
+@artifact-set evidence
+  meaning
+    says "An attributable observation used to verify a claim."
+    answers "Is the artifact mainly there to show, attributably, whether a claim holds?"
+  data
+    order 6
+
+@artifact-set projection
+  meaning
+    says "A generated rendering whose authored source remains authoritative."
+    answers "Is the artifact mainly there to render another source, which stays authoritative over it?"
+  data
+    order 7
+
+@artifact-set principle
+  meaning
+    says "A durable guiding judgment applied across situations."
+    answers "Is the artifact mainly there to guide judgment across many situations?"
+  data
+    order 8
+

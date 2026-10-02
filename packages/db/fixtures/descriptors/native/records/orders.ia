@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@domain-model orders
+  meaning
+    says "Commerce orders: customers place, pay for and cancel orders."
+    answers "Which entities, commands and invariants make up the orders model?"
+  model
+    format 1
+    version "1.0.0"
+    resource "orders.domain.json"
+    digest "sha256:7c9f3de8d826f6c861bc93bca62b3fcc01524ae5f7727bf6a081ae6f383231aa"

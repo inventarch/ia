@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@storage-binding orders-store
+  meaning
+    says "Maps the orders model onto the relational-store adapter behind the order-repository port."
+    answers "How are orders and customers stored, isolated and migrated?"
+  storage
+    format 1
+    model @domain-model orders
+    model-version "1.0.0"
+    port order-repository
+    adapter relational-store
+    schema-version "4.0.0"
+    resource "orders.storage.json"
+    digest "sha256:a5a43c3a914a2b50f99dde33c088dcb94cd80410b5c0058082f04ea5a8820670"

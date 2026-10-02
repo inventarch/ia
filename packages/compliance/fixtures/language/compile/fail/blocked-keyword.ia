@@ -1,0 +1,22 @@
+#! ia 1.0
+@system a
+  provider "a"
+  version "1.0.0"
+  discriminators
+    law lowers to governance
+      category rule
+      facets [head]
+      schema @schema law
+@system b
+  provider "b"
+  version "1.0.0"
+  discriminators
+    law lowers to governance
+      category rule
+      facets [head]
+      schema @schema law
+@schema law
+  lowers to governance
+  sections
+    closed
+@law x

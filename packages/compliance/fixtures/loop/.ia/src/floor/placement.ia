@@ -1,0 +1,42 @@
+#! ia 1.0
+
+@placement authored
+  meaning
+    says "Local authored material at authority band 100."
+    answers "What does authored designate in the placement domain?"
+  data
+    order 0
+    band 100
+
+@placement adopted
+  meaning
+    says "Explicitly adopted material at authority band 90."
+    answers "What does adopted designate in the placement domain?"
+  data
+    order 1
+    band 90
+
+@placement open
+  meaning
+    says "Visible but unadopted material at authority band 50."
+    answers "What does open designate in the placement domain?"
+  data
+    order 2
+    band 50
+
+@placement floor
+  meaning
+    says "Bootstrap foundation material at authority band 10."
+    answers "What does floor designate in the placement domain?"
+  data
+    order 3
+    band 10
+
+@placement runtime
+  meaning
+    says "Run-produced material at authority band 0."
+    answers "What does runtime designate in the placement domain?"
+  data
+    order 4
+    band 0
+

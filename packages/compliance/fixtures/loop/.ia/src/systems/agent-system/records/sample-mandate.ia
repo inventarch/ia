@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@mandate sample-mandate
+  meaning
+    says "Sample fixture statement 1."
+    answers "Sample fixture statement 2."
+  governance
+    requires "Sample fixture statement 3."

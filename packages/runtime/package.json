@@ -1,0 +1,285 @@
+{
+  "name": "@ia/runtime",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./editor": {
+      "development": "./src/editor/index.ts",
+      "types": "./dist/editor/index.d.ts",
+      "default": "./dist/editor/index.js"
+    },
+    "./authoring": {
+      "development": "./src/authoring/index.ts",
+      "types": "./dist/authoring/index.d.ts",
+      "default": "./dist/authoring/index.js"
+    },
+    "./entry": {
+      "development": "./src/entry.ts",
+      "types": "./dist/entry.d.ts",
+      "default": "./dist/entry.js"
+    },
+    "./authoring-execution": {
+      "development": "./src/authoring-execution/index.ts",
+      "types": "./dist/authoring-execution/index.d.ts",
+      "default": "./dist/authoring-execution/index.js"
+    },
+    "./internal/authoring-execution/execution": {
+      "types": "./dist/authoring-execution/execution.d.ts",
+      "default": "./dist/authoring-execution/execution.js"
+    },
+    "./internal/authoring-execution/index": {
+      "types": "./dist/authoring-execution/index.d.ts",
+      "default": "./dist/authoring-execution/index.js"
+    },
+    "./internal/authoring-execution/inventory": {
+      "types": "./dist/authoring-execution/inventory.d.ts",
+      "default": "./dist/authoring-execution/inventory.js"
+    },
+    "./internal/authoring-execution/shared": {
+      "types": "./dist/authoring-execution/shared.d.ts",
+      "default": "./dist/authoring-execution/shared.js"
+    },
+    "./internal/authoring-execution/types": {
+      "types": "./dist/authoring-execution/types.d.ts",
+      "default": "./dist/authoring-execution/types.js"
+    },
+    "./internal/authoring/index": {
+      "types": "./dist/authoring/index.d.ts",
+      "default": "./dist/authoring/index.js"
+    },
+    "./internal/candidate": {
+      "types": "./dist/candidate.d.ts",
+      "default": "./dist/candidate.js"
+    },
+    "./internal/classify": {
+      "types": "./dist/classify.d.ts",
+      "default": "./dist/classify.js"
+    },
+    "./internal/collect": {
+      "types": "./dist/collect.d.ts",
+      "default": "./dist/collect.js"
+    },
+    "./internal/context": {
+      "types": "./dist/context.d.ts",
+      "default": "./dist/context.js"
+    },
+    "./internal/coordinate": {
+      "types": "./dist/coordinate.d.ts",
+      "default": "./dist/coordinate.js"
+    },
+    "./internal/door": {
+      "types": "./dist/door.d.ts",
+      "default": "./dist/door.js"
+    },
+    "./internal/editor/index": {
+      "types": "./dist/editor/index.d.ts",
+      "default": "./dist/editor/index.js"
+    },
+    "./internal/editor/types": {
+      "types": "./dist/editor/types.d.ts",
+      "default": "./dist/editor/types.js"
+    },
+    "./internal/editor/workspace": {
+      "types": "./dist/editor/workspace.d.ts",
+      "default": "./dist/editor/workspace.js"
+    },
+    "./internal/entry": {
+      "types": "./dist/entry.d.ts",
+      "default": "./dist/entry.js"
+    },
+    "./internal/errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./internal/index": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal/machine-protocol": {
+      "types": "./dist/machine-protocol.d.ts",
+      "default": "./dist/machine-protocol.js"
+    },
+    "./internal/mentions": {
+      "types": "./dist/mentions.d.ts",
+      "default": "./dist/mentions.js"
+    },
+    "./internal/publication": {
+      "types": "./dist/publication.d.ts",
+      "default": "./dist/publication.js"
+    },
+    "./internal/render": {
+      "types": "./dist/render.d.ts",
+      "default": "./dist/render.js"
+    },
+    "./internal/select": {
+      "types": "./dist/select.d.ts",
+      "default": "./dist/select.js"
+    },
+    "./internal/steward": {
+      "types": "./dist/steward.d.ts",
+      "default": "./dist/steward.js"
+    },
+    "./internal/types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@ia/language": "workspace:*",
+    "@ia/graph": "workspace:*",
+    "@ia/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./editor": {
+        "types": "./dist/editor/index.d.ts",
+        "default": "./dist/editor/index.js"
+      },
+      "./authoring": {
+        "types": "./dist/authoring/index.d.ts",
+        "default": "./dist/authoring/index.js"
+      },
+      "./entry": {
+        "types": "./dist/entry.d.ts",
+        "default": "./dist/entry.js"
+      },
+      "./authoring-execution": {
+        "types": "./dist/authoring-execution/index.d.ts",
+        "default": "./dist/authoring-execution/index.js"
+      },
+      "./internal/authoring-execution/execution": {
+        "types": "./dist/authoring-execution/execution.d.ts",
+        "default": "./dist/authoring-execution/execution.js"
+      },
+      "./internal/authoring-execution/index": {
+        "types": "./dist/authoring-execution/index.d.ts",
+        "default": "./dist/authoring-execution/index.js"
+      },
+      "./internal/authoring-execution/inventory": {
+        "types": "./dist/authoring-execution/inventory.d.ts",
+        "default": "./dist/authoring-execution/inventory.js"
+      },
+      "./internal/authoring-execution/shared": {
+        "types": "./dist/authoring-execution/shared.d.ts",
+        "default": "./dist/authoring-execution/shared.js"
+      },
+      "./internal/authoring-execution/types": {
+        "types": "./dist/authoring-execution/types.d.ts",
+        "default": "./dist/authoring-execution/types.js"
+      },
+      "./internal/authoring/index": {
+        "types": "./dist/authoring/index.d.ts",
+        "default": "./dist/authoring/index.js"
+      },
+      "./internal/candidate": {
+        "types": "./dist/candidate.d.ts",
+        "default": "./dist/candidate.js"
+      },
+      "./internal/classify": {
+        "types": "./dist/classify.d.ts",
+        "default": "./dist/classify.js"
+      },
+      "./internal/collect": {
+        "types": "./dist/collect.d.ts",
+        "default": "./dist/collect.js"
+      },
+      "./internal/context": {
+        "types": "./dist/context.d.ts",
+        "default": "./dist/context.js"
+      },
+      "./internal/coordinate": {
+        "types": "./dist/coordinate.d.ts",
+        "default": "./dist/coordinate.js"
+      },
+      "./internal/door": {
+        "types": "./dist/door.d.ts",
+        "default": "./dist/door.js"
+      },
+      "./internal/editor/index": {
+        "types": "./dist/editor/index.d.ts",
+        "default": "./dist/editor/index.js"
+      },
+      "./internal/editor/types": {
+        "types": "./dist/editor/types.d.ts",
+        "default": "./dist/editor/types.js"
+      },
+      "./internal/editor/workspace": {
+        "types": "./dist/editor/workspace.d.ts",
+        "default": "./dist/editor/workspace.js"
+      },
+      "./internal/entry": {
+        "types": "./dist/entry.d.ts",
+        "default": "./dist/entry.js"
+      },
+      "./internal/errors": {
+        "types": "./dist/errors.d.ts",
+        "default": "./dist/errors.js"
+      },
+      "./internal/index": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./internal/machine-protocol": {
+        "types": "./dist/machine-protocol.d.ts",
+        "default": "./dist/machine-protocol.js"
+      },
+      "./internal/mentions": {
+        "types": "./dist/mentions.d.ts",
+        "default": "./dist/mentions.js"
+      },
+      "./internal/publication": {
+        "types": "./dist/publication.d.ts",
+        "default": "./dist/publication.js"
+      },
+      "./internal/render": {
+        "types": "./dist/render.d.ts",
+        "default": "./dist/render.js"
+      },
+      "./internal/select": {
+        "types": "./dist/select.d.ts",
+        "default": "./dist/select.js"
+      },
+      "./internal/steward": {
+        "types": "./dist/steward.d.ts",
+        "default": "./dist/steward.js"
+      },
+      "./internal/types": {
+        "types": "./dist/types.d.ts",
+        "default": "./dist/types.js"
+      }
+    },
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  }
+}

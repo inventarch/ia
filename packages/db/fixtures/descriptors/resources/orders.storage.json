@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "model": "orders",
+  "model-version": "1.0.0",
+  "model-digest": "sha256:7c9f3de8d826f6c861bc93bca62b3fcc01524ae5f7727bf6a081ae6f383231aa",
+  "port": "order-repository@1",
+  "adapter": "relational-store@2",
+  "schema-version": "4.0.0",
+  "transaction": "entity",
+  "isolation": { "column": "tenant_id" },
+  "entities": [
+    {
+      "entity": "customer",
+      "store": "customers",
+      "fields": [
+        { "field": "id", "column": "id", "codec": "uuid" },
+        { "field": "display-name", "column": "display_name", "codec": "text" }
+      ]
+    },
+    {
+      "entity": "order",
+      "store": "orders",
+      "fields": [
+        { "field": "id", "column": "id", "codec": "uuid" },
+        { "field": "customer", "column": "customer_id", "codec": "reference" },
+        { "field": "status", "column": "status", "codec": "text" },
+        { "field": "total", "column": "total", "codec": "numeric" },
+        { "field": "placed-at", "column": "placed_at", "codec": "timestamp" },
+        { "field": "gift", "column": "gift", "codec": "boolean" },
+        { "field": "line-count", "column": "line_count", "codec": "integer" }
+      ]
+    }
+  ],
+  "projections": [
+    { "name": "order-summary", "classification": "derived" }
+  ],
+  "migration-policy": "reviewed-forward-only@1"
+}

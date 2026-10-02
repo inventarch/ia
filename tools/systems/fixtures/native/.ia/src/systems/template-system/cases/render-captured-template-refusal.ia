@@ -1,0 +1,17 @@
+#! ia 1.0
+
+@case render-captured-template-refusal
+  meaning
+    says "render-captured-template refuses values that omit a required input with IA-EXEC-INPUT-INVALID."
+    answers "Does render-captured-template refuse JSON-text values missing the required title input and return no artifact?"
+  scenario
+    kind refusal
+    given "The fixture structured-document from agent-composition-system tests/templates.test.ts, in the current scope with its resource permitted and pinned."
+    request "Call renderCapturedTemplate with values given as the JSON text {}."
+    expected "Status refused with IA-EXEC-INPUT-INVALID and no artifact."
+    evaluator ".ia/src/systems/agent-composition-system/tests/templates.test.ts"
+    operation @operation render-captured-template
+    code IA-EXEC-INPUT-INVALID
+  relationships
+    implements @contract template-rendering-contract#REQ-TMPL-VALUES
+    implements @contract template-rendering-contract#REQ-TMPL-REFUSE

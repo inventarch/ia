@@ -1,0 +1,971 @@
+[
+  {
+    "identity": "floor/definition/system/fixture-system",
+    "system": "floor",
+    "kind": "definition",
+    "facet": "system",
+    "name": "fixture-system",
+    "displayName": "fixture-system",
+    "discriminator": "system",
+    "source": {
+      "path": "variants/pass/fallback-and-coordinate-families.ia",
+      "line": 2,
+      "endLine": 40
+    },
+    "head": [
+      {
+        "key": "provider",
+        "value": {
+          "kind": "string",
+          "text": "conformance"
+        },
+        "span": {
+          "line": 3,
+          "endLine": 3
+        }
+      },
+      {
+        "key": "version",
+        "value": {
+          "kind": "string",
+          "text": "1.0.0"
+        },
+        "span": {
+          "line": 4,
+          "endLine": 4
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "discriminators",
+        "span": {
+          "line": 5,
+          "endLine": 21
+        },
+        "fields": [
+          {
+            "key": "playbook",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to governance"
+            },
+            "span": {
+              "line": 6,
+              "endLine": 9
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 7,
+                  "endLine": 7
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 8,
+                  "endLine": 8
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "playbook"
+                },
+                "span": {
+                  "line": 9,
+                  "endLine": 9
+                }
+              }
+            ]
+          },
+          {
+            "key": "law",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to governance"
+            },
+            "span": {
+              "line": 10,
+              "endLine": 13
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 11,
+                  "endLine": 11
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 12,
+                  "endLine": 12
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "law"
+                },
+                "span": {
+                  "line": 13,
+                  "endLine": 13
+                }
+              }
+            ]
+          },
+          {
+            "key": "contract",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to contract"
+            },
+            "span": {
+              "line": 14,
+              "endLine": 17
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 15,
+                  "endLine": 15
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 16,
+                  "endLine": 16
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "contract"
+                },
+                "span": {
+                  "line": 17,
+                  "endLine": 17
+                }
+              }
+            ]
+          },
+          {
+            "key": "case",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to check"
+            },
+            "span": {
+              "line": 18,
+              "endLine": 21
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 19,
+                  "endLine": 19
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 20,
+                  "endLine": 20
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "case"
+                },
+                "span": {
+                  "line": 21,
+                  "endLine": 21
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "edges",
+        "span": {
+          "line": 22,
+          "endLine": 40
+        },
+        "fields": [
+          {
+            "key": "govern",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 23,
+              "endLine": 23
+            }
+          },
+          {
+            "key": "enforce",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 24,
+              "endLine": 24
+            }
+          },
+          {
+            "key": "ground",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 25,
+              "endLine": 25
+            }
+          },
+          {
+            "key": "constrain",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 26,
+              "endLine": 26
+            }
+          },
+          {
+            "key": "implement",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 27,
+              "endLine": 27
+            }
+          },
+          {
+            "key": "produce",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 28,
+              "endLine": 28
+            }
+          },
+          {
+            "key": "consume",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 29,
+              "endLine": 29
+            }
+          },
+          {
+            "key": "record-lineage-from",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 30,
+              "endLine": 30
+            }
+          },
+          {
+            "key": "grant-access-to",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 31,
+              "endLine": 31
+            }
+          },
+          {
+            "key": "run-before",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 32,
+              "endLine": 32
+            }
+          },
+          {
+            "key": "trigger",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 33,
+              "endLine": 33
+            }
+          },
+          {
+            "key": "cite",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 34,
+              "endLine": 34
+            }
+          },
+          {
+            "key": "supersede",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 35,
+              "endLine": 35
+            }
+          },
+          {
+            "key": "require",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 36,
+              "endLine": 36
+            }
+          },
+          {
+            "key": "use",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 37,
+              "endLine": 37
+            }
+          },
+          {
+            "key": "forbid",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 38,
+              "endLine": 38
+            }
+          },
+          {
+            "key": "route",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 39,
+              "endLine": 39
+            }
+          },
+          {
+            "key": "land",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 40,
+              "endLine": 40
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "playbook"
+        },
+        "target": "floor/contract/head/playbook",
+        "span": {
+          "line": 6,
+          "endLine": 9
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "law"
+        },
+        "target": "floor/contract/head/law",
+        "span": {
+          "line": 10,
+          "endLine": 13
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "contract"
+        },
+        "target": "floor/contract/head/contract",
+        "span": {
+          "line": 14,
+          "endLine": 17
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "case"
+        },
+        "target": "floor/contract/head/case",
+        "span": {
+          "line": 18,
+          "endLine": 21
+        }
+      }
+    ],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/system",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/playbook",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "playbook",
+    "displayName": "playbook",
+    "discriminator": "schema",
+    "source": {
+      "path": "variants/pass/fallback-and-coordinate-families.ia",
+      "line": 41,
+      "endLine": 44
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "governance"
+        },
+        "span": {
+          "line": 42,
+          "endLine": 42
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 43,
+          "endLine": 44
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 44,
+              "endLine": 44
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/law",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "law",
+    "displayName": "law",
+    "discriminator": "schema",
+    "source": {
+      "path": "variants/pass/fallback-and-coordinate-families.ia",
+      "line": 45,
+      "endLine": 48
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "governance"
+        },
+        "span": {
+          "line": 46,
+          "endLine": 46
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 47,
+          "endLine": 48
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 48,
+              "endLine": 48
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/contract",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "contract",
+    "displayName": "contract",
+    "discriminator": "schema",
+    "source": {
+      "path": "variants/pass/fallback-and-coordinate-families.ia",
+      "line": 49,
+      "endLine": 52
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "contract"
+        },
+        "span": {
+          "line": 50,
+          "endLine": 50
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 51,
+          "endLine": 52
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 52,
+              "endLine": 52
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/case",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "case",
+    "displayName": "case",
+    "discriminator": "schema",
+    "source": {
+      "path": "variants/pass/fallback-and-coordinate-families.ia",
+      "line": 53,
+      "endLine": 56
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "check"
+        },
+        "span": {
+          "line": 54,
+          "endLine": 54
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 55,
+          "endLine": 56
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 56,
+              "endLine": 56
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "fixture-system/governance/head/target",
+    "system": "fixture-system",
+    "kind": "governance",
+    "facet": "head",
+    "name": "target",
+    "displayName": "target",
+    "discriminator": "playbook",
+    "source": {
+      "path": "variants/pass/fallback-and-coordinate-families.ia",
+      "line": 57,
+      "endLine": 57
+    },
+    "head": [],
+    "sections": [],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/playbook",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "fixture-system/governance/head/authoring-floor",
+    "system": "fixture-system",
+    "kind": "governance",
+    "facet": "head",
+    "name": "authoring-floor",
+    "displayName": "authoring-floor",
+    "discriminator": "law",
+    "source": {
+      "path": "variants/pass/fallback-and-coordinate-families.ia",
+      "line": 58,
+      "endLine": 65
+    },
+    "head": [],
+    "sections": [
+      {
+        "name": "governance",
+        "span": {
+          "line": 59,
+          "endLine": 65
+        },
+        "fields": [
+          {
+            "key": "severity",
+            "value": {
+              "kind": "scalar",
+              "text": "blocking"
+            },
+            "span": {
+              "line": 60,
+              "endLine": 60
+            }
+          },
+          {
+            "key": "requires",
+            "value": {
+              "kind": "string",
+              "text": "Base"
+            },
+            "span": {
+              "line": 61,
+              "endLine": 61
+            }
+          },
+          {
+            "key": "requires",
+            "value": {
+              "kind": "string",
+              "text": "Act"
+            },
+            "when": [
+              "phase",
+              "is",
+              "act"
+            ],
+            "span": {
+              "line": 62,
+              "endLine": 62
+            }
+          },
+          {
+            "key": "requires",
+            "value": {
+              "kind": "string",
+              "text": "Plan"
+            },
+            "span": {
+              "line": 63,
+              "endLine": 64
+            },
+            "fields": [
+              {
+                "key": "when",
+                "value": {
+                  "kind": "scalar",
+                  "text": "phase is plan"
+                },
+                "span": {
+                  "line": 64,
+                  "endLine": 64
+                }
+              }
+            ]
+          },
+          {
+            "key": "forbids",
+            "value": {
+              "kind": "string",
+              "text": "Unattributed facts"
+            },
+            "span": {
+              "line": 65,
+              "endLine": 65
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [
+      {
+        "key": "requires",
+        "value": {
+          "kind": "string",
+          "text": "Base"
+        },
+        "span": {
+          "line": 61,
+          "endLine": 61
+        }
+      },
+      {
+        "key": "requires",
+        "value": {
+          "kind": "string",
+          "text": "Act"
+        },
+        "condition": [
+          {
+            "axis": "phase",
+            "value": "act"
+          }
+        ],
+        "span": {
+          "line": 62,
+          "endLine": 62
+        }
+      },
+      {
+        "key": "requires",
+        "value": {
+          "kind": "string",
+          "text": "Plan"
+        },
+        "condition": [
+          {
+            "axis": "phase",
+            "value": "plan"
+          }
+        ],
+        "span": {
+          "line": 63,
+          "endLine": 64
+        }
+      },
+      {
+        "key": "forbids",
+        "value": {
+          "kind": "string",
+          "text": "Unattributed facts"
+        },
+        "span": {
+          "line": 65,
+          "endLine": 65
+        }
+      }
+    ],
+    "requirements": [],
+    "schema": "floor/contract/head/law",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  }
+]

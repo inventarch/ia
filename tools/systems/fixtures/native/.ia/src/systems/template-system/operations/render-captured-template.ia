@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@operation render-captured-template
+  meaning
+    says "Render one structured-v1 @template from its captured JSON resource into bounded draft bytes and an evidence digest through the native-template-tools harness; nothing is written."
+    answers "Which governed operation renders a structured-v1 @template from its captured JSON resource into draft bytes and an evidence digest without writing a file?"
+  execution
+    handler captured-template-render-v1
+    effects draft-only
+    input captured-template-input-v1
+    output draft-result-v1
+    profile governed-v1
+    recovery repeatable

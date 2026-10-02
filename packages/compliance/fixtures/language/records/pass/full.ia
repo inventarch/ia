@@ -1,0 +1,11 @@
+#! ia 1.0
+# a law
+@law x
+  version "1"
+  meaning
+    says """one
+      two"""
+  relationships
+    cites @law y when phase is orient
+  requires
+    - a

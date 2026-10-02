@@ -1,0 +1,4 @@
+#! ia 1.0
+@law x
+  meaning
+    tags [a "b"]

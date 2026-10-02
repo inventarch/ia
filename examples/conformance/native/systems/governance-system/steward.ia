@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent governance-steward
+  meaning
+    says "Identifies the owner of governance-system contracts in this example."
+    answers "Who owns the law, principle, convention and playbook words in this example?"
+  governance
+    applies [law, principle, convention, playbook]

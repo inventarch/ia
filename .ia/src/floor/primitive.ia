@@ -1,0 +1,50 @@
+#! ia 1.0
+
+@primitive Memory
+  meaning
+    says "Recall and retrieval — bring stored context to bear and gather what is already known. Anchors the orient phase, with Attention."
+    answers "Does this step need context or commitments that already exist?"
+  data
+    order 0
+    anchor orient
+
+@primitive Attention
+  meaning
+    says "Selection and focus — attend to what is salient and narrow the field to what matters now. Anchors the orient phase, with Memory."
+    answers "Does this step have to pick, from what is available, what matters now?"
+  data
+    order 1
+    anchor orient
+
+@primitive Inference
+  meaning
+    says "Computation and derivation — derive a conclusion or an approach from the premises; compute the plan before acting. Anchors the plan phase."
+    answers "Does this step reach a conclusion or approach by reasoning from premises?"
+  data
+    order 2
+    anchor plan
+
+@primitive Decision
+  meaning
+    says "Commitment and choice — commit to one option among the named alternatives and make the call. Anchors the act phase, with Escalation."
+    answers "Does this step commit to one option within its own authority?"
+  data
+    order 3
+    anchor act
+
+@primitive Escalation
+  meaning
+    says "Raising and routing — escalate when a gate blocks or the stakes exceed the local authority, routing the call upward. Anchors the act phase, with Decision."
+    answers "Must this step hand the call upward because a gate blocks or the stakes exceed its authority?"
+  data
+    order 4
+    anchor act
+
+@primitive Learning
+  meaning
+    says "Update and consolidation — write back what the run taught and revise the model from the evidence, so the next loop is better informed. Anchors the learn phase."
+    answers "Does this step change what later loops will know, based on what a result showed?"
+  data
+    order 5
+    anchor learn
+

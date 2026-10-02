@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "app": "orders-desk",
+  "version": "1.2.0",
+  "features": [],
+  "targets": ["headless", "browser"],
+  "screens": [
+    { "name": "order-list", "title": "Orders", "view": "list-view@1", "layout": { "columns": 3, "dense": true, "sort": "placed-at" }, "queries": ["list-orders@1"], "actions": ["place-order"] },
+    { "name": "order-detail", "title": "Order", "view": "detail-view@1", "layout": {}, "queries": ["list-orders@1"], "actions": ["cancel-order"] }
+  ],
+  "navigation": [
+    { "from": "order-list", "to": "order-detail" }
+  ],
+  "actions": [
+    { "name": "place-order", "capability": "orders-write", "operation": "place-order@1", "input": "place-order-input@1", "output": "order-summary@1", "effect": "write" },
+    { "name": "cancel-order", "capability": "orders-write", "operation": "cancel-order@1", "input": "order-ref@1", "output": "order-summary@1", "effect": "write" }
+  ],
+  "configuration": [
+    { "key": "page-size", "visibility": "public", "secret": false, "default": 25 },
+    { "key": "support-email", "visibility": "server", "secret": false, "default": "support@example.invalid" },
+    { "key": "payment-token", "visibility": "server", "secret": true }
+  ],
+  "requirements": [
+    { "name": "orders-model", "kind": "domain-model", "id": "orders", "version": "1.0.0" },
+    { "name": "orders-storage", "kind": "storage-binding", "id": "orders-store", "version": "4.0.0" }
+  ]
+}

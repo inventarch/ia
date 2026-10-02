@@ -1,0 +1,44 @@
+#! ia 1.0
+
+@plan example-plan
+  meaning
+    says "Arranges the milestones that take an example module from a draft to a released package."
+    answers "How, and in what order, is the example module released?"
+  work
+    title "Example module release"
+    status open
+    owner "example owner"
+    start "2026-09-01"
+
+@milestone example-milestone
+  meaning
+    says "The example module's documentation is complete and reviewed."
+  work
+    title "Documentation complete"
+    status open
+    plan @plan example-plan
+    exit "Every public word of the example module has a reference page that a reviewer has approved."
+    due "2026-10-15"
+
+@task example-task
+  meaning
+    says "Write the reference page for the example module's first word."
+  work
+    title "Write the first reference page"
+    status open
+    milestone @milestone example-milestone
+    owner "example owner"
+  relationships
+    requires @decision example-decision
+
+@decision example-decision
+  meaning
+    says "The reference pages need one format before any of them is written."
+  work
+    title "Reference page format"
+    status open
+    due "2026-10-01"
+  decision
+    question "Are the example module's reference pages generated from the schemas or written by hand?"
+    options ["generated from the schemas", "written by hand"]
+    decider "example owner"

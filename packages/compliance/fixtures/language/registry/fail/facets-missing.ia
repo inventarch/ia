@@ -1,0 +1,9 @@
+#! ia 1.0
+@system s
+  provider "p"
+  version "1.0.0"
+  discriminators
+    agent lowers to binding
+      category capability
+      facets []
+      schema @schema agent

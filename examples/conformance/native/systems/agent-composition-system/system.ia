@@ -1,0 +1,43 @@
+#! ia 1.0
+
+@system agent-composition-system
+  provider "inventarch.local"
+  version "0.1.0"
+  describes "Public agent-composition-system vocabulary contracts"
+  steward @agent agent-composition-steward
+  requires
+    - agent-system
+    - workspace-system
+    - governance-system
+    - compliance-system
+    - authoring-system
+    - template-system
+  discriminators
+    voice lowers to definition
+      category property
+      facets [voice]
+      schema @schema voice
+    agent-profile lowers to binding
+      category capability
+      facets [agent-profile]
+      schema @schema agent-profile
+    harness lowers to definition
+      category boundary
+      facets [harness]
+      schema @schema harness
+    capability lowers to definition
+      category capability
+      facets [capability]
+      schema @schema capability
+    execution-binding lowers to binding
+      category relation
+      facets [execution-binding]
+      schema @schema execution-binding
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+

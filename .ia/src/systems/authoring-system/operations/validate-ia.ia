@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@operation validate-ia
+  meaning
+    says "Validate a source draft in its actual corpus and owner."
+    answers "Which pnpm system:run command reports whether a draft IA file would be admitted in the current whole workspace, without returning an artifact?"
+  execution
+    handler ia-validate
+    effects read-only
+    input json
+    output operation-result

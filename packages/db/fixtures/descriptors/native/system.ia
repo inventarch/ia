@@ -1,0 +1,25 @@
+#! ia 1.0
+
+@system descriptor-candidate
+  provider "inventarch.local"
+  version "0.1.0"
+  describes "Isolated OS09 candidate registration of the domain-model, storage-binding and app-composition envelopes; test fixture only, never active source"
+  steward @agent descriptor-candidate-steward
+  requires
+    - agent-system
+    - agent-composition-system
+  discriminators
+    domain-model lowers to definition
+      category representation
+      facets [domain-model]
+      schema @schema domain-model
+    storage-binding lowers to binding
+      category relation
+      facets [storage-binding]
+      schema @schema storage-binding
+    app-composition lowers to definition
+      category representation
+      facets [app-composition]
+      schema @schema app-composition
+  edges
+    use * using *

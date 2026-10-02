@@ -1,0 +1,143 @@
+{
+  "name": "@ia/graph",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal/coordinate": {
+      "types": "./dist/coordinate.d.ts",
+      "default": "./dist/coordinate.js"
+    },
+    "./internal/diagnostics": {
+      "types": "./dist/diagnostics.d.ts",
+      "default": "./dist/diagnostics.js"
+    },
+    "./internal/immutable": {
+      "types": "./dist/immutable.d.ts",
+      "default": "./dist/immutable.js"
+    },
+    "./internal/index": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal/load": {
+      "types": "./dist/load.d.ts",
+      "default": "./dist/load.js"
+    },
+    "./internal/paths": {
+      "types": "./dist/paths.d.ts",
+      "default": "./dist/paths.js"
+    },
+    "./internal/queries": {
+      "types": "./dist/queries.d.ts",
+      "default": "./dist/queries.js"
+    },
+    "./internal/resolve": {
+      "types": "./dist/resolve.d.ts",
+      "default": "./dist/resolve.js"
+    },
+    "./internal/revision": {
+      "types": "./dist/revision.d.ts",
+      "default": "./dist/revision.js"
+    },
+    "./internal/text": {
+      "types": "./dist/text.d.ts",
+      "default": "./dist/text.js"
+    },
+    "./internal/traverse": {
+      "types": "./dist/traverse.d.ts",
+      "default": "./dist/traverse.js"
+    },
+    "./internal/types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@ia/language": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./internal/coordinate": {
+        "types": "./dist/coordinate.d.ts",
+        "default": "./dist/coordinate.js"
+      },
+      "./internal/diagnostics": {
+        "types": "./dist/diagnostics.d.ts",
+        "default": "./dist/diagnostics.js"
+      },
+      "./internal/immutable": {
+        "types": "./dist/immutable.d.ts",
+        "default": "./dist/immutable.js"
+      },
+      "./internal/index": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./internal/load": {
+        "types": "./dist/load.d.ts",
+        "default": "./dist/load.js"
+      },
+      "./internal/paths": {
+        "types": "./dist/paths.d.ts",
+        "default": "./dist/paths.js"
+      },
+      "./internal/queries": {
+        "types": "./dist/queries.d.ts",
+        "default": "./dist/queries.js"
+      },
+      "./internal/resolve": {
+        "types": "./dist/resolve.d.ts",
+        "default": "./dist/resolve.js"
+      },
+      "./internal/revision": {
+        "types": "./dist/revision.d.ts",
+        "default": "./dist/revision.js"
+      },
+      "./internal/text": {
+        "types": "./dist/text.d.ts",
+        "default": "./dist/text.js"
+      },
+      "./internal/traverse": {
+        "types": "./dist/traverse.d.ts",
+        "default": "./dist/traverse.js"
+      },
+      "./internal/types": {
+        "types": "./dist/types.d.ts",
+        "default": "./dist/types.js"
+      }
+    },
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  }
+}

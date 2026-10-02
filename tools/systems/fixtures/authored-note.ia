@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@template authored-note
+  meaning
+    says "A scalar template rendering notes/<name>.md: a heading from name, then the purpose paragraph."
+    answers "Which shipped scalar template renders a named Markdown note from a name and a purpose?"
+  template
+    filename "notes/{{name}}.md"
+    parameters [name, purpose]
+    lines ["# {{name}}", "", "{{purpose}}", ""]

@@ -1,0 +1,7 @@
+{
+  "format": "ia-documentation-policy/1",
+  "repository": "inventarch/ia",
+  "expected": [],
+  "legacyMetadata": [],
+  "policy": "Public export contains explicitly selected normative references, no private lifecycle documents."
+}

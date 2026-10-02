@@ -1,0 +1,3268 @@
+{
+  "version": 1,
+  "language": "ia 1.0",
+  "status": "public IA 1.0 language contract",
+  "sourceDigest": "d2ff22e208b442451859d8d3eb2268a3c3147a344527d96171f3ea9c98f8daed",
+  "words": [
+    {
+      "word": "agent",
+      "owner": "agent-system",
+      "kind": "binding",
+      "category": "capability",
+      "facets": [
+        "agent"
+      ],
+      "identity": "agent-system/binding/<facet>/<name>",
+      "description": "Names a participant and the vocabulary to which its governance applies. It does not grant host permissions.",
+      "schema": {
+        "name": "agent",
+        "path": ".ia/src/systems/agent-system/schemas/agent.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "governance",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "governance.applies",
+            "type": "list of id",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "agent-profile",
+      "owner": "agent-composition-system",
+      "kind": "binding",
+      "category": "capability",
+      "facets": [
+        "agent-profile"
+      ],
+      "identity": "agent-composition-system/binding/<facet>/<name>",
+      "description": "Composes an agent, capabilities, optional mandate/voice/delegates and installed execution contracts.",
+      "schema": {
+        "name": "agent-profile",
+        "path": ".ia/src/systems/agent-composition-system/schemas/agent-profile.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "composition",
+            "required": true
+          },
+          {
+            "name": "execution",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "composition.agent",
+            "type": "ref",
+            "required": true
+          },
+          {
+            "path": "composition.capabilities",
+            "type": "list of ref",
+            "required": true
+          },
+          {
+            "path": "composition.voice",
+            "type": "ref",
+            "required": false
+          },
+          {
+            "path": "composition.mandate",
+            "type": "ref",
+            "required": false
+          },
+          {
+            "path": "composition.delegates",
+            "type": "list of ref",
+            "required": false
+          },
+          {
+            "path": "execution.role",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.outcomes",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.mandate-contract",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.model-profile",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "execution.limit-steps",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-model-calls",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-operations",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-tokens",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-children",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-depth",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-bytes",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-duration-ms",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; generic composition compiler and installed catalog"
+    },
+    {
+      "word": "artifact-set",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "artifact-set"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a closed grouping of artifact genres.",
+      "schema": {
+        "name": "kernel-artifact-set",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "contract",
+        "decision",
+        "evidence",
+        "execution",
+        "inquiry",
+        "operational",
+        "principle",
+        "product-definition",
+        "projection"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "authoring-guide",
+      "owner": "authoring-system",
+      "kind": "definition",
+      "category": "representation",
+      "facets": [
+        "authoring-guide"
+      ],
+      "identity": "authoring-system/definition/<facet>/<name>",
+      "description": "Associates a vocabulary owner and schema with an authoring reference and usage guidance.",
+      "schema": {
+        "name": "authoring-guide",
+        "path": ".ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "reference",
+            "required": true
+          },
+          {
+            "name": "guidance",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "reference.owner",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "reference.word",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "reference.schema",
+            "type": "ref",
+            "required": true
+          },
+          {
+            "path": "reference.document",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "guidance.select-when",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "guidance.avoid-when",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "guidance.consider",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "axis",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "axis"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a closed coordinate axis for selection.",
+      "schema": {
+        "name": "kernel-axis",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          },
+          {
+            "path": "data.values",
+            "type": "list of id",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "artifact-set",
+        "category",
+        "kind",
+        "lane",
+        "move",
+        "phase",
+        "predicate",
+        "primitive",
+        "shape"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "capability",
+      "owner": "agent-composition-system",
+      "kind": "definition",
+      "category": "capability",
+      "facets": [
+        "capability"
+      ],
+      "identity": "agent-composition-system/definition/<facet>/<name>",
+      "description": "Groups operations, procedures, templates, checks and included capabilities with declared execution bounds.",
+      "schema": {
+        "name": "capability",
+        "path": ".ia/src/systems/agent-composition-system/schemas/capability.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "composition",
+            "required": false
+          },
+          {
+            "name": "execution",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "composition.operations",
+            "type": "list of ref",
+            "required": false
+          },
+          {
+            "path": "composition.playbooks",
+            "type": "list of ref",
+            "required": false
+          },
+          {
+            "path": "composition.templates",
+            "type": "list of ref",
+            "required": false
+          },
+          {
+            "path": "composition.checks",
+            "type": "list of ref",
+            "required": false
+          },
+          {
+            "path": "composition.includes",
+            "type": "list of ref",
+            "required": false
+          },
+          {
+            "path": "execution.input",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "execution.outcomes",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "execution.context-profile",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "execution.procedure-profile",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "execution.mapping-profile",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "execution.effects",
+            "type": "list of id",
+            "required": true
+          },
+          {
+            "path": "execution.limit-steps",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-model-calls",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-operations",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-tokens",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-children",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-depth",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-bytes",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-duration-ms",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; generic composition compiler and installed catalog"
+    },
+    {
+      "word": "cardinality",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "cardinality"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines relationship multiplicity constraints.",
+      "schema": {
+        "name": "kernel-cardinality",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "one",
+        "one-or-more",
+        "optional"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "case",
+      "owner": "compliance-system",
+      "kind": "definition",
+      "category": "evidence",
+      "facets": [
+        "scenario"
+      ],
+      "identity": "compliance-system/definition/<facet>/<name>",
+      "description": "Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result.",
+      "schema": {
+        "name": "case",
+        "path": ".ia/src/systems/compliance-system/schemas/case.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "scenario",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "scenario.kind",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "scenario.given",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "scenario.request",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "scenario.expected",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "scenario.evaluator",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "scenario.operation",
+            "type": "ref",
+            "required": false
+          },
+          {
+            "path": "scenario.input",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "scenario.code",
+            "type": "id",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "category",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "category"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a closed concept classification used by record shapes and contextual selection.",
+      "schema": {
+        "name": "kernel-category",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "boundary",
+        "capability",
+        "decision",
+        "event",
+        "evidence",
+        "intent",
+        "kind",
+        "measure",
+        "process",
+        "property",
+        "relation",
+        "representation",
+        "rule",
+        "state",
+        "thing"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "check",
+      "owner": "compliance-system",
+      "kind": "check",
+      "category": "rule",
+      "facets": [
+        "gate"
+      ],
+      "identity": "compliance-system/check/<facet>/<name>",
+      "description": "Names a check implementation and scope. Declaring an implementation name does not install or execute it.",
+      "schema": {
+        "name": "check",
+        "path": ".ia/src/systems/compliance-system/schemas/check.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "check",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          },
+          {
+            "name": "governance",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "check.runs",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "check.scope",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "contract",
+      "owner": "compliance-system",
+      "kind": "contract",
+      "category": "relation",
+      "facets": [
+        "signature"
+      ],
+      "identity": "compliance-system/contract/<facet>/<name>",
+      "description": "Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence.",
+      "schema": {
+        "name": "contract",
+        "path": ".ia/src/systems/compliance-system/schemas/contract.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": true
+          },
+          {
+            "name": "inputs",
+            "required": false
+          },
+          {
+            "name": "outputs",
+            "required": false
+          },
+          {
+            "name": "preconditions",
+            "required": false
+          },
+          {
+            "name": "invariants",
+            "required": false
+          },
+          {
+            "name": "failures",
+            "required": false
+          },
+          {
+            "name": "authority",
+            "required": false
+          },
+          {
+            "name": "context",
+            "required": false
+          },
+          {
+            "name": "evolution",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "head.version",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "convention",
+      "owner": "governance-system",
+      "kind": "governance",
+      "category": "rule",
+      "facets": [
+        "convention"
+      ],
+      "identity": "governance-system/governance/<facet>/<name>",
+      "description": "Declares a convention in the shared governance shape.",
+      "schema": {
+        "name": "convention",
+        "path": ".ia/src/systems/governance-system/schemas/convention.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "governance",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "governance.severity",
+            "type": "id",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "decision",
+      "owner": "work-system",
+      "kind": "definition",
+      "category": "decision",
+      "facets": [
+        "decision"
+      ],
+      "identity": "work-system/definition/<facet>/<name>",
+      "description": "Represents a choice that is needed or has been made: the question, options and decider, and once made, the choice and rationale.",
+      "schema": {
+        "name": "decision",
+        "path": ".ia/src/systems/work-system/schemas/decision.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "work",
+            "required": true
+          },
+          {
+            "name": "decision",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.title",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "work.status",
+            "type": "id",
+            "required": true,
+            "values": [
+              "open",
+              "made",
+              "superseded",
+              "withdrawn"
+            ]
+          },
+          {
+            "path": "work.owner",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.start",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.due",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.ended",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.source",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "decision.question",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "decision.options",
+            "type": "list of text",
+            "required": false
+          },
+          {
+            "path": "decision.decider",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "decision.choice",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "decision.rationale",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "decision.constraints",
+            "type": "list of text",
+            "required": false
+          }
+        ],
+        "edges": [
+          {
+            "predicate": "supersede",
+            "target": "decision",
+            "cardinality": "one",
+            "required": false
+          }
+        ]
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "dimension",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "dimension"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a supported record dimension used by conditions and lookup.",
+      "schema": {
+        "name": "kernel-dimension",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          },
+          {
+            "path": "data.values",
+            "type": "list of id",
+            "required": true
+          },
+          {
+            "path": "data.path",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "artifact-set",
+        "provenance",
+        "severity"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "distribution",
+      "owner": "workspace-system",
+      "kind": "definition",
+      "category": "representation",
+      "facets": [
+        "distribution"
+      ],
+      "identity": "workspace-system/definition/<facet>/<name>",
+      "description": "Declares root records from which a distributable closure is selected.",
+      "schema": {
+        "name": "distribution",
+        "path": ".ia/src/systems/workspace-system/schemas/distribution.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "distribution",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "distribution.records",
+            "type": "list of ref",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "execution-binding",
+      "owner": "agent-composition-system",
+      "kind": "binding",
+      "category": "relation",
+      "facets": [
+        "execution-binding"
+      ],
+      "identity": "agent-composition-system/binding/<facet>/<name>",
+      "description": "Connects a native target to a host-installed entry or operation descriptor.",
+      "schema": {
+        "name": "execution-binding",
+        "path": ".ia/src/systems/agent-composition-system/schemas/execution-binding.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "binding",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "binding.kind",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "binding.implementation",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "binding.target",
+            "type": "ref",
+            "required": false
+          },
+          {
+            "path": "binding.mapping",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "binding.event",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "binding.guard",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "binding.tools",
+            "type": "list of id",
+            "required": false
+          },
+          {
+            "path": "binding.filters",
+            "type": "list of text",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; generic composition compiler and installed catalog"
+    },
+    {
+      "word": "harness",
+      "owner": "agent-composition-system",
+      "kind": "definition",
+      "category": "boundary",
+      "facets": [
+        "harness"
+      ],
+      "identity": "agent-composition-system/definition/<facet>/<name>",
+      "description": "Composes profiles and execution bindings in a workspace under a host contract.",
+      "schema": {
+        "name": "harness",
+        "path": ".ia/src/systems/agent-composition-system/schemas/harness.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "composition",
+            "required": true
+          },
+          {
+            "name": "execution",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "composition.workspace",
+            "type": "ref",
+            "required": true
+          },
+          {
+            "path": "composition.profiles",
+            "type": "list of ref",
+            "required": true
+          },
+          {
+            "path": "composition.bindings",
+            "type": "list of ref",
+            "required": true
+          },
+          {
+            "path": "execution.host-profile",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.limit-steps",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-model-calls",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-operations",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-tokens",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-children",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-depth",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-bytes",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-duration-ms",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; generic composition compiler and installed catalog"
+    },
+    {
+      "word": "hook",
+      "owner": "hook-authoring-system",
+      "kind": "binding",
+      "category": "capability",
+      "facets": [
+        "hook"
+      ],
+      "identity": "hook-authoring-system/binding/<facet>/<name>",
+      "description": "Represents a host event, tool/path selection and guard message. Registration and executing a guard require a host adapter.",
+      "schema": {
+        "name": "hook",
+        "path": ".ia/src/systems/hook-authoring-system/schemas/hook.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "hook",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "hook.event",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "hook.tools",
+            "type": "list of id",
+            "required": true
+          },
+          {
+            "path": "hook.paths",
+            "type": "list of text",
+            "required": true
+          },
+          {
+            "path": "hook.message",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "improvement",
+      "owner": "learning-system",
+      "kind": "definition",
+      "category": "intent",
+      "facets": [
+        "improvement"
+      ],
+      "identity": "learning-system/definition/<facet>/<name>",
+      "description": "Represents a proposed change, review metadata and publication metadata. It does not authorize or apply the proposal.",
+      "schema": {
+        "name": "improvement",
+        "path": ".ia/src/systems/learning-system/schemas/improvement.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "proposal",
+            "required": true
+          },
+          {
+            "name": "review",
+            "required": true
+          },
+          {
+            "name": "publication",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "proposal.target",
+            "type": "qname",
+            "required": true
+          },
+          {
+            "path": "proposal.system",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "proposal.path",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "proposal.before",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "proposal.candidate",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "proposal.digest",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "proposal.applies",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "proposal.verification",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "proposal.reversal",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "review.status",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "review.digest",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "review.reviewer",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "review.authority",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "review.at",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "review.rationale",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "review.revisit",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "publication.status",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "publication.receipt",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "publication.digest",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "intent-shape",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "intent-shape"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a request framing and its retrieval defaults.",
+      "schema": {
+        "name": "kernel-intent-shape",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          },
+          {
+            "name": "routing",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          },
+          {
+            "path": "routing.category",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "routing.primitive",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "routing.tie-precedence",
+            "type": "number",
+            "required": true
+          },
+          {
+            "path": "routing.kind-focus",
+            "type": "list of id",
+            "required": true
+          },
+          {
+            "path": "routing.lane-focus",
+            "type": "list of id",
+            "required": true
+          },
+          {
+            "path": "routing.predicate-focus",
+            "type": "list of id",
+            "required": true
+          },
+          {
+            "path": "routing.priming-order",
+            "type": "list of id",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "context",
+        "execution",
+        "governance",
+        "learning",
+        "sequence"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "kind",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "kind"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a closed semantic role for records; lowering determines the role of each registered word.",
+      "schema": {
+        "name": "kernel-kind",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          },
+          {
+            "path": "data.lane",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "data.authority-lane",
+            "type": "id",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "binding",
+        "check",
+        "contract",
+        "definition",
+        "governance",
+        "policy",
+        "template"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "lane",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "lane"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a retrieval lane associated with record kinds.",
+      "schema": {
+        "name": "kernel-lane",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "authority",
+        "bindings",
+        "contracts",
+        "definitions",
+        "enforcement",
+        "templates"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "law",
+      "owner": "governance-system",
+      "kind": "governance",
+      "category": "rule",
+      "facets": [
+        "law"
+      ],
+      "identity": "governance-system/governance/<facet>/<name>",
+      "description": "Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose.",
+      "schema": {
+        "name": "law",
+        "path": ".ia/src/systems/governance-system/schemas/law.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "governance",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "governance.severity",
+            "type": "id",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "mandate",
+      "owner": "agent-system",
+      "kind": "policy",
+      "category": "rule",
+      "facets": [
+        "mandate"
+      ],
+      "identity": "agent-system/policy/<facet>/<name>",
+      "description": "States bounded authority and conditions for a participant. Host authorization remains independent.",
+      "schema": {
+        "name": "mandate",
+        "path": ".ia/src/systems/agent-system/schemas/mandate.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "governance",
+            "required": true
+          },
+          {
+            "name": "execution",
+            "required": false
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "execution.contract",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "execution.limit-steps",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-model-calls",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-operations",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-tokens",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-children",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-depth",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-bytes",
+            "type": "number",
+            "required": false
+          },
+          {
+            "path": "execution.limit-duration-ms",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "milestone",
+      "owner": "work-system",
+      "kind": "definition",
+      "category": "state",
+      "facets": [
+        "milestone"
+      ],
+      "identity": "work-system/definition/<facet>/<name>",
+      "description": "Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it.",
+      "schema": {
+        "name": "milestone",
+        "path": ".ia/src/systems/work-system/schemas/milestone.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "work",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.title",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "work.status",
+            "type": "id",
+            "required": true,
+            "values": [
+              "proposed",
+              "open",
+              "held",
+              "closed",
+              "dropped",
+              "superseded"
+            ]
+          },
+          {
+            "path": "work.plan",
+            "type": "ref",
+            "required": true,
+            "target": "plan"
+          },
+          {
+            "path": "work.exit",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "work.owner",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.start",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.due",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.ended",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.source",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": [
+          {
+            "predicate": "require",
+            "target": "milestone",
+            "cardinality": "one-or-more",
+            "required": false
+          },
+          {
+            "predicate": "require",
+            "target": "task",
+            "cardinality": "one-or-more",
+            "required": false
+          },
+          {
+            "predicate": "require",
+            "target": "decision",
+            "cardinality": "one-or-more",
+            "required": false
+          },
+          {
+            "predicate": "supersede",
+            "target": "milestone",
+            "cardinality": "one",
+            "required": false
+          }
+        ]
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "move",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "move"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines the closed classification of an agent action or activity.",
+      "schema": {
+        "name": "kernel-move",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "delegation",
+        "execution",
+        "observation",
+        "synthesis",
+        "verification"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "observation",
+      "owner": "learning-system",
+      "kind": "definition",
+      "category": "evidence",
+      "facets": [
+        "observation"
+      ],
+      "identity": "learning-system/definition/<facet>/<name>",
+      "description": "Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing.",
+      "schema": {
+        "name": "observation",
+        "path": ".ia/src/systems/learning-system/schemas/observation.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "required": true
+          },
+          {
+            "name": "interpretation",
+            "required": true
+          },
+          {
+            "name": "retention",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.origin",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "evidence.actor",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.observed-at",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.captured-at",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.workspace",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.locator",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.revision",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.bundle",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.digest",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "evidence.availability",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "interpretation.applies",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "interpretation.limits",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "interpretation.reason",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "interpretation.basis",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "retention.status",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "retention.explanation",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "operation",
+      "owner": "authoring-system",
+      "kind": "binding",
+      "category": "capability",
+      "facets": [
+        "operation"
+      ],
+      "identity": "authoring-system/binding/<facet>/<name>",
+      "description": "Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations.",
+      "schema": {
+        "name": "operation",
+        "path": ".ia/src/systems/authoring-system/schemas/operation.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "execution",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "execution.handler",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.effects",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.input",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.output",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.profile",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "execution.recovery",
+            "type": "id",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "phase",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "phase"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a cognitive phase coordinate: orient, plan, act or learn.",
+      "schema": {
+        "name": "kernel-phase",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "act",
+        "learn",
+        "orient",
+        "plan"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "placement",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "placement"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines source authority and reach metadata.",
+      "schema": {
+        "name": "kernel-placement",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          },
+          {
+            "path": "data.band",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "adopted",
+        "authored",
+        "floor",
+        "open",
+        "runtime"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "plan",
+      "owner": "work-system",
+      "kind": "definition",
+      "category": "process",
+      "facets": [
+        "plan"
+      ],
+      "identity": "work-system/definition/<facet>/<name>",
+      "description": "Represents an arrangement of milestones toward an intent; it heads the work hierarchy and has no parent. Plans do not nest.",
+      "schema": {
+        "name": "plan",
+        "path": ".ia/src/systems/work-system/schemas/plan.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "work",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.title",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "work.status",
+            "type": "id",
+            "required": true,
+            "values": [
+              "proposed",
+              "open",
+              "held",
+              "closed",
+              "dropped",
+              "superseded"
+            ]
+          },
+          {
+            "path": "work.owner",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.start",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.due",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.ended",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.source",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": [
+          {
+            "predicate": "supersede",
+            "target": "plan",
+            "cardinality": "one",
+            "required": false
+          }
+        ]
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "playbook",
+      "owner": "governance-system",
+      "kind": "definition",
+      "category": "process",
+      "facets": [
+        "procedure"
+      ],
+      "identity": "governance-system/definition/<facet>/<name>",
+      "description": "Represents a procedure as phase/primitive cells. Cell delivery is generic; the authored method belongs to its author.",
+      "schema": {
+        "name": "playbook",
+        "path": ".ia/src/systems/governance-system/schemas/playbook.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "cognition",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          },
+          {
+            "name": "activation",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "predicate",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "predicate"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a directed relationship and its inverse spelling.",
+      "schema": {
+        "name": "kernel-predicate",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          },
+          {
+            "path": "data.inverse",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "data.phrase",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "cite",
+        "constrain",
+        "consume",
+        "enforce",
+        "forbid",
+        "govern",
+        "grant-access-to",
+        "ground",
+        "implement",
+        "land",
+        "produce",
+        "record-lineage-from",
+        "require",
+        "route",
+        "run-before",
+        "supersede",
+        "trigger",
+        "use"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "primitive",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "primitive"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines a cognitive primitive coordinate; a cell is selected using its phase and primitive.",
+      "schema": {
+        "name": "kernel-primitive",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          },
+          {
+            "path": "data.anchor",
+            "type": "id",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "attention",
+        "decision",
+        "escalation",
+        "inference",
+        "learning",
+        "memory"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "principle",
+      "owner": "governance-system",
+      "kind": "governance",
+      "category": "rule",
+      "facets": [
+        "principle"
+      ],
+      "identity": "governance-system/governance/<facet>/<name>",
+      "description": "Declares a governing rationale in the shared governance shape.",
+      "schema": {
+        "name": "principle",
+        "path": ".ia/src/systems/governance-system/schemas/principle.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "governance",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "governance.severity",
+            "type": "id",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "run",
+      "owner": "session-system",
+      "kind": "definition",
+      "category": "event",
+      "facets": [
+        "run"
+      ],
+      "identity": "session-system/definition/<facet>/<name>",
+      "description": "Represents a governed run identity, declared phase, status and owner. Declaration does not start execution.",
+      "schema": {
+        "name": "run",
+        "path": ".ia/src/systems/session-system/schemas/run.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "execution",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "execution.status",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.phase",
+            "type": "id",
+            "required": true
+          },
+          {
+            "path": "execution.owner",
+            "type": "ref",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "schema",
+      "owner": "floor",
+      "kind": "contract",
+      "category": "representation",
+      "facets": [
+        "head"
+      ],
+      "identity": "floor/contract/<facet>/<name>",
+      "description": "Declares the structural contract for exactly one registered discriminator.",
+      "schema": {
+        "name": "schema",
+        "path": ".ia/src/floor/floor.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "sections",
+            "required": true
+          },
+          {
+            "name": "fields",
+            "required": false
+          },
+          {
+            "name": "edges",
+            "required": false
+          }
+        ],
+        "fields": [],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "system",
+      "owner": "floor",
+      "kind": "definition",
+      "category": "boundary",
+      "facets": [
+        "system"
+      ],
+      "identity": "floor/definition/<facet>/<name>",
+      "description": "Registers vocabulary, direct system dependencies, a local steward and consent for relationships.",
+      "schema": {
+        "name": "system",
+        "path": ".ia/src/floor/floor.schema.ia",
+        "closed": false,
+        "sections": [
+          {
+            "name": "discriminators",
+            "required": false
+          },
+          {
+            "name": "requires",
+            "required": false
+          },
+          {
+            "name": "edges",
+            "required": false
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "head.provider",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "head.version",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "head.steward",
+            "type": "ref",
+            "required": false
+          },
+          {
+            "path": "head.describes",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "task",
+      "owner": "work-system",
+      "kind": "definition",
+      "category": "process",
+      "facets": [
+        "task"
+      ],
+      "identity": "work-system/definition/<facet>/<name>",
+      "description": "Represents one owner's action toward exactly one milestone. Whether it is ready to start is computed by a work evaluator, never stored on the record.",
+      "schema": {
+        "name": "task",
+        "path": ".ia/src/systems/work-system/schemas/task.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "work",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.title",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "work.status",
+            "type": "id",
+            "required": true,
+            "values": [
+              "proposed",
+              "open",
+              "held",
+              "closed",
+              "dropped",
+              "superseded"
+            ]
+          },
+          {
+            "path": "work.milestone",
+            "type": "ref",
+            "required": true,
+            "target": "milestone"
+          },
+          {
+            "path": "work.owner",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.start",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.due",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.ended",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.source",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": [
+          {
+            "predicate": "require",
+            "target": "task",
+            "cardinality": "one-or-more",
+            "required": false
+          },
+          {
+            "predicate": "require",
+            "target": "milestone",
+            "cardinality": "one-or-more",
+            "required": false
+          },
+          {
+            "predicate": "require",
+            "target": "decision",
+            "cardinality": "one-or-more",
+            "required": false
+          },
+          {
+            "predicate": "supersede",
+            "target": "task",
+            "cardinality": "one",
+            "required": false
+          }
+        ]
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "template",
+      "owner": "template-system",
+      "kind": "template",
+      "category": "representation",
+      "facets": [
+        "template"
+      ],
+      "identity": "template-system/template/<facet>/<name>",
+      "description": "Represents bounded rendering inputs and output structure. Rendering does not publish or install output.",
+      "schema": {
+        "name": "template",
+        "path": ".ia/src/systems/template-system/schemas/template.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "template",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "template.filename",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "template.parameters",
+            "type": "list of id",
+            "required": true
+          },
+          {
+            "path": "template.lines",
+            "type": "list of text",
+            "required": true
+          },
+          {
+            "path": "template.profile",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "template.resource",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "value-type",
+      "owner": "taxonomy",
+      "kind": "definition",
+      "category": "kind",
+      "facets": [
+        "value-type"
+      ],
+      "identity": "taxonomy/definition/<facet>/<name>",
+      "description": "Defines the field types that schemas may require.",
+      "schema": {
+        "name": "kernel-value-type",
+        "path": ".ia/src/floor/kernel.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "data",
+            "required": true
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "data.order",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [
+        "flag",
+        "id",
+        "number",
+        "qname",
+        "ref",
+        "text"
+      ],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "voice",
+      "owner": "agent-composition-system",
+      "kind": "definition",
+      "category": "property",
+      "facets": [
+        "voice"
+      ],
+      "identity": "agent-composition-system/definition/<facet>/<name>",
+      "description": "Declares communication attributes separate from authority and procedure.",
+      "schema": {
+        "name": "voice",
+        "path": ".ia/src/systems/agent-composition-system/schemas/voice.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "communication",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "communication.tone",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "communication.terminology",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "communication.explanation",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "communication.uncertainty",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "communication.audience",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "communication.citations",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; generic composition compiler and installed catalog"
+    },
+    {
+      "word": "workspace",
+      "owner": "workspace-system",
+      "kind": "definition",
+      "category": "boundary",
+      "facets": [
+        "workspace"
+      ],
+      "identity": "workspace-system/definition/<facet>/<name>",
+      "description": "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries.",
+      "schema": {
+        "name": "workspace",
+        "path": ".ia/src/systems/workspace-system/schemas/workspace.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "composition",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "composition.systems",
+            "type": "list of ref",
+            "required": true
+          }
+        ],
+        "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    }
+  ]
+}

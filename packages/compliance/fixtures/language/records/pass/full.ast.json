@@ -1,0 +1,31 @@
+{
+  "kind": "file",
+  "path": "records/pass/full.ia",
+  "version": "1.0",
+  "records": [
+    {
+      "kind": "record",
+      "discriminator": "law",
+      "name": "x",
+      "head": [
+        { "kind": "field", "key": "version", "words": ["version"], "value": { "kind": "string", "text": "1", "raw": "\"1\"" }, "span": { "line": 4, "endLine": 4 }, "children": [] }
+      ],
+      "sections": [
+        { "kind": "section", "name": "meaning", "span": { "line": 5, "endLine": 7 }, "children": [
+          { "kind": "field", "key": "says", "words": ["says"], "value": { "kind": "prose", "text": "one two", "raw": "\"\"\"one\n      two\"\"\"" }, "span": { "line": 6, "endLine": 7 }, "children": [] }
+        ] },
+        { "kind": "section", "name": "relationships", "span": { "line": 8, "endLine": 9 }, "children": [
+          { "kind": "field", "key": "cites", "words": ["cites"], "value": { "kind": "ref", "discriminator": "law", "name": "y", "raw": "@law y" }, "when": ["phase", "is", "orient"], "span": { "line": 9, "endLine": 9 }, "children": [] }
+        ] },
+        { "kind": "section", "name": "requires", "span": { "line": 10, "endLine": 11 }, "children": [
+          { "kind": "item", "value": { "kind": "scalar", "text": "a" }, "span": { "line": 11, "endLine": 11 } }
+        ] }
+      ],
+      "nested": [],
+      "span": { "line": 3, "endLine": 11 }
+    }
+  ],
+  "trivia": [
+    { "kind": "comment", "line": 2, "text": "# a law", "attachedTo": 0, "trailing": false }
+  ]
+}

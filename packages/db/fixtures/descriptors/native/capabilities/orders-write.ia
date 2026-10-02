@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@capability orders-write
+  meaning
+    says "Fixture capability: place and cancel orders through the order operations."
+    answers "Which capability does the orders desk require for its write actions?"
+  execution
+    effects [write]

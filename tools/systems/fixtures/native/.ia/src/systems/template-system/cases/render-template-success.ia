@@ -1,0 +1,18 @@
+#! ia 1.0
+
+@case render-template-success
+  meaning
+    says "render-template renders authored-note to notes/example.md with a trailing newline."
+    answers "Does render-template turn authored-note with name example and a one-line purpose into notes/example.md ending in a newline?"
+  scenario
+    kind success
+    given "The admitted native corpus and its fixed implementation catalog."
+    request "Invoke render-template with scenario.input JSON."
+    expected "Return notes/example.md using the declared name and purpose, with a final newline and no recursive substitution."
+    evaluator "tools/systems/scenarios.ts"
+    operation @operation render-template
+    input "{\"template\":\"template-system/template/template/authored-note\",\"values\":{\"name\":\"example\",\"purpose\":\"Retain verified authoring evidence.\"}}"
+    code pass
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-INPUT
+    implements @contract executable-authoring-contract#REQ-EXEC-RESULT

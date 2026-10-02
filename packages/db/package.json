@@ -1,0 +1,254 @@
+{
+  "name": "@ia/db",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./distribution": {
+      "development": "./src/distribution/index.ts",
+      "types": "./dist/distribution/index.d.ts",
+      "default": "./dist/distribution/index.js"
+    },
+    "./descriptors": {
+      "development": "./src/descriptors/index.ts",
+      "types": "./dist/descriptors/index.d.ts",
+      "default": "./dist/descriptors/index.js"
+    },
+    "./editor": {
+      "development": "./src/editor/index.ts",
+      "types": "./dist/editor/index.d.ts",
+      "default": "./dist/editor/index.js"
+    },
+    "./internal/cache": {
+      "types": "./dist/cache.d.ts",
+      "default": "./dist/cache.js"
+    },
+    "./internal/descriptors/app": {
+      "types": "./dist/descriptors/app.d.ts",
+      "default": "./dist/descriptors/app.js"
+    },
+    "./internal/descriptors/codec": {
+      "types": "./dist/descriptors/codec.d.ts",
+      "default": "./dist/descriptors/codec.js"
+    },
+    "./internal/descriptors/domain": {
+      "types": "./dist/descriptors/domain.d.ts",
+      "default": "./dist/descriptors/domain.js"
+    },
+    "./internal/descriptors/envelope": {
+      "types": "./dist/descriptors/envelope.d.ts",
+      "default": "./dist/descriptors/envelope.js"
+    },
+    "./internal/descriptors/index": {
+      "types": "./dist/descriptors/index.d.ts",
+      "default": "./dist/descriptors/index.js"
+    },
+    "./internal/descriptors/registry": {
+      "types": "./dist/descriptors/registry.d.ts",
+      "default": "./dist/descriptors/registry.js"
+    },
+    "./internal/descriptors/storage": {
+      "types": "./dist/descriptors/storage.d.ts",
+      "default": "./dist/descriptors/storage.js"
+    },
+    "./internal/distribution/codec": {
+      "types": "./dist/distribution/codec.d.ts",
+      "default": "./dist/distribution/codec.js"
+    },
+    "./internal/distribution/contracts": {
+      "types": "./dist/distribution/contracts.d.ts",
+      "default": "./dist/distribution/contracts.js"
+    },
+    "./internal/distribution/index": {
+      "types": "./dist/distribution/index.d.ts",
+      "default": "./dist/distribution/index.js"
+    },
+    "./internal/distribution/membership": {
+      "types": "./dist/distribution/membership.d.ts",
+      "default": "./dist/distribution/membership.js"
+    },
+    "./internal/distribution/reader": {
+      "types": "./dist/distribution/reader.d.ts",
+      "default": "./dist/distribution/reader.js"
+    },
+    "./internal/editor/index": {
+      "types": "./dist/editor/index.d.ts",
+      "default": "./dist/editor/index.js"
+    },
+    "./internal/errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./internal/handle": {
+      "types": "./dist/handle.d.ts",
+      "default": "./dist/handle.js"
+    },
+    "./internal/index": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal/inputs": {
+      "types": "./dist/inputs.d.ts",
+      "default": "./dist/inputs.js"
+    },
+    "./internal/json": {
+      "types": "./dist/json.d.ts",
+      "default": "./dist/json.js"
+    },
+    "./internal/paths": {
+      "types": "./dist/paths.d.ts",
+      "default": "./dist/paths.js"
+    },
+    "./internal/preview": {
+      "types": "./dist/preview.d.ts",
+      "default": "./dist/preview.js"
+    },
+    "./internal/view": {
+      "types": "./dist/view.d.ts",
+      "default": "./dist/view.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@ia/compliance": "workspace:*",
+    "@ia/graph": "workspace:*",
+    "@ia/language": "workspace:*",
+    "semver": "7.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/semver": "7.7.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./distribution": {
+        "types": "./dist/distribution/index.d.ts",
+        "default": "./dist/distribution/index.js"
+      },
+      "./descriptors": {
+        "types": "./dist/descriptors/index.d.ts",
+        "default": "./dist/descriptors/index.js"
+      },
+      "./editor": {
+        "types": "./dist/editor/index.d.ts",
+        "default": "./dist/editor/index.js"
+      },
+      "./internal/cache": {
+        "types": "./dist/cache.d.ts",
+        "default": "./dist/cache.js"
+      },
+      "./internal/descriptors/app": {
+        "types": "./dist/descriptors/app.d.ts",
+        "default": "./dist/descriptors/app.js"
+      },
+      "./internal/descriptors/codec": {
+        "types": "./dist/descriptors/codec.d.ts",
+        "default": "./dist/descriptors/codec.js"
+      },
+      "./internal/descriptors/domain": {
+        "types": "./dist/descriptors/domain.d.ts",
+        "default": "./dist/descriptors/domain.js"
+      },
+      "./internal/descriptors/envelope": {
+        "types": "./dist/descriptors/envelope.d.ts",
+        "default": "./dist/descriptors/envelope.js"
+      },
+      "./internal/descriptors/index": {
+        "types": "./dist/descriptors/index.d.ts",
+        "default": "./dist/descriptors/index.js"
+      },
+      "./internal/descriptors/registry": {
+        "types": "./dist/descriptors/registry.d.ts",
+        "default": "./dist/descriptors/registry.js"
+      },
+      "./internal/descriptors/storage": {
+        "types": "./dist/descriptors/storage.d.ts",
+        "default": "./dist/descriptors/storage.js"
+      },
+      "./internal/distribution/codec": {
+        "types": "./dist/distribution/codec.d.ts",
+        "default": "./dist/distribution/codec.js"
+      },
+      "./internal/distribution/contracts": {
+        "types": "./dist/distribution/contracts.d.ts",
+        "default": "./dist/distribution/contracts.js"
+      },
+      "./internal/distribution/index": {
+        "types": "./dist/distribution/index.d.ts",
+        "default": "./dist/distribution/index.js"
+      },
+      "./internal/distribution/membership": {
+        "types": "./dist/distribution/membership.d.ts",
+        "default": "./dist/distribution/membership.js"
+      },
+      "./internal/distribution/reader": {
+        "types": "./dist/distribution/reader.d.ts",
+        "default": "./dist/distribution/reader.js"
+      },
+      "./internal/editor/index": {
+        "types": "./dist/editor/index.d.ts",
+        "default": "./dist/editor/index.js"
+      },
+      "./internal/errors": {
+        "types": "./dist/errors.d.ts",
+        "default": "./dist/errors.js"
+      },
+      "./internal/handle": {
+        "types": "./dist/handle.d.ts",
+        "default": "./dist/handle.js"
+      },
+      "./internal/index": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./internal/inputs": {
+        "types": "./dist/inputs.d.ts",
+        "default": "./dist/inputs.js"
+      },
+      "./internal/json": {
+        "types": "./dist/json.d.ts",
+        "default": "./dist/json.js"
+      },
+      "./internal/paths": {
+        "types": "./dist/paths.d.ts",
+        "default": "./dist/paths.js"
+      },
+      "./internal/preview": {
+        "types": "./dist/preview.d.ts",
+        "default": "./dist/preview.js"
+      },
+      "./internal/view": {
+        "types": "./dist/view.d.ts",
+        "default": "./dist/view.js"
+      }
+    },
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  }
+}

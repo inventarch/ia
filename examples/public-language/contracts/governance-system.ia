@@ -1,0 +1,42 @@
+#! ia 1.0
+
+@system governance-system
+  provider "inventarch.foundation"
+  version "0.1.0"
+  describes "Public governance-system vocabulary contracts"
+  steward @agent public-governance-system-steward
+  requires
+    - agent-system
+    - compliance-system
+    - workspace-system
+  discriminators
+    law lowers to governance
+      category rule
+      facets [law]
+      schema @schema law
+    principle lowers to governance
+      category rule
+      facets [principle]
+      schema @schema principle
+    convention lowers to governance
+      category rule
+      facets [convention]
+      schema @schema convention
+    playbook lowers to definition
+      category process
+      facets [procedure]
+      schema @schema playbook
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+
+@agent public-governance-system-steward
+  meaning
+    says "Identifies the owner of governance-system contracts in this example."
+    answers "Who owns the law, principle, convention and playbook words in this example?"
+  governance
+    applies [law, principle, convention, playbook]

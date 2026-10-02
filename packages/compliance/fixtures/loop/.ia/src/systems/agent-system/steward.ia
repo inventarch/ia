@@ -1,0 +1,9 @@
+#! ia 1.0
+
+@agent agent-steward
+  meaning
+    says "The designated expert for expert agent identities and bounded mandates."
+    answers "Who owns the vocabulary and authoring method of agent-system?"
+  governance
+    applies [agent, mandate]
+    requires "Use the owning schema and the current spec, plan and validation evidence before changing this system."

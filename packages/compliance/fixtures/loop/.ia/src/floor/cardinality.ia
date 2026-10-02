@@ -1,0 +1,23 @@
+#! ia 1.0
+
+@cardinality one
+  meaning
+    says "At most one distinct target; a must obligation also requires its presence."
+    answers "What does one designate in the cardinality domain?"
+  data
+    order 0
+
+@cardinality one-or-more
+  meaning
+    says "No upper bound; a must obligation requires at least one distinct target."
+    answers "What does one-or-more designate in the cardinality domain?"
+  data
+    order 1
+
+@cardinality optional
+  meaning
+    says "Zero or one distinct target, including when the schema row uses must."
+    answers "What does optional designate in the cardinality domain?"
+  data
+    order 2
+

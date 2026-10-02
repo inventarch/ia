@@ -1,0 +1,6 @@
+#! ia 1.0
+@system s
+  provider "p"
+  version "1.0.0"
+  edges
+    cites * using agent

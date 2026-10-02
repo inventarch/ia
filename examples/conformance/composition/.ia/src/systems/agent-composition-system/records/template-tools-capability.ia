@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@capability template-tools
+  meaning
+    says "Fixture template-tools-capability text 1."
+    answers "Fixture template-tools-capability text 2."
+  composition
+    operations [@operation render-captured-template]
+    playbooks [@playbook prepare-native-drafts]
+  execution
+    input task-text-v1
+    outcomes sample-outcomes-v1
+    context-profile captured-context-v1
+    mapping-profile identity-v1
+    effects [read]

@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@workspace sample-workspace
+  meaning
+    says "Fixture sample-workspace text 1."
+    answers "Fixture sample-workspace text 2."
+  composition
+    systems [@system agent-composition-system, @system agent-system, @system workspace-system, @system governance-system, @system authoring-system, @system compliance-system, @system template-system]

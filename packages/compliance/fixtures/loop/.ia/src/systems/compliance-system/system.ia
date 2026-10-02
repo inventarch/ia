@@ -1,0 +1,29 @@
+#! ia 1.0
+
+@system compliance-system
+  provider "inventarch.foundation"
+  version "0.1.0"
+  describes "Declared obligations, evaluators and scenario evidence"
+  steward @agent compliance-steward
+  requires
+    - agent-system
+  discriminators
+    contract lowers to contract
+      category relation
+      facets [signature]
+      schema @schema contract
+    check lowers to check
+      category rule
+      facets [gate]
+      schema @schema check
+    case lowers to definition
+      category evidence
+      facets [scenario]
+      schema @schema case
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *

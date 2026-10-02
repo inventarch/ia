@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent workspace-steward
+  meaning
+    says "Identifies the owner of workspace-system contracts in this example."
+    answers "Who owns the workspace and distribution words in this example?"
+  governance
+    applies [workspace, distribution]

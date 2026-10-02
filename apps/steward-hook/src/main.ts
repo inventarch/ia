@@ -1,0 +1,438 @@
+import { lstatSync, readdirSync, readFileSync, realpathSync, type Stats } from 'node:fs';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { evaluateSteward, isEntry, openDatabase } from '@ia/runtime';
+import type { HookCode } from '@ia/runtime';
+import { pathKey, sameFile, unaliased } from '@ia/db';
+import { decodeDistributionJson } from '@ia/db/distribution';
+
+export interface HookOutput {
+  readonly hookSpecificOutput?: {
+    readonly hookEventName: 'PreToolUse';
+    readonly permissionDecision: 'deny';
+    readonly permissionDecisionReason: string;
+  };
+}
+export function deny(code: HookCode, message: string): HookOutput {
+  return {
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'deny',
+      permissionDecisionReason: `${code}: ${message}`,
+    },
+  };
+}
+function object(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+/** Rules match names as the volume does: case on win32; normalization and full case folding on darwin (#315, #323). */
+const fold = pathKey;
+function local(root: string, target: string): string | undefined {
+  const rel = relative(fold(root), fold(target));
+  return isAbsolute(rel) || rel === '..' || rel.startsWith('..' + sep) ? undefined : rel.replaceAll('\\', '/');
+}
+function physical(path: string): string {
+  try {
+    lstatSync(path);
+    return realpathSync.native(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    const parent = dirname(path);
+    if (parent === path) throw error;
+    return resolve(physical(parent), relative(parent, path));
+  }
+}
+type Rule = { projection?: true; system?: string; invalid?: true };
+/** Consumer-mode ownership: the files a projection state owns (folded) and whether a Codex registration exists. */
+interface Ownership {
+  readonly files: ReadonlySet<string>;
+  readonly codex: boolean;
+}
+/** Paths every workspace protects: the native installation state. */
+function installation(path: string): boolean {
+  return (
+    path === '.ia/distributions.lock.json' || path === '.ia/distributions' || path.startsWith('.ia/distributions/')
+  );
+}
+/** The projection list written for this repository; in a consumer workspace only its owned subset stays protected. */
+function projectionCandidate(path: string): boolean {
+  return (
+    path === '.codex/config.toml' ||
+    /^\.codex\/agents\//.test(path) ||
+    /^\.(?:agents|claude)\/skills\//.test(path) ||
+    path === 'claude.md' ||
+    path === 'CLAUDE.md' ||
+    /^\.claude\/agents\/[^/]+\.md$/.test(path) ||
+    ['.agents/skills/ia-authoring/SKILL.md', '.claude/skills/ia-authoring/SKILL.md'].some((p) => fold(p) === path) ||
+    fold('.claude/rules/ia-workspace.md') === path ||
+    fold('AGENTS.md') === path
+  );
+}
+/** `ownership` is undefined in a legacy workspace (no projection state) and is read only when a candidate path needs it. */
+function protection(path: string | undefined, ownership: () => Ownership | undefined): Rule | undefined {
+  if (path === undefined) return undefined;
+  if (installation(path)) return { projection: true };
+  if (projectionCandidate(path)) {
+    const owned = ownership();
+    if (owned === undefined || owned.files.has(path) || (path === '.codex/config.toml' && owned.codex))
+      return { projection: true };
+  }
+  if (path === '.ia/src/systems' || path.startsWith('.ia/src/systems/')) {
+    const system = path.split('/')[3];
+    return system !== undefined && /^[a-z][a-z0-9-]*$/.test(system) ? { system } : { invalid: true };
+  }
+  return undefined;
+}
+/** The hosts area, or undefined when absent; an aliased area is refused. */
+function hostsArea(root: string): string | undefined {
+  const directory = resolve(root, '.ia/distributions/hosts');
+  try {
+    if (!unaliased(directory, physical(directory))) throw new Error('Host ownership directory is aliased');
+    lstatSync(directory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+  return directory;
+}
+/** The same projection allowlist `@ia/distribution` writes (projection.ts), so a state cannot claim other paths. */
+const PROJECTION_OWNED: Readonly<Record<'claude' | 'codex', (path: string) => boolean>> = {
+  claude: (path) =>
+    path === '.claude/rules/ia-workspace.md' ||
+    path === '.claude/skills/ia-authoring/SKILL.md' ||
+    /^\.claude\/agents\/[a-z][a-z0-9-]*\.md$/.test(path),
+  codex: (path) => path === 'AGENTS.md' || path === '.agents/skills/ia-authoring/SKILL.md',
+};
+/**
+ * A bounded read of the projection ownership states, not a validation of the projected bytes. Undefined when neither
+ * state exists (legacy mode); a state that is not a plain, unaliased, well-formed file throws, so the caller fails closed.
+ */
+function projectionOwnership(root: string): Ownership | undefined {
+  const directory = hostsArea(root);
+  if (directory === undefined) return undefined;
+  const files = new Set<string>();
+  let found = false;
+  for (const host of ['claude', 'codex'] as const) {
+    const path = resolve(directory, `${host}-projection.json`);
+    let stat: Stats;
+    try {
+      stat = lstatSync(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw error;
+    }
+    if (!stat.isFile() || stat.nlink !== 1 || stat.size > 1024 * 1024 || !unaliased(path, physical(path)))
+      throw new Error('Unsafe projection ownership state');
+    const content = readFileSync(path);
+    if (content.length > 1024 * 1024) throw new Error('Projection ownership state exceeds its bound');
+    const row: unknown = decodeDistributionJson(new TextDecoder('utf-8', { fatal: true }).decode(content));
+    if (
+      !object(row) ||
+      Object.keys(row).sort().join('|') !== 'files|format|host' ||
+      row['format'] !== 'ia.host-projection-state.v1' ||
+      row['host'] !== host ||
+      !object(row['files'])
+    )
+      throw new Error('Invalid projection ownership state');
+    for (const [owned, value] of Object.entries(row['files'])) {
+      const hashes: unknown[] = Array.isArray(value) ? value : [value];
+      if (
+        !PROJECTION_OWNED[host](owned) ||
+        !hashes.length ||
+        hashes.length > 2 ||
+        hashes.some((h) => typeof h !== 'string' || !/^[a-f0-9]{64}$/.test(h)) ||
+        new Set(hashes).size !== hashes.length
+      )
+        throw new Error('Invalid projection ownership state');
+      files.add(fold(owned));
+    }
+    found = true;
+  }
+  if (!found) return undefined;
+  let codex = true;
+  try {
+    lstatSync(resolve(directory, 'codex-workspace.json'));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    codex = false;
+  }
+  return { files, codex };
+}
+/** A bounded ownership-marker check, not registration validation or a grant of host authority. */
+function contextSettingsManaged(root: string): boolean {
+  const directory = resolve(root, '.ia/distributions/hosts');
+  let names: string[];
+  try {
+    if (!unaliased(directory, physical(directory))) throw new Error('Context ownership directory is aliased');
+    names = readdirSync(directory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+  if (names.length > 4096) throw new Error('Context ownership inventory exceeds its bound');
+  let managed = false;
+  for (const name of names) {
+    const match = /^claude-context-([a-z][a-z0-9-]{0,63})\.json$/.exec(fold(name)),
+      pending = fold(name) === 'lifecycle-pending.json';
+    const guard = /^claude-guard-([a-z][a-z0-9-]{0,63})\.json$/.exec(fold(name)),
+      guardPending = fold(name) === 'guard-pending.json';
+    if (!match && !pending && !guard && !guardPending) continue;
+    const path = resolve(directory, name),
+      stat = lstatSync(path),
+      limit = pending || guardPending ? 8 * 1024 * 1024 : 1024 * 1024;
+    if (
+      name !== name.toLowerCase() ||
+      !stat.isFile() ||
+      stat.nlink !== 1 ||
+      stat.size > limit ||
+      !unaliased(path, physical(path))
+    )
+      throw new Error('Unsafe context ownership marker');
+    const content = readFileSync(path);
+    if (content.length > limit) throw new Error('Context ownership marker exceeds its bound');
+    const row: unknown = decodeDistributionJson(new TextDecoder('utf-8', { fatal: true }).decode(content));
+    if (!object(row) || typeof row['id'] !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(row['id']))
+      throw new Error('Invalid context ownership marker');
+    if (pending) {
+      if (
+        Object.keys(row).sort().join('|') !== 'after|before|format|id' ||
+        row['format'] !== 'ia.lifecycle-registration-pending.v1'
+      )
+        throw new Error('Invalid pending context ownership');
+      for (const key of ['before', 'after']) {
+        const side = row[key];
+        if (
+          !object(side) ||
+          Object.keys(side).sort().join('|') !== 'binding|config|state' ||
+          Object.values(side).some((value) => value !== null && typeof value !== 'string')
+        )
+          throw new Error('Invalid pending context bytes');
+      }
+    } else if (guardPending) {
+      if (
+        Object.keys(row).sort().join('|') !== 'after|before|format|id' ||
+        row['format'] !== 'ia.guard-registration-pending.v1'
+      )
+        throw new Error('Invalid pending guard ownership');
+      for (const key of ['before', 'after']) {
+        const side = row[key];
+        if (
+          !object(side) ||
+          Object.keys(side).sort().join('|') !== 'config|state' ||
+          Object.values(side).some((value) => value !== null && typeof value !== 'string')
+        )
+          throw new Error('Invalid pending guard bytes');
+      }
+    } else if (guard) {
+      if (
+        Object.keys(row)
+          .filter((key) => key !== 'existing')
+          .sort()
+          .join('|') !== 'cache|created|format|group|id|release' ||
+        (row['existing'] !== undefined && !Array.isArray(row['existing'])) ||
+        row['format'] !== 'ia.guard-registration-state.v1' ||
+        row['id'] !== guard[1] ||
+        typeof row['cache'] !== 'string' ||
+        !isAbsolute(row['cache']) ||
+        typeof row['created'] !== 'boolean' ||
+        !object(row['group']) ||
+        typeof row['release'] !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(row['release'])
+      )
+        throw new Error('Invalid guard ownership state');
+    } else if (
+      Object.keys(row)
+        .filter((key) => key !== 'existing')
+        .sort()
+        .join('|') !== 'binding|cache|created|format|groups|id|release|revision' ||
+      (row['existing'] !== undefined && !Array.isArray(row['existing'])) ||
+      !['ia.lifecycle-registration-state.v1', 'ia.lifecycle-registration-state.v2'].includes(row['format'] as string) ||
+      row['id'] !== match![1] ||
+      !Number.isSafeInteger(row['revision']) ||
+      (row['revision'] as number) < 1 ||
+      typeof row['cache'] !== 'string' ||
+      !isAbsolute(row['cache']) ||
+      typeof row['created'] !== 'boolean' ||
+      !object(row['groups']) ||
+      Object.keys(row['groups']).sort().join('|') !== 'SessionStart|UserPromptSubmit' ||
+      !['binding', 'release'].every((key) => typeof row[key] === 'string' && /^[a-f0-9]{64}$/.test(row[key]))
+    )
+      throw new Error('Invalid context ownership state');
+    managed = true;
+  }
+  return managed;
+}
+function actorMap(path: string, revision: string): ReadonlyMap<string, string> {
+  if (!isAbsolute(path) || !unaliased(path, physical(path)))
+    throw new Error('Actor map must be an absolute unaliased file');
+  const stat = lstatSync(path);
+  if (!stat.isFile() || stat.nlink !== 1 || stat.size > 1024 * 1024) throw new Error('Invalid actor map file');
+  const content = readFileSync(path);
+  if (content.length > 1024 * 1024) throw new Error('Actor map exceeds 1 MiB');
+  const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(content));
+  if (
+    !object(value) ||
+    Object.keys(value).sort().join('|') !== 'actors|format|revision' ||
+    value['format'] !== 'ia.steward-actors.v1' ||
+    value['revision'] !== revision ||
+    !Array.isArray(value['actors']) ||
+    value['actors'].length > 256
+  )
+    throw new Error('Actor map is malformed or stale');
+  const entries = new Map<string, string>();
+  for (const entry of value['actors']) {
+    if (
+      !object(entry) ||
+      Object.keys(entry).sort().join('|') !== 'host|identity' ||
+      typeof entry['host'] !== 'string' ||
+      !/^[a-z][a-z0-9-]{0,63}(?::[a-z][a-z0-9-]{0,63})?$/.test(entry['host']) ||
+      typeof entry['identity'] !== 'string' ||
+      entry['identity'].length > 512 ||
+      entries.has(entry['host'])
+    )
+      throw new Error('Invalid or duplicate actor mapping');
+    entries.set(entry['host'], entry['identity']);
+  }
+  return entries;
+}
+/**
+ * `target` under `root` placed by identity rather than spelling: from the nearest ancestor that is the root's own directory
+ * (`sameFile`, by device and inode), the rest of the path. It places a spelling in another namespace that
+ * `realpathSync.native` keeps, such as the loopback admin share `\\localhost\C$\…` or a root registered in that form, which
+ * no string comparison puts under the root.
+ */
+function anchored(root: string, target: string): string | undefined {
+  for (let current = target; ; ) {
+    if (sameFile(current, root)) return local(current, target);
+    const parent = dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+}
+export function evaluateHook(root: string, event: unknown, actorsPath?: string): HookOutput {
+  if (
+    !object(event) ||
+    event['hook_event_name'] !== 'PreToolUse' ||
+    !['Write', 'Edit', 'MultiEdit'].includes(String(event['tool_name'])) ||
+    !object(event['tool_input']) ||
+    typeof event['tool_input']['file_path'] !== 'string' ||
+    !event['tool_input']['file_path'].trim() ||
+    event['tool_input']['file_path'].includes('\0') ||
+    (event['tool_name'] === 'MultiEdit' && !Array.isArray(event['tool_input']['edits']))
+  )
+    return deny('IA-HOOK-INPUT-INVALID', 'Expected a PreToolUse file edit event');
+  let rule: Rule | undefined, base: string;
+  try {
+    if (!isAbsolute(root)) throw new Error('Binding requires an absolute fixed project root');
+    // The registered root as the volume stores it: another case or normalization of the same directory is the same
+    // project, and every rule below compares against this spelling; a link or junction anywhere in it is still refused.
+    base = resolve(root);
+    const real = realpathSync.native(base);
+    if (!unaliased(base, real)) throw new Error('Project root is aliased');
+    base = real;
+    const path = event['tool_input']['file_path'];
+    if (
+      !isAbsolute(path) &&
+      (typeof event['cwd'] !== 'string' ||
+        !isAbsolute(event['cwd']) ||
+        local(base, physical(resolve(event['cwd']))) === undefined)
+    )
+      throw new Error('Relative input requires cwd inside the fixed root');
+    // A relative path lands where the kernel puts it: POSIX follows the cwd's links before `..`, Windows removes `..` first.
+    const target = isAbsolute(path)
+        ? resolve(path)
+        : resolve(
+            process.platform === 'win32' ? resolve(event['cwd'] as string) : physical(resolve(event['cwd'] as string)),
+            path,
+          ),
+      actual = physical(target);
+    // With neither spelling under the root as a string, either may still reach it through another namespace, so both are
+    // placed by identity too (`anchored`); a rule found that way is held to the same alias check as any other.
+    const lexical = local(base, target),
+      physicalPath = local(base, actual),
+      spellings = [lexical, physicalPath];
+    if (lexical === undefined && physicalPath === undefined)
+      spellings.push(anchored(base, target), anchored(base, actual));
+    let read = false,
+      owned: Ownership | undefined;
+    const ownership = (): Ownership | undefined => {
+      if (!read) {
+        owned = projectionOwnership(base);
+        read = true;
+      }
+      return owned;
+    };
+    rule = spellings.reduce<Rule | undefined>((found, spelling) => found ?? protection(spelling, ownership), undefined);
+    if (spellings.includes('.claude/settings.local.json') && contextSettingsManaged(base)) rule = { projection: true };
+    if (rule !== undefined && !unaliased(target, actual))
+      throw new Error('Protected path has an aliased ancestor or target');
+    if (rule?.invalid) throw new Error('Cannot identify the owning system');
+  } catch (error) {
+    return deny('IA-HOOK-PATH-UNSAFE', error instanceof Error ? error.message : String(error));
+  }
+  if (rule?.projection)
+    return deny(
+      'IA-HOOK-PROJECTION-MANAGED',
+      'Use the owning distribution/projection command; native installation and generated host state are managed',
+    );
+  if (rule?.system === undefined) return {};
+  try {
+    const db = openDatabase(base, { cache: false });
+    try {
+      const records = db.records();
+      const mapping = actorsPath === undefined ? undefined : actorMap(actorsPath, db.revision);
+      const host = event['agent_type'],
+        identity = typeof host === 'string' ? mapping?.get(host) : undefined;
+      const actors =
+        typeof host === 'string'
+          ? records.filter(
+              (r) =>
+                r.discriminator === 'agent' &&
+                (mapping === undefined ? r.name === host : identity !== undefined && r.identity === identity),
+            )
+          : [];
+      const decision = evaluateSteward(
+        records,
+        rule.system,
+        actors.length === 1 ? { kind: 'agent', identity: actors[0]!.identity } : undefined,
+      );
+      return decision.allowed ? {} : deny(decision.code!, decision.message);
+    } finally {
+      db.close();
+    }
+  } catch (error) {
+    return deny('IA-HOOK-STEWARD-UNAVAILABLE', error instanceof Error ? error.message : String(error));
+  }
+}
+export function runHook(args: readonly string[], input: string): HookOutput {
+  try {
+    if (
+      !(args.length === 2 || (args.length === 4 && args[2] === '--actors' && args[3])) ||
+      args[0] !== '--root' ||
+      !args[1] ||
+      Buffer.byteLength(input) > 1024 * 1024
+    )
+      return deny(
+        'IA-HOOK-INPUT-INVALID',
+        'Usage: steward-hook --root <fixed absolute root> [--actors <trusted absolute mapping>] (input limit 1 MiB)',
+      );
+    return evaluateHook(args[1], JSON.parse(input) as unknown, args[3]);
+  } catch {
+    return deny('IA-HOOK-INPUT-INVALID', 'Invalid JSON input');
+  }
+}
+if (isEntry(process.argv[1], import.meta.url)) {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of process.stdin) {
+    size += Buffer.byteLength(chunk);
+    if (size > 1024 * 1024) break;
+    chunks.push(Buffer.from(chunk));
+  }
+  process.stdout.write(
+    JSON.stringify(
+      size > 1024 * 1024
+        ? deny('IA-HOOK-INPUT-INVALID', 'Input exceeds 1 MiB')
+        : runHook(process.argv.slice(2), Buffer.concat(chunks).toString('utf8')),
+    ) + '\n',
+  );
+}

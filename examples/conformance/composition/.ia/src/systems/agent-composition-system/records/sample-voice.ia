@@ -1,0 +1,12 @@
+#! ia 1.0
+
+@voice sample-voice
+  meaning
+    says "Fixture sample-voice text 1."
+    answers "Fixture sample-voice text 2."
+  communication
+    tone "Fixture sample-voice text 3."
+    terminology "Fixture sample-voice text 4."
+    explanation "Fixture sample-voice text 5."
+    uncertainty "Fixture sample-voice text 6."
+    citations "Fixture sample-voice text 7."

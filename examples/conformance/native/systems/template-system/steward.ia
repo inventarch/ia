@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent template-steward
+  meaning
+    says "Identifies the owner of template-system contracts in this example."
+    answers "Who owns the template word in this example?"
+  governance
+    applies [template]

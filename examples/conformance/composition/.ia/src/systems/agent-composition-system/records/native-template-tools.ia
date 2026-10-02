@@ -1,0 +1,12 @@
+#! ia 1.0
+
+@harness native-template-tools
+  meaning
+    says "Fixture native-template-tools text 1."
+    answers "Fixture native-template-tools text 2."
+  composition
+    workspace @workspace sample-workspace
+    profiles [@agent-profile template-tools-profile]
+    bindings [@execution-binding sample-read-binding, @execution-binding render-captured-template-binding, @execution-binding template-tools-entry]
+  execution
+    host-profile captured-sample-v1

@@ -1,0 +1,20 @@
+#! ia 1.0
+
+@schema case
+  lowers to definition
+  sections
+    must have meaning
+    must have scenario
+    must have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have scenario.kind as id
+    must have scenario.given as text
+    must have scenario.request as text
+    must have scenario.expected as text
+    must have scenario.evaluator as text
+    may have scenario.operation as ref
+    may have scenario.input as text
+    may have scenario.code as id

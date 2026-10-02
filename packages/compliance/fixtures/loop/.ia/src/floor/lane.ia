@@ -1,0 +1,44 @@
+#! ia 1.0
+
+@lane authority
+  meaning
+    says "The authority lane — where governance and authority-facet contracts land: the rules and bindings that say what must hold. Derived from @kind governance and @kind contract (authority facet)."
+    answers "Does this node lower into the authority lane?"
+  data
+    order 0
+
+@lane contracts
+  meaning
+    says "The contracts lane — where non-authority contracts land: the agreed shapes and interfaces records fill. Derived from @kind contract (non-authority facet)."
+    answers "Does this node lower into the contracts lane?"
+  data
+    order 1
+
+@lane definitions
+  meaning
+    says "The definitions lane — where definitional nodes land: the declarations of what things ARE. Derived from @kind definition."
+    answers "Does this node lower into the definitions lane?"
+  data
+    order 2
+
+@lane templates
+  meaning
+    says "The templates lane — where reusable scaffolds land: the parameterized shapes instantiated into concrete records. Derived from @kind template."
+    answers "Does this node lower into the templates lane?"
+  data
+    order 3
+
+@lane enforcement
+  meaning
+    says "The enforcement lane — where gates and access rules land: the checks and policies evaluated at a crossing. Derived from @kind check and @kind policy."
+    answers "Does this node lower into the enforcement lane?"
+  data
+    order 4
+
+@lane bindings
+  meaning
+    says "The bindings lane — where wirings land: the projection edges that materialize a record into a host, store, or hook. Derived from @kind binding."
+    answers "Does this node lower into the bindings lane?"
+  data
+    order 5
+

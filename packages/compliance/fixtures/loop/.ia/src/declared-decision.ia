@@ -1,0 +1,12 @@
+#! ia 1.0
+@playbook declared-decision
+  meaning
+    says "Fixture procedure declared-decision"
+    answers "What does this procedure do?"
+    category "gloss unrelated to routing"
+  cognition
+    learn
+      primary Learning
+      Learning means "Later learning"
+  activation
+    activate when category is decision

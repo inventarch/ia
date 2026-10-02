@@ -1,0 +1,217 @@
+{
+  "name": "@ia/compliance",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal/adoption": {
+      "types": "./dist/adoption.d.ts",
+      "default": "./dist/adoption.js"
+    },
+    "./internal/catalog": {
+      "types": "./dist/catalog.d.ts",
+      "default": "./dist/catalog.js"
+    },
+    "./internal/check-ids": {
+      "types": "./dist/check-ids.d.ts",
+      "default": "./dist/check-ids.js"
+    },
+    "./internal/evidence": {
+      "types": "./dist/evidence.d.ts",
+      "default": "./dist/evidence.js"
+    },
+    "./internal/fixtures": {
+      "types": "./dist/fixtures.d.ts",
+      "default": "./dist/fixtures.js"
+    },
+    "./internal/graph-checks": {
+      "types": "./dist/graph-checks.d.ts",
+      "default": "./dist/graph-checks.js"
+    },
+    "./internal/host-plugin": {
+      "types": "./dist/host-plugin.d.ts",
+      "default": "./dist/host-plugin.js"
+    },
+    "./internal/index": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal/obligations": {
+      "types": "./dist/obligations.d.ts",
+      "default": "./dist/obligations.js"
+    },
+    "./internal/profiles": {
+      "types": "./dist/profiles.d.ts",
+      "default": "./dist/profiles.js"
+    },
+    "./internal/projections": {
+      "types": "./dist/projections.d.ts",
+      "default": "./dist/projections.js"
+    },
+    "./internal/record-text": {
+      "types": "./dist/record-text.d.ts",
+      "default": "./dist/record-text.js"
+    },
+    "./internal/report": {
+      "types": "./dist/report.d.ts",
+      "default": "./dist/report.js"
+    },
+    "./internal/schema": {
+      "types": "./dist/schema.d.ts",
+      "default": "./dist/schema.js"
+    },
+    "./internal/shape": {
+      "types": "./dist/shape.d.ts",
+      "default": "./dist/shape.js"
+    },
+    "./internal/steward-profile": {
+      "types": "./dist/steward-profile.d.ts",
+      "default": "./dist/steward-profile.js"
+    },
+    "./internal/systems": {
+      "types": "./dist/systems.d.ts",
+      "default": "./dist/systems.js"
+    },
+    "./internal/types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./internal/values": {
+      "types": "./dist/values.d.ts",
+      "default": "./dist/values.js"
+    },
+    "./internal/variants": {
+      "types": "./dist/variants.d.ts",
+      "default": "./dist/variants.js"
+    },
+    "./internal/workspace-projection": {
+      "types": "./dist/workspace-projection.d.ts",
+      "default": "./dist/workspace-projection.js"
+    }
+  },
+  "files": [
+    "dist",
+    "fixtures",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@ia/language": "workspace:*",
+    "@ia/graph": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./internal/adoption": {
+        "types": "./dist/adoption.d.ts",
+        "default": "./dist/adoption.js"
+      },
+      "./internal/catalog": {
+        "types": "./dist/catalog.d.ts",
+        "default": "./dist/catalog.js"
+      },
+      "./internal/check-ids": {
+        "types": "./dist/check-ids.d.ts",
+        "default": "./dist/check-ids.js"
+      },
+      "./internal/evidence": {
+        "types": "./dist/evidence.d.ts",
+        "default": "./dist/evidence.js"
+      },
+      "./internal/fixtures": {
+        "types": "./dist/fixtures.d.ts",
+        "default": "./dist/fixtures.js"
+      },
+      "./internal/graph-checks": {
+        "types": "./dist/graph-checks.d.ts",
+        "default": "./dist/graph-checks.js"
+      },
+      "./internal/host-plugin": {
+        "types": "./dist/host-plugin.d.ts",
+        "default": "./dist/host-plugin.js"
+      },
+      "./internal/index": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./internal/obligations": {
+        "types": "./dist/obligations.d.ts",
+        "default": "./dist/obligations.js"
+      },
+      "./internal/profiles": {
+        "types": "./dist/profiles.d.ts",
+        "default": "./dist/profiles.js"
+      },
+      "./internal/projections": {
+        "types": "./dist/projections.d.ts",
+        "default": "./dist/projections.js"
+      },
+      "./internal/record-text": {
+        "types": "./dist/record-text.d.ts",
+        "default": "./dist/record-text.js"
+      },
+      "./internal/report": {
+        "types": "./dist/report.d.ts",
+        "default": "./dist/report.js"
+      },
+      "./internal/schema": {
+        "types": "./dist/schema.d.ts",
+        "default": "./dist/schema.js"
+      },
+      "./internal/shape": {
+        "types": "./dist/shape.d.ts",
+        "default": "./dist/shape.js"
+      },
+      "./internal/steward-profile": {
+        "types": "./dist/steward-profile.d.ts",
+        "default": "./dist/steward-profile.js"
+      },
+      "./internal/systems": {
+        "types": "./dist/systems.d.ts",
+        "default": "./dist/systems.js"
+      },
+      "./internal/types": {
+        "types": "./dist/types.d.ts",
+        "default": "./dist/types.js"
+      },
+      "./internal/values": {
+        "types": "./dist/values.d.ts",
+        "default": "./dist/values.js"
+      },
+      "./internal/variants": {
+        "types": "./dist/variants.d.ts",
+        "default": "./dist/variants.js"
+      },
+      "./internal/workspace-projection": {
+        "types": "./dist/workspace-projection.d.ts",
+        "default": "./dist/workspace-projection.js"
+      }
+    },
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
+  }
+}

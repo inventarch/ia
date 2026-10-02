@@ -1,0 +1,29 @@
+export { GRAPH_CODES, GraphUsageError } from './diagnostics.js';
+export type { GraphCode, GraphDiagnostic } from './diagnostics.js';
+export { canonicalRoot, reaches } from './paths.js';
+export { stableSerialize, revisionOf } from './revision.js';
+export type { RevisionInputs, RevisionSource } from './revision.js';
+export { validateCoordinate, dimensionsOf } from './coordinate.js';
+export type { Coordinate, Dimensions } from './coordinate.js';
+export { load, serialize } from './load.js';
+export { resolve } from './resolve.js';
+export type { Resolution } from './resolve.js';
+export type {
+  CellRef,
+  CellSelection,
+  Edge,
+  EdgeAssertion,
+  FieldReference,
+  Graph,
+  LoadOptions,
+  Node,
+  Occurrence,
+  Shadow,
+  Tie,
+} from './types.js';
+export { cell, conditionHolds, effectiveSeverity, selectors, variants } from './queries.js';
+export type { SelectorMatch, VariantSelection } from './queries.js';
+export { traverse } from './traverse.js';
+export type { Traversal, TraverseOptions, Via, WalkNode } from './traverse.js';
+export { fold, tokenize, search } from './text.js';
+export type { TextIndex, SearchHit } from './text.js';

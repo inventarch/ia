@@ -1,0 +1,60 @@
+#! ia 1.0
+@system fixture-system
+  provider "conformance"
+  version "1.0.0"
+  discriminators
+    playbook lowers to governance
+      category process
+      facets [head]
+      schema @schema playbook
+    law lowers to governance
+      category process
+      facets [head]
+      schema @schema law
+    contract lowers to contract
+      category process
+      facets [head]
+      schema @schema contract
+    case lowers to check
+      category process
+      facets [head]
+      schema @schema case
+  edges
+    govern * using *
+    enforce * using *
+    ground * using *
+    constrain * using *
+    implement * using *
+    produce * using *
+    consume * using *
+    record-lineage-from * using *
+    grant-access-to * using *
+    run-before * using *
+    trigger * using *
+    cite * using *
+    supersede * using *
+    require * using *
+    use * using *
+    forbid * using *
+    route * using *
+    land * using *
+@schema playbook
+  lowers to governance
+  sections
+    open
+@schema law
+  lowers to governance
+  sections
+    open
+@schema contract
+  lowers to contract
+  sections
+    open
+@schema case
+  lowers to check
+  sections
+    open
+@playbook target
+@playbook example
+  activation
+    activate when phase IS act

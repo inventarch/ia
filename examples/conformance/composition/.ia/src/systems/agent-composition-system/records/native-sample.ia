@@ -1,0 +1,12 @@
+#! ia 1.0
+
+@harness native-sample
+  meaning
+    says "Fixture native-sample text 1."
+    answers "Fixture native-sample text 2."
+  composition
+    workspace @workspace sample-workspace
+    profiles [@agent-profile sample-author-profile, @agent-profile sample-architect-profile]
+    bindings [@execution-binding sample-read-binding, @execution-binding fixture-secondary-read-binding, @execution-binding sample-entry, @execution-binding architect-entry]
+  execution
+    host-profile captured-sample-v1

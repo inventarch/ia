@@ -1,0 +1,25 @@
+#! ia 1.0
+
+@schema task
+  lowers to definition
+  sections
+    must have meaning
+    must have work
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    may have meaning.answers as text
+    must have work.title as text
+    must have work.status as id in [proposed, open, held, closed, dropped, superseded]
+    must have work.milestone as ref to milestone
+    may have work.owner as text
+    may have work.start as text form iso-date
+    may have work.due as text form iso-date
+    may have work.ended as text form iso-date
+    may have work.source as text
+  edges
+    may require task one-or-more
+    may require milestone one-or-more
+    may require decision one-or-more
+    may supersede task one

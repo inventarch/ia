@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "model": "orders",
+  "version": "1.0.0",
+  "features": [],
+  "values": [
+    { "name": "money", "type": { "scalar": "decimal", "precision": 12, "scale": 2 } }
+  ],
+  "entities": [
+    {
+      "key": "customer",
+      "id": { "field": "id", "codec": "uuid" },
+      "fields": [
+        { "name": "id", "required": true, "type": { "scalar": "string", "max-length": 36 } },
+        { "name": "display-name", "required": true, "type": { "scalar": "string", "max-length": 200 } }
+      ]
+    },
+    {
+      "key": "order",
+      "id": { "field": "id", "codec": "uuid" },
+      "fields": [
+        { "name": "id", "required": true, "type": { "scalar": "string", "max-length": 36 } },
+        { "name": "customer", "required": true, "type": { "reference": { "model": "orders", "entity": "customer", "version": "1.0.0" }, "cardinality": "one" } },
+        { "name": "status", "required": true, "type": { "scalar": "enum", "values": ["open", "paid", "cancelled"] } },
+        { "name": "total", "required": true, "type": { "value": "money" } },
+        { "name": "placed-at", "required": true, "type": { "scalar": "timestamp" } },
+        { "name": "gift", "required": false, "type": { "scalar": "boolean" } },
+        { "name": "line-count", "required": true, "type": { "scalar": "number", "minimum": 1, "maximum": 500 } }
+      ]
+    }
+  ],
+  "commands": [
+    { "name": "place-order", "contract": "place-order@1", "input": "place-order-input@1", "output": "order-summary@1", "error": "order-error@1" },
+    { "name": "cancel-order", "contract": "cancel-order@1", "input": "order-ref@1", "output": "order-summary@1", "error": "order-error@1" }
+  ],
+  "queries": [
+    { "name": "list-orders", "contract": "list-orders@1", "input": "order-filter@1", "output": "order-page@1", "error": "order-error@1" }
+  ],
+  "invariants": [
+    { "name": "total-matches-lines", "validator": "order-total-matches-lines@1", "entity": "order", "required": true },
+    { "name": "gift-note-length", "validator": "gift-note-length@1", "entity": "order", "required": false }
+  ]
+}

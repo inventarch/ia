@@ -1,0 +1,17 @@
+#! ia 1.0
+
+@contract executable-authoring-contract
+  version "0.1.0"
+  meaning
+    says "Local authoring commands return checked results and bounded drafts."
+    answers "What does executable authoring promise?"
+  relationships
+    governs @operation validate-ia
+    governs @operation format-ia
+    governs @operation render-template
+  inputs
+    REQ-EXEC-INPUT "Validate exact JSON input and an admitted native binding against the current corpus."
+  outputs
+    REQ-EXEC-RESULT "Return evidence or bounded reviewable artifacts without modifying authored source."
+  failures
+    REQ-EXEC-REFUSE "Return an explicit refusal and no artifacts when inputs, bindings or validation fail."

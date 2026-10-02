@@ -1,0 +1,74 @@
+#! ia 1.0
+
+@axis shape
+  meaning
+    says "The intent framing of a request; a derived hint unless explicitly declared."
+    answers "What does shape designate in the axis domain?"
+  data
+    order 0
+    values [context, governance, execution, sequence, learning]
+
+@axis category
+  meaning
+    says "The kind of concept requested; request category is distinct from discriminator classification."
+    answers "What does category designate in the axis domain?"
+  data
+    order 1
+    values [thing, kind, property, state, event, relation, rule, capability, intent, decision, evidence, representation, process, measure, boundary]
+
+@axis phase
+  meaning
+    says "The declared position in orient, plan, act and learn."
+    answers "What does phase designate in the axis domain?"
+  data
+    order 2
+    values [orient, plan, act, learn]
+
+@axis primitive
+  meaning
+    says "The cognitive operation the actor declares it is performing."
+    answers "What does primitive designate in the axis domain?"
+  data
+    order 3
+    values [Memory, Attention, Inference, Decision, Escalation, Learning]
+
+@axis move
+  meaning
+    says "The requested action mode, distinct from a cognitive primitive."
+    answers "What does move designate in the axis domain?"
+  data
+    order 4
+    values [Observation, Execution, Delegation, Synthesis, Verification]
+
+@axis kind
+  meaning
+    says "The closed semantic kind a request selects."
+    answers "What does kind designate in the axis domain?"
+  data
+    order 5
+    values [governance, contract, definition, template, check, policy, binding]
+
+@axis lane
+  meaning
+    says "The structural lane derived from kind, with the authority-facet contract exception."
+    answers "What does lane designate in the axis domain?"
+  data
+    order 6
+    values [authority, contracts, definitions, templates, enforcement, bindings]
+
+@axis predicate
+  meaning
+    says "The active relationship family a request follows or selects."
+    answers "What does predicate designate in the axis domain?"
+  data
+    order 7
+    values [govern, enforce, ground, constrain, implement, produce, consume, record-lineage-from, grant-access-to, run-before, trigger, cite, supersede, require, use, forbid, route, land]
+
+@axis artifact-set
+  meaning
+    says "The artifact classification used in routing and subject conditions."
+    answers "What does artifact-set designate in the axis domain?"
+  data
+    order 8
+    values [inquiry, decision, contract, product-definition, execution, operational, evidence, projection, principle]
+

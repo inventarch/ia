@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@agent product-steward
+  meaning
+    says "Maintains product identity, closed structural schema and the public product authoring reference."
+    answers "Who owns the product word and its structural contract without granting service authority?"
+  governance
+    applies [product]
+    requires
+      - "Read system.ia, schemas/product.schema.ia, schemas/product.SPEC.md and the distribution SPEC before changes."
+      - "Preserve the sole product-system owner, exact format contract and typed owner/plan references; never add computed readiness or implicit permissions."
+      - "Qualify actual emitted before/after adoption, product-reader success and structural/reference refusals; syntax alone is not readiness."
+      - "Native admission only checks numeric format type and may warn about dangling refs; the product reader must enforce format 1 and resolve owner/plans."
+      - "Keep service mappings, retirement effects and provider authority in their private API owner; never infer them from this authored owner."
+      - "Maintain schema, guide, authoring/architecture references, consumer and refusal cases together; record exact release evidence and remaining limitations."

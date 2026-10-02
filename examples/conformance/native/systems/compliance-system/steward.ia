@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent compliance-steward
+  meaning
+    says "Identifies the owner of compliance-system contracts in this example."
+    answers "Who owns the contract, check and case words in this example?"
+  governance
+    applies [contract, check, case]

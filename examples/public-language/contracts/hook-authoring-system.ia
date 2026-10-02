@@ -1,0 +1,31 @@
+#! ia 1.0
+
+@system hook-authoring-system
+  provider "inventarch.local"
+  version "0.1.0"
+  describes "Public hook-authoring-system vocabulary contracts"
+  steward @agent public-hook-authoring-system-steward
+  requires
+    - agent-system
+    - governance-system
+    - compliance-system
+    - authoring-system
+  discriminators
+    hook lowers to binding
+      category capability
+      facets [hook]
+      schema @schema hook
+  edges
+    cite * using *
+    govern * using *
+    enforce * using *
+    implement * using *
+    require * using *
+    use * using *
+
+@agent public-hook-authoring-system-steward
+  meaning
+    says "Identifies the owner of hook-authoring-system contracts in this example."
+    answers "Who owns the hook word in this example?"
+  governance
+    applies [hook]

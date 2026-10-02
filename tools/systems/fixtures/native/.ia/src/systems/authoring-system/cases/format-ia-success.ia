@@ -1,0 +1,18 @@
+#! ia 1.0
+
+@case format-ia-success
+  meaning
+    says "format-ia returns exactly one admitted, formatted draft artifact for a well-formed agent draft."
+    answers "Does format-ia return exactly one admitted draft artifact for a well-formed agent draft?"
+  scenario
+    kind success
+    given "The admitted native corpus and its fixed implementation catalog."
+    request "Invoke format-ia with scenario.input JSON."
+    expected "Return one formatted IA artifact at the requested path after preservation and contextual admission checks."
+    evaluator "tools/systems/scenarios.ts"
+    operation @operation format-ia
+    input "{\"path\":\".ia/src/systems/agent-system/records/example-expert.ia\",\"text\":\"#! ia 1.0\\n@agent example-expert\\n  meaning\\n    says \\\"A bounded expert\\\"\\n    answers \\\"Who performs this work?\\\"\\n  governance\\n    applies [agent]\\n\"}"
+    code pass
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-INPUT
+    implements @contract executable-authoring-contract#REQ-EXEC-RESULT

@@ -1,0 +1,136 @@
+#! ia 1.0
+@system fixture-system
+  provider "conformance"
+  version "1.0.0"
+  discriminators
+    playbook lowers to governance
+      category process
+      facets [head]
+      schema @schema playbook
+    law lowers to governance
+      category process
+      facets [head]
+      schema @schema law
+    contract lowers to contract
+      category process
+      facets [head]
+      schema @schema contract
+    case lowers to check
+      category process
+      facets [head]
+      schema @schema case
+  edges
+    govern * using *
+    enforce * using *
+    ground * using *
+    constrain * using *
+    implement * using *
+    produce * using *
+    consume * using *
+    record-lineage-from * using *
+    grant-access-to * using *
+    run-before * using *
+    trigger * using *
+    cite * using *
+    supersede * using *
+    require * using *
+    use * using *
+    forbid * using *
+    route * using *
+    land * using *
+@schema playbook
+  lowers to governance
+  sections
+    open
+@schema law
+  lowers to governance
+  sections
+    open
+@schema contract
+  lowers to contract
+  sections
+    open
+@schema case
+  lowers to check
+  sections
+    open
+@playbook target
+@playbook author-record
+  meaning
+    category "This gloss does not create a selector."
+  activation
+    activate when shape is CONTEXT
+    activate when shape is GOVERNANCE
+    activate when shape is EXECUTION
+    activate when shape is SEQUENCE
+    activate when shape is LEARNING
+    activate when category is THING
+    activate when category is KIND
+    activate when category is PROPERTY
+    activate when category is STATE
+    activate when category is EVENT
+    activate when category is RELATION
+    activate when category is RULE
+    activate when category is CAPABILITY
+    activate when category is INTENT
+    activate when category is DECISION
+    activate when category is EVIDENCE
+    activate when category is REPRESENTATION
+    activate when category is PROCESS
+    activate when category is MEASURE
+    activate when category is BOUNDARY
+    activate when phase is ORIENT
+    activate when phase is PLAN
+    activate when phase is ACT
+    activate when phase is LEARN
+    activate when primitive is MEMORY
+    activate when primitive is ATTENTION
+    activate when primitive is INFERENCE
+    activate when primitive is DECISION
+    activate when primitive is ESCALATION
+    activate when primitive is LEARNING
+    activate when move is OBSERVATION
+    activate when move is EXECUTION
+    activate when move is DELEGATION
+    activate when move is SYNTHESIS
+    activate when move is VERIFICATION
+    activate when kind is GOVERNANCE
+    activate when kind is CONTRACT
+    activate when kind is DEFINITION
+    activate when kind is TEMPLATE
+    activate when kind is CHECK
+    activate when kind is POLICY
+    activate when kind is BINDING
+    activate when lane is AUTHORITY
+    activate when lane is CONTRACTS
+    activate when lane is DEFINITIONS
+    activate when lane is TEMPLATES
+    activate when lane is ENFORCEMENT
+    activate when lane is BINDINGS
+    activate when predicate is GOVERN
+    activate when predicate is ENFORCE
+    activate when predicate is GROUND
+    activate when predicate is CONSTRAIN
+    activate when predicate is IMPLEMENT
+    activate when predicate is PRODUCE
+    activate when predicate is CONSUME
+    activate when predicate is RECORD-LINEAGE-FROM
+    activate when predicate is GRANT-ACCESS-TO
+    activate when predicate is RUN-BEFORE
+    activate when predicate is TRIGGER
+    activate when predicate is CITE
+    activate when predicate is SUPERSEDE
+    activate when predicate is REQUIRE
+    activate when predicate is USE
+    activate when predicate is FORBID
+    activate when predicate is ROUTE
+    activate when predicate is LAND
+    activate when artifact-set is INQUIRY
+    activate when artifact-set is DECISION
+    activate when artifact-set is CONTRACT
+    activate when artifact-set is PRODUCT-DEFINITION
+    activate when artifact-set is EXECUTION
+    activate when artifact-set is OPERATIONAL
+    activate when artifact-set is EVIDENCE
+    activate when artifact-set is PROJECTION
+    activate when artifact-set is PRINCIPLE

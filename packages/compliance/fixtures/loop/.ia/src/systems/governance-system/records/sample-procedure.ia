@@ -1,0 +1,44 @@
+#! ia 1.0
+
+@playbook sample-procedure
+  meaning
+    says "Sample fixture statement 1."
+    answers "Sample fixture statement 2."
+  cognition
+    orient
+      primary Memory
+      Memory means "Sample fixture statement 3."
+      Attention means "Sample fixture statement 4."
+      Inference means "Sample fixture statement 5."
+      Decision means "Sample fixture statement 6."
+      Escalation means "Sample fixture statement 7."
+      Learning means "Sample fixture statement 8."
+    plan
+      primary Inference
+      Memory means "Sample fixture statement 9."
+      Attention means "Sample fixture statement 10."
+      Inference means "Sample fixture statement 11."
+      Decision means "Sample fixture statement 12."
+      Escalation means "Sample fixture statement 13."
+      Learning means "Sample fixture statement 14."
+    act
+      primary Decision
+      Memory means "Sample fixture statement 15."
+      Attention means "Sample fixture statement 16."
+      Inference means "Sample fixture statement 17."
+      Decision means "Sample fixture statement 18."
+      Escalation means "Sample fixture statement 19."
+      Learning means "Sample fixture statement 20."
+    learn
+      primary Learning
+      Memory means "Sample fixture statement 21."
+      Attention means "Sample fixture statement 22."
+      Inference means "Sample fixture statement 23."
+      Decision means "Sample fixture statement 24."
+      Escalation means "Sample fixture statement 25."
+      Learning means "Sample fixture statement 26."
+  activation
+    activate when category is process
+  relationships
+    cites @law sample-rule
+    uses @check instance-schema-check

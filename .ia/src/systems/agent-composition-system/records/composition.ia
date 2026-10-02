@@ -1,0 +1,77 @@
+#! ia 1.0
+
+@agent example-reader
+  meaning
+    says "A minimal participant in a composition example."
+    answers "Which participant receives the example request?"
+  governance
+    applies []
+
+@playbook example-method
+  meaning
+    says "A user-authored procedure for reporting a supplied label."
+    answers "How does this example use a selected procedure cell?"
+  cognition
+    act
+      primary Attention
+      Attention means "Read the supplied label and return it unchanged."
+
+@capability example-label
+  meaning
+    says "A capability that supplies one original example method."
+    answers "Which procedure belongs to this capability?"
+  composition
+    playbooks [@playbook example-method]
+    operations []
+  execution
+    input example-text
+    outcomes example-outcomes
+    effects [read]
+
+@agent-profile example-profile
+  meaning
+    says "Binds the example participant to a bounded host contract."
+    answers "Which profile receives the example task?"
+  composition
+    agent @agent example-reader
+    capabilities [@capability example-label]
+  execution
+    role reader
+    outcomes example-outcomes
+    mandate-contract example-mandate
+
+@workspace example-workspace
+  meaning
+    says "The public systems needed for the example harness."
+    answers "Which vocabulary contracts compose this example?"
+  composition
+    systems [@system agent-system, @system workspace-system, @system governance-system, @system authoring-system, @system agent-composition-system]
+
+@execution-binding example-entry
+  meaning
+    says "Routes an example host request to its profile."
+    answers "Where does the example task enter?"
+  binding
+    kind entry
+    target @agent-profile example-profile
+    implementation example-entry-v1
+    mapping example-identity
+
+@harness example-harness
+  meaning
+    says "One participant and one original method composed from public contracts."
+    answers "Can a harness compile without a curated expert team?"
+  composition
+    workspace @workspace example-workspace
+    profiles [@agent-profile example-profile]
+    bindings [@execution-binding example-entry]
+  execution
+    host-profile example-host
+    limit-model-calls 1
+
+@distribution example-distribution
+  meaning
+    says "The root of this small example record closure."
+    answers "Which workspace starts this distribution?"
+  distribution
+    records [@workspace example-workspace]

@@ -1,0 +1,9 @@
+#! ia 1.0
+
+@agent compliance-steward
+  meaning
+    says "The designated expert for declared obligations, evaluators and scenario evidence."
+    answers "Who owns the vocabulary and authoring method of compliance-system?"
+  governance
+    applies [contract, check, case]
+    requires "Use the owning schema and the current spec, plan and validation evidence before changing this system."

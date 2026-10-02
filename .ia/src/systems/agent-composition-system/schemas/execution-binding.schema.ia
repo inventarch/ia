@@ -1,0 +1,20 @@
+#! ia 1.0
+
+@schema execution-binding
+  lowers to binding
+  sections
+    must have meaning
+    must have binding
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have binding.kind as id
+    must have binding.implementation as id
+    may have binding.target as ref
+    may have binding.mapping as id
+    may have binding.event as id
+    may have binding.guard as id
+    may have binding.tools as list of id
+    may have binding.filters as list of text

@@ -1,0 +1,179 @@
+[
+  {
+    "identity": "floor/contract/head/playbook",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "playbook",
+    "displayName": "Playbook",
+    "discriminator": "schema",
+    "source": {
+      "path": "schema/pass/full-dialect.ia",
+      "line": 2,
+      "endLine": 16
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "definition"
+        },
+        "span": {
+          "line": 3,
+          "endLine": 3
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 4,
+          "endLine": 8
+        },
+        "fields": [
+          {
+            "key": "must have",
+            "value": {
+              "kind": "scalar",
+              "text": "meaning"
+            },
+            "span": {
+              "line": 5,
+              "endLine": 5
+            }
+          },
+          {
+            "key": "must have",
+            "value": {
+              "kind": "scalar",
+              "text": "cognition"
+            },
+            "span": {
+              "line": 6,
+              "endLine": 6
+            }
+          },
+          {
+            "key": "may have",
+            "value": {
+              "kind": "scalar",
+              "text": "activation"
+            },
+            "span": {
+              "line": 7,
+              "endLine": 7
+            }
+          },
+          {
+            "key": "closed",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 8,
+              "endLine": 8
+            }
+          }
+        ]
+      },
+      {
+        "name": "fields",
+        "span": {
+          "line": 9,
+          "endLine": 13
+        },
+        "fields": [
+          {
+            "key": "must have meaning.says as text",
+            "value": {
+              "kind": "string",
+              "text": "one-line identity"
+            },
+            "span": {
+              "line": 10,
+              "endLine": 10
+            }
+          },
+          {
+            "key": "must have",
+            "value": {
+              "kind": "scalar",
+              "text": "meaning.answers as text"
+            },
+            "span": {
+              "line": 11,
+              "endLine": 11
+            }
+          },
+          {
+            "key": "may have",
+            "value": {
+              "kind": "scalar",
+              "text": "lifecycle.state as id"
+            },
+            "span": {
+              "line": 12,
+              "endLine": 12
+            }
+          },
+          {
+            "key": "may have",
+            "value": {
+              "kind": "scalar",
+              "text": "meaning.tags as list of id"
+            },
+            "span": {
+              "line": 13,
+              "endLine": 13
+            }
+          }
+        ]
+      },
+      {
+        "name": "edges",
+        "span": {
+          "line": 14,
+          "endLine": 16
+        },
+        "fields": [
+          {
+            "key": "must",
+            "value": {
+              "kind": "scalar",
+              "text": "cite governance one-or-more"
+            },
+            "span": {
+              "line": 15,
+              "endLine": 15
+            }
+          },
+          {
+            "key": "may",
+            "value": {
+              "kind": "scalar",
+              "text": "use playbook optional"
+            },
+            "span": {
+              "line": 16,
+              "endLine": 16
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  }
+]

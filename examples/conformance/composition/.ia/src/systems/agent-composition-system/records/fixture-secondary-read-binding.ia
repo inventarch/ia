@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@execution-binding fixture-secondary-read-binding
+  meaning
+    says "Fixture fixture-secondary-read-binding text 1."
+    answers "Fixture fixture-secondary-read-binding text 2."
+  binding
+    kind operation
+    target @operation fixture-secondary-read
+    implementation fixture-secondary-v1

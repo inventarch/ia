@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@domain-model lending
+  meaning
+    says "Library lending: members borrow catalog items and return them by a due date."
+    answers "Which entities, commands and invariants make up the lending model?"
+  model
+    format 1
+    version "2.1.0"
+    resource "lending.domain.json"
+    digest "sha256:682cf6f1cb44370fffe9bbef427f270467089ff65895ff4c0fdd691f35687a58"

@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@operation format-ia
+  meaning
+    says "Format a draft without losing source content and validate it."
+    answers "Which pnpm system:run command returns one normalized IA draft only after the formatter preserved its content and contextual admission passed?"
+  execution
+    handler ia-format
+    effects draft-only
+    input json
+    output operation-result

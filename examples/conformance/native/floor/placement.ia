@@ -1,0 +1,42 @@
+#! ia 1.0
+
+@placement authored
+  meaning
+    says "Local authored material at authority band 100."
+    answers "Was this source written in the local workspace?"
+  data
+    order 0
+    band 100
+
+@placement adopted
+  meaning
+    says "Explicitly adopted material at authority band 90."
+    answers "Was this source deliberately taken on by the workspace from elsewhere?"
+  data
+    order 1
+    band 90
+
+@placement open
+  meaning
+    says "Visible but unadopted material at authority band 50."
+    answers "Is this source visible to the workspace without having been taken on?"
+  data
+    order 2
+    band 50
+
+@placement floor
+  meaning
+    says "Bootstrap foundation material at authority band 10."
+    answers "Is this source part of the bootstrap foundation the language starts from?"
+  data
+    order 3
+    band 10
+
+@placement runtime
+  meaning
+    says "Run-produced material at authority band 0."
+    answers "Was this source produced by a run rather than written by an author?"
+  data
+    order 4
+    band 0
+

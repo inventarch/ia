@@ -1,0 +1,9 @@
+# Native loop fixture contract
+
+F01. This tree copies the native floor and five-system IA sources at c41d9ff, with the same registration/schema/compiler path. It is test data, not a new vocabulary provider. The existing authoring procedure retains its full24cells. The sample-rule law becomes advisory so request severity can raise it. Add one unconditional blocking law, a fallback-only procedure, a declared-category procedure with an unrelated category gloss, and two equal act/Decision choices. A deliberately foreign playbook sits inside agent-system and must be refused independently.
+
+F02. Runtime loop tests open temporary copies, assert158admitted records and exactly the foreign-record structural error, inspect explicit unavailable adoption/build/fixture evidence, remove/restore agent schema registration, deliver exact/primary/variant/gated-edge behavior, refuse ties/missing axes, remove a case to fail coverage, mutate a requirement fragment to fail existence, and exercise cache/source identity changes. Mutations never edit this checked-in fixture. Hook allow/deny is added under the separate host's contract; its built launcher now exercises owner success and other/missing identity refusal.
+
+F03. The fixture's contract/cases assert structural coverage only. No scenario declaration is an execution receipt. Test output and diagnostic fixture observations are the executed evidence. The copied floor sources remain independent of donor repositories.
+
+Executed at runtime Task3: all non-hook rows pass in packages/runtime/tests/loop.test.ts and the connected context/select/door suites. Six native-loop door refusal scenarios also run in tools/compliance/runtime-fixtures.ts. Task5 completes the hook row in apps/steward-hook/tests/hook.test.ts; six built hook refusals also run in tools/compliance/hook-fixtures.ts. Database acceptance supplies independent kernel/system/record cache mutation evidence. All nine rows now have executed observations.

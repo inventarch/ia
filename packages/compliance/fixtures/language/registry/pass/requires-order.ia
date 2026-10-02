@@ -1,0 +1,44 @@
+#! ia 1.0
+@system workspace-system
+  provider "workspace-system"
+  version "0.1.0"
+  requires
+    - agent-system
+    - compliance-system
+  discriminators
+    workspace lowers to definition
+      category boundary
+      facets [head]
+      schema @schema workspace
+@system compliance-system
+  provider "compliance-system"
+  version "0.1.0"
+  requires
+    - agent-system
+  discriminators
+    check lowers to check
+      category rule
+      facets [head]
+      schema @schema check
+@system agent-system
+  provider "agent-system"
+  version "0.1.0"
+  requires
+    - taxonomy
+  discriminators
+    agent lowers to binding
+      category capability
+      facets [head]
+      schema @schema agent
+@schema workspace
+  lowers to definition
+  sections
+    closed
+@schema check
+  lowers to check
+  sections
+    closed
+@schema agent
+  lowers to binding
+  sections
+    closed

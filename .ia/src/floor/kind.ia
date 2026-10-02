@@ -1,0 +1,59 @@
+#! ia 1.0
+
+@kind governance
+  meaning
+    says "A standing 'ought' — a norm that always holds (law · principle · convention)."
+    answers "Is this record a standing norm that always holds, rather than a permission or routing rule?"
+  data
+    order 0
+    lane authority
+
+@kind contract
+  meaning
+    says "An obligation that another record relies on: a structural body schema or a signature between parties. The schema and contract discriminators have distinct dialects under this shared kind."
+    answers "Does this record pin a structure that something else relies on?"
+  data
+    order 1
+    lane contracts
+    authority-lane authority
+
+@kind definition
+  meaning
+    says "The meaning of a term or the membership of an axis (concept · boundary · method · taxonomy member)."
+    answers "Does this record say what a term, boundary, method or domain member means?"
+  data
+    order 2
+    lane definitions
+
+@kind template
+  meaning
+    says "A reusable output shape. An implemented consumer is required to instantiate it into records or files."
+    answers "Is this record a reusable output shape that a consumer instantiates?"
+  data
+    order 3
+    lane templates
+
+@kind check
+  meaning
+    says "A declared evaluation gate. Its bound evaluator produces a verdict; the declaration alone does not execute."
+    answers "Does this record declare a gate whose bound evaluator yields a verdict?"
+  data
+    order 4
+    lane enforcement
+
+@kind policy
+  meaning
+    says "An access or routing rule — who may, and what flows where."
+    answers "Does this record declare who may act or where something flows?"
+  data
+    order 5
+    lane enforcement
+
+@kind binding
+  meaning
+    says "An explicit connection between an actor, invocation or trigger and behavior. A host consumer supplies execution."
+    answers "Does this record wire an actor or trigger to behavior a host executes?"
+  data
+    order 6
+    lane bindings
+

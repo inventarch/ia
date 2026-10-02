@@ -1,0 +1,2437 @@
+[
+  {
+    "identity": "floor/definition/system/fixture-system",
+    "system": "floor",
+    "kind": "definition",
+    "facet": "system",
+    "name": "fixture-system",
+    "displayName": "fixture-system",
+    "discriminator": "system",
+    "source": {
+      "path": "selectors/pass/all-axes-canonical-values.ia",
+      "line": 2,
+      "endLine": 40
+    },
+    "head": [
+      {
+        "key": "provider",
+        "value": {
+          "kind": "string",
+          "text": "conformance"
+        },
+        "span": {
+          "line": 3,
+          "endLine": 3
+        }
+      },
+      {
+        "key": "version",
+        "value": {
+          "kind": "string",
+          "text": "1.0.0"
+        },
+        "span": {
+          "line": 4,
+          "endLine": 4
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "discriminators",
+        "span": {
+          "line": 5,
+          "endLine": 21
+        },
+        "fields": [
+          {
+            "key": "playbook",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to governance"
+            },
+            "span": {
+              "line": 6,
+              "endLine": 9
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 7,
+                  "endLine": 7
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 8,
+                  "endLine": 8
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "playbook"
+                },
+                "span": {
+                  "line": 9,
+                  "endLine": 9
+                }
+              }
+            ]
+          },
+          {
+            "key": "law",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to governance"
+            },
+            "span": {
+              "line": 10,
+              "endLine": 13
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 11,
+                  "endLine": 11
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 12,
+                  "endLine": 12
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "law"
+                },
+                "span": {
+                  "line": 13,
+                  "endLine": 13
+                }
+              }
+            ]
+          },
+          {
+            "key": "contract",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to contract"
+            },
+            "span": {
+              "line": 14,
+              "endLine": 17
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 15,
+                  "endLine": 15
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 16,
+                  "endLine": 16
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "contract"
+                },
+                "span": {
+                  "line": 17,
+                  "endLine": 17
+                }
+              }
+            ]
+          },
+          {
+            "key": "case",
+            "value": {
+              "kind": "scalar",
+              "text": "lowers to check"
+            },
+            "span": {
+              "line": 18,
+              "endLine": 21
+            },
+            "fields": [
+              {
+                "key": "category",
+                "value": {
+                  "kind": "scalar",
+                  "text": "process"
+                },
+                "span": {
+                  "line": 19,
+                  "endLine": 19
+                }
+              },
+              {
+                "key": "facets",
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "scalar",
+                      "text": "head"
+                    }
+                  ]
+                },
+                "span": {
+                  "line": 20,
+                  "endLine": 20
+                }
+              },
+              {
+                "key": "schema",
+                "value": {
+                  "kind": "ref",
+                  "discriminator": "schema",
+                  "name": "case"
+                },
+                "span": {
+                  "line": 21,
+                  "endLine": 21
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "edges",
+        "span": {
+          "line": 22,
+          "endLine": 40
+        },
+        "fields": [
+          {
+            "key": "govern",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 23,
+              "endLine": 23
+            }
+          },
+          {
+            "key": "enforce",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 24,
+              "endLine": 24
+            }
+          },
+          {
+            "key": "ground",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 25,
+              "endLine": 25
+            }
+          },
+          {
+            "key": "constrain",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 26,
+              "endLine": 26
+            }
+          },
+          {
+            "key": "implement",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 27,
+              "endLine": 27
+            }
+          },
+          {
+            "key": "produce",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 28,
+              "endLine": 28
+            }
+          },
+          {
+            "key": "consume",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 29,
+              "endLine": 29
+            }
+          },
+          {
+            "key": "record-lineage-from",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 30,
+              "endLine": 30
+            }
+          },
+          {
+            "key": "grant-access-to",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 31,
+              "endLine": 31
+            }
+          },
+          {
+            "key": "run-before",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 32,
+              "endLine": 32
+            }
+          },
+          {
+            "key": "trigger",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 33,
+              "endLine": 33
+            }
+          },
+          {
+            "key": "cite",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 34,
+              "endLine": 34
+            }
+          },
+          {
+            "key": "supersede",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 35,
+              "endLine": 35
+            }
+          },
+          {
+            "key": "require",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 36,
+              "endLine": 36
+            }
+          },
+          {
+            "key": "use",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 37,
+              "endLine": 37
+            }
+          },
+          {
+            "key": "forbid",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 38,
+              "endLine": 38
+            }
+          },
+          {
+            "key": "route",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 39,
+              "endLine": 39
+            }
+          },
+          {
+            "key": "land",
+            "value": {
+              "kind": "scalar",
+              "text": "* using *"
+            },
+            "span": {
+              "line": 40,
+              "endLine": 40
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "playbook"
+        },
+        "target": "floor/contract/head/playbook",
+        "span": {
+          "line": 6,
+          "endLine": 9
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "law"
+        },
+        "target": "floor/contract/head/law",
+        "span": {
+          "line": 10,
+          "endLine": 13
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "contract"
+        },
+        "target": "floor/contract/head/contract",
+        "span": {
+          "line": 14,
+          "endLine": 17
+        }
+      },
+      {
+        "predicate": "ground",
+        "direction": "out",
+        "reference": {
+          "kind": "ref",
+          "discriminator": "schema",
+          "name": "case"
+        },
+        "target": "floor/contract/head/case",
+        "span": {
+          "line": 18,
+          "endLine": 21
+        }
+      }
+    ],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/system",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/playbook",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "playbook",
+    "displayName": "playbook",
+    "discriminator": "schema",
+    "source": {
+      "path": "selectors/pass/all-axes-canonical-values.ia",
+      "line": 41,
+      "endLine": 44
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "governance"
+        },
+        "span": {
+          "line": 42,
+          "endLine": 42
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 43,
+          "endLine": 44
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 44,
+              "endLine": 44
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/law",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "law",
+    "displayName": "law",
+    "discriminator": "schema",
+    "source": {
+      "path": "selectors/pass/all-axes-canonical-values.ia",
+      "line": 45,
+      "endLine": 48
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "governance"
+        },
+        "span": {
+          "line": 46,
+          "endLine": 46
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 47,
+          "endLine": 48
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 48,
+              "endLine": 48
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/contract",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "contract",
+    "displayName": "contract",
+    "discriminator": "schema",
+    "source": {
+      "path": "selectors/pass/all-axes-canonical-values.ia",
+      "line": 49,
+      "endLine": 52
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "contract"
+        },
+        "span": {
+          "line": 50,
+          "endLine": 50
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 51,
+          "endLine": 52
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 52,
+              "endLine": 52
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "floor/contract/head/case",
+    "system": "floor",
+    "kind": "contract",
+    "facet": "head",
+    "name": "case",
+    "displayName": "case",
+    "discriminator": "schema",
+    "source": {
+      "path": "selectors/pass/all-axes-canonical-values.ia",
+      "line": 53,
+      "endLine": 56
+    },
+    "head": [
+      {
+        "key": "lowers to",
+        "value": {
+          "kind": "scalar",
+          "text": "check"
+        },
+        "span": {
+          "line": 54,
+          "endLine": 54
+        }
+      }
+    ],
+    "sections": [
+      {
+        "name": "sections",
+        "span": {
+          "line": 55,
+          "endLine": 56
+        },
+        "fields": [
+          {
+            "key": "open",
+            "value": {
+              "kind": "none"
+            },
+            "span": {
+              "line": 56,
+              "endLine": 56
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/schema",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "fixture-system/governance/head/target",
+    "system": "fixture-system",
+    "kind": "governance",
+    "facet": "head",
+    "name": "target",
+    "displayName": "target",
+    "discriminator": "playbook",
+    "source": {
+      "path": "selectors/pass/all-axes-canonical-values.ia",
+      "line": 57,
+      "endLine": 57
+    },
+    "head": [],
+    "sections": [],
+    "edges": [],
+    "cells": [],
+    "selectors": [],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/playbook",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  },
+  {
+    "identity": "fixture-system/governance/head/author-record",
+    "system": "fixture-system",
+    "kind": "governance",
+    "facet": "head",
+    "name": "author-record",
+    "displayName": "author-record",
+    "discriminator": "playbook",
+    "source": {
+      "path": "selectors/pass/all-axes-canonical-values.ia",
+      "line": 58,
+      "endLine": 136
+    },
+    "head": [],
+    "sections": [
+      {
+        "name": "meaning",
+        "span": {
+          "line": 59,
+          "endLine": 60
+        },
+        "fields": [
+          {
+            "key": "category",
+            "value": {
+              "kind": "string",
+              "text": "This gloss does not create a selector."
+            },
+            "span": {
+              "line": 60,
+              "endLine": 60
+            }
+          }
+        ]
+      },
+      {
+        "name": "activation",
+        "span": {
+          "line": 61,
+          "endLine": 136
+        },
+        "fields": [
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "shape",
+              "is",
+              "CONTEXT"
+            ],
+            "span": {
+              "line": 62,
+              "endLine": 62
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "shape",
+              "is",
+              "GOVERNANCE"
+            ],
+            "span": {
+              "line": 63,
+              "endLine": 63
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "shape",
+              "is",
+              "EXECUTION"
+            ],
+            "span": {
+              "line": 64,
+              "endLine": 64
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "shape",
+              "is",
+              "SEQUENCE"
+            ],
+            "span": {
+              "line": 65,
+              "endLine": 65
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "shape",
+              "is",
+              "LEARNING"
+            ],
+            "span": {
+              "line": 66,
+              "endLine": 66
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "THING"
+            ],
+            "span": {
+              "line": 67,
+              "endLine": 67
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "KIND"
+            ],
+            "span": {
+              "line": 68,
+              "endLine": 68
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "PROPERTY"
+            ],
+            "span": {
+              "line": 69,
+              "endLine": 69
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "STATE"
+            ],
+            "span": {
+              "line": 70,
+              "endLine": 70
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "EVENT"
+            ],
+            "span": {
+              "line": 71,
+              "endLine": 71
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "RELATION"
+            ],
+            "span": {
+              "line": 72,
+              "endLine": 72
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "RULE"
+            ],
+            "span": {
+              "line": 73,
+              "endLine": 73
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "CAPABILITY"
+            ],
+            "span": {
+              "line": 74,
+              "endLine": 74
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "INTENT"
+            ],
+            "span": {
+              "line": 75,
+              "endLine": 75
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "DECISION"
+            ],
+            "span": {
+              "line": 76,
+              "endLine": 76
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "EVIDENCE"
+            ],
+            "span": {
+              "line": 77,
+              "endLine": 77
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "REPRESENTATION"
+            ],
+            "span": {
+              "line": 78,
+              "endLine": 78
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "PROCESS"
+            ],
+            "span": {
+              "line": 79,
+              "endLine": 79
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "MEASURE"
+            ],
+            "span": {
+              "line": 80,
+              "endLine": 80
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "category",
+              "is",
+              "BOUNDARY"
+            ],
+            "span": {
+              "line": 81,
+              "endLine": 81
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "phase",
+              "is",
+              "ORIENT"
+            ],
+            "span": {
+              "line": 82,
+              "endLine": 82
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "phase",
+              "is",
+              "PLAN"
+            ],
+            "span": {
+              "line": 83,
+              "endLine": 83
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "phase",
+              "is",
+              "ACT"
+            ],
+            "span": {
+              "line": 84,
+              "endLine": 84
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "phase",
+              "is",
+              "LEARN"
+            ],
+            "span": {
+              "line": 85,
+              "endLine": 85
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "primitive",
+              "is",
+              "MEMORY"
+            ],
+            "span": {
+              "line": 86,
+              "endLine": 86
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "primitive",
+              "is",
+              "ATTENTION"
+            ],
+            "span": {
+              "line": 87,
+              "endLine": 87
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "primitive",
+              "is",
+              "INFERENCE"
+            ],
+            "span": {
+              "line": 88,
+              "endLine": 88
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "primitive",
+              "is",
+              "DECISION"
+            ],
+            "span": {
+              "line": 89,
+              "endLine": 89
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "primitive",
+              "is",
+              "ESCALATION"
+            ],
+            "span": {
+              "line": 90,
+              "endLine": 90
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "primitive",
+              "is",
+              "LEARNING"
+            ],
+            "span": {
+              "line": 91,
+              "endLine": 91
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "move",
+              "is",
+              "OBSERVATION"
+            ],
+            "span": {
+              "line": 92,
+              "endLine": 92
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "move",
+              "is",
+              "EXECUTION"
+            ],
+            "span": {
+              "line": 93,
+              "endLine": 93
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "move",
+              "is",
+              "DELEGATION"
+            ],
+            "span": {
+              "line": 94,
+              "endLine": 94
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "move",
+              "is",
+              "SYNTHESIS"
+            ],
+            "span": {
+              "line": 95,
+              "endLine": 95
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "move",
+              "is",
+              "VERIFICATION"
+            ],
+            "span": {
+              "line": 96,
+              "endLine": 96
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "kind",
+              "is",
+              "GOVERNANCE"
+            ],
+            "span": {
+              "line": 97,
+              "endLine": 97
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "kind",
+              "is",
+              "CONTRACT"
+            ],
+            "span": {
+              "line": 98,
+              "endLine": 98
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "kind",
+              "is",
+              "DEFINITION"
+            ],
+            "span": {
+              "line": 99,
+              "endLine": 99
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "kind",
+              "is",
+              "TEMPLATE"
+            ],
+            "span": {
+              "line": 100,
+              "endLine": 100
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "kind",
+              "is",
+              "CHECK"
+            ],
+            "span": {
+              "line": 101,
+              "endLine": 101
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "kind",
+              "is",
+              "POLICY"
+            ],
+            "span": {
+              "line": 102,
+              "endLine": 102
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "kind",
+              "is",
+              "BINDING"
+            ],
+            "span": {
+              "line": 103,
+              "endLine": 103
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "lane",
+              "is",
+              "AUTHORITY"
+            ],
+            "span": {
+              "line": 104,
+              "endLine": 104
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "lane",
+              "is",
+              "CONTRACTS"
+            ],
+            "span": {
+              "line": 105,
+              "endLine": 105
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "lane",
+              "is",
+              "DEFINITIONS"
+            ],
+            "span": {
+              "line": 106,
+              "endLine": 106
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "lane",
+              "is",
+              "TEMPLATES"
+            ],
+            "span": {
+              "line": 107,
+              "endLine": 107
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "lane",
+              "is",
+              "ENFORCEMENT"
+            ],
+            "span": {
+              "line": 108,
+              "endLine": 108
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "lane",
+              "is",
+              "BINDINGS"
+            ],
+            "span": {
+              "line": 109,
+              "endLine": 109
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "GOVERN"
+            ],
+            "span": {
+              "line": 110,
+              "endLine": 110
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "ENFORCE"
+            ],
+            "span": {
+              "line": 111,
+              "endLine": 111
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "GROUND"
+            ],
+            "span": {
+              "line": 112,
+              "endLine": 112
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "CONSTRAIN"
+            ],
+            "span": {
+              "line": 113,
+              "endLine": 113
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "IMPLEMENT"
+            ],
+            "span": {
+              "line": 114,
+              "endLine": 114
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "PRODUCE"
+            ],
+            "span": {
+              "line": 115,
+              "endLine": 115
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "CONSUME"
+            ],
+            "span": {
+              "line": 116,
+              "endLine": 116
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "RECORD-LINEAGE-FROM"
+            ],
+            "span": {
+              "line": 117,
+              "endLine": 117
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "GRANT-ACCESS-TO"
+            ],
+            "span": {
+              "line": 118,
+              "endLine": 118
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "RUN-BEFORE"
+            ],
+            "span": {
+              "line": 119,
+              "endLine": 119
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "TRIGGER"
+            ],
+            "span": {
+              "line": 120,
+              "endLine": 120
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "CITE"
+            ],
+            "span": {
+              "line": 121,
+              "endLine": 121
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "SUPERSEDE"
+            ],
+            "span": {
+              "line": 122,
+              "endLine": 122
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "REQUIRE"
+            ],
+            "span": {
+              "line": 123,
+              "endLine": 123
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "USE"
+            ],
+            "span": {
+              "line": 124,
+              "endLine": 124
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "FORBID"
+            ],
+            "span": {
+              "line": 125,
+              "endLine": 125
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "ROUTE"
+            ],
+            "span": {
+              "line": 126,
+              "endLine": 126
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "predicate",
+              "is",
+              "LAND"
+            ],
+            "span": {
+              "line": 127,
+              "endLine": 127
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "INQUIRY"
+            ],
+            "span": {
+              "line": 128,
+              "endLine": 128
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "DECISION"
+            ],
+            "span": {
+              "line": 129,
+              "endLine": 129
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "CONTRACT"
+            ],
+            "span": {
+              "line": 130,
+              "endLine": 130
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "PRODUCT-DEFINITION"
+            ],
+            "span": {
+              "line": 131,
+              "endLine": 131
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "EXECUTION"
+            ],
+            "span": {
+              "line": 132,
+              "endLine": 132
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "OPERATIONAL"
+            ],
+            "span": {
+              "line": 133,
+              "endLine": 133
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "EVIDENCE"
+            ],
+            "span": {
+              "line": 134,
+              "endLine": 134
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "PROJECTION"
+            ],
+            "span": {
+              "line": 135,
+              "endLine": 135
+            }
+          },
+          {
+            "key": "activate",
+            "value": {
+              "kind": "none"
+            },
+            "when": [
+              "artifact-set",
+              "is",
+              "PRINCIPLE"
+            ],
+            "span": {
+              "line": 136,
+              "endLine": 136
+            }
+          }
+        ]
+      }
+    ],
+    "edges": [],
+    "cells": [],
+    "selectors": [
+      [
+        {
+          "axis": "shape",
+          "value": "context"
+        }
+      ],
+      [
+        {
+          "axis": "shape",
+          "value": "governance"
+        }
+      ],
+      [
+        {
+          "axis": "shape",
+          "value": "execution"
+        }
+      ],
+      [
+        {
+          "axis": "shape",
+          "value": "sequence"
+        }
+      ],
+      [
+        {
+          "axis": "shape",
+          "value": "learning"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "thing"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "kind"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "property"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "state"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "event"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "relation"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "rule"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "capability"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "intent"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "decision"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "evidence"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "representation"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "process"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "measure"
+        }
+      ],
+      [
+        {
+          "axis": "category",
+          "value": "boundary"
+        }
+      ],
+      [
+        {
+          "axis": "phase",
+          "value": "orient"
+        }
+      ],
+      [
+        {
+          "axis": "phase",
+          "value": "plan"
+        }
+      ],
+      [
+        {
+          "axis": "phase",
+          "value": "act"
+        }
+      ],
+      [
+        {
+          "axis": "phase",
+          "value": "learn"
+        }
+      ],
+      [
+        {
+          "axis": "primitive",
+          "value": "Memory"
+        }
+      ],
+      [
+        {
+          "axis": "primitive",
+          "value": "Attention"
+        }
+      ],
+      [
+        {
+          "axis": "primitive",
+          "value": "Inference"
+        }
+      ],
+      [
+        {
+          "axis": "primitive",
+          "value": "Decision"
+        }
+      ],
+      [
+        {
+          "axis": "primitive",
+          "value": "Escalation"
+        }
+      ],
+      [
+        {
+          "axis": "primitive",
+          "value": "Learning"
+        }
+      ],
+      [
+        {
+          "axis": "move",
+          "value": "Observation"
+        }
+      ],
+      [
+        {
+          "axis": "move",
+          "value": "Execution"
+        }
+      ],
+      [
+        {
+          "axis": "move",
+          "value": "Delegation"
+        }
+      ],
+      [
+        {
+          "axis": "move",
+          "value": "Synthesis"
+        }
+      ],
+      [
+        {
+          "axis": "move",
+          "value": "Verification"
+        }
+      ],
+      [
+        {
+          "axis": "kind",
+          "value": "governance"
+        }
+      ],
+      [
+        {
+          "axis": "kind",
+          "value": "contract"
+        }
+      ],
+      [
+        {
+          "axis": "kind",
+          "value": "definition"
+        }
+      ],
+      [
+        {
+          "axis": "kind",
+          "value": "template"
+        }
+      ],
+      [
+        {
+          "axis": "kind",
+          "value": "check"
+        }
+      ],
+      [
+        {
+          "axis": "kind",
+          "value": "policy"
+        }
+      ],
+      [
+        {
+          "axis": "kind",
+          "value": "binding"
+        }
+      ],
+      [
+        {
+          "axis": "lane",
+          "value": "authority"
+        }
+      ],
+      [
+        {
+          "axis": "lane",
+          "value": "contracts"
+        }
+      ],
+      [
+        {
+          "axis": "lane",
+          "value": "definitions"
+        }
+      ],
+      [
+        {
+          "axis": "lane",
+          "value": "templates"
+        }
+      ],
+      [
+        {
+          "axis": "lane",
+          "value": "enforcement"
+        }
+      ],
+      [
+        {
+          "axis": "lane",
+          "value": "bindings"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "govern"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "enforce"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "ground"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "constrain"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "implement"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "produce"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "consume"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "record-lineage-from"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "grant-access-to"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "run-before"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "trigger"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "cite"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "supersede"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "require"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "use"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "forbid"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "route"
+        }
+      ],
+      [
+        {
+          "axis": "predicate",
+          "value": "land"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "inquiry"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "decision"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "contract"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "product-definition"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "execution"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "operational"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "evidence"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "projection"
+        }
+      ],
+      [
+        {
+          "axis": "artifact-set",
+          "value": "principle"
+        }
+      ]
+    ],
+    "variants": [],
+    "requirements": [],
+    "schema": "floor/contract/head/playbook",
+    "provenance": "workspace",
+    "placement": {
+      "kind": "authored",
+      "band": 100,
+      "reach": ""
+    }
+  }
+]

@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@execution-binding render-captured-template-binding
+  meaning
+    says "Fixture render-captured-template-binding text 1."
+    answers "Fixture render-captured-template-binding text 2."
+  binding
+    kind operation
+    target @operation render-captured-template
+    implementation captured-template-render-v1

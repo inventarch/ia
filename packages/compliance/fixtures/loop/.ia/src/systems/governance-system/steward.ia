@@ -1,0 +1,9 @@
+#! ia 1.0
+
+@agent governance-steward
+  meaning
+    says "The designated expert for rules and practical methods for governed authoring."
+    answers "Who owns the vocabulary and authoring method of governance-system?"
+  governance
+    applies [law, principle, convention, playbook]
+    requires "Use the owning schema and the current spec, plan and validation evidence before changing this system."

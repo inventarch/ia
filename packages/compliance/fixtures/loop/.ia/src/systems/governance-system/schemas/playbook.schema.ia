@@ -1,0 +1,14 @@
+#! ia 1.0
+
+@schema playbook
+  lowers to definition
+  sections
+    must have meaning
+    must have cognition
+    may have relationships
+    may have activation
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    may have meaning.category as text

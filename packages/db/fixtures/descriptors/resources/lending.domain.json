@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "model": "lending",
+  "version": "2.1.0",
+  "features": [],
+  "values": [],
+  "entities": [
+    {
+      "key": "member",
+      "id": { "field": "number", "codec": "integer" },
+      "fields": [
+        { "name": "number", "required": true, "type": { "scalar": "number", "minimum": 1, "maximum": 99999999 } },
+        { "name": "standing", "required": true, "type": { "scalar": "enum", "values": ["active", "suspended"] } }
+      ]
+    },
+    {
+      "key": "loan",
+      "id": { "field": "loan-id", "codec": "text" },
+      "fields": [
+        { "name": "loan-id", "required": true, "type": { "scalar": "string", "max-length": 24 } },
+        { "name": "member", "required": true, "type": { "reference": { "model": "lending", "entity": "member", "version": "2.1.0" }, "cardinality": "one" } },
+        { "name": "items", "required": true, "type": { "reference": { "model": "catalog", "entity": "item", "version": "3.0.0" }, "cardinality": "many" } },
+        { "name": "due-at", "required": true, "type": { "scalar": "timestamp" } },
+        { "name": "returned", "required": false, "type": { "scalar": "boolean" } }
+      ]
+    }
+  ],
+  "commands": [
+    { "name": "open-loan", "contract": "open-loan@2", "input": "loan-request@2", "output": "loan-summary@2", "error": "loan-error@1" }
+  ],
+  "queries": [
+    { "name": "overdue-loans", "contract": "overdue-loans@1", "input": "overdue-filter@1", "output": "loan-page@1", "error": "loan-error@1" }
+  ],
+  "invariants": [
+    { "name": "suspended-members-cannot-borrow", "validator": "member-in-good-standing@1", "entity": "loan", "required": true }
+  ]
+}

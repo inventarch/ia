@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@capability lending-desk
+  meaning
+    says "Fixture capability: open loans at the lending desk."
+    answers "Which capability does the lending kiosk require for its write action?"
+  execution
+    effects [write]

@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent learning-steward
+  meaning
+    says "Identifies the owner of learning-system contracts in this example."
+    answers "Who owns the observation and improvement words in this example?"
+  governance
+    applies [observation, improvement]

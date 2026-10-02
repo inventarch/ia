@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@agent hook-authoring-steward
+  meaning
+    says "Identifies the owner of hook-authoring-system contracts in this example."
+    answers "Who owns the hook word in this example?"
+  governance
+    applies [hook]

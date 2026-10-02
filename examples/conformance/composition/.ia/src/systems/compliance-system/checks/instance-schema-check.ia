@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@check instance-schema-check
+  meaning
+    says "Fixture instance-schema-check text 1."
+    answers "Fixture instance-schema-check text 2."
+  check
+    runs COMP-SCHEMA
+    scope "Fixture instance-schema-check text 3."
+  governance
+    severity blocking

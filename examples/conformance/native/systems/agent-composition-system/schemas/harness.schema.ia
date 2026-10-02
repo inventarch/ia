@@ -1,0 +1,25 @@
+#! ia 1.0
+
+@schema harness
+  lowers to definition
+  sections
+    must have meaning
+    must have composition
+    must have execution
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have meaning.answers as text
+    must have composition.workspace as ref
+    must have composition.profiles as list of ref
+    must have composition.bindings as list of ref
+    must have execution.host-profile as id
+    may have execution.limit-steps as number
+    may have execution.limit-model-calls as number
+    may have execution.limit-operations as number
+    may have execution.limit-tokens as number
+    may have execution.limit-children as number
+    may have execution.limit-depth as number
+    may have execution.limit-bytes as number
+    may have execution.limit-duration-ms as number
