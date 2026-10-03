@@ -2,43 +2,133 @@
 
 [![Release](https://img.shields.io/badge/release-1.0.0-blue)](https://github.com/inventarch/ia/releases/tag/v1.0.0) [![Public quality](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml/badge.svg?branch=main)](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE) [![Node](https://img.shields.io/badge/node-22.x-brightgreen)](package.json) [![pnpm](https://img.shields.io/badge/pnpm-10.33.0-f69220)](package.json) [![Vocabulary](https://img.shields.io/badge/vocabulary-43%20words-blue)](docs/reference/language/vocabulary.md)
 
-> **IA** is a language and toolchain for records you own. Write down decisions, rules, agent definitions and work plans in `.ia` files, then check their structure and relationships with the compiler, graph APIs and local tools.
+> **IA** is a language and toolchain for keeping decisions, requirements, agent definitions and work plans alongside your code. Author linked records in plain-text `.ia` files; the CLI checks their structure and relationships, and the VS Code extension helps you write and navigate them.
 >
 > This is the **public IA repository**: the language, native schemas, CLI, MCP server, editor integration and worked examples, licensed under Apache-2.0.
 
-Start with the [language guide](docs/reference/language/README.md), browse the [43-word vocabulary](docs/reference/language/vocabulary.md), or try the [worked examples](examples/public-language/README.md). The [1.0.0 release](https://github.com/inventarch/ia/releases/tag/v1.0.0) includes package tarballs, the VS Code extension and checksums.
+Start below with the published [CLI](https://www.npmjs.com/package/@inventarch/cli), then explore the [language guide](docs/reference/language/README.md), [43-word vocabulary](docs/reference/language/vocabulary.md) and [worked examples](examples/public-language/README.md).
 
 ---
 
 ## ⚡ Quick start
 
-Use **Node.js `>=22.22.0 <23`** and **pnpm `10.33.0`**, as declared in [package.json](package.json). From this checkout:
+### 1. Install the CLI
+
+Use **Node.js `>=22.22.0 <23`**. Install [`@inventarch/cli`](https://www.npmjs.com/package/@inventarch/cli) globally to make the `ia` command available across your projects, including projects without a `package.json`:
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm build
-
-node apps/cli/dist/main.js --version
-node apps/cli/dist/main.js init ../ia-demo --host none               # preview
-node apps/cli/dist/main.js init ../ia-demo --host none --apply --yes # create
-node apps/cli/dist/main.js validate --root ../ia-demo
-node apps/cli/dist/main.js inspect --root ../ia-demo
-node apps/cli/dist/main.js vocabulary plan --schema
+npm install --global @inventarch/cli@1.0.0
+ia --version
 ```
 
-The first `init` command previews the files and bundled language dependency; the second creates the workspace. The target's parent directory must already exist. Initialization uses the bundled base and works without a registry connection.
+The version command should print `1.0.0`. Each project keeps its own records in its own `.ia/` directory, regardless of where the CLI is installed.
 
-Add records under the generated `.ia/src/systems/ia-demo/` directory. The starter directly requires the agent, work and workspace systems. Copy the [work example](examples/public-language/records/work.ia) into its `records/` directory, then run `validate` again.
+<details>
+<summary>Prefer a project-local install for a JavaScript or TypeScript repository?</summary>
 
-### 🖥️ Editor and agent hosts
+From that repository, install the CLI as a development dependency so your team shares a pinned version:
+
+```sh
+npm install --save-dev --save-exact @inventarch/cli@1.0.0
+npx ia --version
+```
+
+Use `npx ia` wherever the examples below use `ia`, and commit your `package.json` and lockfile. With pnpm, use `pnpm add --save-dev --save-exact @inventarch/cli@1.0.0` and `pnpm exec ia`.
+
+</details>
+
+See the [CLI guide](apps/cli/README.md) for installation and command details. Building IA itself is covered under [contributing](#-contributing-and-verification).
+
+### 2. Initialize your project
+
+In an existing project directory, preview the setup, then apply it:
+
+```sh
+cd path/to/your-project
+ia init . --id local/my-project --host none
+ia init . --id local/my-project --host none --apply --yes
+```
+
+Choose your own `local/my-project` identity; its final component names the generated system directory. The first command shows the proposed files. The second creates the `.ia/` workspace and installs the bundled language definitions locally, with no registry connection needed during initialization.
+
+Your authoring files start here:
+
+```text
+.ia/src/systems/my-project/
+├── system.ia             # Your system, its vocabulary dependencies and steward
+└── records/
+    └── workspace.ia      # The workspace and its distribution record
+```
+
+The starter supports agents, work records and workspace records. To start in a new folder instead, use `ia init my-project --host none --apply --yes` from an existing parent directory.
+
+### 3. Write your first record
+
+Create `.ia/src/systems/my-project/records/decisions.ia` with this content:
+
+```ia
+#! ia 1.0
+
+@decision api-response-format
+  meaning
+    says "Choose a response format for the public API."
+  work
+    title "API response format"
+    status made
+  decision
+    question "Which response format will clients consume?"
+    options ["JSON", "XML"]
+    choice "JSON"
+    rationale "Our clients already use JSON."
+```
+
+`@decision` selects a record type; `api-response-format` names this record. Its fields capture the question, alternatives and chosen answer. Other records can refer to it as `@decision api-response-format`.
+
+### 4. Check that it works
+
+Run these commands from the initialized project:
+
+```sh
+ia validate
+ia inspect --path .ia/src/systems/my-project/records/decisions.ia
+ia vocabulary decision --schema
+```
+
+For this example, look for **Admitted** and **0 errors**. In 1.0.0, a fresh workspace also reports two `IA-COMP-NOT-EVALUATED` warnings for `COMP-FIXTURES` and `COMP-KERNEL`: those checks need matching verification evidence. The overall outcome therefore remains `not-evaluated`; it is not a full evaluation pass.
+
+`inspect` shows the decision you just added; `vocabulary` shows its required fields and permitted values. If you change `status made` to `status finished`, validation should report `IA-COMP-FIELD-VALUE` at the record's `work.status` field. Restore `made` and validate again to return to zero errors.
+
+This checks that your records conform to the language and their references resolve. Evaluating project requirements or executing an agent needs the corresponding evaluator or host. See [reading validation results](docs/reference/language/README.md#reading-validation-results) for the distinction.
+
+### 5. Add the VS Code extension
+
+1. Download [`inventarch-ia-1.0.0.vsix`](https://github.com/inventarch/ia/releases/download/v1.0.0/inventarch-ia-1.0.0.vsix) from the [1.0.0 release](https://github.com/inventarch/ia/releases/tag/v1.0.0).
+2. In **VS Code 1.138.0 or later**, open the Command Palette and run **Extensions: Install from VSIX…**, then select the downloaded file.
+3. Open your project folder and the `decisions.ia` file. IA Language supplies completion, hover information, navigation, formatting and diagnostics in the Problems panel.
+
+Try the invalid status from step 4 to see an editor diagnostic, then restore it. The extension performs local language analysis without an account or hosted service. See the [extension guide](apps/vscode/README.md) for details.
+
+### What can I author next?
+
+| Capture | Record types | Start here |
+| --- | --- | --- |
+| Project work and decisions | `@plan`, `@milestone`, `@task`, `@decision` | [Work example](examples/public-language/records/work.ia); available in the starter |
+| Agents and their authority | `@agent`, `@mandate` | [Agent](docs/reference/language/vocabulary.md#agent) and [mandate](docs/reference/language/vocabulary.md#mandate) fields; available in the starter |
+| Project rules and procedures | `@principle`, `@law`, `@convention`, `@playbook` | [Governance vocabulary](docs/reference/language/vocabulary.md#convention) |
+| Requirements and checks | `@contract`, `@check`, `@case` | [Quality example](examples/public-language/records/quality.ia) |
+| Agent composition | `@capability`, `@agent-profile`, `@harness` | [Composition example](examples/public-language/records/composition.ia) |
+| Reusable output and learning | `@template`, `@observation`, `@improvement` | [Template fields](docs/reference/language/vocabulary.md#template) · [evidence example](examples/public-language/records/evidence.ia) |
+
+Before using a word from another system, add its owner to the `requires` list in your `system.ia` (for example, `- compliance-system` for `@contract`). The [vocabulary catalogue](docs/reference/language/vocabulary.md) names each owner and schema; `ia vocabulary <word> --schema` exposes the same authoring contract in the terminal. The [language guide](docs/reference/language/README.md) covers syntax, relationships and defining your own vocabulary.
+
+### Connect an agent host
+
+Host registration is optional. From your initialized project, choose the host you use:
 
 | Use with | Start here |
 | --- | --- |
-| **VS Code** | Install `inventarch-ia-1.0.0.vsix` from the release using **Extensions: Install from VSIX**, then open a local IA workspace. Requires VS Code 1.138.0 or later. See the [extension guide](apps/vscode/README.md). |
-| **Claude, Codex or Cursor** | From your IA workspace, preview `ia host claude`, `ia host codex` or `ia host cursor`, then apply the selected registration with `--apply --yes`. See the [CLI guide](apps/cli/README.md). |
+| **Claude, Codex or Cursor** | Preview `ia host claude`, `ia host codex` or `ia host cursor`, then rerun the chosen command with `--apply --yes`. The preview lists the host configuration it will write. See the [CLI guide](apps/cli/README.md). |
 | **MCP clients** | Use the local stdio [MCP server](apps/mcp-door/README.md) for scoped workspace reads. Its [contract](apps/mcp-door/SPEC.md) describes the supported operations. |
-
-In command examples, `ia` means the CLI binary. When running from source, substitute `node /path/to/ia/apps/cli/dist/main.js`.
 
 ---
 
@@ -137,6 +227,16 @@ Native declarations describe structure and intent. Passing schema validation doe
 ## ✅ Contributing and verification
 
 Review the [repository contract](SPEC.md) and the nearest owner contract before changing behavior. Run focused checks while working; `pnpm platform:qualify` is the full repository qualification entry point. All commands below are root [package.json](package.json) scripts.
+
+To build this repository, use Node.js `>=22.22.0 <23` and pnpm `10.33.0`:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm build
+node apps/cli/dist/main.js --version
+```
+
+When using that build in another project, substitute `node /path/to/ia/apps/cli/dist/main.js` for `ia` in the quick start.
 
 | Command | What it checks |
 | --- | --- |

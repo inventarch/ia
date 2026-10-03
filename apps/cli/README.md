@@ -2,7 +2,9 @@
 
 The IA 1.0.0 command-line interface creates workspaces, validates and inspects native records, compiles artifacts, and manages native distributions and host registrations. It requires Node.js 22.22.0 or later within Node 22.
 
-After the package is published, install it with `npm install --global @inventarch/cli@1.0.0`. To run from a source checkout, run `pnpm install --frozen-lockfile` and `pnpm build`, then use `node apps/cli/dist/main.js` in place of `ia`.
+Install the [published package](https://www.npmjs.com/package/@inventarch/cli) globally with `npm install --global @inventarch/cli@1.0.0` to use `ia` across projects. For a project-local installation, run `npm install --save-dev --save-exact @inventarch/cli@1.0.0` in your JavaScript or TypeScript repository and use `npx ia` in place of `ia`. Either way, each initialized project keeps its own records in `.ia/`.
+
+The [main quick start](https://github.com/inventarch/ia#-quick-start) walks through initialization, a first record, validation and VS Code setup. To run from a source checkout, run `pnpm install --frozen-lockfile` and `pnpm build`, then use `node /path/to/ia/apps/cli/dist/main.js` in place of `ia`.
 
 ```sh
 ia --version
