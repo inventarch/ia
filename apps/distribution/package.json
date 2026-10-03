@@ -580,6 +580,12 @@
         "types": "./dist/ustar.d.ts",
         "default": "./dist/ustar.js"
       }
-    }
+    },
+    "registry": "https://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inventarch/ia.git",
+    "directory": "apps/distribution"
   }
 }

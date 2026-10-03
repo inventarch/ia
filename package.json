@@ -44,7 +44,11 @@
     "format": "biome format --write .",
     "public:qualify": "node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs && pnpm packages:qualify",
     "public:generate": "node tools/distribution/generate-public.mjs --write",
-    "packages:qualify": "node tools/distribution/qualify-packages.mjs"
+    "packages:qualify": "node tools/distribution/qualify-packages.mjs",
+    "npm:prepare": "pnpm build && node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs && pnpm packages:qualify --pack-destination artifacts/npm",
+    "npm:plan": "node tools/distribution/npm-release.mjs plan",
+    "npm:consumer": "node tools/distribution/npm-consumer.mjs",
+    "npm:trust-commands": "node tools/distribution/npm-release.mjs trust-commands"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

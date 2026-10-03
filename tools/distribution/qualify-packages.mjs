@@ -1,13 +1,29 @@
 import '../temp/physical-temp.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+import { REPOSITORY_URL, REGISTRY, writeReleaseManifest } from './npm-release.mjs';
 
 const root = resolve(import.meta.dirname, '../..'),
   pnpm = process.env.npm_execpath;
-if (!pnpm || process.argv.length !== 2) throw new Error('Build first, then run pnpm packages:qualify');
+if (!pnpm) throw new Error('Build first, then run pnpm packages:qualify');
+const { values } = parseArgs({ options: { 'pack-destination': { type: 'string' } } });
+const destination = values['pack-destination'] ? resolve(root, values['pack-destination']) : undefined;
+if (destination && existsSync(destination))
+  assert.equal(readdirSync(destination).length, 0, 'Pack destination must be empty');
 const temporaryRoot = realpathSync(tmpdir()),
   temporary = mkdtempSync(resolve(temporaryRoot, 'ia-release-packages-')),
   consumer = resolve(temporary, 'consumer with spaces'),
@@ -71,11 +87,18 @@ try {
     assert.equal(installed.version, releasedVersion, `${source.name}: release version differs`);
     assert.equal(installed.engines?.node, supportedNode, `${source.name}: runtime policy differs`);
     assert.equal(installed.publishConfig?.access, 'public', `${source.name}: public npm access is not declared`);
+    assert.equal(installed.publishConfig?.registry, REGISTRY, `${source.name}: npm registry differs`);
+    assert.equal(installed.repository?.url, REPOSITORY_URL, `${source.name}: provenance repository differs`);
+    for (const script of ['preinstall', 'install', 'postinstall'])
+      assert.ok(!installed.scripts?.[script], `${source.name}: consumers must not require lifecycle scripts`);
     assert.equal(installed.license, 'Apache-2.0');
     for (const notice of ['LICENSE', 'NOTICE'])
       assert.equal(readFileSync(resolve(installedRoot, notice), 'utf8'), readFileSync(resolve(root, notice), 'utf8'));
     for (const [name, version] of Object.entries(installed.dependencies ?? {})) {
-      assert.ok(!/^(workspace:|catalog:|link:|file:)/.test(version), `${source.name}: unreleased dependency ${name}`);
+      assert.ok(
+        !/^(workspace:|catalog:|link:|file:|https?:|git[+:]|github:|gitlab:|bitbucket:)/.test(version),
+        `${source.name}: unsupported dependency source ${name}`,
+      );
       if (name.startsWith('@inventarch/')) {
         assert.ok(dependencies[name], `${source.name}: dependency ${name} is missing from the release`);
         assert.equal(version, releasedVersion, `${source.name}: dependency ${name} has a different release version`);
@@ -165,6 +188,11 @@ try {
   const vsix = resolve(archives, `inventarch-ia-${releasedVersion}.vsix`);
   packageManager(['exec', 'vsce', 'package', '--no-dependencies', '--out', vsix], resolve(root, 'apps/vscode'));
   assert.ok(existsSync(vsix));
+  if (destination) {
+    mkdirSync(destination, { recursive: true });
+    for (const entry of packed) copyFileSync(entry.filename, resolve(destination, basename(entry.filename)));
+    writeReleaseManifest(root, destination, packed);
+  }
   console.log(
     JSON.stringify({
       packages: projects.length,

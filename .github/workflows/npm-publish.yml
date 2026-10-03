@@ -1,0 +1,103 @@
+name: Publish npm packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable version declared by all public packages (for example 1.0.0)
+        required: true
+        type: string
+      publish:
+        description: Publish qualified packages using npm trusted publishing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'inventarch/ia' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Require successful cross-platform quality for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/inventarch/ia/actions/workflows/platform-quality.yml/runs?head_sha=$RELEASE_SHA&branch=main&per_page=100" > "$RUNNER_TEMP/quality-runs.json"
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const runs = JSON.parse(readFileSync(process.argv[1], "utf8")).workflow_runs;
+            const passed = runs.find(run => run.head_sha === process.env.RELEASE_SHA && run.head_branch === "main" && ["push", "workflow_dispatch", "schedule"].includes(run.event) && run.conclusion === "success");
+            if (!passed) throw new Error("Public quality must pass on this exact main commit before preparing an npm release");
+            console.log(`Qualified commit: ${passed.head_sha}; ${passed.html_url}`);
+          ' "$RUNNER_TEMP/quality-runs.json"
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: actions/setup-node@v7
+        with:
+          # npm 12 requires this patch; package consumers still support >=22.22.0 <23.
+          node-version: '22.22.2'
+          package-manager-cache: false
+      - name: Install pinned publishing CLI and workspace dependencies
+        run: |
+          npm install --global npm@12.2.0 --ignore-scripts
+          pnpm install --frozen-lockfile
+          pnpm audit --audit-level=moderate
+      - name: Build, qualify and retain the exact npm tarballs
+        run: pnpm npm:prepare
+      - name: Install with npm 12 security defaults and exercise the CLI
+        run: pnpm npm:consumer
+      - name: Verify the requested release version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: pnpm npm:plan --version "$RELEASE_VERSION"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: npm-release-${{ github.sha }}
+          path: artifacts/npm
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    if: inputs.publish
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.2'
+          package-manager-cache: false
+      - name: Install the pinned publishing CLI
+        run: npm install --global npm@12.2.0 --ignore-scripts
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-release-${{ github.sha }}
+          path: artifacts/npm
+      # No workspace install or build in this job. Only npm receives the OIDC identity;
+      # packages are published from the exact tarballs exercised by prepare.
+      - name: Publish with OIDC and provenance
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node tools/distribution/npm-release.mjs publish --version "$RELEASE_VERSION"

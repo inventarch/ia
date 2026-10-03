@@ -2007,7 +2007,8 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/distribution/host-payload.test.ts"
+        "tools/distribution/host-payload.test.ts",
+        "tools/distribution/npm-release.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
