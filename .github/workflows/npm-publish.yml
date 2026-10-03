@@ -54,7 +54,9 @@ jobs:
           package-manager-cache: false
       - name: Install pinned publishing CLI and workspace dependencies
         run: |
-          npm install --global npm@12.2.0 --ignore-scripts
+          # Keep the running npm installation intact while installing its replacement.
+          npm install --prefix "$RUNNER_TEMP/npm-cli" --no-save --package-lock=false --ignore-scripts npm@12.2.0
+          echo "$RUNNER_TEMP/npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
           pnpm install --frozen-lockfile
           pnpm audit --audit-level=moderate
       - name: Build, qualify and retain the exact npm tarballs
@@ -90,7 +92,9 @@ jobs:
           node-version: '22.22.2'
           package-manager-cache: false
       - name: Install the pinned publishing CLI
-        run: npm install --global npm@12.2.0 --ignore-scripts
+        run: |
+          npm install --prefix "$RUNNER_TEMP/npm-cli" --no-save --package-lock=false --ignore-scripts npm@12.2.0
+          echo "$RUNNER_TEMP/npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
       - uses: actions/download-artifact@v8
         with:
           name: npm-release-${{ github.sha }}
