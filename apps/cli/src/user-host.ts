@@ -9,16 +9,16 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { renderClaudePlugin } from '@ia/compliance';
-import type { PluginFile } from '@ia/compliance';
-import { hostRow } from '@ia/distribution/hosts';
-import { assertIaHomeUsable } from '@ia/distribution/ia-home';
+import { renderClaudePlugin } from '@inventarch/compliance';
+import type { PluginFile } from '@inventarch/compliance';
+import { hostRow } from '@inventarch/distribution/hosts';
+import { assertIaHomeUsable } from '@inventarch/distribution/ia-home';
 import {
   MARKETPLACE_DIR,
   materializeMarketplace,
   readMaterializedPlugin,
   removeMarketplace,
-} from '@ia/distribution/plugin-home';
+} from '@inventarch/distribution/plugin-home';
 import { UsageError } from './args.js';
 import { detectChannel, updateInstruction } from './channel.js';
 import type { Channel } from './channel.js';
@@ -127,7 +127,7 @@ export function collectUserHost(
 }
 
 /**
- * A marketplace refusal from `@ia/distribution/plugin-home`, its code and message kept, located at the IA home's
+ * A marketplace refusal from `@inventarch/distribution/plugin-home`, its code and message kept, located at the IA home's
  * `claude` directory (which holds the marketplace and its lock) and given a next action. Anything without an IA-DIST
  * code is not the service's refusal and passes through unchanged.
  */

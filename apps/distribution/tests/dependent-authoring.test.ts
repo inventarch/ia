@@ -1,5 +1,5 @@
 import { beforeAll, expect, it } from 'vitest';
-import { canonicalDistributionJson, sha256, type BundleManifest } from '@ia/db/distribution';
+import { canonicalDistributionJson, sha256, type BundleManifest } from '@inventarch/db/distribution';
 import { buildLanguageBase } from '../../../tools/native/language-base.js';
 import { languagePackageInputs } from '../../../tools/native/public-language.js';
 import { buildArchive, verifyArchive, verifySelectedArchiveClosure } from '../src/archive.js';

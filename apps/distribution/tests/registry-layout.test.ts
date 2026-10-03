@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { DISTRIBUTION_LIMITS } from '@ia/db/distribution';
+import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
 import { decodePackageIndex, decodeRegistryInfo, packageIndexPath, REGISTRY_LIMITS } from '../src/registry-layout.js';
 
 const hex = (c: string) => c.repeat(64);

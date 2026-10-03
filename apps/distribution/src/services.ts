@@ -1,18 +1,23 @@
 import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { open } from '@ia/db';
-import type { Handle } from '@ia/db';
+import { open } from '@inventarch/db';
+import type { Handle } from '@inventarch/db';
 import {
   decodeDistributionJson,
   decodeDistributionLock,
   DISTRIBUTION_LIMITS,
   INSTALL_PATHS,
   readInstalledGeneration,
-} from '@ia/db/distribution';
-import type { ActivationPointer, BundleMetadata, DistributionLock, GenerationInputs } from '@ia/db/distribution';
-import { DraftError, formatDraft } from '@ia/authoring-system';
-import type { DraftResult } from '@ia/authoring-system';
-import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@ia/language';
+} from '@inventarch/db/distribution';
+import type {
+  ActivationPointer,
+  BundleMetadata,
+  DistributionLock,
+  GenerationInputs,
+} from '@inventarch/db/distribution';
+import { DraftError, formatDraft } from '@inventarch/authoring-system';
+import type { DraftResult } from '@inventarch/authoring-system';
+import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@inventarch/language';
 import { acquireArtifact, readArtifactBytes } from './acquire.js';
 import { inspectArchiveMetadata } from './archive.js';
 import {
@@ -37,7 +42,7 @@ export type { ArtifactRequest } from './acquire.js';
 export type { HostObservation } from './host-observe.js';
 /**
  * The language identity a compiled artifact is produced under. It travels as a service value because a
- * presentation host may not depend on @ia/language, and because the two constants belong together: a digest
+ * presentation host may not depend on @inventarch/language, and because the two constants belong together: a digest
  * without its version names nothing.
  */
 export const LANGUAGE_IDENTITY: { readonly language: string; readonly kernelDigest: string } = Object.freeze({
@@ -46,8 +51,8 @@ export const LANGUAGE_IDENTITY: { readonly language: string; readonly kernelDige
 });
 export type { InstallationPlan } from './install.js';
 export type { ReleaseCandidate } from './resolve.js';
-export type { BundleMetadata } from '@ia/db/distribution';
-export type { DraftResult } from '@ia/authoring-system';
+export type { BundleMetadata } from '@inventarch/db/distribution';
+export type { DraftResult } from '@inventarch/authoring-system';
 
 type Findings = Handle['report']['findings'];
 /**

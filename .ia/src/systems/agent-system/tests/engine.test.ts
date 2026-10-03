@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { canonical, digest, JournalStore, MemoryBackend } from '@ia/session-system';
-import type { Mutation, SessionStore } from '@ia/session-system';
+import { canonical, digest, JournalStore, MemoryBackend } from '@inventarch/session-system';
+import type { Mutation, SessionStore } from '@inventarch/session-system';
 import { Engine, manifestDigest } from '../src/index.js';
 import type { EngineHost, Grant, Manifest, ModelAction, ModelAdapter, Profile } from '../src/index.js';
 

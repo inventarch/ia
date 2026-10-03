@@ -1,5 +1,5 @@
-import type { Json } from '@ia/session-system';
-import type { Profile, OperationDefinition } from '@ia/agent-system';
+import type { Json } from '@inventarch/session-system';
+import type { Profile, OperationDefinition } from '@inventarch/agent-system';
 import type { ResourceLimits, EffectClass } from './catalog.js';
 
 export type CompositionCode =

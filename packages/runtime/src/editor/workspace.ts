@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, lstatSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { INSTALL_PATHS } from '@ia/db/distribution';
-import { EditorDatabase } from '@ia/db/editor';
-import type { EditorSource, InputOptions, Overlay } from '@ia/db/editor';
+import { INSTALL_PATHS } from '@inventarch/db/distribution';
+import { EditorDatabase } from '@inventarch/db/editor';
+import type { EditorSource, InputOptions, Overlay } from '@inventarch/db/editor';
 import {
   AXES,
   CONDITION_AXES,
@@ -14,12 +14,20 @@ import {
   parse,
   valuesFor,
   verbOf,
-} from '@ia/language';
-import type { EdgeReference, Phase, RecordNode, Span } from '@ia/language';
-import { contains, cursorContext, draftSource, format, lineRange, projectSource, recordsIn } from '@ia/language/editor';
-import type { Position, Range, SourceProjection } from '@ia/language/editor';
-import { cell, conditionHolds, reaches, stableSerialize, validateCoordinate } from '@ia/graph';
-import type { Coordinate, Edge, Node } from '@ia/graph';
+} from '@inventarch/language';
+import type { EdgeReference, Phase, RecordNode, Span } from '@inventarch/language';
+import {
+  contains,
+  cursorContext,
+  draftSource,
+  format,
+  lineRange,
+  projectSource,
+  recordsIn,
+} from '@inventarch/language/editor';
+import type { Position, Range, SourceProjection } from '@inventarch/language/editor';
+import { cell, conditionHolds, reaches, stableSerialize, validateCoordinate } from '@inventarch/graph';
+import type { Coordinate, Edge, Node } from '@inventarch/graph';
 import { evaluateSteward } from '../steward.js';
 import type {
   Completion,
@@ -628,7 +636,7 @@ export class EditorWorkspace {
     if (schema === undefined || field === undefined) return undefined;
     return `**${escaped(field.key)}** · ${this.#fieldType(field.type)}${field.must ? ' · required' : ''}${field.description === undefined ? '' : `\n\n${escaped(field.description)}`}\n\nSchema \`${schema.name}\` · section ${escaped(field.section === '' ? '(head)' : field.section)}\n\n\`${schema.path}:${field.span.line}\``;
   }
-  #fieldType(type: import('@ia/language').FieldType): string {
+  #fieldType(type: import('@inventarch/language').FieldType): string {
     return type;
   }
   semanticTokens(path: string): readonly SemanticToken[] {

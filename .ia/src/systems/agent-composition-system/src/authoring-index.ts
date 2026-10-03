@@ -1,6 +1,6 @@
-import { EditorSnapshot } from '@ia/db/editor';
-import { parse } from '@ia/language';
-import type { Node } from '@ia/graph';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { parse } from '@inventarch/language';
+import type { Node } from '@inventarch/graph';
 import type { Capture } from './corpus.js';
 import { verifyCapture } from './corpus.js';
 import { resourceOccurrences, verifyResources } from './resources.js';

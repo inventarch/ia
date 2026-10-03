@@ -1,5 +1,5 @@
-import { copy, digest } from '@ia/session-system';
-import type { CausalReferences, Json, Limits, ReviewContract, Run, Session } from '@ia/session-system';
+import { copy, digest } from '@inventarch/session-system';
+import type { CausalReferences, Json, Limits, ReviewContract, Run, Session } from '@inventarch/session-system';
 import { check, validateShape } from './action.js';
 import type {
   ArtifactRequirement,

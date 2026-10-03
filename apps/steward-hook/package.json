@@ -1,5 +1,5 @@
 {
-  "name": "@ia/steward-hook",
+  "name": "@inventarch/steward-hook",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/main.js",
@@ -17,9 +17,9 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/runtime": "workspace:*",
-    "@ia/agent-composition-system": "workspace:*",
-    "@ia/db": "workspace:*"
+    "@inventarch/runtime": "workspace:*",
+    "@inventarch/agent-composition-system": "workspace:*",
+    "@inventarch/db": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

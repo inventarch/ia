@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join, parse, resolve } from 'node:path';
-import type { RevisionSource } from '@ia/graph';
+import type { RevisionSource } from '@inventarch/graph';
 import {
   canonicalDistributionJson,
   DISTRIBUTION_LIMITS,

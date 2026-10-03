@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import type { Cell, CompiledEdge, CompiledRecord, CompiledValue } from '@ia/language';
+import type { Cell, CompiledEdge, CompiledRecord, CompiledValue } from '@inventarch/language';
 import type { HostArtifacts } from '../src/index.js';
 
 // Compiled-record builders shared by the steward rendering cases (host-projection.test.ts, which the public export

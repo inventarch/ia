@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
-import { inspectPublication, preparePublication } from '@ia/runtime';
-import type { CandidateEnvelope } from '@ia/runtime';
-import { canonical, digest, SessionError } from '@ia/session-system';
-import type { Json } from '@ia/session-system';
-import { validateShape } from '@ia/agent-system';
-import type { OperationAdapter, OperationContext, OperationDefinition } from '@ia/agent-system';
+import { inspectPublication, preparePublication } from '@inventarch/runtime';
+import type { CandidateEnvelope } from '@inventarch/runtime';
+import { canonical, digest, SessionError } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
+import { validateShape } from '@inventarch/agent-system';
+import type { OperationAdapter, OperationContext, OperationDefinition } from '@inventarch/agent-system';
 import { candidateInputSchema } from './candidate.js';
 
 /** Explicit host installation only. The inspection catalog never gains a write implicitly. */

@@ -15,8 +15,8 @@ import {
 import type { CompletionItem, Diagnostic, Location, TextDocumentPositionParams } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
-import { EditorWorkspace, EditorError } from '@ia/runtime/editor';
-import type { CompletionCitation, EditorFinding, SourceLink, ViewStamp } from '@ia/runtime/editor';
+import { EditorWorkspace, EditorError } from '@inventarch/runtime/editor';
+import type { CompletionCitation, EditorFinding, SourceLink, ViewStamp } from '@inventarch/runtime/editor';
 import { METHOD, request } from './protocol.js';
 
 const connection = createConnection(process.stdin, process.stdout);

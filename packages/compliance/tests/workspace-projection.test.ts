@@ -1,15 +1,15 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildRegistry, compile, parse } from '@ia/language';
-import type { CompiledRecord, Location } from '@ia/language';
+import { buildRegistry, compile, parse } from '@inventarch/language';
+import type { CompiledRecord, Location } from '@inventarch/language';
 import { WORKSPACE_PROJECTION_MARKER, renderWorkspaceProjection } from '../src/index.js';
 import type { ProjectionMembership, WorkspaceProjectionInput } from '../src/index.js';
 import { id, list, listRequires, refusal, steward } from './host-projection-fixture.js';
 
 // `packages/compliance/fixtures/loop` is a small, self-contained workspace fixture (floor plus five
-// authored systems, each with a system.ia and a steward.ia). It is compiled directly with @ia/language,
-// the same way tests/native.ts compiles the real repository, so this test needs neither @ia/db nor a
+// authored systems, each with a system.ia and a steward.ia). It is compiled directly with @inventarch/language,
+// the same way tests/native.ts compiles the real repository, so this test needs neither @inventarch/db nor a
 // fully admitted corpus (renderWorkspaceProjection requires only systems and their stewards).
 const fixtureRoot = resolve(import.meta.dirname, '../fixtures/loop');
 function files(path: string): string[] {
@@ -70,8 +70,8 @@ const input: WorkspaceProjectionInput = {
   ],
   // Deliberately out of id order, to exercise renderWorkspaceProjection's own sort.
   distributions: [
-    { id: '@ia/zeta-distribution', version: '2.0.0' },
-    { id: '@ia/example-distribution', version: '1.2.3' },
+    { id: '@inventarch/zeta-distribution', version: '2.0.0' },
+    { id: '@inventarch/example-distribution', version: '1.2.3' },
   ],
   operations: ['records', 'report', 'validate'],
 };
@@ -102,7 +102,7 @@ describe('renderWorkspaceProjection', () => {
     expect(rules.text).toContain(`Source revision: ${revision}`);
     for (const name of nonFloorSystemNames) expect(rules.text).toMatch(new RegExp(`- ${name}: steward `));
     // Sorted by id ascending, regardless of the unsorted order given above.
-    expect(rules.text).toContain('- @ia/example-distribution 1.2.3\n- @ia/zeta-distribution 2.0.0');
+    expect(rules.text).toContain('- @inventarch/example-distribution 1.2.3\n- @inventarch/zeta-distribution 2.0.0');
     expect(rules.text).toContain('ia <operation> --root <workspace>');
     expect(rules.text).toContain('records, report, validate');
     expect(rules.text).toContain('node <cache>/scripts/ia.mjs verify');
@@ -144,7 +144,7 @@ describe('renderWorkspaceProjection', () => {
   it('projects a subagent file for a system whose membership root is an installed package, not only a local one', () => {
     // Host plugin distribution spec §10 (amends M5.3 §6.2): a steward follows its system into the workspace, authored
     // or installed. Relocate agent-system's system.ia and steward.ia under an installed-package-shaped root — the
-    // shape @ia/db's systemMember (packages/db/src/inputs.ts:176) recognizes for the distributions store — so the
+    // shape @inventarch/db's systemMember (packages/db/src/inputs.ts:176) recognizes for the distributions store — so the
     // membership and the record paths move together, unlike the workspace's other four systems which stay under
     // .ia/src/systems.
     const installedRoot = `.ia/distributions/store/${'a'.repeat(64)}/.ia/src/systems/agent-system`;

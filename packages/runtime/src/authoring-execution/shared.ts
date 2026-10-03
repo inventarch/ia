@@ -1,5 +1,5 @@
-import type { CompiledRecord, CompiledValue } from '@ia/language';
-import type { DraftPreview } from '@ia/db';
+import type { CompiledRecord, CompiledValue } from '@inventarch/language';
+import type { DraftPreview } from '@inventarch/db';
 import { portableDraftPath } from '../publication.js';
 import { ExecutionError } from './types.js';
 import type { Context, ExecCode } from './types.js';

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { canonicalRoot, stableSerialize } from '@ia/graph';
-import type { Node, RevisionSource } from '@ia/graph';
-import type { Report } from '@ia/compliance';
-import type { Location } from '@ia/language';
+import { canonicalRoot, stableSerialize } from '@inventarch/graph';
+import type { Node, RevisionSource } from '@inventarch/graph';
+import type { Report } from '@inventarch/compliance';
+import type { Location } from '@inventarch/language';
 import { DbError } from './errors.js';
 import { pathKey } from './inputs.js';
 import type { InputSnapshot } from './inputs.js';

@@ -34,14 +34,19 @@ import {
   unlinkSync,
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
-import { DISTRIBUTION_ENGINE_VERSION, INSTALL_PATHS } from '@ia/db/distribution';
-import type { DistributionLock } from '@ia/db/distribution';
-import { verifyArchive } from '@ia/distribution/archive';
-import { assertHomeOutsideWorkspace } from '@ia/distribution/host-home';
-import type { DeclineKind } from '@ia/distribution/decisions';
-import { applyInstallation, cacheArchive, planInstallation } from '@ia/distribution/install';
-import { resolveReleases } from '@ia/distribution/resolve';
-import { createFile, openWorkspaceSession, readInstalledState, resolveCatalog } from '@ia/distribution/services';
+import { DISTRIBUTION_ENGINE_VERSION, INSTALL_PATHS } from '@inventarch/db/distribution';
+import type { DistributionLock } from '@inventarch/db/distribution';
+import { verifyArchive } from '@inventarch/distribution/archive';
+import { assertHomeOutsideWorkspace } from '@inventarch/distribution/host-home';
+import type { DeclineKind } from '@inventarch/distribution/decisions';
+import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
+import { resolveReleases } from '@inventarch/distribution/resolve';
+import {
+  createFile,
+  openWorkspaceSession,
+  readInstalledState,
+  resolveCatalog,
+} from '@inventarch/distribution/services';
 import { parseArguments, UsageError } from './args.js';
 import { findCommand } from './commands.js';
 import type { Context, Result } from './consumer.js';
@@ -150,7 +155,7 @@ export interface Applied {
 }
 
 /**
- * Relative to the `@ia/cli` package root, as `assets/vocabulary.json` is (vocabulary.ts CATALOGUE_PATH). The base
+ * Relative to the `@inventarch/cli` package root, as `assets/vocabulary.json` is (vocabulary.ts CATALOGUE_PATH). The base
  * package's id is read from this pin and appears nowhere in this source: M5.1 §3.2 makes the pin the only authority.
  */
 export const PIN_PATH = 'assets/base.json';
@@ -170,7 +175,7 @@ const NAME_LIMIT = 64;
 /** M5.2 §4.3: `createFile`'s temporary name, `<target>.<randomUUID()>.tmp` (apps/distribution/src/files.ts:76). */
 export const LEFTOVER =
   /^(system\.ia|workspace\.ia|release\.json)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
-const DAMAGED = 'The ia installation is damaged; reinstall @ia/cli.';
+const DAMAGED = 'The ia installation is damaged; reinstall @inventarch/cli.';
 
 /** M5.1 §2.1: the three M4 paths plus the starter system folder and the release descriptor. */
 export function ownedPaths(name: string | null): readonly { readonly path: string; readonly purpose: string }[] {

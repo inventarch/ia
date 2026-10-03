@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 import semver from 'semver';
 import { DbError } from '../errors.js';
 import { parseStrictJson } from '../json.js';

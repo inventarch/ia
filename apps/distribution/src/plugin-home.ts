@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { caseFold } from '@ia/db';
+import { caseFold } from '@inventarch/db';
 import { fail, portable } from './files.js';
 import { assertIaHomeUsable, ensureIaHome } from './ia-home.js';
 

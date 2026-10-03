@@ -1,3 +1,3 @@
-# @ia/agent-system
+# @inventarch/agent-system
 
 See [the package contract](SPEC.md) and the exported TypeScript declarations.

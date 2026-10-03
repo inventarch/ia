@@ -22,7 +22,7 @@ import {
 } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { DEFAULT_REGISTRIES } from '@ia/distribution/registry';
+import { DEFAULT_REGISTRIES } from '@inventarch/distribution/registry';
 import {
   baseCompanionArchive,
   buildFixtureRegistry,

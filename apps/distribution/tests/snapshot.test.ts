@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { readInputs } from '@ia/db';
+import { readInputs } from '@inventarch/db';
 import { distributionSnapshot, packSnapshot } from '../src/snapshot.js';
 import { packDistribution } from '../src/pack.js';
 import { descriptor, snapshotFixture, sourceInput } from './snapshot-fixture.js';

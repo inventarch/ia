@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { canonical, copy, digest, terminal, unresolved, humanWaitRuns, SessionError } from '@ia/session-system';
-import type { Attempt, Json, Limits, Mutation, Owner, Question, Run, Session, Wait } from '@ia/session-system';
+import { canonical, copy, digest, terminal, unresolved, humanWaitRuns, SessionError } from '@inventarch/session-system';
+import type { Attempt, Json, Limits, Mutation, Owner, Question, Run, Session, Wait } from '@inventarch/session-system';
 import { check, EngineError, parseAction, validateShape } from './action.js';
 import { DEFAULT_MODEL_REQUEST_BYTES, MAX_MODEL_REQUEST_BYTES } from './types.js';
 import type {

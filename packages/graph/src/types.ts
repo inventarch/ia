@@ -9,7 +9,7 @@ import type {
   Predicate,
   Span,
   Term,
-} from '@ia/language';
+} from '@inventarch/language';
 import type { Dimensions } from './coordinate.js';
 import type { GraphDiagnostic } from './diagnostics.js';
 import type { RevisionInputs } from './revision.js';

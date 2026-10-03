@@ -17,43 +17,43 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/README.md",
-      "bytes": 110,
-      "sha256": "bf20df16ac49c69378544ee0ca6e4d1072cb71fd2b25b720b2b569bcf0efb2bc",
+      "bytes": 118,
+      "sha256": "e3b04d13b24ed797896a7da7ecf9703f8d437c02485d5c8b06549027bfa328df",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 318,
-      "sha256": "602d6f8b087476c30fd2ae486133b2f1c7251a80bc461945af759bb575dcec3c",
+      "bytes": 326,
+      "sha256": "e4af6444a7ceb058a81e19d2f62c092bc1d672eaf6419b677d979050e389bd58",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/agent-system/README.md",
-      "bytes": 98,
-      "sha256": "f2504209cad658be12bc810b15ed51a2cc2096a7b1cbb16223852a4e885c6652",
+      "bytes": 106,
+      "sha256": "40d7aa71972aa0c5e5195a319b3594c5f20fc45444817b30229f81bc2d5ab337",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/agent-system/SPEC.md",
-      "bytes": 306,
-      "sha256": "547764372b0e3c03d9d7f2721fe4c0cf8ef2df47e627a38a99eeb66370d9a970",
+      "bytes": 314,
+      "sha256": "0c738d6631c3775bba0b266fe73b794a9bada890e9a7deed5a3c921d5363ef4f",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/authoring-system/README.md",
-      "bytes": 102,
-      "sha256": "baaeec9a40e808745f18fd2f2ca7a63b2622bbb84a7d428e95756cb2852426a8",
+      "bytes": 110,
+      "sha256": "9dfd04fa2c98bdafeecd2de60ec947fb737b42e69501838a7cbb049afc71743d",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/authoring-system/SPEC.md",
-      "bytes": 310,
-      "sha256": "0c09f8d8422396e1eb6519dc3245e0500ea1bb56a4e28ed44e16c4eaf55a253c",
+      "bytes": 318,
+      "sha256": "6fdb9a58fd4e5ed5ccdc0784ad07e9db8efbf292f7232cdb6a939778c8be14ab",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -416,29 +416,29 @@
     },
     {
       "path": ".ia/src/systems/session-system/README.md",
-      "bytes": 100,
-      "sha256": "41fb90f2381636dad3e459459e11fc141cc070ab27ee411081120297ae114902",
+      "bytes": 108,
+      "sha256": "173d5299132a206a70de5c42f7d21eaba8562f88f5502fc90bf0f65b2f8328c5",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md",
-      "bytes": 308,
-      "sha256": "7423e71c6e7321836bf42b83299f89d440c6d7cd72147bbb00e197b977d2b286",
+      "bytes": 316,
+      "sha256": "41a58d883c753bf2a132366fe4fc4bcaeffac90001b1a55fbcca2c46c2f6d5a3",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/template-system/README.md",
-      "bytes": 101,
-      "sha256": "41800ef89967e736e660957a6440cf599888faa6e21f759b6659818d636f3af0",
+      "bytes": 109,
+      "sha256": "0d309feb7b3b0ebedce88f1c0b635c0f8992da9adb92b0275f112243e0a69f73",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/template-system/SPEC.md",
-      "bytes": 309,
-      "sha256": "963a4e5ced36d855617b5db7561fea757e2f175baff996be80981de839c93a29",
+      "bytes": 317,
+      "sha256": "bd0ed4be403f8e78792492a6b3e040c63c9824fb43e53c818cea86f5a8759f48",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

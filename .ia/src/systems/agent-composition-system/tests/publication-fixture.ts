@@ -1,12 +1,12 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { isEntry } from '@ia/runtime';
-import { Engine, manifestDigest } from '@ia/agent-system';
-import type { EngineHost, Grant, Manifest, ModelAction } from '@ia/agent-system';
-import { digest } from '@ia/session-system';
-import { sqliteStore } from '@ia/session-system/sqlite';
-import type { Json } from '@ia/session-system';
-import type { CandidateEnvelope, CandidateScope } from '@ia/runtime';
+import { isEntry } from '@inventarch/runtime';
+import { Engine, manifestDigest } from '@inventarch/agent-system';
+import type { EngineHost, Grant, Manifest, ModelAction } from '@inventarch/agent-system';
+import { digest } from '@inventarch/session-system';
+import { sqliteStore } from '@inventarch/session-system/sqlite';
+import type { Json } from '@inventarch/session-system';
+import type { CandidateEnvelope, CandidateScope } from '@inventarch/runtime';
 import { candidateValidation, managedPublication } from '../src/index.js';
 import type { Capture } from '../src/index.js';
 

@@ -1,6 +1,14 @@
-import { BAND_OF, PROVENANCES, buildRegistry, checkFormatPreservation, compile, format, parse } from '@ia/language';
-import type { Diagnostic, Location } from '@ia/language';
-import { stableSerialize } from '@ia/graph';
+import {
+  BAND_OF,
+  PROVENANCES,
+  buildRegistry,
+  checkFormatPreservation,
+  compile,
+  format,
+  parse,
+} from '@inventarch/language';
+import type { Diagnostic, Location } from '@inventarch/language';
+import { stableSerialize } from '@inventarch/graph';
 import { assess } from './types.js';
 import type { Assessment, Finding } from './types.js';
 

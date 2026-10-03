@@ -18,9 +18,9 @@
  * never carries one. A supplied directory that is not itself a workspace but lies inside one is neither offered
  * initialization nor described: the briefing names the enclosing workspace and the command that reports it.
  */
-import type { Decision } from '@ia/distribution/decisions';
-import type { Intent } from '@ia/distribution/hosts';
-import { hostRow, invocation, workspaceRow } from '@ia/distribution/hosts';
+import type { Decision } from '@inventarch/distribution/decisions';
+import type { Intent } from '@inventarch/distribution/hosts';
+import { hostRow, invocation, workspaceRow } from '@inventarch/distribution/hosts';
 import type { Channel } from './channel.js';
 import { describeChannel, updateInstruction } from './channel.js';
 import { quote } from './render.js';

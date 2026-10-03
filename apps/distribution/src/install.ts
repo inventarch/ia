@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { open, readInputs } from '@ia/db';
+import { open, readInputs } from '@inventarch/db';
 import {
   canonicalDistributionJson as json,
   decodeActivationPointer,
@@ -25,8 +25,8 @@ import {
   platformDebris,
   readExpandedBundle,
   readInstalledGeneration,
-} from '@ia/db/distribution';
-import type { ActivationPointer, DistributionLock } from '@ia/db/distribution';
+} from '@inventarch/db/distribution';
+import type { ActivationPointer, DistributionLock } from '@inventarch/db/distribution';
 import { verifyArchive, verifySelectedArchiveClosure } from './archive.js';
 import type { VerifiedArchive } from './archive.js';
 import {

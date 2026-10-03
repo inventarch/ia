@@ -6,7 +6,7 @@
 import { spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { CLAUDE_MARKETPLACE, CLAUDE_PLUGIN } from '@ia/compliance';
+import { CLAUDE_MARKETPLACE, CLAUDE_PLUGIN } from '@inventarch/compliance';
 import { Refusal } from './consumer.js';
 
 type Env = Readonly<Record<string, string | undefined>>;

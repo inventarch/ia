@@ -1,4 +1,4 @@
-import type { CompiledRecord, CompiledValue } from '@ia/language';
+import type { CompiledRecord, CompiledValue } from '@inventarch/language';
 import { cite, fieldOf, fieldsOf, fieldText, governanceClauses, says, text } from './record-text.js';
 
 /**

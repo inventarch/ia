@@ -115,9 +115,9 @@ it('leaves no source with the old spelling of the check, resolving process.argv[
   expect(found).toEqual([]);
 });
 
-it('keeps every copy of the check the same function as @ia/runtime/entry, whose cases then cover each', () => {
+it('keeps every copy of the check the same function as @inventarch/runtime/entry, whose cases then cover each', () => {
   // This directory repeats it without dependencies, and folio (in the private tree only) repeats it because it may import
-  // only @ia/language. Their bodies must be the runtime's; the JavaScript copy spells its one type assertion as a JSDoc cast.
+  // only @inventarch/language. Their bodies must be the runtime's; the JavaScript copy spells its one type assertion as a JSDoc cast.
   // tools/distribution/assemble-host.test.ts holds that file's copy to this directory's. This task hashes the whole tree.
   const body = (path: string): string | undefined =>
     /^export function isEntry\([^)]*\)[^{\n]*\{\n([\s\S]*?)\n\}/m.exec(

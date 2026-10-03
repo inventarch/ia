@@ -3,7 +3,7 @@ import { relative, resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { open } from '../src/index.js';
-import type { Node } from '@ia/graph';
+import type { Node } from '@inventarch/graph';
 import {
   DESCRIPTOR_LIMITS,
   activateTarget,
@@ -1507,7 +1507,7 @@ describe('emitted consumer fixture', () => {
     });
     expect(consumer.status, consumer.stderr).toBe(0);
     expect(JSON.parse(consumer.stdout)).toEqual({
-      consumer: '@ia/db/descriptors',
+      consumer: '@inventarch/db/descriptors',
       compiled: expected,
       refusals: {
         digest: 'DESC-DIGEST-MISMATCH',

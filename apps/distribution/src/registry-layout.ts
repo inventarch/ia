@@ -1,4 +1,11 @@
-import { DISTRIBUTION_LIMITS, decodeDistributionJson, packageId, range, text, version } from '@ia/db/distribution';
+import {
+  DISTRIBUTION_LIMITS,
+  decodeDistributionJson,
+  packageId,
+  range,
+  text,
+  version,
+} from '@inventarch/db/distribution';
 import { DistributionError, fail, object } from './files.js';
 
 /** Registry spec §3 and §5.1 bounds. */

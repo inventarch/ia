@@ -1,18 +1,18 @@
 /**
  * Host registration spec §6: a workspace's projection for one host, rendered from its own admitted records.
  *
- * docs/specs/host-registration/README.md §6.1 makes the renderer a pure function in `@ia/compliance`;
+ * docs/specs/host-registration/README.md §6.1 makes the renderer a pure function in `@inventarch/compliance`;
  * this module is the composition root that feeds it — the admitted records, their revision-bound membership, the
- * launcher modes from `@ia/distribution/host-modes`, the installed lock's packages and the nine legacy operations.
+ * launcher modes from `@inventarch/distribution/host-modes`, the installed lock's packages and the nine legacy operations.
  * One function feeds `ia host` and, in later tasks, `ia doctor`'s drift rows and the install/update/remove refresh,
  * so no two of them can disagree about what the projection should contain.
  */
-import { systemMember } from '@ia/db';
-import type { ProjectionMembership } from '@ia/compliance';
-import { renderWorkspaceProjection } from '@ia/compliance';
-import { HOST_MODES, launcherInvocation } from '@ia/distribution/host-modes';
-import { readInstalledState } from '@ia/distribution/services';
-import type { WorkspaceHost } from '@ia/distribution/hosts';
+import { systemMember } from '@inventarch/db';
+import type { ProjectionMembership } from '@inventarch/compliance';
+import { renderWorkspaceProjection } from '@inventarch/compliance';
+import { HOST_MODES, launcherInvocation } from '@inventarch/distribution/host-modes';
+import { readInstalledState } from '@inventarch/distribution/services';
+import type { WorkspaceHost } from '@inventarch/distribution/hosts';
 import { LEGACY_OPERATIONS } from './commands.js';
 import { Refusal } from './consumer.js';
 import type { Session } from './session.js';
@@ -50,7 +50,7 @@ export function checkAdmitted(root: string): void {
 
 /**
  * The same membership `tools/projections/generate.ts` builds for this repository: every admitted source path, with
- * the system folder `@ia/db` recognizes it under, authored or installed. The renderer refuses a membership that does
+ * the system folder `@inventarch/db` recognizes it under, authored or installed. The renderer refuses a membership that does
  * not cover every record, so nothing here filters.
  */
 function membershipOf(session: Session): ProjectionMembership {
@@ -65,7 +65,7 @@ function membershipOf(session: Session): ProjectionMembership {
   };
 }
 
-/** §6.1. Artifacts carry the `ia host` marker line; `@ia/distribution/projection` refuses any that does not. */
+/** §6.1. Artifacts carry the `ia host` marker line; `@inventarch/distribution/projection` refuses any that does not. */
 export function renderProjectionFor(root: string, host: HostName): readonly Artifact[] {
   const session = openSession(root);
   try {

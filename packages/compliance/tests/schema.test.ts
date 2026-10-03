@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildRegistry, compile, parse } from '@ia/language';
-import type { CompiledRecord, FieldType, Location } from '@ia/language';
+import { buildRegistry, compile, parse } from '@inventarch/language';
+import type { CompiledRecord, FieldType, Location } from '@inventarch/language';
 import { matchesForm, matchesType, validateSchema, verdict } from '../src/index.js';
 
 const location: Location = { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };

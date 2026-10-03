@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import { stableSerialize } from '@ia/graph';
-import { PROVENANCES } from '@ia/language';
-import { EditorSnapshot } from '@ia/db/editor';
-import type { ActivationPointer } from '@ia/db/distribution';
-import { copy, digest } from '@ia/session-system';
+import { stableSerialize } from '@inventarch/graph';
+import { PROVENANCES } from '@inventarch/language';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import type { ActivationPointer } from '@inventarch/db/distribution';
+import { copy, digest } from '@inventarch/session-system';
 import { adoptWorkspace, captureWorkspace, verifyCapture } from './corpus.js';
 import type { Capture } from './corpus.js';
 import { installedImplementationDigest } from './installed-catalog.js';

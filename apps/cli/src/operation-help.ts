@@ -3,8 +3,8 @@
  * from the machine protocol table that the MCP door and the reference page also read, so the three cannot drift. The
  * machine route stays uncoloured whatever the environment asks for (SPEC.md C10), so the capabilities are fixed here.
  */
-import { MACHINE_PROTOCOL } from '@ia/runtime';
-import type { ProtocolOperation } from '@ia/runtime';
+import { MACHINE_PROTOCOL } from '@inventarch/runtime';
+import type { ProtocolOperation } from '@inventarch/runtime';
 import type { Capabilities } from './render.js';
 import { atom, document, entry, fieldRows, MAX_WIDTH, sectionLabel, words } from './render.js';
 

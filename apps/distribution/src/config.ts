@@ -1,5 +1,5 @@
 import { parse } from 'smol-toml';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 import { fail } from './files.js';
 
 export function configBlock(id: string, content: string): string {

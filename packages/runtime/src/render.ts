@@ -1,7 +1,7 @@
-import { REQUIREMENT_KINDS } from '@ia/language';
-import type { CompiledChild, CompiledValue, Variant } from '@ia/language';
-import { conditionHolds } from '@ia/graph';
-import type { Coordinate, Node } from '@ia/graph';
+import { REQUIREMENT_KINDS } from '@inventarch/language';
+import type { CompiledChild, CompiledValue, Variant } from '@inventarch/language';
+import { conditionHolds } from '@inventarch/graph';
+import type { Coordinate, Node } from '@inventarch/graph';
 import type { Clause } from './types.js';
 
 export function valueText(value: CompiledValue): string {

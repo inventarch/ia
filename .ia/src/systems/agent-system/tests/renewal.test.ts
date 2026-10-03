@@ -1,5 +1,5 @@
-import { copy, digest, JournalStore, MemoryBackend, replay } from '@ia/session-system';
-import type { Mutation } from '@ia/session-system';
+import { copy, digest, JournalStore, MemoryBackend, replay } from '@inventarch/session-system';
+import type { Mutation } from '@inventarch/session-system';
 import { expect, it } from 'vitest';
 import { Engine, manifestDigest } from '../src/engine.js';
 import type { EngineHost, Grant, Manifest, ModelAction, Profile } from '../src/types.js';

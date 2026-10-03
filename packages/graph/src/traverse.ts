@@ -1,5 +1,5 @@
-import { VERB_PHRASES, verbOf } from '@ia/language';
-import type { Kind, Predicate } from '@ia/language';
+import { VERB_PHRASES, verbOf } from '@inventarch/language';
+import type { Kind, Predicate } from '@inventarch/language';
 import { validateCoordinate } from './coordinate.js';
 import type { Coordinate } from './coordinate.js';
 import { GraphUsageError } from './diagnostics.js';

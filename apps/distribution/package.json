@@ -1,5 +1,5 @@
 {
-  "name": "@ia/distribution",
+  "name": "@inventarch/distribution",
   "version": "1.0.0",
   "type": "module",
   "bin": {
@@ -22,15 +22,15 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/db": "workspace:*",
-    "@ia/graph": "workspace:*",
-    "@ia/language": "workspace:*",
-    "@ia/authoring-system": "workspace:*",
-    "@ia/agent-composition-system": "workspace:*",
-    "@ia/session-system": "workspace:*",
+    "@inventarch/db": "workspace:*",
+    "@inventarch/graph": "workspace:*",
+    "@inventarch/language": "workspace:*",
+    "@inventarch/authoring-system": "workspace:*",
+    "@inventarch/agent-composition-system": "workspace:*",
+    "@inventarch/session-system": "workspace:*",
     "smol-toml": "1.7.1",
     "jsonc-parser": "3.3.1",
-    "@ia/steward-hook": "workspace:*"
+    "@inventarch/steward-hook": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

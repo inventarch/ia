@@ -45,7 +45,7 @@ it('refuses a shard graph that omits a workspace build prerequisite', () => {
   );
 });
 const PROJECTS: readonly ProjectDescriptor[] = [
-  { id: 'packages/thing', name: '@ia/thing', config: 'vitest.config.mts' },
+  { id: 'packages/thing', name: '@inventarch/thing', config: 'vitest.config.mts' },
 ];
 const DISCOVERY: readonly ProjectDiscovery[] = [
   { project: 'packages/thing', files: ['tests/a.test.ts', 'tests/b.test.ts'] },

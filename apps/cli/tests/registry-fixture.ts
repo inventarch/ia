@@ -1,7 +1,7 @@
 /**
  * A minimal copy of apps/distribution/tests/registry-fixture.ts for the consumer CLI's registry tests. The CLI's test
  * typecheck keeps every file under apps/cli, so it cannot import the distribution package's test files; this copy
- * reaches the same mechanisms through the package's public `@ia/distribution/snapshot` subpath instead.
+ * reaches the same mechanisms through the package's public `@inventarch/distribution/snapshot` subpath instead.
  *
  * Every archive is the admitted foundation distribution packed under the spec's id and version, so the registry holds
  * real releases that install through native admission. Nothing here reaches a network: `serveDirectory` answers a
@@ -12,14 +12,14 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { expect, vi } from 'vitest';
-import { readInputs } from '@ia/db';
-import { canonicalDistributionJson, DISTRIBUTION_ENGINE_VERSION, sha256 } from '@ia/db/distribution';
-import type { BundleManifest } from '@ia/db/distribution';
-import { buildArchive, verifyArchive } from '@ia/distribution/archive';
-import { registryAdd } from '@ia/distribution/registry-build';
-import { resolveReleases } from '@ia/distribution/resolve';
-import { distributionSnapshot, packSnapshot } from '@ia/distribution/snapshot';
-import type { DistributionSnapshot } from '@ia/distribution/snapshot';
+import { readInputs } from '@inventarch/db';
+import { canonicalDistributionJson, DISTRIBUTION_ENGINE_VERSION, sha256 } from '@inventarch/db/distribution';
+import type { BundleManifest } from '@inventarch/db/distribution';
+import { buildArchive, verifyArchive } from '@inventarch/distribution/archive';
+import { registryAdd } from '@inventarch/distribution/registry-build';
+import { resolveReleases } from '@inventarch/distribution/resolve';
+import { distributionSnapshot, packSnapshot } from '@inventarch/distribution/snapshot';
+import type { DistributionSnapshot } from '@inventarch/distribution/snapshot';
 import { repository } from './workspace-fixture.js';
 
 /** The descriptor apps/distribution/tests/snapshot-fixture.ts packs; each release overrides its id, version and dependencies. */

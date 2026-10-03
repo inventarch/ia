@@ -1,14 +1,14 @@
 import { createHash } from 'node:crypto';
-import { readInputs } from '@ia/db';
-import type { InputOptions, InputSnapshot } from '@ia/db';
-import type { AdoptedSource } from '@ia/db';
-import { decodeActivationPointer } from '@ia/db/distribution';
-import type { ActivationPointer } from '@ia/db/distribution';
-import { stableSerialize } from '@ia/graph';
-import { EditorSnapshot } from '@ia/db/editor';
-import { canonical, digest, SessionError } from '@ia/session-system';
-import type { Json } from '@ia/session-system';
-import type { Grant, OperationAdapter } from '@ia/agent-system';
+import { readInputs } from '@inventarch/db';
+import type { InputOptions, InputSnapshot } from '@inventarch/db';
+import type { AdoptedSource } from '@inventarch/db';
+import { decodeActivationPointer } from '@inventarch/db/distribution';
+import type { ActivationPointer } from '@inventarch/db/distribution';
+import { stableSerialize } from '@inventarch/graph';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { canonical, digest, SessionError } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
+import type { Grant, OperationAdapter } from '@inventarch/agent-system';
 
 export interface Capture {
   version: 1;

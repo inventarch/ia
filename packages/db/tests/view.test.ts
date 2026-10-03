@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import type { Location } from '@ia/language';
+import type { Location } from '@inventarch/language';
 import { open, readInputs } from '../src/index.js';
 import { viewBuilder } from '../src/view.js';
 

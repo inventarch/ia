@@ -1,5 +1,5 @@
 // Installed consumer for the OS09 descriptor producer. It imports only the published
-// `@ia/db/descriptors` export (no source aliases or development condition) and compiles the
+// `@inventarch/db/descriptors` export (no source aliases or development condition) and compiles the
 // emitted specimens in the directory given as its argument. See ../../src/descriptors/SPEC.md.
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -8,7 +8,7 @@ import {
   compileDomainModel,
   compileStorageBinding,
   createDescriptorRegistry,
-} from '@ia/db/descriptors';
+} from '@inventarch/db/descriptors';
 
 const directory = resolve(process.argv[2] ?? import.meta.dirname);
 const read = (path) => readFileSync(resolve(directory, path), 'utf8');
@@ -80,7 +80,7 @@ const refusals = {
 const expected = JSON.parse(read('expected.json'));
 for (const [key, digest] of Object.entries(expected))
   if (compiled[key] !== digest) throw new Error(`Installed compilation of ${key} differs from the emitted fixture`);
-console.log(JSON.stringify({ consumer: '@ia/db/descriptors', compiled, refusals }));
+console.log(JSON.stringify({ consumer: '@inventarch/db/descriptors', compiled, refusals }));
 
 /** Independent canonical form (sorted keys, no whitespace) used to rebind the edited specimen. */
 function canonical(item) {

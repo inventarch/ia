@@ -135,7 +135,7 @@ export function discoverProjects(root: string): readonly ProjectDescriptor[] {
   }
   const tools = 'vitest.tools.config.mts';
   if (!existsSync(resolve(root, tools))) throw new Error(`Missing root Vitest configuration ${tools}`);
-  projects.push({ id: '.', name: '@ia/workspace', config: tools });
+  projects.push({ id: '.', name: '@inventarch/workspace', config: tools });
   return projects;
 }
 
@@ -481,7 +481,7 @@ function runtimeSpecifiers(source: ts.SourceFile): readonly string[] {
   return specifiers;
 }
 
-/** Every `@ia/*` package a set of entry files reaches at run time through relative imports. */
+/** Every `@inventarch/*` package a set of entry files reaches at run time through relative imports. */
 function reachedPackages(entries: readonly string[]): ReadonlySet<string> {
   const packages = new Set<string>(),
     seen = new Set<string>(),
@@ -491,7 +491,7 @@ function reachedPackages(entries: readonly string[]): ReadonlySet<string> {
     if (seen.has(file) || !existsSync(file)) continue;
     seen.add(file);
     for (const specifier of runtimeSpecifiers(parse(file))) {
-      if (specifier.startsWith('@ia/')) {
+      if (specifier.startsWith('@inventarch/')) {
         packages.add(specifier.split('/').slice(0, 2).join('/'));
         continue;
       }

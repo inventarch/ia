@@ -1,5 +1,5 @@
 {
-  "name": "@ia/session-system",
+  "name": "@inventarch/session-system",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,6 +1,6 @@
-import type { Diagnostic } from '@ia/language';
-import type { Coordinate, Graph, Shadow } from '@ia/graph';
-import { stableSerialize } from '@ia/graph';
+import type { Diagnostic } from '@inventarch/language';
+import type { Coordinate, Graph, Shadow } from '@inventarch/graph';
+import { stableSerialize } from '@inventarch/graph';
 import { validateAdoption } from './adoption.js';
 import type { AdoptionEvaluators } from './adoption.js';
 import { assertCatalog } from './catalog.js';

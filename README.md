@@ -19,7 +19,7 @@ node apps/cli/dist/main.js vocabulary plan --schema
 
 The first `init` command previews the files and bundled language dependency. The second creates the workspace. A new target must have an existing parent directory. The bundled base makes initialization independent of a registry connection. Author records under the generated `.ia/src/systems/ia-demo/` directory; the starter directly requires the agent, work and workspace systems. The [work example](examples/public-language/records/work.ia) can be added to its `records/` directory and checked with `validate`.
 
-For a published 1.0.0 release, the CLI package is `@ia/cli` (`npm install --global @ia/cli@1.0.0`); use `ia` in place of `node apps/cli/dist/main.js`. Registry publication is separate from building this checkout.
+For a published 1.0.0 release, the CLI package is `@inventarch/cli` (`npm install --global @inventarch/cli@1.0.0`); use `ia` in place of `node apps/cli/dist/main.js`. Registry publication is separate from building this checkout.
 
 ## Commands and integrations
 

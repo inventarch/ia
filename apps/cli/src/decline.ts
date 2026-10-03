@@ -5,9 +5,15 @@
  */
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { Decision, DeclineKind } from '@ia/distribution/decisions';
-import { DECISIONS, forgetDecision, readDecisions, recordDecision, repositoryKey } from '@ia/distribution/decisions';
-import { resolveIaHome } from '@ia/distribution/ia-home';
+import type { Decision, DeclineKind } from '@inventarch/distribution/decisions';
+import {
+  DECISIONS,
+  forgetDecision,
+  readDecisions,
+  recordDecision,
+  repositoryKey,
+} from '@inventarch/distribution/decisions';
+import { resolveIaHome } from '@inventarch/distribution/ia-home';
 import type { Context, Result } from './consumer.js';
 import { Refusal, refusalOf } from './consumer.js';
 import { homeSrcRemedy } from './home-remedy.js';

@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { digest, memoryStore } from '@ia/session-system';
-import type { Session } from '@ia/session-system';
+import { digest, memoryStore } from '@inventarch/session-system';
+import type { Session } from '@inventarch/session-system';
 import { Engine, manifestDigest } from '../src/index.js';
 import type {
   EngineHost,

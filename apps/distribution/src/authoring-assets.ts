@@ -1,5 +1,5 @@
-import { KERNEL_SOURCES, parse } from '@ia/language';
-import { EditorSnapshot } from '@ia/db/editor';
+import { KERNEL_SOURCES, parse } from '@inventarch/language';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   decodeDistributionJson,
   deriveGenerationInputs,
@@ -8,16 +8,20 @@ import {
   installationWorkspace,
   type BundleManifest,
   type DistributionLock,
-} from '@ia/db/distribution';
-import { verifyCapture, type Capture } from '@ia/agent-composition-system';
+} from '@inventarch/db/distribution';
+import { verifyCapture, type Capture } from '@inventarch/agent-composition-system';
 import {
   AUTHORING_MANIFEST_PATH,
   captureAuthoringManifestBytes,
   type AuthoringManifestByteSource,
-} from '@ia/agent-composition-system/authoring-manifest';
-import { resolveAuthoring } from '@ia/agent-composition-system/authoring';
-import { RESOURCE_LIMITS, resourceOccurrences, nativeResourcePath } from '@ia/agent-composition-system/resources';
-import { digest } from '@ia/session-system';
+} from '@inventarch/agent-composition-system/authoring-manifest';
+import { resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
+import {
+  RESOURCE_LIMITS,
+  resourceOccurrences,
+  nativeResourcePath,
+} from '@inventarch/agent-composition-system/resources';
+import { digest } from '@inventarch/session-system';
 import { fail, utf8 } from './files.js';
 
 /** Archive evidence is entirely input bytes plus the installed language's explicit immutable floor. */

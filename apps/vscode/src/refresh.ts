@@ -1,4 +1,4 @@
-import type { EditorComposition, EditorView, ViewStamp } from '@ia/runtime/editor';
+import type { EditorComposition, EditorView, ViewStamp } from '@inventarch/runtime/editor';
 
 /** The editor server maps a lost view (EditorError 'stale') onto this response code. */
 export const STALE_VIEW = -32801;

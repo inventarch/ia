@@ -1,6 +1,6 @@
-import type { Band, EdgeReference, Kind, Span, Term } from '@ia/language';
-import type { Edge } from '@ia/graph';
-import type { Scope } from '@ia/db';
+import type { Band, EdgeReference, Kind, Span, Term } from '@inventarch/language';
+import type { Edge } from '@inventarch/graph';
+import type { Scope } from '@inventarch/db';
 import type { CoordinateOptions, PreparedCoordinate } from './coordinate.js';
 
 export interface ContextRequest {

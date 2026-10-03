@@ -2,7 +2,7 @@
 
 Marketplace release terms admit 1–16,384 characters so the complete Apache-2.0 text can be retained; the codec refuses empty/oversized terms. Consumers pinned to the earlier 8,192-character bound require a refreshed artifact. Existing transport bounds remain in force.
 
-`@ia/service-contracts` owns browser-safe structural service wire contracts under the Apache-2.0 license. Zod is its only runtime dependency. Importing any export initializes no filesystem, network, identity, native runtime, provider or storage. Installed consumers use emitted JavaScript and declarations; development source conditions are removed during packing.
+`@inventarch/service-contracts` owns browser-safe structural service wire contracts under the Apache-2.0 license. Zod is its only runtime dependency. Importing any export initializes no filesystem, network, identity, native runtime, provider or storage. Installed consumers use emitted JavaScript and declarations; development source conditions are removed during packing.
 
 | Export | Contract owner |
 |---|---|

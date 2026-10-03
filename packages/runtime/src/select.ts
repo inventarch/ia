@@ -1,7 +1,7 @@
-import { CONDITION_AXES } from '@ia/language';
-import type { ConditionAxis } from '@ia/language';
-import { selectors } from '@ia/graph';
-import type { ReadHandle, Scope } from '@ia/db';
+import { CONDITION_AXES } from '@inventarch/language';
+import type { ConditionAxis } from '@inventarch/language';
+import { selectors } from '@inventarch/graph';
+import type { ReadHandle, Scope } from '@inventarch/db';
 import { collect } from './collect.js';
 import { RuntimeError } from './errors.js';
 import { freeze } from './types.js';

@@ -1,5 +1,5 @@
-import { readInputs } from '@ia/db';
-import { decodeReleaseDescriptor, DISTRIBUTION_LIMITS } from '@ia/db/distribution';
+import { readInputs } from '@inventarch/db';
+import { decodeReleaseDescriptor, DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
 import { bytes, fail, workspace } from './files.js';
 import { distributionSnapshot, packSnapshot, type PackedDistribution } from './snapshot.js';
 

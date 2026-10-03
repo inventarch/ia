@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@ia/language';
+import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@inventarch/language';
 import { canonicalRoot, dimensionsOf, reaches, revisionOf, stableSerialize, validateCoordinate } from '../src/index.js';
 import { snapshot } from '../src/immutable.js';
 import { inputs, instance, records, registry } from './native.js';

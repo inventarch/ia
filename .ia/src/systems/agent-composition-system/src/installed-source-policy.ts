@@ -7,15 +7,15 @@ import {
   DISTRIBUTION_LIMITS,
   generationSources,
   satisfies,
-} from '@ia/db/distribution';
-import { copy } from '@ia/session-system';
+} from '@inventarch/db/distribution';
+import { copy } from '@inventarch/session-system';
 import type {
   ActivationPointer,
   BundleManifest,
   DistributionLock,
   ExpandedBundle,
   GenerationInputs,
-} from '@ia/db/distribution';
+} from '@inventarch/db/distribution';
 import type { Capture } from './corpus.js';
 
 export interface SourceInstallation {

@@ -1,4 +1,4 @@
-import { isPhase, isPrimitive } from '@ia/language';
+import { isPhase, isPrimitive } from '@inventarch/language';
 import {
   decodeJson,
   hash,

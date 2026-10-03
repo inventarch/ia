@@ -241,7 +241,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       # The whole root build: only it writes the bundled base archive and the host payload (language-base:generate,
-      # host-payload:generate). A filtered `@ia/cli...` build leaves `init` without apps/cli/assets/base.json.
+      # host-payload:generate). A filtered `@inventarch/cli...` build leaves `init` without apps/cli/assets/base.json.
       - name: Build the CLI and its bundled archives
         run: pnpm build
       # The runner image's formulae, not a `brew update` in the middle of the job, and nothing else is cleaned up.

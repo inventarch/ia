@@ -1,6 +1,6 @@
 /** Internal shape, digest and redaction helpers shared by the catalog, obligation and evidence modules (C25-C28). Not exported from the package. */
 import { createHash } from 'node:crypto';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 
 export const record = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);

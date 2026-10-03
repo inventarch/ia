@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@ia/language';
-import { load, stableSerialize } from '@ia/graph';
-import type { Node } from '@ia/graph';
+import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@inventarch/language';
+import { load, stableSerialize } from '@inventarch/graph';
+import type { Node } from '@inventarch/graph';
 import {
   CHECK_IDS,
   EVALUATION_PROFILES,

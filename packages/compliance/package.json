@@ -1,5 +1,5 @@
 {
-  "name": "@ia/compliance",
+  "name": "@inventarch/compliance",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -109,8 +109,8 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/language": "workspace:*",
-    "@ia/graph": "workspace:*"
+    "@inventarch/language": "workspace:*",
+    "@inventarch/graph": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

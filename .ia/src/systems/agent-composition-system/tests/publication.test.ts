@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SessionStore } from '@ia/session-system';
+import type { SessionStore } from '@inventarch/session-system';
 import { captureWorkspace, managedPublication } from '../src/index.js';
 import { destination, fixture } from './publication-fixture.js';
 import type { Boundary, Configuration } from './publication-fixture.js';

@@ -1,5 +1,5 @@
-import type { CompiledRecord } from '@ia/language';
-import { systemMember } from '@ia/db';
+import type { CompiledRecord } from '@inventarch/language';
+import { systemMember } from '@inventarch/db';
 
 export const HOOK_CODES = [
   'IA-HOOK-INPUT-INVALID',

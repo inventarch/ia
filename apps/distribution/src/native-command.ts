@@ -7,8 +7,8 @@ import {
   DISTRIBUTION_LIMITS,
   INSTALL_PATHS,
   readInstalledGeneration,
-} from '@ia/db/distribution';
-import type { DistributionLock } from '@ia/db/distribution';
+} from '@inventarch/db/distribution';
+import type { DistributionLock } from '@inventarch/db/distribution';
 import {
   readCachedArchiveSelection,
   cacheArchive,

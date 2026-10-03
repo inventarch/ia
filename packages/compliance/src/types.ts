@@ -1,5 +1,5 @@
-import type { Diagnostic } from '@ia/language';
-import type { GraphCode } from '@ia/graph';
+import type { Diagnostic } from '@inventarch/language';
+import type { GraphCode } from '@inventarch/graph';
 
 export const COMP_CODES = [
   'IA-COMP-SCHEMA-MISSING',

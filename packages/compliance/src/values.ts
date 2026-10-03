@@ -1,5 +1,5 @@
-import { isId, isKind } from '@ia/language';
-import type { CompiledValue, FieldType, TextForm, ValueType } from '@ia/language';
+import { isId, isKind } from '@inventarch/language';
+import type { CompiledValue, FieldType, TextForm, ValueType } from '@inventarch/language';
 
 /** Whether a schema field type is `list of T`: the one family a key may carry more than once (D3). */
 export function isListType(type: FieldType): boolean {

@@ -1,4 +1,4 @@
-import type { CompiledRecord } from '@ia/language';
+import type { CompiledRecord } from '@inventarch/language';
 import { assess } from './types.js';
 import type { Assessment } from './types.js';
 import { cite, text } from './record-text.js';

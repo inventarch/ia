@@ -1,4 +1,4 @@
-// Host registration spec §3.2 (amended): the payload @ia/cli embeds is generated from the workspace's built packages.
+// Host registration spec §3.2 (amended): the payload @inventarch/cli embeds is generated from the workspace's built packages.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -36,7 +36,7 @@ function extract(archive: Buffer): string {
 /** The reviewed legacy private profile is a compatibility fixture, not a requirement on the public CLI. */
 function privateManifest(): Record<string, any> {
   return {
-    name: '@ia/cli',
+    name: '@inventarch/cli',
     version: '0.1.0',
     main: './dist/main.js',
     bin: { ia: './dist/main.js' },
@@ -48,9 +48,9 @@ function privateManifest(): Record<string, any> {
       },
     },
     dependencies: {
-      '@ia/runtime': 'workspace:*',
-      '@ia/architecture-system': 'workspace:*',
-      '@ia/code-quality-system': 'workspace:*',
+      '@inventarch/runtime': 'workspace:*',
+      '@inventarch/architecture-system': 'workspace:*',
+      '@inventarch/code-quality-system': 'workspace:*',
     },
     peerDependencies: { '@inventarch/monorepo-kit-host': '0.1.0' },
     peerDependenciesMeta: { '@inventarch/monorepo-kit-host': { optional: true } },
@@ -68,25 +68,32 @@ it('produces a deterministic v2 payload that verifies after extraction', async (
 it('excludes the private service dependencies and the payload itself', async () => {
   const { files, packages } = await collectPayload(repository);
   expect(packages.map((p: { name: string }) => p.name)).toEqual(
-    expect.arrayContaining(['@ia/cli', '@ia/distribution', '@ia/mcp-door', '@ia/steward-hook']),
+    expect.arrayContaining([
+      '@inventarch/cli',
+      '@inventarch/distribution',
+      '@inventarch/mcp-door',
+      '@inventarch/steward-hook',
+    ]),
   );
   expect(
     packages.some(
-      (p: { name: string }) => p.name === '@modelcontextprotocol/client' || p.name === '@ia/service-contracts',
+      (p: { name: string }) => p.name === '@modelcontextprotocol/client' || p.name === '@inventarch/service-contracts',
     ),
   ).toBe(false);
-  expect([...files.keys()].some((path) => /@ia\/cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
+  expect([...files.keys()].some((path) => /@inventarch\/cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
   expect(
     packages.some((p) =>
-      ['@ia/architecture-system', '@ia/code-quality-system', '@inventarch/monorepo-kit-host'].includes(p.name),
+      ['@inventarch/architecture-system', '@inventarch/code-quality-system', '@inventarch/monorepo-kit-host'].includes(
+        p.name,
+      ),
     ),
   ).toBe(false);
   expect([...files.keys()].some((path) => /inventarch-development|development-native/.test(path))).toBe(false);
   expect(packages.length).toBeLessThanOrEqual(64);
 });
-it('bundles @ia manifests without the development condition, pinned by the bundled bytes', async () => {
+it('bundles @inventarch manifests without the development condition, pinned by the bundled bytes', async () => {
   const { files, packages } = await collectPayload(repository);
-  for (const pkg of packages.filter((p) => p.name.startsWith('@ia/'))) {
+  for (const pkg of packages.filter((p) => p.name.startsWith('@inventarch/'))) {
     const bytes = files.get(`runtime/node_modules/${pkg.name}/package.json`) as Buffer;
     expect(bytes.toString('utf8')).not.toContain('"development"');
     expect(pkg.manifestDigest).toBe(createHash('sha256').update(bytes).digest('hex'));
@@ -128,20 +135,20 @@ it('projects only the reviewed private development capability without mutating i
   expect(projected['devDependencies']).not.toHaveProperty('@inventarch/monorepo-kit-host');
   expect(projected['devDependencies']).toEqual({ typescript: 'catalog:' });
   expect(projected['bin']).toEqual(original['bin']);
-  expect(projected['dependencies']).not.toHaveProperty('@ia/architecture-system');
-  expect(projected['dependencies']).not.toHaveProperty('@ia/code-quality-system');
+  expect(projected['dependencies']).not.toHaveProperty('@inventarch/architecture-system');
+  expect(projected['dependencies']).not.toHaveProperty('@inventarch/code-quality-system');
 });
 it('projects the private CLI name (tools/release/private.mjs renames apps/cli) the same way', () => {
   const original: ReturnType<typeof privateManifest> = {
     ...privateManifest(),
-    name: '@ia/inventarch-cli',
+    name: '@inventarch/inventarch-cli',
   };
   const projected = staticCliManifest(original);
   expect(projected['exports']).not.toHaveProperty('./development');
   expect(projected).not.toHaveProperty('peerDependencies');
   expect(projected).not.toHaveProperty('peerDependenciesMeta');
-  expect(projected['dependencies']).not.toHaveProperty('@ia/architecture-system');
-  expect(projected['dependencies']).not.toHaveProperty('@ia/code-quality-system');
+  expect(projected['dependencies']).not.toHaveProperty('@inventarch/architecture-system');
+  expect(projected['dependencies']).not.toHaveProperty('@inventarch/code-quality-system');
   const unreviewed = structuredClone(original);
   unreviewed['peerDependencies'].other = '1';
   expect(() => staticCliManifest(unreviewed)).toThrow(/Unreviewed/);
@@ -155,7 +162,10 @@ it("excludes the private CLI's own embedded payload, so a repeat write does not 
   for (const entry of ['dist', 'assets', 'LICENSE', 'README.md', 'SPEC.md'])
     cpSync(join(repository, 'apps/cli', entry), join(cli, entry), { recursive: true });
   const manifest = JSON.parse(readFileSync(join(repository, 'apps/cli/package.json'), 'utf8'));
-  writeFileSync(join(cli, 'package.json'), JSON.stringify({ ...manifest, name: '@ia/inventarch-cli' }, null, 2) + '\n');
+  writeFileSync(
+    join(cli, 'package.json'),
+    JSON.stringify({ ...manifest, name: '@inventarch/inventarch-cli' }, null, 2) + '\n',
+  );
   // Directory junctions need no privilege on Windows; the payload walk resolves installed packages through them.
   symlinkSync(join(repository, 'apps/cli/node_modules'), join(cli, 'node_modules'), 'junction');
   for (const app of ['distribution', 'mcp-door', 'steward-hook'])
@@ -164,7 +174,9 @@ it("excludes the private CLI's own embedded payload, so a repeat write does not 
     second = await generateHostPayload({ repository: candidate, write: true });
   expect(second.pin).toEqual(first.pin);
   const { files } = await collectPayload(candidate);
-  expect([...files.keys()].some((path) => /@ia\/inventarch-cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
+  expect([...files.keys()].some((path) => /@inventarch\/inventarch-cli\/assets\/host(\/|\.json$)/.test(path))).toBe(
+    false,
+  );
 });
 it('refuses unreviewed manifest peers, entries, dependency coupling and retained aliases', () => {
   const original = privateManifest();
@@ -179,7 +191,7 @@ it('refuses unreviewed manifest peers, entries, dependency coupling and retained
       m['exports']['./development'].extra = './dist/other.js';
     },
     (m: typeof original) => {
-      m['dependencies']['@ia/architecture-system'] = '1.0.0';
+      m['dependencies']['@inventarch/architecture-system'] = '1.0.0';
     },
     (m: typeof original) => {
       m['optionalDependencies'] = { other: '1' };
@@ -204,11 +216,11 @@ it('refuses unreviewed manifest peers, entries, dependency coupling and retained
 });
 it('refuses retained executable coupling to omitted owners', () => {
   for (const code of [
-    "import '@ia/architecture-system'",
-    "require('@ia/code-quality-system')",
+    "import '@inventarch/architecture-system'",
+    "require('@inventarch/code-quality-system')",
     "import('./inventarch-development/index.js')",
     "import '@inventarch/monorepo-kit-host'",
   ])
     expect(() => assertStaticPayloadCode('dist/retained.js', Buffer.from(code))).toThrow(/omitted/);
-  expect(() => assertStaticPayloadCode('dist/retained.js', Buffer.from("import '@ia/runtime'"))).not.toThrow();
+  expect(() => assertStaticPayloadCode('dist/retained.js', Buffer.from("import '@inventarch/runtime'"))).not.toThrow();
 });

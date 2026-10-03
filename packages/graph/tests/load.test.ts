@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@ia/language';
-import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@ia/language';
+import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
+import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@inventarch/language';
 import { load, resolve, serialize, stableSerialize } from '../src/index.js';
 import type { Graph, LoadOptions, RevisionSource } from '../src/index.js';
 import { inputs, instance, loop, records, registry } from './native.js';

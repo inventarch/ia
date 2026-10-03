@@ -1,6 +1,6 @@
 export { poolLookup, validateSchema } from './schema.js';
 export type { ReferenceLookup } from './schema.js';
-export { fieldTypeText } from '@ia/language';
+export { fieldTypeText } from '@inventarch/language';
 export { matchesForm, matchesType } from './values.js';
 export { COMP_CODES, EVIDENCE_CODES, verdict } from './types.js';
 export type { Assessment, CompCode, EvidenceCode, Finding, Verdict } from './types.js';

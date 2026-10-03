@@ -1,5 +1,5 @@
-import type { OperationDefinition } from '@ia/agent-system';
-import type { Json } from '@ia/session-system';
+import type { OperationDefinition } from '@inventarch/agent-system';
+import type { Json } from '@inventarch/session-system';
 import { decodeJson, frozen, hash, integer, list, metadataDigest, object, text } from './resource-format.js';
 export { metadataDigest as adapterMetadataDigest } from './resource-format.js';
 

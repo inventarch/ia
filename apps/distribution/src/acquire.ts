@@ -1,4 +1,4 @@
-import { DISTRIBUTION_LIMITS } from '@ia/db/distribution';
+import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
 import { fetchBounded } from './bounded-fetch.js';
 import { bytes, fail, workspace } from './files.js';
 import { cacheArchive } from './install.js';

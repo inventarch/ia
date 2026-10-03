@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { within } from '@ia/db';
+import { within } from '@inventarch/db';
 import { DistributionError, fail, sha256 } from './files.js';
 import { verifyHostCache } from './host.js';
 import { ensureIaHome } from './ia-home.js';

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { expect, vi } from 'vitest';
-import { readInputs } from '@ia/db';
+import { readInputs } from '@inventarch/db';
 import { distributionSnapshot, packSnapshot } from '../src/snapshot.js';
 import type { DistributionSnapshot } from '../src/snapshot.js';
 import { descriptor, repository, sourceInput } from './snapshot-fixture.js';

@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { readInputs } from '@ia/db';
-import { sha256 } from '@ia/db/distribution';
-import { distributionSnapshot, packSnapshot } from '@ia/distribution/snapshot';
-import { resolveReleases } from '@ia/distribution/resolve';
+import { readInputs } from '@inventarch/db';
+import { sha256 } from '@inventarch/db/distribution';
+import { distributionSnapshot, packSnapshot } from '@inventarch/distribution/snapshot';
+import { resolveReleases } from '@inventarch/distribution/resolve';
 
 export function mintingFixture() {
   const root = resolve(import.meta.dirname, '../../..'),

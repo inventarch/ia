@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import type { EdgeReference, Phase } from '@ia/language';
-import { canonicalRoot, reaches, resolve, search, stableSerialize, traverse } from '@ia/graph';
-import type { FieldReference, Node, Resolution, SearchHit, Traversal, TraverseOptions } from '@ia/graph';
-import type { Report } from '@ia/compliance';
+import type { EdgeReference, Phase } from '@inventarch/language';
+import { canonicalRoot, reaches, resolve, search, stableSerialize, traverse } from '@inventarch/graph';
+import type { FieldReference, Node, Resolution, SearchHit, Traversal, TraverseOptions } from '@inventarch/graph';
+import type { Report } from '@inventarch/compliance';
 import { publishCache } from './cache.js';
 import type { CacheStatus } from './cache.js';
 import { DbError } from './errors.js';
@@ -92,12 +92,12 @@ export function stableState(read: () => InputSnapshot, cache: boolean): State {
 /** Shared read engine for disk handles and cache-free editor snapshots. */
 export class Reader {
   readonly root: string;
-  #locations: Readonly<Record<string, import('@ia/language').Location>>;
+  #locations: Readonly<Record<string, import('@inventarch/language').Location>>;
   #state: State;
   #closed = false;
   #generation = 0;
   #scopes = new Map<string, BoundScope>();
-  constructor(state: State, locations: Readonly<Record<string, import('@ia/language').Location>> = {}) {
+  constructor(state: State, locations: Readonly<Record<string, import('@inventarch/language').Location>> = {}) {
     this.#locations = locations;
     this.#state = state;
     this.root = state.inputs.root;

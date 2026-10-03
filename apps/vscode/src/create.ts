@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ProposalValidation } from '@ia/runtime/editor';
+import type { ProposalValidation } from '@inventarch/runtime/editor';
 
 export interface CreationOutcome {
   readonly created: readonly string[];

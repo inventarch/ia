@@ -1,4 +1,4 @@
-import type { BundleMetadata, Dependency } from '@ia/db/distribution';
+import type { BundleMetadata, Dependency } from '@inventarch/db/distribution';
 import type { RegistryRelease } from './registry-layout.js';
 import { fail, json } from './files.js';
 

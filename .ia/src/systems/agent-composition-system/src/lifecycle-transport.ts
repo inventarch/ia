@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
 import { LifecycleError, lifecycleProfile } from './lifecycle-profile.js';
 

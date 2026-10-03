@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { SUPPORTED_VERSIONS } from '@ia/language';
+import { SUPPORTED_VERSIONS } from '@inventarch/language';
 import { readHomeFile, writeHomeFile } from './ia-home.js';
 
 /** Host plugin distribution spec §11 and Amendment item 4. Public layer only: `account` is written by the private layer and kept as found; `nudgedOn` lives in the hook's plugin data, never here. */

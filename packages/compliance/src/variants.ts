@@ -1,7 +1,7 @@
-import { CONDITION_AXES, valuesFor } from '@ia/language';
-import type { ConditionAxis, Variant } from '@ia/language';
-import { conditionHolds } from '@ia/graph';
-import type { Coordinate, Node } from '@ia/graph';
+import { CONDITION_AXES, valuesFor } from '@inventarch/language';
+import type { ConditionAxis, Variant } from '@inventarch/language';
+import { conditionHolds } from '@inventarch/graph';
+import type { Coordinate, Node } from '@inventarch/graph';
 import { finding } from './graph-checks.js';
 import { assess } from './types.js';
 import type { Assessment, Finding } from './types.js';

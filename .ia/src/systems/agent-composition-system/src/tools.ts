@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
-import { EditorSnapshot } from '@ia/db/editor';
-import { DraftError, formatDraft, validateDraft } from '@ia/authoring-system';
-import { manifestDigest, validateShape } from '@ia/agent-system';
-import type { Manifest, OperationAdapter, OperationContext } from '@ia/agent-system';
-import { canonical, copy, digest, SessionError } from '@ia/session-system';
-import type { Json } from '@ia/session-system';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { DraftError, formatDraft, validateDraft } from '@inventarch/authoring-system';
+import { manifestDigest, validateShape } from '@inventarch/agent-system';
+import type { Manifest, OperationAdapter, OperationContext } from '@inventarch/agent-system';
+import { canonical, copy, digest, SessionError } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
 import { installed } from './catalog.js';
 import type { CompositionCatalog } from './catalog.js';
 

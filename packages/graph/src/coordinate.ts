@@ -1,4 +1,4 @@
-import { ARTIFACT_SETS, CONDITION_AXES, SEVERITIES, canonicalValue, valuesFor } from '@ia/language';
+import { ARTIFACT_SETS, CONDITION_AXES, SEVERITIES, canonicalValue, valuesFor } from '@inventarch/language';
 import type {
   ArtifactSet,
   CompiledField,
@@ -6,7 +6,7 @@ import type {
   ConditionAxis,
   KernelSeverity,
   Provenance,
-} from '@ia/language';
+} from '@inventarch/language';
 import { GraphUsageError, graphDiagnostic } from './diagnostics.js';
 import type { GraphDiagnostic } from './diagnostics.js';
 export type Coordinate = Readonly<Partial<Record<ConditionAxis, string>>>;

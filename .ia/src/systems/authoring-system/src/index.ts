@@ -1,6 +1,6 @@
-import type { DraftPreview, ReadHandle } from '@ia/db';
-import { format } from '@ia/language';
-import { portableDraftPath } from '@ia/runtime';
+import type { DraftPreview, ReadHandle } from '@inventarch/db';
+import { format } from '@inventarch/language';
+import { portableDraftPath } from '@inventarch/runtime';
 
 export const DRAFT_LIMIT = 1024 * 1024;
 export type DraftCode =

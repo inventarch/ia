@@ -25,7 +25,7 @@ import { languagePackageInputs } from './public-language.js';
 import { isEntry } from '../entry/is-entry.mjs';
 
 export const BASE_ID = 'inventarch/language';
-/** The pin and the one archive it names, relative to the `@ia/cli` package root (M5.1 §3.2). */
+/** The pin and the one archive it names, relative to the `@inventarch/cli` package root (M5.1 §3.2). */
 export const PIN_PATH = 'assets/base.json';
 export const ARCHIVE_DIRECTORY = 'assets/base';
 export const archivePath = (digest: string): string => `${ARCHIVE_DIRECTORY}/${digest}.ia.tgz`;
@@ -63,7 +63,7 @@ export function languageBaseDescriptor(version: string, engine = `^${DISTRIBUTIO
   };
 }
 
-/** The `@ia/cli` version is the base version: M5.1 §3.3's lockstep rule. */
+/** The `@inventarch/cli` version is the base version: M5.1 §3.3's lockstep rule. */
 export const cliVersion = (root: string): string =>
   (JSON.parse(readFileSync(resolve(root, 'apps/cli/package.json'), 'utf8')) as { version: string }).version;
 
@@ -103,7 +103,7 @@ export function languageBaseFindings(input: {
     findings: string[] = [];
   if (pin.id !== BASE_ID) findings.push(`Pinned id ${pin.id} is not ${BASE_ID}`);
   if (pin.version !== input.cliVersion)
-    findings.push(`Pinned version ${pin.version} differs from @ia/cli ${input.cliVersion}`);
+    findings.push(`Pinned version ${pin.version} differs from @inventarch/cli ${input.cliVersion}`);
   const digest = createHash('sha256').update(bytes).digest('hex');
   if (digest !== pin.archive) findings.push(`Archive digest ${digest} differs from the pinned ${pin.archive}`);
   try {

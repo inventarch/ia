@@ -1,7 +1,7 @@
-import { manifestDigest } from '@ia/agent-system';
-import type { Manifest, Profile } from '@ia/agent-system';
-import { copy, digest } from '@ia/session-system';
-import type { Json } from '@ia/session-system';
+import { manifestDigest } from '@inventarch/agent-system';
+import type { Manifest, Profile } from '@inventarch/agent-system';
+import { copy, digest } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
 import type { CompositionCatalog } from './catalog.js';
 import { CompositionError } from './compiled.js';
 import type { CompiledHarness } from './compiled.js';

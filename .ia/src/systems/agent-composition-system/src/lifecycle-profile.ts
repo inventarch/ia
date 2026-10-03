@@ -1,4 +1,4 @@
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
 
 export class LifecycleError extends Error {

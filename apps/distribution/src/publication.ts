@@ -1,6 +1,6 @@
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { ProjectionManifest, ProjectionResult } from '@ia/agent-composition-system/projections';
+import type { ProjectionManifest, ProjectionResult } from '@inventarch/agent-composition-system/projections';
 import {
   canonicalJson,
   bytes,

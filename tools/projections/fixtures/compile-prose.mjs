@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { open } from '@ia/db';
-import { stableSerialize } from '@ia/graph';
-import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@ia/agent-composition-system';
-import { captureResources, resourceOccurrences } from '@ia/agent-composition-system/resources';
+import { open } from '@inventarch/db';
+import { stableSerialize } from '@inventarch/graph';
+import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
+import { captureResources, resourceOccurrences } from '@inventarch/agent-composition-system/resources';
 import {
   claudeProseCatalog,
   codexProseCatalog,
   compileProjection,
   serializeProjection,
-} from '@ia/agent-composition-system/projections';
+} from '@inventarch/agent-composition-system/projections';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const digest = (value) => hash(stableSerialize(value));

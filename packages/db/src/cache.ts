@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { serialize } from '@ia/graph';
-import type { Graph } from '@ia/graph';
+import { serialize } from '@inventarch/graph';
+import type { Graph } from '@inventarch/graph';
 import { safePath } from './inputs.js';
 
 export interface CacheObservation {

@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
-import { buildRegistry, compile, parse } from '@ia/language';
-import type { Location } from '@ia/language';
+import { buildRegistry, compile, parse } from '@inventarch/language';
+import type { Location } from '@inventarch/language';
 
 const root = resolve(import.meta.dirname, '../../..');
 function files(path: string): string[] {

@@ -1,8 +1,8 @@
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { unaliased } from '@ia/db';
-import type { ReadHandle } from '@ia/db';
-import { EditorSnapshot } from '@ia/db/editor';
+import { unaliased } from '@inventarch/db';
+import type { ReadHandle } from '@inventarch/db';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import { createAuthoringIndex } from './authoring.js';
 import type { AuthoringIndexInput, CapturedAuthoringIndex } from './authoring-types.js';
 import { adoptWorkspace, captureWorkspace } from './corpus.js';

@@ -1,7 +1,7 @@
-import { KINDS } from '@ia/language';
-import type { EdgeReference } from '@ia/language';
-import type { Node } from '@ia/graph';
-import type { ReadHandle } from '@ia/db';
+import { KINDS } from '@inventarch/language';
+import type { EdgeReference } from '@inventarch/language';
+import type { Node } from '@inventarch/graph';
+import type { ReadHandle } from '@inventarch/db';
 
 interface Mention {
   readonly address: string;

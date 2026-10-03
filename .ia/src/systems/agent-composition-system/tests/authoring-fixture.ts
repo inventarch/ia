@@ -1,6 +1,6 @@
-import { KERNEL_SOURCES } from '@ia/language';
-import { EditorSnapshot } from '@ia/db/editor';
-import { digest } from '@ia/session-system';
+import { KERNEL_SOURCES } from '@inventarch/language';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { digest } from '@inventarch/session-system';
 import { verifyCapture } from '../src/corpus.js';
 import { resourceOccurrences, verifyResources } from '../src/resources.js';
 import { keyOf, metadataDigest, occurrenceOf, ordered, sha256 } from '../src/resource-format.js';

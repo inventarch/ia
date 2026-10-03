@@ -5,8 +5,8 @@ import {
   deriveGenerationInputs,
   DISTRIBUTION_LIMITS,
   satisfies,
-} from '@ia/db/distribution';
-import type { BundleMetadata, Dependency, DistributionLock, GenerationInputs } from '@ia/db/distribution';
+} from '@inventarch/db/distribution';
+import type { BundleMetadata, Dependency, DistributionLock, GenerationInputs } from '@inventarch/db/distribution';
 import type { VerifiedArchive } from './archive.js';
 import { fail } from './files.js';
 

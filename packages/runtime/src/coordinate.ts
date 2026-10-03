@@ -1,7 +1,7 @@
-import { CONDITION_AXES, SHAPE_ROWS, valuesFor } from '@ia/language';
-import type { ConditionAxis, Kind, Lane, Predicate } from '@ia/language';
-import { GraphUsageError, validateCoordinate } from '@ia/graph';
-import type { Coordinate } from '@ia/graph';
+import { CONDITION_AXES, SHAPE_ROWS, valuesFor } from '@inventarch/language';
+import type { ConditionAxis, Kind, Lane, Predicate } from '@inventarch/language';
+import { GraphUsageError, validateCoordinate } from '@inventarch/graph';
+import type { Coordinate } from '@inventarch/graph';
 import { defaultClassifier } from './classify.js';
 import type { Classifier, Shape } from './classify.js';
 import { RuntimeError } from './errors.js';

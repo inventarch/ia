@@ -1,4 +1,4 @@
-import type { CompiledRecord } from '@ia/language';
+import type { CompiledRecord } from '@inventarch/language';
 import type { Capture } from './corpus.js';
 import type { CapturedResources, ResourceOccurrence } from './resource-format.js';
 import { frozen, integer, keyOf, list, metadataDigest, object, occurrenceOf } from './resource-format.js';

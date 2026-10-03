@@ -1,5 +1,5 @@
-import { resolveTarget } from '@ia/language';
-import type { EdgeReference, FrozenRegistry, ResolutionCandidate } from '@ia/language';
+import { resolveTarget } from '@inventarch/language';
+import type { EdgeReference, FrozenRegistry, ResolutionCandidate } from '@inventarch/language';
 
 export type Resolution =
   | { readonly ok: true; readonly identity: string; readonly fragment?: string }

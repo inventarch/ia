@@ -1,4 +1,4 @@
-import type { Diagnostic } from '@ia/language';
+import type { Diagnostic } from '@inventarch/language';
 export const GRAPH_CODES = [
   'IA-GRAPH-IDENTITY-TIE',
   'IA-GRAPH-TARGET-MISSING',

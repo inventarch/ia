@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
-import { Engine, manifestDigest, validateShape } from '@ia/agent-system';
-import type { EngineHost, Grant } from '@ia/agent-system';
-import { digest, memoryStore } from '@ia/session-system';
-import type { Json } from '@ia/session-system';
-import type { CandidateEnvelope, CandidateScope } from '@ia/runtime';
+import { Engine, manifestDigest, validateShape } from '@inventarch/agent-system';
+import type { EngineHost, Grant } from '@inventarch/agent-system';
+import { digest, memoryStore } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
+import type { CandidateEnvelope, CandidateScope } from '@inventarch/runtime';
 import { candidateValidation, compileHarness, Corpus, executionManifest, installed } from '../src/index.js';
 
 import { executionFixture, executionCatalog as inspectionCatalog } from './execution-fixture.js';

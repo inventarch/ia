@@ -1,16 +1,16 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { captureWorkspace } from '@ia/agent-composition-system';
-import { resourceOccurrences } from '@ia/agent-composition-system/resources';
+import { captureWorkspace } from '@inventarch/agent-composition-system';
+import { resourceOccurrences } from '@inventarch/agent-composition-system/resources';
 import { createHash } from 'node:crypto';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 import {
   admitSourceCapture,
   createInstalledSourcePolicy,
   createSourcePolicy,
   homeSourceCapture,
   mountSourceCapture,
-} from '@ia/agent-composition-system/sources';
-import { readInputs } from '@ia/db';
+} from '@inventarch/agent-composition-system/sources';
+import { readInputs } from '@inventarch/db';
 import { planInstallationSnapshot } from '../src/installation-core.js';
 import { resolveReleases } from '../src/resolve.js';
 import { distributionSnapshot } from '../src/snapshot.js';

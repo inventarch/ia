@@ -1,4 +1,4 @@
-export type { Manifest, Profile, OperationDefinition } from '@ia/agent-system';
+export type { Manifest, Profile, OperationDefinition } from '@inventarch/agent-system';
 export { captureWorkspace, adoptWorkspace, verifyCapture, Corpus } from './corpus.js';
 export type { Capture } from './corpus.js';
 export { compileHarness } from './compile.js';

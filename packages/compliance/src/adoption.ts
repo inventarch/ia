@@ -1,6 +1,6 @@
-import type { Requirement } from '@ia/language';
-import { conditionHolds, validateCoordinate } from '@ia/graph';
-import type { Coordinate, Graph, Node } from '@ia/graph';
+import type { Requirement } from '@inventarch/language';
+import { conditionHolds, validateCoordinate } from '@inventarch/graph';
+import type { Coordinate, Graph, Node } from '@inventarch/graph';
 import { finding } from './graph-checks.js';
 import { assess } from './types.js';
 import type { Assessment, Finding } from './types.js';

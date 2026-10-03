@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { DistributionLock } from '@ia/db/distribution';
+import type { DistributionLock } from '@inventarch/db/distribution';
 import { verifyArchive } from '../src/archive.js';
 import { json } from '../src/files.js';
 import { applyInstallation, planInstallation } from '../src/install.js';

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import type { EditorComposition, EditorView } from '@ia/runtime/editor';
+import type { EditorComposition, EditorView } from '@inventarch/runtime/editor';
 import { STALE_VIEW, readSnapshot, staleView } from '../src/refresh.js';
 
 const view = (generation: number): EditorView =>

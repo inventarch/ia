@@ -1,4 +1,4 @@
-import { DraftError, formatDraft, validateDraft } from '@ia/authoring-system';
+import { DraftError, formatDraft, validateDraft } from '@inventarch/authoring-system';
 import { ExecutionError } from '../../../../tools/systems/types.js';
 import type { Context, Product } from '../../../../tools/systems/types.js';
 

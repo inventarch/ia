@@ -1,5 +1,5 @@
 {
-  "name": "@ia/runtime",
+  "name": "@inventarch/runtime",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -144,9 +144,9 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/language": "workspace:*",
-    "@ia/graph": "workspace:*",
-    "@ia/db": "workspace:*"
+    "@inventarch/language": "workspace:*",
+    "@inventarch/graph": "workspace:*",
+    "@inventarch/db": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

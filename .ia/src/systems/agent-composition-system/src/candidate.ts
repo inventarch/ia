@@ -1,8 +1,8 @@
-import { validateCandidate } from '@ia/runtime';
-import type { CandidateScope } from '@ia/runtime';
-import { digest, SessionError } from '@ia/session-system';
-import type { Json } from '@ia/session-system';
-import type { OperationAdapter, OperationDefinition } from '@ia/agent-system';
+import { validateCandidate } from '@inventarch/runtime';
+import type { CandidateScope } from '@inventarch/runtime';
+import { digest, SessionError } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
+import type { OperationAdapter, OperationDefinition } from '@inventarch/agent-system';
 import { verifyCapture } from './corpus.js';
 import type { Capture } from './corpus.js';
 

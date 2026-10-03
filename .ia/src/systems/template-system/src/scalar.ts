@@ -1,5 +1,5 @@
-import type { CompiledRecord, CompiledValue } from '@ia/language';
-import { portableDraftPath } from '@ia/runtime';
+import type { CompiledRecord, CompiledValue } from '@inventarch/language';
+import { portableDraftPath } from '@inventarch/runtime';
 import { invalid, inputInvalid, object, TemplateError } from './contract.js';
 
 /** Original T01 semantics; contextual admission/publication remains the caller's job. */

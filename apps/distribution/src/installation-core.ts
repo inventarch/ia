@@ -1,4 +1,4 @@
-import { EditorSnapshot } from '@ia/db/editor';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   decodeActivationPointer,
   decodeDistributionLock,
@@ -11,8 +11,8 @@ import {
   installationWorkspace,
   metadataDigest,
   satisfies,
-} from '@ia/db/distribution';
-import type { ActivationPointer, DistributionLock, GenerationInputs } from '@ia/db/distribution';
+} from '@inventarch/db/distribution';
+import type { ActivationPointer, DistributionLock, GenerationInputs } from '@inventarch/db/distribution';
 import { verifySelectedArchiveClosure, type VerifiedArchive } from './archive.js';
 import { fail } from './files.js';
 import { distributionSnapshot, verifyDistributionSnapshot, type DistributionSnapshot } from './snapshot.js';

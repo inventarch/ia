@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { expect, it } from 'vitest';
-import { readInputs, open } from '@ia/db';
-import type { AdoptedSource } from '@ia/db';
+import { readInputs, open } from '@inventarch/db';
+import type { AdoptedSource } from '@inventarch/db';
 import {
   INSTALL_PATHS,
   canonicalDistributionJson,
@@ -13,8 +13,8 @@ import {
   generationDigest,
   installationWorkspace,
   sha256,
-} from '@ia/db/distribution';
-import { stableSerialize } from '@ia/graph';
+} from '@inventarch/db/distribution';
+import { stableSerialize } from '@inventarch/graph';
 import { EditorWorkspace } from '../src/editor/workspace.js';
 import { evaluateSteward } from '../src/index.js';
 import { workspace, put } from './workspace.js';

@@ -1,8 +1,8 @@
-import type { ReadHandle } from '@ia/db';
-import { stableSerialize } from '@ia/graph';
-import type { Edge } from '@ia/graph';
-import { context, DEFAULT_TOKENIZER, prepareCoordinate } from '@ia/runtime';
-import type { Packet, Tokenizer } from '@ia/runtime';
+import type { ReadHandle } from '@inventarch/db';
+import { stableSerialize } from '@inventarch/graph';
+import type { Edge } from '@inventarch/graph';
+import { context, DEFAULT_TOKENIZER, prepareCoordinate } from '@inventarch/runtime';
+import type { Packet, Tokenizer } from '@inventarch/runtime';
 import { frozen, metadataDigest } from './resource-format.js';
 import { LifecycleError, verifyLifecycleProfile } from './lifecycle-profile.js';
 import type { LifecycleEvent, LifecycleProfile } from './lifecycle-profile.js';

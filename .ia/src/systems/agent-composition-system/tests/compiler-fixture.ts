@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { digest } from '@ia/session-system';
+import { digest } from '@inventarch/session-system';
 import { captureWorkspace, installed } from '../src/index.js';
 import type { Capture, CompositionCatalog } from '../src/index.js';
 import type { OperationContract } from '../src/catalog.js';

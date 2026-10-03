@@ -1,4 +1,4 @@
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 import { isBuiltinCheck } from './check-ids.js';
 import { DIGEST, assertCatalog, catalogEntry, codecOf } from './catalog.js';
 import type { EvaluatorCatalog } from './catalog.js';

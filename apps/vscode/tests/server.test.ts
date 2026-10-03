@@ -4,9 +4,9 @@ import { resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { createMessageConnection, StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { URI } from 'vscode-uri';
-import { EditorWorkspace } from '@ia/runtime/editor';
-import type { EditorComposition, EditorView } from '@ia/runtime/editor';
-import { digestValue } from '@ia/runtime/authoring';
+import { EditorWorkspace } from '@inventarch/runtime/editor';
+import type { EditorComposition, EditorView } from '@inventarch/runtime/editor';
+import { digestValue } from '@inventarch/runtime/authoring';
 import { createScope } from '@tools/testing/resources.js';
 import { spawnOwned } from '@tools/testing/subprocess.js';
 const cleanup: (() => unknown)[] = [];
@@ -23,14 +23,14 @@ it('initializes beside package links and answers real stdio editor requests', as
   // Exercise the bundled reader against the colocated pnpm layout that crashed an older installed VSIX.
   const system = resolve(root, '.ia/src/systems/agent-composition-system'),
     dependency = resolve(root, 'dependency');
-  mkdirSync(resolve(system, 'node_modules/@ia'), { recursive: true });
+  mkdirSync(resolve(system, 'node_modules/@inventarch'), { recursive: true });
   mkdirSync(resolve(system, 'dist'), { recursive: true });
   mkdirSync(dependency);
   writeFileSync(resolve(dependency, 'not-source.ia'), 'dependency bytes are not IA source');
   writeFileSync(resolve(system, 'dist/not-source.ia'), 'build output is not IA source');
   symlinkSync(
     dependency,
-    resolve(system, 'node_modules/@ia/agent-system'),
+    resolve(system, 'node_modules/@inventarch/agent-system'),
     globalThis.process.platform === 'win32' ? 'junction' : 'dir',
   );
   const scope = createScope(),

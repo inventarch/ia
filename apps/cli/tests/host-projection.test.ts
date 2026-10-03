@@ -4,7 +4,7 @@
  */
 import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
-import { WORKSPACE_PROJECTION_MARKER } from '@ia/compliance';
+import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
 import { renderProjectionFor } from '../src/host-projection.js';
 import { cleanup, run, scratch } from './workspace-fixture.js';
 

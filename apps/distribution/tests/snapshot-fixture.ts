@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { readInputs, type InputSnapshot } from '@ia/db';
+import { readInputs, type InputSnapshot } from '@inventarch/db';
 import { packDistribution } from '../src/pack.js';
 
 export const repository = resolve(import.meta.dirname, '../../..');

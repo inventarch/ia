@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
-import { EditorSnapshot } from '@ia/db/editor';
-import { systemMember } from '@ia/db';
-import type { CompiledRecord, CompiledValue } from '@ia/language';
-import { context } from '@ia/runtime';
-import { canonical, copy, digest } from '@ia/session-system';
-import type { Json } from '@ia/session-system';
-import { MAX_MODEL_REQUEST_BYTES } from '@ia/agent-system';
-import type { OutcomeKind } from '@ia/agent-system';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { systemMember } from '@inventarch/db';
+import type { CompiledRecord, CompiledValue } from '@inventarch/language';
+import { context } from '@inventarch/runtime';
+import { canonical, copy, digest } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
+import { MAX_MODEL_REQUEST_BYTES } from '@inventarch/agent-system';
+import type { OutcomeKind } from '@inventarch/agent-system';
 import { verifyCapture } from './corpus.js';
 import type { Capture } from './corpus.js';
 import type {

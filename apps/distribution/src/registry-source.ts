@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
-import { DISTRIBUTION_LIMITS } from '@ia/db/distribution';
+import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
 import { fetchBounded } from './bounded-fetch.js';
 import { bytes, contained, fail, portable, utf8 } from './files.js';
 import {

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, expect, it } from 'vitest';
-import { readInputs } from '@ia/db';
-import { canonicalDistributionJson, sha256, type BundleManifest } from '@ia/db/distribution';
+import { readInputs } from '@inventarch/db';
+import { canonicalDistributionJson, sha256, type BundleManifest } from '@inventarch/db/distribution';
 import { buildArchive, verifyArchive } from '../src/archive.js';
 import { distributionSnapshot, packSnapshot, type PackedDistribution } from '../src/snapshot.js';
 import { descriptor, repository, sourceInput } from './snapshot-fixture.js';

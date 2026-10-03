@@ -1,7 +1,7 @@
 import { beforeAll, expect, it } from 'vitest';
-import { EditorSnapshot } from '@ia/db/editor';
-import { DISTRIBUTION_ENGINE_VERSION } from '@ia/db/distribution';
-import { KERNEL_SOURCES } from '@ia/language';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { DISTRIBUTION_ENGINE_VERSION } from '@inventarch/db/distribution';
+import { KERNEL_SOURCES } from '@inventarch/language';
 import { productStructure } from '../../../tools/release/product-structure.mjs';
 import { readProduct } from '../../../distributions/product-structure/consumer.mjs';
 import { distributionSnapshot } from '../src/snapshot.js';

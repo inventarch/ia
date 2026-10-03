@@ -10,7 +10,7 @@
  * supplies of its own is the display root, which §2.5 already defines as a CLI-resolved value and which is the
  * one part of this output that differs between machines.
  */
-import { openWorkspaceSession } from '@ia/distribution/services';
+import { openWorkspaceSession } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import type { Capabilities, ErrorElements, Token } from './render.js';

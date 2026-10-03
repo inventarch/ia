@@ -1,5 +1,5 @@
 {
-  "name": "@ia/authoring-system",
+  "name": "@inventarch/authoring-system",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,9 +28,9 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/db": "workspace:*",
-    "@ia/language": "workspace:*",
-    "@ia/runtime": "workspace:*"
+    "@inventarch/db": "workspace:*",
+    "@inventarch/language": "workspace:*",
+    "@inventarch/runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

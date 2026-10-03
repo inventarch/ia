@@ -1,5 +1,5 @@
-import { pathKey } from '@ia/db';
-import { stableSerialize } from '@ia/graph';
+import { pathKey } from '@inventarch/db';
+import { stableSerialize } from '@inventarch/graph';
 import type { Capture } from './corpus.js';
 import { canonicalPackageRoot, readPinnedResource, verifyPackageSource } from './resource-files.js';
 import type { ResourceRoot } from './resource-files.js';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION, PREDICATES } from '@ia/language';
-import type { CompiledChild, CompiledRecord, CompiledValue } from '@ia/language';
+import { KERNEL_DIGEST, LANGUAGE_VERSION, PREDICATES } from '@inventarch/language';
+import type { CompiledChild, CompiledRecord, CompiledValue } from '@inventarch/language';
 import { load, stableSerialize } from '../src/index.js';
 import type { LoadOptions } from '../src/index.js';
 import { inputs, records, registry } from './native.js';

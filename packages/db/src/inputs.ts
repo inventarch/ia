@@ -12,10 +12,10 @@ import {
   statSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { BAND_OF, KERNEL_SOURCES, isPlacementKind, isProvenance } from '@ia/language';
-import type { Location } from '@ia/language';
-import { canonicalRoot, stableSerialize } from '@ia/graph';
-import type { RevisionSource } from '@ia/graph';
+import { BAND_OF, KERNEL_SOURCES, isPlacementKind, isProvenance } from '@inventarch/language';
+import type { Location } from '@inventarch/language';
+import { canonicalRoot, stableSerialize } from '@inventarch/graph';
+import type { RevisionSource } from '@inventarch/graph';
 import { DbError } from './errors.js';
 import { pathKey, sameFile } from './paths.js';
 import { decodeActivationPointer } from './distribution/contracts.js';

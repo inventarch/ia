@@ -1,4 +1,4 @@
-import type { EditorSnapshot } from '@ia/db/editor';
+import type { EditorSnapshot } from '@inventarch/db/editor';
 export function readProduct(
   snapshot: EditorSnapshot,
   identity: string,

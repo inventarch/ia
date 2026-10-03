@@ -4,67 +4,93 @@ import { isEntry } from '../entry/is-entry.mjs';
 import ts from 'typescript';
 
 export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
-  '@ia/architecture-system': ['@ia/code-quality-system', '@ia/db', '@ia/graph', '@ia/language', '@ia/runtime'],
-  '@ia/authoring-system': ['@ia/db', '@ia/language', '@ia/runtime'],
-  '@ia/template-system': ['@ia/language', '@ia/runtime'],
-  '@ia/language': [],
-  '@ia/graph': ['@ia/language'],
-  '@ia/compliance': ['@ia/language', '@ia/graph'],
-  '@ia/db': ['@ia/language', '@ia/graph', '@ia/compliance'],
-  '@ia/runtime': ['@ia/language', '@ia/graph', '@ia/db'],
-  '@ia/session-system': [],
-  '@ia/agent-system': ['@ia/session-system', '@ia/runtime', '@ia/language', '@ia/graph', '@ia/db'],
-  '@ia/agent-composition-system': [
-    '@ia/agent-system',
-    '@ia/session-system',
-    '@ia/authoring-system',
-    '@ia/template-system',
-    '@ia/runtime',
-    '@ia/db',
-    '@ia/language',
-    '@ia/graph',
-    '@ia/compliance',
+  '@inventarch/architecture-system': [
+    '@inventarch/code-quality-system',
+    '@inventarch/db',
+    '@inventarch/graph',
+    '@inventarch/language',
+    '@inventarch/runtime',
   ],
-  '@ia/service-contracts': [],
-  '@ia/service-host': ['@ia/service-contracts'],
-  '@ia/inventarch-system': ['@ia/agent-composition-system', '@ia/db', '@ia/graph', '@ia/runtime'],
-  '@ia/delivery-system': [],
-  '@ia/code-quality-system': [],
+  '@inventarch/authoring-system': ['@inventarch/db', '@inventarch/language', '@inventarch/runtime'],
+  '@inventarch/template-system': ['@inventarch/language', '@inventarch/runtime'],
+  '@inventarch/language': [],
+  '@inventarch/graph': ['@inventarch/language'],
+  '@inventarch/compliance': ['@inventarch/language', '@inventarch/graph'],
+  '@inventarch/db': ['@inventarch/language', '@inventarch/graph', '@inventarch/compliance'],
+  '@inventarch/runtime': ['@inventarch/language', '@inventarch/graph', '@inventarch/db'],
+  '@inventarch/session-system': [],
+  '@inventarch/agent-system': [
+    '@inventarch/session-system',
+    '@inventarch/runtime',
+    '@inventarch/language',
+    '@inventarch/graph',
+    '@inventarch/db',
+  ],
+  '@inventarch/agent-composition-system': [
+    '@inventarch/agent-system',
+    '@inventarch/session-system',
+    '@inventarch/authoring-system',
+    '@inventarch/template-system',
+    '@inventarch/runtime',
+    '@inventarch/db',
+    '@inventarch/language',
+    '@inventarch/graph',
+    '@inventarch/compliance',
+  ],
+  '@inventarch/service-contracts': [],
+  '@inventarch/service-host': ['@inventarch/service-contracts'],
+  '@inventarch/inventarch-system': [
+    '@inventarch/agent-composition-system',
+    '@inventarch/db',
+    '@inventarch/graph',
+    '@inventarch/runtime',
+  ],
+  '@inventarch/delivery-system': [],
+  '@inventarch/code-quality-system': [],
 };
 const HOSTS: Readonly<Record<string, readonly string[]>> = {
-  '@ia/mcp-door': ['@ia/runtime', '@ia/service-contracts', '@ia/agent-composition-system'],
-  '@ia/distribution': [
-    '@ia/language',
-    '@ia/graph',
-    '@ia/db',
-    '@ia/authoring-system',
-    '@ia/agent-composition-system',
-    '@ia/session-system',
-    '@ia/steward-hook',
+  '@inventarch/mcp-door': [
+    '@inventarch/runtime',
+    '@inventarch/service-contracts',
+    '@inventarch/agent-composition-system',
   ],
-  '@ia/steward-hook': ['@ia/runtime', '@ia/db', '@ia/agent-composition-system'],
-  '@ia/cli': [
-    '@ia/code-quality-system',
-    '@ia/architecture-system',
-    '@ia/runtime',
-    '@ia/inventarch-system',
-    '@ia/agent-composition-system',
-    '@ia/db',
-    '@ia/distribution',
-    '@ia/compliance',
+  '@inventarch/distribution': [
+    '@inventarch/language',
+    '@inventarch/graph',
+    '@inventarch/db',
+    '@inventarch/authoring-system',
+    '@inventarch/agent-composition-system',
+    '@inventarch/session-system',
+    '@inventarch/steward-hook',
   ],
-  '@ia/agent-runner': ['@ia/runtime', '@ia/agent-system', '@ia/session-system', '@ia/agent-composition-system'],
-  '@ia/marketplace': [
-    '@ia/distribution',
-    '@ia/db',
-    '@ia/service-contracts',
-    '@ia/service-host',
-    '@ia/agent-composition-system',
-    '@ia/agent-system',
-    '@ia/session-system',
-    '@ia/language',
+  '@inventarch/steward-hook': ['@inventarch/runtime', '@inventarch/db', '@inventarch/agent-composition-system'],
+  '@inventarch/cli': [
+    '@inventarch/code-quality-system',
+    '@inventarch/architecture-system',
+    '@inventarch/runtime',
+    '@inventarch/inventarch-system',
+    '@inventarch/agent-composition-system',
+    '@inventarch/db',
+    '@inventarch/distribution',
+    '@inventarch/compliance',
   ],
-  '@ia/folio': ['@ia/language'],
+  '@inventarch/agent-runner': [
+    '@inventarch/runtime',
+    '@inventarch/agent-system',
+    '@inventarch/session-system',
+    '@inventarch/agent-composition-system',
+  ],
+  '@inventarch/marketplace': [
+    '@inventarch/distribution',
+    '@inventarch/db',
+    '@inventarch/service-contracts',
+    '@inventarch/service-host',
+    '@inventarch/agent-composition-system',
+    '@inventarch/agent-system',
+    '@inventarch/session-system',
+    '@inventarch/language',
+  ],
+  '@inventarch/folio': ['@inventarch/language'],
 };
 export interface Component {
   readonly name: string;
@@ -96,7 +122,7 @@ export function importedModules(source: string, path: string): readonly (string 
 }
 export function moduleProblem(owner: Component, file: string, specifier: string | null): string | undefined {
   if (specifier === null) return 'Nonliteral module load cannot establish dependency direction';
-  if (owner.name === '@ia/service-contracts' && !specifier.startsWith('.') && specifier !== 'zod')
+  if (owner.name === '@inventarch/service-contracts' && !specifier.startsWith('.') && specifier !== 'zod')
     return 'Client contracts may only import zod and their own modules';
   if (specifier.startsWith('.') || specifier.startsWith('/') || /^[A-Za-z]:/.test(specifier)) {
     const path = resolve(dirname(file), specifier),
@@ -106,16 +132,16 @@ export function moduleProblem(owner: Component, file: string, specifier: string 
     return undefined;
   }
   if (specifier.startsWith('@inventarch/monorepo-kit-host'))
-    return ['@ia/cli', '@ia/inventarch-cli'].includes(owner.name) &&
+    return ['@inventarch/cli', '@inventarch/inventarch-cli'].includes(owner.name) &&
       owner.app &&
       ['@inventarch/monorepo-kit-host', '@inventarch/monorepo-kit-host/development'].includes(specifier)
       ? undefined
       : 'Only the CLI may select the declared development producer';
-  if (!specifier.startsWith('@ia/')) return undefined;
+  if (!specifier.startsWith('@inventarch/')) return undefined;
   const dependency = specifier.split('/').slice(0, 2).join('/');
   if (
     dependency === owner.name ||
-    (owner.app ? (HOSTS[owner.name] ?? ['@ia/runtime']) : (ALLOWED[owner.name] ?? [])).includes(dependency)
+    (owner.app ? (HOSTS[owner.name] ?? ['@inventarch/runtime']) : (ALLOWED[owner.name] ?? [])).includes(dependency)
   )
     return undefined;
   return `${owner.name} may not depend on ${dependency}`;
@@ -163,7 +189,7 @@ export function checkDependencies(root: string): readonly string[] {
         for (const imported of importedModules(readFileSync(file, 'utf8'), file)) {
           const problem = moduleProblem(owner, file, imported);
           if (problem !== undefined) findings.push(`${file}: ${problem}`);
-          else if (imported?.startsWith('@ia/') || imported?.startsWith('@inventarch/monorepo-kit-host')) {
+          else if (imported?.startsWith('@inventarch/') || imported?.startsWith('@inventarch/monorepo-kit-host')) {
             const dependency = imported.split('/').slice(0, 2).join('/');
             if (dependency !== owner.name && !declared.has(dependency))
               findings.push(`${file}: ${dependency} is allowed but not declared as an installed dependency`);

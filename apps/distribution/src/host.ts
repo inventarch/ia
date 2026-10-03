@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { decodeDistributionJson, platformDebris } from '@ia/db/distribution';
+import { decodeDistributionJson, platformDebris } from '@inventarch/db/distribution';
 import {
   bytes,
   contained,

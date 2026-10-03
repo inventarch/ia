@@ -1,5 +1,5 @@
 {
-  "name": "@ia/db",
+  "name": "@inventarch/db",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -127,9 +127,9 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/compliance": "workspace:*",
-    "@ia/graph": "workspace:*",
-    "@ia/language": "workspace:*",
+    "@inventarch/compliance": "workspace:*",
+    "@inventarch/graph": "workspace:*",
+    "@inventarch/language": "workspace:*",
     "semver": "7.8.5"
   },
   "devDependencies": {

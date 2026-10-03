@@ -2,8 +2,8 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, vi } from 'vitest';
-import { open } from '@ia/db';
-import type { Handle, OpenOptions } from '@ia/db';
+import { open } from '@inventarch/db';
+import type { Handle, OpenOptions } from '@inventarch/db';
 
 // Files importing this helper exercise real native-corpus admission and disk I/O.
 // CI has measured otherwise identical fixtures at 1–10s across runs. Keep their

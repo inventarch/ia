@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { digest } from '@ia/session-system';
+import { digest } from '@inventarch/session-system';
 import { captureWorkspace } from '../src/corpus.js';
 import type { Capture } from '../src/corpus.js';
 import { openLocalAuthoringView } from '../src/authoring-manifest.js';
@@ -16,8 +16,8 @@ vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 // Counts full native rebuilds. The subclass is otherwise transparent to every caller.
 const rebuilds = vi.hoisted(() => ({ count: 0 }));
-vi.mock('@ia/db/editor', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@ia/db/editor')>();
+vi.mock('@inventarch/db/editor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@inventarch/db/editor')>();
   class CountedSnapshot extends actual.EditorSnapshot {
     constructor(...input: ConstructorParameters<typeof actual.EditorSnapshot>) {
       super(...input);

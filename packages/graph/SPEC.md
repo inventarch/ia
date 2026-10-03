@@ -2,7 +2,7 @@
 
 Bounded traversal extension (Workbench): optional `maxNodes`/`maxEdges` retain normal authority, scope, direction and condition behavior while bounding emitted records and edge examination. A bounded result reports `truncated`; callers must not describe it as a complete graph. Calls without limits preserve the original contract.
 
-Status: G01–G11 implemented under the graph plan. Shared concepts: graph/matrix design. Pure Node-compatible package depending only on @ia/language; no filesystem, clock, default registry or source-text lexer. Task-delivery paragraphs below retain historical counts and next steps; current readiness covers the completed downstream consumers.
+Status: G01–G11 implemented under the graph plan. Shared concepts: graph/matrix design. Pure Node-compatible package depending only on @inventarch/language; no filesystem, clock, default registry or source-text lexer. Task-delivery paragraphs below retain historical counts and next steps; current readiness covers the completed downstream consumers.
 
 ## Construction and revision
 

@@ -1,4 +1,4 @@
-# @ia/language
+# @inventarch/language
 
 A pure TypeScript pipeline for the `.ia` record language: one scanner, one parser, an explicit vocabulary registry and a semantic compiler. The implemented contract is [SPEC.md](SPEC.md); shared concepts are in the language design.
 
@@ -31,4 +31,4 @@ Conformance fixtures live under `packages/compliance/fixtures/language`. Compile
 Run `pnpm test`, `pnpm typecheck` and `pnpm build` in this package. The runtime has no dependencies and performs no filesystem discovery. Built-entry and emitted-declaration consumers are verified at plan closure; compiler success does not establish downstream execution.
 # Editor source helpers
 
-`references(ast)` inventories typed field/list/relationship references without treating prose as a graph edge. `@ia/language/editor` provides UTF-16 source projection/ranges, incomplete-input cursor context, schema-form source serialization and preservation-checked formatting. `draftSource` writes only declared fields and leaves admission to downstream owners. It preserves IA quote/backslash semantics and rejects multiline form values; use the source editor for structured/multiline content. See the colocated editor clauses and tests.
+`references(ast)` inventories typed field/list/relationship references without treating prose as a graph edge. `@inventarch/language/editor` provides UTF-16 source projection/ranges, incomplete-input cursor context, schema-form source serialization and preservation-checked formatting. `draftSource` writes only declared fields and leaves admission to downstream owners. It preserves IA quote/backslash semantics and rejects multiline form values; use the source editor for structured/multiline content. See the colocated editor clauses and tests.

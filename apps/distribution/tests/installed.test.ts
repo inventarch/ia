@@ -2,10 +2,14 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { open, readInputs } from '@ia/db';
-import { EditorSnapshot } from '@ia/db/editor';
-import { canonicalDistributionJson as json, generationDigest, installationWorkspace } from '@ia/db/distribution';
-import type { ActivationPointer } from '@ia/db/distribution';
+import { open, readInputs } from '@inventarch/db';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import {
+  canonicalDistributionJson as json,
+  generationDigest,
+  installationWorkspace,
+} from '@inventarch/db/distribution';
+import type { ActivationPointer } from '@inventarch/db/distribution';
 import { packDistribution } from '../src/pack.js';
 import { resolveReleases } from '../src/resolve.js';
 import {
@@ -17,10 +21,18 @@ import {
 } from '../src/install.js';
 import { buildArchive } from '../src/archive.js';
 import { runNative } from '../src/native-command.js';
-import { captureWorkspace, installedImplementationDigest } from '@ia/agent-composition-system';
-import { captureResources, resourceOccurrences, resolveResources } from '@ia/agent-composition-system/resources';
-import { claudeProseCatalog, codexProseCatalog, compileProjection } from '@ia/agent-composition-system/projections';
-import { metadataDigest, sha256 } from '@ia/db/distribution';
+import { captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
+import {
+  captureResources,
+  resourceOccurrences,
+  resolveResources,
+} from '@inventarch/agent-composition-system/resources';
+import {
+  claudeProseCatalog,
+  codexProseCatalog,
+  compileProjection,
+} from '@inventarch/agent-composition-system/projections';
+import { metadataDigest, sha256 } from '@inventarch/db/distribution';
 
 const repository = resolve(import.meta.dirname, '../../..'),
   temporary = mkdtempSync(join(tmpdir(), 'ia-installed-read-'));

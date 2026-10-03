@@ -24,8 +24,8 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
-import { WORKSPACE_PROJECTION_MARKER } from '@ia/compliance';
-import { json } from '@ia/distribution/services';
+import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
+import { json } from '@inventarch/distribution/services';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { GUARD_SCOPE, MACHINE_LOCAL, rootedNext } from '../src/host.js';
 import { quote } from '../src/render.js';
@@ -468,8 +468,8 @@ async function parity(
   expect(planned.exitCode).toBe(0);
   const conflict = element(JSON.parse(planned.stdout), 'mcp').conflict;
   expect(conflict).toMatchObject({ path });
-  const { readHostPin, materializeHostPayload } = await import('@ia/distribution/host-home');
-  const { planHost } = await import('@ia/distribution/host');
+  const { readHostPin, materializeHostPayload } = await import('@inventarch/distribution/host-home');
+  const { planHost } = await import('@inventarch/distribution/host');
   const bundled = readHostPin(cli);
   const cache = materializeHostPayload({
     home: env.IA_HOST_HOME,
@@ -648,7 +648,7 @@ it('names recover-host for a leftover host lock in apply, removal and doctor, an
   // A held lock is a warning, not a failure: a live run holds it too.
   expect(held.exitCode).toBe(0);
   // Followed literally: the recovery clears a dead holder's lock, and the rerun converges.
-  const { recoverHost } = await import('@ia/distribution/host');
+  const { recoverHost } = await import('@inventarch/distribution/host');
   expect(recoverHost(root).status).toBe('current');
   expect(existsSync(resolve(root, HOST_LOCK))).toBe(false);
   expect(row((await doctor(root, env)).checks, 'host-lock')).toMatchObject({
@@ -674,7 +674,7 @@ it('names the host lock recovery when an install refresh finds the lock held', a
     where: { path: HOST_LOCK },
     next: `The installation is applied. ${lockNext(root)}`,
   });
-  const { recoverHost } = await import('@ia/distribution/host');
+  const { recoverHost } = await import('@inventarch/distribution/host');
   expect(recoverHost(root).status).toBe('current');
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
   expect(installedSection(root)).toBe('- fixture/foundation 0.1.0');

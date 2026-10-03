@@ -1,5 +1,5 @@
 {
-  "name": "@ia/agent-system",
+  "name": "@inventarch/agent-system",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -44,7 +44,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/session-system": "workspace:*"
+    "@inventarch/session-system": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { EditorWorkspace } from '@ia/runtime/editor';
+import { EditorWorkspace } from '@inventarch/runtime/editor';
 import {
   children,
   dependencyRoot,

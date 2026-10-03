@@ -1,4 +1,4 @@
-import type { CompiledChild, CompiledRecord, CompiledValue } from '@ia/language';
+import type { CompiledChild, CompiledRecord, CompiledValue } from '@inventarch/language';
 import { snapshot } from './immutable.js';
 import { compare } from './revision.js';
 import type { Graph } from './types.js';

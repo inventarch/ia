@@ -1,5 +1,5 @@
 import { posix } from 'node:path';
-import type { CompiledChild, CompiledRecord, CompiledValue } from '@ia/language';
+import type { CompiledChild, CompiledRecord, CompiledValue } from '@inventarch/language';
 import { frozen, hash, list, object } from './resource-format.js';
 import type { ResourceFile, ResourceOccurrence } from './resource-format.js';
 import { catalogId, fail, id, inputFailure, unique } from './projection-format.js';

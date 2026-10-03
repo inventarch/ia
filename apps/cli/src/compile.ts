@@ -12,7 +12,14 @@
  * pass, never suppressed and never omitted from --json.
  */
 import { resolve } from 'node:path';
-import { createFile, json, LANGUAGE_IDENTITY, replace, sha256, workOutputPath } from '@ia/distribution/services';
+import {
+  createFile,
+  json,
+  LANGUAGE_IDENTITY,
+  replace,
+  sha256,
+  workOutputPath,
+} from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import { codeOf, openSession } from './session.js';

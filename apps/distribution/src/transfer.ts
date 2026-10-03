@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
-import { decodeDistributionLock, DISTRIBUTION_LIMITS } from '@ia/db/distribution';
-import type { DistributionLock } from '@ia/db/distribution';
+import { decodeDistributionLock, DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
+import type { DistributionLock } from '@inventarch/db/distribution';
 import { verifyArchive } from './archive.js';
 import { cacheArchive } from './install.js';
 

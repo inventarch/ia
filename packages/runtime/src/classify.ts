@@ -1,4 +1,4 @@
-import { SHAPE_ROWS } from '@ia/language';
+import { SHAPE_ROWS } from '@inventarch/language';
 
 export type Shape = keyof typeof SHAPE_ROWS;
 export interface Classifier {

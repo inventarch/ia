@@ -42,10 +42,10 @@ describe('bundled language base', () => {
     ]);
   });
   it('fails when the pinned version is not the CLI version', () => {
-    expect(checked({ cliVersion: '9.9.9' })).toEqual([`Pinned version ${version} differs from @ia/cli 9.9.9`]);
+    expect(checked({ cliVersion: '9.9.9' })).toEqual([`Pinned version ${version} differs from @inventarch/cli 9.9.9`]);
     const other = buildLanguageBase(root, { version: '9.9.9' });
     expect(languageBaseFindings({ ...other, cliVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION })).toEqual(
-      [`Pinned version 9.9.9 differs from @ia/cli ${version}`],
+      [`Pinned version 9.9.9 differs from @inventarch/cli ${version}`],
     );
   });
   it('fails when the archive bytes or the manifest disagree with the pin', () => {

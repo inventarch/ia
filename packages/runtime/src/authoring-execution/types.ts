@@ -1,5 +1,5 @@
-import type { Handle, DraftPreview } from '@ia/db';
-import type { Node } from '@ia/graph';
+import type { Handle, DraftPreview } from '@inventarch/db';
+import type { Node } from '@inventarch/graph';
 
 export const EXEC_CODES = [
   'IA-EXEC-INPUT-INVALID',

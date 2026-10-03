@@ -5,7 +5,7 @@
  * workspace, takes no scope token and writes nothing; the filters and JSON shape follow `ia vocabulary --json`.
  */
 import { readFileSync } from 'node:fs';
-import type { DoorResponse } from '@ia/runtime';
+import type { DoorResponse } from '@inventarch/runtime';
 
 export const CATALOGUE_URL = new URL('../assets/vocabulary.json', import.meta.url);
 export const LIMITS = { word: 64, search: 256, filters: 64 } as const;

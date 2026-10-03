@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { DEFAULT_TOKENIZER } from '@ia/runtime';
+import { DEFAULT_TOKENIZER } from '@inventarch/runtime';
 import { metadataDigest } from '../src/resource-format.js';
 import { lifecycleProfile } from '../src/lifecycle-profile.js';
 import {

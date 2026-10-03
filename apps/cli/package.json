@@ -1,5 +1,5 @@
 {
-  "name": "@ia/cli",
+  "name": "@inventarch/cli",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/main.js",
@@ -18,11 +18,11 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/distribution": "workspace:*",
-    "@ia/compliance": "workspace:*",
-    "@ia/agent-composition-system": "workspace:*",
-    "@ia/db": "workspace:*",
-    "@ia/runtime": "workspace:*"
+    "@inventarch/distribution": "workspace:*",
+    "@inventarch/compliance": "workspace:*",
+    "@inventarch/agent-composition-system": "workspace:*",
+    "@inventarch/db": "workspace:*",
+    "@inventarch/runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

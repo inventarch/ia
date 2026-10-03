@@ -38,29 +38,29 @@
  */
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { WORKSPACE_PROJECTION_MARKER } from '@ia/compliance';
+import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
 import {
   canonicalDistributionJson,
   decodeDistributionRequests,
   DISTRIBUTION_ENGINE_VERSION,
   INSTALL_PATHS,
-} from '@ia/db/distribution';
-import type { Dependency, DistributionLock } from '@ia/db/distribution';
-import { ARCHIVE_CACHE, applyInstallation, planInstallation } from '@ia/distribution/install';
-import type { InstallationPlan } from '@ia/distribution/install';
-import type { ProjectionDrift } from '@ia/distribution/projection';
-import { applyProjection, observeProjection, planProjection } from '@ia/distribution/projection';
+} from '@inventarch/db/distribution';
+import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
+import { ARCHIVE_CACHE, applyInstallation, planInstallation } from '@inventarch/distribution/install';
+import type { InstallationPlan } from '@inventarch/distribution/install';
+import type { ProjectionDrift } from '@inventarch/distribution/projection';
+import { applyProjection, observeProjection, planProjection } from '@inventarch/distribution/projection';
 import {
   registryChooser,
   registryLocation,
   registryWithdrawals,
   resolveFromRegistries,
   unpublishedPins,
-} from '@ia/distribution/registry';
-import type { RegistryChoice, RegistryLevel } from '@ia/distribution/registry';
-import { resolveReleases } from '@ia/distribution/resolve';
-import { WORKSPACE_HOSTS } from '@ia/distribution/hosts';
-import type { BundleMetadata, ReleaseCandidate } from '@ia/distribution/services';
+} from '@inventarch/distribution/registry';
+import type { RegistryChoice, RegistryLevel } from '@inventarch/distribution/registry';
+import { resolveReleases } from '@inventarch/distribution/resolve';
+import { WORKSPACE_HOSTS } from '@inventarch/distribution/hosts';
+import type { BundleMetadata, ReleaseCandidate } from '@inventarch/distribution/services';
 import {
   acquireArtifact,
   cachedCandidates,
@@ -71,7 +71,7 @@ import {
   readWorkspaceLock,
   resolveCatalog,
   writeWorkOutput,
-} from '@ia/distribution/services';
+} from '@inventarch/distribution/services';
 import { UsageError } from './args.js';
 import type { Context, Host, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf, requireRoot } from './consumer.js';

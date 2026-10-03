@@ -11,8 +11,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { decodeDistributionLock } from '@ia/db/distribution';
-import type { Dependency, DistributionLock } from '@ia/db/distribution';
+import { decodeDistributionLock } from '@inventarch/db/distribution';
+import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
 import { applyInstallation, cacheArchive, planInstallation } from '../src/install.js';
 import { registryChooser } from '../src/registry-config.js';
 import { registryWithdrawals, resolveFromRegistries } from '../src/registry-resolve.js';

@@ -1,5 +1,5 @@
 {
-  "name": "@ia/service-contracts",
+  "name": "@inventarch/service-contracts",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",

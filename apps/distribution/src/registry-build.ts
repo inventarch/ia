@@ -1,7 +1,7 @@
 import { existsSync, lstatSync } from 'node:fs';
 import { basename, dirname, isAbsolute } from 'node:path';
-import { compareVersions, DISTRIBUTION_LIMITS, packageId, version as semverVersion } from '@ia/db/distribution';
-import type { DistributionLock } from '@ia/db/distribution';
+import { compareVersions, DISTRIBUTION_LIMITS, packageId, version as semverVersion } from '@inventarch/db/distribution';
+import type { DistributionLock } from '@inventarch/db/distribution';
 import { inspectArchiveMetadata, verifyArchive, verifySelectedArchiveClosure } from './archive.js';
 import { matchRegistryRelease } from './registry-admission.js';
 import { resolveReleases } from './resolve.js';

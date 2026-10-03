@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Location } from '@ia/language';
+import type { Location } from '@inventarch/language';
 import { expect, it } from 'vitest';
 import { open } from '../src/index.js';
 import { methodId, methodPath, put, workspace } from './workspace.js';

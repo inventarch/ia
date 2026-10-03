@@ -76,7 +76,7 @@ try {
       assert.equal(readFileSync(resolve(installedRoot, notice), 'utf8'), readFileSync(resolve(root, notice), 'utf8'));
     for (const [name, version] of Object.entries(installed.dependencies ?? {})) {
       assert.ok(!/^(workspace:|catalog:|link:|file:)/.test(version), `${source.name}: unreleased dependency ${name}`);
-      if (name.startsWith('@ia/')) {
+      if (name.startsWith('@inventarch/')) {
         assert.ok(dependencies[name], `${source.name}: dependency ${name} is missing from the release`);
         assert.equal(version, releasedVersion, `${source.name}: dependency ${name} has a different release version`);
       }
@@ -140,7 +140,7 @@ try {
       name: 'ia-cli-release-consumer',
       private: true,
       type: 'module',
-      dependencies: { '@ia/cli': dependencies['@ia/cli'] },
+      dependencies: { '@inventarch/cli': dependencies['@inventarch/cli'] },
       pnpm: { overrides: dependencies },
     }),
   );
@@ -149,7 +149,7 @@ try {
     resolve(cliConsumer, 'offline.mjs'),
     "globalThis.fetch = () => { throw new Error('Installed CLI qualification must not use the network'); };\n",
   );
-  const cli = resolve(cliConsumer, 'node_modules/@ia/cli/dist/main.js'),
+  const cli = resolve(cliConsumer, 'node_modules/@inventarch/cli/dist/main.js'),
     invoke = (args) => run(['--import', './offline.mjs', cli, ...args], cliConsumer, env);
   assert.equal(invoke(['--version']).trim(), releasedVersion);
   assert.match(invoke(['--help']), /ia <command>/);
@@ -159,7 +159,7 @@ try {
   for (const host of ['claude', 'codex']) invoke(['host', host, '--root', workspace, '--apply', '--yes', '--json']);
   invoke(['validate', '--root', workspace, '--json']);
   assert.match(
-    run([resolve(consumer, 'node_modules/@ia/distribution/dist/cli.js'), '--help'], consumer, env),
+    run([resolve(consumer, 'node_modules/@inventarch/distribution/dist/cli.js'), '--help'], consumer, env),
     /ia-distribution/,
   );
   const vsix = resolve(archives, `inventarch-ia-${releasedVersion}.vsix`);

@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
 import { isAbsolute, join, relative, sep } from 'node:path';
-import { decodeDistributionJson } from '@ia/db/distribution';
-import { lifecycleProfile } from '@ia/agent-composition-system/lifecycle-profile';
-import { createContextHookBinding } from '@ia/steward-hook/context';
-import type { ContextHookBindingInput } from '@ia/steward-hook/context';
+import { decodeDistributionJson } from '@inventarch/db/distribution';
+import { lifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
+import { createContextHookBinding } from '@inventarch/steward-hook/context';
+import type { ContextHookBindingInput } from '@inventarch/steward-hook/context';
 import { acquireHostRegistrationLock, assertHostRegistrationIdle, nodeCommand, verifyHostCache } from './host.js';
 import { bytes, digest, fail, json, object, replace, sha256, utf8, workspace } from './files.js';
 import { editJson, emptyJson, keptPaths, presentJson } from './json-edit.js';

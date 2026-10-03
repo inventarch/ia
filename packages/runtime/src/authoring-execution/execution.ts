@@ -1,6 +1,6 @@
 import { evaluateSteward } from '../steward.js';
 import { ExecutionError } from './types.js';
-import { open } from '@ia/db';
+import { open } from '@inventarch/db';
 import type { Result, Context, Handler, Success } from './types.js';
 import { field, id, portablePath, text } from './shared.js';
 

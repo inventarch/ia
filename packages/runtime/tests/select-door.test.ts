@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { KINDS } from '@ia/language';
+import { KINDS } from '@inventarch/language';
 import { expect, it } from 'vitest';
 import { Door, MACHINE_PROTOCOL, context, select } from '../src/index.js';
 import type { ContextRequest, Scope } from '../src/index.js';

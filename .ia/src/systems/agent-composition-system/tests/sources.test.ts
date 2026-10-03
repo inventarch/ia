@@ -1,10 +1,10 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
-import { canonical, digest } from '@ia/session-system';
+import { canonical, digest } from '@inventarch/session-system';
 import { resourceOccurrences } from '../src/resources.js';
 import { Corpus, verifyCapture } from '../src/corpus.js';
 import {

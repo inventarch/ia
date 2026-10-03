@@ -1,6 +1,6 @@
-import { systemMember } from '@ia/db';
-import type { InputSnapshot } from '@ia/db';
-import { EditorSnapshot } from '@ia/db/editor';
+import { systemMember } from '@inventarch/db';
+import type { InputSnapshot } from '@inventarch/db';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   canonicalDistributionJson,
   decodeActivationPointer,
@@ -11,10 +11,10 @@ import {
   metadataDigest,
   portablePath,
   sha256,
-} from '@ia/db/distribution';
-import type { BundleManifest } from '@ia/db/distribution';
-import { isProvenance } from '@ia/language';
-import type { CompiledRecord, EdgeReference } from '@ia/language';
+} from '@inventarch/db/distribution';
+import type { BundleManifest } from '@inventarch/db/distribution';
+import { isProvenance } from '@inventarch/language';
+import type { CompiledRecord, EdgeReference } from '@inventarch/language';
 import { buildArchive, verifyArchive, verifySelectedArchiveClosure, type VerifiedArchive } from './archive.js';
 import { fail } from './files.js';
 

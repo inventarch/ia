@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { Door, MACHINE_PROTOCOL } from '@ia/runtime';
+import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { Protocol, PROTOCOL_VERSION } from '../src/protocol.js';
 
 const fixture = resolve(import.meta.dirname, '../../../packages/compliance/fixtures/loop'),
@@ -104,7 +104,9 @@ it('compacts diagnostics without changing delivered obligations or scope, and pr
   };
   const call = (format: string, extra = {}) =>
     value.request(message(2, 'tools/call', { name: 'ia_context', arguments: { ...arguments_, ...extra, format } }));
-  const full = call('full')?.result as { structuredContent: { ok: true; result: import('@ia/runtime').Packet } };
+  const full = call('full')?.result as {
+    structuredContent: { ok: true; result: import('@inventarch/runtime').Packet };
+  };
   const compact = call('compact')?.result as {
     content: { text: string }[];
     structuredContent: {

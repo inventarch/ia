@@ -1,7 +1,14 @@
-import { KERNEL_DIGEST, LANGUAGE_VERSION, buildRegistry, compile, parse, requirementCollisions } from '@ia/language';
-import type { CompiledRecord, Diagnostic, FrozenRegistry, Phase, Source } from '@ia/language';
-import { canonicalRoot, load, reaches, stableSerialize } from '@ia/graph';
-import type { Graph, RevisionSource } from '@ia/graph';
+import {
+  KERNEL_DIGEST,
+  LANGUAGE_VERSION,
+  buildRegistry,
+  compile,
+  parse,
+  requirementCollisions,
+} from '@inventarch/language';
+import type { CompiledRecord, Diagnostic, FrozenRegistry, Phase, Source } from '@inventarch/language';
+import { canonicalRoot, load, reaches, stableSerialize } from '@inventarch/graph';
+import type { Graph, RevisionSource } from '@inventarch/graph';
 import {
   evaluate,
   validateCheck,
@@ -10,8 +17,8 @@ import {
   validateSelectors,
   validateSystems,
   validateVariants,
-} from '@ia/compliance';
-import type { Assessment, Report, SystemFolder } from '@ia/compliance';
+} from '@inventarch/compliance';
+import type { Assessment, Report, SystemFolder } from '@inventarch/compliance';
 import type { InputSnapshot } from './inputs.js';
 import { systemMember } from './inputs.js';
 import { InstallationError } from './distribution/codec.js';

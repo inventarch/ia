@@ -1,7 +1,7 @@
 # Tool entry check
 
 `is-entry.mjs` exports `isEntry(argv1, moduleUrl)`, which every tool with a command-line entry block calls as
-`isEntry(process.argv[1], import.meta.url)`. It is the same function as `isEntry` in `@ia/runtime/entry`, which the
+`isEntry(process.argv[1], import.meta.url)`. It is the same function as `isEntry` in `@inventarch/runtime/entry`, which the
 package binaries use: the invoked path is compared first and real paths only when it misses, because Node loads an entry
 from its real path, so a tool started through a link to the checkout or to one of its directories still runs. A path
 that names no file (missing, through a file, or a name too long) is not the entry; any other failure to resolve one

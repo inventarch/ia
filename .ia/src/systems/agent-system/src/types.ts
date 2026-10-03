@@ -1,4 +1,13 @@
-import type { Json, Limits, Session, SessionStore, Recovery, Effect, ReviewContract, Owner } from '@ia/session-system';
+import type {
+  Json,
+  Limits,
+  Session,
+  SessionStore,
+  Recovery,
+  Effect,
+  ReviewContract,
+  Owner,
+} from '@inventarch/session-system';
 
 export const DEFAULT_MODEL_REQUEST_BYTES = 131_072;
 export const MAX_MODEL_REQUEST_BYTES = 262_144;

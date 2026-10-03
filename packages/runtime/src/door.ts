@@ -1,8 +1,8 @@
-import { KINDS } from '@ia/language';
-import type { ConditionAxis, EdgeReference, Kind, Phase } from '@ia/language';
-import { GraphUsageError, validateCoordinate } from '@ia/graph';
-import { DbError, open } from '@ia/db';
-import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@ia/db';
+import { KINDS } from '@inventarch/language';
+import type { ConditionAxis, EdgeReference, Kind, Phase } from '@inventarch/language';
+import { GraphUsageError, validateCoordinate } from '@inventarch/graph';
+import { DbError, open } from '@inventarch/db';
+import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
 import { context } from './context.js';
 import { RuntimeError } from './errors.js';
 import { select } from './select.js';

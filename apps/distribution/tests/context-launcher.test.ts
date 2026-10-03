@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
-import { platformDebris } from '@ia/db/distribution';
+import { platformDebris } from '@inventarch/db/distribution';
 import { json, sha256 } from '../src/files.js';
 import { HOST_MODES } from '../src/host-modes.js';
 
@@ -12,9 +12,9 @@ const roots: string[] = [];
 function cache(options: { v2?: boolean; pinned?: Readonly<Record<string, string>> } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'ia-context-launcher-'));
   roots.push(root);
-  const path = 'runtime/node_modules/@ia/steward-hook/dist/context.js';
+  const path = 'runtime/node_modules/@inventarch/steward-hook/dist/context.js';
   const files = new Map([
-    ['runtime/node_modules/@ia/steward-hook/package.json', '{"type":"module"}'],
+    ['runtime/node_modules/@inventarch/steward-hook/package.json', '{"type":"module"}'],
     [
       path,
       'export async function runContextHook(args,input){return args.length===1&&args[0]==="identity"?{format:"ia.context-hook-identity.v1",implementation:"' +
@@ -115,8 +115,8 @@ function doorCache(
   source = 'export function runCli(args){return {exitCode:args[0]==="records"?0:1,stdout:JSON.stringify({args})+"\\n"};}',
 ) {
   const selected = cache();
-  const cli = 'runtime/node_modules/@ia/cli/dist/main.js',
-    manifest = 'runtime/node_modules/@ia/cli/package.json';
+  const cli = 'runtime/node_modules/@inventarch/cli/dist/main.js',
+    manifest = 'runtime/node_modules/@inventarch/cli/package.json';
   const files = new Map([
     [manifest, '{"type":"module"}'],
     [cli, source],
@@ -138,7 +138,7 @@ function doorCache(
   );
   return selected;
 }
-it('passes door operations through to @ia/cli with its exit code', async () => {
+it('passes door operations through to @inventarch/cli with its exit code', async () => {
   const selected = doorCache(),
     root = resolve(tmpdir());
   const ok = await selected.launch(['door', 'records', '--root', root]);
@@ -146,9 +146,9 @@ it('passes door operations through to @ia/cli with its exit code', async () => {
   expect(JSON.parse(ok.stdout)).toEqual({ args: ['records', '--root', root] });
   expect((await selected.launch(['door', 'report', '--root', root])).status).toBe(1);
 });
-it('refuses door against a changed cache before loading @ia/cli', async () => {
+it('refuses door against a changed cache before loading @inventarch/cli', async () => {
   const selected = doorCache();
-  writeFileSync(join(selected.root, 'runtime/node_modules/@ia/cli/dist/main.js'), 'throw new Error("loaded")');
+  writeFileSync(join(selected.root, 'runtime/node_modules/@inventarch/cli/dist/main.js'), 'throw new Error("loaded")');
   const result = await selected.launch(['door', 'records', '--root', resolve(tmpdir())]);
   expect(result.status).toBe(1);
   expect(result.stderr).toMatch(/differs/);
@@ -218,7 +218,11 @@ it('prints native and host identity keys from verify, real for v1 and null for a
 });
 it('skips the unpinned Finder and AppleDouble files a Mac writes into the cache, and still refuses any other extra file (#323)', async () => {
   const selected = cache();
-  for (const path of ['.DS_Store', 'runtime/.DS_Store', 'runtime/node_modules/@ia/steward-hook/dist/._context.js'])
+  for (const path of [
+    '.DS_Store',
+    'runtime/.DS_Store',
+    'runtime/node_modules/@inventarch/steward-hook/dist/._context.js',
+  ])
     writeFileSync(join(selected.root, path), 'written by the platform');
   const verified = await selected.launch(['verify']);
   expect(verified.status, verified.stderr).toBe(0);
@@ -240,7 +244,7 @@ it('verifies a pinned file named like a Mac file, and refuses it once it changes
   expect(refused.status).toBe(1);
   expect(JSON.parse(refused.stderr)).toEqual({ status: 'refused', message: 'Plugin cache payload differs: ._pinned' });
 });
-it("skips exactly the names @ia/db's platformDebris skips, since it runs without that package (#323)", async () => {
+it("skips exactly the names @inventarch/db's platformDebris skips, since it runs without that package (#323)", async () => {
   for (const name of ['.DS_Store', '._x', '._', '.DS_Store.bak', 'x._y', '.ds_store', '.npmrc', '.hidden.mjs']) {
     const selected = cache();
     writeFileSync(join(selected.root, 'runtime', name), 'written by the platform');

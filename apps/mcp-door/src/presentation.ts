@@ -1,4 +1,4 @@
-import type { DoorResponse, Packet } from '@ia/runtime';
+import type { DoorResponse, Packet } from '@inventarch/runtime';
 
 /** Explicit transport projection: never changes admission, selection or the delivered obligations. */
 export function compactContext(response: DoorResponse): DoorResponse {

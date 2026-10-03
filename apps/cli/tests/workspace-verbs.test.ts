@@ -7,9 +7,9 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
-import { applyHost, planHost } from '@ia/distribution/host';
-import { materializeHostPayload, readHostPin } from '@ia/distribution/host-home';
-import { json, sha256 } from '@ia/distribution/services';
+import { applyHost, planHost } from '@inventarch/distribution/host';
+import { materializeHostPayload, readHostPin } from '@inventarch/distribution/host-home';
+import { json, sha256 } from '@inventarch/distribution/services';
 import { collectDoctor } from '../src/doctor.js';
 import { cleanup, cli, FORMATTABLE, run, scratch, workspace } from './workspace-fixture.js';
 

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { canonicalPath } from '@ia/language';
-import type { FrozenRegistry, Location } from '@ia/language';
+import { canonicalPath } from '@inventarch/language';
+import type { FrozenRegistry, Location } from '@inventarch/language';
 import { assertLocation, canonicalRoot } from './paths.js';
 
 export interface RevisionSource {

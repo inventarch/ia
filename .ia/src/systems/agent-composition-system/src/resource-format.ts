@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import type { ReadHandle } from '@ia/db';
-import { stableSerialize } from '@ia/graph';
-import { isKind } from '@ia/language';
+import type { ReadHandle } from '@inventarch/db';
+import { stableSerialize } from '@inventarch/graph';
+import { isKind } from '@inventarch/language';
 
 export const RESOURCE_LIMITS = Object.freeze({
   files: 256,

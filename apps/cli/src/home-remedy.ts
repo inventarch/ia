@@ -4,7 +4,7 @@
  */
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { resolveIaHome } from '@ia/distribution/ia-home';
+import { resolveIaHome } from '@inventarch/distribution/ia-home';
 import { Refusal, refusalOf } from './consumer.js';
 
 /** A service refusal kept verbatim (§4.1) and given the location and next action the CLI can supply. */

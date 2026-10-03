@@ -12,8 +12,8 @@ import {
   installationWorkspace,
   sha256,
   type ExpandedBundle,
-} from '@ia/db/distribution';
-import { digest } from '@ia/session-system';
+} from '@inventarch/db/distribution';
+import { digest } from '@inventarch/session-system';
 import {
   createInstalledSourcePolicy,
   createSourcePolicy,

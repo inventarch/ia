@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, parse, relative, resolve, sep } from 'node:path';
-import { unaliased } from '@ia/db';
-import { metadataDigest } from '@ia/db/distribution';
+import { unaliased } from '@inventarch/db';
+import { metadataDigest } from '@inventarch/db/distribution';
 
 const required = ['archive', 'pack', 'resolve', 'snapshot', 'install', 'installation-core', 'inventory', 'transfer'];
 const runtime = /\.(?:[cm]?[jt]sx?|json|node|wasm)$/;

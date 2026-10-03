@@ -100,7 +100,7 @@ try {
         chunks.push(bytes);
       }
     const input = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks));
-    const { runContextHook } = await import('../runtime/node_modules/@ia/steward-hook/dist/context.js');
+    const { runContextHook } = await import('../runtime/node_modules/@inventarch/steward-hook/dist/context.js');
     process.stdout.write(JSON.stringify(await runContextHook(args, input)) + '\n');
   } else {
     const argsFor = mode === 'claude-guard' ? ['--root', process.env.CLAUDE_PROJECT_DIR] : args;
@@ -114,7 +114,11 @@ try {
     if (consumerRel === '' || (!consumerRel.startsWith('..') && !isAbsolute(consumerRel)) || within(root, consumerRoot))
       throw Error('Explicit absolute consumer --root required');
     if (mode === 'distribution') {
-      process.argv = [process.argv[0], join(root, 'runtime/node_modules/@ia/distribution/dist/cli.js'), ...args];
+      process.argv = [
+        process.argv[0],
+        join(root, 'runtime/node_modules/@inventarch/distribution/dist/cli.js'),
+        ...args,
+      ];
       await import(pathToFileURL(process.argv[1]).href);
     } else if (mode === 'door') {
       const [operation, ...rest] = args,
@@ -127,13 +131,13 @@ try {
       }
       if (!operation || operation.startsWith('-') || rest.length % 2 !== 0 || !seen.has('--root'))
         throw Error('door requires <operation> --root <absolute> [--params <JSON|->]');
-      const { runCli } = await import('../runtime/node_modules/@ia/cli/dist/main.js');
+      const { runCli } = await import('../runtime/node_modules/@inventarch/cli/dist/main.js');
       const result = runCli(args);
       process.stdout.write(result.stdout);
       process.exitCode = result.exitCode;
     } else if (mode === 'mcp') {
       if (args.length !== 2 || args[0] !== '--root') throw Error('mcp requires exactly --root');
-      const { serve } = await import('../runtime/node_modules/@ia/mcp-door/dist/main.js');
+      const { serve } = await import('../runtime/node_modules/@inventarch/mcp-door/dist/main.js');
       await serve(args[1]);
     } else {
       if (mode === 'claude-guard' && args.length) throw Error('Claude binding accepts no event-selected arguments');
@@ -142,7 +146,7 @@ try {
         input += chunk;
         if (Buffer.byteLength(input) > 1024 * 1024) throw Error('Hook input exceeds 1 MiB');
       }
-      const { runHook } = await import('../runtime/node_modules/@ia/steward-hook/dist/main.js');
+      const { runHook } = await import('../runtime/node_modules/@inventarch/steward-hook/dist/main.js');
       process.stdout.write(JSON.stringify(runHook(argsFor, input)) + '\n');
     }
   }

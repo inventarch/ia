@@ -5,8 +5,8 @@ import { expect, it } from 'vitest';
 import { discoverRoot, dispatch, iaHomeOf } from '../src/consumer.js';
 import type { Extension, Host, Result } from '../src/consumer.js';
 import { COMMANDS, CORE_TOKENS, EXTENSION_TOKEN, LEGACY_OPERATIONS, RESERVED_TOKEN } from '../src/commands.js';
-import { fieldTypeText } from '@ia/compliance';
-import { MACHINE_PROTOCOL } from '@ia/runtime';
+import { fieldTypeText } from '@inventarch/compliance';
+import { MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { scratch } from './workspace-fixture.js';
 

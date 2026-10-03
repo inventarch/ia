@@ -31,22 +31,22 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.14
         version: 2.5.14
-      '@ia/agent-composition-system':
+      '@inventarch/agent-composition-system':
         specifier: workspace:*
         version: link:.ia/src/systems/agent-composition-system
-      '@ia/authoring-system':
+      '@inventarch/authoring-system':
         specifier: workspace:*
         version: link:.ia/src/systems/authoring-system
-      '@ia/db':
+      '@inventarch/db':
         specifier: workspace:*
         version: link:packages/db
-      '@ia/graph':
+      '@inventarch/graph':
         specifier: workspace:*
         version: link:packages/graph
-      '@ia/runtime':
+      '@inventarch/runtime':
         specifier: workspace:*
         version: link:packages/runtime
-      '@ia/session-system':
+      '@inventarch/session-system':
         specifier: workspace:*
         version: link:.ia/src/systems/session-system
       '@types/node':
@@ -85,28 +85,28 @@ importers:
 
   .ia/src/systems/agent-composition-system:
     dependencies:
-      '@ia/agent-system':
+      '@inventarch/agent-system':
         specifier: workspace:*
         version: link:../agent-system
-      '@ia/authoring-system':
+      '@inventarch/authoring-system':
         specifier: workspace:*
         version: link:../authoring-system
-      '@ia/db':
+      '@inventarch/db':
         specifier: workspace:*
         version: link:../../../../packages/db
-      '@ia/graph':
+      '@inventarch/graph':
         specifier: workspace:*
         version: link:../../../../packages/graph
-      '@ia/language':
+      '@inventarch/language':
         specifier: workspace:*
         version: link:../../../../packages/language
-      '@ia/runtime':
+      '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../../../packages/runtime
-      '@ia/session-system':
+      '@inventarch/session-system':
         specifier: workspace:*
         version: link:../session-system
-      '@ia/template-system':
+      '@inventarch/template-system':
         specifier: workspace:*
         version: link:../template-system
     devDependencies:
@@ -122,7 +122,7 @@ importers:
 
   .ia/src/systems/agent-system:
     dependencies:
-      '@ia/session-system':
+      '@inventarch/session-system':
         specifier: workspace:*
         version: link:../session-system
     devDependencies:
@@ -138,13 +138,13 @@ importers:
 
   .ia/src/systems/authoring-system:
     dependencies:
-      '@ia/db':
+      '@inventarch/db':
         specifier: workspace:*
         version: link:../../../../packages/db
-      '@ia/language':
+      '@inventarch/language':
         specifier: workspace:*
         version: link:../../../../packages/language
-      '@ia/runtime':
+      '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../../../packages/runtime
     devDependencies:
@@ -172,10 +172,10 @@ importers:
 
   .ia/src/systems/template-system:
     dependencies:
-      '@ia/language':
+      '@inventarch/language':
         specifier: workspace:*
         version: link:../../../../packages/language
-      '@ia/runtime':
+      '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../../../packages/runtime
     devDependencies:
@@ -191,19 +191,19 @@ importers:
 
   apps/cli:
     dependencies:
-      '@ia/agent-composition-system':
+      '@inventarch/agent-composition-system':
         specifier: workspace:*
         version: link:../../.ia/src/systems/agent-composition-system
-      '@ia/compliance':
+      '@inventarch/compliance':
         specifier: workspace:*
         version: link:../../packages/compliance
-      '@ia/db':
+      '@inventarch/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@ia/distribution':
+      '@inventarch/distribution':
         specifier: workspace:*
         version: link:../distribution
-      '@ia/runtime':
+      '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
     devDependencies:
@@ -219,25 +219,25 @@ importers:
 
   apps/distribution:
     dependencies:
-      '@ia/agent-composition-system':
+      '@inventarch/agent-composition-system':
         specifier: workspace:*
         version: link:../../.ia/src/systems/agent-composition-system
-      '@ia/authoring-system':
+      '@inventarch/authoring-system':
         specifier: workspace:*
         version: link:../../.ia/src/systems/authoring-system
-      '@ia/db':
+      '@inventarch/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@ia/graph':
+      '@inventarch/graph':
         specifier: workspace:*
         version: link:../../packages/graph
-      '@ia/language':
+      '@inventarch/language':
         specifier: workspace:*
         version: link:../../packages/language
-      '@ia/session-system':
+      '@inventarch/session-system':
         specifier: workspace:*
         version: link:../../.ia/src/systems/session-system
-      '@ia/steward-hook':
+      '@inventarch/steward-hook':
         specifier: workspace:*
         version: link:../steward-hook
       jsonc-parser:
@@ -259,10 +259,10 @@ importers:
 
   apps/mcp-door:
     dependencies:
-      '@ia/agent-composition-system':
+      '@inventarch/agent-composition-system':
         specifier: workspace:*
         version: link:../../.ia/src/systems/agent-composition-system
-      '@ia/runtime':
+      '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
     devDependencies:
@@ -278,13 +278,13 @@ importers:
 
   apps/steward-hook:
     dependencies:
-      '@ia/agent-composition-system':
+      '@inventarch/agent-composition-system':
         specifier: workspace:*
         version: link:../../.ia/src/systems/agent-composition-system
-      '@ia/db':
+      '@inventarch/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@ia/runtime':
+      '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
     devDependencies:
@@ -300,7 +300,7 @@ importers:
 
   apps/vscode:
     dependencies:
-      '@ia/runtime':
+      '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
       vscode-languageclient:
@@ -340,10 +340,10 @@ importers:
 
   packages/compliance:
     dependencies:
-      '@ia/graph':
+      '@inventarch/graph':
         specifier: workspace:*
         version: link:../graph
-      '@ia/language':
+      '@inventarch/language':
         specifier: workspace:*
         version: link:../language
     devDependencies:
@@ -359,13 +359,13 @@ importers:
 
   packages/db:
     dependencies:
-      '@ia/compliance':
+      '@inventarch/compliance':
         specifier: workspace:*
         version: link:../compliance
-      '@ia/graph':
+      '@inventarch/graph':
         specifier: workspace:*
         version: link:../graph
-      '@ia/language':
+      '@inventarch/language':
         specifier: workspace:*
         version: link:../language
       semver:
@@ -387,7 +387,7 @@ importers:
 
   packages/graph:
     dependencies:
-      '@ia/language':
+      '@inventarch/language':
         specifier: workspace:*
         version: link:../language
     devDependencies:
@@ -415,13 +415,13 @@ importers:
 
   packages/runtime:
     dependencies:
-      '@ia/db':
+      '@inventarch/db':
         specifier: workspace:*
         version: link:../db
-      '@ia/graph':
+      '@inventarch/graph':
         specifier: workspace:*
         version: link:../graph
-      '@ia/language':
+      '@inventarch/language':
         specifier: workspace:*
         version: link:../language
     devDependencies:

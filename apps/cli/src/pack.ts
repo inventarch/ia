@@ -11,9 +11,9 @@
  */
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import { DISTRIBUTION_LIMITS } from '@ia/db/distribution';
-import { packToDirectory, readWorkspaceFile, replace } from '@ia/distribution/services';
-import type { PackedArchive } from '@ia/distribution/services';
+import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
+import { packToDirectory, readWorkspaceFile, replace } from '@inventarch/distribution/services';
+import type { PackedArchive } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import { codeOf } from './session.js';

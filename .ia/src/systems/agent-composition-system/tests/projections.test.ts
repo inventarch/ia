@@ -3,8 +3,8 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { open } from '@ia/db';
-import type { Handle } from '@ia/db';
+import { open } from '@inventarch/db';
+import type { Handle } from '@inventarch/db';
 import { adoptWorkspace, captureWorkspace } from '../src/index.js';
 import { captureResources, resolveResources, resourceOccurrences, verifyResources } from '../src/resources.js';
 import {
@@ -31,8 +31,8 @@ vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 // Counts full native rebuilds. The subclass is otherwise transparent to every caller.
 const rebuilds = vi.hoisted(() => ({ count: 0 }));
-vi.mock('@ia/db/editor', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@ia/db/editor')>();
+vi.mock('@inventarch/db/editor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@inventarch/db/editor')>();
   class CountedSnapshot extends actual.EditorSnapshot {
     constructor(...input: ConstructorParameters<typeof actual.EditorSnapshot>) {
       super(...input);

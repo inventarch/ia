@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION, parse } from '@ia/language';
-import { load, stableSerialize } from '@ia/graph';
+import { KERNEL_DIGEST, LANGUAGE_VERSION, parse } from '@inventarch/language';
+import { load, stableSerialize } from '@inventarch/graph';
 import { evaluate, fixtureCoverage, runLanguageFixture, verdict } from '../src/index.js';
 import type { ReportOptions } from '../src/index.js';
 import { inputs, records, registry, sources } from './native.js';

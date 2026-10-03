@@ -1,7 +1,7 @@
 import { closeSync, fstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
-import { decodeDistributionJson, packageId } from '@ia/db/distribution';
+import { decodeDistributionJson, packageId } from '@inventarch/db/distribution';
 import { bytes, DistributionError, fail, locate, object, utf8, workspace } from './files.js';
 import { relabel } from './registry-layout.js';
 import { parseRegistryBase } from './registry-source.js';

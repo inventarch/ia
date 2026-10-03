@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symli
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { openDatabase } from '@ia/runtime';
+import { openDatabase } from '@inventarch/runtime';
 import { runBounded } from '@tools/testing/subprocess.js';
 
 // A case may launch several built hooks and admit a disk-backed native fixture.

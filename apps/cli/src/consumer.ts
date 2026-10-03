@@ -10,8 +10,8 @@
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, resolve } from 'node:path';
-import { sameFile } from '@ia/db';
-import { resolveIaHome } from '@ia/distribution/ia-home';
+import { sameFile } from '@inventarch/db';
+import { resolveIaHome } from '@inventarch/distribution/ia-home';
 import type { Arguments, Grammar } from './args.js';
 import { parseArguments, UsageError } from './args.js';
 import type { CommandSpec, Group } from './commands.js';

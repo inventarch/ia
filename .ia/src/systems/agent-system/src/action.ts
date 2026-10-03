@@ -1,5 +1,5 @@
-import { canonical, SessionError } from '@ia/session-system';
-import type { Json } from '@ia/session-system';
+import { canonical, SessionError } from '@inventarch/session-system';
+import type { Json } from '@inventarch/session-system';
 import type { ModelAction, OutcomeKind } from './types.js';
 
 export class EngineError extends SessionError {}

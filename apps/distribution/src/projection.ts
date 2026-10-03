@@ -1,5 +1,5 @@
 import { readdirSync, type Dirent } from 'node:fs';
-import { decodeDistributionJson } from '@ia/db/distribution';
+import { decodeDistributionJson } from '@inventarch/db/distribution';
 import {
   bytes,
   contained,

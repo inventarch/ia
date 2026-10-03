@@ -2,10 +2,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { open } from '@ia/db';
-import type { Handle } from '@ia/db';
-import { digest } from '@ia/session-system';
-import { DEFAULT_TOKENIZER, context } from '@ia/runtime';
+import { open } from '@inventarch/db';
+import type { Handle } from '@inventarch/db';
+import { digest } from '@inventarch/session-system';
+import { DEFAULT_TOKENIZER, context } from '@inventarch/runtime';
 import { createNativeLifecycleEvent, decodeLifecycleEvent, lifecycleProfile } from '../src/lifecycle-profile.js';
 import {
   prepareLifecycleContext,

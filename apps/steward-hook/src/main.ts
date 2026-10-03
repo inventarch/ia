@@ -1,9 +1,9 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync, type Stats } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import { evaluateSteward, isEntry, openDatabase } from '@ia/runtime';
-import type { HookCode } from '@ia/runtime';
-import { pathKey, sameFile, unaliased } from '@ia/db';
-import { decodeDistributionJson } from '@ia/db/distribution';
+import { evaluateSteward, isEntry, openDatabase } from '@inventarch/runtime';
+import type { HookCode } from '@inventarch/runtime';
+import { pathKey, sameFile, unaliased } from '@inventarch/db';
+import { decodeDistributionJson } from '@inventarch/db/distribution';
 
 export interface HookOutput {
   readonly hookSpecificOutput?: {
@@ -94,7 +94,7 @@ function hostsArea(root: string): string | undefined {
   }
   return directory;
 }
-/** The same projection allowlist `@ia/distribution` writes (projection.ts), so a state cannot claim other paths. */
+/** The same projection allowlist `@inventarch/distribution` writes (projection.ts), so a state cannot claim other paths. */
 const PROJECTION_OWNED: Readonly<Record<'claude' | 'codex', (path: string) => boolean>> = {
   claude: (path) =>
     path === '.claude/rules/ia-workspace.md' ||

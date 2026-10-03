@@ -1,5 +1,5 @@
-import { validateShape } from '@ia/agent-system';
-import type { Json } from '@ia/session-system';
+import { validateShape } from '@inventarch/agent-system';
+import type { Json } from '@inventarch/session-system';
 
 /** Decidable conjunction for the installed closed schema vocabulary (after schema validation).
  * Optional properties may be omitted; arrays always admit the empty array unless an enum forbids it. */

@@ -1,6 +1,6 @@
-import type { Phase } from '@ia/language';
-import { GraphUsageError, cell, effectiveSeverity, selectors, variants } from '@ia/graph';
-import type { ReadHandle, Scope } from '@ia/db';
+import type { Phase } from '@inventarch/language';
+import { GraphUsageError, cell, effectiveSeverity, selectors, variants } from '@inventarch/graph';
+import type { ReadHandle, Scope } from '@inventarch/db';
 import { prepareCoordinate } from './coordinate.js';
 import type { PreparedCoordinate } from './coordinate.js';
 import { mentions, resolveMention, subjectMention } from './mentions.js';

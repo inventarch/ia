@@ -1,4 +1,4 @@
-import { DIMENSION_PATHS, indexedResolver, isKind, resolveTarget } from '@ia/language';
+import { DIMENSION_PATHS, indexedResolver, isKind, resolveTarget } from '@inventarch/language';
 import type {
   CompiledChild,
   CompiledEdge,
@@ -13,7 +13,7 @@ import type {
   SchemaEdge,
   SchemaField,
   Span,
-} from '@ia/language';
+} from '@inventarch/language';
 import { isListType, matchesForm, matchesType } from './values.js';
 import { assess } from './types.js';
 import type { Assessment, CompCode, Finding } from './types.js';

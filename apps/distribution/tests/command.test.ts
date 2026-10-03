@@ -2,10 +2,10 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { readInputs } from '@ia/db';
-import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@ia/agent-composition-system';
-import { captureResources, resourceOccurrences } from '@ia/agent-composition-system/resources';
-import { claudeProseCatalog, codexProseCatalog } from '@ia/agent-composition-system/projections';
+import { readInputs } from '@inventarch/db';
+import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
+import { captureResources, resourceOccurrences } from '@inventarch/agent-composition-system/resources';
+import { claudeProseCatalog, codexProseCatalog } from '@inventarch/agent-composition-system/projections';
 import { digest, sha256 } from '../src/files.js';
 import { run } from '../src/command.js';
 

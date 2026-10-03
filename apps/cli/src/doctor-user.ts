@@ -12,12 +12,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { sameFile } from '@ia/db';
-import type { Decision } from '@ia/distribution/decisions';
-import { decisionFor, DECISIONS, readDecisions } from '@ia/distribution/decisions';
-import { HOME_MARKER, resolveIaHome } from '@ia/distribution/ia-home';
-import { inspectMaterializedPlugin, MARKETPLACE_DIR } from '@ia/distribution/plugin-home';
-import type { UpdateCheck } from '@ia/distribution/updates';
+import { sameFile } from '@inventarch/db';
+import type { Decision } from '@inventarch/distribution/decisions';
+import { decisionFor, DECISIONS, readDecisions } from '@inventarch/distribution/decisions';
+import { HOME_MARKER, resolveIaHome } from '@inventarch/distribution/ia-home';
+import { inspectMaterializedPlugin, MARKETPLACE_DIR } from '@inventarch/distribution/plugin-home';
+import type { UpdateCheck } from '@inventarch/distribution/updates';
 import {
   compareVersions,
   compatibility,
@@ -25,7 +25,7 @@ import {
   readUpdateCheck,
   refreshDue,
   updateCheckDisabled,
-} from '@ia/distribution/updates';
+} from '@inventarch/distribution/updates';
 import { localDate } from './briefing.js';
 import type { Channel } from './channel.js';
 import { describeChannel, detectChannel, updateInstruction } from './channel.js';
@@ -57,7 +57,7 @@ const row = (
 const USER_APPLY = 'ia host claude --user --apply';
 const WEEK = 7 * 24 * 3600 * 1000;
 /**
- * The installed mechanism binary: `@ia/distribution`'s own `bin` entry, read from its package.json. Resolving the
+ * The installed mechanism binary: `@inventarch/distribution`'s own `bin` entry, read from its package.json. Resolving the
  * `./updates` export only locates the package, because the file it lands on depends on the active conditions: under a
  * `development` condition (vitest's config, or `node --conditions=development`) it is `src/updates.ts`, and a
  * sibling `cli.js` would name a `src/cli.js` that does not exist, whose detached spawn then fails silently. The `bin`
@@ -67,7 +67,7 @@ const WEEK = 7 * 24 * 3600 * 1000;
 const distributionBin = (): string | null => {
   try {
     for (
-      let directory = dirname(createRequire(import.meta.url).resolve('@ia/distribution/updates'));
+      let directory = dirname(createRequire(import.meta.url).resolve('@inventarch/distribution/updates'));
       ;
       directory = dirname(directory)
     ) {
@@ -77,7 +77,7 @@ const distributionBin = (): string | null => {
           readonly name?: unknown;
           readonly bin?: Record<string, unknown>;
         };
-        if (found.name === '@ia/distribution') {
+        if (found.name === '@inventarch/distribution') {
           const bin = found.bin?.['ia-distribution'];
           return typeof bin === 'string' ? resolve(directory, bin) : null;
         }

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { decodeBundleManifest, sha256 } from '@ia/db/distribution';
+import { decodeBundleManifest, sha256 } from '@inventarch/db/distribution';
 import { buildArchive, verifyArchive } from '../src/archive.js';
 import { DistributionError } from '../src/files.js';
 import { resolveReleases, selectReleases } from '../src/resolve.js';

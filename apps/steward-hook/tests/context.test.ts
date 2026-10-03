@@ -3,8 +3,8 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writ
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
-import { open } from '@ia/db';
-import { LifecycleError, lifecycleProfile } from '@ia/agent-composition-system/lifecycle-profile';
+import { open } from '@inventarch/db';
+import { LifecycleError, lifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
 import {
   createContextHookBinding,
   DEFAULT_CONTEXT_HOOK_BUDGETS,

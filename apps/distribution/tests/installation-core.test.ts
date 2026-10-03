@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { open, readInputs } from '@ia/db';
-import { EditorSnapshot } from '@ia/db/editor';
+import { open, readInputs } from '@inventarch/db';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import { buildArchive, verifyArchive } from '../src/archive.js';
 import { applyInstallation, cacheArchive, planInstallation } from '../src/install.js';
 import { planInstallationSnapshot, revalidateInstallationSnapshot } from '../src/installation-core.js';

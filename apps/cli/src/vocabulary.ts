@@ -8,7 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fieldTypeText } from '@ia/compliance';
+import { fieldTypeText } from '@inventarch/compliance';
 import type { Context, Result } from './consumer.js';
 import { Refusal } from './consumer.js';
 import { nearestTokens } from './commands.js';
@@ -76,7 +76,7 @@ export function readCatalogue(packageRoot: string): Catalogue {
       `The shipped vocabulary catalogue at ${path} could not be read: ${error instanceof Error ? error.message : String(error)}`,
       3,
       { path },
-      'Reinstall @ia/cli; the catalogue ships with the package and is not read from the workspace.',
+      'Reinstall @inventarch/cli; the catalogue ships with the package and is not read from the workspace.',
     );
   }
 }

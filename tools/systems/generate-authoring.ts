@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeDistributionJson } from '@ia/db/distribution';
+import { decodeDistributionJson } from '@inventarch/db/distribution';
 import { teachingLinkClasses, teachingLinkFindings } from './teaching-links.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));

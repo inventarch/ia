@@ -2,9 +2,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { digest, memoryStore } from '@ia/session-system';
-import { sqliteStore } from '@ia/session-system/sqlite';
-import type { Json, SessionStore } from '@ia/session-system';
+import { digest, memoryStore } from '@inventarch/session-system';
+import { sqliteStore } from '@inventarch/session-system/sqlite';
+import type { Json, SessionStore } from '@inventarch/session-system';
 import { Engine, manifestDigest } from '../src/index.js';
 import type {
   EngineHost,

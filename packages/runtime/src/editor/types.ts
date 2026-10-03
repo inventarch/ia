@@ -1,8 +1,8 @@
-import type { Range } from '@ia/language/editor';
-import type { Phase, Primitive } from '@ia/language';
-export type { Position, Range } from '@ia/language/editor';
-export type { Overlay, EditorSource } from '@ia/db/editor';
-export type { Phase, Primitive } from '@ia/language';
+import type { Range } from '@inventarch/language/editor';
+import type { Phase, Primitive } from '@inventarch/language';
+export type { Position, Range } from '@inventarch/language/editor';
+export type { Overlay, EditorSource } from '@inventarch/db/editor';
+export type { Phase, Primitive } from '@inventarch/language';
 export interface ViewStamp {
   readonly protocol: 1;
   readonly ownerSession: string;

@@ -1,18 +1,18 @@
 # Descriptor codecs and compilers
 
-**Status (2026-09-28, LK-17): producer implemented; words unregistered.** This folder is the pure producer half of spec-0009 (OS09). The public `@ia/db/descriptors` export decodes and compiles `domain-model`, `storage-binding` and `app-composition` resources. Storage adapters, migration proposals and tenancy belong to the API (LK-18). Installed app consumers and the two hosts belong to ia-apps (LK-19). Nothing here is acceptance evidence for those tasks.
+**Status (2026-09-28, LK-17): producer implemented; words unregistered.** This folder is the pure producer half of spec-0009 (OS09). The public `@inventarch/db/descriptors` export decodes and compiles `domain-model`, `storage-binding` and `app-composition` resources. Storage adapters, migration proposals and tenancy belong to the API (LK-18). Installed app consumers and the two hosts belong to ia-apps (LK-19). Nothing here is acceptance evidence for those tasks.
 
 The module has no I/O, clock, network, DDL or code execution. Compilers read only the values they are given: an envelope, the resource text the host disclosed, and a registry built by `createDescriptorRegistry`. They return frozen results.
 
 ## Placement decision
 
-The producer lives in `@ia/db`, as a subpath beside `@ia/db/distribution`, for three reasons:
+The producer lives in `@inventarch/db`, as a subpath beside `@inventarch/db/distribution`, for three reasons:
 
 - It reuses the strict JSON transport that the distribution codec already uses. That parser now lives in [`../json.ts`](../json.ts), with the distribution messages unchanged.
-- `@ia/db` owns native admission, and envelopes come from admitted records.
+- `@inventarch/db` owns native admission, and envelopes come from admitted records.
 - It is an existing public package, so the release export already publishes it.
 
-`@ia/service-contracts` is not suitable, because it may import only Zod and cannot hash. `@ia/compliance` cannot import the parser, because `@ia/db` depends on it. A new package would need new release, lock and schedule machinery for a slice this small. Catalog owners S07 and S09 do not need to become native systems (spec-0005 §4).
+`@inventarch/service-contracts` is not suitable, because it may import only Zod and cannot hash. `@inventarch/compliance` cannot import the parser, because `@inventarch/db` depends on it. A new package would need new release, lock and schedule machinery for a slice this small. Catalog owners S07 and S09 do not need to become native systems (spec-0005 §4).
 
 ## Registration (ALIGN-06)
 
@@ -164,9 +164,9 @@ Decoding order is fixed, so equal input gives an equal refusal (DESC-Q08).
 - two apps, `orders-desk` and `lending-kiosk`, which share the `list-view` contract;
 - a trusted registry (`registry.json`);
 - the envelopes extracted from the admitted candidate records (`envelopes.json`), and `expected.json`, the emitted compiled digests;
-- [`consumer.mjs`](../../fixtures/descriptors/consumer.mjs), which imports only `@ia/db/descriptors`.
+- [`consumer.mjs`](../../fixtures/descriptors/consumer.mjs), which imports only `@inventarch/db/descriptors`.
 
-The test checks three things. The source compilation must equal `expected.json`. `envelopes.json` must equal what `envelopeFromRecord` extracts from the admitted overlay. And the consumer, run against the built export without the development condition, must reproduce the same digests and refusal codes. To run the consumer from packed archives outside the workspace, pack `@ia/language`, `@ia/graph`, `@ia/compliance` and `@ia/db`, install them into an empty directory, and run `node consumer.mjs <fixture dir>`.
+The test checks three things. The source compilation must equal `expected.json`. `envelopes.json` must equal what `envelopeFromRecord` extracts from the admitted overlay. And the consumer, run against the built export without the development condition, must reproduce the same digests and refusal codes. To run the consumer from packed archives outside the workspace, pack `@inventarch/language`, `@inventarch/graph`, `@inventarch/compliance` and `@inventarch/db`, install them into an empty directory, and run `node consumer.mjs <fixture dir>`.
 
 ## Extension rules
 

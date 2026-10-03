@@ -5,7 +5,7 @@
  * a root that cannot be read produced no finding set, so it is a refusal and never a diagnostic. The service's
  * own code is carried through unchanged (§4.1); only the next action is the CLI's.
  */
-import { openWorkspaceSession } from '@ia/distribution/services';
+import { openWorkspaceSession } from '@inventarch/distribution/services';
 import { Refusal } from './consumer.js';
 
 export type Session = ReturnType<typeof openWorkspaceSession>;

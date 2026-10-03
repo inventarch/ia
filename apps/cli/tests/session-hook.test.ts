@@ -3,13 +3,13 @@
  * what packages/compliance/tests/host-plugin.test.ts does not: the hook's own 5s timeout, the once-per-day update
  * nudge, and two end-to-end runs against the actual built CLI as the hook's `ia doctor` entry (a non-workspace
  * directory, then a freshly initialized one). The end-to-end cases require a current `apps/cli/dist/main.js`:
- * run `pnpm --filter @ia/cli build` (and, transitively, `pnpm --filter @ia/distribution build` and
- * `pnpm --filter @ia/compliance build`) first.
+ * run `pnpm --filter @inventarch/cli build` (and, transitively, `pnpm --filter @inventarch/distribution build` and
+ * `pnpm --filter @inventarch/compliance build`) first.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
-import { renderClaudePlugin } from '@ia/compliance';
+import { renderClaudePlugin } from '@inventarch/compliance';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { cleanup, cli, scratch } from './workspace-fixture.js';
 

@@ -1,5 +1,5 @@
-import { SEVERITIES } from '@ia/language';
-import type { Term, Variant } from '@ia/language';
+import { SEVERITIES } from '@inventarch/language';
+import type { Term, Variant } from '@inventarch/language';
 import { validateCoordinate } from './coordinate.js';
 import type { Coordinate, Dimensions } from './coordinate.js';
 import { graphDiagnostic } from './diagnostics.js';

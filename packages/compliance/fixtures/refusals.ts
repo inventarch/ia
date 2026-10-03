@@ -1,9 +1,17 @@
 /** Executable boundary fixtures over the actual native corpus. These mutate
  * typed products to exercise refusal APIs; they are not substitute providers. */
-import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@ia/language';
-import type { CompiledRecord, FrozenRegistry, SchemaField } from '@ia/language';
-import { GraphUsageError, canonicalRoot, load, resolve, traverse, validateCoordinate, variants } from '@ia/graph';
-import type { Graph, Node, RevisionSource } from '@ia/graph';
+import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@inventarch/language';
+import type { CompiledRecord, FrozenRegistry, SchemaField } from '@inventarch/language';
+import {
+  GraphUsageError,
+  canonicalRoot,
+  load,
+  resolve,
+  traverse,
+  validateCoordinate,
+  variants,
+} from '@inventarch/graph';
+import type { Graph, Node, RevisionSource } from '@inventarch/graph';
 import {
   renderHostArtifacts,
   validateAdoption,

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 
 export const AUTHORING_PROTOCOL = 1 as const;
 export const AUTHORING_LIMITS = Object.freeze({

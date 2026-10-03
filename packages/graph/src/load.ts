@@ -1,4 +1,4 @@
-import { KIND_LANES, canonicalPath, consentFor, isPhase, validatePool } from '@ia/language';
+import { KIND_LANES, canonicalPath, consentFor, isPhase, validatePool } from '@inventarch/language';
 import type {
   CompiledChild,
   CompiledEdge,
@@ -6,7 +6,7 @@ import type {
   CompiledValue,
   FrozenRegistry,
   Predicate,
-} from '@ia/language';
+} from '@inventarch/language';
 import { dimensionsOf } from './coordinate.js';
 import { GraphUsageError, graphDiagnostic } from './diagnostics.js';
 import type { GraphDiagnostic } from './diagnostics.js';

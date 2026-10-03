@@ -1,6 +1,6 @@
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { isAbsolute, parse, relative, resolve, sep } from 'node:path';
-import { readInputs, unaliased } from '@ia/db';
+import { readInputs, unaliased } from '@inventarch/db';
 import type { Capture } from './corpus.js';
 import { resourcePrefix } from './resource-sources.js';
 import { invalid, metadataDigest, portablePath, RESOURCE_LIMITS, sha256 } from './resource-format.js';

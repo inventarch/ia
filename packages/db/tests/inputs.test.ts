@@ -12,8 +12,8 @@ import {
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { KERNEL_SOURCES, buildRegistry, compile, parse } from '@ia/language';
-import type { Location } from '@ia/language';
+import { KERNEL_SOURCES, buildRegistry, compile, parse } from '@inventarch/language';
+import type { Location } from '@inventarch/language';
 import { caseFold, linked, pathKey, readInputs, sameFile, systemMember, unaliased, within } from '../src/index.js';
 
 const temporary: string[] = [];

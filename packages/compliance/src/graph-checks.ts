@@ -1,6 +1,6 @@
-import { AXES, canonicalValue, resolveTarget } from '@ia/language';
-import type { CompiledField, Diagnostic } from '@ia/language';
-import type { Edge, Graph, Node } from '@ia/graph';
+import { AXES, canonicalValue, resolveTarget } from '@inventarch/language';
+import type { CompiledField, Diagnostic } from '@inventarch/language';
+import type { Edge, Graph, Node } from '@inventarch/graph';
 import { couldMatch, matchesTarget, poolLookup, schemaReporter, schemaStructure } from './schema.js';
 import type { ReferenceLookup } from './schema.js';
 import { assess } from './types.js';

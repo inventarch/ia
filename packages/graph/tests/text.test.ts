@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@ia/language';
+import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import { fold, load, search, serialize, tokenize } from '../src/index.js';
 import { registry } from './native.js';
 

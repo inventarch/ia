@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import { EditorSnapshot } from '@ia/db/editor';
-import type { InputSnapshot } from '@ia/db';
-import { parse } from '@ia/language';
-import { recordsIn } from '@ia/language/editor';
-import { stableSerialize } from '@ia/graph';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import type { InputSnapshot } from '@inventarch/db';
+import { parse } from '@inventarch/language';
+import { recordsIn } from '@inventarch/language/editor';
+import { stableSerialize } from '@inventarch/graph';
 import { sourcePath } from './authoring/index.js';
 import { evaluateSteward } from './steward.js';
 

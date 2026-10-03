@@ -5,8 +5,8 @@
  * renders admitted structure — sections, fields, edges, source location — and makes no assessment, score or
  * recommendation. Its `--json` envelope is deliberately not interchangeable with the frozen `ia get` one.
  */
-import type { HostObservation } from '@ia/distribution/services';
-import { openWorkspaceSession, readInstalledState } from '@ia/distribution/services';
+import type { HostObservation } from '@inventarch/distribution/services';
+import { openWorkspaceSession, readInstalledState } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import { pinnedRelease } from './host.js';

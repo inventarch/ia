@@ -20,9 +20,9 @@ export type {
 } from './types.js';
 export { select } from './select.js';
 export type { SelectOptions, SelectResult } from './select.js';
-export { open as openDatabase } from '@ia/db';
-export type { Handle, OpenOptions, Scope, ScopeRequest, ReadOptions, Snapshot } from '@ia/db';
-export { pathKey, sameFile, unaliased, within } from '@ia/db';
+export { open as openDatabase } from '@inventarch/db';
+export type { Handle, OpenOptions, Scope, ScopeRequest, ReadOptions, Snapshot } from '@inventarch/db';
+export { pathKey, sameFile, unaliased, within } from '@inventarch/db';
 export { Door } from './door.js';
 export type { DoorOptions, DoorResponse } from './door.js';
 export { MACHINE_PROTOCOL } from './machine-protocol.js';

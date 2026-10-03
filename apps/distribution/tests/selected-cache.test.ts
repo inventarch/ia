@@ -2,8 +2,8 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { open } from '@ia/db';
-import { canonicalDistributionJson as json, readInstalledGeneration, sha256 } from '@ia/db/distribution';
+import { open } from '@inventarch/db';
+import { canonicalDistributionJson as json, readInstalledGeneration, sha256 } from '@inventarch/db/distribution';
 import { productStructure } from '../../../tools/release/product-structure.mjs';
 import { buildArchive, verifyArchive } from '../src/archive.js';
 import {

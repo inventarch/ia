@@ -1,8 +1,8 @@
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { open, readInputs } from '@ia/db';
-import type { Handle } from '@ia/db';
-import { EditorSnapshot } from '@ia/db/editor';
+import { open, readInputs } from '@inventarch/db';
+import type { Handle } from '@inventarch/db';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import { DraftError, formatDraft, validateDraft } from '../src/index.js';
 
 const root = resolve(import.meta.dirname, '../../../../..'),

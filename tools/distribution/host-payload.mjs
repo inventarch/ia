@@ -1,4 +1,4 @@
-// Spec §3.2 (amended): the host payload @ia/cli carries, generated from the workspace's built packages.
+// Spec §3.2 (amended): the host payload @inventarch/cli carries, generated from the workspace's built packages.
 import { createHash } from 'node:crypto';
 import {
   existsSync,
@@ -16,7 +16,7 @@ import { isEntry } from '../entry/is-entry.mjs';
 
 const ROOTS = ['apps/cli', 'apps/distribution', 'apps/mcp-door', 'apps/steward-hook'];
 /** Imported only by the private service bridge (apps/mcp-door/src/service*.ts); the public door never loads them. */
-export const EXCLUDED = new Set(['@modelcontextprotocol/client', '@ia/service-contracts']);
+export const EXCLUDED = new Set(['@modelcontextprotocol/client', '@inventarch/service-contracts']);
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const json = (value) => JSON.stringify(value, null, 2) + '\n';
 /** Spec §3.2: the runtime closure ceiling; inventory.json, scripts/ia.mjs and release.json are not counted. */
@@ -33,7 +33,7 @@ const released = (value) =>
             .map(([key, entry]) => [key, released(entry)]),
         );
 /** The CLI under its public name and its private-staging name (tools/release/private.mjs), as in tools/dependencies/check.ts. */
-const CLI = new Set(['@ia/cli', '@ia/inventarch-cli']);
+const CLI = new Set(['@inventarch/cli', '@inventarch/inventarch-cli']);
 /** The offline launcher does not expose the separately qualified private development host. */
 export function staticCliManifest(input) {
   const metadata = structuredClone(input);
@@ -47,16 +47,16 @@ export function staticCliManifest(input) {
     JSON.stringify(metadata.peerDependencies) !== JSON.stringify({ [peer]: '0.1.0' }) ||
     JSON.stringify(metadata.peerDependenciesMeta) !== JSON.stringify({ [peer]: { optional: true } }) ||
     Object.keys(metadata.optionalDependencies ?? {}).length ||
-    metadata.dependencies?.['@ia/architecture-system'] !== 'workspace:*' ||
-    metadata.dependencies?.['@ia/code-quality-system'] !== 'workspace:*'
+    metadata.dependencies?.['@inventarch/architecture-system'] !== 'workspace:*' ||
+    metadata.dependencies?.['@inventarch/code-quality-system'] !== 'workspace:*'
   )
     throw Error('Unreviewed private development payload boundary');
   delete metadata.exports['./development'];
   delete metadata.peerDependencies;
   delete metadata.peerDependenciesMeta;
   delete metadata.devDependencies?.[peer];
-  delete metadata.dependencies['@ia/architecture-system'];
-  delete metadata.dependencies['@ia/code-quality-system'];
+  delete metadata.dependencies['@inventarch/architecture-system'];
+  delete metadata.dependencies['@inventarch/code-quality-system'];
   const targets = JSON.stringify({
     exports: metadata.exports,
     main: metadata.main,
@@ -64,7 +64,7 @@ export function staticCliManifest(input) {
     imports: metadata.imports,
   });
   if (
-    /inventarch-development|development-native|@ia\/(?:architecture-system|code-quality-system)|@inventarch\/monorepo-kit-host/.test(
+    /inventarch-development|development-native|@inventarch\/(?:architecture-system|code-quality-system)|@inventarch\/monorepo-kit-host/.test(
       targets,
     )
   )
@@ -75,7 +75,7 @@ export function staticCliManifest(input) {
 export function assertStaticPayloadCode(path, bytes) {
   if (
     /\.[cm]?js$/.test(path) &&
-    /inventarch-development|@ia\/(?:architecture-system|code-quality-system)|@inventarch\/monorepo-kit-host/.test(
+    /inventarch-development|@inventarch\/(?:architecture-system|code-quality-system)|@inventarch\/monorepo-kit-host/.test(
       bytes.toString('utf8'),
     )
   )
@@ -110,8 +110,8 @@ export async function collectPayload(repository) {
       name = metadata.name;
     const developmentOmitted =
       original.exports?.['./development'] !== undefined && metadata.exports?.['./development'] === undefined;
-    // The payload must not depend on the caller's Node conditions (NODE_OPTIONS=--conditions=development), so @ia manifests ship without them.
-    const manifest = name.startsWith('@ia/')
+    // The payload must not depend on the caller's Node conditions (NODE_OPTIONS=--conditions=development), so @inventarch manifests ship without them.
+    const manifest = name.startsWith('@inventarch/')
         ? Buffer.from(
             json(metadata.exports === undefined ? metadata : { ...metadata, exports: released(metadata.exports) }),
           )
@@ -136,7 +136,7 @@ export async function collectPayload(repository) {
       license: metadata.license ?? 'UNSPECIFIED',
       notices,
     });
-    const keep = name.startsWith('@ia/')
+    const keep = name.startsWith('@inventarch/')
       ? new Set(['dist', 'assets', 'package.json', 'README.md', 'SPEC.md', ...notices])
       : null;
     const visit = (rel = '') => {

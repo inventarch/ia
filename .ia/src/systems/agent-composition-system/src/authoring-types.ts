@@ -1,5 +1,5 @@
-import type { ReadHandle } from '@ia/db';
-import type { Phase, Primitive } from '@ia/language';
+import type { ReadHandle } from '@inventarch/db';
+import type { Phase, Primitive } from '@inventarch/language';
 import type { ResourceKey, ResourceOccurrence } from './resource-format.js';
 
 export interface AuthoringCriterion {

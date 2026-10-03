@@ -7,11 +7,11 @@ import {
   DISTRIBUTION_LIMITS,
   portablePath,
   sha256,
-} from '@ia/db/distribution';
-import type { BundleManifest, BundleMetadata } from '@ia/db/distribution';
+} from '@inventarch/db/distribution';
+import type { BundleManifest, BundleMetadata } from '@inventarch/db/distribution';
 import { fail, utf8 } from './files.js';
 import { verifyAuthoringAssetClosure, verifySelectedAuthoringAssetClosure } from './authoring-assets.js';
-import { KERNEL_SOURCES } from '@ia/language';
+import { KERNEL_SOURCES } from '@inventarch/language';
 import { inflateCanonical, ustarHeader } from './ustar.js';
 
 interface ArchiveContent {

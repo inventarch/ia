@@ -16,12 +16,16 @@
 import { createHash } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { lifecycleProfile } from '@ia/agent-composition-system/lifecycle-profile';
-import { WORKSPACE_PROJECTION_MARKER } from '@ia/compliance';
-import type { GuardPlan } from '@ia/distribution/guard-registration';
-import { applyGuardRegistration, planGuardFor, planGuardRegistration } from '@ia/distribution/guard-registration';
-import type { HostCacheTarget, HostPlan } from '@ia/distribution/host';
-import { hostRow, workspaceRow } from '@ia/distribution/hosts';
+import { lifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
+import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
+import type { GuardPlan } from '@inventarch/distribution/guard-registration';
+import {
+  applyGuardRegistration,
+  planGuardFor,
+  planGuardRegistration,
+} from '@inventarch/distribution/guard-registration';
+import type { HostCacheTarget, HostPlan } from '@inventarch/distribution/host';
+import { hostRow, workspaceRow } from '@inventarch/distribution/hosts';
 import {
   applyHost,
   assertHostRegistrationIdle,
@@ -29,17 +33,17 @@ import {
   HOST_REGISTRATION,
   planHost,
   planHostFor,
-} from '@ia/distribution/host';
+} from '@inventarch/distribution/host';
 import {
   assertHomeOutsideWorkspace,
   hostPayloadPath,
   materializeHostPayload,
   readHostPin,
-} from '@ia/distribution/host-home';
-import { assertIaHomeUsable } from '@ia/distribution/ia-home';
-import { readMaterializedPlugin } from '@ia/distribution/plugin-home';
-import type { ProjectionAction, ProjectionPlan } from '@ia/distribution/projection';
-import { applyProjection, planProjection } from '@ia/distribution/projection';
+} from '@inventarch/distribution/host-home';
+import { assertIaHomeUsable } from '@inventarch/distribution/ia-home';
+import { readMaterializedPlugin } from '@inventarch/distribution/plugin-home';
+import type { ProjectionAction, ProjectionPlan } from '@inventarch/distribution/projection';
+import { applyProjection, planProjection } from '@inventarch/distribution/projection';
 import { UsageError } from './args.js';
 import { homeSrcRemedy, hostHome, located } from './home-remedy.js';
 import type { Context, Result } from './consumer.js';
@@ -64,7 +68,7 @@ import {
 } from './render.js';
 import { runUserHost } from './user-host.js';
 
-const DAMAGED = 'The ia installation is damaged; reinstall @ia/cli so assets/host travels with it.';
+const DAMAGED = 'The ia installation is damaged; reinstall @inventarch/cli so assets/host travels with it.';
 
 export type ElementId = 'mcp' | 'hooks' | 'context' | 'projection';
 /**
@@ -146,7 +150,7 @@ export const STATE = {
 
 /**
  * What one host's MCP element owns, named so a user can find and delete exactly it. Codex's is a marked block
- * (`reconcileConfig` in `@ia/distribution`), so the markers themselves are part of it: a leftover marker makes the
+ * (`reconcileConfig` in `@inventarch/distribution`), so the markers themselves are part of it: a leftover marker makes the
  * next plan refuse the block as unowned.
  */
 const OWNED_MCP: Readonly<Record<HostName, string>> = {
@@ -251,7 +255,7 @@ export const rootedNext = (next: string, host: HostName, root: string): string =
 /** A next action as printed: with `--root` given, each `ia host <host>` command in it carries the root. */
 export const hostNext = (text: string, host: HostName, root: string, rooted: boolean): string =>
   rooted ? rootedNext(text, host, root) : text;
-/** The file a mechanism located its refusal at (`locate` in @ia/distribution's files.ts), or null. */
+/** The file a mechanism located its refusal at (`locate` in @inventarch/distribution's files.ts), or null. */
 export const refusedPath = (error: unknown): string | null =>
   error !== null && typeof error === 'object' && 'path' in error && typeof error.path === 'string' ? error.path : null;
 /**

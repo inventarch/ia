@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@ia/language';
-import type { CompiledRecord, FrozenRegistry, SchemaEdge } from '@ia/language';
-import { load } from '@ia/graph';
-import type { Node } from '@ia/graph';
+import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
+import type { CompiledRecord, FrozenRegistry, SchemaEdge } from '@inventarch/language';
+import { load } from '@inventarch/graph';
+import type { Node } from '@inventarch/graph';
 import {
   graphLookup,
   validateCheck,

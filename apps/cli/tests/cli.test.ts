@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
-import { Door, MACHINE_PROTOCOL } from '@ia/runtime';
+import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { installSignals, readLine, runCli } from '../src/main.js';
 
 const root = resolve(import.meta.dirname, '../../..'),

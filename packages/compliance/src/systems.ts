@@ -1,5 +1,5 @@
-import { FLOOR_SYSTEM, canonicalPath } from '@ia/language';
-import type { CompiledRecord, FrozenRegistry, Source } from '@ia/language';
+import { FLOOR_SYSTEM, canonicalPath } from '@inventarch/language';
+import type { CompiledRecord, FrozenRegistry, Source } from '@inventarch/language';
 import { assess } from './types.js';
 import type { Assessment, CompCode, Finding } from './types.js';
 

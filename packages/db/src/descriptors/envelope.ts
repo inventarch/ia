@@ -1,5 +1,5 @@
 import semver from 'semver';
-import type { CompiledChild, CompiledRecord } from '@ia/language';
+import type { CompiledChild, CompiledRecord } from '@inventarch/language';
 import { types } from 'node:util';
 import { attempt, deepFreeze, digestOf, parseResource, refuse, refuseEnvelope, snapshot } from './codec.js';
 import type { DecodedResource, DescriptorKind, DescriptorResult, Scope } from './codec.js';

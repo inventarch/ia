@@ -3,13 +3,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { captureWorkspace } from '@ia/agent-composition-system';
+import { captureWorkspace } from '@inventarch/agent-composition-system';
 import {
   captureAuthoringManifest,
   openLocalAuthoringView,
   readAuthoringManifestFile,
-} from '@ia/agent-composition-system/authoring-manifest';
-import { resolveAuthoring } from '@ia/agent-composition-system/authoring';
+} from '@inventarch/agent-composition-system/authoring-manifest';
+import { resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
 import { teachingLinkClasses, teachingLinkFindings } from './teaching-links.js';
 
 const temporary: string[] = [];

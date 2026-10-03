@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { lifecycleProfile } from '@ia/agent-composition-system/lifecycle-profile';
+import { lifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
 import { createContextHookBinding, readContextHookBinding } from '../src/context.js';
 
 const gate = vi.hoisted(() => ({ path: '', afterStat: null as (() => void) | null }));

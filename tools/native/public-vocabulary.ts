@@ -183,14 +183,14 @@ export function vocabularyOutputs(root: string) {
   return { 'vocabulary.json': JSON.stringify(data, null, 2) + '\n', 'vocabulary.md': vocabularyMarkdown(data) };
 }
 /**
- * `ia vocabulary` reads the catalogue shipped inside the installed @ia/cli package and never the workspace or
+ * `ia vocabulary` reads the catalogue shipped inside the installed @inventarch/cli package and never the workspace or
  * docs/, so the same JSON bytes are emitted there under this gate. tools/ has no package.json at any depth, so
  * the catalogue has to travel as data rather than as an imported module.
  */
 export const SHIPPED_CATALOGUE = 'apps/cli/assets/vocabulary.json';
 /**
  * The MCP door's `ia_vocabulary` tool serves the same catalogue (apps/mcp-door/SPEC.md M04c). The door imports
- * only @ia/runtime (M01) and does not depend on @ia/cli, so its package ships its own byte-identical copy under
+ * only @inventarch/runtime (M01) and does not depend on @inventarch/cli, so its package ships its own byte-identical copy under
  * this drift gate instead of reading another package's files.
  */
 export const DOOR_CATALOGUE = 'apps/mcp-door/assets/vocabulary.json';

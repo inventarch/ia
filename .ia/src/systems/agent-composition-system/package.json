@@ -1,5 +1,5 @@
 {
-  "name": "@ia/agent-composition-system",
+  "name": "@inventarch/agent-composition-system",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -215,14 +215,14 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/agent-system": "workspace:*",
-    "@ia/session-system": "workspace:*",
-    "@ia/authoring-system": "workspace:*",
-    "@ia/template-system": "workspace:*",
-    "@ia/runtime": "workspace:*",
-    "@ia/db": "workspace:*",
-    "@ia/language": "workspace:*",
-    "@ia/graph": "workspace:*"
+    "@inventarch/agent-system": "workspace:*",
+    "@inventarch/session-system": "workspace:*",
+    "@inventarch/authoring-system": "workspace:*",
+    "@inventarch/template-system": "workspace:*",
+    "@inventarch/runtime": "workspace:*",
+    "@inventarch/db": "workspace:*",
+    "@inventarch/language": "workspace:*",
+    "@inventarch/graph": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

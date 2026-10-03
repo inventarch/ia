@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { repositoryKey } from '@ia/distribution/decisions';
+import { repositoryKey } from '@inventarch/distribution/decisions';
 import { afterAll, expect, it, vi } from 'vitest';
 import { cleanup, run, scratch } from './workspace-fixture.js';
 

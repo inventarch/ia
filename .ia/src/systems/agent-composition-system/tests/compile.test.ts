@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { digest } from '@ia/session-system';
+import { digest } from '@inventarch/session-system';
 import { compileHarness, installed } from '../src/index.js';
 import type { Capture, CompiledHarness } from '../src/index.js';
 import { admitSourceCapture } from '../src/sources.js';

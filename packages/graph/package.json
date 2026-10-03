@@ -1,5 +1,5 @@
 {
-  "name": "@ia/graph",
+  "name": "@inventarch/graph",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -72,7 +72,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/language": "workspace:*"
+    "@inventarch/language": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

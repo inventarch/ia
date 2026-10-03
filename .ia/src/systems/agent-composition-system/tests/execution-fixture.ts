@@ -1,4 +1,4 @@
-import { digest } from '@ia/session-system';
+import { digest } from '@inventarch/session-system';
 import { captureWorkspace, installed } from '../src/index.js';
 import { exampleCatalog } from '../../../../../tools/native/public-language.js';
 

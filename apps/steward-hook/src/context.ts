@@ -12,21 +12,24 @@ import {
 } from 'node:fs';
 import type { Stats } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import { pathKey, unaliased } from '@ia/db';
-import { canonicalDistributionJson, decodeDistributionJson, platformDebris } from '@ia/db/distribution';
+import { pathKey, unaliased } from '@inventarch/db';
+import { canonicalDistributionJson, decodeDistributionJson, platformDebris } from '@inventarch/db/distribution';
 
-import { installedImplementationDigest } from '@ia/agent-composition-system';
-import { openLocalAuthoringView } from '@ia/agent-composition-system/authoring-manifest';
-import { prepareAuthoringTarget, resolveAuthoring } from '@ia/agent-composition-system/authoring';
-import { resourceOccurrences } from '@ia/agent-composition-system/resources';
+import { installedImplementationDigest } from '@inventarch/agent-composition-system';
+import { openLocalAuthoringView } from '@inventarch/agent-composition-system/authoring-manifest';
+import { prepareAuthoringTarget, resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
+import { resourceOccurrences } from '@inventarch/agent-composition-system/resources';
 import {
   LifecycleError,
   verifyLifecycleProfile,
   lifecycleProfile,
-} from '@ia/agent-composition-system/lifecycle-profile';
-import { decodeLifecycleEvent } from '@ia/agent-composition-system/lifecycle-profile';
-import type { LifecycleEvent, LifecycleProfile } from '@ia/agent-composition-system/lifecycle-profile';
-import { prepareLifecycleContext, prepareLifecycleContextSegments } from '@ia/agent-composition-system/lifecycle';
+} from '@inventarch/agent-composition-system/lifecycle-profile';
+import { decodeLifecycleEvent } from '@inventarch/agent-composition-system/lifecycle-profile';
+import type { LifecycleEvent, LifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
+import {
+  prepareLifecycleContext,
+  prepareLifecycleContextSegments,
+} from '@inventarch/agent-composition-system/lifecycle';
 import type {
   LifecycleBudgets,
   LifecycleInputIdentity,
@@ -34,9 +37,9 @@ import type {
   LifecycleView,
   PreparedContext,
   PreparedContextSegments,
-} from '@ia/agent-composition-system/lifecycle';
-import type { AuthoringTarget, LifecycleCoordinate } from '@ia/agent-composition-system/authoring';
-import { COORDINATE_DOMAINS, isEntry, prepareCoordinate } from '@ia/runtime';
+} from '@inventarch/agent-composition-system/lifecycle';
+import type { AuthoringTarget, LifecycleCoordinate } from '@inventarch/agent-composition-system/authoring';
+import { COORDINATE_DOMAINS, isEntry, prepareCoordinate } from '@inventarch/runtime';
 
 export interface ContextHookBindingInput {
   readonly format: 'ia.context-hook-binding.v1';

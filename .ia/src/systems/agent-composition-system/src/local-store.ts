@@ -4,8 +4,8 @@ import {
   type OperationContext,
   type OperationDefinition,
   type OperationResult,
-} from '@ia/agent-system';
-import type { Json } from '@ia/session-system';
+} from '@inventarch/agent-system';
+import type { Json } from '@inventarch/session-system';
 import {
   ADAPTER_LIMITS,
   adapterInvalid,

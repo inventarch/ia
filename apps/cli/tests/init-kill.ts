@@ -3,7 +3,7 @@
  *
  * `process.exit` inside an `applyInstallation` checkpoint ends the process without unwinding the stack, so the
  * installer's `finally` never releases its lock and every file it wrote stays exactly as a killed process leaves it.
- * Arguments: <checkpoint name> <target root> <@ia/cli package root>. Exit 86 means the kill happened.
+ * Arguments: <checkpoint name> <target root> <@inventarch/cli package root>. Exit 86 means the kill happened.
  */
 import { applyInit, collectInit, gitIn } from '../src/init.js';
 

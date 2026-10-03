@@ -1,7 +1,7 @@
 import { cpSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
-import { decodeDistributionLock } from '@ia/db/distribution';
+import { decodeDistributionLock } from '@inventarch/db/distribution';
 import { json, sha256 } from '../src/files.js';
 import { applyHost, planHost } from '../src/host.js';
 import { applyInstallation, cacheArchive, planInstallation } from '../src/install.js';

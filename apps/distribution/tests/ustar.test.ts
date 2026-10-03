@@ -13,7 +13,7 @@ const wrap = (bytes: Buffer, options: ZlibOptions = { level: 9 }): Buffer => {
 };
 const tree = () =>
   new Map<string, Buffer>([
-    ['runtime/node_modules/@ia/cli/dist/main.js', Buffer.from('export {};\n')],
+    ['runtime/node_modules/@inventarch/cli/dist/main.js', Buffer.from('export {};\n')],
     ['a/' + 'b'.repeat(120) + '/c.txt', Buffer.from('long path\n')],
     ['release.json', Buffer.from('{}\n')],
   ]);
@@ -96,6 +96,7 @@ it('unpacks a tree that zlib 1.2.12 compressed', () => {
   );
   const back = unpackTree(bytes, HOST_TREE_LIMITS);
   expect(Object.fromEntries([...back].map(([path, content]) => [path, content.toString()]))).toEqual({
+    // Preserve the historical package path embedded in the fixed zlib fixture.
     'runtime/node_modules/@ia/cli/dist/main.js': 'export {};\n'.repeat(50),
     ['a/' + 'b'.repeat(120) + '/c.txt']: 'long path\n',
     'release.json': '{}\n',

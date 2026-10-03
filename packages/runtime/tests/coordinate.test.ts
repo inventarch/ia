@@ -1,4 +1,4 @@
-import { CONDITION_AXES } from '@ia/language';
+import { CONDITION_AXES } from '@inventarch/language';
 import { expect, it } from 'vitest';
 import { classify, prepareCoordinate, scoreShapes } from '../src/index.js';
 

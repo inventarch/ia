@@ -1,4 +1,4 @@
-import type { CompiledChild, CompiledField, CompiledRecord, CompiledValue } from '@ia/language';
+import type { CompiledChild, CompiledField, CompiledRecord, CompiledValue } from '@inventarch/language';
 
 /** Inline text of one compiled value. A block carries its content in its field's children; use fieldText for it. */
 export function text(value: CompiledValue): string {

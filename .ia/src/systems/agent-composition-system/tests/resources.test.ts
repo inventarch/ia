@@ -4,10 +4,10 @@ import { cpSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlink
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { open, readInputs } from '@ia/db';
-import type { Handle } from '@ia/db';
-import { stableSerialize } from '@ia/graph';
-import { digest } from '@ia/session-system';
+import { open, readInputs } from '@inventarch/db';
+import type { Handle } from '@inventarch/db';
+import { stableSerialize } from '@inventarch/graph';
+import { digest } from '@inventarch/session-system';
 import { adoptWorkspace, captureWorkspace } from '../src/index.js';
 import type { Capture } from '../src/index.js';
 import {

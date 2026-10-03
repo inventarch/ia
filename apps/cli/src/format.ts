@@ -9,7 +9,7 @@
  */
 import { readdirSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import { formatSource, readWorkspaceFile, replace } from '@ia/distribution/services';
+import { formatSource, readWorkspaceFile, replace } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import { codeOf, openSession } from './session.js';

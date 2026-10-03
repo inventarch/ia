@@ -1,4 +1,4 @@
-# @ia/cli
+# @inventarch/cli
 
 The `ia` binary exposes consumer commands and the structured agent query protocol. The [language reference](https://github.com/inventarch/ia/blob/main/docs/reference/language/README.md) defines vocabulary and evaluation limits. This package bundles the language archive, vocabulary catalogue and host payload needed by its commands.
 

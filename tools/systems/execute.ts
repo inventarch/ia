@@ -1,7 +1,7 @@
 import { validateIA, formatIA } from '../../.ia/src/systems/authoring-system/execute.js';
 import { renderTemplate } from '../../.ia/src/systems/template-system/execute.js';
 import type { Context, Handler, Result, Success } from './types.js';
-import { executeOwned, executeCatalog } from '@ia/runtime/authoring-execution';
+import { executeOwned, executeCatalog } from '@inventarch/runtime/authoring-execution';
 
 const catalog: Readonly<
   Record<string, { owner: string; handler: string; effects: 'read-only' | 'draft-only'; run: Handler }>
@@ -22,4 +22,4 @@ export function executeWithContext(context: Context, name: string, input: unknow
 export function execute(root: string, name: string, input: unknown): Result {
   return executeCatalog(root, name, input, catalog);
 }
-export { refusal } from '@ia/runtime/authoring-execution';
+export { refusal } from '@inventarch/runtime/authoring-execution';

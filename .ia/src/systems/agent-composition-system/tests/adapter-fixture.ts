@@ -1,4 +1,4 @@
-import type { OperationContext } from '@ia/agent-system';
+import type { OperationContext } from '@inventarch/agent-system';
 import { metadataDigest } from '../src/resource-format.js';
 
 export function adapterFixture() {

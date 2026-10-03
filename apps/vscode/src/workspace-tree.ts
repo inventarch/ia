@@ -1,4 +1,4 @@
-import type { EditorComposition, EditorDependency, EditorView, RecordSummary } from '@ia/runtime/editor';
+import type { EditorComposition, EditorDependency, EditorView, RecordSummary } from '@inventarch/runtime/editor';
 
 export interface WorkspaceSnapshot {
   readonly key: string;

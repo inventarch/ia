@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, symlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 import { open, readInputs } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
 import { put, workspace } from './workspace.js';

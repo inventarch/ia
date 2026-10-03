@@ -13,8 +13,8 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { canonicalDistributionJson, sha256 } from '@ia/db/distribution';
-import type { BundleManifest } from '@ia/db/distribution';
+import { canonicalDistributionJson, sha256 } from '@inventarch/db/distribution';
+import type { BundleManifest } from '@inventarch/db/distribution';
 import { productStructure } from '../../../tools/release/product-structure.mjs';
 import { buildArchive, inspectArchiveMetadata, verifyArchive } from '../src/archive.js';
 import { applyInstallation, cachedReleases, planInstallation } from '../src/install.js';

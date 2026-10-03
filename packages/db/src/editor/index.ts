@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { canonicalRoot, stableSerialize } from '@ia/graph';
-import type { RevisionSource } from '@ia/graph';
-import type { Location } from '@ia/language';
+import { canonicalRoot, stableSerialize } from '@inventarch/graph';
+import type { RevisionSource } from '@inventarch/graph';
+import type { Location } from '@inventarch/language';
 import { DbError } from '../errors.js';
 import { Reader } from '../handle.js';
 import type { ReadOptions } from '../handle.js';

@@ -1,4 +1,4 @@
-import type { ViewStamp } from '@ia/runtime/editor';
+import type { ViewStamp } from '@inventarch/runtime/editor';
 export const METHOD = 'ia/editor/v1/';
 export interface EditorRequest {
   readonly protocol: 1;

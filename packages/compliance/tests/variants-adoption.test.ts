@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION, PHASES, PRIMITIVES, compile, parse } from '@ia/language';
-import type { ConditionAxis, Variant } from '@ia/language';
-import { load, variants } from '@ia/graph';
-import type { Coordinate, Node } from '@ia/graph';
+import { KERNEL_DIGEST, LANGUAGE_VERSION, PHASES, PRIMITIVES, compile, parse } from '@inventarch/language';
+import type { ConditionAxis, Variant } from '@inventarch/language';
+import { load, variants } from '@inventarch/graph';
+import type { Coordinate, Node } from '@inventarch/graph';
 import { validateAdoption, validateVariants } from '../src/index.js';
 import type { ClauseEvaluator } from '../src/index.js';
 import { inputs, records, registry } from './native.js';

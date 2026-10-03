@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { EditorSnapshot } from '@ia/db/editor';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import { adoptWorkspace, captureWorkspace } from '../src/corpus.js';
 import { captureAuthoringManifest } from '../src/authoring-manifest.js';
 import { resourceOccurrences } from '../src/resources.js';

@@ -5,7 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
-import { sameFile } from '@ia/db';
+import { sameFile } from '@inventarch/db';
 
 export type Channel =
   | {

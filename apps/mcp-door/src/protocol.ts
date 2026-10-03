@@ -1,4 +1,4 @@
-import { Door } from '@ia/runtime';
+import { Door } from '@inventarch/runtime';
 import { OPERATIONS, TOOLS } from './tools.js';
 import { compactContext } from './presentation.js';
 import { vocabulary } from './vocabulary.js';

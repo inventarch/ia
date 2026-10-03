@@ -1,5 +1,5 @@
-import type { ReadHandle } from '@ia/db';
-import type { CompiledChild, CompiledRecord, CompiledValue } from '@ia/language';
+import type { ReadHandle } from '@inventarch/db';
+import type { CompiledChild, CompiledRecord, CompiledValue } from '@inventarch/language';
 import type { Capture } from './corpus.js';
 import type { CapturedResources, ResourceKey, ResourceOccurrence } from './resources.js';
 import {

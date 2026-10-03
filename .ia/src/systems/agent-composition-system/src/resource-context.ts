@@ -1,6 +1,6 @@
 // Internal seam: one verified native context shared by resource and projection callers. Not a package subpath.
-import { EditorSnapshot } from '@ia/db/editor';
-import { stableSerialize } from '@ia/graph';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { stableSerialize } from '@inventarch/graph';
 import { verifyCapture } from './corpus.js';
 import type { Capture } from './corpus.js';
 import { installedId, installedSource, resourcePrefix } from './resource-sources.js';

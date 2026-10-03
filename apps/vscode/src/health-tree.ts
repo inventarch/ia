@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { EditorView } from '@ia/runtime/editor';
+import type { EditorView } from '@inventarch/runtime/editor';
 
 interface HealthOwner {
   readonly folder: vscode.WorkspaceFolder;

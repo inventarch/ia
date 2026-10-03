@@ -28,10 +28,15 @@ import {
 
 import { dirname, resolve } from 'node:path';
 import { afterAll, afterEach, expect, it, vi } from 'vitest';
-import { INSTALL_PATHS, DISTRIBUTION_ENGINE_VERSION } from '@ia/db/distribution';
-import { applyInstallation, cacheArchive, planInstallation, recoverInstallation } from '@ia/distribution/install';
-import { resolveReleases } from '@ia/distribution/resolve';
-import { resolveCatalog } from '@ia/distribution/services';
+import { INSTALL_PATHS, DISTRIBUTION_ENGINE_VERSION } from '@inventarch/db/distribution';
+import {
+  applyInstallation,
+  cacheArchive,
+  planInstallation,
+  recoverInstallation,
+} from '@inventarch/distribution/install';
+import { resolveReleases } from '@inventarch/distribution/resolve';
+import { resolveCatalog } from '@inventarch/distribution/services';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { dispatch, Interrupted } from '../src/consumer.js';
 import type { Result } from '../src/consumer.js';
@@ -917,7 +922,7 @@ it('refuses before any write when the bundled bytes do not match the pin', async
   expect(refused.exitCode).toBe(3);
   expect(JSON.parse(refused.stdout)).toMatchObject({
     code: 'IA-DIST-ARCHIVE-INVALID',
-    next: 'The ia installation is damaged; reinstall @ia/cli.',
+    next: 'The ia installation is damaged; reinstall @inventarch/cli.',
   });
   writeFileSync(resolve(packageRoot, PIN_PATH), '{}');
   expect(

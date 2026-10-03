@@ -1,5 +1,5 @@
 import { isAbsolute, join, relative, sep } from 'node:path';
-import { decodeDistributionJson } from '@ia/db/distribution';
+import { decodeDistributionJson } from '@inventarch/db/distribution';
 import {
   acquireHostRegistrationLock,
   assertHostRegistrationIdle,

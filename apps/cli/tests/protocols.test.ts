@@ -81,10 +81,10 @@ beforeAll(async () => {
       ...pkg.manifest.optionalDependencies,
       ...pkg.manifest.peerDependencies,
     }))
-      if (dependency.startsWith('@ia/')) select(dependency);
+      if (dependency.startsWith('@inventarch/')) select(dependency);
   };
-  select('@ia/cli');
-  select('@ia/distribution');
+  select('@inventarch/cli');
+  select('@inventarch/distribution');
   const dependencies: Record<string, string> = {};
   const env: NodeJS.ProcessEnv = { ...process.env, NODE_OPTIONS: '', NODE_PATH: '' };
   const packageManager = async (args: string[], cwd: string): Promise<void> => {
@@ -111,20 +111,22 @@ beforeAll(async () => {
   // --prefer-offline, not --offline: a frozen-lockfile workspace install fills the store but never the metadata
   // cache, so a fresh runner has no offline metadata to resolve the archives' third-party dependencies from.
   await packageManager(['install', '--prefer-offline', '--ignore-scripts'], installedRoot);
-  MAIN = realpathSync(resolve(installedRoot, 'node_modules/@ia/cli/dist/main.js'));
-  DISTRIBUTION = realpathSync(resolve(installedRoot, 'node_modules/@ia/distribution/dist/cli.js'));
+  MAIN = realpathSync(resolve(installedRoot, 'node_modules/@inventarch/cli/dist/main.js'));
+  DISTRIBUTION = realpathSync(resolve(installedRoot, 'node_modules/@inventarch/distribution/dist/cli.js'));
   for (const binary of [MAIN, DISTRIBUTION]) {
     const path = relative(installedRoot, binary);
     expect(path.startsWith('..') || isAbsolute(path)).toBe(false);
   }
-  const manifest = JSON.parse(readFileSync(resolve(installedRoot, 'node_modules/@ia/cli/package.json'), 'utf8'));
+  const manifest = JSON.parse(
+    readFileSync(resolve(installedRoot, 'node_modules/@inventarch/cli/package.json'), 'utf8'),
+  );
   expect(manifest.bin.ia).toBe('./dist/main.js');
   expect(existsSync(resolve(installedRoot, 'node_modules/.bin', process.platform === 'win32' ? 'ia.cmd' : 'ia'))).toBe(
     true,
   );
-  expect(existsSync(resolve(installedRoot, 'node_modules/@ia/cli/assets/vocabulary.json'))).toBe(true);
+  expect(existsSync(resolve(installedRoot, 'node_modules/@inventarch/cli/assets/vocabulary.json'))).toBe(true);
   // M5.1 §3.2: the generated, gitignored base pin travels in the packed `assets` directory like the catalogue.
-  expect(existsSync(resolve(installedRoot, 'node_modules/@ia/cli/assets/base.json'))).toBe(true);
+  expect(existsSync(resolve(installedRoot, 'node_modules/@inventarch/cli/assets/base.json'))).toBe(true);
 }, 120_000);
 /** Every escape introducer, not only CSI: a banner or spinner could open with ESC, CSI, OSC or ST. */
 const ESCAPE = /[\u001b\u009b\u009c\u009d]/;
@@ -279,7 +281,7 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     expect(got.stderr, label).toBe('');
     expect([0, 1, 2, 3, 4, 130], label).toContain(got.status);
   }
-  // M5.1 §3.2: the bundled base ships in the packed @ia/cli's `assets`, so the installed binary initializes offline.
+  // M5.1 §3.2: the bundled base ships in the packed @inventarch/cli's `assets`, so the installed binary initializes offline.
   const initialized = await runBounded(process.execPath, [MAIN, 'init', 'fresh', '--apply', '--yes', '--json'], {
     cwd: empty,
     env: colourful(),

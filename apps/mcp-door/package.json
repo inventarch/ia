@@ -1,5 +1,5 @@
 {
-  "name": "@ia/mcp-door",
+  "name": "@inventarch/mcp-door",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/main.js",
@@ -18,8 +18,8 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@ia/runtime": "workspace:*",
-    "@ia/agent-composition-system": "workspace:*"
+    "@inventarch/runtime": "workspace:*",
+    "@inventarch/agent-composition-system": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

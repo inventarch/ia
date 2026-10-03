@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { constants, gzipSync, gunzipSync } from 'node:zlib';
 import type { ZlibOptions } from 'node:zlib';
-import { decodeBundleManifest, sha256 } from '@ia/db/distribution';
+import { decodeBundleManifest, sha256 } from '@inventarch/db/distribution';
 import { buildArchive, verifyArchive } from '../src/archive.js';
 import { entries } from './tar-entries.js';
 import { packDistribution } from '../src/pack.js';

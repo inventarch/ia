@@ -1,5 +1,5 @@
-import { decodeDistributionRequests, DISTRIBUTION_LIMITS, satisfies } from '@ia/db/distribution';
-import type { BundleMetadata, Dependency, DistributionLock } from '@ia/db/distribution';
+import { decodeDistributionRequests, DISTRIBUTION_LIMITS, satisfies } from '@inventarch/db/distribution';
+import type { BundleMetadata, Dependency, DistributionLock } from '@inventarch/db/distribution';
 import { acquireArtifact, readArtifactBytes } from './acquire.js';
 import { inspectArchiveMetadata, verifyArchive } from './archive.js';
 import type { VerifiedArchive } from './archive.js';

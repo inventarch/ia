@@ -16,7 +16,7 @@ import {
 } from 'node:fs';
 import type { Stats } from 'node:fs';
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
-import { stableSerialize } from '@ia/graph';
+import { stableSerialize } from '@inventarch/graph';
 
 /** `path`, when present, is the workspace-relative file the refusal concerns, so a caller can locate it without parsing the message. */
 export class DistributionError extends Error {

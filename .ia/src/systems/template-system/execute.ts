@@ -1,4 +1,4 @@
-import { renderScalarTemplate, TemplateError } from '@ia/template-system';
+import { renderScalarTemplate, TemplateError } from '@inventarch/template-system';
 import { draftPath, evidence, fail, object, preview, string } from '../../../../tools/systems/shared.js';
 import { ExecutionError } from '../../../../tools/systems/types.js';
 import type { Context, Product } from '../../../../tools/systems/types.js';

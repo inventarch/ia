@@ -1,4 +1,4 @@
-import type { CompiledRecord, CompiledValue } from '@ia/language';
+import type { CompiledRecord, CompiledValue } from '@inventarch/language';
 import { CompositionError } from './compiled.js';
 import type { CompositionCode } from './compiled.js';
 import type { ResourceLimits } from './catalog.js';

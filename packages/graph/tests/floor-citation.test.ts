@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { buildRegistry, compile, parse, KERNEL_DIGEST, LANGUAGE_VERSION } from '@ia/language';
-import type { Location } from '@ia/language';
+import { buildRegistry, compile, parse, KERNEL_DIGEST, LANGUAGE_VERSION } from '@inventarch/language';
+import type { Location } from '@inventarch/language';
 import { load } from '../src/index.js';
 
 const location: Location = { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };

@@ -1,7 +1,7 @@
-import { copy, digest } from '@ia/session-system';
-import type { Json, Limits, Recovery } from '@ia/session-system';
-import type { OutcomeKind, OperationDefinition } from '@ia/agent-system';
-import type { Category, Phase, Primitive } from '@ia/language';
+import { copy, digest } from '@inventarch/session-system';
+import type { Json, Limits, Recovery } from '@inventarch/session-system';
+import type { OutcomeKind, OperationDefinition } from '@inventarch/agent-system';
+import type { Category, Phase, Primitive } from '@inventarch/language';
 
 export type EffectClass = OperationDefinition['effects'][number];
 /** Relative duration is compiled; the execution host establishes the absolute deadline. */

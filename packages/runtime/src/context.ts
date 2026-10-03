@@ -1,5 +1,5 @@
-import { VERB_PHRASES, verbOf } from '@ia/language';
-import type { ReadHandle } from '@ia/db';
+import { VERB_PHRASES, verbOf } from '@inventarch/language';
+import type { ReadHandle } from '@inventarch/db';
 import { collect, entryOrder } from './collect.js';
 import { RuntimeError } from './errors.js';
 import { freeze } from './types.js';

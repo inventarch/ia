@@ -1,5 +1,5 @@
-import { BAND_OF, canonicalPath, isPlacementKind, isProvenance } from '@ia/language';
-import type { Location } from '@ia/language';
+import { BAND_OF, canonicalPath, isPlacementKind, isProvenance } from '@inventarch/language';
+import type { Location } from '@inventarch/language';
 import { GraphUsageError } from './diagnostics.js';
 
 export function canonicalRoot(value: string): string {

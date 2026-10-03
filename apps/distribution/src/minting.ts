@@ -1,4 +1,4 @@
-import { EditorSnapshot } from '@ia/db/editor';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   decodeDistributionJson,
   decodeDistributionLock,
@@ -6,20 +6,20 @@ import {
   DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   satisfies,
-} from '@ia/db/distribution';
-import type { DistributionLock } from '@ia/db/distribution';
-import { verifyCapture, type Capture } from '@ia/agent-composition-system';
-import { assessAuthoringMinting, resolveAuthoring } from '@ia/agent-composition-system/authoring';
+} from '@inventarch/db/distribution';
+import type { DistributionLock } from '@inventarch/db/distribution';
+import { verifyCapture, type Capture } from '@inventarch/agent-composition-system';
+import { assessAuthoringMinting, resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
 import {
   AUTHORING_MANIFEST_PATH,
   captureAuthoringManifestBytes,
-} from '@ia/agent-composition-system/authoring-manifest';
-import { RESOURCE_LIMITS } from '@ia/agent-composition-system/resources';
-import { digest } from '@ia/session-system';
+} from '@inventarch/agent-composition-system/authoring-manifest';
+import { RESOURCE_LIMITS } from '@inventarch/agent-composition-system/resources';
+import { digest } from '@inventarch/session-system';
 import { verifyArchive, type VerifiedArchive } from './archive.js';
 import { distributionSnapshot } from './snapshot.js';
 import { fail, utf8 } from './files.js';
-import { KERNEL_SOURCES } from '@ia/language';
+import { KERNEL_SOURCES } from '@inventarch/language';
 
 export interface MintingReleaseSet {
   readonly lock: unknown;

@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeDistributionJson } from '@ia/db/distribution';
+import { decodeDistributionJson } from '@inventarch/db/distribution';
 import { bytes, json, utf8, workspace } from './files.js';
 import { reconcileConfig } from './config.js';
 import {

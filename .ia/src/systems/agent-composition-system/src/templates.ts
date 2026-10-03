@@ -1,7 +1,7 @@
-import type { ReadHandle } from '@ia/db';
-import { portableDraftPath } from '@ia/runtime';
-import { renderStructuredTemplate, TemplateError } from '@ia/template-system';
-import type { CompiledRecord, CompiledValue } from '@ia/language';
+import type { ReadHandle } from '@inventarch/db';
+import { portableDraftPath } from '@inventarch/runtime';
+import { renderStructuredTemplate, TemplateError } from '@inventarch/template-system';
+import type { CompiledRecord, CompiledValue } from '@inventarch/language';
 import type { Capture } from './corpus.js';
 import { resourceOccurrences, resolveResources } from './resources.js';
 import type { ResourceKey, ResourceOccurrence } from './resources.js';

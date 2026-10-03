@@ -2,9 +2,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { lifecycleProfile, verifyLifecycleProfile } from '@ia/agent-composition-system/lifecycle-profile';
-import { canonicalDistributionJson } from '@ia/db/distribution';
-import { DEFAULT_CONTEXT_HOOK_BUDGETS } from '@ia/steward-hook/context';
+import { lifecycleProfile, verifyLifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
+import { canonicalDistributionJson } from '@inventarch/db/distribution';
+import { DEFAULT_CONTEXT_HOOK_BUDGETS } from '@inventarch/steward-hook/context';
 import { applyHost, nodeCommand, planHost, recoverHost, verifyHostCache } from '../src/host.js';
 import {
   applyLifecycleRegistration,

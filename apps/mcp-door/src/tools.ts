@@ -1,5 +1,5 @@
-import { MACHINE_PROTOCOL } from '@ia/runtime';
-import type { JsonSchema } from '@ia/runtime';
+import { MACHINE_PROTOCOL } from '@inventarch/runtime';
+import type { JsonSchema } from '@inventarch/runtime';
 import { LIMITS } from './vocabulary.js';
 
 const text = { type: 'string' };
@@ -19,7 +19,7 @@ const withFormat = (schema: JsonSchema): JsonSchema => ({
   ...schema,
   properties: { ...(schema['properties'] as Record<string, unknown>), format: FORMAT },
 });
-/** M04: the eight door operations, described once in @ia/runtime's MACHINE_PROTOCOL (spec-0012 MCP-01). */
+/** M04: the eight door operations, described once in @inventarch/runtime's MACHINE_PROTOCOL (spec-0012 MCP-01). */
 const served = MACHINE_PROTOCOL.operations.flatMap((operation) =>
   operation.mcp === null
     ? []

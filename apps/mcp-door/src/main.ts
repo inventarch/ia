@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { once } from 'node:events';
-import { isEntry } from '@ia/runtime/entry';
+import { isEntry } from '@inventarch/runtime/entry';
 import { Protocol, rpcError } from './protocol.js';
 import type { Response } from './protocol.js';
 

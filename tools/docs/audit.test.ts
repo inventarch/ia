@@ -298,10 +298,10 @@ it('maps internal folders to inherited and nested contracts and pins exact bytes
     'SPEC.md': '# Root',
     'packages/a/SPEC.md': '# A',
     'packages/a/package.json': JSON.stringify({
-      name: '@ia/a',
+      name: '@inventarch/a',
       exports: { '.': './dist/index.js' },
       bin: { ia: './dist/cli.js' },
-      dependencies: { '@ia/b': 'workspace:*' },
+      dependencies: { '@inventarch/b': 'workspace:*' },
     }),
     'packages/a/src/index.ts': 'export {};',
     'packages/a/tests/main.test.ts': '',
@@ -313,10 +313,10 @@ it('maps internal folders to inherited and nested contracts and pins exact bytes
     owner = result.owners.find((row) => row.owner === 'packages/a')!;
   expect(result.failures).toEqual([]);
   expect(owner.surface).toMatchObject({
-    name: '@ia/a',
+    name: '@inventarch/a',
     exports: ['.'],
     bins: { ia: './dist/cli.js' },
-    dependencies: ['@ia/b'],
+    dependencies: ['@inventarch/b'],
   });
   expect(owner.folders).toContainEqual({ path: 'packages/a/tests', spec: 'packages/a/SPEC.md' });
   expect(owner.folders).toContainEqual({ path: 'packages/a/fixtures', spec: 'packages/a/SPEC.md' });

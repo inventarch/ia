@@ -1,15 +1,15 @@
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { captureWorkspace, compileHarness } from '@ia/agent-composition-system';
-import * as resources from '@ia/agent-composition-system/resources';
+import { captureWorkspace, compileHarness } from '@inventarch/agent-composition-system';
+import * as resources from '@inventarch/agent-composition-system/resources';
 import {
   createInstalledSourcePolicy,
   createSourcePolicy,
   homeSourceCapture,
-} from '@ia/agent-composition-system/sources';
-import { readInputs } from '@ia/db';
-import { EditorSnapshot } from '@ia/db/editor';
+} from '@inventarch/agent-composition-system/sources';
+import { readInputs } from '@inventarch/db';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import { exampleCatalog } from '../../../tools/native/public-language.js';
 import { planInstallationSnapshot } from '../src/installation-core.js';
 import { resolveReleases } from '../src/resolve.js';
@@ -18,8 +18,8 @@ import { packDistribution } from '../src/pack.js';
 import { descriptor, snapshotFixture, sourceInput } from './snapshot-fixture.js';
 
 const revisions = vi.hoisted(() => [] as string[]);
-vi.mock('@ia/db/editor', async (original) => {
-  const actual = await original<typeof import('@ia/db/editor')>();
+vi.mock('@inventarch/db/editor', async (original) => {
+  const actual = await original<typeof import('@inventarch/db/editor')>();
   return {
     ...actual,
     EditorSnapshot: class extends actual.EditorSnapshot {
