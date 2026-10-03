@@ -1,0 +1,24 @@
+name: Documentation
+description: A document is wrong, missing or unclear.
+title: "docs: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Document
+      description: The file path or URL, and the heading or line if you have it.
+      placeholder: "docs/reference/language/README.md, section Syntax and identity"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested wording
+      description: Optional. If you can state what the document should say, a pull request is welcome too.

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/inventarch/ia/security/advisories/new
+    about: Private report to the maintainers. Never file a security problem as a public issue.
+  - name: Language reference and vocabulary
+    url: https://github.com/inventarch/ia/blob/main/docs/reference/language/README.md
+    about: Read the language guide and the vocabulary catalogue before proposing a new word.

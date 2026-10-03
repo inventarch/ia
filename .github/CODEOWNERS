@@ -1,0 +1,5 @@
+# Code owners are requested for review on every pull request that touches a matching path.
+# Owners must be GitHub users or teams with write access to inventarch/ia.
+# Later lines take precedence over earlier ones.
+
+* @crowncodes

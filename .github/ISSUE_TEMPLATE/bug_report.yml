@@ -1,0 +1,63 @@
+name: Bug report
+description: A command, the VS Code extension or the MCP server behaves differently from its contract.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security problems here. Use the private report form linked from SECURITY.md.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - ia CLI
+        - Language, compiler or graph
+        - Distribution and installation
+        - MCP server
+        - VS Code extension
+        - Host registration (Claude, Codex, Cursor) or steward hook
+        - Repository tooling or CI
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release, package version or commit you ran.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: ia doctor --json
+      description: Paste the output. Remove anything you consider private.
+      render: json
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The exact commands, and the smallest workspace or records that trigger the problem.
+      placeholder: |
+        1. ia init demo --apply --yes
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What the contract, documentation or help text says should happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead, including the full output or diagnostic code.
+      render: shell
+    validations:
+      required: true

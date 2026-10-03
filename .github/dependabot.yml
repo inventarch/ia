@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Workspace dependencies through the pnpm lockfile. Catalog entries in pnpm-workspace.yaml are updated there.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+
+  # Workflow actions. The setup action pins a third-party action to a commit; Dependabot updates the pin.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /.github/actions/setup
+    schedule:
+      interval: weekly

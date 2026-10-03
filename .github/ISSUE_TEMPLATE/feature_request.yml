@@ -1,0 +1,45 @@
+name: Feature request
+description: Propose a change to the language, the vocabulary, the CLI, the hosts or the tooling.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A new word in the vocabulary needs an owner, normative semantics, a schema, a consumer and conformance cases.
+        Check the vocabulary catalogue first: an existing word may already represent what you need.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Vocabulary or schema
+        - Compiler, graph or compliance
+        - ia CLI
+        - Distribution, registry or installation
+        - MCP server
+        - VS Code extension
+        - Host registration or hooks
+        - Repository tooling or CI
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you are trying to represent or do, and why the current language or tools do not let you.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The change you suggest. For a vocabulary change, include a minimal valid record and an invalid one.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing words, commands or workarounds you tried and why they fall short.
