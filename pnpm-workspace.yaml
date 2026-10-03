@@ -9,7 +9,7 @@ catalog:
   "@types/node": ^22.19.0
   tsx: ^4.22.3
   typescript: ^5.9.3
-  vitest: ^4.1.4
+  vitest: ^5.0.2
 nodeLinker: hoisted
 # Keep Nx's pinned transitive dependencies on patched releases.
 overrides:
