@@ -235,14 +235,10 @@ export const RUNNERS: Readonly<Record<Platform, string>> = {
   macos: 'macos-26',
 };
 
-/**
- * The platforms a pull request plans. Hosted Windows and macOS minutes bill at about 1.7 and 10 times Linux's, so pull requests
- * run Linux alone; main pushes, the weekly full run and dispatched runs plan every platform, which means a Windows- or
- * macOS-only failure surfaces after merge, on main, rather than before it.
- */
-export const PULL_REQUEST_PLATFORMS: readonly Platform[] = ['linux'];
+/** Pull requests targeting main qualify every supported platform before merge. */
+export const PULL_REQUEST_PLATFORMS: readonly Platform[] = PLATFORMS;
 
-/** Pull requests qualify Linux; all other events qualify every supported platform. */
+/** Every workflow event qualifies the same supported platforms. */
 export function eventPlatforms(event: string | undefined): readonly Platform[] {
   return event === 'pull_request' ? PULL_REQUEST_PLATFORMS : PLATFORMS;
 }

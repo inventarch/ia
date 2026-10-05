@@ -1131,7 +1131,7 @@
     },
     {
       "path": ".github/workflows/platform-quality.yml",
-      "sha256": "9ee89a10a48c6efbcea6985e0cd429feb1eeb52f38ac3be90065f57121f915d0"
+      "sha256": "600b0045731af1ca78986c94981142c9575bed3ca44420f07465785867db989c"
     },
     {
       "path": ".gitignore",
@@ -7439,7 +7439,7 @@
     },
     {
       "path": "tools/testing/SPEC.md",
-      "sha256": "e6370d7a928f8f6eef0bdb419b7b35017bf748805db573d3845fbfe11788a333"
+      "sha256": "8b59ed3d2c887fed86fb7cc835b66b525039855e344e12a95a553eb82a0f37d9"
     },
     {
       "path": "tools/testing/cache.test.ts",
@@ -7467,11 +7467,11 @@
     },
     {
       "path": "tools/testing/plan.test.ts",
-      "sha256": "0396064ad0ec7fb3e6b98e1e1340c3236971cec5cf93911359014866d89b116b"
+      "sha256": "12c841da86db4df84990341bf8479a6c75115632e7a138df283ce03ba30763d7"
     },
     {
       "path": "tools/testing/plan.ts",
-      "sha256": "5c6f910cef4b98719b10bbac373ba2b7aa4f087ad3dc551e502462560d7cb21f"
+      "sha256": "12ea27c09c40aeb6961323dcf13f07b1bc8072c88fe8e465bc0665111452f313"
     },
     {
       "path": "tools/testing/report.test.ts",
@@ -7532,10 +7532,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "6c1d8428541e5366e5b4a56fbed963a84fd768c8",
-    "baseTree": "e295ef4c79b36c2e99da71e7e5b20d93a4ce620a",
+    "baseCommit": "d57d17ae1e3877663aca99787c427b19305a2b13",
+    "baseTree": "9d64a5b7fdf89a196762e8234b810ece26687b3a",
     "dirty": true,
-    "inputDigest": "653d5a9a37f99a03c9b1944d70151f28e87be0e12dadb3299a6fe2360f1321a6",
+    "inputDigest": "b288835c73b79ab1227b897b49a2fe420badec41eb317d12c5ec2cc7cf6a9937",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",

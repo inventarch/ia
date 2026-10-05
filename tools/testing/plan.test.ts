@@ -464,11 +464,15 @@ it('runs the Homebrew smoke on the pinned macOS label the lanes and the gate use
   expect(smoke).toMatch(new RegExp(`^name: Homebrew Node smoke \\(${RUNNERS.macos}\\)$`, 'm'));
 });
 
-it('plans Linux for pull requests and every platform for other CI events', () => {
-  expect(PULL_REQUEST_PLATFORMS).toEqual(['linux']);
-  expect(eventPlatforms('pull_request')).toEqual(['linux']);
-  expect(gateMatrix(eventPlatforms('pull_request')).include).toEqual([{ os: RUNNERS.linux, platform: 'linux' }]);
-  for (const event of ['push', 'schedule', 'workflow_dispatch', 'merge_group', undefined]) {
+it('plans every platform for main pull requests and all other CI events', () => {
+  const source = workflow().replace(/\r\n/g, '\n');
+  expect(source).toMatch(
+    /^  pull_request:\n    branches: \[main\]\n    types: \[opened, synchronize, reopened, edited\]$/m,
+  );
+  expect(source).toMatch(/^permissions:\n  contents: read$/m);
+  expect(source).not.toMatch(/pull_request_target:|secrets\.|permissions:\s*write-all|^\s+[\w-]+: write$/m);
+  expect(PULL_REQUEST_PLATFORMS).toEqual(PLATFORMS);
+  for (const event of ['pull_request', 'push', 'schedule', 'workflow_dispatch', 'merge_group', undefined]) {
     expect(eventPlatforms(event)).toEqual(PLATFORMS);
     expect(gateMatrix(eventPlatforms(event)).include).toEqual(
       PLATFORMS.map((platform) => ({ os: RUNNERS[platform], platform })),
@@ -555,10 +559,9 @@ it("plans each platform with the workflow's shard counts through the command lin
       );
     return { value, perPlatform };
   };
-  const counts = platformCounts(shards, '--shards'),
-    none = { linux: 0, windows: 0, macos: 0 };
-  // Main pushes, scheduled full runs and manual dispatches qualify every supported platform.
-  for (const event of ['push', 'workflow_dispatch', 'schedule']) {
+  const counts = platformCounts(shards, '--shards');
+  // Pull requests and non-PR triggers qualify every supported platform with the same shard counts.
+  for (const event of ['pull_request', 'push', 'workflow_dispatch', 'schedule']) {
     const full = outputs({ event, sha: 'abc', verified: '' });
     expect(full.perPlatform('tests')).toEqual(counts);
     for (const lane of ['build', 'static', 'emitted', 'gate'])
@@ -566,12 +569,6 @@ it("plans each platform with the workflow's shard counts through the command lin
     expect(full.value('platforms')).toEqual(PLATFORMS);
     expect(full.value('run')).toBe(true);
   }
-  // A pull request plans Linux alone, with Linux's full shard count, and gates Linux alone.
-  const pr = outputs({ event: 'pull_request', sha: 'abc', verified: '' });
-  expect(pr.perPlatform('tests')).toEqual({ ...none, linux: counts.linux });
-  for (const lane of ['build', 'static', 'emitted', 'gate'])
-    expect(pr.perPlatform(lane)).toEqual({ ...none, linux: 1 });
-  expect(pr.value('platforms')).toEqual(['linux']);
   // A scheduled run on the commit the last successful scheduled run verified has nothing to do; a dispatched run always runs.
   expect(outputs({ event: 'schedule', sha: 'abc', verified: 'abc' }).value('run')).toBe(false);
   expect(outputs({ event: 'schedule', sha: 'abc', verified: 'def' }).value('run')).toBe(true);
