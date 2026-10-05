@@ -1,0 +1,2118 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "1.1.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "007b268f9f0b747ff34b012bce17c5f5bcb15d9f",
+    "version": "1.0.0"
+  },
+  "summary": "Coordinated public framework 1.1.0 candidate with governed context, bundled system assets, cross-platform qualification and mandatory release hygiene. Publication and production enforcement remain separate approvals and qualifications.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Add governed installed reads, explicit specification-body capture and reviewed task-declaration context selection with exact captured inputs and refusal evidence. Production writer/reviewer and hook enforcement remain unestablished."
+    },
+    "@inventarch/agent-system": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Enforce the current separately mandated review contract in agent execution and retain the selected native system binding."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Update public guides, library metadata and native ownership bindings for installed authoring consumers."
+    },
+    "@inventarch/cli": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Update public onboarding and language assets, selected-context workflows and installed host-payload qualification while retaining explicit write authorization."
+    },
+    "@inventarch/compliance": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Update public authoring skill/host projections and their qualification so installed public guidance follows the declared contracts."
+    },
+    "@inventarch/compliance-system": {
+      "previous": null,
+      "kind": "changed",
+      "summary": "Introduce a native data package with exact owner, archive and compatibility bindings in the 1.1.0 cohort."
+    },
+    "@inventarch/db": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Add public language attribution and descriptor regression coverage; align package metadata without changing database implementation."
+    },
+    "@inventarch/distribution": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Verify bundled native/compiled system ownership and complete archive closures, qualify installed consumers, and fix physical dependency-root lookup for portable host payloads."
+    },
+    "@inventarch/governance-system": {
+      "previous": null,
+      "kind": "changed",
+      "summary": "Introduce a native data package with exact owner, archive and compatibility bindings in the 1.1.0 cohort."
+    },
+    "@inventarch/graph": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Add public language attribution and graph-loading regression coverage; align package metadata without changing the graph implementation."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": null,
+      "kind": "changed",
+      "summary": "Introduce a native data package with exact owner, archive and compatibility bindings in the 1.1.0 cohort."
+    },
+    "@inventarch/language": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Add public language attribution and align packaging to the 1.1.0 cohort; the parser implementation is unchanged from the published baseline."
+    },
+    "@inventarch/learning-system": {
+      "previous": null,
+      "kind": "changed",
+      "summary": "Introduce a native data package with exact owner, archive and compatibility bindings in the 1.1.0 cohort."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Report the installed npm package version during initialization, update public protocol assets and preserve the separately selected MCP wire protocol and read-only authority."
+    },
+    "@inventarch/runtime": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Update authoring inventory and public machine-protocol examples; preserve explicit governed execution limits. Classify release metadata as root-owned source."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Add strict capture-failure evidence for incomplete, stale, overflowing, out-of-scope or incompatible task captures, without leaking source paths."
+    },
+    "@inventarch/session-system": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Carry separately mandated reviewer authority and policy revision in review contracts; bundle the selected native system and compatibility evidence."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Integrate captured context and public installed inventory with explicit refusal handling; declarations and local checks do not establish production host enforcement."
+    },
+    "@inventarch/template-system": {
+      "previous": "1.0.0",
+      "kind": "changed",
+      "summary": "Bundle independently versioned native template declarations with the existing compiled template implementation and updated package documentation."
+    },
+    "@inventarch/work-system": {
+      "previous": null,
+      "kind": "changed",
+      "summary": "Introduce a native data package with exact owner, archive and compatibility bindings in the 1.1.0 cohort."
+    },
+    "@inventarch/workspace-system": {
+      "previous": null,
+      "kind": "changed",
+      "summary": "Introduce a native data package with exact owner, archive and compatibility bindings in the 1.1.0 cohort."
+    }
+  },
+  "changes": [
+    {
+      "id": "governed-runtime",
+      "title": "Governed context and system packages",
+      "summary": "Add explicit captured reads, task-declaration context selection and captured specification bodies. Bundle eleven native systems with exact compatibility and dependency bindings, including six new data-only packages. These mechanisms do not establish production writer/reviewer or hook enforcement.",
+      "paths": [
+        ".ia/",
+        "packages/",
+        "examples/"
+      ],
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ]
+    },
+    {
+      "id": "installed-distribution",
+      "title": "Installed CLI and SDK distribution",
+      "summary": "Qualify installed CLI and SDK consumers against public package closures, enforce archive and binding integrity, and fix portable host payload lookup. Preserve governed first-party READ authority and the existing capture bound.",
+      "paths": [
+        "apps/",
+        "tools/release/",
+        "distributions/"
+      ],
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ]
+    },
+    {
+      "id": "release-hygiene",
+      "title": "Coordinated npm release checks",
+      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance.",
+      "paths": [
+        "tools/distribution/",
+        "releases/",
+        ".github/workflows/npm-publish.yml"
+      ],
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ]
+    },
+    {
+      "id": "portable-quality",
+      "title": "Cross-platform qualification and public reference",
+      "summary": "Run public pull requests on Linux, Windows and macOS with complete task receipts and measured symlink capability. Update public language references and onboarding; retain explicit failed, skipped and unassessed outcomes rather than treating structural checks as production readiness.",
+      "paths": [
+        ".github/",
+        ".agents/",
+        ".claude/",
+        "docs/",
+        "tools/",
+        "package",
+        "pnpm",
+        "nx.",
+        "tsconfig",
+        "vitest",
+        "biome",
+        ".git",
+        ".npm",
+        "README",
+        "SPEC",
+        "LICENSE",
+        "NOTICE",
+        "LANGUAGE",
+        "THIRD",
+        "CONTRIBUTING",
+        "SECURITY",
+        "CLAUDE.md"
+      ],
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".claude/agents/public-agent-composition-system-steward.md",
+      "sha256": "1bdeb3fca6f43f8822f275129ce1c3622539775f0b3afdd6fccc43a951cad639",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-agent-system-steward.md",
+      "sha256": "f06c54a0bb0e083090828514c32d4b406eee58088a2a8b36c9e628d005eb38ce",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-authoring-system-steward.md",
+      "sha256": "2f31f467decda9feea98c3cdde38022a02423b26df2d0ce814dbb0cce2485a97",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-compliance-system-steward.md",
+      "sha256": "c9c8dc0c8e4fcd2861381c08ef67f138999608e6b40aece0d06f8749d45893b0",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-governance-system-steward.md",
+      "sha256": "f847b5a532641705f0f38604976f0a94a853f90cc8befe48cc005ffc3dc2cb68",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-hook-authoring-system-steward.md",
+      "sha256": "d9d9acbb8f4a1618c12a98d16f36b9e886cadc8aedb6dbbadf22857357541679",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-learning-system-steward.md",
+      "sha256": "64771f5667ad24ef06367179301047b1f808868411a01187cad2e27b0c1a8351",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-session-system-steward.md",
+      "sha256": "bb632b4b854a6f76b6b2c6ef25962a776e8e165269ef67bd048465a0a9e17fe4",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-template-system-steward.md",
+      "sha256": "57190b44d058f8ece8f1ff69c366b642be9e94bcc66f0d6a825e52859bddb374",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-work-system-steward.md",
+      "sha256": "8048fd9a4b96af42bdbe8bef5b3e7947a5db583de84df70003ba7f6bb73721e2",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".claude/agents/public-workspace-system-steward.md",
+      "sha256": "778af884381336bc70139c79968428ec8e45c98b90598b2ce487923b8d2f9a90",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".github/workflows/npm-publish.yml",
+      "sha256": "449d992f9e25e57977252e174b507305fe3597c2095fc7aa66f19660b78973a0",
+      "change": "release-hygiene"
+    },
+    {
+      "path": ".github/workflows/platform-quality.yml",
+      "sha256": "6c64236c190b6bac215a1ae7fca284ec00f3386e7db08ced655d5157899e1cef",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".ia/authoring.resources.json",
+      "sha256": "8c91c2ff3a54de9be109a0724683c8b353d4b2fab6830f44f9f7485d5a6f575a",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/SPEC.md",
+      "sha256": "9a6cd33e87bf8d33c382ef2ca42f33a1f0a599a2c3f7104d2a0a9513f29b3416",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/cases/read-captured-source.ia",
+      "sha256": "dd6cf8a9940e7ccffc2def65519b7d9aae7e4651ae24c057ee61867f7fbb491f",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/contract.ia",
+      "sha256": "66df438d709710db7ac018a3eb83f6a713a5eb546fba4df8817ba51b38a67d27",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/fixtures/task-capture.json",
+      "sha256": "43f07c91c0402e9ecdc9c24352b5df6c25c7504fceaa70a9c0156fe8e6b98ce3",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/operations/read-captured-source.ia",
+      "sha256": "1b69020d5c04693c54c1859c180eef8f1b76037b9408f3c30f6f0880be1b91ab",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "efc53e358198ae6d4d092d058126849be3db4c04aa040885b08aa617bebfd780",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia",
+      "sha256": "2222ab7b05a3335fb20da94d5401425a23bdfe4b53f6d56f342f610476b68708",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/installed-read.md",
+      "sha256": "d03adfdab048a2c65bfa6e12983bd8689d2fdba99dab3f4e2b828710c2d4e070",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/public-spec.md",
+      "sha256": "c9041987e65ff71f174743a655171fc1cdababdc35a707696a1a815849f56a07",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/sdk-runtime.md",
+      "sha256": "52b1f1303076a4cb0475829792bd67346f0960599a0c095be6caf4e46ff12611",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/spec-read-boundary.md",
+      "sha256": "da3509ed70969ed1c63d5959383601c03be3857b88a784a19940b366f194e873",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/task-capture.md",
+      "sha256": "7af82d5e10e23fdf1c1d963b8427207f22610c036c7c8936436333475e073894",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/catalog.ts",
+      "sha256": "d26669ba0ad709f0953567ebd8ecf97b64ebd338e46ffff641ead7f927de47f2",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/compile.ts",
+      "sha256": "0bc87e37a3a246fd423fb2f456ec65685615fe9e9763a9ccde5add42db8aab37",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/compiled.ts",
+      "sha256": "1efc8a894c052ad4267c38c020141323d19ad2a686dc9459370002700d2d53c8",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/corpus.ts",
+      "sha256": "6dad31e8c1ba5f19a0780a9f8dfd27c3afc3ec2968d42d23e65e6d7f6ca2eae9",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/execution.ts",
+      "sha256": "77dce43c2a0f31fa1abbfe8ed94d565fce8d42c7288d1212c8da069db1b7ce12",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/index.ts",
+      "sha256": "63fcaf8782047c4cc6e3341a2536d606591289f343e7b837763b200e3189b67d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-read.ts",
+      "sha256": "6202810f1c81ef0c286bbb1ff92bae8228f40f2c206ae47993c7e9bd87c67a64",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-profile.ts",
+      "sha256": "73a87a7fca5cb964cefbec4bc805ce479a99588cb86f2e58baf4e3def1811075",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-rows.ts",
+      "sha256": "94637eb3c7a0dfc27a9d988c8a19605d9347b8e2c8553d6374327ad620eac97e",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-transport.ts",
+      "sha256": "932ceeaba87a1adc4ba4328f5041de2d0243257c06d1ea34d43d95ac2b34e137",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-format.ts",
+      "sha256": "965f6563ffc98c2e0bff1d1fc257284ce7db009a121bc04ca3a3cc6fc22102e7",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-host.ts",
+      "sha256": "2fc21106900be7baf254ea21a8a663e0623cb1597599e38cfdbfb985764140a9",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-routine.ts",
+      "sha256": "c4048ce9a5d1a7d03cc45372f7bd8b36fc2e7ed3df0062371fc7195b60e737dd",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projections.ts",
+      "sha256": "3b3d7c4062707c5b740bcc3b817cf9a6ac17c41492f69cd839c44c4081dd6474",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-context.ts",
+      "sha256": "99ae549d7b3947262d1451c7f12a951b45d514f566dc4a422d75268d58edfc1e",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/sources.ts",
+      "sha256": "3c32a2ca69b653fbd5144aa299989e5aad6f88a7bf7f5c5d3fbfed84d305397e",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-capture-format.ts",
+      "sha256": "b6e7c2453d21067220c54707dee87b61b9e770146a5658347cad74fb9dba7782",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-capture.ts",
+      "sha256": "a0121994b5474216f56017dfa860c8c86a0a1bc87a1857feabdec9e5e53b5ec6",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-context-declaration.ts",
+      "sha256": "fbe2d199708bf0ee32ea59605fef24ff8c8dd72f2b1f7429c6f7879f734f0d99",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-teaching-closure.ts",
+      "sha256": "4af7048ee510abb82b4edd53694711e9a39b32bac874247965c75342de55209c",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/system.ia",
+      "sha256": "71fdefec3ac58670aa9351e2988ced11578db4dd4cb91b7a3e57ae2586d1fa82",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/authoring-shipped.test.ts",
+      "sha256": "5776d81d9333828b0a7b79df976821666d4daf19a31ee4bcfc4e3ca2611beb58",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/compile.test.ts",
+      "sha256": "858b98fe9837b68c4410e188e62943b5c2300adb53d25c1521a63ed2cb143d99",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/compiler-fixture.ts",
+      "sha256": "7edc56db3dfcdbdf21630d56baac5c39104b656085cc356ed9afe6f93105a287",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.d.mts",
+      "sha256": "79494d75e43c0efc9d1bd3a7d0c6e29e2b3f3c5d34a539e1cc86b10a8f9f6001",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.mjs",
+      "sha256": "1d7ecf9559827bf3a5b4e80c8db2d60a45daecaf86a7bb322aba4733fa6b4a8b",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read.test.ts",
+      "sha256": "c4fbe1edef0b5df1ed57f279996c5ba971ed595c21b04afd20376ab9a36df8b2",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "sha256": "e7638bb528b365d4fd4695f3772f8b5a72b6914f4e8787a17e889bc683b97fe2",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-segments.test.ts",
+      "sha256": "3e45dfc284aa1b9d8668cd720314f4f0c367d634bd783e9778698c6cc8a9c16b",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle.test.ts",
+      "sha256": "74c880f0153f5e9773d634ee45ce6d375e37bcb571606f9b567273c3b2f90ef6",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/projections.test.ts",
+      "sha256": "18fba1c5edf5b10597ad54a6fec6edc97ce2a1574d984ab58c4d4e7fd79283e0",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/public-spec-fixture.d.mts",
+      "sha256": "4a61153bf54643ef07ccd84de85828f79531ef14d66394593bbf3a64b5d70133",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/public-spec-fixture.mjs",
+      "sha256": "2383a3349971c70c6df4974ce2e3cf218c3b9d91cda30ef9d61db1c128861f9c",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/public-spec.test.ts",
+      "sha256": "d2aff160e69e9063b9204a47e23fc9aced3feef8f20e28381dfca631ee9012c6",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/resources.test.ts",
+      "sha256": "7e34e8cb7e2fac3300b6d2a538df832a62a6041977ac605b617c10962cf509fb",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/native/read.ia.fixture",
+      "sha256": "daa8c39b075f364a12ddeaa6232cd987adf83893e6def96940fe2403f145e3fb",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/native/records.ia.fixture",
+      "sha256": "983ea1581534d0e98df3d9aeba7cc42d2387f05ae11305fae8cfb395eaecf5d3",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/native/system.ia.fixture",
+      "sha256": "e6056cdb71385d3f32957c3750e19ca89a94a4451fdb7b9463386b6963aa0397",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/onboarding-case.ts",
+      "sha256": "e907023761fd1a525470b3e2a3efde9a31c2df16da761e4243b99f24f29295da",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/sdk-runtime/recipe.mjs",
+      "sha256": "0da4146876738cabc76d7554d6ee5618a130d5304b7980a0343bd714dbc3401e",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/spec-read-boundary-fixture.d.mts",
+      "sha256": "001c055078bcbac1bd4a44205e248281eeae76bb3dff734106d5f86e1b12c0d0",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/spec-read-boundary-fixture.mjs",
+      "sha256": "386d9263c68bffc1021add0712bf187b61a1db9194beb2c450acdc801d9f8286",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/spec-read-boundary.test.ts",
+      "sha256": "e2c4d4e40e130e348d4fb3ee344676c64e354cbc65211d0ae575e890d1208604",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/task-capture.test.ts",
+      "sha256": "0d651485e575420bff4e7ae4ab5f2f42846df8c3919fc6ab941d6b90bc6563a1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/templates.test.ts",
+      "sha256": "89339fe20328c958ead8a9f6a326037c437d38e76f27f02284e16db9d487b052",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/tools.test.ts",
+      "sha256": "c9df21e2d0f7d0c8af880364206e768a754d0313ad0646f00ce3d1c25fb99a9d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/SPEC.md",
+      "sha256": "b938032174da02789a9b8def370b4b2ae5ae79e749aa4bf6e4873de21eb51d13",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "fe9c880319a1d2c7fdfe1d2fa99c311fa80ba95d5e835356286113f538893fe2",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/contracts.ts",
+      "sha256": "79ed45b2bb97f03e6b27d84be1c88962c293b6bcd6eef79b3521c5b6b1d301a0",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/engine.ts",
+      "sha256": "9f99a108d61c5dd028c2d5ea6a79c25a51d073890a6277953a667edde4c91dfc",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/types.ts",
+      "sha256": "6f8bda370101d3e7f602625f9f2d4e9e802ff14b33f9fbf8ac579c294ba28776",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/system.ia",
+      "sha256": "78a581516da8b0f3269c25ee2b37dc7cb2d9ed912a8a54760e9500b2d16e71f4",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/tests/governed.test.ts",
+      "sha256": "ab8f6b61640f2ec3bf416b4f5e134387983368107c063f6183adcd661b9839d2",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/SPEC.md",
+      "sha256": "c6dc70ef62014d102588634b154c250d666158fa55b83194d865253837a975b1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/library.json",
+      "sha256": "abeb8dd7d8a7d4e11eefcf6149c792b40443a2ac4874db93f7fb077efa223003",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "b4c14bb82790dfdf2a85e04a17cb53e7ab64859b8b653c6b49014128ac778269",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+      "sha256": "430f44393734c161c47c49ed8747d68ae3d18497b374ba7ffd2bd87857a50831",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/spec.md",
+      "sha256": "e886cddb6b24480b91e38be1a148fc01708d6f9b29870ba26939ada60472bccf",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/system.ia",
+      "sha256": "684261fe0dc8eccaa719a9422f53e4da613902c842ff91d9ddeaf52ee1fb2cc5",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/NOTICE",
+      "sha256": "6e0c20ac50ad924c178e12f09e01c736b865d39e7543f15ebba05842b33d8a1d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/README.md",
+      "sha256": "1b8baf7ad8a09d238d6cf15a92d7df85b9c44c67cecf75642f5f33575441c7a6",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/SPEC.md",
+      "sha256": "4bef22c4bd82f760ff3b4e520e6c440572a5e25618abccfc051976d78f6ff2da",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "633d624e8ee1680c9ee1f28ff7bad48375e24fc0bf4f97d565260ed2b78b8154",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/system.ia",
+      "sha256": "0e4372e256bf45f39bada91c339ea802f050411f8bf8e6f354df303cc4fc83c7",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/NOTICE",
+      "sha256": "6e0c20ac50ad924c178e12f09e01c736b865d39e7543f15ebba05842b33d8a1d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/README.md",
+      "sha256": "c20ff76b3bea7ba7257c17e8fa87c083d23e8e9f1859fdfe96f4f405355eca0c",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/SPEC.md",
+      "sha256": "2e9de68ff06ac48335451ecc4d884768b6c12515749a3349f85c0a7a3db285cd",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "486b9818787961999f8b2975371ade471a00022754f15fc55b48bb3c1f4fdbee",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/system.ia",
+      "sha256": "6ea9c3dcc9313dfab3db1b4b429e69d47472b0adcee000f6199f65efa1e43a4d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/NOTICE",
+      "sha256": "6e0c20ac50ad924c178e12f09e01c736b865d39e7543f15ebba05842b33d8a1d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/README.md",
+      "sha256": "03fec22c8ed50bc4a595e68fd4eb413140ed6a2f471c495fc5fcd16bbb6c59df",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/SPEC.md",
+      "sha256": "c8dcd6a754b437bd7a1dfe9b6ea074d4a24dd13c2c6d02030f04eae3d472303d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "9e27d477168e7c94609a4feb3aed043e88002333d3af44011472a26dbb448565",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/system.ia",
+      "sha256": "24cc16f153ced23d5fc8e58481c5a8f27a8318688c3889c091dc6d42ed4abaa8",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/NOTICE",
+      "sha256": "6e0c20ac50ad924c178e12f09e01c736b865d39e7543f15ebba05842b33d8a1d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/README.md",
+      "sha256": "8f3125b0bebf786a69aae54928f35b1535d6d3aa2942b8d43363f7d979b3e43d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/SPEC.md",
+      "sha256": "c1322307ce22cd3b11a81a4738caaf17c16a777fbff1ded70cbe653e1df30b8c",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "a1aacca71f22df6e5c85e11e5b9c495aa398203b9e06c53602b18f76d16abd72",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/system.ia",
+      "sha256": "d5eb435e97db3df0f59e566b5398be3a0bedfd2f57f2e722fe9ecc30c0700798",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/session-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/session-system/SPEC.md",
+      "sha256": "e5d18545a735d2c991af04453cad1d0be06179be45e2b4743aa765e0b0589975",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "eab24d03d0589c3eb2eb8423569770a9683c36c53b09bc5424ce99fd39db3414",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/types.ts",
+      "sha256": "5478201f8f6a595390b451560cee23a1837998aa1bdaf9cfcfc187e3f13041ae",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/session-system/system.ia",
+      "sha256": "8f64ddedfda96505a65b8adb97b53b655fceff2b07c7b265848c8ea0c8378a4e",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/template-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/template-system/SPEC.md",
+      "sha256": "f93fcafe645dc78360888476cc4d721bb234f1a09e4829088000551a936d7e93",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "a856ff09303e34e3e2b1a2d9c5d332c0f5959b8c462aee9ff37a40d2833effe5",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/template-system/system.ia",
+      "sha256": "ba620cbf41e512ac588dcb98cb5fca96179d778f39996796ef9913275f765b46",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/NOTICE",
+      "sha256": "6e0c20ac50ad924c178e12f09e01c736b865d39e7543f15ebba05842b33d8a1d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/README.md",
+      "sha256": "5e4644a67d1d2c88c15fa503cedcf324eb3df23e3020ebfd893967b47524008c",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/SPEC.md",
+      "sha256": "9f9c07f3de3f0389f998015266382da6c81d41af08e3e4894c5bf4bdf05682c0",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "fb9670564ebbcc0537cab801134700564f514d1412e7db07a7464c82d50d921e",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/records/npm-release.ia",
+      "sha256": "6dfe76b06394ebc00a9c5952bb4e4197e6f87bf1333973883455b048d5346e0d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/records/work.ia",
+      "sha256": "26499fb12c500545f9a4cac30fed2bbe37f9f14645d0b1d7261a72f248efa50c",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/schemas/spec.schema.ia",
+      "sha256": "fa8d82b7668edf5305b82b7948a9946985baccf1410ef9b739dce2aa992aa038",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/work-system/system.ia",
+      "sha256": "d627b0a35aadb8f39395525c956d7372dc21ff49170ac50f5fdb13a074e80087",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/NOTICE",
+      "sha256": "6e0c20ac50ad924c178e12f09e01c736b865d39e7543f15ebba05842b33d8a1d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/README.md",
+      "sha256": "2f5d25d696e16711b8bc095d26217463a3659260a0daccddf5d014b20d308d35",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/SPEC.md",
+      "sha256": "6718c0a021e127cef522e0cc0617d397f27db32291148306fedfddced732e112",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "e21c3a8b99a635df7873f487f42c1ebc81b16163fab74be743a3b83c47e3a09f",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/records/system-packages.ia",
+      "sha256": "394ad26c9e55c106d2c84f7d7cf4df5db73a78ad26e30caffb52f1723a6df1ab",
+      "change": "governed-runtime"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/system.ia",
+      "sha256": "fe7d095e5a929ac6b41b664babee93667613767b310ec559b5b39da926a007eb",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "81a35a3b7220b0588b7804624c37f45bee5d957a8b5895a10c3d7362c1185fab",
+      "change": "portable-quality"
+    },
+    {
+      "path": "SPEC.md",
+      "sha256": "5e18a821e5f758059d15f7d3142693ced2842f09c04bb033ddd377af23e2efd1",
+      "change": "portable-quality"
+    },
+    {
+      "path": "apps/cli/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/README.md",
+      "sha256": "0cf61fc48aa0b40c19e6a3f478ef0a3f1b4772682d2f1ba97ded1cc90eacfad3",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "e46d252494e3f007bff0604235d987176b79cd49d2561992ab8c74d72370eb8f",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/assets/vocabulary.json",
+      "sha256": "4941ed2b7e805b2202ae46584897dc33e2e631749e54e8ed7b9a6d99f5217a44",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "d9d75062cbb6ba3076343f3585b22980ab42000d2622dcb329cee2ec71c4d52b",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/src/channel.ts",
+      "sha256": "aa5a22927c659a7ea1fc9faa3bc7e8923f33a0269fc908f265bd7ce86d416252",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/src/claude-cli.ts",
+      "sha256": "6717b7024990e453c86e215791320c4250bc51a7f0a6fba9e9fbce14c79cd255",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/src/doctor.ts",
+      "sha256": "26603b11000f8b801a7a77734ad31f6173c02512bec6b63d32d11d071a250cac",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/src/init.ts",
+      "sha256": "aad0c06f103b30ddf9fca80a8cce273e8a6059f6d54174b97a34e48cc1df93f6",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/src/program.ts",
+      "sha256": "105788d72f3e5ff78c44ae80e87f440d93f7c26b649434aaa04b26ce272af243",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/src/user-host.ts",
+      "sha256": "b4aa9becfef0c220e54b41d0055981076332c11ce2494d03a65379ef203f1709",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/channel.test.ts",
+      "sha256": "a1bc75c520a7ec5d87e09e5364161822e313a5b5f7fd34293f96e1eda586e528",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/distribution-verbs.test.ts",
+      "sha256": "63a188d3f2f39b931dabed0af076522a9405803f794198b8e2fb96d2deedcaaf",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/host-doctor.test.ts",
+      "sha256": "6c63577bc4c50e18caa025304b2b5e275b0f4445d6348358070a1e4c51e9fe11",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/host-fixture.ts",
+      "sha256": "2bd0f435224a361b71f69f28707513cfd75c3ee81d54a45ffba78f00213a8f55",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/host-install.test.ts",
+      "sha256": "a58c066fedbb44022e0799d76e8dc749f33c24584abd9c60f64fb5e680586e00",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/host-recovery.test.ts",
+      "sha256": "40be1bfd992ed78f23537af0fb5592a9e63cc3e7964a37f41124e4624cca726e",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/host-registration.test.ts",
+      "sha256": "0e5883fe9242fc7f4fd69443795457bb96c252dbaa3db137823fc7c3bbafc6bf",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/host.test.ts",
+      "sha256": null,
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/init.test.ts",
+      "sha256": "da224ea3f8329a860e39d5339128ae12146dac19db3e26aee682ca721976d00e",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/program.test.ts",
+      "sha256": "4f2b3c3d79234f2a3cb655b4fb2be9c01549c8e21b1874bce6808c17bb557e21",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/protocols.test.ts",
+      "sha256": "e4187c385c8163538e352e406651ff19186ffd0de7893c7105d3a65aaa0a58c8",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/registry-fixture.ts",
+      "sha256": "dbe1376e8236820c31fcfbba8253153d31bde503abad3e4abfcad7ed80e26cf2",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/scratch-fixture.ts",
+      "sha256": "d0f7a06ac532b64463ed71bc16ae747a3945be58d9e980ed2d9fc303f9c283e9",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/session-hook.test.ts",
+      "sha256": "11351cf82323385073c264e2188258633cabb7cf1f44ed9cf73e900f324ef380",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/untrusted-lookups.test.ts",
+      "sha256": "f75ec2489f496b56b5fb4d010af195950bf4df8ba4100652dffaf9e0146d7809",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/user-host.test.ts",
+      "sha256": "842f300bc2dc8d9239bcc38996c5ef7db11f1303eb7483b4bf777d23ca2a1bd9",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/workspace-fixture.ts",
+      "sha256": "cb4ff4199e6323964165af5f10a96cdfff07a61e9b04c98de582e4afe8943d63",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "98869b3393deb7b61536e2296d97821329c379cd431b6ea9217b5dce93b745ca",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "b6e703190ece4c0d21fa8592b063f4b0e33736f9a78cd06a6ab36a146c7f08e3",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/references/system-package.md",
+      "sha256": "1d72da9fca6578f70a0b805d3e197c44a7748511dcfe3a372e72a0b460a2b56f",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/src/archive.ts",
+      "sha256": "535284b4e43283ae4ae2dfab8bd4695414dc7d9e003f588f52f4b3b43fd19be9",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/src/cli.ts",
+      "sha256": "7108ea2b2e0ddbbf126ed5826467451db88bb36d9704a9e4e276a4c4737dc521",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/src/lifecycle-registration.ts",
+      "sha256": "90e1aa9c9e5d937ea5e1bd59dfd0b474a0e8e06be5059c172ecf8b9280e633e5",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/src/program.ts",
+      "sha256": "14cc6427ea035846c50e5f5320c5efcb578cce50583df47df070970a88a8f431",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/src/snapshot.ts",
+      "sha256": "226665126c9feb6589864cde828ac16cbbaa272aeede30e641afb5904a0a05bd",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/src/system-package.ts",
+      "sha256": "0aeb67edd5f08ee8d7da978a827d5b4eaa482bd1f795cf5cc167b835e46d800d",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/src/updates.ts",
+      "sha256": "2164b4a4eefbedf944024efc99034cd49c07954fe474b2379170b6d6c3c120b4",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/archive.test.ts",
+      "sha256": "069698994d57d6b2b5b3e4c111360b245149f035992c13eeafae9206d7d2ad18",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/authoring-assets.test.ts",
+      "sha256": "f7a3b1148df003fca59c0e310c9447eb11adaca4701463d81965d02be780c3ca",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/command.test.ts",
+      "sha256": "018ab683036f1f2eac0595bb030984e00c5bb3499ef03f49ad4aa63395279937",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/context-launcher.test.ts",
+      "sha256": "8baaf7ae425f2c2e70b631863c533d76f11f5d4ce8dbbdba4ae6867bcbc5eb23",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/dependent-authoring.test.ts",
+      "sha256": "3bf9077436faa21a7c5290ebb25025ee623868a86ef4d822adcec695a604fe7c",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/host.test.ts",
+      "sha256": "54e9df1e90c57284186a3ecdf95082a94020630d6af6f0b79ab1727101333b56",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/installation-core.test.ts",
+      "sha256": "8b1bcfc3d95927cea99f4ac9a59ca3bc1e1e2c9ea70ab430f75770a56ec75e91",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/installed.test.ts",
+      "sha256": "cc06aec21f3ba7f024c822bc5dac566cc59a6d84e6826ee8fe406270f8eca81b",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/lifecycle-registration.test.ts",
+      "sha256": "7e6b6c9062f1f984b7eea07576173c88b68b7d016152570aa7aa8b154bdf01f0",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/product-structure.test.ts",
+      "sha256": "2d33906dcffbb92e99d22cc51a7592701a8d1ee7852af8e4a3cde8c048d543df",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/registry-fixture.ts",
+      "sha256": "fd599227bf59f0782bac4e7c66411d231c70eeba8e6fe7fdf7e4d700ec52e688",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/registry-selected.test.ts",
+      "sha256": "11189234dc2cd7f5270849a2721c45771a2734352ccc49d8be0c2d3ef1313d0d",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/snapshot-fixture.ts",
+      "sha256": "2af5cd088757d7313a87983032ec3229174f223b8f424684d32956c76ecc4543",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/system-package.test.ts",
+      "sha256": "073708b736a6dc634575e63d63f4795a51bb4fcf28f341c0254dedd2706a8471",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/system-partitions.test.ts",
+      "sha256": "ae6cb614ed78b8112bad76e80381c0ffedb060cf9de2e2bb462b59af5432ce14",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/updates.test.ts",
+      "sha256": "73fed3e65ab0edb6d51731bbe7e3c1dd499c87d7f4713d2ec813742030a625f6",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/distribution/tests/ustar.test.ts",
+      "sha256": "79eb130be9a5b736b49c66980a0469a0255d7609831aa921b6cd9c8b908cd357",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/mcp-door/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/mcp-door/SPEC.md",
+      "sha256": "1e98db0534f23812fe62063b82d3406eb4815a5111510c8f66381af87780e060",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/mcp-door/assets/vocabulary.json",
+      "sha256": "4941ed2b7e805b2202ae46584897dc33e2e631749e54e8ed7b9a6d99f5217a44",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "50a7a8dee6cdbd4a7192c894919cebce7bca99e4711e2c95bf67571529fd9fc2",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/mcp-door/src/protocol.ts",
+      "sha256": "4281978fb7376d00b5c92e35663f0f1a2fbafe30811da8b83b09198f7798f791",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/mcp-door/tests/protocol.test.ts",
+      "sha256": "7456b04c61afba2514fab2905de7fe378747ce6798d059ac5ccdba437dfd0123",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/SPEC.md",
+      "sha256": "5b8243d9a1bd520685ba536a09afae642facd541eaa94845d430810cda5a7dcd",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "b8cf15f0b50004a756959f78d6f767010b43cad53c0852b1a694077965e15b88",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/src/context.ts",
+      "sha256": "a629f550164e63b4ae10d659ada527381d629951f7e4499b4a12b74e08501997",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/src/main.ts",
+      "sha256": "08cc430f09764d181c4f66acf91fa4f99fcc32a7ab426c83c8c5e9a38126f7da",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/tests/consumer-guard.test.ts",
+      "sha256": "752a6455c0f114ec4dab50f6f5064d2ac73020a66213ff03df4b059fffd92882",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/tests/context-guard.test.ts",
+      "sha256": "512648f6ec0a112fff21bb2ad42f468552ba947a0fdaa29cf2d98b414755a4a3",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/tests/context.test.ts",
+      "sha256": "011fda8724c88be96da485b030851938d30e879b2111daad172c2eedd54e4d89",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/steward-hook/tests/hook.test.ts",
+      "sha256": "2b58fbe57d0e87527b7e73106a5b199572d850384ab0b7ba2db74dec32edf3ea",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/vscode/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/vscode/README.md",
+      "sha256": "cd9d54df5daf0e7047249cf9c13b2edcb8a5105a66c9ec6d2664503b5a5f2452",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/vscode/SPEC.md",
+      "sha256": "bffe8ef33c04874122926e135ab543c362009d181b856e6f18c37a3b640d126a",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "1c644ef3fdd4014ed432e813b48394ade05c7075fe73aec4042c04ceb24ec18b",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "24e9c4c14391b50148f7c7e4c0c6c553fd310c578283a4bbf389a6f3a3db965a",
+      "cohortOnly": true,
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/vscode/src/server.ts",
+      "sha256": "b4e8259e9a765396342e96f90fd97837c6129f531365f7b28e6de21762ea5367",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/vscode/tests/server.test.ts",
+      "sha256": "22d676e326e42aa10acaba1d3099782d07a7a285cd2b79e2ddd6ec7131a5ea27",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "distributions/product-structure/SPEC.md",
+      "sha256": "61dc601e277d569f8cb0d0f4db29ecff5d4b36ecac80cc61517edaa16c240223",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.json",
+      "sha256": "4941ed2b7e805b2202ae46584897dc33e2e631749e54e8ed7b9a6d99f5217a44",
+      "change": "portable-quality"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.md",
+      "sha256": "a4fe8ff22e794feeacfd4e39b01c94cc3168dd99746980447dacc7aa5219cf10",
+      "change": "portable-quality"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/authoring-system/cases/governed-drafts.ia",
+      "sha256": "679382b425197e6ff768a9379b38982b551081585bceca5d58202346170eb480",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/authoring-system/contract.ia",
+      "sha256": "42ce30831f96731776988c0f263882fb0ad6f1d63b955194895279abb418c33c",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/authoring-system/operations/format-draft.ia",
+      "sha256": "542cb3aed3469b52e36ca283c6821db63f1e774cd772ee7af6f159b7de533f27",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/conformance/composition/.ia/src/systems/authoring-system/operations/validate-draft.ia",
+      "sha256": "9eed1a0846e25c65438ec734f65a2f2d4ec58fc575e783af433c633578c6f5a2",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/conformance/native/systems/work-system/schemas/spec.schema.ia",
+      "sha256": "fa8d82b7668edf5305b82b7948a9946985baccf1410ef9b739dce2aa992aa038",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/conformance/native/systems/work-system/steward.ia",
+      "sha256": "aff2e1e00187811fd687d106a73c563f875958ead01cf7c36272aa7dd8133dbc",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/conformance/native/systems/work-system/system.ia",
+      "sha256": "78b336d5a15ce7812786014a5dc106fceb9caaa60e8f418b5666084c9d4c7c7d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/SPEC.md",
+      "sha256": "3b3ada21a158924edba16791811124d92a385bcc989b9b0c0677b7d0631c1487",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-composition-system.ia",
+      "sha256": "71fdefec3ac58670aa9351e2988ced11578db4dd4cb91b7a3e57ae2586d1fa82",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-system.ia",
+      "sha256": "78a581516da8b0f3269c25ee2b37dc7cb2d9ed912a8a54760e9500b2d16e71f4",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/authoring-system.ia",
+      "sha256": "684261fe0dc8eccaa719a9422f53e4da613902c842ff91d9ddeaf52ee1fb2cc5",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/compliance-system.ia",
+      "sha256": "0e4372e256bf45f39bada91c339ea802f050411f8bf8e6f354df303cc4fc83c7",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/governance-system.ia",
+      "sha256": "6ea9c3dcc9313dfab3db1b4b429e69d47472b0adcee000f6199f65efa1e43a4d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/hook-authoring-system.ia",
+      "sha256": "24cc16f153ced23d5fc8e58481c5a8f27a8318688c3889c091dc6d42ed4abaa8",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/learning-system.ia",
+      "sha256": "d5eb435e97db3df0f59e566b5398be3a0bedfd2f57f2e722fe9ecc30c0700798",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/session-system.ia",
+      "sha256": "8f64ddedfda96505a65b8adb97b53b655fceff2b07c7b265848c8ea0c8378a4e",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/template-system.ia",
+      "sha256": "ba620cbf41e512ac588dcb98cb5fca96179d778f39996796ef9913275f765b46",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/work-system.ia",
+      "sha256": "d627b0a35aadb8f39395525c956d7372dc21ff49170ac50f5fdb13a074e80087",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/contracts/workspace-system.ia",
+      "sha256": "fe7d095e5a929ac6b41b664babee93667613767b310ec559b5b39da926a007eb",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/manifest.json",
+      "sha256": "a59d4c91b4b21040ce67c6a7f3f63fad7f664e1651ea327cf8e44b2367b410bc",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/records/work.ia",
+      "sha256": "26499fb12c500545f9a4cac30fed2bbe37f9f14645d0b1d7261a72f248efa50c",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "examples/public-language/versions.json",
+      "sha256": "3f7539dadf0a44d87babddbab3cdf1a90f6584bdeae02cbf7dafab4749fe581b",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "nx.json",
+      "sha256": "ed579b6779a7340c5fe078ef10f4869b0c16bd1d6cb5b29cacec230f6d7f4564",
+      "change": "portable-quality"
+    },
+    {
+      "path": "package.json",
+      "sha256": "3b67828232e74cece9b7c84a5d930ccc212c2c64ae47f3fa3461b884ed899b96",
+      "change": "portable-quality"
+    },
+    {
+      "path": "packages/compliance/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/compliance/SPEC.md",
+      "sha256": "d8b1e16eda6c0a0adda7a294c66030746a629732d05c378e6c0dea43e9a0733d",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "7714fc5d4f6b5d323543d3665d0e1a687af40fc9ef83370361e399c8e12e3074",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/compliance/src/host-plugin.ts",
+      "sha256": "cd7f6ce288f135cd3bf644a0bc18431b776169934100eab891ac6fda223923e4",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/compliance/src/skill-routine.ts",
+      "sha256": "b8c9a5cfd8b0f32799f3b6ce72c2060e9c7446a1e8456369281e8d637c332198",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/compliance/src/steward-profile.ts",
+      "sha256": "c550dfdde3939d8c18a38a7290a9cb6f64d430ecfbdc21bd1867ec8ebf90afdd",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/compliance/tests/host-plugin-node.test.ts",
+      "sha256": "808b4baed666d0930c4b27e151627147d6c2f0d89b0a9da9a64a11176e7bc824",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/compliance/tests/host-plugin.test.ts",
+      "sha256": "5e6a0941156fccb4f4831286857138756eb2037cfd3722b6415f4225c3ff9cbc",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/db/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "8cb4e3937c1fda2d406498342d822becdcf018ef9544e15f14927d4a338fa890",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/db/tests/descriptors.test.ts",
+      "sha256": "fcf07d9f383235f06ef90e75da4af3c11cfa7430dd2cb273c7f7c400dfafdad4",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/graph/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "75315ab7f586d72ae0dbfaea657405bfcb419c6dd20fd4ff485713726a029a74",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/graph/tests/load.test.ts",
+      "sha256": "4284209eb5f5827e25b08245ce781ef66c446ee1cb5c96e0c4027ef035b61d1a",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/language/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "66563a10a54f8587136a9f2d47468f1deed1d0ccf2a85f9b5b4748998cd7e2aa",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/runtime/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/runtime/SPEC.md",
+      "sha256": "0627e8604b8cb1b0539f3251b1c98a6e0ee9d962999519458614c42ba4bab8da",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "e572c1aa8d03506bf9a2c8455858a0a8c7768323b3f367c11035473725c6f30a",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/runtime/src/authoring-execution/inventory.ts",
+      "sha256": "12154ed0b96c94895e43ac260ca05ef46012580b79b67ce3f3c19c4208a6d7e7",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/runtime/src/machine-protocol.ts",
+      "sha256": "e70ad58a7b6414e1360012963a683cc3f035b909d154921fe0cb0b23574fed3e",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/service-contracts/LANGUAGE.md",
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "0ceb33fae248fa2ae9e287476a9a97525e83f10af1e6ec9164216bd5f91c3f05",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/service-contracts/src/index.ts",
+      "sha256": "abb687ba4c78871c7271ff6b74c7938775270a3d9627e822af04abe80908d0af",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "packages/service-contracts/tests/contracts.test.ts",
+      "sha256": "0b4f1068186efe40b8bd24311f1581165f71f649a4821115ae1d842dc5692e07",
+      "change": "governed-runtime"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "7907c237684a2a97fade41331f7dfab7344447df4d20a58952d3dd0cb6d5ec70",
+      "change": "portable-quality"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "a5ae3477cf1d651bb05efa395b43ecd417dad0f5972412a4468d253f9d1463e1",
+      "change": "portable-quality"
+    },
+    {
+      "path": "releases/README.md",
+      "sha256": "85d58dcb902b06e02812e454fb8d81e029391071086e70859690f5e1385c376b",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "a22d0ca8dae1254bb0a47f8de717cececacf413bf734d41ff2272b858049f2d8",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/compliance/SPEC.md",
+      "sha256": "059a0c3830776dd734eef2994b708d7dca6505c5efb30f869d15662426fdd75a",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/compliance/check.test.ts",
+      "sha256": "7e1dc302180efeb654ae614f840043119fb0c602ae3e22663a3e57a082c9d365",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/compliance/check.ts",
+      "sha256": "a5274350d54ed44009b4143dbf10c82065acb405bf4f93699aabebc5df7c4650",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/compliance/evidence-fixtures.ts",
+      "sha256": "09c9087f6d8b6845aa840cb39264655506f7b88b7f603487af47389bdfc96d5b",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/dependencies/check.test.ts",
+      "sha256": "30d21a468003832f054c9d09e706249db86f83f207ba60ac62144d60de4fab5c",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/dependencies/check.ts",
+      "sha256": "a80c503dc4c5a9af24f3e79c2136622b00fbd5b9875f1e7b78b07392a7b06b89",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/distribution/NPM-PUBLISHING.md",
+      "sha256": "cdcb1ff0950aebf0e7cda242b5c37d5878d7be33a64711a31af82d4b9e8d8f9a",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/generate-public.mjs",
+      "sha256": "230e7efdb1d68172d32518f837524592f951cedb5d391dffa0300ea526606f76",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/host-payload.mjs",
+      "sha256": "6d7955db381a5385abb00d3793be347bbb77afef1e33daac0820ed11e21ec86d",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/host-payload.test.ts",
+      "sha256": "c596bfeccee6c784b1f0c99f4147fd14f415c3713216aa7dde3bde1904721ef9",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/installed-consumer.d.mts",
+      "sha256": "18987de208bb6bf023e030f7112878584a721a921b50704f22fdc9ab714c5397",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/installed-consumer.mjs",
+      "sha256": "fbf102607d19dea7c154dc998f60933a57d90746f66a71c2a5c299679acb41f2",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/npm-consumer.mjs",
+      "sha256": "caf310176119917f0eac535ad78ad6212203b0e1e7dcedc7aa934e2f6429869d",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/npm-registry-consumer.mjs",
+      "sha256": "65aa19a0ba4ab60e082a09241e5d411a4e900167984b4c7e7f4a0e213060e0f8",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/npm-release.d.mts",
+      "sha256": "30afce4173b934ce788cc06dc96f460d73d8211af9aaaaf8b7b9fa5aa4fcd34f",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/npm-release.mjs",
+      "sha256": "76659123b25d656b058b4a8838e4cf92ee0f13d9996af46ba889443d1ec185df",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/npm-release.test.ts",
+      "sha256": "adc713caa759d8b157ae57e529f23c24dad9b64648ca48e1a19e9722c927e066",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/public-content-policy.json",
+      "sha256": "dbec36ec7456ca02c745a8618a367ab2483522693f28e663211d5458fec438e0",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/qualify-packages.mjs",
+      "sha256": "b2d0829ad664d5dae9e2d544ccb524252b31773d1402bbf145ae3fe8806e7e7d",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-changes.d.mts",
+      "sha256": "90a99bf3e815b333dc974863a722b61adb5425a60cecac858fad7933e7e10f79",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-changes.mjs",
+      "sha256": "09603b7887d2ffef1887f75152407f5fc954ca70001db45973c2bee40c8cccad",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-graph.d.mts",
+      "sha256": "57230e6b05ff4f22420c992133bc92a1d0192e9cf19246661b79c88b3d476726",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-graph.mjs",
+      "sha256": "80d23df2ec84c291797e1c7c00b957ac03e62cf3bab2e20e6c363bd66df04709",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-hygiene.test.ts",
+      "sha256": "8ce6f3878f3113af773cb3074d471badf18370d066f107f3e8c7a94e1079242b",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-packages.d.mts",
+      "sha256": "0be1381520773b2fc8dc19e61c8d0484b4779824980b555fde7d71db28164a7a",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-packages.mjs",
+      "sha256": "c8c9a912f5bbdfa16e70ff00bb64c7bbf947c2fbe44070610098e927a1797453",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/resources.mjs",
+      "sha256": "9d9f71c862498b3815238ba7b0182d98ec06a335f1861cc13004b8e4f6ae282e",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "ce5771fc6ac18c9543949e39c2eb97723d0ccf81bb7e2ea55e3285db7997c270",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/docs/audit.test.ts",
+      "sha256": "0373cdd81869c3479bc030fa6fe5851b11fd8a07fcbb3a93ae17ef4b619d3a95",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/docs/catalog.mjs",
+      "sha256": "f74a6f9d5a31b7e48ae6df192b33cdf2a1a075c87e924fb7c389a32661246552",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/docs/link-parity.test.ts",
+      "sha256": "a3bffa4dd933f8940b050aaa237f0c0fc04c7bec27bd4b48541b61d36e7b3b2f",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/docs/portfolio.d.mts",
+      "sha256": "70bc453bd6a76d5b9dac6f13b4ef879485ccd89bac82d529356515cdfe830d48",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/docs/portfolio.mjs",
+      "sha256": "d079af1a9ddaaac0b8bb862b4e2911f2694c4c5e9043dad5c01a080a1177d9b7",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/entry/SPEC.md",
+      "sha256": "85bd93b93ea414bb9f0c20a8e452d70eec5caa8b1b6ab76e7dae792ef90ed2d7",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/entry/is-entry.test.ts",
+      "sha256": "9a00d049c74aed8c7e7a79c4e82d003923e67dd365a0d7f0252c28ab555ea15b",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/entry/package-manager.d.mts",
+      "sha256": "dae3507fdc07dd07f20ae0a9144a99535f408327c38ac7306109d8ce89d06e07",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/entry/package-manager.mjs",
+      "sha256": "cf6d615259fdfd0fd55cd12767c68ba6eb526b3d2fdda84c033136207854bdd9",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/native/language-base.test.ts",
+      "sha256": "7a9e7d7324d2064fe1de19348d8ba82c43fbc5eed2a3adeb0592f2caa1b2df76",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/native/language-base.ts",
+      "sha256": "15847319ea5c6eb3a6e126e21afe0b17cfd7aa0cbc9f1856d23c665c702ad3fc",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/native/public-language.test.ts",
+      "sha256": "78766ed4120ddbff8e5c35c7c27c2abc7bb67b67a1f6e199412643ca326bba6d",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/native/public-language.ts",
+      "sha256": "cc9b6597f0e40dc1d66268783122e10c2dd3a18a6376e0a3c26bce89cc71cc11",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/native/public-vocabulary.ts",
+      "sha256": "719398022faff6847a9905f5de1f58cba015a66f3c99164c5ba293347dfd2d0b",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/fixtures/compile-prose.mjs",
+      "sha256": "effe92a16a6772a88c00a7317f8aa3b257609f71f9bb5b649697eab540a3a6c9",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/fixtures/link-walk.d.mts",
+      "sha256": "d1202260297f048220ae8c1aaf08683097a33744443bacbff38442709c37cce9",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/fixtures/link-walk.mjs",
+      "sha256": "b8db530971d8c97e9d92b48f6ea31157d813384def1a8453624eb4c413563af2",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/fixtures/synthetic-review/SPEC.md",
+      "sha256": "245faa190f4104725d8fb0b0022f7431230edb7f7349c51313640c93b80ad22e",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/fixtures/synthetic-review/references/examples/note.md",
+      "sha256": "3be36c7e131e6db51af8d0ee2a91c2191763d0ec33575082f9fec0d2b5d21805",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/generate.ts",
+      "sha256": "05187abec86e52ae7b092efe3e7c92af416cc3ba1a549621c5d3c5fa851ef22f",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/link-walk.test.ts",
+      "sha256": "4c781328683a5a9899067dfafd1fb477f5f158502f6e37c719daa9ec601951b7",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/live-features.d.mts",
+      "sha256": "fca96942b4ac5df4bb6645a0c653d72f20354907f23cf0b32b95e56277d7e18a",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/live-features.mjs",
+      "sha256": "7ce0afa3cd99339e0d4d3e6e312dd983589957100bc550dbdefc94433569543b",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/qualify-projections.mjs",
+      "sha256": "130c16f222c317082fa0d44ed194a499838095f4406ece68c271f815a3f77509",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/projections/qualify-resources.mjs",
+      "sha256": "f69a33ae8bb3ddc638ccc3ad56ffaa8e32133701f32ca3f2e5051af50baddf0f",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/release/SPEC.md",
+      "sha256": "b35f0b55e8f03a3ca6864f9888ce21894ad5a0c948d06a4e5b7a167a7b433777",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/pack-manifest.mjs",
+      "sha256": "cf5a0acf5e1ec5d0b9ae5ea0a760dd86e73e3d8b8cd5c5fff62fb9694d887cce",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/packed-content.d.mts",
+      "sha256": "dd724f8ee0cdfa7272b3dddfe351b6b3d9e8ba3c258d86307059d57d9700b158",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/packed-content.mjs",
+      "sha256": "a8107ad033eeb6aaae7baf725426c2692e588ae4bd937b2ef0dec57faf55aa27",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/product-structure.mjs",
+      "sha256": "bad2e4c942361e378e7ee2ad9ebf7daa27e796b1030783e6e392843fab6435c4",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/public-pack.d.mts",
+      "sha256": "5ed7fad49acab16e4100d30442eec306e1038a701cd23564fd1ddbe9a672b3b7",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/public-pack.mjs",
+      "sha256": "b444bf0ff4a4f1c2755bd84b1f85c16929fb20c1e86c69e5f62b39eda5eec719",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/public/content-scan.d.mts",
+      "sha256": "7aa17f0a4a732ce97230d2ed380538c3f49c2e93629f2741705ef889a0ca110e",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/public/content-scan.mjs",
+      "sha256": "27433a9add8138459c28f5930a4bd5a530e3ef4cdf563644086024805df72f2d",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/scan-packed.d.mts",
+      "sha256": "5a42ebf6622eba9f78620d21fdd7ca725486e1d2f1d694a593d095ff4709b737",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/scan-packed.mjs",
+      "sha256": "f28f1dfa3d8ee13d3f3a599023518fe342b95ab144ead6f8ce5a6db5c78ea91c",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/shared/pack-inputs.mjs",
+      "sha256": "b5ab441b96a84c9461f6a95032ecb6dc8293bb42f254fdc7f51a09c46900d743",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/shared/paths.d.mts",
+      "sha256": "082052b7487dee079a5d19a78ef37ce0c80cf279d9f2c3845948d9e5a0afd58f",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/shared/paths.mjs",
+      "sha256": "2c0c3509b1bdde2ea5626ab4e464deddc976605c7a3859f6c556b2d152ebae38",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/system-packages.ts",
+      "sha256": "a491dda2f78227d8a12b0a68c276a3406047153f601e95f0de6a0faf8cf07cfc",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/release/system-partitions.ts",
+      "sha256": "a80b41a18222dd80869e516f158ead4caf8a1eccaa813948142e60d0b45711d6",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "tools/runtime/SPEC.md",
+      "sha256": "cd8dc3447ad1ad645c901d7689e3b46530bc114766777ef7d8c046003f5591fc",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/runtime/qualify-sdk.mjs",
+      "sha256": "e594f0d303692353ca4a1ef5d1f9f8c1dfb3dad6be8fca9af4cdb46491084d8d",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/systems/authoring-guides.test.ts",
+      "sha256": "4b885a9a5dac48102e723412f19345ce34cf2111e1ca401ad0af4ce2fbc72b88",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/systems/authoring-manifest.test.ts",
+      "sha256": "ed9b91effab4591754e4e264f43175cd39ad4611941b7e0ae4c4b4b8d0237318",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/systems/execute.test.ts",
+      "sha256": "aca1ca78ea0a5d669aa20faf68dd017712e50f715db20fafe0ad55dd9a2da226",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/systems/fixtures/native/.ia/src/systems/authoring-system/contract.ia",
+      "sha256": "42ce30831f96731776988c0f263882fb0ad6f1d63b955194895279abb418c33c",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/systems/generate-authoring.ts",
+      "sha256": "8f9daf1e2366e65951ca7d78d9da9f9c8238ad06d992b6f77f5ece78dcae92d1",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/systems/scenarios.ts",
+      "sha256": "8cc830940de7ad6b0a3dd5416fdf022f626c40d0926ee4dd0e787dbcde3bac30",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/systems/teaching-links.ts",
+      "sha256": "7cd8086ee8e630c0056b46304273a6d7c883dc659362e38e2d60ecca75df4b29",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/temp/physical-temp.test.ts",
+      "sha256": "56f9b12147d5fde11f9e8fa21e882cd207803f9012746510aaedbe1a4a429f91",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/SPEC.md",
+      "sha256": "a9768ea2ab98fee3ce1585359a629164cb11d2b2e84f6803448941fb35a17911",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/cache.test.ts",
+      "sha256": "91cb09beec43d3eeb9895a11b97da83f28d25985f45b0ad3ff8a4a12d6e5d26e",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/inventory.test.ts",
+      "sha256": "1beef5c1ae7d8f37e5a5fdf73ef9a7e445419223885c685fcb0adee7cc37c17d",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/inventory.ts",
+      "sha256": "32799551e7a1d7a21853ec2c846b9de4bd2d55730a0c0839882f2101a00d7a9b",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/nx-plugin.mjs",
+      "sha256": "7cf4f2a8927f8ad64e4162aa2174043408cea62a7a39bb02461569e3dc562672",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/plan.test.ts",
+      "sha256": "12c841da86db4df84990341bf8479a6c75115632e7a138df283ce03ba30763d7",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/plan.ts",
+      "sha256": "12ea27c09c40aeb6961323dcf13f07b1bc8072c88fe8e465bc0665111452f313",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/report.test.ts",
+      "sha256": "2804b2120f486bd11394fe011fecf8df0d2d16a064d754cae62d1bc3ff15a478",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/report.ts",
+      "sha256": "cd3d0fe75dd2330f0019d6793b893ef3a42a8db12d841bba47e75f76df7dddef",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/schedule.json",
+      "sha256": "933f797c1eb462400fbab60e1e0fea8c249595c041de652365e3a03219996f86",
+      "change": "portable-quality"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "f04714d7edb8dd2f127fd639ebb09823162793c56c92c0ef1e70dd3f81d0c7f2",
+      "change": "portable-quality"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import {
   publicPackageInputs,
@@ -37,10 +38,43 @@ const entry = (name = '@inventarch/language') => ({
   bytes: archive.length,
   integrity,
 });
-const release = () => ({ source: { commit: 'a'.repeat(40), dirty: false }, packages: [entry()] });
-const remote = (value = integrity) => ({ versions: { '1.0.0': { dist: { integrity: value } } } });
+const release = () => ({
+  version: '1.0.0',
+  tag: 'latest',
+  source: { commit: 'a'.repeat(40), dirty: false },
+  packages: [entry()],
+});
+const remote = (value = integrity) => ({
+  'dist-tags': { latest: '1.0.0' },
+  versions: { '1.0.0': { dist: { integrity: value } } },
+});
 
 const sha = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
+function archiveBytes(manifest: any) {
+  const policy = JSON.parse(readFileSync(resolve(root, PUBLIC_SYSTEM_POLICY), 'utf8'));
+  const names = policy.owners.map((row: any) => '@inventarch/' + row.native.system).sort();
+  const pkg = structuredClone(manifest),
+    versions = new Map(publicPackages(root).map((p) => [p.manifest.name, p.manifest.version]));
+  pkg.dependencies = Object.fromEntries(
+    Object.entries(pkg.dependencies ?? {}).map(([name, value]) => [name, versions.get(name) ?? value]),
+  );
+  if (names.includes(pkg.name)) pkg.dependencies[names[(names.indexOf(pkg.name) + 1) % names.length]] = pkg.version;
+  const bytes = Buffer.from(JSON.stringify(pkg)),
+    header = Buffer.alloc(512);
+  header.write('package/package.json');
+  header.write('0000644\0', 100);
+  header.write('0000000\0', 108);
+  header.write('0000000\0', 116);
+  header.write(bytes.length.toString(8).padStart(11, '0') + '\0', 124);
+  header.write('00000000000\0', 136);
+  header.fill(32, 148, 156);
+  header[156] = 48;
+  header.write('ustar\0', 257);
+  header.write('00', 263);
+  const checksum = header.reduce((sum, byte) => sum + byte, 0);
+  header.write(checksum.toString(8).padStart(6, '0') + '\0 ', 148);
+  return gzipSync(Buffer.concat([header, bytes, Buffer.alloc((512 - (bytes.length % 512)) % 512), Buffer.alloc(1024)]));
+}
 function compatibilityFixture(directory: string) {
   const source = publicPackageInputs(root);
   const policy = JSON.parse(readFileSync(resolve(root, PUBLIC_SYSTEM_POLICY), 'utf8'));
@@ -65,7 +99,11 @@ function compatibilityFixture(directory: string) {
     },
     packages: manifests.map((manifest: { name: string; version: string }) => ({
       package: { name: manifest.name, version: manifest.version },
-      archiveSha256: sha(archive),
+      archiveSha256: sha(
+        readFileSync(
+          resolve(directory, manifest.name.replace('@', '').replace('/', '-') + '-' + manifest.version + '.tgz'),
+        ),
+      ),
       bindingSha256: 'a'.repeat(64),
       native: {
         ...policy.owners.find((row: any) => '@inventarch/' + row.native.system === manifest.name).native,
@@ -83,8 +121,9 @@ function compatibilityFixture(directory: string) {
 function archivesFixture(directory: string) {
   return publicPackages(root).map(({ manifest }) => {
     const filename = manifest.name.replace('@', '').replace('/', '-') + '-' + manifest.version + '.tgz';
-    writeFileSync(resolve(directory, filename), archive);
-    return { name: manifest.name, filename, sha256: sha(archive) };
+    const bytes = archiveBytes(manifest);
+    writeFileSync(resolve(directory, filename), bytes);
+    return { name: manifest.name, filename, sha256: sha(bytes) };
   });
 }
 function inFixture(run: (directory: string) => void) {
@@ -107,18 +146,20 @@ it('refuses changed archive bytes and a manifest from another source commit', ()
   try {
     const packed = publicPackages(root).map(({ manifest }) => {
       const filename = `${manifest.name.replace('@', '').replace('/', '-')}-${manifest.version}.tgz`;
-      writeFileSync(resolve(directory, filename), archive);
-      return { name: manifest.name, filename, sha256: sha(archive) };
+      const bytes = archiveBytes(manifest);
+      writeFileSync(resolve(directory, filename), bytes);
+      return { name: manifest.name, filename, sha256: sha(bytes) };
     });
     compatibilityFixture(directory);
     const manifest = writeReleaseManifest(root, directory, packed);
     expect(verifyRelease(root, directory, checkoutVersion)).toEqual(manifest);
     const first = resolve(directory, packed[0]!.filename);
-    const changed = Buffer.from(archive);
+    const original = readFileSync(first);
+    const changed = Buffer.from(original);
     changed[0] = changed[0]! ^ 1;
     writeFileSync(first, changed);
     expect(() => verifyRelease(root, directory, checkoutVersion)).toThrow(/archive integrity changed/);
-    writeFileSync(first, archive);
+    writeFileSync(first, original);
     writeFileSync(
       resolve(directory, 'npm-release.json'),
       JSON.stringify({ ...manifest, source: { ...manifest.source, commit: '0'.repeat(40) } }),

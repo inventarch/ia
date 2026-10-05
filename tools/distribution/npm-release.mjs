@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
+import { publicPackages } from './release-packages.mjs';
+export { publicPackages, dependencyOrder } from './release-packages.mjs';
+import { releaseChanges, releasePolicy, compareVersions, stableVersion } from './release-changes.mjs';
+import { packedManifest, releaseGraph } from './release-graph.mjs';
 import { verifyPublicCompatibility, publicPackageInputs } from '../release/public-pack.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
@@ -16,44 +20,6 @@ const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const git = (root, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 const integrity = (bytes) => `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
 
-export function publicPackages(root) {
-  const projects = [];
-  for (const parent of ['packages', 'apps', '.ia/src/systems']) {
-    for (const child of readdirSync(resolve(root, parent), { withFileTypes: true })) {
-      const directory = `${parent}/${child.name}`;
-      const path = resolve(root, directory, 'package.json');
-      if (child.isDirectory() && existsSync(path)) {
-        const manifest = json(path);
-        if (!manifest.private) projects.push({ directory, manifest });
-      }
-    }
-  }
-  assert.ok(projects.length, 'No public packages found');
-  return dependencyOrder(projects);
-}
-
-export function dependencyOrder(projects) {
-  const byName = new Map(projects.map((project) => [project.manifest.name, project]));
-  assert.equal(byName.size, projects.length, 'Duplicate public package name');
-  const visiting = new Set();
-  const visited = new Set();
-  const ordered = [];
-  function visit(name) {
-    assert.ok(!visiting.has(name), `Package dependency cycle at ${name}`);
-    if (visited.has(name)) return;
-    visiting.add(name);
-    const project = byName.get(name);
-    for (const dependency of Object.keys(project.manifest.dependencies ?? {}).sort()) {
-      if (byName.has(dependency)) visit(dependency);
-    }
-    visiting.delete(name);
-    visited.add(name);
-    ordered.push(project);
-  }
-  for (const name of [...byName.keys()].sort()) visit(name);
-  return ordered;
-}
-
 export function releaseVersions(root) {
   const { receipt } = publicPackageInputs(root);
   return receipt.publicRefresh?.npm ?? receipt.baselineOverlay.versions.npm;
@@ -64,11 +30,9 @@ export function validatePackages(projects, version, versions) {
   if (versions) assert.equal(version, versions['apps/cli/package.json'], 'release version differs');
   for (const { directory, manifest } of projects) {
     assert.match(manifest.name, /^@[a-z0-9-]+\/[a-z0-9-]+$/);
-    assert.equal(
-      manifest.version,
-      versions ? versions[directory + '/package.json'] : version,
-      `${manifest.name}: release version differs`,
-    );
+    assert.equal(manifest.version, version, `${manifest.name}: release version differs`);
+    if (versions) assert.equal(versions[directory + '/package.json'], version, 'Sealed cohort version differs');
+    assert.equal(manifest.publishConfig?.tag ?? 'latest', 'latest', 'Unexpected publication tag');
     assert.equal(manifest.publishConfig?.access, 'public', `${manifest.name}: public access required`);
     assert.equal(manifest.publishConfig?.registry, REGISTRY, `${manifest.name}: npm registry required`);
     assert.equal(manifest.repository?.type, 'git');
@@ -89,96 +53,161 @@ export function validatePackages(projects, version, versions) {
   }
 }
 
-// Called only after the installed consumers have qualified these exact tarballs.
-export function writeReleaseManifest(root, directory, packed) {
-  const projects = publicPackages(root);
-  const version = json(resolve(root, 'apps/cli/package.json')).version;
-  validatePackages(projects, version, releaseVersions(root));
-  assert.equal(packed.length, projects.length);
-  const byName = new Map(packed.map((entry) => [entry.name, entry]));
-  assert.equal(byName.size, projects.length);
-  const compatibility = verifyPublicCompatibility(root, directory);
-  const release = {
-    format: 'ia.npm-release.v1',
-    systemCompatibility: { path: 'system-compatibility.json', sha256: compatibility.sha256 },
+function archiveEntries(root, directory, packed, version) {
+  const projects = publicPackages(root),
+    byName = new Map(packed.map((entry) => [entry.name, entry]));
+  assert.equal(byName.size, projects.length, 'Archive cohort membership differs');
+  assert.equal(packed.length, projects.length, 'Duplicate archive entry');
+  const entries = projects.map(({ manifest }) => {
+    const entry = byName.get(manifest.name);
+    assert.ok(entry, 'Missing qualified archive: ' + manifest.name);
+    const filename = basename(entry.filename);
+    assert.match(filename, /^[a-z0-9][a-z0-9._-]*\.tgz$/);
+    const bytes = readFileSync(resolve(directory, filename));
+    if (entry.sha256 !== undefined)
+      assert.equal(createHash('sha256').update(bytes).digest('hex'), entry.sha256, 'qualified archive bytes differ');
+    const installed = packedManifest(resolve(directory, filename), bytes);
+    assert.equal(installed.name, manifest.name, 'Packed package identity differs');
+    assert.equal(installed.version, version, 'Packed package version differs');
+    return {
+      name: manifest.name,
+      version,
+      filename,
+      bytes: bytes.length,
+      integrity: integrity(bytes),
+      manifest: installed,
+    };
+  });
+  const graph = releaseGraph(
+    entries.map((entry) => entry.manifest),
     version,
+    releasePolicy(root).cycles,
+  );
+  const order = graph.groups.flatMap((group) => group.members);
+  return {
+    graph,
+    packages: order.map((name) => {
+      const { manifest, ...entry } = entries.find((entry) => entry.name === name);
+      return entry;
+    }),
+  };
+}
+// Called only after installed consumers qualify these exact tarballs.
+export function writeReleaseManifest(root, directory, packed) {
+  const projects = publicPackages(root),
+    version = json(resolve(root, 'apps/cli/package.json')).version;
+  validatePackages(projects, version, releaseVersions(root));
+  for (const entry of packed) assert.match(entry.sha256 ?? '', /^[a-f0-9]{64}$/, 'qualified archive hash is required');
+  const changes = releaseChanges(root, projects),
+    compatibility = verifyPublicCompatibility(root, directory);
+  const archives = archiveEntries(root, directory, packed, version);
+  const release = {
+    format: 'ia.npm-release.v2',
+    version,
+    tag: changes.policy.tag,
     source: {
       repository: REPOSITORY,
       commit: git(root, 'rev-parse', 'HEAD'),
       dirty: git(root, 'status', '--porcelain') !== '',
     },
-    packages: projects.map(({ manifest }) => {
-      const packedFile = byName.get(manifest.name);
-      assert.ok(packedFile, `${manifest.name}: missing qualified archive`);
-      const filename = basename(packedFile.filename);
-      const bytes = readFileSync(resolve(directory, filename));
-      assert.match(packedFile.sha256 ?? '', /^[a-f0-9]{64}$/, `${manifest.name}: qualified archive hash is required`);
-      assert.equal(
-        createHash('sha256').update(bytes).digest('hex'),
-        packedFile.sha256,
-        `${manifest.name}: qualified archive bytes differ`,
-      );
-      return {
-        name: manifest.name,
-        version: manifest.version,
-        filename,
-        bytes: bytes.length,
-        integrity: integrity(bytes),
-      };
-    }),
+    changeset: {
+      path: changes.path,
+      sha256: changes.sha256,
+      coverageSha256: changes.coverageSha256,
+      commits: changes.commits,
+    },
+    baselineVersions: Object.fromEntries(
+      Object.entries(changes.entry.packages).map(([name, entry]) => [name, entry.previous]),
+    ),
+    graph: archives.graph,
+    packages: archives.packages,
+    systemCompatibility: { path: 'system-compatibility.json', sha256: compatibility.sha256 },
   };
   writeFileSync(resolve(directory, 'npm-release.json'), JSON.stringify(release, null, 2) + '\n');
   return release;
 }
-
 export function verifyRelease(root, directory, version) {
-  const release = json(resolve(directory, 'npm-release.json'));
-  const projects = publicPackages(root);
+  const release = json(resolve(directory, 'npm-release.json')),
+    projects = publicPackages(root);
   validatePackages(projects, version, releaseVersions(root));
-  assert.equal(release.format, 'ia.npm-release.v1');
-  assert.equal(release.systemCompatibility?.path, 'system-compatibility.json');
+  assert.equal(release.format, 'ia.npm-release.v2');
   assert.equal(release.version, version);
   assert.equal(release.source.repository, REPOSITORY);
   assert.equal(release.source.commit, git(root, 'rev-parse', 'HEAD'), 'Archive source must match checkout');
+  const changes = releaseChanges(root, projects);
+  assert.equal(release.tag, changes.policy.tag, 'Release tag differs');
   assert.deepEqual(
-    release.packages.map((entry) => entry.name),
-    projects.map(({ manifest }) => manifest.name),
+    release.changeset,
+    { path: changes.path, sha256: changes.sha256, coverageSha256: changes.coverageSha256, commits: changes.commits },
+    'Release changeset is stale',
+  );
+  assert.deepEqual(
+    release.baselineVersions,
+    Object.fromEntries(Object.entries(changes.entry.packages).map(([name, entry]) => [name, entry.previous])),
   );
   assert.equal(new Set(release.packages.map((entry) => entry.filename)).size, projects.length);
   for (const entry of release.packages) {
-    assert.equal(entry.version, projects.find((project) => project.manifest.name === entry.name)?.manifest.version);
     assert.match(entry.filename, /^[a-z0-9][a-z0-9._-]*\.tgz$/);
     const bytes = readFileSync(resolve(directory, entry.filename));
-    assert.equal(bytes.length, entry.bytes, `${entry.name}: archive size changed`);
-    assert.equal(integrity(bytes), entry.integrity, `${entry.name}: archive integrity changed`);
+    assert.equal(bytes.length, entry.bytes, entry.name + ': archive size changed');
+    assert.equal(integrity(bytes), entry.integrity, entry.name + ': archive integrity changed');
   }
+  const actual = archiveEntries(root, directory, release.packages, version);
+  assert.deepEqual(release.packages, actual.packages, 'Packed release cohort differs');
+  assert.deepEqual(release.graph, actual.graph, 'Packed release graph differs');
   assert.deepEqual(
     readdirSync(directory)
       .filter((name) => name.endsWith('.tgz'))
       .sort(),
     release.packages.map((entry) => entry.filename).sort(),
   );
+  assert.equal(release.systemCompatibility?.path, 'system-compatibility.json');
   verifyPublicCompatibility(root, directory, release.systemCompatibility.sha256);
   return release;
 }
-
 export function publicationPlan(release, registryPackages) {
-  // Validate every existing version before the first write, including retries after a partial publish.
+  assert.ok(stableVersion(release.version));
+  assert.equal(release.tag, 'latest', 'Unexpected release tag');
   return release.packages.map((entry) => {
+    assert.equal(entry.version, release.version, 'Registry plan has a mixed cohort');
     const remote = registryPackages[entry.name];
     assert.ok(
       remote,
-      `${entry.name}: create the package and configure its trusted publisher first; see tools/distribution/NPM-PUBLISHING.md`,
+      entry.name +
+        ': create the package and configure its trusted publisher first; see tools/distribution/NPM-PUBLISHING.md',
     );
+    const previous = release.baselineVersions?.[entry.name];
+    if (previous) assert.ok(compareVersions(entry.version, previous) > 0, 'Release did not advance published baseline');
+    const newer = Object.keys(remote.versions ?? {})
+      .filter(stableVersion)
+      .find((version) => compareVersions(version, entry.version) > 0);
+    assert.ok(!newer, entry.name + ': registry already has a newer stable version');
     const published = remote.versions?.[entry.version];
-    if (published)
+    if (published) {
       assert.equal(
         published.dist?.integrity,
         entry.integrity,
-        `${entry.name}@${entry.version}: existing npm bytes differ`,
+        entry.name + '@' + entry.version + ': existing npm bytes differ',
       );
+      assert.equal(
+        remote['dist-tags']?.latest,
+        entry.version,
+        entry.name + ': existing version has an unexpected latest tag; no automatic tag repair',
+      );
+    }
     return { ...entry, action: published ? 'skip-identical' : 'publish' };
   });
+}
+export function verifyRegistryCohort(release, registryPackages) {
+  const plan = publicationPlan(release, registryPackages);
+  for (const entry of plan) {
+    assert.equal(entry.action, 'skip-identical', entry.name + ': incomplete published cohort');
+    const dist = registryPackages[entry.name].versions[entry.version].dist;
+    assert.equal(new URL(dist.tarball).origin, REGISTRY, 'Unexpected registry tarball origin');
+    assert.ok(dist.attestations?.provenance, 'Published package lacks npm provenance');
+    assert.equal(new URL(dist.attestations.url).origin, REGISTRY, 'Unexpected attestation origin');
+  }
+  return plan;
 }
 
 async function registryPackage(name) {
@@ -204,13 +233,19 @@ export function assertPublisherEnvironment(release, env) {
 async function main() {
   const { positionals, values } = parseArgs({
     allowPositionals: true,
-    options: { directory: { type: 'string', default: 'artifacts/npm' }, version: { type: 'string' } },
+    options: {
+      directory: { type: 'string', default: 'artifacts/npm' },
+      version: { type: 'string' },
+      tag: { type: 'string', default: 'latest' },
+      'reviewed-changeset': { type: 'string' },
+    },
   });
-  assert.equal(positionals.length, 1, 'Use plan, trust-commands or publish');
+  assert.equal(positionals.length, 1, 'Use plan, trust-commands, preflight, verify-registry or publish');
   const root = resolve(import.meta.dirname, '../..');
   const version = values.version ?? json(resolve(root, 'apps/cli/package.json')).version;
   const projects = publicPackages(root);
   validatePackages(projects, version, releaseVersions(root));
+  assert.equal(values.tag, releasePolicy(root).tag, 'Requested release tag differs');
   if (positionals[0] === 'trust-commands') {
     for (const { manifest } of projects) {
       console.log(
@@ -225,13 +260,59 @@ async function main() {
     console.log(JSON.stringify(release, null, 2));
     return;
   }
-  assert.equal(positionals[0], 'publish', 'Use plan, trust-commands or publish');
-  assertPublisherEnvironment(release, process.env);
-  assert.equal(git(root, 'status', '--porcelain'), '', 'Publishing checkout must be clean');
+  assert.ok(['publish', 'preflight', 'verify-registry'].includes(positionals[0]));
+  if (positionals[0] === 'publish') {
+    assertPublisherEnvironment(release, process.env);
+    assert.equal(git(root, 'status', '--porcelain'), '', 'Publishing checkout must be clean');
+    assert.equal(
+      values['reviewed-changeset'],
+      release.changeset.sha256,
+      'Maintainer must review and acknowledge the exact changeset digest',
+    );
+  }
   const registryPackages = Object.fromEntries(
     await Promise.all(release.packages.map(async ({ name }) => [name, await registryPackage(name)])),
   );
+  if (positionals[0] === 'verify-registry') {
+    const checked = verifyRegistryCohort(release, registryPackages);
+    for (const entry of checked) {
+      const dist = registryPackages[entry.name].versions[entry.version].dist;
+      const response = await fetch(dist.tarball, { signal: AbortSignal.timeout(30000) });
+      assert.ok(response.ok);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      assert.equal(bytes.length, entry.bytes);
+      assert.equal(integrity(bytes), entry.integrity, 'Downloaded registry bytes differ');
+    }
+    console.log(
+      JSON.stringify(
+        {
+          version: release.version,
+          packages: checked.length,
+          integrity: 'verified',
+          latest: 'verified',
+          provenance: 'present; npm audit signatures performs cryptographic verification',
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
   const plan = publicationPlan(release, registryPackages);
+  if (positionals[0] === 'preflight') {
+    console.log(
+      JSON.stringify(
+        {
+          plan,
+          trust:
+            'Package presence does not prove trusted-publisher authorization; verify the configured repo/workflow/environment separately',
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
   for (const entry of plan) {
     console.log(`${entry.action}: ${entry.name}@${entry.version}`);
     if (entry.action === 'skip-identical') continue;
@@ -245,7 +326,7 @@ async function main() {
         '--access',
         'public',
         '--tag',
-        'latest',
+        release.tag,
         '--provenance',
         '--ignore-scripts',
       ],

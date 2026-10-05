@@ -1,5 +1,6 @@
 import '../temp/physical-temp.mjs';
 import assert from 'node:assert/strict';
+import { executableExports, systemVerificationProgram } from './installed-consumer.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -66,15 +67,19 @@ try {
   const imports = [];
   for (const entry of release.packages) {
     const installed = JSON.parse(readFileSync(resolve(consumer, 'node_modules', entry.name, 'package.json'), 'utf8'));
-    assert.equal(installed.version, version);
-    for (const key of Object.keys(installed.exports ?? {}))
-      imports.push(entry.name + (key === '.' ? '' : key.slice(1)));
+    assert.equal(installed.name, entry.name);
+    assert.equal(installed.version, entry.version);
+    imports.push(...executableExports(installed));
   }
   writeFileSync(
     resolve(consumer, 'imports.mjs'),
     `for (const name of ${JSON.stringify(imports)}) await import(name);\n`,
   );
   run(process.execPath, ['--conditions=development', 'imports.mjs']);
+  writeFileSync(resolve(consumer, 'verify-systems.mjs'), systemVerificationProgram);
+  const native = JSON.parse(
+    run(process.execPath, ['verify-systems.mjs', resolve(directory, 'system-compatibility.json'), consumer]),
+  );
   writeFileSync(
     resolve(consumer, 'offline.mjs'),
     "globalThis.fetch = () => { throw new Error('CLI smoke must not use the network'); };\n",
@@ -95,6 +100,7 @@ try {
       node: process.version,
       packages: release.packages.length,
       imports: imports.length,
+      native,
       installedCli: ['init', 'validate'],
       installSecurityOptIns: [],
     }),

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
@@ -38,7 +39,17 @@ it('negotiates the pinned profile, discovers nine tools and enforces initializat
         clientInfo: { name: 'fixture', version: '1' },
       }),
     ),
-  ).toMatchObject({ id: 'init', result: { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} } } });
+  ).toMatchObject({
+    id: 'init',
+    result: {
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: { tools: {} },
+      serverInfo: {
+        name: 'ia-mcp-door',
+        version: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version,
+      },
+    },
+  });
   expect(value.request(message(2, 'tools/list'))?.error?.code).toBe(-32000);
   expect(value.request({ jsonrpc: '2.0', method: 'notifications/initialized' })).toBeUndefined();
   const listed = value.request(message(3, 'tools/list'))?.result as {

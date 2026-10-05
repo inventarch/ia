@@ -50,7 +50,7 @@
     {
       "owner": ".ia/src/systems/compliance-system",
       "kind": "native-only",
-      "npmVersion": "1.0.0",
+      "npmVersion": "1.1.0",
       "native": {
         "system": "compliance-system",
         "id": "inventarch/compliance-system",
@@ -61,7 +61,7 @@
     {
       "owner": ".ia/src/systems/governance-system",
       "kind": "native-only",
-      "npmVersion": "1.0.0",
+      "npmVersion": "1.1.0",
       "native": {
         "system": "governance-system",
         "id": "inventarch/governance-system",
@@ -72,7 +72,7 @@
     {
       "owner": ".ia/src/systems/hook-authoring-system",
       "kind": "native-only",
-      "npmVersion": "1.0.0",
+      "npmVersion": "1.1.0",
       "native": {
         "system": "hook-authoring-system",
         "id": "inventarch/hook-authoring-system",
@@ -83,7 +83,7 @@
     {
       "owner": ".ia/src/systems/learning-system",
       "kind": "native-only",
-      "npmVersion": "1.0.0",
+      "npmVersion": "1.1.0",
       "native": {
         "system": "learning-system",
         "id": "inventarch/learning-system",
@@ -116,7 +116,7 @@
     {
       "owner": ".ia/src/systems/work-system",
       "kind": "native-only",
-      "npmVersion": "1.0.0",
+      "npmVersion": "1.1.0",
       "native": {
         "system": "work-system",
         "id": "inventarch/work-system",
@@ -127,7 +127,7 @@
     {
       "owner": ".ia/src/systems/workspace-system",
       "kind": "native-only",
-      "npmVersion": "1.0.0",
+      "npmVersion": "1.1.0",
       "native": {
         "system": "workspace-system",
         "id": "inventarch/workspace-system",

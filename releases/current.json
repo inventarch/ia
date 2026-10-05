@@ -1,0 +1,24 @@
+{
+  "format": "ia.npm-cohort.v1",
+  "version": "1.1.0",
+  "tag": "latest",
+  "baseline": {
+    "commit": "007b268f9f0b747ff34b012bce17c5f5bcb15d9f",
+    "version": "1.0.0"
+  },
+  "cycles": [
+    [
+      "@inventarch/agent-composition-system",
+      "@inventarch/agent-system",
+      "@inventarch/authoring-system",
+      "@inventarch/compliance-system",
+      "@inventarch/governance-system",
+      "@inventarch/hook-authoring-system",
+      "@inventarch/learning-system",
+      "@inventarch/session-system",
+      "@inventarch/template-system",
+      "@inventarch/work-system",
+      "@inventarch/workspace-system"
+    ]
+  ]
+}

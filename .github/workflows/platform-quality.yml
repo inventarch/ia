@@ -51,11 +51,15 @@ jobs:
       run: ${{ steps.matrices.outputs.run }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       # The full required task set for this checkout. A new unassigned test fails here, before
       # anything is scheduled; a deleted file cannot silently remove an obligation.
       - name: Check dependency advisories
         run: pnpm audit --audit-level=moderate
+      - name: Validate release changeset coverage and cohort versions
+        run: pnpm release:check
       - name: Validate the test inventory
         run: pnpm tests:inventory
       # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed
@@ -89,6 +93,8 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.build) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: actions/cache/restore@v6
         if: env.IA_FULL == ''
@@ -126,6 +132,8 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.static) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: actions/cache/restore@v6
         if: env.IA_FULL == ''
@@ -163,6 +171,8 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.tests) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       # Each job rebuilds missing prerequisites through the declared task dependency graph.
       - uses: actions/cache/restore@v6
@@ -201,6 +211,8 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.emitted) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: actions/cache/restore@v6
         if: env.IA_FULL == ''
@@ -241,6 +253,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       # The whole root build: only it writes the bundled base archive and the host payload (language-base:generate,
       # host-payload:generate). A filtered `@inventarch/cli...` build leaves `init` without apps/cli/assets/base.json.
@@ -288,6 +302,8 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.gate) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@v8
         with:

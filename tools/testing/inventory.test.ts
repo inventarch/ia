@@ -203,7 +203,7 @@ it('checks the actual repository manifest for shape, coverage and qualification 
   expect(validateManifest({ manifest, projects, discovery, leaves: qualificationLeaves(root), tracked: [] })).toEqual(
     [],
   );
-  expect(trackedTestFiles(root).length).toBe(221);
+  expect(trackedTestFiles(root).length).toBe(222);
 });
 
 it('exposes the declared timeout profiles and refuses a worker limit above a ceiling', () => {
@@ -303,6 +303,7 @@ it('hashes CI configuration only in the tools tasks that read it', () => {
 const RESULT_NEUTRAL_WORKFLOW_ENV: Readonly<Record<string, string>> = {
   RELEASE_SHA: 'Exact-commit publication prerequisite, outside every Nx task',
   RELEASE_VERSION: 'Requested publication version, outside every Nx task',
+  REVIEWED_CHANGESET: 'Maintainer publication acknowledgement, outside every Nx task',
   IA_FULL: 'selects --full, which bypasses reuse; it never reaches a task',
   HOMEBREW_NO_AUTO_UPDATE: 'Homebrew smoke step only, outside every Nx task',
   HOMEBREW_NO_INSTALL_CLEANUP: 'Homebrew smoke step only, outside every Nx task',

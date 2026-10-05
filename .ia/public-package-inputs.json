@@ -1031,47 +1031,47 @@
     },
     {
       "path": ".claude/agents/public-agent-composition-system-steward.md",
-      "sha256": "54dc16693a7a577119b682d3b54c4ff73dd8297f51bf0affbdcd9190544b276b"
+      "sha256": "1bdeb3fca6f43f8822f275129ce1c3622539775f0b3afdd6fccc43a951cad639"
     },
     {
       "path": ".claude/agents/public-agent-system-steward.md",
-      "sha256": "b6e4fb5c243e8a7548e0bdbc6989bb9cd0f1ac9212981ef0206b8a11aa6d3f5d"
+      "sha256": "f06c54a0bb0e083090828514c32d4b406eee58088a2a8b36c9e628d005eb38ce"
     },
     {
       "path": ".claude/agents/public-authoring-system-steward.md",
-      "sha256": "6a1766e4d7b90b017cea130d620a8c1723487ee63c83c2c6402cd65235abbf9b"
+      "sha256": "2f31f467decda9feea98c3cdde38022a02423b26df2d0ce814dbb0cce2485a97"
     },
     {
       "path": ".claude/agents/public-compliance-system-steward.md",
-      "sha256": "7171235c5bcd3470957075e3cdc5cc02bcea66e18eb5cac9ec7f26fc11bee02a"
+      "sha256": "c9c8dc0c8e4fcd2861381c08ef67f138999608e6b40aece0d06f8749d45893b0"
     },
     {
       "path": ".claude/agents/public-governance-system-steward.md",
-      "sha256": "38ed098f26b611756f6f7d8508fea972788afc6b666e8c45ac3bceb619b57c4e"
+      "sha256": "f847b5a532641705f0f38604976f0a94a853f90cc8befe48cc005ffc3dc2cb68"
     },
     {
       "path": ".claude/agents/public-hook-authoring-system-steward.md",
-      "sha256": "d0cbf6fdef51a8643768655fff1a3e25a16ba2fcabc75deadb855b667ef5cbda"
+      "sha256": "d9d9acbb8f4a1618c12a98d16f36b9e886cadc8aedb6dbbadf22857357541679"
     },
     {
       "path": ".claude/agents/public-learning-system-steward.md",
-      "sha256": "6e372790b11505de55911b0df070b30cf9539603e9405e19abf6048aacd1acfd"
+      "sha256": "64771f5667ad24ef06367179301047b1f808868411a01187cad2e27b0c1a8351"
     },
     {
       "path": ".claude/agents/public-session-system-steward.md",
-      "sha256": "34d35e0809bdc356d17bad5c4137c6f6359436c06df23b9886e9f7b4428e9cfa"
+      "sha256": "bb632b4b854a6f76b6b2c6ef25962a776e8e165269ef67bd048465a0a9e17fe4"
     },
     {
       "path": ".claude/agents/public-template-system-steward.md",
-      "sha256": "7c2e1eaca6e95a1140f2c5cee50327a4295b3d1f99a37484c9df88051397c9af"
+      "sha256": "57190b44d058f8ece8f1ff69c366b642be9e94bcc66f0d6a825e52859bddb374"
     },
     {
       "path": ".claude/agents/public-work-system-steward.md",
-      "sha256": "200e719f934c0406cbb8b5931298d2a5c36ea8e069a312c8d6f37d528dca5e95"
+      "sha256": "8048fd9a4b96af42bdbe8bef5b3e7947a5db583de84df70003ba7f6bb73721e2"
     },
     {
       "path": ".claude/agents/public-workspace-system-steward.md",
-      "sha256": "5a443de66479ea0bf0732583b20d6903111689c2723f7b4330f39c3c6f770920"
+      "sha256": "778af884381336bc70139c79968428ec8e45c98b90598b2ce487923b8d2f9a90"
     },
     {
       "path": ".claude/skills/ia-authoring/SKILL.md",
@@ -1127,11 +1127,11 @@
     },
     {
       "path": ".github/workflows/npm-publish.yml",
-      "sha256": "9c62fb223443fd2111eb3e0aae640a6e71370332ca44fb65b9f2dda8fd64bc71"
+      "sha256": "449d992f9e25e57977252e174b507305fe3597c2095fc7aa66f19660b78973a0"
     },
     {
       "path": ".github/workflows/platform-quality.yml",
-      "sha256": "600b0045731af1ca78986c94981142c9575bed3ca44420f07465785867db989c"
+      "sha256": "6c64236c190b6bac215a1ae7fca284ec00f3386e7db08ced655d5157899e1cef"
     },
     {
       "path": ".gitignore",
@@ -2015,7 +2015,7 @@
     },
     {
       "path": ".ia/src/systems/compliance-system/package.json",
-      "sha256": "12970564e6c5178c5f61569ad9785d4a71dbeb8b110065e3596e27ac2b1ade77"
+      "sha256": "633d624e8ee1680c9ee1f28ff7bad48375e24fc0bf4f97d565260ed2b78b8154"
     },
     {
       "path": ".ia/src/systems/compliance-system/schemas/case.schema.ia",
@@ -2055,7 +2055,7 @@
     },
     {
       "path": ".ia/src/systems/governance-system/package.json",
-      "sha256": "3216c3b16dd2c5299e57a5d3e969edafca234840450db1f5b104838abbcbaf10"
+      "sha256": "486b9818787961999f8b2975371ade471a00022754f15fc55b48bb3c1f4fdbee"
     },
     {
       "path": ".ia/src/systems/governance-system/schemas/convention.schema.ia",
@@ -2099,7 +2099,7 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/package.json",
-      "sha256": "e22408993259f179c8abbe4bca1d178b5225a5c52ad772c8c97a226f846e7627"
+      "sha256": "9e27d477168e7c94609a4feb3aed043e88002333d3af44011472a26dbb448565"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/schemas/hook.schema.ia",
@@ -2131,7 +2131,7 @@
     },
     {
       "path": ".ia/src/systems/learning-system/package.json",
-      "sha256": "55dbb2d929d81b2ab0c56848a06be22a5302cc3153df7fe23c8b3c539a22d7e1"
+      "sha256": "a1aacca71f22df6e5c85e11e5b9c495aa398203b9e06c53602b18f76d16abd72"
     },
     {
       "path": ".ia/src/systems/learning-system/records/evidence.ia",
@@ -2331,7 +2331,11 @@
     },
     {
       "path": ".ia/src/systems/work-system/package.json",
-      "sha256": "ba0b11a7fa11c249399f6a2740774919f8a005f99b6a08fa36fbedfc60f28b81"
+      "sha256": "fb9670564ebbcc0537cab801134700564f514d1412e7db07a7464c82d50d921e"
+    },
+    {
+      "path": ".ia/src/systems/work-system/records/npm-release.ia",
+      "sha256": "6dfe76b06394ebc00a9c5952bb4e4197e6f87bf1333973883455b048d5346e0d"
     },
     {
       "path": ".ia/src/systems/work-system/records/work.ia",
@@ -2383,7 +2387,7 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/package.json",
-      "sha256": "58060586acb1f0a08ba52a7ca461f36d0120970f8a64fbd5e1df64dd39f054fe"
+      "sha256": "e21c3a8b99a635df7873f487f42c1ebc81b16163fab74be743a3b83c47e3a09f"
     },
     {
       "path": ".ia/src/systems/workspace-system/records/architecture.ia",
@@ -2418,8 +2422,12 @@
       "sha256": "fe7d095e5a929ac6b41b664babee93667613767b310ec559b5b39da926a007eb"
     },
     {
+      "path": "CHANGELOG.md",
+      "sha256": "a8b594d630059427bee7cd5c1b8c5f527192108afc25bdb8ac7c96a2df3ecb5c"
+    },
+    {
       "path": "CLAUDE.md",
-      "sha256": "eefca227d458b718bf24c9cc994f419916cf7e141013898bb40cd7393e574784"
+      "sha256": "81a35a3b7220b0588b7804624c37f45bee5d957a8b5895a10c3d7362c1185fab"
     },
     {
       "path": "CODE_OF_CONDUCT.md",
@@ -3135,7 +3143,7 @@
     },
     {
       "path": "apps/mcp-door/src/protocol.ts",
-      "sha256": "b44a0f908857e1cad30e17e239183b3cd966ffed794b18a7152fe36b73f16450"
+      "sha256": "4281978fb7376d00b5c92e35663f0f1a2fbafe30811da8b83b09198f7798f791"
     },
     {
       "path": "apps/mcp-door/src/tools.ts",
@@ -3147,7 +3155,7 @@
     },
     {
       "path": "apps/mcp-door/tests/protocol.test.ts",
-      "sha256": "cc30ed7bf337cc3628a5b111352d4704cffd46c8ec7c2c37d631cc64593c52e5"
+      "sha256": "7456b04c61afba2514fab2905de7fe378747ce6798d059ac5ccdba437dfd0123"
     },
     {
       "path": "apps/mcp-door/tests/stdio.test.ts",
@@ -4007,7 +4015,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "86b2494d0d17a5934b385c52b6a33958308d4c0b6025faf18631fb4a1fc2486c"
+      "sha256": "3b67828232e74cece9b7c84a5d930ccc212c2c64ae47f3fa3461b884ed899b96"
     },
     {
       "path": "packages/compliance/LANGUAGE.md",
@@ -6647,7 +6655,7 @@
     },
     {
       "path": "packages/runtime/src/authoring-execution/inventory.ts",
-      "sha256": "0fa512d8e5ddb85c77c7058afc1f509f99f84e81ca808e900d6075f92fbe6c4c"
+      "sha256": "12154ed0b96c94895e43ac260ca05ef46012580b79b67ce3f3c19c4208a6d7e7"
     },
     {
       "path": "packages/runtime/src/authoring-execution/shared.ts",
@@ -6894,6 +6902,18 @@
       "sha256": "a5ae3477cf1d651bb05efa395b43ecd417dad0f5972412a4468d253f9d1463e1"
     },
     {
+      "path": "releases/README.md",
+      "sha256": "85d58dcb902b06e02812e454fb8d81e029391071086e70859690f5e1385c376b"
+    },
+    {
+      "path": "releases/changesets/1.1.0.json",
+      "sha256": "c04c33ffd902d1121310aa68f709cc6d62d8669bc36ab19fed4444512b24302a"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "a22d0ca8dae1254bb0a47f8de717cececacf413bf734d41ff2272b858049f2d8"
+    },
+    {
       "path": "tools/compliance/SPEC.md",
       "sha256": "059a0c3830776dd734eef2994b708d7dca6505c5efb30f869d15662426fdd75a"
     },
@@ -6947,7 +6967,7 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "e94ecf0d77578e12900745a07f921416c355355f6547fbd90ef9f2a5e237b87f"
+      "sha256": "cdcb1ff0950aebf0e7cda242b5c37d5878d7be33a64711a31af82d4b9e8d8f9a"
     },
     {
       "path": "tools/distribution/SPEC.md",
@@ -6970,20 +6990,32 @@
       "sha256": "c596bfeccee6c784b1f0c99f4147fd14f415c3713216aa7dde3bde1904721ef9"
     },
     {
+      "path": "tools/distribution/installed-consumer.d.mts",
+      "sha256": "18987de208bb6bf023e030f7112878584a721a921b50704f22fdc9ab714c5397"
+    },
+    {
+      "path": "tools/distribution/installed-consumer.mjs",
+      "sha256": "fbf102607d19dea7c154dc998f60933a57d90746f66a71c2a5c299679acb41f2"
+    },
+    {
       "path": "tools/distribution/npm-consumer.mjs",
-      "sha256": "0e5b308525e30cca4ca4fcc1ac833590735d12e7cdf96439f8e48d3a97ba76e4"
+      "sha256": "caf310176119917f0eac535ad78ad6212203b0e1e7dcedc7aa934e2f6429869d"
+    },
+    {
+      "path": "tools/distribution/npm-registry-consumer.mjs",
+      "sha256": "65aa19a0ba4ab60e082a09241e5d411a4e900167984b4c7e7f4a0e213060e0f8"
     },
     {
       "path": "tools/distribution/npm-release.d.mts",
-      "sha256": "54279d2259a8dfed265f4fbc4eb4417dadb5e134930202273a50877373600f2b"
+      "sha256": "30afce4173b934ce788cc06dc96f460d73d8211af9aaaaf8b7b9fa5aa4fcd34f"
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "fafe6ea866fa527a63fa6b270bcffca996cb7addf80ecd1d80cd6bf080e0a089"
+      "sha256": "76659123b25d656b058b4a8838e4cf92ee0f13d9996af46ba889443d1ec185df"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "d338933ede216606d8f12688eac609ead75fd4271d522e040960b14396cb2759"
+      "sha256": "adc713caa759d8b157ae57e529f23c24dad9b64648ca48e1a19e9722c927e066"
     },
     {
       "path": "tools/distribution/public-content-policy.json",
@@ -6991,11 +7023,39 @@
     },
     {
       "path": "tools/distribution/qualify-packages.mjs",
-      "sha256": "1bd8383b3e02cb6b14bf99fe3733cbfd54ea4ad1ecc3eb38bb5eb8edae59f58c"
+      "sha256": "b2d0829ad664d5dae9e2d544ccb524252b31773d1402bbf145ae3fe8806e7e7d"
     },
     {
       "path": "tools/distribution/qualify-public.mjs",
       "sha256": "c177f09bafb36e8922cd055a85578bf9d5040640ae15ec62cdae9036acc35e87"
+    },
+    {
+      "path": "tools/distribution/release-changes.d.mts",
+      "sha256": "90a99bf3e815b333dc974863a722b61adb5425a60cecac858fad7933e7e10f79"
+    },
+    {
+      "path": "tools/distribution/release-changes.mjs",
+      "sha256": "09603b7887d2ffef1887f75152407f5fc954ca70001db45973c2bee40c8cccad"
+    },
+    {
+      "path": "tools/distribution/release-graph.d.mts",
+      "sha256": "57230e6b05ff4f22420c992133bc92a1d0192e9cf19246661b79c88b3d476726"
+    },
+    {
+      "path": "tools/distribution/release-graph.mjs",
+      "sha256": "80d23df2ec84c291797e1c7c00b957ac03e62cf3bab2e20e6c363bd66df04709"
+    },
+    {
+      "path": "tools/distribution/release-hygiene.test.ts",
+      "sha256": "8ce6f3878f3113af773cb3074d471badf18370d066f107f3e8c7a94e1079242b"
+    },
+    {
+      "path": "tools/distribution/release-packages.d.mts",
+      "sha256": "0be1381520773b2fc8dc19e61c8d0484b4779824980b555fde7d71db28164a7a"
+    },
+    {
+      "path": "tools/distribution/release-packages.mjs",
+      "sha256": "c8c9a912f5bbdfa16e70ff00bb64c7bbf947c2fbe44070610098e927a1797453"
     },
     {
       "path": "tools/distribution/resources.mjs",
@@ -7003,7 +7063,7 @@
     },
     {
       "path": "tools/distribution/system-package-policy.json",
-      "sha256": "679dc8c8e3120a333782721bd41e437281c03e258a1e2927d667176a7bd4d98a"
+      "sha256": "ce5771fc6ac18c9543949e39c2eb97723d0ccf81bb7e2ea55e3285db7997c270"
     },
     {
       "path": "tools/docs/MARKDOWN.md",
@@ -7219,7 +7279,7 @@
     },
     {
       "path": "tools/release/SPEC.md",
-      "sha256": "b466f922e6c432401015abcbc907a389d0ab4964a30f7302b6667c025fa6b911"
+      "sha256": "b35f0b55e8f03a3ca6864f9888ce21894ad5a0c948d06a4e5b7a167a7b433777"
     },
     {
       "path": "tools/release/pack-manifest.mjs",
@@ -7451,7 +7511,7 @@
     },
     {
       "path": "tools/testing/inventory.test.ts",
-      "sha256": "ebac3344e9ee4946ee6a02991efdadcac8001a919575fbd862782795f33c2275"
+      "sha256": "1beef5c1ae7d8f37e5a5fdf73ef9a7e445419223885c685fcb0adee7cc37c17d"
     },
     {
       "path": "tools/testing/inventory.ts",
@@ -7507,7 +7567,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "39aafad445db60fdbdd29d9ff50f727ee3ad165f625b75cb7a78bbf55c6b9415"
+      "sha256": "f04714d7edb8dd2f127fd639ebb09823162793c56c92c0ef1e70dd3f81d0c7f2"
     },
     {
       "path": "tools/testing/timeouts.ts",
@@ -7532,22 +7592,22 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "faca4e2a8af5ebce98229e0a631b4c642feddea7",
-    "baseTree": "c845e617e353eaafcc3f4f795d0701e2f5255e5e",
+    "baseCommit": "fa36eb37f86000697b0d24a511f133c6cc6ad6b6",
+    "baseTree": "c3dedfe8b51c0624f761c134d4126260ff685dc3",
     "dirty": true,
-    "inputDigest": "6fce347bed1f8e60f96fff3800852084a8745c72ecf8fa4055ac324a9b8cbd54",
+    "inputDigest": "b2e099b8f2065607d37db80fba2b3c1ad562e4421a75ee2197c5ba0278916f5a",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",
       ".ia/src/systems/authoring-system/package.json": "1.1.0",
-      ".ia/src/systems/compliance-system/package.json": "1.0.0",
-      ".ia/src/systems/governance-system/package.json": "1.0.0",
-      ".ia/src/systems/hook-authoring-system/package.json": "1.0.0",
-      ".ia/src/systems/learning-system/package.json": "1.0.0",
+      ".ia/src/systems/compliance-system/package.json": "1.1.0",
+      ".ia/src/systems/governance-system/package.json": "1.1.0",
+      ".ia/src/systems/hook-authoring-system/package.json": "1.1.0",
+      ".ia/src/systems/learning-system/package.json": "1.1.0",
       ".ia/src/systems/session-system/package.json": "1.1.0",
       ".ia/src/systems/template-system/package.json": "1.1.0",
-      ".ia/src/systems/work-system/package.json": "1.0.0",
-      ".ia/src/systems/workspace-system/package.json": "1.0.0",
+      ".ia/src/systems/work-system/package.json": "1.1.0",
+      ".ia/src/systems/workspace-system/package.json": "1.1.0",
       "apps/cli/package.json": "1.1.0",
       "apps/distribution/package.json": "1.1.0",
       "apps/mcp-door/package.json": "1.1.0",
