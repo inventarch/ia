@@ -44,6 +44,8 @@ export function compilerCapture(root: string): Capture {
     '.ia/src/systems/authoring-system/operations/validate-draft.ia',
     '.ia/src/systems/authoring-system/operations/format-draft.ia',
     '.ia/src/systems/template-system/operations/render-captured-template.ia',
+    '.ia/src/systems/authoring-system/contract.ia',
+    '.ia/src/systems/authoring-system/cases/governed-drafts.ia',
   ];
   const next = {
     ...body,

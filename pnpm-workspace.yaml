@@ -3,6 +3,8 @@ packages:
   - "apps/*"
   - ".ia/src/systems/*"
 allowBuilds:
+  '@vscode/vsce-sign': true
+  esbuild: true
   lefthook: true
   nx: true
 catalog:
@@ -11,7 +13,7 @@ catalog:
   typescript: ^5.9.3
   vitest: ^4.1.4
 nodeLinker: hoisted
-# Keep Nx's pinned transitive dependencies on patched releases.
+# Preserve the patched Nx transitive pins from public 1.0.0.
 overrides:
   "nx>axios": "1.20.0"
   "nx>brace-expansion": "5.0.12"

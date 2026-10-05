@@ -17,12 +17,17 @@ import { canonicalDistributionJson, decodeDistributionJson, platformDebris } fro
 
 import { installedImplementationDigest } from '@inventarch/agent-composition-system';
 import { openLocalAuthoringView } from '@inventarch/agent-composition-system/authoring-manifest';
-import { prepareAuthoringTarget, resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
-import { resourceOccurrences } from '@inventarch/agent-composition-system/resources';
+import {
+  AuthoringError,
+  prepareAuthoringTarget,
+  resolveAuthoring,
+} from '@inventarch/agent-composition-system/authoring';
+import { ResourceError, resourceOccurrences } from '@inventarch/agent-composition-system/resources';
 import {
   LifecycleError,
   verifyLifecycleProfile,
   lifecycleProfile,
+  SELECTED_CLAUDE_CODE_VERSION,
 } from '@inventarch/agent-composition-system/lifecycle-profile';
 import { decodeLifecycleEvent } from '@inventarch/agent-composition-system/lifecycle-profile';
 import type { LifecycleEvent, LifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
@@ -498,6 +503,40 @@ async function evaluate(
   }
 }
 
+/** A target outside the binding's own native scope is unavailable required material, never a generic failure. */
+function scopedTarget<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof AuthoringError && error.code === 'IA-AUTHORING-SCOPE')
+      throw new LifecycleError('IA-LIFECYCLE-REQUIRED', 'Required authoring context is unavailable');
+    throw error;
+  }
+}
+/** The owners' refusals when current bytes differ from those the open view captured or pinned: a fresh capture that differs
+ * (`authoring-manifest.ts:94`), the manifest, a selected resource or the native source changing under the re-capture
+ * (`authoring-manifest.ts:121`, `resource-files.ts:34,36,50`), and @inventarch/db's closed IA-DB-SOURCE-CHANGED code. */
+const VIEW_CHANGES: ReadonlySet<string> = new Set([
+  'Local authoring source or selected resource view changed',
+  'Authoring manifest changed while loading',
+  'Resource changed while capturing',
+  'Resource differs from its pinned size/hash',
+  'Physical native source differs from its captured revision',
+]);
+const viewChanged = (error: unknown): boolean =>
+  error instanceof ResourceError
+    ? VIEW_CHANGES.has(error.message)
+    : error instanceof Error && (error as { code?: unknown }).code === 'IA-DB-SOURCE-CHANGED';
+/** Only a changed source or resource selection is stale; a closed view or any other failed re-capture keeps its own error for the generic handling. */
+function freshView(check: () => void): void {
+  try {
+    check();
+  } catch (error) {
+    if (viewChanged(error))
+      throw new LifecycleError('IA-LIFECYCLE-STALE', 'Local authoring source or resource selection changed');
+    throw error;
+  }
+}
 /** Static local adapter: explicitly selected source packages and manifests are the only resource inputs. */
 export function localContextHookHost(): ContextHookHost {
   const checks = new WeakMap<LifecycleView, () => void>();
@@ -535,7 +574,7 @@ export function localContextHookHost(): ContextHookHost {
           within: local.within,
           pins,
           requiredParts: (input) => {
-            const result = prepareAuthoringTarget(authoring, { ...binding.selection, target });
+            const result = scopedTarget(() => prepareAuthoringTarget(authoring, { ...binding.selection, target }));
             return { pins: input.pins, parts: result.parts, missing: result.missing, proof: result.proof };
           },
           close: () => local.close(),
@@ -550,7 +589,7 @@ export function localContextHookHost(): ContextHookHost {
     assertCurrent: (view) => {
       const check = checks.get(view);
       if (!check) fail('Unrecognized local authoring view');
-      check();
+      freshView(check);
     },
   };
 }
@@ -558,7 +597,7 @@ export function localContextHookHost(): ContextHookHost {
 /** Installed executable entry; identity probes perform no context or source discovery. */
 export async function runContextHook(argv: readonly string[], input: string): Promise<unknown> {
   if (argv.length === 1 && argv[0] === 'identity') {
-    const profile = lifecycleProfile('claude-code', '2.1.278');
+    const profile = lifecycleProfile('claude-code', SELECTED_CLAUDE_CODE_VERSION);
     return {
       format: 'ia.context-hook-identity.v2',
       implementation: contextHookImplementationDigest(),

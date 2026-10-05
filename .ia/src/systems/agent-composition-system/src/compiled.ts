@@ -1,5 +1,5 @@
 import type { Json } from '@inventarch/session-system';
-import type { Profile, OperationDefinition } from '@inventarch/agent-system';
+import type { IndependentReviewPolicy, Profile, OperationDefinition } from '@inventarch/agent-system';
 import type { ResourceLimits, EffectClass } from './catalog.js';
 
 export type CompositionCode =
@@ -44,6 +44,7 @@ export interface CompiledCapability {
   mapping: string;
 }
 export interface CompiledProfile extends Profile {
+  review?: IndependentReviewPolicy;
   requestBytes?: number;
   native: string;
   mandate: string | null;

@@ -28,6 +28,7 @@ function renderHook(entry: string): string {
     channel: 'npm',
     entry,
     install: 'npm i -g @inventarch/cli@latest.',
+    node: process.execPath,
   })) {
     mkdirSync(dirname(resolve(dir, file.path)), { recursive: true });
     writeFileSync(resolve(dir, file.path), file.text);
@@ -94,7 +95,7 @@ it('shows the nudge again on a new local day rather than staying silent forever 
   expect(readFileSync(resolve(data, 'nudged-on'), 'utf8')).toBe(new Date().toLocaleDateString('en-CA'));
 });
 
-// The real `ia doctor` is read-only: clearing NODE_OPTIONS (as tests/host.test.ts does) keeps an inherited
+// The real `ia doctor` is read-only: clearing NODE_OPTIONS (as tests/host-registration.test.ts does) keeps an inherited
 // --conditions=development from repointing the built packages this hook loads at their source instead.
 // IA_NO_UPDATE_CHECK: doctor would otherwise name a due refresh (spec §11.1) and the hook would start it detached,
 // writing the scratch IA home after these assertions, and possibly after cleanup.

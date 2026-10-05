@@ -54,6 +54,7 @@ function fixture(name: string, sources: Readonly<Record<string, string>> = {}): 
   const root = join(temporary, name);
   mkdirSync(root);
   for (const path of [
+    '.ia/src/systems/workspace-system/records/system-packages.ia',
     '.ia/src/floor/artifact-set.ia',
     '.ia/src/floor/axis.ia',
     '.ia/src/floor/cardinality.ia',
@@ -109,6 +110,7 @@ function fixture(name: string, sources: Readonly<Record<string, string>> = {}): 
     '.ia/src/systems/work-system/schemas/milestone.schema.ia',
     '.ia/src/systems/work-system/schemas/plan.schema.ia',
     '.ia/src/systems/work-system/schemas/task.schema.ia',
+    '.ia/src/systems/work-system/schemas/spec.schema.ia',
     '.ia/src/systems/agent-composition-system/records/composition.ia',
     '.ia/src/systems/workspace-system/records/quality.ia',
     '.ia/src/systems/workspace-system/records/architecture.ia',
@@ -360,7 +362,7 @@ it('allows explicit matching authored system authority and refuses incompatible 
   const reader = open(root, { cache: false });
   expect(reader.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
   reader.close();
-  put(root, path, text.replace(/version "[^"]+"/, 'version "0.2.0"'));
+  put(root, path, text.replace(/^  version "[^"]+"$/m, '  version "9.0.0"'));
   expect(() => open(root, { cache: false })).toThrow(/provider\/version|registry|source/i);
 });
 it('resolves exact installed resources and compiles both host products with activation-bound pins', () => {

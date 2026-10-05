@@ -22,6 +22,8 @@ export const PROJECTION_LIMITS = Object.freeze({
   fileBytes: 1024 * 1024,
   totalBytes: 16 * 1024 * 1024,
   metadataBytes: 2 * 1024 * 1024,
+  contextBytes: 32 * 1024,
+  contextTokens: 8192,
 });
 export type ProjectionCode =
   | 'IA-PROJECTION-INPUT-INVALID'
@@ -109,6 +111,8 @@ export interface ProjectionDescriptor {
   readonly resourcesDigest: string;
   readonly inventoryDigest: string;
   readonly digest: string;
+  /** Host-selected narrowing of the finite prompt ceilings; part of the descriptor pin. */
+  readonly contextBudget?: { readonly bytes: number; readonly tokens: number };
 }
 export interface ProjectionFile {
   readonly path: string;
@@ -267,16 +271,11 @@ export function verifyProjectionDescriptor(value: unknown): ProjectionDescriptor
   try {
     if (typeof value === 'string' && Buffer.byteLength(value) > PROJECTION_LIMITS.metadataBytes)
       inputFailure('Projection descriptor exceeds its ceiling');
-    const row = object(typeof value === 'string' ? decodeJson(value) : value, [
-      'format',
-      'sourceRevisions',
-      'product',
-      'profiles',
-      'exports',
-      'resourcesDigest',
-      'inventoryDigest',
-      'digest',
-    ]);
+    const row = closed(
+      typeof value === 'string' ? decodeJson(value) : value,
+      ['format', 'sourceRevisions', 'product', 'profiles', 'exports', 'resourcesDigest', 'inventoryDigest', 'digest'],
+      ['contextBudget'],
+    );
     if (row['format'] !== 'ia.projection-descriptor.v1') inputFailure('Unsupported projection descriptor format');
     const sourceRevisions = ordered(
       unique(list(row['sourceRevisions'], 2001).map(sourceRevision), (s) => s.source),
@@ -338,6 +337,7 @@ export function verifyProjectionDescriptor(value: unknown): ProjectionDescriptor
     );
     if (!exports.length || exports.some((e) => !profiles.some((p) => p.id === e.profile)))
       inputFailure('Exports require selected profile pins');
+    const budget = Object.hasOwn(row, 'contextBudget') ? object(row['contextBudget'], ['bytes', 'tokens']) : null;
     const body = {
       format: 'ia.projection-descriptor.v1' as const,
       sourceRevisions,
@@ -346,6 +346,14 @@ export function verifyProjectionDescriptor(value: unknown): ProjectionDescriptor
       exports,
       resourcesDigest: hash(row['resourcesDigest']),
       inventoryDigest: hash(row['inventoryDigest']),
+      ...(budget
+        ? {
+            contextBudget: {
+              bytes: integer(budget['bytes'], PROJECTION_LIMITS.contextBytes, 1),
+              tokens: integer(budget['tokens'], PROJECTION_LIMITS.contextTokens, 1),
+            },
+          }
+        : {}),
     };
     const digest = hash(row['digest']);
     const { digest: _inputDigest, ...inputBody } = row;

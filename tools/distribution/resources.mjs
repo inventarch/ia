@@ -1,6 +1,30 @@
 import { createHash } from 'node:crypto';
 import { fieldTypeText } from '../../packages/language/dist/index.js';
 
+/** Self-contained installed contract; package documentation must not depend on repository-relative links. */
+export function publicLanguageGuide(words) {
+  const lines = [
+    '# Public IA language',
+    '',
+    'IA records declare typed identities, fields and relationships. Owning canonical schemas define the structural contract; language syntax and reference resolution preserve those declarations.',
+    '',
+    'The selected vocabulary below is shared by this release. Use `ia vocabulary --json` for its attributed catalogue and `ia vocabulary --schema` for canonical field schemas. `ia validate` reports structural and evaluated evidence separately. An admitted declaration does not establish semantic quality or grant execution authority.',
+    '',
+    'Spec source locators do not load documents. Resource capture and disclosure require explicit selection, matching pins and a host-owned disclosure boundary. Model, operation, evaluator and authority callbacks belong to the application host.',
+    '',
+    '| Word | Owner | Meaning |',
+    '| --- | --- | --- |',
+  ];
+  const cell = (value) => String(value).replaceAll('|', '\\|').replaceAll('\n', ' ');
+  for (const word of words) lines.push(`| @${cell(word.word)} | ${cell(word.owner)} | ${cell(word.description)} |`);
+  lines.push(
+    '',
+    'This guide describes the selected structural vocabulary. Private expert procedures, live provider behavior and unobserved platform qualification are separate from the installed public contract.',
+    '',
+  );
+  return lines.join('\n');
+}
+
 export function publicResources({ outputs, text, put, json, manifest }) {
   const words = JSON.parse(text('docs/reference/language/vocabulary.json')).words;
   const guidesPath = '.ia/src/systems/authoring-system/records/public-guides.ia';
@@ -76,6 +100,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
   const systems = manifest.systems.map((system) => {
     const base = `.ia/src/systems/${system.name}`,
       path = base + '/system.ia';
+    put(base + '/LANGUAGE.md', publicLanguageGuide(words));
     for (const file of ['README.md', 'SPEC.md']) {
       if (!outputs.has(base + '/' + file))
         put(
@@ -84,12 +109,24 @@ export function publicResources({ outputs, text, put, json, manifest }) {
         );
       pin(base + '/' + file);
     }
+    const additional = [
+      'LANGUAGE.md',
+      ...(system.name === 'agent-composition-system'
+        ? [
+            'references/installed-read.md',
+            'references/public-spec.md',
+            'references/spec-read-boundary.md',
+            'references/task-capture.md',
+          ]
+        : []),
+    ];
+    for (const file of additional) pin(base + '/' + file);
     associations.push({
       owner: { source: 'self', path, identity: `floor/definition/system/${system.name}` },
-      resources: ['README.md', 'SPEC.md'].map((file, order) => ({
+      resources: ['README.md', 'SPEC.md', ...additional].map((file, order) => ({
         key: { source: 'self', path: base + '/' + file },
         role: order === 0 ? 'guide' : 'support',
-        order: 0,
+        order: order === 0 ? 0 : order - 1,
         required: true,
         delivery: 'inline',
       })),
@@ -97,7 +134,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
     return {
       system: { source: 'self', path, identity: `floor/definition/system/${system.name}` },
       authoring: [{ source: 'self', path: base + '/README.md' }],
-      architecture: [{ source: 'self', path: base + '/SPEC.md' }],
+      architecture: ['SPEC.md', ...additional].map((file) => ({ source: 'self', path: base + '/' + file })),
       extensions: [],
       methods: [],
       steward: { source: 'self', path, identity: `agent-system/binding/agent/public-${system.name}-steward` },

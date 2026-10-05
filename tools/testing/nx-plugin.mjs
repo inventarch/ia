@@ -61,6 +61,20 @@ export function nxTaskFor(workspaceRoot, tasks, id) {
 
 function targetFor(workspaceRoot, manifest, scripts, task) {
   const owner = ownerOf(task, scripts);
+  // Nx exclusions win over positive patterns, so excluding every *.test.* and adding this
+  // selection back would silently omit the selected tests too. Exclude only declared sibling
+  // files. New, unassigned test files remain conservative inputs until inventory assigns them.
+  const selected = task.kind === 'vitest' && task.inputProfile.startsWith('selected-tests');
+  const otherTests = selected
+    ? [
+        ...new Set(
+          manifest.tasks
+            .filter((entry) => entry.kind === 'vitest' && entry.project === task.project)
+            .flatMap((entry) => entry.files)
+            .filter((file) => !task.files.includes(file)),
+        ),
+      ].sort()
+    : [];
   const dependsOn = task.dependsOn.map((id) => {
     const dependency = manifest.tasks.find((entry) => entry.id === id);
     if (!dependency) throw new Error(`${task.id} depends on unknown task ${id}`);
@@ -83,8 +97,11 @@ function targetFor(workspaceRoot, manifest, scripts, task) {
     // the documents and records the root project owns through the filesystem; those files enter as the
     // root's own files only, because the root's dependencies span the whole workspace. Nothing else
     // crosses: a dependency task's hash and its build products are not part of this hash.
+    // Selected-test profiles retain every non-test helper and filesystem-read tree. Only test
+    // implementations are narrowed, using the same explicit selection the runner executes.
     inputs: [
       task.inputProfile,
+      ...otherTests.map((file) => `!{projectRoot}/${file}`),
       '^dependency-source',
       ...(isToolDirectory(owner) ? [{ input: 'owner-source', projects: ROOT_PROJECT }] : []),
     ],

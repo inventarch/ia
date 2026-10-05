@@ -88,6 +88,30 @@ it('executes every native case with actual success/refusal and owner attribution
         (f) => f.path === draft,
       ),
     }).toEqual({ case: o.identity, findings: [] });
+  // The runner compares result codes only, so a work-system refusal could pass for another reason (an empty-diagnostic
+  // refusal, #398 review). Require each one to refuse with exactly the diagnostic its scenario.expected names.
+  const refused = result.observations.filter(
+    (o) => !o.result.ok && o.identity.startsWith('compliance-system/definition/scenario/work-'),
+  );
+  expect(refused).toEqual([]);
+  const cases = resolve(root, '.ia/src/systems/work-system/cases'),
+    named = new Map(
+      refused.length === 0
+        ? []
+        : readdirSync(cases).map((file) => {
+            const text = readFileSync(resolve(cases, file), 'utf8');
+            return [/^@case (\S+)$/m.exec(text)![1]!, /^ {4}expected ".* with (IA-[A-Z-]+):/m.exec(text)?.[1]] as const;
+          }),
+    );
+  for (const o of refused) {
+    const name = o.identity.split('/').pop()!,
+      codes = o.result.ok
+        ? []
+        : (o.result.diagnostics as readonly { readonly severity: string; readonly code: string }[])
+            .filter((d) => d.severity === 'error')
+            .map((d) => d.code);
+    expect({ case: name, codes }).toEqual({ case: name, codes: [named.get(name)] });
+  }
 }, 120_000);
 it('observes every platform-reachable executable refusal code through real handlers and isolated publication', () => {
   const result = runExecutionFixtures(repository);

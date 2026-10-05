@@ -493,12 +493,22 @@ const refusal = (work: () => unknown): { code: unknown; message: string } => {
   }
   return { code: null, message: 'verified' };
 };
+/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
+const fileLink = (target: string, path: string): boolean => {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+};
 /**
  * Every level of the verified path refuses a link, whatever the link reaches: identical bytes stand behind each one, so
  * only the link itself can be what is refused. A directory link is a junction on Windows (no privilege needed) and a
  * symlink elsewhere; a hard-linked payload file is an alias too (LKI-33 pins these before the walk changes).
  */
-it('refuses a link or junction at the cache root, an ancestor of it, a payload or launcher directory and a payload file, and a hard-linked payload file', () => {
+it('refuses a link or junction at the cache root, an ancestor, a payload or launcher directory, and hard-linked payload files', () => {
   const pristine = nestedCache();
   expect(verifyHostCache(pristine)).toMatchObject({ format: 2 });
   const linkRefused = /Link\/junction is not allowed/;
@@ -529,21 +539,12 @@ it('refuses a link or junction at the cache root, an ancestor of it, a payload o
       symlinkSync(moved(artifact, 'scripts'), resolve(artifact, 'scripts'), 'junction');
       return artifact;
     },
-    'a payload file': () => {
-      const artifact = nestedCache();
-      symlinkSync(moved(artifact, 'payload.txt'), resolve(artifact, 'payload.txt'), 'file');
-      return artifact;
-    },
-    'a nested payload file': () => {
-      const artifact = nestedCache();
-      symlinkSync(moved(artifact, 'lib/inner.txt'), resolve(artifact, 'lib/inner.txt'), 'file');
-      return artifact;
-    },
   };
   const refused: Record<string, { code: unknown; message: string }> = {},
     expected: Record<string, unknown> = {};
   for (const [name, arrange] of Object.entries(arrangements)) {
-    refused[name] = refusal(() => verifyHostCache(arrange()));
+    const artifact = arrange();
+    refused[name] = refusal(() => verifyHostCache(artifact));
     expected[name] = { code: 'IA-DIST-PATH-UNSAFE', message: expect.stringMatching(linkRefused) };
   }
   for (const path of ['payload.txt', 'lib/inner.txt']) {
@@ -558,3 +559,18 @@ it('refuses a link or junction at the cache root, an ancestor of it, a payload o
   // One comparison, so a broken guard shows every level it lets through, not only the first.
   expect(refused).toEqual(expected);
 });
+
+// Keep unsupported file-link fixtures separate from the mandatory junction and hard-link guards above.
+for (const path of ['payload.txt', 'lib/inner.txt'])
+  it(`refuses a file symlink at host cache payload ${path}`, (context) => {
+    const artifact = nestedCache();
+    expect(verifyHostCache(artifact)).toMatchObject({ format: 2 });
+    const outside = resolve(temp(), basename(path));
+    renameSync(resolve(artifact, path), outside);
+    if (!fileLink(outside, resolve(artifact, path)))
+      return context.skip('Windows denied file symlink creation (EPERM)');
+    expect(refusal(() => verifyHostCache(artifact))).toEqual({
+      code: 'IA-DIST-PATH-UNSAFE',
+      message: expect.stringMatching(/Link\/junction is not allowed/),
+    });
+  });

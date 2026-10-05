@@ -50,8 +50,9 @@ describe('native graph load and ownership', () => {
     );
     // Includes the authoring-guide registration introduced with the shipped guide library, the two made work-system
     // decisions (work-validation-host, work-date-representation) that ground author-work-system-records, and the two
-    // design vocabulary registrations (design-token, design-specimen) that ground author-design-system-records.
-    expect(native.edges.filter((e) => e.predicate === 'ground')).toHaveLength(41);
+    // design vocabulary registrations (design-token, design-specimen) that ground author-design-system-records, and the
+    // structural ground edge from work-system to its @spec schema and the public export scope/dependency-policy decisions plus the complete task-capture bound decision and the three reviewed task-declaration groundings.
+    expect(native.edges.filter((e) => e.predicate === 'ground')).toHaveLength(42);
   });
   it('is deterministic under source and record permutation and snapshots all exposed state', () => {
     expect(serialize(load([...records].reverse(), registry, { ...options, sources: [...inputs].reverse() }))).toBe(

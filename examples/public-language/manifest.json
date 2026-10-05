@@ -110,7 +110,8 @@
         ".ia/src/systems/work-system/schemas/decision.schema.ia",
         ".ia/src/systems/work-system/schemas/milestone.schema.ia",
         ".ia/src/systems/work-system/schemas/plan.schema.ia",
-        ".ia/src/systems/work-system/schemas/task.schema.ia"
+        ".ia/src/systems/work-system/schemas/task.schema.ia",
+        ".ia/src/systems/work-system/schemas/spec.schema.ia"
       ]
     }
   ],

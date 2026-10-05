@@ -34,6 +34,15 @@ const released = (value) =>
         );
 /** The CLI under its public name and its private-staging name (tools/release/private.mjs), as in tools/dependencies/check.ts. */
 const CLI = new Set(['@inventarch/cli', '@inventarch/inventarch-cli']);
+// Package spellings are projected with the manifest namespace. Regex literals containing an escaped scope
+// do not undergo that projection; keep these exact omitted-owner names as ordinary string literals.
+const OMITTED_PACKAGES = [
+  '@inventarch/architecture-system',
+  '@inventarch/code-quality-system',
+  '@inventarch/monorepo-kit-host',
+];
+const omittedTarget = (text) =>
+  /inventarch-development|development-native/.test(text) || OMITTED_PACKAGES.some((name) => text.includes(name));
 /** The offline launcher does not expose the separately qualified private development host. */
 export function staticCliManifest(input) {
   const metadata = structuredClone(input);
@@ -63,22 +72,12 @@ export function staticCliManifest(input) {
     bin: metadata.bin,
     imports: metadata.imports,
   });
-  if (
-    /inventarch-development|development-native|@inventarch\/(?:architecture-system|code-quality-system)|@inventarch\/monorepo-kit-host/.test(
-      targets,
-    )
-  )
-    throw Error('Retained manifest target reaches the omitted development capability');
+  if (omittedTarget(targets)) throw Error('Retained manifest target reaches the omitted development capability');
   return metadata;
 }
 /** Conservative coupling check; the ordinary dependency gate separately rejects nonliteral runtime imports. */
 export function assertStaticPayloadCode(path, bytes) {
-  if (
-    /\.[cm]?js$/.test(path) &&
-    /inventarch-development|@inventarch\/(?:architecture-system|code-quality-system)|@inventarch\/monorepo-kit-host/.test(
-      bytes.toString('utf8'),
-    )
-  )
+  if (/\.[cm]?js$/.test(path) && omittedTarget(bytes.toString('utf8')))
     throw Error('Static payload code reaches the omitted development capability: ' + path);
 }
 /**
@@ -89,8 +88,11 @@ export function assertStaticPayloadCode(path, bytes) {
 function manifestDir(name, from) {
   for (let candidate = from; ; candidate = dirname(candidate)) {
     if (basename(candidate) !== 'node_modules') {
-      const path = join(candidate, 'node_modules', name, 'package.json');
-      if (existsSync(path)) {
+      // Resolve the dependency directory before its relative package links. Windows fixtures may
+      // reach this directory through a junction on a different drive from the installed workspace.
+      const modules = join(candidate, 'node_modules');
+      const path = existsSync(modules) ? join(realpathSync(modules), name, 'package.json') : null;
+      if (path && existsSync(path)) {
         const dir = realpathSync(dirname(path));
         if (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).name !== name)
           throw Error('Installed package manifest names another package: ' + name);
@@ -110,7 +112,7 @@ export async function collectPayload(repository) {
       name = metadata.name;
     const developmentOmitted =
       original.exports?.['./development'] !== undefined && metadata.exports?.['./development'] === undefined;
-    // The payload must not depend on the caller's Node conditions (NODE_OPTIONS=--conditions=development), so @inventarch manifests ship without them.
+    // The payload must not depend on the caller's Node conditions (NODE_OPTIONS=--conditions=development), so @ia manifests ship without them.
     const manifest = name.startsWith('@inventarch/')
         ? Buffer.from(
             json(metadata.exports === undefined ? metadata : { ...metadata, exports: released(metadata.exports) }),
@@ -136,14 +138,34 @@ export async function collectPayload(repository) {
       license: metadata.license ?? 'UNSPECIFIED',
       notices,
     });
+    // Preserve only literal public documentation selected by the package's shipped file list.
+    // Adding a references directory wholesale would admit private teaching from the producer tree.
+    const documentation = new Set(
+      (metadata.files ?? []).filter((path) => /^(?:LANGUAGE\.md|references\/[A-Za-z0-9_.-]+\.md)$/.test(path)),
+    );
     const keep = name.startsWith('@inventarch/')
-      ? new Set(['dist', 'assets', 'package.json', 'README.md', 'SPEC.md', ...notices])
+      ? new Set([
+          'dist',
+          'assets',
+          'package.json',
+          'README.md',
+          'SPEC.md',
+          ...notices,
+          ...[...documentation].map((path) => path.split('/')[0]),
+        ])
       : null;
     const visit = (rel = '') => {
       for (const entry of readdirSync(join(dir, rel)).sort()) {
         const path = rel ? rel + '/' + entry : entry,
           top = path.split('/')[0];
         if (top === 'node_modules' || (keep && !keep.has(top))) continue;
+        if (
+          keep &&
+          top === 'references' &&
+          !documentation.has(path) &&
+          ![...documentation].some((selected) => selected.startsWith(path + '/'))
+        )
+          continue;
         if (CLI.has(name) && (path === 'assets/host' || path.startsWith('assets/host/') || path === 'assets/host.json'))
           continue;
         if (

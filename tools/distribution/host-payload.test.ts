@@ -33,28 +33,27 @@ function extract(archive: Buffer): string {
   }
   return out;
 }
-/** The reviewed legacy private profile is a compatibility fixture, not a requirement on the public CLI. */
-function privateManifest(): Record<string, any> {
+/** The public CLI has no private entry. Its refusal tests use an inert reviewed-capability manifest;
+ * the private producer still tests its actual manifest unchanged, including any boundary drift. */
+function developmentManifest() {
+  const original = JSON.parse(readFileSync(join(repository, 'apps/cli/package.json'), 'utf8'));
+  if (original.exports['./development'] !== undefined) return original;
   return {
-    name: '@inventarch/cli',
-    version: '0.1.0',
-    main: './dist/main.js',
-    bin: { ia: './dist/main.js' },
+    ...original,
     exports: {
-      '.': { types: './dist/main.d.ts', default: './dist/main.js' },
+      ...original.exports,
       './development': {
         types: './dist/inventarch-development/index.d.ts',
         default: './dist/inventarch-development/index.js',
       },
     },
+    peerDependencies: { '@inventarch/monorepo-kit-host': '0.1.0' },
+    peerDependenciesMeta: { '@inventarch/monorepo-kit-host': { optional: true } },
     dependencies: {
-      '@inventarch/runtime': 'workspace:*',
+      ...original.dependencies,
       '@inventarch/architecture-system': 'workspace:*',
       '@inventarch/code-quality-system': 'workspace:*',
     },
-    peerDependencies: { '@inventarch/monorepo-kit-host': '0.1.0' },
-    peerDependenciesMeta: { '@inventarch/monorepo-kit-host': { optional: true } },
-    devDependencies: { '@inventarch/monorepo-kit-host': '0.1.0', typescript: 'catalog:' },
   };
 }
 it('produces a deterministic v2 payload that verifies after extraction', async () => {
@@ -80,7 +79,7 @@ it('excludes the private service dependencies and the payload itself', async () 
       (p: { name: string }) => p.name === '@modelcontextprotocol/client' || p.name === '@inventarch/service-contracts',
     ),
   ).toBe(false);
-  expect([...files.keys()].some((path) => /@inventarch\/cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
+  expect([...files.keys()].some((path) => /@ia\/cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
   expect(
     packages.some((p) =>
       ['@inventarch/architecture-system', '@inventarch/code-quality-system', '@inventarch/monorepo-kit-host'].includes(
@@ -91,13 +90,29 @@ it('excludes the private service dependencies and the payload itself', async () 
   expect([...files.keys()].some((path) => /inventarch-development|development-native/.test(path))).toBe(false);
   expect(packages.length).toBeLessThanOrEqual(64);
 });
-it('bundles @inventarch manifests without the development condition, pinned by the bundled bytes', async () => {
+it('bundles @ia manifests without the development condition, pinned by the bundled bytes', async () => {
   const { files, packages } = await collectPayload(repository);
   for (const pkg of packages.filter((p) => p.name.startsWith('@inventarch/'))) {
     const bytes = files.get(`runtime/node_modules/${pkg.name}/package.json`) as Buffer;
     expect(bytes.toString('utf8')).not.toContain('"development"');
     expect(pkg.manifestDigest).toBe(createHash('sha256').update(bytes).digest('hex'));
   }
+});
+it('retains the exact shipped guide and reference documentation in the offline payload', async () => {
+  const { files, packages } = await collectPayload(repository);
+  let checked = 0;
+  for (const pkg of packages.filter((p) => p.name.startsWith('@inventarch/'))) {
+    const prefix = `runtime/node_modules/${pkg.name}/`,
+      manifest = JSON.parse(files.get(prefix + 'package.json')!.toString('utf8'));
+    for (const path of manifest.files ?? [])
+      if (/^(?:README\.md|SPEC\.md|LANGUAGE\.md|references\/[A-Za-z0-9_.-]+\.md)$/.test(path)) {
+        expect(files.has(prefix + path), prefix + path).toBe(true);
+        checked++;
+      }
+    for (const path of files.keys())
+      if (path.startsWith(prefix + 'references/')) expect(manifest.files).toContain(path.slice(prefix.length));
+  }
+  expect(checked).toBeGreaterThan(0);
 });
 it("runs the real launcher from the extracted payload regardless of the caller's Node conditions", async () => {
   const { archive } = await generateHostPayload({ repository, write: false }),
@@ -116,33 +131,19 @@ it("runs the real launcher from the extracted payload regardless of the caller's
   expect(JSON.parse(door.stdout)).toMatchObject({ ok: true });
 });
 
-it('preserves the public CLI manifest without adding or removing capabilities', () => {
-  const original = JSON.parse(readFileSync(join(repository, 'apps/cli/package.json'), 'utf8'));
-  expect(original.exports).not.toHaveProperty('./development');
-  const projected = staticCliManifest(original);
-  expect(projected).toEqual(original);
-  expect(projected).not.toBe(original);
-  expect(projected['exports']).not.toBe(original.exports);
-});
 it('projects only the reviewed private development capability without mutating its source manifest', () => {
-  const original = privateManifest();
+  const original = developmentManifest();
   const before = JSON.stringify(original),
     projected = staticCliManifest(original);
   expect(JSON.stringify(original)).toBe(before);
   expect(projected['exports']).not.toHaveProperty('./development');
   expect(projected).not.toHaveProperty('peerDependencies');
-  expect(projected).not.toHaveProperty('peerDependenciesMeta');
-  expect(projected['devDependencies']).not.toHaveProperty('@inventarch/monorepo-kit-host');
-  expect(projected['devDependencies']).toEqual({ typescript: 'catalog:' });
-  expect(projected['bin']).toEqual(original['bin']);
+  expect(projected['bin']).toEqual(original.bin);
   expect(projected['dependencies']).not.toHaveProperty('@inventarch/architecture-system');
   expect(projected['dependencies']).not.toHaveProperty('@inventarch/code-quality-system');
 });
 it('projects the private CLI name (tools/release/private.mjs renames apps/cli) the same way', () => {
-  const original: ReturnType<typeof privateManifest> = {
-    ...privateManifest(),
-    name: '@inventarch/inventarch-cli',
-  };
+  const original = { ...developmentManifest(), name: '@inventarch/inventarch-cli' };
   const projected = staticCliManifest(original);
   expect(projected['exports']).not.toHaveProperty('./development');
   expect(projected).not.toHaveProperty('peerDependencies');
@@ -150,7 +151,7 @@ it('projects the private CLI name (tools/release/private.mjs renames apps/cli) t
   expect(projected['dependencies']).not.toHaveProperty('@inventarch/architecture-system');
   expect(projected['dependencies']).not.toHaveProperty('@inventarch/code-quality-system');
   const unreviewed = structuredClone(original);
-  unreviewed['peerDependencies'].other = '1';
+  unreviewed.peerDependencies.other = '1';
   expect(() => staticCliManifest(unreviewed)).toThrow(/Unreviewed/);
 });
 it("excludes the private CLI's own embedded payload, so a repeat write does not grow it", async () => {
@@ -166,44 +167,44 @@ it("excludes the private CLI's own embedded payload, so a repeat write does not 
     join(cli, 'package.json'),
     JSON.stringify({ ...manifest, name: '@inventarch/inventarch-cli' }, null, 2) + '\n',
   );
-  // Directory junctions need no privilege on Windows; the payload walk resolves installed packages through them.
-  symlinkSync(join(repository, 'apps/cli/node_modules'), join(cli, 'node_modules'), 'junction');
+  // Exercise the hoisted layout explicitly: the staged CLI has no package-local dependency fallback.
+  // Directory junctions need no privilege on Windows and may cross drives.
+  symlinkSync(join(repository, 'node_modules'), join(candidate, 'node_modules'), 'junction');
+  mkdirSync(join(cli, 'node_modules'));
   for (const app of ['distribution', 'mcp-door', 'steward-hook'])
     symlinkSync(join(repository, 'apps', app), join(candidate, 'apps', app), 'junction');
   const first = await generateHostPayload({ repository: candidate, write: true }),
     second = await generateHostPayload({ repository: candidate, write: true });
   expect(second.pin).toEqual(first.pin);
   const { files } = await collectPayload(candidate);
-  expect([...files.keys()].some((path) => /@inventarch\/inventarch-cli\/assets\/host(\/|\.json$)/.test(path))).toBe(
-    false,
-  );
+  expect([...files.keys()].some((path) => /@ia\/inventarch-cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
 });
 it('refuses unreviewed manifest peers, entries, dependency coupling and retained aliases', () => {
-  const original = privateManifest();
+  const original = developmentManifest();
   const mutations = [
     (m: typeof original) => {
-      m['peerDependencies'].other = '1';
+      m.peerDependencies.other = '1';
     },
     (m: typeof original) => {
-      m['exports']['./development'].default = './dist/other.js';
+      m.exports['./development'].default = './dist/other.js';
     },
     (m: typeof original) => {
-      m['exports']['./development'].extra = './dist/other.js';
+      m.exports['./development'].extra = './dist/other.js';
     },
     (m: typeof original) => {
-      m['dependencies']['@inventarch/architecture-system'] = '1.0.0';
+      m.dependencies['@inventarch/architecture-system'] = '1.0.0';
     },
     (m: typeof original) => {
-      m['optionalDependencies'] = { other: '1' };
+      m.optionalDependencies = { other: '1' };
     },
     (m: typeof original) => {
-      m['exports']['./review'] = './dist/inventarch-development/index.js';
+      m.exports['./review'] = './dist/inventarch-development/index.js';
     },
     (m: typeof original) => {
-      m['bin'].review = './dist/inventarch-development/index.js';
+      m.bin.review = './dist/inventarch-development/index.js';
     },
     (m: typeof original) => {
-      m['main'] = './assets/development-native.json';
+      m.main = './assets/development-native.json';
     },
   ];
   for (const mutate of mutations) {

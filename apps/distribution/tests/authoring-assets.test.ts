@@ -10,13 +10,17 @@ import { planInstallationSnapshot } from '../src/installation-core.js';
 import { resolveReleases } from '../src/resolve.js';
 
 const manifestPath = '.ia/authoring.resources.json';
+let resourceFiles: { path: string; bytes: number; sha256: string }[];
 let snapshot: ReturnType<typeof distributionSnapshot>,
   packed: PackedDistribution,
   assets: Map<string, Buffer>,
   release: typeof descriptor;
 beforeAll(() => {
   snapshot = distributionSnapshot(sourceInput(readInputs(repository)));
-  const manifest = JSON.parse(readFileSync(resolve(repository, manifestPath), 'utf8')) as { files: { path: string }[] };
+  const manifest = JSON.parse(readFileSync(resolve(repository, manifestPath), 'utf8')) as {
+    files: typeof resourceFiles;
+  };
+  resourceFiles = manifest.files;
   const selected = [
     { path: 'LICENSE', role: 'license' },
     { path: manifestPath, role: 'asset' },
@@ -61,7 +65,15 @@ it('refuses native guide packing without its explicit resource closure', () => {
 it('verifies all actual guide assets and the embedded-floor joins without reading an application root', () => {
   const verified = verifyArchive(packed.bytes);
   expect(verified.files.get(manifestPath)).toEqual(assets.get(manifestPath));
-  expect(verified.manifest.files.filter((f) => f.role === 'documentation')).toHaveLength(67);
+  // The selected resource manifest owns the inventory in both source and public distributions.
+  // Compare every pin and payload: a count alone misses substitutions, stale bytes and stray assets.
+  expect(resourceFiles.length).toBeGreaterThan(0);
+  expect(verified.manifest.files.filter((f) => f.role === 'documentation')).toEqual(
+    resourceFiles
+      .map(({ path, bytes, sha256 }) => ({ path, bytes, sha256, role: 'documentation' }))
+      .sort((a, b) => (a.path < b.path ? -1 : 1)),
+  );
+  for (const { path } of resourceFiles) expect(verified.files.get(path), path).toEqual(assets.get(path));
 });
 it('cannot reuse successful structural evidence for tampered bytes or a caller-supplied digest', () => {
   expect(verifyArchive(packed.bytes).archiveDigest).toBe(packed.archiveDigest);

@@ -121,6 +121,8 @@ export interface DoctorRequest {
   readonly now?: Date;
   /** The install channel as observed (§5); detected from `packageRoot` when absent. The contract's examples supply it. */
   readonly channel?: Channel | undefined;
+  /** Root-discovery observation; defaults to the real filesystem walk. Documentation fixtures supply an absent workspace. */
+  readonly discover?: typeof discoverRoot;
 }
 
 /** decisions.md:13. Linux and Windows on x64 and macOS on arm64, on Node 22 with 22.22.0 the initial minimum; pnpm is contributor-only. */
@@ -664,7 +666,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
         ? resolve(request.root)
         : resolve(request.cwd, request.root);
   // A supplied or discovered root opens at its real path, as the workspace verbs open it (`requireRoot`).
-  const found = supplied ?? discoverRoot(request.cwd, iaHomeOf(request.env, request.home));
+  const found = supplied ?? (request.discover ?? discoverRoot)(request.cwd, iaHomeOf(request.env, request.home));
   const root = found !== undefined && directory(found) ? realpathSync(found) : found;
   const usable = root !== undefined && directory(root);
   checks.push({

@@ -3,6 +3,6 @@
 @agent work-steward
   meaning
     says "Identifies the owner of work-system contracts in this example."
-    answers "Who owns the plan, milestone, task and decision words in this example?"
+    answers "Who owns the plan, milestone, task, decision and spec words in this example?"
   governance
-    applies [plan, milestone, task, decision]
+    applies [plan, milestone, task, decision, spec]

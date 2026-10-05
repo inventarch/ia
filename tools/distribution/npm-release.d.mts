@@ -22,6 +22,7 @@ export interface NpmRelease {
   version: string;
   source: { repository: string; commit: string; dirty: boolean };
   packages: ReleaseArchive[];
+  systemCompatibility: { path: string; sha256: string };
 }
 export declare const REGISTRY: string;
 export declare const REPOSITORY: string;
@@ -32,11 +33,16 @@ export declare function publicPackages(root: string): PublicPackage[];
 export declare function dependencyOrder<
   T extends { manifest: { name: string; dependencies?: Record<string, string> } },
 >(projects: readonly T[]): T[];
-export declare function validatePackages(projects: readonly PublicPackage[], version: string): void;
+export declare function releaseVersions(root: string): Record<string, string>;
+export declare function validatePackages(
+  projects: readonly PublicPackage[],
+  version: string,
+  versions?: Readonly<Record<string, string>>,
+): void;
 export declare function writeReleaseManifest(
   root: string,
   directory: string,
-  packed: readonly { name: string; filename: string }[],
+  packed: readonly { name: string; filename: string; sha256: string }[],
 ): NpmRelease;
 export declare function verifyRelease(root: string, directory: string, version: string): NpmRelease;
 export declare function publicationPlan(

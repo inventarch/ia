@@ -1,6 +1,6 @@
 import { copy, digest } from '@inventarch/session-system';
 import type { Json, Limits, Recovery } from '@inventarch/session-system';
-import type { OutcomeKind, OperationDefinition } from '@inventarch/agent-system';
+import type { IndependentReviewPolicy, OutcomeKind, OperationDefinition } from '@inventarch/agent-system';
 import type { Category, Phase, Primitive } from '@inventarch/language';
 
 export type EffectClass = OperationDefinition['effects'][number];
@@ -24,6 +24,7 @@ export interface OutcomeContract {
   completion: 'response' | 'proposal' | 'artifact';
 }
 export interface MandateContract {
+  review?: IndependentReviewPolicy;
   input: string;
   outcomes: string;
   effects: EffectClass[];

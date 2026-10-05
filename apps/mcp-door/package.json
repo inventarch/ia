@@ -1,6 +1,6 @@
 {
   "name": "@inventarch/mcp-door",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
@@ -10,7 +10,8 @@
     "README.md",
     "SPEC.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "LANGUAGE.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -30,6 +31,9 @@
     "ia-mcp-door": "./dist/main.js"
   },
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
   "exports": {
     "./internal/main": {
       "types": "./dist/main.d.ts",
@@ -77,9 +81,6 @@
     },
     "access": "public",
     "registry": "https://registry.npmjs.org"
-  },
-  "engines": {
-    "node": ">=22.22.0 <23"
   },
   "repository": {
     "type": "git",

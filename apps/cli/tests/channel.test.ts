@@ -2,7 +2,7 @@ import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { describeChannel, detectChannel, updateInstruction } from '../src/channel.js';
-import { cleanup, scratch } from './workspace-fixture.js';
+import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
 const put = (path: string, text = '{}'): void => {

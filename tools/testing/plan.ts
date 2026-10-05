@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
 import { PLATFORMS, readManifest, type Manifest, type Platform, type TaskRecord } from './inventory.js';
 import { readEvidence } from './report.js';
@@ -177,12 +177,22 @@ export function planShards(manifest: Manifest, schedule: Schedule, options: Plan
       if (estimate.borrowed) borrowed.push(task.id);
       return { task, seconds: estimate.seconds };
     })
-    .sort((a, b) => b.seconds - a.seconds || a.task.id.localeCompare(b.task.id));
+    .sort(
+      (a, b) =>
+        (nativeShards > 0
+          ? Number(b.task.resourceClass === 'native-heavy') - Number(a.task.resourceClass === 'native-heavy')
+          : 0) ||
+        b.seconds - a.seconds ||
+        a.task.id.localeCompare(b.task.id),
+    );
 
   for (const entry of weighted) {
-    const wanted: Shard['resourceClass'] =
-      entry.task.resourceClass === 'native-heavy' && nativeShards > 0 ? 'native-heavy' : 'general';
-    const compatible = shards.filter((shard) => shard.resourceClass === wanted);
+    // Place constrained work first, then let general work fill spare capacity on any shard.
+    // Tasks within a shard still execute serially; this does not increase native concurrency.
+    const compatible =
+      entry.task.resourceClass === 'native-heavy' && nativeShards > 0
+        ? shards.filter((shard) => shard.resourceClass === 'native-heavy')
+        : shards;
     const target = compatible.reduce((best, shard) =>
       shard.estimateSeconds < best.estimateSeconds ||
       (shard.estimateSeconds === best.estimateSeconds && shard.index < best.index)
@@ -225,14 +235,10 @@ export const RUNNERS: Readonly<Record<Platform, string>> = {
   macos: 'macos-26',
 };
 
-/**
- * The platforms a pull request plans. Hosted Windows minutes bill at twice Linux's and macOS at ten times, so pull requests
- * run Linux alone; main pushes, the weekly full run and dispatched runs plan every platform, which means a Windows- or
- * macOS-only failure surfaces after merge, on main, rather than before it.
- */
-export const PULL_REQUEST_PLATFORMS: readonly Platform[] = ['linux'];
+/** Pull requests targeting main qualify every supported platform before merge. */
+export const PULL_REQUEST_PLATFORMS: readonly Platform[] = PLATFORMS;
 
-/** The platforms a CI run plans for the GitHub event that triggered it. Only a pull request narrows them; any other event plans every one. */
+/** Every workflow event qualifies the same supported platforms. */
 export function eventPlatforms(event: string | undefined): readonly Platform[] {
   return event === 'pull_request' ? PULL_REQUEST_PLATFORMS : PLATFORMS;
 }
@@ -359,18 +365,21 @@ if (isEntry(process.argv[1], import.meta.url)) {
     '--verified-sha',
     '--json',
     '--record',
+    '--record-out',
   ];
   const stray = args.filter((arg, index) =>
     arg.startsWith('--') ? !known.includes(arg) : !(index > 0 && known.includes(args[index - 1]!)),
   );
   if (stray.length) {
     console.error(
-      `Usage: pnpm tests:plan [--platform <${PLATFORMS.join('|')}>] [--shards N|${PLATFORMS.map((platform) => `${platform}=N`).join(',')}] [--native-shards (the same)] [--matrix|--ci-matrix [--event <GitHub event> --head-sha <sha> --verified-sha <sha>]|--json] [--record <evidence directory>]`,
+      `Usage: pnpm tests:plan [--platform <${PLATFORMS.join('|')}>] [--shards N|${PLATFORMS.map((platform) => `${platform}=N`).join(',')}] [--native-shards (the same)] [--matrix|--ci-matrix [--event <GitHub event> --head-sha <sha> --verified-sha <sha>]|--json] [--record <evidence directory> [--record-out <output file>]]`,
     );
     process.exitCode = 2;
   } else
     try {
       const record = flag('--record');
+      if (args.includes('--record-out') && (!record || !flag('--record-out')))
+        throw new Error('--record-out requires --record <evidence directory> and an output file');
       if (args.includes('--ci-matrix')) {
         // The triggering event selects the platforms, and for a scheduled run whether there is anything new to verify.
         const event = flag('--event'),
@@ -387,11 +396,12 @@ if (isEntry(process.argv[1], import.meta.url)) {
         console.log(`gate=${JSON.stringify(gateMatrix(platforms))}`);
         console.log(`platforms=${JSON.stringify(platforms)}`);
         console.log(`run=${runNeeded(event, flag('--head-sha'), flag('--verified-sha'))}`);
-        process.exit(0);
-      }
-      if (record !== undefined) {
+        // No process.exit(): output a slow reader has not taken yet is still queued here, and exiting would drop it.
+      } else if (record !== undefined) {
         const updated = updateSchedule(readSchedule(root), resolve(root, record));
-        writeFileSync(resolve(root, 'tools/testing/schedule.json'), JSON.stringify(updated, null, 2) + '\n');
+        const output = resolve(root, flag('--record-out') ?? 'tools/testing/schedule.json');
+        mkdirSync(dirname(output), { recursive: true });
+        writeFileSync(output, JSON.stringify(updated, null, 2) + '\n');
         console.log(
           `Recorded durations for ${Object.values(updated.platforms).reduce((total, entry) => total + Object.keys(entry).length, 0)} task variants.`,
         );

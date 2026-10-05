@@ -1,5 +1,15 @@
-import { lstatSync, readdirSync, readFileSync, realpathSync, type Stats } from 'node:fs';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import {
+  closeSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  type Stats,
+} from 'node:fs';
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { evaluateSteward, isEntry, openDatabase } from '@inventarch/runtime';
 import type { HookCode } from '@inventarch/runtime';
 import { pathKey, sameFile, unaliased } from '@inventarch/db';
@@ -158,24 +168,31 @@ function projectionOwnership(root: string): Ownership | undefined {
   return { files, codex };
 }
 /** A bounded ownership-marker check, not registration validation or a grant of host authority. */
-function contextSettingsManaged(root: string): boolean {
+interface GuardControls {
+  readonly settings: boolean;
+  readonly guard: boolean;
+  readonly launchers: readonly string[];
+}
+function contextSettingsManaged(root: string, includeContext = true): GuardControls {
   const directory = resolve(root, '.ia/distributions/hosts');
   let names: string[];
   try {
     if (!unaliased(directory, physical(directory))) throw new Error('Context ownership directory is aliased');
     names = readdirSync(directory);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { settings: false, guard: false, launchers: [] };
     throw error;
   }
   if (names.length > 4096) throw new Error('Context ownership inventory exceeds its bound');
-  let managed = false;
+  let managed = false,
+    guardManaged = false;
+  const launchers: string[] = [];
   for (const name of names) {
     const match = /^claude-context-([a-z][a-z0-9-]{0,63})\.json$/.exec(fold(name)),
       pending = fold(name) === 'lifecycle-pending.json';
     const guard = /^claude-guard-([a-z][a-z0-9-]{0,63})\.json$/.exec(fold(name)),
       guardPending = fold(name) === 'guard-pending.json';
-    if (!match && !pending && !guard && !guardPending) continue;
+    if (!guard && !guardPending && (!includeContext || (!match && !pending))) continue;
     const path = resolve(directory, name),
       stat = lstatSync(path),
       limit = pending || guardPending ? 8 * 1024 * 1024 : 1024 * 1024;
@@ -221,6 +238,19 @@ function contextSettingsManaged(root: string): boolean {
           Object.values(side).some((value) => value !== null && typeof value !== 'string')
         )
           throw new Error('Invalid pending guard bytes');
+        guardManaged = true;
+        if (typeof side['state'] === 'string') {
+          const state: unknown = decodeDistributionJson(side['state']);
+          if (
+            !object(state) ||
+            state['format'] !== 'ia.guard-registration-state.v1' ||
+            state['id'] !== row['id'] ||
+            typeof state['cache'] !== 'string' ||
+            !isAbsolute(state['cache'])
+          )
+            throw new Error('Invalid pending guard owner');
+          launchers.push(resolve(state['cache'], 'scripts/ia.mjs'));
+        }
       }
     } else if (guard) {
       if (
@@ -239,6 +269,8 @@ function contextSettingsManaged(root: string): boolean {
         !/^[a-f0-9]{64}$/.test(row['release'])
       )
         throw new Error('Invalid guard ownership state');
+      guardManaged = true;
+      launchers.push(resolve(row['cache'] as string, 'scripts/ia.mjs'));
     } else if (
       Object.keys(row)
         .filter((key) => key !== 'existing')
@@ -259,7 +291,90 @@ function contextSettingsManaged(root: string): boolean {
       throw new Error('Invalid context ownership state');
     managed = true;
   }
-  return managed;
+  return { settings: managed, guard: guardManaged, launchers };
+}
+/** Descriptor-bounded read; configuration changes during ownership detection refuse. */
+function sourceGuardSettings(path: string): string | undefined {
+  let before: Stats;
+  try {
+    before = lstatSync(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+  const limit = 1024 * 1024;
+  if (!before.isFile() || before.nlink !== 1 || before.size > limit || !unaliased(path, physical(path)))
+    throw new Error('Unsafe source guard registration');
+  const fd = openSync(path, 'r');
+  try {
+    const opened = fstatSync(fd),
+      same = (value: Stats): boolean =>
+        value.isFile() &&
+        value.nlink === 1 &&
+        value.dev === before.dev &&
+        value.ino === before.ino &&
+        value.size === before.size &&
+        value.mtimeMs === before.mtimeMs &&
+        value.ctimeMs === before.ctimeMs;
+    if (!same(opened)) throw new Error('Source guard registration changed before read');
+    const content = Buffer.alloc(limit + 1);
+    let size = 0;
+    while (size <= limit) {
+      const read = readSync(fd, content, size, content.length - size, null);
+      if (read === 0) break;
+      size += read;
+    }
+    if (size > limit || !same(fstatSync(fd)) || !same(lstatSync(path)) || !unaliased(path, physical(path)))
+      throw new Error('Source guard registration changed while reading');
+    return new TextDecoder('utf-8', { fatal: true }).decode(content.subarray(0, size));
+  } finally {
+    closeSync(fd);
+  }
+}
+/** Recognize only the fixed source-launcher registration; an unrelated hook or filename establishes no ownership. */
+function sourceGuardRegistered(root: string): boolean {
+  const launcher = resolve(root, '.claude/hooks/steward-write.mjs');
+  try {
+    lstatSync(launcher);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+  for (const name of ['.claude/settings.json', '.claude/settings.local.json']) {
+    const content = sourceGuardSettings(resolve(root, name));
+    if (content === undefined || !content.includes('steward-write.mjs')) continue;
+    const value: unknown = decodeDistributionJson(content);
+    if (!object(value) || !object(value['hooks']) || !Array.isArray(value['hooks']['PreToolUse'])) continue;
+    for (const group of value['hooks']['PreToolUse']) {
+      if (!object(group) || group['matcher'] !== 'Write|Edit|MultiEdit' || !Array.isArray(group['hooks'])) continue;
+      for (const hook of group['hooks']) {
+        if (
+          !object(hook) ||
+          hook['type'] !== 'command' ||
+          typeof hook['command'] !== 'string' ||
+          !hook['command'] ||
+          !Array.isArray(hook['args']) ||
+          hook['args'].length !== 3
+        )
+          continue;
+        if (
+          hook['command'] !== 'node' &&
+          !(isAbsolute(hook['command']) && ['node', 'node.exe'].includes(fold(basename(hook['command']))))
+        )
+          continue;
+        const [entry, flag, selectedRoot] = hook['args'];
+        const samePath = (input: unknown, expected: string): boolean =>
+          typeof input === 'string' && isAbsolute(input) && fold(resolve(input)) === fold(expected);
+        if (
+          flag === '--root' &&
+          (entry === `\${CLAUDE_PROJECT_DIR}/.claude/hooks/steward-write.mjs` || samePath(entry, launcher)) &&
+          (selectedRoot === `\${CLAUDE_PROJECT_DIR}` || samePath(selectedRoot, root))
+        )
+          return true;
+      }
+    }
+  }
+  return false;
 }
 function actorMap(path: string, revision: string): ReadonlyMap<string, string> {
   if (!isAbsolute(path) || !unaliased(path, physical(path)))
@@ -362,7 +477,29 @@ export function evaluateHook(root: string, event: unknown, actorsPath?: string):
       return owned;
     };
     rule = spellings.reduce<Rule | undefined>((found, spelling) => found ?? protection(spelling, ownership), undefined);
-    if (spellings.includes('.claude/settings.local.json') && contextSettingsManaged(base)) rule = { projection: true };
+    const localSettings = spellings.includes('.claude/settings.local.json'),
+      projectSettings = spellings.includes('.claude/settings.json');
+    const sourceLauncher = spellings.includes('.claude/hooks/steward-write.mjs');
+    // A cached launcher can be outside the consumer root. Only the exact path in its owned guard marker is managed.
+    const possibleCacheLauncher = [target, actual].some((path) =>
+      fold(path).replaceAll('\\', '/').endsWith('/scripts/ia.mjs'),
+    );
+    if (localSettings || projectSettings || sourceLauncher || possibleCacheLauncher) {
+      const controls = contextSettingsManaged(base, localSettings),
+        sourceGuard = (localSettings || projectSettings || sourceLauncher) && sourceGuardRegistered(base);
+      const cacheLauncher =
+        possibleCacheLauncher &&
+        controls.launchers.some((path) =>
+          [target, actual].some((value) => fold(resolve(value)) === fold(resolve(path))),
+        );
+      if (
+        (localSettings && controls.settings) ||
+        ((localSettings || projectSettings) && (controls.guard || sourceGuard)) ||
+        (sourceLauncher && sourceGuard) ||
+        cacheLauncher
+      )
+        rule = { projection: true };
+    }
     if (rule !== undefined && !unaliased(target, actual))
       throw new Error('Protected path has an aliased ancestor or target');
     if (rule?.invalid) throw new Error('Cannot identify the owning system');
@@ -372,7 +509,7 @@ export function evaluateHook(root: string, event: unknown, actorsPath?: string):
   if (rule?.projection)
     return deny(
       'IA-HOOK-PROJECTION-MANAGED',
-      'Use the owning distribution/projection command; native installation and generated host state are managed',
+      'Use the owning command for generated state. Guard settings require a trusted operator edit outside intercepted assistant tools, preserving the guard, followed by registration qualification',
     );
   if (rule?.system === undefined) return {};
   try {

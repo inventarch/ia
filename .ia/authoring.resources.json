@@ -16,6 +16,13 @@
       "encoding": "utf8"
     },
     {
+      "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
       "path": ".ia/src/systems/agent-composition-system/README.md",
       "bytes": 118,
       "sha256": "e3b04d13b24ed797896a7da7ecf9703f8d437c02485d5c8b06549027bfa328df",
@@ -24,8 +31,43 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 326,
-      "sha256": "e4af6444a7ceb058a81e19d2f62c092bc1d672eaf6419b677d979050e389bd58",
+      "bytes": 1011,
+      "sha256": "9a6cd33e87bf8d33c382ef2ca42f33a1f0a599a2c3f7104d2a0a9513f29b3416",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/installed-read.md",
+      "bytes": 6428,
+      "sha256": "d03adfdab048a2c65bfa6e12983bd8689d2fdba99dab3f4e2b828710c2d4e070",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/public-spec.md",
+      "bytes": 1293,
+      "sha256": "c9041987e65ff71f174743a655171fc1cdababdc35a707696a1a815849f56a07",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/spec-read-boundary.md",
+      "bytes": 2732,
+      "sha256": "da3509ed70969ed1c63d5959383601c03be3857b88a784a19940b366f194e873",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/task-capture.md",
+      "bytes": 4878,
+      "sha256": "7af82d5e10e23fdf1c1d963b8427207f22610c036c7c8936436333475e073894",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -38,8 +80,15 @@
     },
     {
       "path": ".ia/src/systems/agent-system/SPEC.md",
-      "bytes": 314,
-      "sha256": "0c738d6631c3775bba0b266fe73b794a9bada890e9a7deed5a3c921d5363ef4f",
+      "bytes": 249,
+      "sha256": "b938032174da02789a9b8def370b4b2ae5ae79e749aa4bf6e4873de21eb51d13",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -52,8 +101,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/SPEC.md",
-      "bytes": 318,
-      "sha256": "6fdb9a58fd4e5ed5ccdc0784ad07e9db8efbf292f7232cdb6a939778c8be14ab",
+      "bytes": 253,
+      "sha256": "c6dc70ef62014d102588634b154c250d666158fa55b83194d865253837a975b1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -317,6 +366,13 @@
       "encoding": "utf8"
     },
     {
+      "path": ".ia/src/systems/authoring-system/reference/spec.md",
+      "bytes": 1030,
+      "sha256": "e886cddb6b24480b91e38be1a148fc01708d6f9b29870ba26939ada60472bccf",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
       "path": ".ia/src/systems/authoring-system/reference/system.md",
       "bytes": 639,
       "sha256": "0fd5faafc7543e4b68d128bc3f825a9a79039e7ce20a122ace60ed5421b650b5",
@@ -359,58 +415,93 @@
       "encoding": "utf8"
     },
     {
+      "path": ".ia/src/systems/compliance-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
       "path": ".ia/src/systems/compliance-system/README.md",
-      "bytes": 245,
-      "sha256": "d453d5d68aef010a6c3dae4b4a7ad949ca768ef6b3a0c2efd7200f4ca19466d1",
+      "bytes": 111,
+      "sha256": "1b8baf7ad8a09d238d6cf15a92d7df85b9c44c67cecf75642f5f33575441c7a6",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/compliance-system/SPEC.md",
-      "bytes": 263,
-      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "bytes": 254,
+      "sha256": "4bef22c4bd82f760ff3b4e520e6c440572a5e25618abccfc051976d78f6ff2da",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/governance-system/README.md",
-      "bytes": 245,
-      "sha256": "cb6c5b7f2fbf7364fb86ee857bc701508cb2458da5cee432c93c44c0ccd129f0",
+      "bytes": 111,
+      "sha256": "c20ff76b3bea7ba7257c17e8fa87c083d23e8e9f1859fdfe96f4f405355eca0c",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/governance-system/SPEC.md",
-      "bytes": 263,
-      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "bytes": 254,
+      "sha256": "2e9de68ff06ac48335451ecc4d884768b6c12515749a3349f85c0a7a3db285cd",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/README.md",
-      "bytes": 249,
-      "sha256": "02e96367920b4020f128935ab919f8825f083077800b3e91957e098b0858af5b",
+      "bytes": 115,
+      "sha256": "03fec22c8ed50bc4a595e68fd4eb413140ed6a2f471c495fc5fcd16bbb6c59df",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/SPEC.md",
-      "bytes": 263,
-      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "bytes": 258,
+      "sha256": "c8dcd6a754b437bd7a1dfe9b6ea074d4a24dd13c2c6d02030f04eae3d472303d",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/learning-system/README.md",
-      "bytes": 243,
-      "sha256": "35d18b88266c8a4c192784ef5782f3d46dee727261403725f9a053f173faff17",
+      "bytes": 109,
+      "sha256": "8f3125b0bebf786a69aae54928f35b1535d6d3aa2942b8d43363f7d979b3e43d",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/learning-system/SPEC.md",
-      "bytes": 263,
-      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "bytes": 252,
+      "sha256": "c1322307ce22cd3b11a81a4738caaf17c16a777fbff1ded70cbe653e1df30b8c",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/session-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -423,8 +514,15 @@
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md",
-      "bytes": 316,
-      "sha256": "41a58d883c753bf2a132366fe4fc4bcaeffac90001b1a55fbcca2c46c2f6d5a3",
+      "bytes": 251,
+      "sha256": "e5d18545a735d2c991af04453cad1d0be06179be45e2b4743aa765e0b0589975",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/template-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -437,36 +535,50 @@
     },
     {
       "path": ".ia/src/systems/template-system/SPEC.md",
-      "bytes": 317,
-      "sha256": "bd0ed4be403f8e78792492a6b3e040c63c9824fb43e53c818cea86f5a8759f48",
+      "bytes": 252,
+      "sha256": "f93fcafe645dc78360888476cc4d721bb234f1a09e4829088000551a936d7e93",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/work-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/work-system/README.md",
-      "bytes": 239,
-      "sha256": "ca718055509c0cf981bedae39685a34e707b2bb7902ced4378f58ef1e2b120a3",
+      "bytes": 105,
+      "sha256": "5e4644a67d1d2c88c15fa503cedcf324eb3df23e3020ebfd893967b47524008c",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/work-system/SPEC.md",
-      "bytes": 263,
-      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "bytes": 248,
+      "sha256": "9f9c07f3de3f0389f998015266382da6c81d41af08e3e4894c5bf4bdf05682c0",
+      "mediaType": "text/markdown",
+      "encoding": "utf8"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/LANGUAGE.md",
+      "bytes": 6519,
+      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/workspace-system/README.md",
-      "bytes": 244,
-      "sha256": "5b1c549020f7209cd4a07e3ef2e6a5d6d1798aa60d1e8554222960c8bdea66fa",
+      "bytes": 110,
+      "sha256": "2f5d25d696e16711b8bc095d26217463a3659260a0daccddf5d014b20d308d35",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/workspace-system/SPEC.md",
-      "bytes": 263,
-      "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5",
+      "bytes": 253,
+      "sha256": "6718c0a021e127cef522e0cc0617d397f27db32291148306fedfddced732e112",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     }
@@ -1179,6 +1291,25 @@
       "owner": {
         "source": "self",
         "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-work-system-spec"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/spec.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
         "identity": "authoring-system/definition/authoring-guide/public-floor-system"
       },
       "resources": [
@@ -1315,6 +1446,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1342,6 +1483,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/compliance-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1373,6 +1524,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/workspace-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1400,6 +1561,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/governance-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1431,6 +1602,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/session-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1458,6 +1639,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1489,6 +1680,56 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/installed-read.md"
+          },
+          "role": "support",
+          "order": 2,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/public-spec.md"
+          },
+          "role": "support",
+          "order": 3,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/spec-read-boundary.md"
+          },
+          "role": "support",
+          "order": 4,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/task-capture.md"
+          },
+          "role": "support",
+          "order": 5,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1516,6 +1757,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/template-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1547,6 +1798,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1576,6 +1837,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/learning-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1603,6 +1874,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/work-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1656,6 +1937,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/agent-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1683,6 +1968,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/compliance-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/compliance-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1710,6 +1999,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/workspace-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/workspace-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1737,6 +2030,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/governance-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/governance-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1764,6 +2061,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/session-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/session-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1791,6 +2092,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/authoring-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1818,6 +2123,26 @@
           {
             "source": "self",
             "path": ".ia/src/systems/agent-composition-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/installed-read.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/public-spec.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/spec-read-boundary.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/task-capture.md"
           }
         ],
         "extensions": [],
@@ -1845,6 +2170,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/template-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/template-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1872,6 +2201,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/hook-authoring-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1899,6 +2232,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/learning-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/learning-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1926,6 +2263,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/work-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/work-system/LANGUAGE.md"
           }
         ],
         "extensions": [],

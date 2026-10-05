@@ -76,7 +76,7 @@ it('resolves the shipped native library, zero-word systems and actual shared doc
       allowedDocuments: local.index.documents.map((d) => d.id),
     });
     expect(view.catalogue.complete).toBe(true);
-    expect(view.guides).toHaveLength(43);
+    expect(view.guides).toHaveLength(44);
     expect(view.guides.filter((g) => g.status !== 'resolved')).toEqual([]);
     expect(view.systems).toHaveLength(12);
     expect(view.systems.filter((s) => s.status !== 'resolved')).toEqual([]);

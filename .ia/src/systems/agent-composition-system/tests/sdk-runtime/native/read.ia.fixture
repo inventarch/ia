@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@operation sdk-example-read
+  meaning
+    says "Return the fixed public label supplied by the example host."
+    answers "Which operation reads the example label?"
+  execution
+    handler sdk-example-read-v1
+    effects read-only
+    input sdk-example-task-v1
+    output sdk-example-task-v1
+    profile governed-v1
+    recovery repeatable

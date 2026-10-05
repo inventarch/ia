@@ -63,9 +63,19 @@ export function languageBaseDescriptor(version: string, engine = `^${DISTRIBUTIO
   };
 }
 
-/** The `@inventarch/cli` version is the base version: M5.1 §3.3's lockstep rule. */
-export const cliVersion = (root: string): string =>
-  (JSON.parse(readFileSync(resolve(root, 'apps/cli/package.json'), 'utf8')) as { version: string }).version;
+/** Independently selected native version; npm and protocol versions do not supply it. */
+export function languageVersion(root: string): string {
+  const policy = JSON.parse(readFileSync(resolve(root, 'examples/public-language/versions.json'), 'utf8')) as {
+    format: string;
+    language: string;
+  };
+  if (
+    policy.format !== 'ia.public-native-versions.v1' ||
+    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(policy.language)
+  )
+    throw new Error('Invalid native language version policy');
+  return policy.language;
+}
 
 export function buildLanguageBase(
   root: string,
@@ -74,7 +84,7 @@ export function buildLanguageBase(
   const { inputs, folders } = languagePackageInputs(root);
   const packed = packSnapshot(
     distributionSnapshot({ sources: inputs, folders, floorOrigin: 'local' }),
-    languageBaseDescriptor(options.version ?? cliVersion(root), options.engine),
+    languageBaseDescriptor(options.version ?? languageVersion(root), options.engine),
     new Map(['LICENSE', 'NOTICE'].map((path) => [path, readFileSync(resolve(root, path))])),
   );
   return {
@@ -96,14 +106,14 @@ export function buildLanguageBase(
 export function languageBaseFindings(input: {
   readonly pin: BasePin;
   readonly bytes: Uint8Array;
-  readonly cliVersion: string;
+  readonly languageVersion: string;
   readonly engineVersion: string;
 }): readonly string[] {
   const { pin, bytes } = input,
     findings: string[] = [];
   if (pin.id !== BASE_ID) findings.push(`Pinned id ${pin.id} is not ${BASE_ID}`);
-  if (pin.version !== input.cliVersion)
-    findings.push(`Pinned version ${pin.version} differs from @inventarch/cli ${input.cliVersion}`);
+  if (pin.version !== input.languageVersion)
+    findings.push(`Pinned version ${pin.version} differs from native language policy ${input.languageVersion}`);
   const digest = createHash('sha256').update(bytes).digest('hex');
   if (digest !== pin.archive) findings.push(`Archive digest ${digest} differs from the pinned ${pin.archive}`);
   try {
@@ -140,7 +150,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
   const base = buildLanguageBase(root);
   const findings = languageBaseFindings({
     ...base,
-    cliVersion: cliVersion(root),
+    languageVersion: languageVersion(root),
     engineVersion: DISTRIBUTION_ENGINE_VERSION,
   });
   if (findings.length > 0) {

@@ -1,13 +1,16 @@
 /**
  * Host plugin distribution spec §6.3 (amended, item 5) and §2.3: Claude's own CLI does the registering and reports its
  * own state through its `--json` lists; Claude's files are never read or written here. `IA_CLAUDE` names a Node
- * script to run instead of `claude`; it exists for tests and is not a user-facing setting.
+ * script to run instead of `claude`; it exists for tests and is not a user-facing setting. `claude` itself is found on
+ * qualified PATH entries and run by absolute path from the home directory (#436, src/program.ts).
  */
 import { spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { CLAUDE_MARKETPLACE, CLAUDE_PLUGIN } from '@inventarch/compliance';
 import { Refusal } from './consumer.js';
+import type { LookupFs } from './program.js';
+import { findProgram, programEnv, programHome, SYSTEM, windowsShell, windowsShellArgs } from './program.js';
 
 type Env = Readonly<Record<string, string | undefined>>;
 export const PLUGIN_ID = `${CLAUDE_PLUGIN}@${CLAUDE_MARKETPLACE}`;
@@ -85,13 +88,25 @@ export type Spawn = (
 export interface RunnerDependencies {
   readonly platform: NodeJS.Platform;
   readonly spawn: Spawn;
+  /** The file system the lookup of `claude` reads; the real one unless a test runs the Windows rules elsewhere. */
+  readonly fs?: LookupFs;
 }
 const DEFAULTS: RunnerDependencies = {
   platform: process.platform,
   spawn: (command, args, options) => spawnSync(command, [...args], { ...options, encoding: 'utf8' }),
 };
+/** What a spawn of a missing program returns, for a `claude` the lookup did not find: nothing is started. */
+const missing = (): SpawnSyncReturns<string> => ({
+  pid: 0,
+  output: [],
+  stdout: '',
+  stderr: '',
+  status: null,
+  signal: null,
+  error: Object.assign(new Error('claude was not found on a qualified PATH entry'), { code: 'ENOENT' }),
+});
 /**
- * One argument on the cmd.exe line of the Windows fallback. cmd.exe expands `%NAME%` even inside quotes and a `"`
+ * One argument on the cmd.exe line that runs a `claude.cmd`. cmd.exe expands `%NAME%` even inside quotes and a `"`
  * ends the quoting, so neither can be passed safely; such an argument refuses rather than being quoted.
  */
 function cmdArgument(value: string): string {
@@ -107,14 +122,22 @@ function cmdArgument(value: string): string {
 }
 export function claudeRunner(env: Env, dependencies: RunnerDependencies = DEFAULTS): ClaudeRunner {
   const { platform, spawn } = dependencies;
+  const system = { platform, fs: dependencies.fs ?? SYSTEM.fs };
   const fake = env['IA_CLAUDE'];
+  // #436: found once, on qualified PATH entries only. A claude.exe anywhere there runs with no shell, so no argument is
+  // reinterpreted; only without one does the claude.cmd an npm install leaves run, through cmd.exe named by its path.
+  const program = fake === undefined ? findProgram('claude', env, 'program', system) : null;
+  const script = fake === undefined && program === null ? findProgram('claude', env, 'script', system) : null;
+  const options = { cwd: programHome(), env: programEnv(env, platform) };
   const real = (args: readonly string[], timeout: number): SpawnSyncReturns<string> => {
-    if (platform !== 'win32') return spawn('claude', args, { timeout, windowsHide: true });
-    // Windows: a claude.exe on PATH runs with no shell, so no argument is reinterpreted. Node resolves no .cmd file
-    // without a shell, so only a missing executable falls back to the cmd.exe line an npm shim needs.
-    const direct = spawn('claude', args, { shell: false, timeout, windowsHide: true });
-    if ((direct.error as NodeJS.ErrnoException | undefined)?.code !== 'ENOENT') return direct;
-    return spawn(['claude', ...args].map(cmdArgument).join(' '), [], { shell: true, timeout, windowsHide: true });
+    if (program !== null) return spawn(program, args, { ...options, timeout, windowsHide: true });
+    if (script === null) return missing();
+    return spawn(windowsShell(env), windowsShellArgs(script, args.map(cmdArgument)), {
+      ...options,
+      timeout,
+      windowsHide: true,
+      windowsVerbatimArguments: true,
+    });
   };
   const fakeEnv = (): Record<string, string | undefined> => ({
     ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !FAKE_VARIABLE.test(name))),

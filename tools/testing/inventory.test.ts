@@ -203,7 +203,7 @@ it('checks the actual repository manifest for shape, coverage and qualification 
   expect(validateManifest({ manifest, projects, discovery, leaves: qualificationLeaves(root), tracked: [] })).toEqual(
     [],
   );
-  expect(trackedTestFiles(root).length).toBe(208);
+  expect(trackedTestFiles(root).length).toBe(221);
 });
 
 it('exposes the declared timeout profiles and refuses a worker limit above a ceiling', () => {
@@ -301,12 +301,12 @@ it('hashes CI configuration only in the tools tasks that read it', () => {
  * silently reuse results computed without it.
  */
 const RESULT_NEUTRAL_WORKFLOW_ENV: Readonly<Record<string, string>> = {
+  RELEASE_SHA: 'Exact-commit publication prerequisite, outside every Nx task',
+  RELEASE_VERSION: 'Requested publication version, outside every Nx task',
   IA_FULL: 'selects --full, which bypasses reuse; it never reaches a task',
   HOMEBREW_NO_AUTO_UPDATE: 'Homebrew smoke step only, outside every Nx task',
   HOMEBREW_NO_INSTALL_CLEANUP: 'Homebrew smoke step only, outside every Nx task',
   GH_TOKEN: "the Plan job's lookup of the last successful scheduled run, a gh call outside every Nx task",
-  RELEASE_SHA: 'selects the npm release quality run outside every Nx task',
-  RELEASE_VERSION: 'selects the npm release version outside every Nx task',
   IA_REVIEW_RUN_ID: 'selects an upstream run for the uncached advisory review caller, outside every Nx task',
   IA_REVIEW_API: 'API origin for the uncached advisory review caller, outside every Nx task',
   IA_REVIEW_BINDING: 'workload binding for the uncached advisory review caller, outside every Nx task',
@@ -355,4 +355,16 @@ it('declares every workflow env key a task could read as an Nx env input', () =>
   expect([...keys].filter((key) => !declared.has(key) && !(key in RESULT_NEUTRAL_WORKFLOW_ENV))).toEqual([]);
   // A key that is both declared and allowlisted, or allowlisted but gone, is a stale reason.
   expect(Object.keys(RESULT_NEUTRAL_WORKFLOW_ENV).filter((key) => declared.has(key) || !keys.has(key))).toEqual([]);
+});
+
+it('refuses unknown capability predicates in declared skips', () => {
+  const skip = {
+    case: 'tests/a.test.ts > fixture',
+    reason: 'Named capability.',
+    platforms: ['windows'] as const,
+    when: 'file-symlink-unavailable' as const,
+  };
+  expect(check([task({ skips: [skip] })])).toEqual([]);
+  const invalid = JSON.parse(JSON.stringify({ ...skip, when: 'invented-capability' }));
+  expect(check([task({ skips: [invalid] })]).join('\n')).toContain('unknown skip condition');
 });

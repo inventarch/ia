@@ -27,7 +27,10 @@ export interface DeclaredSkip {
   readonly case: string;
   readonly reason: string;
   readonly platforms?: readonly Platform[];
+  /** Requires execution provenance to prove the named capability is absent. */
+  readonly when?: 'file-symlink-unavailable';
 }
+
 interface TaskBase {
   readonly taskTimeoutMs?: number;
   readonly id: string;
@@ -283,6 +286,8 @@ export function validateManifest(input: ValidationInput): readonly string[] {
     if (task.cache && !task.outputs?.length) findings.push(`${label}: a cacheable task must declare its outputs`);
     if (!task.cache && !task.reason) findings.push(`${label}: an uncacheable task must record why`);
     for (const skip of task.skips ?? []) {
+      if (skip.when !== undefined && skip.when !== 'file-symlink-unavailable')
+        findings.push(label + ': unknown skip condition ' + String(skip.when));
       if (!skip.case?.trim() || !skip.reason?.trim())
         findings.push(`${label}: an intentional skip needs a case and a named reason`);
       for (const platform of skip.platforms ?? []) {

@@ -59,11 +59,12 @@ export const descriptions: Readonly<Record<string, string>> = {
   milestone:
     'Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it.',
   task: "Represents one owner's action toward exactly one milestone. Whether it is ready to start is computed by a work evaluator, never stored on the record.",
+  spec: 'Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality.',
   decision:
     'Represents a choice that is needed or has been made: the question, options and decider, and once made, the choice and rationale.',
 };
-export function vocabulary(root: string) {
-  const { inputs, folders } = publicLanguageInputs(root),
+export function vocabulary(root: string, read?: (path: string) => string) {
+  const { inputs, folders } = publicLanguageInputs(root, undefined, read),
     corpus = checkNative(inputs, folders);
   if (!corpus.ok) throw new Error('Public contract corpus does not conform');
   const words = [...corpus.registry.registrations.values()]
@@ -117,7 +118,7 @@ export function vocabulary(root: string) {
   return {
     version: 1,
     language: 'ia 1.0',
-    status: 'public IA 1.0 language contract',
+    status: 'public contract examples; release packaging pending',
     sourceDigest: createHash('sha256').update(JSON.stringify(inputs)).digest('hex'),
     words,
   };
@@ -178,8 +179,8 @@ export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string 
   }
   return lines.join('\n');
 }
-export function vocabularyOutputs(root: string) {
-  const data = vocabulary(root);
+export function vocabularyOutputs(root: string, read?: (path: string) => string) {
+  const data = vocabulary(root, read);
   return { 'vocabulary.json': JSON.stringify(data, null, 2) + '\n', 'vocabulary.md': vocabularyMarkdown(data) };
 }
 /**
@@ -214,6 +215,6 @@ if (isEntry(process.argv[1], import.meta.url)) {
       throw new Error(`Public vocabulary drift: ${name}`);
   }
   console.log(
-    'Public vocabulary: 43 documented words; schema, reference projection and shipped CLI and door catalogues verified.',
+    'Public vocabulary: 44 documented words; schema, reference projection and shipped CLI and door catalogues verified.',
   );
 }

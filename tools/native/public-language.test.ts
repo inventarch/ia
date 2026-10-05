@@ -39,7 +39,7 @@ describe('public language conformance', () => {
   it('admits a closed public corpus and compiles an original method without private authored inputs', () => {
     expect(baseline.ok).toBe(true);
     expect(baseline.graph.dangling).toEqual([]);
-    expect(baseline.native.registry.registrations.size).toBe(43);
+    expect(baseline.native.registry.registrations.size).toBe(44);
     expect(baseline.folders).toHaveLength(11);
     expect(
       baseline.inputs.some((i) =>
@@ -61,6 +61,29 @@ describe('public language conformance', () => {
       for (const key of ['system', 'kind', 'category', 'facets', 'schema'] as const)
         expect(registration[key]).toEqual(source[key]);
     }
+  });
+  it('flags any public system that lags its native source without an acknowledged divergence', () => {
+    // Every public contract mirrors its native system's version and words unless the divergence is listed here.
+    // Existing spec is explicitly selected; public work-system matches its native declaration.
+    const acknowledged: Record<string, { version: [string, string]; nativeOnly: string[] }> = {};
+    const nativeInputs = readNative(root).inputs,
+      original = compileNative(nativeInputs);
+    const version = (inputs: readonly { path: string; text: string }[], system: string) =>
+      /^ {2}version "([^"]+)"$/m.exec(inputs.find((i) => i.path === `.ia/src/systems/${system}/system.ia`)!.text)![1]!;
+    const words = (registrations: typeof original.registry.registrations, system: string) =>
+      [...registrations]
+        .filter(([, r]) => r.system === system)
+        .map(([word]) => word)
+        .sort();
+    const observed = Object.fromEntries(
+      baseline.folders.flatMap((system) => {
+        const pair: [string, string] = [version(baseline.inputs, system), version(nativeInputs, system)];
+        const publicWords = words(baseline.native.registry.registrations, system);
+        const nativeOnly = words(original.registry.registrations, system).filter((w) => !publicWords.includes(w));
+        return pair[0] === pair[1] && nativeOnly.length === 0 ? [] : [[system, { version: pair, nativeOnly }]];
+      }),
+    );
+    expect(observed).toEqual(acknowledged);
   });
   it('refuses dangling boundary relationships', () => {
     const result = changed('architecture.ia', 'uses @workspace example-storage', 'uses @workspace missing-storage');

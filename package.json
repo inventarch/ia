@@ -2,7 +2,7 @@
   "name": "@inventarch/workspace",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@12.9.0",
   "engines": {
     "node": ">=22.22.0 <23"
   },
@@ -48,7 +48,8 @@
     "npm:prepare": "pnpm build && node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs && pnpm packages:qualify --pack-destination artifacts/npm",
     "npm:plan": "node tools/distribution/npm-release.mjs plan",
     "npm:consumer": "node tools/distribution/npm-consumer.mjs",
-    "npm:trust-commands": "node tools/distribution/npm-release.mjs trust-commands"
+    "npm:trust-commands": "node tools/distribution/npm-release.mjs trust-commands",
+    "npm:inputs": "node tools/release/public-pack.mjs refresh-inputs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

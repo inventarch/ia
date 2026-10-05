@@ -92,7 +92,9 @@ it('protects settings.local.json while a guard ownership marker or guard journal
     };
   write(root, 'claude-guard-workspace.json', guard);
   expect(check(root).hookSpecificOutput?.permissionDecisionReason).toContain('IA-HOOK-PROJECTION-MANAGED');
-  expect(check(root, '.claude/settings.json')).toEqual({});
+  expect(check(root, '.claude/settings.json').hookSpecificOutput?.permissionDecisionReason).toContain(
+    'IA-HOOK-PROJECTION-MANAGED',
+  );
   const other = fixture();
   write(other, 'guard-pending.json', {
     format: 'ia.guard-registration-pending.v1',

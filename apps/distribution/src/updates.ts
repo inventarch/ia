@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
+import type { SpawnSyncReturns } from 'node:child_process';
 import { SUPPORTED_VERSIONS } from '@inventarch/language';
 import { readHomeFile, writeHomeFile } from './ia-home.js';
+import { findProgram, programEnv, programHome, windowsShell, windowsShellArgs } from './program.js';
 
 /** Host plugin distribution spec §11 and Amendment item 4. Public layer only: `account` is written by the private layer and kept as found; `nudgedOn` lives in the hook's plugin data, never here. */
 export const UPDATE_CHECK = 'state/update-check.json';
@@ -93,27 +95,51 @@ export interface Sources {
   readonly npm: (name: string) => string | null;
   readonly git: (cwd: string, args: readonly string[]) => string | null;
 }
-/** npm's package-name grammar; the name reaches a shell on Windows, so anything else is never looked up. */
+/** npm's package-name grammar; the name reaches cmd.exe on Windows, so anything else is never looked up. */
 const NPM_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
+/**
+ * #436: npm and git are found on qualified PATH entries only and run by absolute path from the home directory, with
+ * only those entries in their PATH (src/program.ts), so a refresh run by hand from a repository cannot start a program
+ * planted there. npm is npm.cmd on Windows, run through cmd.exe named by its path; the name has passed NPM_NAME, so it
+ * holds no character cmd.exe would read.
+ */
+const run = (name: string, args: readonly string[], timeout: number): SpawnSyncReturns<string> | null => {
+  const options = {
+    cwd: programHome(),
+    env: programEnv(process.env),
+    encoding: 'utf8' as const,
+    timeout,
+    windowsHide: true,
+  };
+  const program = findProgram(name, process.env);
+  if (program !== null) return spawnSync(program, args, options);
+  const script = findProgram(name, process.env, 'script');
+  return script === null
+    ? null
+    : spawnSync(windowsShell(process.env), windowsShellArgs(script, args), {
+        ...options,
+        windowsVerbatimArguments: true,
+      });
+};
 export const liveSources: Sources = {
-  // One command string with `shell: true`: npm is npm.cmd on Windows, and an argument array beside a shell is DEP0190.
   npm: (name) => {
     if (!NPM_NAME.test(name)) return null;
-    const r = spawnSync(`npm view ${name} dist-tags.latest --json`, {
-      shell: true,
-      encoding: 'utf8',
-      timeout: 15000,
-      windowsHide: true,
-    });
+    const r = run('npm', ['view', name, 'dist-tags.latest', '--json'], 15000);
     try {
-      const v: unknown = r.status === 0 ? JSON.parse(r.stdout) : null;
+      const v: unknown = r !== null && r.status === 0 ? JSON.parse(r.stdout) : null;
       return typeof v === 'string' ? v : null;
     } catch {
       return null;
     }
   },
+  // git is looked up as a program only (git.com or git.exe on Windows), never as a script through cmd.exe: its
+  // arguments carry the --checkout path, which nothing screens for cmd.exe.
   git: (cwd, args) => {
-    const r = spawnSync('git', ['--no-optional-locks', '-C', cwd, ...args], {
+    const git = findProgram('git', process.env);
+    if (git === null) return null;
+    const r = spawnSync(git, ['--no-optional-locks', '-C', cwd, ...args], {
+      cwd: programHome(),
+      env: programEnv(process.env),
       encoding: 'utf8',
       timeout: 5000,
       windowsHide: true,

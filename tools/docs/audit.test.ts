@@ -37,6 +37,7 @@ afterEach(() => {
 it('executes the catalog CLI through a linked directory instead of silently skipping validation', () => {
   const root = fixture({
     'tools/docs/catalog.mjs': readFileSync(new URL('./catalog.mjs', import.meta.url), 'utf8'),
+    'tools/docs/portfolio.mjs': readFileSync(new URL('./portfolio.mjs', import.meta.url), 'utf8'),
     'tools/docs/markdown.mjs': readFileSync(new URL('./markdown.mjs', import.meta.url), 'utf8'),
     'tools/entry/is-entry.mjs': readFileSync(new URL('../entry/is-entry.mjs', import.meta.url), 'utf8'),
     'docs/documentation.json': JSON.stringify({
@@ -184,6 +185,75 @@ it('refuses flat, dated and mixed-case lifecycle entries even when registered in
     });
     expect(() => generateCatalog(root)).toThrow('lowercase topic bundle');
   }
+});
+
+it('requires complete metadata from every lifecycle entry the legacy list does not name', () => {
+  const path = 'docs/specs/one/README.md',
+    source = '---\nid: spec-one\ngenre: spec\ntitle: One\nstatus: draft\ncreated: 2026-09-30\n---\n# One\n';
+  const policy = (legacyMetadata: string[]) =>
+    JSON.stringify({
+      format: 'ia-documentation-policy/1',
+      repository: 'fixture/repo',
+      expected: [{ id: 'spec-one', path, profile: 'lifecycle' }],
+      legacyMetadata,
+    });
+  const root = fixture({ [path]: source, 'docs/documentation.json': policy([]) });
+  expect(checkStructure(root, { generated: false }).findings).toEqual([
+    `${path}: owners required`,
+    `${path}: required last-reviewed missing`,
+  ]);
+  writeFileSync(
+    resolve(root, path),
+    source.replace('created: 2026-09-30', 'created: Sept 2026\nowners: [maintainer]\nlast-reviewed: 2026-09-30'),
+  );
+  expect(checkStructure(root, { generated: false }).findings).toEqual([`${path}: invalid created`]);
+  writeFileSync(resolve(root, 'docs/documentation.json'), policy(['spec-one']));
+  expect(checkStructure(root, { generated: false }).findings).toEqual([]);
+});
+
+it('keeps the legacy metadata list to known, unique, still-incomplete lifecycle identities', () => {
+  const path = 'docs/specs/one/README.md',
+    incomplete = '---\nid: spec-one\ngenre: spec\ntitle: One\nstatus: draft\n---\n# One\n';
+  const policy = (legacyMetadata: string[]) =>
+    JSON.stringify({
+      format: 'ia-documentation-policy/1',
+      repository: 'fixture/repo',
+      expected: [{ id: 'spec-one', path, profile: 'lifecycle' }],
+      legacyMetadata,
+    });
+  const root = fixture({ [path]: incomplete, 'docs/documentation.json': policy(['spec-one']) });
+  expect(checkStructure(root, { generated: false }).findings).toEqual([]);
+  writeFileSync(resolve(root, 'docs/documentation.json'), policy(['spec-one', 'spec-missing']));
+  expect(checkStructure(root, { generated: false }).findings).toEqual([
+    'legacyMetadata: spec-missing is not a lifecycle identity in the documentation inventory',
+  ]);
+  writeFileSync(resolve(root, 'docs/documentation.json'), policy(['spec-one', 'spec-one']));
+  expect(checkStructure(root, { generated: false }).findings).toEqual(['legacyMetadata: duplicate entry spec-one']);
+  writeFileSync(resolve(root, 'docs/documentation.json'), policy(['spec-one']));
+  writeFileSync(
+    resolve(root, path),
+    incomplete.replace(
+      'status: draft',
+      'status: draft\nowners: [maintainer]\ncreated: 2026-09-30\nlast-reviewed: 2026-09-30',
+    ),
+  );
+  expect(checkStructure(root, { generated: false }).findings).toEqual([
+    `${path}: metadata passes the current profile; remove spec-one from legacyMetadata`,
+  ]);
+  writeFileSync(resolve(root, 'docs/documentation.json'), policy([]));
+  expect(checkStructure(root, { generated: false }).findings).toEqual([]);
+  writeFileSync(
+    resolve(root, 'docs/documentation.json'),
+    JSON.stringify({
+      format: 'ia-documentation-policy/1',
+      repository: 'fixture/repo',
+      expected: [],
+      legacyMetadata: 'spec-one',
+    }),
+  );
+  expect(checkStructure(root, { generated: false }).findings).toContain(
+    'Invalid documentation policy: legacyMetadata must list identity strings',
+  );
 });
 
 it('keeps identity-free pointers and snapshots out of current identities, and resolves only local IDs', () => {

@@ -63,6 +63,39 @@ const scalar = (record: CompiledRecord, section: string, key: string): string | 
 };
 const entries = (list: readonly CompiledRecord[]): string =>
   list.map((r) => `- ${r.name}: ${says(r)} (${r.source.path}:${r.source.line})`).join('\n');
+const mandateLimits = [
+  'limit-steps',
+  'limit-model-calls',
+  'limit-operations',
+  'limit-tokens',
+  'limit-children',
+  'limit-depth',
+  'limit-bytes',
+  'limit-duration-ms',
+];
+/** This prose host supports a closed subset; admitted executable fields must never disappear silently. */
+function executionSubset(record: CompiledRecord, allowed: readonly string[]): void {
+  const seen = new Set<string>();
+  for (const field of record.sections
+    .filter((section) => section.name === 'execution')
+    .flatMap((section) => section.fields)) {
+    if (!('key' in field)) return fail(`${record.discriminator} ${record.name}: unsupported execution item`);
+    if (!allowed.includes(field.key) || seen.has(field.key) || field.when || field.fields)
+      fail(`${record.discriminator} ${record.name}: unsupported, duplicate or conditional execution.${field.key}`);
+    seen.add(field.key);
+    if (field.key.startsWith('limit-')) {
+      const value = Number(text(field.value));
+      if (
+        !['scalar', 'string', 'prose'].includes(field.value.kind) ||
+        !text(field.value).trim() ||
+        !Number.isSafeInteger(value) ||
+        value < 0 ||
+        (field.key === 'limit-duration-ms' && value === 0)
+      )
+        fail(`Mandate ${record.name}: invalid execution.${field.key}`);
+    }
+  }
+}
 
 /**
  * Compose one steward from the `@agent-profile` whose `composition.agent` names it. Reads compiled records
@@ -100,6 +133,7 @@ function compose(
   if (profiles.length > 1) fail(`Steward ${agent.name} has ${profiles.length} @agent-profile records; expected one`);
   const profile = profiles[0]!,
     where = `Steward profile ${profile.name}`;
+  executionSubset(profile, ['role', 'outcomes', 'mandate-contract']);
   const role = scalar(profile, 'execution', 'role'),
     outcomes = scalar(profile, 'execution', 'outcomes'),
     contract = scalar(profile, 'execution', 'mandate-contract');
@@ -122,6 +156,7 @@ function compose(
     'mandate',
     `${where}: composition.mandate`,
   );
+  executionSubset(mandate, ['contract', ...mandateLimits]);
   const mandateContract = scalar(mandate, 'execution', 'contract');
   if (mandateContract !== undefined && mandateContract !== STEWARD_HOST_TABLE.mandateContract)
     fail(
@@ -145,6 +180,7 @@ function compose(
     capabilityText: string[] = [];
   for (const value of capabilityRefs) {
     const capability = resolve(records, value, 'capability', `${where}: composition.capabilities`);
+    executionSubset(capability, ['effects']);
     if (refs(fieldOf(capability, 'composition', 'includes')?.value).length > 0)
       fail(`Capability ${capability.name}: composition.includes is not expanded for a steward`);
     const listed = (key: string, discriminator: string): CompiledRecord[] =>
@@ -184,7 +220,7 @@ function compose(
             .join('\n')}`,
         ];
   const body = [
-    `## Mandate\n\nSource: ${cite(mandate)}\n\n${says(mandate)}\n\n${bounds.text}${limits.length ? `\n\nLimits: ${limits.join('; ')}.` : ''}`,
+    `## Mandate\n\nSource: ${cite(mandate)}\n\n${says(mandate)}\n\n${bounds.text}${limits.length ? `\n\nAdvisory limits (this prose projection does not enforce runtime ceilings): ${limits.join('; ')}.` : ''}`,
     ...voiceText,
     `## Capabilities\n\nSource: ${cite(profile)}\n\n${capabilityText.join('\n\n')}`,
   ].join('\n\n');

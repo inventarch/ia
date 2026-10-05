@@ -1,0 +1,78 @@
+#! ia 1.0
+
+@distribution package-agent-composition-system
+  meaning
+    says "The independently identified archive owned by agent-composition-system with explicit dependencies."
+    answers "Which declared records belong to the agent-composition-system native archive?"
+  distribution
+    records [@system agent-composition-system]
+
+@distribution package-agent-system
+  meaning
+    says "The independently identified archive owned by agent-system with explicit dependencies."
+    answers "Which declared records belong to the agent-system native archive?"
+  distribution
+    records [@system agent-system]
+
+@distribution package-authoring-system
+  meaning
+    says "The independently identified archive owned by authoring-system with explicit dependencies."
+    answers "Which declared records belong to the authoring-system native archive?"
+  distribution
+    records [@system authoring-system]
+
+@distribution package-compliance-system
+  meaning
+    says "The independently identified archive owned by compliance-system with explicit dependencies."
+    answers "Which declared records belong to the compliance-system native archive?"
+  distribution
+    records [@system compliance-system]
+
+@distribution package-governance-system
+  meaning
+    says "The independently identified archive owned by governance-system with explicit dependencies."
+    answers "Which declared records belong to the governance-system native archive?"
+  distribution
+    records [@system governance-system]
+
+@distribution package-hook-authoring-system
+  meaning
+    says "The independently identified archive owned by hook-authoring-system with explicit dependencies."
+    answers "Which declared records belong to the hook-authoring-system native archive?"
+  distribution
+    records [@system hook-authoring-system]
+
+@distribution package-learning-system
+  meaning
+    says "The independently identified archive owned by learning-system with explicit dependencies."
+    answers "Which declared records belong to the learning-system native archive?"
+  distribution
+    records [@system learning-system]
+
+@distribution package-session-system
+  meaning
+    says "The independently identified archive owned by session-system with explicit dependencies."
+    answers "Which declared records belong to the session-system native archive?"
+  distribution
+    records [@system session-system]
+
+@distribution package-template-system
+  meaning
+    says "The independently identified archive owned by template-system with explicit dependencies."
+    answers "Which declared records belong to the template-system native archive?"
+  distribution
+    records [@system template-system]
+
+@distribution package-work-system
+  meaning
+    says "The independently identified archive owned by work-system with explicit dependencies."
+    answers "Which declared records belong to the work-system native archive?"
+  distribution
+    records [@system work-system]
+
+@distribution package-workspace-system
+  meaning
+    says "The independently identified archive owned by workspace-system with explicit dependencies."
+    answers "Which declared records belong to the workspace-system native archive?"
+  distribution
+    records [@system workspace-system]

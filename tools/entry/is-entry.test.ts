@@ -1,5 +1,7 @@
+import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -15,6 +17,8 @@ import { pathToFileURL } from 'node:url';
 import { expect, it } from 'vitest';
 import ts from 'typescript';
 import { isEntry } from './is-entry.mjs';
+import { packageManagerCommand } from './package-manager.mjs';
+// This leaf helper must not import testing: Nx follows test imports into consumers' dependency closures.
 
 /** Links a file. Windows grants file links only with a privilege (Developer Mode or elevation): without it, EPERM, and false. */
 const fileLink = (target: string, path: string): boolean => {
@@ -143,4 +147,69 @@ it('keeps every copy of the check the same function as @inventarch/runtime/entry
   ).toBe(canonical(runtime));
   if (existsSync(resolve(root, 'apps/folio/src/main.ts')))
     expect(canonical(body('apps/folio/src/main.ts'))).toBe(canonical(runtime));
+});
+
+it.each(['pnpm.cjs', 'pnpm.mjs', 'pnpm.js', 'pnpm'])(
+  'executes the Node package-manager launcher %s with literal argv and inherited execution options',
+  (name) => {
+    const base = mkdtempSync(resolve(tmpdir(), 'tools entry package manager '));
+    try {
+      const launcher = resolve(base, name),
+        args = ['argument with spaces', '$() & ; | "quoted"'];
+      writeFileSync(
+        launcher,
+        '#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd(), marker: process.env.IA_LAUNCHER_PROBE }));\n',
+      );
+      const invocation = packageManagerCommand(launcher, args);
+      const result = spawnSync(invocation.command, invocation.args, {
+        cwd: base,
+        env: { ...process.env, IA_LAUNCHER_PROBE: 'bounded child' },
+        timeout: 10_000,
+        encoding: 'utf8',
+        windowsHide: true,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({ args, cwd: base, marker: 'bounded child' });
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  },
+);
+
+it('runs a real native launcher directly from a path with spaces and preserves its failure status', () => {
+  const base = mkdtempSync(resolve(tmpdir(), 'tools entry native manager '));
+  try {
+    const launcher = resolve(base, process.platform === 'win32' ? 'pnpm native.exe' : 'pnpm native');
+    copyFileSync(process.execPath, launcher);
+    chmodSync(launcher, 0o755);
+    const invocation = packageManagerCommand(launcher, [
+      '-e',
+      'process.stdout.write(process.argv[1]); process.exitCode = 17',
+      'literal & argument',
+    ]);
+    const result = spawnSync(invocation.command, invocation.args, {
+      cwd: base,
+      timeout: 10_000,
+      encoding: 'utf8',
+      windowsHide: true,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(17);
+    expect(result.stdout).toBe('literal & argument');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+it('refuses absent, nonregular and unsupported package-manager launchers before spawning', () => {
+  scratch((base) => {
+    expect(() => packageManagerCommand(resolve(base, 'missing'), [])).toThrow();
+    expect(() => packageManagerCommand(base, [])).toThrow();
+    for (const name of ['pnpm', 'pnpm.js', 'pnpm.exe']) {
+      const path = resolve(base, name);
+      writeFileSync(path, '#!/bin/sh\nexit 0\n');
+      expect(() => packageManagerCommand(path, [])).toThrow('Unsupported package-manager launcher');
+    }
+  });
 });

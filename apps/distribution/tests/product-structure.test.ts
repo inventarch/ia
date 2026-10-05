@@ -49,7 +49,7 @@ function reader(text = record, adopted = true, duplicateOwner = false) {
     [
       {
         id: adopted ? product.manifest.id : canonical.manifest.id,
-        range: adopted ? product.manifest.version : canonical.manifest.version,
+        range: (adopted ? product : canonical).manifest.version,
       },
     ],
     [canonical, ...(adopted ? [product] : [])].map((release) => ({

@@ -1,0 +1,24 @@
+#! ia 1.0
+
+@system sdk-example-system
+  provider "example.local"
+  version "0.1.0"
+  describes "A neutral SDK fixture with explicit host-owned read bindings."
+  steward @agent sdk-example-steward
+  requires
+    - agent-system
+    - workspace-system
+    - governance-system
+    - compliance-system
+    - authoring-system
+    - agent-composition-system
+  edges
+    cite * using *
+    use * using *
+
+@agent sdk-example-steward
+  meaning
+    says "Own the neutral example sources, without granting runtime authority."
+    answers "Who owns this example system?"
+  governance
+    applies []

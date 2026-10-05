@@ -1,4 +1,7 @@
 import '../temp/physical-temp.mjs';
+import { packageManagerCommand } from '../entry/package-manager.mjs';
+import { packPublicPackages, COMPATIBILITY } from '../release/public-pack.mjs';
+import { scanPackedPublicContent } from '../release/scan-packed.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
@@ -31,8 +34,8 @@ const temporaryRoot = realpathSync(tmpdir()),
   archives = resolve(temporary, 'archives'),
   home = resolve(temporary, 'home'),
   workspace = resolve(temporary, 'workspace with spaces');
-const run = (args, cwd = root, env = process.env) =>
-  execFileSync(process.execPath, args, {
+const run = (args, cwd = root, env = process.env, command = process.execPath) =>
+  execFileSync(command, args, {
     cwd,
     env,
     encoding: 'utf8',
@@ -40,7 +43,10 @@ const run = (args, cwd = root, env = process.env) =>
     timeout: 120_000,
     maxBuffer: 16 * 1024 * 1024,
   });
-const packageManager = (args, cwd = root) => run([pnpm, ...args], cwd);
+const packageManager = (args, cwd = root) => {
+  const invocation = packageManagerCommand(pnpm, args);
+  return run(invocation.args, cwd, process.env, invocation.command);
+};
 const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const releasedVersion = json(resolve(root, 'apps/cli/package.json')).version,
   supportedNode = json(resolve(root, 'package.json')).engines.node;
@@ -50,16 +56,9 @@ try {
     .map(({ path }) => ({ path, manifest: json(resolve(path, 'package.json')) }))
     .filter(({ manifest }) => !manifest.private);
   assert.ok(projects.length > 0, 'No public packages discovered');
-  const packed = JSON.parse(
-    packageManager([
-      ...projects.flatMap(({ manifest }) => ['--filter', manifest.name]),
-      '-r',
-      'pack',
-      '--pack-destination',
-      archives,
-      '--json',
-    ]),
-  );
+  const bundled = packPublicPackages(root, archives, pnpm);
+  const packed = bundled.packed;
+  const contentScan = scanPackedPublicContent(root, packed);
   assert.equal(packed.length, projects.length);
   const dependencies = Object.fromEntries(
     packed.map(({ name, filename }) => [name, 'file:' + filename.replaceAll('\\', '/')]),
@@ -74,17 +73,36 @@ try {
       private: true,
       type: 'module',
       dependencies,
-      pnpm: { overrides: dependencies },
     }),
   );
+  writeFileSync(
+    resolve(consumer, 'pnpm-workspace.yaml'),
+    JSON.stringify({ packages: ['.'], overrides: dependencies }, null, 2),
+  );
   packageManager(['install', '--prefer-offline', '--ignore-scripts', '--lockfile=false'], consumer);
+  const verification = resolve(consumer, 'verify-installed.mjs');
+  const verificationCode = [
+    "import { verifySystemPackage } from '@inventarch/distribution/system-package';",
+    "import { verifySelectedArchiveClosure } from '@inventarch/distribution/archive';",
+    "import { deriveGenerationInputs } from '@inventarch/db/distribution';",
+    "import assert from 'node:assert/strict'; import { readFileSync, realpathSync } from 'node:fs'; import { resolve } from 'node:path';",
+    "const compatibility = JSON.parse(readFileSync(process.argv[2], 'utf8'));",
+    "const roots = new Map(compatibility.packages.map(row => [row.package.name, realpathSync(resolve(process.argv[3], 'node_modules', row.package.name))]));",
+    'const archives = new Map(compatibility.packages.map(row => [row.native.archiveSha256, readFileSync(resolve(roots.get(row.package.name), row.native.path))]));',
+    'for (const row of compatibility.packages) { verifySystemPackage(roots.get(row.package.name), row.bindingSha256, { archives }); assert.throws(() => verifySystemPackage(roots.get(row.package.name), row.bindingSha256)); const incomplete = new Map(archives); incomplete.delete(row.native.archiveSha256); assert.throws(() => verifySystemPackage(roots.get(row.package.name), row.bindingSha256, { archives: incomplete })); }',
+    "const lock = JSON.parse(readFileSync(resolve(roots.values().next().value, 'dist/native-selection.json'), 'utf8')); const verified = verifySelectedArchiveClosure(lock, archives); const generation = deriveGenerationInputs(lock, verified);",
+    'assert.equal(verified.size, compatibility.packages.length); assert.equal(generation.systems.length, compatibility.packages.length); assert.ok(generation.systems.every(row => row.bundles.length === 1));',
+    "console.log(JSON.stringify({ systems: compatibility.packages.length, uniqueOwners: generation.systems.length, missingClosureRefusals: compatibility.packages.length * 2, outcome: 'pass' }));",
+  ].join('\n');
+  writeFileSync(verification, verificationCode);
+  run([verification, resolve(archives, COMPATIBILITY), consumer]);
   const imports = [];
   let targets = 0;
   for (const { manifest: source } of projects) {
     const installedRoot = resolve(consumer, 'node_modules', source.name),
       installed = json(resolve(installedRoot, 'package.json'));
     assert.equal(installed.name, source.name);
-    assert.equal(installed.version, releasedVersion, `${source.name}: release version differs`);
+    assert.equal(installed.version, source.version, `${source.name}: release version differs`);
     assert.equal(installed.engines?.node, supportedNode, `${source.name}: runtime policy differs`);
     assert.equal(installed.publishConfig?.access, 'public', `${source.name}: public npm access is not declared`);
     assert.equal(installed.publishConfig?.registry, REGISTRY, `${source.name}: npm registry differs`);
@@ -101,7 +119,11 @@ try {
       );
       if (name.startsWith('@inventarch/')) {
         assert.ok(dependencies[name], `${source.name}: dependency ${name} is missing from the release`);
-        assert.equal(version, releasedVersion, `${source.name}: dependency ${name} has a different release version`);
+        assert.equal(
+          version,
+          projects.find((row) => row.manifest.name === name)?.manifest.version,
+          `${source.name}: dependency ${name} has a different release version`,
+        );
       }
     }
     const target = (path) => {
@@ -125,7 +147,9 @@ try {
       target(path);
       assert.ok(readFileSync(resolve(installedRoot, path), 'utf8').startsWith('#!/usr/bin/env node'));
     }
-    for (const key of Object.keys(installed.exports ?? {}))
+    for (const key of Object.keys(installed.exports ?? {}).filter(
+      (key) => !['./native.ia.tgz', './system-package.json'].includes(key),
+    ))
       imports.push(source.name + (key === '.' ? '' : key.slice(1)));
   }
   writeFileSync(
@@ -164,8 +188,11 @@ try {
       private: true,
       type: 'module',
       dependencies: { '@inventarch/cli': dependencies['@inventarch/cli'] },
-      pnpm: { overrides: dependencies },
     }),
+  );
+  writeFileSync(
+    resolve(cliConsumer, 'pnpm-workspace.yaml'),
+    JSON.stringify({ packages: ['.'], overrides: dependencies }, null, 2),
   );
   packageManager(['install', '--prefer-offline', '--ignore-scripts', '--lockfile=false'], cliConsumer);
   writeFileSync(
@@ -191,10 +218,12 @@ try {
   if (destination) {
     mkdirSync(destination, { recursive: true });
     for (const entry of packed) copyFileSync(entry.filename, resolve(destination, basename(entry.filename)));
+    copyFileSync(resolve(archives, COMPATIBILITY), resolve(destination, COMPATIBILITY));
     writeReleaseManifest(root, destination, packed);
   }
   console.log(
     JSON.stringify({
+      contentScan,
       packages: projects.length,
       exports: imports.length,
       targets,

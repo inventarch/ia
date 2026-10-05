@@ -77,7 +77,7 @@ it('refuses archive substitution, missing bytes and conflicting authored authori
     text = fixture.packed.files
       .get(path)!
       .toString()
-      .replace(/version "[^"]+"/, 'version "9.0.0"');
+      .replace(/^  version "[^"]+"$/m, '  version "9.0.0"');
   const base = distributionSnapshot({
     sources: [
       ...request.base.sources,

@@ -1,7 +1,10 @@
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { connect, createServer, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { expect, it } from 'vitest';
 import { PLATFORMS, type Manifest, type TaskRecord } from './inventory.js';
 import { buildReport, currentPlatform, readVitestResults, writeEvidence, type GateEvidence } from './report.js';
@@ -167,6 +170,21 @@ it('gives an unknown task a conservative estimate and still schedules it', () =>
   expect(plan.estimated.unknownTasks).toEqual(['new:test']);
 });
 
+it('fills spare native capacity with general work after placing constrained tasks', () => {
+  const tasks = [test('heavy:test', 'native-heavy'), test('large:test'), test('medium:test'), test('small:test')];
+  const durations = schedule({ 'heavy:test': 40, 'large:test': 100, 'medium:test': 60, 'small:test': 40 });
+  const options = { platform: 'linux' as const, shards: 3, nativeShards: 1 };
+  const plan = planShards(manifest(tasks), durations, options);
+  expect(plan.shards.map((shard) => shard.tasks)).toEqual([
+    ['heavy:test', 'small:test'],
+    ['large:test'],
+    ['medium:test'],
+  ]);
+  expect(plan.estimated.longestShardSeconds).toBe(100);
+  expect(planShards(manifest([...tasks].reverse()), durations, options).shards).toEqual(plan.shards);
+  expect(plan.shards.flatMap((shard) => shard.tasks).sort()).toEqual(tasks.map((task) => task.id).sort());
+});
+
 it('places each task a platform has not recorded by its Linux duration, scaled by the median ratio', () => {
   const recorded: Schedule = {
     version: 1,
@@ -290,8 +308,8 @@ it('plans each platform with its own shard counts', () => {
     matrices.tests.include
       .filter((row) => row.platform === platform)
       .map((row) => `${row.shard} ${row.class} ${row.tasks}`);
-  expect(shards('linux')).toEqual(['1 native-heavy heavy:test', '2 general a:test c:test', '3 general b:test']);
-  expect(shards('macos')).toEqual(['1 native-heavy heavy:test', '2 general a:test b:test c:test']);
+  expect(shards('linux')).toEqual(['1 native-heavy c:test heavy:test', '2 general a:test', '3 general b:test']);
+  expect(shards('macos')).toEqual(['1 native-heavy b:test heavy:test', '2 general a:test c:test']);
   // A single count still applies to every platform.
   expect(
     ciMatrices(manifest(tasks), emptySchedule(), { shards: 2, nativeShards: 1 }).tests.include.map(
@@ -375,6 +393,18 @@ it('records executed durations and excludes restored ones from the schedule', ()
     expect(updated.platforms[platform]!['hit:test']).toBeUndefined();
     // Every platform keeps its section, including those the evidence does not mention.
     expect(Object.keys(updated.platforms)).toEqual([...PLATFORMS]);
+    const original = readFileSync(resolve(root, 'tools/testing/schedule.json'), 'utf8');
+    const output = resolve(directory, 'planning/schedule.json');
+    const exported = spawnSync(
+      process.execPath,
+      ['--import', 'tsx', 'tools/testing/plan.ts', '--record', directory, '--record-out', output],
+      { cwd: root, encoding: 'utf8', timeout: SUBPROCESS },
+    );
+    expect(exported.status, exported.stderr).toBe(0);
+    const recorded = JSON.parse(readFileSync(output, 'utf8')) as Schedule;
+    expect(recorded.platforms[platform]!['ran:test']).toBe(42);
+    expect(recorded.platforms[platform]!['hit:test']).toBeUndefined();
+    expect(readFileSync(resolve(root, 'tools/testing/schedule.json'), 'utf8')).toBe(original);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -425,12 +455,29 @@ it('gates every planned platform on its runner, from the plan rather than rows w
   expect(gateMatrix(['linux']).include).toEqual([{ os: RUNNERS.linux, platform: 'linux' }]);
 });
 
-it('plans Linux alone for a pull request and every platform for any other event', () => {
-  // Hosted Windows minutes bill at twice Linux's and macOS at ten times; main pushes, the weekly run and dispatch keep all three.
-  expect(PULL_REQUEST_PLATFORMS).toEqual(['linux']);
-  expect(eventPlatforms('pull_request')).toEqual(['linux']);
-  for (const event of ['push', 'schedule', 'workflow_dispatch', 'merge_group', undefined])
+it('runs the Homebrew smoke on the pinned macOS label the lanes and the gate use, so a bump moves every macOS job', () => {
+  // The macOS label names a versioned arm64 image and is bumped deliberately, never followed through macos-latest (#323).
+  // The lanes and the gate row take it from RUNNERS; the smoke job spells it itself, in its runner and its check name.
+  expect(RUNNERS.macos).toMatch(/^macos-\d+$/);
+  const smoke = workflowJobs(workflow()).get('homebrew-node');
+  expect(smoke).toMatch(new RegExp(`^runs-on: ${RUNNERS.macos}$`, 'm'));
+  expect(smoke).toMatch(new RegExp(`^name: Homebrew Node smoke \\(${RUNNERS.macos}\\)$`, 'm'));
+});
+
+it('plans every platform for main pull requests and all other CI events', () => {
+  const source = workflow().replace(/\r\n/g, '\n');
+  expect(source).toMatch(
+    /^  pull_request:\n    branches: \[main\]\n    types: \[opened, synchronize, reopened, edited\]$/m,
+  );
+  expect(source).toMatch(/^permissions:\n  contents: read$/m);
+  expect(source).not.toMatch(/pull_request_target:|secrets\.|permissions:\s*write-all|^\s+[\w-]+: write$/m);
+  expect(PULL_REQUEST_PLATFORMS).toEqual(PLATFORMS);
+  for (const event of ['pull_request', 'push', 'schedule', 'workflow_dispatch', 'merge_group', undefined]) {
     expect(eventPlatforms(event)).toEqual(PLATFORMS);
+    expect(gateMatrix(eventPlatforms(event)).include).toEqual(
+      PLATFORMS.map((platform) => ({ os: RUNNERS[platform], platform })),
+    );
+  }
 });
 
 it('narrows every lane to the selected platforms without moving any of their tasks', () => {
@@ -512,10 +559,9 @@ it("plans each platform with the workflow's shard counts through the command lin
       );
     return { value, perPlatform };
   };
-  const counts = platformCounts(shards, '--shards'),
-    none = { linux: 0, windows: 0, macos: 0 };
-  // One job per shard on each platform (8, 8 and 2 today): every shard the workflow pays for receives work.
-  for (const event of ['push', 'workflow_dispatch', 'schedule']) {
+  const counts = platformCounts(shards, '--shards');
+  // Pull requests and non-PR triggers qualify every supported platform with the same shard counts.
+  for (const event of ['pull_request', 'push', 'workflow_dispatch', 'schedule']) {
     const full = outputs({ event, sha: 'abc', verified: '' });
     expect(full.perPlatform('tests')).toEqual(counts);
     for (const lane of ['build', 'static', 'emitted', 'gate'])
@@ -523,12 +569,6 @@ it("plans each platform with the workflow's shard counts through the command lin
     expect(full.value('platforms')).toEqual(PLATFORMS);
     expect(full.value('run')).toBe(true);
   }
-  // A pull request plans Linux alone, with Linux's full shard count, and gates Linux alone.
-  const pr = outputs({ event: 'pull_request', sha: 'abc', verified: '' });
-  expect(pr.perPlatform('tests')).toEqual({ ...none, linux: counts.linux });
-  for (const lane of ['build', 'static', 'emitted', 'gate'])
-    expect(pr.perPlatform(lane)).toEqual({ ...none, linux: 1 });
-  expect(pr.value('platforms')).toEqual(['linux']);
   // A scheduled run on the commit the last successful scheduled run verified has nothing to do; a dispatched run always runs.
   expect(outputs({ event: 'schedule', sha: 'abc', verified: 'abc' }).value('run')).toBe(false);
   expect(outputs({ event: 'schedule', sha: 'abc', verified: 'def' }).value('run')).toBe(true);
@@ -536,6 +576,90 @@ it("plans each platform with the workflow's shard counts through the command lin
   const macos = plan('--platform', 'macos', '--shards', shards, '--native-shards', native, '--json');
   expect(macos).toMatchObject({ status: 0 });
   expect((JSON.parse(macos.stdout) as { shards: readonly unknown[] }).shards).toHaveLength(counts.macos);
+});
+
+it('writes every matrix line before it exits, however slowly the Plan job reads them', async () => {
+  // A child's piped stdout is a socket off Windows, which Node writes asynchronously: what the socket cannot take yet is
+  // queued in the process, and process.exit() drops it. macOS gives such a socket an 8 KiB buffer, so a planner that
+  // exits that way can lose matrix lines whenever its reader falls behind (#323). Here the reader takes nothing until the
+  // planner has output queued, behind a socket a preload filled first; Windows writes pipes synchronously, so there
+  // nothing is queued and the reader starts when the planner exits.
+  const directory = mkdtempSync(resolve(tmpdir(), 'ia-plan-')),
+    preload = resolve(directory, 'observe.mjs');
+  writeFileSync(
+    preload,
+    [
+      "import { writeSync } from 'node:fs';",
+      "const out = process.stdout, write = out.write.bind(out), filler = Buffer.from('#'.repeat(4095) + '\\n');",
+      "if (process.platform !== 'win32') for (;;) { try { writeSync(1, filler); } catch (error) { if (error.code === 'EAGAIN') break; throw error; } }",
+      "out.write = (...args) => { const written = write(...args); if (out.writableLength > 0) writeSync(2, 'queued\\n'); return written; };",
+      "process.on('exit', () => writeSync(2, 'unwritten ' + out.writableLength + '\\n'));",
+    ].join('\n'),
+  );
+  const server = createServer({ pauseOnConnect: true }),
+    path = process.platform === 'win32' ? `\\\\.\\pipe\\${basename(directory)}` : resolve(directory, 'out');
+  try {
+    server.listen(path);
+    await once(server, 'listening');
+    const accepted = once(server, 'connection') as Promise<[Socket]>,
+      client = connect(path);
+    await once(client, 'connect');
+    const [reader] = await accepted,
+      ended = once(reader, 'end');
+    const child = spawn(
+      process.execPath,
+      [
+        '--import',
+        'tsx',
+        '--import',
+        pathToFileURL(preload).href,
+        'tools/testing/plan.ts',
+        ...planArgs({ event: 'push', sha: 'abc', verified: '' }),
+      ],
+      { cwd: root, stdio: ['ignore', client, 'pipe'], windowsHide: true, timeout: SUBPROCESS },
+    );
+    client.destroy();
+    let stdout = '',
+      stderr = '',
+      reading = false;
+    const read = (): void => {
+      if (!reading) {
+        reading = true;
+        reader
+          .setEncoding('utf8')
+          .on('data', (chunk: string) => {
+            stdout += chunk;
+          })
+          .resume();
+      }
+    };
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk;
+      if (stderr.includes('queued\n')) read();
+    });
+    const [code] = (await once(child, 'close')) as [number | null];
+    read();
+    await ended;
+    expect({ code, unwritten: /^unwritten (\d+)$/m.exec(stderr)?.[1] }).toEqual({ code: 0, unwritten: '0' });
+    if (process.platform !== 'win32') expect(stderr).toContain('queued\n');
+    const lines = stdout
+      .replace(/^[#\n]*/, '')
+      .split('\n')
+      .filter(Boolean);
+    expect(lines.map((line) => line.slice(0, line.indexOf('=')))).toEqual([
+      'tests',
+      'build',
+      'static',
+      'emitted',
+      'gate',
+      'platforms',
+      'run',
+    ]);
+    expect(lines.at(-1)).toBe('run=true');
+  } finally {
+    server.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 it('skips every job after the plan on an already verified scheduled run, and runs the full run weekly', () => {

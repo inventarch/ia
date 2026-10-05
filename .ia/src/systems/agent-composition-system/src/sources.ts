@@ -278,6 +278,10 @@ export function mountSourceCapture(
   const policy = verifySourcePolicy(input);
   verifyCapture(project);
   verifyCapture(home);
+  if (project.selection || home.selection)
+    invalid(
+      'Task-scoped captures require a new trusted full-view selection after source composition; they cannot become whole-workspace evidence',
+    );
   if (
     !/^[a-z][a-z0-9-]{0,63}$/.test(mountId) ||
     !/^[a-f0-9]{64}$/.test(revision) ||

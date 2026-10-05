@@ -1,6 +1,6 @@
 {
   "name": "@inventarch/agent-composition-system",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -129,6 +129,10 @@
       "types": "./dist/installed-catalog.d.ts",
       "default": "./dist/installed-catalog.js"
     },
+    "./internal/installed-read": {
+      "types": "./dist/installed-read.d.ts",
+      "default": "./dist/installed-read.js"
+    },
     "./internal/installed-source-policy": {
       "types": "./dist/installed-source-policy.d.ts",
       "default": "./dist/installed-source-policy.js"
@@ -136,6 +140,10 @@
     "./internal/lifecycle-profile": {
       "types": "./dist/lifecycle-profile.d.ts",
       "default": "./dist/lifecycle-profile.js"
+    },
+    "./internal/lifecycle-rows": {
+      "types": "./dist/lifecycle-rows.d.ts",
+      "default": "./dist/lifecycle-rows.js"
     },
     "./internal/lifecycle-transport": {
       "types": "./dist/lifecycle-transport.d.ts",
@@ -160,6 +168,10 @@
     "./internal/projection-host": {
       "types": "./dist/projection-host.d.ts",
       "default": "./dist/projection-host.js"
+    },
+    "./internal/projection-routine": {
+      "types": "./dist/projection-routine.d.ts",
+      "default": "./dist/projection-routine.js"
     },
     "./internal/projections": {
       "types": "./dist/projections.d.ts",
@@ -193,6 +205,22 @@
       "types": "./dist/sources.d.ts",
       "default": "./dist/sources.js"
     },
+    "./internal/task-capture-format": {
+      "types": "./dist/task-capture-format.d.ts",
+      "default": "./dist/task-capture-format.js"
+    },
+    "./internal/task-capture": {
+      "types": "./dist/task-capture.d.ts",
+      "default": "./dist/task-capture.js"
+    },
+    "./internal/task-context-declaration": {
+      "types": "./dist/task-context-declaration.d.ts",
+      "default": "./dist/task-context-declaration.js"
+    },
+    "./internal/task-teaching-closure": {
+      "types": "./dist/task-teaching-closure.d.ts",
+      "default": "./dist/task-teaching-closure.js"
+    },
     "./internal/templates": {
       "types": "./dist/templates.d.ts",
       "default": "./dist/templates.js"
@@ -207,7 +235,12 @@
     "README.md",
     "SPEC.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "LANGUAGE.md",
+    "references/installed-read.md",
+    "references/public-spec.md",
+    "references/spec-read-boundary.md",
+    "references/task-capture.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -230,6 +263,9 @@
     "vitest": "catalog:"
   },
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
   "publishConfig": {
     "exports": {
       ".": {
@@ -344,6 +380,10 @@
         "types": "./dist/installed-catalog.d.ts",
         "default": "./dist/installed-catalog.js"
       },
+      "./internal/installed-read": {
+        "types": "./dist/installed-read.d.ts",
+        "default": "./dist/installed-read.js"
+      },
       "./internal/installed-source-policy": {
         "types": "./dist/installed-source-policy.d.ts",
         "default": "./dist/installed-source-policy.js"
@@ -351,6 +391,10 @@
       "./internal/lifecycle-profile": {
         "types": "./dist/lifecycle-profile.d.ts",
         "default": "./dist/lifecycle-profile.js"
+      },
+      "./internal/lifecycle-rows": {
+        "types": "./dist/lifecycle-rows.d.ts",
+        "default": "./dist/lifecycle-rows.js"
       },
       "./internal/lifecycle-transport": {
         "types": "./dist/lifecycle-transport.d.ts",
@@ -375,6 +419,10 @@
       "./internal/projection-host": {
         "types": "./dist/projection-host.d.ts",
         "default": "./dist/projection-host.js"
+      },
+      "./internal/projection-routine": {
+        "types": "./dist/projection-routine.d.ts",
+        "default": "./dist/projection-routine.js"
       },
       "./internal/projections": {
         "types": "./dist/projections.d.ts",
@@ -408,6 +456,22 @@
         "types": "./dist/sources.d.ts",
         "default": "./dist/sources.js"
       },
+      "./internal/task-capture-format": {
+        "types": "./dist/task-capture-format.d.ts",
+        "default": "./dist/task-capture-format.js"
+      },
+      "./internal/task-capture": {
+        "types": "./dist/task-capture.d.ts",
+        "default": "./dist/task-capture.js"
+      },
+      "./internal/task-context-declaration": {
+        "types": "./dist/task-context-declaration.d.ts",
+        "default": "./dist/task-context-declaration.js"
+      },
+      "./internal/task-teaching-closure": {
+        "types": "./dist/task-teaching-closure.d.ts",
+        "default": "./dist/task-teaching-closure.js"
+      },
       "./internal/templates": {
         "types": "./dist/templates.d.ts",
         "default": "./dist/templates.js"
@@ -419,9 +483,6 @@
     },
     "access": "public",
     "registry": "https://registry.npmjs.org"
-  },
-  "engines": {
-    "node": ">=22.22.0 <23"
   },
   "repository": {
     "type": "git",

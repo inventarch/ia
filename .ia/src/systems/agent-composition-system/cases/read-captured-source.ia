@@ -1,0 +1,32 @@
+#! ia 1.0
+
+@case read-captured-source-success
+  meaning
+    says "Return effect none, the exact source line, capture revision and citation."
+    answers "Does read-captured-source produce the declared success through its actual governed consumer?"
+  scenario
+    kind success
+    given "The installed-read fixture compiled against the fixed first-party catalogue and explicit host-owned capture."
+    request "Read one retained native line through installedReadAdapters with the exact compiled fixture and current grant."
+    expected "Return effect none, the exact source line, capture revision and citation."
+    evaluator ".ia/src/systems/agent-composition-system/tests/installed-read.test.ts"
+    operation @operation read-captured-source
+    code pass
+  relationships
+    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT
+    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-READ
+
+@case read-captured-source-authority-refusal
+  meaning
+    says "Refuse before source disclosure and before calling the current-authority callback."
+    answers "Does read-captured-source produce the declared refusal through its actual governed consumer?"
+  scenario
+    kind refusal
+    given "The installed-read fixture compiled against the fixed first-party catalogue and explicit host-owned capture."
+    request "Call the actual captured-read adapter with a wrong principal or an absent, expired, revoked or mismatched grant."
+    expected "Refuse before source disclosure and before calling the current-authority callback."
+    evaluator ".ia/src/systems/agent-composition-system/tests/installed-read.test.ts"
+    operation @operation read-captured-source
+    code IA-INSTALLED-READ-DENIED
+  relationships
+    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-REFUSE

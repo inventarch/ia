@@ -1,5 +1,6 @@
 import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
+import { claudeCodeRows, profileFromRows } from './lifecycle-rows.js';
 
 export class LifecycleError extends Error {
   constructor(
@@ -22,6 +23,8 @@ export interface LifecycleProfile {
   readonly maxInputBytes: number;
   readonly maxPromptBytes: number;
   readonly digest: string;
+  /** The row's closed UserPromptSubmit fields, digested with the body; absent on unavailable profiles and the two unfolded rows. */
+  readonly promptFields?: readonly string[];
 }
 export interface LifecycleEvent {
   readonly format: 'ia.lifecycle-event.v1';
@@ -74,29 +77,13 @@ function object(value: unknown, allowed: readonly string[]): Record<string, unkn
     fail('Unknown or non-data lifecycle field');
   return value as Record<string, unknown>;
 }
+/** H3-v1 (`@decision parallel-g-h3`): the exact Claude Code row new context registrations select. */
+export const SELECTED_CLAUDE_CODE_VERSION = '2.1.285';
 /** A compatibility declaration, not an observation that a host enabled or delivered hooks. */
 export function lifecycleProfile(host: string, version: string): LifecycleProfile {
   string(host, 64);
   string(version, 64);
-  const native = host === 'ia-native' && version === '1',
-    available = (host === 'claude-code' && version === '2.1.278') || native;
-  const body = {
-    format: 'ia.lifecycle-profile.v1' as const,
-    host,
-    version,
-    available,
-    reason: available
-      ? null
-      : host === 'codex' && version === '0.116.0'
-        ? 'Installed Codex 0.116.0 hooks are unavailable: the feature is under development and disabled.'
-        : 'This host version has no qualified lifecycle profile.',
-    maxContextCharacters: native ? null : 10_000,
-    maxContextParts: native ? 1 : 12,
-    events: native ? ['NativeContext'] : available ? ['SessionStart', 'UserPromptSubmit'] : [],
-    maxInputBytes: 1024 * 1024,
-    maxPromptBytes: 256 * 1024,
-  };
-  return frozen({ ...body, digest: metadataDigest(body) });
+  return profileFromRows(claudeCodeRows, host, version);
 }
 export function verifyLifecycleProfile(input: LifecycleProfile): LifecycleProfile {
   const expected = lifecycleProfile(input.host, input.version);
@@ -104,6 +91,26 @@ export function verifyLifecycleProfile(input: LifecycleProfile): LifecycleProfil
     fail('Lifecycle profile differs from its installed definition');
   if (!expected.available) throw new LifecycleError('IA-LIFECYCLE-UNAVAILABLE', expected.reason!);
   return expected;
+}
+/** The host and version of one available segmented row. */
+export interface SegmentedLifecycleRow {
+  readonly host: string;
+  readonly version: string;
+}
+/** Each available segmented Claude Code row, keyed by its profile digest, computed once when the module loads. */
+const segmentedRows: ReadonlyMap<string, SegmentedLifecycleRow> = new Map(
+  [...claudeCodeRows.keys()].map((version) => [
+    lifecycleProfile('claude-code', version).digest,
+    frozen({ host: 'claude-code', version }),
+  ]),
+);
+/** The available segmented row this exact digest names, or null; no version range is inferred. */
+export function segmentedLifecycleRow(digest: unknown): SegmentedLifecycleRow | null {
+  return typeof digest === 'string' ? (segmentedRows.get(digest) ?? null) : null;
+}
+/** True only for the digest of an available segmented Claude Code row; no version range is inferred. */
+export function isSegmentedLifecycleProfile(digest: unknown): boolean {
+  return segmentedLifecycleRow(digest) !== null;
 }
 /** Decode bounded host metadata only. No transcript, path, module or credential is opened. */
 export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: string): LifecycleEvent {
@@ -146,6 +153,8 @@ export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: stri
   ]);
   const event = string(row['hook_event_name'], 64);
   if (!profile.events.includes(event)) fail('Unsupported lifecycle event');
+  const promptFields = profile.host === 'claude-code' ? claudeCodeRows.get(profile.version) : undefined;
+  if (!promptFields) fail('Unsupported lifecycle event');
   const start = event === 'SessionStart',
     eventFields = start
       ? [
@@ -157,7 +166,7 @@ export function decodeLifecycleEvent(inputProfile: LifecycleProfile, input: stri
           'prompt_cache_likely_expired',
           'estimated_cache_write_usd',
         ]
-      : ['prompt'];
+      : promptFields;
   object(row, [...common, ...eventFields]);
   const session = string(row['session_id'], 256),
     cwd = string(row['cwd']),

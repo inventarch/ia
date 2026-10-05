@@ -289,7 +289,8 @@ export function resolveResourcesWith(
   const files = new Map(resources.files.map((f) => [keyOf(f.key), f])),
     associations = new Map(resources.associations.map((a) => [occurrenceOf(a.owner), a]));
   const candidates: ResolvedResource[] = [],
-    omissions: ResourceResolution['omissions'][number][] = [];
+    omissions: ResourceResolution['omissions'][number][] = [],
+    requiredKeys = new Set<string>();
   let requiredBytes = 0;
   for (const owner of ordered(owners, occurrenceOf)) {
     const row = associations.get(occurrenceOf(owner));
@@ -303,7 +304,10 @@ export function resolveResourcesWith(
         omissions.push({ owner, key: use.key, reason });
         continue;
       }
-      if (use.required) requiredBytes += file!.bytes;
+      if (use.required && !requiredKeys.has(key)) {
+        requiredKeys.add(key);
+        requiredBytes += file!.bytes;
+      }
       candidates.push({
         owner,
         use,
@@ -314,14 +318,18 @@ export function resolveResourcesWith(
     }
   }
   if (requiredBytes > budget) invalid('Required resources exceed the delivery budget');
-  const items: ResolvedResource[] = [];
+  const items: ResolvedResource[] = [],
+    deliveredKeys = new Set(requiredKeys);
   let bytes = requiredBytes;
   for (const item of candidates) {
-    if (!item.use.required && bytes + item.file.bytes > budget)
+    const key = keyOf(item.file.key),
+      additional = deliveredKeys.has(key) ? 0 : item.file.bytes;
+    if (!item.use.required && bytes + additional > budget)
       omissions.push({ owner: item.owner, key: item.use.key, reason: 'budget' });
     else {
       items.push(item);
-      if (!item.use.required) bytes += item.file.bytes;
+      bytes += additional;
+      deliveredKeys.add(key);
     }
   }
   return frozen({

@@ -316,7 +316,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       result:
         '{ok: true, identity} when exactly one record matches; otherwise {ok: false, code, ...}, for example IA-GRAPH-TARGET-MISSING.',
       refusals: BOUND,
-      example: { reference: { kind: 'ref', discriminator: 'playbook', name: 'authoring-ia' } },
+      example: { reference: { kind: 'ref', discriminator: 'playbook', name: 'sample-procedure' } },
       mcp: 'ia_resolve',
     },
     {

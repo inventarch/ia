@@ -1,6 +1,16 @@
+import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync, type Dirent } from 'node:fs';
-import { release } from 'node:os';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+  type Dirent,
+} from 'node:fs';
+import { release, tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
 import {
@@ -26,6 +36,8 @@ export interface RuntimeIdentity {
   readonly abi: string;
   readonly osRelease: string;
   readonly runnerImage: string | null;
+  /** Absent on legacy reports; conditional skip evidence must not infer it. */
+  readonly fileSymlinks?: boolean;
 }
 export interface ExecutionProvenance {
   readonly commit: string | null;
@@ -78,6 +90,26 @@ export function currentPlatform(value: NodeJS.Platform = process.platform): Plat
   throw new Error(`Unsupported test platform ${value}; results never substitute across platforms`);
 }
 
+/** Probe the fixture's file-symlink operation; only Windows EPERM means unavailable. */
+export function fileSymlinksAvailable(): boolean {
+  const parent = resolve(tmpdir());
+  const directory = mkdtempSync(resolve(parent, 'ia-file-symlink-capability-'));
+  try {
+    const target = resolve(directory, 'target.txt');
+    writeFileSync(target, 'probe');
+    try {
+      symlinkSync(target, resolve(directory, 'link.txt'), 'file');
+      return true;
+    } catch (error) {
+      if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+      throw error;
+    }
+  } finally {
+    if (dirname(directory) !== parent) throw new Error('Unexpected capability probe cleanup path');
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 export function runtimeIdentity(): RuntimeIdentity {
   return {
     platform: currentPlatform(),
@@ -86,6 +118,7 @@ export function runtimeIdentity(): RuntimeIdentity {
     abi: process.versions.modules,
     osRelease: release(),
     runnerImage: process.env['ImageOS'] ?? process.env['RUNNER_IMAGE'] ?? null,
+    fileSymlinks: fileSymlinksAvailable(),
   };
 }
 
@@ -286,21 +319,54 @@ export function gateFindings(
         findings.push(`${label}: executed result labelled as ${evidence.source}`);
       if (entry.kind === 'vitest') {
         if (evidence.report.counts.total === 0) findings.push(`${label}: a test task that ran no case cannot pass`);
-        // A skip may be permitted only where its reason holds, so scope applies before both checks.
-        const applicable = evidence.report.allowedSkips.filter(
+
+        // A conditional skip requires the original execution's observed capability.
+        const scoped = evidence.report.allowedSkips.filter(
           (skip) => !skip.platforms || skip.platforms.includes(entry.platform),
         );
-        const allowed = new Set(applicable.map((skip) => skip.case));
+        const applicable = scoped.filter((skip) => {
+          if (skip.when === undefined) return true;
+          if (skip.when !== 'file-symlink-unavailable') {
+            findings.push(label + ': unknown skip condition ' + String(skip.when));
+            return false;
+          }
+          const available = evidence.report.execution.runtime.fileSymlinks;
+          if (typeof available !== 'boolean') {
+            findings.push(label + ': ' + skip.case + ' requires file-symlink capability evidence');
+            return false;
+          }
+          return !available;
+        });
+        const allowed = new Map(applicable.map((skip) => [skip.case, skip]));
         for (const result of evidence.report.cases) {
-          if ((result.status === 'skipped' || result.status === 'todo') && !allowed.has(result.id))
-            findings.push(`${label}: unexpected skip ${result.id}`);
+          if (
+            (result.status === 'skipped' || result.status === 'todo') &&
+            (!allowed.has(result.id) || (result.status === 'todo' && allowed.get(result.id)?.when !== undefined))
+          )
+            findings.push(label + ': unexpected skip ' + result.id);
         }
-        for (const skip of applicable) {
+        for (const skip of scoped) {
           const observed = evidence.report.cases.find((result) => result.id === skip.case);
-          if (!observed) findings.push(`${label}: declared skip ${skip.case} was not observed`);
-          else if (observed.status !== 'skipped' && observed.status !== 'todo')
+          if (!observed) findings.push(label + ': declared skip ' + skip.case + ' was not observed');
+          else if (
+            skip.when === 'file-symlink-unavailable' &&
+            evidence.report.execution.runtime.fileSymlinks === true &&
+            observed.status !== 'passed'
+          )
+            findings.push(label + ': ' + skip.case + ' must pass when file symlinks are available');
+          else if (
+            applicable.includes(skip) &&
+            observed.status !== 'skipped' &&
+            (skip.when !== undefined || observed.status !== 'todo')
+          )
             findings.push(
-              `${label}: ${skip.case} is declared skipped on ${entry.platform} but reported ${observed.status}`,
+              label +
+                ': ' +
+                skip.case +
+                ' is declared skipped on ' +
+                entry.platform +
+                ' but reported ' +
+                observed.status,
             );
         }
       }

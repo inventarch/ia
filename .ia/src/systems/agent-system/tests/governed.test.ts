@@ -777,3 +777,140 @@ it.each(['caller', 'deadline'] as const)(
     expect(lookups).toBe(1);
   },
 );
+
+function independent(f: ReturnType<typeof fixture>) {
+  f.manifest.profiles['author']!.contract!.review = {
+    rule: 'independent-exact-candidate-v1',
+    reviewer: 'bob',
+    mandate: 'review-mandate',
+    policyRevision: 'policy-1',
+  };
+  const authority = {
+    principal: 'bob',
+    workspace: 'w',
+    mandate: 'review-mandate',
+    policyRevision: 'policy-1',
+    expiresAt: f.grant.expiresAt,
+    operations: ['publish'],
+    effects: ['local-write' as const],
+    sources: ['source'],
+    destinations: ['managed/draft'],
+  };
+  f.host.authorizeReview = async () => structuredClone(authority);
+  return authority;
+}
+async function independentAccepted(f: ReturnType<typeof fixture>) {
+  const authority = independent(f),
+    { engine, proposal: p } = await offered(f);
+  await expect(
+    engine.review('session', 'alice', p.id, p.revision, p.digest, true, 'self', 'self'),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  await expect(engine.advance('session', 'bob')).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  await engine.review(
+    'session',
+    'bob',
+    p.id,
+    p.revision,
+    p.digest,
+    true,
+    'Independent exact review',
+    'independent-approval',
+  );
+  const accepted = (await f.store.read('session')).proposals[p.id]!;
+  const action: ModelAction = {
+    type: 'invoke',
+    operation: 'publish',
+    input: { candidate: 'draft', destination: 'managed/draft' },
+    review: { proposalId: p.id, revision: p.revision, digest: p.digest, decisionId: accepted.decisionId! },
+  };
+  return { authority, engine, action };
+}
+it('records an independent review without transferring session ownership and applies only its exact candidate', async () => {
+  const f = fixture(),
+    { action } = await independentAccepted(f);
+  let n = 0;
+  scripted(f, (request) =>
+    n++ === 0
+      ? action
+      : {
+          type: 'outcome',
+          kind: 'deliverable',
+          message: 'Applied',
+          continuation: 'finish',
+          artifacts: [
+            (request.history.find((row) => (row as { target?: string }).target === 'publish') as { receipt: string })
+              .receipt,
+          ],
+        },
+  );
+  const state = await f.engine().advance('session', 'alice');
+  expect(state.runs['root']!.status).toBe('completed');
+  expect(f.writes()).toBe(1);
+  expect(Object.values(state.decisions)[0]).toMatchObject({
+    actor: 'bob',
+    review: {
+      reviewer: 'bob',
+      rule: 'independent-exact-candidate-v1',
+      authority: { mandate: 'review-mandate', policyRevision: 'policy-1' },
+    },
+  });
+  expect(state.principal).toBe('alice');
+});
+it.each([
+  'principal',
+  'workspace',
+  'mandate',
+  'policy',
+  'expiry',
+  'operation',
+  'effect',
+  'source',
+  'destination',
+  'unavailable',
+] as const)('refuses revoked independent reviewer %s authority before dispatch', async (change) => {
+  const f = fixture(),
+    { authority, action } = await independentAccepted(f);
+  if (change === 'principal') authority.principal = 'mallory';
+  if (change === 'workspace') authority.workspace = 'other';
+  if (change === 'mandate') authority.mandate = 'other';
+  if (change === 'policy') authority.policyRevision = 'policy-2';
+  if (change === 'expiry') authority.expiresAt = 0;
+  if (change === 'operation') authority.operations = [];
+  if (change === 'effect') authority.effects = [];
+  if (change === 'source') authority.sources = [];
+  if (change === 'destination') authority.destinations = [];
+  if (change === 'unavailable') delete f.host.authorizeReview;
+  scripted(f, () => action);
+  await expect(f.engine().advance('session', 'alice')).rejects.toThrow();
+  expect(f.writes()).toBe(0);
+});
+it('refuses independent self-review, unavailable review authority, and delegation that drops the review policy', async () => {
+  const self = fixture();
+  independent(self);
+  self.manifest.profiles['author']!.contract!.review!.reviewer = 'alice';
+  await expect(offered(self)).rejects.toThrow('writer cannot approve');
+  const missing = fixture();
+  independent(missing);
+  delete missing.host.authorizeReview;
+  await expect(offered(missing)).rejects.toThrow('Independent review');
+  const delegated = fixture();
+  independent(delegated);
+  scripted(delegated, () => ({ type: 'delegate', profile: 'child', task: 'Bypass review' }));
+  const engine = delegated.engine();
+  await engine.start(startRequest);
+  const state = await engine.advance('session', 'alice');
+  expect(Object.values(state.runs)).toHaveLength(1);
+  expect(state.runs['root']!.wait?.details).toMatchObject({ code: 'IA-ENGINE-DELEGATION-DENIED' });
+  expect(delegated.writes()).toBe(0);
+});
+it('rechecks independent authority after asynchronous effect preflight', async () => {
+  const f = fixture(),
+    { authority, action } = await independentAccepted(f);
+  f.host.preflight = async () => {
+    authority.policyRevision = 'revoked';
+    return true;
+  };
+  scripted(f, () => action);
+  await expect(f.engine().advance('session', 'alice')).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  expect(f.writes()).toBe(0);
+});

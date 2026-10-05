@@ -42,3 +42,11 @@
     question "Are the example module's reference pages generated from the schemas or written by hand?"
     options ["generated from the schemas", "written by hand"]
     decider "example owner"
+
+@spec example-spec
+  meaning
+    says "A provisional maintained specification anchor; no document body or execution evidence has been supplied."
+    answers "How is an unfinished specification represented without claiming completion?"
+  work
+    title "Provisional consumer specification"
+    status draft

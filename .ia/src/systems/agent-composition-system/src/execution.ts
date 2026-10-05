@@ -29,6 +29,7 @@ export function executionManifest(compiled: CompiledHarness, catalog: Compositio
       ...copy(profile),
       contract: {
         id: digest(profile),
+        ...(profile.review ? { review: copy(profile.review) } : {}),
         ...(profile.requestBytes === undefined ? {} : { requestBytes: profile.requestBytes }),
         mandateContracts: [...profile.mandateContracts],
         inputContracts: copy(profile.inputContracts),

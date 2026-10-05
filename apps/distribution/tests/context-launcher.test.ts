@@ -9,7 +9,7 @@ import { HOST_MODES } from '../src/host-modes.js';
 
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
 const roots: string[] = [];
-function cache(options: { v2?: boolean; pinned?: Readonly<Record<string, string>> } = {}) {
+function cache(options: { v2?: boolean; pinned?: Readonly<Record<string, string>>; context?: string } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'ia-context-launcher-'));
   roots.push(root);
   const path = 'runtime/node_modules/@inventarch/steward-hook/dist/context.js';
@@ -17,9 +17,10 @@ function cache(options: { v2?: boolean; pinned?: Readonly<Record<string, string>
     ['runtime/node_modules/@inventarch/steward-hook/package.json', '{"type":"module"}'],
     [
       path,
-      'export async function runContextHook(args,input){return args.length===1&&args[0]==="identity"?{format:"ia.context-hook-identity.v1",implementation:"' +
-        'a'.repeat(64) +
-        '"}:{args,input};}',
+      options.context ??
+        'export async function runContextHook(args,input){return args.length===1&&args[0]==="identity"?{format:"ia.context-hook-identity.v1",implementation:"' +
+          'a'.repeat(64) +
+          '"}:{args,input};}',
     ],
     ...Object.entries(options.pinned ?? {}),
   ]);
@@ -50,9 +51,14 @@ function cache(options: { v2?: boolean; pinned?: Readonly<Record<string, string>
   return {
     root,
     module: join(root, path),
-    launch: (args: string[], input?: string | Buffer) =>
+    launch: (
+      args: string[],
+      input?: string | Buffer,
+      live: { signal?: AbortSignal; onStderr?: (chunk: string) => void } = {},
+    ) =>
       runBounded(process.execPath, [join(root, 'scripts/ia.mjs'), ...args], {
         ...(input === undefined ? {} : { input }),
+        ...live,
         timeoutMs: SUBPROCESS,
         maxBufferBytes: 1024 * 1024,
         env: { ...process.env, NODE_OPTIONS: '', NODE_PATH: '' },
@@ -250,4 +256,32 @@ it("skips exactly the names @inventarch/db's platformDebris skips, since it runs
     writeFileSync(join(selected.root, 'runtime', name), 'written by the platform');
     expect([name, (await selected.launch(['verify'])).status]).toEqual([name, platformDebris(name) ? 0 : 1]);
   }
+});
+it('leaves no stdout when the host cancels a context slot at its outer timeout', async () => {
+  // HOST-02 (private source history) process-level timeout fixture. Claude Code cancels a command hook that reaches its timeout and
+  // discards its output; the launcher writes once, after the hook settles, so a slot stopped inside synchronous work leaves no
+  // partial frame. The stand-in module records on stderr that the hook was entered, then never settles, and the slot is killed on
+  // that marker: no fixed clock decides the outcome, and SUBPROCESS stays the ceiling on a slow runner. The stand-in blocks the
+  // event loop, so this guards only against a launcher that answers from outside the hook's thread.
+  const selected = cache({
+    context:
+      'import { writeSync } from "node:fs"; export async function runContextHook(){ writeSync(2, "context entered\\n"); for (;;) {} }',
+  });
+  const entered = new AbortController();
+  let seen = '';
+  const result = await selected.launch(
+    ['context', '--root', resolve(tmpdir()), '--binding', join(tmpdir(), 'binding.json'), '--part', '0'],
+    '{}',
+    {
+      signal: entered.signal,
+      onStderr: (chunk) => {
+        seen += chunk;
+        if (seen.includes('context entered')) entered.abort();
+      },
+    },
+  );
+  expect(result.stderr).toContain('context entered');
+  expect(result.timedOut).toBe(false);
+  expect(result.status).not.toBe(0);
+  expect(result.stdout).toBe('');
 });

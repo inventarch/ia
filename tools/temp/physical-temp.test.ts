@@ -198,10 +198,19 @@ const NOT_ENTRY_POINTS: Readonly<Record<string, { reason: string; loadedBy?: rea
   'tools/distribution/qualify-linux.mjs': { reason: 'runs only inside WSL Linux' },
   'tools/quality/capture.ts': {
     reason: 'a library',
-    loadedBy: ['tools/quality/main.ts', 'tools/quality/scan.ts', 'tools/quality/test-run.ts'],
+    loadedBy: [
+      'tools/quality/main.ts',
+      'tools/quality/scan.ts',
+      'tools/quality/test-design.ts',
+      'tools/quality/test-run.ts',
+    ],
   },
   'tools/quality/scan.ts': { reason: 'a library that loads capture.ts', loadedBy: ['tools/quality/main.ts'] },
-  'tools/quality/test-run.ts': { reason: 'a library', loadedBy: ['tools/quality/main.ts'] },
+  'tools/quality/test-design.ts': { reason: 'a library', loadedBy: ['tools/quality/main.ts'] },
+  'tools/quality/test-run.ts': {
+    reason: 'a library',
+    loadedBy: ['tools/quality/main.ts', 'tools/quality/test-design.ts'],
+  },
   'tools/release/export.mjs': { reason: 'its tmpdir() and mkdtemp are text inside a fixture it writes' },
   'tools/systems/fixture.ts': {
     reason: 'written by tools/release/export.mjs for the public tree',

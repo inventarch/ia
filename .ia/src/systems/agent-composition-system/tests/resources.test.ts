@@ -166,6 +166,31 @@ it('requires separate record and resource authority, including exact occurrence 
   expect(() => resolveResources(envelope, capture, { ...options, owners: [first, first] })).toThrow(ResourceError);
 });
 
+it('reserves shared required bytes once across owners and does not charge optional reuse twice', () => {
+  const uses = request.associations.map((row) => ({
+    ...row,
+    resources: [
+      ...row.resources,
+      {
+        key: firstKey,
+        role: 'support' as const,
+        order: 0,
+        required: row.owner === first,
+        delivery: 'installed-reference' as const,
+      },
+    ],
+  }));
+  const captured = captureResources(capture, { ...request, associations: uses });
+  const bytes = captured.files.reduce((sum, file) => sum + file.bytes, 0);
+  const result = resolveResources(captured, capture, { ...options, expectedDigest: captured.digest, maxBytes: bytes });
+  expect(result.bytes).toBe(bytes);
+  expect(result.items).toHaveLength(4);
+  expect(result.omissions).toEqual([]);
+  expect(() =>
+    resolveResources(captured, capture, { ...options, expectedDigest: captured.digest, maxBytes: bytes - 1 }),
+  ).toThrow(/Required resources exceed/);
+});
+
 it('rejects omitted, forged, foreign, stale and closed scope tokens', () => {
   const other = open(project, {
     cache: false,

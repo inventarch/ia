@@ -1,3 +1,4 @@
+import { packageManagerCommand } from '../../../tools/entry/package-manager.mjs';
 /**
  * M4.5's first obligation: the three protocols that coexist without normalization
  * (docs/reports/open-source-v1/2026-09-30/decisions.md:65), pinned against the built binaries.
@@ -35,7 +36,13 @@ beforeAll(async () => {
   const launchers = [
     process.env['npm_execpath'],
     ...[dirname(process.execPath), ...(process.env['PATH'] ?? '').split(delimiter)].flatMap((directory) =>
-      ['node_modules/pnpm/bin/pnpm.cjs', 'node_modules/corepack/dist/pnpm.js'].map((path) => resolve(directory, path)),
+      [
+        'node_modules/pnpm/bin/pnpm.cjs',
+        'node_modules/pnpm/bin/pnpm.mjs',
+        'node_modules/pnpm/pnpm',
+        'node_modules/corepack/dist/pnpm.js',
+        'pnpm.exe',
+      ].map((path) => resolve(directory, path)),
     ),
   ];
   const pnpm = launchers.find((path): path is string => path !== undefined && existsSync(path));
@@ -88,7 +95,8 @@ beforeAll(async () => {
   const dependencies: Record<string, string> = {};
   const env: NodeJS.ProcessEnv = { ...process.env, NODE_OPTIONS: '', NODE_PATH: '' };
   const packageManager = async (args: string[], cwd: string): Promise<void> => {
-    const got = await runBounded(process.execPath, [pnpm, ...args], { cwd, env, timeoutMs: 120_000 });
+    const invocation = packageManagerCommand(pnpm, args);
+    const got = await runBounded(invocation.command, invocation.args, { cwd, env, timeoutMs: 120_000 });
     if (got.status !== 0) throw new Error(`pnpm ${args.join(' ')} failed in ${cwd}\n${got.stdout}${got.stderr}`);
   };
   for (const name of selected) {
@@ -100,13 +108,11 @@ beforeAll(async () => {
   }
   writeFileSync(
     resolve(installedRoot, 'package.json'),
-    JSON.stringify({
-      name: 'installed-cli-protocols',
-      private: true,
-      type: 'module',
-      dependencies,
-      pnpm: { overrides: dependencies },
-    }),
+    JSON.stringify({ name: 'installed-cli-protocols', private: true, type: 'module', dependencies }),
+  );
+  writeFileSync(
+    resolve(installedRoot, 'pnpm-workspace.yaml'),
+    JSON.stringify({ packages: ['.'], overrides: dependencies }, null, 2),
   );
   // --prefer-offline, not --offline: a frozen-lockfile workspace install fills the store but never the metadata
   // cache, so a fresh runner has no offline metadata to resolve the archives' third-party dependencies from.

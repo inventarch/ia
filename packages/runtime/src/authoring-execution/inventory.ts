@@ -23,7 +23,7 @@ export function gitFiles(directory: string): string[] {
  * the CI-configuration directory: a source that names it is, by the cache-safety invariant in tools/testing, a CI
  * configuration reader, and only tools tasks may be one.
  */
-const ROOT_OWNED = new Set(['docs', ...['agents', 'claude', 'github'].map((stem) => `.${stem}`)]);
+const ROOT_OWNED = new Set(['docs', 'ia-docs', ...['agents', 'claude', 'github'].map((stem) => `.${stem}`)]);
 /** Neutral repository layout ownership; no catalogue, task selection or policy decision. */
 export function ownerOf(path: string): string | undefined {
   const parts = path.split('/');

@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@contract agent-composition-runtime-contract
+  version "0.1.0"
+  meaning
+    says "Fixed first-party reads disclose bounded captured native source under current authority."
+    answers "What must an explicitly selected captured read accept, return and refuse?"
+  relationships
+    governs @operation read-captured-source
+  inputs
+    REQ-RT-CAPTURED-INPUT "read-captured-source accepts only a captured path and bounded line selection through the fixed installed first-party descriptor; request data cannot select authority or executable code."
+  outputs
+    REQ-RT-CAPTURED-READ "read-captured-source returns exact retained source bytes with capture revision and citation, effect none and no artifacts; the complete output remains within 65536 bytes."
+  failures
+    REQ-RT-CAPTURED-REFUSE "read-captured-source refuses absent, expired, changed or revoked authority and changed capture, manifest, catalogue or implementation pins with IA-INSTALLED-READ-DENIED before disclosing a result."

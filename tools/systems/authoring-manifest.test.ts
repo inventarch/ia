@@ -32,7 +32,7 @@ it('treats private-source links as pinned historical citations that cannot repla
   const spec = { path: '.ia/src/systems/example/SPEC.md', text: '# Support\n' };
   const guide = (href: string) => ({
     path: '.ia/src/systems/example/README.md',
-    text: `# Guide\n\n[Cited](${href})\n`,
+    text: `# Guide\n\n[Cited](${href})\n\n## Source citations\n\nNeeds private access.\n`,
   });
   expect(
     teachingLinkFindings(root, [guide(source('crowncodes/ia', commit, 'docs/specs/design.md')), spec], new Set()),
@@ -95,6 +95,25 @@ it('treats private-source links as pinned historical citations that cannot repla
       guide('#local'),
     ]),
   ).toEqual({ required: 1, historical: 1 });
+});
+it('requires an access statement beside historical citations and an existing section behind each required anchor', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-authoring-manifest-'));
+  temporary.push(root);
+  mkdirSync(resolve(root, '.ia/src/systems/example'), { recursive: true });
+  writeFileSync(resolve(root, '.ia/src/systems/example/SPEC.md'), '# Support\n\n## Case convention\n');
+  const spec = { path: '.ia/src/systems/example/SPEC.md', text: '# Support\n\n## Case convention\n' };
+  const cited = `[History](https://github.com/crowncodes/ia/blob/${'a'.repeat(40)}/docs/specs/design.md)`;
+  const guide = (text: string) => ({ path: '.ia/src/systems/example/README.md', text: `# Guide\n\n${text}\n` });
+  expect(teachingLinkFindings(root, [guide(cited), spec], new Set()).join('\n')).toContain(
+    '"Source citations" section',
+  );
+  expect(
+    teachingLinkFindings(root, [guide(`${cited}\n\n## Source citations\n\nNeeds private access.`), spec], new Set()),
+  ).toEqual([]);
+  expect(teachingLinkFindings(root, [guide('[Rule](SPEC.md#case-convention)'), spec], new Set())).toEqual([]);
+  expect(teachingLinkFindings(root, [guide('[Rule](SPEC.md#removed-section)'), spec], new Set()).join('\n')).toContain(
+    'section missing from its installed teaching target',
+  );
 });
 const temp = (): string => {
   const path = mkdtempSync(resolve(tmpdir(), 'ia-authoring-manifest-'));

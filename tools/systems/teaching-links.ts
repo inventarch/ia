@@ -15,15 +15,19 @@ const PINNED_SOURCE = new RegExp(
 /** Absolute URLs and in-page anchors are not local teaching targets. */
 const NOT_LOCAL = /^[a-z][a-z0-9+.-]*:|^[#/]/i;
 
+/** The section every resource carrying historical citations uses to state that following them needs private-repository access. */
+export const CITATION_ACCESS_SECTION = 'source-citations';
+
 function teachingHrefs(text: string): string[] {
-  return parseMarkdown(text)
-    .links.filter((link) => link.kind !== 'html')
-    .map((link) => link.href);
+  return markdownHrefs(parseMarkdown(text));
 }
+const markdownHrefs = (parsed: ReturnType<typeof parseMarkdown>): string[] =>
+  parsed.links.filter((link) => link.kind !== 'html').map((link) => link.href);
 
 /**
  * Required instruction is a relative link and must survive the installed native/resource closure.
- * A private-source citation is historical: it must pin a commit and must not stand in for a target the closure ships.
+ * A private-source citation is historical: it must pin a commit, must not stand in for a target the closure ships,
+ * and its file must state the access it needs under a "Source citations" heading.
  */
 export function teachingLinkFindings(
   root: string,
@@ -32,8 +36,15 @@ export function teachingLinkFindings(
 ): string[] {
   const available = new Set([...nativePaths, ...files.map((file) => file.path)]),
     findings: string[] = [];
-  for (const file of files)
-    for (const href of teachingHrefs(file.text)) {
+  const parsedFiles = new Map(files.map((file) => [file.path, parseMarkdown(file.text)]));
+  for (const file of files) {
+    const parsed = parsedFiles.get(file.path)!,
+      hrefs = markdownHrefs(parsed);
+    if (hrefs.some((href) => PRIVATE_LINK.test(href)) && !parsed.ids.has(CITATION_ACCESS_SECTION))
+      findings.push(
+        `${file.path}: historical citations need a "Source citations" section stating their private-repository access`,
+      );
+    for (const href of hrefs) {
       if (PRIVATE_LINK.test(href)) {
         const citation = PINNED_SOURCE.exec(href);
         if (!citation)
@@ -50,9 +61,11 @@ export function teachingLinkFindings(
         continue;
       }
       if (NOT_LOCAL.test(href)) continue;
-      let decoded: string;
+      let decoded: string, fragment: string;
       try {
-        decoded = localTarget(href)?.pathname ?? '';
+        const local = localTarget(href);
+        decoded = local?.pathname ?? '';
+        fragment = local?.fragment ?? '';
       } catch {
         findings.push(`${file.path}: invalid teaching link ${href}`);
         continue;
@@ -61,7 +74,10 @@ export function teachingLinkFindings(
       const target = posix.normalize(posix.join(dirname(file.path).replaceAll('\\', '/'), decoded));
       if (!target.startsWith('.ia/src/') || !existsSync(resolve(root, target)) || !inClosure(available, target))
         findings.push(`${file.path}: target outside installed teaching closure: ${href}`);
+      else if (fragment && parsedFiles.has(target) && !parsedFiles.get(target)!.ids.has(fragment))
+        findings.push(`${file.path}: section missing from its installed teaching target: ${href}`);
     }
+  }
   return findings.sort();
 }
 

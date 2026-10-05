@@ -11,3 +11,8 @@
     output draft-result-v1
     profile governed-v1
     recovery repeatable
+  relationships
+    uses @playbook authoring-system-method
+    implements @contract executable-authoring-contract#REQ-EXEC-INPUT
+    implements @contract executable-authoring-contract#REQ-EXEC-RESULT
+    implements @contract executable-authoring-contract#REQ-EXEC-REFUSE

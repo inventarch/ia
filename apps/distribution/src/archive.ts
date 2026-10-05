@@ -25,6 +25,20 @@ const block = 512;
 // Successful immutable structural joins only. Every call still checks complete
 // canonical archive content, gzip envelope and payload pins before consulting this bounded cache.
 const authoringClosures = new Map<string, true>();
+// Successful selected joins only, keyed by the exact decoded lock (every archive and manifest pin) and kernel, never by a
+// standalone archive digest. Every call still authenticates all selected bytes and manifest pins before consulting it.
+const selectedClosures = new Map<string, true>();
+function remembered(cache: Map<string, true>, key: string, verify: () => void): void {
+  if (cache.has(key)) {
+    cache.delete(key);
+    cache.set(key, true);
+    return;
+  }
+  verify();
+  cache.set(key, true);
+  if (cache.size > 32) cache.delete(cache.keys().next().value!);
+}
+const kernelDigest = (): string => sha256(JSON.stringify(KERNEL_SOURCES));
 const header = (path: string, size: number, epoch: number): Buffer => {
   portablePath(path);
   return ustarHeader(path, size, epoch);
@@ -141,15 +155,9 @@ export function inspectArchiveMetadata(
 export function verifyArchive(input: Uint8Array, expectedDigest?: string): VerifiedArchive {
   const { pending } = verifyArchiveBytes(input, expectedDigest);
   const { manifest, files, archiveDigest } = pending;
-  const authoringKey = sha256(`${archiveDigest}:${sha256(JSON.stringify(KERNEL_SOURCES))}`);
-  if (!authoringClosures.has(authoringKey)) {
-    verifyAuthoringAssetClosure(manifest, files);
-    authoringClosures.set(authoringKey, true);
-    if (authoringClosures.size > 32) authoringClosures.delete(authoringClosures.keys().next().value!);
-  } else {
-    authoringClosures.delete(authoringKey);
-    authoringClosures.set(authoringKey, true);
-  }
+  remembered(authoringClosures, sha256(`${archiveDigest}:${kernelDigest()}`), () =>
+    verifyAuthoringAssetClosure(manifest, files),
+  );
   return pending;
 }
 
@@ -172,7 +180,9 @@ export function verifySelectedArchiveClosure(
     if (decoded.pending.manifestDigest !== pkg.manifest) fail('ARCHIVE-INVALID', 'Selected manifest differs from lock');
     pending.set(pkg.id, decoded.pending);
   }
-  deriveGenerationInputs(lock, pending);
-  verifySelectedAuthoringAssetClosure(lock, pending);
+  remembered(selectedClosures, sha256(`${JSON.stringify(lock)}:${kernelDigest()}`), () => {
+    deriveGenerationInputs(lock, pending);
+    verifySelectedAuthoringAssetClosure(lock, pending);
+  });
   return pending;
 }

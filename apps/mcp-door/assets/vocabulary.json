@@ -1,8 +1,8 @@
 {
   "version": 1,
   "language": "ia 1.0",
-  "status": "public IA 1.0 language contract",
-  "sourceDigest": "d2ff22e208b442451859d8d3eb2268a3c3147a344527d96171f3ea9c98f8daed",
+  "status": "public contract examples; release packaging pending",
+  "sourceDigest": "991105cd85bd193d7bfe94cda8c2725124d1122e794b9153fd307875542c0e56",
   "words": [
     {
       "word": "agent",
@@ -2831,6 +2831,102 @@
         ],
         "fields": [],
         "edges": []
+      },
+      "kernelMembers": [],
+      "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"
+    },
+    {
+      "word": "spec",
+      "owner": "work-system",
+      "kind": "contract",
+      "category": "rule",
+      "facets": [
+        "spec"
+      ],
+      "identity": "work-system/contract/<facet>/<name>",
+      "description": "Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality.",
+      "schema": {
+        "name": "spec",
+        "path": ".ia/src/systems/work-system/schemas/spec.schema.ia",
+        "closed": true,
+        "sections": [
+          {
+            "name": "meaning",
+            "required": true
+          },
+          {
+            "name": "work",
+            "required": true
+          },
+          {
+            "name": "relationships",
+            "required": false
+          }
+        ],
+        "fields": [
+          {
+            "path": "meaning.says",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "meaning.answers",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.title",
+            "type": "text",
+            "required": true
+          },
+          {
+            "path": "work.status",
+            "type": "id",
+            "required": true,
+            "values": [
+              "draft",
+              "accepted",
+              "superseded",
+              "withdrawn"
+            ]
+          },
+          {
+            "path": "work.owner",
+            "type": "text",
+            "required": false
+          },
+          {
+            "path": "work.start",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.due",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.ended",
+            "type": "text",
+            "required": false,
+            "form": "iso-date"
+          },
+          {
+            "path": "work.source",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "edges": [
+          {
+            "predicate": "supersede",
+            "target": "spec",
+            "cardinality": "one",
+            "required": false
+          }
+        ]
       },
       "kernelMembers": [],
       "consumer": "language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics"

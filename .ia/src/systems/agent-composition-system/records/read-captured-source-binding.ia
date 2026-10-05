@@ -1,0 +1,10 @@
+#! ia 1.0
+
+@execution-binding read-captured-source-binding
+  meaning
+    says "Select the fixed installed first-party captured-source read adapter."
+    answers "Which declared implementation can an explicitly selected harness bind for captured reads?"
+  binding
+    kind operation
+    target @operation read-captured-source
+    implementation captured-source-read-v1

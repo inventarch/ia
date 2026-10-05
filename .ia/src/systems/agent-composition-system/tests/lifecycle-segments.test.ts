@@ -79,3 +79,66 @@ it('refuses a complete packet beyond the finite slot bound and oversized input c
   expect(() => fragmentLifecycleContext(packet('x'.repeat(150_000)))).toThrow(/budget|bound/i);
   expect(() => assembleLifecycleContextSegments(Array(13).fill('{}'))).toThrow();
 });
+
+// HOST-03 (private source history) flipped this HOST-02 characterization: the transport fragments and assembles a packet pinned
+// to an available Claude Code row (the H3-v1 selection 2.1.285 or the retained 2.1.278) and refuses every other pin, including
+// an unavailable version's digest and the unsegmented native profile, with the generic IA-LIFECYCLE-BUDGET code.
+it('fragments packets pinned to an available Claude Code row and refuses every other pin', () => {
+  const { id: _id, ...body } = JSON.parse(packet('small')) as { id: string; pins: Record<string, unknown> } & Record<
+    string,
+    unknown
+  >;
+  const pinned = (profile: string): string => {
+    const value = { ...body, pins: { ...body.pins, profile } };
+    return JSON.stringify({ ...value, id: metadataDigest(value) });
+  };
+  for (const version of ['2.1.278', '2.1.285']) {
+    const payload = pinned(lifecycleProfile('claude-code', version).digest),
+      outputs = fragmentLifecycleContext(payload).outputs;
+    expect(outputs).toHaveLength(LIFECYCLE_CONTEXT_SLOTS);
+    expect(
+      assembleLifecycleContextSegments(outputs.map((output) => output.hookSpecificOutput.additionalContext)).payload,
+    ).toBe(payload);
+  }
+  for (const profile of [
+    lifecycleProfile('ia-native', '1').digest,
+    lifecycleProfile('claude-code', '2.1.286').digest,
+    lifecycleProfile('claude-code', '2.1.277').digest,
+    hash('no profile row'),
+  ]) {
+    expect(() => fragmentLifecycleContext(pinned(profile))).toThrow(
+      expect.objectContaining({
+        code: 'IA-LIFECYCLE-BUDGET',
+        message: 'Lifecycle segment set exceeds its bound or has missing, mixed or invalid data',
+      }),
+    );
+  }
+});
+
+// HOST-04 (private source history): the ia.lifecycle-context.v1 pins vector keeps exactly its eight keys, which every packet
+// identity covers. The transport accepts them and refuses a packet whose pins drop, rename or add a key.
+it('keeps the eight-key pins vector and refuses a dropped, renamed or added pin key (HOST-04)', () => {
+  const keys = ['binding', 'implementation', 'installation', 'policy', 'profile', 'resources', 'source', 'view'];
+  const { id: _id, ...body } = JSON.parse(packet('small')) as { id: string; pins: Record<string, unknown> } & Record<
+    string,
+    unknown
+  >;
+  const pins: Record<string, unknown> = { ...body.pins, profile: lifecycleProfile('claude-code', '2.1.285').digest };
+  const signed = (value: Record<string, unknown>): string => {
+    const next = { ...body, pins: value };
+    return JSON.stringify({ ...next, id: metadataDigest(next) });
+  };
+  const refused = expect.objectContaining({
+    code: 'IA-LIFECYCLE-BUDGET',
+    message: 'Lifecycle segment set exceeds its bound or has missing, mixed or invalid data',
+  });
+  expect(body['format']).toBe('ia.lifecycle-context.v1');
+  expect(Object.keys(pins).sort()).toEqual(keys);
+  expect(fragmentLifecycleContext(signed(pins)).outputs).toHaveLength(LIFECYCLE_CONTEXT_SLOTS);
+  for (const key of keys) {
+    const { [key]: value, ...rest } = pins;
+    for (const changed of [rest, { ...rest, [`${key}Pin`]: value }])
+      expect(() => fragmentLifecycleContext(signed(changed))).toThrow(refused);
+  }
+  expect(() => fragmentLifecycleContext(signed({ ...pins, session: hash('session') }))).toThrow(refused);
+});

@@ -240,3 +240,52 @@ it('permits a declared skip only on the platform whose reason holds', () => {
   expect(on('linux', ran)).toEqual([]);
   expect(on('linux', skipped).join('\n')).toContain(`unexpected skip ${caseId}`);
 });
+
+it('requires measured capability for a conditional skip and keeps capable runners obligated to pass', () => {
+  const caseId = 'tests/a.test.ts > keeps the contract';
+  const declared = {
+    ...task,
+    skips: [
+      {
+        case: caseId,
+        reason: 'Windows may deny file-symlink creation with EPERM.',
+        platforms: ['windows'] as const,
+        when: 'file-symlink-unavailable' as const,
+      },
+    ],
+  };
+  const on = (status: string, capability: boolean | undefined, selected: 'windows' | 'linux' = 'windows') => {
+    const report = buildReport(declared, {
+      ...readVitestResults('.', 'packages/thing', vitestJson(status)),
+      passed: status !== 'failed',
+      durationMs: 1,
+      startedAt: 'x',
+      commit: null,
+      run: null,
+    });
+    const runtime = { ...report.execution.runtime };
+    delete runtime.fileSymlinks;
+    if (capability !== undefined) runtime.fileSymlinks = capability;
+    const recorded = { ...report, platform: selected, execution: { ...report.execution, runtime: runtime } };
+    return gateFindings(
+      [{ task: task.id, platform: selected, kind: 'vitest' }],
+      [{ ...evidenceFor({ platform: selected }), report: recorded }],
+    );
+  };
+  expect(on('passed', true)).toEqual([]);
+  expect(on('pending', false)).toEqual([]);
+  expect(on('pending', true).join('\n')).toContain('must pass when file symlinks are available');
+  expect(on('passed', false).join('\n')).toContain('declared skipped on windows but reported passed');
+  for (const status of ['passed', 'pending'])
+    expect(on(status, undefined).join('\n')).toContain('requires file-symlink capability evidence');
+  expect(on('todo', false).join('\n')).toContain('unexpected skip');
+  expect(on('failed', true).join('\n')).toContain('reported failed');
+  expect(on('pending', false, 'linux').join('\n')).toContain('unexpected skip');
+  const missing = evidenceFor({ platform: 'windows' }, { allowedSkips: declared.skips, platform: 'windows' });
+  expect(
+    gateFindings(
+      [{ task: task.id, platform: 'windows', kind: 'vitest' }],
+      [{ ...missing, report: { ...missing.report, cases: [] } }],
+    ).join('\n'),
+  ).toContain('was not observed');
+});

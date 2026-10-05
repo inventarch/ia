@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
     inputs:
       full:
@@ -26,7 +28,7 @@ concurrency:
 # unable to change a task's result: package tasks do not hash this file, so a key a task reads is otherwise ignored.
 env:
   # Bump to invalidate results a defect has made unsound. It is a hashed input of every task.
-  NX_CACHE_EPOCH: '1'
+  NX_CACHE_EPOCH: '2'
   # Scheduled and dispatched full runs execute everything; ordinary runs may reuse task results.
   IA_FULL: ${{ (github.event_name == 'schedule' || inputs.full) && 'true' || '' }}
 
@@ -50,10 +52,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - name: Check dependency advisories
-        run: pnpm audit --audit-level=moderate
       # The full required task set for this checkout. A new unassigned test fails here, before
       # anything is scheduled; a deleted file cannot silently remove an obligation.
+      - name: Check dependency advisories
+        run: pnpm audit --audit-level=moderate
       - name: Validate the test inventory
         run: pnpm tests:inventory
       # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed
@@ -69,8 +71,8 @@ jobs:
           echo "Last successful scheduled run verified ${sha:-nothing}; main is at ${{ github.sha }}."
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
       # Public source tasks use four general lanes on Linux/Windows and two on macOS.
-      # The event selects the platforms: a pull request plans Linux alone, every other event all three. The planner also
-      # emits the gate's rows from that selection and, for a scheduled run on an already verified main, run=false.
+      # Pull requests targeting main and every other trigger plan Linux, Windows and macOS. The planner also
+      # emits the gate's rows and, for a scheduled run on an already verified main, run=false.
       - name: Assign tasks to shards
         id: matrices
         run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=4,macos=2 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" >> "$GITHUB_OUTPUT"
@@ -274,8 +276,8 @@ jobs:
 
   qualify:
     # The existing required check names. This job is the gate; it is never cached and runs whatever its prerequisites
-    # did, unless the plan decided the run had nothing to verify. Its rows are the planned platforms (Linux alone on a
-    # pull request); a plan that produced none fails this job rather than skipping it.
+    # did, unless the plan decided the run had nothing to verify. Every run gates all three platforms;
+    # a plan that produced none fails this job rather than skipping it.
     name: Emitted platform (${{ matrix.os }})
     needs: [plan, build, static, tests, emitted, homebrew-node]
     if: always() && needs.plan.outputs.run != 'false'

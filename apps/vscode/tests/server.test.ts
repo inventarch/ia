@@ -1,6 +1,6 @@
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { createMessageConnection, StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { URI } from 'vscode-uri';
@@ -23,7 +23,7 @@ it('initializes beside package links and answers real stdio editor requests', as
   // Exercise the bundled reader against the colocated pnpm layout that crashed an older installed VSIX.
   const system = resolve(root, '.ia/src/systems/agent-composition-system'),
     dependency = resolve(root, 'dependency');
-  mkdirSync(resolve(system, 'node_modules/@inventarch'), { recursive: true });
+  mkdirSync(dirname(resolve(system, 'node_modules/@inventarch/agent-system')), { recursive: true });
   mkdirSync(resolve(system, 'dist'), { recursive: true });
   mkdirSync(dependency);
   writeFileSync(resolve(dependency, 'not-source.ia'), 'dependency bytes are not IA source');
