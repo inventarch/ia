@@ -356,3 +356,15 @@ it('declares every workflow env key a task could read as an Nx env input', () =>
   // A key that is both declared and allowlisted, or allowlisted but gone, is a stale reason.
   expect(Object.keys(RESULT_NEUTRAL_WORKFLOW_ENV).filter((key) => declared.has(key) || !keys.has(key))).toEqual([]);
 });
+
+it('refuses unknown capability predicates in declared skips', () => {
+  const skip = {
+    case: 'tests/a.test.ts > fixture',
+    reason: 'Named capability.',
+    platforms: ['windows'] as const,
+    when: 'file-symlink-unavailable' as const,
+  };
+  expect(check([task({ skips: [skip] })])).toEqual([]);
+  const invalid = JSON.parse(JSON.stringify({ ...skip, when: 'invented-capability' }));
+  expect(check([task({ skips: [invalid] })]).join('\n')).toContain('unknown skip condition');
+});

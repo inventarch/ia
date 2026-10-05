@@ -7439,7 +7439,7 @@
     },
     {
       "path": "tools/testing/SPEC.md",
-      "sha256": "8b59ed3d2c887fed86fb7cc835b66b525039855e344e12a95a553eb82a0f37d9"
+      "sha256": "a9768ea2ab98fee3ce1585359a629164cb11d2b2e84f6803448941fb35a17911"
     },
     {
       "path": "tools/testing/cache.test.ts",
@@ -7451,11 +7451,11 @@
     },
     {
       "path": "tools/testing/inventory.test.ts",
-      "sha256": "98dfe68f4979412b1b96a3a5ed33a9c2543ef0325d941b0ae608d7a7e9f3cf96"
+      "sha256": "ebac3344e9ee4946ee6a02991efdadcac8001a919575fbd862782795f33c2275"
     },
     {
       "path": "tools/testing/inventory.ts",
-      "sha256": "2c1d297260ee028aab87c55f13db45418ba956a5ba18d29084a8b2371766e624"
+      "sha256": "32799551e7a1d7a21853ec2c846b9de4bd2d55730a0c0839882f2101a00d7a9b"
     },
     {
       "path": "tools/testing/nx-plugin.mjs",
@@ -7475,11 +7475,11 @@
     },
     {
       "path": "tools/testing/report.test.ts",
-      "sha256": "03943e7afb46bf588d1f643f6a077f3f913f43d1f9f917313212300003dab08e"
+      "sha256": "2804b2120f486bd11394fe011fecf8df0d2d16a064d754cae62d1bc3ff15a478"
     },
     {
       "path": "tools/testing/report.ts",
-      "sha256": "70745584382d827da4f8e7606e601eb5be7c42257e81ec230aaec4109a2fc48d"
+      "sha256": "b8a8f1b7d446115bfedbd63c0be87c8c8dce69b59ca08106e4bbd0453fdbd85b"
     },
     {
       "path": "tools/testing/resources.test.ts",
@@ -7507,7 +7507,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "9874efa8aa0ae29dbf339a77de931af7053d27e12abb5e9ae4cbbe4a95ec3975"
+      "sha256": "39aafad445db60fdbdd29d9ff50f727ee3ad165f625b75cb7a78bbf55c6b9415"
     },
     {
       "path": "tools/testing/timeouts.ts",
@@ -7532,10 +7532,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "28fbafc3c11cefb4b85f6e0a931f91335e794e86",
-    "baseTree": "fb105d7f015d76d7c6e6924b65b2e4aa7a89526c",
+    "baseCommit": "cb50de93c64a22c3ee1af9eb2f870473ae5238e2",
+    "baseTree": "caf6e0737a745c7809cf8a67147c77c5c466540f",
     "dirty": true,
-    "inputDigest": "33aa11585471df5d9d163e9fc0cadbe893bd504750b949bc095bcb8aaa2f9bc7",
+    "inputDigest": "6e3f9312bdbb5cf3d5413364e2b84b161f8d9126dbca09415ec92095d39c3da8",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",

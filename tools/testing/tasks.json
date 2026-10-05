@@ -1426,21 +1426,24 @@
           "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
           "platforms": [
             "windows"
-          ]
+          ],
+          "when": "file-symlink-unavailable"
         },
         {
           "case": "tests/host.test.ts > refuses a file symlink at host cache payload payload.txt",
           "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
           "platforms": [
             "windows"
-          ]
+          ],
+          "when": "file-symlink-unavailable"
         },
         {
           "case": "tests/registry-selected.test.ts > refuses a selection-root with symlinked cache bytes, leaving registry and workspace untouched",
           "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
           "platforms": [
             "windows"
-          ]
+          ],
+          "when": "file-symlink-unavailable"
         }
       ]
     },
