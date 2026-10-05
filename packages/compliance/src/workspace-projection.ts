@@ -11,7 +11,18 @@ export interface WorkspaceProjectionInput {
   readonly modes: readonly { readonly invocation: string; readonly meaning: string }[];
   readonly distributions: readonly { readonly id: string; readonly version: string }[];
   readonly operations: readonly string[];
+  /**
+   * The routes the workspace's steward guard registration has (#540): `all` for the current matcher, or when none is
+   * registered yet; `files` for a registration made before #540, which routes only Write, Edit and MultiEdit. Default `all`.
+   */
+  readonly guard?: 'all' | 'files' | undefined;
 }
+/** The guard sentence of the Claude rules, per registered route set: it claims no more than the registration routes (#540). */
+const GUARD_RULE: Readonly<Record<'all' | 'files', string>> = {
+  all: "When the steward guard is registered, it refuses changes under .ia/src/systems/<name>/ that do not come from that system's steward subagent. It checks the file tools (Write, Edit, MultiEdit, NotebookEdit) and the writes that a Bash or PowerShell command's own text shows, inline code included. It cannot see a path that a program works out while it runs, so ask the steward for such changes.",
+  files:
+    "When the steward guard is registered, it refuses changes under .ia/src/systems/<name>/ that do not come from that system's steward subagent. This workspace registered it for the file tools Write, Edit and MultiEdit only, so it does not see NotebookEdit, Bash or PowerShell; run ia host claude --apply to register it for them.",
+};
 /**
  * Spec §6.1: systems, stewards, distributions, door, launcher modes. No named procedure is required.
  * Shares every refusal condition with renderHostArtifacts through admittedStewards (projections.ts).
@@ -59,10 +70,8 @@ export function renderWorkspaceProjection(
     : '- none';
   const modes = input.modes.map((m) => `- \`${m.invocation}\`: ${m.meaning}`).join('\n');
   // Operator decision 2026-09-23: Claude is the host that registers the steward guard; the sentence states its rule, not that it ran.
-  const guard =
-    input.host === 'claude'
-      ? `\n\nWhen the steward guard is registered, edits under .ia/src/systems/<name>/ are accepted only from that system's steward subagent.`
-      : '';
+  // #540: it names the routes the guard judges and the paths it cannot see, so it claims no more than the guard enforces.
+  const guard = input.host === 'claude' ? `\n\n${GUARD_RULE[input.guard ?? 'all']}` : '';
   const instructions = `${WORKSPACE_PROJECTION_MARKER}\n\n# IA workspace\n\nSource revision: ${revision}\n\n## Systems and stewards\n\n${rows.join('\n')}${guard}\n\n## Installed distributions\n\n${distributions}\n\n## Reaching the door\n\nThe MCP server \`ia-workspace\` serves this workspace read-only. For one-shot queries run \`ia <operation> --root <workspace>\`, where the operation is one of: ${input.operations.join(', ')}.\n\n## Launcher modes\n\n\`ia doctor\` reports the path of \`<cache>\`.\n\n${modes}\n\n\n## User-level state\n\n~/.ia is the user-level IA home, not a workspace; ia doctor reports it.\n\nThis file is a projection of records. Adding text to it creates no rule; rules are authored records.\n`;
   const skill = `---\nname: ia-authoring\ndescription: Author or review IA records in this workspace.\n---\n\n${WORKSPACE_PROJECTION_MARKER}\n\nSource revision: ${revision}\n\nFind a word and its schema with \`ia vocabulary <word> --schema\`. Check records with \`ia validate\`. Inspect an admitted record with \`ia inspect <identity>\`. Validation establishes conformance to the declared schemas, not design quality.\n`;
   const artifacts: HostArtifact[] =

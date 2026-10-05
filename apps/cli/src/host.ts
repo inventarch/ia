@@ -134,9 +134,12 @@ export const MACHINE_LOCAL: Readonly<Record<HostName, string>> = {
 };
 /** §5.4: the MCP element's one fixed addition, from §2.3's host facts. */
 export const MCP_APPROVAL = 'Claude Code asks for approval before starting a project MCP server.';
-/** Operator decision 2026-09-23 ("narrow + disclose"): what the registered steward guard refuses, said where it is registered. */
+/**
+ * Operator decision 2026-09-23 ("narrow + disclose"): what the registered steward guard refuses, said where it is registered.
+ * #540: the routes it judges and the paths it cannot see.
+ */
 export const GUARD_SCOPE =
-  "The steward guard denies file-tool edits to the files ia host owns and to records under .ia/src/systems/<name>/ unless the edit comes from that system's steward subagent (<name>-steward).";
+  "The steward guard denies changes to the files ia host owns and to records under .ia/src/systems/<name>/ unless they come from that system's steward subagent (<name>-steward). It checks file-tool edits and the writes a Bash or PowerShell command's own text shows, inline code included; it cannot see paths a program works out while it runs.";
 /** §5.1's files, exported once so `ia doctor` names the same ones. */
 export const MCP_PATH: Readonly<Record<HostName, string>> = { claude: '.mcp.json', codex: '.codex/config.toml' };
 export const SETTINGS = '.claude/settings.local.json';
@@ -413,7 +416,7 @@ export function collectHost(context: Context): HostView {
   // §4: zero error findings. A removal renders nothing, so it checks admission alone.
   let artifacts: readonly Artifact[] = [];
   if (remove) checkAdmitted(root);
-  else artifacts = renderProjectionFor(root, name);
+  else artifacts = renderProjectionFor(root, name, 'all'); // this run registers the current guard matcher (#540)
   // A host home reached through a symbolic link or junction is refused by the mechanism (IA-DIST-PATH-UNSAFE), because
   // the payload it verifies must be the one the registration names; the remedy is a home with no link in its path.
   const expected: HostCacheTarget = located(null, 'Set IA_HOME to a directory path with no links, or unset it.', () =>
@@ -569,7 +572,7 @@ export function applyHostSet(
     const mcp = replan(view, 'mcp', MCP_PATH[host], () => planHost(root, host, cache));
     const hooks =
       host === 'claude' ? replan(view, 'hooks', SETTINGS, () => planGuardRegistration(root, { cache })) : null;
-    const artifacts = renderProjectionFor(root, host);
+    const artifacts = renderProjectionFor(root, host, 'all'); // the hooks step of this run registers the current matcher (#540)
     const projection: ProjectionPlan = replan(view, 'projection', STATE.projection(host), () =>
       planProjection({ root, host, artifacts, marker: WORKSPACE_PROJECTION_MARKER }),
     );
