@@ -412,13 +412,17 @@ it('admits one plan, milestone, task and decision in a fresh workspace with no e
     json(inspected)
       .records.map((record: { identity: string }) => record.identity)
       .sort(),
-  ).toEqual(['decision', 'milestone', 'plan', 'task'].map((word) => `work-system/definition/${word}/example-${word}`));
-  // The requirement is what admits them: without it the same four records are refused.
+  ).toEqual([
+    'work-system/contract/spec/example-spec',
+    ...['decision', 'milestone', 'plan', 'task'].map((word) => `work-system/definition/${word}/example-${word}`),
+  ]);
+  // The selected work example also contains a spec contract. The requirement admits all five;
+  // without it every definition and the spec contract must refuse through the same foreign-discriminator check.
   writeFileSync(system, starter.replace('    - work-system\n', ''));
   const refused = json(await run(['validate', '--root', root, '--json']));
   const errors = refused.findings.filter((finding: { severity: string }) => finding.severity === 'error');
   expect(errors.map((finding: { code: string }) => finding.code)).toEqual(
-    Array(4).fill('IA-COMP-DISCRIMINATOR-FOREIGN'),
+    Array(5).fill('IA-COMP-DISCRIMINATOR-FOREIGN'),
   );
 });
 
@@ -894,10 +898,12 @@ it('refuses while a live installer holds the lock, and recovery does not take it
   expect(tree(root)).toEqual(before);
 });
 
-it('ships a base pin that matches the CLI version and its one archive', () => {
+it('ships a base pin that matches the native version policy and its one archive', () => {
   // M5.2 §2.3's apps/cli half; tools/native/language-base.test.ts shows each check failing on disagreement.
   const shipped = JSON.parse(readFileSync(resolve(cli, PIN_PATH), 'utf8'));
-  expect(shipped.version).toBe(JSON.parse(readFileSync(resolve(cli, 'package.json'), 'utf8')).version);
+  expect(shipped.version).toBe(
+    JSON.parse(readFileSync(resolve(repository, 'examples/public-language/versions.json'), 'utf8')).language,
+  );
   expect(readdirSync(resolve(cli, 'assets/base'))).toEqual([`${shipped.archive}.ia.tgz`]);
   const bytes = readFileSync(resolve(cli, `assets/base/${shipped.archive}.ia.tgz`));
   expect(createHash('sha256').update(bytes).digest('hex')).toBe(shipped.archive);

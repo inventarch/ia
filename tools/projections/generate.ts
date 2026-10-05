@@ -50,7 +50,12 @@ export function publishArtifacts(root: string, artifacts: readonly HostArtifact[
   const expected = new Set(artifacts.map((a) => a.path)),
     pending: HostArtifact[] = [];
   const allowed = (path: string): boolean =>
-    path === 'CLAUDE.md' || skillPaths.includes(path) || /^\.claude\/agents\/[a-z][a-z0-9-]*\.md$/.test(path);
+    path === 'CLAUDE.md' ||
+    skillPaths.includes(path) ||
+    /^\.(?:agents|claude)\/skills\/ia-authoring\/(?:parts\/(?:orient|plan|act|learn)\.md|scripts\/context\.mjs)$/.test(
+      path,
+    ) ||
+    /^\.claude\/agents\/[a-z][a-z0-9-]*\.md$/.test(path);
   if (expected.size !== artifacts.length || artifacts.some((a) => !allowed(a.path)))
     throw new Error('Invalid projection output set');
   const agents = safe(root, '.claude/agents');
@@ -64,6 +69,18 @@ export function publishArtifacts(root: string, artifacts: readonly HostArtifact[
         readFileSync(target, 'utf8').split(/\r?\n/).includes(PROJECTION_MARKER)
       )
         throw new Error(`Stale managed projection requires source-aware reconciliation: ${path}`);
+    }
+  for (const host of ['.agents', '.claude'])
+    for (const directory of ['parts', 'scripts']) {
+      const prefix = `${host}/skills/ia-authoring/${directory}`,
+        folder = safe(root, prefix);
+      if (!existsSync(folder)) continue;
+      for (const entry of readdirSync(folder, { withFileTypes: true })) {
+        const path = `${prefix}/${entry.name}`,
+          target = safe(root, path);
+        if (entry.isFile() && !expected.has(path) && owned(readFileSync(target), path))
+          throw new Error(`Stale managed projection requires source-aware reconciliation: ${path}`);
+      }
     }
   // Preflight the complete set before publishing any file.
   for (const artifact of artifacts) {

@@ -1,20 +1,39 @@
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { verifyArchive } from '../../apps/distribution/src/archive.js';
 import { DISTRIBUTION_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
-import { BASE_ID, buildLanguageBase, cliVersion, languageBaseFindings } from './language-base.js';
+import { BASE_ID, buildLanguageBase, languageVersion, languageBaseFindings } from './language-base.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const version = cliVersion(root);
+const version = languageVersion(root);
 const base = buildLanguageBase(root);
 const checked = (overrides: Partial<Parameters<typeof languageBaseFindings>[0]> = {}) =>
-  languageBaseFindings({ ...base, cliVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION, ...overrides });
+  languageBaseFindings({ ...base, languageVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION, ...overrides });
 
 // docs/specs/workspace-initialization-apply/README.md §2 and §8 item 8.
 describe('bundled language base', () => {
-  it('packs inventarch/language at the CLI version from the language-only set, deterministically', () => {
+  it('selects native versions independently of npm and refuses an absent or malformed version policy', () => {
+    const temporary = mkdtempSync(resolve(tmpdir(), 'ia-language-version-'));
+    try {
+      mkdirSync(resolve(temporary, 'examples/public-language'), { recursive: true });
+      mkdirSync(resolve(temporary, 'apps/cli'), { recursive: true });
+      writeFileSync(resolve(temporary, 'apps/cli/package.json'), JSON.stringify({ version: '9.0.0' }));
+      expect(() => languageVersion(temporary)).toThrow();
+      const policy = resolve(temporary, 'examples/public-language/versions.json');
+      writeFileSync(policy, JSON.stringify({ format: 'ia.public-native-versions.v1', language: '2.3.4' }));
+      expect(languageVersion(temporary)).toBe('2.3.4');
+      for (const invalid of ['01.0.0', '1.0', null]) {
+        writeFileSync(policy, JSON.stringify({ format: 'ia.public-native-versions.v1', language: invalid }));
+        expect(() => languageVersion(temporary)).toThrow('Invalid native language version policy');
+      }
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  });
+  it('packs inventarch/language at the independently selected native version from the language-only set, deterministically', () => {
     expect(base.pin).toMatchObject({ id: BASE_ID, version });
     const verified = verifyArchive(base.bytes, base.pin.archive);
     expect(verified.manifestDigest).toBe(base.pin.manifest);
@@ -35,18 +54,20 @@ describe('bundled language base', () => {
   it('fails when the bundled engine range rejects the CLI engine', () => {
     const foreign = buildLanguageBase(root, { engine: '^99.0.0' });
     expect(
-      languageBaseFindings({ ...foreign, cliVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION }),
+      languageBaseFindings({ ...foreign, languageVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION }),
     ).toEqual([`Bundled engine range ^99.0.0 rejects the CLI engine ${DISTRIBUTION_ENGINE_VERSION}`]);
     expect(checked({ engineVersion: '99.0.0' })).toEqual([
       `Bundled engine range ^${DISTRIBUTION_ENGINE_VERSION} rejects the CLI engine 99.0.0`,
     ]);
   });
-  it('fails when the pinned version is not the CLI version', () => {
-    expect(checked({ cliVersion: '9.9.9' })).toEqual([`Pinned version ${version} differs from @inventarch/cli 9.9.9`]);
+  it('fails when the pinned version differs from native policy', () => {
+    expect(checked({ languageVersion: '9.9.9' })).toEqual([
+      `Pinned version ${version} differs from native language policy 9.9.9`,
+    ]);
     const other = buildLanguageBase(root, { version: '9.9.9' });
-    expect(languageBaseFindings({ ...other, cliVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION })).toEqual(
-      [`Pinned version 9.9.9 differs from @inventarch/cli ${version}`],
-    );
+    expect(
+      languageBaseFindings({ ...other, languageVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION }),
+    ).toEqual([`Pinned version 9.9.9 differs from native language policy ${version}`]);
   });
   it('fails when the archive bytes or the manifest disagree with the pin', () => {
     const bytes = Buffer.from(base.bytes);

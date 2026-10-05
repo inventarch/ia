@@ -61,11 +61,12 @@ const corpus = JSON.parse(readFileSync(new URL('./fixtures/link-conformance.json
   cases: ConformanceCase[];
 };
 for (const [surface, read] of Object.entries(readers)) {
-  it(`${surface} retains every frozen syntax/container conformance expectation`, () => {
-    const root = checkout({ 'docs/a.md': '' });
+  describe(`${surface} frozen syntax/container conformance`, () => {
     for (const example of corpus.cases) {
-      writeFileSync(resolve(root, 'docs/a.md'), example.markdown);
-      expect(targets(read(root)).includes(corpus.target), example.name).toBe(example[surface as 'check' | 'catalog']);
+      it(example.name, () => {
+        const root = checkout({ 'docs/a.md': example.markdown });
+        expect(targets(read(root)).includes(corpus.target), example.name).toBe(example[surface as 'check' | 'catalog']);
+      });
     }
   });
 }

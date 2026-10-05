@@ -1,3 +1,5 @@
+import { pathToFileURL } from 'node:url';
+import { runBounded } from '../../../tools/testing/subprocess.js';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -15,6 +17,7 @@ const root = join(temporary, 'workspace with spaces');
 beforeAll(() => {
   mkdirSync(root);
   const systems = [
+    '.ia/src/systems/workspace-system/records/system-packages.ia',
     '.ia/src/floor/artifact-set.ia',
     '.ia/src/floor/axis.ia',
     '.ia/src/floor/cardinality.ia',
@@ -70,6 +73,7 @@ beforeAll(() => {
     '.ia/src/systems/work-system/schemas/milestone.schema.ia',
     '.ia/src/systems/work-system/schemas/plan.schema.ia',
     '.ia/src/systems/work-system/schemas/task.schema.ia',
+    '.ia/src/systems/work-system/schemas/spec.schema.ia',
     '.ia/src/systems/agent-composition-system/records/composition.ia',
     '.ia/src/systems/workspace-system/records/quality.ia',
     '.ia/src/systems/workspace-system/records/architecture.ia',
@@ -102,6 +106,8 @@ beforeAll(() => {
   const capture = captureWorkspace(root),
     inventory = resourceOccurrences(capture),
     owner = inventory.occurrences.find((o) => o.identity.endsWith('/fictional-reviewer'))!;
+  // #444: an agent export needs its agent profile, whose capability effects bound the host tools.
+  const profile = inventory.occurrences.find((o) => o.identity.endsWith('/fictional-review-profile'))!;
   const resources = captureResources(capture, { roots: [], files: [], associations: [] });
   writeFileSync(join(root, 'resources.json'), JSON.stringify(resources));
   for (const host of ['claude', 'codex'])
@@ -124,7 +130,14 @@ beforeAll(() => {
             profile: catalog.profile.id,
             resources: [],
             requirements: [],
-            presentation: { kind: 'agent', agent: owner, model: 'inherit', tools: ['read'], delegates: [] },
+            presentation: {
+              kind: 'agent',
+              agent: owner,
+              agentProfile: profile,
+              model: 'inherit',
+              tools: ['read'],
+              delegates: [],
+            },
           },
         ],
       };
@@ -273,4 +286,29 @@ it('renders a captured structured template through the explicit-root command', (
   expect(() => run([...args, '--out', '.ia/work/document.md'])).toThrow('already exists');
   writeFileSync(join(project, 'values.json'), '{"title":"one","title":"two"}');
   expect(run(args)).toMatchObject({ exitCode: 1, result: { status: 'refused' } });
+});
+
+it('imports the installed command entry without dispatch and still runs an explicit CLI entry', async () => {
+  const executable = resolve(repository, 'apps/distribution/dist/cli.js');
+  const imported = await runBounded(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      'await import(' + JSON.stringify(pathToFileURL(executable).href) + '); console.log("inert-import");',
+    ],
+    { cwd: temporary, timeoutMs: 30000 },
+  );
+  expect(imported.status, imported.stderr).toBe(0);
+  expect(imported.stdout.trim()).toBe('inert-import');
+  expect(imported.stderr).not.toContain('IA-DIST-INPUT-INVALID');
+  const help = await runBounded(process.execPath, [executable, '--help'], { cwd: temporary, timeoutMs: 30000 });
+  expect(help.status, help.stderr).toBe(0);
+  expect(help.stdout).toContain('ia-distribution');
+  const refused = await runBounded(process.execPath, [executable, 'not-a-command'], {
+    cwd: temporary,
+    timeoutMs: 30000,
+  });
+  expect(refused.status).toBe(1);
+  expect(JSON.parse(refused.stderr)).toMatchObject({ status: 'refused', code: 'IA-DIST-INPUT-INVALID' });
 });

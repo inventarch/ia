@@ -46,6 +46,8 @@ export interface CausalReferences {
   receipts: string[];
 }
 export interface ReviewContract {
+  /** Current separately mandated authority, present only for the explicit independent review rule. */
+  authority?: { mandate: string; policyRevision: string };
   reviewer: string;
   rule: string;
   expiresAt: number;

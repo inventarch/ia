@@ -6,6 +6,7 @@ import { KERNEL_DIGEST, LANGUAGE_VERSION, LANG_CODES } from '../../packages/lang
 import { GRAPH_CODES, load } from '../../packages/graph/src/index.js';
 import {
   COMP_CODES,
+  EVIDENCE_CODES,
   evaluate,
   fixtureCoverage,
   runLanguageFixture,
@@ -21,6 +22,7 @@ import { generateKernel, readKernel } from '../kernel/generate.js';
 import { runRefusalFixtures } from '../../packages/compliance/fixtures/refusals.js';
 import { HOOK_CODES, PUBLICATION_CODES, RUNTIME_CODES, RUNTIME_ESCALATIONS } from '../../packages/runtime/src/index.js';
 import { runRuntimeFixtures } from './runtime-fixtures.js';
+import { runEvidenceFixtures } from './evidence-fixtures.js';
 import { runHookFixtures } from './hook-fixtures.js';
 import { EXEC_CODES } from '../systems/types.js';
 import { executionFixtureCodes, runExecutionFixtures } from '../systems/refusal-fixtures.js';
@@ -122,6 +124,7 @@ export function checkCompliance(root: string) {
     results = listing.fixtures.map(runLanguageFixture);
   const boundaries = [
       ...runRefusalFixtures(graph, native.inputs, folders),
+      ...runEvidenceFixtures(graph),
       ...runRuntimeFixtures(root),
       ...runHookFixtures(root),
       ...runExecutionFixtures(root),
@@ -146,6 +149,7 @@ export function checkCompliance(root: string) {
         ...LANG_CODES,
         ...GRAPH_CODES,
         ...COMP_CODES,
+        ...EVIDENCE_CODES,
         ...HOOK_CODES,
         ...effectCodes,
         ...RUNTIME_CODES,

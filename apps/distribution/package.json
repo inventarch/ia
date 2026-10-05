@@ -1,6 +1,6 @@
 {
   "name": "@inventarch/distribution",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "bin": {
     "ia-distribution": "./dist/cli.js"
@@ -11,7 +11,9 @@
     "README.md",
     "SPEC.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "references/system-package.md",
+    "LANGUAGE.md"
   ],
   "engines": {
     "node": ">=22.22.0 <23"
@@ -163,6 +165,11 @@
       "types": "./dist/services.d.ts",
       "default": "./dist/services.js"
     },
+    "./system-package": {
+      "development": "./src/system-package.ts",
+      "types": "./dist/system-package.d.ts",
+      "default": "./dist/system-package.js"
+    },
     "./internal/acquire": {
       "types": "./dist/acquire.d.ts",
       "default": "./dist/acquire.js"
@@ -178,6 +185,10 @@
     "./internal/bounded-fetch": {
       "types": "./dist/bounded-fetch.d.ts",
       "default": "./dist/bounded-fetch.js"
+    },
+    "./internal/cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
     },
     "./internal/command": {
       "types": "./dist/command.d.ts",
@@ -259,6 +270,10 @@
       "types": "./dist/plugin-home.d.ts",
       "default": "./dist/plugin-home.js"
     },
+    "./internal/program": {
+      "types": "./dist/program.d.ts",
+      "default": "./dist/program.js"
+    },
     "./internal/projection": {
       "types": "./dist/projection.d.ts",
       "default": "./dist/projection.js"
@@ -307,6 +322,10 @@
       "types": "./dist/snapshot.d.ts",
       "default": "./dist/snapshot.js"
     },
+    "./internal/system-package": {
+      "types": "./dist/system-package.d.ts",
+      "default": "./dist/system-package.js"
+    },
     "./internal/transfer": {
       "types": "./dist/transfer.d.ts",
       "default": "./dist/transfer.js"
@@ -322,7 +341,6 @@
   },
   "license": "Apache-2.0",
   "publishConfig": {
-    "access": "public",
     "exports": {
       "./archive": {
         "types": "./dist/archive.d.ts",
@@ -424,6 +442,10 @@
         "types": "./dist/services.d.ts",
         "default": "./dist/services.js"
       },
+      "./system-package": {
+        "types": "./dist/system-package.d.ts",
+        "default": "./dist/system-package.js"
+      },
       "./internal/acquire": {
         "types": "./dist/acquire.d.ts",
         "default": "./dist/acquire.js"
@@ -439,6 +461,10 @@
       "./internal/bounded-fetch": {
         "types": "./dist/bounded-fetch.d.ts",
         "default": "./dist/bounded-fetch.js"
+      },
+      "./internal/cli": {
+        "types": "./dist/cli.d.ts",
+        "default": "./dist/cli.js"
       },
       "./internal/command": {
         "types": "./dist/command.d.ts",
@@ -520,6 +546,10 @@
         "types": "./dist/plugin-home.d.ts",
         "default": "./dist/plugin-home.js"
       },
+      "./internal/program": {
+        "types": "./dist/program.d.ts",
+        "default": "./dist/program.js"
+      },
       "./internal/projection": {
         "types": "./dist/projection.d.ts",
         "default": "./dist/projection.js"
@@ -568,6 +598,10 @@
         "types": "./dist/snapshot.d.ts",
         "default": "./dist/snapshot.js"
       },
+      "./internal/system-package": {
+        "types": "./dist/system-package.d.ts",
+        "default": "./dist/system-package.js"
+      },
       "./internal/transfer": {
         "types": "./dist/transfer.d.ts",
         "default": "./dist/transfer.js"
@@ -581,6 +615,7 @@
         "default": "./dist/ustar.js"
       }
     },
+    "access": "public",
     "registry": "https://registry.npmjs.org"
   },
   "repository": {

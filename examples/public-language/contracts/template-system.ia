@@ -2,7 +2,7 @@
 
 @system template-system
   provider "inventarch.local"
-  version "0.1.0"
+  version "1.1.0"
   describes "Public template-system vocabulary contracts"
   steward @agent public-template-system-steward
   requires

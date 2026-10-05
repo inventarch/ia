@@ -2,7 +2,6 @@ import { systemMember } from '@inventarch/db';
 import type { InputSnapshot } from '@inventarch/db';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import {
-  canonicalDistributionJson,
   decodeActivationPointer,
   decodeBundleManifest,
   decodeDistributionLock,
@@ -15,7 +14,13 @@ import {
 import type { BundleManifest } from '@inventarch/db/distribution';
 import { isProvenance } from '@inventarch/language';
 import type { CompiledRecord, EdgeReference } from '@inventarch/language';
-import { buildArchive, verifyArchive, verifySelectedArchiveClosure, type VerifiedArchive } from './archive.js';
+import {
+  buildArchive,
+  inspectArchiveMetadata,
+  verifyArchive,
+  verifySelectedArchiveClosure,
+  type VerifiedArchive,
+} from './archive.js';
 import { fail } from './files.js';
 
 export type DistributionSourceInput = Pick<InputSnapshot, 'sources' | 'folders' | 'floorOrigin' | 'activation'>;
@@ -177,7 +182,9 @@ function textField(record: CompiledRecord, key: string): string {
 /** Visits compiled semantic data, including references beneath conditional fields/cells. */
 function references(value: unknown, add: (ref: EdgeReference) => void): void {
   if (Array.isArray(value)) {
-    value.forEach((v) => references(v, add));
+    value.forEach((v) => {
+      references(v, add);
+    });
     return;
   }
   if (!value || typeof value !== 'object') return;
@@ -189,7 +196,9 @@ function references(value: unknown, add: (ref: EdgeReference) => void): void {
     add(row as unknown as EdgeReference);
     return;
   }
-  Object.values(row).forEach((v) => references(v, add));
+  Object.values(row).forEach((v) => {
+    references(v, add);
+  });
 }
 /** Shared whole-system packing over exact source and explicit asset bytes. */
 export function packSnapshot(
@@ -197,7 +206,8 @@ export function packSnapshot(
   descriptorInput: unknown,
   assetInput: ReadonlyMap<string, Uint8Array>,
 ): PackedDistribution {
-  return pack(input, descriptorInput, assetInput, (bytes) => verifyArchive(bytes));
+  const pending = preparePack(input, descriptorInput, assetInput);
+  return Object.freeze({ ...verifyArchive(pending.bytes), ...pending });
 }
 
 /** Explicit dependent-authoring pack; existing standalone pack semantics remain unchanged. */
@@ -210,40 +220,74 @@ export function packSnapshotWithDependencies(
 ): PackedDistribution {
   const lock = decodeDistributionLock(dependencyLock);
   verifySelectedArchiveClosure(lock, dependencyArchives);
-  return pack(input, descriptorInput, assetInput, (bytes, manifest) => {
-    if (lock.packages.some((pkg) => pkg.id === manifest.id))
-      fail('CLOSURE-INVALID', 'Dependency selection already contains the packed release');
-    const archive = sha256(bytes),
-      manifestDigest = sha256(canonicalDistributionJson(manifest));
-    const selected = decodeDistributionLock({
-      ...lock,
-      requests: [{ id: manifest.id, range: manifest.version }],
-      packages: [
-        ...lock.packages,
-        {
-          id: manifest.id,
-          version: manifest.version,
-          archive,
-          manifest: manifestDigest,
-          location: `sha256:${archive}`,
-          dependencies: manifest.dependencies.map((item) => item.id),
-        },
-      ].sort((a, b) => (a.id < b.id ? -1 : 1)),
-    });
-    const archives = new Map(dependencyArchives);
-    archives.set(archive, bytes);
-    const verified = verifySelectedArchiveClosure(selected, archives).get(manifest.id);
-    if (!verified) fail('CLOSURE-INVALID', 'Packed release missing from selected closure');
-    return verified;
+  const pending = preparePack(input, descriptorInput, assetInput);
+  const { manifest, archiveDigest: archive, manifestDigest } = inspectArchiveMetadata(pending.bytes).pending;
+  if (lock.packages.some((pkg) => pkg.id === manifest.id))
+    fail('CLOSURE-INVALID', 'Dependency selection already contains the packed release');
+  const selected = decodeDistributionLock({
+    ...lock,
+    requests: [{ id: manifest.id, range: manifest.version }],
+    packages: [
+      ...lock.packages,
+      {
+        id: manifest.id,
+        version: manifest.version,
+        archive,
+        manifest: manifestDigest,
+        location: `sha256:${archive}`,
+        dependencies: manifest.dependencies.map((item) => item.id),
+      },
+    ].sort((a, b) => (a.id < b.id ? -1 : 1)),
   });
+  const archives = new Map(dependencyArchives);
+  archives.set(archive, pending.bytes);
+  const verified = verifySelectedArchiveClosure(selected, archives).get(manifest.id);
+  if (!verified) fail('CLOSURE-INVALID', 'Packed release missing from selected closure');
+  return Object.freeze({ ...verified, ...pending });
 }
 
-function pack(
+/** Atomically verifies mutually dependent whole-system releases; no pending member escapes as verified. */
+export function packSnapshotSet(
+  input: DistributionSnapshot,
+  releases: readonly { readonly descriptor: unknown; readonly assets: ReadonlyMap<string, Uint8Array> }[],
+): readonly PackedDistribution[] {
+  if (!Array.isArray(releases) || !releases.length || releases.length > DISTRIBUTION_LIMITS.bundles)
+    fail('INPUT-INVALID', 'Expected a bounded nonempty release set');
+  const snapshot = verifyDistributionSnapshot(input);
+  const pending = releases.map((release) => preparePack(snapshot, release.descriptor, release.assets, true));
+  const metadata = pending.map((row) => inspectArchiveMetadata(row.bytes).pending);
+  const lock = decodeDistributionLock({
+    formatVersion: 1,
+    engine: metadata[0]!.manifest.engine,
+    requests: metadata
+      .map((row) => ({ id: row.manifest.id, range: row.manifest.version }))
+      .sort((a, b) => compare(a.id, b.id)),
+    packages: metadata
+      .map((row) => ({
+        id: row.manifest.id,
+        version: row.manifest.version,
+        archive: row.archiveDigest,
+        manifest: row.manifestDigest,
+        location: `sha256:${row.archiveDigest}`,
+        dependencies: row.manifest.dependencies.map((dependency) => dependency.id),
+      }))
+      .sort((a, b) => compare(a.id, b.id)),
+  });
+  if (metadata.some((row) => row.manifest.engine !== lock.engine))
+    fail('CLOSURE-INVALID', 'Release set engine contracts differ');
+  const archives = new Map(pending.map((row, index) => [metadata[index]!.archiveDigest, row.bytes]));
+  const verified = verifySelectedArchiveClosure(lock, archives);
+  return Object.freeze(
+    pending.map((row, index) => Object.freeze({ ...verified.get(metadata[index]!.manifest.id)!, ...row })),
+  );
+}
+
+function preparePack(
   input: DistributionSnapshot,
   descriptorInput: unknown,
   assetInput: ReadonlyMap<string, Uint8Array>,
-  verify: (bytes: Uint8Array, manifest: BundleManifest) => VerifiedArchive,
-): PackedDistribution {
+  selectedDeclaration = false,
+): { readonly bytes: Buffer; readonly sourceFingerprint: string } {
   const before = verifyDistributionSnapshot(input),
     descriptor = decodeReleaseDescriptor(descriptorInput);
   if (!(assetInput instanceof Map) || assetInput.size !== descriptor.assets.length)
@@ -273,7 +317,7 @@ function pack(
     if (
       !declarationOwner ||
       declarationOwner.root !== `.ia/src/systems/${declarationOwner.name}` ||
-      descriptor.dependencies.some((d) => d.systems.includes(declarationOwner.name))
+      (!selectedDeclaration && descriptor.dependencies.some((d) => d.systems.includes(declarationOwner.name)))
     )
       fail('CLOSURE-INVALID', 'Release must include its own authored distribution declaration');
     const fields = distribution.sections
@@ -374,7 +418,7 @@ function pack(
       files: pins.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
     });
     const archive = buildArchive(manifest, files);
-    return Object.freeze({ ...verify(archive, manifest), bytes: archive, sourceFingerprint: before.fingerprint });
+    return Object.freeze({ bytes: archive, sourceFingerprint: before.fingerprint });
   } finally {
     reader.close();
   }

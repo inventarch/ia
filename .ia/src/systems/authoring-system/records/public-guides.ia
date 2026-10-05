@@ -592,6 +592,22 @@
   relationships
     cites @schema schema
 
+@authoring-guide public-work-system-spec
+  meaning
+    says "Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality."
+    answers "What does @spec represent?"
+  reference
+    owner work-system
+    word spec
+    schema @schema spec
+    document ".ia/src/systems/authoring-system/reference/spec.md"
+  guidance
+    select-when "Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality."
+    avoid-when "The intended record has a different semantic role."
+    consider "Check required fields and references; declaration is not execution evidence."
+  relationships
+    cites @schema spec
+
 @authoring-guide public-floor-system
   meaning
     says "Registers vocabulary, direct system dependencies, a local steward and consent for relationships."

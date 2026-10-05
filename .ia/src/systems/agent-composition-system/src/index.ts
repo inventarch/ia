@@ -19,6 +19,8 @@ export type {
   EffectClass,
   OutcomeContract,
 } from './catalog.js';
+export { INSTALLED_READ, installedReadCatalog, installedReadAdapters } from './installed-read.js';
+export type { InstalledReadCatalog, InstalledReadOptions } from './installed-read.js';
 export { CompositionError } from './compiled.js';
 export type {
   Compilation,
@@ -29,3 +31,20 @@ export type {
   CompositionDiagnostic,
   CompositionCode,
 } from './compiled.js';
+
+export {
+  prepareTaskCapture,
+  verifyTaskCapture,
+  taskTeachingDigest,
+  TaskCaptureError,
+  TASK_CAPTURE_BYTES,
+  TASK_CAPTURE_POLICY,
+  taskCaptureRequest,
+} from './task-capture.js';
+export type {
+  TaskContextDeclaration,
+  TaskCaptureFullView,
+  TaskCaptureRequest,
+  TaskCaptureSelection,
+  PreparedTaskCapture,
+} from './task-capture.js';

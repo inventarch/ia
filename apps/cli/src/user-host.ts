@@ -11,6 +11,7 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { renderClaudePlugin } from '@inventarch/compliance';
 import type { PluginFile } from '@inventarch/compliance';
+import { nodeCommand } from '@inventarch/distribution/host';
 import { hostRow } from '@inventarch/distribution/hosts';
 import { assertIaHomeUsable } from '@inventarch/distribution/ia-home';
 import {
@@ -45,11 +46,15 @@ export interface UserHostView {
   readonly files: readonly PluginFile[];
 }
 
-/** §6.2 (amended): the digest is of the files rendered with a placeholder version, so it changes whenever the renderer's output does. */
+/**
+ * §6.2 (amended): the digest is of the files rendered with a placeholder version, so it changes whenever the renderer's
+ * output does, including when the recorded Node changes. `node` is the Node that runs the hook (#436).
+ */
 export function buildClaudePlugin(input: {
   readonly cliVersion: string;
   readonly channel: Channel;
   readonly entry: string;
+  readonly node: string;
 }): {
   readonly version: string;
   readonly files: readonly PluginFile[];
@@ -59,6 +64,7 @@ export function buildClaudePlugin(input: {
     channel: input.channel.kind,
     entry: input.entry,
     install: updateInstruction(input.channel),
+    node: input.node,
   };
   const draft = renderClaudePlugin({ ...base, version: '0.0.0' });
   const digest = createHash('sha256')
@@ -102,10 +108,13 @@ export function collectUserHost(
   // Host plugin distribution spec §3: refuse a home that looks like a workspace now, before apply attempts a write.
   located(null, homeSrcRemedy(home), () => assertIaHomeUsable(home));
   const channel = detectChannel(host.packageRoot);
+  // #436: on macOS and Linux the hook runs under the Node running this command, recorded by its own absolute path (a
+  // Homebrew keg's stable opt link), not a version manager's shim; the Windows rendering keeps `node` by name.
   const plugin = buildClaudePlugin({
     cliVersion: host.version,
     channel,
     entry: resolve(host.packageRoot, 'dist/main.js'),
+    node: nodeCommand(),
   });
   const marketplace = resolve(home, MARKETPLACE_DIR);
   const remove = args.flag('remove');

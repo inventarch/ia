@@ -113,40 +113,40 @@ it('keeps foundation independent from execution and admits only explicitly insta
   expect(check('@inventarch/session-system', false, '@inventarch/agent-system')).toBeDefined();
   expect(check('@inventarch/agent-system', false, '@inventarch/agent-composition-system')).toBeDefined();
   expect(check('@inventarch/agent-composition-system', false, '@inventarch/agent-system')).toBeUndefined();
-  expect(check('@inventarch/agent-runner', true, '@inventarch/session-system/sqlite')).toBeUndefined();
   expect(check('@inventarch/cli', true, '@inventarch/session-system')).toBeDefined();
-  expect(check('@inventarch/cli', true, '@inventarch/inventarch-system')).toBeUndefined();
-  expect(check('@inventarch/folio', true, '@inventarch/language')).toBeUndefined();
-  expect(check('@inventarch/folio', true, '@inventarch/runtime')).toBeDefined();
-  expect(check('@inventarch/inventarch-system', false, '@inventarch/runtime')).toBeUndefined();
   expect(check('@inventarch/runtime', false, '@inventarch/inventarch-system')).toBeDefined();
 });
 
-it('refuses nonliteral producer loads even at the former exempt CLI path', () => {
-  const root = mkdtempSync(resolve(tmpdir(), 'ia-dependencies-loader-'));
+it('refuses nonliteral public loader fixtures even at the reviewed private path', () => {
+  const owner = { name: '@inventarch/cli', app: true, path: resolve('fixture/apps/cli') },
+    file = resolve(owner.path, 'src/inventarch-development/producer-worker.mjs');
+  for (const source of [
+    'await import(request.module);',
+    'await import(pathToFileURL(entry).href);',
+    "import '@inventarch/monorepo-kit-host/development'; await import(entry);",
+  ]) {
+    expect(importedModules(source, file)).toContain(null);
+    expect(moduleProblem(owner, file, null)).toBe('Nonliteral module load cannot establish dependency direction');
+  }
+});
+
+it('requires an explicitly imported CLI runtime dependency in the installed manifest', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-dependencies-public-loader-'));
   try {
-    const owner = resolve(root, 'apps/cli'),
-      directory = resolve(owner, 'src/inventarch-development'),
-      file = resolve(directory, 'producer-worker.mjs');
-    mkdirSync(directory, { recursive: true });
+    const owner = resolve(root, 'apps/cli');
+    mkdirSync(resolve(owner, 'src'), { recursive: true });
+    writeFileSync(resolve(owner, 'src/index.mjs'), "import '@inventarch/runtime';");
     writeFileSync(
       resolve(owner, 'package.json'),
-      JSON.stringify({ name: '@inventarch/cli', peerDependencies: { '@inventarch/monorepo-kit-host': '1.0.0' } }),
+      JSON.stringify({ name: '@inventarch/cli', devDependencies: { '@inventarch/runtime': '*' } }),
     );
-    for (const source of [
-      'const module = "@inventarch/monorepo-kit-host/development"; await import(module);',
-      'import { pathToFileURL } from "node:url"; await import(pathToFileURL(entry).href);',
-      'await import(request.module);',
-      'require(request.module);',
-    ]) {
-      writeFileSync(file, source);
-      const findings = checkDependencies(root);
-      expect(findings).toHaveLength(1);
-      expect(findings[0]).toContain('Nonliteral module load cannot establish dependency direction');
-    }
+    expect(checkDependencies(root).join('\n')).toContain('@inventarch/runtime is allowed but not declared');
+    writeFileSync(
+      resolve(owner, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', dependencies: { '@inventarch/runtime': '*' } }),
+    );
+    expect(checkDependencies(root)).toEqual([]);
   } finally {
-    if (!root.startsWith(resolve(tmpdir(), 'ia-dependencies-loader-')))
-      throw new Error('Unexpected temporary cleanup path');
     rmSync(root, { recursive: true, force: true });
   }
 });

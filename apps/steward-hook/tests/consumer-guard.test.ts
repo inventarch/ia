@@ -3,7 +3,7 @@
  * workspace, where the guard protects only what `ia host` owns plus the native installation state. Steward
  * enforcement on `.ia/src/systems/<name>/**` is the same in both modes. tests/hook.test.ts keeps the legacy list.
  */
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -141,4 +141,121 @@ it('fails closed when the projection state is not a plain file', () => {
   const root = workspace();
   mkdirSync(resolve(root, '.ia/distributions/hosts/claude-projection.json'));
   expect(code(root, 'CLAUDE.md')).toBe('IA-HOOK-PATH-UNSAFE');
+});
+
+it('protects both settings layers and the exact external launcher of an owned guard only', () => {
+  const root = workspace(),
+    cache = workspace();
+  const marker = {
+    format: 'ia.guard-registration-state.v1',
+    id: 'workspace',
+    cache,
+    release: hash,
+    created: true,
+    group: { matcher: 'Write|Edit|MultiEdit', hooks: [] },
+  };
+  const launcher = resolve(cache, 'scripts/ia.mjs');
+  for (const path of ['.claude/settings.json', '.claude/settings.local.json', launcher])
+    expect(check(root, path), path).toEqual({});
+  write(root, 'claude-guard-workspace.json', marker);
+  for (const path of ['.claude/settings.json', '.claude/settings.local.json', launcher])
+    expect(code(root, path, { agent_type: 'work-steward' }), path).toBe('IA-HOOK-PROJECTION-MANAGED');
+  for (const path of [
+    '.claude/ordinary.json',
+    '.claude/hooks/unowned.mjs',
+    resolve(cache, 'scripts/unowned.mjs'),
+    '.ia/src/floor/taxonomy.system.ia',
+    'apps/steward-hook/src/main.ts',
+  ])
+    expect(check(root, path), path).toEqual({});
+  const pending = workspace();
+  write(pending, 'guard-pending.json', {
+    format: 'ia.guard-registration-pending.v1',
+    id: 'workspace',
+    before: { config: '{}', state: JSON.stringify(marker) },
+    after: { config: null, state: null },
+  });
+  expect(code(pending, launcher)).toBe('IA-HOOK-PROJECTION-MANAGED');
+  expect(code(pending, '.claude/settings.json')).toBe('IA-HOOK-PROJECTION-MANAGED');
+});
+
+it('recognizes the fixed source registration without claiming unrelated user hooks or settings', () => {
+  const root = workspace();
+  mkdirSync(resolve(root, '.claude/hooks'), { recursive: true });
+  writeFileSync(resolve(root, '.claude/hooks/steward-write.mjs'), '// Synthetic fixed-path launcher fixture.\n');
+  const registered = {
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: 'Write|Edit|MultiEdit',
+          hooks: [
+            {
+              type: 'command',
+              command: 'node',
+              args: [`\${CLAUDE_PROJECT_DIR}/.claude/hooks/steward-write.mjs`, '--root', `\${CLAUDE_PROJECT_DIR}`],
+            },
+          ],
+        },
+      ],
+    },
+    permissions: { allow: [] },
+  };
+  const paths = ['.claude/settings.json', '.claude/settings.local.json', '.claude/hooks/steward-write.mjs'];
+  writeFileSync(
+    resolve(root, '.claude/settings.json'),
+    JSON.stringify({
+      hooks: { PreToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: 'my-own-hook' }] }] },
+    }),
+  );
+  for (const path of paths) expect(check(root, path), path).toEqual({});
+  writeFileSync(resolve(root, '.claude/settings.json'), JSON.stringify(registered));
+  for (const tool of ['Write', 'Edit', 'MultiEdit'])
+    for (const path of paths) {
+      const event = {
+        hook_event_name: 'PreToolUse',
+        tool_name: tool,
+        tool_input: { file_path: resolve(root, path), edits: [] },
+        agent_type: 'hook-authoring-steward',
+      };
+      expect(evaluateHook(root, event).hookSpecificOutput?.permissionDecisionReason, tool + ':' + path).toContain(
+        'IA-HOOK-PROJECTION-MANAGED',
+      );
+      expect(evaluateHook(root, event).hookSpecificOutput?.permissionDecisionReason).toContain('trusted operator edit');
+    }
+  expect(check(root, '.claude/hooks/my-own-hook.mjs')).toEqual({});
+  writeFileSync(
+    resolve(root, '.claude/settings.json'),
+    JSON.stringify({
+      ...registered,
+      hooks: {
+        PreToolUse: [
+          {
+            ...registered.hooks.PreToolUse[0],
+            hooks: [{ ...registered.hooks.PreToolUse[0]!.hooks[0], args: ['another-launcher.mjs', '--root', root] }],
+          },
+        ],
+      },
+    }),
+  );
+  for (const path of paths) expect(check(root, path), path).toEqual({});
+});
+
+it('refuses aliases to the owned cached launcher without extending ownership to its other code', () => {
+  const root = workspace(),
+    cache = workspace();
+  mkdirSync(resolve(cache, 'scripts'));
+  writeFileSync(resolve(cache, 'scripts/ia.mjs'), '// Fixture launcher.\n');
+  write(root, 'claude-guard-workspace.json', {
+    format: 'ia.guard-registration-state.v1',
+    id: 'workspace',
+    cache,
+    release: hash,
+    created: true,
+    group: { matcher: 'Write|Edit|MultiEdit', hooks: [] },
+  });
+  symlinkSync(cache, resolve(root, 'cache-alias'), process.platform === 'win32' ? 'junction' : 'dir');
+  expect(code(root, 'cache-alias/scripts/ia.mjs')).toBe('IA-HOOK-PATH-UNSAFE');
+  expect(check(root, resolve(cache, 'code/guard.js'))).toEqual({});
+  write(root, 'claude-guard-workspace.json', { format: 'malformed' });
+  expect(code(root, '.claude/settings.json')).toBe('IA-HOOK-PATH-UNSAFE');
 });

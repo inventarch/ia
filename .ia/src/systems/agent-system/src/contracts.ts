@@ -164,9 +164,16 @@ export function offerReview(
   );
   const expiry = Math.min(state.limits.deadline, run.limits?.deadline ?? Infinity, grant.expiresAt);
   check(expiry > now, 'IA-ENGINE-REVIEW-INVALID', 'Review deadline expired');
+  const policy = profile.contract?.review;
+  check(
+    !policy || policy.reviewer !== state.principal,
+    'IA-ENGINE-REVIEW-INVALID',
+    'The writer cannot approve its own changes',
+  );
   return {
-    reviewer: state.principal,
-    rule: 'operator-exact-candidate-v1',
+    reviewer: policy?.reviewer ?? state.principal,
+    rule: policy?.rule ?? 'operator-exact-candidate-v1',
+    ...(policy ? { authority: { mandate: policy.mandate, policyRevision: policy.policyRevision } } : {}),
     expiresAt: expiry,
     operation: operation.id,
     bindingDigest: operation.digest,

@@ -95,9 +95,11 @@ it('unpacks a tree that zlib 1.2.12 compressed', () => {
     '4dc483bed326a2758ba00c8e273705bcb990efa78f654235d877834a2c54b13f',
   );
   const back = unpackTree(bytes, HOST_TREE_LIMITS);
+  // This scope belongs to the frozen archive, not the current package namespace.
+  // Keep it separate from the slash so public namespace projection preserves the historical pathname.
+  const fixtureScope = '@ia';
   expect(Object.fromEntries([...back].map(([path, content]) => [path, content.toString()]))).toEqual({
-    // Preserve the historical package path embedded in the fixed zlib fixture.
-    'runtime/node_modules/@ia/cli/dist/main.js': 'export {};\n'.repeat(50),
+    [`runtime/node_modules/${fixtureScope}/cli/dist/main.js`]: 'export {};\n'.repeat(50),
     ['a/' + 'b'.repeat(120) + '/c.txt']: 'long path\n',
     'release.json': '{}\n',
   });

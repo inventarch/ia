@@ -47,6 +47,7 @@ function foundationSnapshot(): { snapshot: DistributionSnapshot; systems: string
   const root = mkdtempSync(join(tmpdir(), 'ia-registry-source-'));
   try {
     for (const path of [
+      '.ia/src/systems/workspace-system/records/system-packages.ia',
       '.ia/src/floor/artifact-set.ia',
       '.ia/src/floor/axis.ia',
       '.ia/src/floor/cardinality.ia',
@@ -102,6 +103,7 @@ function foundationSnapshot(): { snapshot: DistributionSnapshot; systems: string
       '.ia/src/systems/work-system/schemas/milestone.schema.ia',
       '.ia/src/systems/work-system/schemas/plan.schema.ia',
       '.ia/src/systems/work-system/schemas/task.schema.ia',
+      '.ia/src/systems/work-system/schemas/spec.schema.ia',
       '.ia/src/systems/agent-composition-system/records/composition.ia',
       '.ia/src/systems/workspace-system/records/quality.ia',
       '.ia/src/systems/workspace-system/records/architecture.ia',

@@ -10,7 +10,18 @@ const text = (path) => readFileSync(resolve(root, path), 'utf8');
 const manifest = JSON.parse(text('examples/public-language/manifest.json'));
 const outputs = new Map();
 for (const base of ['.ia/src/floor', ...manifest.systems.map((system) => `.ia/src/systems/${system.name}`)]) {
-  for (const name of ['README.md', 'SPEC.md']) {
+  for (const name of [
+    'README.md',
+    'SPEC.md',
+    ...(base.endsWith('/agent-composition-system')
+      ? [
+          'references/installed-read.md',
+          'references/public-spec.md',
+          'references/spec-read-boundary.md',
+          'references/task-capture.md',
+        ]
+      : []),
+  ]) {
     const path = `${base}/${name}`;
     if (existsSync(resolve(root, path))) outputs.set(path, { bytes: text(path) });
   }

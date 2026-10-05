@@ -1,6 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { canonical, copy, digest, terminal, unresolved, humanWaitRuns, SessionError } from '@inventarch/session-system';
-import type { Attempt, Json, Limits, Mutation, Owner, Question, Run, Session, Wait } from '@inventarch/session-system';
+import type {
+  Attempt,
+  Json,
+  Limits,
+  Mutation,
+  Owner,
+  Question,
+  ReviewContract,
+  Run,
+  Session,
+  Wait,
+} from '@inventarch/session-system';
 import { check, EngineError, parseAction, validateShape } from './action.js';
 import { DEFAULT_MODEL_REQUEST_BYTES, MAX_MODEL_REQUEST_BYTES } from './types.js';
 import type {
@@ -93,6 +104,17 @@ export class Engine {
           'IA-ENGINE-BINDING-UNAVAILABLE',
           'Unsupported completion or recovery contract',
         );
+        const review = profile.contract.review;
+        check(
+          review === undefined ||
+            (review.rule === 'independent-exact-candidate-v1' &&
+              Object.keys(review).sort().join(',') === 'mandate,policyRevision,reviewer,rule' &&
+              [review.reviewer, review.mandate, review.policyRevision].every(
+                (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 512,
+              )),
+          'IA-ENGINE-BINDING-UNAVAILABLE',
+          'Unsupported independent review policy',
+        );
         const requestBytes = profile.contract.requestBytes;
         check(
           requestBytes === undefined ||
@@ -180,6 +202,57 @@ export class Engine {
     );
     return effective;
   }
+  private async reviewAuthority(
+    state: Session,
+    run: Run,
+    profile: Profile,
+    review: ReviewContract,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    check(review.expiresAt > this.now(), 'IA-ENGINE-REVIEW-INVALID', 'Exact review expired');
+    const policy = profile.contract?.review;
+    if (!policy) {
+      check(
+        review.rule === 'operator-exact-candidate-v1' &&
+          review.reviewer === state.principal &&
+          review.authority === undefined,
+        'IA-ENGINE-REVIEW-INVALID',
+        'Review rule does not match the installed profile',
+      );
+      return review.expiresAt;
+    }
+    check(
+      review.rule === policy.rule &&
+        review.reviewer === policy.reviewer &&
+        review.reviewer !== state.principal &&
+        review.authority?.mandate === policy.mandate &&
+        review.authority.policyRevision === policy.policyRevision &&
+        this.host.authorizeReview,
+      'IA-ENGINE-REVIEW-INVALID',
+      'Independent review identity, mandate or policy differs',
+    );
+    const timed = this.attemptSignal(state, run, undefined, 60000, signal);
+    const current = await bounded(
+      () => this.host.authorizeReview!(review.reviewer, this.manifest, copy(state), copy(review)),
+      timed,
+    );
+    check(
+      current.principal === review.reviewer &&
+        current.workspace === this.manifest.workspace &&
+        current.mandate === policy.mandate &&
+        current.policyRevision === policy.policyRevision &&
+        current.expiresAt > this.now() &&
+        review.expiresAt > this.now() &&
+        current.operations.includes(review.operation) &&
+        current.effects.includes(review.effect) &&
+        current.sources.includes(this.manifest.sourceDigest) &&
+        current.destinations.some((d) => digest(d) === digest(review.destination)),
+      'IA-ENGINE-AUTHORITY-DENIED',
+      'Current independent reviewer grant does not admit the exact operation, source and destination',
+    );
+    timed.throwIfAborted();
+    return Math.min(current.expiresAt, review.expiresAt);
+  }
   private effectContext(
     state: Session,
     run: Run,
@@ -229,9 +302,18 @@ export class Engine {
       );
       this.dispatchBudget(latest, active, current);
       operationAllowed(operation, profile, current);
-      admittedReview(latest, active, operation, action, current, this.now(), id);
+      const currentReview = admittedReview(latest, active, operation, action, current, this.now(), id);
+      const reviewExpiry = currentReview
+        ? await this.reviewAuthority(latest, active, profile, currentReview, context.signal)
+        : Infinity;
       context.grant = current;
-      const ceiling = this.attemptSignal(latest, active, current, operation.timeoutMs, context.signal);
+      const ceiling = this.attemptSignal(
+        latest,
+        active,
+        current,
+        Math.min(operation.timeoutMs, reviewExpiry - this.now()),
+        context.signal,
+      );
       if (ceiling.aborted) narrowed.abort(ceiling.reason);
       else ceiling.addEventListener('abort', () => narrowed.abort(ceiling.reason), { once: true });
       for (const checkId of this.checks(profile, 'before-effect')) {
@@ -706,6 +788,11 @@ export class Engine {
         'Delegate is unavailable or exceeds the parent operation boundary',
       );
       check(
+        !profile.contract?.review || digest(child.contract?.review ?? null) === digest(profile.contract.review),
+        'IA-ENGINE-DELEGATION-DENIED',
+        'Delegate cannot drop or change independent reviewer authority',
+      );
+      check(
         grant.profiles.includes(child.id),
         'IA-ENGINE-AUTHORITY-DENIED',
         'Current grant does not authorize this delegate',
@@ -763,10 +850,11 @@ export class Engine {
       );
       this.limits(state, grant, 'operation', 0, run);
       const review = admittedReview(state, run, operation, action, grant, this.now());
+      const reviewExpiry = review ? await this.reviewAuthority(state, run, profile, review, signal) : Infinity;
       const retry = run.retryOf ? state.attempts[run.retryOf] : undefined;
       const id = randomUUID(),
         invocationId = retry?.invocationId ?? randomUUID(),
-        timed = this.attemptSignal(state, run, grant, operation.timeoutMs, signal);
+        timed = this.attemptSignal(state, run, grant, Math.min(operation.timeoutMs, reviewExpiry - this.now()), signal);
       const context = this.effectContext(
         state,
         run,
@@ -802,9 +890,18 @@ export class Engine {
         current = await this.grant(state.principal, latest, profile, run, timed);
       this.dispatchBudget(latest, run, current);
       operationAllowed(operation, profile, current);
-      admittedReview(latest, run, operation, action, current, this.now(), id);
+      const currentReview = admittedReview(latest, run, operation, action, current, this.now(), id);
+      const currentReviewExpiry = currentReview
+        ? await this.reviewAuthority(latest, run, profile, currentReview, timed)
+        : Infinity;
       context.grant = current;
-      context.signal = this.attemptSignal(latest, run, current, operation.timeoutMs, context.signal);
+      context.signal = this.attemptSignal(
+        latest,
+        run,
+        current,
+        Math.min(operation.timeoutMs, currentReviewExpiry - this.now()),
+        context.signal,
+      );
       for (const id of this.checks(profile, 'before-effect')) {
         const result = await bounded(
           () =>
@@ -820,6 +917,7 @@ export class Engine {
           'IA-ENGINE-DESTINATION-DENIED',
           'Current destination/binding preflight is unavailable or denied',
         );
+      if (currentReview) await this.reviewAuthority(latest, run, profile, currentReview, context.signal);
       context.signal.throwIfAborted();
       await save({ type: 'attempt.dispatch', attemptId: id });
       await this.host.store.validate(owner);
@@ -895,6 +993,8 @@ export class Engine {
       };
     });
     const review = offerReview(state, run, profile, grant, this.manifest, action, this.now());
+    if (review)
+      review.expiresAt = Math.min(review.expiresAt, await this.reviewAuthority(state, run, profile, review, signal));
     const proposal =
       action.proposal === undefined
         ? undefined
@@ -1435,7 +1535,10 @@ export class Engine {
       'Proposal is unavailable to this reviewer',
     );
     const run = state.runs[proposal.runId]!,
-      grant = await this.grant(principal, state, this.manifest.profiles[run.profile]!, run);
+      profile = this.manifest.profiles[run.profile]!;
+    // Reviewers never receive the writer's session-owner path. Both authorities must remain current.
+    const grant = await this.grant(profile.contract?.review ? state.principal : principal, state, profile, run);
+    if (proposal.review) await this.reviewAuthority(state, run, profile, proposal.review);
     if (proposal.review) {
       const binding = proposal.review,
         operation = this.manifest.operations[binding.operation];

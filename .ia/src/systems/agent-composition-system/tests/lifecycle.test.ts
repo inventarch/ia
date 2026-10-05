@@ -524,3 +524,377 @@ describe('shared scoped lifecycle context', () => {
     expect(close).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('synchronous selection deadline (HOST-02)', () => {
+  it('refuses a packet whose synchronous selection outlasts the deadline, which no abort signal can interrupt', async () => {
+    // HOST-02 (private source history) timeout fixture: the timer cannot fire inside synchronous selection, so only the
+    // post-selection deadline check stops a late packet; the executable's outer host timeout bounds the wall clock.
+    let completed = false;
+    const binding = {
+      profile,
+      coordinate,
+      bootstrap: 'Bootstrap',
+      budgets: { ...budgets, timeoutMs: 200 },
+      binding: pins().binding,
+      policy: pins().policy,
+      implementation: pins().implementation,
+    };
+    const slow = (input: { pins: LifecyclePins }): RequiredContextParts => {
+      const until = Date.now() + 400;
+      while (Date.now() < until) {
+        /* synchronous work */
+      }
+      completed = true;
+      return required(input);
+    };
+    await expect(
+      prepareLifecycleContextSegments(binding, event, {
+        openCurrentView: async () => ({ ...request(), requiredParts: slow, close: () => {} }),
+        assertCurrent: async () => {},
+      }),
+    ).rejects.toMatchObject({ code: 'IA-LIFECYCLE-DEADLINE' });
+    expect(completed).toBe(true);
+  });
+});
+
+describe('selected claude-code@2.1.285 bootstrap (HOST-03)', () => {
+  it('emits a deterministic twelve-slot bootstrap pinned to its own row, reporting the selected source and resources', async () => {
+    // HOST-03 (private source history): the existing selector and transport emit the H3-v1 SessionStart bootstrap. Each run opens its
+    // own cache-disabled reader, so nothing selected in one run is reused by the next. The packet pins its own profile and the
+    // view's source, resources, installation and policy. Before the transport accepted this row, every segmented request ended
+    // in a misleading IA-LIFECYCLE-BUDGET or IA-LIFECYCLE-CONTEXT refusal.
+    const selected = lifecycleProfile('claude-code', '2.1.285'),
+      expected = { ...pins(), profile: selected.digest };
+    const binding = {
+      profile: selected,
+      coordinate,
+      bootstrap: 'Author a native method',
+      budgets,
+      binding: expected.binding,
+      policy: expected.policy,
+      implementation: expected.implementation,
+    };
+    let opens = 0,
+      closes = 0;
+    const host = {
+      openCurrentView: async (): Promise<LifecycleView> => {
+        opens++;
+        const db = open(root, { cache: false });
+        return {
+          reader: db,
+          within: db.resolveScope({ identities: [method, law] }).token,
+          pins: { ...expected, view: db.revision },
+          requiredParts: required,
+          close: () => {
+            closes++;
+            db.close();
+          },
+        };
+      },
+      assertCurrent: async () => {},
+    };
+    const start = (source: string) =>
+      decodeLifecycleEvent(
+        selected,
+        JSON.stringify({
+          hook_event_name: 'SessionStart',
+          source,
+          session_id: 'session',
+          cwd: root,
+          model: 'claude-opus-5',
+        }),
+      );
+    const first = await prepareLifecycleContextSegments(binding, start('startup'), host),
+      again = await prepareLifecycleContextSegments(binding, start('startup'), host);
+    expect([opens, closes]).toEqual([2, 2]);
+    expect(again.outputs).toEqual(first.outputs);
+    expect(first.outputs.map((output) => output.hookSpecificOutput.hookEventName)).toEqual(
+      Array(12).fill('SessionStart'),
+    );
+    const payload = JSON.parse(
+      assembleLifecycleContextSegments(first.outputs.map((output) => output.hookSpecificOutput.additionalContext))
+        .payload,
+    );
+    expect(payload.pins).toEqual(expected);
+    expect(payload.event).toMatchObject({ kind: 'start', source: 'startup', key: null });
+    expect(payload.required.parts.map((part: { id: string }) => part.id)).toEqual(['required-guide']);
+    for (const source of ['resume', 'clear', 'compact', 'fork'])
+      expect((await prepareLifecycleContextSegments(binding, start(source), host)).id).not.toBe(first.id);
+    await expect(
+      prepareLifecycleContextSegments(binding, start('startup'), {
+        ...host,
+        openCurrentView: async () => ({ ...request(), close: () => {} }),
+      }),
+    ).rejects.toMatchObject({ code: 'IA-LIFECYCLE-STALE', message: 'Current lifecycle binding pins differ' });
+    // #447 review (reviewer-reported): this case opens six cache-disabled views and ran past vitest's 5 s default on a slow
+    // Windows host, so it takes the 120 s bound the HOST-04 cases in apps/steward-hook/tests/context.test.ts use.
+  }, 120_000);
+});
+
+describe('prompt-scoped runtime and resource context on the selected claude-code@2.1.285 row (HOST-04)', () => {
+  // HOST-04 (private source history): selection is the runtime door's own context(), the function behind ia_context, over the
+  // caller's admitted view. These cases pin that behavior for 2.1.285 prompts with exact diagnostics. Each bound is tested
+  // on both sides of a measured minimum, so no case depends on the size of the corpus.
+  const selected = lifecycleProfile('claude-code', '2.1.285'),
+    keys = ['binding', 'implementation', 'installation', 'policy', 'profile', 'resources', 'source', 'view'];
+  const ask = (identities: readonly string[] | null, prompt = 'Author a native method') => ({
+    ...request(),
+    within: reader.resolveScope(identities === null ? {} : { identities: [...identities] }).token,
+    pins: { ...pins(), profile: selected.digest },
+    profile: selected,
+    text: prompt,
+    event: decodeLifecycleEvent(
+      selected,
+      JSON.stringify({
+        hook_event_name: 'UserPromptSubmit',
+        session_id: 'session',
+        prompt_id: 'p1',
+        cwd: root,
+        prompt,
+      }),
+    ),
+  });
+  const delivered = (input: Parameters<typeof prepareScopedContextSegments>[0]) =>
+    JSON.parse(
+      assembleLifecycleContextSegments(
+        prepareScopedContextSegments(input).outputs.map((output) => output.hookSpecificOutput.additionalContext),
+      ).payload,
+    );
+  const refused = (code: string, message: string) => expect.objectContaining({ code, message });
+  const generous = { ...budgets, tokens: 256 * 1024, bytes: 1024 * 1024 };
+  /** The serialized size of the smallest deliverable packet, measured at a budget of its own value because the packet embeds its budgets. */
+  const minimum = (identities: readonly string[], key: 'bytes' | 'tokens'): number => {
+    let bound = budgets[key];
+    for (let round = 0; round < 4; round++) {
+      const used = prepareScopedContextSegments({
+        ...ask(identities),
+        optional: 'omit',
+        budgets: { ...budgets, [key]: bound },
+      }).usage[key];
+      if (used === bound) return bound;
+      bound = used;
+    }
+    throw new Error(`No stable ${key} minimum`);
+  };
+
+  it('selects the declared method cell and keeps the declared phase and primitive whatever the prompt says', () => {
+    const first = delivered(ask([method, law])).context;
+    expect(first.coordinate.values).toMatchObject({ phase: 'orient', primitive: 'Decision', category: 'process' });
+    expect(first.coordinate.sources).toMatchObject({ phase: 'declared', primitive: 'declared', category: 'declared' });
+    expect(first.included[0]).toMatchObject({
+      address: `${method}#orient/Decision`,
+      identity: method,
+      kind: 'definition',
+      text: expect.stringMatching(/^Sample fixture statement /),
+    });
+    const planned = delivered({
+      ...ask([method, law]),
+      coordinate: { phase: 'plan', primitive: 'Inference', category: 'process' },
+    }).context;
+    expect(planned.included[0]).toMatchObject({
+      address: `${method}#plan/Inference`,
+      identity: method,
+      kind: 'definition',
+    });
+    expect(planned.included[0].text).not.toBe(first.included[0].text);
+    const steered = delivered(
+      ask([method, law], 'In the act phase, recall Memory, then plan Inference for this change'),
+    ).context;
+    expect(steered.coordinate.values).toMatchObject({ phase: 'orient', primitive: 'Decision' });
+    expect(steered.coordinate.sources).toMatchObject({ phase: 'declared', primitive: 'declared' });
+    expect(steered.included[0]).toMatchObject({ address: `${method}#orient/Decision`, text: first.included[0].text });
+  });
+
+  it("delivers exactly the runtime door's ranking, identities, texts and citations for the same scoped request", () => {
+    const input = { ...ask(null), budgets: generous },
+      payload = delivered(input);
+    const door = context(
+      reader,
+      { within: input.within, revision: input.pins.view, coordinate: input.coordinate, text: input.text },
+      { tokens: generous.tokens, records: generous.records - 1 },
+      { tokenizer: DEFAULT_TOKENIZER },
+    );
+    if (!door.ok) throw new Error(`Runtime door refused: ${door.code}`);
+    const project = (entry: {
+      address: string;
+      identity: string;
+      kind: string;
+      text: string;
+      citations: unknown;
+      severity?: string;
+    }) => ({
+      address: entry.address,
+      identity: entry.identity,
+      kind: entry.kind,
+      text: entry.text,
+      citations: entry.citations,
+      severity: entry.severity,
+    });
+    expect(payload.context.included.map(project)).toEqual(door.packet.included.map(project));
+    const steps = door.packet.included.map((entry) => entry.step);
+    expect(steps).toEqual([...steps].sort((a, b) => a - b));
+    expect(new Set(steps).size).toBeGreaterThan(1);
+    expect(
+      door.packet.included.filter((entry) => entry.severity === 'blocking').map((entry) => entry.identity),
+    ).toContain(law);
+    expect(payload.context.omitted).toEqual(
+      (['budget', 'disqualified', 'unresolved'] as const)
+        .map((reason) => ({ reason, count: door.packet.omitted.filter((row) => row.reason === reason).length }))
+        .filter((row) => row.count > 0),
+    );
+    expect(
+      payload.context.followed.map((edge: { from: string; predicate: string; to: string }) => [
+        edge.from,
+        edge.predicate,
+        edge.to,
+      ]),
+    ).toEqual(door.packet.followed.map((edge) => [edge.from, edge.predicate, edge.to]));
+    expect(Object.keys(payload.pins).sort()).toEqual(keys);
+    expect(payload.pins).toEqual({ ...pins(), profile: selected.digest });
+  });
+
+  it('never delivers or reveals a record outside the view scope', () => {
+    const narrow = JSON.stringify(delivered(ask([method, law]))),
+      broad = delivered({ ...ask(null), budgets: generous });
+    const hidden = [
+      ...new Set<string>(broad.context.included.map((entry: { identity: string }) => entry.identity)),
+    ].filter((identity) => identity !== method && identity !== law);
+    expect(hidden.length).toBeGreaterThan(0);
+    for (const identity of hidden) expect(narrow).not.toContain(identity);
+  });
+
+  it('refuses missing required material, stale pins, an incomplete coordinate and changed text with exact diagnostics', async () => {
+    expect(() =>
+      prepareScopedContextSegments({
+        ...ask([method, law]),
+        requiredParts: (input) => ({ ...required(input), missing: [{ id: 'guide', reason: 'unavailable' }] }),
+      }),
+    ).toThrow(refused('IA-LIFECYCLE-REQUIRED', 'Required authoring context is unavailable'));
+    expect(() =>
+      prepareScopedContextSegments({
+        ...ask([method, law]),
+        pins: { ...pins(digest('stale')), profile: selected.digest },
+      }),
+    ).toThrow(refused('IA-LIFECYCLE-STALE', 'Lifecycle view/profile pins differ'));
+    expect(() =>
+      prepareScopedContextSegments({
+        ...ask([method, law]),
+        requiredParts: (input) => ({ ...required(input), pins: { ...input.pins, resources: digest('stale') } }),
+      }),
+    ).toThrow(refused('IA-LIFECYCLE-STALE', 'Required context pins differ'));
+    expect(() => prepareScopedContextSegments({ ...ask([method, law]), coordinate: { phase: 'orient' } })).toThrow(
+      refused('IA-LIFECYCLE-COORDINATE', 'Lifecycle context requires explicit phase and primitive coordinates'),
+    );
+    expect(() =>
+      prepareScopedContextSegments({ ...ask([method, law]), text: 'Content changed outside its event' }),
+    ).toThrow(refused('IA-LIFECYCLE-INPUT', 'Lifecycle selection text differs from its event input'));
+    const input = ask([method, law]),
+      close = vi.fn(),
+      binding = {
+        profile: selected,
+        coordinate,
+        bootstrap: 'Bootstrap',
+        budgets,
+        binding: input.pins.binding,
+        policy: input.pins.policy,
+        implementation: input.pins.implementation,
+      };
+    await expect(
+      prepareLifecycleContextSegments(binding, input.event, {
+        openCurrentView: async () => ({ ...input, pins: { ...input.pins, policy: digest('other-policy') }, close }),
+        assertCurrent: async () => {},
+      }),
+    ).rejects.toMatchObject({ code: 'IA-LIFECYCLE-STALE', message: 'Current lifecycle binding pins differ' });
+    const view = { ...input, close };
+    await expect(
+      prepareLifecycleContextSegments(binding, input.event, {
+        openCurrentView: async () => view,
+        assertCurrent: async () => {
+          view.pins = { ...view.pins, resources: digest('other-resources') };
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'IA-LIFECYCLE-STALE',
+      message: 'Lifecycle view binding changed during a host callback',
+    });
+    expect(close).toHaveBeenCalledTimes(2);
+  });
+
+  it('delivers at the exact minimum serialized byte size and refuses one byte less', () => {
+    for (const [identities, refusal] of [
+      [
+        [method, law],
+        refused('IA-LIFECYCLE-CONTEXT', 'Lifecycle context unavailable: IA-GRAPH-BUDGET-BLOCKING-OVERFLOW'),
+      ],
+      [
+        [method],
+        refused('IA-LIFECYCLE-BUDGET', 'Required context and complete host wrapper exceed the delivery budget'),
+      ],
+    ] as const) {
+      const bytes = minimum(identities, 'bytes');
+      expect(prepareScopedContextSegments({ ...ask(identities), budgets: { ...budgets, bytes } }).usage.bytes).toBe(
+        bytes,
+      );
+      expect(() =>
+        prepareScopedContextSegments({ ...ask(identities), budgets: { ...budgets, bytes: bytes - 1 } }),
+      ).toThrow(refusal);
+    }
+  });
+
+  it('delivers at the exact minimum serialized token count and refuses one token less', () => {
+    for (const [identities, refusal] of [
+      [
+        [method, law],
+        refused('IA-LIFECYCLE-CONTEXT', 'Lifecycle context unavailable: IA-GRAPH-BUDGET-BLOCKING-OVERFLOW'),
+      ],
+      [
+        [method],
+        refused('IA-LIFECYCLE-BUDGET', 'Required context and complete host wrapper exceed the delivery budget'),
+      ],
+    ] as const) {
+      const tokens = minimum(identities, 'tokens');
+      expect(prepareScopedContextSegments({ ...ask(identities), budgets: { ...budgets, tokens } }).usage.tokens).toBe(
+        tokens,
+      );
+      expect(() =>
+        prepareScopedContextSegments({ ...ask(identities), budgets: { ...budgets, tokens: tokens - 1 } }),
+      ).toThrow(refusal);
+    }
+  });
+
+  it('bounds required parts and blocking governance by the record budget on both sides', () => {
+    expect(prepareScopedContextSegments({ ...ask([method]), budgets: { ...budgets, records: 1 } }).usage.records).toBe(
+      1,
+    );
+    expect(() => prepareScopedContextSegments({ ...ask([method]), budgets: { ...budgets, records: 0 } })).toThrow(
+      refused('IA-LIFECYCLE-BUDGET', 'Required context exceeds record budget'),
+    );
+    expect(
+      prepareScopedContextSegments({ ...ask([method, law]), budgets: { ...budgets, records: 2 } }).usage.records,
+    ).toBe(2);
+    expect(() => prepareScopedContextSegments({ ...ask([method, law]), budgets: { ...budgets, records: 1 } })).toThrow(
+      refused('IA-LIFECYCLE-CONTEXT', 'Lifecycle context unavailable: IA-GRAPH-BUDGET-BLOCKING-OVERFLOW'),
+    );
+  });
+
+  it('admits exactly 1 MiB of required material to delivery and refuses one byte more before delivery', () => {
+    const sized =
+      (bytes: number) =>
+      (input: { pins: LifecyclePins }): RequiredContextParts => ({
+        ...required(input),
+        parts: [
+          {
+            id: 'sized-guide',
+            text: 'x'.repeat(bytes - Buffer.byteLength(JSON.stringify(['exact-guide']))),
+            citations: ['exact-guide'],
+          },
+        ],
+      });
+    expect(() => prepareScopedContextSegments({ ...ask([method]), requiredParts: sized(1024 * 1024) })).toThrow(
+      refused('IA-LIFECYCLE-BUDGET', 'Required context and complete host wrapper exceed the delivery budget'),
+    );
+    expect(() => prepareScopedContextSegments({ ...ask([method]), requiredParts: sized(1024 * 1024 + 1) })).toThrow(
+      refused('IA-LIFECYCLE-BUDGET', 'Required context exceeds its byte bound'),
+    );
+  });
+});

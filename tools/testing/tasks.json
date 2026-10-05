@@ -50,7 +50,10 @@
     "tooling": "The tools tree, root TypeScript and Vitest configuration, and the repository manifests and lockfile.",
     "repository-inventory": "Every tracked and nonignored file, because these checks assert over repository membership itself.",
     "emitted": "Built package outputs, packed archive bytes, the native corpus and the host scripts an independent installed consumer executes.",
-    "development-native-build": "CLI source, canonical generator source, native owners and their captured teaching manifest."
+    "development-native-build": "CLI source, canonical generator source, native owners and their captured teaching manifest.",
+    "selected-tests": "Owning production sources, every non-test helper, shared configuration and dependency sources; exclude only declared sibling test files, retaining selected and unassigned files.",
+    "selected-tests-workspace-records": "selected-tests plus authored workspace records, teaching resources and native fixture inventories read through the filesystem.",
+    "language-conformance": "workspace-records plus the compliance language fixtures read by the language formatter and conformance suites."
   },
   "tasks": [
     {
@@ -549,19 +552,23 @@
         "tests/authoring-lifecycle.test.ts",
         "tests/authoring-shipped.test.ts",
         "tests/authoring.test.ts",
-        "tests/contracts.test.ts",
         "tests/compile.test.ts",
+        "tests/contracts.test.ts",
         "tests/execution.test.ts",
+        "tests/installed-read.test.ts",
         "tests/installed-sources.test.ts",
         "tests/lifecycle-profile.test.ts",
         "tests/lifecycle-segments.test.ts",
         "tests/lifecycle.test.ts",
         "tests/local-store.test.ts",
         "tests/projections.test.ts",
+        "tests/public-spec.test.ts",
         "tests/publication.test.ts",
         "tests/resource-context.test.ts",
         "tests/resources.test.ts",
         "tests/sources.test.ts",
+        "tests/spec-read-boundary.test.ts",
+        "tests/task-capture.test.ts",
         "tests/templates.test.ts",
         "tests/tools.test.ts"
       ],
@@ -870,7 +877,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "owner-source",
+      "inputProfile": "workspace-records",
       "dependsOn": [
         "authoring-system:build"
       ],
@@ -1022,26 +1029,224 @@
       ]
     },
     {
-      "id": "cli:test",
+      "id": "cli:test-unit",
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
         "tests/args.test.ts",
         "tests/briefing.test.ts",
         "tests/channel.test.ts",
-        "tests/cli.test.ts",
+        "tests/render.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/cli-test-unit"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-host-registration",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/host-registration.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-host-registration"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-host-recovery",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/host-recovery.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-host-recovery"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-host-doctor",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/host-doctor.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-host-doctor"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-host-install",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/host-install.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-host-install"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-init",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/init.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-init"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-registry",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/registry.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-registry"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-workspace",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
         "tests/consumer.test.ts",
         "tests/decline.test.ts",
         "tests/distribution-verbs.test.ts",
         "tests/equivalence.test.ts",
         "tests/host-projection.test.ts",
-        "tests/host.test.ts",
-        "tests/init.test.ts",
-        "tests/protocols.test.ts",
-        "tests/registry.test.ts",
-        "tests/render.test.ts",
-        "tests/session-hook.test.ts",
-        "tests/user-host.test.ts",
         "tests/workspace-verbs.test.ts"
       ],
       "profile": "installed",
@@ -1051,14 +1256,49 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "workspace-records",
+      "inputProfile": "selected-tests-workspace-records",
       "dependsOn": [
         "cli:build",
         "host-payload:generate",
         "language-base:generate"
       ],
       "outputs": [
-        "artifacts/tests/cli-test"
+        "artifacts/tests/cli-test-workspace"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-installed",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/cli.test.ts",
+        "tests/program.test.ts",
+        "tests/protocols.test.ts",
+        "tests/session-hook.test.ts",
+        "tests/untrusted-lookups.test.ts",
+        "tests/user-host.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-installed"
       ],
       "cache": true,
       "workerLimit": 1,
@@ -1132,6 +1372,8 @@
         "tests/services.test.ts",
         "tests/snapshot.test.ts",
         "tests/source-policy.test.ts",
+        "tests/system-package.test.ts",
+        "tests/system-partitions.test.ts",
         "tests/transfer.test.ts",
         "tests/updates.test.ts",
         "tests/ustar.test.ts"
@@ -1338,7 +1580,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "owner-source",
+      "inputProfile": "workspace-records",
       "dependsOn": [
         "vscode:build"
       ],
@@ -1386,6 +1628,7 @@
         "tests/evaluator-catalog.test.ts",
         "tests/field-relations-baseline.test.ts",
         "tests/graph.test.ts",
+        "tests/host-plugin-node.test.ts",
         "tests/host-plugin.test.ts",
         "tests/report.test.ts",
         "tests/schema.test.ts",
@@ -1399,7 +1642,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "owner-source",
+      "inputProfile": "workspace-records",
       "dependsOn": [
         "compliance:build"
       ],
@@ -1459,6 +1702,29 @@
           "platforms": [
             "linux",
             "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: an ia.exe starts directly, even under a path that cmd.exe would expand (#474)",
+          "reason": "Starts a real ia.exe, a link to or copy of this node.exe, from a directory whose name holds %OS%, which only cmd.exe would expand; the emulated Windows cases check on Linux and macOS that a .com or .exe starts directly and that only a .bat or .cmd path is passed over for a %.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin.test.ts > hook: with no qualified PATH entry doctor can still start a System32 program by name (#474)",
+          "reason": "Starts hostname.exe by name from the System32 directory under SystemRoot, which exists only on Windows; the platform-independent child PATH case checks the System32 fallback and the POSIX /usr/bin:/bin one on Linux and macOS.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/host-plugin-node.test.ts > a node planted in the project or behind a relative PATH entry never starts the hook, and sh runs the recorded Node as written (#436)",
+          "reason": "On Windows the plugin hook keeps the earlier node command, which looks node up on PATH (host plugin distribution design §6.1); the injected-platform Windows rendering case checks that command byte for byte on every platform.",
+          "platforms": [
+            "windows"
           ]
         },
         {
@@ -1541,7 +1807,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "owner-source",
+      "inputProfile": "workspace-records",
       "dependsOn": [
         "db:build"
       ],
@@ -1600,7 +1866,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "owner-source",
+      "inputProfile": "workspace-records",
       "dependsOn": [
         "graph:build"
       ],
@@ -1694,7 +1960,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "owner-source",
+      "inputProfile": "language-conformance",
       "dependsOn": [
         "language:build"
       ],
@@ -1757,7 +2023,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "owner-source",
+      "inputProfile": "workspace-records",
       "dependsOn": [
         "runtime:build"
       ],
@@ -2007,8 +2273,7 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/distribution/host-payload.test.ts",
-        "tools/distribution/npm-release.test.ts"
+        "tools/distribution/host-payload.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
@@ -2150,6 +2415,7 @@
       "project": ".",
       "files": [
         "tools/projections/generate.test.ts",
+        "tools/projections/link-walk.test.ts",
         "tools/projections/membership.test.ts"
       ],
       "profile": "corpus",
@@ -2832,8 +3098,21 @@
       "mode": "emitted",
       "inputProfile": "repository-inventory",
       "dependsOn": [
-        "host-payload:generate",
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "cli:build",
+        "compliance:build",
+        "db:build",
+        "distribution:build",
+        "graph:build",
+        "language:build",
+        "mcp-door:build",
+        "runtime:build",
         "service-contracts:build",
+        "session-system:build",
+        "steward-hook:build",
+        "template-system:build",
         "vscode:build"
       ],
       "outputs": [
@@ -2894,6 +3173,32 @@
       "resourceClass": "pure",
       "covers": [
         "biome format ."
+      ]
+    },
+    {
+      "id": "tools:test-npm-release",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/distribution/npm-release.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-npm-release"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
       ]
     }
   ]

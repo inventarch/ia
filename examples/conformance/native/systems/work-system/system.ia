@@ -2,7 +2,7 @@
 
 @system work-system
   provider "inventarch.local"
-  version "0.1.0"
+  version "0.2.0"
   describes "Public work-system vocabulary contracts"
   steward @agent work-steward
   requires
@@ -26,6 +26,10 @@
       category decision
       facets [decision]
       schema @schema decision
+    spec lowers to contract
+      category rule
+      facets [spec]
+      schema @schema spec
   edges
     cite * using *
     require task, milestone, decision using task, milestone
@@ -33,5 +37,6 @@
     supersede milestone using milestone
     supersede task using task
     supersede decision using decision
+    supersede spec using spec
     ground plan, milestone, task using decision
 

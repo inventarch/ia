@@ -26,7 +26,7 @@ concurrency:
 # unable to change a task's result: package tasks do not hash this file, so a key a task reads is otherwise ignored.
 env:
   # Bump to invalidate results a defect has made unsound. It is a hashed input of every task.
-  NX_CACHE_EPOCH: '1'
+  NX_CACHE_EPOCH: '2'
   # Scheduled and dispatched full runs execute everything; ordinary runs may reuse task results.
   IA_FULL: ${{ (github.event_name == 'schedule' || inputs.full) && 'true' || '' }}
 
@@ -50,10 +50,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - name: Check dependency advisories
-        run: pnpm audit --audit-level=moderate
       # The full required task set for this checkout. A new unassigned test fails here, before
       # anything is scheduled; a deleted file cannot silently remove an obligation.
+      - name: Check dependency advisories
+        run: pnpm audit --audit-level=moderate
       - name: Validate the test inventory
         run: pnpm tests:inventory
       # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed

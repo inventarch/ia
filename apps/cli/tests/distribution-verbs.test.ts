@@ -25,6 +25,32 @@ import { dispatch } from '../src/consumer.js';
 import { collectDoctor } from '../src/doctor.js';
 import { quote } from '../src/render.js';
 
+it('doctor keeps real discovery by default and explicit roots precede fixture observations', () => {
+  const root = workspace(),
+    cwd = resolve(root, 'empty');
+  mkdirSync(cwd);
+  const request = {
+    cwd,
+    packageRoot: cli,
+    runtime: { version: '22.22.0', platform: 'win32', arch: 'x64' },
+    env: {},
+    home: scratch('doctor-observation-home'),
+  };
+  const rootRow = (view: ReturnType<typeof collectDoctor>) => view.checks.find((row) => row.id === 'root');
+  expect(rootRow(collectDoctor(request))).toMatchObject({ status: 'ok', detail: realpathSync(root) });
+  const discover = vi.fn(() => undefined);
+  expect(rootRow(collectDoctor({ ...request, discover }))).toMatchObject({
+    status: 'warn',
+    detail: 'No .ia/src directory here or in any parent',
+  });
+  expect(discover).toHaveBeenCalledTimes(1);
+  expect(rootRow(collectDoctor({ ...request, root, discover }))).toMatchObject({
+    status: 'ok',
+    detail: realpathSync(root),
+  });
+  expect(discover).toHaveBeenCalledTimes(1);
+});
+
 const ANSI = /\u001b\[/;
 const ID = 'fixture/foundation';
 afterAll(() => {

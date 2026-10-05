@@ -1,0 +1,63 @@
+#! ia 1.0
+
+@case validate-draft-success
+  meaning
+    says "Return a validated result with effect none, no artifacts and no source file."
+    answers "Does validate-draft produce the declared success through its actual governed consumer?"
+  scenario
+    kind success
+    given "The compiled native-draft-tools harness with its actual installed adapters, current grant and a valid agent draft."
+    request "Invoke validate-draft through Engine with the fixture draft and retain its operation receipt."
+    expected "Return a validated result with effect none, no artifacts and no source file."
+    evaluator ".ia/src/systems/agent-composition-system/tests/tools.test.ts"
+    operation @operation validate-draft
+    code pass
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-INPUT
+    implements @contract executable-authoring-contract#REQ-EXEC-RESULT
+
+@case validate-draft-scope-refusal
+  meaning
+    says "Return an explicit refusal with no artifacts or diagnostics."
+    answers "Does validate-draft produce the declared refusal through its actual governed consumer?"
+  scenario
+    kind refusal
+    given "The compiled draft-tool fixture with a narrowed contextual record selection that does not disclose the candidate context."
+    request "Invoke the actual validate-draft adapter with the valid draft under that narrowed selection."
+    expected "Return an explicit refusal with no artifacts or diagnostics."
+    evaluator ".ia/src/systems/agent-composition-system/tests/tools.test.ts"
+    operation @operation validate-draft
+    code IA-EXEC-SCOPE-UNAVAILABLE
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-REFUSE
+
+@case format-draft-success
+  meaning
+    says "Return exact normalized draft bytes in a read receipt with effect none and no source file."
+    answers "Does format-draft produce the declared success through its actual governed consumer?"
+  scenario
+    kind success
+    given "The compiled native-draft-tools harness with its actual installed adapters, current grant and a valid agent draft."
+    request "Invoke format-draft through Engine with the fixture draft and retain its operation receipt."
+    expected "Return exact normalized draft bytes in a read receipt with effect none and no source file."
+    evaluator ".ia/src/systems/agent-composition-system/tests/tools.test.ts"
+    operation @operation format-draft
+    code pass
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-INPUT
+    implements @contract executable-authoring-contract#REQ-EXEC-RESULT
+
+@case format-draft-scope-refusal
+  meaning
+    says "Return an explicit refusal with no artifacts or diagnostics."
+    answers "Does format-draft produce the declared refusal through its actual governed consumer?"
+  scenario
+    kind refusal
+    given "The compiled draft-tool fixture with a narrowed contextual record selection that does not disclose the candidate context."
+    request "Invoke the actual format-draft adapter with the valid draft under that narrowed selection."
+    expected "Return an explicit refusal with no artifacts or diagnostics."
+    evaluator ".ia/src/systems/agent-composition-system/tests/tools.test.ts"
+    operation @operation format-draft
+    code IA-EXEC-SCOPE-UNAVAILABLE
+  relationships
+    implements @contract executable-authoring-contract#REQ-EXEC-REFUSE

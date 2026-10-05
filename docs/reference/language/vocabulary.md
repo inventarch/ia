@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 43 words. Source digest: `d2ff22e208b442451859d8d3eb2268a3c3147a344527d96171f3ea9c98f8daed`.
+This catalogue contains 44 words. Source digest: `991105cd85bd193d7bfe94cda8c2725124d1122e794b9153fd307875542c0e56`.
 
 ## @agent
 
@@ -934,6 +934,34 @@ Required sections: sections. Optional sections: fields, edges.
 | Field | Type | Required |
 |---|---|---|
 | See the shared schema grammar | structured declarations | per grammar |
+
+## @spec
+
+Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality.
+
+Owner: `work-system`. Kind: `contract`. Category: `rule`. Identity: `work-system/contract/<facet>/<name>`.
+
+Schema: [spec](../../../.ia/src/systems/work-system/schemas/spec.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
+
+Facets: `spec`; the first is the default.
+
+Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
+
+Required sections: meaning, work. Optional sections: relationships.
+
+| Field | Type | Required |
+|---|---|---|
+| meaning.says | text | yes |
+| meaning.answers | text | no |
+| work.title | text | yes |
+| work.status | id in [draft, accepted, superseded, withdrawn] | yes |
+| work.owner | text | no |
+| work.start | text form iso-date | no |
+| work.due | text form iso-date | no |
+| work.ended | text form iso-date | no |
+| work.source | text | no |
+
+Relationship: supersede → spec; one; optional.
 
 ## @system
 

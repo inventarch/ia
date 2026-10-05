@@ -2,6 +2,7 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -21,6 +22,7 @@ const input = {
   channel: 'npm' as const,
   entry: '/opt/ia/dist/main.js',
   install: 'npm i -g @inventarch/cli@latest, then ia host claude --user --apply',
+  node: process.execPath,
 };
 
 it('renders the §6.1 file set and nothing else', () => {
@@ -98,7 +100,9 @@ it('the init skill respects a prior decline instead of re-offering', () => {
 it('hooks.json runs exactly the plugin-relative hook script on the verified matcher', () => {
   const files = Object.fromEntries(renderClaudePlugin(input).map((file) => [file.path, file.text]));
   const hooks = JSON.parse(files['plugins/ia/hooks/hooks.json']!);
-  expect(hooks.hooks.SessionStart[0].hooks[0].command).toBe('node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs"');
+  // #436: the recorded Node, quoted, on macOS and Linux; on Windows the earlier `node` (host-plugin-node.test.ts covers both).
+  const node = process.platform === 'win32' ? 'node' : `"${process.execPath}"`;
+  expect(hooks.hooks.SessionStart[0].hooks[0].command).toBe(node + ' "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs"');
   // §2.3: the `compact` matcher stayed unverified, so only `startup|clear` is registered.
   expect(hooks.hooks.SessionStart[0].matcher).toBe('startup|clear');
 });
@@ -396,23 +400,17 @@ posixIt(
   },
 );
 
-// The source of the named top-level functions of the rendered hook, for tests that run them under a fake process.
-function hookFunctions(names: readonly string[]): string {
+// The source of every top-level function of the rendered hook, for tests that run them under a fake process. A function
+// that a test never calls needs none of the names it uses.
+function hookFunctions(): string {
   const hook = renderClaudePlugin(input).find((file) => file.path === 'plugins/ia/hooks/session-start.mjs')!.text;
-  return names
-    .map((name) => {
-      const found = hook.match(new RegExp(`^function ${name}\\([^)]*\\) \\{[\\s\\S]*?^\\}$`, 'm'));
-      if (found === null) throw new Error(`the rendered hook has no top-level function ${name}`);
-      return found[0];
-    })
-    .join('\n');
+  return [...hook.matchAll(/^function \w+\([^)]*\) \{[\s\S]*?^\}$/gm)].map((found) => found[0]).join('\n');
 }
 
-// The Windows rules on every platform: the rendered qualified, pathEntries, findOnPath and windowsShell run with Windows
-// path semantics, a fake Windows process and an in-memory file system, so pull-request CI, which runs on Linux only,
-// checks them too.
+// The Windows rules on every platform: the rendered qualified, findOnPath and windowsShell run with Windows path
+// semantics, a fake Windows process and an in-memory file system, so pull-request CI, which runs on Linux only, checks
+// them too.
 function renderedAsWindows(env: Record<string, string>, statSync: (target: string) => unknown) {
-  const source = hookFunctions(['qualified', 'pathEntries', 'findOnPath', 'windowsShell']);
   const make = new Function(
     'process',
     'statSync',
@@ -422,8 +420,12 @@ function renderedAsWindows(env: Record<string, string>, statSync: (target: strin
     'isAbsolute',
     'join',
     'parse',
-    `${source}\nreturn { findOnPath, windowsShell };`,
-  ) as (...values: unknown[]) => { findOnPath: (name: string) => string | null; windowsShell: () => string };
+    `${hookFunctions()}\nreturn { qualified, findOnPath, windowsShell };`,
+  ) as (...values: unknown[]) => {
+    qualified: (path: string) => boolean;
+    findOnPath: (name: string) => string | null;
+    windowsShell: () => string;
+  };
   return make(
     { platform: 'win32', env },
     statSync,
@@ -434,6 +436,19 @@ function renderedAsWindows(env: Record<string, string>, statSync: (target: strin
     win32.join,
     win32.parse,
   );
+}
+// The environment the rendered childEnv gives every child, under a fake process on `platform` with its path rules.
+function childEnvAs(platform: 'win32' | 'linux', env: Record<string, string>): Record<string, string> {
+  const path = platform === 'win32' ? win32 : posix;
+  const make = new Function(
+    'process',
+    'delimiter',
+    'isAbsolute',
+    'join',
+    'parse',
+    `${hookFunctions()}\nreturn childEnv;`,
+  ) as (...values: unknown[]) => () => Record<string, string>;
+  return make({ platform, env }, path.delimiter, path.isAbsolute, path.join, path.parse)();
 }
 // An in-memory Windows file system holding `files` and the directories above them; it records every path it is asked about.
 function windowsFiles(files: readonly string[], checked: string[]) {
@@ -460,8 +475,7 @@ function shellAsWindows(env: Record<string, string>): string {
 // defines, runs under a fake Windows process whose recorded entry is gone, with `files` in an in-memory file system and
 // a spawnSync that records each call and answers as a healthy doctor.
 function launchAsWindows(env: Record<string, string>, files: readonly string[]) {
-  const hook = renderClaudePlugin(input).find((file) => file.path === 'plugins/ia/hooks/session-start.mjs')!.text;
-  const source = [...hook.matchAll(/^function \w+\([^)]*\) \{[\s\S]*?^\}$/gm)].map((found) => found[0]).join('\n');
+  const source = hookFunctions();
   const calls: unknown[][] = [];
   const fake: Record<string, unknown> = {
     process: { platform: 'win32', env, cwd: () => 'C:\\cwd', execPath: 'C:\\node\\node.exe' },
@@ -514,9 +528,53 @@ it('hook: the Windows lookup takes only fully qualified PATH entries and program
   expect(found).toBe(`${npm}\\ia.exe`);
   // The first thing the lookup touches is the first qualified entry: no unqualified entry is ever checked.
   expect(checked[0]).toBe('C:\\first');
-  expect(lookUpAsWindows('\\\\server\\share\\bin', ['\\\\server\\share\\bin\\ia.bat']).found).toBe(
-    '\\\\server\\share\\bin\\ia.bat',
-  );
+});
+
+// #474: on Windows an entry is qualified only under a drive letter. A share is not, however it is spelled: a synchronous
+// check of one that cannot be reached waits for the network with no bound the hook can set. Nothing is checked to decide.
+it('hook: on Windows only a PATH entry under a drive letter is qualified, never a share (#474)', () => {
+  const { qualified } = renderedAsWindows({}, () => {
+    throw new Error('qualifying an entry must not touch the file system');
+  });
+  const drives = ['C:\\tools', 'c:/tools', 'Z:\\'];
+  const others = [
+    '\\\\server\\share\\bin',
+    '//server/share/bin',
+    '\\/server/share/bin',
+    '\\\\?\\UNC\\server\\share\\bin',
+    '\\\\?\\C:\\bin',
+    '\\\\.\\C:\\bin',
+    '\\tools',
+    'C:rel',
+    'bin',
+    '%SystemRoot%\\system32',
+    '',
+  ];
+  expect(drives.filter((entry) => !qualified(entry))).toEqual([]);
+  expect(others.filter((entry) => qualified(entry))).toEqual([]);
+});
+
+it('hook: the Windows lookup never checks a share, and takes the ia in the drive entry after it (#474)', () => {
+  // Each share holds an ia that the lookup would take if it checked the share.
+  const shares = ['\\\\server\\share\\bin', '//server/share/bin', '\\\\?\\UNC\\server\\share\\bin'];
+  const { found, checked } = lookUpAsWindows([...shares, 'C:\\tools'].join(';'), [
+    ...shares.map((share) => win32.join(share, 'ia.exe')),
+    'C:\\tools\\ia.cmd',
+  ]);
+  expect(found).toBe('C:\\tools\\ia.cmd');
+  expect(checked).toEqual([
+    'C:\\tools',
+    'C:\\tools\\ia.com',
+    'C:\\tools\\ia.exe',
+    'C:\\tools\\ia.bat',
+    'C:\\tools\\ia.cmd',
+  ]);
+});
+
+it('hook: the child PATH leaves out every share on Windows (#474)', () => {
+  expect(
+    childEnvAs('win32', { PATH: '\\\\server\\share\\bin;C:\\a;//server/share/b;\\\\?\\UNC\\server\\share\\c' })['PATH'],
+  ).toBe('C:\\a');
 });
 
 it('hook: the Windows lookup checks a missing PATH directory once, not once per program type', () => {
@@ -531,6 +589,16 @@ it('hook: the Windows lookup passes over a file whose path cmd.exe would expand 
     'C:\\tools\\ia.cmd',
   ]);
   expect(found).toBe('C:\\tools\\ia.cmd');
+});
+
+// #474: only a .bat or .cmd file runs through cmd.exe, so only its path is passed over for a %. A .com or .exe starts
+// directly, and nothing expands its path.
+it('hook: the Windows lookup passes over a % only in the path of a file cmd.exe would run (#474)', () => {
+  const dir = 'C:\\Users\\100%x\\npm',
+    path = `${dir};C:\\tools`;
+  expect(
+    ['.com', '.exe', '.bat'].map((type) => lookUpAsWindows(path, [`${dir}\\ia${type}`, 'C:\\tools\\ia.cmd']).found),
+  ).toEqual([`${dir}\\ia.com`, `${dir}\\ia.exe`, 'C:\\tools\\ia.cmd']);
 });
 
 it('hook: cmd.exe is always named by a qualified path', () => {
@@ -589,6 +657,64 @@ it('hook: on Windows the ia found runs as cmd.exe /d /v:off /s /c with the quote
     ],
   ]);
 });
+
+// #474: Node starts a .bat or .cmd only through a shell, so those two go through cmd.exe; a .com or .exe is a program,
+// started by its absolute path with Node's own quoting, and no shell reads its path.
+it('hook: on Windows a .com or .exe found starts directly; only a .bat or .cmd goes through cmd.exe (#474)', () => {
+  const bin = 'C:\\Users\\dev\\a b & c!\\npm';
+  const env = { PATH: bin, SystemRoot: 'C:\\WINDOWS', CLAUDE_PROJECT_DIR: 'C:\\project' };
+  const options = {
+    cwd: 'C:\\project',
+    encoding: 'utf8',
+    timeout: 5000,
+    windowsHide: true,
+    env: { ...env, NoDefaultCurrentDirectoryInExePath: '1' },
+  };
+  const launches = ['.com', '.exe', '.bat', '.cmd'].map((type) => launchAsWindows(env, [`${bin}\\ia${type}`]));
+  expect(launches.map(({ result }) => result)).toEqual(
+    launches.map(() => ({ context: 'IA workspace ready.', notice: null })),
+  );
+  expect(launches.map(({ calls }) => calls)).toEqual([
+    [[`${bin}\\ia.com`, ['doctor', '--json', '--host', 'claude'], options]],
+    [[`${bin}\\ia.exe`, ['doctor', '--json', '--host', 'claude'], options]],
+    [
+      [
+        'C:\\WINDOWS\\System32\\cmd.exe',
+        ['/d', '/v:off', '/s', '/c', `""${bin}\\ia.bat" doctor --json --host claude"`],
+        { ...options, windowsVerbatimArguments: true },
+      ],
+    ],
+    [
+      [
+        'C:\\WINDOWS\\System32\\cmd.exe',
+        ['/d', '/v:off', '/s', '/c', `""${bin}\\ia.cmd" doctor --json --host claude"`],
+        { ...options, windowsVerbatimArguments: true },
+      ],
+    ],
+  ]);
+});
+
+// The same on a real Windows. The ia.exe is this node.exe, which runs `doctor` from the project, its working directory,
+// as a script. Its directory's name holds %OS%: the old lookup passed it over, and cmd.exe would expand it to Windows_NT
+// and miss the file, so only a direct start reports the workspace.
+windowsIt(
+  'hook: an ia.exe starts directly, even under a path that cmd.exe would expand (#474)',
+  async () => {
+    const { hookPath } = renderPluginWithEntry(null);
+    const project = tempDir(),
+      bin = resolve(tempDir(), 'a%OS%b'),
+      exe = resolve(bin, 'ia.exe');
+    mkdirSync(bin);
+    try {
+      linkSync(process.execPath, exe);
+    } catch {
+      copyFileSync(process.execPath, exe);
+    }
+    writeFileSync(resolve(project, 'doctor'), `process.stdout.write(${JSON.stringify(healthy)});\n`);
+    expect(context(await runHook(hookPath, hookEnv(project, bin), project))).toBe('IA workspace ready.');
+  },
+  20_000,
+);
 
 // The same launch on a real cmd.exe. Given ComSpec as a shell, Node would pass -c: node reads it as --check and exits 1,
 // and cmd.exe named with forward slashes exits 1 with empty stdout ("A subdirectory or file .exe already exists."), so the hook reports a doctor failure.
@@ -656,10 +782,6 @@ posixIt(
 );
 
 it('hook: the child PATH keeps only qualified entries and, on Windows, skips the current directory (LKI-41)', () => {
-  const source = hookFunctions(['qualified', 'pathEntries', 'childEnv']);
-  const make = new Function('process', 'delimiter', 'isAbsolute', 'parse', `${source}\nreturn childEnv;`) as (
-    ...values: unknown[]
-  ) => () => Record<string, string>;
   // Windows reads environment names without regard to case; the key as listed stays Path.
   const raw: Record<string, string> = { Path: 'C:\\a;bin;;\\tools;"D:\\b"', ComSpec: 'C:\\Windows\\system32\\cmd.exe' };
   const env = new Proxy(raw, {
@@ -668,8 +790,7 @@ it('hook: the child PATH keeps only qualified entries and, on Windows, skips the
         ? Object.entries(target).find(([name]) => name.toUpperCase() === key.toUpperCase())?.[1]
         : undefined,
   });
-  const childEnv = make({ platform: 'win32', env }, win32.delimiter, win32.isAbsolute, win32.parse);
-  expect(childEnv()).toEqual({
+  expect(childEnvAs('win32', env)).toEqual({
     ComSpec: 'C:\\Windows\\system32\\cmd.exe',
     PATH: 'C:\\a;D:\\b',
     NoDefaultCurrentDirectoryInExePath: '1',
@@ -677,29 +798,13 @@ it('hook: the child PATH keeps only qualified entries and, on Windows, skips the
 });
 
 it('hook: only Windows drops quotes from PATH entries; on POSIX the child PATH keeps each entry as written (LKI-41)', () => {
-  const source = hookFunctions(['qualified', 'pathEntries', 'childEnv']);
-  const make = new Function('process', 'delimiter', 'isAbsolute', 'parse', `${source}\nreturn childEnv;`) as (
-    ...values: unknown[]
-  ) => () => Record<string, string>;
   // On POSIX a quote is part of a name, so doctor from the recorded entry keeps /opt/my"tools/bin; an entry wrapped in
   // quotes is relative, as the shell reads it, so it is dropped rather than rewritten into the directory it quotes.
-  expect(
-    make(
-      { platform: 'linux', env: { PATH: '"/opt/x":/opt/my"tools/bin:/usr/bin' } },
-      posix.delimiter,
-      posix.isAbsolute,
-      posix.parse,
-    )()['PATH'],
-  ).toBe('/opt/my"tools/bin:/usr/bin');
+  expect(childEnvAs('linux', { PATH: '"/opt/x":/opt/my"tools/bin:/usr/bin' })['PATH']).toBe(
+    '/opt/my"tools/bin:/usr/bin',
+  );
   // Windows allows an entry in quotes and no quote in a file name.
-  expect(
-    make(
-      { platform: 'win32', env: { PATH: '"C:\\x";C:\\my tools\\bin' } },
-      win32.delimiter,
-      win32.isAbsolute,
-      win32.parse,
-    )()['PATH'],
-  ).toBe('C:\\x;C:\\my tools\\bin');
+  expect(childEnvAs('win32', { PATH: '"C:\\x";C:\\my tools\\bin' })['PATH']).toBe('C:\\x;C:\\my tools\\bin');
 });
 
 // The spawn ratchet (tools/testing/spawn-ratchet.test.ts) reads this file as text and would count the doctor stand-ins'
@@ -753,6 +858,21 @@ windowsIt(
   20_000,
 );
 
+// #474: with no qualified PATH entry, doctor still gets the System32 directory, so a system program it starts by name
+// runs; with an empty PATH and NoDefaultCurrentDirectoryInExePath libuv searched nowhere.
+windowsIt(
+  'hook: with no qualified PATH entry doctor can still start a System32 program by name (#474)',
+  async () => {
+    const project = tempDir();
+    const { hookPath } = renderPluginWithEntry(
+      `import { spawnSync } from '${CHILD_PROCESS}';\nconst probe = spawnSync('hostname', { encoding: 'utf8' });\nprocess.stdout.write(JSON.stringify({ session: { context: [probe.error ? probe.error.code : 'probe ran', process.env.PATH], notice: null, nudge: null, refresh: null } }));\n`,
+    );
+    const system32 = resolve(process.env['SystemRoot'] ?? 'C:\\Windows', 'System32');
+    expect(context(await runHook(hookPath, hookEnv(project, 'bin'), project))).toBe(`probe ran\n${system32}`);
+  },
+  20_000,
+);
+
 it('hook: the update refresh starts from the home directory with only qualified PATH entries (LKI-41)', async () => {
   const project = tempDir(),
     bin = tempDir(),
@@ -781,15 +901,35 @@ it('hook: the update refresh starts from the home directory with only qualified 
   expect(seen!.path).toBe(bin);
 }, 25_000);
 
-it('hook: with no qualified PATH entry the child gets the system directories on POSIX, never an empty PATH (LKI-41)', () => {
-  const source = hookFunctions(['qualified', 'pathEntries', 'childEnv']);
-  const make = new Function('process', 'delimiter', 'isAbsolute', 'parse', `${source}\nreturn childEnv;`) as (
-    ...values: unknown[]
-  ) => () => Record<string, string>;
+// #474 for Windows: there an empty PATH finds nothing at all, so the child gets the System32 directory beside the cmd.exe
+// the hook names, from a qualified SystemRoot or the default Windows directory. It replaces an empty PATH, never adds to one.
+it('hook: with no qualified PATH entry the child gets the system directories on every platform, never an empty PATH (LKI-41, #474)', () => {
+  expect(childEnvAs('linux', { PATH: 'bin::.' })['PATH']).toBe('/usr/bin:/bin');
+  expect(['bin', ';', ''].map((PATH) => childEnvAs('win32', { PATH })['PATH'])).toEqual([
+    'C:\\Windows\\System32',
+    'C:\\Windows\\System32',
+    'C:\\Windows\\System32',
+  ]);
   expect(
-    make({ platform: 'linux', env: { PATH: 'bin::.' } }, posix.delimiter, posix.isAbsolute, posix.parse)()['PATH'],
-  ).toBe('/usr/bin:/bin');
+    ['E:\\Win', 'E:/Win', '\\Windows', 'Windows'].map(
+      (SystemRoot) => childEnvAs('win32', { PATH: 'bin', SystemRoot })['PATH'],
+    ),
+  ).toEqual(['E:\\Win\\System32', 'E:\\Win\\System32', 'C:\\Windows\\System32', 'C:\\Windows\\System32']);
+  expect(childEnvAs('win32', { PATH: 'bin;D:\\tools', SystemRoot: 'E:\\Win' })['PATH']).toBe('D:\\tools');
+});
+
+// #474: the refresh starts in the home directory even when that directory is missing. The start then fails (Node 22 on
+// macOS reports ENOENT as an 'error' event) and the hook ignores it, so the briefing is still emitted.
+it('hook: a missing home directory costs the update refresh, never the briefing (#474)', async () => {
+  const project = tempDir(),
+    home = resolve(tempDir(), 'missing-home'),
+    probe = resolve(tempDir(), 'probe.mjs');
+  writeFileSync(probe, '');
+  const { hookPath } = renderPluginWithEntry(
+    `process.stdout.write(JSON.stringify({ session: { context: ['IA workspace ready.'], notice: null, nudge: null, refresh: ${JSON.stringify([process.execPath, probe])} } }));\n`,
+  );
   expect(
-    make({ platform: 'win32', env: { PATH: 'bin' } }, win32.delimiter, win32.isAbsolute, win32.parse)()['PATH'],
-  ).toBe('');
+    context(await runHook(hookPath, hookEnv(project, tempDir(), { HOME: home, USERPROFILE: home }), project)),
+  ).toBe('IA workspace ready.');
+  expect(existsSync(home)).toBe(false);
 });

@@ -82,6 +82,7 @@ export function productStructure(root) {
     },
   };
   assets.set('.ia/authoring.resources.json', Buffer.from(JSON.stringify(selection)));
+  const verified = verifyArchive(language.bytes);
   const descriptor = {
     formatVersion: 1,
     id: 'inventarch/product-structure',
@@ -89,7 +90,7 @@ export function productStructure(root) {
     distribution: 'workspace-system/definition/distribution/product-structure',
     engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
     language: ['1.0'],
-    dependencies: [{ id: 'inventarch/language', range: language.pin.version, systems: [...base.folders].sort() }],
+    dependencies: [{ id: verified.manifest.id, range: verified.manifest.version, systems: [...base.folders].sort() }],
     assets: [...assets.keys()].sort().map((path) => ({
       path,
       role: ['LICENSE', 'NOTICE'].includes(path) ? 'license' : path.endsWith('.md') ? 'documentation' : 'asset',
@@ -98,7 +99,6 @@ export function productStructure(root) {
     license: 'Apache-2.0',
     description: 'Explicitly selected public product structural vocabulary; no private methods or grants',
   };
-  const verified = verifyArchive(language.bytes);
   const selected = resolveReleases(
     [{ id: verified.manifest.id, range: verified.manifest.version }],
     [{ release: verified, location: `sha256:${verified.archiveDigest}`, withdrawn: false }],

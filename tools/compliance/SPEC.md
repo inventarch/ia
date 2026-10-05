@@ -1,6 +1,6 @@
 # Public compliance fixtures
 
-Runs all language fixtures and graph, runtime, hook, execution and publication refusal boundaries.
+Runs all language fixtures and graph, evaluator evidence, runtime, hook, execution and publication refusal boundaries. Every evaluator evidence code requires a successful producer observation; these synthetic local receipts qualify pure APIs, not live writer or service authority.
 
 ## Foundation authoring adoption
 

@@ -1,8 +1,10 @@
-// Runs from an isolated consumer. Imports only public installed packages.
+// Runs from an isolated consumer. Imports only public installed packages and the link walk copied beside it.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { open } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
 import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
@@ -13,6 +15,16 @@ import {
   compileProjection,
   serializeProjection,
 } from '@inventarch/agent-composition-system/projections';
+// The shared link rule (#477), copied beside this script; external and fragment-only links name no product file.
+import { linkCounts, linkProblems } from './link-walk.mjs';
+const walkLinks = (host, product, directory, files) => {
+  assert.deepEqual(
+    linkProblems(resolve(directory), files),
+    [],
+    `${host} ${product}: every local link must reach a regular file inside the written product`,
+  );
+  console.log(JSON.stringify({ packedLinks: true, host, product, ...linkCounts(files) }));
+};
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const digest = (value) => hash(stableSerialize(value));
@@ -130,6 +142,63 @@ const body = {
 };
 const descriptor = { ...body, digest: digest(body) },
   reader = open(root, { cache: false, adopted });
+// HOST-01: copy a product into a fresh root outside this consumer; under the shared link rule (#477) every local link
+// must reach a regular file inside it, and every file must keep its recorded bytes.
+const relocate = (result) => {
+  // Checked before use: a throw in finally would replace a failing assertion's error.
+  const target = mkdtempSync(join(tmpdir(), 'ia-packed-relocated-'));
+  if (dirname(target) !== resolve(tmpdir())) throw new Error('Unsafe relocation cleanup');
+  try {
+    for (const file of result.files) {
+      const path = join(target, file.path);
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, Buffer.from(file.content, file.encoding));
+    }
+    for (const file of result.files) assert.equal(hash(readFileSync(join(target, file.path))), file.sha256);
+    assert.deepEqual(
+      linkProblems(target, result.files),
+      [],
+      'relocated links must reach regular files inside the product',
+    );
+    for (const file of result.files.filter((file) => file.path.endsWith('/scripts/verify-resources.mjs'))) {
+      const skillRoot = realpathSync.native(target);
+      const run = spawnSync(process.execPath, [join(target, file.path), '--root', skillRoot], {
+        cwd: target,
+        encoding: 'utf8',
+        timeout: 10000,
+        maxBuffer: 65536,
+      });
+      assert.equal(run.status, 0, run.stderr || run.stdout);
+      assert.equal(JSON.parse(run.stdout).status, 'verified');
+    }
+    return linkCounts(result.files).local;
+  } finally {
+    rmSync(target, { recursive: true, force: true });
+  }
+};
+// One revision-bound evidence line per product: identities, every output hash and the relocation link count.
+const record = (host, product, result, selected) => {
+  const relocatedLinks = relocate(result),
+    { manifest } = result;
+  console.log(
+    JSON.stringify({
+      packedEvidence: true,
+      host,
+      product,
+      sourceRevisions: manifest.sourceRevisions,
+      nativeCaptureRevision: resources.nativeCaptureRevision,
+      resourcesDigest: manifest.resourcesDigest,
+      inventoryDigest: manifest.inventoryDigest,
+      descriptorDigest: manifest.descriptorDigest,
+      implementationDigest: selected.profile.implementationDigest,
+      manifestDigest: manifest.digest,
+      omissions: manifest.omissions,
+      enforcement: manifest.enforcement,
+      outputs: manifest.outputs.map(({ path, role, bytes, sha256 }) => ({ path, role, bytes, sha256 })),
+      relocatedLinks,
+    }),
+  );
+};
 if (process.argv.includes('--distribution')) {
   mkdirSync(resolve(root, '.ia'), { recursive: true });
   const bindings = adopted.map((source, index) => {
@@ -168,7 +237,7 @@ try {
     compileProjection(capture, descriptor, resources, { ...options, allowedResources: [] }).status,
     'refused',
   );
-  assert.equal(result.files.length, 6);
+  assert.equal(result.files.length, 8);
   for (const file of result.files) {
     const target = resolve('output', file.path);
     mkdirSync(dirname(target), { recursive: true });
@@ -176,6 +245,7 @@ try {
     assert.equal(hash(bytes), file.sha256);
     writeFileSync(target, bytes);
   }
+  walkLinks('claude', 'plugin', 'output', result.files);
   writeFileSync('projection-manifest.json', JSON.stringify(result.manifest, null, 2) + '\n');
   console.log(
     JSON.stringify({
@@ -188,6 +258,13 @@ try {
       implementationDigest: catalog.profile.implementationDigest,
     }),
   );
+  record('claude', 'plugin', result, catalog);
+  const workspaceBody = { ...body, product: 'workspace' },
+    workspace = compileProjection(capture, { ...workspaceBody, digest: digest(workspaceBody) }, resources, options);
+  assert.equal(workspace.status, 'compiled', JSON.stringify(workspace));
+  assert.deepEqual(workspace.manifest.exports, result.manifest.exports);
+  assert.equal(workspace.files.length, 7);
+  record('claude', 'workspace', workspace, catalog);
   const codexCatalog = codexProseCatalog(catalog.profile.implementationDigest, {
     models: catalog.models,
     tools: [{ id: 'read', name: 'read' }],
@@ -215,7 +292,7 @@ try {
       compileProjection(capture, codexDescriptor, resources, { ...codexOptions, allowedResources: [] }).status,
       'refused',
     );
-    assert.equal(codex.files.length, product === 'workspace' ? 8 : 9);
+    assert.equal(codex.files.length, product === 'workspace' ? 12 : 15);
     for (const file of codex.files) {
       const target = resolve('codex-' + product, file.path);
       mkdirSync(dirname(target), { recursive: true });
@@ -223,6 +300,7 @@ try {
       assert.equal(hash(bytes), file.sha256);
       writeFileSync(target, bytes);
     }
+    walkLinks('codex', product, 'codex-' + product, codex.files);
     writeFileSync('codex-' + product + '-manifest.json', JSON.stringify(codex.manifest, null, 2) + '\n');
     console.log(
       JSON.stringify({
@@ -235,6 +313,7 @@ try {
         implementationDigest: codexCatalog.profile.implementationDigest,
       }),
     );
+    record('codex', product, codex, codexCatalog);
   }
 } finally {
   reader.close();

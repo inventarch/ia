@@ -1,0 +1,113 @@
+#! ia 1.0
+
+@agent sdk-example-parent
+  meaning
+    says "Coordinate one bounded example read and a child response."
+    answers "Which example participant retains responsibility?"
+  governance
+    applies []
+
+@agent sdk-example-child
+  meaning
+    says "Return the result of a bounded delegated example task."
+    answers "Which participant receives the child task?"
+  governance
+    applies []
+
+@playbook sdk-example-method
+  meaning
+    says "Read an explicitly supplied public label and retain its result."
+    answers "What should this neutral example procedure do?"
+  cognition
+    act
+      primary Decision
+      Decision means "Invoke only the supplied read operation. Ask for missing input through a typed question, and return a bounded answer."
+
+@mandate sdk-example-mandate
+  meaning
+    says "Restrict the example to reads, bounded delegation and typed input waits."
+    answers "What obligations does the example retain?"
+  governance
+    requires "An example response or selected method grants no filesystem or external write."
+  execution
+    contract sdk-example-mandate-v1
+    limit-model-calls 8
+    limit-operations 4
+
+@capability sdk-example-read-capability
+  meaning
+    says "Combine one read operation, its method and an installed evaluator."
+    answers "Which example mechanisms are composed?"
+  composition
+    operations [@operation sdk-example-read]
+    playbooks [@playbook sdk-example-method]
+  execution
+    input sdk-example-task-v1
+    outcomes sdk-example-outcomes-v1
+    context-profile sdk-example-context-v1
+    mapping-profile sdk-example-identity-v1
+    effects [read]
+
+@agent-profile sdk-example-child-profile
+  meaning
+    says "Bind the child to the same read-only mandate and capability."
+    answers "Which child profile executes the example?"
+  composition
+    agent @agent sdk-example-child
+    mandate @mandate sdk-example-mandate
+    capabilities [@capability sdk-example-read-capability]
+  execution
+    role child
+    outcomes sdk-example-outcomes-v1
+    mandate-contract sdk-example-mandate-v1
+
+@agent-profile sdk-example-parent-profile
+  meaning
+    says "Bind the parent and retain the explicit child boundary."
+    answers "Which parent profile enters the example?"
+  composition
+    agent @agent sdk-example-parent
+    mandate @mandate sdk-example-mandate
+    capabilities [@capability sdk-example-read-capability]
+    delegates [@agent-profile sdk-example-child-profile]
+  execution
+    role parent
+    outcomes sdk-example-outcomes-v1
+    mandate-contract sdk-example-mandate-v1
+
+@workspace sdk-example-workspace
+  meaning
+    says "Select the example system and public composition dependencies."
+    answers "Which native systems compose the SDK example?"
+  composition
+    systems [@system sdk-example-system, @system agent-system, @system workspace-system, @system governance-system, @system compliance-system, @system authoring-system, @system agent-composition-system]
+
+@execution-binding sdk-example-read-binding
+  meaning
+    says "Select the host-installed example read implementation."
+    answers "Which implementation supplies the example read?"
+  binding
+    kind operation
+    target @operation sdk-example-read
+    implementation sdk-example-read-v1
+
+@execution-binding sdk-example-entry
+  meaning
+    says "Enter the native example through the parent profile."
+    answers "Where does an authorized task enter?"
+  binding
+    kind entry
+    target @agent-profile sdk-example-parent-profile
+    implementation sdk-example-entry-v1
+    mapping sdk-example-identity-v1
+
+@harness sdk-example-harness
+  meaning
+    says "Compose the neutral parent, child and explicit read binding."
+    answers "Which harness demonstrates the existing SDK ports?"
+  composition
+    workspace @workspace sdk-example-workspace
+    profiles [@agent-profile sdk-example-parent-profile, @agent-profile sdk-example-child-profile]
+    bindings [@execution-binding sdk-example-entry, @execution-binding sdk-example-read-binding]
+  execution
+    host-profile sdk-example-host-v1

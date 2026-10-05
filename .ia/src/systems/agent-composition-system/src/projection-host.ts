@@ -24,12 +24,17 @@ export interface ProjectionCatalog {
 }
 export const CLAUDE_PROSE_FEATURES = Object.freeze([
   'agents',
+  'native-agents',
   'skills',
   'commands',
   'text-arguments',
   'prompt-literal-guidance',
   'resources',
   'conditional-guidance',
+]);
+/** Fixed v1 table of both prose profiles: the host tool ids a native capability effect covers. No other effect maps a tool. */
+export const PROSE_EFFECT_TOOLS: ReadonlyMap<string, readonly string[]> = new Map([
+  ['read', Object.freeze(['read', 'glob', 'grep'])],
 ]);
 /** Host-owned name mappings. Their presence is metadata support, never an execution grant. */
 export function claudeProseCatalog(

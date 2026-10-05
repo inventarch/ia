@@ -27,9 +27,10 @@ export function languagePackageInputs(root: string): { inputs: NativeInput[]; fo
 export function publicLanguageInputs(
   root: string,
   examples?: readonly string[],
+  read: (path: string) => string = (path) => readFileSync(path, 'utf8'),
 ): { inputs: NativeInput[]; folders: string[] } {
   const base = resolve(root, 'examples/public-language');
-  const manifest = JSON.parse(readFileSync(resolve(base, 'manifest.json'), 'utf8')) as Manifest;
+  const manifest = JSON.parse(read(resolve(base, 'manifest.json'))) as Manifest;
   if (manifest.version !== 1) throw new Error('Unsupported public language manifest');
   const inputs: NativeInput[] = [],
     paths = new Set<string>();
@@ -38,7 +39,7 @@ export function publicLanguageInputs(
     paths.add(path);
     inputs.push({
       path,
-      text: readFileSync(file, 'utf8').replace(/\r\n/g, '\n'),
+      text: read(file).replace(/\r\n/g, '\n'),
       location: floor
         ? { placement: { kind: 'floor', band: 10, reach: '' }, provenance: 'bootstrap' }
         : { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' },

@@ -23,7 +23,26 @@ export type OutcomeKind =
   | 'refusal'
   | 'failure';
 export type ResourceLimits = Partial<Omit<Limits, 'deadline'>> & { durationMs?: number };
+export interface IndependentReviewPolicy {
+  rule: 'independent-exact-candidate-v1';
+  reviewer: string;
+  mandate: string;
+  policyRevision: string;
+}
+/** Issued by trusted host authorization, never by model output or caller-supplied role labels. */
+export interface ReviewGrant {
+  principal: string;
+  workspace: string;
+  mandate: string;
+  policyRevision: string;
+  expiresAt: number;
+  operations: string[];
+  effects: ('local-write' | 'external-write')[];
+  sources: string[];
+  destinations: Json[];
+}
 export interface ExecutionContract {
+  review?: IndependentReviewPolicy;
   /** Pinned structural request ceiling; cumulative token accounting remains independent. */
   requestBytes?: number;
   id: string;
@@ -192,6 +211,13 @@ export interface EngineHost {
   model: ModelAdapter;
   operations: Readonly<Record<string, OperationAdapter>>;
   authorize(principal: string, manifest: Manifest, session: Session | null): Promise<Grant>;
+  /** Current review authority for an identity authenticated by the host. Does not grant session ownership or write authority. */
+  authorizeReview?(
+    principal: string,
+    manifest: Manifest,
+    session: Session,
+    review: ReviewContract,
+  ): Promise<ReviewGrant>;
   /** Explicit fresh authority for a bounded human-wait renewal; ordinary grants never renew. */
   authorizeRenewal?(principal: string, manifest: Manifest, session: Session): Promise<Grant>;
   context(profile: Profile, task: Json, grant: Grant, budget?: ContextBudget): Promise<Json>;

@@ -1,5 +1,8 @@
 import { expect, it } from 'vitest';
 import {
+  captureFailure,
+  errorResult,
+  failure,
   captureRequest,
   decode,
   exactProposalReview,
@@ -141,4 +144,33 @@ it('publishes only safe recovery choices and accepts an exact opaque recovery se
     expect(() => decode(publicRecovery, value)).toThrow(ServiceError);
   for (const schema of [sessionRecoverRequest, publicRecovery])
     expect(jsonSchema(schema)).toMatchObject({ type: 'object', additionalProperties: false });
+});
+
+it('preserves bounded capture refusal evidence without disclosing arbitrary error details', () => {
+  const capture = { reason: 'overflow' as const, requiredBytes: 716801, limit: 716800, proof: 'a'.repeat(64) };
+  const error = new ServiceError('invalid', 'capture-overflow', 'Complete context exceeds the bound', capture);
+  expect(errorResult.parse(failure(error))).toEqual({
+    code: error.code,
+    category: 'invalid',
+    message: error.message,
+    capture,
+  });
+  expect(failure(new ServiceError('forbidden', 'denied', 'Unavailable'))).toEqual({
+    code: 'denied',
+    category: 'forbidden',
+    message: 'Unavailable',
+  });
+  expect(failure(Error('private database path'))).toEqual({
+    code: 'internal',
+    category: 'internal',
+    message: 'The operation could not be completed',
+  });
+  for (const extra of [
+    { diagnostics: '/private/secret' },
+    { limit: 0 },
+    { requiredBytes: -1 },
+    { proof: 'not-a-pin' },
+    { reason: 'unknown' },
+  ])
+    expect(() => captureFailure.parse({ ...capture, ...extra })).toThrow();
 });

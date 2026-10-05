@@ -8,16 +8,37 @@
       "path": ".ia/src/floor/SPEC.md"
     },
     {
+      "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md"
+    },
+    {
       "path": ".ia/src/systems/agent-composition-system/README.md"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md"
     },
     {
+      "path": ".ia/src/systems/agent-composition-system/references/installed-read.md"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/public-spec.md"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/spec-read-boundary.md"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/task-capture.md"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/LANGUAGE.md"
+    },
+    {
       "path": ".ia/src/systems/agent-system/README.md"
     },
     {
       "path": ".ia/src/systems/agent-system/SPEC.md"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/LANGUAGE.md"
     },
     {
       "path": ".ia/src/systems/authoring-system/README.md"
@@ -137,6 +158,9 @@
       "path": ".ia/src/systems/authoring-system/reference/schema.md"
     },
     {
+      "path": ".ia/src/systems/authoring-system/reference/spec.md"
+    },
+    {
       "path": ".ia/src/systems/authoring-system/reference/system.md"
     },
     {
@@ -155,10 +179,16 @@
       "path": ".ia/src/systems/authoring-system/reference/workspace.md"
     },
     {
+      "path": ".ia/src/systems/compliance-system/LANGUAGE.md"
+    },
+    {
       "path": ".ia/src/systems/compliance-system/README.md"
     },
     {
       "path": ".ia/src/systems/compliance-system/SPEC.md"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/LANGUAGE.md"
     },
     {
       "path": ".ia/src/systems/governance-system/README.md"
@@ -167,10 +197,16 @@
       "path": ".ia/src/systems/governance-system/SPEC.md"
     },
     {
+      "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md"
+    },
+    {
       "path": ".ia/src/systems/hook-authoring-system/README.md"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/SPEC.md"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/LANGUAGE.md"
     },
     {
       "path": ".ia/src/systems/learning-system/README.md"
@@ -179,10 +215,16 @@
       "path": ".ia/src/systems/learning-system/SPEC.md"
     },
     {
+      "path": ".ia/src/systems/session-system/LANGUAGE.md"
+    },
+    {
       "path": ".ia/src/systems/session-system/README.md"
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md"
+    },
+    {
+      "path": ".ia/src/systems/template-system/LANGUAGE.md"
     },
     {
       "path": ".ia/src/systems/template-system/README.md"
@@ -191,10 +233,16 @@
       "path": ".ia/src/systems/template-system/SPEC.md"
     },
     {
+      "path": ".ia/src/systems/work-system/LANGUAGE.md"
+    },
+    {
       "path": ".ia/src/systems/work-system/README.md"
     },
     {
       "path": ".ia/src/systems/work-system/SPEC.md"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/LANGUAGE.md"
     },
     {
       "path": ".ia/src/systems/workspace-system/README.md"
@@ -911,6 +959,25 @@
       "owner": {
         "source": "self",
         "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+        "identity": "authoring-system/definition/authoring-guide/public-work-system-spec"
+      },
+      "resources": [
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/reference/spec.md"
+          },
+          "role": "guide",
+          "order": 0,
+          "required": true,
+          "delivery": "inline"
+        }
+      ]
+    },
+    {
+      "owner": {
+        "source": "self",
+        "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
         "identity": "authoring-system/definition/authoring-guide/public-floor-system"
       },
       "resources": [
@@ -1047,6 +1114,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1074,6 +1151,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/compliance-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1105,6 +1192,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/workspace-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1132,6 +1229,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/governance-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1163,6 +1270,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/session-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1190,6 +1307,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1221,6 +1348,56 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/installed-read.md"
+          },
+          "role": "support",
+          "order": 2,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/public-spec.md"
+          },
+          "role": "support",
+          "order": 3,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/spec-read-boundary.md"
+          },
+          "role": "support",
+          "order": 4,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/task-capture.md"
+          },
+          "role": "support",
+          "order": 5,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1248,6 +1425,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/template-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1279,6 +1466,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1308,6 +1505,16 @@
           "order": 0,
           "required": true,
           "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/learning-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
+          "required": true,
+          "delivery": "inline"
         }
       ]
     },
@@ -1335,6 +1542,16 @@
           },
           "role": "support",
           "order": 0,
+          "required": true,
+          "delivery": "inline"
+        },
+        {
+          "key": {
+            "source": "self",
+            "path": ".ia/src/systems/work-system/LANGUAGE.md"
+          },
+          "role": "support",
+          "order": 1,
           "required": true,
           "delivery": "inline"
         }
@@ -1388,6 +1605,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/agent-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1415,6 +1636,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/compliance-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/compliance-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1442,6 +1667,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/workspace-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/workspace-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1469,6 +1698,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/governance-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/governance-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1496,6 +1729,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/session-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/session-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1523,6 +1760,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/authoring-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/authoring-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1550,6 +1791,26 @@
           {
             "source": "self",
             "path": ".ia/src/systems/agent-composition-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/installed-read.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/public-spec.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/spec-read-boundary.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/agent-composition-system/references/task-capture.md"
           }
         ],
         "extensions": [],
@@ -1577,6 +1838,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/template-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/template-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1604,6 +1869,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/hook-authoring-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1631,6 +1900,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/learning-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/learning-system/LANGUAGE.md"
           }
         ],
         "extensions": [],
@@ -1658,6 +1931,10 @@
           {
             "source": "self",
             "path": ".ia/src/systems/work-system/SPEC.md"
+          },
+          {
+            "source": "self",
+            "path": ".ia/src/systems/work-system/LANGUAGE.md"
           }
         ],
         "extensions": [],

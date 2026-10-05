@@ -491,6 +491,24 @@ class Compiler {
       ...(mandate && value(mandate, 'execution', 'contract') ? [field(mandate, 'execution', 'contract')] : []),
     ]);
     const contracts = contractIds.map((id) => this.use('mandates', id, node, 'execution.mandate-contract'));
+    const reviews = contracts.flatMap((c) => (c.review ? [c.review] : []));
+    if (
+      reviews.some(
+        (r) =>
+          r.rule !== 'independent-exact-candidate-v1' ||
+          Object.keys(r).sort().join(',') !== 'mandate,policyRevision,reviewer,rule' ||
+          ![r.reviewer, r.mandate, r.policyRevision].every(
+            (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 512,
+          ) ||
+          digest(r) !== digest(reviews[0]),
+      )
+    )
+      fail(
+        'IA-COMPOSITION-CONFLICT',
+        'Conflicting or invalid installed independent reviewer contracts',
+        node,
+        'execution.mandate-contract',
+      );
     const outcomeIds = unique([
       field(node, 'execution', 'outcomes'),
       ...contracts.map((c) => c.outcomes),
@@ -608,6 +626,7 @@ class Compiler {
       checks,
       model: model.model,
       ...(this.host.requestBytes === undefined ? {} : { requestBytes: this.host.requestBytes }),
+      ...(reviews[0] ? { review: copy(reviews[0]) } : {}),
       mandate: mandate?.identity ?? null,
       mandateContracts: contractIds,
       inputContracts,
@@ -639,6 +658,13 @@ class Compiler {
           node,
           'composition.delegates',
         );
+      if (result.review && digest(child.review ?? null) !== digest(result.review))
+        fail(
+          'IA-COMPOSITION-CONFLICT',
+          'Delegate cannot drop or change independent reviewer authority',
+          node,
+          'composition.delegates',
+        );
       result.delegates.push(child.id);
       result.delegation.push({ profile: child.id, limits: minimum(result.limits, child.limits) });
     }
@@ -646,6 +672,7 @@ class Compiler {
       ...(this.host.requestBytes === undefined
         ? {}
         : { requestBytes: [`hosts:${field(this.harness, 'execution', 'host-profile')}`] }),
+      ...(reviews.length ? { review: contractIds.map((id) => `mandates:${id}`) } : {}),
       agent: [agent.identity],
       role: [node.identity],
       voice: [voice?.identity ?? node.identity],

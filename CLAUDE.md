@@ -2,7 +2,7 @@
 
 # IA language
 
-Source revision: 4e347f408c52f31825cd10b99cc980ac13d4af6f4fdad5261dada6c94c22abba
+Source revision: 2b7a7b58eda68cf17115c0c0ad46d80e1045931788b0badcd1fdb09b32c839cb
 
 Read docs/reference/language/README.md and vocabulary.json for language contracts.
 
@@ -15,5 +15,5 @@ Read docs/reference/language/README.md and vocabulary.json for language contract
 - learning-system: @system learning-system (.ia/src/systems/learning-system/system.ia:3); @agent public-learning-system-steward (.ia/src/systems/learning-system/system.ia:31).
 - session-system: @system session-system (.ia/src/systems/session-system/system.ia:3); @agent public-session-system-steward (.ia/src/systems/session-system/system.ia:25).
 - template-system: @system template-system (.ia/src/systems/template-system/system.ia:3); @agent public-template-system-steward (.ia/src/systems/template-system/system.ia:26).
-- work-system: @system work-system (.ia/src/systems/work-system/system.ia:3); @agent public-work-system-steward (.ia/src/systems/work-system/system.ia:38).
+- work-system: @system work-system (.ia/src/systems/work-system/system.ia:3); @agent public-work-system-steward (.ia/src/systems/work-system/system.ia:43).
 - workspace-system: @system workspace-system (.ia/src/systems/workspace-system/system.ia:3); @agent public-workspace-system-steward (.ia/src/systems/workspace-system/system.ia:28).

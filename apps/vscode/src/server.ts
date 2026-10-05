@@ -190,7 +190,7 @@ connection.onInitialize((params) => {
       inlayHintProvider: true,
       semanticTokensProvider: { legend: { tokenTypes: legend, tokenModifiers: ['declaration'] }, full: true },
     },
-    serverInfo: { name: 'InventArch', version: '1.0.0' },
+    serverInfo: { name: 'InventArch', version: '0.1.5' },
   };
 });
 connection.onInitialized(() => publish());

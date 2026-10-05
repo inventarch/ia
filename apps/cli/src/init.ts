@@ -56,6 +56,7 @@ import { CONFIRMATION } from './distribute.js';
 import type { HostApplied } from './host.js';
 import { applyHostSet, collectHost, hostNotes, rootedNext } from './host.js';
 import { located } from './home-remedy.js';
+import { findProgram, programEnv, programHome } from './program.js';
 import { codeOf } from './session.js';
 import type { Capabilities, Field, SymbolName } from './render.js';
 import { atom, document, entry, fieldRows, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
@@ -365,13 +366,17 @@ export type Git = (args: readonly string[]) => { readonly status: number | null;
  * Git as a child process, with the host's environment rather than this process's, so the probe is a function of the
  * same explicit host every verb receives. `core.fsmonitor` is disabled because it is the configured command a
  * read-only query could otherwise start. A missing executable is `null`, which is not the same fact as "no checkout".
+ * #436: the target is a repository the user may not trust, so git is found on the host's qualified PATH entries only
+ * and runs by absolute path from the home directory, with `-C` naming the target (src/program.ts).
  */
 export const gitIn =
   (cwd: string, env: Readonly<Record<string, string | undefined>>): Git =>
   (args) => {
-    const result = spawnSync('git', ['-c', 'core.fsmonitor=false', ...args], {
-      cwd,
-      env: Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => entry[1] !== undefined)),
+    const git = findProgram('git', env);
+    if (git === null) return null;
+    const result = spawnSync(git, ['-C', cwd, '-c', 'core.fsmonitor=false', ...args], {
+      cwd: programHome(),
+      env: programEnv(env),
       encoding: 'utf8',
       timeout: 10_000,
       windowsHide: true,

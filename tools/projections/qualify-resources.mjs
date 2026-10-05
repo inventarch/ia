@@ -1,5 +1,6 @@
 // Build first. This qualification installs emitted packages in a disposable consumer.
 import '../temp/physical-temp.mjs';
+import { packageManagerCommand } from '../entry/package-manager.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -12,7 +13,10 @@ const root = resolve(import.meta.dirname, '../..'),
   pnpm = process.env.npm_execpath;
 if (!pnpm) throw new Error('Run through pnpm resources:qualify');
 const temporary = mkdtempSync(resolve(tmpdir(), 'ia-packed-resources-'));
-const run = (args, cwd) => execFileSync(process.execPath, [pnpm, ...args], { cwd, encoding: 'utf8', stdio: 'pipe' });
+const run = (args, cwd) => {
+  const invocation = packageManagerCommand(pnpm, args);
+  return execFileSync(invocation.command, invocation.args, { cwd, encoding: 'utf8', stdio: 'pipe' });
+};
 const folders = [
   'packages/language',
   'packages/graph',
@@ -44,17 +48,11 @@ try {
   mkdirSync(consumer);
   writeFileSync(
     resolve(consumer, 'package.json'),
-    JSON.stringify(
-      {
-        name: 'independent-resource-consumer',
-        private: true,
-        type: 'module',
-        dependencies,
-        pnpm: { overrides: dependencies },
-      },
-      null,
-      2,
-    ),
+    JSON.stringify({ name: 'independent-resource-consumer', private: true, type: 'module', dependencies }, null, 2),
+  );
+  writeFileSync(
+    resolve(consumer, 'pnpm-workspace.yaml'),
+    JSON.stringify({ packages: ['.'], overrides: dependencies }, null, 2),
   );
   run(['install', '--prefer-offline', '--ignore-scripts'], consumer);
   for (const source of readInputs(root, { adopted: [] }).sources) {

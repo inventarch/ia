@@ -202,20 +202,45 @@ export const status: Readonly<Record<ErrorCategory, number>> = Object.freeze({
   unavailable: 503,
   internal: 500,
 });
+/** Safe task-capture refusal evidence excludes source paths and resolver internals. */
+export const captureFailure = z.strictObject({
+  reason: z.enum(['incomplete', 'stale', 'overflow', 'scope', 'implementation']),
+  requiredBytes: z.number().int().nonnegative().safe().optional(),
+  limit: z.number().int().positive().safe().optional(),
+  fullBytes: z.number().int().nonnegative().safe().optional(),
+  omittedFiles: z.number().int().nonnegative().safe().optional(),
+  proof: digest.optional(),
+  preparedImplementation: digest.optional(),
+  requiredImplementation: digest.optional(),
+});
+export type CaptureFailure = z.infer<typeof captureFailure>;
 export class ServiceError extends Error {
+  readonly capture?: CaptureFailure;
   constructor(
     readonly category: ErrorCategory,
     readonly code: string,
     message: string,
+    capture?: CaptureFailure,
   ) {
     super(message);
     this.name = 'ServiceError';
+    if (capture !== undefined) this.capture = Object.freeze(captureFailure.parse(capture));
   }
 }
-export const errorResult = z.strictObject({ code: id, category: errorCategory, message: z.string().max(500) });
+export const errorResult = z.strictObject({
+  code: id,
+  category: errorCategory,
+  message: z.string().max(500),
+  capture: captureFailure.optional(),
+});
 export function failure(error: unknown): z.infer<typeof errorResult> {
   return error instanceof ServiceError
-    ? { code: error.code, category: error.category, message: error.message.slice(0, 500) }
+    ? {
+        code: error.code,
+        category: error.category,
+        message: error.message.slice(0, 500),
+        ...(error.capture === undefined ? {} : { capture: error.capture }),
+      }
     : { code: 'internal', category: 'internal', message: 'The operation could not be completed' };
 }
 export function decode<T extends z.ZodType>(schema: T, value: unknown): z.output<T> {

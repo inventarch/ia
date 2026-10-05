@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 import { sameFile } from '@inventarch/db';
+import { findProgram, programEnv, programHome } from './program.js';
 
 export type Channel =
   | {
@@ -19,10 +20,16 @@ export type Channel =
   | { readonly kind: 'unknown'; readonly entry: string };
 export type Git = (cwd: string, args: readonly string[]) => string | null;
 export const runGit: Git = (cwd, args) => {
+  // #436: a hand-run doctor may start in a directory the repository controls, so git is found on qualified PATH
+  // entries only and runs by absolute path from the home directory; `-C` names the checkout (src/program.ts).
+  const git = findProgram('git', process.env);
+  if (git === null) return null;
   // --no-optional-locks: doctor calls this on every session start, and it must never contend with a concurrent
   // git process for the index lock. 700ms each: three sequential calls (rev-parse, status, config) must leave
   // headroom inside the hook's 5s doctor budget for workspace validation.
-  const result = spawnSync('git', ['--no-optional-locks', '-C', cwd, ...args], {
+  const result = spawnSync(git, ['--no-optional-locks', '-C', cwd, ...args], {
+    cwd: programHome(),
+    env: programEnv(process.env),
     encoding: 'utf8',
     timeout: 700,
     windowsHide: true,

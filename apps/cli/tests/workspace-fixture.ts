@@ -1,8 +1,9 @@
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, resolve } from 'node:path';
+import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { dispatch } from '../src/consumer.js';
 import type { Extension, Host, Result } from '../src/consumer.js';
+import { scratch } from './scratch-fixture.js';
+export { cleanup, scratch } from './scratch-fixture.js';
 
 export const repository = resolve(import.meta.dirname, '../../..');
 export const cli = resolve(repository, 'apps/cli');
@@ -32,13 +33,6 @@ export const DESCRIPTOR = {
   description: 'Consumer CLI example fixture',
 };
 
-const created: string[] = [];
-/** A disposable directory under the system temp root; every one is removed by `cleanup()`. */
-export function scratch(prefix: string): string {
-  const path = mkdtempSync(resolve(tmpdir(), `ia-cli-${prefix}-`));
-  created.push(path);
-  return path;
-}
 /** A copy of the committed loop fixture, admitted unless `foreign` keeps its deliberate defect. */
 export function workspace(options: { readonly foreign?: boolean } = {}): string {
   const root = resolve(scratch('workspace'), 'workspace');
@@ -54,13 +48,6 @@ export function packable(): string {
   writeFileSync(resolve(root, '.ia/work/descriptor.json'), JSON.stringify(DESCRIPTOR) + '\n');
   return root;
 }
-export function cleanup(): void {
-  for (const path of created.splice(0)) {
-    if (dirname(path) !== resolve(tmpdir())) throw new Error(`Unsafe fixture cleanup: ${path}`);
-    rmSync(path, { recursive: true, force: true });
-  }
-}
-
 export interface HostOptions {
   readonly cwd?: string;
   readonly env?: Readonly<Record<string, string | undefined>>;

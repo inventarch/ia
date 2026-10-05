@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyPublicCompatibility, publicPackageInputs } from '../release/public-pack.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -53,11 +54,21 @@ export function dependencyOrder(projects) {
   return ordered;
 }
 
-export function validatePackages(projects, version) {
+export function releaseVersions(root) {
+  const { receipt } = publicPackageInputs(root);
+  return receipt.publicRefresh?.npm ?? receipt.baselineOverlay.versions.npm;
+}
+
+export function validatePackages(projects, version, versions) {
   assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/, 'A stable release version is required');
+  if (versions) assert.equal(version, versions['apps/cli/package.json'], 'release version differs');
   for (const { directory, manifest } of projects) {
     assert.match(manifest.name, /^@[a-z0-9-]+\/[a-z0-9-]+$/);
-    assert.equal(manifest.version, version, `${manifest.name}: release version differs`);
+    assert.equal(
+      manifest.version,
+      versions ? versions[directory + '/package.json'] : version,
+      `${manifest.name}: release version differs`,
+    );
     assert.equal(manifest.publishConfig?.access, 'public', `${manifest.name}: public access required`);
     assert.equal(manifest.publishConfig?.registry, REGISTRY, `${manifest.name}: npm registry required`);
     assert.equal(manifest.repository?.type, 'git');
@@ -82,12 +93,14 @@ export function validatePackages(projects, version) {
 export function writeReleaseManifest(root, directory, packed) {
   const projects = publicPackages(root);
   const version = json(resolve(root, 'apps/cli/package.json')).version;
-  validatePackages(projects, version);
+  validatePackages(projects, version, releaseVersions(root));
   assert.equal(packed.length, projects.length);
   const byName = new Map(packed.map((entry) => [entry.name, entry]));
   assert.equal(byName.size, projects.length);
+  const compatibility = verifyPublicCompatibility(root, directory);
   const release = {
     format: 'ia.npm-release.v1',
+    systemCompatibility: { path: 'system-compatibility.json', sha256: compatibility.sha256 },
     version,
     source: {
       repository: REPOSITORY,
@@ -99,7 +112,19 @@ export function writeReleaseManifest(root, directory, packed) {
       assert.ok(packedFile, `${manifest.name}: missing qualified archive`);
       const filename = basename(packedFile.filename);
       const bytes = readFileSync(resolve(directory, filename));
-      return { name: manifest.name, version, filename, bytes: bytes.length, integrity: integrity(bytes) };
+      assert.match(packedFile.sha256 ?? '', /^[a-f0-9]{64}$/, `${manifest.name}: qualified archive hash is required`);
+      assert.equal(
+        createHash('sha256').update(bytes).digest('hex'),
+        packedFile.sha256,
+        `${manifest.name}: qualified archive bytes differ`,
+      );
+      return {
+        name: manifest.name,
+        version: manifest.version,
+        filename,
+        bytes: bytes.length,
+        integrity: integrity(bytes),
+      };
     }),
   };
   writeFileSync(resolve(directory, 'npm-release.json'), JSON.stringify(release, null, 2) + '\n');
@@ -109,8 +134,9 @@ export function writeReleaseManifest(root, directory, packed) {
 export function verifyRelease(root, directory, version) {
   const release = json(resolve(directory, 'npm-release.json'));
   const projects = publicPackages(root);
-  validatePackages(projects, version);
+  validatePackages(projects, version, releaseVersions(root));
   assert.equal(release.format, 'ia.npm-release.v1');
+  assert.equal(release.systemCompatibility?.path, 'system-compatibility.json');
   assert.equal(release.version, version);
   assert.equal(release.source.repository, REPOSITORY);
   assert.equal(release.source.commit, git(root, 'rev-parse', 'HEAD'), 'Archive source must match checkout');
@@ -120,7 +146,7 @@ export function verifyRelease(root, directory, version) {
   );
   assert.equal(new Set(release.packages.map((entry) => entry.filename)).size, projects.length);
   for (const entry of release.packages) {
-    assert.equal(entry.version, version);
+    assert.equal(entry.version, projects.find((project) => project.manifest.name === entry.name)?.manifest.version);
     assert.match(entry.filename, /^[a-z0-9][a-z0-9._-]*\.tgz$/);
     const bytes = readFileSync(resolve(directory, entry.filename));
     assert.equal(bytes.length, entry.bytes, `${entry.name}: archive size changed`);
@@ -132,6 +158,7 @@ export function verifyRelease(root, directory, version) {
       .sort(),
     release.packages.map((entry) => entry.filename).sort(),
   );
+  verifyPublicCompatibility(root, directory, release.systemCompatibility.sha256);
   return release;
 }
 
@@ -183,7 +210,7 @@ async function main() {
   const root = resolve(import.meta.dirname, '../..');
   const version = values.version ?? json(resolve(root, 'apps/cli/package.json')).version;
   const projects = publicPackages(root);
-  validatePackages(projects, version);
+  validatePackages(projects, version, releaseVersions(root));
   if (positionals[0] === 'trust-commands') {
     for (const { manifest } of projects) {
       console.log(

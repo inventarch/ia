@@ -1,0 +1,16 @@
+#! ia 1.0
+@operation read-captured-source
+  meaning
+    says "Read one exact captured native source through the first-party adapter."
+    answers "Which captured bytes are selected?"
+  execution
+    handler captured-source-read-v1
+    effects read-only
+    input captured-source-read-input-v1
+    output captured-source-read-output-v1
+    profile governed-v1
+    recovery repeatable
+  relationships
+    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-INPUT
+    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-READ
+    implements @contract agent-composition-runtime-contract#REQ-RT-CAPTURED-REFUSE

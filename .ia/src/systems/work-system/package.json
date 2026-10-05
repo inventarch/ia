@@ -1,0 +1,34 @@
+{
+  "name": "@inventarch/work-system",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./native.ia.tgz": "./dist/native.ia.tgz",
+    "./system-package.json": "./dist/system-package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE",
+    "LANGUAGE.md"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
+  "publishConfig": {
+    "exports": {
+      "./native.ia.tgz": "./dist/native.ia.tgz",
+      "./system-package.json": "./dist/system-package.json"
+    },
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inventarch/ia.git",
+    "directory": ".ia/src/systems/work-system"
+  }
+}

@@ -64,6 +64,7 @@ function refused<T>(result: DescriptorResult<T>, code: string, field?: string): 
   expect(result.diagnostics[0]).toMatchObject({ code, ...(field === undefined ? {} : { field }) });
   expect(result.diagnostics[0]!.message.length).toBeLessThanOrEqual(256);
 }
+// biome-ignore lint/suspicious/noExplicitAny: tests edit nested fixture JSON in place.
 type Json = Record<string, any>;
 const registry = (): DescriptorRegistry => ok(createDescriptorRegistry(registryData));
 const edit = (name: string, change: (value: Json) => void): string => {
@@ -565,6 +566,7 @@ describe('DESC-Q03 unknown validator/view/operation, module URL or expression', 
         },
         'screens[0].title',
       ],
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal template text is the refused input.
       [
         (value) => {
           value['screens'][0]['title'] = '${process.env.SECRET}';

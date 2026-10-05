@@ -318,3 +318,32 @@ it.each(['.claude/rules/ia-workspace.md', 'AGENTS.md'])(
     );
   },
 );
+
+it('the built launcher refuses edits to its fixed registered source controls without applying an event', async () => {
+  const base = temp();
+  mkdirSync(resolve(base, '.claude/hooks'), { recursive: true });
+  const registered = JSON.stringify({
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: 'Write|Edit|MultiEdit',
+          hooks: [
+            {
+              type: 'command',
+              command: 'node',
+              args: [`\${CLAUDE_PROJECT_DIR}/.claude/hooks/steward-write.mjs`, '--root', `\${CLAUDE_PROJECT_DIR}`],
+            },
+          ],
+        },
+      ],
+    },
+  });
+  writeFileSync(resolve(base, '.claude/settings.json'), registered);
+  writeFileSync(
+    resolve(base, '.claude/hooks/steward-write.mjs'),
+    '// Ownership fixture; actual built launcher is invoked by run().\n',
+  );
+  for (const path of ['.claude/settings.json', '.claude/settings.local.json', '.claude/hooks/steward-write.mjs'])
+    expect(await code(event(resolve(base, path)), base), path).toBe('IA-HOOK-PROJECTION-MANAGED');
+  expect(readFileSync(resolve(base, '.claude/settings.json'), 'utf8')).toBe(registered);
+});

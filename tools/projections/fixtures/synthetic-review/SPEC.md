@@ -24,3 +24,7 @@ or an explicit-only plugin role skill as selected by the operator; its explicit
 command is a skill with implicit invocation disabled. Both preserve the native
 closure and exact linked resources. Host discovery and static parsing are distinct
 from live model execution and installed lifecycle acceptance.
+
+The example note also links one `https:` and one `mailto:` destination and its own
+heading, so every link walk over these products meets external and fragment-only
+destinations. They name no product file under the shared rule in `../link-walk.mjs`.

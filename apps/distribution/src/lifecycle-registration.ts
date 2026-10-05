@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { decodeDistributionJson } from '@inventarch/db/distribution';
-import { lifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
+import { segmentedLifecycleRow } from '@inventarch/agent-composition-system/lifecycle-profile';
+import type { LifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
 import { createContextHookBinding } from '@inventarch/steward-hook/context';
 import type { ContextHookBindingInput } from '@inventarch/steward-hook/context';
 import { acquireHostRegistrationLock, assertHostRegistrationIdle, nodeCommand, verifyHostCache } from './host.js';
@@ -13,7 +14,7 @@ export type LifecycleRegistrationRequest =
   | { readonly cache: string; readonly binding: Omit<ContextHookBindingInput, 'implementation'> }
   | { readonly remove: string };
 export interface LifecycleRegistrationPorts {
-  implementation(cache: ReturnType<typeof verifyHostCache>): string;
+  implementation(cache: ReturnType<typeof verifyHostCache>, profile: LifecycleProfile): string;
 }
 interface Side {
   readonly config: string | null;
@@ -86,8 +87,30 @@ function plain(value: unknown): Record<string, unknown> {
     fail('INPUT-INVALID', 'Expected host settings object');
   return value as Record<string, unknown>;
 }
-/** Probe a verified emitted artifact. A caller-supplied digest string is never accepted as executable evidence. */
-export function probeContextHookImplementation(cache: ReturnType<typeof verifyHostCache>): string {
+const named = (profile: Pick<LifecycleProfile, 'host' | 'version'>): string => `${profile.host} ${profile.version}`;
+/** The first reason an identity row does not serve the binding's own profile, in the order format, profile, slots, characters. */
+function identityMismatch(row: Record<string, unknown>, profile: LifecycleProfile): string | null {
+  if (row['format'] !== 'ia.context-hook-identity.v2')
+    return 'Installed cache reports an unknown context identity format, not ia.context-hook-identity.v2';
+  if (row['profile'] !== profile.digest) {
+    // A binding must name the row its verified cache reports, so a known row points at the binding's profile, not at the cache.
+    // The composition names the available segmented row an exact digest belongs to; the probe keeps no row list of its own.
+    const reported = segmentedLifecycleRow(row['profile']);
+    return reported
+      ? `Context binding profile is ${named(profile)}, but the installed cache reports ${named(reported)}; set the binding's profile to ${named(reported)}`
+      : `Context binding profile is ${named(profile)}, but the installed cache reports an unknown profile`;
+  }
+  if (row['slots'] !== profile.maxContextParts)
+    return `Installed cache reports ${named(profile)} without its ${profile.maxContextParts} context slots`;
+  if (row['characters'] !== profile.maxContextCharacters)
+    return `Installed cache reports ${named(profile)} without its ${profile.maxContextCharacters}-character context cap`;
+  return null;
+}
+/** Probe a verified emitted artifact for the binding's own profile row. A caller-supplied digest string is never accepted as executable evidence. */
+export function probeContextHookImplementation(
+  cache: ReturnType<typeof verifyHostCache>,
+  profile: LifecycleProfile,
+): string {
   const result = spawnSync(process.execPath, [cache.launcher, 'context', 'identity'], {
     encoding: 'utf8',
     timeout: 15_000,
@@ -103,14 +126,8 @@ export function probeContextHookImplementation(cache: ReturnType<typeof verifyHo
       'slots',
       'characters',
     ]),
-    profile = lifecycleProfile('claude-code', '2.1.278');
-  if (
-    row['format'] !== 'ia.context-hook-identity.v2' ||
-    row['profile'] !== profile.digest ||
-    row['slots'] !== profile.maxContextParts ||
-    row['characters'] !== profile.maxContextCharacters
-  )
-    fail('HOST-UNSUPPORTED', 'Installed cache has no matching segmented context identity profile');
+    mismatch = identityMismatch(row, profile);
+  if (mismatch !== null) fail('HOST-UNSUPPORTED', mismatch);
   return hash(row['implementation']);
 }
 const defaultPorts: LifecycleRegistrationPorts = { implementation: probeContextHookImplementation };
@@ -263,7 +280,10 @@ export function planLifecycleRegistration(
       digest: _placeholderDigest,
       ...snapshot
     } = createContextHookBinding({ ...raw, implementation: '0'.repeat(64) });
-    const binding = createContextHookBinding({ ...snapshot, implementation: hash(ports.implementation(cache)) });
+    const binding = createContextHookBinding({
+      ...snapshot,
+      implementation: hash(ports.implementation(cache, snapshot.profile)),
+    });
     nextBinding = json(binding);
     const { implementation: _implementation, digest: _digest, ...retained } = binding;
     request = { cache: cache.directory, binding: retained };

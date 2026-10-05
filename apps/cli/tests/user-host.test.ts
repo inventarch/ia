@@ -6,6 +6,7 @@
  */
 import type { SpawnSyncReturns } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
 import { claudeRunner } from '../src/claude-cli.js';
@@ -149,52 +150,68 @@ it('passes the fake only the variables this invocation was given', async () => {
   }
   expect(calls(log)).toEqual(registration(env.IA_HOME));
 });
-it('runs claude on Windows without a shell, falling back to cmd.exe only when no executable is found', () => {
+// #436: ia looks claude up itself, on qualified PATH entries only, and runs what it found by absolute path from the home
+// directory with only those entries in PATH; Windows rules run here on every platform with an in-memory file system.
+it('runs claude on Windows by absolute path: a claude.exe without a shell, else a claude.cmd through cmd.exe (#436)', () => {
   const seen: { command: string; args: readonly string[]; options: Readonly<Record<string, unknown>> }[] = [];
-  const result = (status: number | null, error?: NodeJS.ErrnoException) =>
-    ({
-      pid: 0,
-      output: [],
-      stdout: '',
-      stderr: '',
-      status,
-      signal: null,
-      ...(error === undefined ? {} : { error }),
-    }) as SpawnSyncReturns<string>;
-  const enoent = Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' });
-  // claude.exe on PATH: no shell, and the probe has its own short timeout.
-  const direct = claudeRunner(
-    {},
-    { platform: 'win32', spawn: (command, args, options) => (seen.push({ command, args, options }), result(0)) },
-  );
-  expect(direct.available).toBe(true);
-  expect(seen[0]).toEqual({
-    command: 'claude',
-    args: ['--version'],
-    options: { shell: false, timeout: 10_000, windowsHide: true },
-  });
-  direct.run(['plugin', 'marketplace', 'add', 'C:\\a b\\marketplace']);
-  expect(seen[1]).toEqual({
-    command: 'claude',
-    args: ['plugin', 'marketplace', 'add', 'C:\\a b\\marketplace'],
-    options: { shell: false, timeout: 120_000, windowsHide: true },
-  });
-  // Only an npm claude.cmd shim: ENOENT without a shell, then one quoted cmd.exe line.
-  seen.length = 0;
-  const shim = claudeRunner(
-    {},
-    {
-      platform: 'win32',
-      spawn: (command, args, options) => (
-        seen.push({ command, args, options }), options['shell'] === true ? result(0) : result(null, enoent)
-      ),
+  const result = (status: number | null) =>
+    ({ pid: 0, output: [], stdout: '', stderr: '', status, signal: null }) as SpawnSyncReturns<string>;
+  const files = (present: readonly string[]) => ({
+    statSync: (target: string) => {
+      const key = target.toLowerCase();
+      if (present.some((file) => file.toLowerCase() === key)) return { isFile: () => true, isDirectory: () => false };
+      if (present.some((file) => file.toLowerCase().startsWith(`${key}\\`)))
+        return { isFile: () => false, isDirectory: () => true };
+      throw Object.assign(new Error(`ENOENT: ${target}`), { code: 'ENOENT' });
     },
+    accessSync: () => undefined,
+  });
+  const record = (command: string, args: readonly string[], options: Readonly<Record<string, unknown>>) => (
+    seen.push({ command, args, options }), result(0)
   );
+  const env = { Path: 'bin;;C:\\npm;D:\\Claude', SystemRoot: 'C:\\WINDOWS' };
+  const childEnv = { SystemRoot: 'C:\\WINDOWS', PATH: 'C:\\npm;D:\\Claude', NoDefaultCurrentDirectoryInExePath: '1' };
+  // A claude.exe anywhere on a qualified entry wins over a claude.cmd before it, and runs with no shell.
+  const direct = claudeRunner(env, {
+    platform: 'win32',
+    spawn: record,
+    fs: files(['bin\\claude.exe', 'C:\\npm\\claude.cmd', 'D:\\Claude\\claude.exe']),
+  });
+  expect(direct.available).toBe(true);
+  direct.run(['plugin', 'marketplace', 'add', 'C:\\a b\\marketplace']);
+  expect(seen).toEqual([
+    {
+      command: 'D:\\Claude\\claude.exe',
+      args: ['--version'],
+      options: { cwd: homedir(), env: childEnv, timeout: 10_000, windowsHide: true },
+    },
+    {
+      command: 'D:\\Claude\\claude.exe',
+      args: ['plugin', 'marketplace', 'add', 'C:\\a b\\marketplace'],
+      options: { cwd: homedir(), env: childEnv, timeout: 120_000, windowsHide: true },
+    },
+  ]);
+  // Only an npm claude.cmd: cmd.exe from SystemRoot, its switches and the quoted line passed verbatim.
+  seen.length = 0;
+  const shim = claudeRunner(env, {
+    platform: 'win32',
+    spawn: record,
+    fs: files(['bin\\claude.exe', 'C:\\npm\\claude.cmd']),
+  });
   expect(shim.available).toBe(true);
   shim.run(['plugin', 'marketplace', 'add', 'C:\\a b\\marketplace']);
-  expect(seen.filter((call) => call.options['shell'] === true).map((call) => call.command)).toEqual([
-    'claude --version',
-    'claude plugin marketplace add "C:\\a b\\marketplace"',
+  const shell = { cwd: homedir(), env: childEnv, windowsHide: true, windowsVerbatimArguments: true };
+  expect(seen).toEqual([
+    {
+      command: 'C:\\WINDOWS\\System32\\cmd.exe',
+      args: ['/d', '/v:off', '/s', '/c', '""C:\\npm\\claude.cmd" --version"'],
+      options: { ...shell, timeout: 10_000 },
+    },
+    {
+      command: 'C:\\WINDOWS\\System32\\cmd.exe',
+      args: ['/d', '/v:off', '/s', '/c', '""C:\\npm\\claude.cmd" plugin marketplace add "C:\\a b\\marketplace""'],
+      options: { ...shell, timeout: 120_000 },
+    },
   ]);
   // An argument cmd.exe would rewrite refuses before anything runs.
   const before = seen.length;
@@ -204,7 +221,49 @@ it('runs claude on Windows without a shell, falling back to cmd.exe only when no
   expect(() => shim.run(['plugin', 'marketplace', 'add', 'C:\\a"b'])).toThrow(
     expect.objectContaining({ code: 'IA-CLI-HOST-COMMAND-FAILED' }),
   );
-  expect(seen.slice(before).every((call) => call.options['shell'] === false)).toBe(true);
+  expect(seen.length).toBe(before);
+  // A claude only in the project, behind the relative entry, is not found: nothing runs and claude is unavailable.
+  seen.length = 0;
+  expect(
+    claudeRunner(env, { platform: 'win32', spawn: record, fs: files(['bin\\claude.exe', 'bin\\claude.cmd']) })
+      .available,
+  ).toBe(false);
+  expect(seen).toEqual([]);
+});
+it('runs claude on POSIX by the absolute path found on a qualified PATH entry, from the home directory (#436)', () => {
+  const seen: { command: string; args: readonly string[]; options: Readonly<Record<string, unknown>> }[] = [];
+  const record = (command: string, args: readonly string[], options: Readonly<Record<string, unknown>>) =>
+    (seen.push({ command, args, options }),
+    { pid: 0, output: [], stdout: '', stderr: '', status: 0, signal: null }) as SpawnSyncReturns<string>;
+  const fs = {
+    statSync: (target: string) => {
+      if (target === '/opt/claude/bin/claude' || target === 'bin/claude')
+        return { isFile: () => true, isDirectory: () => false };
+      if (target === '/opt/claude/bin' || target === 'bin') return { isFile: () => false, isDirectory: () => true };
+      throw Object.assign(new Error(`ENOENT: ${target}`), { code: 'ENOENT' });
+    },
+    accessSync: () => undefined,
+  };
+  const runner = claudeRunner(
+    { PATH: 'bin::/opt/claude/bin', HOME: '/home/u' },
+    { platform: 'linux', spawn: record, fs },
+  );
+  expect(runner.available).toBe(true);
+  expect(seen).toEqual([
+    {
+      command: '/opt/claude/bin/claude',
+      args: ['--version'],
+      options: {
+        cwd: homedir(),
+        env: { PATH: '/opt/claude/bin', HOME: '/home/u' },
+        timeout: 10_000,
+        windowsHide: true,
+      },
+    },
+  ]);
+  seen.length = 0;
+  expect(claudeRunner({ PATH: 'bin::' }, { platform: 'linux', spawn: record, fs }).available).toBe(false);
+  expect(seen).toEqual([]);
 });
 it('refuses a marketplace held by another run as IA-DIST-INSTALL-BUSY, naming what to close', async () => {
   const { log, env } = setup();

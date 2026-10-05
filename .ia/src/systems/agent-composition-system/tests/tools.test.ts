@@ -3,6 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterAll, afterEach, expect, it, vi } from 'vitest';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { field, text as textField } from '@inventarch/runtime/authoring-execution';
 import { Engine, manifestDigest } from '@inventarch/agent-system';
 import type { EngineHost, Grant, ModelAction, OperationContext } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
@@ -68,6 +70,62 @@ const resources = captureResources(capture, {
 const path = '.ia/src/systems/agent-system/records/engine-tool-draft.ia',
   text =
     '#! ia 1.0\n@agent engine-tool-draft\n  meaning\n    says    "A bounded draft."\n    answers "Who reviews?"\n  governance\n    applies []\n';
+function declaredDraftCase(name: string, operation: string): string {
+  const reader = new EditorSnapshot({
+    root,
+    sources: base.sources,
+    folders: base.folders,
+    floorOrigin: base.floorOrigin,
+    fingerprint: base.revision,
+    ...(base.activation ? { activation: base.activation } : {}),
+  });
+  try {
+    const cases = reader.records().filter((row) => row.discriminator === 'case' && row.name === name);
+    expect(cases).toHaveLength(1);
+    const row = cases[0]!;
+    expect(row.source.path).toBe('.ia/src/systems/authoring-system/cases/governed-drafts.ia');
+    expect(textField(field(row, 'scenario', 'evaluator'))).toBe(
+      '.ia/src/systems/agent-composition-system/tests/tools.test.ts',
+    );
+    expect(field(row, 'scenario', 'operation')).toMatchObject({
+      kind: 'ref',
+      discriminator: 'operation',
+      name: operation,
+    });
+    expect(textField(field(row, 'scenario', 'kind'))).toBe(name.endsWith('refusal') ? 'refusal' : 'success');
+    const contract = reader
+      .records()
+      .find((item) => item.discriminator === 'contract' && item.name === 'executable-authoring-contract');
+    expect(contract).toBeDefined();
+    const requirements = name.endsWith('refusal') ? ['REQ-EXEC-REFUSE'] : ['REQ-EXEC-INPUT', 'REQ-EXEC-RESULT'];
+    const links = row.edges.filter((edge) => edge.predicate === 'implement');
+    expect(links.map((edge) => edge.fragment).sort()).toEqual([...requirements].sort());
+    for (const link of links) {
+      expect(link).toMatchObject({
+        direction: 'out',
+        reference: { kind: 'ref', discriminator: 'contract', name: contract!.name },
+      });
+      expect(link.condition).toBeUndefined();
+    }
+    const declaration = reader.records().find((item) => item.discriminator === 'operation' && item.name === operation);
+    expect(declaration).toBeDefined();
+    for (const requirement of requirements)
+      expect(declaration!.edges).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            predicate: 'implement',
+            direction: 'out',
+            reference: { kind: 'ref', discriminator: 'contract', name: contract!.name, fragment: requirement },
+            fragment: requirement,
+          }),
+        ]),
+      );
+    return textField(field(row, 'scenario', 'code'));
+  } finally {
+    reader.close();
+  }
+}
+
 function setup(kind = 'draft', additions: Partial<DraftToolOptions> = {}) {
   const catalog = draftToolCatalog('test', code, additions.resources),
     compiled = compileHarness(capture, { harness: `native-${kind}-tools`, entry: `${kind}-tools-entry`, catalog });
@@ -179,6 +237,12 @@ it('executes native validate/format through the actual engine with read receipts
   );
   expect(receipts).toHaveLength(2);
   expect(receipts.every((r) => r.effect === 'none' && r.error === null)).toBe(true);
+  for (const operation of ['validate-draft', 'format-draft']) {
+    const receipt = receipts.find((row) => row.target.endsWith('/' + operation))!;
+    expect(receipt.error === null && receipt.effect === 'none' ? 'pass' : 'failed').toBe(
+      declaredDraftCase(operation + '-success', operation),
+    );
+  }
   expect(receipts[0]!.output).toMatchObject({ status: 'validated', artifacts: [] });
   expect(receipts[1]!.output).toMatchObject({
     status: 'draft',
@@ -262,12 +326,19 @@ it('rechecks source and refreshed grants before returning any artifact', async (
 });
 it('refuses narrow contextual previews and independently excluded template resources', async () => {
   const f = setup('draft', { identities: [owner.identity] });
-  expect((await f.tools.operations['ia.draft.validate.v1']!.execute({ path, text }, f.context)).output).toMatchObject({
-    status: 'refused',
-    code: 'IA-EXEC-SCOPE-UNAVAILABLE',
-    artifacts: [],
-    diagnostics: [],
-  });
+  for (const [operation, handler] of [
+    ['validate-draft', 'ia.draft.validate.v1'],
+    ['format-draft', 'ia.draft.format.v1'],
+  ] as const) {
+    const result = await f.tools.operations[handler]!.execute({ path, text }, f.context);
+    expect(result.output).toMatchObject({
+      status: 'refused',
+      code: declaredDraftCase(operation + '-scope-refusal', operation),
+      artifacts: [],
+      diagnostics: [],
+    });
+    expect(result.effect).toBe('none');
+  }
   for (const options of [
     {},
     { resources: { ...resourceSelection(), allowed: [] } },

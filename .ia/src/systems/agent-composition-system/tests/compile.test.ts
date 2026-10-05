@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
-import { compileHarness, installed } from '../src/index.js';
+import { compileHarness, installed, executionManifest } from '../src/index.js';
 import type { Capture, CompiledHarness } from '../src/index.js';
 import { admitSourceCapture } from '../src/sources.js';
 
@@ -405,3 +405,25 @@ it('deduplicates a shared capability DAG instead of expanding every possible inc
   expect(new Set(result.profiles[name('author')]!.capabilities).size).toBe(50);
   expect(result.profiles[name('author')]!.operations).toEqual([corpusOperation, assessmentOperation]);
 });
+
+it('pins explicit independent reviewer policy through mandate composition into the engine contract', () => {
+  const catalog = sampleCatalog('ide'),
+    base = catalog.mandates['sample-task-v1']!.value;
+  const review = {
+    rule: 'independent-exact-candidate-v1' as const,
+    reviewer: 'reviewer-bob',
+    mandate: 'separate-review-mandate',
+    policyRevision: 'policy-1',
+  };
+  catalog.mandates['sample-task-v1'] = installed({ ...base, review });
+  const compiled = good(captured, catalog),
+    manifest = executionManifest(compiled, catalog);
+  for (const profile of Object.values(manifest.profiles)) expect(profile.contract!.review).toEqual(review);
+  expect(compiled.provenance.fields['normalized:' + name('author') + ':review']).toContain('mandates:sample-task-v1');
+  catalog.mandates['sample-task-v1'] = installed({ ...base, review: { ...review, policyRevision: 'policy-2' } });
+  expect(() => executionManifest(compiled, catalog)).toThrow('Installed contract changed');
+  catalog.mandates['sample-task-v1'] = installed({ ...base, review: { ...review, mandate: '' } });
+  refused(captured, 'IA-COMPOSITION-CONFLICT', catalog);
+});
+
+import './sdk-runtime/onboarding-case.js';

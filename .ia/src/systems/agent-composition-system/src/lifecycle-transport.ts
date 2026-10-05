@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { stableSerialize } from '@inventarch/graph';
 import { decodeJson, frozen, metadataDigest } from './resource-format.js';
-import { LifecycleError, lifecycleProfile } from './lifecycle-profile.js';
+import { isSegmentedLifecycleProfile, LifecycleError } from './lifecycle-profile.js';
 
 export const LIFECYCLE_CONTEXT_SLOTS = 12;
 export const LIFECYCLE_CONTEXT_CHARACTERS = 10_000;
@@ -48,7 +48,7 @@ function payloadInfo(payload: string) {
     body['format'] !== 'ia.lifecycle-context.v1' ||
     body['delivery'] !== 'unconfirmed' ||
     id !== metadataDigest(body) ||
-    pins['profile'] !== lifecycleProfile('claude-code', '2.1.278').digest ||
+    !isSegmentedLifecycleProfile(pins['profile']) ||
     !['start', 'prompt'].includes(event['kind'] as string)
   )
     fail();

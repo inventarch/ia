@@ -3,7 +3,7 @@
 The optional `product-system` owns product structure. Its native distribution,
 `inventarch/product-structure`, is independently versioned at 0.1.0 and explicitly
 selected by consumers. The canonical language and foundation roots do not acquire
-it automatically. Its version is separate from the IA 1.0.0 toolchain release.
+it automatically. Its version is separate from the IA toolchain release.
 
 Consumer qualification installs public DB/distribution code and actual
 language/product archives, authors a product, resolves its owner and plans, and

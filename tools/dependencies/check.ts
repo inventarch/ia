@@ -4,13 +4,6 @@ import { isEntry } from '../entry/is-entry.mjs';
 import ts from 'typescript';
 
 export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
-  '@inventarch/architecture-system': [
-    '@inventarch/code-quality-system',
-    '@inventarch/db',
-    '@inventarch/graph',
-    '@inventarch/language',
-    '@inventarch/runtime',
-  ],
   '@inventarch/authoring-system': ['@inventarch/db', '@inventarch/language', '@inventarch/runtime'],
   '@inventarch/template-system': ['@inventarch/language', '@inventarch/runtime'],
   '@inventarch/language': [],
@@ -38,15 +31,12 @@ export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
     '@inventarch/compliance',
   ],
   '@inventarch/service-contracts': [],
-  '@inventarch/service-host': ['@inventarch/service-contracts'],
-  '@inventarch/inventarch-system': [
-    '@inventarch/agent-composition-system',
-    '@inventarch/db',
-    '@inventarch/graph',
-    '@inventarch/runtime',
-  ],
-  '@inventarch/delivery-system': [],
-  '@inventarch/code-quality-system': [],
+  '@inventarch/compliance-system': [],
+  '@inventarch/governance-system': [],
+  '@inventarch/hook-authoring-system': [],
+  '@inventarch/learning-system': [],
+  '@inventarch/work-system': [],
+  '@inventarch/workspace-system': [],
 };
 const HOSTS: Readonly<Record<string, readonly string[]>> = {
   '@inventarch/mcp-door': [
@@ -65,32 +55,12 @@ const HOSTS: Readonly<Record<string, readonly string[]>> = {
   ],
   '@inventarch/steward-hook': ['@inventarch/runtime', '@inventarch/db', '@inventarch/agent-composition-system'],
   '@inventarch/cli': [
-    '@inventarch/code-quality-system',
-    '@inventarch/architecture-system',
     '@inventarch/runtime',
-    '@inventarch/inventarch-system',
     '@inventarch/agent-composition-system',
     '@inventarch/db',
     '@inventarch/distribution',
     '@inventarch/compliance',
   ],
-  '@inventarch/agent-runner': [
-    '@inventarch/runtime',
-    '@inventarch/agent-system',
-    '@inventarch/session-system',
-    '@inventarch/agent-composition-system',
-  ],
-  '@inventarch/marketplace': [
-    '@inventarch/distribution',
-    '@inventarch/db',
-    '@inventarch/service-contracts',
-    '@inventarch/service-host',
-    '@inventarch/agent-composition-system',
-    '@inventarch/agent-system',
-    '@inventarch/session-system',
-    '@inventarch/language',
-  ],
-  '@inventarch/folio': ['@inventarch/language'],
 };
 export interface Component {
   readonly name: string;
@@ -132,7 +102,7 @@ export function moduleProblem(owner: Component, file: string, specifier: string 
     return undefined;
   }
   if (specifier.startsWith('@inventarch/monorepo-kit-host'))
-    return ['@inventarch/cli', '@inventarch/inventarch-cli'].includes(owner.name) &&
+    return ['@inventarch/cli'].includes(owner.name) &&
       owner.app &&
       ['@inventarch/monorepo-kit-host', '@inventarch/monorepo-kit-host/development'].includes(specifier)
       ? undefined

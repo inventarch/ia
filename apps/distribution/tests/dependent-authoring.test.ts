@@ -226,6 +226,35 @@ it('refuses missing/skewed dependency and complete but substituted resource/owne
   expect(verifySelectedArchiveClosure(valid.lock, valid.archives).size).toBe(2);
 });
 
+it('authenticates every selected byte and pin again after the same exact closure verified', () => {
+  const valid = selected();
+  expect(verifySelectedArchiveClosure(valid.lock, valid.archives).size).toBe(2);
+  // The remembered structural join is keyed by the exact lock; substituted bytes under a pinned digest still refuse.
+  expect(() =>
+    verifySelectedArchiveClosure(
+      valid.lock,
+      new Map(
+        [...valid.archives].map(([archive, bytes]) => [
+          archive,
+          archive === base.pin.archive ? Buffer.from('substituted') : bytes,
+        ]),
+      ),
+    ),
+  ).toThrow();
+  expect(() =>
+    verifySelectedArchiveClosure(
+      valid.lock,
+      new Map(
+        [...valid.archives].map(([archive, bytes]) => [archive, archive === packed.archiveDigest ? base.bytes : bytes]),
+      ),
+    ),
+  ).toThrow();
+  expect(verifySelectedArchiveClosure(valid.lock, valid.archives).get(packed.manifest.id)?.archiveDigest).toBe(
+    packed.archiveDigest,
+  );
+  expect(() => verifyArchive(packed.bytes)).toThrow(/authoring/i);
+});
+
 it('cannot borrow undeclared dependencies or external asset-owner aliases from another selected root', () => {
   const manifest = { ...packed.manifest, dependencies: [] };
   const unrelated = selected(buildArchive(manifest, packed.files), manifest);

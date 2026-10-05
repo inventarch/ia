@@ -71,7 +71,7 @@ export class Protocol {
         return success({
           protocolVersion: PROTOCOL_VERSION,
           capabilities: { tools: {} },
-          serverInfo: { name: 'ia-mcp-door', version: '1.0.0' },
+          serverInfo: { name: 'ia-mcp-door', version: '0.1.0' },
           instructions:
             'Declare phase and primitive for context/selection. Scope tokens live only in this server process. These tools read; selection grants no execution permission.',
         });

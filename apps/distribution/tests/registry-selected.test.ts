@@ -27,6 +27,17 @@ import { resolveReleases } from '../src/resolve.js';
 import { repository } from './snapshot-fixture.js';
 import { serveDirectory } from './registry-fixture.js';
 
+/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
+const fileLink = (target: string, path: string): boolean => {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+};
+
 const temporary = mkdtempSync(join(tmpdir(), 'ia-registry-selected-'));
 let releases: ReturnType<typeof publish>[],
   sequence = 0;
@@ -158,7 +169,7 @@ it('refuses an unrelated selected root supplying an undeclared guide dependency'
   await expect(
     resolveFromRegistries({
       root,
-      requests: [...requests, { id: 'inventarch/language', range: releases[0]!.manifest.version }],
+      requests: [...requests, { id: releases[0]!.manifest.id, range: releases[0]!.manifest.version }],
       engine: '0.1.0',
       choose: choose(root, dir),
     }),
@@ -307,7 +318,7 @@ function closure(members: readonly (typeof releases)[number][], roots = requests
   );
   return { lock, archives: new Map(members.map((release) => [release.archiveDigest, release.bytes])) };
 }
-const languageRequests = () => [{ id: 'inventarch/language', range: releases[0]!.manifest.version }];
+const languageRequests = () => [{ id: releases[0]!.manifest.id, range: releases[0]!.manifest.version }];
 const input = (release: (typeof releases)[number]): string => {
   const path = join(fresh(), 'input.ia.tgz');
   writeFileSync(path, release.bytes);
@@ -480,68 +491,75 @@ it('refuses registry-side conflicts with no effects: rebound version, licensed l
   }
 });
 
-it('refuses a selection-root whose cache is missing, aliased or whose lock carries more than the target closure, leaving registry and workspace untouched', async () => {
-  const [language, product] = [releases[0]!, releases[1]!],
-    archive = input(product);
-  const other = publish({ ...language.manifest, id: 'inventarch/unrelated-language' }, language.files);
-  const installed = async (extra: boolean) => {
-    const source = fresh(),
-      roots = extra ? [...requests, { id: other.manifest.id, range: other.manifest.version }] : requests,
-      dir = registry(extra ? [...releases, other] : releases);
-    const acquired = await resolveFromRegistries({
-      root: source,
-      requests: roots,
-      engine: '0.1.0',
-      choose: choose(source, dir),
-    });
-    expect(
-      applyInstallation(planInstallation(source, resolveReleases(roots, acquired.candidates, '0.1.0').lock, 'install'))
-        .status,
-    ).toBe('installed');
-    return source;
-  };
-  const cacheFile = (source: string, release: (typeof releases)[number]) =>
-    join(source, `.ia/distributions/cache/${release.archiveDigest}.ia.tgz`);
-  const modes: Record<string, () => Promise<string>> = {
-    'missing cache bytes': async () => {
-      const source = await installed(false);
-      rmSync(cacheFile(source, language));
+// Report each refusal independently: a file-symlink capability skip cannot hide the other four guards.
+for (const mode of [
+  'missing cache bytes',
+  'symlinked cache bytes',
+  'hardlinked cache bytes',
+  'lock with an unrelated release',
+  'workspace with no installation',
+] as const)
+  it(`refuses a selection-root with ${mode}, leaving registry and workspace untouched`, async (context) => {
+    const [language, product] = [releases[0]!, releases[1]!],
+      archive = input(product);
+    const other = publish({ ...language.manifest, id: 'inventarch/unrelated-language' }, language.files);
+    const installed = async (extra: boolean) => {
+      const source = fresh(),
+        roots = extra ? [...requests, { id: other.manifest.id, range: '0.1.0' }] : requests,
+        dir = registry(extra ? [...releases, other] : releases);
+      const acquired = await resolveFromRegistries({
+        root: source,
+        requests: roots,
+        engine: '0.1.0',
+        choose: choose(source, dir),
+      });
+      expect(
+        applyInstallation(
+          planInstallation(source, resolveReleases(roots, acquired.candidates, '0.1.0').lock, 'install'),
+        ).status,
+      ).toBe('installed');
       return source;
-    },
-    'symlinked cache bytes': async () => {
-      const source = await installed(false),
-        file = cacheFile(source, language),
-        real = join(fresh(), 'real.ia.tgz');
-      writeFileSync(real, language.bytes);
-      rmSync(file);
-      symlinkSync(real, file);
-      return source;
-    },
-    'hardlinked cache bytes': async () => {
-      const source = await installed(false),
-        file = cacheFile(source, language),
-        real = join(fresh(), 'real.ia.tgz');
-      writeFileSync(real, language.bytes);
-      rmSync(file);
-      linkSync(real, file);
-      return source;
-    },
-    'lock with an unrelated release': async () => installed(true),
-    'workspace with no installation': async () => fresh(),
-  };
-  for (const [name, arrange] of Object.entries(modes)) {
-    const source = await arrange(),
+    };
+    const cacheFile = (source: string, release: (typeof releases)[number]) =>
+      join(source, `.ia/distributions/cache/${release.archiveDigest}.ia.tgz`);
+    const modes: Record<string, () => Promise<string>> = {
+      'missing cache bytes': async () => {
+        const source = await installed(false);
+        rmSync(cacheFile(source, language));
+        return source;
+      },
+      'symlinked cache bytes': async () => {
+        const source = await installed(false),
+          file = cacheFile(source, language),
+          real = join(fresh(), 'real.ia.tgz');
+        writeFileSync(real, language.bytes);
+        rmSync(file);
+        if (!fileLink(real, file)) return context.skip('Windows denied file symlink creation (EPERM)');
+        return source;
+      },
+      'hardlinked cache bytes': async () => {
+        const source = await installed(false),
+          file = cacheFile(source, language),
+          real = join(fresh(), 'real.ia.tgz');
+        writeFileSync(real, language.bytes);
+        rmSync(file);
+        linkSync(real, file);
+        return source;
+      },
+      'lock with an unrelated release': async () => installed(true),
+      'workspace with no installation': async () => fresh(),
+    };
+    const source = await modes[mode]!(),
       dir = registry([language, other]),
       before = tree(dir),
       workspaceBefore = tree(source);
     await expect(
       runNative(['registry', 'add', '--registry', dir, '--archive', archive, '--selection-root', source]),
-      name,
+      mode,
     ).rejects.toThrow();
-    expect(tree(dir), name).toEqual(before);
-    expect(tree(source), name).toEqual(workspaceBefore);
-  }
-});
+    expect(tree(dir), mode).toEqual(before);
+    expect(tree(source), mode).toEqual(workspaceBefore);
+  });
 
 it('republishes through CLI selection-root with identical output and untouched registry and installation', async () => {
   const [language, product] = [releases[0]!, releases[1]!],

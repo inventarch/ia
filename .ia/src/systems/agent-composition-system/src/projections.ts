@@ -1,4 +1,6 @@
 import type { ReadHandle } from '@inventarch/db';
+import { DEFAULT_TOKENIZER } from '@inventarch/runtime';
+import { posix } from 'node:path';
 import type { CompiledChild, CompiledRecord, CompiledValue } from '@inventarch/language';
 import type { Capture } from './corpus.js';
 import type { CapturedResources, ResourceKey, ResourceOccurrence } from './resources.js';
@@ -46,6 +48,7 @@ import {
   isCodex,
   outputPath,
   pluginFile,
+  PROSE_EFFECT_TOOLS,
   renderRecord,
   resourceDestination,
   resourceMarkdown,
@@ -53,6 +56,7 @@ import {
   verifyCatalog,
 } from './projection-host.js';
 import type { ProjectionCatalog } from './projection-host.js';
+import { resourceVerifier } from './projection-routine.js';
 
 export { PROJECTION_LIMITS, ProjectionError, verifyProjectionDescriptor } from './projection-format.js';
 export type {
@@ -95,6 +99,16 @@ function fieldReferences(fields: readonly CompiledChild[]): Extract<CompiledValu
   return fields.flatMap((f) =>
     'item' in f ? references(f.item) : [...references(f.value), ...fieldReferences(f.fields ?? [])],
   );
+}
+function texts(value: CompiledValue): string[] {
+  return value.kind === 'list' ? value.items.flatMap(texts) : 'text' in value ? [value.text] : [];
+}
+/** Every field with this key in the record's sections of this name. */
+function keyed(record: CompiledRecord, section: string, key: string): CompiledChild[] {
+  return record.sections
+    .filter((s) => s.name === section)
+    .flatMap((s) => s.fields)
+    .filter((f) => 'key' in f && f.key === key);
 }
 /** One export's dependency closure over the host's current scoped reader. */
 class NativeClosure {
@@ -187,52 +201,55 @@ class NativeClosure {
     this.add(this.exact(p.agent, 'agent'));
     if (p.voice) this.add(this.exact(p.voice, 'voice'));
     if (p.mandate) this.add(this.exact(p.mandate, 'mandate'));
-    if (p.agentProfile) {
-      const profile = this.exact(p.agentProfile, 'agent-profile');
-      const delegates = profile.sections
-        .filter((s) => s.name === 'composition')
-        .flatMap((s) => s.fields)
-        .filter((f) => 'key' in f && f.key === 'delegates');
-      if (fieldReferences(delegates).length)
-        fail(
-          'IA-PROJECTION-FEATURE-UNAVAILABLE',
-          'Native delegation needs a separately qualified host mapping',
-          p.agentProfile,
-        );
-      const model = profile.sections
-        .filter((s) => s.name === 'execution')
-        .flatMap((s) => s.fields)
-        .find((f) => 'key' in f && f.key === 'model-profile');
-      if (model && 'value' in model && (!('text' in model.value) || model.value.text !== p.model))
-        fail('IA-PROJECTION-SOURCE-UNAVAILABLE', 'Model metadata differs from its native profile', p.agentProfile);
-      for (const [field, explicit] of [
-        ['agent', p.agent],
-        ['voice', p.voice],
-        ['mandate', p.mandate],
-      ] as const) {
-        const matches = profile.sections
-          .filter((s) => s.name === 'composition')
-          .flatMap((s) => s.fields)
-          .filter((f) => 'key' in f && f.key === field);
-        if (explicit) {
-          const value = matches[0];
-          if (
-            matches.length !== 1 ||
-            !value ||
-            !('value' in value) ||
-            value.when ||
-            value.value.kind !== 'ref' ||
-            this.resolve(value.value, p.agentProfile).identity !== explicit.identity
-          )
-            fail(
-              'IA-PROJECTION-SOURCE-UNAVAILABLE',
-              'Authored presentation contradicts its native agent profile',
-              explicit,
-            );
-        }
+    // Host tools need native effects to bound them, and only an agent profile composes capabilities.
+    const owner = p.agentProfile;
+    if (!owner)
+      fail(
+        'IA-PROJECTION-SOURCE-UNAVAILABLE',
+        'Host tools need native capability effects from an agent profile',
+        entry.target,
+      );
+    const profile = this.exact(owner, 'agent-profile');
+    if (fieldReferences(keyed(profile, 'composition', 'delegates')).length)
+      fail('IA-PROJECTION-FEATURE-UNAVAILABLE', 'Native delegation needs a separately qualified host mapping', owner);
+    const model = keyed(profile, 'execution', 'model-profile')[0];
+    if (model && 'value' in model && (!('text' in model.value) || model.value.text !== p.model))
+      fail('IA-PROJECTION-SOURCE-UNAVAILABLE', 'Model metadata differs from its native profile', owner);
+    // Effects are a ceiling: the union of the profile's own capability effects, through the fixed v1 table. Tool names stay host metadata.
+    const effects = fieldReferences(keyed(profile, 'composition', 'capabilities')).flatMap((ref) =>
+      keyed(this.resolve(ref, owner), 'execution', 'effects'),
+    );
+    const ceiling = new Set(
+      effects
+        .flatMap((f) => ('value' in f ? texts(f.value) : []))
+        .flatMap((effect) => PROSE_EFFECT_TOOLS.get(effect) ?? []),
+    );
+    if (p.tools.some((tool) => !ceiling.has(tool)))
+      fail('IA-PROJECTION-SOURCE-UNAVAILABLE', 'Host tools exceed the native capability effects', owner);
+    for (const [field, explicit] of [
+      ['agent', p.agent],
+      ['voice', p.voice],
+      ['mandate', p.mandate],
+    ] as const) {
+      const matches = keyed(profile, 'composition', field);
+      if (explicit) {
+        const value = matches[0];
+        if (
+          matches.length !== 1 ||
+          !value ||
+          !('value' in value) ||
+          value.when ||
+          value.value.kind !== 'ref' ||
+          this.resolve(value.value, owner).identity !== explicit.identity
+        )
+          fail(
+            'IA-PROJECTION-SOURCE-UNAVAILABLE',
+            'Authored presentation contradicts its native agent profile',
+            explicit,
+          );
       }
-      this.add(profile);
     }
+    this.add(profile);
   }
   occurrences(): ResourceOccurrence[] {
     return ordered(
@@ -363,56 +380,129 @@ export function compileProjection(
           maxBytes: PROJECTION_LIMITS.totalBytes,
         });
         const selectedFiles = [...new Map(resolution.items.map((r) => [keyOf(r.file.key), r.file])).values()];
+        const path = outputPath(description.product, entry, catalog),
+          blocks: string[] = [],
+          optionalBlocks: { key: string; content: string }[] = [];
+        const skillDirectory = path.endsWith('/SKILL.md') ? posix.dirname(path) : null;
         const destinations = new Map(
           selectedFiles.map((f) => [keyOf(f.key), resourceDestination(resources.digest, f)]),
         );
-        const path = outputPath(description.product, entry, catalog),
-          blocks: string[] = [];
-        for (const owner of owners)
-          blocks.push(
-            resourceMarkdown(
-              renderRecord(closure.selected.get(owner.identity)!, owner),
-              { key: owner },
-              path,
-              destinations,
-              true,
-            ),
-          );
+        for (const core of [true, false]) {
+          const selected = owners.filter((owner) => {
+            const record = closure.selected.get(owner.identity)!;
+            return (record.kind === 'governance' || record.discriminator === 'mandate') === core;
+          });
+          if (selected.length)
+            blocks.push(core ? '## Mandatory native guidance' : '## Selected task and role guidance');
+          for (const owner of selected)
+            blocks.push(
+              resourceMarkdown(
+                renderRecord(closure.selected.get(owner.identity)!, owner),
+                { key: owner },
+                path,
+                destinations,
+                true,
+              ),
+            );
+        }
         for (const file of selectedFiles)
           if (file.mediaType === 'text/markdown')
             resourceMarkdown(file.content, file, destinations.get(keyOf(file.key))!, destinations, false);
-        const inlined = new Set<string>(),
-          discovered = new Set<string>();
-        for (const resource of resolution.items) {
-          const destination = destinations.get(keyOf(resource.file.key))!;
-          if (resource.use.delivery === 'inline' && !inlined.has(keyOf(resource.file.key))) {
-            if (!['text/markdown', 'text/plain', 'application/json'].includes(resource.file.mediaType))
-              fail(
-                'IA-PROJECTION-FEATURE-UNAVAILABLE',
-                'This inert profile cannot inline image content',
-                resource.owner,
-              );
-            const content =
-              resource.file.mediaType === 'text/markdown'
-                ? resourceMarkdown(resource.file.content, resource.file, path, destinations, true)
-                : resource.file.content;
-            inert(content);
-            blocks.push(`## ${resource.use.role}\n\nSource: ${resource.citation}\n\n${content}`);
-            inlined.add(keyOf(resource.file.key));
-          }
-          if (!discovered.has(keyOf(resource.file.key)))
-            blocks.push(`Resource (${resource.use.role}): ${discoveryLink(path, destination, resource.file.key.path)}`);
-          discovered.add(keyOf(resource.file.key));
+        // Deduplicate bytes, not uses: every admitted owner/role/order/required/delivery association survives.
+        // Groups keep the first-use order of resolution.items (owner, then role/order/key), so optional inline
+        // blocks are offered to the budget in declared order, as resolveResourcesWith admits them, not path order.
+        const groups = new Map<string, (typeof resolution.items)[number][]>();
+        for (const item of resolution.items) {
+          const key = keyOf(item.file.key);
+          const uses = groups.get(key) ?? [];
+          uses.push(item);
+          groups.set(key, uses);
         }
-        const body =
+        for (const [key, uses] of groups) {
+          const teaching = uses.find((item) => item.use.required && ['body', 'guide'].includes(item.use.role));
+          const inline =
+            teaching ??
+            uses.find((item) => item.use.required && item.use.delivery === 'inline') ??
+            uses.find((item) => item.use.delivery === 'inline');
+          const reference = teaching ?? uses.find((item) => item.use.required) ?? inline ?? uses[0]!;
+          const destination = destinations.get(key)!;
+          if (inline) {
+            if (!['text/markdown', 'text/plain', 'application/json'].includes(inline.file.mediaType))
+              fail('IA-PROJECTION-FEATURE-UNAVAILABLE', 'This inert profile cannot inline image content', inline.owner);
+            const content =
+              inline.file.mediaType === 'text/markdown'
+                ? resourceMarkdown(inline.file.content, inline.file, path, destinations, true)
+                : inline.file.content;
+            inert(content);
+            const block = `## ${inline.use.required ? 'Required' : 'Optional'} ${inline.use.role}\n\nSource: ${inline.citation}\n\n${content}`;
+            if (inline.use.required) blocks.push(block);
+            else optionalBlocks.push({ key, content: block });
+          }
+          blocks.push(
+            `Reference (${reference.use.role}; ${reference.use.required ? 'required package member' : 'optional'}): ${discoveryLink(path, destination, reference.file.key.path)}\n\n` +
+              uses
+                .map(
+                  (item) =>
+                    `Use (${item.use.role}; ${item.use.required ? 'required package member' : 'optional'}; delivery=${item.use.delivery}; order=${item.use.order}; owner=${occurrenceOf(item.owner)})`,
+                )
+                .join('\n\n'),
+          );
+        }
+        const routine =
+          skillDirectory && selectedFiles.length ? `${skillDirectory}/scripts/verify-resources.mjs` : null;
+        const part = skillDirectory && selectedFiles.length ? `${skillDirectory}/parts/resources.md` : null;
+        if (part)
+          blocks.push(
+            `Selected multipart index: ${discoveryLink(path, part, 'parts/resources.md')}. Resources are stored once in the product's content-addressed store; relocate the complete product, not one skill folder.`,
+          );
+        if (routine)
+          blocks.push(
+            `## Verify bundled resources\n\nRun the read-only bundled routine explicitly: \`node scripts/verify-resources.mjs --root <absolute physical product directory>\`. The explicit root must satisfy the existing unaliased-path policy; trusted callers canonicalize OS temporary roots before invocation. It checks the selected file hashes, refuses missing or changed bytes and returns JSON. It needs no checkout or network and grants no execution authority. Routine: ${discoveryLink(path, routine, 'verify-resources.mjs')}`,
+          );
+        const renderBody = (extra: readonly string[]) =>
           `\n# ${entry.outputName}\n\n${entry.description}\n\n` +
           'Native declarations below are guidance. Conditional clauses apply only under their stated conditions; this projection activates no IA operation or machine enforcement.\n' +
           invocation(entry, catalog, description.product) +
           '\n' +
-          blocks.join('\n\n') +
+          [...blocks, ...extra].join('\n\n') +
           '\n';
-        inert(body);
-        const serialized = serializeExport(description.product, entry, catalog, body);
+        const budget = description.contextBudget ?? {
+          bytes: PROJECTION_LIMITS.contextBytes,
+          tokens: PROJECTION_LIMITS.contextTokens,
+        };
+        const fits = (files: ReturnType<typeof serializeExport>) =>
+          files
+            .filter((file) => ['agent', 'skill', 'command'].includes(file.role))
+            .every(
+              (file) =>
+                Buffer.byteLength(file.content) <= budget.bytes &&
+                DEFAULT_TOKENIZER.count(file.content) <= budget.tokens,
+            );
+        const serializeBody = (extra: readonly string[]) => {
+          const body = renderBody(extra);
+          inert(body);
+          return serializeExport(description.product, entry, catalog, body);
+        };
+        let serialized = serializeBody([]);
+        if (!fits(serialized))
+          fail(
+            'IA-PROJECTION-FEATURE-UNAVAILABLE',
+            'Required projected context exceeds its byte/token budget; narrow the selected native body or resources',
+            entry.target,
+          );
+        const extra: string[] = [];
+        for (const optional of optionalBlocks) {
+          const candidate = serializeBody([...extra, optional.content]);
+          if (fits(candidate)) {
+            extra.push(optional.content);
+            serialized = candidate;
+          } else
+            omissions.push({
+              export: entry.id,
+              feature: 'context',
+              reason: `${optional.key}: budget (bundled reference retained)`,
+            });
+        }
         // Do all export-level validation before admitting its files to the product.
         for (const file of serialized) {
           if (Buffer.byteLength(file.content) > PROJECTION_LIMITS.fileBytes)
@@ -428,6 +518,32 @@ export function compileProjection(
             'resource',
             owners,
             [file.key],
+          );
+        if (routine) {
+          const inventory = selectedFiles.map((file) => ({
+            path: destinations.get(keyOf(file.key))!,
+            bytes: file.bytes,
+            sha256: file.sha256,
+          }));
+          add(routine, Buffer.from(resourceVerifier(inventory)), 'utf8', 'host-metadata', [entry.target], []);
+        }
+        if (part)
+          add(
+            part,
+            Buffer.from(
+              '# Selected resource parts\n\n' +
+                selectedFiles
+                  .map(
+                    (file) =>
+                      `Source: ${keyOf(file.key)}\n\n${discoveryLink(part, destinations.get(keyOf(file.key))!, file.key.path)}`,
+                  )
+                  .join('\n\n') +
+                '\n',
+            ),
+            'utf8',
+            'host-metadata',
+            [entry.target],
+            [],
           );
         for (const file of serialized)
           add(
@@ -501,18 +617,15 @@ export function compileProjection(
           level: 'guidance' as const,
           evidence: `generated:${catalog.profile.id}; installed/live-host qualification not established`,
         },
-        ...(isCodex(catalog)
-          ? [
-              {
-                feature: 'agent-presentation',
-                level: 'guidance' as const,
-                evidence:
-                  description.product === 'plugin'
-                    ? 'explicit role skills; no native custom-agent registration or model/tool override'
-                    : 'native workspace TOML agents; tool intent is guidance, not an enforced allowlist',
-              },
-            ]
-          : []),
+        {
+          feature: 'agent-presentation',
+          level: 'guidance' as const,
+          evidence: !isCodex(catalog)
+            ? 'host tool names within native capability effects; not IA authorization or an enforced allowlist'
+            : description.product === 'plugin'
+              ? 'explicit role skills; no native custom-agent registration or model/tool override'
+              : 'native workspace TOML agents; tool intent is guidance, not an enforced allowlist',
+        },
       ],
     };
     if (Buffer.byteLength(JSON.stringify(manifestBody)) > PROJECTION_LIMITS.metadataBytes)
