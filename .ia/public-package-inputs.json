@@ -2423,7 +2423,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "a8b594d630059427bee7cd5c1b8c5f527192108afc25bdb8ac7c96a2df3ecb5c"
+      "sha256": "37edd8a56b2055097877861e424906d7dbf6fc8412160bdb234c9bc072b8af96"
     },
     {
       "path": "CLAUDE.md",
@@ -2451,7 +2451,7 @@
     },
     {
       "path": "SECURITY.md",
-      "sha256": "ac6aa5dfe24068ca0b94f884cefa2865846a081db619d6dbb29df958a252e50a"
+      "sha256": "c7566398375b68cac2690c6e81a0d7bff5e9dfae6b06faa6a0285862e3c23656"
     },
     {
       "path": "SPEC.md",
@@ -2751,7 +2751,7 @@
     },
     {
       "path": "apps/distribution/references/system-package.md",
-      "sha256": "1d72da9fca6578f70a0b805d3e197c44a7748511dcfe3a372e72a0b460a2b56f"
+      "sha256": "ceae2ce5515a14e6f314cfd06f6247093a589ac942ded0f44a8576695fb46a5b"
     },
     {
       "path": "apps/distribution/src/acquire.ts",
@@ -6903,11 +6903,11 @@
     },
     {
       "path": "releases/README.md",
-      "sha256": "85d58dcb902b06e02812e454fb8d81e029391071086e70859690f5e1385c376b"
+      "sha256": "f7022d8bac6da68e72a8341faf72513aabb06426d089bc610f5b1d56b7d8e907"
     },
     {
       "path": "releases/changesets/1.1.0.json",
-      "sha256": "c04c33ffd902d1121310aa68f709cc6d62d8669bc36ab19fed4444512b24302a"
+      "sha256": "6fe0dcafbefc741dd63f15fbe6ffe026ff69029c1b445d4644b2d2800390f543"
     },
     {
       "path": "releases/current.json",
@@ -6967,7 +6967,7 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "cdcb1ff0950aebf0e7cda242b5c37d5878d7be33a64711a31af82d4b9e8d8f9a"
+      "sha256": "e8575366e4c2012fee1085459554a9d82bfb74d3612f7ee03c447b72857ba839"
     },
     {
       "path": "tools/distribution/SPEC.md",
@@ -7011,11 +7011,11 @@
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "76659123b25d656b058b4a8838e4cf92ee0f13d9996af46ba889443d1ec185df"
+      "sha256": "1aa003d39f0dc9d9d9e3bdd814feadc300910f5b4f8d21250abc990b9229f826"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "adc713caa759d8b157ae57e529f23c24dad9b64648ca48e1a19e9722c927e066"
+      "sha256": "f23fd8eead7040cea0402a82f30e84279bceaaa323981ba1a3c8267a0e424603"
     },
     {
       "path": "tools/distribution/public-content-policy.json",
@@ -7592,10 +7592,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "fa36eb37f86000697b0d24a511f133c6cc6ad6b6",
-    "baseTree": "c3dedfe8b51c0624f761c134d4126260ff685dc3",
+    "baseCommit": "0a6dab9fa11ae44019c1f88ce1d9e5fe681cbb84",
+    "baseTree": "6bc16ed264aebeb666c0d37ce44aca1a60564b89",
     "dirty": true,
-    "inputDigest": "b2e099b8f2065607d37db80fba2b3c1ad562e4421a75ee2197c5ba0278916f5a",
+    "inputDigest": "7617d4832f0d4337a1c2da84c8fe4a551ae581fe0ee617dc32d58a945d485528",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",
