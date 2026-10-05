@@ -88,8 +88,11 @@ export function assertStaticPayloadCode(path, bytes) {
 function manifestDir(name, from) {
   for (let candidate = from; ; candidate = dirname(candidate)) {
     if (basename(candidate) !== 'node_modules') {
-      const path = join(candidate, 'node_modules', name, 'package.json');
-      if (existsSync(path)) {
+      // Resolve the dependency directory before its relative package links. Windows fixtures may
+      // reach this directory through a junction on a different drive from the installed workspace.
+      const modules = join(candidate, 'node_modules');
+      const path = existsSync(modules) ? join(realpathSync(modules), name, 'package.json') : null;
+      if (path && existsSync(path)) {
         const dir = realpathSync(dirname(path));
         if (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).name !== name)
           throw Error('Installed package manifest names another package: ' + name);

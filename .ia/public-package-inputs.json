@@ -6963,7 +6963,7 @@
     },
     {
       "path": "tools/distribution/host-payload.mjs",
-      "sha256": "0ea34a006722cbbd1b4d92aea7de7b9f00ed3f1a78bf8c287bdfb6619f43a988"
+      "sha256": "6d7955db381a5385abb00d3793be347bbb77afef1e33daac0820ed11e21ec86d"
     },
     {
       "path": "tools/distribution/host-payload.test.ts",
@@ -7532,10 +7532,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "1d2a5f4bd94da9d110c5d8a4b3929c9cf3ad6a2e",
-    "baseTree": "c12d181631c43459a1a0a38f01c99cb4fd8093c8",
+    "baseCommit": "28fbafc3c11cefb4b85f6e0a931f91335e794e86",
+    "baseTree": "fb105d7f015d76d7c6e6924b65b2e4aa7a89526c",
     "dirty": true,
-    "inputDigest": "ce0b50afcf452fd50d03161f52e97a637258ff128332c68d1719887c46cb126d",
+    "inputDigest": "33aa11585471df5d9d163e9fc0cadbe893bd504750b949bc095bcb8aaa2f9bc7",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",
