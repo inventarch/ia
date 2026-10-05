@@ -1800,6 +1800,11 @@
       "change": "release-hygiene"
     },
     {
+      "path": "tools/distribution/release-refusals.test.ts",
+      "sha256": "379c39af5d4f5f855564c95d25e0629eb8d75a055feb67a0a74cd5435471cae6",
+      "change": "release-hygiene"
+    },
+    {
       "path": "tools/distribution/resources.mjs",
       "sha256": "9d9f71c862498b3815238ba7b0182d98ec06a335f1861cc13004b8e4f6ae282e",
       "change": "release-hygiene"
@@ -2116,7 +2121,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "f04714d7edb8dd2f127fd639ebb09823162793c56c92c0ef1e70dd3f81d0c7f2",
+      "sha256": "aa694784a0334eb869200c2b574f749c89da3e0ca17a8f430eb9645ae362af58",
       "change": "portable-quality"
     }
   ]
