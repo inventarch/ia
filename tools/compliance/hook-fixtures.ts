@@ -20,6 +20,19 @@ export function runHookFixtures(root: string): readonly FixtureResult[] {
     ['IA-HOOK-IDENTITY-UNAVAILABLE', event],
     ['IA-HOOK-NOT-STEWARD', { ...event, agent_type: 'agent-steward' }],
     ['IA-HOOK-PROJECTION-MANAGED', { ...event, tool_input: { file_path: resolve(fixture, 'CLAUDE.md') } }],
+    [
+      'IA-HOOK-SHELL-WRITE',
+      {
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Bash',
+        tool_input: { command: 'echo x > .ia/src/systems/governance-system/records/new.ia' },
+        cwd: fixture,
+      },
+    ],
+    [
+      'IA-HOOK-SHELL-UNRESOLVED',
+      { hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'echo "unterminated' }, cwd: fixture },
+    ],
   ];
   return rows.map(([expected, input]) => {
     const result = spawnSync(

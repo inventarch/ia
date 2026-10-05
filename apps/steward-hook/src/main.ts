@@ -9,11 +9,18 @@ import {
   realpathSync,
   type Stats,
 } from 'node:fs';
-import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { homedir } from 'node:os';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { evaluateSteward, isEntry, openDatabase } from '@inventarch/runtime';
-import type { HookCode } from '@inventarch/runtime';
+import type { HookCode, StewardDecision } from '@inventarch/runtime';
 import { pathKey, sameFile, unaliased } from '@inventarch/db';
 import { decodeDistributionJson } from '@inventarch/db/distribution';
+import { LIMITS, Session, State } from './analysis.js';
+import type { Scope } from './analysis.js';
+import { Unresolved } from './commands.js';
+import type { Target } from './commands.js';
+import { analyzePowerShell } from './powershell.js';
+import { analyzeBash } from './shell.js';
 
 export interface HookOutput {
   readonly hookSpecificOutput?: {
@@ -331,6 +338,11 @@ function sourceGuardSettings(path: string): string | undefined {
     closeSync(fd);
   }
 }
+/**
+ * The matchers a registration of this guard carries: `ia host claude` writes the first (`GUARD_MATCHER` in
+ * `apps/distribution/src/guard-registration.ts`), and a registration made before #540 routes only the file tools.
+ */
+const GUARD_MATCHERS: readonly string[] = ['Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell', 'Write|Edit|MultiEdit'];
 /** Recognize only the fixed source-launcher registration; an unrelated hook or filename establishes no ownership. */
 function sourceGuardRegistered(root: string): boolean {
   const launcher = resolve(root, '.claude/hooks/steward-write.mjs');
@@ -346,7 +358,8 @@ function sourceGuardRegistered(root: string): boolean {
     const value: unknown = decodeDistributionJson(content);
     if (!object(value) || !object(value['hooks']) || !Array.isArray(value['hooks']['PreToolUse'])) continue;
     for (const group of value['hooks']['PreToolUse']) {
-      if (!object(group) || group['matcher'] !== 'Write|Edit|MultiEdit' || !Array.isArray(group['hooks'])) continue;
+      if (!object(group) || !GUARD_MATCHERS.includes(String(group['matcher'])) || !Array.isArray(group['hooks']))
+        continue;
       for (const hook of group['hooks']) {
         if (
           !object(hook) ||
@@ -423,28 +436,137 @@ function anchored(root: string, target: string): string | undefined {
     current = parent;
   }
 }
+/** Ownership facts for one event, read once and only when a path needs them; every path the event names shares them. */
+interface Place {
+  readonly base: string;
+  ownership(): Ownership | undefined;
+  controls(includeContext: boolean): GuardControls;
+  sourceGuard(): boolean;
+}
+function placer(base: string): Place {
+  let owned: { readonly value: Ownership | undefined } | undefined, source: boolean | undefined;
+  const controls = new Map<boolean, GuardControls>();
+  return {
+    base,
+    ownership() {
+      if (owned === undefined) owned = { value: projectionOwnership(base) };
+      return owned.value;
+    },
+    controls(includeContext) {
+      let found = controls.get(includeContext);
+      if (!found) {
+        found = contextSettingsManaged(base, includeContext);
+        controls.set(includeContext, found);
+      }
+      return found;
+    },
+    sourceGuard() {
+      if (source === undefined) source = sourceGuardRegistered(base);
+      return source;
+    },
+  };
+}
+/** The rule that protects one absolute path; a protected path with an aliased ancestor or target throws. */
+function place(context: Place, target: string): Rule | undefined {
+  const { base } = context,
+    actual = physical(target);
+  // With neither spelling under the root as a string, either may still reach it through another namespace, so both are
+  // placed by identity too (`anchored`); a rule found that way is held to the same alias check as any other.
+  const lexical = local(base, target),
+    physicalPath = local(base, actual),
+    spellings = [lexical, physicalPath];
+  if (lexical === undefined && physicalPath === undefined)
+    spellings.push(anchored(base, target), anchored(base, actual));
+  let rule = spellings.reduce<Rule | undefined>(
+    (found, spelling) => found ?? protection(spelling, context.ownership),
+    undefined,
+  );
+  const localSettings = spellings.includes('.claude/settings.local.json'),
+    projectSettings = spellings.includes('.claude/settings.json');
+  const sourceLauncher = spellings.includes('.claude/hooks/steward-write.mjs');
+  // A cached launcher can be outside the consumer root. Only the exact path in its owned guard marker is managed.
+  const possibleCacheLauncher = [target, actual].some((path) =>
+    fold(path).replaceAll('\\', '/').endsWith('/scripts/ia.mjs'),
+  );
+  if (localSettings || projectSettings || sourceLauncher || possibleCacheLauncher) {
+    const controls = context.controls(localSettings),
+      sourceGuard = (localSettings || projectSettings || sourceLauncher) && context.sourceGuard();
+    const cacheLauncher =
+      possibleCacheLauncher &&
+      controls.launchers.some((path) => [target, actual].some((value) => fold(resolve(value)) === fold(resolve(path))));
+    if (
+      (localSettings && controls.settings) ||
+      ((localSettings || projectSettings) && (controls.guard || sourceGuard)) ||
+      (sourceLauncher && sourceGuard) ||
+      cacheLauncher
+    )
+      rule = { projection: true };
+  }
+  if (rule !== undefined && !unaliased(target, actual))
+    throw new Error('Protected path has an aliased ancestor or target');
+  return rule;
+}
+/** The registered root as the volume stores it; a link or junction anywhere in it is refused. */
+function fixedRoot(root: string): string {
+  if (!isAbsolute(root)) throw new Error('Binding requires an absolute fixed project root');
+  // Another case or normalization of the same directory is the same project, and every rule compares against this spelling.
+  const base = resolve(root),
+    real = realpathSync.native(base);
+  if (!unaliased(base, real)) throw new Error('Project root is aliased');
+  return real;
+}
+/** The steward decision for each system, from one fresh cache-disabled snapshot and the event's host identity. */
+function stewards(
+  base: string,
+  event: Record<string, unknown>,
+  actorsPath: string | undefined,
+): (system: string) => StewardDecision {
+  const db = openDatabase(base, { cache: false });
+  try {
+    const records = db.records();
+    const mapping = actorsPath === undefined ? undefined : actorMap(actorsPath, db.revision);
+    const host = event['agent_type'],
+      identity = typeof host === 'string' ? mapping?.get(host) : undefined;
+    const actors =
+      typeof host === 'string'
+        ? records.filter(
+            (r) =>
+              r.discriminator === 'agent' &&
+              (mapping === undefined ? r.name === host : identity !== undefined && r.identity === identity),
+          )
+        : [];
+    const actor = actors.length === 1 ? { kind: 'agent' as const, identity: actors[0]!.identity } : undefined;
+    return (system) => evaluateSteward(records, system, actor);
+  } finally {
+    db.close();
+  }
+}
+const reason = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 export function evaluateHook(root: string, event: unknown, actorsPath?: string): HookOutput {
+  if (
+    object(event) &&
+    event['hook_event_name'] === 'PreToolUse' &&
+    object(event['tool_input']) &&
+    (event['tool_name'] === 'Bash' || event['tool_name'] === 'PowerShell')
+  )
+    return evaluateShell(root, event, event['tool_name'], actorsPath);
+  // NotebookEdit names its file `notebook_path`; it is judged exactly as the file tools are (#540).
+  const key = object(event) && event['tool_name'] === 'NotebookEdit' ? 'notebook_path' : 'file_path';
   if (
     !object(event) ||
     event['hook_event_name'] !== 'PreToolUse' ||
-    !['Write', 'Edit', 'MultiEdit'].includes(String(event['tool_name'])) ||
+    !['Write', 'Edit', 'MultiEdit', 'NotebookEdit'].includes(String(event['tool_name'])) ||
     !object(event['tool_input']) ||
-    typeof event['tool_input']['file_path'] !== 'string' ||
-    !event['tool_input']['file_path'].trim() ||
-    event['tool_input']['file_path'].includes('\0') ||
+    typeof event['tool_input'][key] !== 'string' ||
+    !event['tool_input'][key].trim() ||
+    event['tool_input'][key].includes('\0') ||
     (event['tool_name'] === 'MultiEdit' && !Array.isArray(event['tool_input']['edits']))
   )
     return deny('IA-HOOK-INPUT-INVALID', 'Expected a PreToolUse file edit event');
   let rule: Rule | undefined, base: string;
   try {
-    if (!isAbsolute(root)) throw new Error('Binding requires an absolute fixed project root');
-    // The registered root as the volume stores it: another case or normalization of the same directory is the same
-    // project, and every rule below compares against this spelling; a link or junction anywhere in it is still refused.
-    base = resolve(root);
-    const real = realpathSync.native(base);
-    if (!unaliased(base, real)) throw new Error('Project root is aliased');
-    base = real;
-    const path = event['tool_input']['file_path'];
+    base = fixedRoot(root);
+    const path = event['tool_input'][key] as string;
     if (
       !isAbsolute(path) &&
       (typeof event['cwd'] !== 'string' ||
@@ -454,57 +576,15 @@ export function evaluateHook(root: string, event: unknown, actorsPath?: string):
       throw new Error('Relative input requires cwd inside the fixed root');
     // A relative path lands where the kernel puts it: POSIX follows the cwd's links before `..`, Windows removes `..` first.
     const target = isAbsolute(path)
-        ? resolve(path)
-        : resolve(
-            process.platform === 'win32' ? resolve(event['cwd'] as string) : physical(resolve(event['cwd'] as string)),
-            path,
-          ),
-      actual = physical(target);
-    // With neither spelling under the root as a string, either may still reach it through another namespace, so both are
-    // placed by identity too (`anchored`); a rule found that way is held to the same alias check as any other.
-    const lexical = local(base, target),
-      physicalPath = local(base, actual),
-      spellings = [lexical, physicalPath];
-    if (lexical === undefined && physicalPath === undefined)
-      spellings.push(anchored(base, target), anchored(base, actual));
-    let read = false,
-      owned: Ownership | undefined;
-    const ownership = (): Ownership | undefined => {
-      if (!read) {
-        owned = projectionOwnership(base);
-        read = true;
-      }
-      return owned;
-    };
-    rule = spellings.reduce<Rule | undefined>((found, spelling) => found ?? protection(spelling, ownership), undefined);
-    const localSettings = spellings.includes('.claude/settings.local.json'),
-      projectSettings = spellings.includes('.claude/settings.json');
-    const sourceLauncher = spellings.includes('.claude/hooks/steward-write.mjs');
-    // A cached launcher can be outside the consumer root. Only the exact path in its owned guard marker is managed.
-    const possibleCacheLauncher = [target, actual].some((path) =>
-      fold(path).replaceAll('\\', '/').endsWith('/scripts/ia.mjs'),
-    );
-    if (localSettings || projectSettings || sourceLauncher || possibleCacheLauncher) {
-      const controls = contextSettingsManaged(base, localSettings),
-        sourceGuard = (localSettings || projectSettings || sourceLauncher) && sourceGuardRegistered(base);
-      const cacheLauncher =
-        possibleCacheLauncher &&
-        controls.launchers.some((path) =>
-          [target, actual].some((value) => fold(resolve(value)) === fold(resolve(path))),
+      ? resolve(path)
+      : resolve(
+          process.platform === 'win32' ? resolve(event['cwd'] as string) : physical(resolve(event['cwd'] as string)),
+          path,
         );
-      if (
-        (localSettings && controls.settings) ||
-        ((localSettings || projectSettings) && (controls.guard || sourceGuard)) ||
-        (sourceLauncher && sourceGuard) ||
-        cacheLauncher
-      )
-        rule = { projection: true };
-    }
-    if (rule !== undefined && !unaliased(target, actual))
-      throw new Error('Protected path has an aliased ancestor or target');
+    rule = place(placer(base), target);
     if (rule?.invalid) throw new Error('Cannot identify the owning system');
   } catch (error) {
-    return deny('IA-HOOK-PATH-UNSAFE', error instanceof Error ? error.message : String(error));
+    return deny('IA-HOOK-PATH-UNSAFE', reason(error));
   }
   if (rule?.projection)
     return deny(
@@ -513,31 +593,202 @@ export function evaluateHook(root: string, event: unknown, actorsPath?: string):
     );
   if (rule?.system === undefined) return {};
   try {
-    const db = openDatabase(base, { cache: false });
-    try {
-      const records = db.records();
-      const mapping = actorsPath === undefined ? undefined : actorMap(actorsPath, db.revision);
-      const host = event['agent_type'],
-        identity = typeof host === 'string' ? mapping?.get(host) : undefined;
-      const actors =
-        typeof host === 'string'
-          ? records.filter(
-              (r) =>
-                r.discriminator === 'agent' &&
-                (mapping === undefined ? r.name === host : identity !== undefined && r.identity === identity),
-            )
-          : [];
-      const decision = evaluateSteward(
-        records,
-        rule.system,
-        actors.length === 1 ? { kind: 'agent', identity: actors[0]!.identity } : undefined,
-      );
-      return decision.allowed ? {} : deny(decision.code!, decision.message);
-    } finally {
-      db.close();
-    }
+    const decision = stewards(base, event, actorsPath)(rule.system);
+    return decision.allowed ? {} : deny(decision.code!, decision.message);
   } catch (error) {
-    return deny('IA-HOOK-STEWARD-UNAVAILABLE', error instanceof Error ? error.message : String(error));
+    return deny('IA-HOOK-STEWARD-UNAVAILABLE', reason(error));
+  }
+}
+
+/** Locations a tree write (recursive, or a directory's contents) reaches when they sit inside the directory it names. */
+const ANCHORS = [
+  '.ia/src/systems',
+  '.ia/distributions.lock.json',
+  '.ia/distributions',
+  'CLAUDE.md',
+  'AGENTS.md',
+  '.claude/rules/ia-workspace.md',
+  '.claude/agents/steward.md',
+  '.claude/skills/ia-authoring/SKILL.md',
+  '.agents/skills/ia-authoring/SKILL.md',
+  '.codex/agents/steward.toml',
+  '.codex/config.toml',
+  '.claude/settings.local.json',
+  '.claude/settings.json',
+  '.claude/hooks/steward-write.mjs',
+];
+function within(dir: string, path: string): boolean {
+  const rel = relative(fold(resolve(dir)), fold(resolve(path)));
+  return rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith('..' + sep));
+}
+/** A path that cannot exist (a component is a file, or a name is too long) cannot be written: no rule applies to it. */
+function placeable(context: Place, path: string): Rule | undefined {
+  try {
+    return place(context, path);
+  } catch (error) {
+    if (['ENAMETOOLONG', 'ENOTDIR', 'EINVAL'].includes((error as NodeJS.ErrnoException).code ?? '')) return undefined;
+    throw error;
+  }
+}
+/** The rules a written path falls under: its own, or, for a tree write, those of every protected location inside it. */
+function protectedBy(context: Place, target: Target): { readonly rule: Rule; readonly path: string }[] {
+  const own = placeable(context, target.path);
+  if (own || !target.tree) return own ? [{ rule: own, path: target.path }] : [];
+  let real: string;
+  try {
+    real = physical(target.path);
+  } catch {
+    real = target.path;
+  }
+  // A tree that holds the whole project (`rm -rf ..`, a git work tree around it) reaches every protected location in it.
+  const prefixes =
+    within(target.path, context.base) || within(real, context.base)
+      ? ['']
+      : [local(context.base, target.path), local(context.base, real)].filter(
+          (path): path is string => path !== undefined,
+        );
+  const anchors = prefixes.length
+    ? [...ANCHORS, ...(context.ownership()?.files ?? [])]
+        .filter((anchor) =>
+          prefixes.some((prefix) => prefix === '' || fold(anchor) === prefix || fold(anchor).startsWith(prefix + '/')),
+        )
+        .map((anchor) => resolve(context.base, anchor))
+    : [];
+  anchors.push(...context.controls(true).launchers.filter((launcher) => within(target.path, launcher)));
+  return anchors.flatMap((anchor) => {
+    const rule = placeable(context, anchor);
+    return rule ? [{ rule, path: anchor }] : [];
+  });
+}
+/**
+ * File-writing calls the guard recognizes in inline code (Node, Python, Perl, Ruby, PowerShell and .NET), and calls that run
+ * other programs. Code with none of them is taken to read what it names.
+ */
+const WRITES =
+  /writeFile|appendFile|writeSync|createWriteStream|copyFile|cpSync|\bfs\.(?:rm|cp|rename|unlink|mkdir|truncate|chmod|chown|symlink|link|utimes)\b|rmSync|rmdir|unlinkSync|renameSync|mkdirSync|truncateSync|symlinkSync|(?<!std(?:out|err))\.write\s*\(|write_(?:text|bytes)|\bopen\s*\([^)]*['"](?:[wax]|r\+|>{1,2}|\+<)|os\.(?:remove|unlink|rename|replace|rmdir|removedirs|makedirs|mkdir|symlink|link|truncate|chmod)|shutil\.|\.(?:unlink|rename|touch|mkdir|rmdir)\s*\(|(?:json|pickle|yaml|toml)\.dump\s*\(|File\.(?:write|open|delete|rename|unlink)|\bunlink\b|WriteAll|AppendAll|\]::(?:Delete|Move|Copy|Replace|Create)|Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|New-Item|Rename-Item|Clear-Content|\.(?:Delete|MoveTo|CopyTo|Create)\s*\(|execSync|execFileSync|spawnSync|\bexec\s*\(|\bspawn\s*\(|\bsystem\s*\(|subprocess\.|child_process/i;
+/**
+ * Paths that code text (inline interpreter code) names, when the code writes files: path-like tokens; a protected location
+ * cut off by a computed prefix (`${root}/.ia/…`); and `.ia`, `src`, `systems` given as separate strings to be joined at run
+ * time, which name every system's records.
+ */
+function mentions(text: string, cwd: string | undefined, scope: Scope, writes: boolean): Target[] {
+  if (!writes && !WRITES.test(text)) return [];
+  const out: Target[] = [],
+    from = cwd ?? scope.root,
+    separator = scope.platform === 'win32' ? '[\\\\/]' : '/';
+  const cut = new RegExp(`^${separator}((?:\\.ia|\\.claude|\\.agents|\\.codex)${separator}.*)$`);
+  for (const [token] of text.matchAll(/[^\s'"`,;(){}[\]<>|=+*?!&$]+/g)) {
+    const path = token.replaceAll('\\\\', '/');
+    if (!/[\\/]/.test(path) && !/^(?:CLAUDE|AGENTS)\.md$/i.test(path)) continue;
+    out.push({ path: scope.resolve(from, path), tree: false });
+    const tail = cut.exec(path)?.[1];
+    if (tail !== undefined) out.push({ path: join(scope.root, tail), tree: false });
+  }
+  for (const [piece] of text.matchAll(
+    /\.ia(?:['"`]\s*[,+]\s*['"`]|[\\/])src(?:['"`]\s*[,+]\s*['"`]|[\\/])systems|\.ia['"`]\s*[,+]\s*['"`]distributions/gi,
+  )) {
+    if (/['"`]/.test(piece))
+      out.push({
+        path: join(scope.root, /systems$/i.test(piece) ? '.ia/src/systems' : '.ia/distributions'),
+        tree: false,
+      });
+  }
+  return out;
+}
+const shown = (base: string, path: string): string => {
+  const rel = relative(base, path);
+  return rel && !isAbsolute(rel) && rel !== '..' && !rel.startsWith('..' + sep) ? rel.replaceAll('\\', '/') : path;
+};
+/**
+ * Bash and PowerShell (#540): the command text is analyzed, never run (`shell.ts`, `powershell.ts`). Every path it shows
+ * written is placed as a file-tool edit of that path would be. Generated state is refused to everyone; a system's records
+ * only to anyone but its steward.
+ */
+function evaluateShell(
+  root: string,
+  event: Record<string, unknown>,
+  route: 'Bash' | 'PowerShell',
+  actorsPath: string | undefined,
+): HookOutput {
+  const command = (event['tool_input'] as Record<string, unknown>)['command'],
+    cwd = event['cwd'];
+  if (typeof command !== 'string' || !command.trim() || command.includes('\0'))
+    return deny('IA-HOOK-INPUT-INVALID', 'Expected a Bash or PowerShell command string');
+  if (typeof cwd !== 'string' || !isAbsolute(cwd))
+    return deny('IA-HOOK-INPUT-INVALID', 'Shell input requires an absolute cwd');
+  let base: string;
+  try {
+    base = fixedRoot(root);
+  } catch (error) {
+    return deny('IA-HOOK-PATH-UNSAFE', reason(error));
+  }
+  // A relative word lands where the kernel puts it, as for a file-tool path: from the directory's physical path on POSIX.
+  const real = new Map<string, string>();
+  const scope: Scope = {
+    route,
+    root: base,
+    platform: process.platform,
+    home: homedir(),
+    resolve(from, word) {
+      if (isAbsolute(word)) return resolve(word);
+      if (process.platform === 'win32') return resolve(from, word);
+      let directory = real.get(from);
+      if (directory === undefined) {
+        try {
+          directory = physical(resolve(from));
+        } catch {
+          directory = resolve(from);
+        }
+        real.set(from, directory);
+      }
+      return resolve(directory, word);
+    },
+  };
+  const session = new Session(scope, { bash: analyzeBash, powershell: analyzePowerShell });
+  try {
+    session.analyze(route === 'Bash' ? 'bash' : 'powershell', command, new State(resolve(cwd)), -1);
+  } catch (error) {
+    return deny(
+      'IA-HOOK-SHELL-UNRESOLVED',
+      `${route} command ${error instanceof Unresolved ? error.message : 'cannot be analyzed'}`,
+    );
+  }
+  const context = placer(base),
+    systems = new Map<string, string>(),
+    seen = new Set<string>();
+  for (const target of [
+    ...session.writes,
+    ...session.code.flatMap(({ text, cwd: from, writes }) => mentions(text, from, scope, writes)),
+  ]) {
+    const key = (target.tree ? '*' : '-') + target.path;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (seen.size > LIMITS.paths)
+      return deny('IA-HOOK-SHELL-UNRESOLVED', `${route} command names more than ${LIMITS.paths} paths`);
+    let rules: { readonly rule: Rule; readonly path: string }[];
+    try {
+      rules = protectedBy(context, target);
+    } catch (error) {
+      return deny('IA-HOOK-PATH-UNSAFE', reason(error));
+    }
+    for (const { rule, path } of rules) {
+      const writes = `${route} command writes ${shown(base, path)}`;
+      if (rule.projection) return deny('IA-HOOK-SHELL-WRITE', `${writes}: Use the owning command for generated state`);
+      if (rule.system === undefined) return deny('IA-HOOK-SHELL-WRITE', `${writes}: Cannot identify the owning system`);
+      if (!systems.has(rule.system)) systems.set(rule.system, path);
+    }
+  }
+  if (!systems.size) return {};
+  try {
+    const decide = stewards(base, event, actorsPath);
+    for (const [system, path] of systems) {
+      const decision = decide(system);
+      if (!decision.allowed)
+        return deny('IA-HOOK-SHELL-WRITE', `${route} command writes ${shown(base, path)}: ${decision.message}`);
+    }
+    return {};
+  } catch (error) {
+    return deny('IA-HOOK-STEWARD-UNAVAILABLE', reason(error));
   }
 }
 export function runHook(args: readonly string[], input: string): HookOutput {

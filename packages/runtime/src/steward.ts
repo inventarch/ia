@@ -8,6 +8,8 @@ export const HOOK_CODES = [
   'IA-HOOK-IDENTITY-UNAVAILABLE',
   'IA-HOOK-NOT-STEWARD',
   'IA-HOOK-PROJECTION-MANAGED',
+  'IA-HOOK-SHELL-WRITE',
+  'IA-HOOK-SHELL-UNRESOLVED',
 ] as const;
 export type HookCode = (typeof HOOK_CODES)[number];
 export type StewardActor = { readonly kind: 'operator' } | { readonly kind: 'agent'; readonly identity: string };

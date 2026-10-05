@@ -549,6 +549,97 @@ it('G1/G2: the built launcher denies a non-steward shell write with its own code
   );
   expect(await launch(base, 'git status')).toEqual({});
 });
+// Written with the fix rather than before it: routes the replay of real session commands and review turned up (#540).
+it.each<readonly [string, (base: string, outside: string) => string, 'deny' | 'allow']>([
+  ['zsh ** glob', () => 'rm .ia/**/*.ia', 'deny'],
+  ['a link to a record', (_base, outside) => `ln -s ${R} ${quoted(resolve(outside, 'alias'))}`, 'deny'],
+  ['a path handed to inline code', () => `node -e "require('fs').writeFileSync(process.argv[1], 'x')" ${R}`, 'deny'],
+  ['awk writing its input', () => `awk '{print > FILENAME}' ${R}`, 'deny'],
+  ['python open for writing', () => `python3 -c "open('${R}','w').write('x')"`, 'deny'],
+  ['perl in place', () => `perl -pi -e 's/a/b/' ${R}`, 'deny'],
+  ['find -exec sed -i', () => "find .ia/src/systems -name '*.ia' -exec sed -i 's/a/b/' {} +", 'deny'],
+  ['find | xargs sed -i', () => "find .ia/src/systems -name '*.ia' | xargs sed -i 's/a/b/'", 'deny'],
+  ['a for loop over a glob', () => `for f in .ia/src/systems/agent-system/*.ia; do sed -i 's/a/b/' "$f"; done`, 'deny'],
+  ['a variable', () => `F=${R}; echo x > "$F"`, 'deny'],
+  ['$(pwd)', () => `echo x > "$(pwd)/${R}"`, 'deny'],
+  ['a computed prefix', () => `echo x > "$UNSET_ROOT/${R}"`, 'deny'],
+  ['bash -c', () => `bash -c 'echo x > ${R}'`, 'deny'],
+  ['a here-document script', () => `sh <<'EOF'\necho x > ${R}\nEOF`, 'deny'],
+  ['eval', () => `eval "echo x > ${R}"`, 'deny'],
+  ['git apply < patch', () => 'git apply < fix.patch', 'deny'],
+  ['git reset --hard', () => 'git reset --hard', 'deny'],
+  ['git clean', () => 'git clean -fdx', 'deny'],
+  ['tar -x into a system', () => 'tar -xf a.tar -C .ia/src/systems/agent-system', 'deny'],
+  [
+    'cp into a records folder',
+    (_base, outside) => `cp -r ${quoted(resolve(outside, 'x'))} .ia/src/systems/agent-system/records/`,
+    'deny',
+  ],
+  ['read-only inline code', () => `node -e "console.log(require('fs').readFileSync('${R}', 'utf8'))"`, 'allow'],
+  ['read-only python', () => `python3 -c "import sys; print(open('${R}').read())"`, 'allow'],
+  ['a URL that contains a path', () => `gh api "repos/x/y/contents/${R}"`, 'allow'],
+  [
+    'branch switches and pulls',
+    () => 'git checkout main && git switch -c feature && git pull && git stash list',
+    'allow',
+  ],
+  ['a loop over words', () => 'for f in a b; do echo "$f"; done', 'allow'],
+  ['the home Claude settings', () => 'cat ~/.claude/settings.json && ls ~/.claude/projects', 'allow'],
+  ['copying a record out', (_base, outside) => `cp ${R} ${quoted(resolve(outside, 'backup.ia'))}`, 'allow'],
+  ['a recursive write above the root', () => 'rm -rf ..', 'deny'],
+])('pins the Bash route: %s (#540)', (_label, command, expected) => {
+  const { base, outside } = copy();
+  const output = evaluateHook(base, shell(base, command(base, outside)));
+  if (expected === 'allow') expect(output).toEqual({});
+  else expect(reason(output)?.split(':')[0]).toBe('IA-HOOK-SHELL-WRITE');
+});
+it.each<readonly [string, (base: string, outside: string) => string, 'deny' | 'allow']>([
+  ['a variable', () => `$p = '${R}'; Remove-Item $p`, 'deny'],
+  [
+    'Set-Location, then a relative path',
+    () => 'Set-Location .ia/src/systems/governance-system; Set-Content records/authoring-ia.ia x',
+    'deny',
+  ],
+  ['a .NET call', () => `[IO.File]::WriteAllText('${R}', 'x')`, 'deny'],
+  ['pwsh -Command', () => `pwsh -Command "Remove-Item ${R}"`, 'deny'],
+  ['Invoke-Expression', () => `Invoke-Expression "Remove-Item ${R}"`, 'deny'],
+  ['Get-ChildItem piped into Remove-Item', () => 'Get-ChildItem .ia/src/systems -Recurse | Remove-Item', 'deny'],
+  [
+    'a ForEach-Object block over found files',
+    () => 'Get-ChildItem .ia/src/systems -Filter *.ia -Recurse | ForEach-Object { Set-Content $_ x }',
+    'deny',
+  ],
+  ['a recursive removal', () => 'Remove-Item .ia/src/systems/agent-system -Recurse -Force', 'deny'],
+  [
+    'New-Item with -Name',
+    () => 'New-Item -Path .ia/src/systems/governance-system/records -Name n.ia -ItemType File',
+    'deny',
+  ],
+  ['cmd /c del', () => `cmd /c "del ${R}"`, 'deny'],
+  ['bash -c from PowerShell', () => `bash -c 'rm ${R}'`, 'deny'],
+  ['Get-Content piped into Select-String', () => `Get-Content ${R} | Select-String steward`, 'allow'],
+  ['Get-ChildItem piped into Measure-Object', () => 'Get-ChildItem .ia/src/systems -Recurse | Measure-Object', 'allow'],
+  ['git log', () => 'git log --oneline -- .ia/src/systems', 'allow'],
+  ['a variable holding content', () => `$c = Get-Content ${R}; $c.Length`, 'allow'],
+  ['copying a record out', (_base, outside) => `Copy-Item ${R} ${quoted(resolve(outside, 'backup.ia'))}`, 'allow'],
+])('pins the PowerShell route: %s (#540)', (_label, command, expected) => {
+  const { base, outside } = copy();
+  const output = evaluateHook(base, shell(base, command(base, outside), {}, 'PowerShell'));
+  if (expected === 'allow') expect(output).toEqual({});
+  else expect(reason(output)?.split(':')[0]).toBe('IA-HOOK-SHELL-WRITE');
+});
+it('pins a whole-tree git discard from a work tree that holds the project, for the owner too (#540)', () => {
+  // The git work tree is the directory above the project: `git reset --hard` there reaches every system's records.
+  const outer = temp(),
+    base = resolve(outer, 'workspace');
+  mkdirSync(resolve(outer, '.git'));
+  cpSync(fixture, base, { recursive: true });
+  for (const extra of [{}, { agent_type: 'governance-steward' }])
+    expect(reason(evaluateHook(base, shell(base, 'git reset --hard', extra)))?.split(':')[0]).toBe(
+      'IA-HOOK-SHELL-WRITE',
+    );
+  expect(evaluateHook(base, shell(base, 'git status'))).toEqual({});
+});
 it('R2: keeps its fixed source registration and both settings layers protected under the widened matcher (#540)', async () => {
   const base = temp();
   mkdirSync(resolve(base, '.claude/hooks'), { recursive: true });
