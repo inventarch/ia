@@ -1,0 +1,48 @@
+#! ia 1.0
+
+@decision coordinated-npm-release
+  meaning
+    says "All public npm packages participate in the same explicitly selected release version, with exact package dependencies and a reviewed changeset."
+  work
+    title "Coordinate the public npm cohort"
+    status made
+    owner "inventarch"
+    start "2026-10-05"
+    ended "2026-10-05"
+    source "releases/current.json"
+  decision
+    question "How is the next npm cohort versioned and reviewed?"
+    decider "Release maintainer"
+    choice "Select 1.1.0 for all 21 npm packages, require complete package and changed-file coverage, and preserve independent native and protocol versions."
+    rationale "The user requested mandatory release hygiene and then corrected the target to 1.1.0 because npm publication had not occurred. The registry was checked before version application."
+    constraints ["Uniform versions do not remove dependency cycles; the actual packed graph and its complete reviewed cycle groups must be validated.", "Human review assesses the accuracy of release prose; byte and coverage checks establish freshness and completeness only.", "This work prepares a pull request. Merge, tags, npm publication, trust configuration and deployment require a separate publication checkpoint."]
+
+@plan npm-release-hygiene
+  meaning
+    says "Prepare a complete and reviewable npm release from one source revision and exact qualified archives."
+  work
+    title "Qualify the coordinated npm cohort"
+    status open
+    owner "inventarch"
+    start "2026-10-05"
+
+@milestone npm-release-prepared
+  meaning
+    says "Release notes, exact package versions, packed closure, consumers and platform checks are qualified before publication."
+  work
+    title "Release candidate qualified"
+    status open
+    plan @plan npm-release-hygiene
+    exit "The follow-up PR has complete change coverage and passing qualification for its exact source. Registry setup and actual publication remain explicit blockers."
+
+@task npm-release-hygiene-checks
+  meaning
+    says "Implement mandatory changesets, exact cohort validation, cycle-aware publication planning, installed native-data checks and registry completion verification."
+  work
+    title "Implement release hygiene"
+    status open
+    milestone @milestone npm-release-prepared
+    owner "inventarch"
+    source "tools/distribution/NPM-PUBLISHING.md"
+  relationships
+    requires @decision coordinated-npm-release

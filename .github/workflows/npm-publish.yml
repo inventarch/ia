@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Stable version declared by all public packages (for example 1.0.0)
+        description: Exact coordinated version in releases/current.json (for example 1.1.0)
         required: true
         type: string
+      reviewed_changeset_sha256:
+        description: SHA256 of the release changeset reviewed against the complete diff; required to publish
+        type: string
+        default: ''
       publish:
         description: Publish qualified packages using npm trusted publishing
         type: boolean
@@ -31,6 +35,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Require successful cross-platform quality for this exact commit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,6 +64,8 @@ jobs:
           echo "$RUNNER_TEMP/npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
           pnpm install --frozen-lockfile
           pnpm audit --audit-level=moderate
+      - name: Validate the coordinated version and reviewed changeset coverage
+        run: pnpm release:check
       - name: Build, qualify and retain the exact npm tarballs
         run: pnpm npm:prepare
       - name: Install with npm 12 security defaults and exercise the CLI
@@ -87,6 +94,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: '22.22.2'
@@ -101,7 +109,39 @@ jobs:
           path: artifacts/npm
       # No workspace install or build in this job. Only npm receives the OIDC identity;
       # packages are published from the exact tarballs exercised by prepare.
-      - name: Publish with OIDC and provenance
+      - name: Preflight and publish the complete reviewed cohort with OIDC
         env:
           RELEASE_VERSION: ${{ inputs.version }}
-        run: node tools/distribution/npm-release.mjs publish --version "$RELEASE_VERSION"
+          REVIEWED_CHANGESET: ${{ inputs.reviewed_changeset_sha256 }}
+        run: node tools/distribution/npm-release.mjs publish --version "$RELEASE_VERSION" --reviewed-changeset "$REVIEWED_CHANGESET"
+
+  verify:
+    if: inputs.publish
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.2'
+          package-manager-cache: false
+      - name: Install the pinned verification CLI
+        run: |
+          npm install --prefix "$RUNNER_TEMP/npm-cli" --no-save --package-lock=false --ignore-scripts npm@12.2.0
+          echo "$RUNNER_TEMP/npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-release-${{ github.sha }}
+          path: artifacts/npm
+      - name: Verify every registry version, exact archive, latest tag and provenance
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          node tools/distribution/npm-release.mjs verify-registry --version "$RELEASE_VERSION"
+          node tools/distribution/npm-registry-consumer.mjs

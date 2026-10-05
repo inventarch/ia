@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { Door } from '@inventarch/runtime';
 import { OPERATIONS, TOOLS } from './tools.js';
 import { compactContext } from './presentation.js';
 import { vocabulary } from './vocabulary.js';
 
 export const PROTOCOL_VERSION = '2025-11-25';
+const PACKAGE_VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 type Id = string | number | null;
 export interface Response {
   readonly jsonrpc: '2.0';
@@ -71,7 +73,7 @@ export class Protocol {
         return success({
           protocolVersion: PROTOCOL_VERSION,
           capabilities: { tools: {} },
-          serverInfo: { name: 'ia-mcp-door', version: '0.1.0' },
+          serverInfo: { name: 'ia-mcp-door', version: PACKAGE_VERSION },
           instructions:
             'Declare phase and primitive for context/selection. Scope tokens live only in this server process. These tools read; selection grants no execution permission.',
         });
