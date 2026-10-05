@@ -1,4 +1,14 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -10,13 +20,16 @@ import {
   currentGuardForm,
   FAIL_CLOSED,
   FAIL_CLOSED_ACCEPTED,
+  GUARD_MATCHER,
+  GUARD_MATCHERS_ACCEPTED,
   guardGroup,
   guardNode,
   planGuardFor,
   planGuardRegistration,
   recoverGuardRegistration,
+  registeredGuardMatcher,
 } from '../src/guard-registration.js';
-import { doorServer, expectedHostCache, nodeCommand, recoverHost } from '../src/host.js';
+import { acquireHostRegistrationLock, doorServer, expectedHostCache, nodeCommand, recoverHost } from '../src/host.js';
 import { recoverLifecycleRegistration } from '../src/lifecycle-registration.js';
 import { runNative } from '../src/native-command.js';
 
@@ -81,6 +94,65 @@ it('routes Bash, PowerShell and NotebookEdit to the guard alongside the file too
     expect(matcher).toBe('Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell');
     expect(matcher.split('|')).toEqual(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'PowerShell']);
   }
+});
+it('pins every guard matcher a release has written, the current one first (#540)', () => {
+  // Literal strings, not the constants: dropping a matcher a release wrote would strand every registration made with it,
+  // which plan, remove and doctor would then refuse as not IA's.
+  expect(GUARD_MATCHERS_ACCEPTED).toEqual([
+    'Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell',
+    'Write|Edit|MultiEdit',
+  ]);
+  expect(GUARD_MATCHER).toBe(GUARD_MATCHERS_ACCEPTED[0]);
+});
+it('reads the registered guard matcher without the host lock or a write, and refuses an unreadable state (#540)', () => {
+  const root = temp(),
+    cache = cacheV2(),
+    statePath = '.ia/distributions/hosts/claude-guard-workspace.json',
+    area = resolve(root, '.ia/distributions/hosts');
+  expect(registeredGuardMatcher(root)).toBeNull();
+  applyGuardRegistration(planGuardRegistration(root, { cache }));
+  expect(registeredGuardMatcher(root)).toBe('Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell');
+  // As registered before #540: the textual downgrade the upgrade test below uses.
+  for (const path of [settings, statePath])
+    put(
+      root,
+      path,
+      readFileSync(resolve(root, path), 'utf8').replace(
+        '"Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell"',
+        '"Write|Edit|MultiEdit"',
+      ),
+    );
+  // While another transaction holds the host lock, the read still answers and leaves the settings and the hosts area as they were.
+  const snapshot = () => [
+    readFileSync(resolve(root, settings), 'utf8'),
+    ...readdirSync(area)
+      .sort()
+      .map((name) => [name, readFileSync(resolve(area, name), 'utf8')]),
+  ];
+  const unlock = acquireHostRegistrationLock(root);
+  try {
+    const before = snapshot();
+    expect(registeredGuardMatcher(root)).toBe('Write|Edit|MultiEdit');
+    expect(snapshot()).toEqual(before);
+  } finally {
+    unlock();
+  }
+  // A state naming a matcher no release wrote, or one that does not parse, refuses with its code, located at the state file.
+  const raised = (text: string): unknown => {
+    put(root, statePath, text);
+    try {
+      registeredGuardMatcher(root);
+    } catch (error) {
+      return error;
+    }
+    return undefined;
+  };
+  const state = readFileSync(resolve(root, statePath), 'utf8');
+  expect(raised(state.replace('"Write|Edit|MultiEdit"', '"Write|Edit"'))).toMatchObject({
+    code: 'IA-DIST-INPUT-INVALID',
+    path: statePath,
+  });
+  expect(raised('garbage\n')).toMatchObject({ code: 'IA-DB-SOURCE-UNAVAILABLE', path: statePath });
 });
 it('refuses a modified owned group, disabled hooks and recovers an interrupted apply', () => {
   const root = temp(),

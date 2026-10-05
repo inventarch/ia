@@ -29,7 +29,14 @@ const hash = (value: unknown): string => {
 const statePath = (id: string): string => `${area}/claude-guard-${identity(id)}.json`;
 /** Containers on the owned path; those that existed before the first apply are retained as `existing` and never pruned. */
 const containers: readonly JsonPath[] = [['hooks'], ['hooks', 'PreToolUse']];
-const GUARD_MATCHER = 'Write|Edit|MultiEdit';
+/** The tools `guardGroup` registers the guard for: the file tools, NotebookEdit, Bash and PowerShell (#540). */
+export const GUARD_MATCHER = 'Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell';
+/**
+ * Every matcher a released `guardGroup` has written, the current one first. A registration made with an earlier one stays an
+ * owned registration, so plan, remove and doctor still read it, and re-applying rewrites it in place; a matcher this list does
+ * not hold is not one IA wrote. A change to `GUARD_MATCHER` MUST keep the previous matcher here.
+ */
+export const GUARD_MATCHERS_ACCEPTED: readonly string[] = [GUARD_MATCHER, 'Write|Edit|MultiEdit'];
 export type GuardRequest = { readonly cache: string } | { readonly remove: string };
 interface Side {
   readonly config: string | null;
@@ -94,8 +101,8 @@ export function guardGroup(launcher: string, root: string, platform: NodeJS.Plat
   };
 }
 /**
- * The retained group must be the fixed guard derivation for its cache and root, in either form (`guardNode`); the
- * recorded Node executable is kept as written. Exported for `host-observe.ts`, which reuses this real validator rather than a weaker local
+ * The retained group must be the fixed guard derivation for its cache and root, in either form (`guardNode`), under any
+ * matcher in `GUARD_MATCHERS_ACCEPTED`; the recorded Node executable is kept as written. Exported for `host-observe.ts`, which reuses this real validator rather than a weaker local
  * copy so observation can never drift from what `planGuardRegistration`/`applyGuardRegistration` themselves accept.
  */
 export function saved(content: string | null, root: string, id: string): State | null {
@@ -120,7 +127,12 @@ export function saved(content: string | null, root: string, id: string): State |
     fail('INPUT-INVALID', 'Invalid guard ownership state');
   hash(row['release']);
   const group = object(row['group'], ['matcher', 'hooks']);
-  if (group['matcher'] !== GUARD_MATCHER || !Array.isArray(group['hooks']) || group['hooks'].length !== 1)
+  if (
+    typeof group['matcher'] !== 'string' ||
+    !GUARD_MATCHERS_ACCEPTED.includes(group['matcher']) ||
+    !Array.isArray(group['hooks']) ||
+    group['hooks'].length !== 1
+  )
     fail('INPUT-INVALID', 'Invalid owned guard hook group');
   const handler = object(group['hooks'][0], ['type', 'command', 'args', 'timeout']),
     launcher = join(row['cache'], 'scripts/ia.mjs'),
@@ -134,6 +146,16 @@ export function saved(content: string | null, root: string, id: string): State |
     fail('INPUT-INVALID', 'Owned guard command differs from its fixed root');
   keptPaths(row['existing'], containers);
   return row as unknown as State;
+}
+/**
+ * The matcher of this workspace's owned guard registration, or null when none is owned; an unreadable state throws (#540).
+ * It reads only the ownership state, validated by `saved`: it takes no host lock, writes nothing, and reads neither the
+ * settings group nor a pending journal.
+ */
+export function registeredGuardMatcher(rootInput: string): string | null {
+  const root = workspace(rootInput),
+    path = statePath(HOST_REGISTRATION);
+  return locate(path, () => saved(read(root, path), root, HOST_REGISTRATION))?.group.matcher ?? null;
 }
 export function planGuardRegistration(rootInput: string, request: GuardRequest): GuardPlan {
   const root = workspace(rootInput);

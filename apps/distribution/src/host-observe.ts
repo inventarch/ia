@@ -11,7 +11,7 @@ import {
   saved as readHostState,
   verifyHostCache,
 } from './host.js';
-import { currentGuardForm, guardNode, saved as readGuardState } from './guard-registration.js';
+import { currentGuardForm, GUARD_MATCHER, guardNode, saved as readGuardState } from './guard-registration.js';
 import type { WorkspaceHost as Host } from './hosts.js';
 import { WORKSPACE_HOSTS, workspaceRow } from './hosts.js';
 
@@ -223,8 +223,10 @@ export function observeHosts(rootInput: string, currentRelease: string | null): 
             node = recordedNode(guardNode(handler, join(guard.cache, 'scripts/ia.mjs'), root));
           if (node === 'modified') stale('guard-modified');
           else if (node === 'missing') stale('node-missing');
-          // An owned group in a form this release no longer writes (the fail-open direct form on POSIX, an earlier script).
-          if (node !== 'modified' && !currentGuardForm(handler)) stale('guard-form');
+          // An owned group in a form this release no longer writes (the fail-open direct form on POSIX, an earlier script, an
+          // earlier matcher in `GUARD_MATCHERS_ACCEPTED`).
+          if (node !== 'modified' && (guard.group.matcher !== GUARD_MATCHER || !currentGuardForm(handler)))
+            stale('guard-form');
           // The guard pins its own cache/release independently of the mcp element; the two can drift apart (e.g. one re-applied, the other not).
           if (guard.release !== state.release) reasons.push('guard-release');
           if (!existsSync(join(guard.cache, 'scripts/ia.mjs'))) reasons.push('guard-launcher');
