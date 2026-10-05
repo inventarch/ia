@@ -398,7 +398,10 @@ it('refuses every invalid selected closure with no registry effects, on an empty
     'unrelated release in the lock': () => ({
       dir: '',
       archive: input(product),
-      selection: closure([language, product, other], [...requests, { id: other.manifest.id, range: '0.1.0' }]),
+      selection: closure(
+        [language, product, other],
+        [...requests, { id: other.manifest.id, range: other.manifest.version }],
+      ),
     }),
     'target file is not the selected target': () => ({ dir: '', archive: input(undeclared), selection: good }),
     'target absent from the lock': () => ({ dir: '', archive: input(product), selection: languageOnly }),
@@ -505,7 +508,7 @@ for (const mode of [
     const other = publish({ ...language.manifest, id: 'inventarch/unrelated-language' }, language.files);
     const installed = async (extra: boolean) => {
       const source = fresh(),
-        roots = extra ? [...requests, { id: other.manifest.id, range: '0.1.0' }] : requests,
+        roots = extra ? [...requests, { id: other.manifest.id, range: other.manifest.version }] : requests,
         dir = registry(extra ? [...releases, other] : releases);
       const acquired = await resolveFromRegistries({
         root: source,

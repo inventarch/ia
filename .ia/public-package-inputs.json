@@ -90,7 +90,7 @@
       "private": false
     }
   },
-  "sourceRevision": "e66cf7d93cd915cde14f840332ee34fffe6b7af7",
+  "sourceRevision": "4ce033e9a2134332c1dd3a93d2e1faea37c41f54",
   "baselineOverlay": {
     "format": "ia.public-baseline-overlay.v1",
     "baseline": {
@@ -750,13 +750,13 @@
     }
   },
   "provenance": {
-    "sourceTree": "728725c8992649a59c2acda58cef6cee3a594edd",
+    "sourceTree": "2f86834cdb7ba43106202a16d9f94f026558ae52",
     "sourceDirty": false,
-    "sourceInputsSha256": "9cdcc003162ecc4313f5534c2f17a606510d62aefd0430b48851a1b348bf60a8",
+    "sourceInputsSha256": "2169d6c542c4abbb37e9102786d0c3182fcc726fb85ebf222c68ac11840fd1f4",
     "recipe": [
       {
         "path": "tools/release/export.mjs",
-        "sha256": "5534aadb04ef3c79ee0bf70859eb0b1f7a60f597ce91504adf5d059e066896d3"
+        "sha256": "63af42586017249ed6e86d09aa898ffecdba5382e6c005a9932f8525f79f1652"
       },
       {
         "path": "tools/release/public/baseline-overlay.mjs",
@@ -804,7 +804,7 @@
       },
       {
         "path": "tools/release/shared/task-migration.json",
-        "sha256": "9ab25aeab22d1bc913fba2c0b0a9877688e5fc7710ed727c41eeab09f760f148"
+        "sha256": "ed0f9e401d27e2598afe796021a54092decaf0dbd6076e02288b9275b0cad75a"
       },
       {
         "path": "tools/release/public/biome.public.json",
@@ -2995,7 +2995,7 @@
     },
     {
       "path": "apps/distribution/tests/registry-selected.test.ts",
-      "sha256": "273de87292fe12bf2f295a819f1e88ba15eefa65a375cedf9a8f5e73a5f73428"
+      "sha256": "11189234dc2cd7f5270849a2721c45771a2734352ccc49d8be0c2d3ef1313d0d"
     },
     {
       "path": "apps/distribution/tests/registry-source.test.ts",
@@ -7507,7 +7507,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "10db5553f3da7a9be59c94be82230c4ab44b7142f6b778b9bc36de6777247b87"
+      "sha256": "9874efa8aa0ae29dbf339a77de931af7053d27e12abb5e9ae4cbbe4a95ec3975"
     },
     {
       "path": "tools/testing/timeouts.ts",
