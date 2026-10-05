@@ -113,9 +113,11 @@ describe('renderWorkspaceProjection', () => {
       rules.text.indexOf('## Systems and stewards'),
       rules.text.indexOf('## Installed distributions'),
     );
+    // #540: it names the routes the guard judges and the one it cannot see, and no longer claims every edit is refused.
     expect(systems).toContain(
-      "\n\nWhen the steward guard is registered, edits under .ia/src/systems/<name>/ are accepted only from that system's steward subagent.\n\n",
+      "\n\nWhen the steward guard is registered, it refuses changes under .ia/src/systems/<name>/ that do not come from that system's steward subagent. It checks the file tools (Write, Edit, MultiEdit, NotebookEdit) and the writes that a Bash or PowerShell command's own text shows, inline code included. It cannot see a path that a program works out while it runs, so ask the steward for such changes.\n\n",
     );
+    expect(rules.text).not.toContain('are accepted only from that system');
     const skill = result.artifacts.find((a) => a.path === '.claude/skills/ia-authoring/SKILL.md')!;
     expect(skill.text).toContain('ia vocabulary');
     expect(skill.text).toContain('ia validate');
@@ -127,6 +129,21 @@ describe('renderWorkspaceProjection', () => {
     expect(steward.text).toContain('requires: Use the owning schema');
     expect(Object.isFrozen(result.artifacts[0])).toBe(true);
     expect(Object.isFrozen(result.artifacts)).toBe(true);
+  });
+
+  it('narrows the guard sentence to the file tools while the registration still routes only them (#540)', () => {
+    // A guard registered before #540 routes Write, Edit and MultiEdit only: the rules claim no more until `ia host claude --apply` re-registers it.
+    const result = renderWorkspaceProjection(
+      records,
+      revision,
+      baseMembership,
+      Object.assign({}, input, { guard: 'files' }),
+    );
+    const rules = result.artifacts.find((a) => a.path === '.claude/rules/ia-workspace.md')!;
+    expect(rules.text).toContain(
+      "\n\nWhen the steward guard is registered, it refuses changes under .ia/src/systems/<name>/ that do not come from that system's steward subagent. This workspace registered it for the file tools Write, Edit and MultiEdit only, so it does not see NotebookEdit, Bash or PowerShell; run ia host claude --apply to register it for them.\n\n",
+    );
+    expect(rules.text).not.toContain("command's own text");
   });
 
   it('renders the codex artifact set: AGENTS.md and the codex skill, no subagent files', () => {

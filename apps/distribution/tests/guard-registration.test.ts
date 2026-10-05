@@ -62,7 +62,7 @@ it('registers one PreToolUse group with an explicit root and removes exactly it'
   // POSIX runs the guard through /bin/sh so that a guard that cannot run denies (#323); win32 has no /bin/sh.
   const direct = [join(cache, 'scripts/ia.mjs'), 'guard', '--root', root];
   expect(after.hooks.PreToolUse[1]).toEqual({
-    matcher: 'Write|Edit|MultiEdit',
+    matcher: 'Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell',
     hooks: [
       process.platform === 'win32'
         ? { type: 'command', command: nodeCommand(), args: direct, timeout: 10 }
@@ -71,6 +71,16 @@ it('registers one PreToolUse group with an explicit root and removes exactly it'
   });
   expect(applyGuardRegistration(planGuardRegistration(root, { remove: 'workspace' })).status).toBe('guard-removed');
   expect(readFileSync(resolve(root, settings), 'utf8')).toBe(json(unrelated));
+});
+it('routes Bash, PowerShell and NotebookEdit to the guard alongside the file tools (#540)', () => {
+  // Letters and `|` only: Claude Code matches each listed tool by its exact name, so the list is pinned name by name.
+  const launcher = join(temp(), 'scripts', 'ia.mjs'),
+    root = temp();
+  for (const platform of ['linux', 'darwin', 'win32'] as const) {
+    const { matcher } = guardGroup(launcher, root, platform);
+    expect(matcher).toBe('Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell');
+    expect(matcher.split('|')).toEqual(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'PowerShell']);
+  }
 });
 it('refuses a modified owned group, disabled hooks and recovers an interrupted apply', () => {
   const root = temp(),
@@ -410,6 +420,65 @@ it('keeps reading a guard registered in the direct form, and re-applying writes 
   expect(JSON.parse(readFileSync(resolve(root, settings), 'utf8')).hooks.PreToolUse).toEqual([
     guardGroup(launcher, root),
   ]);
+});
+it('upgrades a registration made with the file-tool matcher in place, and removal restores the prior settings exactly (#540)', () => {
+  const cache = cacheV2(),
+    statePath = '.ia/distributions/hosts/claude-guard-workspace.json';
+  const original = pretty(
+    {
+      permissions: { deny: [], allow: ['Bash(ls)'] },
+      hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo' }] }], PostToolUse: [] },
+      env: { Z: '1', A: '2' },
+    },
+    2,
+    '\r\n',
+  );
+  const bytes = (root: string) =>
+    [settings, statePath].map((path) =>
+      existsSync(resolve(root, path)) ? readFileSync(resolve(root, path), 'utf8') : null,
+    );
+  const matchers = (root: string) => [
+    JSON.parse(readFileSync(resolve(root, settings), 'utf8')).hooks.PreToolUse.map(
+      (group: { matcher: string }) => group.matcher,
+    ),
+    JSON.parse(readFileSync(resolve(root, statePath), 'utf8')).group.matcher,
+  ];
+  // As registered before #540: the group a fresh apply writes, with only the file tools routed to it; every other byte as written.
+  const registerOld = (root: string): (string | null)[] => {
+    put(root, settings, original);
+    applyGuardRegistration(planGuardRegistration(root, { cache }));
+    const written = bytes(root);
+    for (const path of [settings, statePath])
+      put(
+        root,
+        path,
+        readFileSync(resolve(root, path), 'utf8').replace(
+          '"Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell"',
+          '"Write|Edit|MultiEdit"',
+        ),
+      );
+    expect(matchers(root)).toEqual([['Bash', 'Write|Edit|MultiEdit'], 'Write|Edit|MultiEdit']);
+    return written;
+  };
+  const root = temp(),
+    reference = registerOld(root);
+  // The old-matcher registration is still owned: its removal plan restores the original bytes, and applying it in a second
+  // workspace registered the same way does.
+  expect(planGuardRegistration(root, { remove: 'workspace' }).after).toEqual({ config: original, state: null });
+  const other = temp();
+  registerOld(other);
+  expect(applyGuardRegistration(planGuardRegistration(other, { remove: 'workspace' })).status).toBe('guard-removed');
+  expect(bytes(other)).toEqual([original, null]);
+  // Re-applying rewrites the group where it stands, after the sibling: settings and state end as a fresh apply writes them.
+  expect(applyGuardRegistration(planGuardRegistration(root, { cache })).status).toBe('guard-registered');
+  expect(matchers(root)).toEqual([
+    ['Bash', 'Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell'],
+    'Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell',
+  ]);
+  expect(bytes(root)).toEqual(reference);
+  // Removal then restores the original settings exactly and deletes the ownership state.
+  expect(applyGuardRegistration(planGuardRegistration(root, { remove: 'workspace' })).status).toBe('guard-removed');
+  expect(bytes(root)).toEqual([original, null]);
 });
 it("records a Homebrew keg's stable link in the MCP entry and the guard, whichever form it takes (#323)", () => {
   const prefix = temp(),

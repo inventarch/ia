@@ -337,6 +337,50 @@ it('reports a guard group in a form this release no longer writes as guard-form,
     guardGroup(launcher, root),
   ]);
 });
+it('reports a guard group with the file-tool matcher as guard-form, and re-applying rewrites it (#540)', () => {
+  const root = temp(),
+    cache = cacheV2(),
+    launcher = join(cache, 'scripts/ia.mjs'),
+    settings = '.claude/settings.local.json',
+    statePath = '.ia/distributions/hosts/claude-guard-workspace.json';
+  applyHost(planHost(root, 'claude', cache));
+  applyGuardRegistration(planGuardRegistration(root, { cache }));
+  // As registered before #540: the group a fresh apply writes on this platform, with only the file tools routed to it.
+  for (const path of [settings, statePath])
+    put(
+      root,
+      path,
+      readFileSync(resolve(root, path), 'utf8').replace(
+        '"Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell"',
+        '"Write|Edit|MultiEdit"',
+      ),
+    );
+  const matchers = () => [
+    JSON.parse(readFileSync(resolve(root, settings), 'utf8')).hooks.PreToolUse.map(
+      (group: { matcher: string }) => group.matcher,
+    ),
+    JSON.parse(readFileSync(resolve(root, statePath), 'utf8')).group.matcher,
+  ];
+  expect(matchers()).toEqual([['Write|Edit|MultiEdit'], 'Write|Edit|MultiEdit']);
+  const observe = () =>
+    observeHosts(root, release(cache)).map(({ host, status, reasons, elements }) => ({
+      host,
+      status,
+      reasons,
+      elements,
+    }));
+  // Still owned and still the platform's current handler, so neither modified nor invalid: only the routing is out of date.
+  expect(observe()).toEqual([{ host: 'claude', status: 'stale', reasons: ['guard-form'], elements: ['mcp', 'hooks'] }]);
+  applyGuardRegistration(planGuardRegistration(root, { cache }));
+  expect(observe()).toEqual([{ host: 'claude', status: 'registered', reasons: [], elements: ['mcp', 'hooks'] }]);
+  expect(matchers()).toEqual([
+    ['Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell'],
+    'Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell',
+  ]);
+  expect(JSON.parse(readFileSync(resolve(root, settings), 'utf8')).hooks.PreToolUse).toEqual([
+    guardGroup(launcher, root),
+  ]);
+});
 it('reports node-missing when the recorded Node executable is gone, and re-applying records the running one', () => {
   const root = temp(),
     cache = cacheV2(),

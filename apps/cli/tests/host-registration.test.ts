@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { GUARD_SCOPE, MACHINE_LOCAL, rootedNext } from '../src/host.js';
+import { renderProjectionFor } from '../src/host-projection.js';
 import { cli, run, scratch } from './workspace-fixture.js';
 import { put, read, initialized, host, human, element } from './host-fixture.js';
 import { afterAll, expect, it, vi } from 'vitest';
@@ -154,8 +155,9 @@ it('prints the machine-local sentence and never claims an observation', async ()
   expect(applied.stdout).toContain('written; not observed answering');
   expect(applied.stdout.replace(/\s+/g, ' ')).toContain(MACHINE_LOCAL.claude);
   // Operator decision 2026-09-23: the guard's scope is disclosed wherever the hooks element is registered, and only there.
+  // #540: it names every route the guard judges and the one it cannot see, and claims nothing more.
   expect(GUARD_SCOPE).toBe(
-    "The steward guard denies file-tool edits to the files ia host owns and to records under .ia/src/systems/<name>/ unless the edit comes from that system's steward subagent (<name>-steward).",
+    "The steward guard denies changes to the files ia host owns and to records under .ia/src/systems/<name>/ unless they come from that system's steward subagent (<name>-steward). It checks file-tool edits and the writes a Bash or PowerShell command's own text shows, inline code included; it cannot see paths a program works out while it runs.",
   );
   expect(preview.stdout.replace(/\s+/g, ' ')).toContain(GUARD_SCOPE);
   expect(applied.stdout.replace(/\s+/g, ' ')).toContain(GUARD_SCOPE);
@@ -195,11 +197,12 @@ it('preserves unrelated settings and CLAUDE.md byte for byte, then removes exact
   expect(read(root, '.mcp.json')).toContain('"other": {\r\n      "command": "x"\r\n    }');
   expect(read(root, '.mcp.json')).toContain('ia-workspace');
   expect(read(root, '.claude/settings.local.json')).toContain('"allow": [\r\n      "Read"\r\n    ]');
+  // #540: the guard group routes the notebook and both shells to the guard alongside the file tools.
   expect(
     JSON.parse(read(root, '.claude/settings.local.json')).hooks.PreToolUse.map(
       (group: { matcher: string }) => group.matcher,
     ),
-  ).toEqual(['Bash', 'Write|Edit|MultiEdit']);
+  ).toEqual(['Bash', 'Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell']);
   expect(read(root, 'CLAUDE.md')).toBe('mine\r\n');
 
   const removed = await host(root, env, 'claude', '--remove', '--apply', '--yes');
@@ -252,6 +255,56 @@ it('preserves unrelated settings and CLAUDE.md byte for byte, then removes exact
     'absent',
     'absent',
   ]);
+});
+
+it('upgrades a guard registered with the file-tool matcher in place, and removal still restores the settings byte for byte (#540)', async () => {
+  const { root, env } = await initialized();
+  const settings = '{\r\n  "permissions": {\r\n    "allow": [\r\n      "Read"\r\n    ]\r\n  }\r\n}\r\n',
+    state = '.ia/distributions/hosts/claude-guard-workspace.json';
+  put(root, '.claude/settings.local.json', settings);
+  const first = await host(root, env, 'claude', '--apply', '--yes');
+  expect(first.exitCode, first.stdout).toBe(0);
+  const registered = { settings: read(root, '.claude/settings.local.json'), state: read(root, state) };
+  // As `ia host claude` registered the guard before #540: the same owned group and state with the file-tool matcher,
+  // every other byte as written.
+  const downgrade = (): void => {
+    for (const [path, text] of [
+      ['.claude/settings.local.json', registered.settings],
+      [state, registered.state],
+    ] as const)
+      put(root, path, text.replace('"Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell"', '"Write|Edit|MultiEdit"'));
+  };
+  downgrade();
+  // Until it is re-registered, the projected rule claims only the routes the old matcher has.
+  const rules = (): string =>
+    renderProjectionFor(root, 'claude').find((artifact) => artifact.path === '.claude/rules/ia-workspace.md')!.text;
+  expect(rules()).toContain(
+    'This workspace registered it for the file tools Write, Edit and MultiEdit only, so it does not see NotebookEdit, Bash or PowerShell; run ia host claude --apply to register it for them.',
+  );
+  expect(element(JSON.parse((await host(root, env, 'claude')).stdout), 'hooks')).toMatchObject({
+    action: 'update',
+    capability: 'registered',
+    conflict: null,
+  });
+  const upgraded = await host(root, env, 'claude', '--apply', '--yes');
+  expect(upgraded.exitCode, upgraded.stdout).toBe(0);
+  expect(JSON.parse(upgraded.stdout).applied.elements).toContainEqual({ id: 'hooks', status: 'guard-registered' });
+  expect(
+    JSON.parse(read(root, '.claude/settings.local.json')).hooks.PreToolUse.map(
+      (group: { matcher: string }) => group.matcher,
+    ),
+  ).toEqual(['Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell']);
+  expect({ settings: read(root, '.claude/settings.local.json'), state: read(root, state) }).toEqual(registered);
+  expect(read(root, '.claude/rules/ia-workspace.md')).toContain(
+    "the writes that a Bash or PowerShell command's own text shows",
+  );
+  expect(rules()).not.toContain('Write, Edit and MultiEdit only');
+  // Removal reads an old-matcher registration as owned too, and restores the settings that predate it.
+  downgrade();
+  const removed = await host(root, env, 'claude', '--remove', '--apply', '--yes');
+  expect(removed.exitCode, removed.stdout).toBe(0);
+  expect(read(root, '.claude/settings.local.json')).toBe(settings);
+  expect(existsSync(resolve(root, state))).toBe(false);
 });
 
 it('refuses an unmanaged ia-workspace entry and an unmanaged rules file by name, and leaves both unchanged', async () => {
