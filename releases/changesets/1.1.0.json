@@ -270,57 +270,57 @@
   "coverage": [
     {
       "path": ".claude/agents/public-agent-composition-system-steward.md",
-      "sha256": "0c811817487b44fca4404f6977433c7be96001333d7d6ebc329b1abe83978a24",
+      "sha256": "1bdeb3fca6f43f8822f275129ce1c3622539775f0b3afdd6fccc43a951cad639",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-agent-system-steward.md",
-      "sha256": "67f89e3c3d63b99c7122d892b29899d7f4eeac8711b340d7eaf0324e9d977baa",
+      "sha256": "f06c54a0bb0e083090828514c32d4b406eee58088a2a8b36c9e628d005eb38ce",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-authoring-system-steward.md",
-      "sha256": "21a12e8946dc11dd881effde205ba8e714420943b6ccf248910bb39b620e52a5",
+      "sha256": "2f31f467decda9feea98c3cdde38022a02423b26df2d0ce814dbb0cce2485a97",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-compliance-system-steward.md",
-      "sha256": "14d805e59384a9fec3fc6b046737ea8036ce80fbd6c81564ccd05b3731aa2909",
+      "sha256": "c9c8dc0c8e4fcd2861381c08ef67f138999608e6b40aece0d06f8749d45893b0",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-governance-system-steward.md",
-      "sha256": "17b729ff4c844d165fa9079587606cb3da59a6366617de4d506bab4a7f091be4",
+      "sha256": "f847b5a532641705f0f38604976f0a94a853f90cc8befe48cc005ffc3dc2cb68",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-hook-authoring-system-steward.md",
-      "sha256": "bd5304532c4c85024dc28d5992c52175afae8f37142384ef1b79410aa3ff55e4",
+      "sha256": "d9d9acbb8f4a1618c12a98d16f36b9e886cadc8aedb6dbbadf22857357541679",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-learning-system-steward.md",
-      "sha256": "c2a61583086be41338ffff746745d802a371bc2a33755e6fda1c1841c7cc46f8",
+      "sha256": "64771f5667ad24ef06367179301047b1f808868411a01187cad2e27b0c1a8351",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-session-system-steward.md",
-      "sha256": "caa2cdd4c2dc1616b90f8e32e5499b94739583e96f5637cfcf7ca16a93cdc96b",
+      "sha256": "bb632b4b854a6f76b6b2c6ef25962a776e8e165269ef67bd048465a0a9e17fe4",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-template-system-steward.md",
-      "sha256": "000c561b93430d8decaf483486022c7a645149f4c326067d2cb9684ac53a2afe",
+      "sha256": "57190b44d058f8ece8f1ff69c366b642be9e94bcc66f0d6a825e52859bddb374",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-work-system-steward.md",
-      "sha256": "294b6447d73edda930e4f80290357406bc52c8403d1a33c52aec7876d98b9406",
+      "sha256": "8048fd9a4b96af42bdbe8bef5b3e7947a5db583de84df70003ba7f6bb73721e2",
       "change": "portable-quality"
     },
     {
       "path": ".claude/agents/public-workspace-system-steward.md",
-      "sha256": "e38eba4a7b25bfe387aca30421c89a0fb7f854faccd41b128489560a2adba148",
+      "sha256": "778af884381336bc70139c79968428ec8e45c98b90598b2ce487923b8d2f9a90",
       "change": "portable-quality"
     },
     {
@@ -925,7 +925,7 @@
     },
     {
       "path": ".ia/src/systems/work-system/records/npm-release.ia",
-      "sha256": "f8e3fa17ac88277d4885622c02ea004dd8612087976111120d5f9e6c1fef1d16",
+      "sha256": "6dfe76b06394ebc00a9c5952bb4e4197e6f87bf1333973883455b048d5346e0d",
       "change": "governed-runtime"
     },
     {
@@ -985,7 +985,7 @@
     },
     {
       "path": "CLAUDE.md",
-      "sha256": "fc423aa91e58966587ce78ad77abe85616314bae8c02f95dff860e1942fb0681",
+      "sha256": "81a35a3b7220b0588b7804624c37f45bee5d957a8b5895a10c3d7362c1185fab",
       "change": "portable-quality"
     },
     {
@@ -2111,7 +2111,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "0f167032e081d95f8c0afa3b0215b2b0ba45e7e1edbdba25e8e4061ba26878a3",
+      "sha256": "f04714d7edb8dd2f127fd639ebb09823162793c56c92c0ef1e70dd3f81d0c7f2",
       "change": "portable-quality"
     }
   ]

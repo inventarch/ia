@@ -37,7 +37,7 @@
 
 @task npm-release-hygiene-checks
   meaning
-    says "Implement mandatory changesets, exact cohort validation, cycle-aware publication planning, installed native-data checks and registry completion verification."
+    says "Implement mandatory changesets, exact cohort validation, cycle-aware publication planning, installed native-data checks and registry completion verification. The npm release archive and Git receipt task uses the declared corpus profile with a bounded 30-second case deadline after macOS and Windows runs exceeded the unit profile; all refusal assertions remain required."
   work
     title "Implement release hygiene"
     status open

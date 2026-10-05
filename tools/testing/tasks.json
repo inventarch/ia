@@ -3207,7 +3207,7 @@
         "tools/distribution/npm-release.test.ts",
         "tools/distribution/release-hygiene.test.ts"
       ],
-      "profile": "unit",
+      "profile": "corpus",
       "platforms": [
         "linux",
         "windows",
