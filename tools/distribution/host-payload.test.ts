@@ -167,8 +167,10 @@ it("excludes the private CLI's own embedded payload, so a repeat write does not 
     join(cli, 'package.json'),
     JSON.stringify({ ...manifest, name: '@inventarch/inventarch-cli' }, null, 2) + '\n',
   );
-  // Directory junctions need no privilege on Windows; the payload walk resolves installed packages through them.
-  symlinkSync(join(repository, 'apps/cli/node_modules'), join(cli, 'node_modules'), 'junction');
+  // Exercise the hoisted layout explicitly: the staged CLI has no package-local dependency fallback.
+  // Directory junctions need no privilege on Windows and may cross drives.
+  symlinkSync(join(repository, 'node_modules'), join(candidate, 'node_modules'), 'junction');
+  mkdirSync(join(cli, 'node_modules'));
   for (const app of ['distribution', 'mcp-door', 'steward-hook'])
     symlinkSync(join(repository, 'apps', app), join(candidate, 'apps', app), 'junction');
   const first = await generateHostPayload({ repository: candidate, write: true }),
