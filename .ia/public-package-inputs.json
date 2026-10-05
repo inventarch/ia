@@ -7479,7 +7479,7 @@
     },
     {
       "path": "tools/testing/report.ts",
-      "sha256": "b8a8f1b7d446115bfedbd63c0be87c8c8dce69b59ca08106e4bbd0453fdbd85b"
+      "sha256": "cd3d0fe75dd2330f0019d6793b893ef3a42a8db12d841bba47e75f76df7dddef"
     },
     {
       "path": "tools/testing/resources.test.ts",
@@ -7532,10 +7532,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "cb50de93c64a22c3ee1af9eb2f870473ae5238e2",
-    "baseTree": "caf6e0737a745c7809cf8a67147c77c5c466540f",
+    "baseCommit": "faca4e2a8af5ebce98229e0a631b4c642feddea7",
+    "baseTree": "c845e617e353eaafcc3f4f795d0701e2f5255e5e",
     "dirty": true,
-    "inputDigest": "6e3f9312bdbb5cf3d5413364e2b84b161f8d9126dbca09415ec92095d39c3da8",
+    "inputDigest": "6fce347bed1f8e60f96fff3800852084a8745c72ecf8fa4055ac324a9b8cbd54",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",

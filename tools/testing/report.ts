@@ -1,3 +1,4 @@
+import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
 import {
   mkdirSync,
