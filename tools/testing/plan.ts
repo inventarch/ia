@@ -242,14 +242,9 @@ export const RUNNERS: Readonly<Record<Platform, string>> = {
  */
 export const PULL_REQUEST_PLATFORMS: readonly Platform[] = ['linux'];
 
-/** Temporary operator-requested pause, including main pushes, scheduled full runs and dispatches. Clear to resume. */
-export const PAUSED_CI_PLATFORMS: readonly Platform[] = ['windows', 'macos'];
-
-/** Apply the temporary pause after event selection, so no CI trigger can schedule a paused platform. */
+/** Pull requests qualify Linux; all other events qualify every supported platform. */
 export function eventPlatforms(event: string | undefined): readonly Platform[] {
-  return (event === 'pull_request' ? PULL_REQUEST_PLATFORMS : PLATFORMS).filter(
-    (platform) => !PAUSED_CI_PLATFORMS.includes(platform),
-  );
+  return event === 'pull_request' ? PULL_REQUEST_PLATFORMS : PLATFORMS;
 }
 
 /**

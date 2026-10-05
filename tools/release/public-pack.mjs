@@ -98,7 +98,13 @@ export function refreshPublicPackageInputs(root) {
       if (manifest.name !== identities[path].name || Boolean(manifest.private) !== identities[path].private)
         throw new Error('Public package identity requires a reviewed extraction policy: ' + path);
       if (
-        !manifest.name?.startsWith('@inventarch/') ||
+        (!manifest.name?.startsWith('@inventarch/') &&
+          !(
+            path === 'apps/vscode/package.json' &&
+            manifest.name === 'inventarch-ia' &&
+            manifest.private === true &&
+            manifest.publisher === 'inventarch'
+          )) ||
         !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(manifest.version)
       )
         throw new Error('Invalid public package identity: ' + path);

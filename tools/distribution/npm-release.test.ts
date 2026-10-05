@@ -1,12 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import {
   publicPackageInputs,
+  refreshPublicPackageInputs,
+  PUBLIC_INPUTS,
   PUBLIC_SYSTEM_POLICY,
   COMPATIBILITY,
   verifyPublicCompatibility,
 } from '../release/public-pack.mjs';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'yaml';
@@ -341,3 +343,63 @@ it('refuses non-system archive mutation after qualification and before release r
     const release = writeReleaseManifest(root, directory, packed);
     expect(verifyRelease(root, directory, checkoutVersion)).toEqual(release);
   }));
+
+it('refreshes the pinned private VS Code extension without accepting identity changes', () => {
+  const directory = realpathSync(mkdtempSync(resolve(tmpdir(), 'ia-extension-input-refresh-')));
+  const put = (path: string, value: unknown) => {
+    mkdirSync(dirname(resolve(directory, path)), { recursive: true });
+    writeFileSync(resolve(directory, path), JSON.stringify(value));
+  };
+  const git = (...args: string[]) =>
+    execFileSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd: directory, windowsHide: true, stdio: 'pipe' });
+  const extension = { name: 'inventarch-ia', publisher: 'inventarch', private: true, version: '1.1.0' };
+  const path = 'apps/vscode/package.json';
+  try {
+    put('package.json', { name: '@inventarch/workspace' });
+    put(path, extension);
+    const files = ['package.json', path].map((path) => ({ path, sha256: sha(readFileSync(resolve(directory, path))) }));
+    const original = {
+      format: 'ia.public-package-inputs.v1',
+      sourceRevision: 'a'.repeat(40),
+      provenance: { sourceTree: 'b'.repeat(40) },
+      baselineOverlay: { versions: { npm: { [path]: extension.version } } },
+      packageIdentities: { [path]: { name: extension.name, private: true } },
+      files,
+    };
+    put(PUBLIC_INPUTS, original);
+    git('init', '--quiet');
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      '-c',
+      'core.hooksPath=/dev/null',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '--quiet',
+      '-m',
+      'Pinned extension fixture',
+    );
+    put(path, { ...extension, version: '1.2.0' });
+    const refreshed = refreshPublicPackageInputs(directory);
+    expect(refreshed.receipt.provenance).toEqual(original.provenance);
+    expect(refreshed.receipt.sourceRevision).toBe(original.sourceRevision);
+    expect(refreshed.receipt.publicRefresh?.npm).toEqual({ [path]: '1.2.0' });
+    expect(publicPackageInputs(directory).sha256).toBe(refreshed.sha256);
+    for (const changed of [
+      { name: 'other-extension' },
+      { private: false },
+      { publisher: 'other' },
+      { version: 'invalid' },
+    ]) {
+      put(path, { ...extension, ...changed });
+      expect(() => refreshPublicPackageInputs(directory)).toThrow(/public package identity/i);
+      expect(readFileSync(resolve(directory, PUBLIC_INPUTS))).toEqual(refreshed.bytes);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

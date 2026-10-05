@@ -11,7 +11,6 @@ import { buildReport, currentPlatform, readVitestResults, writeEvidence, type Ga
 import {
   BORROWED_PLATFORM,
   CONSERVATIVE_ESTIMATE_SECONDS,
-  PAUSED_CI_PLATFORMS,
   PULL_REQUEST_PLATFORMS,
   RUNNERS,
   borrowedRatio,
@@ -465,12 +464,15 @@ it('runs the Homebrew smoke on the pinned macOS label the lanes and the gate use
   expect(smoke).toMatch(new RegExp(`^name: Homebrew Node smoke \\(${RUNNERS.macos}\\)$`, 'm'));
 });
 
-it('pauses Windows and macOS for every CI event, including main pushes and full runs', () => {
+it('plans Linux for pull requests and every platform for other CI events', () => {
   expect(PULL_REQUEST_PLATFORMS).toEqual(['linux']);
-  expect(PAUSED_CI_PLATFORMS).toEqual(['windows', 'macos']);
-  for (const event of ['pull_request', 'push', 'schedule', 'workflow_dispatch', 'merge_group', undefined]) {
-    expect(eventPlatforms(event)).toEqual(['linux']);
-    expect(gateMatrix(eventPlatforms(event)).include).toEqual([{ os: RUNNERS.linux, platform: 'linux' }]);
+  expect(eventPlatforms('pull_request')).toEqual(['linux']);
+  expect(gateMatrix(eventPlatforms('pull_request')).include).toEqual([{ os: RUNNERS.linux, platform: 'linux' }]);
+  for (const event of ['push', 'schedule', 'workflow_dispatch', 'merge_group', undefined]) {
+    expect(eventPlatforms(event)).toEqual(PLATFORMS);
+    expect(gateMatrix(eventPlatforms(event)).include).toEqual(
+      PLATFORMS.map((platform) => ({ os: RUNNERS[platform], platform })),
+    );
   }
 });
 
@@ -555,13 +557,13 @@ it("plans each platform with the workflow's shard counts through the command lin
   };
   const counts = platformCounts(shards, '--shards'),
     none = { linux: 0, windows: 0, macos: 0 };
-  // The temporary pause applies to main pushes, scheduled full runs and manual dispatches as well as PRs.
+  // Main pushes, scheduled full runs and manual dispatches qualify every supported platform.
   for (const event of ['push', 'workflow_dispatch', 'schedule']) {
     const full = outputs({ event, sha: 'abc', verified: '' });
-    expect(full.perPlatform('tests')).toEqual({ ...none, linux: counts.linux });
+    expect(full.perPlatform('tests')).toEqual(counts);
     for (const lane of ['build', 'static', 'emitted', 'gate'])
-      expect(full.perPlatform(lane)).toEqual({ ...none, linux: 1 });
-    expect(full.value('platforms')).toEqual(['linux']);
+      expect(full.perPlatform(lane)).toEqual({ linux: 1, windows: 1, macos: 1 });
+    expect(full.value('platforms')).toEqual(PLATFORMS);
     expect(full.value('run')).toBe(true);
   }
   // A pull request plans Linux alone, with Linux's full shard count, and gates Linux alone.
