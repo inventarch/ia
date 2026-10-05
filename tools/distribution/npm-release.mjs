@@ -53,7 +53,14 @@ export function validatePackages(projects, version, versions) {
   }
 }
 
-function archiveEntries(root, directory, packed, version) {
+/** Packages the changeset publishes for the first time: no earlier version is their baseline. */
+const firstPublished = (changes) =>
+  new Set(
+    Object.entries(changes.entry.packages)
+      .filter(([, entry]) => entry.previous === null)
+      .map(([name]) => name),
+  );
+function archiveEntries(root, directory, packed, version, fresh = new Set()) {
   const projects = publicPackages(root),
     byName = new Map(packed.map((entry) => [entry.name, entry]));
   assert.equal(byName.size, projects.length, 'Archive cohort membership differs');
@@ -83,7 +90,13 @@ function archiveEntries(root, directory, packed, version) {
     version,
     releasePolicy(root).cycles,
   );
-  const order = graph.groups.flatMap((group) => group.members);
+  // Every order of a dependency cycle publishes some package before one it depends on. New names go first: a failed first
+  // trusted publish then stops the run before any existing package moves its latest tag.
+  const order = graph.groups.flatMap((group) =>
+    group.cyclic
+      ? [...group.members.filter((name) => fresh.has(name)), ...group.members.filter((name) => !fresh.has(name))]
+      : group.members,
+  );
   return {
     graph,
     packages: order.map((name) => {
@@ -100,7 +113,7 @@ export function writeReleaseManifest(root, directory, packed) {
   for (const entry of packed) assert.match(entry.sha256 ?? '', /^[a-f0-9]{64}$/, 'qualified archive hash is required');
   const changes = releaseChanges(root, projects),
     compatibility = verifyPublicCompatibility(root, directory);
-  const archives = archiveEntries(root, directory, packed, version);
+  const archives = archiveEntries(root, directory, packed, version, firstPublished(changes));
   const release = {
     format: 'ia.npm-release.v2',
     version,
@@ -152,7 +165,7 @@ export function verifyRelease(root, directory, version) {
     assert.equal(bytes.length, entry.bytes, entry.name + ': archive size changed');
     assert.equal(integrity(bytes), entry.integrity, entry.name + ': archive integrity changed');
   }
-  const actual = archiveEntries(root, directory, release.packages, version);
+  const actual = archiveEntries(root, directory, release.packages, version, firstPublished(changes));
   assert.deepEqual(release.packages, actual.packages, 'Packed release cohort differs');
   assert.deepEqual(release.graph, actual.graph, 'Packed release graph differs');
   assert.deepEqual(
