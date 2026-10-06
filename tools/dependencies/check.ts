@@ -51,23 +51,19 @@ export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
   '@inventarch/workspace-system': [],
 };
 const HOSTS: Readonly<Record<string, readonly string[]>> = {
-  '@inventarch/mcp-door': [
-    '@inventarch/runtime',
-    '@inventarch/service-contracts',
-    '@inventarch/agent-composition-system',
-  ],
+  '@inventarch/mcp-door': ['@inventarch/runtime', '@inventarch/service-contracts'],
   '@inventarch/distribution': [
     '@inventarch/language',
     '@inventarch/graph',
     '@inventarch/db',
     '@inventarch/authoring-system',
-    '@inventarch/agent-composition-system',
+    '@inventarch/workspace-runtime',
     '@inventarch/steward-hook',
   ],
-  '@inventarch/steward-hook': ['@inventarch/runtime', '@inventarch/db', '@inventarch/agent-composition-system'],
+  '@inventarch/steward-hook': ['@inventarch/runtime', '@inventarch/db', '@inventarch/workspace-runtime'],
   '@inventarch/cli': [
     '@inventarch/runtime',
-    '@inventarch/agent-composition-system',
+    '@inventarch/workspace-runtime',
     '@inventarch/db',
     '@inventarch/distribution',
     '@inventarch/compliance',

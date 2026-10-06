@@ -4,8 +4,8 @@ import { linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync, writ
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-vi.mock('@inventarch/agent-composition-system', async (original) => ({
-  ...(await original<typeof import('@inventarch/agent-composition-system')>()),
+vi.mock('@inventarch/workspace-runtime', async (original) => ({
+  ...(await original<typeof import('@inventarch/workspace-runtime')>()),
   installedImplementationDigest: () => 'a'.repeat(64),
 }));
 import { contextHookImplementationDigest } from '../src/context.js';

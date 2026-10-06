@@ -1,13 +1,13 @@
 import { isAbsolute, relative, resolve } from 'node:path';
-import { captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
-import { resourceOccurrences, verifyResources } from '@inventarch/agent-composition-system/resources';
-import { renderCapturedTemplate } from '@inventarch/agent-composition-system/templates';
+import { captureWorkspace, installedImplementationDigest } from '@inventarch/workspace-runtime';
+import { resourceOccurrences, verifyResources } from '@inventarch/workspace-runtime/resources';
+import { renderCapturedTemplate } from '@inventarch/workspace-runtime/templates';
 import {
   claudeProseCatalog,
   codexProseCatalog,
   compileProjection,
   verifyProjectionDescriptor,
-} from '@inventarch/agent-composition-system/projections';
+} from '@inventarch/workspace-runtime/projections';
 import { bytes, fail, portable, utf8, workspace } from './files.js';
 import { formatSource, openWorkspaceSession, writeWorkOutput } from './services.js';
 import { checkProjection, publishProjection, recoverProjection, removeProjection } from './publication.js';

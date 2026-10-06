@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { captureWorkspace } from '@inventarch/agent-composition-system';
-import { resourceOccurrences } from '@inventarch/agent-composition-system/resources';
+import { captureWorkspace } from '@inventarch/workspace-runtime';
+import { resourceOccurrences } from '@inventarch/workspace-runtime/resources';
 import { createHash } from 'node:crypto';
 import { stableSerialize } from '@inventarch/graph';
 import {
@@ -9,7 +9,7 @@ import {
   createSourcePolicy,
   homeSourceCapture,
   mountSourceCapture,
-} from '@inventarch/agent-composition-system/sources';
+} from '@inventarch/workspace-runtime/sources';
 import { readInputs } from '@inventarch/db';
 import { planInstallationSnapshot } from '../src/installation-core.js';
 import { resolveReleases } from '../src/resolve.js';

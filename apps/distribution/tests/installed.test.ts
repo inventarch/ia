@@ -21,17 +21,9 @@ import {
 } from '../src/install.js';
 import { buildArchive } from '../src/archive.js';
 import { runNative } from '../src/native-command.js';
-import { captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
-import {
-  captureResources,
-  resourceOccurrences,
-  resolveResources,
-} from '@inventarch/agent-composition-system/resources';
-import {
-  claudeProseCatalog,
-  codexProseCatalog,
-  compileProjection,
-} from '@inventarch/agent-composition-system/projections';
+import { captureWorkspace, installedImplementationDigest } from '@inventarch/workspace-runtime';
+import { captureResources, resourceOccurrences, resolveResources } from '@inventarch/workspace-runtime/resources';
+import { claudeProseCatalog, codexProseCatalog, compileProjection } from '@inventarch/workspace-runtime/projections';
 import { metadataDigest, sha256 } from '@inventarch/db/distribution';
 
 const repository = resolve(import.meta.dirname, '../../..'),

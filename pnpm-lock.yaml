@@ -207,6 +207,9 @@ importers:
       '@inventarch/session-system':
         specifier: workspace:*
         version: link:.ia/src/systems/session-system
+      '@inventarch/workspace-runtime':
+        specifier: workspace:*
+        version: link:packages/workspace-runtime
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.4
@@ -368,9 +371,6 @@ importers:
 
   apps/cli:
     dependencies:
-      '@inventarch/agent-composition-system':
-        specifier: workspace:*
-        version: link:../../.ia/src/systems/agent-composition-system
       '@inventarch/compliance':
         specifier: workspace:*
         version: link:../../packages/compliance
@@ -383,6 +383,9 @@ importers:
       '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@inventarch/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../packages/workspace-runtime
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -396,9 +399,6 @@ importers:
 
   apps/distribution:
     dependencies:
-      '@inventarch/agent-composition-system':
-        specifier: workspace:*
-        version: link:../../.ia/src/systems/agent-composition-system
       '@inventarch/authoring-system':
         specifier: workspace:*
         version: link:../../.ia/src/systems/authoring-system
@@ -414,6 +414,9 @@ importers:
       '@inventarch/steward-hook':
         specifier: workspace:*
         version: link:../steward-hook
+      '@inventarch/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../packages/workspace-runtime
       jsonc-parser:
         specifier: 3.3.1
         version: 3.3.1
@@ -433,9 +436,6 @@ importers:
 
   apps/mcp-door:
     dependencies:
-      '@inventarch/agent-composition-system':
-        specifier: workspace:*
-        version: link:../../.ia/src/systems/agent-composition-system
       '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -452,15 +452,15 @@ importers:
 
   apps/steward-hook:
     dependencies:
-      '@inventarch/agent-composition-system':
-        specifier: workspace:*
-        version: link:../../.ia/src/systems/agent-composition-system
       '@inventarch/db':
         specifier: workspace:*
         version: link:../../packages/db
       '@inventarch/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@inventarch/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../packages/workspace-runtime
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
