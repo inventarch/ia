@@ -92,22 +92,29 @@ export async function githubRelease(options, { request = fetch, run = execFileSy
   return { tag, tagCreated: !reference, releaseCreated: !release };
 }
 
-if (isEntry(process.argv[1], import.meta.url)) {
-  const root = resolve(import.meta.dirname, '../..');
-  const version = process.env.RELEASE_VERSION;
+/** Assemble the qualified release assets and write exactly the selected changeset's release notes. */
+export function releaseInputs(root, version, runnerTemp) {
   const directory = resolve(root, 'artifacts/npm');
   const vsix = readdirSync(directory).filter((name) => name.endsWith('.vsix'));
   assert.equal(vsix.length, 1, 'Exactly one qualified VSIX is required');
-  const notesFile = resolve(process.env.RUNNER_TEMP, 'release-notes.md');
+  const notesFile = resolve(runnerTemp, 'release-notes.md');
   writeFileSync(notesFile, releaseNotes(root, version));
+  return {
+    notesFile,
+    assets: [...vsix, 'npm-release.json', 'system-compatibility.json'].map((name) => resolve(directory, name)),
+  };
+}
+
+if (isEntry(process.argv[1], import.meta.url)) {
+  const root = resolve(import.meta.dirname, '../..');
+  const version = process.env.RELEASE_VERSION;
   console.log(
     await githubRelease({
       repository: process.env.GITHUB_REPOSITORY,
       version,
       sha: process.env.RELEASE_SHA,
       token: process.env.GH_TOKEN,
-      notesFile,
-      assets: [...vsix, 'npm-release.json', 'system-compatibility.json'].map((name) => resolve(directory, name)),
+      ...releaseInputs(root, version, process.env.RUNNER_TEMP),
     }),
   );
 }

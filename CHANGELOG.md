@@ -4,7 +4,7 @@ Generated from reviewed release changesets. Entries describe intended releases; 
 
 ## 1.1.1
 
-Coordinated 1.1.1 patch release of all 21 public npm packages and the VS Code extension. Fix GitHub release completion after registry verification; package implementation behavior and independent native, language and protocol versions remain unchanged.
+User-requested coordinated 1.1.1 patch release of all 21 public npm packages and the VS Code extension, carrying no new package implementation behavior. This release is intended to exercise corrected GitHub release completion after registry verification before the next feature cohort; live publication remains subject to separate approvals. Independent native, language and protocol versions remain unchanged.
 
 ### Coordinate 1.1.1 with reliable GitHub release completion
 

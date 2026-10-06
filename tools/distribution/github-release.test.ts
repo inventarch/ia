@@ -1,5 +1,61 @@
+import '../temp/physical-temp.mjs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
 import { expect, it, vi } from 'vitest';
-import { githubRelease } from './github-release.mjs';
+import { githubRelease, releaseInputs } from './github-release.mjs';
+import { releaseNotes } from './release-changes.mjs';
+
+const checkout = resolve(import.meta.dirname, '../..');
+const withReleaseInputs = (vsix: string[], run: (root: string, runnerTemp: string) => void) => {
+  const root = mkdtempSync(resolve(realpathSync(tmpdir()), 'ia-github-release-'));
+  const runnerTemp = resolve(root, 'runner temp');
+  try {
+    mkdirSync(runnerTemp);
+    mkdirSync(resolve(root, 'artifacts/npm'), { recursive: true });
+    mkdirSync(resolve(root, 'releases/changesets'), { recursive: true });
+    for (const version of ['1.1.0', '1.1.1'])
+      copyFileSync(
+        resolve(checkout, `releases/changesets/${version}.json`),
+        resolve(root, `releases/changesets/${version}.json`),
+      );
+    for (const name of [...vsix, 'npm-release.json', 'system-compatibility.json', 'package.tgz'])
+      writeFileSync(resolve(root, 'artifacts/npm', name), 'qualified fixture');
+    run(root, runnerTemp);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+};
+
+it('assembles the three actual release asset paths and writes byte-exact selected release notes', () =>
+  withReleaseInputs(['qualified extension-1.1.1.vsix'], (root, runnerTemp) => {
+    const inputs = releaseInputs(root, '1.1.1', runnerTemp);
+    expect(inputs).toEqual({
+      notesFile: resolve(runnerTemp, 'release-notes.md'),
+      assets: [
+        resolve(root, 'artifacts/npm/qualified extension-1.1.1.vsix'),
+        resolve(root, 'artifacts/npm/npm-release.json'),
+        resolve(root, 'artifacts/npm/system-compatibility.json'),
+      ],
+    });
+    expect(readFileSync(inputs.notesFile)).toEqual(Buffer.from(releaseNotes(checkout, '1.1.1')));
+  }));
+
+for (const vsix of [[], ['first.vsix', 'second.vsix']])
+  it(`refuses ${vsix.length} VSIX files before writing release notes`, () =>
+    withReleaseInputs(vsix, (root, runnerTemp) => {
+      expect(() => releaseInputs(root, '1.1.1', runnerTemp)).toThrow('Exactly one qualified VSIX is required');
+      expect(existsSync(resolve(runnerTemp, 'release-notes.md'))).toBe(false);
+    }));
 
 const sha = 'a'.repeat(40);
 const tagSha = 'b'.repeat(40);
@@ -194,15 +250,23 @@ it('propagates release creation failure so the workflow cannot dispatch its succ
 });
 
 it('bounds authenticated requests and refuses redirects instead of following them', async () => {
-  const f = fixture({
-    'GET ': () => new Response(null, { status: 302, headers: { Location: 'https://example.invalid' } }),
-  });
-  await expect(f.invoke()).rejects.toThrow('HTTP 302');
-  expect(f.request.mock.calls[0]![1]).toMatchObject({
-    redirect: 'error',
-    headers: { Authorization: 'Bearer test-token' },
-    signal: expect.any(AbortSignal),
-  });
-  expect(f.writes).toEqual([]);
-  expect(f.run).not.toHaveBeenCalled();
+  const signal = new AbortController().signal;
+  const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(signal);
+  try {
+    const f = fixture({
+      'GET ': () => new Response(null, { status: 302, headers: { Location: 'https://example.invalid' } }),
+    });
+    await expect(f.invoke()).rejects.toThrow('HTTP 302');
+    expect(f.request.mock.calls[0]![1]).toMatchObject({
+      redirect: 'error',
+      headers: { Authorization: 'Bearer test-token' },
+      signal,
+    });
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(30_000);
+    expect(f.request.mock.calls[0]![1]!.signal).toBe(signal);
+    expect(f.writes).toEqual([]);
+    expect(f.run).not.toHaveBeenCalled();
+  } finally {
+    timeout.mockRestore();
+  }
 });

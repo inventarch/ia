@@ -1,3 +1,9 @@
+export declare function releaseInputs(
+  root: string,
+  version: string,
+  runnerTemp: string,
+): { notesFile: string; assets: string[] };
+
 export declare function githubRelease(
   options: {
     repository: string;

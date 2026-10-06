@@ -249,6 +249,26 @@ it('keeps npm OIDC out of the build job and publishes only the same-run qualifie
   expect(JSON.stringify(workflow)).not.toMatch(/secrets\.NPM|NODE_AUTH_TOKEN|actions\/cache/);
 });
 
+it('runs the release helper on pinned Node and dispatches only after unsuppressed success under strict bash', () => {
+  const workflow = parse(readFileSync(resolve(root, '.github/workflows/npm-publish.yml'), 'utf8'));
+  const steps = workflow.jobs.release.steps;
+  const setup = steps.find((step: { uses?: string }) => step.uses?.startsWith('actions/setup-node@'));
+  const completion = steps.find((step: { run?: string }) => step.run?.includes('github-release.mjs'));
+  expect(setup.with).toEqual({ 'node-version': '22.22.2', 'package-manager-cache': false });
+  expect(steps.indexOf(setup)).toBeLessThan(steps.indexOf(completion));
+  expect(completion.shell).toBe('bash');
+  expect(
+    completion.run
+      .split('\n')
+      .map((line: string) => line.trim())
+      .filter((line: string) => line && !line.startsWith('#')),
+  ).toEqual([
+    'set -euo pipefail',
+    'node tools/distribution/github-release.mjs',
+    'gh workflow run release-pr.yml --ref main',
+  ]);
+});
+
 it('refuses a missing or changed system compatibility companion', () =>
   inQualifiedCohort((directory, archives) => {
     const release = writeReleaseManifest(root, directory, receipts(archives), evidence());

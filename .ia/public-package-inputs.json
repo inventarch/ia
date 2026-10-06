@@ -1143,7 +1143,7 @@
     },
     {
       "path": ".github/workflows/npm-publish.yml",
-      "sha256": "268095e18f87b16647bb5e8840838be1fb85b2945833e031367b72d2e0337d5b"
+      "sha256": "ff0742a0ac74acec73e1b93352829b07257ce180680c1a84225dca14dbad7dd9"
     },
     {
       "path": ".github/workflows/platform-quality.yml",
@@ -2443,7 +2443,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "9929ebba067a1660a6b6bb8981c3c0b4357f1324a2c79e2129c0ee567a9871ae"
+      "sha256": "ae1de4cfd8577486a24182716d62df5dadd474682402c64acb4ed8d0908c7580"
     },
     {
       "path": "CLAUDE.md",
@@ -6931,7 +6931,7 @@
     },
     {
       "path": "releases/changesets/1.1.1.json",
-      "sha256": "cd827a94e61cd523d01f30f8861ff935a8d6318673119e30241fc87b92b971a8"
+      "sha256": "4effe1e02418ad152e278430806b8b9fec34e8ced172ee53a7ad16bfc9fe0783"
     },
     {
       "path": "releases/current.json",
@@ -6991,11 +6991,11 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "8012a0a59c2c0877f4ad30f6902519c86ddf98a28c2bc43d5364fe42a90c17b5"
+      "sha256": "39ef26418b01ed398f1aa02ce924fcadc9758b8f4747298475752793d25ce6a5"
     },
     {
       "path": "tools/distribution/SPEC.md",
-      "sha256": "1e151610e3487f12babf64a812783ae51e25ce9bb806f70004bcb1f97dd957b0"
+      "sha256": "8f876edf3078a31b86a9500e15fb9c72dc6396a79f17845cf074b94322e8dc26"
     },
     {
       "path": "tools/distribution/generate-public.mjs",
@@ -7003,15 +7003,15 @@
     },
     {
       "path": "tools/distribution/github-release.d.mts",
-      "sha256": "a48aa59f2f9e65f62c5d8be71903e855b8961477366f4092b5c185f122f38164"
+      "sha256": "e4b0e485bb65d408edab545262cb4eb3f17d31efa2ecd4d2126db651fb41e005"
     },
     {
       "path": "tools/distribution/github-release.mjs",
-      "sha256": "1c497b0a95575aa197a2a838b30fe05946e97a545b51352c19b6ecd128d79117"
+      "sha256": "a98ebaa67fb6a4a94d44a8c62c493276efcd9aadce9dd516134dd8228f354908"
     },
     {
       "path": "tools/distribution/github-release.test.ts",
-      "sha256": "d8c75048f57c9bc169497d91a83db7df41fe1902cf15888de69edf73b4b9f49b"
+      "sha256": "8fdec1c5e45c34e7590a6a2543ddc716c8439ef90c94150810a999d081ad9e45"
     },
     {
       "path": "tools/distribution/host-payload.d.mts",
@@ -7051,7 +7051,7 @@
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "fe4134aa69b23214fc8c1aa54995af4ea7031eedf6135db8a3f67a55dc052839"
+      "sha256": "3ba662b6eea2a7f06f6b2d22b0b9077f87b556542eefbb01781e56a8c921bc68"
     },
     {
       "path": "tools/distribution/public-content-policy.json",
@@ -7668,10 +7668,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "00ca9f5489f899355a820b27c68c030e17b31663",
-    "baseTree": "0e3ee43f7b83cbb98e425facc751b7edc33c89d8",
+    "baseCommit": "efb44d3c41334a6aaa409c95c1970e11742249bb",
+    "baseTree": "4de9e0d6043717b1689b7c124bee629c678ed0c7",
     "dirty": true,
-    "inputDigest": "00d2f53c3a60a40496dba654d186031e4b832d6089a613889a2c8b215088889a",
+    "inputDigest": "18585d91379f1566844f8da55572e680e82286fa4cc60321e65a08e418b945b8",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.1",
       ".ia/src/systems/agent-system/package.json": "1.1.1",

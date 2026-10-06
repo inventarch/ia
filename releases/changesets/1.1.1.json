@@ -7,7 +7,7 @@
     "version": "1.1.0"
   },
   "bump": "patch",
-  "summary": "Coordinated 1.1.1 patch release of all 21 public npm packages and the VS Code extension. Fix GitHub release completion after registry verification; package implementation behavior and independent native, language and protocol versions remain unchanged.",
+  "summary": "User-requested coordinated 1.1.1 patch release of all 21 public npm packages and the VS Code extension, carrying no new package implementation behavior. This release is intended to exercise corrected GitHub release completion after registry verification before the next feature cohort; live publication remains subject to separate approvals. Independent native, language and protocol versions remain unchanged.",
   "packages": {
     "@inventarch/agent-composition-system": {
       "previous": "1.1.0",
@@ -185,7 +185,7 @@
   "coverage": [
     {
       "path": ".github/workflows/npm-publish.yml",
-      "sha256": "268095e18f87b16647bb5e8840838be1fb85b2945833e031367b72d2e0337d5b",
+      "sha256": "ff0742a0ac74acec73e1b93352829b07257ce180680c1a84225dca14dbad7dd9",
       "change": "release-completion-1-1-1"
     },
     {
@@ -332,27 +332,32 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "8012a0a59c2c0877f4ad30f6902519c86ddf98a28c2bc43d5364fe42a90c17b5",
+      "sha256": "39ef26418b01ed398f1aa02ce924fcadc9758b8f4747298475752793d25ce6a5",
       "change": "release-completion-1-1-1"
     },
     {
       "path": "tools/distribution/SPEC.md",
-      "sha256": "1e151610e3487f12babf64a812783ae51e25ce9bb806f70004bcb1f97dd957b0",
+      "sha256": "8f876edf3078a31b86a9500e15fb9c72dc6396a79f17845cf074b94322e8dc26",
       "change": "release-completion-1-1-1"
     },
     {
       "path": "tools/distribution/github-release.d.mts",
-      "sha256": "a48aa59f2f9e65f62c5d8be71903e855b8961477366f4092b5c185f122f38164",
+      "sha256": "e4b0e485bb65d408edab545262cb4eb3f17d31efa2ecd4d2126db651fb41e005",
       "change": "release-completion-1-1-1"
     },
     {
       "path": "tools/distribution/github-release.mjs",
-      "sha256": "1c497b0a95575aa197a2a838b30fe05946e97a545b51352c19b6ecd128d79117",
+      "sha256": "a98ebaa67fb6a4a94d44a8c62c493276efcd9aadce9dd516134dd8228f354908",
       "change": "release-completion-1-1-1"
     },
     {
       "path": "tools/distribution/github-release.test.ts",
-      "sha256": "d8c75048f57c9bc169497d91a83db7df41fe1902cf15888de69edf73b4b9f49b",
+      "sha256": "8fdec1c5e45c34e7590a6a2543ddc716c8439ef90c94150810a999d081ad9e45",
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "tools/distribution/npm-release.test.ts",
+      "sha256": "3ba662b6eea2a7f06f6b2d22b0b9077f87b556542eefbb01781e56a8c921bc68",
       "change": "release-completion-1-1-1"
     },
     {
