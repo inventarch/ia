@@ -6907,7 +6907,7 @@
     },
     {
       "path": "releases/changesets/1.1.0.json",
-      "sha256": "825b63ac67458d787e7acdd523d7046309561f93e86526a7d49e4698d1da402f"
+      "sha256": "da7f5eb8090ea8cc8c914108af654f61d2f28c54585de360fd4e5e20d535dce4"
     },
     {
       "path": "releases/current.json",
@@ -7039,7 +7039,7 @@
     },
     {
       "path": "tools/distribution/release-fixtures.ts",
-      "sha256": "5981dfde5b2ba3a218255b541aab6b9e914a16ca348cf57676bacf3972f8fa8f"
+      "sha256": "dd49c77333e2d338d206b46ecf89beaa766da0c3ca3c2c3844686a2d2ac3c047"
     },
     {
       "path": "tools/distribution/release-graph.d.mts",
@@ -7600,10 +7600,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "d80c35a5f0004ab4cac689bf8c3c80645156dfe2",
-    "baseTree": "b9aa3ea20119073e1294e0a7993041c95edf0c9c",
+    "baseCommit": "f6806f4dbf8f29b1776129b7f17d44401c422aa8",
+    "baseTree": "64144f84e18044ba1e7cfdf0150ab9ea327dcac0",
     "dirty": true,
-    "inputDigest": "191204d0f9fe4a2b94e1a6fd35d3db602121b1453b339d91d54e52a8163abc02",
+    "inputDigest": "45988cf6a487c7f4c35495f86e961a8f28e52e40a8e9ffbd8bcf1549ce673fb9",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",

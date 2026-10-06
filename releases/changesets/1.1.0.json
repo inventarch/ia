@@ -1776,7 +1776,7 @@
     },
     {
       "path": "tools/distribution/release-fixtures.ts",
-      "sha256": "5981dfde5b2ba3a218255b541aab6b9e914a16ca348cf57676bacf3972f8fa8f",
+      "sha256": "dd49c77333e2d338d206b46ecf89beaa766da0c3ca3c2c3844686a2d2ac3c047",
       "change": "release-hygiene"
     },
     {
