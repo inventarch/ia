@@ -216,14 +216,11 @@
       "mode": "source",
       "inputProfile": "workspace-records",
       "dependsOn": [
-        "agent-composition-system:build",
         "compliance:build",
         "db:build",
         "distribution:build",
-        "language-base:generate",
-        "mcp-door:build",
         "runtime:build",
-        "steward-hook:build"
+        "workspace-runtime:build"
       ],
       "outputs": [
         "apps/cli/dist",
@@ -250,13 +247,12 @@
       "mode": "source",
       "inputProfile": "workspace-records",
       "dependsOn": [
-        "agent-composition-system:build",
         "authoring-system:build",
         "db:build",
         "graph:build",
         "language:build",
-        "session-system:build",
-        "steward-hook:build"
+        "steward-hook:build",
+        "workspace-runtime:build"
       ],
       "outputs": [
         "apps/distribution/dist",
@@ -283,9 +279,7 @@
       "mode": "source",
       "inputProfile": "workspace-records",
       "dependsOn": [
-        "agent-composition-system:build",
-        "runtime:build",
-        "service-contracts:build"
+        "runtime:build"
       ],
       "outputs": [
         "apps/mcp-door/dist",
@@ -312,9 +306,9 @@
       "mode": "source",
       "inputProfile": "workspace-records",
       "dependsOn": [
-        "agent-composition-system:build",
         "db:build",
-        "runtime:build"
+        "runtime:build",
+        "workspace-runtime:build"
       ],
       "outputs": [
         "apps/steward-hook/dist",
