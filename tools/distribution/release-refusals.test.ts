@@ -8,6 +8,7 @@ import { expect, it } from 'vitest';
 import { COMPATIBILITY, PUBLIC_SYSTEM_POLICY, publicPackageInputs } from '../release/public-pack.mjs';
 import { runBounded } from '../testing/subprocess.js';
 import {
+  committedChanges,
   collectChanges,
   releaseChanges,
   releasePolicy,
@@ -489,8 +490,10 @@ it('refuses a published baseline that is not an ancestor of the release checkout
     expect(() => releasePolicy(repository)).toThrow(notAncestor(baseline));
   }));
 
-// Archive checks read this checkout's sealed release, as the publishing commands do.
+// Archive checks read this checkout as it stands: the input selection it would seal and its changeset as committed.
+// Strict sealing is release preparation's job and has its own refusals above.
 const checkout = resolve(import.meta.dirname, '../..');
+const evidence = { inputs: publicPackageInputs(checkout, { sealed: false }), changes: committedChanges(checkout) };
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 const archiveName = (manifest: PackageManifest) =>
   `${manifest.name.replace('@', '').replace('/', '-')}-${manifest.version}.tgz`;
@@ -544,7 +547,7 @@ async function inQualifiedCohort(run: (directory: string, qualified: Qualified[]
       writeFileSync(resolve(directory, archiveName(manifest)), bytes);
       return { name: manifest.name, filename: archiveName(manifest), sha256: sha(bytes), packed, system: ring >= 0 };
     });
-    const source = publicPackageInputs(checkout);
+    const source = structuredClone(evidence.inputs);
     const manifests: PackageManifest[] = policy.packages.map((owner) =>
       JSON.parse(readFileSync(resolve(checkout, owner, 'package.json'), 'utf8')),
     );
@@ -596,20 +599,26 @@ it('refuses a qualified archive whose packed manifest is outside the cohort vers
       skewed = tarball({ ...target.packed, version: '1.0.0' });
     writeFileSync(path, skewed);
     const packed = receipts(qualified).map((row) => (row.name === target.name ? { ...row, sha256: sha(skewed) } : row));
-    expect(() => writeReleaseManifest(checkout, directory, packed)).toThrow(refusal('Packed package version differs'));
+    expect(() => writeReleaseManifest(checkout, directory, packed, evidence)).toThrow(
+      refusal('Packed package version differs'),
+    );
     expect(existsSync(resolve(directory, 'npm-release.json'))).toBe(false);
     writeFileSync(path, original);
-    expect(writeReleaseManifest(checkout, directory, receipts(qualified)).packages).toHaveLength(qualified.length);
+    expect(writeReleaseManifest(checkout, directory, receipts(qualified), evidence).packages).toHaveLength(
+      qualified.length,
+    );
   }));
 
 it('refuses a release receipt whose packed graph differs from its archives', () =>
   inQualifiedCohort((directory, qualified) => {
-    const release = writeReleaseManifest(checkout, directory, receipts(qualified));
-    expect(verifyRelease(checkout, directory, release.version)).toEqual(release);
+    const release = writeReleaseManifest(checkout, directory, receipts(qualified), evidence);
+    expect(verifyRelease(checkout, directory, release.version, evidence)).toEqual(release);
     const groups = release.graph.groups.map((group) => ({ ...group, cyclic: !group.cyclic }));
     writeFileSync(
       resolve(directory, 'npm-release.json'),
       JSON.stringify({ ...release, graph: { ...release.graph, groups } }, null, 2) + '\n',
     );
-    expect(() => verifyRelease(checkout, directory, release.version)).toThrow(refusal('Packed release graph differs'));
+    expect(() => verifyRelease(checkout, directory, release.version, evidence)).toThrow(
+      refusal('Packed release graph differs'),
+    );
   }));

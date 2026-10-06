@@ -226,7 +226,8 @@ const environment = (request: DoctorRequest): readonly Check[] => {
     status: 'info',
     detail:
       pnpm === undefined
-        ? 'Not reported by this invocation; pnpm 10.33.0 is a contributor requirement, not a consumer one'
+        ? // No version here: the contributor pin lives in the IA repository's packageManager field and moves with it.
+          'Not reported by this invocation; pnpm is a contributor requirement, not a consumer one'
         : `pnpm ${pnpm} invoked this command`,
     remedy: null,
   });

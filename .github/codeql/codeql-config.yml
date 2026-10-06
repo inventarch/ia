@@ -1,0 +1,23 @@
+name: IA code scanning
+
+# The default security queries plus the lower-precision security ones. Code quality is already owned by Biome and
+# `pnpm quality`, so the quality suite would only repeat it.
+queries:
+  - uses: security-extended
+
+# The CLI, the MCP door, the steward and context hooks, the host launcher and the language server all take their
+# untrusted input on stdin: JSON-RPC lines and hook events written by a model host or editor. CodeQL's default threat
+# model only taints remote input, which this code barely has. `stdin` adds those streams to it; the source models in
+# extensions/ make every read of process.stdin one of them.
+#
+# The wider `local` group is not enabled. It also taints command-line arguments, environment variables and every file
+# read, which for a developer CLI are the operator's own input, and buries the stdin findings under path-injection
+# results for paths the operator chose.
+threat-models:
+  - stdin
+
+# Tests and fixtures construct hostile input on purpose; their results are not product findings.
+paths-ignore:
+  - '**/tests/**'
+  - '**/fixtures/**'
+  - '**/*.test.*'

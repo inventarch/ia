@@ -3207,6 +3207,7 @@
         "tools/distribution/npm-release.test.ts",
         "tools/distribution/release-hygiene.test.ts",
         "tools/distribution/release-refusals.test.ts",
+        "tools/distribution/release-setup.test.ts",
         "tools/distribution/release-versioning.test.ts"
       ],
       "profile": "corpus",

@@ -1,0 +1,47 @@
+name: CodeQL
+
+# Code scanning for the JavaScript/TypeScript sources and the GitHub Actions workflows. Neither needs a build.
+# .github/codeql/codeql-config.yml selects the queries, the paths and the stdin threat model, and loads the source
+# models in .github/codeql/extensions/; this file only schedules the analysis and uploads the results.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so queries added in a new CodeQL release reach main even when nothing is pushed.
+    - cron: '43 2 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Uploading results is the only write; a public repository needs no actions or packages permission for it.
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config-file: ./.github/codeql/codeql-config.yml
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}

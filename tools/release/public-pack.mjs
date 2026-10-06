@@ -57,7 +57,13 @@ const hasCommit = (root) => {
     return false;
   }
 };
-export function publicPackageInputs(root) {
+/**
+ * The committed, sealed descriptor by default. `sealed: false` derives the descriptor this checkout would seal, in
+ * memory, with the same identity and membership refusals: ordinary qualification uses it so a pull request need not
+ * rewrite the descriptor, while release preparation and publication keep requiring the committed seal.
+ */
+export function publicPackageInputs(root, { sealed = true } = {}) {
+  if (!sealed) return currentPublicPackageInputs(root);
   const source = inputDescriptor(root);
   for (const row of source.receipt.files)
     if (sha(readFileSync(child(root, row.path))) !== row.sha256)
@@ -73,6 +79,12 @@ export function publicPackageInputs(root) {
 }
 /** Explicitly seal reviewed tracked public inputs; preserve the original extraction provenance. */
 export function refreshPublicPackageInputs(root) {
+  const current = currentPublicPackageInputs(root);
+  writeFileSync(child(resolve(root), PUBLIC_INPUTS), current.bytes);
+  return current;
+}
+/** The descriptor a refresh would write for this checkout, without writing it. */
+function currentPublicPackageInputs(root) {
   root = resolve(root);
   const previous = inputDescriptor(root);
   if (json(child(root, 'package.json')).name !== '@inventarch/workspace')
@@ -130,16 +142,18 @@ export function refreshPublicPackageInputs(root) {
   )
     throw new Error('Public inputs changed during refresh');
   const bytes = Buffer.from(JSON.stringify(receipt, null, 2) + '\n');
-  writeFileSync(child(root, PUBLIC_INPUTS), bytes);
   return { receipt, bytes, sha256: sha(bytes) };
 }
-/** Build and pack only the emitted positive selection, using an isolated copy and exact lock. */
-export function packPublicPackages(root, target, pnpm = process.env.npm_execpath) {
+/**
+ * Build and pack only the emitted positive selection, using an isolated copy and exact lock. Release preparation packs
+ * the sealed descriptor; ordinary qualification passes `sealed: false` and packs the selection this checkout would seal.
+ */
+export function packPublicPackages(root, target, pnpm = process.env.npm_execpath, { sealed = true } = {}) {
   root = resolve(root);
   target = resolve(target);
   separate(target, root);
   if (!pnpm || !existsSync(pnpm)) throw new Error('Run public package qualification through the pinned pnpm');
-  const source = publicPackageInputs(root),
+  const source = publicPackageInputs(root, { sealed }),
     rootManifest = json(child(root, 'package.json'));
   const versionInvocation = packageManagerCommand(pnpm, ['--version']);
   const pnpmVersion = execFileSync(versionInvocation.command, versionInvocation.args, {
@@ -244,9 +258,15 @@ export function packPublicPackages(root, target, pnpm = process.env.npm_execpath
     };
     const compatibilityBytes = JSON.stringify(compatibility, null, 2) + '\n';
     writeFileSync(child(target, COMPATIBILITY), compatibilityBytes);
-    if (!readFileSync(child(root, PUBLIC_INPUTS)).equals(source.bytes))
-      throw new Error('Public input descriptor changed while packing');
-    publicPackageInputs(root);
+    if (sealed) {
+      if (!readFileSync(child(root, PUBLIC_INPUTS)).equals(source.bytes))
+        throw new Error('Public input descriptor changed while packing');
+      publicPackageInputs(root);
+    } else if (
+      publicPackageInputs(root, { sealed: false }).receipt.publicRefresh.inputDigest !==
+      source.receipt.publicRefresh.inputDigest
+    )
+      throw new Error('Public inputs changed while packing');
     return { packed, compatibility, compatibilitySha256: sha(compatibilityBytes) };
   } finally {
     if (dirname(staging) !== parent || !basename(staging).startsWith('.ia-public-npm-pack-'))
@@ -254,9 +274,12 @@ export function packPublicPackages(root, target, pnpm = process.env.npm_execpath
     rmSync(staging, { recursive: true, force: true });
   }
 }
-/** Verify exact companion provenance before a publisher considers any npm write. */
-export function verifyPublicCompatibility(root, directory, expectedSha256) {
-  const source = publicPackageInputs(root),
+/**
+ * Verify exact companion provenance before a publisher considers any npm write. Publication uses the sealed
+ * descriptor; a caller may pass the `inputs` it qualified against (tests use the unsealed current selection).
+ */
+export function verifyPublicCompatibility(root, directory, expectedSha256, { inputs } = {}) {
+  const source = inputs ?? publicPackageInputs(root),
     bytes = readFileSync(child(directory, COMPATIBILITY));
   if (expectedSha256 !== undefined && sha(bytes) !== expectedSha256)
     throw new Error('System compatibility manifest changed');

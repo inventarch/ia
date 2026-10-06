@@ -13,6 +13,7 @@ import {
   type ReleasePolicy,
 } from './release-changes.mjs';
 import { releaseGraph } from './release-graph.mjs';
+import { publicPackageInputs } from '../release/public-pack.mjs';
 import { executableExports } from './installed-consumer.mjs';
 import {
   publicationPlan,
@@ -60,9 +61,9 @@ function changeset(): Changeset {
     coverage: coverage.map((row) => ({ ...row, change: 'runtime' })),
   };
 }
-it('requires one exact version across every public package and the sealed input map', () => {
+it('requires one exact version across every public package and the input map', () => {
   const packages = publicPackages(root),
-    versions = releaseVersions(root),
+    versions = releaseVersions(root, publicPackageInputs(root, { sealed: false })),
     version = JSON.parse(readFileSync(resolve(root, 'releases/current.json'), 'utf8')).version;
   expect(() => validatePackages(packages, version, versions)).not.toThrow();
   const drift = structuredClone(packages);

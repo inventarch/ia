@@ -1,12 +1,12 @@
 name: Publish npm packages
 
-# A merged release pull request changes releases/current.json on main. That push starts this workflow for the exact
-# release commit, so a retry (re-run) publishes the same commit even after main moves on. Manual dispatch from main
-# remains for a dry run (publish=false) or a publication of an untagged version at main's head.
+# A merged release pull request changes releases/current.json or a consumed changeset on main. That push starts this
+# workflow for the exact release commit, so a retry (re-run) publishes the same commit even after main moves on. The
+# select job does nothing for a version already tagged. Manual dispatch from main remains for a dry run (publish=false).
 on:
   push:
     branches: [main]
-    paths: [releases/current.json]
+    paths: [releases/current.json, 'releases/changesets/**']
   workflow_dispatch:
     inputs:
       version:

@@ -68,6 +68,7 @@ export declare function validateChangeset(
   actualCoverage: { path: string; sha256: string | null; cohortOnly?: boolean }[],
 ): void;
 export declare function releaseChanges(root: string, projects: PublicPackage[]): ReleaseChanges;
+export declare function committedChanges(root: string): ReleaseChanges;
 export declare function releaseStatus(root: string, projects: PublicPackage[]): ReleaseStatus;
 export declare function collectChanges(root: string, projects: PublicPackage[]): ReleaseChanges;
 export declare function releaseNotes(root: string, version: string): string;

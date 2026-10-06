@@ -264,6 +264,7 @@ When using that build in another project, substitute `node /path/to/ia/apps/cli/
 | `pnpm public:qualify` | Public records, guides and host artifacts, plus package qualification |
 | `pnpm packages:qualify` | Package exports, installed CLI consumers and VSIX packaging |
 | `pnpm release:note` / `pnpm release:check` / `pnpm release:version` | Add a pending release note, check that changed packages have notes, and compute the next coordinated version |
+| `pnpm npm:setup` | Report, and with `--apply` fix, the npm names, trusted publishers and GitHub settings publication needs |
 | `pnpm npm:prepare` / `pnpm npm:consumer` / `pnpm npm:plan` | Prepare and check npm release archives; see the [publishing guide](tools/distribution/NPM-PUBLISHING.md) for the release flow and account setup |
 | `pnpm resources:qualify` / `pnpm projections:qualify` | Emitted resource and projection behavior |
 

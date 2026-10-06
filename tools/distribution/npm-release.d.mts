@@ -1,4 +1,11 @@
 import type { ReleaseGraph } from './release-graph.mjs';
+import type { ReleaseChanges } from './release-changes.mjs';
+import type { publicPackageInputs } from '../release/public-pack.mjs';
+/** Injected release evidence; omitted fields use the strict changeset check and the sealed descriptor. */
+export interface ReleaseEvidence {
+  changes?: ReleaseChanges;
+  inputs?: ReturnType<typeof publicPackageInputs>;
+}
 export interface PackageManifest {
   name: string;
   version: string;
@@ -34,11 +41,15 @@ export declare const REPOSITORY: string;
 export declare const REPOSITORY_URL: string;
 export declare const WORKFLOW: string;
 export declare const ENVIRONMENT: string;
+export declare const NPM_VERSION: string;
 export declare function publicPackages(root: string): PublicPackage[];
 export declare function dependencyOrder<
   T extends { manifest: { name: string; dependencies?: Record<string, string> } },
 >(projects: readonly T[]): T[];
-export declare function releaseVersions(root: string): Record<string, string>;
+export declare function releaseVersions(
+  root: string,
+  inputs?: ReturnType<typeof publicPackageInputs>,
+): Record<string, string>;
 export declare function validatePackages(
   projects: readonly PublicPackage[],
   version: string,
@@ -48,8 +59,14 @@ export declare function writeReleaseManifest(
   root: string,
   directory: string,
   packed: readonly { name: string; filename: string; sha256: string }[],
+  evidence?: ReleaseEvidence,
 ): NpmRelease;
-export declare function verifyRelease(root: string, directory: string, version: string): NpmRelease;
+export declare function verifyRelease(
+  root: string,
+  directory: string,
+  version: string,
+  evidence?: ReleaseEvidence,
+): NpmRelease;
 export declare function publicationPlan(
   release: Pick<NpmRelease, 'packages' | 'version' | 'tag'> & Partial<Pick<NpmRelease, 'baselineVersions'>>,
   registryPackages: Record<string, RegistryPackage | null>,

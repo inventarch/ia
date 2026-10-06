@@ -16,12 +16,14 @@ export const REPOSITORY = 'inventarch/ia';
 export const REPOSITORY_URL = `git+https://github.com/${REPOSITORY}.git`;
 export const WORKFLOW = 'npm-publish.yml';
 export const ENVIRONMENT = 'npm';
+/** The npm CLI that publishes, verifies and configures trust; the workflow installs exactly this version. */
+export const NPM_VERSION = '12.2.0';
 const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const git = (root, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 const integrity = (bytes) => `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
 
-export function releaseVersions(root) {
-  const { receipt } = publicPackageInputs(root);
+export function releaseVersions(root, inputs = publicPackageInputs(root)) {
+  const { receipt } = inputs;
   return receipt.publicRefresh?.npm ?? receipt.baselineOverlay.versions.npm;
 }
 
@@ -106,14 +108,22 @@ function archiveEntries(root, directory, packed, version, fresh = new Set()) {
     }),
   };
 }
+/**
+ * Release evidence defaults to the strict changeset check and the sealed input descriptor. Archive tests inject
+ * `{ changes, inputs }` so they exercise receipts against the current checkout without first sealing a release.
+ */
+const evidenceFor = (root, projects, evidence) => ({
+  changes: evidence.changes ?? releaseChanges(root, projects),
+  inputs: evidence.inputs ?? publicPackageInputs(root),
+});
 // Called only after installed consumers qualify these exact tarballs.
-export function writeReleaseManifest(root, directory, packed) {
+export function writeReleaseManifest(root, directory, packed, evidence = {}) {
   const projects = publicPackages(root),
-    version = json(resolve(root, 'apps/cli/package.json')).version;
-  validatePackages(projects, version, releaseVersions(root));
+    version = json(resolve(root, 'apps/cli/package.json')).version,
+    { changes, inputs } = evidenceFor(root, projects, evidence);
+  validatePackages(projects, version, releaseVersions(root, inputs));
   for (const entry of packed) assert.match(entry.sha256 ?? '', /^[a-f0-9]{64}$/, 'qualified archive hash is required');
-  const changes = releaseChanges(root, projects),
-    compatibility = verifyPublicCompatibility(root, directory);
+  const compatibility = verifyPublicCompatibility(root, directory, undefined, { inputs });
   const archives = archiveEntries(root, directory, packed, version, firstPublished(changes));
   const release = {
     format: 'ia.npm-release.v2',
@@ -140,15 +150,15 @@ export function writeReleaseManifest(root, directory, packed) {
   writeFileSync(resolve(directory, 'npm-release.json'), JSON.stringify(release, null, 2) + '\n');
   return release;
 }
-export function verifyRelease(root, directory, version) {
+export function verifyRelease(root, directory, version, evidence = {}) {
   const release = json(resolve(directory, 'npm-release.json')),
-    projects = publicPackages(root);
-  validatePackages(projects, version, releaseVersions(root));
+    projects = publicPackages(root),
+    { changes, inputs } = evidenceFor(root, projects, evidence);
+  validatePackages(projects, version, releaseVersions(root, inputs));
   assert.equal(release.format, 'ia.npm-release.v2');
   assert.equal(release.version, version);
   assert.equal(release.source.repository, REPOSITORY);
   assert.equal(release.source.commit, git(root, 'rev-parse', 'HEAD'), 'Archive source must match checkout');
-  const changes = releaseChanges(root, projects);
   assert.equal(release.tag, changes.policy.tag, 'Release tag differs');
   assert.deepEqual(
     release.changeset,
@@ -176,7 +186,7 @@ export function verifyRelease(root, directory, version) {
     release.packages.map((entry) => entry.filename).sort(),
   );
   assert.equal(release.systemCompatibility?.path, 'system-compatibility.json');
-  verifyPublicCompatibility(root, directory, release.systemCompatibility.sha256);
+  verifyPublicCompatibility(root, directory, release.systemCompatibility.sha256, { inputs });
   return release;
 }
 export function publicationPlan(release, registryPackages) {
@@ -188,7 +198,7 @@ export function publicationPlan(release, registryPackages) {
     assert.ok(
       remote,
       entry.name +
-        ': create the package and configure its trusted publisher first; see tools/distribution/NPM-PUBLISHING.md',
+        ': create the package and configure its trusted publisher first with pnpm npm:setup --apply; see tools/distribution/NPM-PUBLISHING.md',
     );
     const previous = release.baselineVersions?.[entry.name];
     if (previous) assert.ok(compareVersions(entry.version, previous) > 0, 'Release did not advance published baseline');

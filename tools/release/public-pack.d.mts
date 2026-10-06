@@ -21,7 +21,10 @@ export interface PublicPackageInputs {
 export declare const PUBLIC_INPUTS: string;
 export declare const PUBLIC_SYSTEM_POLICY: string;
 export declare const COMPATIBILITY: string;
-export declare function publicPackageInputs(root: string): {
+export declare function publicPackageInputs(
+  root: string,
+  options?: { sealed?: boolean },
+): {
   receipt: PublicPackageInputs;
   sha256: string;
   bytes: Buffer;
@@ -30,6 +33,7 @@ export declare function packPublicPackages(
   root: string,
   target: string,
   pnpm?: string,
+  options?: { sealed?: boolean },
 ): {
   packed: { name: string; version: string; filename: string; owner: string; sha256: string }[];
   compatibility: unknown;
@@ -39,6 +43,7 @@ export declare function verifyPublicCompatibility(
   root: string,
   directory: string,
   expectedSha256?: string,
+  options?: { inputs?: { receipt: PublicPackageInputs; sha256: string; bytes: Buffer } },
 ): { compatibility: unknown; sha256: string };
 
 export declare function refreshPublicPackageInputs(root: string): {

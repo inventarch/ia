@@ -49,6 +49,7 @@
     "npm:plan": "node tools/distribution/npm-release.mjs plan",
     "npm:consumer": "node tools/distribution/npm-consumer.mjs",
     "npm:trust-commands": "node tools/distribution/npm-release.mjs trust-commands",
+    "npm:setup": "node tools/distribution/release-setup.mjs",
     "npm:inputs": "node tools/release/public-pack.mjs refresh-inputs",
     "release:check": "node tools/distribution/release-changes.mjs check",
     "release:note": "node tools/distribution/release-notes.mjs add",

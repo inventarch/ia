@@ -7,6 +7,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
+import { publicPackageInputs } from '../release/public-pack.mjs';
 
 export const RELEASE_POLICY = 'releases/current.json';
 export const SYSTEM_PACKAGE_POLICY = 'tools/distribution/system-package-policy.json';
@@ -157,15 +158,28 @@ export function validateChangesetStructure(entry, policy, projects) {
 export function validateChangeset(entry, policy, projects, actualCoverage) {
   validateChangesetStructure(entry, policy, projects);
   assert.ok(Array.isArray(entry.coverage));
-  assert.deepEqual(
-    entry.coverage.map(({ path, sha256, cohortOnly }) => ({
-      path,
-      sha256,
-      ...(cohortOnly ? { cohortOnly: true } : {}),
-    })),
-    actualCoverage,
-    'Changeset coverage is missing or stale; review the diff and collect again',
-  );
+  const recorded = entry.coverage.map(({ path, sha256, cohortOnly }) => ({
+    path,
+    sha256,
+    ...(cohortOnly ? { cohortOnly: true } : {}),
+  }));
+  if (JSON.stringify(recorded) !== JSON.stringify(actualCoverage)) {
+    // Name the files rather than dumping two coverage arrays of several hundred rows.
+    const key = (row) => JSON.stringify([row.path, row.sha256, row.cohortOnly === true]),
+      have = new Set(recorded.map(key)),
+      want = new Set(actualCoverage.map(key));
+    const stale = [
+      ...new Set(
+        [...actualCoverage.filter((row) => !have.has(key(row))), ...recorded.filter((row) => !want.has(key(row)))].map(
+          (row) => row.path,
+        ),
+      ),
+    ];
+    assert.fail(
+      `Changeset coverage is missing or stale for ${stale.length} file(s): ${stale.slice(0, 5).join(', ')}` +
+        `${stale.length > 5 ? ', …' : ''}. Review the diff, then run pnpm release:collect (or pnpm release:version --write --refresh)`,
+    );
+  }
   for (const row of entry.coverage) {
     const change = entry.changes.find((change) => change.id === row.change);
     assert.ok(
@@ -235,6 +249,26 @@ export function releaseChanges(root, projects) {
     'Generated changelog is stale',
   );
   const bytes = readFileSync(resolve(root, path));
+  return {
+    policy,
+    entry,
+    path,
+    sha256: sha256(bytes),
+    coverageSha256: sha256(JSON.stringify(entry.coverage)),
+    commits: git(root, 'log', '--reverse', '--format=%H %s', `${policy.baseline.commit}..HEAD`)
+      .split('\n')
+      .filter(Boolean),
+  };
+}
+/**
+ * The current version's changeset as committed, in the shape `releaseChanges` returns, without the freshness checks
+ * that only a release commit passes. Archive tests use it to exercise receipts against any checkout.
+ */
+export function committedChanges(root) {
+  const policy = releasePolicy(root),
+    path = changesetPath(policy.version),
+    bytes = readFileSync(resolve(root, path)),
+    entry = JSON.parse(bytes.toString('utf8'));
   return {
     policy,
     entry,
@@ -363,12 +397,17 @@ if (isEntry(process.argv[1], import.meta.url)) {
     assert.ok(stableVersion(values.version), 'notes requires --version');
     process.stdout.write(releaseNotes(root, values.version));
   } else if (positionals[0] === 'check' && !values.strict) {
-    console.log(JSON.stringify(releaseStatus(root, publicPackages(root)), null, 2));
+    const status = releaseStatus(root, publicPackages(root));
+    // The selection a release would seal: new or renamed public packages refuse here, in the pull request.
+    publicPackageInputs(root, { sealed: false });
+    console.log(JSON.stringify(status, null, 2));
   } else {
     const result =
       positionals[0] === 'collect'
         ? collectChanges(root, publicPackages(root))
         : releaseChanges(root, publicPackages(root));
+    // Release preparation packs exactly the committed descriptor, so it must already be sealed.
+    if (positionals[0] === 'check') publicPackageInputs(root);
     console.log(
       JSON.stringify(
         {
