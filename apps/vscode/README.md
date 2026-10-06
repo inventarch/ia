@@ -1,8 +1,8 @@
 # IA Language for Visual Studio Code
 
-IA Language 1.1.0 provides local diagnostics, completion, hover information, navigation, references, symbols, semantic highlighting and formatting for `.ia` files.
+IA Language provides local diagnostics, completion, hover information, navigation, references, symbols, semantic highlighting and formatting for `.ia` files.
 
-Install the `inventarch-ia-1.1.0.vsix` release artifact using **Extensions: Install from VSIX** in VS Code 1.138.0 or later. Open a local IA workspace folder and a file under `.ia/src/` to start language analysis. Each folder in a multi-root workspace has its own language server.
+Install the `inventarch-ia-<version>.vsix` asset from the [latest GitHub release](https://github.com/inventarch/ia/releases/latest) using **Extensions: Install from VSIX** in VS Code 1.138.0 or later. Open a local IA workspace folder and a file under `.ia/src/` to start language analysis. Each folder in a multi-root workspace has its own language server.
 
 The extension runs local language analysis in restricted workspaces. Virtual workspaces are not supported. Language analysis does not require an account or a hosted service.
 

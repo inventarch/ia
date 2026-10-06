@@ -1,0 +1,10 @@
+# The bundled Node.js models treat process.stdin as a source only through read(), on('data') and readline. The MCP
+# door, the steward and context hooks and the host launcher read it with `for await (const chunk of process.stdin)`,
+# and the language server hands the stream to vscode-languageserver, so none of them would be a source. This row
+# makes the stream itself one; it takes effect only while the stdin threat model is enabled.
+extensions:
+  - addsTo:
+      pack: codeql/javascript-all
+      extensible: sourceModel
+    data:
+      - ['global', 'Member[process].Member[stdin]', 'stdin']

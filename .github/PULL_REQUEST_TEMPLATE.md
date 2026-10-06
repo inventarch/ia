@@ -7,6 +7,7 @@
 - [ ] The nearest `SPEC.md` describes the new behaviour, or no contract changes.
 - [ ] Native records were edited under `.ia/src/` and the generated outputs were regenerated (`pnpm vocabulary:generate`, `pnpm authoring:generate`, `pnpm projections:generate`), or no records changed.
 - [ ] New or moved test files are assigned in `tools/testing/tasks.json`.
+- [ ] A public package changed and `pnpm release:note` added a note under `releases/pending/`, or no package changed.
 
 ## Checks run
 

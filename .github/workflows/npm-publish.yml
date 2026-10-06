@@ -1,14 +1,20 @@
 name: Publish npm packages
 
+# A merged release pull request changes releases/current.json or a consumed changeset on main. That push starts this
+# workflow for the exact release commit, so a retry (re-run) publishes the same commit even after main moves on. The
+# select job does nothing for a version already tagged. Manual dispatch from main remains for a dry run (publish=false).
 on:
+  push:
+    branches: [main]
+    paths: [releases/current.json, 'releases/changesets/**']
   workflow_dispatch:
     inputs:
       version:
-        description: Exact coordinated version in releases/current.json (for example 1.1.0)
-        required: true
+        description: Optional confirmation of the version releases/current.json selects (for example 1.1.0)
         type: string
+        default: ''
       reviewed_changeset_sha256:
-        description: SHA256 of the release changeset reviewed against the complete diff; required to publish
+        description: Optional SHA256 of the reviewed release changeset; when given, publication refuses any other
         type: string
         default: ''
       publish:
@@ -24,33 +30,86 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prepare:
+  select:
     if: github.repository == 'inventarch/ia' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Public quality on three platforms can take most of this; the wait below polls it.
+    timeout-minutes: 150
     permissions:
       contents: read
       actions: read
+    outputs:
+      due: ${{ steps.release.outputs.due }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Require successful cross-platform quality for this exact commit
+      - name: Select the release this commit carries
+        id: release
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p 'JSON.parse(require("node:fs").readFileSync("releases/current.json", "utf8")).version')"
+          if [ -n "${RELEASE_VERSION:-}" ] && [ "$RELEASE_VERSION" != "$version" ]; then
+            echo "::error::Requested $RELEASE_VERSION, but releases/current.json selects $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # The release job tags a version only after registry verification, so a tag means it is complete.
+          if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "v$version is already published from $(git rev-parse "v$version^{commit}"); nothing to do."
+            echo "due=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "due=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Wait for Public quality on this exact main commit
+        if: steps.release.outputs.due == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          gh api "repos/inventarch/ia/actions/workflows/platform-quality.yml/runs?head_sha=$RELEASE_SHA&branch=main&per_page=100" > "$RUNNER_TEMP/quality-runs.json"
-          node --input-type=module -e '
-            import { readFileSync } from "node:fs";
-            const runs = JSON.parse(readFileSync(process.argv[1], "utf8")).workflow_runs;
-            const passed = runs.find(run => run.head_sha === process.env.RELEASE_SHA && run.head_branch === "main" && ["push", "workflow_dispatch", "schedule"].includes(run.event) && run.conclusion === "success");
-            if (!passed) throw new Error("Public quality must pass on this exact main commit before preparing an npm release");
-            console.log(`Qualified commit: ${passed.head_sha}; ${passed.html_url}`);
-          ' "$RUNNER_TEMP/quality-runs.json"
+          # A passing pull-request run does not substitute: only a main run qualifies the merged commit.
+          for attempt in $(seq 1 130); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/platform-quality.yml/runs?head_sha=$RELEASE_SHA&branch=main&per_page=100" > "$RUNNER_TEMP/quality-runs.json"
+            state="$(node --input-type=module -e '
+              import { readFileSync } from "node:fs";
+              const runs = JSON.parse(readFileSync(process.argv[1], "utf8")).workflow_runs.filter(
+                (run) => run.head_sha === process.env.RELEASE_SHA && run.head_branch === "main" &&
+                  ["push", "workflow_dispatch", "schedule"].includes(run.event));
+              const passed = runs.find((run) => run.conclusion === "success");
+              if (passed) console.log("success " + passed.html_url);
+              else if (runs.some((run) => run.status !== "completed")) console.log("running");
+              else if (runs.length) console.log("failed " + runs[0].html_url);
+              else console.log("absent");
+            ' "$RUNNER_TEMP/quality-runs.json")"
+            case "$state" in
+              success*) echo "Qualified commit $RELEASE_SHA: ${state#success }"; exit 0 ;;
+              failed*) echo "::error::Public quality failed for $RELEASE_SHA: ${state#failed }. Re-run it, then re-run this workflow."; exit 1 ;;
+            esac
+            echo "Public quality for $RELEASE_SHA is $state (check $attempt)"
+            sleep 60
+          done
+          echo "::error::Public quality did not pass for $RELEASE_SHA in time"
+          exit 1
+
+  prepare:
+    needs: select
+    if: needs.select.outputs.due == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
       - uses: actions/setup-node@v7
         with:
@@ -64,16 +123,47 @@ jobs:
           echo "$RUNNER_TEMP/npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
           pnpm install --frozen-lockfile
           pnpm audit --audit-level=moderate
-      - name: Validate the coordinated version and reviewed changeset coverage
-        run: pnpm release:check
+      - name: Validate the coordinated version, sealed inputs and exact changeset coverage
+        run: pnpm release:check --strict
       - name: Build, qualify and retain the exact npm tarballs
         run: pnpm npm:prepare
       - name: Install with npm 12 security defaults and exercise the CLI
         run: pnpm npm:consumer
-      - name: Verify the requested release version
+      - name: Verify the selected release version
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
-        run: pnpm npm:plan --version "$RELEASE_VERSION"
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
+        # Direct node invocation: pnpm echoes the script line to stdout, and this output is parsed below.
+        run: node tools/distribution/npm-release.mjs plan --version "$RELEASE_VERSION" > "$RUNNER_TEMP/npm-release.json"
+      # Read-only registry readiness: missing package names, conflicting bytes and unexpected tags refuse here,
+      # before anyone is asked to approve the publication.
+      - name: Preflight the registry cohort without publishing
+        env:
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
+        run: pnpm npm:preflight --version "$RELEASE_VERSION"
+      - name: Summarize the release for the approving reviewer
+        env:
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const release = JSON.parse(readFileSync(process.argv[1], "utf8"));
+            const lines = [
+              `## npm release ${release.version}`,
+              "",
+              `Source commit \`${release.source.commit}\`, changeset \`${release.changeset.path}\``,
+              "",
+              `Changeset SHA256 \`${release.changeset.sha256}\``,
+              "",
+              "Approve the `npm` environment only after reviewing this changeset against the diff since the baseline.",
+              "",
+              "| Package | Archive integrity |",
+              "| --- | --- |",
+              ...release.packages.map((entry) => `| ${entry.name} | \`${entry.integrity}\` |`),
+            ];
+            console.log(lines.join("\n"));
+          ' "$RUNNER_TEMP/npm-release.json" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
           name: npm-release-${{ github.sha }}
@@ -82,10 +172,11 @@ jobs:
           retention-days: 14
 
   publish:
-    if: inputs.publish
-    needs: prepare
+    if: github.event_name == 'push' || inputs.publish
+    needs: [select, prepare]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Required reviewers on this environment are the publication checkpoint.
     environment: npm
     permissions:
       contents: read
@@ -111,13 +202,12 @@ jobs:
       # packages are published from the exact tarballs exercised by prepare.
       - name: Preflight and publish the complete reviewed cohort with OIDC
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
           REVIEWED_CHANGESET: ${{ inputs.reviewed_changeset_sha256 }}
         run: node tools/distribution/npm-release.mjs publish --version "$RELEASE_VERSION" --reviewed-changeset "$REVIEWED_CHANGESET"
 
   verify:
-    if: inputs.publish
-    needs: [prepare, publish]
+    needs: [select, prepare, publish]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -141,7 +231,51 @@ jobs:
           path: artifacts/npm
       - name: Verify every registry version, exact archive, latest tag and provenance
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
         run: |
           node tools/distribution/npm-release.mjs verify-registry --version "$RELEASE_VERSION"
           node tools/distribution/npm-registry-consumer.mjs
+
+  release:
+    # Runs only after the registry cohort verifies, so the tag records a complete publication.
+    needs: [select, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-release-${{ github.sha }}
+          path: artifacts/npm
+      - name: Tag the published commit and create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v$RELEASE_VERSION"
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2> /dev/null || true)"
+          if [ -z "$existing" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$RELEASE_SHA" > /dev/null
+          elif [ "$existing" != "$RELEASE_SHA" ]; then
+            echo "::error::$tag already names $existing, not the published commit $RELEASE_SHA"
+            exit 1
+          fi
+          node tools/distribution/release-changes.mjs notes --version "$RELEASE_VERSION" > "$RUNNER_TEMP/release-notes.md"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "The $tag GitHub release already exists."
+          else
+            gh release create "$tag" --verify-tag --title "IA $RELEASE_VERSION" --notes-file "$RUNNER_TEMP/release-notes.md" \
+              artifacts/npm/*.vsix artifacts/npm/npm-release.json artifacts/npm/system-compatibility.json
+          fi
+          # Notes merged while this release awaited publication can now become the next release pull request.
+          # A tag made with this workflow's token starts no workflow by itself; a dispatch does.
+          gh workflow run release-pr.yml --ref main

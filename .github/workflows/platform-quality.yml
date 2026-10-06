@@ -21,8 +21,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: public-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Each main commit keeps its own run: npm publication requires a passing run for the exact release commit, and a
+  # later merge must not cancel it. Branch and pull-request runs still supersede each other.
+  group: public-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Every env key here, at any level, is either an Nx { "env": … } input or listed in tools/testing/inventory.test.ts as
 # unable to change a task's result: package tasks do not hash this file, so a key a task reads is otherwise ignored.
@@ -58,7 +60,9 @@ jobs:
       # anything is scheduled; a deleted file cannot silently remove an obligation.
       - name: Check dependency advisories
         run: pnpm audit --audit-level=moderate
-      - name: Validate release changeset coverage and cohort versions
+      # Cohort versions, the published changeset's integrity, and a pending release note for every changed package.
+      # Exact file coverage is checked only where a publication is prepared (pnpm release:check --strict).
+      - name: Validate cohort versions and pending release notes
         run: pnpm release:check
       - name: Validate the test inventory
         run: pnpm tests:inventory

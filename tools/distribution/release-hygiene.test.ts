@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { releaseChanges, compareVersions, validateChangeset, type Changeset } from './release-changes.mjs';
 import { releaseGraph } from './release-graph.mjs';
+import { publicPackageInputs } from '../release/public-pack.mjs';
 import { executableExports } from './installed-consumer.mjs';
 import {
   publicationPlan,
@@ -26,9 +27,11 @@ import {
 } from './release-fixtures.js';
 const names = [a, b];
 const projects = names.map(project);
-it('requires one exact version across every public package and the sealed input map', () => {
+const staleCoverage = (path: string) =>
+  `Changeset coverage is missing or stale for 1 file(s): ${path}. Review the diff, then run pnpm release:collect (or pnpm release:version --write --refresh)`;
+it('requires one exact version across every public package and the input map', () => {
   const packages = publicPackages(root),
-    versions = releaseVersions(root),
+    versions = releaseVersions(root, publicPackageInputs(root, { sealed: false })),
     version = JSON.parse(readFileSync(resolve(root, 'releases/current.json'), 'utf8')).version;
   expect(() => validatePackages(packages, version, versions)).not.toThrow();
   const drift = structuredClone(packages);
@@ -80,13 +83,13 @@ it('binds changed files to exact bytes and rejects stale coverage or a cohort-on
       (entry: Changeset) => {
         entry.coverage = [];
       },
-      'Changeset coverage is missing or stale; review the diff and collect again',
+      staleCoverage('packages/a/src/index.ts'),
     ],
     [
       (entry: Changeset) => {
         entry.coverage[0]!.sha256 = 'b'.repeat(64);
       },
-      'Changeset coverage is missing or stale; review the diff and collect again',
+      staleCoverage('packages/a/src/index.ts'),
     ],
     [
       (entry: Changeset) => {
@@ -222,7 +225,7 @@ it('allows justified version-only cohort entries but refuses an invented cohort-
   ).not.toThrow();
   expect(() =>
     validateChangeset(entry, policy(), projects, [{ path: 'packages/a/package.json', sha256: 'a'.repeat(64) }]),
-  ).toThrow(refusal('Changeset coverage is missing or stale; review the diff and collect again'));
+  ).toThrow(refusal(staleCoverage('packages/a/package.json')));
 });
 
 it('refuses a missing release changeset before an artifact can be prepared', () =>

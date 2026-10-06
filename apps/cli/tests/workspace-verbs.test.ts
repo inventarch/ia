@@ -346,7 +346,7 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
     cwd: root,
     packageRoot: cli,
     runtime: { version: 'v22.22.0', platform: 'win32', arch: 'x64' },
-    env: { ...env, npm_config_user_agent: 'pnpm/10.33.0 npm/? node/v22.22.0 win32 x64' },
+    env: { ...env, npm_config_user_agent: 'pnpm/12.9.0 npm/? node/v22.22.0 win32 x64' },
   });
   expect(current.checks.find((check) => check.id === 'support-target')?.status).toBe('ok');
   const doctorOn = (platform: string, arch: string) =>
@@ -376,7 +376,9 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
   expect(doctorOn('win32', 'arm64').status).toBe('warn');
   // pnpm is a contributor requirement, so it is a note in both directions and never decides the exit class.
   expect(current.checks.find((check) => check.id === 'package-manager')?.status).toBe('info');
-  expect(current.checks.find((check) => check.id === 'package-manager')?.detail).toContain('pnpm 10.33.0');
+  expect(current.checks.find((check) => check.id === 'package-manager')?.detail).toBe(
+    'pnpm 12.9.0 invoked this command',
+  );
   // Without a user agent, the note names no pnpm version: a consumer installation cannot know the repository's pin.
   const unreported = collectDoctor({
     cwd: root,

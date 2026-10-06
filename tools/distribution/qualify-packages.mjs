@@ -57,7 +57,9 @@ try {
     .map(({ path }) => ({ path, manifest: json(resolve(path, 'package.json')) }))
     .filter(({ manifest }) => !manifest.private);
   assert.ok(projects.length > 0, 'No public packages discovered');
-  const bundled = packPublicPackages(root, archives, pnpm);
+  // Release preparation (a pack destination) requires the committed seal; ordinary qualification packs the selection
+  // this checkout would seal, so a pull request need not rewrite the descriptor.
+  const bundled = packPublicPackages(root, archives, pnpm, { sealed: Boolean(destination) });
   const packed = bundled.packed;
   const contentScan = scanPackedPublicContent(root, packed);
   assert.equal(packed.length, projects.length);
@@ -205,6 +207,8 @@ try {
     mkdirSync(destination, { recursive: true });
     for (const entry of packed) copyFileSync(entry.filename, resolve(destination, basename(entry.filename)));
     copyFileSync(resolve(archives, COMPATIBILITY), resolve(destination, COMPATIBILITY));
+    // Not an npm archive: the publisher reads only receipt-listed .tgz files. The GitHub release attaches it.
+    copyFileSync(vsix, resolve(destination, basename(vsix)));
     writeReleaseManifest(root, destination, packed);
   }
   console.log(

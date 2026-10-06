@@ -9,14 +9,25 @@ import { expect, vi } from 'vitest';
 import { COMPATIBILITY, PUBLIC_SYSTEM_POLICY, publicPackageInputs } from '../release/public-pack.mjs';
 import { runBounded } from '../testing/subprocess.js';
 import { publicPackages, type PackageManifest } from './npm-release.mjs';
-import type { Changeset, ReleasePolicy } from './release-changes.mjs';
+import { committedChanges, type Changeset, type ReleasePolicy } from './release-changes.mjs';
 
 // Fixtures shared by the release test files: refusal matchers, a minimal changeset, throwaway Git repositories and a
 // qualified archive cohort of this checkout.
 
-/** This checkout, whose sealed release the archive fixtures pack as the publishing commands would. */
+/** This checkout, whose release the archive fixtures pack as the publishing commands would. */
 export const checkout = resolve(import.meta.dirname, '../..');
 export const sha = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
+
+let checkoutEvidence: ReturnType<typeof readEvidence> | undefined;
+const readEvidence = () => {
+  const inputs = publicPackageInputs(checkout, { sealed: false });
+  return { inputs, changes: committedChanges(checkout) };
+};
+/**
+ * Release evidence for this checkout as it stands: the input selection it would seal and its changeset as committed.
+ * Archive tests exercise receipts, not release sealing; strict sealing has its own tests and runs in preparation.
+ */
+export const evidence = () => (checkoutEvidence ??= readEvidence());
 
 /**
  * The authored message must be the whole first line: after an equality refusal Node appends its own actual/expected
@@ -170,7 +181,8 @@ export function archivesFixture(directory: string): QualifiedArchive[] {
 }
 /** The system compatibility companion for the archives in `directory`, written beside them. */
 export function compatibilityFixture(directory: string) {
-  const source = publicPackageInputs(checkout),
+  // A copy: tests mutate the companion, and the shared evidence must not move with it.
+  const source = structuredClone(evidence().inputs),
     policy = systemPolicy();
   const manifests: PackageManifest[] = policy.packages.map((owner) =>
     JSON.parse(readFileSync(resolve(checkout, owner, 'package.json'), 'utf8')),

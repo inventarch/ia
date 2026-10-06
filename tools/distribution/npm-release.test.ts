@@ -26,6 +26,7 @@ import {
 import {
   checkout as root,
   compatibilityFixture,
+  evidence,
   git,
   inQualifiedCohort,
   inRepository,
@@ -57,23 +58,25 @@ const remote = (value = integrity) => ({
 it('refuses changed archive bytes and a manifest from another source commit', () =>
   inQualifiedCohort((directory, archives) => {
     const packed = receipts(archives);
-    const manifest = writeReleaseManifest(root, directory, packed);
+    const manifest = writeReleaseManifest(root, directory, packed, evidence());
     expect(manifest.packages.map((entry) => entry.name)).toEqual(
       publicationOrder(manifest.graph.groups, manifest.baselineVersions),
     );
-    expect(verifyRelease(root, directory, checkoutVersion)).toEqual(manifest);
+    expect(verifyRelease(root, directory, checkoutVersion, evidence())).toEqual(manifest);
     const first = resolve(directory, packed[0]!.filename);
     const original = readFileSync(first);
     const changed = Buffer.from(original);
     changed[0] = changed[0]! ^ 1;
     writeFileSync(first, changed);
-    expect(() => verifyRelease(root, directory, checkoutVersion)).toThrow(/archive integrity changed/);
+    expect(() => verifyRelease(root, directory, checkoutVersion, evidence())).toThrow(/archive integrity changed/);
     writeFileSync(first, original);
     writeFileSync(
       resolve(directory, 'npm-release.json'),
       JSON.stringify({ ...manifest, source: { ...manifest.source, commit: '0'.repeat(40) } }),
     );
-    expect(() => verifyRelease(root, directory, checkoutVersion)).toThrow(/Archive source must match checkout/);
+    expect(() => verifyRelease(root, directory, checkoutVersion, evidence())).toThrow(
+      /Archive source must match checkout/,
+    );
   }));
 
 it('publishes dependencies before their consumers and refuses cycles', () => {
@@ -172,8 +175,8 @@ it('requires a clean source commit, the canonical main branch and OIDC without a
 
 it('requires matching repository metadata, public registry and script-free installation for every release package', () => {
   const projects = publicPackages(root);
-  expect(projects).toHaveLength(Object.keys(releaseVersions(root)).length - 1);
-  expect(() => validatePackages(projects, checkoutVersion, releaseVersions(root))).not.toThrow();
+  expect(projects).toHaveLength(Object.keys(releaseVersions(root, evidence().inputs)).length - 1);
+  expect(() => validatePackages(projects, checkoutVersion, releaseVersions(root, evidence().inputs))).not.toThrow();
   expect(() => validatePackages(projects, '999.0.0')).toThrow(/version differs/);
   const project = {
     directory: 'packages/example',
@@ -209,14 +212,29 @@ it('requires matching repository metadata, public registry and script-free insta
 
 it('keeps npm OIDC out of the build job and publishes only the same-run qualified artifact', () => {
   const workflow = parse(readFileSync(resolve(root, '.github/workflows/npm-publish.yml'), 'utf8'));
-  expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch']);
+  expect(Object.keys(workflow.on).sort()).toEqual(['push', 'workflow_dispatch']);
+  // Automatic runs start only from a main commit that changes the selected release or its changeset.
+  expect(workflow.on.push).toEqual({ branches: ['main'], paths: ['releases/current.json', 'releases/changesets/**'] });
   expect(workflow.on.workflow_dispatch.inputs.publish.default).toBe(false);
   expect(workflow.permissions).toEqual({ contents: 'read' });
-  expect(workflow.jobs.prepare.permissions['id-token']).toBeUndefined();
+  const oidc = Object.entries(workflow.jobs as Record<string, { permissions?: Record<string, string> }>)
+    .filter(([, job]) => job.permissions?.['id-token'])
+    .map(([name]) => name);
+  expect(oidc).toEqual(['publish']);
+  expect(workflow.jobs.select.if).toContain("github.ref == 'refs/heads/main'");
+  expect(workflow.jobs.prepare.if).toBe("needs.select.outputs.due == 'true'");
   const publisher = workflow.jobs.publish;
-  expect(publisher.needs).toBe('prepare');
+  expect(publisher.needs).toEqual(['select', 'prepare']);
   expect(publisher.environment).toBe('npm');
   expect(publisher.permissions['id-token']).toBe('write');
+  // Registry readiness is checked before anyone is asked to approve, and the tag follows only a verified cohort.
+  expect(workflow.jobs.prepare.steps.some((step: { run?: string }) => /npm:preflight/.test(step.run ?? ''))).toBe(true);
+  expect(workflow.jobs.release.needs).toEqual(['select', 'verify']);
+  expect(workflow.jobs.release.permissions).toEqual({ contents: 'write', actions: 'write' });
+  const versioner = parse(readFileSync(resolve(root, '.github/workflows/release-pr.yml'), 'utf8'));
+  expect(versioner.on.push).toEqual({ branches: ['main'] });
+  expect(JSON.stringify(versioner)).not.toMatch(/id-token|environment|npm publish|pnpm install/);
+  expect(JSON.stringify(versioner)).toMatch(/--published-only/);
   const upload = workflow.jobs.prepare.steps.find((step: { uses?: string }) =>
     step.uses?.startsWith('actions/upload-artifact@'),
   );
@@ -233,15 +251,15 @@ it('keeps npm OIDC out of the build job and publishes only the same-run qualifie
 
 it('refuses a missing or changed system compatibility companion', () =>
   inQualifiedCohort((directory, archives) => {
-    const release = writeReleaseManifest(root, directory, receipts(archives));
+    const release = writeReleaseManifest(root, directory, receipts(archives), evidence());
     const path = resolve(directory, COMPATIBILITY),
       before = readFileSync(path);
     writeFileSync(path, Buffer.concat([before, Buffer.from(' ')]));
-    expect(() => verifyPublicCompatibility(root, directory, release.systemCompatibility.sha256)).toThrow(
-      /manifest changed/,
-    );
+    expect(() =>
+      verifyPublicCompatibility(root, directory, release.systemCompatibility.sha256, { inputs: evidence().inputs }),
+    ).toThrow(/manifest changed/);
     rmSync(path);
-    expect(() => verifyRelease(root, directory, checkoutVersion)).toThrow();
+    expect(() => verifyRelease(root, directory, checkoutVersion, evidence())).toThrow();
   }));
 it('refuses stale native versions, npm identities and protocol formats before qualification', () =>
   inQualifiedCohort((directory, archives) => {
@@ -262,7 +280,9 @@ it('refuses stale native versions, npm identities and protocol formats before qu
       const compatibility = compatibilityFixture(directory);
       mutate(compatibility);
       writeFileSync(resolve(directory, COMPATIBILITY), JSON.stringify(compatibility));
-      expect(() => writeReleaseManifest(root, directory, receipts(archives))).toThrow(/System compatibility/);
+      expect(() => writeReleaseManifest(root, directory, receipts(archives), evidence())).toThrow(
+        /System compatibility/,
+      );
     }
   }));
 it('refuses changed source recipes and input provenance before qualification', () =>
@@ -287,7 +307,9 @@ it('refuses changed source recipes and input provenance before qualification', (
       const compatibility = compatibilityFixture(directory);
       mutate(compatibility);
       writeFileSync(resolve(directory, COMPATIBILITY), JSON.stringify(compatibility));
-      expect(() => writeReleaseManifest(root, directory, receipts(archives))).toThrow(/System compatibility/);
+      expect(() => writeReleaseManifest(root, directory, receipts(archives), evidence())).toThrow(
+        /System compatibility/,
+      );
     }
   }));
 
@@ -302,7 +324,7 @@ it('refuses non-system archive mutation after qualification and before release r
       changed = Buffer.from(original);
     changed[0] = changed[0]! ^ 1;
     writeFileSync(path, changed);
-    expect(() => writeReleaseManifest(root, directory, packed)).toThrow(/qualified archive bytes differ/);
+    expect(() => writeReleaseManifest(root, directory, packed, evidence())).toThrow(/qualified archive bytes differ/);
     expect(existsSync(resolve(directory, 'npm-release.json'))).toBe(false);
     writeFileSync(path, original);
     expect(() =>
@@ -310,11 +332,12 @@ it('refuses non-system archive mutation after qualification and before release r
         root,
         directory,
         packed.map((row) => (row === entry ? { ...row, sha256: '' } : row)),
+        evidence(),
       ),
     ).toThrow(/qualified archive hash is required/);
     expect(existsSync(resolve(directory, 'npm-release.json'))).toBe(false);
-    const release = writeReleaseManifest(root, directory, packed);
-    expect(verifyRelease(root, directory, checkoutVersion)).toEqual(release);
+    const release = writeReleaseManifest(root, directory, packed, evidence());
+    expect(verifyRelease(root, directory, checkoutVersion, evidence())).toEqual(release);
   }));
 
 it('refreshes the pinned private VS Code extension without accepting identity changes', () =>
@@ -340,7 +363,17 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
     await git(directory, 'add', '.');
     await git(directory, 'commit', '--quiet', '-m', 'Pinned extension fixture');
     put(path, { ...extension, version: '1.2.0' });
+    // An unsealed change refuses the sealed read that release preparation uses. The unsealed read is what a refresh
+    // would write, and it writes nothing.
+    expect(() => publicPackageInputs(directory)).toThrow(/Changed public package input/);
+    const current = publicPackageInputs(directory, { sealed: false });
+    expect(readFileSync(resolve(directory, PUBLIC_INPUTS), 'utf8')).toBe(JSON.stringify(original));
     const refreshed = refreshPublicPackageInputs(directory);
+    expect({ ...current.receipt.publicRefresh, dirty: true }).toEqual({
+      ...refreshed.receipt.publicRefresh,
+      dirty: true,
+    });
+    expect(current.receipt.files).toEqual(refreshed.receipt.files);
     expect(refreshed.receipt.provenance).toEqual(original.provenance);
     expect(refreshed.receipt.sourceRevision).toBe(original.sourceRevision);
     expect(refreshed.receipt.publicRefresh?.npm).toEqual({ [path]: '1.2.0' });
@@ -353,6 +386,8 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
     ]) {
       put(path, { ...extension, ...changed });
       expect(() => refreshPublicPackageInputs(directory)).toThrow(/public package identity/i);
+      // Unsealed qualification keeps the identity review: a pull request cannot rename a package either.
+      expect(() => publicPackageInputs(directory, { sealed: false })).toThrow(/public package identity/i);
       expect(readFileSync(resolve(directory, PUBLIC_INPUTS))).toEqual(refreshed.bytes);
     }
   }));

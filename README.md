@@ -1,6 +1,6 @@
 # 🌳 IA · the InventArch record language and toolchain
 
-[![Release](https://img.shields.io/badge/release-1.0.0-blue)](https://github.com/inventarch/ia/releases/tag/v1.0.0) [![Public quality](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml/badge.svg?branch=main)](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE) [![Node](https://img.shields.io/badge/node-22.x-brightgreen)](package.json) [![pnpm](https://img.shields.io/badge/pnpm-10.33.0-f69220)](package.json) [![Vocabulary](https://img.shields.io/badge/vocabulary-43%20words-blue)](docs/reference/language/vocabulary.md)
+[![Release](https://img.shields.io/npm/v/@inventarch/cli?label=release)](https://github.com/inventarch/ia/releases/latest) [![Public quality](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml/badge.svg?branch=main)](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE) [![Node](https://img.shields.io/badge/node-22.x-brightgreen)](package.json) [![pnpm](https://img.shields.io/badge/pnpm-12.9.0-f69220)](package.json) [![Vocabulary](https://img.shields.io/badge/vocabulary-43%20words-blue)](docs/reference/language/vocabulary.md)
 
 > **IA** is a language and toolchain for keeping decisions, requirements, agent definitions and work plans alongside your code. Author linked records in plain-text `.ia` files; the CLI checks their structure and relationships, and the VS Code extension helps you write and navigate them.
 >
@@ -29,11 +29,11 @@ The version command should print `1.0.0`. Each project keeps its own records in 
 From that repository, install the CLI as a development dependency so your team shares a pinned version:
 
 ```sh
-npm install --save-dev --save-exact @inventarch/cli@1.0.0
+npm install --save-dev --save-exact @inventarch/cli
 npx ia --version
 ```
 
-Use `npx ia` wherever the examples below use `ia`, and commit your `package.json` and lockfile. With pnpm, use `pnpm add --save-dev --save-exact @inventarch/cli@1.0.0` and `pnpm exec ia`.
+Use `npx ia` wherever the examples below use `ia`, and commit your `package.json` and lockfile. With pnpm, use `pnpm add --save-dev --save-exact @inventarch/cli` and `pnpm exec ia`.
 
 </details>
 
@@ -102,7 +102,7 @@ This checks that your records conform to the language and their references resol
 
 ### 5. Add the VS Code extension
 
-1. Download [`inventarch-ia-1.0.0.vsix`](https://github.com/inventarch/ia/releases/download/v1.0.0/inventarch-ia-1.0.0.vsix) from the [1.0.0 release](https://github.com/inventarch/ia/releases/tag/v1.0.0).
+1. Download the `inventarch-ia-<version>.vsix` asset from the [latest release](https://github.com/inventarch/ia/releases/latest).
 2. In **VS Code 1.138.0 or later**, open the Command Palette and run **Extensions: Install from VSIX…**, then select the downloaded file.
 3. Open your project folder and the `decisions.ia` file. IA Language supplies completion, hover information, navigation, formatting and diagnostics in the Problems panel.
 
@@ -220,7 +220,7 @@ Native declarations describe structure and intent. Passing schema validation doe
 | **Worked examples** | [Public-language examples](examples/public-language/README.md) · [work records](examples/public-language/records/work.ia) |
 | **CLI and hosts** | [CLI guide](apps/cli/README.md) · [MCP server](apps/mcp-door/README.md) · [VS Code extension](apps/vscode/README.md) |
 | **Repository changes** | [Repository contract](SPEC.md) and the nearest package or system `SPEC.md` |
-| **Release downloads** | [IA 1.0.0](https://github.com/inventarch/ia/releases/tag/v1.0.0) · [CI results](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) |
+| **Release downloads** | [Latest release](https://github.com/inventarch/ia/releases/latest) · [changelog](CHANGELOG.md) · [CI results](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) |
 
 ---
 
@@ -228,7 +228,7 @@ Native declarations describe structure and intent. Passing schema validation doe
 
 Review the [repository contract](SPEC.md) and the nearest owner contract before changing behavior. Run focused checks while working; `pnpm platform:qualify` is the full repository qualification entry point. All commands below are root [package.json](package.json) scripts.
 
-To build this repository, use Node.js `>=22.22.0 <23` and pnpm `10.33.0`:
+To build this repository, use Node.js `>=22.22.0 <23` and the pnpm version pinned in `packageManager` (currently `12.9.0`):
 
 ```sh
 pnpm install --frozen-lockfile
@@ -263,7 +263,9 @@ When using that build in another project, substitute `node /path/to/ia/apps/cli/
 | `pnpm projections:check` / `pnpm projections:generate` | Check or regenerate host projections |
 | `pnpm public:qualify` | Public records, guides and host artifacts, plus package qualification |
 | `pnpm packages:qualify` | Package exports, installed CLI consumers and VSIX packaging |
-| `pnpm npm:prepare` / `pnpm npm:consumer` / `pnpm npm:plan` | Prepare and check npm release archives; see the [publishing guide](tools/distribution/NPM-PUBLISHING.md) for the release toolchain and account setup |
+| `pnpm release:note` / `pnpm release:check` / `pnpm release:version` | Add a pending release note, check that changed packages have notes, and compute the next coordinated version |
+| `pnpm npm:setup` | Report, and with `--apply` fix, the npm names, trusted publishers and GitHub settings publication needs |
+| `pnpm npm:prepare` / `pnpm npm:consumer` / `pnpm npm:plan` | Prepare and check npm release archives; see the [publishing guide](tools/distribution/NPM-PUBLISHING.md) for the release flow and account setup |
 | `pnpm resources:qualify` / `pnpm projections:qualify` | Emitted resource and projection behavior |
 
 </details>
