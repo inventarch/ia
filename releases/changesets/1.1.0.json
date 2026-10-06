@@ -184,7 +184,7 @@
     {
       "id": "release-hygiene",
       "title": "Coordinated npm release checks",
-      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance. Inside a dependency cycle, publish new package names before existing ones, so a failed first trusted publish stops before any existing latest tag moves.",
+      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance. Inside a dependency cycle, publish new package names before existing ones, so a failed first trusted publish stops before any existing member of the cycle moves its latest tag.",
       "paths": [
         "tools/distribution/",
         "releases/",
@@ -1746,12 +1746,12 @@
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "1aa003d39f0dc9d9d9e3bdd814feadc300910f5b4f8d21250abc990b9229f826",
+      "sha256": "30238cd90351a3e74f70ac1c8d838e332cd814eec92d496aa089a1e98b648890",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "f23fd8eead7040cea0402a82f30e84279bceaaa323981ba1a3c8267a0e424603",
+      "sha256": "79663c27ee563d05816360f2372b838d235cd58f8ff80b33e337290994676664",
       "change": "release-hygiene"
     },
     {

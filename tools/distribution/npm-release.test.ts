@@ -197,12 +197,10 @@ it('publishes the new package names of a dependency cycle before the cycle moves
     const order = release.packages
       .map((entry: { name: string }) => entry.name)
       .filter((name: string) => cycle.includes(name));
-    const fresh = order.filter((name: string) => release.baselineVersions[name] === null);
-    // A new name's first trusted publish is the step most likely to fail; it must fail before any `latest` tag moves.
-    expect(fresh.length).toBeGreaterThan(0);
-    expect(fresh.length).toBeLessThan(order.length);
-    expect(order.slice(0, fresh.length)).toEqual([...fresh].sort());
-    expect(order.slice(fresh.length)).toEqual(cycle.filter((name) => !fresh.includes(name)).sort());
+    const fresh = cycle.filter((name) => release.baselineVersions[name] === null);
+    // A new name's first trusted publish is the step most likely to fail; it must fail before any existing member of the
+    // cycle moves its `latest` tag. A release without new names keeps the cycle's sorted order.
+    expect(order).toEqual([...fresh, ...cycle.filter((name) => !fresh.includes(name))]);
     expect(release.graph.groups.find((group: { cyclic: boolean }) => group.cyclic)!.members).toEqual([...cycle].sort());
   }));
 

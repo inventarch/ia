@@ -91,7 +91,8 @@ function archiveEntries(root, directory, packed, version, fresh = new Set()) {
     releasePolicy(root).cycles,
   );
   // Every order of a dependency cycle publishes some package before one it depends on. New names go first: a failed first
-  // trusted publish then stops the run before any existing package moves its latest tag.
+  // trusted publish then stops the run before any existing member of the cycle moves its latest tag. Groups before the
+  // cycle have already published, but each after its own dependencies, so their latest versions install.
   const order = graph.groups.flatMap((group) =>
     group.cyclic
       ? [...group.members.filter((name) => fresh.has(name)), ...group.members.filter((name) => !fresh.has(name))]

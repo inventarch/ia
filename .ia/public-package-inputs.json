@@ -2423,7 +2423,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "37edd8a56b2055097877861e424906d7dbf6fc8412160bdb234c9bc072b8af96"
+      "sha256": "1b3c2bdf32cec8c043083c2712f25e8f7674d422384ebe11f537434e6215f90a"
     },
     {
       "path": "CLAUDE.md",
@@ -6907,7 +6907,7 @@
     },
     {
       "path": "releases/changesets/1.1.0.json",
-      "sha256": "797a996385f67c51492dba6e65927e0ea0e4cf70bc3fab5dea4f889d30a5aafc"
+      "sha256": "7f30294907b3820a6faeeb368b7b623fb4f3260893507fda3d348c95de9f9ee8"
     },
     {
       "path": "releases/current.json",
@@ -7011,11 +7011,11 @@
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "1aa003d39f0dc9d9d9e3bdd814feadc300910f5b4f8d21250abc990b9229f826"
+      "sha256": "30238cd90351a3e74f70ac1c8d838e332cd814eec92d496aa089a1e98b648890"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "f23fd8eead7040cea0402a82f30e84279bceaaa323981ba1a3c8267a0e424603"
+      "sha256": "79663c27ee563d05816360f2372b838d235cd58f8ff80b33e337290994676664"
     },
     {
       "path": "tools/distribution/public-content-policy.json",
@@ -7596,10 +7596,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "e0dfa3247e6495d8349033a5b7bfe4116634bccb",
-    "baseTree": "2b5a10caf8af44d1db751b7e2636413e1b8c34f2",
+    "baseCommit": "96bfd8fb66289386b5c9eb107afb843a39d63221",
+    "baseTree": "55deca9953c00cce7c386983d7065f3591ac7aba",
     "dirty": true,
-    "inputDigest": "d2c01de9c4fa5d4bdb2eb72f43cee230aa5207e7a65c1718d8ae643422aeb864",
+    "inputDigest": "ae1a52c9ac5e56c161db21dd61e47ab8a844c7c538768feb852503fcced1146c",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",
