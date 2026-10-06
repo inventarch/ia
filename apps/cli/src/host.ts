@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { lifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
+import { lifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-profile';
 import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
 import type { GuardPlan } from '@inventarch/distribution/guard-registration';
 import {
