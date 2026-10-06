@@ -2,7 +2,7 @@
 
 Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries.
 
-Owner: workspace-system. Identity: workspace-system/definition/<facet>/<name>. Facets: workspace.
+Owner: workspace-system. Identity: workspace-system/definition/<facet>/<name>. Facets: workspace. Artifact set: product-definition. Primitive: Attention. Move: Observation.
 
 Canonical schema: .ia/src/systems/workspace-system/schemas/workspace.schema.ia.
 

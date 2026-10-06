@@ -2,7 +2,7 @@
 
 Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result.
 
-Owner: compliance-system. Identity: compliance-system/definition/<facet>/<name>. Facets: scenario.
+Owner: compliance-system. Identity: compliance-system/definition/<facet>/<name>. Facets: scenario. Artifact set: evidence. Primitive: Learning. Move: Verification.
 
 Canonical schema: .ia/src/systems/compliance-system/schemas/case.schema.ia.
 

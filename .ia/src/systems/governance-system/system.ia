@@ -14,18 +14,30 @@
       category rule
       facets [law]
       schema @schema law
+      artifact-set principle
+      primitive Inference
+      move Verification
     principle lowers to governance
       category rule
       facets [principle]
       schema @schema principle
+      artifact-set principle
+      primitive Inference
+      move Synthesis
     convention lowers to governance
       category rule
       facets [convention]
       schema @schema convention
+      artifact-set principle
+      primitive Inference
+      move Synthesis
     playbook lowers to definition
       category process
       facets [procedure]
       schema @schema playbook
+      artifact-set principle
+      primitive Inference
+      move Synthesis
   edges
     cite * using *
     govern * using *

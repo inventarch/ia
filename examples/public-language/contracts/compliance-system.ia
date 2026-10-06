@@ -12,14 +12,23 @@
       category relation
       facets [signature]
       schema @schema contract
+      artifact-set contract
+      primitive Memory
+      move Verification
     check lowers to check
       category rule
       facets [gate]
       schema @schema check
+      artifact-set evidence
+      primitive Decision
+      move Verification
     case lowers to definition
       category evidence
       facets [scenario]
       schema @schema case
+      artifact-set evidence
+      primitive Learning
+      move Verification
   edges
     cite * using *
     govern * using *

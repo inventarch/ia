@@ -91,6 +91,7 @@ export const isPredicate: (x: string) => x is Predicate = member(PREDICATES);
 export const isPhase: (x: string) => x is Phase = member(PHASES);
 export const isPrimitive: (x: string) => x is Primitive = member(PRIMITIVES);
 export const isMove: (x: string) => x is Move = member(MOVES);
+export const isArtifactSet: (x: string) => x is ArtifactSet = member(ARTIFACT_SETS);
 export const isAxis: (x: string) => x is Axis = member(AXES);
 export const isSeverity: (x: string) => x is Severity = member(SEVERITIES);
 export const isProvenance: (x: string) => x is Provenance = member(PROVENANCES);

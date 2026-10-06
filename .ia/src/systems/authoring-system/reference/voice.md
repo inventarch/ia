@@ -2,7 +2,7 @@
 
 Declares communication attributes separate from authority and procedure.
 
-Owner: agent-composition-system. Identity: agent-composition-system/definition/<facet>/<name>. Facets: voice.
+Owner: agent-composition-system. Identity: agent-composition-system/definition/<facet>/<name>. Facets: voice. Artifact set: product-definition. Primitive: Attention. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/voice.schema.ia.
 

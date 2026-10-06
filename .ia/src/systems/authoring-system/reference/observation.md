@@ -2,7 +2,7 @@
 
 Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing.
 
-Owner: learning-system. Identity: learning-system/definition/<facet>/<name>. Facets: observation.
+Owner: learning-system. Identity: learning-system/definition/<facet>/<name>. Facets: observation. Artifact set: evidence. Primitive: Learning. Move: Observation.
 
 Canonical schema: .ia/src/systems/learning-system/schemas/observation.schema.ia.
 

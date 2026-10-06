@@ -2,7 +2,7 @@
 
 Composes profiles and execution bindings in a workspace under a host contract.
 
-Owner: agent-composition-system. Identity: agent-composition-system/definition/<facet>/<name>. Facets: harness.
+Owner: agent-composition-system. Identity: agent-composition-system/definition/<facet>/<name>. Facets: harness. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/harness.schema.ia.
 

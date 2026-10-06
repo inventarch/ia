@@ -2,7 +2,7 @@
 
 Represents one owner's action toward exactly one milestone. Whether it is ready to start is computed by a work evaluator, never stored on the record.
 
-Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: task.
+Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: task. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/work-system/schemas/task.schema.ia.
 

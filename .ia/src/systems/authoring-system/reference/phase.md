@@ -2,7 +2,7 @@
 
 Defines a cognitive phase coordinate: orient, plan, act or learn.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: phase.
+Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: phase. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

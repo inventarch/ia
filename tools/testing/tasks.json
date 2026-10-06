@@ -1749,6 +1749,7 @@
         "tests/registry/fields.test.ts",
         "tests/registry/floor-consent.test.ts",
         "tests/registry/index.test.ts",
+        "tests/registry/lowering.test.ts",
         "tests/registry/merge.test.ts",
         "tests/registry/order.test.ts",
         "tests/registry/schemas.test.ts",

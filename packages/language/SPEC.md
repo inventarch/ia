@@ -52,7 +52,7 @@ L14. System discovery walks declarations including nested records without needin
 
 L15. Requires is a section of bare name items. Names, including system/schema/steward names used for lookup, are lowercased. A malformed item drops itself. Missing/refused dependencies subsequently refuse their dependent systems transitively. Floor and taxonomy are always satisfied built-ins.
 
-L16. A discriminator entry declares keyword, closed kind/category, nonempty facets and a schema reference. Keywords match the lowercase spelling rule, cannot be reserved and occur once per system. Head faults refuse the system; entry/item/consent-row faults refuse that element. Registry checks do not repeat a parser-owned fault. Conditions on the system's forbidden positions are extraction-owned.
+L16. A discriminator entry declares keyword, closed kind/category, nonempty facets and a schema reference. It may add `artifact-set`, `primitive` and `move` rows, each a bare closed kernel value, which the registration carries as its lowering extras; a present row outside the kernel refuses the entry, an absent row leaves the registration without it. Keywords match the lowercase spelling rule, cannot be reserved and occur once per system. Head faults refuse the system; entry/item/consent-row faults refuse that element. Registry checks do not repeat a parser-owned fault. Conditions on the system's forbidden positions are extraction-owned.
 
 L17. Consent rows have an active predicate, a target side, exactly one `using`, and a source side. Each side is a comma-separated keyword list or a wildcard; malformed/dangling members are refused. A row's two sides must both match; combining separate rows cannot manufacture consent. An absent ledger admits nothing.
 

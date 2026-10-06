@@ -2,7 +2,7 @@
 
 Declares root records from which a distributable closure is selected.
 
-Owner: workspace-system. Identity: workspace-system/definition/<facet>/<name>. Facets: distribution.
+Owner: workspace-system. Identity: workspace-system/definition/<facet>/<name>. Facets: distribution. Artifact set: projection. Primitive: Attention. Move: Observation.
 
 Canonical schema: .ia/src/systems/workspace-system/schemas/distribution.schema.ia.
 

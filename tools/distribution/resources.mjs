@@ -49,7 +49,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       '',
       word.description,
       '',
-      `Owner: ${word.owner}. Identity: ${word.identity}. Facets: ${word.facets.join(', ')}.`,
+      `Owner: ${word.owner}. Identity: ${word.identity}. Facets: ${word.facets.join(', ')}. Artifact set: ${word.artifactSet}. Primitive: ${word.primitive}. Move: ${word.move}.`,
       '',
       `Canonical schema: ${word.schema.path}.`,
       '',
