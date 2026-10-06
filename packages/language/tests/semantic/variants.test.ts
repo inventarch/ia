@@ -113,6 +113,16 @@ describe('governance variants', () => {
     expect(result.variants).toEqual([]);
     expect(result.diagnostics.map((d) => d.code)).toEqual(['IA-LANG-CONDITION-MISPLACED']);
   });
+  it('reads only the governance section: a subject section yields no variants and no diagnostics', () => {
+    const parsed = parse(
+      '#! ia 1.0\n@law demo\n  governance\n    severity blocking\n    requires "base"\n  subject\n    subject-word spec\n    subject-kind definition\n    covers ["docs/**"]\n',
+      'a.ia',
+    );
+    expect(parsed.diagnostics).toEqual([]);
+    const result = readVariants(parsed.ast.records[0]!, 'a.ia', []);
+    expect(result.variants.map((v) => [v.key, v.value])).toEqual([['requires', { kind: 'string', text: 'base' }]]);
+    expect(result.diagnostics).toEqual([]);
+  });
   it('keeps nested declarations independent and item rows in structured data', () => {
     const result = read(
       '    requires "parent"\n    - note\n    @law child\n      governance\n        requires "child"',

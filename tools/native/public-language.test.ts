@@ -48,6 +48,27 @@ describe('public language conformance', () => {
     ).toBe(false);
     expect(JSON.stringify(baseline.harness)).toContain('Read the supplied label and return it unchanged.');
   });
+  it('indexes the typed evidence.subject of the example observation in the graph field index', () => {
+    const node = (discriminator: string, name: string) =>
+      [...baseline.graph.nodes.values()].find((n) => n.discriminator === discriminator && n.name === name)!;
+    const observation = node('observation', 'example-check-evidence'),
+      contract = node('contract', 'example-quality');
+    expect(observation).toBeDefined();
+    expect(contract).toBeDefined();
+    // The ref field is a derived field reference, resolved through the reverse index and never an edge.
+    expect(
+      baseline.graph.referencedBy
+        .get(contract.identity)
+        ?.filter((r) => r.from === observation.identity)
+        .map((r) => [r.field, r.reference]),
+    ).toEqual([['evidence.subject', { kind: 'ref', discriminator: 'contract', name: 'example-quality' }]]);
+    expect(baseline.graph.references.filter((r) => r.from === observation.identity).map((r) => r.to)).toEqual([
+      contract.identity,
+    ]);
+    expect(baseline.graph.edges.filter((e) => e.from === observation.identity).map((e) => e.predicate)).toEqual([
+      'cite',
+    ]);
+  });
   it('refuses missing required fields', () => {
     const result = changed('composition.ia', '    agent @agent example-reader\n', '');
     expect(result.ok).toBe(false);

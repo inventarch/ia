@@ -11,3 +11,5 @@
     must have meaning.says as text
     must have meaning.answers as text
     must have composition.systems as list of ref
+    may have composition.sources as list of text "A root and the placement it is captured at, spelled <root> @<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored."
+    may have composition.steward as ref to agent

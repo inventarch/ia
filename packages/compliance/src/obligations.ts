@@ -47,7 +47,7 @@ export interface ObligationOccurrence {
   readonly adoption: string;
   /** The requirement fragment, e.g. a contract REQ id, a law obligation label or a profile requirement. */
   readonly requirement: string;
-  /** The check.runs evaluator id: a built-in CHECK_IDS id or a catalog id. */
+  /** The check's evaluator id as checkRunner resolves it (check.implementation, else check.runs): a built-in CHECK_IDS id or a catalog id. */
   readonly runs: string;
   readonly provenance: { readonly path: string; readonly line: number };
   readonly applicability?: string;
@@ -358,7 +358,7 @@ function collect(input: ObligationInput): Collected {
           'IA-COMP-OBLIGATION-UNRESOLVED',
           path,
           line,
-          `${label}: check.runs '${echo(occurrence.runs)}' is neither built in nor in catalog ${catalog.digest}`,
+          `${label}: check evaluator '${echo(occurrence.runs)}' (check.implementation or check.runs) is neither built in nor in catalog ${catalog.digest}`,
           false,
           occurrence.identity,
         ),

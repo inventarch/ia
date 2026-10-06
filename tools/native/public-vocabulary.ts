@@ -31,7 +31,7 @@ export const descriptions: Readonly<Record<string, string>> = {
   check: 'Names a check implementation and scope. Declaring an implementation name does not install or execute it.',
   case: 'Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result.',
   workspace:
-    'Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries.',
+    'Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default.',
   distribution: 'Declares root records from which a distributable closure is selected.',
   law: 'Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose.',
   principle: 'Declares a governing rationale in the shared governance shape.',

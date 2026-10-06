@@ -13,7 +13,8 @@ Section governance: optional.
 
 - meaning.says: text; required.
 - meaning.answers: text; required.
-- check.runs: id; required.
+- check.implementation: text; optional.
+- check.runs: id; optional.
 - check.scope: text; required.
 
 

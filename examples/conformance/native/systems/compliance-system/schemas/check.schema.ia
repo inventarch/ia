@@ -11,5 +11,6 @@
   fields
     must have meaning.says as text
     must have meaning.answers as text
-    must have check.runs as id
+    may have check.implementation as text
+    may have check.runs as id
     must have check.scope as text

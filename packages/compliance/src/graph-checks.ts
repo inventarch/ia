@@ -199,12 +199,39 @@ export function validateSelectors(node: Node): Assessment {
   return assess('COMP-SELECTOR', node.identity, findings);
 }
 /**
- * COMP-CHECK (C16, C26). Without a catalog only CHECK_IDS are implemented, exactly as before. With a trusted
- * catalog from createEvaluatorCatalog, a supported catalog id also passes; a revoked one fails and an unavailable
- * one is not-evaluated (D5). Host-reserved ids never pass (D4). The declaration still schedules nothing.
+ * The evaluator id a check declares: `check.implementation` when present, else `check.runs`. Every reader of a
+ * check's evaluator resolves it here so they agree; a check naming both with different values is refused by
+ * validateCheck (IA-COMP-CHECK-CONFLICT). Undefined when neither field is present exactly once.
+ */
+export function checkRunner(node: Node): string | undefined {
+  return textField(node, 'check', 'implementation') ?? textField(node, 'check', 'runs');
+}
+/** The field checkRunner read, for messages; both names when neither is present. */
+function runnerField(node: Node): string {
+  if (textField(node, 'check', 'implementation') !== undefined) return 'check.implementation';
+  return textField(node, 'check', 'runs') !== undefined ? 'check.runs' : 'check.implementation or check.runs';
+}
+/**
+ * COMP-CHECK (C16, C26). The evaluator is checkRunner(node). Without a catalog only CHECK_IDS are implemented,
+ * exactly as before. With a trusted catalog from createEvaluatorCatalog, a supported catalog id also passes; a
+ * revoked one fails and an unavailable one is not-evaluated (D5). Host-reserved ids never pass (D4). A check that
+ * names both check.implementation and check.runs with different values is IA-COMP-CHECK-CONFLICT. The declaration
+ * still schedules nothing.
  */
 export function validateCheck(node: Node, catalog?: EvaluatorCatalog): Assessment {
-  const runner = textField(node, 'check', 'runs');
+  if (catalog !== undefined) assertCatalog(catalog);
+  const implementation = textField(node, 'check', 'implementation'),
+    runs = textField(node, 'check', 'runs');
+  if (implementation !== undefined && runs !== undefined && implementation !== runs)
+    return assess('COMP-CHECK', node.identity, [
+      finding(
+        'IA-COMP-CHECK-CONFLICT',
+        node,
+        `check.implementation '${implementation}' and check.runs '${runs}' name different evaluators; declare one or make them agree`,
+      ),
+    ]);
+  const runner = checkRunner(node),
+    field = runnerField(node);
   if (catalog === undefined)
     return assess(
       'COMP-CHECK',
@@ -215,17 +242,16 @@ export function validateCheck(node: Node, catalog?: EvaluatorCatalog): Assessmen
             finding(
               'IA-COMP-CHECK-UNKNOWN',
               node,
-              `Unknown or missing check.runs '${runner ?? ''}'; implemented: ${CHECK_IDS.join(', ')}`,
+              `Unknown or missing ${field} '${runner ?? ''}'; implemented: ${CHECK_IDS.join(', ')}`,
             ),
           ],
     );
-  assertCatalog(catalog);
   // D4: only CHECK_IDS are built in; host-reserved ids never pass and are never catalog entries.
   if (runner !== undefined && isBuiltinCheck(runner)) return assess('COMP-CHECK', node.identity, []);
   const entry = runner === undefined ? undefined : selectEvaluator(catalog, runner);
   if (entry?.availability.status === 'supported') return assess('COMP-CHECK', node.identity, []);
   if (entry !== undefined) {
-    const message = `check.runs '${entry.id}' names catalog evaluator ${entry.id}@${entry.implementationVersion}, which is ${entry.availability.status}: ${entry.availability.reason}`;
+    const message = `${field} '${entry.id}' names catalog evaluator ${entry.id}@${entry.implementationVersion}, which is ${entry.availability.status}: ${entry.availability.reason}`;
     // D5: revoked is a blocking error; unavailable stays visibly not-evaluated (admission blocks required obligations).
     return entry.availability.status === 'revoked'
       ? assess('COMP-CHECK', node.identity, [finding('IA-COMP-EVALUATOR-REVOKED', node, message)])
@@ -240,7 +266,7 @@ export function validateCheck(node: Node, catalog?: EvaluatorCatalog): Assessmen
     finding(
       'IA-COMP-CHECK-UNKNOWN',
       node,
-      `Unknown or missing check.runs '${runner ?? ''}'; implemented: ${CHECK_IDS.join(', ')}; catalog ${catalog.digest}: ${[...new Set(catalog.entries.map((e) => e.id))].join(', ') || 'no entries'}`,
+      `Unknown or missing ${field} '${runner ?? ''}'; implemented: ${CHECK_IDS.join(', ')}; catalog ${catalog.digest}: ${[...new Set(catalog.entries.map((e) => e.id))].join(', ') || 'no entries'}`,
     ),
   ]);
 }
