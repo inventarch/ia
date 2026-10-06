@@ -1,0 +1,369 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "1.1.1",
+  "state": "consumed",
+  "baseline": {
+    "commit": "73ed8098673d18cbbab5fd3948cc6eedfae66fc2",
+    "version": "1.1.0"
+  },
+  "bump": "patch",
+  "summary": "Coordinated 1.1.1 patch release of all 21 public npm packages and the VS Code extension. Fix GitHub release completion after registry verification; package implementation behavior and independent native, language and protocol versions remain unchanged.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/agent-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/cli": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/compliance": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/db": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/distribution": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/governance-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/graph": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/language": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/learning-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/runtime": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/session-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/template-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/work-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "1.1.0",
+      "kind": "cohort",
+      "summary": "No implementation changes; npm version aligned to 1.1.1 with the coordinated cohort. Packed internal dependencies, where present, use the exact 1.1.1 cohort versions."
+    }
+  },
+  "changes": [
+    {
+      "id": "release-completion-1-1-1",
+      "title": "Coordinate 1.1.1 with reliable GitHub release completion",
+      "summary": "Distinguish genuinely absent GitHub tags and releases from failed lookups, verify existing tags resolve to the published commit, and refuse conflicting tags without replacing them. All 21 npm packages and the VS Code extension move to 1.1.1; package implementation behavior is unchanged, with packed intra-cohort dependencies aligned to 1.1.1. Native system, language and protocol versions remain unchanged.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".github/",
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/compliance-system/",
+        ".ia/src/systems/governance-system/",
+        ".ia/src/systems/hook-authoring-system/",
+        ".ia/src/systems/learning-system/",
+        ".ia/src/systems/session-system/",
+        ".ia/src/systems/template-system/",
+        ".ia/src/systems/work-system/",
+        ".ia/src/systems/workspace-system/",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/mcp-door/",
+        "apps/steward-hook/",
+        "packages/compliance/",
+        "packages/db/",
+        "packages/graph/",
+        "packages/language/",
+        "packages/runtime/",
+        "packages/service-contracts/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/npm-publish.yml",
+      "sha256": "268095e18f87b16647bb5e8840838be1fb85b2945833e031367b72d2e0337d5b",
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "d7f96db28c4c38d77a0f413f08c99c76842595b1b32461b0bdabd239af55f0ba",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "f807c73e82bccb863d6cafc484c909675c5a20a917d34b1ae1db3b64ea1b1af9",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "e06e12da48172dbce65192444db62f046bbff839ec2c0467a804570cdd5d9d72",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "bf40b2dd292f47dff693f15eee1a606dc41b3deededc5d415f969633af064059",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "15b6905deba680ba96d553be803f7b038c421faa186975d0e65356e382ba6b3d",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "514cca0c6e0317bd8b17f4b48d3d30f242112e484f4e580096baee35f5d2a408",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "a81ca2ca0fb2eaf09760f0d14891bec84619a7756140f7cc49b6cda778bf2f7d",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "a5caf4088083ead42af8cabb2c6e45a820c0b2295bf298256d034bfdccdc7930",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "2e1ab68b5c7afbad1af9ebd77d654d174df56536be4ac00f71118d756714be33",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "9675d00a8315e31067187f2f0d0cdfe5811bf7bd8f172505d90f5a21e1fd9e9e",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "c67a131d98adf1b6896e5d0bb9c38931d4f0eb47b6fcd1fcae554c2e6d4ac3c9",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "0d10ea3713f648fced7ba6c757892cccc0765fde996773554fcdea150f3edd42",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "dcfab466cb12b2c2df5b7757c774688df0eafe26fd8dbcaee81dfd58603fe320",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "b6149edd75ee9b0223e2a5c0a967cc4a7c725bbbf70bb315cc1d7c21479f4d28",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "09759c23acc34be40aef837f096d569ba8baeac974883c007e0e0ef71b8e23e9",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "41624b76c0ef9906fe63d0ba20c18a018f8738ae4e968a5551f2a5370fb5e52a",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "5e5cce5e77da8237a8f7e29fdaeba071f3c8a05e3c59aadba9f0e7fa680386c8",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "e260c5832471e9fc2ce02594560346bd0bf3e0621eb20a6477f9ecf6e90b4b9d",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "a1ee96403196a7dddefa387697483fb2c2373a25fa988c082110cdc20188c903",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "9ba55e8c5533b968cf0de25cf9802ecf36960ec5d240b938d2e528dd53d61ef0",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "6676dba9b6814124edac9eb147cb00715712fa98e188841287469bebf6f09e33",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "59b7b8425ac532e289cc41fe1715b9b6e50a1df195f867e8f4846a86841eb2d6",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "098eb180bcba1f264f1173e9e40cc8f1460c735b21dd04c7460fdebb5aa313b0",
+      "cohortOnly": true,
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "b376a311d4ecfc939ce2804c822aeafaab9b757a6cd424df37e501b6c850f47e",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/NPM-PUBLISHING.md",
+      "sha256": "8012a0a59c2c0877f4ad30f6902519c86ddf98a28c2bc43d5364fe42a90c17b5",
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "tools/distribution/SPEC.md",
+      "sha256": "1e151610e3487f12babf64a812783ae51e25ce9bb806f70004bcb1f97dd957b0",
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "tools/distribution/github-release.d.mts",
+      "sha256": "42140f3366f28e43321f2ad4cdb5dddfae3238648fe4551d07d5a9d77de8d4ab",
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "tools/distribution/github-release.mjs",
+      "sha256": "1c497b0a95575aa197a2a838b30fe05946e97a545b51352c19b6ecd128d79117",
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "tools/distribution/github-release.test.ts",
+      "sha256": "d8c75048f57c9bc169497d91a83db7df41fe1902cf15888de69edf73b4b9f49b",
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "39ae52c3a63178c085eefe3acbb2516433948cf95839eb6fbe85080c87fca369",
+      "change": "release-completion-1-1-1"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "a7e7df34622ecf1ff44f3a0fc0063016f9474750dca632ff4e3ae650ec737f87",
+      "change": "release-completion-1-1-1"
+    }
+  ]
+}

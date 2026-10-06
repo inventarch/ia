@@ -2,6 +2,16 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 1.1.1
+
+Coordinated 1.1.1 patch release of all 21 public npm packages and the VS Code extension. Fix GitHub release completion after registry verification; package implementation behavior and independent native, language and protocol versions remain unchanged.
+
+### Coordinate 1.1.1 with reliable GitHub release completion
+
+Distinguish genuinely absent GitHub tags and releases from failed lookups, verify existing tags resolve to the published commit, and refuse conflicting tags without replacing them. All 21 npm packages and the VS Code extension move to 1.1.1; package implementation behavior is unchanged, with packed intra-cohort dependencies aligned to 1.1.1. Native system, language and protocol versions remain unchanged.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runtime`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
+
 ## 1.1.0
 
 Coordinated public framework 1.1.0 candidate with governed context, bundled system assets, cross-platform qualification and mandatory release hygiene. Publication and production enforcement remain separate approvals and qualifications.
