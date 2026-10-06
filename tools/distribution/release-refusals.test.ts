@@ -160,15 +160,11 @@ it('refuses a package impact without a known kind and a summary', () => {
 it('refuses two change entries with one identity', () => {
   const entry = changeset();
   entry.changes.push({ ...entry.changes[0]!, packages: [b], paths: ['packages/b/'] });
-  // This check has no authored message, so the diagnostic is the one Node generates by quoting the refused
-  // expression. The callee prefix depends on how the module was loaded (Vitest reports `ok(`, plain Node `assert.ok(`).
   expect(validate(entry)).toThrow(
     expect.objectContaining({
       code: 'ERR_ASSERTION',
-      generatedMessage: true,
-      message: expect.stringMatching(
-        /^The expression evaluated to a falsy value:\n\n {2}(?:assert\.)?ok\(!ids\.has\(change\.id\)\)\n$/,
-      ),
+      generatedMessage: false,
+      message: 'Duplicate change entry: runtime',
     }),
   );
   entry.changes[1]!.id = 'cohort';

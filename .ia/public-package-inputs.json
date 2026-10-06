@@ -6907,7 +6907,7 @@
     },
     {
       "path": "releases/changesets/1.1.0.json",
-      "sha256": "9247c17ce347e32b55bedbdbf4776a18598c53e9af5a5353e74ae403e4593857"
+      "sha256": "018d25d7c8bd2cda5f7e7cc450946292f8df1f5d24248caf4ebef831a6c9671c"
     },
     {
       "path": "releases/current.json",
@@ -7035,7 +7035,7 @@
     },
     {
       "path": "tools/distribution/release-changes.mjs",
-      "sha256": "09603b7887d2ffef1887f75152407f5fc954ca70001db45973c2bee40c8cccad"
+      "sha256": "063cacf46680c5084ecab9eb3777f8a6ec8f5383c781d6c994826ba301d29eca"
     },
     {
       "path": "tools/distribution/release-graph.d.mts",
@@ -7059,7 +7059,7 @@
     },
     {
       "path": "tools/distribution/release-refusals.test.ts",
-      "sha256": "379c39af5d4f5f855564c95d25e0629eb8d75a055feb67a0a74cd5435471cae6"
+      "sha256": "af14c24bd488cbe7350982a06b2c3c88495d0eab20cdf7ca953c23152c74a656"
     },
     {
       "path": "tools/distribution/resources.mjs",
@@ -7596,10 +7596,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "0e0b164cdaf3e65aab11355356fff9edd57eac67",
-    "baseTree": "0ed4db571fee2d3c21d8b1ffe65d645ed8af0eb9",
+    "baseCommit": "28f8a2ba1f7c47b3ad977f3b38a4be8faf47cef3",
+    "baseTree": "b7d6e1f2a5772227acd963e7d855b3c7e9702518",
     "dirty": true,
-    "inputDigest": "4cc8eab69ac74933a0a252c4b59809f50d245f7c096b17d5f460094de15c7e83",
+    "inputDigest": "4d47f5ba348dcaf643227cbb95b980d2a90c4f82dedd264735cfd668167fddb1",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",

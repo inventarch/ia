@@ -1771,7 +1771,7 @@
     },
     {
       "path": "tools/distribution/release-changes.mjs",
-      "sha256": "09603b7887d2ffef1887f75152407f5fc954ca70001db45973c2bee40c8cccad",
+      "sha256": "063cacf46680c5084ecab9eb3777f8a6ec8f5383c781d6c994826ba301d29eca",
       "change": "release-hygiene"
     },
     {
@@ -1801,7 +1801,7 @@
     },
     {
       "path": "tools/distribution/release-refusals.test.ts",
-      "sha256": "379c39af5d4f5f855564c95d25e0629eb8d75a055feb67a0a74cd5435471cae6",
+      "sha256": "af14c24bd488cbe7350982a06b2c3c88495d0eab20cdf7ca953c23152c74a656",
       "change": "release-hygiene"
     },
     {
