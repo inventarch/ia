@@ -8,13 +8,13 @@ import {
   satisfies,
 } from '@inventarch/db/distribution';
 import type { DistributionLock } from '@inventarch/db/distribution';
-import { verifyCapture, type Capture } from '@inventarch/agent-composition-system';
-import { assessAuthoringMinting, resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
+import { verifyCapture, type Capture } from '@inventarch/workspace-runtime';
+import { assessAuthoringMinting, resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
 import {
   AUTHORING_MANIFEST_PATH,
   captureAuthoringManifestBytes,
-} from '@inventarch/agent-composition-system/authoring-manifest';
-import { RESOURCE_LIMITS } from '@inventarch/agent-composition-system/resources';
+} from '@inventarch/workspace-runtime/authoring-manifest';
+import { RESOURCE_LIMITS } from '@inventarch/workspace-runtime/resources';
 import { digest } from '@inventarch/graph';
 import { verifyArchive, type VerifiedArchive } from './archive.js';
 import { distributionSnapshot } from './snapshot.js';

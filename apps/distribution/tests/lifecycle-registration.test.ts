@@ -6,7 +6,7 @@ import {
   lifecycleProfile,
   segmentedLifecycleRow,
   verifyLifecycleProfile,
-} from '@inventarch/agent-composition-system/lifecycle-profile';
+} from '@inventarch/workspace-runtime/lifecycle-profile';
 import { canonicalDistributionJson } from '@inventarch/db/distribution';
 import { DEFAULT_CONTEXT_HOOK_BUDGETS } from '@inventarch/steward-hook/context';
 import { applyHost, nodeCommand, planHost, recoverHost, verifyHostCache } from '../src/host.js';
@@ -21,9 +21,9 @@ import { json, sha256 } from '../src/files.js';
 import { runNative } from '../src/native-command.js';
 
 // spy: true keeps the composition's real row lookup for every case; only the case that stubs a row diverts it, and it is put back after each case.
-vi.mock('@inventarch/agent-composition-system/lifecycle-profile', { spy: true });
-const composition = await vi.importActual<typeof import('@inventarch/agent-composition-system/lifecycle-profile')>(
-  '@inventarch/agent-composition-system/lifecycle-profile',
+vi.mock('@inventarch/workspace-runtime/lifecycle-profile', { spy: true });
+const composition = await vi.importActual<typeof import('@inventarch/workspace-runtime/lifecycle-profile')>(
+  '@inventarch/workspace-runtime/lifecycle-profile',
 );
 afterEach(() => {
   vi.mocked(segmentedLifecycleRow).mockImplementation(composition.segmentedLifecycleRow);

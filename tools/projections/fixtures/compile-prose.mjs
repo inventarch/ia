@@ -7,14 +7,14 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { open } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
-import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
-import { captureResources, resourceOccurrences } from '@inventarch/agent-composition-system/resources';
+import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@inventarch/workspace-runtime';
+import { captureResources, resourceOccurrences } from '@inventarch/workspace-runtime/resources';
 import {
   claudeProseCatalog,
   codexProseCatalog,
   compileProjection,
   serializeProjection,
-} from '@inventarch/agent-composition-system/projections';
+} from '@inventarch/workspace-runtime/projections';
 // The shared link rule, copied beside this script; external and fragment-only links name no product file.
 import { linkCounts, linkProblems } from './link-walk.mjs';
 const walkLinks = (host, product, directory, files) => {

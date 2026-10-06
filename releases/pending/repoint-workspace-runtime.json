@@ -1,0 +1,17 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Distribution and steward-hook consume @inventarch/workspace-runtime",
+  "summary": "@inventarch/distribution and @inventarch/steward-hook import the generic workspace runtime from @inventarch/workspace-runtime and no longer depend on @inventarch/agent-composition-system; behaviour is unchanged.",
+  "packages": [
+    "@inventarch/distribution",
+    "@inventarch/steward-hook"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "apps/distribution/",
+    "apps/steward-hook/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

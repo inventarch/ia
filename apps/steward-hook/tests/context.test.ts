@@ -23,15 +23,15 @@ import {
   decodeLifecycleEvent,
   LifecycleError,
   lifecycleProfile,
-} from '@inventarch/agent-composition-system/lifecycle-profile';
+} from '@inventarch/workspace-runtime/lifecycle-profile';
 import {
   assembleLifecycleContextSegments,
   prepareLifecycleContextSegments,
-} from '@inventarch/agent-composition-system/lifecycle';
-import type { LifecycleView } from '@inventarch/agent-composition-system/lifecycle';
-import { openLocalAuthoringView } from '@inventarch/agent-composition-system/authoring-manifest';
-import { prepareAuthoringTarget, resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
-import { resourceOccurrences } from '@inventarch/agent-composition-system/resources';
+} from '@inventarch/workspace-runtime/lifecycle';
+import type { LifecycleView } from '@inventarch/workspace-runtime/lifecycle';
+import { openLocalAuthoringView } from '@inventarch/workspace-runtime/authoring-manifest';
+import { prepareAuthoringTarget, resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
+import { resourceOccurrences } from '@inventarch/workspace-runtime/resources';
 import {
   createContextHookBinding,
   DEFAULT_CONTEXT_HOOK_BUDGETS,
