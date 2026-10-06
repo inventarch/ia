@@ -21,7 +21,7 @@
   "dependencies": {
     "@inventarch/distribution": "workspace:*",
     "@inventarch/compliance": "workspace:*",
-    "@inventarch/agent-composition-system": "workspace:*",
+    "@inventarch/workspace-runtime": "workspace:*",
     "@inventarch/db": "workspace:*",
     "@inventarch/runtime": "workspace:*"
   },
