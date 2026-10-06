@@ -2,7 +2,7 @@
   "version": 1,
   "language": "ia 1.0",
   "status": "public IA 1.0 language contract",
-  "sourceDigest": "81d32b184981905742368468d7ac09df6546e45a3eeeb4cde053649d0feead34",
+  "sourceDigest": "67f90e54134068bec09a65987ddf082c7c7fb4955683e299caf3a0ecfcf8c151",
   "words": [
     {
       "word": "agent",
@@ -804,9 +804,14 @@
             "required": true
           },
           {
+            "path": "check.implementation",
+            "type": "text",
+            "required": false
+          },
+          {
             "path": "check.runs",
             "type": "id",
-            "required": true
+            "required": false
           },
           {
             "path": "check.scope",
@@ -929,6 +934,10 @@
           {
             "name": "relationships",
             "required": false
+          },
+          {
+            "name": "subject",
+            "required": false
           }
         ],
         "fields": [
@@ -946,6 +955,30 @@
             "path": "governance.severity",
             "type": "id",
             "required": true
+          },
+          {
+            "path": "subject.subject-word",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "subject.subject-kind",
+            "type": "id",
+            "required": false,
+            "values": [
+              "governance",
+              "contract",
+              "definition",
+              "template",
+              "check",
+              "policy",
+              "binding"
+            ]
+          },
+          {
+            "path": "subject.covers",
+            "type": "list of text",
+            "required": false
           }
         ],
         "edges": []
@@ -1869,6 +1902,10 @@
           {
             "name": "relationships",
             "required": false
+          },
+          {
+            "name": "subject",
+            "required": false
           }
         ],
         "fields": [
@@ -1886,6 +1923,30 @@
             "path": "governance.severity",
             "type": "id",
             "required": true
+          },
+          {
+            "path": "subject.subject-word",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "subject.subject-kind",
+            "type": "id",
+            "required": false,
+            "values": [
+              "governance",
+              "contract",
+              "definition",
+              "template",
+              "check",
+              "policy",
+              "binding"
+            ]
+          },
+          {
+            "path": "subject.covers",
+            "type": "list of text",
+            "required": false
           }
         ],
         "edges": []
@@ -2284,6 +2345,64 @@
             "required": true
           },
           {
+            "path": "evidence.subject",
+            "type": "ref",
+            "required": false,
+            "description": "The record the evidence is about, as a typed reference; evidence.locator spells the same subject as text."
+          },
+          {
+            "path": "evidence.subject-revision",
+            "type": "text",
+            "required": false,
+            "description": "The subject's per-record digest when the evidence was taken; readiness compares it with the subject's current digest. evidence.revision is its free-text form."
+          },
+          {
+            "path": "evidence.snapshot-revision",
+            "type": "text",
+            "required": false,
+            "description": "The revision of the snapshot the subject was read from."
+          },
+          {
+            "path": "evidence.evaluator",
+            "type": "text",
+            "required": false,
+            "description": "Who produced the evidence, as a ref identity or <tool>@<version>; evidence.actor is its free-text form."
+          },
+          {
+            "path": "evidence.move",
+            "type": "id",
+            "required": false,
+            "values": [
+              "Observation",
+              "Execution",
+              "Delegation",
+              "Synthesis",
+              "Verification"
+            ]
+          },
+          {
+            "path": "evidence.verdict",
+            "type": "id",
+            "required": false,
+            "values": [
+              "success",
+              "refusal",
+              "inconclusive"
+            ]
+          },
+          {
+            "path": "evidence.implementation",
+            "type": "text",
+            "required": false,
+            "description": "The <id>@<version> of the check implementation that produced the evidence; evidence.origin names only its kind."
+          },
+          {
+            "path": "evidence.target",
+            "type": "text",
+            "required": false,
+            "description": "The host id the evidence was produced on; with evidence.implementation it types what evidence.origin names."
+          },
+          {
             "path": "interpretation.applies",
             "type": "text",
             "required": true
@@ -2647,6 +2766,10 @@
           {
             "name": "activation",
             "required": false
+          },
+          {
+            "name": "subject",
+            "required": false
           }
         ],
         "fields": [
@@ -2659,6 +2782,25 @@
             "path": "meaning.answers",
             "type": "text",
             "required": true
+          },
+          {
+            "path": "subject.subject-word",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "subject.subject-kind",
+            "type": "id",
+            "required": false,
+            "values": [
+              "governance",
+              "contract",
+              "definition",
+              "template",
+              "check",
+              "policy",
+              "binding"
+            ]
           }
         ],
         "edges": []
@@ -2834,6 +2976,10 @@
           {
             "name": "relationships",
             "required": false
+          },
+          {
+            "name": "subject",
+            "required": false
           }
         ],
         "fields": [
@@ -2851,6 +2997,25 @@
             "path": "governance.severity",
             "type": "id",
             "required": true
+          },
+          {
+            "path": "subject.subject-word",
+            "type": "id",
+            "required": false
+          },
+          {
+            "path": "subject.subject-kind",
+            "type": "id",
+            "required": false,
+            "values": [
+              "governance",
+              "contract",
+              "definition",
+              "template",
+              "check",
+              "policy",
+              "binding"
+            ]
           }
         ],
         "edges": []
@@ -3473,7 +3638,7 @@
         "workspace"
       ],
       "identity": "workspace-system/definition/<facet>/<name>",
-      "description": "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries.",
+      "description": "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default.",
       "schema": {
         "name": "workspace",
         "path": ".ia/src/systems/workspace-system/schemas/workspace.schema.ia",
@@ -3507,6 +3672,18 @@
             "path": "composition.systems",
             "type": "list of ref",
             "required": true
+          },
+          {
+            "path": "composition.sources",
+            "type": "list of text",
+            "required": false,
+            "description": "A root and the placement it is captured at, spelled <root> @<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored."
+          },
+          {
+            "path": "composition.steward",
+            "type": "ref",
+            "required": false,
+            "target": "agent"
           }
         ],
         "edges": []

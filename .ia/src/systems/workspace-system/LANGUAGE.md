@@ -51,6 +51,6 @@ Spec source locators do not load documents. Resource capture and disclosure requ
 | @template | template-system | Represents bounded rendering inputs and output structure. Rendering does not publish or install output. |
 | @value-type | taxonomy | Defines the field types that schemas may require. |
 | @voice | agent-composition-system | Declares communication attributes separate from authority and procedure. |
-| @workspace | workspace-system | Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. |
+| @workspace | workspace-system | Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default. |
 
 This guide describes the selected structural vocabulary. Private expert procedures, live provider behavior and unobserved platform qualification are separate from the installed public contract.

@@ -17,8 +17,8 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -66,8 +66,8 @@
     },
     {
       "path": ".ia/src/systems/agent-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -87,8 +87,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -171,8 +171,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/check.md",
-      "bytes": 747,
-      "sha256": "7b90511c01657561a265b99231cd39302569e6e9eeeaf9ea04f1cefa808ae00d",
+      "bytes": 787,
+      "sha256": "7aec3a67b32d0a48fd619d63e8d4e4c49bfbdb2ee7805d137a2a6001924e4f3a",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -185,8 +185,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/convention.md",
-      "bytes": 669,
-      "sha256": "c61057034ac30d8c538b52f4aef340697170ffec2c0e81b1dc750ed449809446",
+      "bytes": 886,
+      "sha256": "6feb14fc2df4e24a6173b0b214ad6ea2135da610d7e31b43f2e94d38a04a88a7",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -262,8 +262,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/law.md",
-      "bytes": 705,
-      "sha256": "d25eac1d663839d167be191157cc6f2330f3bf7009633cef9f304e538a81c87c",
+      "bytes": 922,
+      "sha256": "658f26251aff92319a00cd4aca9f01a6570f8c805bdce4485c9d6bb3afc38d12",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -290,8 +290,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/observation.md",
-      "bytes": 1376,
-      "sha256": "1b5281722342f025dfd7551b30ba30364bfc73fa8c7106bb9a8247ea9b29901c",
+      "bytes": 2453,
+      "sha256": "23b6fb83f20a99cabfe0730ad7338a8414a2b453a58099fd4f351bb3bd259be1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -325,8 +325,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/playbook.md",
-      "bytes": 720,
-      "sha256": "9c6aad7899449257280335b5c3acb830a060f1a8e67e4bba615c29a2b70dd114",
+      "bytes": 895,
+      "sha256": "8f3974bf55a48af52fa0b8512c48110c9ce340629a9f065453d4c86d0878ee90",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -346,8 +346,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/principle.md",
-      "bytes": 675,
-      "sha256": "96e46cfe10db756680d4d1cc8c777aca012bcf5b4b66d51b1d59b884499d02a6",
+      "bytes": 850,
+      "sha256": "74fb6bab82bdf337084909460585da8d6ead2685e783affe242a9ffcf06b6ede",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -409,15 +409,15 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/workspace.md",
-      "bytes": 737,
-      "sha256": "9428dcbf04423c42a28bcc3393f86921d500a1efad981a1d3355182d172b9dd4",
+      "bytes": 1139,
+      "sha256": "181ecd22af93eb68d4480ae1d279ba696ca83544d4aded154c9f68ae383ac9f1",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/compliance-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -437,8 +437,8 @@
     },
     {
       "path": ".ia/src/systems/governance-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -458,8 +458,8 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -479,8 +479,8 @@
     },
     {
       "path": ".ia/src/systems/learning-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -500,8 +500,8 @@
     },
     {
       "path": ".ia/src/systems/session-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -521,8 +521,8 @@
     },
     {
       "path": ".ia/src/systems/template-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -542,8 +542,8 @@
     },
     {
       "path": ".ia/src/systems/work-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -563,8 +563,8 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/LANGUAGE.md",
-      "bytes": 6519,
-      "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
+      "bytes": 6651,
+      "sha256": "2d4124f6b24923fe9f3aedafb89ac668edcad6b35397c049bae04e352c9a7d63",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

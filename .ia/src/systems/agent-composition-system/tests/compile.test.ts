@@ -213,6 +213,24 @@ it('refuses unavailable validators, malformed schemas and required evaluators', 
     '  composition\n    checks [@check instance-schema-check]\n',
   );
   expect(refused(checked, 'IA-COMPOSITION-UNAVAILABLE').field).toBe('check.runs');
+  // An implementation-only check resolves its evaluator the same way (compliance checkRunner precedence) and the
+  // refusal names the field actually read.
+  const implemented = modified(
+    'checks/instance-schema-check.ia',
+    '    runs COMP-SCHEMA',
+    '    implementation COMP-SCHEMA',
+    checked,
+  );
+  expect(refused(implemented, 'IA-COMPOSITION-UNAVAILABLE').field).toBe('check.implementation');
+  // Layered: a check naming both fields with different values is refused at admission (IA-COMP-CHECK-CONFLICT) and
+  // leaves the graph, so the capability's reference to it has no target and the compiler never chooses between them.
+  const conflicting = modified(
+    'checks/instance-schema-check.ia',
+    '    runs COMP-SCHEMA',
+    '    runs COMP-SCHEMA\n    implementation COMP-KERNEL',
+    checked,
+  );
+  expect(refused(conflicting, 'IA-COMPOSITION-REFERENCE')).toMatchObject({ message: 'IA-GRAPH-TARGET-MISSING' });
 });
 it('narrows limits and refuses negative, conditional or unknown limits', () => {
   const tight = modified(

@@ -9,10 +9,14 @@ Canonical schema: .ia/src/systems/governance-system/schemas/convention.schema.ia
 Section meaning: required.
 Section governance: required.
 Section relationships: optional.
+Section subject: optional.
 
 - meaning.says: text; required.
 - meaning.answers: text; required.
 - governance.severity: id; required.
+- subject.subject-word: id; optional.
+- subject.subject-kind: id in [governance, contract, definition, template, check, policy, binding]; optional.
+- subject.covers: list of text; optional.
 
 
 A valid declaration establishes structural conformance. Execution, host authority and evidence verification require their respective explicit consumers.

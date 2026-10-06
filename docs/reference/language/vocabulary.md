@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `81d32b184981905742368468d7ac09df6546e45a3eeeb4cde053649d0feead34`.
+This catalogue contains 44 words. Source digest: `67f90e54134068bec09a65987ddf082c7c7fb4955683e299caf3a0ecfcf8c151`.
 
 ## @agent
 
@@ -258,7 +258,8 @@ Required sections: meaning, check. Optional sections: relationships, governance.
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
-| check.runs | id | yes |
+| check.implementation | text | no |
+| check.runs | id | no |
 | check.scope | text | yes |
 
 ## @contract
@@ -293,13 +294,16 @@ Facets: `convention`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, governance. Optional sections: relationships.
+Required sections: meaning, governance. Optional sections: relationships, subject.
 
 | Field | Type | Required |
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
 | governance.severity | id | yes |
+| subject.subject-word | id | no |
+| subject.subject-kind | id in [governance, contract, definition, template, check, policy, binding] | no |
+| subject.covers | list of text | no |
 
 ## @decision
 
@@ -585,13 +589,16 @@ Facets: `law`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, governance. Optional sections: relationships.
+Required sections: meaning, governance. Optional sections: relationships, subject.
 
 | Field | Type | Required |
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
 | governance.severity | id | yes |
+| subject.subject-word | id | no |
+| subject.subject-kind | id in [governance, contract, definition, template, check, policy, binding] | no |
+| subject.covers | list of text | no |
 
 ## @mandate
 
@@ -704,6 +711,14 @@ Required sections: meaning, evidence, interpretation, retention. Optional sectio
 | evidence.bundle | text | yes |
 | evidence.digest | text | yes |
 | evidence.availability | id | yes |
+| evidence.subject | ref | no |
+| evidence.subject-revision | text | no |
+| evidence.snapshot-revision | text | no |
+| evidence.evaluator | text | no |
+| evidence.move | id in [Observation, Execution, Delegation, Synthesis, Verification] | no |
+| evidence.verdict | id in [success, refusal, inconclusive] | no |
+| evidence.implementation | text | no |
+| evidence.target | text | no |
 | interpretation.applies | text | yes |
 | interpretation.limits | text | yes |
 | interpretation.reason | text | yes |
@@ -821,12 +836,14 @@ Facets: `procedure`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, cognition. Optional sections: relationships, activation.
+Required sections: meaning, cognition. Optional sections: relationships, activation, subject.
 
 | Field | Type | Required |
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
+| subject.subject-word | id | no |
+| subject.subject-kind | id in [governance, contract, definition, template, check, policy, binding] | no |
 
 ## @predicate
 
@@ -887,13 +904,15 @@ Facets: `principle`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, governance. Optional sections: relationships.
+Required sections: meaning, governance. Optional sections: relationships, subject.
 
 | Field | Type | Required |
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
 | governance.severity | id | yes |
+| subject.subject-word | id | no |
+| subject.subject-kind | id in [governance, contract, definition, template, check, policy, binding] | no |
 
 ## @run
 
@@ -1089,7 +1108,7 @@ Required sections: meaning, communication. Optional sections: relationships.
 
 ## @workspace
 
-Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries.
+Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default.
 
 Owner: `workspace-system`. Kind: `definition`. Category: `boundary`. Artifact set: `product-definition`. Primitive: `Attention`. Move: `Observation`. Identity: `workspace-system/definition/<facet>/<name>`.
 
@@ -1106,3 +1125,5 @@ Required sections: meaning, composition. Optional sections: relationships.
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
 | composition.systems | list of ref | yes |
+| composition.sources | list of text | no |
+| composition.steward | ref to agent | no |

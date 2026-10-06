@@ -1,0 +1,31 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "@check may name its implementation",
+  "summary": "A @check may declare check.implementation beside check.runs; check.runs is no longer required when implementation is present. Validators read implementation, then runs; an unknown id is still refused at admission, and a check naming both with different values is refused.",
+  "packages": [
+    "@inventarch/agent-composition-system",
+    "@inventarch/authoring-system",
+    "@inventarch/cli",
+    "@inventarch/compliance",
+    "@inventarch/compliance-system",
+    "@inventarch/mcp-door"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    ".ia/src/systems/agent-composition-system/",
+    ".ia/src/systems/authoring-system/",
+    ".ia/src/systems/compliance-system/",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/mcp-door/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "packages/compliance/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

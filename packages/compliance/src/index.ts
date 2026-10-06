@@ -8,6 +8,7 @@ export { validateSystems } from './systems.js';
 export type { SystemFolder } from './systems.js';
 export {
   CHECK_IDS,
+  checkRunner,
   graphLookup,
   validateGraphSchema,
   validateFragments,

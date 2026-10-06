@@ -690,7 +690,7 @@
 
 @authoring-guide public-workspace-system-workspace
   meaning
-    says "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries."
+    says "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default."
     answers "What does @workspace represent?"
   reference
     owner workspace-system
@@ -698,7 +698,7 @@
     schema @schema workspace
     document ".ia/src/systems/authoring-system/reference/workspace.md"
   guidance
-    select-when "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries."
+    select-when "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default."
     avoid-when "The intended record has a different semantic role."
     consider "Check required fields and references; declaration is not execution evidence."
   relationships

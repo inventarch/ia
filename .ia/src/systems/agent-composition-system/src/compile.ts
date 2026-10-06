@@ -432,8 +432,10 @@ class Compiler {
         'execution.procedure-profile',
       );
     const checks = this.refs(node, 'composition', 'checks', 'check').map((check) => {
-      const id = field(check, 'check', 'runs');
-      this.use('evaluators', id, check, 'check.runs');
+      // The evaluator a check names: check.implementation when present, else check.runs (compliance checkRunner).
+      const key = value(check, 'check', 'implementation') === undefined ? 'runs' : 'implementation';
+      const id = field(check, 'check', key);
+      this.use('evaluators', id, check, `check.${key}`);
       return id;
     });
     const result: CompiledCapability = {

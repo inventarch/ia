@@ -58,7 +58,8 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       ),
       '',
       ...word.schema.fields.map(
-        (field) => `- ${field.path}: ${fieldTypeText(field)}; ${field.required ? 'required' : 'optional'}.`,
+        (field) =>
+          `- ${field.path}: ${fieldTypeText(field)}; ${field.required ? 'required' : 'optional'}.${field.description ? ` — ${field.description}` : ''}`,
       ),
       '',
       ...word.schema.edges.map(

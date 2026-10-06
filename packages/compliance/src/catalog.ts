@@ -362,7 +362,7 @@ export function assertCatalog(value: unknown): asserts value is EvaluatorCatalog
 export function codecOf(catalog: EvaluatorCatalog, id: string): EvaluatorCodec | undefined {
   return catalogCodecs.get(catalog)?.get(id);
 }
-/** The entry check.runs selects: the supported implementation, else the highest listed version. */
+/** The entry a check's evaluator id (checkRunner: check.implementation, else check.runs) selects: the supported implementation, else the highest listed version. */
 export function selectEvaluator(catalog: EvaluatorCatalog, id: string): EvaluatorEntry | undefined {
   assertCatalog(catalog);
   const listed = catalog.entries.filter((e) => e.id === id);

@@ -7,3 +7,6 @@
   governance
     severity advisory
     requires "Sample fixture statement 3."
+  subject
+    subject-word contract
+    subject-kind contract

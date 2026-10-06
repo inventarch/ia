@@ -24,3 +24,36 @@
     status retained
   relationships
     cites @contract example-quality#REQ-EXAMPLE-NEWLINE
+
+@observation example-check-evidence
+  meaning
+    says "An illustrative check result recorded as typed evidence about one record at one revision."
+    answers "How can an author record which record, revision, evaluator and implementation a check result is about?"
+  evidence
+    origin check
+    actor "ia-compliance@1.1.0"
+    observed-at "2026-10-06T00:00:00Z"
+    captured-at "2026-10-06T00:00:00Z"
+    workspace "example-module"
+    locator "example-quality"
+    revision "0000000000000000000000000000000000000000000000000000000000000001"
+    bundle ".ia/learning/observations/example-check-evidence.json"
+    digest "0000000000000000000000000000000000000000000000000000000000000000"
+    availability unavailable
+    subject @contract example-quality
+    subject-revision "0000000000000000000000000000000000000000000000000000000000000001"
+    snapshot-revision "0000000000000000000000000000000000000000000000000000000000000002"
+    evaluator "ia-compliance@1.1.0"
+    move Verification
+    verdict success
+    implementation "COMP-KERNEL@1.1.0"
+    target "example-host"
+  interpretation
+    applies "The example-quality contract at the named subject revision only."
+    limits "This example declares a typed result shape; no execution is attested and the revisions are placeholders."
+    reason "A check result that names the record and revision it judged lets a later reader tell whether it still applies."
+    basis inference
+  retention
+    status retained
+  relationships
+    cites @contract example-quality

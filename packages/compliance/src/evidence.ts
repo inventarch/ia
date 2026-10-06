@@ -492,7 +492,8 @@ function verifyResolution(resolution: ObligationResolution, context: AdmissionCo
       )
         return 'obligation identity does not match its content';
       ids.add(o.obligationId);
-      if (o.evaluator.id !== o.runs) return 'obligation evaluator does not match check.runs';
+      if (o.evaluator.id !== o.runs)
+        return 'obligation evaluator does not match the check evaluator (check.implementation or check.runs)';
       if (o.evaluator.builtin) {
         if (
           !isBuiltinCheck(o.runs) ||

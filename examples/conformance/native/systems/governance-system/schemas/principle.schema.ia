@@ -6,8 +6,11 @@
     must have meaning
     must have governance
     may have relationships
+    may have subject
     closed
   fields
     must have meaning.says as text
     must have meaning.answers as text
     must have governance.severity as id
+    may have subject.subject-word as id
+    may have subject.subject-kind as id in [governance, contract, definition, template, check, policy, binding]

@@ -362,6 +362,24 @@ export function runRefusalFixtures(
       () => validateSelectors({ ...method, selectors: [[{ axis: 'phase', value: 'unknown' }]] }).findings,
     ],
     ['IA-COMP-CHECK-UNKNOWN', () => validateCheck({ ...check, sections: [] }).findings],
+    [
+      'IA-COMP-CHECK-CONFLICT',
+      () =>
+        validateCheck({
+          ...check,
+          sections: check.sections.map((s) =>
+            s.name !== 'check'
+              ? s
+              : {
+                  ...s,
+                  fields: [
+                    ...s.fields,
+                    { key: 'implementation', value: { kind: 'string', text: 'fixture-other-evaluator' }, span: s.span },
+                  ],
+                },
+          ),
+        }).findings,
+    ],
     ['IA-COMP-VARIANT-AMBIGUOUS', () => validateVariants(ambiguous).findings],
     [
       'IA-COMP-ADOPTION-FAILED',

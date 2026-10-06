@@ -10,9 +10,12 @@ Section meaning: required.
 Section cognition: required.
 Section relationships: optional.
 Section activation: optional.
+Section subject: optional.
 
 - meaning.says: text; required.
 - meaning.answers: text; required.
+- subject.subject-word: id; optional.
+- subject.subject-kind: id in [governance, contract, definition, template, check, policy, binding]; optional.
 
 
 A valid declaration establishes structural conformance. Execution, host authority and evidence verification require their respective explicit consumers.
