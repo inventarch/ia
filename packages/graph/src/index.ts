@@ -3,6 +3,8 @@ export type { GraphCode, GraphDiagnostic } from './diagnostics.js';
 export { canonicalRoot, reaches } from './paths.js';
 export { stableSerialize, revisionOf } from './revision.js';
 export type { RevisionInputs, RevisionSource } from './revision.js';
+export { CodecError, canonical, copy, digest } from './codec.js';
+export type { Json } from './codec.js';
 export { validateCoordinate, dimensionsOf } from './coordinate.js';
 export type { Coordinate, Dimensions } from './coordinate.js';
 export { load, serialize } from './load.js';

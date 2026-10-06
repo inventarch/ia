@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { load } from '../../packages/graph/src/index.js';
+import { digest, load } from '../../packages/graph/src/index.js';
 import { KERNEL_DIGEST, LANGUAGE_VERSION } from '../../packages/language/src/index.js';
-import { digest } from '../../.ia/src/systems/session-system/src/index.js';
 import { compileHarness } from '../../.ia/src/systems/agent-composition-system/src/compile.js';
 import { installed } from '../../.ia/src/systems/agent-composition-system/src/catalog.js';
 import type { CompositionCatalog } from '../../.ia/src/systems/agent-composition-system/src/catalog.js';

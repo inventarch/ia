@@ -21,7 +21,7 @@ import {
   resourceOccurrences,
   nativeResourcePath,
 } from '@inventarch/agent-composition-system/resources';
-import { digest } from '@inventarch/session-system';
+import { digest } from '@inventarch/graph';
 import { fail, utf8 } from './files.js';
 
 /** Archive evidence is entirely input bytes plus the installed language's explicit immutable floor. */
