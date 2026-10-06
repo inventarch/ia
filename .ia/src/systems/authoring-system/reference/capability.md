@@ -2,7 +2,7 @@
 
 Groups operations, procedures, templates, checks and included capabilities with declared execution bounds.
 
-Owner: agent-composition-system. Identity: agent-composition-system/definition/<facet>/<name>. Facets: capability.
+Owner: agent-composition-system. Identity: agent-composition-system/definition/<facet>/<name>. Facets: capability. Artifact set: product-definition. Primitive: Inference. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/capability.schema.ia.
 

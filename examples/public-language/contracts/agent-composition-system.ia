@@ -17,22 +17,37 @@
       category property
       facets [voice]
       schema @schema voice
+      artifact-set product-definition
+      primitive Attention
+      move Synthesis
     agent-profile lowers to binding
       category capability
       facets [agent-profile]
       schema @schema agent-profile
+      artifact-set execution
+      primitive Decision
+      move Execution
     harness lowers to definition
       category boundary
       facets [harness]
       schema @schema harness
+      artifact-set execution
+      primitive Decision
+      move Execution
     capability lowers to definition
       category capability
       facets [capability]
       schema @schema capability
+      artifact-set product-definition
+      primitive Inference
+      move Synthesis
     execution-binding lowers to binding
       category relation
       facets [execution-binding]
       schema @schema execution-binding
+      artifact-set execution
+      primitive Decision
+      move Execution
   edges
     cite * using *
     govern * using *

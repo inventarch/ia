@@ -2,7 +2,7 @@
 
 Defines relationship multiplicity constraints.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: cardinality.
+Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: cardinality. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

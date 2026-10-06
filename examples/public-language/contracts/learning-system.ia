@@ -15,10 +15,16 @@
       category evidence
       facets [observation]
       schema @schema observation
+      artifact-set evidence
+      primitive Learning
+      move Observation
     improvement lowers to definition
       category intent
       facets [improvement]
       schema @schema improvement
+      artifact-set inquiry
+      primitive Learning
+      move Synthesis
   edges
     cite * using *
     govern * using *

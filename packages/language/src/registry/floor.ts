@@ -31,6 +31,9 @@ export const FLOOR_REGISTRATIONS: readonly Registration[] = [
     category: 'boundary',
     facets: ['system'],
     schema: 'system',
+    artifactSet: 'product-definition',
+    primitive: 'Attention',
+    move: 'Observation',
     band: 10,
   },
   {
@@ -40,6 +43,9 @@ export const FLOOR_REGISTRATIONS: readonly Registration[] = [
     category: 'representation',
     facets: ['head'],
     schema: 'schema',
+    artifactSet: 'contract',
+    primitive: 'Inference',
+    move: 'Verification',
     band: 10,
   },
 ];

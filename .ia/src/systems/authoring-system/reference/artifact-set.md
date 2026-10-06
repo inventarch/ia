@@ -2,7 +2,7 @@
 
 Defines a closed grouping of artifact genres.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: artifact-set.
+Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: artifact-set. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

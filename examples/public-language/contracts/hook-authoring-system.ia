@@ -15,6 +15,9 @@
       category capability
       facets [hook]
       schema @schema hook
+      artifact-set operational
+      primitive Escalation
+      move Execution
   edges
     cite * using *
     govern * using *

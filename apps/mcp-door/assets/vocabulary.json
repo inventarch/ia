@@ -2,13 +2,16 @@
   "version": 1,
   "language": "ia 1.0",
   "status": "public IA 1.0 language contract",
-  "sourceDigest": "991105cd85bd193d7bfe94cda8c2725124d1122e794b9153fd307875542c0e56",
+  "sourceDigest": "ff02010e5f8f87d7e3eddbff6e00cb7d67c3ad76425df2eaf32c0f4b817cc7e8",
   "words": [
     {
       "word": "agent",
       "owner": "agent-system",
       "kind": "binding",
       "category": "capability",
+      "artifactSet": "operational",
+      "primitive": "Attention",
+      "move": "Delegation",
       "facets": [
         "agent"
       ],
@@ -59,6 +62,9 @@
       "owner": "agent-composition-system",
       "kind": "binding",
       "category": "capability",
+      "artifactSet": "execution",
+      "primitive": "Decision",
+      "move": "Execution",
       "facets": [
         "agent-profile"
       ],
@@ -193,6 +199,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "artifact-set"
       ],
@@ -249,6 +258,9 @@
       "owner": "authoring-system",
       "kind": "definition",
       "category": "representation",
+      "artifactSet": "product-definition",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "authoring-guide"
       ],
@@ -333,6 +345,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "axis"
       ],
@@ -394,6 +409,9 @@
       "owner": "agent-composition-system",
       "kind": "definition",
       "category": "capability",
+      "artifactSet": "product-definition",
+      "primitive": "Inference",
+      "move": "Synthesis",
       "facets": [
         "capability"
       ],
@@ -538,6 +556,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "cardinality"
       ],
@@ -588,6 +609,9 @@
       "owner": "compliance-system",
       "kind": "definition",
       "category": "evidence",
+      "artifactSet": "evidence",
+      "primitive": "Learning",
+      "move": "Verification",
       "facets": [
         "scenario"
       ],
@@ -673,6 +697,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "category"
       ],
@@ -735,6 +762,9 @@
       "owner": "compliance-system",
       "kind": "check",
       "category": "rule",
+      "artifactSet": "evidence",
+      "primitive": "Decision",
+      "move": "Verification",
       "facets": [
         "gate"
       ],
@@ -794,6 +824,9 @@
       "owner": "compliance-system",
       "kind": "contract",
       "category": "relation",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Verification",
       "facets": [
         "signature"
       ],
@@ -872,6 +905,9 @@
       "owner": "governance-system",
       "kind": "governance",
       "category": "rule",
+      "artifactSet": "principle",
+      "primitive": "Inference",
+      "move": "Synthesis",
       "facets": [
         "convention"
       ],
@@ -922,6 +958,9 @@
       "owner": "work-system",
       "kind": "definition",
       "category": "decision",
+      "artifactSet": "decision",
+      "primitive": "Decision",
+      "move": "Synthesis",
       "facets": [
         "decision"
       ],
@@ -1052,6 +1091,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "dimension"
       ],
@@ -1112,6 +1154,9 @@
       "owner": "workspace-system",
       "kind": "definition",
       "category": "representation",
+      "artifactSet": "projection",
+      "primitive": "Attention",
+      "move": "Observation",
       "facets": [
         "distribution"
       ],
@@ -1162,6 +1207,9 @@
       "owner": "agent-composition-system",
       "kind": "binding",
       "category": "relation",
+      "artifactSet": "execution",
+      "primitive": "Decision",
+      "move": "Execution",
       "facets": [
         "execution-binding"
       ],
@@ -1247,6 +1295,9 @@
       "owner": "agent-composition-system",
       "kind": "definition",
       "category": "boundary",
+      "artifactSet": "execution",
+      "primitive": "Decision",
+      "move": "Execution",
       "facets": [
         "harness"
       ],
@@ -1356,6 +1407,9 @@
       "owner": "hook-authoring-system",
       "kind": "binding",
       "category": "capability",
+      "artifactSet": "operational",
+      "primitive": "Escalation",
+      "move": "Execution",
       "facets": [
         "hook"
       ],
@@ -1421,6 +1475,9 @@
       "owner": "learning-system",
       "kind": "definition",
       "category": "intent",
+      "artifactSet": "inquiry",
+      "primitive": "Learning",
+      "move": "Synthesis",
       "facets": [
         "improvement"
       ],
@@ -1569,6 +1626,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "intent-shape"
       ],
@@ -1660,6 +1720,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "kind"
       ],
@@ -1724,6 +1787,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "lane"
       ],
@@ -1777,6 +1843,9 @@
       "owner": "governance-system",
       "kind": "governance",
       "category": "rule",
+      "artifactSet": "principle",
+      "primitive": "Inference",
+      "move": "Verification",
       "facets": [
         "law"
       ],
@@ -1827,6 +1896,9 @@
       "owner": "agent-system",
       "kind": "policy",
       "category": "rule",
+      "artifactSet": "principle",
+      "primitive": "Escalation",
+      "move": "Delegation",
       "facets": [
         "mandate"
       ],
@@ -1921,6 +1993,9 @@
       "owner": "work-system",
       "kind": "definition",
       "category": "state",
+      "artifactSet": "product-definition",
+      "primitive": "Inference",
+      "move": "Verification",
       "facets": [
         "milestone"
       ],
@@ -2048,6 +2123,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "move"
       ],
@@ -2100,6 +2178,9 @@
       "owner": "learning-system",
       "kind": "definition",
       "category": "evidence",
+      "artifactSet": "evidence",
+      "primitive": "Learning",
+      "move": "Observation",
       "facets": [
         "observation"
       ],
@@ -2233,6 +2314,9 @@
       "owner": "authoring-system",
       "kind": "binding",
       "category": "capability",
+      "artifactSet": "execution",
+      "primitive": "Decision",
+      "move": "Execution",
       "facets": [
         "operation"
       ],
@@ -2308,6 +2392,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "phase"
       ],
@@ -2359,6 +2446,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "placement"
       ],
@@ -2416,6 +2506,9 @@
       "owner": "work-system",
       "kind": "definition",
       "category": "process",
+      "artifactSet": "product-definition",
+      "primitive": "Inference",
+      "move": "Synthesis",
       "facets": [
         "plan"
       ],
@@ -2514,6 +2607,9 @@
       "owner": "governance-system",
       "kind": "definition",
       "category": "process",
+      "artifactSet": "principle",
+      "primitive": "Inference",
+      "move": "Synthesis",
       "facets": [
         "procedure"
       ],
@@ -2563,6 +2659,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "predicate"
       ],
@@ -2638,6 +2737,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "primitive"
       ],
@@ -2696,6 +2798,9 @@
       "owner": "governance-system",
       "kind": "governance",
       "category": "rule",
+      "artifactSet": "principle",
+      "primitive": "Inference",
+      "move": "Synthesis",
       "facets": [
         "principle"
       ],
@@ -2746,6 +2851,9 @@
       "owner": "session-system",
       "kind": "definition",
       "category": "event",
+      "artifactSet": "operational",
+      "primitive": "Decision",
+      "move": "Execution",
       "facets": [
         "run"
       ],
@@ -2806,6 +2914,9 @@
       "owner": "floor",
       "kind": "contract",
       "category": "representation",
+      "artifactSet": "contract",
+      "primitive": "Inference",
+      "move": "Verification",
       "facets": [
         "head"
       ],
@@ -2840,6 +2951,9 @@
       "owner": "work-system",
       "kind": "contract",
       "category": "rule",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "spec"
       ],
@@ -2936,6 +3050,9 @@
       "owner": "floor",
       "kind": "definition",
       "category": "boundary",
+      "artifactSet": "product-definition",
+      "primitive": "Attention",
+      "move": "Observation",
       "facets": [
         "system"
       ],
@@ -2995,6 +3112,9 @@
       "owner": "work-system",
       "kind": "definition",
       "category": "process",
+      "artifactSet": "execution",
+      "primitive": "Decision",
+      "move": "Execution",
       "facets": [
         "task"
       ],
@@ -3117,6 +3237,9 @@
       "owner": "template-system",
       "kind": "template",
       "category": "representation",
+      "artifactSet": "projection",
+      "primitive": "Decision",
+      "move": "Execution",
       "facets": [
         "template"
       ],
@@ -3187,6 +3310,9 @@
       "owner": "taxonomy",
       "kind": "definition",
       "category": "kind",
+      "artifactSet": "contract",
+      "primitive": "Memory",
+      "move": "Observation",
       "facets": [
         "value-type"
       ],
@@ -3240,6 +3366,9 @@
       "owner": "agent-composition-system",
       "kind": "definition",
       "category": "property",
+      "artifactSet": "product-definition",
+      "primitive": "Attention",
+      "move": "Synthesis",
       "facets": [
         "voice"
       ],
@@ -3315,6 +3444,9 @@
       "owner": "workspace-system",
       "kind": "definition",
       "category": "boundary",
+      "artifactSet": "product-definition",
+      "primitive": "Attention",
+      "move": "Observation",
       "facets": [
         "workspace"
       ],

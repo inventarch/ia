@@ -14,22 +14,37 @@
       category process
       facets [plan]
       schema @schema plan
+      artifact-set product-definition
+      primitive Inference
+      move Synthesis
     milestone lowers to definition
       category state
       facets [milestone]
       schema @schema milestone
+      artifact-set product-definition
+      primitive Inference
+      move Verification
     task lowers to definition
       category process
       facets [task]
       schema @schema task
+      artifact-set execution
+      primitive Decision
+      move Execution
     decision lowers to definition
       category decision
       facets [decision]
       schema @schema decision
+      artifact-set decision
+      primitive Decision
+      move Synthesis
     spec lowers to contract
       category rule
       facets [spec]
       schema @schema spec
+      artifact-set contract
+      primitive Memory
+      move Observation
   edges
     cite * using *
     require task, milestone, decision using task, milestone

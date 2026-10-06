@@ -40,6 +40,7 @@ export {
   TEXT_FORMS,
   VALUE_TYPES,
   fieldTypeOf,
+  isArtifactSet,
   isAxis,
   isBand,
   isCardinality,

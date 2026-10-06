@@ -2,7 +2,7 @@
 
 Declares the structural contract for exactly one registered discriminator.
 
-Owner: floor. Identity: floor/contract/<facet>/<name>. Facets: head.
+Owner: floor. Identity: floor/contract/<facet>/<name>. Facets: head. Artifact set: contract. Primitive: Inference. Move: Verification.
 
 Canonical schema: .ia/src/floor/floor.schema.ia.
 

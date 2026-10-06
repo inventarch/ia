@@ -11,57 +11,99 @@
       category kind
       facets [kind]
       schema @schema kernel-kind
+      artifact-set contract
+      primitive Memory
+      move Observation
     category lowers to definition
       category kind
       facets [category]
       schema @schema kernel-category
+      artifact-set contract
+      primitive Memory
+      move Observation
     lane lowers to definition
       category kind
       facets [lane]
       schema @schema kernel-lane
+      artifact-set contract
+      primitive Memory
+      move Observation
     phase lowers to definition
       category kind
       facets [phase]
       schema @schema kernel-phase
+      artifact-set contract
+      primitive Memory
+      move Observation
     primitive lowers to definition
       category kind
       facets [primitive]
       schema @schema kernel-primitive
+      artifact-set contract
+      primitive Memory
+      move Observation
     move lowers to definition
       category kind
       facets [move]
       schema @schema kernel-move
+      artifact-set contract
+      primitive Memory
+      move Observation
     predicate lowers to definition
       category kind
       facets [predicate]
       schema @schema kernel-predicate
+      artifact-set contract
+      primitive Memory
+      move Observation
     axis lowers to definition
       category kind
       facets [axis]
       schema @schema kernel-axis
+      artifact-set contract
+      primitive Memory
+      move Observation
     dimension lowers to definition
       category kind
       facets [dimension]
       schema @schema kernel-dimension
+      artifact-set contract
+      primitive Memory
+      move Observation
     intent-shape lowers to definition
       category kind
       facets [intent-shape]
       schema @schema kernel-intent-shape
+      artifact-set contract
+      primitive Memory
+      move Observation
     artifact-set lowers to definition
       category kind
       facets [artifact-set]
       schema @schema kernel-artifact-set
+      artifact-set contract
+      primitive Memory
+      move Observation
     placement lowers to definition
       category kind
       facets [placement]
       schema @schema kernel-placement
+      artifact-set contract
+      primitive Memory
+      move Observation
     value-type lowers to definition
       category kind
       facets [value-type]
       schema @schema kernel-value-type
+      artifact-set contract
+      primitive Memory
+      move Observation
     cardinality lowers to definition
       category kind
       facets [cardinality]
       schema @schema kernel-cardinality
+      artifact-set contract
+      primitive Memory
+      move Observation
   edges
     cite * using *

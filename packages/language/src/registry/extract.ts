@@ -1,7 +1,20 @@
 import type { ChildNode, FieldNode, FileNode, RecordNode, Span } from '../ast.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
-import { CATEGORIES, KINDS, PREDICATES, isCategory, isKind, isPredicate } from '../taxonomy.js';
+import {
+  ARTIFACT_SETS,
+  CATEGORIES,
+  KINDS,
+  MOVES,
+  PREDICATES,
+  PRIMITIVES,
+  isArtifactSet,
+  isCategory,
+  isKind,
+  isMove,
+  isPredicate,
+  isPrimitive,
+} from '../taxonomy.js';
 import type { Band, Category } from '../taxonomy.js';
 import { fieldOf, restAfter, spelledAs, stringOf } from './fields.js';
 import { RESERVED_KEYWORDS } from './floor.js';
@@ -285,8 +298,50 @@ function entryOf(
     incomplete(element, line, 'needs `schema @schema <name>`');
     ok = false;
   }
-  if (!ok || lowered === undefined || category === undefined || schema === undefined) return undefined;
-  return { keyword, kind: lowered, category, facets, schema, span: field.span };
+  const lowering = loweringOf(field, element, incomplete);
+  if (!ok || lowered === undefined || category === undefined || schema === undefined || lowering === undefined)
+    return undefined;
+  return { keyword, kind: lowered, category, facets, schema, ...lowering, span: field.span };
+}
+
+/**
+ * The optional lowering extras of an entry: `artifact-set <set>`, `primitive <primitive>` and `move <move>`, each a
+ * bare closed kernel value (spec 4.2). Absent rows leave the registration without them; a present row whose value is
+ * outside the kernel refuses the entry like any other incomplete row.
+ */
+function loweringOf(
+  field: FieldNode,
+  element: string,
+  incomplete: Incomplete,
+): Pick<Entry, 'artifactSet' | 'primitive' | 'move'> | undefined {
+  let ok = true;
+  const value = <T extends string>(
+    key: string,
+    admits: (x: string) => x is T,
+    admitted: readonly string[],
+  ): T | undefined => {
+    const row = fieldOf(field.children, [key]);
+    if (row === undefined) return undefined;
+    if (row.value.kind !== 'scalar') {
+      incomplete(element, row.span.line, `names its ${key} as a bare word`);
+      ok = false;
+      return undefined;
+    }
+    const named = row.assertive === true ? row.value.text : restAfter(row, [key]).join(' ');
+    if (admits(named)) return named;
+    incomplete(element, row.span.line, `names a ${key} outside the kernel; admitted: ${admitted.join(', ')}`);
+    ok = false;
+    return undefined;
+  };
+  const artifactSet = value('artifact-set', isArtifactSet, ARTIFACT_SETS);
+  const primitive = value('primitive', isPrimitive, PRIMITIVES);
+  const move = value('move', isMove, MOVES);
+  if (!ok) return undefined;
+  return {
+    ...(artifactSet === undefined ? {} : { artifactSet }),
+    ...(primitive === undefined ? {} : { primitive }),
+    ...(move === undefined ? {} : { move }),
+  };
 }
 
 /** `<predicate> <targets> using <sources>`: each side is `*` or comma-separated keywords; one `using`; no when clause. */

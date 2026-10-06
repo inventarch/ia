@@ -12,10 +12,16 @@
       category capability
       facets [agent]
       schema @schema agent
+      artifact-set operational
+      primitive Attention
+      move Delegation
     mandate lowers to policy
       category rule
       facets [mandate]
       schema @schema mandate
+      artifact-set principle
+      primitive Escalation
+      move Delegation
   edges
     cite * using *
     govern * using *

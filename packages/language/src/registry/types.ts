@@ -1,13 +1,16 @@
 import type { FileNode, Span } from '../ast.js';
 import type { Diagnostic } from '../diagnostics.js';
 import type {
+  ArtifactSet,
   Band,
   Cardinality,
   Category,
   FieldType,
   Kind,
+  Move,
   PlacementKind,
   Predicate,
+  Primitive,
   Provenance,
   TextForm,
 } from '../taxonomy.js';
@@ -49,6 +52,10 @@ export interface Entry {
   readonly facets: readonly string[];
   /** The `@schema` name the entry points at; resolved by the registry, not here. */
   readonly schema: string;
+  /** Lowering extras (spec 4.2): the artifact set, primitive and move the word's records carry; absent when not declared. */
+  readonly artifactSet?: ArtifactSet;
+  readonly primitive?: Primitive;
+  readonly move?: Move;
   readonly span: Span;
 }
 
@@ -133,6 +140,10 @@ export interface Registration {
   readonly category: Category;
   readonly facets: readonly string[];
   readonly schema: string;
+  /** The entry's lowering extras, carried unchanged into the catalogue. */
+  readonly artifactSet?: ArtifactSet;
+  readonly primitive?: Primitive;
+  readonly move?: Move;
   readonly band: Band;
 }
 

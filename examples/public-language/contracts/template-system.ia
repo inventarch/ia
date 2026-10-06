@@ -15,6 +15,9 @@
       category representation
       facets [template]
       schema @schema template
+      artifact-set projection
+      primitive Decision
+      move Execution
   edges
     cite * using *
     govern * using *

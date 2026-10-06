@@ -73,11 +73,16 @@ export function vocabulary(root: string, read?: (path: string) => string) {
       const schema = corpus.registry.schemas.get(registration.schema);
       if (!schema || !descriptions[registration.keyword])
         throw new Error(`Missing schema or normative description for ${registration.keyword}`);
+      if (!registration.artifactSet || !registration.primitive || !registration.move)
+        throw new Error(`Missing lowering rows (artifact-set, primitive, move) for ${registration.keyword}`);
       return {
         word: registration.keyword,
         owner: registration.system,
         kind: registration.kind,
         category: registration.category,
+        artifactSet: registration.artifactSet,
+        primitive: registration.primitive,
+        move: registration.move,
         facets: registration.facets,
         identity: `${registration.system}/${registration.kind}/<facet>/<name>`,
         description: descriptions[registration.keyword]!,
@@ -138,7 +143,7 @@ export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string 
       '',
       word.description,
       '',
-      `Owner: \`${word.owner}\`. Kind: \`${word.kind}\`. Category: \`${word.category}\`. Identity: \`${word.identity}\`.`,
+      `Owner: \`${word.owner}\`. Kind: \`${word.kind}\`. Category: \`${word.category}\`. Artifact set: \`${word.artifactSet}\`. Primitive: \`${word.primitive}\`. Move: \`${word.move}\`. Identity: \`${word.identity}\`.`,
       '',
       `Schema: [${word.schema.name}](../../../${word.schema.path}). ${word.schema.closed ? 'Closed ordinary sections' : 'Open ordinary sections'}; floor-owned cognition/activation rules also apply.`,
       '',
