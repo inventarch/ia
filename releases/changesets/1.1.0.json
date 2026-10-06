@@ -46,7 +46,7 @@
     "@inventarch/distribution": {
       "previous": "1.0.0",
       "kind": "changed",
-      "summary": "Verify bundled native/compiled system ownership and complete archive closures, qualify installed consumers, and fix physical dependency-root lookup for portable host payloads."
+      "summary": "Verify bundled native/compiled system ownership and complete archive closures, qualify installed consumers, and fix physical dependency-root lookup for portable host payloads. Pin smol-toml 1.9.0, which fixes a quadratic-time TOML parse."
     },
     "@inventarch/governance-system": {
       "previous": null,
@@ -151,7 +151,7 @@
     {
       "id": "installed-distribution",
       "title": "Installed CLI and SDK distribution",
-      "summary": "Qualify installed CLI and SDK consumers against public package closures, enforce archive and binding integrity, and fix portable host payload lookup. Preserve governed first-party READ authority and the existing capture bound.",
+      "summary": "Qualify installed CLI and SDK consumers against public package closures, enforce archive and binding integrity, and fix portable host payload lookup. Pin smol-toml 1.9.0 in the distribution package, which fixes a quadratic-time TOML parse (GHSA-r4xh-jqrq-34v2). Preserve governed first-party READ authority and the existing capture bound.",
       "paths": [
         "apps/",
         "tools/release/",
@@ -1150,7 +1150,7 @@
     },
     {
       "path": "apps/distribution/package.json",
-      "sha256": "b6e703190ece4c0d21fa8592b063f4b0e33736f9a78cd06a6ab36a146c7f08e3",
+      "sha256": "8766354de7efcaa0f1aca91a877de99ab3646fb4172c36fbd2b30c5c2bc07e74",
       "change": "installed-distribution"
     },
     {
@@ -1651,12 +1651,12 @@
     },
     {
       "path": "pnpm-lock.yaml",
-      "sha256": "7907c237684a2a97fade41331f7dfab7344447df4d20a58952d3dd0cb6d5ec70",
+      "sha256": "a86c4557431c4ba6853a13c0068dfc7dab9e4eff2f6d867fa5a2aeaf4803cd76",
       "change": "portable-quality"
     },
     {
       "path": "pnpm-workspace.yaml",
-      "sha256": "a5ae3477cf1d651bb05efa395b43ecd417dad0f5972412a4468d253f9d1463e1",
+      "sha256": "5cacca60ca557530f23e064c12e62d393940e97e9e57ed1521a9fcd432ade0bf",
       "change": "portable-quality"
     },
     {

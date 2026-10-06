@@ -14,7 +14,7 @@ Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@
 
 ### Installed CLI and SDK distribution
 
-Qualify installed CLI and SDK consumers against public package closures, enforce archive and binding integrity, and fix portable host payload lookup. Preserve governed first-party READ authority and the existing capture bound.
+Qualify installed CLI and SDK consumers against public package closures, enforce archive and binding integrity, and fix portable host payload lookup. Pin smol-toml 1.9.0 in the distribution package, which fixes a quadratic-time TOML parse (GHSA-r4xh-jqrq-34v2). Preserve governed first-party READ authority and the existing capture bound.
 
 Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runtime`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
 
