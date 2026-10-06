@@ -190,6 +190,20 @@ it('publishes dependencies before their consumers and refuses cycles', () => {
   expect(() => dependencyOrder(cyclic)).toThrow(/cycle/);
 });
 
+it('publishes the new package names of a dependency cycle before the cycle moves any existing package', () =>
+  inFixture((directory) => {
+    const release = writeReleaseManifest(root, directory, archivesFixture(directory));
+    const cycle = release.graph.groups.find((group: { cyclic: boolean }) => group.cyclic)!.members as string[];
+    const order = release.packages
+      .map((entry: { name: string }) => entry.name)
+      .filter((name: string) => cycle.includes(name));
+    const fresh = cycle.filter((name) => release.baselineVersions[name] === null);
+    // A new name's first trusted publish is the step most likely to fail; it must fail before any existing member of the
+    // cycle moves its `latest` tag. A release without new names keeps the cycle's sorted order.
+    expect(order).toEqual([...fresh, ...cycle.filter((name) => !fresh.includes(name))]);
+    expect(release.graph.groups.find((group: { cyclic: boolean }) => group.cyclic)!.members).toEqual([...cycle].sort());
+  }));
+
 it('allows a missing version only in an existing package configured for first-publish setup', () => {
   expect(publicationPlan(release(), { '@inventarch/language': { versions: {} } })[0]!.action).toBe('publish');
   expect(() => publicationPlan(release(), { '@inventarch/language': null })).toThrow(/create the package/);
