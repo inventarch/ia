@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -48,12 +48,20 @@ it('initializes beside package links and answers real stdio editor requests', as
   );
   cleanup.push(() => connection.dispose());
   connection.listen();
-  const initialized = await connection.sendRequest<{ capabilities: { definitionProvider: boolean } }>('initialize', {
+  const initialized = await connection.sendRequest<{
+    capabilities: { definitionProvider: boolean };
+    serverInfo?: { name: string; version: string };
+  }>('initialize', {
     processId: null,
     capabilities: {},
     initializationOptions: { protocol: 1, root },
   });
   expect(initialized.capabilities.definitionProvider).toBe(true);
+  // The bundled server reports the extension's own manifest version, so a version bump cannot leave it behind.
+  const manifest = JSON.parse(readFileSync(resolve(import.meta.dirname, '../package.json'), 'utf8')) as {
+    version: string;
+  };
+  expect(initialized.serverInfo).toEqual({ name: 'InventArch', version: manifest.version });
   await connection.sendNotification('initialized', {});
   const view = await connection.sendRequest<EditorView>('ia/editor/v1/request', { protocol: 1, operation: 'view' });
   expect(view.records.length).toBeGreaterThan(100);

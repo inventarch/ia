@@ -1,10 +1,10 @@
 /**
- * #436: how `ia-distribution refresh-updates` finds and starts `npm` and `git`. A user may run it by hand from a
+ * How `ia-distribution refresh-updates` finds and starts `npm` and `git`. A user may run it by hand from a
  * directory the repository controls, so no step of the launch may search that directory. It looks the program up
  * itself, on qualified PATH entries only, and runs what it found by absolute path; the program gets only those entries
  * in its PATH and, on Windows, `NoDefaultCurrentDirectoryInExePath=1`, so its own lookups skip its working directory
- * too. This is the rule the session hook applies to `ia` (host plugin distribution design §8.1, amended 2026-09-30 for
- * LKI-41), and the same module as apps/cli/src/program.ts, which can import this one once it is exported.
+ * too. This is the rule the session hook applies to `ia`, and the same module as apps/cli/src/program.ts, which can
+ * import this one once it is exported.
  */
 import { accessSync, constants, statSync } from 'node:fs';
 import { homedir } from 'node:os';

@@ -20,8 +20,8 @@ export type Channel =
   | { readonly kind: 'unknown'; readonly entry: string };
 export type Git = (cwd: string, args: readonly string[]) => string | null;
 export const runGit: Git = (cwd, args) => {
-  // #436: a hand-run doctor may start in a directory the repository controls, so git is found on qualified PATH
-  // entries only and runs by absolute path from the home directory; `-C` names the checkout (src/program.ts).
+  // A hand-run doctor may start in a directory the repository controls, so git is found on qualified PATH entries
+  // only and runs by absolute path from the home directory; `-C` names the checkout (src/program.ts).
   const git = findProgram('git', process.env);
   if (git === null) return null;
   // --no-optional-locks: doctor calls this on every session start, and it must never contend with a concurrent

@@ -2,7 +2,7 @@
  * Host plugin distribution spec §6.3 (amended, item 5) and §2.3: Claude's own CLI does the registering and reports its
  * own state through its `--json` lists; Claude's files are never read or written here. `IA_CLAUDE` names a Node
  * script to run instead of `claude`; it exists for tests and is not a user-facing setting. `claude` itself is found on
- * qualified PATH entries and run by absolute path from the home directory (#436, src/program.ts).
+ * qualified PATH entries and run by absolute path from the home directory (src/program.ts).
  */
 import { spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
@@ -124,7 +124,7 @@ export function claudeRunner(env: Env, dependencies: RunnerDependencies = DEFAUL
   const { platform, spawn } = dependencies;
   const system = { platform, fs: dependencies.fs ?? SYSTEM.fs };
   const fake = env['IA_CLAUDE'];
-  // #436: found once, on qualified PATH entries only. A claude.exe anywhere there runs with no shell, so no argument is
+  // Found once, on qualified PATH entries only. A claude.exe anywhere there runs with no shell, so no argument is
   // reinterpreted; only without one does the claude.cmd an npm install leaves run, through cmd.exe named by its path.
   const program = fake === undefined ? findProgram('claude', env, 'program', system) : null;
   const script = fake === undefined && program === null ? findProgram('claude', env, 'script', system) : null;
