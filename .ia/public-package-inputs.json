@@ -2427,7 +2427,11 @@
     },
     {
       "path": "CHANGELOG.md",
+<<<<<<< HEAD
       "sha256": "873df5ed477a9252b9029616834034e55e6cec84a5453f4513cbac2efb5227d7"
+=======
+      "sha256": "9f19253494a3778df8071e3a0881ae380cf09d2bef5bc3cf93fda943229829cc"
+>>>>>>> origin/main
     },
     {
       "path": "CLAUDE.md",
@@ -2455,7 +2459,7 @@
     },
     {
       "path": "SECURITY.md",
-      "sha256": "ac6aa5dfe24068ca0b94f884cefa2865846a081db619d6dbb29df958a252e50a"
+      "sha256": "c7566398375b68cac2690c6e81a0d7bff5e9dfae6b06faa6a0285862e3c23656"
     },
     {
       "path": "SPEC.md",
@@ -2751,11 +2755,15 @@
     },
     {
       "path": "apps/distribution/package.json",
-      "sha256": "b6e703190ece4c0d21fa8592b063f4b0e33736f9a78cd06a6ab36a146c7f08e3"
+      "sha256": "8766354de7efcaa0f1aca91a877de99ab3646fb4172c36fbd2b30c5c2bc07e74"
     },
     {
       "path": "apps/distribution/references/system-package.md",
+<<<<<<< HEAD
       "sha256": "d8f029cbcef54c3cd2c235e677f96a920df4d75b382246821912764cdf1dcf66"
+=======
+      "sha256": "ceae2ce5515a14e6f314cfd06f6247093a589ac942ded0f44a8576695fb46a5b"
+>>>>>>> origin/main
     },
     {
       "path": "apps/distribution/src/acquire.ts",
@@ -6899,19 +6907,27 @@
     },
     {
       "path": "pnpm-lock.yaml",
-      "sha256": "7907c237684a2a97fade41331f7dfab7344447df4d20a58952d3dd0cb6d5ec70"
+      "sha256": "a86c4557431c4ba6853a13c0068dfc7dab9e4eff2f6d867fa5a2aeaf4803cd76"
     },
     {
       "path": "pnpm-workspace.yaml",
-      "sha256": "a5ae3477cf1d651bb05efa395b43ecd417dad0f5972412a4468d253f9d1463e1"
+      "sha256": "5cacca60ca557530f23e064c12e62d393940e97e9e57ed1521a9fcd432ade0bf"
     },
     {
       "path": "releases/README.md",
+<<<<<<< HEAD
       "sha256": "64a40f790c99a2c073d63cb17e7fe7721cb161776aa4851fb45ee4145a801f9c"
     },
     {
       "path": "releases/changesets/1.1.0.json",
       "sha256": "d2345400211b3661aafec365ea4291f5b06ed057519ce08596477fe8c6ca3609"
+=======
+      "sha256": "f7022d8bac6da68e72a8341faf72513aabb06426d089bc610f5b1d56b7d8e907"
+    },
+    {
+      "path": "releases/changesets/1.1.0.json",
+      "sha256": "248470e237980ebc3bf75423211a63195759ff2a725255cc0793d499824de5ea"
+>>>>>>> origin/main
     },
     {
       "path": "releases/current.json",
@@ -6971,7 +6987,11 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
+<<<<<<< HEAD
       "sha256": "be313ad5ee65c8fceace36de943448771039f8a369b43e1da45003fdf4709076"
+=======
+      "sha256": "e8575366e4c2012fee1085459554a9d82bfb74d3612f7ee03c447b72857ba839"
+>>>>>>> origin/main
     },
     {
       "path": "tools/distribution/SPEC.md",
@@ -7015,11 +7035,19 @@
     },
     {
       "path": "tools/distribution/npm-release.mjs",
+<<<<<<< HEAD
       "sha256": "cabcd1c7ba3c96b5ed159879ecebb9fe7269eba08e980294cf8122a373b11e8e"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
       "sha256": "1893bc429dd8812d75b84c3ef7e3fe4ed726b47108bce698322d81c808da90ea"
+=======
+      "sha256": "30238cd90351a3e74f70ac1c8d838e332cd814eec92d496aa089a1e98b648890"
+    },
+    {
+      "path": "tools/distribution/npm-release.test.ts",
+      "sha256": "79663c27ee563d05816360f2372b838d235cd58f8ff80b33e337290994676664"
+>>>>>>> origin/main
     },
     {
       "path": "tools/distribution/public-content-policy.json",
@@ -7039,7 +7067,11 @@
     },
     {
       "path": "tools/distribution/release-changes.mjs",
+<<<<<<< HEAD
       "sha256": "f2e948a6bc6af934480643a07d3446bb111c5340c31755a92b0c92ae156c831d"
+=======
+      "sha256": "063cacf46680c5084ecab9eb3777f8a6ec8f5383c781d6c994826ba301d29eca"
+>>>>>>> origin/main
     },
     {
       "path": "tools/distribution/release-graph.d.mts",
@@ -7070,6 +7102,7 @@
       "sha256": "c8c9a912f5bbdfa16e70ff00bb64c7bbf947c2fbe44070610098e927a1797453"
     },
     {
+<<<<<<< HEAD
       "path": "tools/distribution/release-version.d.mts",
       "sha256": "1d2892deb1a1484afba117770f3faa92580dc2021de4fa7c307118c2baedd35d"
     },
@@ -7080,6 +7113,10 @@
     {
       "path": "tools/distribution/release-versioning.test.ts",
       "sha256": "59b2e924d66fc77483e6bdfe28d0bbe7b1d975345b0442cd7c12b06f799e0f4b"
+=======
+      "path": "tools/distribution/release-refusals.test.ts",
+      "sha256": "af14c24bd488cbe7350982a06b2c3c88495d0eab20cdf7ca953c23152c74a656"
+>>>>>>> origin/main
     },
     {
       "path": "tools/distribution/resources.mjs",
@@ -7591,7 +7628,11 @@
     },
     {
       "path": "tools/testing/tasks.json",
+<<<<<<< HEAD
       "sha256": "e82cddeac6e18d226e95277176153e67a0c86a18ec2ddd41f8cbf3b26327ce9f"
+=======
+      "sha256": "aa694784a0334eb869200c2b574f749c89da3e0ca17a8f430eb9645ae362af58"
+>>>>>>> origin/main
     },
     {
       "path": "tools/testing/timeouts.ts",
@@ -7616,10 +7657,17 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
+<<<<<<< HEAD
     "baseCommit": "0a6dab9fa11ae44019c1f88ce1d9e5fe681cbb84",
     "baseTree": "6bc16ed264aebeb666c0d37ce44aca1a60564b89",
     "dirty": true,
     "inputDigest": "8da06df839ab4a9f508b87ff42a65de5966a592c529dc8675c42c3b1ce8e179f",
+=======
+    "baseCommit": "f429e2c8b6d3b56cf99f6c0565a5cd51d72f60c3",
+    "baseTree": "dab58c86f93403d510bb3e9743e70224e9cb5c01",
+    "dirty": true,
+    "inputDigest": "1f802277e64d6af288acffe8793e829e0375f31c8ab9eb03e13902f169e12038",
+>>>>>>> origin/main
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",
