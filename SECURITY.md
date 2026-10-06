@@ -4,9 +4,10 @@
 
 | Version | Supported |
 | --- | --- |
-| 1.0.x | Yes |
+| 1.1.x | Yes, once 1.1.0 is published |
+| 1.0.x | Until 1.1.0 is published |
 
-Only the latest 1.0.x release receives security fixes. There are no earlier public releases.
+Security fixes go to the latest release line. The release tooling publishes only forward and only to the `latest` tag, so once 1.1.0 is published a fix ships as a 1.1.x release, not as a 1.0.x one. There are no earlier public releases.
 
 ## Reporting a vulnerability
 

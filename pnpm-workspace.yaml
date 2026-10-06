@@ -13,8 +13,8 @@ catalog:
   typescript: ^5.9.3
   vitest: ^4.1.4
 nodeLinker: hoisted
-# Preserve the patched Nx transitive pins from public 1.0.0.
+# Pin patched Nx transitive dependencies.
 overrides:
   "nx>axios": "1.20.0"
   "nx>brace-expansion": "5.0.12"
-  "nx>smol-toml": "1.7.1"
+  "nx>smol-toml": "1.9.0"

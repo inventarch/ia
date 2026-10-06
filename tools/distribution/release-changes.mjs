@@ -116,7 +116,7 @@ export function validateChangeset(entry, policy, projects, actualCoverage) {
   const ids = new Set();
   for (const change of entry.changes) {
     assert.match(change.id, /^[a-z][a-z0-9-]*$/);
-    assert.ok(!ids.has(change.id));
+    assert.ok(!ids.has(change.id), `Duplicate change entry: ${change.id}`);
     ids.add(change.id);
     assert.ok(change.title?.trim() && change.summary?.trim(), 'Changes need reviewable prose');
     assert.ok(
