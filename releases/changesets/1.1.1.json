@@ -342,7 +342,7 @@
     },
     {
       "path": "tools/distribution/github-release.d.mts",
-      "sha256": "42140f3366f28e43321f2ad4cdb5dddfae3238648fe4551d07d5a9d77de8d4ab",
+      "sha256": "a48aa59f2f9e65f62c5d8be71903e855b8961477366f4092b5c185f122f38164",
       "change": "release-completion-1-1-1"
     },
     {

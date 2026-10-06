@@ -1,5 +1,3 @@
-import type { execFileSync } from 'node:child_process';
-
 export declare function githubRelease(
   options: {
     repository: string;
@@ -9,5 +7,8 @@ export declare function githubRelease(
     notesFile: string;
     assets: string[];
   },
-  dependencies?: { request?: typeof fetch; run?: typeof execFileSync },
+  dependencies?: {
+    request?: typeof fetch;
+    run?: (file: string, args: string[], options: { stdio: 'inherit'; windowsHide: true }) => unknown;
+  },
 ): Promise<{ tag: string; tagCreated: boolean; releaseCreated: boolean }>;
