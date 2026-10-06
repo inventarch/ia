@@ -30,7 +30,7 @@ for (const operation of ['validate-ia', 'format-ia']) {
   );
   assert.equal(result.ok, true, JSON.stringify(result));
 }
-const base = resolve(root, '.ia/src/systems/agent-composition-system/dist');
+const base = resolve(root, 'packages/workspace-runtime/dist');
 const { openLocalAuthoringView } = await import(pathToFileURL(resolve(base, 'authoring-manifest.js')).href);
 const { resolveAuthoring, closeAuthoringView } = await import(pathToFileURL(resolve(base, 'authoring.js')).href);
 const { renderHostArtifacts } = await import(

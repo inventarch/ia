@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@inventarch/runtime": "workspace:*",
-    "@inventarch/agent-composition-system": "workspace:*",
+    "@inventarch/workspace-runtime": "workspace:*",
     "@inventarch/db": "workspace:*"
   },
   "devDependencies": {
