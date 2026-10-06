@@ -1746,7 +1746,7 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "3ecad4cf299fa42b6f36ca454ea0f9f09c9f755683494052ef01a37d7e2d759a",
+      "sha256": "0503dcd337e01322011f8f9ad412bade2feabda0aec709d25be6d39414038062",
       "change": "release-hygiene"
     },
     {
@@ -1866,17 +1866,17 @@
     },
     {
       "path": "tools/distribution/release-setup.d.mts",
-      "sha256": "64ce69abad2c393e0fb950fd1ee5ab2725ab78bc20b1c7b019e9eb4e18ddf2ec",
+      "sha256": "ca9c5495971c80cb77cb73a8bbdfac0f867bdce7ca9bed69aaa73bc5ad4ab44f",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/release-setup.mjs",
-      "sha256": "6bf7a365778b80eca9b47e2a060c718ea5684edb3ff83c6f28a03dce03e4e5e2",
+      "sha256": "3083619e12dce7098e6ebf66014431b06c45caa3213be11e04fd2a7d67399085",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/release-setup.test.ts",
-      "sha256": "6283d06cc826a4a583d22061677d36efae23283bc36e7f274b7db1d920e3855b",
+      "sha256": "2f048ad88746b05a1b3040b05e49c3f180201201c5b7a6eda79b2def45bfcbf5",
       "change": "release-hygiene"
     },
     {

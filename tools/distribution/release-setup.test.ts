@@ -1,19 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { ENVIRONMENT, NPM_VERSION, REPOSITORY, WORKFLOW } from './npm-release.mjs';
+import { ENVIRONMENT, NPM_VERSION, publicationPlan, REPOSITORY, WORKFLOW } from './npm-release.mjs';
 import { stableVersion } from './release-changes.mjs';
 import {
   BOOTSTRAP_TAG,
   BOOTSTRAP_VERSION,
   bootstrapManifest,
   bootstrapStageId,
+  compatibleNodeVersions,
   declaresPermissions,
   githubSetupPlan,
   npmEngineSupported,
   npmSetupPlan,
   trustArgs,
-  trustConfigured,
+  trustState,
 } from './release-setup.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
@@ -37,12 +38,29 @@ it('trusts exactly the publishing workflow, environment and repository', () => {
   expect(() => trustArgs('left-pad')).toThrow(/Unexpected package name/);
 });
 
-it('reads a trust listing in JSON or text and refuses another repository or workflow', () => {
-  expect(trustConfigured(JSON.stringify([{ repository: 'inventarch/ia', file: 'npm-publish.yml' }]))).toBe(true);
-  expect(trustConfigured('GitHub  inventarch/ia  npm-publish.yml  environment: npm')).toBe(true);
-  expect(trustConfigured('GitHub  inventarch/ia  release.yml')).toBe(false);
-  expect(trustConfigured('GitHub  someone/ia  npm-publish.yml')).toBe(false);
-  expect(trustConfigured('')).toBe(false);
+it('reads npm trust list --json: nothing is missing, ours is configured, anything else is never overwritten', () => {
+  // The shape npm 12.2.0 prints: one object of { id, type, file, repository, environment, permissions } per config.
+  const ours = { id: 'tp_1', type: 'github', file: 'npm-publish.yml', repository: 'inventarch/ia', environment: 'npm' };
+  expect(trustState('')).toEqual({ state: 'missing' });
+  expect(trustState('\n')).toEqual({ state: 'missing' });
+  expect(trustState(JSON.stringify(ours, null, 2)).state).toBe('configured');
+  expect(trustState(JSON.stringify({ ...ours, file: '.github/workflows/npm-publish.yml' })).state).toBe('configured');
+  for (const other of [
+    { environment: 'production' },
+    { file: 'release.yml' },
+    { repository: 'someone/ia' },
+    { type: 'gitlab' },
+  ])
+    expect(trustState(JSON.stringify({ ...ours, ...other })).state).toBe('different');
+  expect(trustState('No trust configurations found').state).toBe('unknown');
+});
+
+it('runs npm with the newest installed Node its engine admits', () => {
+  expect(compatibleNodeVersions(['v22.22.0', 'v22.22.2', '.downloads', 'v24.15.1', 'v20.19.0'])).toEqual([
+    'v24.15.1',
+    'v22.22.2',
+  ]);
+  expect(compatibleNodeVersions(['v22.22.0'])).toEqual([]);
 });
 
 it('creates a name with a placeholder prerelease that can never be a cohort version', () => {
@@ -126,6 +144,19 @@ it('runs the pinned npm only on a Node its engine range admits', () => {
 });
 
 it('finds only the placeholder stage id and returns null rather than guessing', () => {
+  // npm stage publish --json: the package's own id is name@version; the stage id is stageId.
+  const name = '@inventarch/work-system';
+  expect(
+    bootstrapStageId(
+      JSON.stringify({
+        [name]: { id: `${name}@${BOOTSTRAP_VERSION}`, name, version: BOOTSTRAP_VERSION, stageId: 'stg_9' },
+      }),
+    ),
+  ).toBe('stg_9');
+  expect(
+    bootstrapStageId(JSON.stringify({ [name]: { id: `${name}@${BOOTSTRAP_VERSION}`, version: BOOTSTRAP_VERSION } })),
+  ).toBeNull();
+  // npm stage list --json: an array of { id, packageName, version, ... }.
   expect(bootstrapStageId(JSON.stringify([{ id: 'stg_1', version: BOOTSTRAP_VERSION }]))).toBe('stg_1');
   expect(
     bootstrapStageId(
@@ -146,4 +177,21 @@ it('pins the same npm CLI in the setup command and every publishing workflow job
   const pins = [...workflow.matchAll(/npm@(\d+\.\d+\.\d+)/g)].map((match) => match[1]);
   expect(pins.length).toBeGreaterThanOrEqual(3);
   expect(new Set(pins)).toEqual(new Set([NPM_VERSION]));
+});
+
+it('publishes over the staged placeholder a bootstrap leaves as the only version of a new name', () => {
+  // What the registry holds for a name created by staging: npm's placeholder, which also holds the latest tag.
+  const placeholder = {
+    'dist-tags': { latest: '0.0.0-stage' },
+    versions: { '0.0.0-stage': { dist: { integrity: 'sha512-placeholder' } } },
+  };
+  const release = {
+    version: '1.1.0',
+    tag: 'latest',
+    baselineVersions: { '@inventarch/work-system': null },
+    packages: [
+      { name: '@inventarch/work-system', version: '1.1.0', filename: 'w.tgz', bytes: 1, integrity: 'sha512-qualified' },
+    ],
+  };
+  expect(publicationPlan(release, { '@inventarch/work-system': placeholder })[0]!.action).toBe('publish');
 });

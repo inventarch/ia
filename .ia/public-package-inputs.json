@@ -6927,7 +6927,7 @@
     },
     {
       "path": "releases/changesets/1.1.0.json",
-      "sha256": "962a050afd92cebb8f4bdd7927d4baab3f4a5e008356860e2636bf7d31c35b77"
+      "sha256": "9f1d5956c2c0d343f53b9a61cbe6e99276230fc5bb50c2f4b68ac5c2a1c4948a"
     },
     {
       "path": "releases/current.json",
@@ -6987,7 +6987,7 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "3ecad4cf299fa42b6f36ca454ea0f9f09c9f755683494052ef01a37d7e2d759a"
+      "sha256": "0503dcd337e01322011f8f9ad412bade2feabda0aec709d25be6d39414038062"
     },
     {
       "path": "tools/distribution/SPEC.md",
@@ -7091,15 +7091,15 @@
     },
     {
       "path": "tools/distribution/release-setup.d.mts",
-      "sha256": "64ce69abad2c393e0fb950fd1ee5ab2725ab78bc20b1c7b019e9eb4e18ddf2ec"
+      "sha256": "ca9c5495971c80cb77cb73a8bbdfac0f867bdce7ca9bed69aaa73bc5ad4ab44f"
     },
     {
       "path": "tools/distribution/release-setup.mjs",
-      "sha256": "6bf7a365778b80eca9b47e2a060c718ea5684edb3ff83c6f28a03dce03e4e5e2"
+      "sha256": "3083619e12dce7098e6ebf66014431b06c45caa3213be11e04fd2a7d67399085"
     },
     {
       "path": "tools/distribution/release-setup.test.ts",
-      "sha256": "6283d06cc826a4a583d22061677d36efae23283bc36e7f274b7db1d920e3855b"
+      "sha256": "2f048ad88746b05a1b3040b05e49c3f180201201c5b7a6eda79b2def45bfcbf5"
     },
     {
       "path": "tools/distribution/release-version.d.mts",
@@ -7648,10 +7648,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "05f41d6a90482c67d80c462536a7d22886ad25f0",
-    "baseTree": "dce8d1a287dda7bde53619fbffa24d67740a5031",
+    "baseCommit": "66ff94f64ddae9efab3598ead9495503f28c348f",
+    "baseTree": "aeed008aab01903b47ae5ca4db852e4cd9cb2e3f",
     "dirty": true,
-    "inputDigest": "0698a1d0cdae16cde736c4e20de13ae83865a8e11a14960787fff276ba991984",
+    "inputDigest": "5893c5d441d2e8bf8e04d1c57daf99bcb075b1ce8d8e769d1544b9883aa73e1b",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",

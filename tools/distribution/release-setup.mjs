@@ -11,11 +11,12 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, resolve } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { basename, dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
 import { ENVIRONMENT, NPM_VERSION, REGISTRY, REPOSITORY, REPOSITORY_URL, WORKFLOW } from './npm-release.mjs';
+import { compareVersions } from './release-changes.mjs';
 import { publicPackages } from './release-packages.mjs';
 
 /**
@@ -34,6 +35,12 @@ export function npmEngineSupported(version) {
   if (major === 22) return minor > 22 || (minor === 22 && patch >= 2);
   if (major === 24) return minor >= 15;
   return major >= 26;
+}
+/** Installed Node version directories (`v22.22.2`, …) the pinned npm supports, newest first. */
+export function compatibleNodeVersions(names) {
+  return names
+    .filter((name) => /^v\d+\.\d+\.\d+$/.test(name) && npmEngineSupported(name))
+    .sort((a, b) => compareVersions(b.slice(1), a.slice(1)));
 }
 /** A workflow file that declares top-level permissions keeps them whatever the repository's default token is. */
 export function declaresPermissions(workflowText) {
@@ -56,10 +63,25 @@ export function trustArgs(name) {
     '--yes',
   ];
 }
-/** A listing names this repository and workflow when the package already trusts it, in JSON or in text. */
-export function trustConfigured(listing) {
-  const text = listing.toLowerCase();
-  return text.includes(REPOSITORY) && text.includes(WORKFLOW);
+/**
+ * The trust a package has, from `npm trust list <name> --json`: npm prints nothing when there is none, and one
+ * `{ id, type, file, repository, environment }` object per configuration (the registry allows one per package).
+ */
+export function trustState(listing) {
+  const text = listing.trim();
+  if (!text) return { state: 'missing' };
+  let config;
+  try {
+    config = JSON.parse(text);
+  } catch {
+    return { state: 'unknown' };
+  }
+  const matches =
+    (config?.type ?? 'github') === 'github' &&
+    config.repository === REPOSITORY &&
+    basename(String(config.file ?? '')) === WORKFLOW &&
+    config.environment === ENVIRONMENT;
+  return { state: matches ? 'configured' : 'different', config };
 }
 /** The placeholder that only creates the name. Its version can never collide with a cohort release. */
 export function bootstrapManifest(name) {
@@ -72,7 +94,10 @@ export function bootstrapManifest(name) {
     repository: { type: 'git', url: REPOSITORY_URL },
   };
 }
-/** What each package still needs. `unknown` trust is reported, never guessed into a write. */
+/**
+ * What each package still needs. Trust that was not read (it needs 2FA) or that names another repository, workflow
+ * or environment is reported, never guessed into a write.
+ */
 export function npmSetupPlan(names, state) {
   return names.map((name) => {
     const { exists, trust } = state[name];
@@ -100,6 +125,30 @@ export function githubSetupPlan(state, rulesets, { everyWorkflowDeclaresPermissi
     if (!state.rulesets.includes(name)) issues.push({ setting: 'ruleset:' + name, fix: 'create' });
   return issues;
 }
+/**
+ * The stage id in `npm stage publish --json` or `npm stage list --json` output. A publish names it `stageId` beside
+ * the package's own `id` (`name@version`); a listed stage names it `id`.
+ */
+export function bootstrapStageId(listing) {
+  let value;
+  try {
+    value = JSON.parse(listing);
+  } catch {
+    return null;
+  }
+  const pending = [value];
+  while (pending.length) {
+    const node = pending.pop();
+    if (!node || typeof node !== 'object') continue;
+    if (node.version === BOOTSTRAP_VERSION) {
+      const id =
+        node.stageId ?? node.stage_id ?? (typeof node.id === 'string' && node.id.includes('@') ? null : node.id);
+      if (typeof id === 'string' || typeof id === 'number') return String(id);
+    }
+    pending.push(...Object.values(node));
+  }
+  return null;
+}
 
 // ---- I/O -------------------------------------------------------------------------------------------------------
 
@@ -113,6 +162,7 @@ function run(command, args, options = {}) {
     ...options,
   });
 }
+const failure = (error) => String(error.stderr ?? '') + String(error.stdout ?? '') + String(error.message ?? '');
 /** The running Node's own npm, located without a shell so Windows needs no npm.cmd. */
 function bundledNpm() {
   const base = dirname(process.execPath);
@@ -123,8 +173,32 @@ function bundledNpm() {
   assert.ok(candidate, 'Cannot find the npm bundled with this Node; pass --npm-cli <path to npm-cli.js>');
   return candidate;
 }
+/**
+ * A Node the pinned npm supports: `--node`, this Node, or the newest one fnm has installed, so the command works from
+ * a shell whose own Node is older. Returns null when none is installed.
+ */
+function npmNode(override) {
+  if (override) {
+    const version = run(resolve(override), ['--version']).trim();
+    assert.ok(npmEngineSupported(version), `${override} is Node ${version}; npm ${NPM_VERSION} needs 22.22.2 or later`);
+    return resolve(override);
+  }
+  if (npmEngineSupported(process.version)) return process.execPath;
+  const roots = [
+    process.env.FNM_DIR,
+    process.platform === 'win32' && process.env.APPDATA && resolve(process.env.APPDATA, 'fnm'),
+    resolve(homedir(), '.local/share/fnm'),
+    resolve(homedir(), 'Library/Application Support/fnm'),
+  ].filter(Boolean);
+  for (const directory of roots.map((root) => resolve(root, 'node-versions')).filter(existsSync))
+    for (const name of compatibleNodeVersions(readdirSync(directory))) {
+      const bin = resolve(directory, name, 'installation', process.platform === 'win32' ? 'node.exe' : 'bin/node');
+      if (existsSync(bin)) return bin;
+    }
+  return null;
+}
 /** The pinned publishing CLI. Trust and staged publishing need a newer npm than Node 22 bundles. */
-function pinnedNpm(override) {
+function pinnedNpm(override, node) {
   if (override) return resolve(override);
   const prefix = resolve(realpathSync(tmpdir()), `ia-npm-cli-${NPM_VERSION}`);
   const cli = resolve(prefix, 'node_modules/npm/bin/npm-cli.js');
@@ -141,12 +215,15 @@ function pinnedNpm(override) {
       `npm@${NPM_VERSION}`,
     ]);
   }
-  const version = run(process.execPath, [cli, '--version']).trim();
+  const version = run(node, [cli, '--version']).trim();
   assert.equal(version, NPM_VERSION, `Expected npm ${NPM_VERSION}, found ${version}`);
   return cli;
 }
 async function registryExists(name) {
-  const response = await fetch(`${REGISTRY}/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(30_000) });
+  // The registry's CDN keeps serving a cached 404 for minutes after a name is created, so a rerun soon after a
+  // bootstrap would try to create it again. A unique query bypasses that cache.
+  const url = `${REGISTRY}/${encodeURIComponent(name)}?fresh=${Date.now()}`;
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000), headers: { 'cache-control': 'no-cache' } });
   if (response.status === 404) return false;
   assert.ok(response.ok, `${name}: registry returned ${response.status}`);
   return true;
@@ -251,70 +328,96 @@ function applyGithub(gh, issues, reviewer) {
     console.log(`Ruleset ${name}: created from .github/rulesets/${name}.json`);
   }
 }
-function applyNpm(cli, plan) {
-  const npm = (args, options = {}) => run(process.execPath, [cli, ...args], options);
+
+/**
+ * npm account writes. Staging a placeholder needs no 2FA, but reading or changing trust does, and npm can only ask for
+ * it when attached to a terminal. So one listing runs interactively first: confirming it in the browser with "skip
+ * two-factor authentication for the next 5 minutes" lets every later read and write proceed without prompts.
+ */
+function applyNpm(npm, names, exists) {
+  // Authenticate before any write: a failed 2FA then leaves nothing half done. A name npm does not have yet cannot
+  // be listed, so the first existing package carries the interactive confirmation.
+  const anchor = names.find((name) => exists[name]);
+  const authenticate = () => {
+    if (!anchor) return;
+    console.log(
+      '\nnpm needs two-factor authentication to read and change trusted publishers. When the browser asks, tick\n' +
+        '"skip two-factor authentication for the next 5 minutes" so the remaining steps run without prompts.\n',
+    );
+    npm(['trust', 'list', anchor], { stdio: 'inherit' });
+  };
+  const lastLine = (error) => failure(error).trim().split('\n').at(-1);
+  const readTrust = (name, retry = true) => {
+    try {
+      return trustState(npm(['trust', 'list', name, '--json'], { stdio: 'pipe' }));
+    } catch (error) {
+      if (retry && /EOTP|one-time password/.test(failure(error))) {
+        authenticate();
+        return readTrust(name, false);
+      }
+      throw new Error(`${name}: could not read trust. ${lastLine(error)}`);
+    }
+  };
+  authenticate();
+
   const scratch = realpathSync(mkdtempSync(resolve(realpathSync(tmpdir()), 'ia-npm-bootstrap-')));
   try {
-    for (const row of plan) {
-      if (row.actions.includes('bootstrap')) {
-        const directory = resolve(scratch, row.name.slice('@inventarch/'.length));
-        mkdirSync(directory);
-        writeFileSync(resolve(directory, 'package.json'), JSON.stringify(bootstrapManifest(row.name), null, 2) + '\n');
-        writeFileSync(
-          resolve(directory, 'README.md'),
-          `# ${row.name}\n\nPlaceholder that creates this name for trusted publishing. Install a released version.\n`,
-        );
-        console.log(`Staging ${row.name}@${BOOTSTRAP_VERSION} to create the name (it is never approved)`);
-        npm(['stage', 'publish', directory, '--access', 'public', '--tag', BOOTSTRAP_TAG], { stdio: 'inherit' });
-      }
-      if (row.actions.includes('trust')) {
-        console.log(`Trusting ${REPOSITORY} ${WORKFLOW} (environment ${ENVIRONMENT}) to publish ${row.name}`);
-        npm(trustArgs(row.name), { stdio: 'inherit' });
-        assert.ok(trustConfigured(npm(['trust', 'list', row.name])), `${row.name}: trusted publisher not confirmed`);
-      }
-      if (row.actions.includes('bootstrap')) rejectBootstrap(npm, row.name);
+    for (const name of names.filter((row) => !exists[row])) {
+      const directory = resolve(scratch, name.slice('@inventarch/'.length));
+      mkdirSync(directory);
+      writeFileSync(resolve(directory, 'package.json'), JSON.stringify(bootstrapManifest(name), null, 2) + '\n');
+      writeFileSync(
+        resolve(directory, 'README.md'),
+        `# ${name}\n\nPlaceholder that creates this name for trusted publishing. Install a released version.\n`,
+      );
+      console.log(`Staging ${name}@${BOOTSTRAP_VERSION} to create the name; it is never approved`);
+      npm(['stage', 'publish', directory, '--access', 'public', '--tag', BOOTSTRAP_TAG, '--ignore-scripts', '--json'], {
+        stdio: ['ignore', 'pipe', 'inherit'],
+      });
     }
   } finally {
     assert.ok(scratch.startsWith(resolve(realpathSync(tmpdir()), 'ia-npm-bootstrap-')));
     rmSync(scratch, { recursive: true, force: true });
   }
-}
-/**
- * The id of the placeholder stage in `npm stage list --json` output. npm documents the command, not its JSON shape,
- * so this searches every object for the placeholder version and an id field, and returns null rather than guess.
- */
-export function bootstrapStageId(listing) {
-  let value;
-  try {
-    value = JSON.parse(listing);
-  } catch {
-    return null;
-  }
-  const pending = [value];
-  while (pending.length) {
-    const node = pending.pop();
-    if (!node || typeof node !== 'object') continue;
-    if (node.version === BOOTSTRAP_VERSION) {
-      const id = node.id ?? node.stageId ?? node.stage_id;
-      if (typeof id === 'string' || typeof id === 'number') return String(id);
+
+  const results = [];
+  for (const name of names) {
+    let { state, config } = readTrust(name);
+    if (state === 'missing') {
+      console.log(`Trusting ${REPOSITORY} ${WORKFLOW} (environment ${ENVIRONMENT}) to publish ${name}`);
+      npm(trustArgs(name), { stdio: 'inherit' });
+      ({ state, config } = readTrust(name));
+      assert.equal(state, 'configured', `${name}: the trusted publisher was not confirmed after configuring it`);
+      state = 'added';
     }
-    pending.push(...Object.values(node));
+    results.push({ name, trust: state, ...(state === 'different' ? { current: JSON.stringify(config) } : {}) });
   }
-  return null;
-}
-/** Withdraw the placeholder stage so only the workflow's reviewed version is ever approved. */
-function rejectBootstrap(npm, name) {
-  let id = null;
-  try {
-    id = bootstrapStageId(npm(['stage', 'list', name, '--json'], { stdio: 'pipe' }));
-  } catch {}
-  if (!id) {
-    console.log(
-      `Reject the ${name}@${BOOTSTRAP_VERSION} stage: npm stage list ${name}, then npm stage reject <stage-id>`,
+  // Reject every placeholder stage still pending, including one an interrupted earlier run left behind, so only the
+  // workflow's reviewed version is ever approved.
+  for (const name of names) {
+    let id = null;
+    try {
+      id = bootstrapStageId(npm(['stage', 'list', name, '--json'], { stdio: 'pipe' }));
+    } catch (error) {
+      console.log(`${name}: could not list stages (${lastLine(error)})`);
+    }
+    if (id) {
+      console.log(`Rejecting the ${name}@${BOOTSTRAP_VERSION} placeholder stage`);
+      npm(['stage', 'reject', id], { stdio: 'inherit' });
+    }
+  }
+  console.table(results);
+  const different = results.filter((row) => row.trust === 'different' || row.trust === 'unknown');
+  if (different.length) {
+    console.error(
+      'These packages trust another repository, workflow or environment, or their trust could not be read.\n' +
+        'npm allows one configuration per package:\n' +
+        different
+          .map((row) => `  ${row.name}: npm trust revoke ${row.name} --id <id from npm trust list>, then re-run`)
+          .join('\n'),
     );
-    return;
+    process.exitCode = 1;
   }
-  npm(['stage', 'reject', String(id)], { stdio: 'inherit' });
 }
 
 if (isEntry(process.argv[1], import.meta.url)) {
@@ -322,6 +425,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
     options: {
       apply: { type: 'boolean', default: false },
       'npm-cli': { type: 'string' },
+      node: { type: 'string' },
       reviewer: { type: 'string' },
       'skip-github': { type: 'boolean', default: false },
       'skip-npm': { type: 'boolean', default: false },
@@ -330,43 +434,38 @@ if (isEntry(process.argv[1], import.meta.url)) {
   const names = publicPackages(root)
     .map((project) => project.manifest.name)
     .sort();
-  const report = { npm: null, github: null };
   if (!values['skip-npm']) {
-    if (!npmEngineSupported(process.version)) {
-      const message = `npm ${NPM_VERSION} needs Node 22.22.2 or later; this is ${process.version}`;
-      assert.ok(!values.apply, message + '. Switch Node (for example fnm use 22.22.2) before --apply.');
-      console.log(message + '; reading anyway.');
-    }
-    const cli = pinnedNpm(values['npm-cli']);
-    let loggedIn = true;
+    const node = npmNode(values.node);
+    if (!node) {
+      const message = `npm ${NPM_VERSION} needs Node 22.22.2 or later, and none is installed. Run fnm install 22.22.2 or pass --node <path>`;
+      assert.ok(!values.apply, message);
+      console.log(message + `; reading with ${process.version}.`);
+    } else if (node !== process.execPath) console.log(`Running npm ${NPM_VERSION} with ${node}`);
+    const nodeBin = node ?? process.execPath,
+      cli = pinnedNpm(values['npm-cli'], nodeBin),
+      npm = (args, options = {}) => run(nodeBin, [cli, ...args], options);
+    let user = null;
     try {
-      run(process.execPath, [cli, 'whoami'], { stdio: 'pipe' });
-    } catch {
-      loggedIn = false;
-    }
-    const state = {};
-    for (const name of names) {
-      const exists = await registryExists(name);
-      let trust = 'unknown';
-      if (exists && loggedIn)
-        try {
-          trust = trustConfigured(run(process.execPath, [cli, 'trust', 'list', name], { stdio: 'pipe' }))
-            ? 'configured'
-            : 'missing';
-        } catch {}
-      state[name] = { exists, trust };
-    }
-    const plan = npmSetupPlan(names, state);
-    report.npm = { loggedIn, packages: plan };
-    console.table(
-      plan.map(({ name, exists, trust, actions }) => ({ name, exists, trust, needs: actions.join(' + ') })),
+      user = npm(['whoami'], { stdio: 'pipe' }).trim();
+    } catch {}
+    const exists = {};
+    for (const name of names) exists[name] = await registryExists(name);
+    // Reading trust needs 2FA, so only --apply reads it, after one interactive confirmation.
+    const plan = npmSetupPlan(
+      names,
+      Object.fromEntries(names.map((name) => [name, { exists: exists[name], trust: 'read during --apply' }])),
     );
-    if (!loggedIn) console.log('npm: log in with `npm login` (2FA required) to read and configure trusted publishers.');
+    console.table(
+      plan.map(({ name, exists, trust, actions }) => ({ name, exists, trust, needs: actions.join(' + ') || '-' })),
+    );
+    console.log(
+      user
+        ? `npm: logged in as ${user}.`
+        : 'npm: not logged in. Run `npm login` on an account with 2FA and write access to @inventarch.',
+    );
     if (values.apply) {
-      assert.ok(loggedIn, 'npm login is required to apply');
-      const unknown = plan.filter((row) => row.trust === 'unknown');
-      assert.equal(unknown.length, 0, 'Trust could not be read for: ' + unknown.map((row) => row.name).join(', '));
-      applyNpm(cli, plan);
+      assert.ok(user, 'npm login is required to apply');
+      applyNpm(npm, names, exists);
     }
   }
   if (!values['skip-github']) {
@@ -394,7 +493,6 @@ if (isEntry(process.argv[1], import.meta.url)) {
           declaresPermissions(readFileSync(resolve(root, '.github/workflows', name), 'utf8')),
         ),
       });
-      report.github = { state, issues };
       console.table(issues.length ? issues : [{ setting: 'all', fix: 'none needed' }]);
       if (values.apply && issues.length) applyGithub(gh, issues, values.reviewer ?? codeOwner());
     }

@@ -1,9 +1,11 @@
 export declare const BOOTSTRAP_VERSION: string;
 export declare const BOOTSTRAP_TAG: string;
 export declare function npmEngineSupported(version: string): boolean;
+export declare function compatibleNodeVersions(names: readonly string[]): string[];
 export declare function declaresPermissions(workflowText: string): boolean;
 export declare function trustArgs(name: string): string[];
-export declare function trustConfigured(listing: string): boolean;
+export type TrustState = 'configured' | 'missing' | 'different' | 'unknown';
+export declare function trustState(listing: string): { state: TrustState; config?: unknown };
 export declare function bootstrapManifest(name: string): {
   name: string;
   version: string;
@@ -11,11 +13,10 @@ export declare function bootstrapManifest(name: string): {
   license: string;
   repository: { type: string; url: string };
 };
-export type TrustState = 'configured' | 'missing' | 'unknown';
 export declare function npmSetupPlan(
   names: readonly string[],
-  state: Record<string, { exists: boolean; trust: TrustState }>,
-): { name: string; exists: boolean; trust: TrustState; actions: ('bootstrap' | 'trust')[] }[];
+  state: Record<string, { exists: boolean; trust: string }>,
+): { name: string; exists: boolean; trust: string; actions: ('bootstrap' | 'trust')[] }[];
 export declare function githubSetupPlan(
   state: {
     environment: { reviewers: string[]; branches: string[] } | null;
