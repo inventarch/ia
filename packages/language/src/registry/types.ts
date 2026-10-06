@@ -36,7 +36,10 @@ export interface Source {
   readonly location: Location;
 }
 
-/** One `<predicate> <targets> using <sources>` row of a system's consent ledger (spec 4.2). A side is `*` or discriminator keywords. */
+/**
+ * One `<predicate> <targets> using <sources>` row of a system's consent ledger (spec 4.2). A side is `*` or keywords:
+ * discriminators, or `any-adopter` for the words of every system that requires the ledger's system.
+ */
 export interface ConsentRow {
   readonly predicate: Predicate;
   readonly targets: readonly string[] | '*';

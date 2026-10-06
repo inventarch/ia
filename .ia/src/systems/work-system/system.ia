@@ -47,13 +47,14 @@
       move Observation
   edges
     cite * using *
-    require task, milestone, decision using task, milestone
+    require task, milestone, decision using task, milestone, any-adopter
+    require contract, spec using spec
     supersede plan using plan
     supersede milestone using milestone
     supersede task using task
     supersede decision using decision
     supersede spec using spec
-    ground plan, milestone, task using decision
+    ground plan, milestone, task, spec using decision, any-adopter
 
 @agent public-work-system-steward
   meaning

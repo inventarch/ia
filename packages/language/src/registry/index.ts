@@ -8,8 +8,16 @@ import { extractSchemas } from './schemas.js';
 export { fieldTypeText } from './schemas.js';
 import type { FrozenRegistry, Registration, SchemaDeclaration, Source, SystemDeclaration } from './types.js';
 
-export { admits, consentFor } from './consent.js';
-export { BUILTIN_SYSTEMS, FLOOR_REGISTRATIONS, FLOOR_SYSTEM, RESERVED_KEYWORDS, TAXONOMY_SYSTEM } from './floor.js';
+export { admits, adopterOf, consentFor } from './consent.js';
+export type { AdopterTest } from './consent.js';
+export {
+  ANY_ADOPTER,
+  BUILTIN_SYSTEMS,
+  FLOOR_REGISTRATIONS,
+  FLOOR_SYSTEM,
+  RESERVED_KEYWORDS,
+  TAXONOMY_SYSTEM,
+} from './floor.js';
 export { fieldOf, restAfter, sectionOf, spelledAs, stringOf } from './fields.js';
 export type {
   ConsentRow,
