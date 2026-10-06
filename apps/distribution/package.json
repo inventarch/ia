@@ -29,7 +29,6 @@
     "@inventarch/language": "workspace:*",
     "@inventarch/authoring-system": "workspace:*",
     "@inventarch/agent-composition-system": "workspace:*",
-    "@inventarch/session-system": "workspace:*",
     "smol-toml": "1.9.0",
     "jsonc-parser": "3.3.1",
     "@inventarch/steward-hook": "workspace:*"

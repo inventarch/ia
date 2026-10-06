@@ -111,6 +111,8 @@ it('keeps foundation independent from execution and admits only explicitly insta
     moduleProblem({ name, app, path: resolve('fixture') }, resolve('fixture/src/index.ts'), target);
   expect(check('@inventarch/runtime', false, '@inventarch/agent-system')).toBeDefined();
   expect(check('@inventarch/session-system', false, '@inventarch/agent-system')).toBeDefined();
+  expect(check('@inventarch/session-system', false, '@inventarch/graph')).toBeUndefined();
+  expect(check('@inventarch/distribution', true, '@inventarch/session-system')).toBeDefined();
   expect(check('@inventarch/agent-system', false, '@inventarch/agent-composition-system')).toBeDefined();
   expect(check('@inventarch/agent-composition-system', false, '@inventarch/agent-system')).toBeUndefined();
   expect(check('@inventarch/cli', true, '@inventarch/session-system')).toBeDefined();

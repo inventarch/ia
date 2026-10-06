@@ -57,6 +57,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
     "test": "vitest run --config vitest.config.mts"
   },
+  "dependencies": {
+    "@inventarch/graph": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

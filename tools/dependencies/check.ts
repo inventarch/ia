@@ -11,7 +11,7 @@ export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
   '@inventarch/compliance': ['@inventarch/language', '@inventarch/graph'],
   '@inventarch/db': ['@inventarch/language', '@inventarch/graph', '@inventarch/compliance'],
   '@inventarch/runtime': ['@inventarch/language', '@inventarch/graph', '@inventarch/db'],
-  '@inventarch/session-system': [],
+  '@inventarch/session-system': ['@inventarch/graph'],
   '@inventarch/agent-system': [
     '@inventarch/session-system',
     '@inventarch/runtime',
@@ -50,7 +50,6 @@ const HOSTS: Readonly<Record<string, readonly string[]>> = {
     '@inventarch/db',
     '@inventarch/authoring-system',
     '@inventarch/agent-composition-system',
-    '@inventarch/session-system',
     '@inventarch/steward-hook',
   ],
   '@inventarch/steward-hook': ['@inventarch/runtime', '@inventarch/db', '@inventarch/agent-composition-system'],

@@ -15,7 +15,7 @@ import {
   captureAuthoringManifestBytes,
 } from '@inventarch/agent-composition-system/authoring-manifest';
 import { RESOURCE_LIMITS } from '@inventarch/agent-composition-system/resources';
-import { digest } from '@inventarch/session-system';
+import { digest } from '@inventarch/graph';
 import { verifyArchive, type VerifiedArchive } from './archive.js';
 import { distributionSnapshot } from './snapshot.js';
 import { fail, utf8 } from './files.js';
