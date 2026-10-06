@@ -2081,7 +2081,7 @@
     },
     {
       "path": "tools/testing/inventory.test.ts",
-      "sha256": "1beef5c1ae7d8f37e5a5fdf73ef9a7e445419223885c685fcb0adee7cc37c17d",
+      "sha256": "cdda94637f58f263b94cb30ae76067c44ebe4e1191fb2821070c1ec22fb13fd9",
       "change": "portable-quality"
     },
     {

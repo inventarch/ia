@@ -6907,7 +6907,7 @@
     },
     {
       "path": "releases/changesets/1.1.0.json",
-      "sha256": "018d25d7c8bd2cda5f7e7cc450946292f8df1f5d24248caf4ebef831a6c9671c"
+      "sha256": "797a996385f67c51492dba6e65927e0ea0e4cf70bc3fab5dea4f889d30a5aafc"
     },
     {
       "path": "releases/current.json",
@@ -7515,7 +7515,7 @@
     },
     {
       "path": "tools/testing/inventory.test.ts",
-      "sha256": "1beef5c1ae7d8f37e5a5fdf73ef9a7e445419223885c685fcb0adee7cc37c17d"
+      "sha256": "cdda94637f58f263b94cb30ae76067c44ebe4e1191fb2821070c1ec22fb13fd9"
     },
     {
       "path": "tools/testing/inventory.ts",
@@ -7596,10 +7596,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "28f8a2ba1f7c47b3ad977f3b38a4be8faf47cef3",
-    "baseTree": "b7d6e1f2a5772227acd963e7d855b3c7e9702518",
+    "baseCommit": "e0dfa3247e6495d8349033a5b7bfe4116634bccb",
+    "baseTree": "2b5a10caf8af44d1db751b7e2636413e1b8c34f2",
     "dirty": true,
-    "inputDigest": "4d47f5ba348dcaf643227cbb95b980d2a90c4f82dedd264735cfd668167fddb1",
+    "inputDigest": "d2c01de9c4fa5d4bdb2eb72f43cee230aa5207e7a65c1718d8ae643422aeb864",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",
