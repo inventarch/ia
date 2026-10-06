@@ -269,6 +269,29 @@ export function file(value: unknown): ResourceFile {
   return { ...pin, content };
 }
 
+/**
+ * The index just past the JSON string token that opens at `at`, or -1 when the token is malformed: a single
+ * left-to-right scan of the JSON string grammar (no control characters; the eight one-character escapes and
+ * `\uXXXX`), so no backtracking regular expression runs over caller-supplied text.
+ */
+function jsonStringEnd(input: string, at: number): number {
+  if (input.charCodeAt(at) !== 0x22) return -1;
+  let i = at + 1;
+  while (i < input.length) {
+    const code = input.charCodeAt(i);
+    if (code === 0x22) return i + 1;
+    if (code < 0x20) return -1;
+    if (code !== 0x5c) {
+      i += 1;
+      continue;
+    }
+    const escaped = input[i + 1] ?? '';
+    if (escaped !== '' && '"\\/bfnrt'.includes(escaped)) i += 2;
+    else if (escaped === 'u' && /^[0-9a-fA-F]{4}$/.test(input.slice(i + 2, i + 6))) i += 6;
+    else return -1;
+  }
+  return -1;
+}
 /** Bounded JSON decoding with decoded-key duplicate rejection; no IA parsing. */
 export function decodeJson(input: string): unknown {
   if (Buffer.byteLength(input) > RESOURCE_LIMITS.serializedBytes)
@@ -278,12 +301,11 @@ export function decodeJson(input: string): unknown {
     while (/[\t\r\n ]/.test(input[at] ?? 'x')) at++;
   };
   const string = (): string => {
-    const token = /"(?:[^"\\\u0000-\u001f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"/y;
-    token.lastIndex = at;
-    const match = token.exec(input);
-    if (!match) invalid('Malformed resource JSON string');
-    at = token.lastIndex;
-    return JSON.parse(match[0]) as string;
+    const end = jsonStringEnd(input, at);
+    if (end < 0) invalid('Malformed resource JSON string');
+    const token = input.slice(at, end);
+    at = end;
+    return JSON.parse(token) as string;
   };
   const value = (depth: number): unknown => {
     if (depth > 16) invalid('Resource JSON nesting exceeds its ceiling');
