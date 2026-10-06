@@ -1,5 +1,5 @@
 import { beforeAll, expect, it } from 'vitest';
-import { digest } from '@inventarch/session-system';
+import { digest } from '@inventarch/graph';
 import { assessReleaseMinting } from '../src/minting.js';
 import { mintingFixture } from './minting-fixture.js';
 
