@@ -31,6 +31,10 @@ interface SchemaField {
 }
 interface SchemaEdge {
   readonly predicate: string;
+  /** The rule's direction relative to the word's records: `out` for the active and present spellings, `in` for the inverse. */
+  readonly direction: 'out' | 'in';
+  /** The verb as the schema spells it; the row's label. */
+  readonly spelling: string;
   readonly target: string;
   readonly cardinality: string;
   readonly required: boolean;
@@ -178,10 +182,14 @@ const detail = (word: Word, full: boolean, caps: Capabilities): readonly (readon
       sectionLabel('Relationships', caps),
       ...fieldRows(
         word.schema.edges.map((edge) => ({
-          label: edge.predicate,
+          label: edge.spelling,
           value: [
             atom(edge.target, 'cyan', 0),
-            ...words(`${edge.cardinality}; ${edge.required ? 'required' : 'optional'}`, 'dim', 2),
+            ...words(
+              `${edge.cardinality}; ${edge.required ? 'required' : 'optional'}${edge.direction === 'in' ? '; inbound' : ''}`,
+              'dim',
+              2,
+            ),
           ],
         })),
         { depth: 1 },

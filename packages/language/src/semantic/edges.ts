@@ -124,6 +124,7 @@ export function readEdges(
         continue;
       }
       const { predicate, direction } = parsed.verb;
+      const spelling = field.words.slice(0, parsed.length).join(' ');
       if (
         predicate === 'ground' &&
         direction === 'out' &&
@@ -169,6 +170,7 @@ export function readEdges(
       edges.push({
         predicate,
         direction,
+        spelling,
         reference,
         target: resolution.kind === 'resolved' ? resolution.target.identity : null,
         ...(reference.fragment === undefined ? {} : { fragment: reference.fragment }),

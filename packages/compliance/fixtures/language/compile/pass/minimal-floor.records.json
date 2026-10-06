@@ -146,15 +146,16 @@
       {
         "predicate": "ground",
         "direction": "out",
-        "target": "floor/contract/head/agent",
-        "span": {
-          "line": 8,
-          "endLine": 11
-        },
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
           "name": "agent"
+        },
+        "target": "floor/contract/head/agent",
+        "span": {
+          "line": 8,
+          "endLine": 11
         }
       }
     ],

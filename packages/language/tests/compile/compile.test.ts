@@ -55,6 +55,7 @@ describe('compile', () => {
       {
         predicate: 'ground',
         direction: 'out',
+        spelling: 'ground',
         reference: { kind: 'ref', discriminator: 'schema', name: 'agent' },
         target: 'floor/contract/head/agent',
         span: { line: 8, endLine: 11 },
@@ -425,6 +426,7 @@ describe('generated ground edges', () => {
       {
         predicate: 'ground',
         direction: 'out',
+        spelling: 'ground',
         reference: { kind: 'ref', discriminator: 'schema', name: 'agent' },
         target: 'floor/contract/head/agent',
         span: { line: 8, endLine: 11 },
@@ -443,6 +445,7 @@ describe('generated ground edges', () => {
       {
         predicate: 'ground',
         direction: 'out',
+        spelling: 'ground',
         reference: { kind: 'ref', discriminator: 'schema', name: 'agent' },
         target: 'floor/contract/head/agent',
         span: { line: 11, endLine: 14 },

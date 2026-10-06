@@ -1,6 +1,7 @@
 import type { ChildNode, FieldNode, FileNode, RecordNode, Value } from '../ast.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
+import { verbOf } from '../semantic/vocabulary.js';
 import {
   CARDINALITIES,
   KINDS,
@@ -11,7 +12,6 @@ import {
   isCardinality,
   isId,
   isKind,
-  isPredicate,
   isTextForm,
 } from '../taxonomy.js';
 import type { Band, FieldType, Kind } from '../taxonomy.js';
@@ -285,32 +285,35 @@ function schemaOf(
     if (!flatRow(child, 'edges')) continue;
     const words = child.words;
     const first = words[0];
-    const predicate = words[1];
-    const target = words[2];
-    const cardinality = words[3];
+    // The verb is every word between the obligation and the trailing `<target> <cardinality>`, so a present phrase of
+    // several words (`grants access to`) is one verb, like a relationships line.
+    const spelling = words.slice(1, -2).join(' ');
+    const target = words[words.length - 2];
+    const cardinality = words[words.length - 1];
     if (
       child.value.kind !== 'scalar' ||
-      words.length !== 4 ||
+      words.length < 4 ||
       (first !== 'must' && first !== 'may') ||
-      predicate === undefined ||
       target === undefined ||
       cardinality === undefined
     ) {
       malformed('edges', line, 'entry must read `must <predicate> <kind or discriminator> <cardinality>` or `may ...`');
       continue;
     }
-    if (!isPredicate(predicate)) {
+    const verb = verbOf(spelling);
+    if (verb === undefined) {
       diagnostics.push(
         diag(
           'IA-LANG-PREDICATE-UNKNOWN',
           path,
           line,
-          `${path}:${line}: '${predicate}' is not a predicate; admitted: ${PREDICATES.join(', ')}`,
+          `${path}:${line}: '${spelling}' is not a predicate; admitted: ${PREDICATES.join(', ')}`,
         ),
       );
       ok = false;
       continue;
     }
+    const { predicate, direction } = verb;
     if (!isCardinality(cardinality)) {
       malformed('edges', line, `cardinality '${cardinality}' must be one of ${CARDINALITIES.join(', ')}`);
       continue;
@@ -319,11 +322,11 @@ function schemaOf(
       malformed('edges', line, `target '${target}' must spell a kind or discriminator: [a-z][a-z0-9-]*`);
       continue;
     }
-    if (edges.some((edge) => edge.predicate === predicate && edge.target === target)) {
-      malformed('edges', line, `states '${predicate} ${target}' twice`);
+    if (edges.some((edge) => edge.predicate === predicate && edge.direction === direction && edge.target === target)) {
+      malformed('edges', line, `states '${spelling} ${target}' twice`);
       continue;
     }
-    edges.push({ predicate, target, must: first === 'must', cardinality, span: child.span });
+    edges.push({ predicate, direction, spelling, target, must: first === 'must', cardinality, span: child.span });
   }
 
   if (!ok || kind === undefined || closed === undefined) return undefined;

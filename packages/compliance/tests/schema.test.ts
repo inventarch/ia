@@ -583,6 +583,12 @@ describe('schema edge obligations', () => {
     const duplicate: CompiledRecord = { ...target, source: { ...target.source, path: 'other.ia' } };
     expect(validateSchema(f.record, f.registry, [...f.pool, duplicate]).outcome).toBe('not-evaluated');
   });
+  it('counts the present spelling of an outbound rule exactly as the active one and names the spelling', () => {
+    expect(edges('    must cites entry one', '    cites @entry target', '@entry target').check().outcome).toBe('pass');
+    const result = edges('    must cites entry one', '').check();
+    expect(codes(result)).toEqual(['IA-COMP-EDGE-CARDINALITY']);
+    expect(result.findings[0]!.message).toContain('cites entry requires must one');
+  });
   it('fails independently certain errors even when another check is undecidable', () => {
     const result = fixture(
       '  relationships\n    cites @entry missing',
@@ -590,5 +596,76 @@ describe('schema edge obligations', () => {
     ).check();
     expect(result.outcome).toBe('fail');
     expect(codes(result)).toEqual(['IA-COMP-EDGE-UNRESOLVED', 'IA-COMP-FIELD-MISSING']);
+  });
+});
+
+describe('inbound schema edge obligations', () => {
+  /** Two words in one system, so the subject's schema can oblige what a `law` asserts about it; `laws` is appended after the subject. */
+  function governed(rules: string, laws = '', subject = '') {
+    const source = `#! ia 1.0
+@system demo
+  provider "test"
+  version "1.0.0"
+  discriminators
+    entry lowers to definition
+      category thing
+      facets [entry]
+      schema @schema entry
+    law lowers to governance
+      category process
+      facets [law]
+      schema @schema law
+  edges
+    govern entry using law
+@schema entry
+  lowers to definition
+  sections
+    may have relationships
+    open
+  edges
+${rules}
+@schema law
+  lowers to governance
+  sections
+    open
+@entry subject
+${subject}
+${laws}
+`;
+    const parsed = parse(source, 'governed.ia');
+    const { registry, diagnostics } = buildRegistry([{ ...parsed, location }]);
+    expect(diagnostics).toEqual([]);
+    const result = compile(parsed.ast, registry, location, []);
+    expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    const record = result.records.find((r) => r.name === 'subject')!;
+    const pool = result.records.filter((r) => r.discriminator === 'entry' || r.discriminator === 'law');
+    return validateSchema(record, registry, pool);
+  }
+  const governs = (name: string, extra = '') => `@law ${name}\n  relationships\n    governs @entry subject${extra}`;
+  it('is satisfied by a law governing the record and refuses a second one under `one`', () => {
+    expect(governed('    may governed-by law one', governs('a'))).toMatchObject({ outcome: 'pass', findings: [] });
+    const two = governed('    may governed-by law one', `${governs('a')}\n${governs('b')}`);
+    expect(codes(two)).toEqual(['IA-COMP-EDGE-CARDINALITY']);
+    expect(two.findings[0]!.message).toContain('governed-by law requires may one; found 2 definite targets');
+    expect(governed('    may governed-by law one-or-more', `${governs('a')}\n${governs('b')}`).outcome).toBe('pass');
+  });
+  it('enforces the minimum of a must rule and admits absence under may', () => {
+    expect(codes(governed('    must governed-by law one'))).toEqual(['IA-COMP-EDGE-CARDINALITY']);
+    expect(governed('    may governed-by law one').outcome).toBe('pass');
+  });
+  it("counts the record's own inverse assertion once with the law's reciprocal one, and ignores the active direction", () => {
+    const own = '  relationships\n    governed-by @law a';
+    expect(governed('    may governed-by law one', '@law a', own)).toMatchObject({ outcome: 'pass', findings: [] });
+    expect(governed('    may governed-by law one', governs('a'), own)).toMatchObject({ outcome: 'pass', findings: [] });
+    // An outbound rule with the same predicate reads the record's active edges only: the law's assertion is not one.
+    expect(codes(governed('    must govern law one', governs('a')))).toEqual(['IA-COMP-EDGE-CARDINALITY']);
+  });
+  it('leaves a conditioned or unresolved governing assertion undecided', () => {
+    const conditioned = governed('    must governed-by law one', governs('a', ' when phase is act'));
+    expect(conditioned.outcome).toBe('not-evaluated');
+    expect(codes(conditioned)).toEqual(['IA-COMP-EDGE-UNRESOLVED']);
+    const dangling = governed('    must governed-by law one', '', '  relationships\n    governed-by @law missing');
+    expect(dangling.outcome).toBe('not-evaluated');
+    expect(codes(dangling)).toEqual(['IA-COMP-EDGE-UNRESOLVED']);
   });
 });

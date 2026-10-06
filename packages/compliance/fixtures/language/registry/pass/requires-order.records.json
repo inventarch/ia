@@ -132,15 +132,16 @@
       {
         "predicate": "ground",
         "direction": "out",
-        "target": "floor/contract/head/workspace",
-        "span": {
-          "line": 9,
-          "endLine": 12
-        },
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
           "name": "workspace"
+        },
+        "target": "floor/contract/head/workspace",
+        "span": {
+          "line": 9,
+          "endLine": 12
         }
       }
     ],
@@ -279,15 +280,16 @@
       {
         "predicate": "ground",
         "direction": "out",
-        "target": "floor/contract/head/check",
-        "span": {
-          "line": 19,
-          "endLine": 22
-        },
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
           "name": "check"
+        },
+        "target": "floor/contract/head/check",
+        "span": {
+          "line": 19,
+          "endLine": 22
         }
       }
     ],
@@ -426,15 +428,16 @@
       {
         "predicate": "ground",
         "direction": "out",
-        "target": "floor/contract/head/agent",
-        "span": {
-          "line": 29,
-          "endLine": 32
-        },
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
           "name": "agent"
+        },
+        "target": "floor/contract/head/agent",
+        "span": {
+          "line": 29,
+          "endLine": 32
         }
       }
     ],

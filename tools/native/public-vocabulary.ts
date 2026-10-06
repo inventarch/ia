@@ -100,8 +100,10 @@ export function vocabulary(root: string, read?: (path: string) => string) {
             ...(target ? { target } : {}),
             ...(form ? { form } : {}),
           })),
-          edges: schema.edges.map(({ predicate, target, cardinality, must }) => ({
+          edges: schema.edges.map(({ predicate, direction, spelling, target, cardinality, must }) => ({
             predicate,
+            direction,
+            spelling,
             target,
             cardinality,
             required: must,
@@ -175,7 +177,7 @@ export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string 
         '',
         ...word.schema.edges.map(
           (e) =>
-            `Relationship: ${e.predicate} → ${e.target}; ${e.cardinality}; ${e.required ? 'required' : 'optional'}.`,
+            `Relationship: ${e.spelling} ${e.direction === 'out' ? `→ ${e.target}` : `← ${e.target} (inbound ${e.predicate})`}; ${e.cardinality}; ${e.required ? 'required' : 'optional'}.`,
         ),
       );
     if (word.kernelMembers.length)

@@ -150,6 +150,7 @@ describe('fragments and structural coverage', () => {
     const edge = {
       predicate: 'cite' as const,
       direction: 'in' as const,
+      spelling: 'cited-by',
       reference: { kind: 'ref' as const, discriminator: 'playbook', name: method.name, fragment: 'orient/Memory' },
       target: null,
       fragment: 'orient/Memory',
@@ -187,16 +188,18 @@ describe('graph schema obligations', () => {
   const compiled = compile(parse(source.text, source.path).ast, registry, location, []).records;
   const rule: SchemaEdge = {
     predicate: 'cite',
+    direction: 'out',
+    spelling: 'cite',
     target: 'playbook',
     must: true,
     cardinality: 'one',
     span: { line: 1, endLine: 1 },
   };
-  function graphOf(changed = compiled, changedRule = rule, vocabulary = registry) {
+  function graphOf(changed = compiled, changedRule = rule, vocabulary = registry, sources = [source]) {
     const schemas = new Map(vocabulary.schemas),
       original = schemas.get('playbook')!;
     schemas.set('playbook', { ...original, sections: [], fields: [], closed: false, edges: [changedRule] });
-    return load(changed, { ...vocabulary, schemas }, { ...options, sources: [source] });
+    return load(changed, { ...vocabulary, schemas }, { ...options, sources });
   }
   const subject = (graph: ReturnType<typeof graphOf>) =>
     graph.nodes.get('governance-system/definition/procedure/source')!;
@@ -217,6 +220,36 @@ describe('graph schema obligations', () => {
     expect(validateGraphSchema(subject(conditional), conditional).outcome).toBe('not-evaluated');
     const absent = graphOf(compiled.map((r) => ({ ...r, edges: [] })));
     expect(validateGraphSchema(subject(absent), absent).findings.map((f) => f.code)).toEqual([
+      'IA-COMP-EDGE-CARDINALITY',
+    ]);
+  });
+  it('counts an inbound rule against the edges whose active target is the record, whoever asserted them', () => {
+    // `may cited-by playbook one` on the target: the source's `cites` and the target's own `cited-by` are one edge.
+    const inbound: SchemaEdge = { ...rule, direction: 'in', spelling: 'cited-by', must: false };
+    const target = (graph: ReturnType<typeof graphOf>) =>
+      graph.nodes.get('governance-system/definition/procedure/target')!;
+    const graph = graphOf(compiled, inbound);
+    expect(validateGraphSchema(target(graph), graph)).toMatchObject({ outcome: 'pass', findings: [] });
+    // The source has no inbound citation: `may` admits absence, `must` does not.
+    expect(validateGraphSchema(subject(graph), graph).outcome).toBe('pass');
+    const required = graphOf(compiled, { ...inbound, must: true });
+    const refused = validateGraphSchema(subject(required), required);
+    expect(refused.findings.map((f) => f.code)).toEqual(['IA-COMP-EDGE-CARDINALITY']);
+    expect(refused.findings[0]!.message).toContain('cited-by playbook requires must one');
+    // A second citing record exceeds `one`; the outbound rule on the source is untouched by the inbound one.
+    const extra = {
+      path: 'third.ia',
+      text: '#! ia 1.0\n@playbook third\n  relationships\n    cites @playbook target\n',
+      location,
+    };
+    const third = compile(parse(extra.text, extra.path).ast, registry, location, []).records;
+    const crowded = graphOf([...compiled, ...third], inbound, registry, [source, extra]);
+    expect(validateGraphSchema(target(crowded), crowded).findings.map((f) => f.code)).toEqual([
+      'IA-COMP-EDGE-CARDINALITY',
+    ]);
+    const outbound = graphOf([...compiled, ...third], rule, registry, [source, extra]);
+    expect(validateGraphSchema(subject(outbound), outbound).outcome).toBe('pass');
+    expect(validateGraphSchema(target(outbound), outbound).findings.map((f) => f.code)).toEqual([
       'IA-COMP-EDGE-CARDINALITY',
     ]);
   });

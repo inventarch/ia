@@ -70,6 +70,8 @@ export function runRefusalFixtures(
     validateSystems(changed, vocabulary, pool).flatMap((a) => a.findings);
   const rule = {
     predicate: 'cite' as const,
+    direction: 'out' as const,
+    spelling: 'cite',
     target: 'playbook',
     must: true,
     cardinality: 'one' as const,
@@ -98,6 +100,7 @@ export function runRefusalFixtures(
   const edge = {
     predicate: 'cite' as const,
     direction: 'out' as const,
+    spelling: 'cite',
     reference: { kind: 'ref' as const, discriminator: 'playbook', name: 'missing' },
     target: null,
     span: agent.source,

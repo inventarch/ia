@@ -151,6 +151,11 @@ describe('active endpoints, dangling references and consent', () => {
     expect(graph.diagnostics).toEqual([]);
     expect(graph.edges).toHaveLength(1);
     expect(graph.edges[0]!.assertions).toHaveLength(2);
+    // Each assertion keeps the verb its author wrote; the edge's endpoints stay normalized to the active direction.
+    expect(graph.edges[0]!.assertions.map((x) => [x.author, x.direction, x.spelling])).toEqual([
+      [a.records[0]!.identity, 'out', 'cites'],
+      [b.records[0]!.identity, 'in', 'cited-by'],
+    ]);
     expect(graph.out.get(a.records[0]!.identity)?.get('cite')).toHaveLength(1);
     expect(graph.in.get(b.records[0]!.identity)?.get('cite')).toHaveLength(1);
   });

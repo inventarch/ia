@@ -39,6 +39,8 @@ export interface Tie {
 export interface EdgeAssertion {
   readonly author: string;
   readonly direction: 'out' | 'in';
+  /** The verb as the author wrote it (`CompiledEdge.spelling`); the edge's `from`/`to` stay normalized to the active direction. */
+  readonly spelling: string;
   readonly reference: EdgeReference;
   readonly source: { readonly path: string; readonly line: number; readonly endLine: number };
 }
