@@ -3,31 +3,43 @@ import { EditorSnapshot } from '@inventarch/db/editor';
 import { canonical, digest, SessionError } from '@inventarch/session-system';
 import { selectors } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
-import { verifyCapture } from './corpus.js';
-import type { Capture } from './corpus.js';
+import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
+import type { Capture } from '@inventarch/workspace-runtime/corpus';
 import {
   closeAuthoringView,
   createAuthoringIndex,
   prepareAuthoringTarget,
   resolveAuthoring,
   verifyAuthoringIndex,
-} from './authoring.js';
-import type { AuthoringIndexInput, AuthoringView, CapturedAuthoringIndex } from './authoring-types.js';
-import type { CapturedAuthoringManifest } from './authoring-manifest.js';
-import { resourceOccurrences, verifyResources } from './resources.js';
-import type { CapturedResources } from './resource-format.js';
-import { frozen, hash, metadataDigest, sha256, ResourceError } from './resource-format.js';
-import { nativeResourcePath } from './resource-sources.js';
+} from '@inventarch/workspace-runtime/authoring';
+import type {
+  AuthoringIndexInput,
+  AuthoringView,
+  CapturedAuthoringIndex,
+} from '@inventarch/workspace-runtime/authoring-types';
+import type { CapturedAuthoringManifest } from '@inventarch/workspace-runtime/authoring-manifest';
+import { resourceOccurrences, verifyResources } from '@inventarch/workspace-runtime/resources';
+import type { CapturedResources } from '@inventarch/workspace-runtime/resource-format';
+import { frozen, hash, metadataDigest, sha256, ResourceError } from '@inventarch/workspace-runtime/resource-format';
+import { nativeResourcePath } from '@inventarch/workspace-runtime/resource-sources';
 import { installedImplementationDigest } from './installed-catalog.js';
-import { TASK_CAPTURE_BYTES, TASK_CAPTURE_POLICY, taskCaptureRequest } from './task-capture-format.js';
-import type { TaskCaptureRequest } from './task-capture-format.js';
+import {
+  TASK_CAPTURE_BYTES,
+  TASK_CAPTURE_POLICY,
+  taskCaptureRequest,
+} from '@inventarch/workspace-runtime/task-capture-format';
+import type { TaskCaptureRequest } from '@inventarch/workspace-runtime/task-capture-format';
 import { taskContextDeclaration } from './task-context-declaration.js';
 import type { TaskContextDeclaration } from './task-context-declaration.js';
 import { taskTeachingClosure } from './task-teaching-closure.js';
-import { occurrenceOf } from './resource-format.js';
+import { occurrenceOf } from '@inventarch/workspace-runtime/resource-format';
 export type { TaskContextDeclaration } from './task-context-declaration.js';
-export { TASK_CAPTURE_BYTES, TASK_CAPTURE_POLICY, taskCaptureRequest } from './task-capture-format.js';
-export type { TaskCaptureRequest, TaskCaptureSelection } from './task-capture-format.js';
+export {
+  TASK_CAPTURE_BYTES,
+  TASK_CAPTURE_POLICY,
+  taskCaptureRequest,
+} from '@inventarch/workspace-runtime/task-capture-format';
+export type { TaskCaptureRequest, TaskCaptureSelection } from '@inventarch/workspace-runtime/task-capture-format';
 
 /** A trusted host supplies the complete authorized snapshot and a current-state check.
  * Neither this callback nor the full view is accepted from a remote capture request. */

@@ -9,7 +9,7 @@ import {
 } from '../src/authoring.js';
 
 it('resolves every shipped guide and actual system with complete catalogue paging', () => {
-  const root = fileURLToPath(new URL('../../../../../', import.meta.url));
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
   const local = openLocalAuthoringView({
     root,
     id: 'shipped',

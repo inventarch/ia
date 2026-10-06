@@ -1,7 +1,7 @@
 import { validateCoordinate } from '@inventarch/graph';
 import type { Coordinate } from '@inventarch/graph';
-import { authoringRequest, unique } from './authoring-format.js';
-import type { AuthoringTargetRequest } from './authoring-types.js';
+import { authoringRequest, unique } from '@inventarch/workspace-runtime/authoring-format';
+import type { AuthoringTargetRequest } from '@inventarch/workspace-runtime/authoring-types';
 import {
   frozen,
   list,
@@ -12,8 +12,8 @@ import {
   resourceKey,
   keyOf,
   text,
-} from './resource-format.js';
-import type { ResourceKey, ResourceOccurrence } from './resource-format.js';
+} from '@inventarch/workspace-runtime/resource-format';
+import type { ResourceKey, ResourceOccurrence } from '@inventarch/workspace-runtime/resource-format';
 
 /** Supplied only by the trusted host's reviewed task resolver, never by a remote request. */
 export interface TaskContextDeclaration {

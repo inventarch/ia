@@ -88,6 +88,10 @@
     "packages/service-contracts/package.json": {
       "name": "@inventarch/service-contracts",
       "private": false
+    },
+    "packages/workspace-runtime/package.json": {
+      "name": "@inventarch/workspace-runtime",
+      "private": false
     }
   },
   "sourceRevision": "4ce033e9a2134332c1dd3a93d2e1faea37c41f54",
@@ -361,8 +365,14 @@
         ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
         ".ia/src/systems/agent-system/package.json": "1.1.0",
         ".ia/src/systems/authoring-system/package.json": "1.1.0",
+        ".ia/src/systems/compliance-system/package.json": "1.0.0",
+        ".ia/src/systems/governance-system/package.json": "1.0.0",
+        ".ia/src/systems/hook-authoring-system/package.json": "1.0.0",
+        ".ia/src/systems/learning-system/package.json": "1.0.0",
         ".ia/src/systems/session-system/package.json": "1.1.0",
         ".ia/src/systems/template-system/package.json": "1.1.0",
+        ".ia/src/systems/work-system/package.json": "1.0.0",
+        ".ia/src/systems/workspace-system/package.json": "1.0.0",
         "apps/cli/package.json": "1.1.0",
         "apps/distribution/package.json": "1.1.0",
         "apps/mcp-door/package.json": "1.1.0",
@@ -374,12 +384,7 @@
         "packages/language/package.json": "1.1.0",
         "packages/runtime/package.json": "1.1.0",
         "packages/service-contracts/package.json": "1.1.0",
-        ".ia/src/systems/compliance-system/package.json": "1.0.0",
-        ".ia/src/systems/governance-system/package.json": "1.0.0",
-        ".ia/src/systems/hook-authoring-system/package.json": "1.0.0",
-        ".ia/src/systems/learning-system/package.json": "1.0.0",
-        ".ia/src/systems/work-system/package.json": "1.0.0",
-        ".ia/src/systems/workspace-system/package.json": "1.0.0"
+        "packages/workspace-runtime/package.json": "1.1.0"
       },
       "language": "1.1.0",
       "systems": {

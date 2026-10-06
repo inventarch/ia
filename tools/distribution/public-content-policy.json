@@ -26,6 +26,10 @@
       "name": "@inventarch/runtime"
     },
     {
+      "root": "packages/workspace-runtime",
+      "name": "@inventarch/workspace-runtime"
+    },
+    {
       "root": ".ia/src/systems/agent-system",
       "name": "@inventarch/agent-system"
     },
@@ -98,97 +102,97 @@
   ],
   "exceptions": [
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "3063a3f7a187f4d72aaa38cc2591c66262cdcca83345c177384e40a08c3c2ed2",
       "normalizedSha256": "3063a3f7a187f4d72aaa38cc2591c66262cdcca83345c177384e40a08c3c2ed2"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "94550823fefe5a92858fddc3bb14618fa5f03443ddfcbd2887f3e70b6be2806e",
       "normalizedSha256": "94550823fefe5a92858fddc3bb14618fa5f03443ddfcbd2887f3e70b6be2806e"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "d2b16d127ee205dd79a1cbaa74cd4e0ff8ea0ae0f776b8bf4f37709814eff3af",
       "normalizedSha256": "d2b16d127ee205dd79a1cbaa74cd4e0ff8ea0ae0f776b8bf4f37709814eff3af"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "20e6a267df4bc61beb3478a97cd4c4f449c78329b456e912fa73716d0979f967",
       "normalizedSha256": "20e6a267df4bc61beb3478a97cd4c4f449c78329b456e912fa73716d0979f967"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "eb9053e95905806feacd110debd1f4ac47d874469f256963858ecfb22f8f2a0a",
       "normalizedSha256": "eb9053e95905806feacd110debd1f4ac47d874469f256963858ecfb22f8f2a0a"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "0afc5a20e71f98c20ee7b0063f0fe333b80cdfa9d1359020e578070d123f6acf",
       "normalizedSha256": "0afc5a20e71f98c20ee7b0063f0fe333b80cdfa9d1359020e578070d123f6acf"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "687f4418feaabb32038709afe1efbadf07ef71a39c857dc99b53802b91998bc5",
       "normalizedSha256": "687f4418feaabb32038709afe1efbadf07ef71a39c857dc99b53802b91998bc5"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "b01c973a02da0f1e93e922aa7df421ea3e9cfb6e7f0a681f5b48766f7dbd414a",
       "normalizedSha256": "b01c973a02da0f1e93e922aa7df421ea3e9cfb6e7f0a681f5b48766f7dbd414a"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "b89a760e801a85fc2ef6e2b575965f766c0d46c4f1dc54f478ee6894310f4bde",
       "normalizedSha256": "b89a760e801a85fc2ef6e2b575965f766c0d46c4f1dc54f478ee6894310f4bde"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
       "rule": "local-path",
       "valueSha256": "50d3330b8c150a46e4e638c6f005e54c12532f10ad219243698d345ef9b42e39",
       "normalizedSha256": "50d3330b8c150a46e4e638c6f005e54c12532f10ad219243698d345ef9b42e39"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/local-store.test.ts",
+      "path": "packages/workspace-runtime/tests/local-store.test.ts",
       "rule": "local-path",
       "valueSha256": "8a98d9cc349f7fcd2edd39001d1ace6984b2fd194e1c2288a735c16ea57286dd",
       "normalizedSha256": "8a98d9cc349f7fcd2edd39001d1ace6984b2fd194e1c2288a735c16ea57286dd"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/projections.test.ts",
+      "path": "packages/workspace-runtime/tests/projections.test.ts",
       "rule": "local-path",
       "valueSha256": "66d42cfef1bcc6434462a7137114beae46e7f116110558fe176da8c5b6d5b4f0",
       "normalizedSha256": "c20fe5fc39b80316339d0d014e3fe6f0b2adb3e1d215286c3ccda53f7b797b37"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/projections.test.ts",
+      "path": "packages/workspace-runtime/tests/projections.test.ts",
       "rule": "local-path",
       "valueSha256": "b477ed66a8a2644d58756ba15501159137a768f3f677b7a3490311414375ff83",
       "normalizedSha256": "f96614f703132b383b518184a7d6ae9542f936eb63e272a93bdaf84f44a489ee"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/projections.test.ts",
+      "path": "packages/workspace-runtime/tests/projections.test.ts",
       "rule": "local-path",
       "valueSha256": "a9f66e498924cfd7dae6cdd443cced1817f0828b4e896fc2cb26852d504c3ebe",
       "normalizedSha256": "b3841bfb31708b4d3e7402ebc7d685e87545e74729529010d932972e9d85cb4f"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/projections.test.ts",
+      "path": "packages/workspace-runtime/tests/projections.test.ts",
       "rule": "local-path",
       "valueSha256": "3d4a430b69a8f85e61d827a3467c6eca950a21f2b4cfcd3f755a55e285b15679",
       "normalizedSha256": "a5fdbfaf3d1ed3ec78bec302b7f5172d1ee19d85bd97ccfc22c1ec8c9e514ecb"
     },
     {
-      "path": ".ia/src/systems/agent-composition-system/tests/resources.test.ts",
+      "path": "packages/workspace-runtime/tests/resources.test.ts",
       "rule": "local-path",
       "valueSha256": "636966060016a69eecf9da746b2c44d18b9ec43397fccd7b29c66697219babb9",
       "normalizedSha256": "636966060016a69eecf9da746b2c44d18b9ec43397fccd7b29c66697219babb9"

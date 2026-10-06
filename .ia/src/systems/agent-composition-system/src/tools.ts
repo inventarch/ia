@@ -8,11 +8,11 @@ import type { Json } from '@inventarch/session-system';
 import { installed } from './catalog.js';
 import type { CompositionCatalog } from './catalog.js';
 
-import { verifyCapture } from './corpus.js';
-import type { Capture } from './corpus.js';
-import { resourceOccurrences, verifyResources } from './resources.js';
-import type { ResourceKey } from './resources.js';
-import { renderCapturedTemplate } from './templates.js';
+import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
+import type { Capture } from '@inventarch/workspace-runtime/corpus';
+import { resourceOccurrences, verifyResources } from '@inventarch/workspace-runtime/resources';
+import type { ResourceKey } from '@inventarch/workspace-runtime/resources';
+import { renderCapturedTemplate } from '@inventarch/workspace-runtime/templates';
 
 const prefix = 'authoring-system/binding/operation/';
 export const DRAFT_TOOL_IDS = Object.freeze({

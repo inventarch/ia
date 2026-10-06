@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Generic workspace runtime moves to @inventarch/workspace-runtime",
+  "summary": "Workspace capture and adoption, resources, projections, publication, candidates, templates, lifecycle, authoring manifest, installed catalog, sources, local store and adapters are published as @inventarch/workspace-runtime; @inventarch/agent-composition-system keeps the composition compiler, depends on the new package and re-exports the moved symbols and subpaths, deprecated for one major.",
+  "packages": [
+    "@inventarch/agent-composition-system",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    ".ia/src/systems/agent-composition-system/",
+    "packages/workspace-runtime/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}
