@@ -87,6 +87,12 @@ export function renderChangelog(entries) {
       .join('\n')
   );
 }
+/** A repository-relative path prefix in Git's form: forward slashes, no root or drive, no `.` or `..` segment. */
+const scopePrefix = (path) =>
+  typeof path === 'string' &&
+  path.length > 0 &&
+  !/^\/|^[A-Za-z]:|\\/.test(path) &&
+  path.split('/').every((segment) => segment !== '.' && segment !== '..');
 export function validateChangeset(entry, policy, projects, actualCoverage) {
   assert.equal(entry.format, 'ia.npm-changeset.v1');
   assert.equal(entry.version, policy.version, 'Changeset version differs');
@@ -129,9 +135,7 @@ export function validateChangeset(entry, policy, projects, actualCoverage) {
       'Changeset names an unknown package',
     );
     assert.ok(
-      Array.isArray(change.paths) &&
-        change.paths.length &&
-        change.paths.every((path) => typeof path === 'string' && path.length && !path.includes('..')),
+      Array.isArray(change.paths) && change.paths.length && change.paths.every(scopePrefix),
       'Change scope is required',
     );
   }

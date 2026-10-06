@@ -1,17 +1,8 @@
 import '../temp/physical-temp.mjs';
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import {
-  releaseChanges,
-  compareVersions,
-  validateChangeset,
-  type Changeset,
-  type ReleasePolicy,
-} from './release-changes.mjs';
+import { releaseChanges, compareVersions, validateChangeset, type Changeset } from './release-changes.mjs';
 import { releaseGraph } from './release-graph.mjs';
 import { executableExports } from './installed-consumer.mjs';
 import {
@@ -21,45 +12,20 @@ import {
   validatePackages,
   verifyRegistryCohort,
 } from './npm-release.mjs';
-const root = resolve(import.meta.dirname, '../..');
-const names = ['@inventarch/a', '@inventarch/b'];
-const projects = names.map((name) => ({
-  directory: 'packages/' + name.slice(12),
-  manifest: { name, version: '1.1.0' },
-}));
-const policy: ReleasePolicy = {
-  format: 'ia.npm-cohort.v1',
-  version: '1.1.0',
-  tag: 'latest',
-  baseline: { commit: 'a'.repeat(40), version: '1.0.0' },
-  cycles: [],
-};
-const coverage = [{ path: 'packages/a/src/index.ts', sha256: 'a'.repeat(64) }];
-function changeset(): Changeset {
-  return {
-    format: 'ia.npm-changeset.v1',
-    version: '1.1.0',
-    state: 'consumed',
-    baseline: policy.baseline,
-    summary: 'Public release',
-    packages: Object.fromEntries(
-      names.map((name) => [
-        name,
-        { previous: '1.0.0', kind: 'changed', summary: 'Documented API and dependency changes' },
-      ]),
-    ),
-    changes: [
-      {
-        id: 'runtime',
-        title: 'Runtime changes',
-        summary: 'Describe the observable change',
-        packages: [...names],
-        paths: ['packages/'],
-      },
-    ],
-    coverage: coverage.map((row) => ({ ...row, change: 'runtime' })),
-  };
-}
+import {
+  a,
+  b,
+  changeset,
+  checkout as root,
+  coverage,
+  git,
+  inRepository,
+  policy,
+  project,
+  refusal,
+} from './release-fixtures.js';
+const names = [a, b];
+const projects = names.map(project);
 it('requires one exact version across every public package and the sealed input map', () => {
   const packages = publicPackages(root),
     versions = releaseVersions(root),
@@ -69,58 +35,69 @@ it('requires one exact version across every public package and the sealed input 
   drift[0]!.manifest.version = '1.0.0';
   expect(() => validatePackages(drift, version, versions)).toThrow(/version differs/);
 });
+const validate = (entry: Changeset) => () => validateChangeset(entry, policy(), projects, coverage());
 it('requires all packages and rejects an unknown or unlisted new package in the changeset', () => {
-  expect(() => validateChangeset(changeset(), policy, projects, coverage)).not.toThrow();
+  expect(validate(changeset())).not.toThrow();
   const missing = changeset();
-  delete missing.packages[names[1]!];
-  expect(() => validateChangeset(missing, policy, projects, coverage)).toThrow(/every public package/);
+  delete missing.packages[b];
+  expect(validate(missing)).toThrow(refusal('Changeset must account for every public package exactly'));
   const unknown = changeset();
   unknown.changes[0]!.packages.push('@inventarch/unknown');
-  expect(() => validateChangeset(unknown, policy, projects, coverage)).toThrow(/unknown package/);
+  expect(validate(unknown)).toThrow(refusal('Changeset names an unknown package'));
 });
-it('refuses missing changes, an unconsumed entry, stale versions and an unchanged published baseline', () => {
-  for (const mutate of [
-    (entry: Changeset) => {
-      entry.changes = [];
-    },
-    (entry: Changeset) => {
-      entry.state = 'pending';
-    },
-    (entry: Changeset) => {
-      entry.version = '1.0.0';
-    },
-    (entry: Changeset) => {
-      entry.packages[names[0]!]!.previous = '1.1.0';
-    },
-  ]) {
+// Missing changes, a missing change entry and an omitted package are refused in release-refusals.test.ts.
+it('refuses an unconsumed entry, stale versions and an unchanged published baseline', () => {
+  for (const [mutate, message] of [
+    [
+      (entry: Changeset) => {
+        entry.state = 'pending';
+      },
+      'Unconsumed changeset',
+    ],
+    [
+      (entry: Changeset) => {
+        entry.version = '1.0.0';
+      },
+      'Changeset version differs',
+    ],
+    [
+      (entry: Changeset) => {
+        entry.packages[a]!.previous = '1.1.0';
+      },
+      'Package version must advance its published baseline',
+    ],
+  ] as const) {
     const entry = changeset();
     mutate(entry);
-    expect(() => validateChangeset(entry, policy, projects, coverage)).toThrow();
+    expect(validate(entry)).toThrow(refusal(message));
   }
   expect(compareVersions('1.1.0', '1.0.0')).toBe(1);
   expect(() => compareVersions('1.1.0-rc.1', '1.0.0')).toThrow();
 });
-it('binds changed files to exact bytes and rejects stale, missing or mislabeled coverage', () => {
-  for (const mutate of [
-    (entry: Changeset) => {
-      entry.coverage = [];
-    },
-    (entry: Changeset) => {
-      entry.coverage[0]!.sha256 = 'b'.repeat(64);
-    },
-    (entry: Changeset) => {
-      entry.coverage[0]!.change = 'missing';
-    },
-    (entry: Changeset) => {
-      entry.packages[names[0]!]!.kind = 'cohort';
-    },
-    (entry: Changeset) => {
-      entry.changes[0]!.packages = [names[1]!];
-    },
-  ]) {
+it('binds changed files to exact bytes and rejects stale coverage or a cohort-only claim on a changed package', () => {
+  for (const [mutate, message] of [
+    [
+      (entry: Changeset) => {
+        entry.coverage = [];
+      },
+      'Changeset coverage is missing or stale; review the diff and collect again',
+    ],
+    [
+      (entry: Changeset) => {
+        entry.coverage[0]!.sha256 = 'b'.repeat(64);
+      },
+      'Changeset coverage is missing or stale; review the diff and collect again',
+    ],
+    [
+      (entry: Changeset) => {
+        entry.packages[a]!.kind = 'cohort';
+      },
+      'Changed package cannot claim only a cohort bump',
+    ],
+  ] as const) {
     const entry = changeset();
     mutate(entry);
-    expect(() => validateChangeset(entry, policy, projects, coverage)).toThrow();
+    expect(validate(entry)).toThrow(refusal(message));
   }
 });
 it('orders actual packed dependencies and refuses missing, ranged or wrong-version cohort dependencies', () => {
@@ -129,11 +106,17 @@ it('orders actual packed dependencies and refuses missing, ranged or wrong-versi
     { name: names[1]!, version: '1.1.0' },
   ];
   expect(releaseGraph(rows, '1.1.0', []).groups.map((group) => group.members)).toEqual([[names[1]], [names[0]]]);
-  expect(() => releaseGraph(rows.slice(0, 1), '1.1.0', [])).toThrow(/missing cohort dependency/);
-  for (const range of ['^1.1.0', '1.0.0', 'workspace:*'])
-    expect(() =>
-      releaseGraph([{ ...rows[0]!, dependencies: { [names[1]!]: range } }, rows[1]!], '1.1.0', []),
-    ).toThrow();
+  expect(() => releaseGraph(rows.slice(0, 1), '1.1.0', [])).toThrow(
+    refusal('@inventarch/a: missing cohort dependency @inventarch/b'),
+  );
+  for (const [range, message] of [
+    ['^1.1.0', '@inventarch/a: dependency @inventarch/b must use exact cohort version'],
+    ['1.0.0', '@inventarch/a: dependency @inventarch/b must use exact cohort version'],
+    ['workspace:*', '@inventarch/a: unsupported packed dependency source'],
+  ])
+    expect(() => releaseGraph([{ ...rows[0]!, dependencies: { [names[1]!]: range! } }, rows[1]!], '1.1.0', [])).toThrow(
+      refusal(message!),
+    );
 });
 it('requires an explicitly reviewed complete cycle group instead of pretending versions remove cycles', () => {
   const rows = names.map((name, index) => ({ name, version: '1.1.0', dependencies: { [names[1 - index]!]: '1.1.0' } }));
@@ -229,53 +212,29 @@ it('refuses missing final provenance and untrusted registry download origins', (
 
 it('allows justified version-only cohort entries but refuses an invented cohort-only exemption', () => {
   const entry = changeset();
-  entry.packages[names[0]!]!.kind = 'cohort';
-  entry.packages[names[0]!]!.summary = 'No API change; version-only cohort alignment';
+  entry.packages[a]!.kind = 'cohort';
+  entry.packages[a]!.summary = 'No API change; version-only cohort alignment';
   entry.coverage = [{ path: 'packages/a/package.json', sha256: 'a'.repeat(64), cohortOnly: true, change: 'runtime' }];
   expect(() =>
-    validateChangeset(entry, policy, projects, [
+    validateChangeset(entry, policy(), projects, [
       { path: 'packages/a/package.json', sha256: 'a'.repeat(64), cohortOnly: true },
     ]),
   ).not.toThrow();
   expect(() =>
-    validateChangeset(entry, policy, projects, [{ path: 'packages/a/package.json', sha256: 'a'.repeat(64) }]),
-  ).toThrow(/stale/);
+    validateChangeset(entry, policy(), projects, [{ path: 'packages/a/package.json', sha256: 'a'.repeat(64) }]),
+  ).toThrow(refusal('Changeset coverage is missing or stale; review the diff and collect again'));
 });
 
-it('refuses a missing release changeset before an artifact can be prepared', () => {
-  const directory = mkdtempSync(resolve(tmpdir(), 'ia-missing-changeset-'));
-  const git = (...args: string[]) =>
-    execFileSync('git', ['-c', 'core.autocrlf=false', ...args], {
-      cwd: directory,
-      encoding: 'utf8',
-      windowsHide: true,
-    });
-  try {
-    git('init', '--quiet');
+it('refuses a missing release changeset before an artifact can be prepared', () =>
+  inRepository(async (directory) => {
     writeFileSync(resolve(directory, 'baseline.txt'), 'Published baseline');
-    git('add', '.');
-    git(
-      '-c',
-      'user.name=Fixture',
-      '-c',
-      'user.email=fixture@example.invalid',
-      '-c',
-      'core.hooksPath=/dev/null',
-      '-c',
-      'commit.gpgsign=false',
-      'commit',
-      '--quiet',
-      '-m',
-      'Published baseline',
-    );
-    const baseline = git('rev-parse', 'HEAD').trim();
+    await git(directory, 'add', '.');
+    await git(directory, 'commit', '--quiet', '-m', 'Published baseline');
+    const baseline = await git(directory, 'rev-parse', 'HEAD');
     mkdirSync(resolve(directory, 'releases'));
     writeFileSync(
       resolve(directory, 'releases/current.json'),
-      JSON.stringify({ ...policy, baseline: { commit: baseline, version: '1.0.0' } }),
+      JSON.stringify({ ...policy(), baseline: { commit: baseline, version: '1.0.0' } }),
     );
-    expect(() => releaseChanges(directory, projects)).toThrow(/Missing required release changeset/);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
+    expect(() => releaseChanges(directory, projects)).toThrow(refusal('Missing required release changeset'));
+  }));

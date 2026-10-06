@@ -2423,7 +2423,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "9f19253494a3778df8071e3a0881ae380cf09d2bef5bc3cf93fda943229829cc"
+      "sha256": "e364b10fe04d51594d9a0f8dec574cea55c810b5792c8c690e0803dffdf94cfd"
     },
     {
       "path": "CLAUDE.md",
@@ -6907,7 +6907,7 @@
     },
     {
       "path": "releases/changesets/1.1.0.json",
-      "sha256": "d6121432a9f207a1326588bea24163ff814130cf12d770f6fd13309a4c6536c7"
+      "sha256": "825b63ac67458d787e7acdd523d7046309561f93e86526a7d49e4698d1da402f"
     },
     {
       "path": "releases/current.json",
@@ -6967,7 +6967,7 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "e8575366e4c2012fee1085459554a9d82bfb74d3612f7ee03c447b72857ba839"
+      "sha256": "21fdfe4afd151b36c879afdf1df5a1f914ab4b57ec3c5dea16524bbf7a315a92"
     },
     {
       "path": "tools/distribution/SPEC.md",
@@ -7007,15 +7007,15 @@
     },
     {
       "path": "tools/distribution/npm-release.d.mts",
-      "sha256": "30afce4173b934ce788cc06dc96f460d73d8211af9aaaaf8b7b9fa5aa4fcd34f"
+      "sha256": "0ec8011a31953ba2c031b309dce1907eb8a807d20436d73d943b320058e4d5b3"
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "30238cd90351a3e74f70ac1c8d838e332cd814eec92d496aa089a1e98b648890"
+      "sha256": "f0719c47baee54edd2e6c91716467179194579984525f64b377efd84dd8436ed"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "79663c27ee563d05816360f2372b838d235cd58f8ff80b33e337290994676664"
+      "sha256": "b1c8943047c8af0ad9d7c98932e23b46aa8371532166d28396985d7886987e7e"
     },
     {
       "path": "tools/distribution/public-content-policy.json",
@@ -7035,7 +7035,11 @@
     },
     {
       "path": "tools/distribution/release-changes.mjs",
-      "sha256": "063cacf46680c5084ecab9eb3777f8a6ec8f5383c781d6c994826ba301d29eca"
+      "sha256": "606aa8fa4be4daef9b5f9fe140b62df2420db46e8d4729d8644f5886c34a1c2b"
+    },
+    {
+      "path": "tools/distribution/release-fixtures.ts",
+      "sha256": "5981dfde5b2ba3a218255b541aab6b9e914a16ca348cf57676bacf3972f8fa8f"
     },
     {
       "path": "tools/distribution/release-graph.d.mts",
@@ -7043,11 +7047,11 @@
     },
     {
       "path": "tools/distribution/release-graph.mjs",
-      "sha256": "80d23df2ec84c291797e1c7c00b957ac03e62cf3bab2e20e6c363bd66df04709"
+      "sha256": "f897dde0f21662c83b227e64a5edb0b8c3a4626f8e3339f70dba3249a61d97e8"
     },
     {
       "path": "tools/distribution/release-hygiene.test.ts",
-      "sha256": "8ce6f3878f3113af773cb3074d471badf18370d066f107f3e8c7a94e1079242b"
+      "sha256": "7807730aa8d1107ae5df2ca3b7a99ba31bdaad9967cf90e70555e7b05c6a889d"
     },
     {
       "path": "tools/distribution/release-packages.d.mts",
@@ -7059,7 +7063,7 @@
     },
     {
       "path": "tools/distribution/release-refusals.test.ts",
-      "sha256": "af14c24bd488cbe7350982a06b2c3c88495d0eab20cdf7ca953c23152c74a656"
+      "sha256": "d35c36a2065829d9351192c5f6dc6170bd9a8217ae555bacece6ccee28bb7422"
     },
     {
       "path": "tools/distribution/resources.mjs",
@@ -7596,10 +7600,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "4eb1d4d49855a492a838aca7f089431e96bfe381",
-    "baseTree": "fa05beed184e5a24a603d46e2db8dafd5b6ba557",
+    "baseCommit": "d80c35a5f0004ab4cac689bf8c3c80645156dfe2",
+    "baseTree": "b9aa3ea20119073e1294e0a7993041c95edf0c9c",
     "dirty": true,
-    "inputDigest": "6d4d560a9fdc9c0aa423bb28abb13c1df1498352025be7cdbad903adbd746b6e",
+    "inputDigest": "191204d0f9fe4a2b94e1a6fd35d3db602121b1453b339d91d54e52a8163abc02",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",

@@ -184,11 +184,12 @@
     {
       "id": "release-hygiene",
       "title": "Coordinated npm release checks",
-      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance. Inside a dependency cycle, publish new package names before existing ones, so a failed first trusted publish stops before any existing member of the cycle moves its latest tag.",
+      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance. Publish every new package name before any existing package, so a failed first publish of a new name stops before any existing package moves its latest tag. Once 1.1.0 is published, security fixes ship only as 1.1.x releases; the 1.0.x line no longer receives them.",
       "paths": [
         "tools/distribution/",
         "releases/",
-        ".github/workflows/npm-publish.yml"
+        ".github/workflows/npm-publish.yml",
+        "SECURITY.md"
       ],
       "packages": [
         "@inventarch/agent-composition-system",
@@ -239,7 +240,6 @@
         "LANGUAGE",
         "THIRD",
         "CONTRIBUTING",
-        "SECURITY",
         "CLAUDE.md"
       ],
       "packages": [
@@ -991,7 +991,7 @@
     {
       "path": "SECURITY.md",
       "sha256": "c7566398375b68cac2690c6e81a0d7bff5e9dfae6b06faa6a0285862e3c23656",
-      "change": "portable-quality"
+      "change": "release-hygiene"
     },
     {
       "path": "SPEC.md",
@@ -1701,7 +1701,7 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "e8575366e4c2012fee1085459554a9d82bfb74d3612f7ee03c447b72857ba839",
+      "sha256": "21fdfe4afd151b36c879afdf1df5a1f914ab4b57ec3c5dea16524bbf7a315a92",
       "change": "release-hygiene"
     },
     {
@@ -1741,17 +1741,17 @@
     },
     {
       "path": "tools/distribution/npm-release.d.mts",
-      "sha256": "30afce4173b934ce788cc06dc96f460d73d8211af9aaaaf8b7b9fa5aa4fcd34f",
+      "sha256": "0ec8011a31953ba2c031b309dce1907eb8a807d20436d73d943b320058e4d5b3",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "30238cd90351a3e74f70ac1c8d838e332cd814eec92d496aa089a1e98b648890",
+      "sha256": "f0719c47baee54edd2e6c91716467179194579984525f64b377efd84dd8436ed",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "79663c27ee563d05816360f2372b838d235cd58f8ff80b33e337290994676664",
+      "sha256": "b1c8943047c8af0ad9d7c98932e23b46aa8371532166d28396985d7886987e7e",
       "change": "release-hygiene"
     },
     {
@@ -1771,7 +1771,12 @@
     },
     {
       "path": "tools/distribution/release-changes.mjs",
-      "sha256": "063cacf46680c5084ecab9eb3777f8a6ec8f5383c781d6c994826ba301d29eca",
+      "sha256": "606aa8fa4be4daef9b5f9fe140b62df2420db46e8d4729d8644f5886c34a1c2b",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-fixtures.ts",
+      "sha256": "5981dfde5b2ba3a218255b541aab6b9e914a16ca348cf57676bacf3972f8fa8f",
       "change": "release-hygiene"
     },
     {
@@ -1781,12 +1786,12 @@
     },
     {
       "path": "tools/distribution/release-graph.mjs",
-      "sha256": "80d23df2ec84c291797e1c7c00b957ac03e62cf3bab2e20e6c363bd66df04709",
+      "sha256": "f897dde0f21662c83b227e64a5edb0b8c3a4626f8e3339f70dba3249a61d97e8",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/release-hygiene.test.ts",
-      "sha256": "8ce6f3878f3113af773cb3074d471badf18370d066f107f3e8c7a94e1079242b",
+      "sha256": "7807730aa8d1107ae5df2ca3b7a99ba31bdaad9967cf90e70555e7b05c6a889d",
       "change": "release-hygiene"
     },
     {
@@ -1801,7 +1806,7 @@
     },
     {
       "path": "tools/distribution/release-refusals.test.ts",
-      "sha256": "af14c24bd488cbe7350982a06b2c3c88495d0eab20cdf7ca953c23152c74a656",
+      "sha256": "d35c36a2065829d9351192c5f6dc6170bd9a8217ae555bacece6ccee28bb7422",
       "change": "release-hygiene"
     },
     {
