@@ -6,10 +6,10 @@
     answers "Does render-captured-template refuse when the allowed resources omit the template's required captured JSON resource?"
   scenario
     kind refusal
-    given "The fixture structured-document from agent-composition-system tests/templates.test.ts, in the current scope with its envelope digest pinned."
+    given "The fixture structured-document from workspace-runtime tests/templates.test.ts, in the current scope with its envelope digest pinned."
     request "Call renderCapturedTemplate with an empty allowedResources list and values {title: Fixture design}."
     expected "Status refused with IA-RESOURCE-INVALID and no artifact."
-    evaluator ".ia/src/systems/agent-composition-system/tests/templates.test.ts"
+    evaluator "packages/workspace-runtime/tests/templates.test.ts"
     operation @operation render-captured-template
     code IA-RESOURCE-INVALID
   relationships
