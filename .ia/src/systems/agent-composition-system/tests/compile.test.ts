@@ -4,15 +4,13 @@ import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
 import { compileHarness, installed, executionManifest } from '../src/index.js';
 import type { Capture, CompiledHarness } from '../src/index.js';
-import { admitSourceCapture } from '../src/sources.js';
+import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
 import { compilerCapture, compilerCatalog as catalogWithDigest } from './compiler-fixture.js';
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url));
 const captured = compilerCapture(root);
-const implementationDigest = digest(
-  readFileSync(`${root}/.ia/src/systems/agent-composition-system/src/corpus.ts`, 'utf8'),
-);
+const implementationDigest = digest(readFileSync(`${root}/packages/workspace-runtime/src/corpus.ts`, 'utf8'));
 const sampleCatalog = (model: string) => catalogWithDigest(model, implementationDigest);
 const options = () => ({ harness: 'native-sample', entry: 'sample-entry', catalog: sampleCatalog('ide') });
 const name = (n: string) => `agent-composition-system/binding/agent-profile/sample-${n}-profile`;

@@ -7,8 +7,8 @@ import { canonical, copy, digest } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
 import { MAX_MODEL_REQUEST_BYTES } from '@inventarch/agent-system';
 import type { OutcomeKind } from '@inventarch/agent-system';
-import { verifyCapture } from './corpus.js';
-import type { Capture } from './corpus.js';
+import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
+import type { Capture } from '@inventarch/workspace-runtime/corpus';
 import type {
   CatalogGroup,
   CompositionCatalog,

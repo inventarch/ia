@@ -6,7 +6,7 @@ import { KERNEL_DIGEST, LANGUAGE_VERSION } from '../../packages/language/src/ind
 import { compileHarness } from '../../.ia/src/systems/agent-composition-system/src/compile.js';
 import { installed } from '../../.ia/src/systems/agent-composition-system/src/catalog.js';
 import type { CompositionCatalog } from '../../.ia/src/systems/agent-composition-system/src/catalog.js';
-import type { Capture } from '../../.ia/src/systems/agent-composition-system/src/corpus.js';
+import type { Capture } from '../../packages/workspace-runtime/src/corpus.js';
 import { checkNative } from './check.js';
 import type { NativeInput } from './compile.js';
 import { isEntry } from '../entry/is-entry.mjs';

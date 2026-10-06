@@ -1,4 +1,4 @@
-import { createSystemFixture } from '../../../../../tools/systems/fixture.js';
+import { createSystemFixture } from '../../../tools/systems/fixture.js';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,7 +15,7 @@ import type { CapturedTemplateOptions } from '../src/templates.js';
 // Cases rebuild adopted native views and captured resources on disk.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
-const repository = resolve(import.meta.dirname, '../../../../..'),
+const repository = resolve(import.meta.dirname, '../../..'),
   temporary = mkdtempSync(join(tmpdir(), 'ia-templates-')),
   handles: Handle[] = [];
 const source = adoptWorkspace(repository, 'foundation'),

@@ -40,7 +40,7 @@ function codeOf(run: () => unknown): string {
   return 'no refusal';
 }
 
-const repository = fileURLToPath(new URL('../../../../..', import.meta.url));
+const repository = fileURLToPath(new URL('../../..', import.meta.url));
 const temporary = mkdtempSync(join(tmpdir(), 'ia-native-context-'));
 afterAll(() => {
   const target = resolve(temporary),

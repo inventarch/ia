@@ -15,7 +15,7 @@ import type { Boundary, Configuration } from './publication-fixture.js';
 // and final-authority cases that otherwise inherit Vitest's five-second default.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
-const repository = fileURLToPath(new URL('../../../../..', import.meta.url)),
+const repository = fileURLToPath(new URL('../../..', import.meta.url)),
   capture = captureWorkspace(repository);
 it('binds compiled native provenance only when the complete publication contract is compatible', () => {
   const code = 'a'.repeat(64),

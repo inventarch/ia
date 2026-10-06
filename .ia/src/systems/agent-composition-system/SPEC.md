@@ -9,3 +9,5 @@ The [public spec and explicit body seam](references/public-spec.md) separates na
 The [joined native spec read and explicit body example](references/spec-read-boundary.md) exercises separate native execution and resource disclosure boundaries through existing APIs.
 
 The [complete task capture contract](references/task-capture.md) defines version-2 scope, trusted full-view verification, required teaching and explicit overflow refusal at the existing bound.
+
+The generic workspace runtime (capture and adoption, resources, projections, publication, candidates, templates, lifecycle, authoring index and manifest, installed catalog, sources, local store and adapters) now lives in [@inventarch/workspace-runtime](../../../../packages/workspace-runtime/SPEC.md), which this package depends on. The root re-exports and the `./resources`, `./projections`, `./templates`, `./sources`, `./authoring`, `./authoring-manifest`, `./lifecycle`, `./lifecycle-profile`, `./adapters` and `./local-store` subpaths of this package are deprecated compatibility re-exports kept for one major.

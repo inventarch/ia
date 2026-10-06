@@ -31,7 +31,7 @@ import type {
 // Cases capture real adopted packages and repeatedly validate their resources.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
-const repository = fileURLToPath(new URL('../../../../..', import.meta.url));
+const repository = fileURLToPath(new URL('../../..', import.meta.url));
 const temporary = mkdtempSync(join(tmpdir(), 'ia-resources-'));
 const project = join(temporary, 'project'),
   foundation = join(temporary, 'foundation'),
