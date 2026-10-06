@@ -1,0 +1,81 @@
+name: Release pull request
+
+# Keeps one pull request, from release/next, that folds every pending release note on main into the next coordinated
+# version. Merging it changes releases/current.json, which starts the npm publishing workflow for that commit.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-pr
+  cancel-in-progress: true
+
+jobs:
+  version:
+    if: github.repository == 'inventarch/ia'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # No id-token: this job prepares a reviewable branch and never publishes.
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.2'
+          package-manager-cache: false
+      # The versioner uses only Node built-ins and Git, so no dependency install runs with this write token.
+      - name: Fold pending release notes into the next version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          # --published-only: while a merged release awaits publication, notes wait. The publish workflow dispatches
+          # this workflow again once it tags the release.
+          node tools/distribution/release-version.mjs --write --published-only --pr-body "$RUNNER_TEMP/release-body.md" > "$RUNNER_TEMP/release-version.json"
+          cat "$RUNNER_TEMP/release-version.json"
+          node -e '
+            const result = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            console.log(`action=${result.action}\nversion=${result.version}\npending=${result.pending ?? 0}`);
+          ' "$RUNNER_TEMP/release-version.json" >> "$GITHUB_OUTPUT"
+      - name: Open or update the release pull request
+        if: steps.version.outputs.action != 'none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create release/next
+          git commit --quiet --message "Release $RELEASE_VERSION"
+          git push --force origin release/next
+          number="$(gh pr list --head release/next --base main --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --title "Release $RELEASE_VERSION" --body-file "$RUNNER_TEMP/release-body.md"
+          else
+            gh pr create --head release/next --base main --title "Release $RELEASE_VERSION" --body-file "$RUNNER_TEMP/release-body.md"
+          fi
+          # Pushes and pull requests made with this workflow's token start no other workflow; a dispatch does. Run
+          # Public quality on the release head so its required check reports against that commit.
+          gh workflow run platform-quality.yml --ref release/next
+      - name: Close a release pull request that has nothing left to release
+        if: steps.version.outputs.action == 'none' && steps.version.outputs.pending == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          number="$(gh pr list --head release/next --base main --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh pr close "$number" --delete-branch --comment "Main has no pending release notes."
+          fi

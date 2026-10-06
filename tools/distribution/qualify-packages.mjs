@@ -205,6 +205,8 @@ try {
     mkdirSync(destination, { recursive: true });
     for (const entry of packed) copyFileSync(entry.filename, resolve(destination, basename(entry.filename)));
     copyFileSync(resolve(archives, COMPATIBILITY), resolve(destination, COMPATIBILITY));
+    // Not an npm archive: the publisher reads only receipt-listed .tgz files. The GitHub release attaches it.
+    copyFileSync(vsix, resolve(destination, basename(vsix)));
     writeReleaseManifest(root, destination, packed);
   }
   console.log(

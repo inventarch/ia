@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { publicPackages } from './release-packages.mjs';
+import { BUMPS, bumpVersion, maxBump, packageOwner, pendingNotes, releaseBump } from './release-notes.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
 
 export const RELEASE_POLICY = 'releases/current.json';
+export const SYSTEM_PACKAGE_POLICY = 'tools/distribution/system-package-policy.json';
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 export const stableVersion = (version) =>
   typeof version === 'string' && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version);
@@ -17,6 +20,8 @@ export function compareVersions(left, right) {
   for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
   return 0;
 }
+export const changesetPath = (version) => `releases/changesets/${version}.json`;
+export const releaseTag = (version) => `v${version}`;
 const json = (root, path) => JSON.parse(readFileSync(resolve(root, path), 'utf8'));
 const git = (root, ...args) =>
   execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024 }).trim();
@@ -34,24 +39,25 @@ export function releasePolicy(root) {
   git(root, 'merge-base', '--is-ancestor', policy.baseline.commit, 'HEAD');
   return policy;
 }
-function trackedChanges(root, policy) {
-  const excluded = new Set([
-    '.ia/public-package-inputs.json',
-    'CHANGELOG.md',
-    `releases/changesets/${policy.version}.json`,
-  ]);
-  const files = git(root, 'diff', '--name-only', '--no-renames', policy.baseline.commit, '--')
+/** The commit a published version was released from, by its immutable `v<version>` tag; null while unpublished. */
+export function publishedCommit(root, version) {
+  try {
+    return git(root, 'rev-parse', '--verify', '--quiet', `refs/tags/${releaseTag(version)}^{commit}`);
+  } catch (error) {
+    if (error.status === 1) return null;
+    throw error;
+  }
+}
+export function trackedChanges(root, policy, since = policy.baseline.commit) {
+  const excluded = new Set(['.ia/public-package-inputs.json', 'CHANGELOG.md', changesetPath(policy.version)]);
+  const files = git(root, 'diff', '--name-only', '--no-renames', since, '--')
     .split('\n')
     .filter(Boolean)
     .filter((path) => !excluded.has(path));
   return files.sort().map((path) => {
     const row = { path, sha256: existsSync(resolve(root, path)) ? sha256(readFileSync(resolve(root, path))) : null };
-    if (
-      path.endsWith('/package.json') &&
-      row.sha256 &&
-      git(root, 'ls-tree', '--name-only', policy.baseline.commit, '--', path)
-    ) {
-      const before = JSON.parse(git(root, 'show', policy.baseline.commit + ':' + path)),
+    if (path.endsWith('/package.json') && row.sha256 && git(root, 'ls-tree', '--name-only', since, '--', path)) {
+      const before = JSON.parse(git(root, 'show', since + ':' + path)),
         after = json(root, path);
       delete before.version;
       delete after.version;
@@ -78,6 +84,8 @@ export function renderChangelog(entries) {
         (entry) =>
           `## ${entry.version}\n\n${entry.summary}\n\n` +
           entry.changes
+            // Internal entries account for repository files outside every package; consumers see no change.
+            .filter((change) => !change.internal)
             .map(
               (change) =>
                 `### ${change.title}\n\n${change.summary}\n\nPackages: ${change.packages.map((name) => '`' + name + '`').join(', ')}.\n`,
@@ -87,12 +95,15 @@ export function renderChangelog(entries) {
       .join('\n')
   );
 }
-export function validateChangeset(entry, policy, projects, actualCoverage) {
+/** Everything except exact file coverage: the part of a changeset a person writes. */
+export function validateChangesetStructure(entry, policy, projects) {
   assert.equal(entry.format, 'ia.npm-changeset.v1');
   assert.equal(entry.version, policy.version, 'Changeset version differs');
   assert.equal(entry.state, 'consumed', 'Unconsumed changeset');
   assert.deepEqual(entry.baseline, policy.baseline, 'Changeset baseline is stale');
   assert.ok(entry.summary?.trim(), 'Release summary is required');
+  if (entry.bump !== undefined)
+    assert.equal(entry.bump, releaseBump(policy.baseline.version, policy.version), 'Changeset bump differs');
   const names = projects.map((p) => p.manifest.name).sort();
   assert.deepEqual(
     Object.keys(entry.packages).sort(),
@@ -119,10 +130,12 @@ export function validateChangeset(entry, policy, projects, actualCoverage) {
     assert.ok(!ids.has(change.id));
     ids.add(change.id);
     assert.ok(change.title?.trim() && change.summary?.trim(), 'Changes need reviewable prose');
+    assert.ok(change.internal === undefined || change.internal === true, 'Internal changes are marked true');
     assert.ok(
       Array.isArray(change.packages) &&
-        change.packages.length &&
+        (change.internal ? change.packages.length === 0 : change.packages.length > 0) &&
         new Set(change.packages).size === change.packages.length,
+      'Package changes name their packages; internal changes name none',
     );
     assert.ok(
       change.packages.every((name) => names.includes(name)),
@@ -135,6 +148,14 @@ export function validateChangeset(entry, policy, projects, actualCoverage) {
       'Change scope is required',
     );
   }
+  for (const name of names)
+    assert.ok(
+      entry.changes.some((change) => change.packages.includes(name)),
+      'Package has no release notes',
+    );
+}
+export function validateChangeset(entry, policy, projects, actualCoverage) {
+  validateChangesetStructure(entry, policy, projects);
   assert.ok(Array.isArray(entry.coverage));
   assert.deepEqual(
     entry.coverage.map(({ path, sha256, cohortOnly }) => ({
@@ -158,18 +179,10 @@ export function validateChangeset(entry, policy, projects, actualCoverage) {
       'Changed package cannot claim only a cohort bump',
     );
   }
-  for (const name of names)
-    assert.ok(
-      entry.changes.some((change) => change.packages.includes(name)),
-      'Package has no release notes',
-    );
 }
-export function releaseChanges(root, projects) {
-  const policy = releasePolicy(root),
-    path = `releases/changesets/${policy.version}.json`;
-  assert.ok(existsSync(resolve(root, path)), 'Missing required release changeset');
-  const entry = json(root, path);
-  const entries = readdirSync(resolve(root, 'releases/changesets'))
+/** Every changeset, newest first; changesets other than the current version must match the published baseline. */
+function changesetHistory(root, policy) {
+  return readdirSync(resolve(root, 'releases/changesets'))
     .filter((name) => name.endsWith('.json'))
     .map((name) => {
       const other = json(root, 'releases/changesets/' + name);
@@ -183,6 +196,23 @@ export function releaseChanges(root, projects) {
       return other;
     })
     .sort((a, b) => compareVersions(b.version, a.version));
+}
+/** The strict release check: the exact source a publication may be prepared from. */
+export function releaseChanges(root, projects) {
+  const policy = releasePolicy(root),
+    path = changesetPath(policy.version);
+  assert.ok(existsSync(resolve(root, path)), 'Missing required release changeset');
+  const entry = json(root, path);
+  const entries = changesetHistory(root, policy);
+  const pending = pendingNotes(
+    root,
+    projects.map((project) => project.manifest.name),
+  );
+  assert.equal(
+    pending.length,
+    0,
+    'Pending release notes are not part of this release; run pnpm release:version to fold them in',
+  );
   validateChangeset(entry, policy, projects, trackedChanges(root, policy));
   for (const project of projects) {
     let previous = null;
@@ -216,9 +246,87 @@ export function releaseChanges(root, projects) {
       .filter(Boolean),
   };
 }
+/**
+ * The pull-request check. It never asks a contributor to rewrite the consumed changeset: package changes outside
+ * the prepared release must carry a pending note, and `pnpm release:version` folds notes into the next release.
+ */
+export function releaseStatus(root, projects) {
+  const policy = releasePolicy(root),
+    names = projects.map((project) => project.manifest.name).sort();
+  for (const project of projects)
+    assert.equal(
+      project.manifest.version,
+      policy.version,
+      `${project.manifest.name}: version differs from ${RELEASE_POLICY}`,
+    );
+  if (existsSync(resolve(root, SYSTEM_PACKAGE_POLICY)))
+    for (const owner of json(root, SYSTEM_PACKAGE_POLICY).owners)
+      assert.equal(owner.npmVersion, policy.version, `${owner.owner}: npmVersion differs from ${RELEASE_POLICY}`);
+  const notes = pendingNotes(root, names);
+  const path = changesetPath(policy.version);
+  assert.ok(existsSync(resolve(root, path)), 'Missing required release changeset');
+  const entry = json(root, path),
+    entries = changesetHistory(root, policy),
+    published = publishedCommit(root, policy.version);
+  let covered = new Set();
+  if (published) {
+    assert.equal(
+      JSON.stringify(entry),
+      JSON.stringify(JSON.parse(git(root, 'show', `${published}:${path}`))),
+      `${path} changed after ${releaseTag(policy.version)} was published`,
+    );
+  } else {
+    validateChangesetStructure(entry, policy, projects);
+    covered = new Set(entry.coverage.map((row) => row.path + '\0' + row.sha256));
+  }
+  assert.equal(
+    readFileSync(resolve(root, 'CHANGELOG.md'), 'utf8'),
+    renderChangelog(entries),
+    'Generated changelog is stale; run pnpm release:collect',
+  );
+  const noted = new Set(notes.flatMap(({ note }) => note.packages));
+  const outside = trackedChanges(root, policy, published ?? policy.baseline.commit).filter(
+    (row) => !row.cohortOnly && !covered.has(row.path + '\0' + row.sha256),
+  );
+  const missing = new Map();
+  for (const row of outside) {
+    const owner = packageOwner(projects, row.path);
+    if (owner && !noted.has(owner)) missing.set(owner, [...(missing.get(owner) ?? []), row.path]);
+  }
+  assert.equal(
+    missing.size,
+    0,
+    'Changed public packages need a pending release note:\n' +
+      [...missing]
+        .map(([name, paths]) => `  ${name}: ${paths.slice(0, 3).join(', ')}${paths.length > 3 ? ', …' : ''}`)
+        .join('\n') +
+      '\nRun: pnpm release:note --bump <none|patch|minor|major> --title "…" --summary "…" (none: no consumer-facing change)',
+  );
+  // `none` notes ride along with the next release but never start one.
+  const bumps = notes.map(({ note }) => note.bump).filter((bump) => bump !== 'none');
+  const next = !notes.length
+    ? null
+    : published
+      ? bumps.length
+        ? bumpVersion(policy.version, maxBump(bumps))
+        : null
+      : bumpVersion(
+          policy.baseline.version,
+          maxBump([entry.bump ?? releaseBump(policy.baseline.version, policy.version), ...bumps]),
+        );
+  return {
+    version: policy.version,
+    state: published ? 'published' : 'prepared',
+    published,
+    pendingNotes: notes.map(({ id }) => id),
+    unreleasedFiles: outside.length,
+    nextVersion: next,
+  };
+}
+/** Re-derive exact coverage from the reviewed change scopes and regenerate the changelog. */
 export function collectChanges(root, projects) {
   const policy = releasePolicy(root),
-    path = `releases/changesets/${policy.version}.json`,
+    path = changesetPath(policy.version),
     entry = json(root, path);
   entry.coverage = trackedChanges(root, policy).map((row) => {
     const matches = entry.changes
@@ -231,31 +339,48 @@ export function collectChanges(root, projects) {
   });
   validateChangeset(entry, policy, projects, trackedChanges(root, policy));
   writeFileSync(resolve(root, path), JSON.stringify(entry, null, 2) + '\n');
-  const entries = readdirSync(resolve(root, 'releases/changesets'))
-    .filter((name) => name.endsWith('.json'))
-    .map((name) => json(root, 'releases/changesets/' + name))
-    .sort((a, b) => compareVersions(b.version, a.version));
-  writeFileSync(resolve(root, 'CHANGELOG.md'), renderChangelog(entries));
+  writeFileSync(resolve(root, 'CHANGELOG.md'), renderChangelog(changesetHistory(root, policy)));
   return releaseChanges(root, projects);
 }
+/** GitHub release notes for one consumed changeset. */
+export function releaseNotes(root, version) {
+  const entry = json(root, changesetPath(version));
+  // Drop the changelog preamble and the version heading; the GitHub release carries its own title.
+  const section = renderChangelog([entry]).split('\n').slice(6).join('\n').trim();
+  return `${section}\n\nInstall: \`npm install @inventarch/cli@${version}\`\n`;
+}
 if (isEntry(process.argv[1], import.meta.url)) {
+  const { positionals, values } = parseArgs({
+    allowPositionals: true,
+    options: { strict: { type: 'boolean', default: false }, version: { type: 'string' } },
+  });
   const root = resolve(import.meta.dirname, '../..');
-  assert.ok(['check', 'collect'].includes(process.argv[2]) && process.argv.length === 3, 'Use check or collect');
-  const result =
-    process.argv[2] === 'collect'
-      ? collectChanges(root, publicPackages(root))
-      : releaseChanges(root, publicPackages(root));
-  console.log(
-    JSON.stringify(
-      {
-        version: result.policy.version,
-        changeset: result.path,
-        sha256: result.sha256,
-        coveredFiles: result.entry.coverage.length,
-        commits: result.commits,
-      },
-      null,
-      2,
-    ),
+  assert.ok(
+    positionals.length === 1 && ['check', 'collect', 'notes'].includes(positionals[0]),
+    'Use check [--strict], collect or notes --version <version>',
   );
+  if (positionals[0] === 'notes') {
+    assert.ok(stableVersion(values.version), 'notes requires --version');
+    process.stdout.write(releaseNotes(root, values.version));
+  } else if (positionals[0] === 'check' && !values.strict) {
+    console.log(JSON.stringify(releaseStatus(root, publicPackages(root)), null, 2));
+  } else {
+    const result =
+      positionals[0] === 'collect'
+        ? collectChanges(root, publicPackages(root))
+        : releaseChanges(root, publicPackages(root));
+    console.log(
+      JSON.stringify(
+        {
+          version: result.policy.version,
+          changeset: result.path,
+          sha256: result.sha256,
+          coveredFiles: result.entry.coverage.length,
+          commits: result.commits,
+        },
+        null,
+        2,
+      ),
+    );
+  }
 }

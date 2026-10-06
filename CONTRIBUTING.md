@@ -10,7 +10,7 @@ Thank you for considering a contribution. This document explains how the reposit
 
 ## Prerequisites
 
-The declared support target is Linux x64, Windows x64 and macOS arm64, on Node.js `>=22.22.0 <23`, with pnpm `10.33.0` for contributors. `ia doctor` reports whether your machine matches that target.
+The declared support target is Linux x64, Windows x64 and macOS arm64, on Node.js `>=22.22.0 <23`, with the pnpm version pinned in `packageManager` in [package.json](package.json) for contributors. `ia doctor` reports whether your machine matches that target.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -35,10 +35,18 @@ Every test file must be assigned to a task in [tools/testing/tasks.json](tools/t
 
 Tests run per package with `pnpm --filter <package> test`, and the repository tooling tests run with `vitest run --config vitest.tools.config.mts`.
 
+## Release notes
+
+Public npm packages are released together by automation; see the [publishing guide](tools/distribution/NPM-PUBLISHING.md). A pull request never edits package versions, `releases/current.json`, `releases/changesets/` or `CHANGELOG.md` by hand.
+
+- If your change touches a public package, add a release note: `pnpm release:note --bump patch|minor|major --title "…" --summary "…"`. It drafts `releases/pending/<id>.json` from your branch diff. Write the summary for package consumers. Use `--bump none` for a package change consumers cannot observe, such as tests; it does not start a release. Changes outside package directories, such as tooling, workflows and repository docs, need no note.
+- After adding, removing or changing tracked files, run `pnpm npm:inputs` and commit `.ia/public-package-inputs.json`.
+- `pnpm release:check` runs in CI and names any changed package that still needs a note.
+
 ## Pull requests
 
 1. Branch from `main` and keep the change focused on one concern.
-2. Run the checks that cover what you changed, and `pnpm platform:qualify` before requesting review when the change is more than documentation.
+2. Run the checks that cover what you changed, and `pnpm platform:qualify` before requesting review when the change is more than documentation. Add a release note when a public package changed.
 3. Fill in the pull request template. Name the checks you ran and the platform you ran them on. A claim that something passes must be backed by a run you did.
 4. The `main` branch ruleset in [.github/rulesets/main.json](.github/rulesets/main.json) requires the **Emitted platform (ubuntu-latest)** check from the [Public quality](.github/workflows/platform-quality.yml) workflow to pass and every review thread to be resolved before merging.
 5. Match the existing commit style: a short type prefix and summary, for example `feat: release ia 1.0.0`.

@@ -20,7 +20,7 @@ Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@
 
 ### Coordinated npm release checks
 
-Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance.
+Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance. Later releases are automated: pending release notes select the next version, a release pull request carries the changeset, and each verified publication is tagged.
 
 Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runtime`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
 

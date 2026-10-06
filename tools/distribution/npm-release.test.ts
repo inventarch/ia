@@ -276,14 +276,29 @@ it('requires matching repository metadata, public registry and script-free insta
 
 it('keeps npm OIDC out of the build job and publishes only the same-run qualified artifact', () => {
   const workflow = parse(readFileSync(resolve(root, '.github/workflows/npm-publish.yml'), 'utf8'));
-  expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch']);
+  expect(Object.keys(workflow.on).sort()).toEqual(['push', 'workflow_dispatch']);
+  // Automatic runs start only from a main commit that changes the selected release.
+  expect(workflow.on.push).toEqual({ branches: ['main'], paths: ['releases/current.json'] });
   expect(workflow.on.workflow_dispatch.inputs.publish.default).toBe(false);
   expect(workflow.permissions).toEqual({ contents: 'read' });
-  expect(workflow.jobs.prepare.permissions['id-token']).toBeUndefined();
+  const oidc = Object.entries(workflow.jobs as Record<string, { permissions?: Record<string, string> }>)
+    .filter(([, job]) => job.permissions?.['id-token'])
+    .map(([name]) => name);
+  expect(oidc).toEqual(['publish']);
+  expect(workflow.jobs.select.if).toContain("github.ref == 'refs/heads/main'");
+  expect(workflow.jobs.prepare.if).toBe("needs.select.outputs.due == 'true'");
   const publisher = workflow.jobs.publish;
-  expect(publisher.needs).toBe('prepare');
+  expect(publisher.needs).toEqual(['select', 'prepare']);
   expect(publisher.environment).toBe('npm');
   expect(publisher.permissions['id-token']).toBe('write');
+  // Registry readiness is checked before anyone is asked to approve, and the tag follows only a verified cohort.
+  expect(workflow.jobs.prepare.steps.some((step: { run?: string }) => /npm:preflight/.test(step.run ?? ''))).toBe(true);
+  expect(workflow.jobs.release.needs).toEqual(['select', 'verify']);
+  expect(workflow.jobs.release.permissions).toEqual({ contents: 'write', actions: 'write' });
+  const versioner = parse(readFileSync(resolve(root, '.github/workflows/release-pr.yml'), 'utf8'));
+  expect(versioner.on.push).toEqual({ branches: ['main'] });
+  expect(JSON.stringify(versioner)).not.toMatch(/id-token|environment|npm publish|pnpm install/);
+  expect(JSON.stringify(versioner)).toMatch(/--published-only/);
   const upload = workflow.jobs.prepare.steps.find((step: { uses?: string }) =>
     step.uses?.startsWith('actions/upload-artifact@'),
   );

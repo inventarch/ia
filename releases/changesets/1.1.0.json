@@ -184,7 +184,7 @@
     {
       "id": "release-hygiene",
       "title": "Coordinated npm release checks",
-      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance.",
+      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance. Later releases are automated: pending release notes select the next version, a release pull request carries the changeset, and each verified publication is tagged.",
       "paths": [
         "tools/distribution/",
         "releases/",
@@ -324,13 +324,23 @@
       "change": "portable-quality"
     },
     {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "sha256": "6f7a72d638dc4455f4b3c87eb79424540fe46260cfdc9f45e2273280397c1b0f",
+      "change": "portable-quality"
+    },
+    {
       "path": ".github/workflows/npm-publish.yml",
-      "sha256": "449d992f9e25e57977252e174b507305fe3597c2095fc7aa66f19660b78973a0",
+      "sha256": "138862f58465007957e9ea3726b43919181dbe9def24fdb9a3bb08873471838e",
       "change": "release-hygiene"
     },
     {
       "path": ".github/workflows/platform-quality.yml",
-      "sha256": "6c64236c190b6bac215a1ae7fca284ec00f3386e7db08ced655d5157899e1cef",
+      "sha256": "4d721b9be7b33eee5f83a1c3764a303156425c94976bcd848cb29149e668e84b",
+      "change": "portable-quality"
+    },
+    {
+      "path": ".github/workflows/release-pr.yml",
+      "sha256": "2b14bb5b4c5c29e4712fd0b6d72204e273097a6ead789fe84b8dc59d1c26ae5f",
       "change": "portable-quality"
     },
     {
@@ -989,8 +999,18 @@
       "change": "portable-quality"
     },
     {
+      "path": "CONTRIBUTING.md",
+      "sha256": "8466b50695dfd3ac7e374f7a96cab4d8e219b3b7103c5599a6c0dcdc64c90d3d",
+      "change": "portable-quality"
+    },
+    {
+      "path": "README.md",
+      "sha256": "10600559d8a27fc409b0651dad88c920d8dc077405759839a92a50fc5efa6b5e",
+      "change": "portable-quality"
+    },
+    {
       "path": "SPEC.md",
-      "sha256": "5e18a821e5f758059d15f7d3142693ced2842f09c04bb033ddd377af23e2efd1",
+      "sha256": "fd117426b5bb25f59e49d06a297a34e06980328ddd261b01d047958a3fbf9f29",
       "change": "portable-quality"
     },
     {
@@ -1150,7 +1170,7 @@
     },
     {
       "path": "apps/distribution/references/system-package.md",
-      "sha256": "1d72da9fca6578f70a0b805d3e197c44a7748511dcfe3a372e72a0b460a2b56f",
+      "sha256": "d8f029cbcef54c3cd2c235e677f96a920df4d75b382246821912764cdf1dcf66",
       "change": "installed-distribution"
     },
     {
@@ -1355,7 +1375,7 @@
     },
     {
       "path": "apps/vscode/README.md",
-      "sha256": "cd9d54df5daf0e7047249cf9c13b2edcb8a5105a66c9ec6d2664503b5a5f2452",
+      "sha256": "a4b68536c9b252578f6563cb11586fd9d2767acda5b3c1bf56b82c482239e76b",
       "change": "installed-distribution"
     },
     {
@@ -1516,7 +1536,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "3b67828232e74cece9b7c84a5d930ccc212c2c64ae47f3fa3461b884ed899b96",
+      "sha256": "6683da24f1e625f46f5dfe04be7ba77b07d659b8ffdef01a74fca30f6e20f42d",
       "change": "portable-quality"
     },
     {
@@ -1656,7 +1676,7 @@
     },
     {
       "path": "releases/README.md",
-      "sha256": "85d58dcb902b06e02812e454fb8d81e029391071086e70859690f5e1385c376b",
+      "sha256": "64a40f790c99a2c073d63cb17e7fe7721cb161776aa4851fb45ee4145a801f9c",
       "change": "release-hygiene"
     },
     {
@@ -1696,7 +1716,12 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "cdcb1ff0950aebf0e7cda242b5c37d5878d7be33a64711a31af82d4b9e8d8f9a",
+      "sha256": "be313ad5ee65c8fceace36de943448771039f8a369b43e1da45003fdf4709076",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/SPEC.md",
+      "sha256": "5e7623298796c28d4ba74243e4ddf45fb6d24a9a5b96bebe05d545586b6e303e",
       "change": "release-hygiene"
     },
     {
@@ -1741,12 +1766,12 @@
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "76659123b25d656b058b4a8838e4cf92ee0f13d9996af46ba889443d1ec185df",
+      "sha256": "cabcd1c7ba3c96b5ed159879ecebb9fe7269eba08e980294cf8122a373b11e8e",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "adc713caa759d8b157ae57e529f23c24dad9b64648ca48e1a19e9722c927e066",
+      "sha256": "1893bc429dd8812d75b84c3ef7e3fe4ed726b47108bce698322d81c808da90ea",
       "change": "release-hygiene"
     },
     {
@@ -1756,17 +1781,17 @@
     },
     {
       "path": "tools/distribution/qualify-packages.mjs",
-      "sha256": "b2d0829ad664d5dae9e2d544ccb524252b31773d1402bbf145ae3fe8806e7e7d",
+      "sha256": "622dbc6dbebcd16ce8c1427e670ce0afdbdcacba8e919b6a18ca5986f9d5569d",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/release-changes.d.mts",
-      "sha256": "90a99bf3e815b333dc974863a722b61adb5425a60cecac858fad7933e7e10f79",
+      "sha256": "be557e9b7dad160a80dde87c392504bd52d3497793984bc4e4d744011afd16eb",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/release-changes.mjs",
-      "sha256": "09603b7887d2ffef1887f75152407f5fc954ca70001db45973c2bee40c8cccad",
+      "sha256": "f2e948a6bc6af934480643a07d3446bb111c5340c31755a92b0c92ae156c831d",
       "change": "release-hygiene"
     },
     {
@@ -1785,6 +1810,16 @@
       "change": "release-hygiene"
     },
     {
+      "path": "tools/distribution/release-notes.d.mts",
+      "sha256": "e8e5efa1e83229ae315e6bcbf912be33b1070f12051c846bfd36aeea45f5740a",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-notes.mjs",
+      "sha256": "4ee3ab27d18b5a43594f3f425a63bb7a63062289f2c5e789e82534ae65d1e03f",
+      "change": "release-hygiene"
+    },
+    {
       "path": "tools/distribution/release-packages.d.mts",
       "sha256": "0be1381520773b2fc8dc19e61c8d0484b4779824980b555fde7d71db28164a7a",
       "change": "release-hygiene"
@@ -1792,6 +1827,21 @@
     {
       "path": "tools/distribution/release-packages.mjs",
       "sha256": "c8c9a912f5bbdfa16e70ff00bb64c7bbf947c2fbe44070610098e927a1797453",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-version.d.mts",
+      "sha256": "1d2892deb1a1484afba117770f3faa92580dc2021de4fa7c307118c2baedd35d",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-version.mjs",
+      "sha256": "f480a8a1621f98864dbd7947ca4c570ce2d7d0981087ecf1f7755d175e013d6f",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-versioning.test.ts",
+      "sha256": "59b2e924d66fc77483e6bdfe28d0bbe7b1d975345b0442cd7c12b06f799e0f4b",
       "change": "release-hygiene"
     },
     {
@@ -1931,7 +1981,7 @@
     },
     {
       "path": "tools/release/SPEC.md",
-      "sha256": "b35f0b55e8f03a3ca6864f9888ce21894ad5a0c948d06a4e5b7a167a7b433777",
+      "sha256": "48dc9d8d0f6367b3561d68b8cd474da8a17e61380fb66f9483c30ffaaed8dfc2",
       "change": "installed-distribution"
     },
     {
@@ -2071,7 +2121,7 @@
     },
     {
       "path": "tools/testing/inventory.test.ts",
-      "sha256": "1beef5c1ae7d8f37e5a5fdf73ef9a7e445419223885c685fcb0adee7cc37c17d",
+      "sha256": "cdda94637f58f263b94cb30ae76067c44ebe4e1191fb2821070c1ec22fb13fd9",
       "change": "portable-quality"
     },
     {
@@ -2111,7 +2161,7 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "f04714d7edb8dd2f127fd639ebb09823162793c56c92c0ef1e70dd3f81d0c7f2",
+      "sha256": "e82cddeac6e18d226e95277176153e67a0c86a18ec2ddd41f8cbf3b26327ce9f",
       "change": "portable-quality"
     }
   ]
