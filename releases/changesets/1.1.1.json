@@ -361,6 +361,11 @@
       "change": "release-completion-1-1-1"
     },
     {
+      "path": "tools/testing/inventory.test.ts",
+      "sha256": "bd5f8b6a4394618082a2620c3f4aed21aad4aa9d0bb8e257a4bc6be0ce757b19",
+      "change": "release-completion-1-1-1"
+    },
+    {
       "path": "tools/testing/tasks.json",
       "sha256": "a7e7df34622ecf1ff44f3a0fc0063016f9474750dca632ff4e3ae650ec737f87",
       "change": "release-completion-1-1-1"
