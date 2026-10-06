@@ -2531,7 +2531,7 @@
     },
     {
       "path": "apps/cli/src/doctor.ts",
-      "sha256": "26603b11000f8b801a7a77734ad31f6173c02512bec6b63d32d11d071a250cac"
+      "sha256": "5a391232e1939581d90a182c50bf3b682ee65564fdee43c40544858e75f54a51"
     },
     {
       "path": "apps/cli/src/format.ts",
@@ -2707,7 +2707,7 @@
     },
     {
       "path": "apps/cli/tests/workspace-verbs.test.ts",
-      "sha256": "abf4bebf4c63b032e785c0ed5edce7319aa5e2ad9e0de6b1605674240c571655"
+      "sha256": "0656e6cb80d2b8511cc32f0ba5509d15dc838113a49c03f1a192af176f711137"
     },
     {
       "path": "apps/cli/tsconfig.json",
@@ -5755,7 +5755,7 @@
     },
     {
       "path": "packages/compliance/src/host-plugin.ts",
-      "sha256": "cd7f6ce288f135cd3bf644a0bc18431b776169934100eab891ac6fda223923e4"
+      "sha256": "f5284a233b9a8b4102f325ac1e6ad5ca59481447a0607453ffda65bc9fecdccd"
     },
     {
       "path": "packages/compliance/src/index.ts",
@@ -6907,7 +6907,7 @@
     },
     {
       "path": "releases/changesets/1.1.0.json",
-      "sha256": "da7f5eb8090ea8cc8c914108af654f61d2f28c54585de360fd4e5e20d535dce4"
+      "sha256": "e8493a848fca2c69f96378139913c1fe573c9445ec1506784cce38ea520c5ff9"
     },
     {
       "path": "releases/current.json",
@@ -7600,10 +7600,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "f6806f4dbf8f29b1776129b7f17d44401c422aa8",
-    "baseTree": "64144f84e18044ba1e7cfdf0150ab9ea327dcac0",
+    "baseCommit": "476c370048869769901417a6b54bf352d7e56026",
+    "baseTree": "1bfb3cd4434b67657d2ffaf4e062a9ec52fa818a",
     "dirty": true,
-    "inputDigest": "45988cf6a487c7f4c35495f86e961a8f28e52e40a8e9ffbd8bcf1549ce673fb9",
+    "inputDigest": "574608dfa05eeb8b323ee40699ec6324a35487ea1b9d70aa2e12160b11326720",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
       ".ia/src/systems/agent-system/package.json": "1.1.0",

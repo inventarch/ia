@@ -1035,7 +1035,7 @@
     },
     {
       "path": "apps/cli/src/doctor.ts",
-      "sha256": "26603b11000f8b801a7a77734ad31f6173c02512bec6b63d32d11d071a250cac",
+      "sha256": "5a391232e1939581d90a182c50bf3b682ee65564fdee43c40544858e75f54a51",
       "change": "installed-distribution"
     },
     {
@@ -1136,6 +1136,11 @@
     {
       "path": "apps/cli/tests/workspace-fixture.ts",
       "sha256": "cb4ff4199e6323964165af5f10a96cdfff07a61e9b04c98de582e4afe8943d63",
+      "change": "installed-distribution"
+    },
+    {
+      "path": "apps/cli/tests/workspace-verbs.test.ts",
+      "sha256": "0656e6cb80d2b8511cc32f0ba5509d15dc838113a49c03f1a192af176f711137",
       "change": "installed-distribution"
     },
     {
@@ -1541,7 +1546,7 @@
     },
     {
       "path": "packages/compliance/src/host-plugin.ts",
-      "sha256": "cd7f6ce288f135cd3bf644a0bc18431b776169934100eab891ac6fda223923e4",
+      "sha256": "f5284a233b9a8b4102f325ac1e6ad5ca59481447a0607453ffda65bc9fecdccd",
       "change": "governed-runtime"
     },
     {
