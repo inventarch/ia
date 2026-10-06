@@ -181,7 +181,7 @@ it('renders an exact adopted template/resource through current scope with determ
   ).toEqual(result);
 });
 it('runs every template-system case this file evaluates and matches its declared code', () => {
-  const evaluator = '.ia/src/systems/agent-composition-system/tests/templates.test.ts';
+  const evaluator = 'packages/workspace-runtime/tests/templates.test.ts';
   const scenario = (record: CompiledRecord, key: string): string | undefined => {
     const row = record.sections
       .filter((s) => s.name === 'scenario')
