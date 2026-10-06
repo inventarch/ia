@@ -743,6 +743,23 @@ describe('DESC-Q08 unsupported major, size/depth excess, duplicate key', () => {
     ])
       refused(decodeDescriptorResource(text), 'DESC-RESOURCE-MALFORMED');
   });
+  it('scans JSON strings by the grammar: every escape form admits; bad escapes, control characters and open strings refuse', () => {
+    expect(decodeDescriptorResource('{"format":1,"s":"a\\"b\\\\c\\/d\\b\\f\\n\\r\\t\\u00e9\\uD83D\\uDE00"}').ok).toBe(
+      true,
+    );
+    for (const text of [
+      '{"s":"\\x"}',
+      '{"s":"\\u12"}',
+      '{"s":"\\u12G4"}',
+      '{"s":"a\nb"}',
+      '{"s":"a\u0001b"}',
+      '{"s":"open',
+      '{"s":"\\"}',
+      // A long run of escaped quotes with no closing quote is refused after one linear scan.
+      `{"s":"${'\\"'.repeat(20000)}`,
+    ])
+      refused(decodeDescriptorResource(text), 'DESC-RESOURCE-MALFORMED');
+  });
   it('refuses unknown fields, features, collection excess and duplicate names deterministically with no partial result', () => {
     const cases: [string, (value: Json) => void, string, string][] = [
       [
