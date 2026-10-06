@@ -230,3 +230,71 @@ it('retains a malformed empty folder in revision and admission evidence', () => 
   expect(after.graph.revision).not.toBe(before.graph.revision);
   expect(after.report.findings.filter((f) => f.code === 'IA-COMP-SYSTEM-MALFORMED')).toHaveLength(1);
 });
+it('admits a record authored outside every system folder under its word’s owner at band 100', () => {
+  const root = workspace(),
+    path = '.ia/src/notes.ia';
+  put(
+    root,
+    path,
+    '#! ia 1.0\n@spec loose-spec\n  meaning\n    says "A specification kept beside the systems rather than inside one."\n  work\n    title "Loose specification"\n    status draft\n',
+  );
+  const view = viewBuilder(readInputs(root))();
+  expect(view.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  expect(view.refused).toEqual([]);
+  const record = view.graph.nodes.get('work-system/contract/spec/loose-spec');
+  expect(record?.source.path).toBe(path);
+  expect(record?.system).toBe('work-system');
+  expect(record?.band).toBe(100);
+});
+/** The repository's own authored tree plus a local `probe` system that requires work-system and mints `note`. */
+const probe = '.ia/src/systems/probe';
+function adoptingWorkspace(): string {
+  const root = workspace(false);
+  cpSync(resolve(repository, '.ia/src'), resolve(root, '.ia/src'), {
+    recursive: true,
+    filter: (path) => !/(?:^|[\\/])(node_modules|dist|\.git)(?:[\\/]|$)/.test(path),
+  });
+  const files = {
+    'system.ia':
+      '#! ia 1.0\n@system probe\n  provider "fixture"\n  version "1.0.0"\n  steward @agent probe-steward\n  requires\n    - agent-system\n    - work-system\n  discriminators\n    note lowers to definition\n      category process\n      facets [note]\n      schema @schema note\n  edges\n    require * using note\n',
+    'schemas/note.schema.ia': '#! ia 1.0\n@schema note\n  lowers to definition\n  sections\n    open\n',
+    'steward.ia':
+      '#! ia 1.0\n@agent probe-steward\n  meaning\n    says "Owns the probe words."\n    answers "Who owns note?"\n  governance\n    applies [note]\n',
+    'records/t.ia':
+      '#! ia 1.0\n@task t\n  meaning\n    says "A core task the probe depends on."\n  work\n    title "Probe dependency"\n    status open\n    milestone @milestone example-milestone\n',
+    'records/n.ia': '#! ia 1.0\n@note n\n  relationships\n    requires @task t\n',
+  };
+  for (const [name, text] of Object.entries(files)) put(root, `${probe}/${name}`, text);
+  return root;
+}
+it('admits an adopting system’s word requiring a core task through any-adopter, and refuses it without the keyword', () => {
+  const root = adoptingWorkspace();
+  const view = viewBuilder(readInputs(root))();
+  expect(view.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  expect(view.admittedSystems).toContain('probe');
+  expect(view.graph.nodes.get('probe/definition/note/n')?.system).toBe('probe');
+  expect(view.graph.nodes.get('work-system/definition/task/t')?.source.path).toBe(`${probe}/records/t.ia`);
+  expect(
+    view.graph.out
+      .get('probe/definition/note/n')
+      ?.get('require')
+      ?.map((edge) => edge.to),
+  ).toEqual(['work-system/definition/task/t']);
+  const ledger = '.ia/src/systems/work-system/system.ia',
+    text = readFileSync(resolve(root, ledger), 'utf8');
+  expect(text).toContain('using task, milestone, any-adopter');
+  put(root, ledger, text.replace('using task, milestone, any-adopter', 'using task, milestone'));
+  // Each file compiles against an empty pool, so the cross-file edge is judged at graph load: the record stays,
+  // the edge is refused, and the refusal is the one error of the view.
+  const refused = viewBuilder(readInputs(root))();
+  expect(refused.graph.nodes.has('probe/definition/note/n')).toBe(true);
+  expect(refused.graph.nodes.has('work-system/definition/task/t')).toBe(true);
+  expect(refused.graph.out.get('probe/definition/note/n')?.get('require')).toBeUndefined();
+  const errors = refused.report.findings.filter((f) => f.severity === 'error');
+  expect(errors.map((f) => [f.code, f.path, f.line])).toEqual([
+    ['IA-GRAPH-EDGE-UNCONSENTED', `${probe}/records/n.ia`, 4],
+  ]);
+  expect(errors[0]!.message).toContain(
+    'target system refuses require from probe/definition/note/n to work-system/definition/task/t',
+  );
+}, 60_000);

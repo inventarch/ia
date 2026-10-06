@@ -17,7 +17,7 @@ import {
 } from '../taxonomy.js';
 import type { Band, Category } from '../taxonomy.js';
 import { fieldOf, restAfter, spelledAs, stringOf } from './fields.js';
-import { RESERVED_KEYWORDS } from './floor.js';
+import { ANY_ADOPTER, RESERVED_KEYWORDS } from './floor.js';
 import { conditionsIn, recordsIn } from './records.js';
 import type { ConsentRow, Entry, RequiredSystem, Steward, SystemDeclaration } from './types.js';
 
@@ -224,7 +224,11 @@ function entryOf(
     ok = false;
   }
   if (RESERVED_KEYWORDS.includes(keyword) || RETIRED_KEYWORDS.includes(keyword)) {
-    const reason = RETIRED_KEYWORDS.includes(keyword) ? 'retired by language section 8.4' : 'reserved by the floor';
+    const reason = RETIRED_KEYWORDS.includes(keyword)
+      ? 'retired by language section 8.4'
+      : keyword === ANY_ADOPTER
+        ? 'reserved for consent rows'
+        : 'reserved by the floor';
     diagnostics.push(
       diag(
         'IA-LANG-KEYWORD-RESERVED',
@@ -344,7 +348,10 @@ function loweringOf(
   };
 }
 
-/** `<predicate> <targets> using <sources>`: each side is `*` or comma-separated keywords; one `using`; no when clause. */
+/**
+ * `<predicate> <targets> using <sources>`: each side is `*` or comma-separated keywords (discriminators, or the reserved
+ * `any-adopter`, which spells like one and is admitted here although no system may register it); one `using`; no when clause.
+ */
 function consentRowOf(
   field: FieldNode,
   path: string,
@@ -394,7 +401,7 @@ function consentRowOf(
   return { predicate, targets, sources, span: field.span };
 }
 
-/** A wildcard alone, or comma-separated keywords with optional whitespace around each comma. */
+/** A wildcard alone, or comma-separated keywords with optional whitespace around each comma; `any-adopter` passes as a keyword. */
 function sideOf(words: readonly string[]): readonly string[] | '*' | undefined {
   const side = words.join(' ');
   if (side === '*') return '*';
