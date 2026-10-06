@@ -379,14 +379,14 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
   expect(current.checks.find((check) => check.id === 'package-manager')?.detail).toBe(
     'pnpm 12.9.0 invoked this command',
   );
-  // Without a user agent the note names no version, so it cannot go stale when the contributor pin moves.
+  // Without a user agent, the note names no pnpm version: a consumer installation cannot know the repository's pin.
   const unreported = collectDoctor({
     cwd: root,
     packageRoot: cli,
-    runtime: { version: 'v22.22.0', platform: 'linux', arch: 'x64' },
+    runtime: { version: 'v22.22.0', platform: 'win32', arch: 'x64' },
     env: {},
-  });
-  expect(unreported.checks.find((check) => check.id === 'package-manager')).toMatchObject({
+  }).checks.find((check) => check.id === 'package-manager');
+  expect(unreported).toMatchObject({
     status: 'info',
     detail: 'Not reported by this invocation; pnpm is a contributor requirement, not a consumer one',
   });

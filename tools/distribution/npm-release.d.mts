@@ -55,6 +55,10 @@ export declare function validatePackages(
   version: string,
   versions?: Readonly<Record<string, string>>,
 ): void;
+export declare function publicationOrder(
+  groups: ReleaseGraph['groups'],
+  baselines: Readonly<Record<string, string | null>>,
+): string[];
 export declare function writeReleaseManifest(
   root: string,
   directory: string,

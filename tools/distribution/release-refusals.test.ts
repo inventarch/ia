@@ -1,74 +1,45 @@
 import '../temp/physical-temp.mjs';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { gzipSync } from 'node:zlib';
 import { expect, it } from 'vitest';
-import { COMPATIBILITY, PUBLIC_SYSTEM_POLICY, publicPackageInputs } from '../release/public-pack.mjs';
-import { runBounded } from '../testing/subprocess.js';
 import {
-  committedChanges,
   collectChanges,
   releaseChanges,
   releasePolicy,
   validateChangeset,
   type Changeset,
-  type ReleasePolicy,
 } from './release-changes.mjs';
 import { releaseGraph, type PackedManifest } from './release-graph.mjs';
 import {
   publicationPlan,
-  publicPackages,
   verifyRegistryCohort,
   verifyRelease,
   writeReleaseManifest,
-  type PackageManifest,
   type ReleaseArchive,
   type RegistryPackage,
 } from './npm-release.mjs';
+import {
+  a,
+  b,
+  c,
+  changeset,
+  checkout,
+  coverage,
+  evidence,
+  firstLine,
+  git,
+  inQualifiedCohort,
+  inRepository,
+  policy,
+  project,
+  receipts,
+  refusal,
+  sha,
+  tarball,
+} from './release-fixtures.js';
 
 // One case per release refusal. Each pins the refusal's assertion code and authored message, and checks the nearest
-// accepted input too, so a different check failing first, or an unrelated error, cannot satisfy it. The authored
-// message must be the whole first line: after an equality refusal Node appends its own actual/expected comparison.
-const firstLine = (text: string) =>
-  expect.stringMatching(new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\n[\\s\\S]*)?$`));
-const refusal = (message: string) =>
-  expect.objectContaining({ code: 'ERR_ASSERTION', generatedMessage: false, message: firstLine(message) });
-const [a, b, c] = ['@inventarch/a', '@inventarch/b', '@inventarch/c'] as const;
-const project = (name: string) => ({ directory: 'packages/' + name.slice(12), manifest: { name, version: '1.1.0' } });
-
-const policy = (): ReleasePolicy => ({
-  format: 'ia.npm-cohort.v1',
-  version: '1.1.0',
-  tag: 'latest',
-  baseline: { commit: 'a'.repeat(40), version: '1.0.0' },
-  cycles: [],
-});
-const coverage = () => [{ path: 'packages/a/src/index.ts', sha256: 'a'.repeat(64) }];
-function changeset(): Changeset {
-  return {
-    format: 'ia.npm-changeset.v1',
-    version: '1.1.0',
-    state: 'consumed',
-    baseline: { commit: 'a'.repeat(40), version: '1.0.0' },
-    summary: 'Public release',
-    packages: {
-      [a]: { previous: '1.0.0', kind: 'changed', summary: 'Adds an export' },
-      [b]: { previous: '1.0.0', kind: 'cohort', summary: 'Version-only cohort alignment' },
-    },
-    changes: [
-      {
-        id: 'runtime',
-        title: 'Runtime changes',
-        summary: 'Describe the observable change',
-        packages: [a, b],
-        paths: ['packages/'],
-      },
-    ],
-    coverage: coverage().map((row) => ({ ...row, change: 'runtime' })),
-  };
-}
+// accepted input too, so a different check failing first, or an unrelated error, cannot satisfy it.
 const validate =
   (entry: Changeset, projects = [project(a), project(b)]) =>
   () =>
@@ -112,11 +83,13 @@ it('refuses a changeset recorded against another published baseline', () => {
   }
 });
 
-it('refuses a change scope that leaves the repository', () => {
-  const inside = changeset();
-  inside.changes[0]!.paths.push('docs/');
-  expect(validate(inside)).not.toThrow();
-  for (const path of ['../', 'packages/../../outside/']) {
+it('refuses a change scope that is not a repository-relative prefix', () => {
+  for (const path of ['docs/', 'docs/v1..v2/', '.ia/', 'README']) {
+    const inside = changeset();
+    inside.changes[0]!.paths.push(path);
+    expect(validate(inside)).not.toThrow();
+  }
+  for (const path of ['', '../', '..', 'packages/../../outside/', './docs/', '/etc/', 'C:/', 'C:\\', 'docs\\']) {
     const entry = changeset();
     entry.changes[0]!.paths.push(path);
     expect(validate(entry)).toThrow(refusal('Change scope is required'));
@@ -187,9 +160,10 @@ it('refuses a private workspace dependency in a public archive', () => {
 });
 
 it('refuses a packed dependency that the registry cannot resolve', () => {
-  expect(releaseGraph([packed(a, { dependencies: { yaml: '^2.9.0' } })], '1.1.0', []).dependencies).toEqual({
-    [a]: [],
-  });
+  for (const range of ['2.9.0', '^2.9.0', '>=2.9.0 <3', '2.x || 3.x', '*', 'latest', 'npm:yaml@2.9.0', 'npm:@a/b@1'])
+    expect(releaseGraph([packed(a, { dependencies: { yaml: range } })], '1.1.0', []).dependencies).toEqual({
+      [a]: [],
+    });
   for (const range of [
     'workspace:*',
     'catalog:',
@@ -199,9 +173,21 @@ it('refuses a packed dependency that the registry cannot resolve', () => {
     'http://example.invalid/yaml.tgz',
     'git+https://example.invalid/yaml.git',
     'git://example.invalid/yaml.git',
+    'git+ssh://git@example.invalid/yaml.git',
+    'git@example.invalid:example/yaml.git',
     'github:example/yaml',
     'gitlab:example/yaml',
     'bitbucket:example/yaml',
+    'example/yaml',
+    'example/yaml#v2.9.0',
+    './vendor/yaml',
+    '../yaml',
+    '..',
+    '/vendor/yaml',
+    '~/vendor/yaml',
+    'C:\\vendor\\yaml',
+    'yaml-2.9.0.tgz',
+    'npm:yaml@github:example/yaml',
   ])
     for (const name of ['yaml', b])
       expect(() => releaseGraph([packed(a, { dependencies: { [name]: range } }), packed(b)], '1.1.0', [])).toThrow(
@@ -303,40 +289,6 @@ it('refuses a published cohort whose provenance attestation comes from another o
   }
 });
 
-const GIT_TIMEOUT = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 15_000;
-/** Git for a throwaway fixture repository, with identity, signing, hooks and line endings pinned on every command. */
-async function git(cwd: string, ...args: string[]): Promise<string> {
-  const run = await runBounded(
-    'git',
-    [
-      '-c',
-      'user.name=Fixture',
-      '-c',
-      'user.email=fixture@example.invalid',
-      '-c',
-      'commit.gpgsign=false',
-      '-c',
-      'core.hooksPath=/dev/null',
-      '-c',
-      'core.autocrlf=false',
-      '-c',
-      'init.defaultBranch=main',
-      ...args,
-    ],
-    { cwd, timeoutMs: GIT_TIMEOUT },
-  );
-  if (run.status !== 0) throw new Error(`git ${args.join(' ')} failed (${String(run.status)}): ${run.stderr}`);
-  return run.stdout.trim();
-}
-async function inRepository(run: (repository: string) => Promise<void>): Promise<void> {
-  const repository = mkdtempSync(resolve(realpathSync(tmpdir()), 'ia-release-refusal-'));
-  try {
-    await git(repository, 'init', '--quiet');
-    await run(repository);
-  } finally {
-    rmSync(repository, { recursive: true, force: true });
-  }
-}
 function put(repository: string, path: string, value: unknown): void {
   mkdirSync(dirname(resolve(repository, path)), { recursive: true });
   writeFileSync(resolve(repository, path), typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n');
@@ -492,133 +444,36 @@ it('refuses a published baseline that is not an ancestor of the release checkout
 
 // Archive checks read this checkout as it stands: the input selection it would seal and its changeset as committed.
 // Strict sealing is release preparation's job and has its own refusals above.
-const checkout = resolve(import.meta.dirname, '../..');
-const evidence = { inputs: publicPackageInputs(checkout, { sealed: false }), changes: committedChanges(checkout) };
-const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
-const archiveName = (manifest: PackageManifest) =>
-  `${manifest.name.replace('@', '').replace('/', '-')}-${manifest.version}.tgz`;
-/** A gzipped ustar archive holding only package/package.json. */
-function tarball(manifest: object): Buffer {
-  const body = Buffer.from(JSON.stringify(manifest)),
-    header = Buffer.alloc(512);
-  header.write('package/package.json');
-  header.write('0000644\0', 100);
-  header.write('0000000\0', 108);
-  header.write('0000000\0', 116);
-  header.write(body.length.toString(8).padStart(11, '0') + '\0', 124);
-  header.write('00000000000\0', 136);
-  header.fill(32, 148, 156);
-  header[156] = 48;
-  header.write('ustar\0', 257);
-  header.write('00', 263);
-  const checksum = header.reduce((sum, byte) => sum + byte, 0);
-  header.write(checksum.toString(8).padStart(6, '0') + '\0 ', 148);
-  return gzipSync(Buffer.concat([header, body, Buffer.alloc((512 - (body.length % 512)) % 512), Buffer.alloc(1024)]));
-}
-interface Qualified {
-  name: string;
-  filename: string;
-  sha256: string;
-  packed: PackageManifest;
-  system: boolean;
-}
-/**
- * Qualified archives of this checkout's public cohort, packed as the release would pack them (exact cohort versions,
- * plus the native ring that forms the one reviewed cycle), and their system compatibility companion.
- */
-async function inQualifiedCohort(run: (directory: string, qualified: Qualified[]) => void): Promise<void> {
-  const directory = mkdtempSync(resolve(realpathSync(tmpdir()), 'ia-release-refusal-'));
-  try {
-    const policy: {
-      packages: string[];
-      owners: { native: { system: string; id: string; version: string } }[];
-    } = JSON.parse(readFileSync(resolve(checkout, PUBLIC_SYSTEM_POLICY), 'utf8'));
-    const systems = policy.owners.map((owner) => '@inventarch/' + owner.native.system).sort(),
-      projects = publicPackages(checkout),
-      versions = new Map(projects.map(({ manifest }) => [manifest.name, manifest.version]));
-    const qualified = projects.map(({ manifest }) => {
-      const dependencies = Object.fromEntries(
-        Object.entries(manifest.dependencies ?? {}).map(([name, range]) => [name, versions.get(name) ?? range]),
-      );
-      const ring = systems.indexOf(manifest.name);
-      if (ring >= 0) dependencies[systems[(ring + 1) % systems.length]!] = manifest.version;
-      const packed = { ...manifest, dependencies },
-        bytes = tarball(packed);
-      writeFileSync(resolve(directory, archiveName(manifest)), bytes);
-      return { name: manifest.name, filename: archiveName(manifest), sha256: sha(bytes), packed, system: ring >= 0 };
-    });
-    const source = structuredClone(evidence.inputs);
-    const manifests: PackageManifest[] = policy.packages.map((owner) =>
-      JSON.parse(readFileSync(resolve(checkout, owner, 'package.json'), 'utf8')),
-    );
-    const compatibility = {
-      format: 'ia.system-package-compatibility.v1',
-      sourceRevision: source.receipt.sourceRevision,
-      sourceManifestSha256: source.sha256,
-      baselineOverlay: source.receipt.baselineOverlay,
-      recipe: {
-        publicCommit: await git(checkout, 'rev-parse', 'HEAD'),
-        publicDirty: false,
-        node: process.version,
-        pnpm: JSON.parse(readFileSync(resolve(checkout, 'package.json'), 'utf8')).packageManager.slice(5),
-        lockSha256: sha(readFileSync(resolve(checkout, 'pnpm-lock.yaml'))),
-        files: source.receipt.files.filter(
-          (row) => row.path.startsWith('tools/release/') || row.path === PUBLIC_SYSTEM_POLICY,
-        ),
-        extraction: source.receipt.provenance,
-      },
-      packages: manifests.map((manifest) => ({
-        package: { name: manifest.name, version: manifest.version },
-        archiveSha256: sha(readFileSync(resolve(directory, archiveName(manifest)))),
-        bindingSha256: 'a'.repeat(64),
-        native: {
-          ...policy.owners.find((owner) => '@inventarch/' + owner.native.system === manifest.name)!.native,
-          archiveSha256: 'b'.repeat(64),
-          manifestSha256: 'c'.repeat(64),
-        },
-        codeDigest: 'd'.repeat(64),
-        protocols: { distribution: 1, binding: 2, language: ['1.0'] },
-      })),
-    };
-    writeFileSync(resolve(directory, COMPATIBILITY), JSON.stringify(compatibility));
-    run(directory, qualified);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-}
-const receipts = (qualified: Qualified[]) =>
-  qualified.map(({ name, filename, sha256 }) => ({ name, filename, sha256 }));
-
 it('refuses a qualified archive whose packed manifest is outside the cohort version', () =>
-  inQualifiedCohort((directory, qualified) => {
+  inQualifiedCohort((directory, archives) => {
     // The compatibility companion binds the system archives, so the skew goes into another archive, and its qualified
     // hash is updated to match: an archive that qualification accepted although it carries the wrong version.
-    const target = qualified.find((row) => !row.system)!,
+    const target = archives.find((row) => !row.system)!,
       path = resolve(directory, target.filename),
       original = readFileSync(path),
       skewed = tarball({ ...target.packed, version: '1.0.0' });
     writeFileSync(path, skewed);
-    const packed = receipts(qualified).map((row) => (row.name === target.name ? { ...row, sha256: sha(skewed) } : row));
-    expect(() => writeReleaseManifest(checkout, directory, packed, evidence)).toThrow(
+    const packed = receipts(archives).map((row) => (row.name === target.name ? { ...row, sha256: sha(skewed) } : row));
+    expect(() => writeReleaseManifest(checkout, directory, packed, evidence())).toThrow(
       refusal('Packed package version differs'),
     );
     expect(existsSync(resolve(directory, 'npm-release.json'))).toBe(false);
     writeFileSync(path, original);
-    expect(writeReleaseManifest(checkout, directory, receipts(qualified), evidence).packages).toHaveLength(
-      qualified.length,
+    expect(writeReleaseManifest(checkout, directory, receipts(archives), evidence()).packages).toHaveLength(
+      archives.length,
     );
   }));
 
 it('refuses a release receipt whose packed graph differs from its archives', () =>
-  inQualifiedCohort((directory, qualified) => {
-    const release = writeReleaseManifest(checkout, directory, receipts(qualified), evidence);
-    expect(verifyRelease(checkout, directory, release.version, evidence)).toEqual(release);
+  inQualifiedCohort((directory, archives) => {
+    const release = writeReleaseManifest(checkout, directory, receipts(archives), evidence());
+    expect(verifyRelease(checkout, directory, release.version, evidence())).toEqual(release);
     const groups = release.graph.groups.map((group) => ({ ...group, cyclic: !group.cyclic }));
     writeFileSync(
       resolve(directory, 'npm-release.json'),
       JSON.stringify({ ...release, graph: { ...release.graph, groups } }, null, 2) + '\n',
     );
-    expect(() => verifyRelease(checkout, directory, release.version, evidence)).toThrow(
+    expect(() => verifyRelease(checkout, directory, release.version, evidence())).toThrow(
       refusal('Packed release graph differs'),
     );
   }));

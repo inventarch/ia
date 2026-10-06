@@ -24,6 +24,16 @@ export function packedManifest(path, qualifiedBytes = readFileSync(path)) {
   manifestCache.set(key, manifest);
   return structuredClone(manifest);
 }
+/**
+ * A dependency spec that npm resolves from the registry: a version, range or tag, optionally behind an `npm:` alias.
+ * Anything with a protocol, a path separator or a leading dot, or naming a tarball, is a URL, git, hosted-git or local
+ * source instead.
+ */
+function registrySpec(spec) {
+  const alias = /^npm:(?:@[^/@]+\/)?[^/@]+(?:@(.*))?$/.exec(spec),
+    range = alias ? (alias[1] ?? '') : spec;
+  return !/[:/\\]/.test(range) && !range.startsWith('.') && !/\.(?:tgz|tar|tar\.gz)$/i.test(range);
+}
 export function releaseGraph(manifests, version, allowedCycles) {
   const names = manifests.map((row) => row.name).sort();
   assert.equal(new Set(names).size, names.length, 'Duplicate packed package');
@@ -34,10 +44,7 @@ export function releaseGraph(manifests, version, allowedCycles) {
     for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies'])
       for (const [name, range] of Object.entries(row[section] ?? {})) {
         assert.equal(typeof range, 'string');
-        assert.ok(
-          !/^(workspace:|catalog:|file:|link:|https?:|git[+:]|github:|gitlab:|bitbucket:)/.test(range),
-          `${row.name}: unsupported packed dependency source`,
-        );
+        assert.ok(registrySpec(range), `${row.name}: unsupported packed dependency source`);
         assert.ok(!name.startsWith('@ia/'), 'Private dependency in public archive');
         if (name.startsWith('@inventarch/')) {
           assert.ok(names.includes(name), `${row.name}: missing cohort dependency ${name}`);

@@ -77,7 +77,7 @@ function object(value: unknown, allowed: readonly string[]): Record<string, unkn
     fail('Unknown or non-data lifecycle field');
   return value as Record<string, unknown>;
 }
-/** H3-v1 (`@decision parallel-g-h3`): the exact Claude Code row new context registrations select. */
+/** The exact Claude Code version, not a range, whose row new context registrations select. */
 export const SELECTED_CLAUDE_CODE_VERSION = '2.1.285';
 /** A compatibility declaration, not an observation that a host enabled or delivered hooks. */
 export function lifecycleProfile(host: string, version: string): LifecycleProfile {

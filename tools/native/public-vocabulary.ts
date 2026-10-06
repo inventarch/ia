@@ -118,7 +118,7 @@ export function vocabulary(root: string, read?: (path: string) => string) {
   return {
     version: 1,
     language: 'ia 1.0',
-    status: 'public contract examples; release packaging pending',
+    status: 'public IA 1.0 language contract',
     sourceDigest: createHash('sha256').update(JSON.stringify(inputs)).digest('hex'),
     words,
   };

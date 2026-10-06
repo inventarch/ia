@@ -18,6 +18,8 @@ import { URI } from 'vscode-uri';
 import { EditorWorkspace, EditorError } from '@inventarch/runtime/editor';
 import type { CompletionCitation, EditorFinding, SourceLink, ViewStamp } from '@inventarch/runtime/editor';
 import { METHOD, request } from './protocol.js';
+// esbuild inlines only this field, so the bundled server reports the extension's own manifest version.
+import { version } from '../package.json';
 
 const connection = createConnection(process.stdin, process.stdout);
 const documents = new TextDocuments(TextDocument);
@@ -190,7 +192,7 @@ connection.onInitialize((params) => {
       inlayHintProvider: true,
       semanticTokensProvider: { legend: { tokenTypes: legend, tokenModifiers: ['declaration'] }, full: true },
     },
-    serverInfo: { name: 'InventArch', version: '0.1.5' },
+    serverInfo: { name: 'InventArch', version },
   };
 });
 connection.onInitialized(() => publish());

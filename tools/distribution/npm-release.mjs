@@ -55,14 +55,20 @@ export function validatePackages(projects, version, versions) {
   }
 }
 
-/** Packages the changeset publishes for the first time: no earlier version is their baseline. */
-const firstPublished = (changes) =>
-  new Set(
-    Object.entries(changes.entry.packages)
-      .filter(([, entry]) => entry.previous === null)
-      .map(([name]) => name),
-  );
-function archiveEntries(root, directory, packed, version, fresh = new Set()) {
+/** Each package's published baseline version; null for a package the release publishes for the first time. */
+const baselineVersions = (changes) =>
+  Object.fromEntries(Object.entries(changes.entry.packages).map(([name, entry]) => [name, entry.previous]));
+/**
+ * Publication order. New names go first: none has an existing version to break, so a failed first publish of a new name
+ * stops the run before any existing package moves its `latest` tag. Existing packages follow in dependency order. Every
+ * order of a cycle publishes some package before one it depends on, so a failure among existing packages, including
+ * an existing package's first trusted publish, can still leave a partial cohort for a retry to complete.
+ */
+export function publicationOrder(groups, baselines) {
+  const members = groups.flatMap((group) => group.members);
+  return [...members.filter((name) => baselines[name] === null), ...members.filter((name) => baselines[name] !== null)];
+}
+function archiveEntries(root, directory, packed, version, changes) {
   const projects = publicPackages(root),
     byName = new Map(packed.map((entry) => [entry.name, entry]));
   assert.equal(byName.size, projects.length, 'Archive cohort membership differs');
@@ -90,19 +96,11 @@ function archiveEntries(root, directory, packed, version, fresh = new Set()) {
   const graph = releaseGraph(
     entries.map((entry) => entry.manifest),
     version,
-    releasePolicy(root).cycles,
-  );
-  // Every order of a dependency cycle publishes some package before one it depends on. New names go first: a failed first
-  // trusted publish then stops the run before any existing member of the cycle moves its latest tag. Groups before the
-  // cycle have already published, but each after its own dependencies, so their latest versions install.
-  const order = graph.groups.flatMap((group) =>
-    group.cyclic
-      ? [...group.members.filter((name) => fresh.has(name)), ...group.members.filter((name) => !fresh.has(name))]
-      : group.members,
+    changes.policy.cycles,
   );
   return {
     graph,
-    packages: order.map((name) => {
+    packages: publicationOrder(graph.groups, baselineVersions(changes)).map((name) => {
       const { manifest, ...entry } = entries.find((entry) => entry.name === name);
       return entry;
     }),
@@ -124,7 +122,7 @@ export function writeReleaseManifest(root, directory, packed, evidence = {}) {
   validatePackages(projects, version, releaseVersions(root, inputs));
   for (const entry of packed) assert.match(entry.sha256 ?? '', /^[a-f0-9]{64}$/, 'qualified archive hash is required');
   const compatibility = verifyPublicCompatibility(root, directory, undefined, { inputs });
-  const archives = archiveEntries(root, directory, packed, version, firstPublished(changes));
+  const archives = archiveEntries(root, directory, packed, version, changes);
   const release = {
     format: 'ia.npm-release.v2',
     version,
@@ -140,9 +138,7 @@ export function writeReleaseManifest(root, directory, packed, evidence = {}) {
       coverageSha256: changes.coverageSha256,
       commits: changes.commits,
     },
-    baselineVersions: Object.fromEntries(
-      Object.entries(changes.entry.packages).map(([name, entry]) => [name, entry.previous]),
-    ),
+    baselineVersions: baselineVersions(changes),
     graph: archives.graph,
     packages: archives.packages,
     systemCompatibility: { path: 'system-compatibility.json', sha256: compatibility.sha256 },
@@ -165,10 +161,7 @@ export function verifyRelease(root, directory, version, evidence = {}) {
     { path: changes.path, sha256: changes.sha256, coverageSha256: changes.coverageSha256, commits: changes.commits },
     'Release changeset is stale',
   );
-  assert.deepEqual(
-    release.baselineVersions,
-    Object.fromEntries(Object.entries(changes.entry.packages).map(([name, entry]) => [name, entry.previous])),
-  );
+  assert.deepEqual(release.baselineVersions, baselineVersions(changes));
   assert.equal(new Set(release.packages.map((entry) => entry.filename)).size, projects.length);
   for (const entry of release.packages) {
     assert.match(entry.filename, /^[a-z0-9][a-z0-9._-]*\.tgz$/);
@@ -176,7 +169,7 @@ export function verifyRelease(root, directory, version, evidence = {}) {
     assert.equal(bytes.length, entry.bytes, entry.name + ': archive size changed');
     assert.equal(integrity(bytes), entry.integrity, entry.name + ': archive integrity changed');
   }
-  const actual = archiveEntries(root, directory, release.packages, version, firstPublished(changes));
+  const actual = archiveEntries(root, directory, release.packages, version, changes);
   assert.deepEqual(release.packages, actual.packages, 'Packed release cohort differs');
   assert.deepEqual(release.graph, actual.graph, 'Packed release graph differs');
   assert.deepEqual(

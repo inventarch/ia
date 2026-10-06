@@ -366,7 +366,7 @@ export type Git = (args: readonly string[]) => { readonly status: number | null;
  * Git as a child process, with the host's environment rather than this process's, so the probe is a function of the
  * same explicit host every verb receives. `core.fsmonitor` is disabled because it is the configured command a
  * read-only query could otherwise start. A missing executable is `null`, which is not the same fact as "no checkout".
- * #436: the target is a repository the user may not trust, so git is found on the host's qualified PATH entries only
+ * The target is a repository the user may not trust, so git is found on the host's qualified PATH entries only
  * and runs by absolute path from the home directory, with `-C` naming the target (src/program.ts).
  */
 export const gitIn =

@@ -18,7 +18,7 @@ export interface ClaudePluginInput {
   readonly install: string;
   /**
    * The absolute path of the Node executable that runs the hook on macOS and Linux: the Node running `ia host claude
-   * --user --apply` (#436). hooks.json names it in quotes there, so the host's sh looks no `node` up from the project.
+   * --user --apply`. hooks.json names it in quotes there, so the host's sh looks no `node` up from the project.
    * The Windows rendering does not use it.
    */
   readonly node: string;
@@ -72,9 +72,9 @@ const HOOK = [
   "import { fileURLToPath } from 'node:url';",
   'const here = dirname(fileURLToPath(import.meta.url));',
   '// Only fully qualified PATH entries count. An empty or relative entry names the project directory, which the',
-  '// repository controls, and on Windows a rooted entry without a drive depends on the current drive (LKI-41). A Windows',
+  '// repository controls, and on Windows a rooted entry without a drive depends on the current drive. A Windows',
   '// share, in any spelling that starts with two separators, does not count either: a synchronous check of one that',
-  '// cannot be reached waits on the network with no bound the hook can set (#474).',
+  '// cannot be reached waits on the network with no bound the hook can set.',
   'function qualified(path) {',
   "  return isAbsolute(path) && (process.platform !== 'win32' || /^[A-Za-z]:[\\\\/]$/.test(parse(path).root));",
   '}',
@@ -85,7 +85,7 @@ const HOOK = [
   "  return (process.platform === 'win32' ? entries.map((entry) => entry.replace(/\"/g, '')) : entries).filter(qualified);",
   '}',
   '// The hook looks ia up itself on every platform: cmd.exe reports an unknown command only as a localized message',
-  '// with exit 1, the status a real ia doctor failure can have, so no shell is ever asked to fail (LKI-40). Only the four',
+  '// with exit 1, the status a real ia doctor failure can have, so no shell is ever asked to fail. Only the four',
   '// types cmd.exe starts as programs count; the PATHEXT script types would start through Windows Script Host.',
   'function findOnPath(name) {',
   "  const windows = process.platform === 'win32';",
@@ -107,7 +107,7 @@ const HOOK = [
   '  return null;',
   '}',
   '// A .bat or .cmd file, which Node starts only through a shell, so the hook runs it through cmd.exe. A .com or .exe is',
-  '// a program and starts directly (#474). The extension is the one the lookup added.',
+  '// a program and starts directly. The extension is the one the lookup added.',
   'function batch(file) {',
   '  return /\\.(bat|cmd)$/.test(file);',
   '}',
@@ -118,7 +118,7 @@ const HOOK = [
   '}',
   '// cmd.exe by absolute path, since a bare cmd.exe would itself be looked up in the current directory first, and never',
   "// ComSpec: Node gives a shell cmd.exe's switches only when its path matches cmd.exe with backslashes, so it would pass",
-  '// -c to another program or to cmd.exe spelled with forward slashes. The hook passes the switches itself (LKI-41).',
+  '// -c to another program or to cmd.exe spelled with forward slashes. The hook passes the switches itself.',
   'function windowsShell() {',
   "  return join(systemDirectory(), 'cmd.exe');",
   '}',
@@ -129,13 +129,13 @@ const HOOK = [
   '}',
   '// Every child the hook starts (doctor, an ia launcher, the update refresh) sees only the qualified entries and, on',
   "// Windows, no implicit current directory, so its own lookups (npm's ia.cmd runs node by name; doctor runs git) cannot",
-  '// reach the project either (LKI-41).',
+  '// reach the project either.',
   'function childEnv() {',
   '  const env = {};',
   "  for (const [key, value] of Object.entries(process.env)) if (key.toUpperCase() !== 'PATH') env[key] = value;",
   '  const entries = pathEntries();',
   '  // POSIX reads an empty PATH as the current directory, and on Windows it finds nothing at all, so a PATH with no',
-  '  // qualified entry becomes the system one: /usr/bin:/bin, or the System32 directory that holds cmd.exe (#474).',
+  '  // qualified entry becomes the system one: /usr/bin:/bin, or the System32 directory that holds cmd.exe.',
   "  env.PATH = entries.length > 0 ? entries.join(delimiter) : process.platform === 'win32' ? systemDirectory() : '/usr/bin:/bin';",
   "  if (process.platform === 'win32') env.NoDefaultCurrentDirectoryInExePath = '1';",
   '  return env;',
@@ -151,7 +151,7 @@ const HOOK = [
   "    const found = hasEntry ? null : findOnPath('ia');",
   '    if (!hasEntry && found === null) return notFound;',
   '    // The file found runs by its absolute path, a Windows .bat or .cmd launcher through cmd.exe and anything else',
-  '    // directly (#474), so no step of the launch searches the project directory (LKI-41). Not found is decided here,',
+  '    // directly, so no step of the launch searches the project directory. Not found is decided here,',
   '    // before anything starts.',
   '    const run = hasEntry',
   '      ? spawnSync(process.execPath, [meta.entry].concat(args), Object.assign({}, options, { env: childEnv() }))',
@@ -175,7 +175,7 @@ const HOOK = [
   '      } catch { /* the nudge file is best-effort; never let it block the briefing */ }',
   '    }',
   '    // The refresh starts in the home directory, which the repository does not control. A missing one fails the start,',
-  '    // which the hook ignores, so it costs the refresh and never the briefing (#474).',
+  '    // which the hook ignores, so it costs the refresh and never the briefing.',
   '    if (Array.isArray(session.refresh) && session.refresh.length > 0) {',
   '      try {',
   "        const child = spawn(session.refresh[0], session.refresh.slice(1), { cwd: homedir(), env: childEnv(), detached: true, stdio: 'ignore', windowsHide: true });",
@@ -195,13 +195,12 @@ const HOOK = [
 ].join('\n');
 
 /**
- * #436: the hook's command in hooks.json, in shell form (no `args`) like the earlier command, so it needs no host that
- * supports exec form (review of #491). Claude Code's hooks reference passes such a command to `sh -c` on macOS and
+ * The hook's command in hooks.json, in shell form (no `args`) like the earlier command, so it needs no host that
+ * supports exec form. Claude Code's hooks reference passes such a command to `sh -c` on macOS and
  * Linux, to Git Bash on Windows, or to PowerShell when Git Bash isn't installed. On macOS and Linux it names the
  * recorded Node by absolute path in double quotes, so sh starts that file and looks no `node` up. On Windows it stays
  * the earlier `node "…"`: PowerShell reads a line that opens with a quoted string as an expression, not a command, so a
- * quoted path that Git Bash would run does not run there. `node` is still looked up on PATH on Windows (host plugin
- * distribution design §6.1).
+ * quoted path that Git Bash would run does not run there. `node` is still looked up on PATH on Windows.
  */
 const HOOK_SCRIPT = '"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs"';
 function hookCommand(node: string, platform: NodeJS.Platform): string {
