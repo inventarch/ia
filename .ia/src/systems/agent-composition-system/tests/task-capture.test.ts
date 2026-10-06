@@ -4,13 +4,13 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, expect, it } from 'vitest';
 import { canonical, digest } from '@inventarch/session-system';
-import { createSourcePolicy, mountSourceCapture } from '../src/sources.js';
-import { verifyCapture } from '../src/corpus.js';
-import { openLocalAuthoringView } from '../src/authoring-manifest.js';
+import { createSourcePolicy, mountSourceCapture } from '@inventarch/workspace-runtime/sources';
+import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
+import { openLocalAuthoringView } from '@inventarch/workspace-runtime/authoring-manifest';
 import { prepareTaskCapture, verifyTaskCapture, TASK_CAPTURE_BYTES, TaskCaptureError } from '../src/task-capture.js';
 import type { TaskCaptureRequest, TaskContextDeclaration } from '../src/task-capture.js';
-import { resourceOccurrences } from '../src/resources.js';
-import { sha256 } from '../src/resource-format.js';
+import { resourceOccurrences } from '@inventarch/workspace-runtime/resources';
+import { sha256 } from '@inventarch/workspace-runtime/resource-format';
 
 const fixture = fileURLToPath(new URL('../fixtures/task-capture.json', import.meta.url));
 const areas: string[] = [];

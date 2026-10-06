@@ -1,18 +1,18 @@
 import { systemMember } from '@inventarch/db';
 import type { Graph, Node } from '@inventarch/graph';
-import { prepareAuthoringTarget, createAuthoringIndex } from './authoring.js';
+import { prepareAuthoringTarget, createAuthoringIndex } from '@inventarch/workspace-runtime/authoring';
 import type {
   AuthoringIndexInput,
   AuthoringTargetRequest,
   AuthoringView,
   CapturedAuthoringIndex,
   AuthoringRequirements,
-} from './authoring-types.js';
-import type { Capture } from './corpus.js';
-import type { CapturedResources, ResourceKey, ResourceOccurrence } from './resource-format.js';
-import { keyOf, metadataDigest, occurrenceOf } from './resource-format.js';
-import { resourceOccurrences, verifyResources } from './resources.js';
-import { nativeResourcePath } from './resource-sources.js';
+} from '@inventarch/workspace-runtime/authoring-types';
+import type { Capture } from '@inventarch/workspace-runtime/corpus';
+import type { CapturedResources, ResourceKey, ResourceOccurrence } from '@inventarch/workspace-runtime/resource-format';
+import { keyOf, metadataDigest, occurrenceOf } from '@inventarch/workspace-runtime/resource-format';
+import { resourceOccurrences, verifyResources } from '@inventarch/workspace-runtime/resources';
+import { nativeResourcePath } from '@inventarch/workspace-runtime/resource-sources';
 
 /** Positive metadata closure. No source discovery, ranking, or authorization lives here. */
 export function taskTeachingClosure(

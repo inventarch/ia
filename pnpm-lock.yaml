@@ -267,6 +267,9 @@ importers:
       '@inventarch/template-system':
         specifier: workspace:*
         version: link:../template-system
+      '@inventarch/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../../../packages/workspace-runtime
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -612,6 +615,40 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
     devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@22.20.4)(vite@8.3.0(@types/node@22.20.4)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.0))
+
+  packages/workspace-runtime:
+    dependencies:
+      '@inventarch/agent-system':
+        specifier: workspace:*
+        version: link:../../.ia/src/systems/agent-system
+      '@inventarch/db':
+        specifier: workspace:*
+        version: link:../db
+      '@inventarch/graph':
+        specifier: workspace:*
+        version: link:../graph
+      '@inventarch/language':
+        specifier: workspace:*
+        version: link:../language
+      '@inventarch/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@inventarch/session-system':
+        specifier: workspace:*
+        version: link:../../.ia/src/systems/session-system
+      '@inventarch/template-system':
+        specifier: workspace:*
+        version: link:../../.ia/src/systems/template-system
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.4
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

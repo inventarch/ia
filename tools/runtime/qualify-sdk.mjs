@@ -23,6 +23,7 @@ const packages = [
   'agent-system',
   'authoring-system',
   'template-system',
+  'workspace-runtime',
   'agent-composition-system',
   'compliance-system',
   'governance-system',
@@ -137,7 +138,7 @@ const installedRead = JSON.parse(
 );
 writeFileSync(resolve(output, 'installed-read-qualification.json'), JSON.stringify(installedRead, null, 2));
 copyFileSync(
-  resolve(candidate, '.ia/src/systems/agent-composition-system/tests/public-spec-fixture.mjs'),
+  resolve(candidate, 'packages/workspace-runtime/tests/public-spec-fixture.mjs'),
   resolve(output, 'public-spec-fixture.mjs'),
 );
 const publicSpec = JSON.parse(

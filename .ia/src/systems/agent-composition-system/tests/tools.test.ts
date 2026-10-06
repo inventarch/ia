@@ -9,7 +9,7 @@ import { Engine, manifestDigest } from '@inventarch/agent-system';
 import type { EngineHost, Grant, ModelAction, OperationContext } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { compileHarness, Corpus, executionManifest } from '../src/index.js';
-import { captureResources, resourceOccurrences } from '../src/resources.js';
+import { captureResources, resourceOccurrences } from '@inventarch/workspace-runtime/resources';
 import { draftToolAdapters, DRAFT_TOOL_IDS } from '../src/tools.js';
 import type { DraftToolOptions } from '../src/tools.js';
 

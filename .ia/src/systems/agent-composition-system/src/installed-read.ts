@@ -6,8 +6,8 @@ import { installed } from './catalog.js';
 import type { CompositionCatalog } from './catalog.js';
 import type { CompiledHarness } from './compiled.js';
 import { compileHarness } from './compile.js';
-import { Corpus, verifyCapture } from './corpus.js';
-import type { Capture } from './corpus.js';
+import { Corpus, verifyCapture } from '@inventarch/workspace-runtime/corpus';
+import type { Capture } from '@inventarch/workspace-runtime/corpus';
 import { executionManifest } from './execution.js';
 import { installedImplementationDigest } from './installed-catalog.js';
 

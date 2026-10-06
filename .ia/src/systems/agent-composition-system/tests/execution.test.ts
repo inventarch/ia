@@ -13,7 +13,7 @@ import { executionFixture, executionCatalog as inspectionCatalog } from './execu
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url));
 const capture = executionFixture(root),
-  implementation = digest(readFileSync(new URL('../src/candidate.ts', import.meta.url), 'utf8'));
+  implementation = digest(readFileSync(`${root}/packages/workspace-runtime/src/candidate.ts`, 'utf8'));
 const catalog = inspectionCatalog('test', implementation);
 function compiled() {
   const result = compileHarness(capture, { harness: 'example-harness', entry: 'example-entry', catalog });

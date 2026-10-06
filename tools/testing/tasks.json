@@ -77,7 +77,8 @@
         "language:build",
         "runtime:build",
         "session-system:build",
-        "template-system:build"
+        "template-system:build",
+        "workspace-runtime:build"
       ],
       "outputs": [
         ".ia/src/systems/agent-composition-system/dist",
@@ -159,7 +160,9 @@
       ],
       "mode": "source",
       "inputProfile": "owner-source",
-      "dependsOn": [],
+      "dependsOn": [
+        "graph:build"
+      ],
       "outputs": [
         ".ia/src/systems/session-system/dist",
         "artifacts/tests/session-system-build"
@@ -545,31 +548,12 @@
       "kind": "vitest",
       "project": ".ia/src/systems/agent-composition-system",
       "files": [
-        "tests/adapters.test.ts",
-        "tests/authoring-base.test.ts",
-        "tests/authoring-bytes.test.ts",
-        "tests/authoring-integrity.test.ts",
-        "tests/authoring-lifecycle.test.ts",
-        "tests/authoring-shipped.test.ts",
-        "tests/authoring.test.ts",
         "tests/compile.test.ts",
         "tests/contracts.test.ts",
         "tests/execution.test.ts",
         "tests/installed-read.test.ts",
-        "tests/installed-sources.test.ts",
-        "tests/lifecycle-profile.test.ts",
-        "tests/lifecycle-segments.test.ts",
-        "tests/lifecycle.test.ts",
-        "tests/local-store.test.ts",
-        "tests/projections.test.ts",
-        "tests/public-spec.test.ts",
-        "tests/publication.test.ts",
-        "tests/resource-context.test.ts",
-        "tests/resources.test.ts",
-        "tests/sources.test.ts",
         "tests/spec-read-boundary.test.ts",
         "tests/task-capture.test.ts",
-        "tests/templates.test.ts",
         "tests/tools.test.ts"
       ],
       "profile": "native",
@@ -591,192 +575,6 @@
       "resourceClass": "native-heavy",
       "covers": [
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
-      ],
-      "skips": [
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS clears a failed acknowledgement only with a new exact reconciliation receipt",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS keeps partial effects waiting and bounds charged inspections",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS keeps unknown effects waiting and bounds charged inspections",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at before-prepare without another unapproved write",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at dispatched without another unapproved write",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at observed without another unapproved write",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at prepared without another unapproved write",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at published without another unapproved write",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at staged without another unapproved write",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after binding changes at the last authority boundary",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after control changes at the last authority boundary",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after grant changes at the last authority boundary",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after owner changes at the last authority boundary",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current expiry changes",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current grant changes",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current preflight changes",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current quota changes",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current source changes",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains a charged interrupted lookup across another process death",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains bounded evidence after reconciliation invalid-output",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains bounded evidence after reconciliation timeout",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS settles uncertain publication before applying cancel",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
-          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS settles uncertain publication before applying pause",
-          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        }
       ]
     },
     {
@@ -1876,6 +1674,7 @@
       "kind": "vitest",
       "project": "packages/graph",
       "files": [
+        "tests/codec.test.ts",
         "tests/field-relations-baseline.test.ts",
         "tests/floor-citation.test.ts",
         "tests/load.test.ts",
@@ -2144,6 +1943,298 @@
         {
           "case": "tests/publication.test.ts > qualified local NTFS publication refuses non-ntfs volume qualification without creating output or caching failure",
           "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workspace-runtime:build",
+      "kind": "command",
+      "project": "packages/workspace-runtime",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "agent-system:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "session-system:build",
+        "template-system:build"
+      ],
+      "outputs": [
+        "packages/workspace-runtime/dist",
+        "artifacts/tests/workspace-runtime-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "workspace-runtime:typecheck",
+      "kind": "command",
+      "project": "packages/workspace-runtime",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "owner-source",
+      "dependsOn": [
+        "workspace-runtime:build"
+      ],
+      "outputs": [
+        "artifacts/tests/workspace-runtime-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "workspace-runtime:test",
+      "kind": "vitest",
+      "project": "packages/workspace-runtime",
+      "files": [
+        "tests/adapters.test.ts",
+        "tests/authoring-base.test.ts",
+        "tests/authoring-bytes.test.ts",
+        "tests/authoring-integrity.test.ts",
+        "tests/authoring-lifecycle.test.ts",
+        "tests/authoring-shipped.test.ts",
+        "tests/authoring.test.ts",
+        "tests/boundary.test.ts",
+        "tests/installed-sources.test.ts",
+        "tests/lifecycle-profile.test.ts",
+        "tests/lifecycle-segments.test.ts",
+        "tests/lifecycle.test.ts",
+        "tests/local-store.test.ts",
+        "tests/projections.test.ts",
+        "tests/public-spec.test.ts",
+        "tests/publication.test.ts",
+        "tests/resource-context.test.ts",
+        "tests/resources.test.ts",
+        "tests/sources.test.ts",
+        "tests/templates.test.ts"
+      ],
+      "profile": "native",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "workspace-runtime:build"
+      ],
+      "outputs": [
+        "artifacts/tests/workspace-runtime-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "native-heavy",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS clears a failed acknowledgement only with a new exact reconciliation receipt",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS keeps partial effects waiting and bounds charged inspections",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS keeps unknown effects waiting and bounds charged inspections",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at before-prepare without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at dispatched without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at observed without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at prepared without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at published without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS recovers actual process death at staged without another unapproved write",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after binding changes at the last authority boundary",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after control changes at the last authority boundary",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after grant changes at the last authority boundary",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses a staged publication after owner changes at the last authority boundary",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current expiry changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current grant changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current preflight changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current quota changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS refuses recovery after current source changes",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains a charged interrupted lookup across another process death",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains bounded evidence after reconciliation invalid-output",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS retains bounded evidence after reconciliation timeout",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS settles uncertain publication before applying cancel",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > managed publication engine recovery on local NTFS settles uncertain publication before applying pause",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
           "platforms": [
             "linux",
             "macos"

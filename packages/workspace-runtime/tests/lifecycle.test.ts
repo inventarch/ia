@@ -70,7 +70,7 @@ function request() {
 }
 
 beforeAll(() => {
-  cpSync(resolve(import.meta.dirname, '../../../../..', 'examples/conformance/native'), join(root, '.ia/src'), {
+  cpSync(resolve(import.meta.dirname, '../../..', 'examples/conformance/native'), join(root, '.ia/src'), {
     recursive: true,
     filter: (path) => !/(?:^|[\\/])(node_modules|dist|\.git)(?:[\\/]|$)/.test(path),
   });

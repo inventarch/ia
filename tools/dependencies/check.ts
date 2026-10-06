@@ -11,6 +11,17 @@ export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
   '@inventarch/compliance': ['@inventarch/language', '@inventarch/graph'],
   '@inventarch/db': ['@inventarch/language', '@inventarch/graph', '@inventarch/compliance'],
   '@inventarch/runtime': ['@inventarch/language', '@inventarch/graph', '@inventarch/db'],
+  '@inventarch/workspace-runtime': [
+    '@inventarch/language',
+    '@inventarch/graph',
+    '@inventarch/db',
+    '@inventarch/runtime',
+    '@inventarch/compliance',
+    '@inventarch/agent-system',
+    '@inventarch/session-system',
+    '@inventarch/template-system',
+    '@inventarch/authoring-system',
+  ],
   '@inventarch/session-system': ['@inventarch/graph'],
   '@inventarch/agent-system': [
     '@inventarch/session-system',
@@ -20,6 +31,7 @@ export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
     '@inventarch/db',
   ],
   '@inventarch/agent-composition-system': [
+    '@inventarch/workspace-runtime',
     '@inventarch/agent-system',
     '@inventarch/session-system',
     '@inventarch/authoring-system',
