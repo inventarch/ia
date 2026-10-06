@@ -6,10 +6,10 @@
     answers "Does a permitted, digest-pinned structured-v1 template render exact draft bytes from a title value without writing a file?"
   scenario
     kind success
-    given "The synthetic-review fixture adopted beside the foundation sources, declaring structured-document (profile structured-v1, filename docs/design.md) whose captured JSON resource renders '# ', the title input and a newline (setup in agent-composition-system tests/templates.test.ts)."
+    given "The synthetic-review fixture adopted beside the foundation sources, declaring structured-document (profile structured-v1, filename docs/design.md) whose captured JSON resource renders '# ', the title input and a newline (setup in workspace-runtime tests/templates.test.ts)."
     request "Call renderCapturedTemplate in the current scope with the resource permitted, the envelope digest pinned and values {title: Fixture design}."
     expected "Status rendered, profile structured-v1, artifact docs/design.md with text '# Fixture design' and a newline, 17 bytes; JSON-text values give the identical result."
-    evaluator ".ia/src/systems/agent-composition-system/tests/templates.test.ts"
+    evaluator "packages/workspace-runtime/tests/templates.test.ts"
     operation @operation render-captured-template
     code pass
   relationships
