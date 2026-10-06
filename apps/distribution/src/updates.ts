@@ -98,7 +98,7 @@ export interface Sources {
 /** npm's package-name grammar; the name reaches cmd.exe on Windows, so anything else is never looked up. */
 const NPM_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
 /**
- * #436: npm and git are found on qualified PATH entries only and run by absolute path from the home directory, with
+ * npm and git are found on qualified PATH entries only and run by absolute path from the home directory, with
  * only those entries in their PATH (src/program.ts), so a refresh run by hand from a repository cannot start a program
  * planted there. npm is npm.cmd on Windows, run through cmd.exe named by its path; the name has passed NPM_NAME, so it
  * holds no character cmd.exe would read.

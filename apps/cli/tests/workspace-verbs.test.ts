@@ -377,6 +377,17 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
   // pnpm is a contributor requirement, so it is a note in both directions and never decides the exit class.
   expect(current.checks.find((check) => check.id === 'package-manager')?.status).toBe('info');
   expect(current.checks.find((check) => check.id === 'package-manager')?.detail).toContain('pnpm 10.33.0');
+  // Without a user agent, the note names no pnpm version: a consumer installation cannot know the repository's pin.
+  const unreported = collectDoctor({
+    cwd: root,
+    packageRoot: cli,
+    runtime: { version: 'v22.22.0', platform: 'win32', arch: 'x64' },
+    env: {},
+  }).checks.find((check) => check.id === 'package-manager');
+  expect(unreported).toMatchObject({
+    status: 'info',
+    detail: 'Not reported by this invocation; pnpm is a contributor requirement, not a consumer one',
+  });
 });
 
 it("keeps every new verb's --json stdout one parseable value with no ANSI, in success and in refusal", async () => {

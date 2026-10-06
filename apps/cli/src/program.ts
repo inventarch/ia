@@ -1,10 +1,9 @@
 /**
- * #436: how a hand-run `ia` command finds and starts another program (`git` for init and doctor, `claude` for
+ * How a hand-run `ia` command finds and starts another program (`git` for init and doctor, `claude` for
  * `ia host --user`). The user may run it from a directory the repository controls, so no step of the launch may search
  * that directory. `ia` looks the program up itself, on qualified PATH entries only, and runs what it found by absolute
  * path; the program gets only those entries in its PATH and, on Windows, `NoDefaultCurrentDirectoryInExePath=1`, so
- * its own lookups skip its working directory too. This is the rule the session hook applies to `ia` (host plugin
- * distribution design §8.1, amended 2026-09-30 for LKI-41).
+ * its own lookups skip its working directory too. This is the rule the session hook applies to `ia`.
  */
 import { accessSync, constants, statSync } from 'node:fs';
 import { homedir } from 'node:os';

@@ -15,7 +15,7 @@ import {
   compileProjection,
   serializeProjection,
 } from '@inventarch/agent-composition-system/projections';
-// The shared link rule (#477), copied beside this script; external and fragment-only links name no product file.
+// The shared link rule, copied beside this script; external and fragment-only links name no product file.
 import { linkCounts, linkProblems } from './link-walk.mjs';
 const walkLinks = (host, product, directory, files) => {
   assert.deepEqual(
@@ -142,8 +142,8 @@ const body = {
 };
 const descriptor = { ...body, digest: digest(body) },
   reader = open(root, { cache: false, adopted });
-// HOST-01: copy a product into a fresh root outside this consumer; under the shared link rule (#477) every local link
-// must reach a regular file inside it, and every file must keep its recorded bytes.
+// Copy a product into a fresh root outside this consumer; under the shared link rule every local link must reach a
+// regular file inside it, and every file must keep its recorded bytes.
 const relocate = (result) => {
   // Checked before use: a throw in finally would replace a failing assertion's error.
   const target = mkdtempSync(join(tmpdir(), 'ia-packed-relocated-'));

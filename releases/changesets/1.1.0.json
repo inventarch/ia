@@ -184,11 +184,12 @@
     {
       "id": "release-hygiene",
       "title": "Coordinated npm release checks",
-      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance. Inside a dependency cycle, publish new package names before existing ones, so a failed first trusted publish stops before any existing member of the cycle moves its latest tag.",
+      "summary": "Align all 21 npm packages to 1.1.0. Require complete reviewed release changesets, exact packed dependency versions and explicit cycle groups. Qualify native assets as data, preflight the whole registry cohort, retain exact retry bytes, and verify final registry integrity, tags and provenance. Publish every new package name before any existing package, so a failed first publish of a new name stops before any existing package moves its latest tag. Once 1.1.0 is published, security fixes ship only as 1.1.x releases; the 1.0.x line no longer receives them.",
       "paths": [
         "tools/distribution/",
         "releases/",
-        ".github/workflows/npm-publish.yml"
+        ".github/workflows/npm-publish.yml",
+        "SECURITY.md"
       ],
       "packages": [
         "@inventarch/agent-composition-system",
@@ -239,7 +240,6 @@
         "LANGUAGE",
         "THIRD",
         "CONTRIBUTING",
-        "SECURITY",
         "CLAUDE.md"
       ],
       "packages": [
@@ -440,12 +440,12 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/src/lifecycle-profile.ts",
-      "sha256": "73a87a7fca5cb964cefbec4bc805ce479a99588cb86f2e58baf4e3def1811075",
+      "sha256": "410a44c874f98d0168c392c8e457495a48bf7bdcb616d5ebf9d2e99f33f2ebb1",
       "change": "governed-runtime"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/src/lifecycle-rows.ts",
-      "sha256": "94637eb3c7a0dfc27a9d988c8a19605d9347b8e2c8553d6374327ad620eac97e",
+      "sha256": "c44e3a60918dc6cbd9006afff6f243756121bd6f5a0de7c2f353b22ad3e3344f",
       "change": "governed-runtime"
     },
     {
@@ -991,7 +991,7 @@
     {
       "path": "SECURITY.md",
       "sha256": "c7566398375b68cac2690c6e81a0d7bff5e9dfae6b06faa6a0285862e3c23656",
-      "change": "portable-quality"
+      "change": "release-hygiene"
     },
     {
       "path": "SPEC.md",
@@ -1005,17 +1005,17 @@
     },
     {
       "path": "apps/cli/README.md",
-      "sha256": "0cf61fc48aa0b40c19e6a3f478ef0a3f1b4772682d2f1ba97ded1cc90eacfad3",
+      "sha256": "a345d97b6f76a0375c344e262797ba835cbe3508e48f462346b7daf30b110b98",
       "change": "installed-distribution"
     },
     {
       "path": "apps/cli/SPEC.md",
-      "sha256": "e46d252494e3f007bff0604235d987176b79cd49d2561992ab8c74d72370eb8f",
+      "sha256": "1d5522bd7d78db5a46643c1947cf0af761afae45116bd967df5da286e6aaf6a4",
       "change": "installed-distribution"
     },
     {
       "path": "apps/cli/assets/vocabulary.json",
-      "sha256": "4941ed2b7e805b2202ae46584897dc33e2e631749e54e8ed7b9a6d99f5217a44",
+      "sha256": "552f159243d3758dc7afe17c7826160487cf755d7a428409dfadb3bad2ecdd5c",
       "change": "installed-distribution"
     },
     {
@@ -1025,32 +1025,32 @@
     },
     {
       "path": "apps/cli/src/channel.ts",
-      "sha256": "aa5a22927c659a7ea1fc9faa3bc7e8923f33a0269fc908f265bd7ce86d416252",
+      "sha256": "e1deab3a6572a22d1f648f63849e1375f77adc9ea550af664b94c82f48fa1284",
       "change": "installed-distribution"
     },
     {
       "path": "apps/cli/src/claude-cli.ts",
-      "sha256": "6717b7024990e453c86e215791320c4250bc51a7f0a6fba9e9fbce14c79cd255",
+      "sha256": "cc160165c76fb3a245500bfb6cd5815febe1e38b23cc85b6a1199e6949ed73dd",
       "change": "installed-distribution"
     },
     {
       "path": "apps/cli/src/doctor.ts",
-      "sha256": "26603b11000f8b801a7a77734ad31f6173c02512bec6b63d32d11d071a250cac",
+      "sha256": "5a391232e1939581d90a182c50bf3b682ee65564fdee43c40544858e75f54a51",
       "change": "installed-distribution"
     },
     {
       "path": "apps/cli/src/init.ts",
-      "sha256": "aad0c06f103b30ddf9fca80a8cce273e8a6059f6d54174b97a34e48cc1df93f6",
+      "sha256": "1437c8d779c290f982ad445d6933fc54673f5b6fd65cf64342f2ede6af3a5b6d",
       "change": "installed-distribution"
     },
     {
       "path": "apps/cli/src/program.ts",
-      "sha256": "105788d72f3e5ff78c44ae80e87f440d93f7c26b649434aaa04b26ce272af243",
+      "sha256": "8410fa969b3d18f6ade215c24de48a02a1284d43bc592ec3e834b9acb1aeedd0",
       "change": "installed-distribution"
     },
     {
       "path": "apps/cli/src/user-host.ts",
-      "sha256": "b4aa9becfef0c220e54b41d0055981076332c11ce2494d03a65379ef203f1709",
+      "sha256": "8b4a5d8a5724bcb34a259b3616539fc945b68537e758161b7cba32b6e9fa63f9",
       "change": "installed-distribution"
     },
     {
@@ -1139,6 +1139,11 @@
       "change": "installed-distribution"
     },
     {
+      "path": "apps/cli/tests/workspace-verbs.test.ts",
+      "sha256": "0656e6cb80d2b8511cc32f0ba5509d15dc838113a49c03f1a192af176f711137",
+      "change": "installed-distribution"
+    },
+    {
       "path": "apps/distribution/LANGUAGE.md",
       "sha256": "ffd57fcd8480b0734ac5aa86df49f203d48e538b254924dc9d837c22a3d49ee1",
       "change": "installed-distribution"
@@ -1175,7 +1180,7 @@
     },
     {
       "path": "apps/distribution/src/program.ts",
-      "sha256": "14cc6427ea035846c50e5f5320c5efcb578cce50583df47df070970a88a8f431",
+      "sha256": "c1efbcf1ebd101f2b82215a89612f930e70fa5fd125cf00913c1b2d44d0aa705",
       "change": "installed-distribution"
     },
     {
@@ -1190,7 +1195,7 @@
     },
     {
       "path": "apps/distribution/src/updates.ts",
-      "sha256": "2164b4a4eefbedf944024efc99034cd49c07954fe474b2379170b6d6c3c120b4",
+      "sha256": "56e06f355ae88714149ac484490007fbb22a4b569bafc686306743cbec0a2f57",
       "change": "installed-distribution"
     },
     {
@@ -1290,7 +1295,7 @@
     },
     {
       "path": "apps/mcp-door/assets/vocabulary.json",
-      "sha256": "4941ed2b7e805b2202ae46584897dc33e2e631749e54e8ed7b9a6d99f5217a44",
+      "sha256": "552f159243d3758dc7afe17c7826160487cf755d7a428409dfadb3bad2ecdd5c",
       "change": "installed-distribution"
     },
     {
@@ -1381,12 +1386,12 @@
     },
     {
       "path": "apps/vscode/src/server.ts",
-      "sha256": "b4e8259e9a765396342e96f90fd97837c6129f531365f7b28e6de21762ea5367",
+      "sha256": "024392a841d98812615813ae4136240d21a4bace08e74e3ca1bd8921d0e0726f",
       "change": "installed-distribution"
     },
     {
       "path": "apps/vscode/tests/server.test.ts",
-      "sha256": "22d676e326e42aa10acaba1d3099782d07a7a285cd2b79e2ddd6ec7131a5ea27",
+      "sha256": "e56af7719571b572b4fabbf743220a0db1ed2518cdb7d19ea404044330ef48dd",
       "change": "installed-distribution"
     },
     {
@@ -1396,7 +1401,7 @@
     },
     {
       "path": "docs/reference/language/vocabulary.json",
-      "sha256": "4941ed2b7e805b2202ae46584897dc33e2e631749e54e8ed7b9a6d99f5217a44",
+      "sha256": "552f159243d3758dc7afe17c7826160487cf755d7a428409dfadb3bad2ecdd5c",
       "change": "portable-quality"
     },
     {
@@ -1541,7 +1546,7 @@
     },
     {
       "path": "packages/compliance/src/host-plugin.ts",
-      "sha256": "cd7f6ce288f135cd3bf644a0bc18431b776169934100eab891ac6fda223923e4",
+      "sha256": "f5284a233b9a8b4102f325ac1e6ad5ca59481447a0607453ffda65bc9fecdccd",
       "change": "governed-runtime"
     },
     {
@@ -1611,7 +1616,7 @@
     },
     {
       "path": "packages/runtime/SPEC.md",
-      "sha256": "0627e8604b8cb1b0539f3251b1c98a6e0ee9d962999519458614c42ba4bab8da",
+      "sha256": "4cdfdcedad86b15add9ef8928976a47f3c15f84b0f7df30ffd17983f58aab313",
       "change": "governed-runtime"
     },
     {
@@ -1701,7 +1706,7 @@
     },
     {
       "path": "tools/distribution/NPM-PUBLISHING.md",
-      "sha256": "e8575366e4c2012fee1085459554a9d82bfb74d3612f7ee03c447b72857ba839",
+      "sha256": "21fdfe4afd151b36c879afdf1df5a1f914ab4b57ec3c5dea16524bbf7a315a92",
       "change": "release-hygiene"
     },
     {
@@ -1741,17 +1746,17 @@
     },
     {
       "path": "tools/distribution/npm-release.d.mts",
-      "sha256": "30afce4173b934ce788cc06dc96f460d73d8211af9aaaaf8b7b9fa5aa4fcd34f",
+      "sha256": "0ec8011a31953ba2c031b309dce1907eb8a807d20436d73d943b320058e4d5b3",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "30238cd90351a3e74f70ac1c8d838e332cd814eec92d496aa089a1e98b648890",
+      "sha256": "f0719c47baee54edd2e6c91716467179194579984525f64b377efd84dd8436ed",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "79663c27ee563d05816360f2372b838d235cd58f8ff80b33e337290994676664",
+      "sha256": "b1c8943047c8af0ad9d7c98932e23b46aa8371532166d28396985d7886987e7e",
       "change": "release-hygiene"
     },
     {
@@ -1771,7 +1776,12 @@
     },
     {
       "path": "tools/distribution/release-changes.mjs",
-      "sha256": "063cacf46680c5084ecab9eb3777f8a6ec8f5383c781d6c994826ba301d29eca",
+      "sha256": "606aa8fa4be4daef9b5f9fe140b62df2420db46e8d4729d8644f5886c34a1c2b",
+      "change": "release-hygiene"
+    },
+    {
+      "path": "tools/distribution/release-fixtures.ts",
+      "sha256": "dd49c77333e2d338d206b46ecf89beaa766da0c3ca3c2c3844686a2d2ac3c047",
       "change": "release-hygiene"
     },
     {
@@ -1781,12 +1791,12 @@
     },
     {
       "path": "tools/distribution/release-graph.mjs",
-      "sha256": "80d23df2ec84c291797e1c7c00b957ac03e62cf3bab2e20e6c363bd66df04709",
+      "sha256": "f897dde0f21662c83b227e64a5edb0b8c3a4626f8e3339f70dba3249a61d97e8",
       "change": "release-hygiene"
     },
     {
       "path": "tools/distribution/release-hygiene.test.ts",
-      "sha256": "8ce6f3878f3113af773cb3074d471badf18370d066f107f3e8c7a94e1079242b",
+      "sha256": "7807730aa8d1107ae5df2ca3b7a99ba31bdaad9967cf90e70555e7b05c6a889d",
       "change": "release-hygiene"
     },
     {
@@ -1801,7 +1811,7 @@
     },
     {
       "path": "tools/distribution/release-refusals.test.ts",
-      "sha256": "af14c24bd488cbe7350982a06b2c3c88495d0eab20cdf7ca953c23152c74a656",
+      "sha256": "d35c36a2065829d9351192c5f6dc6170bd9a8217ae555bacece6ccee28bb7422",
       "change": "release-hygiene"
     },
     {
@@ -1881,12 +1891,12 @@
     },
     {
       "path": "tools/native/public-vocabulary.ts",
-      "sha256": "719398022faff6847a9905f5de1f58cba015a66f3c99164c5ba293347dfd2d0b",
+      "sha256": "61f8d4b3c39bc7963492c66a0a8aac8060a260802315d879b5908c1f1b566a23",
       "change": "portable-quality"
     },
     {
       "path": "tools/projections/fixtures/compile-prose.mjs",
-      "sha256": "effe92a16a6772a88c00a7317f8aa3b257609f71f9bb5b649697eab540a3a6c9",
+      "sha256": "3c9528fadaade385fea9b7b680d4151aa578f311de629186493126fdbc9bd512",
       "change": "portable-quality"
     },
     {

@@ -48,7 +48,7 @@ export interface UserHostView {
 
 /**
  * §6.2 (amended): the digest is of the files rendered with a placeholder version, so it changes whenever the renderer's
- * output does, including when the recorded Node changes. `node` is the Node that runs the hook (#436).
+ * output does, including when the recorded Node changes. `node` is the Node that runs the hook.
  */
 export function buildClaudePlugin(input: {
   readonly cliVersion: string;
@@ -108,7 +108,7 @@ export function collectUserHost(
   // Host plugin distribution spec §3: refuse a home that looks like a workspace now, before apply attempts a write.
   located(null, homeSrcRemedy(home), () => assertIaHomeUsable(home));
   const channel = detectChannel(host.packageRoot);
-  // #436: on macOS and Linux the hook runs under the Node running this command, recorded by its own absolute path (a
+  // On macOS and Linux the hook runs under the Node running this command, recorded by its own absolute path (a
   // Homebrew keg's stable opt link), not a version manager's shim; the Windows rendering keeps `node` by name.
   const plugin = buildClaudePlugin({
     cliVersion: host.version,

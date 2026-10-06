@@ -1,22 +1,19 @@
-import { gzipSync } from 'node:zlib';
-import { execFileSync } from 'node:child_process';
 import {
   publicPackageInputs,
   refreshPublicPackageInputs,
   PUBLIC_INPUTS,
-  PUBLIC_SYSTEM_POLICY,
   COMPATIBILITY,
   verifyPublicCompatibility,
 } from '../release/public-pack.mjs';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'yaml';
 import { expect, it } from 'vitest';
 import {
   assertPublisherEnvironment,
   dependencyOrder,
+  publicationOrder,
   publicationPlan,
   publicPackages,
   REPOSITORY_URL,
@@ -26,8 +23,16 @@ import {
   verifyRelease,
   writeReleaseManifest,
 } from './npm-release.mjs';
+import {
+  checkout as root,
+  compatibilityFixture,
+  git,
+  inQualifiedCohort,
+  inRepository,
+  receipts,
+  sha,
+} from './release-fixtures.js';
 
-const root = resolve(import.meta.dirname, '../..');
 const checkoutVersion = JSON.parse(readFileSync(resolve(root, 'apps/cli/package.json'), 'utf8')).version;
 const archive = Buffer.from('qualified package bytes');
 const integrity = `sha512-${createHash('sha512').update(archive).digest('base64')}`;
@@ -49,109 +54,13 @@ const remote = (value = integrity) => ({
   versions: { '1.0.0': { dist: { integrity: value } } },
 });
 
-const sha = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
-function archiveBytes(manifest: any) {
-  const policy = JSON.parse(readFileSync(resolve(root, PUBLIC_SYSTEM_POLICY), 'utf8'));
-  const names = policy.owners.map((row: any) => '@inventarch/' + row.native.system).sort();
-  const pkg = structuredClone(manifest),
-    versions = new Map(publicPackages(root).map((p) => [p.manifest.name, p.manifest.version]));
-  pkg.dependencies = Object.fromEntries(
-    Object.entries(pkg.dependencies ?? {}).map(([name, value]) => [name, versions.get(name) ?? value]),
-  );
-  if (names.includes(pkg.name)) pkg.dependencies[names[(names.indexOf(pkg.name) + 1) % names.length]] = pkg.version;
-  const bytes = Buffer.from(JSON.stringify(pkg)),
-    header = Buffer.alloc(512);
-  header.write('package/package.json');
-  header.write('0000644\0', 100);
-  header.write('0000000\0', 108);
-  header.write('0000000\0', 116);
-  header.write(bytes.length.toString(8).padStart(11, '0') + '\0', 124);
-  header.write('00000000000\0', 136);
-  header.fill(32, 148, 156);
-  header[156] = 48;
-  header.write('ustar\0', 257);
-  header.write('00', 263);
-  const checksum = header.reduce((sum, byte) => sum + byte, 0);
-  header.write(checksum.toString(8).padStart(6, '0') + '\0 ', 148);
-  return gzipSync(Buffer.concat([header, bytes, Buffer.alloc((512 - (bytes.length % 512)) % 512), Buffer.alloc(1024)]));
-}
-function compatibilityFixture(directory: string) {
-  const source = publicPackageInputs(root);
-  const policy = JSON.parse(readFileSync(resolve(root, PUBLIC_SYSTEM_POLICY), 'utf8'));
-  const manifests = policy.packages.map((owner: string) =>
-    JSON.parse(readFileSync(resolve(root, owner, 'package.json'), 'utf8')),
-  );
-  const compatibility = {
-    format: 'ia.system-package-compatibility.v1',
-    sourceRevision: source.receipt.sourceRevision,
-    sourceManifestSha256: source.sha256,
-    baselineOverlay: source.receipt.baselineOverlay,
-    recipe: {
-      publicCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
-      publicDirty: false,
-      node: process.version,
-      pnpm: JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).packageManager.slice(5),
-      lockSha256: sha(readFileSync(resolve(root, 'pnpm-lock.yaml'))),
-      files: source.receipt.files.filter(
-        (row: { path: string }) => row.path.startsWith('tools/release/') || row.path === PUBLIC_SYSTEM_POLICY,
-      ),
-      extraction: source.receipt.provenance,
-    },
-    packages: manifests.map((manifest: { name: string; version: string }) => ({
-      package: { name: manifest.name, version: manifest.version },
-      archiveSha256: sha(
-        readFileSync(
-          resolve(directory, manifest.name.replace('@', '').replace('/', '-') + '-' + manifest.version + '.tgz'),
-        ),
-      ),
-      bindingSha256: 'a'.repeat(64),
-      native: {
-        ...policy.owners.find((row: any) => '@inventarch/' + row.native.system === manifest.name).native,
-        selection: { path: 'dist/native-selection.json', sha256: 'e'.repeat(64) },
-        archiveSha256: 'b'.repeat(64),
-        manifestSha256: 'c'.repeat(64),
-      },
-      codeDigest: 'd'.repeat(64),
-      protocols: { distribution: 1, binding: 2, language: ['1.0'] },
-    })),
-  };
-  writeFileSync(resolve(directory, COMPATIBILITY), JSON.stringify(compatibility));
-  return compatibility;
-}
-function archivesFixture(directory: string) {
-  return publicPackages(root).map(({ manifest }) => {
-    const filename = manifest.name.replace('@', '').replace('/', '-') + '-' + manifest.version + '.tgz';
-    const bytes = archiveBytes(manifest);
-    writeFileSync(resolve(directory, filename), bytes);
-    return { name: manifest.name, filename, sha256: sha(bytes) };
-  });
-}
-function inFixture(run: (directory: string) => void) {
-  const temporaryRoot = realpathSync(tmpdir());
-  const directory = realpathSync(mkdtempSync(resolve(temporaryRoot, 'ia-npm-release-test-')));
-  try {
-    archivesFixture(directory);
-    compatibilityFixture(directory);
-    run(directory);
-  } finally {
-    expect(dirname(directory)).toBe(temporaryRoot);
-    expect(directory.startsWith(resolve(temporaryRoot, 'ia-npm-release-test-'))).toBe(true);
-    rmSync(directory, { recursive: true, force: true });
-  }
-}
-
-it('refuses changed archive bytes and a manifest from another source commit', () => {
-  const temporaryRoot = realpathSync(tmpdir());
-  const directory = realpathSync(mkdtempSync(resolve(temporaryRoot, 'ia-npm-release-test-')));
-  try {
-    const packed = publicPackages(root).map(({ manifest }) => {
-      const filename = `${manifest.name.replace('@', '').replace('/', '-')}-${manifest.version}.tgz`;
-      const bytes = archiveBytes(manifest);
-      writeFileSync(resolve(directory, filename), bytes);
-      return { name: manifest.name, filename, sha256: sha(bytes) };
-    });
-    compatibilityFixture(directory);
+it('refuses changed archive bytes and a manifest from another source commit', () =>
+  inQualifiedCohort((directory, archives) => {
+    const packed = receipts(archives);
     const manifest = writeReleaseManifest(root, directory, packed);
+    expect(manifest.packages.map((entry) => entry.name)).toEqual(
+      publicationOrder(manifest.graph.groups, manifest.baselineVersions),
+    );
     expect(verifyRelease(root, directory, checkoutVersion)).toEqual(manifest);
     const first = resolve(directory, packed[0]!.filename);
     const original = readFileSync(first);
@@ -165,12 +74,7 @@ it('refuses changed archive bytes and a manifest from another source commit', ()
       JSON.stringify({ ...manifest, source: { ...manifest.source, commit: '0'.repeat(40) } }),
     );
     expect(() => verifyRelease(root, directory, checkoutVersion)).toThrow(/Archive source must match checkout/);
-  } finally {
-    expect(dirname(directory)).toBe(temporaryRoot);
-    expect(directory.startsWith(resolve(temporaryRoot, 'ia-npm-release-test-'))).toBe(true);
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
+  }));
 
 it('publishes dependencies before their consumers and refuses cycles', () => {
   const projects = [
@@ -190,19 +94,34 @@ it('publishes dependencies before their consumers and refuses cycles', () => {
   expect(() => dependencyOrder(cyclic)).toThrow(/cycle/);
 });
 
-it('publishes the new package names of a dependency cycle before the cycle moves any existing package', () =>
-  inFixture((directory) => {
-    const release = writeReleaseManifest(root, directory, archivesFixture(directory));
-    const cycle = release.graph.groups.find((group: { cyclic: boolean }) => group.cyclic)!.members as string[];
-    const order = release.packages
-      .map((entry: { name: string }) => entry.name)
-      .filter((name: string) => cycle.includes(name));
-    const fresh = cycle.filter((name) => release.baselineVersions[name] === null);
-    // A new name's first trusted publish is the step most likely to fail; it must fail before any existing member of the
-    // cycle moves its `latest` tag. A release without new names keeps the cycle's sorted order.
-    expect(order).toEqual([...fresh, ...cycle.filter((name) => !fresh.includes(name))]);
-    expect(release.graph.groups.find((group: { cyclic: boolean }) => group.cyclic)!.members).toEqual([...cycle].sort());
-  }));
+it('publishes every new package name before any existing package moves its latest tag', () => {
+  // Dependency groups as releaseGraph returns them: a cycle with a new name, between acyclic groups old and new.
+  const groups = [
+    { members: ['@inventarch/language'], cyclic: false },
+    { members: ['@inventarch/new-leaf'], cyclic: false },
+    { members: ['@inventarch/agent-system', '@inventarch/new-system', '@inventarch/session-system'], cyclic: true },
+    { members: ['@inventarch/cli'], cyclic: false },
+  ];
+  const baselines = {
+    '@inventarch/language': '1.0.0',
+    '@inventarch/new-leaf': null,
+    '@inventarch/agent-system': '1.0.0',
+    '@inventarch/new-system': null,
+    '@inventarch/session-system': '1.0.0',
+    '@inventarch/cli': '1.0.0',
+  };
+  expect(publicationOrder(groups, baselines)).toEqual([
+    '@inventarch/new-leaf',
+    '@inventarch/new-system',
+    '@inventarch/language',
+    '@inventarch/agent-system',
+    '@inventarch/session-system',
+    '@inventarch/cli',
+  ]);
+  // Without new names the order is the dependency order of the groups.
+  const existing = Object.fromEntries(Object.keys(baselines).map((name) => [name, '1.0.0']));
+  expect(publicationOrder(groups, existing)).toEqual(groups.flatMap((group) => group.members));
+});
 
 it('allows a missing version only in an existing package configured for first-publish setup', () => {
   expect(publicationPlan(release(), { '@inventarch/language': { versions: {} } })[0]!.action).toBe('publish');
@@ -313,8 +232,8 @@ it('keeps npm OIDC out of the build job and publishes only the same-run qualifie
 });
 
 it('refuses a missing or changed system compatibility companion', () =>
-  inFixture((directory) => {
-    const release = writeReleaseManifest(root, directory, archivesFixture(directory));
+  inQualifiedCohort((directory, archives) => {
+    const release = writeReleaseManifest(root, directory, receipts(archives));
     const path = resolve(directory, COMPATIBILITY),
       before = readFileSync(path);
     writeFileSync(path, Buffer.concat([before, Buffer.from(' ')]));
@@ -325,7 +244,7 @@ it('refuses a missing or changed system compatibility companion', () =>
     expect(() => verifyRelease(root, directory, checkoutVersion)).toThrow();
   }));
 it('refuses stale native versions, npm identities and protocol formats before qualification', () =>
-  inFixture((directory) => {
+  inQualifiedCohort((directory, archives) => {
     for (const mutate of [
       (row: any) => {
         row.packages[0].native.version = '99.0.0';
@@ -343,11 +262,11 @@ it('refuses stale native versions, npm identities and protocol formats before qu
       const compatibility = compatibilityFixture(directory);
       mutate(compatibility);
       writeFileSync(resolve(directory, COMPATIBILITY), JSON.stringify(compatibility));
-      expect(() => writeReleaseManifest(root, directory, archivesFixture(directory))).toThrow(/System compatibility/);
+      expect(() => writeReleaseManifest(root, directory, receipts(archives))).toThrow(/System compatibility/);
     }
   }));
 it('refuses changed source recipes and input provenance before qualification', () =>
-  inFixture((directory) => {
+  inQualifiedCohort((directory, archives) => {
     for (const mutate of [
       (row: any) => {
         row.sourceRevision = '0'.repeat(40);
@@ -368,15 +287,14 @@ it('refuses changed source recipes and input provenance before qualification', (
       const compatibility = compatibilityFixture(directory);
       mutate(compatibility);
       writeFileSync(resolve(directory, COMPATIBILITY), JSON.stringify(compatibility));
-      expect(() => writeReleaseManifest(root, directory, archivesFixture(directory))).toThrow(/System compatibility/);
+      expect(() => writeReleaseManifest(root, directory, receipts(archives))).toThrow(/System compatibility/);
     }
   }));
 
 it('refuses non-system archive mutation after qualification and before release receipt creation', () =>
-  inFixture((directory) => {
-    const packed = archivesFixture(directory);
-    const compatibility = compatibilityFixture(directory);
-    const systemNames = new Set(compatibility.packages.map((row: { package: { name: string } }) => row.package.name));
+  inQualifiedCohort((directory, archives) => {
+    const packed = receipts(archives);
+    const systemNames = new Set(compatibilityFixture(directory).packages.map((row) => row.package.name));
     const entry = packed.find((row) => !systemNames.has(row.name));
     expect(entry).toBeDefined();
     const path = resolve(directory, entry!.filename),
@@ -399,17 +317,14 @@ it('refuses non-system archive mutation after qualification and before release r
     expect(verifyRelease(root, directory, checkoutVersion)).toEqual(release);
   }));
 
-it('refreshes the pinned private VS Code extension without accepting identity changes', () => {
-  const directory = realpathSync(mkdtempSync(resolve(tmpdir(), 'ia-extension-input-refresh-')));
-  const put = (path: string, value: unknown) => {
-    mkdirSync(dirname(resolve(directory, path)), { recursive: true });
-    writeFileSync(resolve(directory, path), JSON.stringify(value));
-  };
-  const git = (...args: string[]) =>
-    execFileSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd: directory, windowsHide: true, stdio: 'pipe' });
-  const extension = { name: 'inventarch-ia', publisher: 'inventarch', private: true, version: '1.1.0' };
-  const path = 'apps/vscode/package.json';
-  try {
+it('refreshes the pinned private VS Code extension without accepting identity changes', () =>
+  inRepository(async (directory) => {
+    const put = (path: string, value: unknown) => {
+      mkdirSync(dirname(resolve(directory, path)), { recursive: true });
+      writeFileSync(resolve(directory, path), JSON.stringify(value));
+    };
+    const extension = { name: 'inventarch-ia', publisher: 'inventarch', private: true, version: '1.1.0' };
+    const path = 'apps/vscode/package.json';
     put('package.json', { name: '@inventarch/workspace' });
     put(path, extension);
     const files = ['package.json', path].map((path) => ({ path, sha256: sha(readFileSync(resolve(directory, path))) }));
@@ -422,22 +337,8 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
       files,
     };
     put(PUBLIC_INPUTS, original);
-    git('init', '--quiet');
-    git('add', '.');
-    git(
-      '-c',
-      'user.name=Fixture',
-      '-c',
-      'user.email=fixture@example.invalid',
-      '-c',
-      'core.hooksPath=/dev/null',
-      '-c',
-      'commit.gpgsign=false',
-      'commit',
-      '--quiet',
-      '-m',
-      'Pinned extension fixture',
-    );
+    await git(directory, 'add', '.');
+    await git(directory, 'commit', '--quiet', '-m', 'Pinned extension fixture');
     put(path, { ...extension, version: '1.2.0' });
     const refreshed = refreshPublicPackageInputs(directory);
     expect(refreshed.receipt.provenance).toEqual(original.provenance);
@@ -454,7 +355,4 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
       expect(() => refreshPublicPackageInputs(directory)).toThrow(/public package identity/i);
       expect(readFileSync(resolve(directory, PUBLIC_INPUTS))).toEqual(refreshed.bytes);
     }
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
+  }));
