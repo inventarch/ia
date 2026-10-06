@@ -51,7 +51,7 @@ export function validateGraphSchema(record: Node, graph: Graph): Assessment {
         author.edges.some(
           (edge) =>
             edge.predicate === rule.predicate &&
-            (edge.direction === 'out'
+            (edge.direction === rule.direction
               ? author.identity === record.identity
               : resolveTarget(edge.reference, graph.registry, [record]).kind === 'resolved') &&
             graph.diagnostics.some(
@@ -71,13 +71,23 @@ export function validateGraphSchema(record: Node, graph: Graph): Assessment {
     }
     const targets = new Set<string>();
     let uncertain = false;
-    for (const edge of graph.out.get(record.identity)?.get(rule.predicate) ?? []) {
-      const target = edge.to === null ? undefined : graph.nodes.get(edge.to);
+    // An `out` rule reads the record's active edges and their `to` endpoint; an `in` rule the edges whose active target
+    // is the record and their `from` endpoint. A fragment counts only when it sits on that endpoint.
+    const [adjacent, endpoint] = rule.direction === 'out' ? [graph.out, 'to' as const] : [graph.in, 'from' as const];
+    for (const edge of adjacent.get(record.identity)?.get(rule.predicate) ?? []) {
+      const other = edge[endpoint];
+      const target = other === null ? undefined : graph.nodes.get(other);
       if (target !== undefined) {
         if (!matchesTarget(target, rule)) continue;
         if (edge.condition !== undefined) uncertain = true;
-        else targets.add(`${target.identity}#${edge.fragmentEndpoint === 'to' ? (edge.fragment ?? '') : ''}`);
-      } else if (couldMatch({ ...edge, direction: 'out', target: null, span: edge.source }, rule, graph.registry))
+        else targets.add(`${target.identity}#${edge.fragmentEndpoint === endpoint ? (edge.fragment ?? '') : ''}`);
+      } else if (
+        couldMatch(
+          { ...edge, direction: rule.direction, spelling: edge.predicate, target: null, span: edge.source },
+          rule,
+          graph.registry,
+        )
+      )
         uncertain = true;
     }
     const minimum = rule.must && rule.cardinality !== 'optional' ? 1 : 0,
@@ -86,13 +96,13 @@ export function validateGraphSchema(record: Node, graph: Graph): Assessment {
       add(
         'IA-COMP-EDGE-CARDINALITY',
         record.source,
-        `${rule.predicate} ${rule.target} requires ${rule.must ? 'must' : 'may'} ${rule.cardinality}; found ${targets.size} definite targets`,
+        `${rule.spelling} ${rule.target} requires ${rule.must ? 'must' : 'may'} ${rule.cardinality}; found ${targets.size} definite targets`,
       );
     else if (uncertain && (targets.size < minimum || maximum !== Infinity))
       add(
         'IA-COMP-EDGE-UNRESOLVED',
         record.source,
-        `${rule.predicate} ${rule.target} ${rule.cardinality} cannot be decided with unresolved targets or conditions`,
+        `${rule.spelling} ${rule.target} ${rule.cardinality} cannot be decided with unresolved targets or conditions`,
         true,
       );
   }

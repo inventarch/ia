@@ -40,6 +40,7 @@ describe('relationship lowering', () => {
         {
           predicate,
           direction,
+          spelling: phrase,
           reference: { kind: 'ref', discriminator: 'tool', name: 'Target' },
           target: target.identity,
           span: { line: 4, endLine: 4 },
@@ -70,6 +71,7 @@ describe('relationship lowering', () => {
     expect(read(`${phrase} ${target.identity}`).edges[0]).toMatchObject({
       predicate,
       direction: 'out',
+      spelling: phrase,
       target: target.identity,
       reference: { kind: 'identity', identity: target.identity },
     });

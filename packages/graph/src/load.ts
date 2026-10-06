@@ -236,7 +236,13 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
             }),
         ...(assertion.condition === undefined ? {} : { condition: assertion.condition }),
         assertions: [
-          { author: author.identity, direction: assertion.direction, reference: assertion.reference, source },
+          {
+            author: author.identity,
+            direction: assertion.direction,
+            spelling: assertion.spelling,
+            reference: assertion.reference,
+            source,
+          },
         ],
       };
       const key = stableSerialize([

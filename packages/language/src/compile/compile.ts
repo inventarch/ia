@@ -392,6 +392,7 @@ function groundEdges(record: RecordNode, identity: Identity, ctx: Context): Comp
     edges.push({
       predicate: 'ground',
       direction: 'out',
+      spelling: 'ground',
       reference: { kind: 'ref', discriminator: 'schema', name: entry.schema },
       target: renderIdentity(FLOOR_SYSTEM, 'contract', 'head', entry.schema),
       span: entry.span,

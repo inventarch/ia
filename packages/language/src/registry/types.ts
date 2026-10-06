@@ -110,6 +110,13 @@ export interface SchemaField {
 
 export interface SchemaEdge {
   readonly predicate: Predicate;
+  /**
+   * The rule's direction relative to the record: `out` counts the record's active edges with the predicate (the active
+   * and present spellings), `in` the edges whose active target is the record (the inverse spelling).
+   */
+  readonly direction: 'out' | 'in';
+  /** The verb as authored: the active predicate, its inverse or the present phrase. */
+  readonly spelling: string;
   /** A closed kind or a discriminator; which one is decided when the edge is checked, not here. */
   readonly target: string;
   readonly must: boolean;

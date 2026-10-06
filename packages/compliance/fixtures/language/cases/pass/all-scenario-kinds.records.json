@@ -466,6 +466,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -480,6 +481,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -494,6 +496,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -508,6 +511,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -906,6 +910,7 @@
       {
         "predicate": "implement",
         "direction": "out",
+        "spelling": "implements",
         "reference": {
           "kind": "ref",
           "discriminator": "contract",
@@ -1038,6 +1043,7 @@
       {
         "predicate": "implement",
         "direction": "out",
+        "spelling": "implements",
         "reference": {
           "kind": "ref",
           "discriminator": "contract",
@@ -1170,6 +1176,7 @@
       {
         "predicate": "implement",
         "direction": "out",
+        "spelling": "implements",
         "reference": {
           "kind": "ref",
           "discriminator": "contract",
@@ -1302,6 +1309,7 @@
       {
         "predicate": "implement",
         "direction": "out",
+        "spelling": "implements",
         "reference": {
           "kind": "ref",
           "discriminator": "contract",
@@ -1434,6 +1442,7 @@
       {
         "predicate": "implement",
         "direction": "out",
+        "spelling": "implements",
         "reference": {
           "kind": "ref",
           "discriminator": "contract",
@@ -1521,6 +1530,7 @@
       {
         "predicate": "govern",
         "direction": "out",
+        "spelling": "governs",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",

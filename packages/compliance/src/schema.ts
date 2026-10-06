@@ -65,10 +65,14 @@ export function validateSchema(
     for (const rule of schema.edges) {
       const targets = new Set<string>();
       let uncertain = false;
+      // A rule names the relation from the record's side: `out` counts the record's active edges, `in` the edges whose
+      // active target is the record. The record's own assertion in the rule's direction supplies the other endpoint as
+      // its resolved target; another record's assertion in the opposite direction states the same relation from the
+      // other end, so its author is the endpoint when that edge refers back to this record.
       for (const author of all)
         for (const edge of author.edges) {
           if (edge.predicate !== rule.predicate) continue;
-          if (sameOccurrence(author, record) && edge.direction === 'out') {
+          if (sameOccurrence(author, record) && edge.direction === rule.direction) {
             const resolved = edge.target === null ? [] : all.filter((r) => r.identity === edge.target);
             if (resolved.length === 1) {
               const target = resolved[0]!;
@@ -76,8 +80,7 @@ export function validateSchema(
               if (edge.condition !== undefined) uncertain = true;
               else targets.add(`${target.identity}#${edge.fragment ?? ''}`);
             } else if (couldMatch(edge, rule, registry)) uncertain = true;
-          } else if (edge.direction === 'in' && matchesTarget(author, rule)) {
-            // Inbound assertion on another record: subject -> author in active direction.
+          } else if (edge.direction !== rule.direction && matchesTarget(author, rule)) {
             const refersHere =
               edge.target === record.identity ||
               (edge.target === null && resolveTarget(edge.reference, registry, [record]).kind === 'resolved');
@@ -92,13 +95,13 @@ export function validateSchema(
         add(
           'IA-COMP-EDGE-CARDINALITY',
           record.source,
-          `${rule.predicate} ${rule.target} requires ${rule.must ? 'must' : 'may'} ${rule.cardinality}; found ${targets.size} definite targets`,
+          `${rule.spelling} ${rule.target} requires ${rule.must ? 'must' : 'may'} ${rule.cardinality}; found ${targets.size} definite targets`,
         );
       } else if (uncertain && (targets.size < minimum || maximum !== Infinity)) {
         add(
           'IA-COMP-EDGE-UNRESOLVED',
           record.source,
-          `${rule.predicate} ${rule.target} ${rule.cardinality} cannot be decided with unresolved targets or conditions`,
+          `${rule.spelling} ${rule.target} ${rule.cardinality} cannot be decided with unresolved targets or conditions`,
           true,
         );
       }

@@ -14,6 +14,7 @@ const { registry } = buildRegistry([{ ...vocabulary, location }]);
 const binding: CompiledEdge = {
   predicate: 'govern',
   direction: 'out',
+  spelling: 'govern',
   reference: { kind: 'ref', discriminator: 'playbook', name: 'method' },
   target: null,
   span: { line: 2, endLine: 2 },

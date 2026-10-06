@@ -466,6 +466,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -480,6 +481,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -494,6 +496,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -508,6 +511,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -1463,6 +1467,7 @@
       {
         "predicate": "govern",
         "direction": "out",
+        "spelling": "govern",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1477,6 +1482,7 @@
       {
         "predicate": "govern",
         "direction": "in",
+        "spelling": "governed-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1490,6 +1496,7 @@
       {
         "predicate": "enforce",
         "direction": "out",
+        "spelling": "enforce",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1504,6 +1511,7 @@
       {
         "predicate": "enforce",
         "direction": "in",
+        "spelling": "enforced-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1517,6 +1525,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1531,6 +1540,7 @@
       {
         "predicate": "ground",
         "direction": "in",
+        "spelling": "grounded-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1544,6 +1554,7 @@
       {
         "predicate": "constrain",
         "direction": "out",
+        "spelling": "constrain",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1558,6 +1569,7 @@
       {
         "predicate": "constrain",
         "direction": "in",
+        "spelling": "constrained-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1571,6 +1583,7 @@
       {
         "predicate": "implement",
         "direction": "out",
+        "spelling": "implement",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1585,6 +1598,7 @@
       {
         "predicate": "implement",
         "direction": "in",
+        "spelling": "implemented-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1598,6 +1612,7 @@
       {
         "predicate": "produce",
         "direction": "out",
+        "spelling": "produce",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1612,6 +1627,7 @@
       {
         "predicate": "produce",
         "direction": "in",
+        "spelling": "produced-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1625,6 +1641,7 @@
       {
         "predicate": "consume",
         "direction": "out",
+        "spelling": "consume",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1639,6 +1656,7 @@
       {
         "predicate": "consume",
         "direction": "in",
+        "spelling": "consumed-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1652,6 +1670,7 @@
       {
         "predicate": "record-lineage-from",
         "direction": "out",
+        "spelling": "record-lineage-from",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1666,6 +1685,7 @@
       {
         "predicate": "record-lineage-from",
         "direction": "in",
+        "spelling": "lineage-recorded-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1679,6 +1699,7 @@
       {
         "predicate": "grant-access-to",
         "direction": "out",
+        "spelling": "grant-access-to",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1693,6 +1714,7 @@
       {
         "predicate": "grant-access-to",
         "direction": "in",
+        "spelling": "access-granted-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1706,6 +1728,7 @@
       {
         "predicate": "run-before",
         "direction": "out",
+        "spelling": "run-before",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1720,6 +1743,7 @@
       {
         "predicate": "run-before",
         "direction": "in",
+        "spelling": "run-after",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1733,6 +1757,7 @@
       {
         "predicate": "trigger",
         "direction": "out",
+        "spelling": "trigger",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1747,6 +1772,7 @@
       {
         "predicate": "trigger",
         "direction": "in",
+        "spelling": "triggered-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1760,6 +1786,7 @@
       {
         "predicate": "cite",
         "direction": "out",
+        "spelling": "cite",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1774,6 +1801,7 @@
       {
         "predicate": "cite",
         "direction": "in",
+        "spelling": "cited-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1787,6 +1815,7 @@
       {
         "predicate": "supersede",
         "direction": "out",
+        "spelling": "supersede",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1801,6 +1830,7 @@
       {
         "predicate": "supersede",
         "direction": "in",
+        "spelling": "superseded-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1814,6 +1844,7 @@
       {
         "predicate": "require",
         "direction": "out",
+        "spelling": "require",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1828,6 +1859,7 @@
       {
         "predicate": "require",
         "direction": "in",
+        "spelling": "required-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1841,6 +1873,7 @@
       {
         "predicate": "use",
         "direction": "out",
+        "spelling": "use",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1855,6 +1888,7 @@
       {
         "predicate": "use",
         "direction": "in",
+        "spelling": "used-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1868,6 +1902,7 @@
       {
         "predicate": "forbid",
         "direction": "out",
+        "spelling": "forbid",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1882,6 +1917,7 @@
       {
         "predicate": "forbid",
         "direction": "in",
+        "spelling": "forbidden-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1895,6 +1931,7 @@
       {
         "predicate": "route",
         "direction": "out",
+        "spelling": "route",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1909,6 +1946,7 @@
       {
         "predicate": "route",
         "direction": "in",
+        "spelling": "routed-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1922,6 +1960,7 @@
       {
         "predicate": "land",
         "direction": "out",
+        "spelling": "land",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1936,6 +1975,7 @@
       {
         "predicate": "land",
         "direction": "in",
+        "spelling": "landed-by",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1949,6 +1989,7 @@
       {
         "predicate": "govern",
         "direction": "out",
+        "spelling": "governs",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1963,6 +2004,7 @@
       {
         "predicate": "enforce",
         "direction": "out",
+        "spelling": "enforces",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -1976,6 +2018,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "grounds",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -1990,6 +2033,7 @@
       {
         "predicate": "constrain",
         "direction": "out",
+        "spelling": "constrains",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -2003,6 +2047,7 @@
       {
         "predicate": "implement",
         "direction": "out",
+        "spelling": "implements",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -2017,6 +2062,7 @@
       {
         "predicate": "produce",
         "direction": "out",
+        "spelling": "produces",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -2030,6 +2076,7 @@
       {
         "predicate": "consume",
         "direction": "out",
+        "spelling": "consumes",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -2044,6 +2091,7 @@
       {
         "predicate": "record-lineage-from",
         "direction": "out",
+        "spelling": "records lineage from",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -2057,6 +2105,7 @@
       {
         "predicate": "grant-access-to",
         "direction": "out",
+        "spelling": "grants access to",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -2071,6 +2120,7 @@
       {
         "predicate": "run-before",
         "direction": "out",
+        "spelling": "runs before",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -2084,6 +2134,7 @@
       {
         "predicate": "trigger",
         "direction": "out",
+        "spelling": "triggers",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -2098,6 +2149,7 @@
       {
         "predicate": "cite",
         "direction": "out",
+        "spelling": "cites",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -2111,6 +2163,7 @@
       {
         "predicate": "supersede",
         "direction": "out",
+        "spelling": "supersedes",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -2125,6 +2178,7 @@
       {
         "predicate": "require",
         "direction": "out",
+        "spelling": "requires",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -2138,6 +2192,7 @@
       {
         "predicate": "use",
         "direction": "out",
+        "spelling": "uses",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -2152,6 +2207,7 @@
       {
         "predicate": "forbid",
         "direction": "out",
+        "spelling": "forbids",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -2165,6 +2221,7 @@
       {
         "predicate": "route",
         "direction": "out",
+        "spelling": "routes to",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
@@ -2179,6 +2236,7 @@
       {
         "predicate": "land",
         "direction": "out",
+        "spelling": "lands at",
         "reference": {
           "kind": "identity",
           "identity": "fixture-system/governance/head/target"
@@ -2192,6 +2250,7 @@
       {
         "predicate": "cite",
         "direction": "out",
+        "spelling": "cites",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",
