@@ -1,0 +1,139 @@
+Position  workspace-system/definition/workspace/foundation-workspace    revision <revision>…
+  Seat    workspace
+  Key     K0: seat workspace (default), shape context (default), phase orient
+  (derived), primitive Attention (derived), depth 0 (default), budget 0
+  (default), word none (default)
+  Digest  <digest>…
+
+Loaded  1, 49 cut by the budget
+  •  workspace-system/definition/workspace/foundation-workspace  workspace
+     hop 0
+
+Pointers  48 of 67
+  •  agent-composition-system/definition/capability/agent-system-stewardship
+     capability  hop 0  via capture .ia/src
+  •  agent-composition-system/definition/capability/governance-system-stewardship
+     capability  hop 0  via capture .ia/src
+  •  agent-composition-system/definition/voice/steward-voice  voice  hop 0  via
+     capture .ia/src
+  •  compliance-system/definition/scenario/foreign-vocabulary  case  hop 0  via
+     capture .ia/src
+  •  compliance-system/definition/scenario/missing-required-field  case  hop 0
+     via capture .ia/src
+  •  compliance-system/definition/scenario/valid-native-record  case  hop 0  via
+     capture .ia/src
+  •  floor/definition/system/agent-composition-system  system  hop 0  via
+     capture .ia/src
+  •  floor/definition/system/agent-system  system  hop 0  via field
+     composition.systems
+  •  floor/definition/system/authoring-system  system  hop 0  via capture
+     .ia/src
+  •  floor/definition/system/compliance-system  system  hop 0  via field
+     composition.systems
+  •  floor/definition/system/governance-system  system  hop 0  via field
+     composition.systems
+  •  floor/definition/system/hook-authoring-system  system  hop 0  via capture
+     .ia/src
+  •  floor/definition/system/learning-system  system  hop 0  via capture .ia/src
+  •  floor/definition/system/session-system  system  hop 0  via field
+     composition.systems
+  •  floor/definition/system/template-system  system  hop 0  via capture .ia/src
+  •  floor/definition/system/work-system  system  hop 0  via capture .ia/src
+  •  floor/definition/system/workspace-system  system  hop 0  via field
+     composition.systems
+  •  governance-system/definition/procedure/sample-procedure  playbook  hop 0
+     via capture .ia/src
+  •  session-system/definition/run/sample-session  run  hop 0  via capture
+     .ia/src
+  •  workspace-system/definition/distribution/foundation-distribution
+     distribution  hop 0  via field distribution.records
+  •  compliance-system/contract/signature/foundation-authoring-contract
+     contract  hop 0  via capture .ia/src
+  •  floor/contract/head/agent  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/agent-profile  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/authoring-guide  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/capability  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/case  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/check  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/contract  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/convention  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/decision  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/distribution  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/execution-binding  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/harness  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/hook  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/improvement  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/law  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/mandate  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/milestone  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/observation  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/operation  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/plan  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/playbook  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/principle  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/run  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/spec  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/task  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/template  schema  hop 0  via capture .ia/src
+  •  floor/contract/head/voice  schema  hop 0  via capture .ia/src
+
+Tallies  19 pointers past the limit
+  •  11  agent  in agent-system
+     ia read agent-system/binding/agent/agent-steward
+  •  1  agent-profile  in agent-composition-system
+     ia read agent-system/binding/agent/agent-composition-steward
+  •  1  check  in compliance-system
+     ia read agent-system/binding/agent/compliance-steward
+  •  1  convention  in governance-system
+     ia read agent-system/binding/agent/governance-steward
+  •  1  law  in governance-system
+     ia read agent-system/binding/agent/governance-steward
+  •  2  mandate  in agent-system
+     ia read agent-system/binding/agent/agent-steward
+  •  1  principle  in governance-system
+     ia read agent-system/binding/agent/governance-steward
+  •  1  schema  in floor
+
+Systems  5
+  •  agent-system  agent, mandate
+     ia read agent-system/binding/agent/agent-steward
+  •  compliance-system  contract, check, case
+     ia read agent-system/binding/agent/compliance-steward
+  •  governance-system  law, principle, convention, playbook
+     ia read agent-system/binding/agent/governance-steward
+  •  session-system  run  ia read agent-system/binding/agent/session-steward
+  •  workspace-system  workspace, distribution
+     ia read agent-system/binding/agent/workspace-steward
+
+Captured  68
+  •  agent 11, agent-profile 1, capability 2, case 3, check 1, contract 1,
+     convention 1, distribution 1, law 1, mandate 2, playbook 1, principle 1,
+     run 1, schema 28, system 11, voice 1, workspace 1
+
+Applies by word  1 of 1
+  •  governance-system/governance/principle/sample-principle  principle  by
+     subject-kind definition
+
+Cells  1 of 1
+  •  governance-system/definition/procedure/sample-procedure#orient/Attention
+     exact
+     Sample fixture statement 4.
+
+Rules  0 of 1, 1 cut by the budget
+
+Widen
+  →  ia position --shape context --phase orient --depth 1 --budget 0  one hop
+     deeper
+  →  ia position --seat <identity> --shape context --phase orient --depth 1 --budget 16
+     re-seated at any line above
+
+Host note
+  Revision   <revision>…
+  Captured   absent
+  Staleness  nothing captured to compare
+  Installed  <installed>…
+  CLI        ia@9.9.9
+  Adapter    none
+
+Run "ia read <identity>" for one line's text, or "ia position --json" for the
+body as data.

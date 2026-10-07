@@ -4,6 +4,7 @@
  * One row per verb, carrying its help text and its whole argument grammar. §1.2's order is a property of this
  * table and of the dispatcher that reads it; nothing else in the binary enumerates a verb or a flag name.
  */
+import { COORDINATE_DOMAINS, SCOPE_KEY_CAPS, SCOPE_KEY_DEFAULTS } from '@inventarch/runtime';
 import type { Grammar, OptionSpec, PositionalSpec } from './args.js';
 import { none, positionals } from './args.js';
 
@@ -48,7 +49,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all fifteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Applies to all sixteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -222,6 +223,55 @@ export const COMMANDS: readonly CommandSpec[] = [
     summary: 'Print the body behind a locator: a record, a cell, a requirement or a source line',
     syntax: ['ia read <identity>[#<phase>/<Primitive>|#<REQ-ID>] [--json]', 'ia read <path>:<line> [--json]'],
     grammar: grammar([], positionals('locator', 1, 1)),
+  },
+  {
+    // The consumer command over a scope key; `ia position --params` is the machine operation of the same name. Every
+    // value is handed to the runtime as the key part it names, so a value outside a part's domain is the runtime's own
+    // refusal (position.ts), not a usage error of this grammar.
+    name: 'position',
+    group: 'workspace',
+    summary: 'Show the position for a scope key: its body, digest and host note',
+    syntax: [
+      'ia position [--seat <id|path>] [--shape <shape>] [--phase <phase>] [--depth 0-2] [--budget 0-64] [--word <word>] [--json]',
+    ],
+    grammar: grammar([
+      option({
+        name: 'seat',
+        kind: 'value',
+        placeholder: '<id|path>',
+        summary: 'Record identity or workspace-relative path (default: the workspace seat)',
+      }),
+      option({
+        name: 'shape',
+        kind: 'value',
+        placeholder: '<shape>',
+        summary: `${COORDINATE_DOMAINS.shape.join(', ')} (default context)`,
+      }),
+      option({
+        name: 'phase',
+        kind: 'value',
+        placeholder: '<phase>',
+        summary: `${COORDINATE_DOMAINS.phase.join(', ')} (default: the anchor phase of the shape's primitive)`,
+      }),
+      option({
+        name: 'depth',
+        kind: 'value',
+        placeholder: `0-${SCOPE_KEY_CAPS.depth}`,
+        summary: `Hops from the seeds (default ${SCOPE_KEY_DEFAULTS.depth}; 0 when no key option is given)`,
+      }),
+      option({
+        name: 'budget',
+        kind: 'value',
+        placeholder: `0-${SCOPE_KEY_CAPS.budget}`,
+        summary: `Records loaded beyond the seat (default ${SCOPE_KEY_DEFAULTS.budget}; 0 when no key option is given)`,
+      }),
+      option({
+        name: 'word',
+        kind: 'value',
+        placeholder: '<word>',
+        summary: 'Restrict the seeds and tallies to one word, such as law',
+      }),
+    ]),
   },
   {
     name: 'vocabulary',

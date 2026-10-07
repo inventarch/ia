@@ -15,6 +15,12 @@ export const codeOf = (error: unknown, fallback: string): string =>
     ? error.code
     : fallback;
 
+/** The service message without the `CODE: ` prefix its error class adds; a refusal carries the code itself. */
+export const messageOf = (error: unknown, code: string): string => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.startsWith(`${code}: `) ? message.slice(code.length + 2) : message;
+};
+
 /** §2.5: IA-DB-SOURCE-UNAVAILABLE here means an interrupted installation blocks the read, not a bad path. */
 export function openSession(root: string): Session {
   try {

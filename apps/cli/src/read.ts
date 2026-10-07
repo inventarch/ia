@@ -10,14 +10,8 @@ import type { Body, Locator } from '@inventarch/runtime';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import { quote } from './render.js';
-import { codeOf, openSession } from './session.js';
+import { codeOf, messageOf, openSession } from './session.js';
 import type { Session } from './session.js';
-
-/** The service message without the `CODE: ` prefix its error class adds; the refusal carries the code itself. */
-const messageOf = (error: unknown, code: string): string => {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.startsWith(`${code}: `) ? message.slice(code.length + 2) : message;
-};
 
 function locatorOf(text: string): Locator {
   try {

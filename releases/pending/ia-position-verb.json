@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "ia position shows the position for a scope key",
+  "summary": "New ia position [--seat <id|path>] [--shape <shape>] [--phase <phase>] [--depth 0-2] [--budget 0-64] [--word <word>] shows the position for a scope key: the seat, the key with how each part was supplied (declared, default or derived; K0 when its value is K0), the body digest, the body (loaded records, listed pointers and the tallies past the pointer limit, frontier, composed systems, captured words, applies by word, cells, rules, mandates, unknowns) with its two widening keys as ia position commands, and the host note apart from the body. It reads through a scope of the whole workspace, so a key gives the same body and digest as the position machine operation with no within. --json prints {version, body, digest, hostNote}. A key outside a part's domain or caps is refused with the runtime's code (IA-RUNTIME-REQUEST-INVALID or IA-GRAPH-COORDINATE-VALUE-UNKNOWN) at exit 2 before the workspace is read, and a seat path that leaves the workspace with IA-DB-PATH-UNSAFE at exit 1; each refusal names the next command. ia position --params and --schema stay the machine operation, ia scope is unchanged, and the help of ia position and ia read names their machine form.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "README.md",
+    "apps/cli/"
+  ]
+}

@@ -12,6 +12,7 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db';
 import { resolveIaHome } from '@inventarch/distribution/ia-home';
+import type { ProtocolOperation } from '@inventarch/runtime';
 import type { Arguments, Grammar } from './args.js';
 import { parseArguments, UsageError } from './args.js';
 import type { CommandSpec, Group } from './commands.js';
@@ -35,6 +36,7 @@ import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
 import { describeOperation, renderOperationHelp, SCHEMA_TOKEN } from './operation-help.js';
 import { runPack } from './pack.js';
+import { runPosition } from './position.js';
 import { runRead } from './read.js';
 import { runValidate } from './validate.js';
 import { runVocabulary } from './vocabulary.js';
@@ -313,6 +315,29 @@ export function renderHelp(host: Host, caps: Capabilities, namespaces: readonly 
   ]);
 }
 
+/**
+ * A command that shares its name with an operation a later protocol version added also names that machine form,
+ * which `--params` or `--schema` selects, and where its own help is; the operation's row is the source.
+ */
+const machineForm = (command: CommandSpec, caps: Capabilities): readonly string[] => {
+  const operation = SINCE_2_OPERATIONS.includes(command.name) ? describeOperation(command.name) : undefined;
+  if (operation?.since === undefined) return [];
+  return [
+    sectionLabel(`Machine operation (protocol v${operation.since})`, caps),
+    ...entry([[atom(`ia ${command.name} --params <JSON|-> [--root <workspace>]`, null, 0)]], { depth: 1 }, caps),
+    ...fieldRows(
+      [
+        { label: `ia ${command.name} --schema`, value: words('Its parameters as one JSON line') },
+        {
+          label: `ia ${command.name} --params '{}' --help`,
+          value: words('Its parameters, refusals and an example'),
+        },
+      ],
+      { depth: 1 },
+      caps,
+    ),
+  ];
+};
 export function renderCommandHelp(command: CommandSpec, caps: Capabilities): string {
   return document([
     entry([[atom(`ia ${command.name}`, 'bold', 0), ...words(command.summary, null, 2)]], { depth: 0 }, caps),
@@ -321,6 +346,7 @@ export function renderCommandHelp(command: CommandSpec, caps: Capabilities): str
       ...command.syntax.flatMap((line) => entry([[atom(line, null, 0)]], { depth: 1 }, caps)),
     ],
     [sectionLabel('Options', caps), ...fieldRows(optionRows(command.grammar), { depth: 1 }, caps)],
+    machineForm(command, caps),
   ]);
 }
 
@@ -396,7 +422,7 @@ const wantsHelp = (argv: readonly string[]): boolean => {
 };
 
 type Handler = (context: Context) => Result | Promise<Result>;
-/** The fifteen verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
+/** The sixteen verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
 const HANDLERS: Readonly<Record<string, Handler>> = {
   init: runInit,
   vocabulary: runVocabulary,
@@ -406,6 +432,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   validate: runValidate,
   inspect: runInspect,
   read: runRead,
+  position: runPosition,
   pack: runPack,
   install: runDistribute('install'),
   update: runDistribute('update'),
@@ -492,6 +519,29 @@ export interface Legacy {
   (args: readonly string[]): { readonly exitCode: number; readonly stdout: string };
 }
 
+/**
+ * A version-2 operation whose consumer command has not shipped (every shipped one has its command): its help is the
+ * operation's own, and any other call is refused with the machine form it has, never "unknown" and never a
+ * suggestion of itself.
+ */
+export function answerMachineOnly(operation: ProtocolOperation, argv: readonly string[], caps: Capabilities): Result {
+  const token = operation.name;
+  if (argv.slice(1).some((arg) => HELP_TOKENS.has(arg)))
+    return { exitCode: 0, stdout: renderOperationHelp(operation), stderr: '' };
+  return renderRefusal(
+    new Refusal(
+      'IA-CLI-USAGE',
+      `ia ${token} needs --params or --schema: it has no consumer command yet, only the machine operation`,
+      2,
+      null,
+      `Run "ia ${token} --params '{}'", or "ia ${token} --help" for its parameters.`,
+      `ia ${token}`,
+    ),
+    caps,
+    wantsJson(argv),
+  );
+}
+
 /** The two options that make an invocation of a version-2 operation a machine call. */
 const MACHINE_OPTIONS: ReadonlySet<string> = new Set(['--params', SCHEMA_TOKEN]);
 /**
@@ -537,25 +587,8 @@ export async function dispatch(
       dispose?.();
     }
   }
-  // A version-2 operation whose consumer command has not shipped: its help is the operation's own, and any other
-  // call is refused with the machine form it has, never "unknown" and never a suggestion of itself.
   const served = since2.includes(token) ? describeOperation(token) : undefined;
-  if (served !== undefined) {
-    if (argv.slice(1).some((arg) => HELP_TOKENS.has(arg)))
-      return { exitCode: 0, stdout: renderOperationHelp(served), stderr: '' };
-    return renderRefusal(
-      new Refusal(
-        'IA-CLI-USAGE',
-        `ia ${token} needs --params or --schema: it has no consumer command yet, only the machine operation`,
-        2,
-        null,
-        `Run "ia ${token} --params '{}'", or "ia ${token} --help" for its parameters.`,
-        `ia ${token}`,
-      ),
-      caps,
-      wantsJson(argv),
-    );
-  }
+  if (served !== undefined) return answerMachineOnly(served, argv, caps);
   if (token === RESERVED_TOKEN)
     return renderRefusal(
       new Refusal(
