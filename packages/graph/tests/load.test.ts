@@ -312,12 +312,22 @@ describe('typed field references (G06a)', () => {
     expect([...native.referencedBy.values()].reduce((n, list) => n + list.length, 0)).toBe(native.references.length);
   });
 
+  it('keys the same references by holder in referencesFrom, each list in references order', () => {
+    expect(native.referencesFrom.size).toBeGreaterThan(0);
+    for (const identity of native.nodes.keys())
+      expect(native.referencesFrom.get(identity) ?? []).toEqual(native.references.filter((r) => r.from === identity));
+    expect([...native.referencesFrom.values()].every((list) => list.length > 0)).toBe(true);
+    expect([...native.referencesFrom.values()].reduce((n, list) => n + list.length, 0)).toBe(native.references.length);
+  });
+
   it('is deterministic, snapshotted and leaves the revision to its sources', () => {
     const reversed = load([...records].reverse(), registry, { ...options, sources: [...inputs].reverse() });
     expect(stableSerialize(reversed.references)).toBe(stableSerialize(native.references));
     expect(stableSerialize(reversed.referencedBy)).toBe(stableSerialize(native.referencedBy));
+    expect(stableSerialize(reversed.referencesFrom)).toBe(stableSerialize(native.referencesFrom));
     expect(reversed.revision).toBe(native.revision);
     expect(() => (native.references as unknown[]).pop()).toThrow();
     expect(() => (native.referencedBy as Map<string, unknown>).clear()).toThrow();
+    expect(() => (native.referencesFrom as Map<string, unknown>).clear()).toThrow();
   });
 });

@@ -7,6 +7,7 @@ import type {
   FrozenRegistry,
   Predicate,
 } from '@inventarch/language';
+import { claimsOf } from './claims.js';
 import { dimensionsOf } from './coordinate.js';
 import { GraphUsageError, graphDiagnostic } from './diagnostics.js';
 import type { GraphDiagnostic } from './diagnostics.js';
@@ -287,11 +288,16 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
   }
   diagnostics.sort((a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.code, b.code));
   const references = fieldReferences(nodes, byName, registry),
-    referencedBy = new Map<string, FieldReference[]>();
-  for (const reference of references) {
-    const list = referencedBy.get(reference.to) ?? [];
+    referencedBy = new Map<string, FieldReference[]>(),
+    referencesFrom = new Map<string, FieldReference[]>();
+  const keyed = (map: Map<string, FieldReference[]>, identity: string, reference: FieldReference): void => {
+    const list = map.get(identity) ?? [];
     list.push(reference);
-    referencedBy.set(reference.to, list);
+    map.set(identity, list);
+  };
+  for (const reference of references) {
+    keyed(referencedBy, reference.to, reference);
+    keyed(referencesFrom, reference.from, reference);
   }
   return snapshot({
     revision,
@@ -320,6 +326,8 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
     byDanglingReference,
     references,
     referencedBy,
+    referencesFrom,
+    claims: claimsOf(nodes.values()),
     text: buildTextIndex(nodes.values()),
   });
 }

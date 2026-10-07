@@ -1619,6 +1619,7 @@
         "tests/preview.test.ts",
         "tests/retention.test.ts",
         "tests/scope.test.ts",
+        "tests/seat.test.ts",
         "tests/view.test.ts",
         "tests/workspace-config.test.ts"
       ],
@@ -1674,6 +1675,7 @@
       "kind": "vitest",
       "project": "packages/graph",
       "files": [
+        "tests/claims.test.ts",
         "tests/codec.test.ts",
         "tests/digest.test.ts",
         "tests/directed.test.ts",

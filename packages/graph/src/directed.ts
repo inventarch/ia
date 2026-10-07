@@ -54,9 +54,9 @@ const rowOrder = (a: DirectedRow, b: DirectedRow): number =>
 /**
  * G06b: every row the graph holds at `identity`, read from its side. Each assertion of an edge it is an endpoint of
  * gives one row per side it occupies (both sides of a self-relation), so an edge asserted from both ends keeps both
- * declarations; each G06a field reference it holds or is named by gives one `field-ref` row. Derived on read from
- * `out`, `in`, `references` and `referencedBy`; it adds no index, diagnostic or revision input. An identity that is
- * not an admitted winner has no rows.
+ * declarations; each G06a field reference it holds or is named by gives one `field-ref` row. Derived on read from the
+ * load-time `out`, `in`, `referencesFrom` and `referencedBy` indexes, so no call scans the graph; it adds no index,
+ * diagnostic or revision input. An identity that is not an admitted winner has no rows.
  */
 export function directedView(graph: Graph, identity: string): readonly DirectedRow[] {
   const rows: DirectedRow[] = [];
@@ -88,17 +88,16 @@ export function directedView(graph: Graph, identity: string): readonly DirectedR
   if (graph.nodes.has(identity)) {
     for (const edges of graph.out.get(identity)?.values() ?? []) for (const edge of edges) read(edge, 'out');
     for (const edges of graph.in.get(identity)?.values() ?? []) for (const edge of edges) read(edge, 'in');
-    for (const reference of graph.references)
-      if (reference.from === identity)
-        rows.push({
-          kind: 'field-ref',
-          derived: true,
-          direction: 'out',
-          field: reference.field,
-          counterpart: reference.to,
-          declaredOn: identity,
-          source: reference.source,
-        });
+    for (const reference of graph.referencesFrom.get(identity) ?? [])
+      rows.push({
+        kind: 'field-ref',
+        derived: true,
+        direction: 'out',
+        field: reference.field,
+        counterpart: reference.to,
+        declaredOn: identity,
+        source: reference.source,
+      });
     for (const reference of graph.referencedBy.get(identity) ?? [])
       rows.push({
         kind: 'field-ref',

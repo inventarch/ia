@@ -71,6 +71,17 @@ export interface FieldReference {
   readonly reference: Extract<CompiledValue, { kind: 'ref' }>;
   readonly source: { readonly path: string; readonly line: number; readonly endLine: number };
 }
+/**
+ * One path selection a winner states in a claimant field (G06c): `field` is `authority.covers`, `subject.covers`,
+ * `work.covers`, `hook.paths` or `check.scope`, `selection` the text as authored. Derived only, like a FieldReference:
+ * not an Edge, no predicate, never consent-checked.
+ */
+export interface Claim {
+  readonly from: string;
+  readonly field: string;
+  readonly selection: string;
+  readonly source: { readonly path: string; readonly line: number; readonly endLine: number };
+}
 export interface CellRef {
   readonly identity: string;
   readonly primary: boolean;
@@ -110,6 +121,10 @@ export interface Graph {
   readonly references: readonly FieldReference[];
   /** `references` keyed by target identity, each list in `references` order. */
   readonly referencedBy: ReadonlyMap<string, readonly FieldReference[]>;
+  /** `references` keyed by holder identity, each list in `references` order. */
+  readonly referencesFrom: ReadonlyMap<string, readonly FieldReference[]>;
+  /** G06c: the claimant index, every path selection a winner states in a claimant field, holders by identity. */
+  readonly claims: readonly Claim[];
 }
 export interface CellSelection {
   readonly kind: 'exact' | 'primary';
