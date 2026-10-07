@@ -200,7 +200,7 @@ The [language floor](.ia/src/floor/README.md) supplies the kernel. These systems
 
 | Work with | Commands |
 | --- | --- |
-| **Workspace records** | `init`, `validate`, `capture`, `format`, `inspect`, `vocabulary`; `compile` is a deprecated alias of `capture` |
+| **Workspace records** | `init`, `validate`, `capture`, `format`, `inspect`, `read`, `vocabulary`; `compile` is a deprecated alias of `capture` |
 | **Distributions and hosts** | `pack`, `install`, `update`, `remove`, `restore`, `doctor`, `host` |
 | **Machine operations** | `scope`, `context`, `select`, `get`, `records`, `resolve`, `search`, `traverse`, `report`, with inputs through `--params` |
 

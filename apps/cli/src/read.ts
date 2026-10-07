@@ -1,0 +1,85 @@
+/**
+ * `ia read <locator>`: the body behind a locator, and nothing else (apps/cli/SPEC.md, Workspace commands).
+ *
+ * The locator forms and the body rule are the runtime's (`parseLocator`, `readBody`): a record's own text by its
+ * identity or a source line, a cell by `#phase/Primitive`, a requirement by `#REQ-…`. Structure stays in `ia inspect`.
+ * This is a consumer command only; it is not one of the frozen machine routes, which dispatch first.
+ */
+import { parseLocator, readBody } from '@inventarch/runtime';
+import type { Body, Locator } from '@inventarch/runtime';
+import type { Context, Result } from './consumer.js';
+import { Refusal, requireRoot } from './consumer.js';
+import { codeOf, openSession } from './session.js';
+import type { Session } from './session.js';
+
+/** The service message without the `CODE: ` prefix its error class adds; the refusal carries the code itself. */
+const messageOf = (error: unknown, code: string): string => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.startsWith(`${code}: `) ? message.slice(code.length + 2) : message;
+};
+
+function locatorOf(text: string): Locator {
+  try {
+    return parseLocator(text);
+  } catch (error) {
+    const code = codeOf(error, '');
+    if (code !== 'IA-RUNTIME-REQUEST-INVALID') throw error;
+    throw new Refusal(code, messageOf(error, code), 2, null, 'Run "ia read --help" for the locator forms it accepts.');
+  }
+}
+
+/** Nothing to read: the next command is the inspection that shows what is there instead. */
+function unreadable(error: unknown, locator: Locator, session: Session, root: string): Refusal {
+  const code = 'IA-DB-SOURCE-UNAVAILABLE',
+    message = messageOf(error, code);
+  if (locator.kind === 'line')
+    return new Refusal(
+      code,
+      message,
+      1,
+      { path: locator.path, line: locator.line },
+      `Run "ia inspect --path ${locator.path}" for the records that file holds and their source lines.`,
+    );
+  return session.reader.get(locator.identity) === undefined
+    ? new Refusal(
+        code,
+        message,
+        1,
+        { path: root, identity: locator.identity },
+        'Run "ia inspect" for the records this workspace admits.',
+      )
+    : new Refusal(
+        code,
+        message,
+        1,
+        { path: root, identity: locator.identity },
+        `Run "ia inspect ${locator.identity}" for the record's structure.`,
+      );
+}
+
+export function collectRead(root: string, locator: Locator): Body {
+  const session = openSession(root);
+  try {
+    return readBody(session.reader, locator);
+  } catch (error) {
+    if (codeOf(error, '') === 'IA-DB-SOURCE-UNAVAILABLE') throw unreadable(error, locator, session, root);
+    throw error;
+  } finally {
+    session.close();
+  }
+}
+
+export function runRead(context: Context): Result {
+  // A malformed locator is a usage refusal, decided before any root or workspace is read.
+  const locator = locatorOf(context.args.positionals[0]!);
+  const read = collectRead(requireRoot(context), locator);
+  if (context.json) {
+    const { identity, fragment, source, digest, body } = read;
+    return {
+      exitCode: 0,
+      stdout: JSON.stringify({ version: 1, identity, fragment, source, digest, body }) + '\n',
+      stderr: '',
+    };
+  }
+  return { exitCode: 0, stdout: read.body + '\n', stderr: '' };
+}

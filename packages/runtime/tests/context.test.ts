@@ -468,7 +468,10 @@ it('reads only the body behind a locator, with the per-record digest, scoped by 
     '.ia/src/pair.ia',
     playbook('first') +
       '\n' +
-      playbook('second', '', '    learn\n      primary Learning\n      Learning means "Later"\n').replace('#! ia 1.0\n', ''),
+      playbook('second', '', '    learn\n      primary Learning\n      Learning means "Later"\n').replace(
+        '#! ia 1.0\n',
+        '',
+      ),
   );
   const db = database(root),
     records = db.records(),
@@ -477,7 +480,8 @@ it('reads only the body behind a locator, with the per-record digest, scoped by 
     system = records.find((n) => n.identity === 'floor/definition/system/agent-system')!,
     schema = records.find((n) => n.discriminator === 'schema')!;
   // Every admitted identity is a locator, so a read never needs a second address form.
-  for (const node of records) expect(parseLocator(node.identity)).toEqual({ kind: 'identity', identity: node.identity });
+  for (const node of records)
+    expect(parseLocator(node.identity)).toEqual({ kind: 'identity', identity: node.identity });
 
   expect(readBody(db, parseLocator(methodId))).toEqual({
     identity: methodId,
@@ -535,4 +539,15 @@ it('reads only the body behind a locator, with the per-record digest, scoped by 
     'IA-DB-SOURCE-UNAVAILABLE',
   );
   expect(Object.isFrozen(readBody(db, parseLocator(methodId)))).toBe(true);
+
+  // A record nested in another shares the outer one's lines; the line reads the innermost record that holds it.
+  const outer = { ...method, identity: 'governance-system/definition/procedure/outer', source: { ...method.source } },
+    inner = {
+      ...second,
+      source: { path: method.source.path, line: method.source.line + 2, endLine: method.source.line + 4 },
+    },
+    nested = { records: () => [outer, inner], get: () => undefined } as unknown as Parameters<typeof readBody>[0];
+  for (const line of [inner.source.line, inner.source.endLine])
+    expect(readBody(nested, parseLocator(`${methodPath}:${line}`)).identity).toBe(inner.identity);
+  expect(readBody(nested, parseLocator(`${methodPath}:${method.source.endLine}`)).identity).toBe(outer.identity);
 });

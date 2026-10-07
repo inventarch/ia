@@ -33,6 +33,7 @@ import { runHost } from './host.js';
 import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
 import { runPack } from './pack.js';
+import { runRead } from './read.js';
 import { runValidate } from './validate.js';
 import { runVocabulary } from './vocabulary.js';
 import type { Capabilities, Terminal, Token } from './render.js';
@@ -379,7 +380,7 @@ const wantsHelp = (argv: readonly string[]): boolean => {
 };
 
 type Handler = (context: Context) => Result | Promise<Result>;
-/** The fourteen verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
+/** The fifteen verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
 const HANDLERS: Readonly<Record<string, Handler>> = {
   init: runInit,
   vocabulary: runVocabulary,
@@ -388,6 +389,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   compile: runCompile,
   validate: runValidate,
   inspect: runInspect,
+  read: runRead,
   pack: runPack,
   install: runDistribute('install'),
   update: runDistribute('update'),

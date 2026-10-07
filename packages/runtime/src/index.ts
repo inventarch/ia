@@ -47,6 +47,8 @@ export {
 } from './publication.js';
 export type { PublicationFile, PreparedPublication, PublicationStatus } from './publication.js';
 export { isEntry } from './entry.js';
+export { parseLocator, readBody } from './locator.js';
+export type { Body, Locator, ReadBodyOptions } from './locator.js';
 export {
   MANDATE_CODES,
   MODES,

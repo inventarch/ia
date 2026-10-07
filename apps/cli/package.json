@@ -127,6 +127,10 @@
       "types": "./dist/program.d.ts",
       "default": "./dist/program.js"
     },
+    "./internal/read": {
+      "types": "./dist/read.d.ts",
+      "default": "./dist/read.js"
+    },
     "./internal/render": {
       "types": "./dist/render.d.ts",
       "default": "./dist/render.js"
@@ -246,6 +250,10 @@
       "./internal/program": {
         "types": "./dist/program.d.ts",
         "default": "./dist/program.js"
+      },
+      "./internal/read": {
+        "types": "./dist/read.d.ts",
+        "default": "./dist/read.js"
       },
       "./internal/render": {
         "types": "./dist/render.d.ts",

@@ -637,7 +637,10 @@ it('reads the body behind a locator and prints that body only, refusing with a n
     stdout: `${STEWARD_SAYS}\n`,
     stderr: '',
   });
-  const machine = JSON.parse((await run(['read', STEWARD, '--root', root, '--json'])).stdout) as Record<string, unknown>;
+  const machine = JSON.parse((await run(['read', STEWARD, '--root', root, '--json'])).stdout) as Record<
+    string,
+    unknown
+  >;
   const inspected = JSON.parse((await run(['inspect', STEWARD, '--root', root, '--json'])).stdout) as {
     records: { digest: string }[];
   };
@@ -659,8 +662,14 @@ it('reads the body behind a locator and prints that body only, refusing with a n
     JSON.parse((await run(['read', `${procedure}#orient/Decision`, '--root', root, '--json'])).stdout),
   ).toMatchObject({ identity: procedure, fragment: 'orient/Decision' });
   expect(
-    (await run(['read', 'compliance-system/contract/signature/foundation-authoring-contract#REQ-FOUNDATION-INPUT', '--root', root]))
-      .stdout,
+    (
+      await run([
+        'read',
+        'compliance-system/contract/signature/foundation-authoring-contract#REQ-FOUNDATION-INPUT',
+        '--root',
+        root,
+      ])
+    ).stdout,
   ).toBe('Supply the intended owner, complete native registry closure and authored record source.\n');
   expect((await run(['read', `${STEWARD_COPY}:5`, '--root', root])).stdout).toBe(`${STEWARD_SAYS}\n`);
 
@@ -686,10 +695,11 @@ it('reads the body behind a locator and prints that body only, refusing with a n
     expect(human.exitCode, label).toBe(exit);
     expect(human.stdout, label).toBe('');
     expect(human.stderr, label).toContain(code);
-    expect(human.stderr, label).toContain(next);
+    // The human block wraps at the terminal width, so the next command is compared with its spacing collapsed.
+    expect(human.stderr.replace(/\s+/g, ' '), label).toContain(next);
   }
   // An unreadable root is the open's own refusal, and it too names a next command.
-  const absent = await run(['read', STEWARD, '--root', scratch('no-read-root'), '--json']);
+  const absent = await run(['read', STEWARD, '--root', resolve(scratch('no-read-root'), 'absent'), '--json']);
   expect(absent.exitCode).toBe(3);
   expect((JSON.parse(absent.stdout) as { next: string }).next.trim()).not.toBe('');
 });
@@ -712,7 +722,10 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
     { argv: ['capture', '--root', root, '--json'], refusal: false },
     { argv: ['capture', '--root', root, '--preview', '--json'], refusal: false },
     { argv: ['capture', '--root', empty, '--json'], refusal: true },
-    { argv: ['read', 'governance-system/definition/procedure/sample-procedure', '--root', root, '--json'], refusal: false },
+    {
+      argv: ['read', 'governance-system/definition/procedure/sample-procedure', '--root', root, '--json'],
+      refusal: false,
+    },
     { argv: ['read', 'no-such/definition/procedure/record', '--root', root, '--json'], refusal: true },
     { argv: ['doctor', '--json'], refusal: false },
     { argv: ['pack', '--root', root, '--descriptor', '.ia/work/absent.json', '--json'], refusal: true },
