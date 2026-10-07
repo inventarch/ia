@@ -8,7 +8,7 @@ import type {
   Predicate,
 } from '@inventarch/language';
 import { dimensionsOf } from './coordinate.js';
-import { recordDigest } from './digest.js';
+import { sliceDigest, sourceLines } from './digest.js';
 import { GraphUsageError, graphDiagnostic } from './diagnostics.js';
 import type { GraphDiagnostic } from './diagnostics.js';
 import { snapshot } from './immutable.js';
@@ -39,6 +39,14 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
   const revision = revisionOf(registry, options);
   const sourceLocations = new Map(options.sources.map((s) => [canonicalPath(s.path), s.location]));
   const sourceTexts = new Map(options.sources.map((s) => [canonicalPath(s.path), s.text]));
+  const linesByPath = new Map<string, readonly string[]>();
+  const linesOf = (path: string): readonly string[] => {
+    const cut = linesByPath.get(path);
+    if (cut !== undefined) return cut;
+    const lines = sourceLines(sourceTexts.get(path)!);
+    linesByPath.set(path, lines);
+    return lines;
+  };
   const seen = new Set<string>();
   const diagnostics: GraphDiagnostic[] = [];
   let occurrences: Occurrence[] = records
@@ -64,7 +72,7 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
         band: record.placement.band,
         reach: canonicalRoot(record.placement.reach),
         dimensions: dimensions.dimensions,
-        digest: recordDigest(sourceTexts.get(record.source.path)!, record.source),
+        digest: sliceDigest(linesOf(record.source.path), record.source),
       };
       return { key, node, status: dimensions.diagnostics.length > 0 ? 'refused' : 'inactive' };
     })

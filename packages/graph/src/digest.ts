@@ -11,6 +11,18 @@ export const RECORD_DIGEST_FORMAT = 'ia-record-1';
  * also moves the parent. Lines past the end of the text contribute nothing.
  */
 export function recordDigest(text: string, span: { readonly line: number; readonly endLine: number }): string {
-  const lines = text.replace(/^﻿/, '').split(/\r?\n/);
+  return sliceDigest(sourceLines(text), span);
+}
+
+/** A revision source's text cut into the lines `recordDigest` slices: leading BOM dropped, split on LF or CRLF. */
+export function sourceLines(text: string): readonly string[] {
+  return text.replace(/^\uFEFF/, '').split(/\r?\n/);
+}
+
+/** `recordDigest` over lines already cut by `sourceLines`, so a loader cuts each source once for all its records. */
+export function sliceDigest(
+  lines: readonly string[],
+  span: { readonly line: number; readonly endLine: number },
+): string {
   return digest({ format: RECORD_DIGEST_FORMAT, text: lines.slice(span.line - 1, span.endLine).join('\n') });
 }
