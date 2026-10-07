@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "Schema edge rules accept any spelling and the authored spelling is retained",
-  "summary": "A @schema edges rule may be written with the active, inverse or present spelling of a predicate and carries its direction; an unknown spelling is refused with every accepted spelling listed, and compliance counts inbound rules against the edges whose active target is the record. Authored compiled edges and graph assertions keep the spelling the author wrote; the vocabulary catalogue and ia vocabulary show it. Editor completion of a relationship target applies only the schema rules written in the direction of the line's spelling. No record changes.",
+  "summary": "A `@schema` edges rule may be written with the active, inverse or present spelling of a predicate and carries its direction; an unknown spelling is refused with every accepted spelling listed, and compliance counts inbound rules against the edges whose active target is the record. Authored compiled edges and graph assertions keep the spelling the author wrote; the vocabulary catalogue and ia vocabulary show it. Editor completion of a relationship target applies only the schema rules written in the direction of the line's spelling. No record changes.",
   "packages": [
     "@inventarch/cli",
     "@inventarch/compliance",

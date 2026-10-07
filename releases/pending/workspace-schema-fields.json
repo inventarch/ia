@@ -1,8 +1,8 @@
 {
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
-  "title": "@workspace declares its sources and steward",
-  "summary": "A @workspace may declare composition.sources (each <root> @<placement>) and composition.steward (ref to agent). language-workspace declares its authored root. The vocabulary catalogue and the workspace reference carry the fields.",
+  "title": "`@workspace` declares its sources and steward",
+  "summary": "A `@workspace` may declare composition.sources (each <root> @<placement>) and composition.steward (ref to agent). language-workspace declares its authored root. The vocabulary catalogue and the workspace reference carry the fields.",
   "packages": [
     "@inventarch/agent-composition-system",
     "@inventarch/agent-system",

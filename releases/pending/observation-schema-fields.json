@@ -1,8 +1,8 @@
 {
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
-  "title": "@observation records typed evidence",
-  "summary": "An @observation may declare evidence.subject (ref), subject-revision, snapshot-revision, evaluator, move (one of the five kernel moves), verdict (success, refusal or inconclusive), implementation and target, so checks and runs can record evidence about one record at one revision. Existing fields are unchanged; the learning-system example shows both forms.",
+  "title": "`@observation` records typed evidence",
+  "summary": "An `@observation` may declare evidence.subject (ref), subject-revision, snapshot-revision, evaluator, move (one of the five kernel moves), verdict (success, refusal or inconclusive), implementation and target, so checks and runs can record evidence about one record at one revision. Existing fields are unchanged; the learning-system example shows both forms.",
   "packages": [
     "@inventarch/authoring-system",
     "@inventarch/cli",
