@@ -1,6 +1,6 @@
 # Authoring the IA language
 
-IA represents named records, typed fields, relationships, requirements and contextual procedure cells. Start with the [vocabulary catalogue](vocabulary.md) or its [machine-readable equivalent](vocabulary.json). Each entry identifies its owner, lowering, facets, schema, fields and relationships. The canonical schema links expose field descriptions. The [original examples](../../../examples/public-language/README.md) show agents, composition, quality and architecture using these contracts.
+IA represents named records, typed fields, relationships, requirements and contextual procedure cells. Start with the [vocabulary catalogue](vocabulary.md) or its [machine-readable equivalent](vocabulary.json). Each entry identifies its owner, lowering, facets, schema, fields and relationships. A field table carries a field's description where its schema gives one, and the canonical schema links show the full declarations. The [original examples](../../../examples/public-language/README.md) show agents, composition, quality and architecture using these contracts.
 
 ## Syntax and identity
 
@@ -28,7 +28,7 @@ A quality rule uses a versioned `contract` requirement. A `workspace` adopts it,
 
 Architecture uses workspace identities for boundaries, relationship edges for dependencies, and adopted contract requirements for constraints. The example interface declares a `uses` relationship to storage. Its evaluator checks the actual resolved edge. This representation neither endorses that architecture nor supplies an architecture review method. These domains need no new words to represent the demonstrated requirements.
 
-An `observation` carries origin, actor, location/revision, availability, interpretation and retention fields. An `improvement` carries proposed change and review/publication metadata. Field typing cannot attest a digest, validate a timestamp, recover missing bytes or authorize a retention transition. The example observation explicitly has unavailable evidence; its placeholder digest is not an attestation. Stronger workflow validation belongs to an explicitly selected consumer.
+An `observation` carries origin, actor, location/revision, availability, interpretation and retention fields; it may also type its evidence with the subject reference and the subject's revision, the snapshot revision, the evaluator, the kernel move, a `success`, `refusal` or `inconclusive` verdict, and the check implementation and host that produced it. An `improvement` carries proposed change and review/publication metadata. Field typing cannot attest a digest, validate a timestamp, recover missing bytes or authorize a retention transition. The example observation explicitly has unavailable evidence; its placeholder digest is not an attestation. Stronger workflow validation belongs to an explicitly selected consumer.
 
 ## Reading validation results
 

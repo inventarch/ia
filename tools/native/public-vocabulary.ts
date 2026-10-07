@@ -131,6 +131,9 @@ export function vocabulary(root: string, read?: (path: string) => string) {
     words,
   };
 }
+/** A description as one table cell: a pipe would end the cell and `<tool>` would read as an HTML tag, so both are escaped. */
+const descriptionCell = (text: string): string =>
+  text.replaceAll('|', '\\|').replaceAll('<', '\\<').replaceAll('\n', ' ');
 export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string {
   const lines = [
     '# Public vocabulary reference',
@@ -141,6 +144,8 @@ export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string 
     '',
   ];
   for (const word of data.words) {
+    // Only a word with a described field has the Description column; other tables have three columns.
+    const described = word.schema.fields.some((field) => field.description);
     lines.push(
       `## @${word.word}`,
       '',
@@ -166,11 +171,13 @@ export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string 
           .join(', ') || 'none'
       }.`,
       '',
-      '| Field | Type | Required |',
-      '|---|---|---|',
+      described ? '| Field | Type | Required | Description |' : '| Field | Type | Required |',
+      described ? '|---|---|---|---|' : '|---|---|---|',
     );
     for (const field of word.schema.fields)
-      lines.push(`| ${field.path} | ${fieldTypeText(field)} | ${field.required ? 'yes' : 'no'} |`);
+      lines.push(
+        `| ${field.path} | ${fieldTypeText(field)} | ${field.required ? 'yes' : 'no'} |${described ? ` ${descriptionCell(field.description ?? '')} |` : ''}`,
+      );
     if (!word.schema.fields.length)
       lines.push('| See the shared schema grammar | structured declarations | per grammar |');
     if (word.schema.edges.length)

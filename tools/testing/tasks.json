@@ -2388,7 +2388,8 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/distribution/host-payload.test.ts"
+        "tools/distribution/host-payload.test.ts",
+        "tools/distribution/language-guide.test.ts"
       ],
       "profile": "corpus",
       "platforms": [

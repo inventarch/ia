@@ -25,8 +25,30 @@ export function publicLanguageGuide(words) {
   return lines.join('\n');
 }
 
+/**
+ * Packages outside the system folders that ship the public-language guide as LANGUAGE.md. Each is a byte-for-byte copy
+ * of the guide every system folder carries, so `pnpm public:generate` writes it and `generate-public.mjs --check`
+ * reports one that drifts. tools/distribution/language-guide.test.ts checks this list against every package that ships
+ * the guide, by manifest or on disk.
+ */
+export const LANGUAGE_GUIDE_COPIES = [
+  'apps/cli/LANGUAGE.md',
+  'apps/distribution/LANGUAGE.md',
+  'apps/mcp-door/LANGUAGE.md',
+  'apps/steward-hook/LANGUAGE.md',
+  'apps/vscode/LANGUAGE.md',
+  'packages/compliance/LANGUAGE.md',
+  'packages/db/LANGUAGE.md',
+  'packages/graph/LANGUAGE.md',
+  'packages/language/LANGUAGE.md',
+  'packages/runtime/LANGUAGE.md',
+  'packages/service-contracts/LANGUAGE.md',
+  'packages/workspace-runtime/LANGUAGE.md',
+];
+
 export function publicResources({ outputs, text, put, json, manifest }) {
   const words = JSON.parse(text('docs/reference/language/vocabulary.json')).words;
+  const guide = publicLanguageGuide(words);
   const guidesPath = '.ia/src/systems/authoring-system/records/public-guides.ia';
   const records = ['#! ia 1.0', ''],
     files = [],
@@ -105,7 +127,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
   const systems = manifest.systems.map((system) => {
     const base = `.ia/src/systems/${system.name}`,
       path = base + '/system.ia';
-    put(base + '/LANGUAGE.md', publicLanguageGuide(words));
+    put(base + '/LANGUAGE.md', guide);
     for (const file of ['README.md', 'SPEC.md']) {
       if (!outputs.has(base + '/' + file))
         put(
@@ -146,6 +168,8 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       base: null,
     };
   });
+  // Shipped package documentation, not authoring resources: written, never pinned.
+  for (const path of LANGUAGE_GUIDE_COPIES) put(path, guide);
   for (const path of ['.ia/src/floor/README.md', '.ia/src/floor/SPEC.md']) pin(path);
   const taxonomy = {
     source: 'floor',

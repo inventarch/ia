@@ -86,7 +86,7 @@ L26. Fields preserve typed values without raw spellings. For an ordinary scalar,
 
 L27. The compiled facet head field is consumed into identity but keeps its field source-map entry. Records contain structured head/sections; there is no flat body or record comment field. Source, schema identity, provenance and placement are attached explicitly.
 
-L28. The winning system declaration produces one outgoing ground edge for each distinct schema named by an accepted winning entry. Shadowed/refused entries do not produce these edges. At this baseline explicit relationship lines remain fields and are not semantically lowered.
+L28. The winning system declaration produces one outgoing ground edge for each distinct schema named by an accepted winning entry. Shadowed/refused entries do not produce these edges. Explicit relationship lines are lowered as well: each well-formed line in a `relationships` section becomes a directed edge with its active predicate, its direction relative to the record and its authored spelling. A line is refused when its verb is unknown or its target is malformed (S11), when its target matches more than one occurrence (S07) or when its resolved endpoints lack consent (L18), and kept with a warning when its target is dangling (S07). An unconditioned authored ground line equivalent to a generated edge is consumed into that edge (S07).
 
 L29. Same-identity, same-band occurrences within the file are all refused, including groups larger than two. Their descendants are removed by actual enclosing occurrence rather than parent-name matching. The public collision helper accepts arbitrary supplied occurrences for caller-level checks; cross-file discovery and cross-band authority selection are external responsibilities.
 

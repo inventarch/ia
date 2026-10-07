@@ -1,12 +1,12 @@
 # 🌳 IA · the InventArch record language and toolchain
 
-[![Release](https://img.shields.io/npm/v/@inventarch/cli?label=release)](https://github.com/inventarch/ia/releases/latest) [![Public quality](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml/badge.svg?branch=main)](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE) [![Node](https://img.shields.io/badge/node-22.x-brightgreen)](package.json) [![pnpm](https://img.shields.io/badge/pnpm-12.9.0-f69220)](package.json) [![Vocabulary](https://img.shields.io/badge/vocabulary-43%20words-blue)](docs/reference/language/vocabulary.md)
+[![Release](https://img.shields.io/npm/v/@inventarch/cli?label=release)](https://github.com/inventarch/ia/releases/latest) [![Public quality](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml/badge.svg?branch=main)](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE) [![Node](https://img.shields.io/badge/node-22.x-brightgreen)](package.json) [![pnpm](https://img.shields.io/badge/pnpm-12.9.0-f69220)](package.json) [![Vocabulary](https://img.shields.io/badge/vocabulary-44%20words-blue)](docs/reference/language/vocabulary.md)
 
 > **IA** is a language and toolchain for keeping decisions, requirements, agent definitions and work plans alongside your code. Author linked records in plain-text `.ia` files; the CLI checks their structure and relationships, and the VS Code extension helps you write and navigate them.
 >
 > This is the **public IA repository**: the language, native schemas, CLI, MCP server, editor integration and worked examples, licensed under Apache-2.0.
 
-Start below with the published [CLI](https://www.npmjs.com/package/@inventarch/cli), then explore the [language guide](docs/reference/language/README.md), [43-word vocabulary](docs/reference/language/vocabulary.md) and [worked examples](examples/public-language/README.md).
+Start below with the published [CLI](https://www.npmjs.com/package/@inventarch/cli), then explore the [language guide](docs/reference/language/README.md), [44-word vocabulary](docs/reference/language/vocabulary.md) and [worked examples](examples/public-language/README.md).
 
 ---
 

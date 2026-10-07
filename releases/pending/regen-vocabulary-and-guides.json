@@ -1,0 +1,26 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Field descriptions in ia vocabulary --schema",
+  "summary": "ia vocabulary <word> --schema prints a field's schema description, when it has one, on its own lines under the field's row, aligned with the value column; rows without one are unchanged. The language SPEC (L28) now states how relationship lines are lowered to directed edges with their predicate, direction and authored spelling, and when a line is refused.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/language"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    "CLAUDE.md",
+    "README.md",
+    "apps/cli/",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "packages/language/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}
