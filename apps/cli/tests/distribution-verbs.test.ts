@@ -174,6 +174,7 @@ it('opens a --root reached through a link at its real path for every verb, and s
   for (const argv of [
     ['format', '--write'],
     ['compile'],
+    ['capture'],
     ['pack', '--descriptor', descriptor],
     ['pack', '--descriptor', descriptor, '--force'],
   ]) {
@@ -181,7 +182,7 @@ it('opens a --root reached through a link at its real path for every verb, and s
     expect(got.exitCode, `${argv.join(' ')}: ${got.stderr}`).toBe(0);
   }
   expect(readFileSync(formattable, 'utf8')).toBe(formatted);
-  expect(existsSync(resolve(root, '.ia/work/compiled.json'))).toBe(true);
+  expect(existsSync(resolve(root, '.ia/work/snapshot/current.json'))).toBe(true);
   expect(readdirSync(resolve(root, '.ia/work/dist'))).toHaveLength(1);
   const env = { IA_HOME: resolve(scratch('linked-doctor-home'), '.ia') };
   const rows = async (at: string) =>
@@ -278,7 +279,7 @@ it('plans and applies an installation, an update, a restore and a removal throug
   ]);
   expect(saved.exitCode).toBe(0);
   expect(existsSync(resolve(root, '.ia/work/install-plan.json'))).toBe(true);
-  // §2.8: a saved plan must be a new file, which is the same newness rule `ia compile` meets.
+  // §2.8: a saved plan must be a new file; an existing one is refused rather than overwritten.
   const twice = await run([
     'install',
     `${ID}@^0.1.0`,

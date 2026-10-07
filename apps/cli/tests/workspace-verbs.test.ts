@@ -1,16 +1,18 @@
 /**
- * `ia init`, `ia format`, `ia compile` and `ia doctor`, against the committed loop fixture.
+ * `ia init`, `ia format`, `ia compile`, `ia capture` and `ia doctor`, against the committed loop fixture.
  *
  * Every verb is exercised in its human and `--json` form and in each exit class its §2 section declares, because
  * the exit class is the part a script depends on and the part a renderer change cannot be trusted to preserve.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { applyHost, planHost } from '@inventarch/distribution/host';
 import { materializeHostPayload, readHostPin } from '@inventarch/distribution/host-home';
 import { json, sha256 } from '@inventarch/distribution/services';
+import { ARTIFACT, collectCompile, COMPILE_DEPRECATION } from '../src/compile.js';
 import { collectDoctor } from '../src/doctor.js';
+import { NOT_EVALUATED } from '../src/validate.js';
 import { cleanup, cli, FORMATTABLE, run, scratch, workspace } from './workspace-fixture.js';
 
 const ANSI = /\u001b\[/;
@@ -188,64 +190,288 @@ it('checks formatting by default, rewrites only with --write, and refuses a path
   expect(closure.stderr).toContain('IA-DIST-CLOSURE-INCOMPLETE');
 });
 
-it('compiles a deterministic artifact, refuses to overwrite it, and never rolls not-evaluated into a pass', async () => {
+it('runs ia compile as a deprecated alias of ia capture, mapping --force and refusing --out and --stdout', async () => {
   const root = workspace();
+  // The alias is capture: the same report, the same snapshot store, and no compiled.json.
   const first = await run(['compile', '--root', root]);
   expect(first.exitCode).toBe(0);
-  expect(first.stdout).toContain('ia.compiled.v1');
-  expect(first.stdout).toContain('not evaluated');
-  const path = resolve(root, '.ia/work/compiled.json');
-  const bytes = readFileSync(path);
-  const artifact = JSON.parse(bytes.toString('utf8')) as {
+  expect(first.stdout).toContain('Capture');
+  expect(first.stdout).toContain('.ia/work/snapshot');
+  // Deprecated for 2.x: the notice is one stderr line, text mode only.
+  expect(first.stderr).toBe(`${COMPILE_DEPRECATION}\n`);
+  expect(first.stderr).toContain('ia capture');
+  expect(existsSync(resolve(root, '.ia/work/compiled.json'))).toBe(false);
+  const bytes = stored(root, 'current');
+  const captured = await capture(root);
+  expect(captured).toMatchObject({ written: false, changed: 0, unchanged: captured.records });
+
+  // --json prints capture's envelope and keeps stderr empty; a second run is the ordinary case, never a refusal.
+  const machine = await run(['compile', '--root', root, '--json']);
+  expect(machine.exitCode).toBe(0);
+  expect(machine.stderr).toBe('');
+  expect(JSON.parse(machine.stdout)).toEqual(captured);
+
+  // --force maps onto capture, which always replaces the stored current (rotating only on a revision change).
+  const forced = await run(['compile', '--root', root, '--force', '--json']);
+  expect(forced.exitCode).toBe(0);
+  expect(JSON.parse(forced.stdout)).toEqual(captured);
+  expect(stored(root, 'current')).toBe(bytes);
+
+  // --out and --stdout have no capture equivalent: usage refusals, before any read, naming the capture command.
+  for (const [flags, next] of [
+    [['--out', '.ia/work/elsewhere.json'], 'Run "ia capture"'],
+    [['--stdout'], 'Run "ia capture --preview --json"'],
+  ] as const) {
+    const refused = await run(['compile', '--root', root, ...flags, '--json']);
+    expect(refused.exitCode, flags.join(' ')).toBe(2);
+    expect(refused.stderr).toBe('');
+    const body = JSON.parse(refused.stdout) as { code: string; next: string };
+    expect(body.code).toBe('IA-CLI-USAGE');
+    expect(body.next).toContain(next);
+    const told = await run(['compile', '--root', root, ...flags]);
+    expect(told.exitCode).toBe(2);
+    expect(told.stderr).toContain(next);
+    expect(told.stdout).toBe('');
+  }
+  expect(existsSync(resolve(root, '.ia/work/elsewhere.json'))).toBe(false);
+  // Both former options together are refused the same way, naming the capture command, not the help text.
+  const both = await run(['compile', '--root', root, '--out', 'x', '--stdout', '--json']);
+  expect(both.exitCode).toBe(2);
+  const bothBody = JSON.parse(both.stdout) as { code: string; next: string };
+  expect(bothBody.code).toBe('IA-CLI-USAGE');
+  expect(bothBody.next).toContain('Run "ia capture');
+  expect(bothBody.next).not.toContain('--help');
+
+  // Admission findings exit 1 as capture's do, and the snapshot is still kept.
+  const broken = workspace({ foreign: true });
+  const found = await run(['compile', '--root', broken, '--json']);
+  expect(found.exitCode).toBe(1);
+  expect(JSON.parse(found.stdout).validation.errors).toBeGreaterThan(0);
+  expect(existsSync(resolve(broken, '.ia/work/snapshot/current.json'))).toBe(true);
+  expect(existsSync(resolve(broken, '.ia/work/compiled.json'))).toBe(false);
+
+  // The ./internal/compile module keeps its ia.compiled.v1 builder for 2.x, though no verb writes it.
+  const artifact = collectCompile(root).artifact;
+  expect(artifact.artifact).toBe(ARTIFACT);
+  expect(artifact.records.length).toBeGreaterThanOrEqual(captured.records);
+  expect(artifact.root).toBe(root);
+});
+
+it('keeps the ./internal/compile builder deterministic and never rolls not-evaluated into a pass', () => {
+  const root = workspace();
+  const view = collectCompile(root);
+  // Read back from the serialized bytes, as a consumer of the document would.
+  const artifact = JSON.parse(view.text) as {
     formatVersion: number;
     artifact: string;
     language: string;
     kernelDigest: string;
-    revision: string;
     records: { identity: string }[];
-    diagnostics: { code: string }[];
+    diagnostics: { code: string; severity: string }[];
     counts: Record<string, number>;
   };
   expect(artifact.formatVersion).toBe(1);
-  expect(artifact.artifact).toBe('ia.compiled.v1');
+  expect(artifact.artifact).toBe(ARTIFACT);
   expect(artifact.language).toBe('1.0');
   expect(artifact.kernelDigest).toMatch(/^[0-9a-f]{64}$/);
   expect(artifact.counts['records']).toBe(artifact.records.length);
+  // A check with no evaluator is carried into the diagnostics and its own count, never counted as a pass.
   expect(artifact.counts['notEvaluated']).toBeGreaterThan(0);
   expect(artifact.diagnostics.some((finding) => finding.code === 'IA-COMP-NOT-EVALUATED')).toBe(true);
-  // Sorted by canonical identity and serialized with sorted keys, so two runs are byte-identical.
+  expect(artifact.counts['notEvaluated']).toBe(
+    artifact.diagnostics.filter((finding) => NOT_EVALUATED.has(finding.code)).length,
+  );
+  // Sorted by canonical identity and serialized with sorted keys, so two builds are byte-identical.
   expect([...artifact.records].sort((a, b) => (a.identity < b.identity ? -1 : 1))).toEqual(artifact.records);
-  expect(Object.keys(artifact)).toEqual([...Object.keys(artifact)].sort());
-
-  const again = await run(['compile', '--root', root]);
-  expect(again.exitCode).toBe(3);
-  expect(again.stderr).toContain('IA-DIST-LOCAL-MODIFICATION');
-  expect(again.stderr).toContain('--force');
-  const forced = JSON.parse((await run(['compile', '--root', root, '--force', '--json'])).stdout) as {
-    digest: string;
-    counts: Record<string, number>;
+  const text = view.text;
+  const keys = (value: unknown): void => {
+    if (Array.isArray(value)) value.forEach(keys);
+    else if (value !== null && typeof value === 'object') {
+      expect(Object.keys(value)).toEqual([...Object.keys(value)].sort());
+      Object.values(value).forEach(keys);
+    }
   };
-  expect(readFileSync(path)).toEqual(bytes);
-  expect(forced.digest).toMatch(/^[0-9a-f]{64}$/);
-  expect(forced.counts['notEvaluated']).toBe(artifact.counts['notEvaluated']);
+  keys(artifact);
+  expect(text.endsWith('}\n')).toBe(true);
+  expect(view.digest).toBe(sha256(text));
+  const again = collectCompile(root);
+  expect(again.text).toBe(text);
+  expect(again.digest).toBe(view.digest);
 
-  const outside = await run(['compile', '--root', root, '--out', '.ia/elsewhere.json']);
-  expect(outside.exitCode).toBe(3);
-  expect(outside.stderr).toContain('IA-DIST-PATH-UNSAFE');
-  expect(existsSync(resolve(root, '.ia/elsewhere.json'))).toBe(false);
-  expect((await run(['compile', '--root', root, '--out', 'x', '--stdout'])).exitCode).toBe(2);
+  // A workspace with an error still builds; the error is counted, not hidden.
+  const broken = collectCompile(workspace({ foreign: true })).artifact;
+  expect(broken.counts.errors).toBeGreaterThan(0);
+  expect(broken.counts.notEvaluated).toBeGreaterThan(0);
+});
 
-  const streamed = await run(['compile', '--root', root, '--stdout']);
-  expect(streamed.exitCode).toBe(0);
-  expect(streamed.stdout).toBe(bytes.toString('utf8'));
-  expect(streamed.stdout).not.toMatch(ANSI);
+interface CaptureEnvelope {
+  version: number;
+  preview: boolean;
+  store: string;
+  revision: string;
+  previous: string | null;
+  written: boolean;
+  rotated: boolean;
+  records: number;
+  changed: number;
+  unchanged: number;
+  new: number;
+  removed: number;
+  validation: { errors: number; warnings: number; notEvaluated: number };
+}
+interface StoredSnapshot {
+  format: string;
+  revision: string;
+  membership: { identity: string; seat: string | null; root: string; band: number; digest: string }[];
+}
+const capture = async (root: string, ...flags: string[]): Promise<CaptureEnvelope> => {
+  const got = await run(['capture', '--root', root, ...flags, '--json']);
+  expect(got.stderr).toBe('');
+  expect([0, 1], got.stdout).toContain(got.exitCode);
+  return JSON.parse(got.stdout) as CaptureEnvelope;
+};
+const stored = (root: string, slot: 'current' | 'previous'): string =>
+  readFileSync(resolve(root, `.ia/work/snapshot/${slot}.json`), 'utf8');
+const reword = (root: string, from: string, to: string): void => {
+  const path = resolve(root, FORMATTABLE);
+  const text = readFileSync(path, 'utf8');
+  if (!text.includes(from)) throw new Error(`${FORMATTABLE} no longer contains ${from}`);
+  writeFileSync(path, text.replace(from, to));
+};
 
-  // A workspace with an error still produces an artifact; the exit class carries the verdict, not the file.
-  const broken = workspace({ foreign: true });
-  const refused = await run(['compile', '--root', broken, '--json']);
-  expect(refused.exitCode).toBe(1);
-  expect(JSON.parse(refused.stdout).counts.errors).toBeGreaterThan(0);
-  expect(existsSync(resolve(broken, '.ia/work/compiled.json'))).toBe(true);
+it('captures current and previous snapshots with per-record digests and membership, rotating only on change', async () => {
+  const root = workspace();
+  const first = await capture(root);
+  expect(first).toMatchObject({
+    version: 1,
+    preview: false,
+    store: '.ia/work/snapshot',
+    previous: null,
+    written: true,
+    rotated: false,
+    changed: 0,
+    unchanged: 0,
+    removed: 0,
+    validation: { errors: 0 },
+  });
+  expect(first.revision).toMatch(/^[0-9a-f]{64}$/);
+  expect(first.records).toBeGreaterThan(0);
+  expect(first.new).toBe(first.records);
+  expect(first.validation.notEvaluated).toBeGreaterThan(0);
+  const bytes = stored(root, 'current');
+  const snapshot = JSON.parse(bytes) as StoredSnapshot;
+  expect(snapshot.format).toBe('ia-snapshot-1');
+  expect(snapshot.revision).toBe(first.revision);
+  expect(snapshot.membership).toHaveLength(first.records);
+  for (const row of snapshot.membership) {
+    expect(row.digest, row.identity).toMatch(/^[0-9a-f]{64}$/);
+    expect(row.root.startsWith('/'), row.identity).toBe(false);
+  }
+  expect(snapshot.membership.some((row) => row.seat !== null)).toBe(true);
+  // The snapshot regenerates per clone: no absolute root, and the store ignores itself.
+  expect(bytes).not.toContain(root);
+  expect(bytes).not.toContain(realpathSync(root));
+  expect(readFileSync(resolve(root, '.ia/work/snapshot/.gitignore'), 'utf8')).toContain('*');
+  expect(existsSync(resolve(root, '.ia/work/snapshot/previous.json'))).toBe(false);
+
+  // Two consecutive captures without edits: nothing changed, nothing rewritten, nothing rotated.
+  const second = await capture(root);
+  expect(second).toMatchObject({
+    revision: first.revision,
+    previous: null,
+    written: false,
+    rotated: false,
+    records: first.records,
+    changed: 0,
+    unchanged: first.records,
+    new: 0,
+    removed: 0,
+  });
+  expect(stored(root, 'current')).toBe(bytes);
+
+  // One record's text changes: exactly that record changed, and the old current becomes previous.
+  reword(root, 'Sample fixture statement 1.', 'Sample fixture statement one.');
+  const third = await capture(root);
+  expect(third.revision).not.toBe(first.revision);
+  expect(third).toMatchObject({ previous: first.revision, written: true, rotated: true, changed: 1, new: 0 });
+  expect(third.unchanged).toBe(first.records - 1);
+  expect(stored(root, 'previous')).toBe(bytes);
+  const retained = stored(root, 'previous');
+
+  // A re-capture with no change keeps previous.
+  const fourth = await capture(root);
+  expect(fourth).toMatchObject({ revision: third.revision, previous: first.revision, rotated: false, changed: 0 });
+  expect(stored(root, 'previous')).toBe(retained);
+
+  // --preview computes the same report and writes nothing.
+  const current = stored(root, 'current');
+  reword(root, 'Sample fixture statement 2.', 'Sample fixture statement two.');
+  const preview = await capture(root, '--preview');
+  expect(preview).toMatchObject({
+    preview: true,
+    written: false,
+    rotated: false,
+    previous: third.revision,
+    changed: 1,
+  });
+  expect(preview.revision).not.toBe(third.revision);
+  expect(stored(root, 'current')).toBe(current);
+  expect(stored(root, 'previous')).toBe(retained);
+
+  const text = await run(['capture', '--root', root]);
+  expect(text.exitCode).toBe(0);
+  expect(text.stderr).toBe('');
+  expect(text.stdout).toContain('Capture');
+  expect(text.stdout).toContain('1 changed');
+  expect(text.stdout).toContain('.ia/work/snapshot');
+  expect(text.stdout).not.toContain(root);
+  expect(JSON.parse(stored(root, 'previous')).revision).toBe(third.revision);
+});
+
+it('retains admission findings in the capture, and refuses with a next command only when nothing can be admitted', async () => {
+  // Unresolved and foreign records are findings, not refusals: the snapshot is written and the exit carries them.
+  const foreign = workspace({ foreign: true });
+  const found = await run(['capture', '--root', foreign, '--json']);
+  expect(found.exitCode).toBe(1);
+  expect(JSON.parse(found.stdout)).toMatchObject({ written: true, validation: { errors: expect.any(Number) } });
+  expect(JSON.parse(found.stdout).validation.errors).toBeGreaterThan(0);
+  expect(existsSync(resolve(foreign, '.ia/work/snapshot/current.json'))).toBe(true);
+
+  // No @workspace at this root: refused before anything is written, naming ia init.
+  const bare = workspace();
+  rmSync(resolve(bare, '.ia/src/systems/workspace-system/records/foundation-workspace.ia'));
+  const missing = await run(['capture', '--root', bare, '--json']);
+  expect(missing.exitCode).toBe(3);
+  expect(missing.stderr).toBe('');
+  const refusal = JSON.parse(missing.stdout) as { ok: boolean; code: string; next: string };
+  expect(refusal).toMatchObject({ ok: false, code: 'IA-CLI-WORKSPACE-UNDECLARED' });
+  expect(refusal.next).toContain('ia init');
+  expect(existsSync(resolve(bare, '.ia/work/snapshot'))).toBe(false);
+  const told = await run(['capture', '--root', bare]);
+  expect(told.exitCode).toBe(3);
+  expect(told.stderr).toContain('IA-CLI-WORKSPACE-UNDECLARED');
+  expect(told.stderr).toContain('ia init');
+
+  // A floor input that fails to parse: refused, the previous snapshot kept, naming ia validate.
+  const root = workspace();
+  await capture(root);
+  const kept = stored(root, 'current');
+  const floor = resolve(root, '.ia/src/floor/move.ia');
+  writeFileSync(floor, readFileSync(floor, 'utf8').replace('#! ia 1.0\n', ''));
+  const unparsed = await run(['capture', '--root', root, '--json']);
+  expect(unparsed.exitCode).toBe(3);
+  const floored = JSON.parse(unparsed.stdout) as { code: string; next: string; where: { path: string } };
+  expect(floored.code).toBe('IA-CLI-FLOOR-UNPARSED');
+  expect(floored.where.path).toBe('.ia/src/floor/move.ia');
+  expect(floored.next).toContain('ia validate');
+  expect(stored(root, 'current')).toBe(kept);
+  expect((await run(['capture', '--root', root, '--preview', '--json'])).exitCode).toBe(3);
+
+  // An unreadable root is the open's own refusal, and it too names a next command.
+  const absent = JSON.parse((await run(['capture', '--root', scratch('no-root'), '--json'])).stdout) as {
+    next: string;
+  };
+  expect(absent.next.trim()).not.toBe('');
 });
 
 it('diagnoses runtime, workspace and installation state in five buckets without repairing anything', async () => {
@@ -405,8 +631,11 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
     { argv: ['format', '--root', root, '--json'], refusal: false },
     { argv: ['format', '--root', root, '../outside', '--json'], refusal: true },
     { argv: ['compile', '--root', root, '--json'], refusal: false },
-    { argv: ['compile', '--root', root, '--json'], refusal: true },
-    { argv: ['compile', '--root', root, '--stdout', '--json'], refusal: false },
+    { argv: ['compile', '--root', root, '--out', '.ia/work/x.json', '--json'], refusal: true },
+    { argv: ['compile', '--root', root, '--stdout', '--json'], refusal: true },
+    { argv: ['capture', '--root', root, '--json'], refusal: false },
+    { argv: ['capture', '--root', root, '--preview', '--json'], refusal: false },
+    { argv: ['capture', '--root', empty, '--json'], refusal: true },
     { argv: ['doctor', '--json'], refusal: false },
     { argv: ['pack', '--root', root, '--descriptor', '.ia/work/absent.json', '--json'], refusal: true },
     { argv: ['install', 'a/b', '--root', root, '--offline', '--json'], refusal: true },
@@ -418,8 +647,7 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
     const stream = result.stdout;
     expect(stream, argv.join(' ')).not.toMatch(ANSI);
     expect(stream.endsWith('\n'), argv.join(' ')).toBe(true);
-    // One value: --stdout carries the compiled artifact, which is one JSON document rather than one line.
-    if (!argv.includes('--stdout')) expect(stream.slice(0, -1), argv.join(' ')).not.toContain('\n');
+    expect(stream.slice(0, -1), argv.join(' ')).not.toContain('\n');
     expect(() => JSON.parse(stream), argv.join(' ')).not.toThrow();
     expect(result.stderr, argv.join(' ')).toBe('');
     if (refusal) expect(JSON.parse(stream), argv.join(' ')).toMatchObject({ version: 1, ok: false });
