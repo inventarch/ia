@@ -1,20 +1,22 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { CAPTURE_DIR, captureOf, writeCaptured } from '@inventarch/db';
+import { CAPTURE_DIR, captureOf, digestIndex, readCapturedSnapshot, writeCaptured } from '@inventarch/db';
 import { KINDS } from '@inventarch/language';
 import { expect, it, vi } from 'vitest';
 import {
   Door,
   MACHINE_PROTOCOL,
+  NEXT_COMMANDS,
   context,
+  next,
   normalizeScopeKey,
   parseLocator,
   position,
   readBody,
   select,
 } from '../src/index.js';
-import type { ContextRequest, DoorResponse, HostFacts, Scope } from '../src/index.js';
+import type { ContextRequest, DeliveryView, DoorResponse, HostFacts, Scope } from '../src/index.js';
 import { database, lawId, methodId, methodPath, playbook, put, workspace } from './workspace.js';
 
 it('refuses equal leading choices and resolves a stronger applicable selector without ordering bias', () => {
@@ -275,7 +277,7 @@ it('describes exactly the operations and parameters the Door admits', () => {
 /** spec-0012 VER-01: the parameter digest each description version carries. */
 const PARAMS_DIGESTS: Readonly<Record<number, string>> = {
   1: 'b92e71f8d59eadd34034974eb77cdc868ccd33b34a6c3c73fe2b2999707f7206',
-  2: '3913d713d71aa4f7a9357bf178044c8c1a5a4615ea6ea5a25027d01a9986ceb3',
+  2: 'b92936dac712a9381069d5432448eec2045110d0af54ad4d41938c18f8c17dae',
 };
 const strip = (value: unknown): unknown =>
   Array.isArray(value)
@@ -311,9 +313,10 @@ it("adds version 2's operations after version 1's nine, whose parameters still d
   expect(added.map((operation) => [operation.name, operation.since, operation.mcp])).toEqual([
     ['position', 2, 'ia_position'],
     ['read', 2, 'ia_read'],
+    ['next', 2, 'ia_next'],
   ]);
   // One flow line, the last, tells what version 2 adds.
-  expect(MACHINE_PROTOCOL.flow.at(-1)).toMatch(/^Since version 2: position .* read /);
+  expect(MACHINE_PROTOCOL.flow.at(-1)).toMatch(/^Since version 2: position .* read .* next /);
 });
 
 /** The refusal's next action for `code`, as the operation's protocol row lists it. */
@@ -406,7 +409,7 @@ it('refuses position and read with a next action from their protocol rows, and t
     }
     // An unknown operation lists the version-2 operations after the nine, in table order.
     expect(door.request({ operation: 'unlisted' })).toMatchObject({
-      message: expect.stringMatching(/admitted: scope, .*, traverse, position, read$/),
+      message: expect.stringMatching(/admitted: scope, .*, traverse, position, read, next$/),
     });
   } finally {
     door.close();
@@ -464,6 +467,132 @@ it("counts a position's staleness over the records its scope admits", () => {
       },
     });
   } finally {
+    door.close();
+  }
+});
+
+/** One plan with one milestone and two tasks, written into the work system of a corpus copy. */
+const WORK_RECORDS = '.ia/src/systems/work-system/records';
+const PLAN = 'work-system/definition/plan/door-plan',
+  MILESTONE = 'work-system/definition/milestone/door-milestone',
+  FIRST = 'work-system/definition/task/first-task',
+  SECOND = 'work-system/definition/task/second-task';
+function planned(root: string, second = 'Second task.'): void {
+  put(
+    root,
+    `${WORK_RECORDS}/door.ia`,
+    '#! ia 1.0\n\n' +
+      '@plan door-plan\n  meaning\n    says "Door plan."\n  work\n    title "door plan"\n    status open\n\n' +
+      '@milestone door-milestone\n  meaning\n    says "Door milestone."\n  work\n    title "door milestone"\n    status open\n' +
+      '    plan @plan door-plan\n    exit "Both tasks done."\n\n' +
+      '@task first-task\n  meaning\n    says "First task."\n  work\n    title "first"\n    status open\n' +
+      '    milestone @milestone door-milestone\n\n' +
+      `@task second-task\n  meaning\n    says "${second}"\n  work\n    title "second"\n    status open\n` +
+      '    milestone @milestone door-milestone\n  relationships\n    requires @task first-task\n',
+  );
+}
+const admitted = (view: DeliveryView): Record<string, string> =>
+  Object.fromEntries(
+    view.entries.map((entry) => [entry.identity, entry.lines.find((line) => line.line === 'admitted')!.value]),
+  );
+
+it('serves next: the delivery view next() gives over a handle that retains the captured current snapshot', () => {
+  const root = workspace();
+  planned(root);
+  const door = new Door(root, { cache: false });
+  try {
+    // Nothing captured: the Door's handle retains no snapshot, so no record reads as admitted in one.
+    const bare = door.request({ operation: 'next', params: {} });
+    if (!bare.ok) throw new Error(bare.message);
+    const db = database(root);
+    expect(bare.result).toEqual(next(db, db.resolveScope().token));
+    expect((bare.result as DeliveryView).snapshot).toBeNull();
+    expect(Object.values(admitted(bare.result as DeliveryView))).toEqual(['unknown', 'unknown', 'unknown', 'unknown']);
+    expect((bare.result as DeliveryView).entries.map((entry) => entry.identity)).toEqual([
+      PLAN,
+      MILESTONE,
+      FIRST,
+      SECOND,
+    ]);
+    expect(JSON.stringify(bare.result)).not.toMatch(/"token"/);
+  } finally {
+    door.close();
+  }
+  // Two captures, the second after an edit: the store's current snapshot holds the edited task, its previous one not.
+  writeCaptured(root, CAPTURE_DIR, captureOf(database(root)));
+  planned(root, 'Second task, edited.');
+  writeCaptured(root, CAPTURE_DIR, captureOf(database(root)));
+  const store = readCapturedSnapshot(root);
+  expect(store.previous?.revision).not.toBe(store.current?.revision);
+  const seeded = new Door(root, { cache: false });
+  try {
+    const got = seeded.request({ operation: 'next', params: { seat: MILESTONE } });
+    if (!got.ok) throw new Error(got.message);
+    const view = got.result as DeliveryView,
+      db = database(root, { previous: digestIndex(store.current!) });
+    expect(view).toEqual(next(db, db.resolveScope().token, { seat: MILESTONE }));
+    // The retained snapshot is the store's current one, so every record, the edited task included, is admitted in it.
+    expect(view.snapshot).toBe(store.current!.revision);
+    expect(admitted(view)).toEqual({ [MILESTONE]: 'admitted', [FIRST]: 'admitted', [SECOND]: 'admitted' });
+    // A scope issued by the Door narrows the view in the same process.
+    const narrowed = seeded.request({ operation: 'scope', params: { identities: [FIRST] } });
+    if (!narrowed.ok) throw new Error(narrowed.message);
+    expect(
+      seeded.request({ operation: 'next', params: { within: (narrowed.result as Scope).token, seat: FIRST } }),
+    ).toMatchObject({ ok: true, result: { seat: { identity: FIRST, word: 'task' }, entries: [{ identity: FIRST }] } });
+  } finally {
+    seeded.close();
+  }
+  // A host that names its own retained snapshot keeps it: the Door seeds from the store only when none is given.
+  const own = new Door(root, { cache: false, previous: digestIndex(store.previous!) });
+  try {
+    const got = own.request({ operation: 'next', params: { seat: SECOND } });
+    expect(got).toMatchObject({ ok: true, result: { snapshot: store.previous!.revision } });
+    expect(admitted((got as { result: DeliveryView }).result)).toEqual({ [SECOND]: 'not evaluated' });
+  } finally {
+    own.close();
+  }
+});
+
+it("refuses next with the delivery view's own next command for its causes, and the row's next for the rest", () => {
+  const empty = workspace(),
+    two = workspace();
+  planned(two);
+  put(
+    two,
+    `${WORK_RECORDS}/other.ia`,
+    '#! ia 1.0\n\n@plan another-plan\n  meaning\n    says "Another plan."\n  work\n    title "another"\n    status open\n',
+  );
+  const bare = new Door(empty, { cache: false }),
+    door = new Door(two, { cache: false });
+  try {
+    const cause = (got: DoorResponse, next: string): void => {
+      expect(got).toMatchObject({ ok: false, code: 'IA-RUNTIME-REQUEST-INVALID' });
+      expect(got.ok ? undefined : got.next).toBe(next);
+    };
+    // No authored plan and no seat: the worked example of the plan word.
+    cause(bare.request({ operation: 'next', params: {} }), NEXT_COMMANDS.noPlan());
+    // Two plans and no seat: seat the view at the first.
+    cause(
+      door.request({ operation: 'next', params: {} }),
+      NEXT_COMMANDS.choosePlan('work-system/definition/plan/another-plan'),
+    );
+    // A seat naming nothing, or nothing a view is seated at.
+    cause(
+      door.request({ operation: 'next', params: { seat: 'work-system/definition/task/none' } }),
+      NEXT_COMMANDS.dropSeat(),
+    );
+    cause(door.request({ operation: 'next', params: { seat: '' } }), NEXT_COMMANDS.dropSeat());
+    cause(door.request({ operation: 'next', params: { seat: methodId } }), NEXT_COMMANDS.position(methodId));
+    // Every other refusal names the next action its protocol row lists for the code.
+    const call = (params: Record<string, unknown>) => door.request({ operation: 'next', params });
+    refused(call({ unlisted: 1 }), 'next', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(call({ seat: 1 }), 'next', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(call({ within: 'forged' }), 'next', 'IA-DB-SCOPE-UNAVAILABLE');
+    // The view is never a version-1 refusal: every refusal of next carries a next.
+    expect(Object.keys(call({ unlisted: 1 }))).toEqual(['ok', 'code', 'message', 'next']);
+  } finally {
+    bare.close();
     door.close();
   }
 });

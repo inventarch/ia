@@ -168,7 +168,7 @@ function oneJsonLine(stdout: string, label: string): unknown {
 }
 
 it('keeps the version-2 machine routes one undecorated JSON line under C03 exit classes', async () => {
-  expect([...SINCE_2_OPERATIONS]).toEqual(['position', 'read']);
+  expect([...SINCE_2_OPERATIONS]).toEqual(['position', 'read', 'next']);
   const classes = new Set<number>();
   for (const operation of SINCE_2_OPERATIONS) {
     const got = await legacy([operation, '--root', FIXTURE, '--params', '{}']);
@@ -181,7 +181,7 @@ it('keeps the version-2 machine routes one undecorated JSON line under C03 exit 
     if (!value.ok) expect(value.next, operation).toEqual(expect.any(String));
     classes.add(got.status!);
   }
-  // position {} is K0 and succeeds; read {} lacks its locator.
+  // position {} is K0 and succeeds; read {} lacks its locator; next {} finds no plan in this fixture.
   expect([...classes].sort()).toEqual([0, 2]);
   // The position a scope key asks for: one line holding the body, its digest and the host note.
   const got = await legacy(['position', '--root', FIXTURE, '--params', '{"shape":"context","phase":"orient"}']);

@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
@@ -27,7 +28,7 @@ afterEach(() => {
   for (const value of instances.splice(0)) value.close();
   vi.restoreAllMocks();
 });
-it('negotiates the pinned profile, discovers eleven tools and enforces initialization order', () => {
+it('negotiates the pinned profile, discovers twelve tools and enforces initialization order', () => {
   const value = protocol();
   expect(value.request(message(1, 'tools/list'))?.error?.code).toBe(-32000);
   expect(value.request(message(1, 'initialize', {}))?.error?.code).toBe(-32602);
@@ -55,9 +56,15 @@ it('negotiates the pinned profile, discovers eleven tools and enforces initializ
   const listed = value.request(message(3, 'tools/list'))?.result as {
     tools: { name: string; annotations: { readOnlyHint: boolean } }[];
   };
-  // Ten door operations (the eight version-1 ones served here, then ia_position and ia_read) and ia_vocabulary.
-  expect(listed.tools).toHaveLength(11);
-  expect(listed.tools.slice(-3).map((tool) => tool.name)).toEqual(['ia_position', 'ia_read', 'ia_vocabulary']);
+  // Eleven door operations (the eight version-1 ones served here, then ia_position, ia_read and ia_next) and
+  // ia_vocabulary.
+  expect(listed.tools).toHaveLength(12);
+  expect(listed.tools.slice(-4).map((tool) => tool.name)).toEqual([
+    'ia_position',
+    'ia_read',
+    'ia_next',
+    'ia_vocabulary',
+  ]);
   expect(listed.tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
   expect(listed.tools.some((t) => t.name === 'ia_report')).toBe(false);
   expect(value.request(message(4, 'initialize'))?.error?.code).toBe(-32600);
@@ -106,6 +113,49 @@ it('serves ia_position and ia_read as the Door answers them, refusals with their
     });
   } finally {
     door.close();
+  }
+});
+it('serves ia_next as the Door answers it, a refusal with the next command for its cause', () => {
+  // The loop fixture holds no plan: the view is refused with its cause's own next command.
+  const loop = protocol();
+  initialize(loop);
+  expect(loop.request(message(2, 'tools/call', { name: 'ia_next', arguments: {} }))?.result).toMatchObject({
+    isError: true,
+    structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID', next: 'ia vocabulary plan --example' },
+  });
+  // A copy of the conformance corpus with this repository's work records holds one plan.
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-mcp-next-')),
+    work = '.ia/src/systems/work-system/records/work.ia',
+    repository = resolve(import.meta.dirname, '../../..');
+  cpSync(resolve(repository, 'examples/conformance/native'), resolve(root, '.ia/src'), { recursive: true });
+  mkdirSync(resolve(root, work, '..'), { recursive: true });
+  cpSync(resolve(repository, work), resolve(root, work));
+  const value = new Protocol(root);
+  instances.push(value);
+  initialize(value);
+  const door = new Door(root, { cache: false });
+  try {
+    const got = value.request(message(3, 'tools/call', { name: 'ia_next', arguments: {} }))?.result as {
+      content: { text: string }[];
+      structuredContent: Record<string, unknown>;
+      isError: boolean;
+    };
+    expect(got.isError).toBe(false);
+    expect(JSON.parse(got.content[0]!.text)).toEqual(got.structuredContent);
+    expect(got.structuredContent).toEqual(door.request({ operation: 'next', params: {} }));
+    expect(got.structuredContent).toMatchObject({
+      ok: true,
+      result: { seat: { identity: 'work-system/definition/plan/example-plan', word: 'plan' } },
+    });
+    expect(
+      value.request(message(4, 'tools/call', { name: 'ia_next', arguments: { unlisted: 1 } }))?.result,
+    ).toMatchObject({
+      isError: true,
+      structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID', next: expect.any(String) },
+    });
+  } finally {
+    door.close();
+    rmSync(root, { recursive: true, force: true });
   }
 });
 it('returns exact door successes and refusals as matching text and structured tool content', () => {

@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { relative, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { expect, it, vi } from 'vitest';
@@ -193,6 +194,10 @@ const TRIGGERS: Readonly<Record<string, Readonly<Record<string, Trigger>>>> = {
     }),
     'IA-DB-PATH-UNSAFE': { seat: '../outside' },
   },
+  next: {
+    'IA-RUNTIME-REQUEST-INVALID': { unlisted: 1 },
+    'IA-DB-SCOPE-UNAVAILABLE': { within: 'forged' },
+  },
   read: {
     'IA-RUNTIME-REQUEST-INVALID': { locator: 'not a locator' },
     'IA-DB-SCOPE-UNAVAILABLE': { locator: ID, within: 'forged' },
@@ -200,13 +205,33 @@ const TRIGGERS: Readonly<Record<string, Readonly<Record<string, Trigger>>>> = {
     'IA-DB-SOURCE-UNAVAILABLE': { locator: `${ID}#REQ-NONE-1` },
   },
 };
+/**
+ * The loop fixture holds no work system, so it has no plan for next's example to deliver: that example runs over a copy
+ * of the conformance corpus holding this repository's own work records, whose scope admits one authored plan.
+ */
+function planned(): string {
+  const workspace = mkdtempSync(resolve(tmpdir(), 'ia-cli-planned-')),
+    work = '.ia/src/systems/work-system/records/work.ia';
+  cpSync(resolve(root, 'examples/conformance/native'), resolve(workspace, '.ia/src'), { recursive: true });
+  mkdirSync(resolve(workspace, work, '..'), { recursive: true });
+  cpSync(resolve(root, work), resolve(workspace, work));
+  return workspace;
+}
 // spec-0012 DRF-02: every example returns ok: true, every required parameter is required, and the refusal list is proven both ways.
 it('holds the machine protocol table to the loop fixture', () => {
-  const door = new Door(fixture, { cache: false, allowReport: true });
+  const door = new Door(fixture, { cache: false, allowReport: true }),
+    work = planned(),
+    examples: Readonly<Record<string, Door>> = { next: new Door(work, { cache: false }) };
   try {
+    // On loop, next's example is refused for the plan it lacks, with that cause's own next command.
+    expect(door.request({ operation: 'next', params: {} })).toMatchObject({
+      ok: false,
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      next: 'ia vocabulary plan --example',
+    });
     for (const operation of MACHINE_PROTOCOL.operations) {
       expect(
-        door.request({ operation: operation.name, params: operation.example }).ok,
+        (examples[operation.name] ?? door).request({ operation: operation.name, params: operation.example }).ok,
         `${operation.name} example`,
       ).toBe(true);
       for (const name of (operation.params as { required?: readonly string[] }).required ?? []) {
@@ -251,6 +276,8 @@ it('holds the machine protocol table to the loop fixture', () => {
       expect(door.request({ operation: 'scope', params: binding }).ok, JSON.stringify(binding)).toBe(true);
   } finally {
     door.close();
+    for (const opened of Object.values(examples)) opened.close();
+    rmSync(work, { recursive: true, force: true });
   }
   expect(existsSync(resolve(fixture, '.ia/.iadb'))).toBe(false);
 });
@@ -318,7 +345,7 @@ it('keeps the frozen usage line and adds the version-2 operations on a line of t
     'Usage: ia <scope|context|select|get|records|resolve|search|traverse|report> [--root <workspace>] [--params <JSON|->]',
   );
   expect(stdin).toBe('Use --params - for stdin JSON. Scope tokens last for one invocation.');
-  expect(since).toMatch(/^Since protocol v2: ia <position\|read> \[--root <workspace>\] --params <JSON\|->/);
+  expect(since).toMatch(/^Since protocol v2: ia <position\|read\|next> \[--root <workspace>\] --params <JSON\|->/);
 });
 // The CLI tells a position's host note who served it and a digest of the workspace's installed state.
 it('supplies its own name and the installed-state digest to the position host note, and to nothing else', () => {

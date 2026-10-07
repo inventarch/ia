@@ -819,7 +819,7 @@ it('lists the version-2 operations on a line of their own under the frozen nine 
   expect(help).toContain(`  ${LEGACY_OPERATIONS.join('  ')}`);
   const since = help.filter((line) => line.includes('Since v2:'));
   expect(since).toEqual([
-    `  Since v2: ${SINCE_2_OPERATIONS.join('  ')} — the machine route only with --params or --schema`,
+    `  Since v2: ${SINCE_2_OPERATIONS.join('  ')} — machine route only with --params or --schema`,
   ]);
 });
 
@@ -865,15 +865,16 @@ it('answers a version-2 operation by its consumer command, and by its machine fo
   expect(help.exitCode).toBe(0);
   expect(help.stdout).toContain('ia position  Deliver the position body');
   expect(help.stdout).toContain('ia_position');
-  // A near miss suggests each admitted name once, and never the token that was asked.
+  // A near miss suggests each admitted name once, and never the token that was asked: a version-2 name with neither
+  // a command nor a protocol row (here an invented one) is unknown, without suggesting itself.
   expect((await run(['raed'])).stderr.match(/\bread\b/g)).toHaveLength(1);
-  const asked = await dispatch(['next'], makeHost(), legacy, extensions, ['position', 'read', 'next']);
-  expect(asked.stderr).toContain('Unknown command next');
-  expect(asked.stderr).not.toContain('Did you mean next');
+  const asked = await dispatch(['later'], makeHost(), legacy, extensions, ['position', 'read', 'next', 'later']);
+  expect(asked.stderr).toContain('Unknown command later');
+  expect(asked.stderr).not.toContain('Did you mean later');
 });
 
 it('keeps every v2 token off the machine route while the protocol does not serve it', async () => {
-  for (const token of ['position', 'read', 'next'].filter(
+  for (const token of ['position', 'read', 'next', 'later'].filter(
     (candidate) => !(SINCE_2_OPERATIONS as readonly string[]).includes(candidate),
   ))
     for (const argv of [
