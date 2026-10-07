@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync, symlinkSync, utimesSync } from 'node:fs';
+import { readFileSync, readdirSync, rmSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { stableSerialize } from '@inventarch/graph';
 import { expect, it } from 'vitest';
@@ -128,6 +128,8 @@ it('closes idempotently and refuses all subsequent reads and refreshes', () => {
     () => db.search('x'),
     () => db.traverse({ start: [] }),
     () => db.membership(),
+    () => db.staleness(methodId),
+    () => db.readiness(methodId, 'f'.repeat(64)),
     () => db.refresh(),
     () => db.revision,
     () => db.report,
@@ -225,4 +227,81 @@ it('seats adopted records in their admitted @system at the mount root, and nothi
     band: 90,
   });
   expect(rows.filter((r) => r.placement === 'floor').every((r) => r.seat === null)).toBe(true);
+});
+
+const edited = (source: string) => source.replace('Sample fixture statement 1.', 'An edited statement.');
+it('keeps the prior digests as previous across a refresh and reports staleness by digest equality', () => {
+  const root = workspace(),
+    db = open(root, { cache: false }),
+    identities = db.records().map((node) => node.identity),
+    reading = (value: string) => db.records().filter((node) => db.staleness(node.identity) === value),
+    source = readFileSync(resolve(root, methodPath), 'utf8');
+  // Nothing retained yet: every present record is new.
+  expect(identities.every((identity) => db.staleness(identity) === 'new')).toBe(true);
+  put(root, methodPath, edited(source));
+  db.refresh();
+  expect(reading('changed').map((node) => node.identity)).toEqual([methodId]);
+  expect(reading('unchanged')).toHaveLength(identities.length - 1);
+  expect(reading('new')).toEqual([]);
+  // A refresh with no source change keeps previous: the edited record still reads changed.
+  db.refresh();
+  expect(db.staleness(methodId)).toBe('changed');
+  // Lines moving above the record change the revision but not the record: unchanged.
+  put(root, methodPath, edited(source).replace('#! ia 1.0\n', '#! ia 1.0\n# moved down\n\n'));
+  db.refresh();
+  expect(db.staleness(methodId)).toBe('unchanged');
+  // A failed refresh publishes nothing and keeps previous.
+  put(root, '.ia/src/invalid.ia', new Uint8Array([0xc3, 0x28]));
+  expect(() => db.refresh()).toThrow(expect.objectContaining({ code: 'IA-DB-SOURCE-UNAVAILABLE' }));
+  rmSync(resolve(root, '.ia/src/invalid.ia'));
+  expect(db.staleness(methodId)).toBe('unchanged');
+});
+it('reports new and removed identities, and nothing for an identity in neither snapshot', () => {
+  const root = workspace(),
+    db = open(root, { cache: false });
+  put(root, '.ia/src/team.ia', workspaceRecord('team-workspace', ''));
+  db.refresh();
+  const team = db.records().find((node) => node.name === 'team-workspace')!.identity;
+  expect(db.staleness(team)).toBe('new');
+  rmSync(resolve(root, '.ia/src/team.ia'));
+  db.refresh();
+  expect(db.get(team)).toBeUndefined();
+  expect(db.staleness(team)).toBe('removed');
+  expect(db.staleness('workspace-system/definition/workspace/nowhere')).toBeUndefined();
+  const scope = db.resolveScope({ identities: [methodId] });
+  expect(db.staleness(methodId, { within: scope.token })).toBe('unchanged');
+  expect(() => db.staleness(team, { within: scope.token })).toThrow(
+    expect.objectContaining({ code: 'IA-DB-OUT-OF-SCOPE' }),
+  );
+});
+it('reads an observed subject revision as current, previous or unknown', () => {
+  const root = workspace(),
+    db = open(root, { cache: false }),
+    before = db.get(methodId)!.digest;
+  expect(db.readiness(methodId, before)).toBe('current');
+  expect(db.readiness(methodId, 'f'.repeat(64))).toBe('unknown');
+  put(root, methodPath, edited(readFileSync(resolve(root, methodPath), 'utf8')));
+  db.refresh();
+  expect(db.readiness(methodId, before)).toBe('previous');
+  expect(db.readiness(methodId, db.get(methodId)!.digest)).toBe('current');
+  expect(db.readiness(methodId, 'f'.repeat(64))).toBe('unknown');
+});
+it('seeds previous from a supplied digest index so a later process can compare', () => {
+  const root = workspace(),
+    first = open(root, { cache: false }),
+    digests = new Map(first.records().map((node) => [node.identity, node.digest]));
+  put(root, methodPath, edited(readFileSync(resolve(root, methodPath), 'utf8')));
+  const later = open(root, { cache: false, previous: { revision: first.revision, digests } });
+  expect(
+    later
+      .records()
+      .filter((node) => later.staleness(node.identity) === 'changed')
+      .map((n) => n.identity),
+  ).toEqual([methodId]);
+  digests.clear();
+  // The handle copied the index: caller mutation cannot change it.
+  expect(later.staleness(methodId)).toBe('changed');
+  expect(() => open(root, { cache: false, previous: { revision: 7, digests } as never })).toThrow(
+    expect.objectContaining({ code: 'IA-DB-SNAPSHOT-UNAVAILABLE' }),
+  );
 });

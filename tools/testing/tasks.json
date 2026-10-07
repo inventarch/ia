@@ -1615,6 +1615,7 @@
         "tests/inputs.test.ts",
         "tests/preview.test.ts",
         "tests/scope.test.ts",
+        "tests/snapshot-store.test.ts",
         "tests/view.test.ts",
         "tests/workspace-config.test.ts"
       ],
