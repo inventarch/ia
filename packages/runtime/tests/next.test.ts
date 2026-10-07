@@ -319,6 +319,36 @@ it('reads evidence against the retained snapshot: stale on the previous digest, 
   // The retained snapshot admitted the unchanged records at their digests, not the edited one.
   expect(line(stale, ASK, 'admitted')).toMatchObject({ value: 'admitted' });
   expect(line(stale, WRITE, 'admitted')).toMatchObject({ value: 'not evaluated' });
+  // A second success at the current digest is preferred over the one at the retained snapshot's digest, although
+  // its identity sorts after it.
+  evidence(
+    root,
+    observation('write-evidence', {
+      subject: '@task write-task',
+      revision: retained.digests.get(WRITE)!,
+      evaluator: WORK_STEWARD,
+      verdict: 'success',
+    }),
+    observation('write-evidence-current', {
+      subject: '@task write-task',
+      revision: digestOf(root, WRITE),
+      evaluator: WORK_STEWARD,
+      verdict: 'success',
+    }),
+  );
+  const both = view(database(root, { previous: retained }));
+  expect(line(both, WRITE, 'worked')).toMatchObject({ value: 'observed success' });
+  expect(entry(both, WRITE).verdict.observation).toBe('learning-system/definition/observation/write-evidence-current');
+  expect(entry(both, REVIEW).verdict.text).toBe('no declared blocker');
+  evidence(
+    root,
+    observation('write-evidence', {
+      subject: '@task write-task',
+      revision: retained.digests.get(WRITE)!,
+      evaluator: WORK_STEWARD,
+      verdict: 'success',
+    }),
+  );
   // Without a retained snapshot the old digest matches neither: unknown, and the view names no stale evidence.
   const unknown = view(database(root));
   expect(line(unknown, WRITE, 'worked')).toMatchObject({ value: 'unknown' });
@@ -343,6 +373,8 @@ it('reports a require cycle as a review item with its owner and claims no order'
   delivery(root, [
     task('loop-a-task', 'alpha-milestone', ['@task loop-b-task']),
     task('loop-b-task', 'alpha-milestone', ['@task loop-a-task']),
+    // wait-task waits on the cycle without lying on it: unordered, listed, yet not a cycle member.
+    task('wait-task', 'alpha-milestone', ['@task loop-a-task']),
   ]);
   const result = view(database(root));
   expect(result.ordered).toBe(false);
@@ -356,6 +388,7 @@ it('reports a require cycle as a review item with its owner and claims no order'
   // Every record is still listed with its lines and verdict.
   expect(result.entries.map((item) => item.identity)).toContain('work-system/definition/task/loop-a-task');
   expect(entry(result, 'work-system/definition/task/loop-a-task').verdict.kind).toBe('blocked');
+  expect(entry(result, 'work-system/definition/task/wait-task').verdict.kind).toBe('blocked');
   // write-task has no declared blocker, but with no order to claim the view names no next command.
   expect(entry(result, WRITE).verdict.kind).toBe('clear');
   expect(result.next).toBeNull();
@@ -432,6 +465,15 @@ it('reads authored observations by default; another evidence reader may add the 
   expect(line(plain, WRITE, 'realized')).toMatchObject({ value: 'unobserved' });
   expect(entry(plain, WRITE).verdict.kind).toBe('clear');
   expect(view(db, {}, AUTHORED_EVIDENCE)).toEqual(plain);
+  // Nor does the default reader take observations read at an adopted or open placement: authored ones only.
+  for (const placement of [
+    { kind: 'adopted', band: 90, reach: '' },
+    { kind: 'open', band: 50, reach: '' },
+  ] as const) {
+    const placed = view(database(root, { locations: { [evidencePath]: { placement, provenance: 'methodology' } } }));
+    expect(line(placed, WRITE, 'realized')).toMatchObject({ value: 'unobserved' });
+    expect(entry(placed, WRITE).verdict.kind).toBe('clear');
+  }
   const overlay: EvidenceReader = {
     name: 'fixture-overlay',
     read: (handle, within) => ({
