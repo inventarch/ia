@@ -165,3 +165,17 @@ it('confines the store to a directory under .ia/work and ignores only a director
   expect(existsSync(resolve(root, '.ia/work/fresh/.gitignore'))).toBe(false);
   expect(readFileSync(resolve(root, '.ia/work/fresh/nested/.gitignore'), 'utf8')).toBe(CAPTURE_IGNORE);
 });
+
+it('refuses a store path holding a NUL byte as unsafe, before anything is written', () => {
+  const root = workspace(false),
+    snapshot = captureOf(open(root, { cache: false }));
+  for (const dir of ['.ia/work/x\0y', '.ia/work/\0', '.ia/work/snapshot\0']) {
+    expect(() => writeCaptured(root, dir, snapshot), JSON.stringify(dir)).toThrow(
+      expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }),
+    );
+    expect(() => readCaptured(root, dir), JSON.stringify(dir)).toThrow(
+      expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }),
+    );
+  }
+  expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
+});
