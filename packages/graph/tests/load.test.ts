@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@inventarch/language';
-import { load, resolve, serialize, stableSerialize } from '../src/index.js';
+import { digest, load, recordDigest, resolve, serialize, stableSerialize } from '../src/index.js';
 import type { Graph, LoadOptions, RevisionSource } from '../src/index.js';
 import { inputs, instance, loop, records, registry } from './native.js';
 
@@ -319,5 +319,63 @@ describe('typed field references (G06a)', () => {
     expect(reversed.revision).toBe(native.revision);
     expect(() => (native.references as unknown[]).pop()).toThrow();
     expect(() => (native.referencedBy as Map<string, unknown>).clear()).toThrow();
+  });
+});
+
+// The per-record digest is taken over the record's own source lines, so it moves with that record's text and with
+// nothing else: compiled spans, placement and resolved targets shift when other text moves, the slice does not.
+describe('per-record source digest', () => {
+  const pair = (above: string, b: string, newline = '\n') => {
+    const extra = probe(`${above}@playbook a\n  relationships\n    cites @playbook b\n\n${b}`.replaceAll('\n', newline));
+    const graph = load(extra.records, registry, { ...options, sources: [extra.source] });
+    expect(graph.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    const node = (name: string) => [...graph.nodes.values()].find((n) => n.name === name)!;
+    return { a: node('a'), b: node('b') };
+  };
+  const plain = '@playbook b';
+  const edited = '@playbook b\n  relationships\n    cites @playbook a';
+
+  it('keeps a record digest when only the lines above it move', () => {
+    const before = pair('', plain);
+    const shifted = pair('# a note above every record\n\n# and another\n', plain);
+    expect(shifted.b.source.line).toBe(before.b.source.line + 3);
+    expect(shifted.a.digest).toBe(before.a.digest);
+    expect(shifted.b.digest).toBe(before.b.digest);
+  });
+  it('moves only the edited record digest when its own text changes', () => {
+    const before = pair('', plain);
+    const after = pair('', edited);
+    expect(after.b.digest).not.toBe(before.b.digest);
+    expect(after.a.digest).toBe(before.a.digest);
+  });
+  it('is a tagged sha256 over the CRLF-normalised source slice', () => {
+    const lf = pair('', edited);
+    const crlf = pair('', edited, '\r\n');
+    expect(crlf.b.digest).toBe(lf.b.digest);
+    expect(crlf.a.digest).toBe(lf.a.digest);
+    expect(lf.b.digest).toMatch(/^[0-9a-f]{64}$/);
+    const text = '#! ia 1.0\r\n@playbook b\r\n  relationships\r\n    cites @playbook a\r\n';
+    expect(recordDigest(text, { line: 2, endLine: 4 })).toBe(
+      digest({ format: 'ia-record-1', text: '@playbook b\n  relationships\n    cites @playbook a' }),
+    );
+    expect(recordDigest(`\uFEFF${text}`, { line: 2, endLine: 4 })).toBe(recordDigest(text, { line: 2, endLine: 4 }));
+  });
+  it('covers nested records inside their parent: a child edit moves the parent digest too', () => {
+    const nested = (says: string) => {
+      const extra = probe(`@agent lead\n  team\n    @agent member\n      meaning\n        says "${says}"\n    size 2\n@agent other`);
+      const graph = load(extra.records, registry, { ...options, sources: [extra.source] });
+      const node = (name: string) => [...graph.nodes.values()].find((n) => n.name === name)!;
+      return { lead: node('lead'), member: node('member'), other: node('other') };
+    };
+    const before = nested('m'),
+      after = nested('changed');
+    expect(before.member.parent).toBe(before.lead.identity);
+    expect(after.member.digest).not.toBe(before.member.digest);
+    expect(after.lead.digest).not.toBe(before.lead.digest);
+    expect(after.other.digest).toBe(before.other.digest);
+  });
+  it('puts a digest on every native node without changing the corpus revision', () => {
+    expect([...native.nodes.values()].every((n) => /^[0-9a-f]{64}$/.test(n.digest))).toBe(true);
+    expect(native.revision).toBe(load(records, registry, options).revision);
   });
 });

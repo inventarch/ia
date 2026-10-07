@@ -103,6 +103,15 @@ it('serves scoped JSON operations from a privately owned door and rejects unknow
       ok: true,
       result: { root: 'team', records: [expect.objectContaining({ identity: methodId })] },
     });
+    // The frozen get/records results keep their released record shape: the per-record digest stays off the wire.
+    const got = door.request({ operation: 'get', params: { within: scope.token, identity: methodId } });
+    const listed = door.request({ operation: 'records' });
+    expect(got.ok && listed.ok).toBe(true);
+    if (!got.ok || !listed.ok) return;
+    expect(Object.keys(got.result as object)).not.toContain('digest');
+    const snapshot = listed.result as { records: readonly object[] };
+    expect(snapshot.records.every((record) => !Object.keys(record).includes('digest'))).toBe(true);
+    expect(Object.isFrozen(got.result) && Object.isFrozen(snapshot) && Object.isFrozen(snapshot.records)).toBe(true);
     expect(
       door.request({
         operation: 'resolve',

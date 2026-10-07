@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { stableSerialize } from '@inventarch/graph';
 import { expect, it } from 'vitest';
 import { DbError, open, readInputs } from '../src/index.js';
 import { stableState } from '../src/handle.js';
@@ -125,6 +127,7 @@ it('closes idempotently and refuses all subsequent reads and refreshes', () => {
     () => db.resolve({ kind: 'ref', discriminator: 'playbook', name: 'sample-procedure' }),
     () => db.search('x'),
     () => db.traverse({ start: [] }),
+    () => db.membership(),
     () => db.refresh(),
     () => db.revision,
     () => db.report,
@@ -133,4 +136,85 @@ it('closes idempotently and refuses all subsequent reads and refreshes', () => {
   ]) {
     expect(read).toThrow(expect.objectContaining({ code: 'IA-DB-CLOSED' }));
   }
+});
+
+const byIdentity = (a: { identity: string }, b: { identity: string }): number =>
+  a.identity < b.identity ? -1 : a.identity > b.identity ? 1 : 0;
+const workspaceRecord = (name: string, sources: string) =>
+  `#! ia 1.0\n\n@workspace ${name}\n  meaning\n    says "A ${name} test boundary."\n    answers "Which records does ${name} seat?"\n  composition\n    systems [@system governance-system]\n${sources}`;
+it('reports one membership row per admitted record with its seat, root, placement, band and source digest', () => {
+  const db = open(workspace(), { cache: false }),
+    records = [...db.records()].sort(byIdentity),
+    rows = db.membership(),
+    seat = records.find((r) => r.discriminator === 'workspace' && r.name === 'foundation-workspace')!.identity;
+  expect(rows.map((row) => row.identity)).toEqual(records.map((record) => record.identity));
+  for (const row of rows) {
+    const node = db.get(row.identity)!,
+      floor = node.placement.kind === 'floor';
+    // One admitted @workspace and no declared sources: authored records sit in it at the placement root (rule 3).
+    expect(row).toEqual({
+      identity: node.identity,
+      seat: floor ? null : seat,
+      root: floor ? '.ia/src/floor' : '.ia/src',
+      placement: node.placement.kind,
+      band: node.band,
+      digest: node.digest,
+    });
+    expect(row.digest).toMatch(/^[0-9a-f]{64}$/);
+  }
+  expect(rows.some((row) => row.placement === 'floor')).toBe(true);
+  expect(() => (rows as unknown[]).pop()).toThrow();
+  const scope = db.resolveScope({ identities: [methodId] });
+  expect(db.membership({ within: scope.token }).map((row) => row.identity)).toEqual([methodId]);
+});
+it('moves a membership digest only when that record text changes', () => {
+  const root = workspace(),
+    db = open(root, { cache: false }),
+    digestOf = () => db.membership().find((row) => row.identity === methodId)!.digest,
+    line = () => db.get(methodId)!.source.line,
+    before = digestOf(),
+    beforeLine = line(),
+    source = readFileSync(resolve(root, methodPath), 'utf8');
+  put(root, methodPath, source.replace('#! ia 1.0\n', '#! ia 1.0\n# lines above the record\n\n'));
+  db.refresh();
+  expect(line()).toBe(beforeLine + 2);
+  expect(digestOf()).toBe(before);
+  put(root, methodPath, source.replace('Sample fixture statement 1.', 'An edited statement.'));
+  db.refresh();
+  expect(digestOf()).not.toBe(before);
+});
+it('seats records under the longest declared source root, then identity', () => {
+  const root = workspace();
+  put(root, '.ia/src/team.ia', workspaceRecord('team-workspace', '    sources [".ia/src/systems/governance-system @authored"]\n'));
+  put(root, '.ia/src/whole.ia', workspaceRecord('whole-workspace', '    sources [".ia/src @authored", ".ia/src/floor @floor"]\n'));
+  put(root, '.ia/src/twin.ia', workspaceRecord('a-twin-workspace', '    sources [".ia/src @authored"]\n'));
+  const db = open(root, { cache: false }),
+    identity = (name: string) => db.records().find((r) => r.name === name)!.identity,
+    row = (id: string) => db.membership().find((r) => r.identity === id)!;
+  expect(db.refused).toEqual([]);
+  expect(row(methodId)).toMatchObject({ seat: identity('team-workspace'), root: '.ia/src/systems/governance-system' });
+  // Equal declared roots tie-break by workspace identity ascending.
+  const tie = [identity('whole-workspace'), identity('a-twin-workspace')].sort()[0];
+  expect(row(identity('team-workspace'))).toMatchObject({ seat: tie, root: '.ia/src' });
+  // A declared root seats only records captured at its placement.
+  const floor = db.membership().find((r) => r.placement === 'floor')!;
+  expect(floor).toMatchObject({ seat: identity('whole-workspace'), root: '.ia/src/floor' });
+});
+it('seats adopted records in their admitted @system at the mount root, and nothing when no workspace is unique', () => {
+  const native = workspace(),
+    sources = readInputs(native, { adopted: [] })
+      .sources.filter((s) => !s.path.startsWith('.ia/src/floor/'))
+      .map(({ path, text }) => ({ path, text })),
+    revision = createHash('sha256').update(stableSerialize(sources)).digest('hex'),
+    db = open(workspace(false), { cache: false, adopted: [{ id: 'foundation', revision, sources }] }),
+    rows = db.membership(),
+    method = rows.find((r) => r.identity === methodId)!,
+    system = db.records().find((r) => r.discriminator === 'system' && r.name === 'governance-system')!;
+  expect(method).toMatchObject({
+    seat: system.identity,
+    root: `.ia/adopted/foundation/${revision}/.ia/src/systems/governance-system`,
+    placement: 'adopted',
+    band: 90,
+  });
+  expect(rows.filter((r) => r.placement === 'floor').every((r) => r.seat === null)).toBe(true);
 });
