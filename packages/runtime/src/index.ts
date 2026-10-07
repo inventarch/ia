@@ -47,3 +47,13 @@ export {
 } from './publication.js';
 export type { PublicationFile, PreparedPublication, PublicationStatus } from './publication.js';
 export { isEntry } from './entry.js';
+export {
+  MANDATE_CODES,
+  MODES,
+  MODE_MOVES,
+  MOVES,
+  isMode,
+  mandateAuthorityOf,
+  mandateRefusal,
+} from './mandate-modes.js';
+export type { MandateAuthority, MandateCode, MandateRefusal, Mode, Move } from './mandate-modes.js';

@@ -6,6 +6,8 @@ Owner: agent-composition-system. Identity: agent-composition-system/definition/<
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/voice.schema.ia.
 
+Default file: voice.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section communication: required.
 Section relationships: optional.

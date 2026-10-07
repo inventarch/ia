@@ -29,4 +29,8 @@ The machine protocol, version 1, serves `scope`, `context`, `select`, `get`, `re
 
 Commands that start another program (`git` for `init` and `doctor`, `claude` for `host claude --user`) look it up only on fully qualified `PATH` entries and run it by absolute path from the user's home directory. An empty or relative entry, which would name the working directory, is never searched.
 
+## Mandate authority
+
+A `@mandate` may declare its authority as closed moves. Each CLI mode maps to one kernel move: read → Observation, validate → Verification, author → Synthesis, effect → Execution, re-seat → Delegation. The runtime publishes this table as `MODE_MOVES` beside `mandateRefusal`, which refuses a mode whose move the mandate does not list (`IA-RUNTIME-MANDATE-MOVE`) or a word the mandate excludes (`IA-RUNTIME-MANDATE-WORD`) and names `ia inspect <mandate> --edges both` as the next command. A mandate without `authority.moves` restricts no move, a declared list names at least one move, excluded words are refused whatever the moves, and a mandate adds closed restrictions only; it never grants host permissions. Enforcement arrives with the authoring verbs; no command in this release consults a mandate.
+
 Package tests cover parsing, JSON output, initialization and recovery, workspace inspection and formatting, distribution planning/application, host registration, installation and recovery, and the program lookup above. Repository qualification separately exercises built and installed artifacts. External registry publication and each host's own runtime behavior require separate evidence.

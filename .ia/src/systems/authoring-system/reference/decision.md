@@ -6,6 +6,8 @@ Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: dec
 
 Canonical schema: .ia/src/systems/work-system/schemas/decision.schema.ia.
 
+Default file: decision.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section work: required.
 Section decision: required.
@@ -26,6 +28,7 @@ Section relationships: optional.
 - decision.choice: text; optional.
 - decision.rationale: text; optional.
 - decision.constraints: list of text; optional.
+- decision.effective-revision: text; optional. — The snapshot revision from which the decision takes effect.
 
 Relationship supersede to decision: one; optional.
 

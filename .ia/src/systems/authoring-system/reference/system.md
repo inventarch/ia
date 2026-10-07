@@ -6,6 +6,8 @@ Owner: floor. Identity: floor/definition/<facet>/<name>. Facets: system. Artifac
 
 Canonical schema: .ia/src/floor/floor.schema.ia.
 
+Default file: system.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section discriminators: optional.
 Section requires: optional.
 Section edges: optional.

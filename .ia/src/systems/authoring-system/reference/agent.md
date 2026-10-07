@@ -6,6 +6,8 @@ Owner: agent-system. Identity: agent-system/binding/<facet>/<name>. Facets: agen
 
 Canonical schema: .ia/src/systems/agent-system/schemas/agent.schema.ia.
 
+Default file: agent.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section governance: required.
 Section relationships: optional.

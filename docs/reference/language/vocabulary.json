@@ -2,7 +2,7 @@
   "version": 1,
   "language": "ia 1.0",
   "status": "public IA 1.0 language contract",
-  "sourceDigest": "67f90e54134068bec09a65987ddf082c7c7fb4955683e299caf3a0ecfcf8c151",
+  "sourceDigest": "f76960635f9ddb5d2513bdd888d918aaeb4a239325b133f2d222f8c4e252156f",
   "words": [
     {
       "word": "agent",
@@ -318,6 +318,12 @@
             "path": "reference.document",
             "type": "text",
             "required": true
+          },
+          {
+            "path": "reference.default-file",
+            "type": "text",
+            "required": false,
+            "description": "The file a new record of this word is authored in, relative to the workspace's authored root."
           },
           {
             "path": "guidance.select-when",
@@ -1105,6 +1111,12 @@
             "path": "decision.constraints",
             "type": "list of text",
             "required": false
+          },
+          {
+            "path": "decision.effective-revision",
+            "type": "text",
+            "required": false,
+            "description": "The snapshot revision from which the decision takes effect."
           }
         ],
         "edges": [
@@ -1966,7 +1978,7 @@
         "mandate"
       ],
       "identity": "agent-system/policy/<facet>/<name>",
-      "description": "States bounded authority and conditions for a participant. Host authorization remains independent.",
+      "description": "States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers.",
       "schema": {
         "name": "mandate",
         "path": ".ia/src/systems/agent-system/schemas/mandate.schema.ia",
@@ -1982,6 +1994,10 @@
           },
           {
             "name": "execution",
+            "required": false
+          },
+          {
+            "name": "authority",
             "required": false
           },
           {
@@ -2044,6 +2060,44 @@
             "path": "execution.limit-duration-ms",
             "type": "number",
             "required": false
+          },
+          {
+            "path": "authority.participant",
+            "type": "ref",
+            "required": false,
+            "description": "The agent this mandate binds.",
+            "target": "agent"
+          },
+          {
+            "path": "authority.moves",
+            "type": "list of id",
+            "required": false,
+            "values": [
+              "Observation",
+              "Execution",
+              "Delegation",
+              "Synthesis",
+              "Verification"
+            ]
+          },
+          {
+            "path": "authority.scope",
+            "type": "list of ref",
+            "required": false,
+            "description": "The workspaces the mandate applies in.",
+            "target": "workspace"
+          },
+          {
+            "path": "authority.excluded-words",
+            "type": "list of id",
+            "required": false,
+            "description": "Words the participant may not author under this mandate."
+          },
+          {
+            "path": "authority.covers",
+            "type": "list of text",
+            "required": false,
+            "description": "Path selections the mandate claims, matched by the location resolver."
           }
         ],
         "edges": []
@@ -3208,6 +3262,18 @@
             "path": "work.source",
             "type": "text",
             "required": false
+          },
+          {
+            "path": "work.covers",
+            "type": "list of text",
+            "required": false,
+            "description": "Path selections the spec claims, matched by the location resolver."
+          },
+          {
+            "path": "work.replaced-scope",
+            "type": "text",
+            "required": false,
+            "description": "What a superseding spec replaces when it does not replace the whole predecessor."
           }
         ],
         "edges": [
@@ -3216,6 +3282,14 @@
             "direction": "out",
             "spelling": "supersede",
             "target": "spec",
+            "cardinality": "one",
+            "required": false
+          },
+          {
+            "predicate": "ground",
+            "direction": "in",
+            "spelling": "grounded-by",
+            "target": "decision",
             "cardinality": "one",
             "required": false
           }
@@ -3379,6 +3453,32 @@
             "path": "work.source",
             "type": "text",
             "required": false
+          },
+          {
+            "path": "work.action",
+            "type": "text",
+            "required": false,
+            "description": "What the task's owner does to complete it."
+          },
+          {
+            "path": "work.expected-artifact",
+            "type": "text",
+            "required": false,
+            "description": "The artifact the task produces, as a path or name."
+          },
+          {
+            "path": "work.exit-evidence",
+            "type": "ref",
+            "required": false,
+            "description": "The observation whose success verdict closes the task.",
+            "target": "observation"
+          },
+          {
+            "path": "work.owner-agent",
+            "type": "ref",
+            "required": false,
+            "description": "The agent that owns the task; work.owner stays the free-text owner.",
+            "target": "agent"
           }
         ],
         "edges": [

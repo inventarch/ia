@@ -31,6 +31,7 @@ it('ships an admitted self-describing guide and real document for every winning 
     expect(guide.system).toBe('authoring-system');
     expect(field(guide, 'reference', 'owner')).toMatchObject({ value: { text: registration.system } });
     expect(field(guide, 'reference', 'word')).toMatchObject({ value: { text: word } });
+    expect(field(guide, 'reference', 'default-file'), word).toMatchObject({ value: { text: `${word}.ia` } });
     const document = field(guide, 'reference', 'document') as { value: { text: string } };
     expect(document.value.text).toMatch(/^\.ia\/src\/.+\.md$/);
     const content = readFileSync(resolve(root, document.value.text), 'utf8');

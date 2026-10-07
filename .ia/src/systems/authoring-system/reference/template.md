@@ -6,6 +6,8 @@ Owner: template-system. Identity: template-system/template/<facet>/<name>. Facet
 
 Canonical schema: .ia/src/systems/template-system/schemas/template.schema.ia.
 
+Default file: template.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section template: required.
 Section relationships: optional.

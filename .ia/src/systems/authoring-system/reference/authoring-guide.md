@@ -6,6 +6,8 @@ Owner: authoring-system. Identity: authoring-system/definition/<facet>/<name>. F
 
 Canonical schema: .ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia.
 
+Default file: authoring-guide.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section reference: required.
 Section guidance: required.
@@ -17,6 +19,7 @@ Section relationships: required.
 - reference.word: id; required.
 - reference.schema: ref; required.
 - reference.document: text; required.
+- reference.default-file: text; optional. — The file a new record of this word is authored in, relative to the workspace's authored root.
 - guidance.select-when: text; required.
 - guidance.avoid-when: text; required.
 - guidance.consider: text; required.

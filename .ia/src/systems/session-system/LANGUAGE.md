@@ -31,7 +31,7 @@ Spec source locators do not load documents. Resource capture and disclosure requ
 | @kind | taxonomy | Defines a closed semantic role for records; lowering determines the role of each registered word. |
 | @lane | taxonomy | Defines a retrieval lane associated with record kinds. |
 | @law | governance-system | Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose. |
-| @mandate | agent-system | States bounded authority and conditions for a participant. Host authorization remains independent. |
+| @mandate | agent-system | States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers. |
 | @milestone | work-system | Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it. |
 | @move | taxonomy | Defines the closed classification of an agent action or activity. |
 | @observation | learning-system | Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing. |

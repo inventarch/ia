@@ -6,6 +6,8 @@ Owner: session-system. Identity: session-system/definition/<facet>/<name>. Facet
 
 Canonical schema: .ia/src/systems/session-system/schemas/run.schema.ia.
 
+Default file: run.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section execution: required.
 Section relationships: optional.

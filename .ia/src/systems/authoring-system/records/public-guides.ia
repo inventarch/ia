@@ -9,6 +9,7 @@
     word agent
     schema @schema agent
     document ".ia/src/systems/authoring-system/reference/agent.md"
+    default-file "agent.ia"
   guidance
     select-when "Names a participant and the vocabulary to which its governance applies. It does not grant host permissions."
     avoid-when "The intended record has a different semantic role."
@@ -25,6 +26,7 @@
     word agent-profile
     schema @schema agent-profile
     document ".ia/src/systems/authoring-system/reference/agent-profile.md"
+    default-file "agent-profile.ia"
   guidance
     select-when "Composes an agent, capabilities, optional mandate/voice/delegates and installed execution contracts."
     avoid-when "The intended record has a different semantic role."
@@ -41,6 +43,7 @@
     word artifact-set
     schema @schema kernel-artifact-set
     document ".ia/src/systems/authoring-system/reference/artifact-set.md"
+    default-file "artifact-set.ia"
   guidance
     select-when "Defines a closed grouping of artifact genres."
     avoid-when "The intended record has a different semantic role."
@@ -57,6 +60,7 @@
     word authoring-guide
     schema @schema authoring-guide
     document ".ia/src/systems/authoring-system/reference/authoring-guide.md"
+    default-file "authoring-guide.ia"
   guidance
     select-when "Associates a vocabulary owner and schema with an authoring reference and usage guidance."
     avoid-when "The intended record has a different semantic role."
@@ -73,6 +77,7 @@
     word axis
     schema @schema kernel-axis
     document ".ia/src/systems/authoring-system/reference/axis.md"
+    default-file "axis.ia"
   guidance
     select-when "Defines a closed coordinate axis for selection."
     avoid-when "The intended record has a different semantic role."
@@ -89,6 +94,7 @@
     word capability
     schema @schema capability
     document ".ia/src/systems/authoring-system/reference/capability.md"
+    default-file "capability.ia"
   guidance
     select-when "Groups operations, procedures, templates, checks and included capabilities with declared execution bounds."
     avoid-when "The intended record has a different semantic role."
@@ -105,6 +111,7 @@
     word cardinality
     schema @schema kernel-cardinality
     document ".ia/src/systems/authoring-system/reference/cardinality.md"
+    default-file "cardinality.ia"
   guidance
     select-when "Defines relationship multiplicity constraints."
     avoid-when "The intended record has a different semantic role."
@@ -121,6 +128,7 @@
     word case
     schema @schema case
     document ".ia/src/systems/authoring-system/reference/case.md"
+    default-file "case.ia"
   guidance
     select-when "Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result."
     avoid-when "The intended record has a different semantic role."
@@ -137,6 +145,7 @@
     word category
     schema @schema kernel-category
     document ".ia/src/systems/authoring-system/reference/category.md"
+    default-file "category.ia"
   guidance
     select-when "Defines a closed concept classification used by record shapes and contextual selection."
     avoid-when "The intended record has a different semantic role."
@@ -153,6 +162,7 @@
     word check
     schema @schema check
     document ".ia/src/systems/authoring-system/reference/check.md"
+    default-file "check.ia"
   guidance
     select-when "Names a check implementation and scope. Declaring an implementation name does not install or execute it."
     avoid-when "The intended record has a different semantic role."
@@ -169,6 +179,7 @@
     word contract
     schema @schema contract
     document ".ia/src/systems/authoring-system/reference/contract.md"
+    default-file "contract.ia"
   guidance
     select-when "Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence."
     avoid-when "The intended record has a different semantic role."
@@ -185,6 +196,7 @@
     word convention
     schema @schema convention
     document ".ia/src/systems/authoring-system/reference/convention.md"
+    default-file "convention.ia"
   guidance
     select-when "Declares a convention in the shared governance shape."
     avoid-when "The intended record has a different semantic role."
@@ -201,6 +213,7 @@
     word decision
     schema @schema decision
     document ".ia/src/systems/authoring-system/reference/decision.md"
+    default-file "decision.ia"
   guidance
     select-when "Represents a choice that is needed or has been made: the question, options and decider, and once made, the choice and rationale."
     avoid-when "The intended record has a different semantic role."
@@ -217,6 +230,7 @@
     word dimension
     schema @schema kernel-dimension
     document ".ia/src/systems/authoring-system/reference/dimension.md"
+    default-file "dimension.ia"
   guidance
     select-when "Defines a supported record dimension used by conditions and lookup."
     avoid-when "The intended record has a different semantic role."
@@ -233,6 +247,7 @@
     word distribution
     schema @schema distribution
     document ".ia/src/systems/authoring-system/reference/distribution.md"
+    default-file "distribution.ia"
   guidance
     select-when "Declares root records from which a distributable closure is selected."
     avoid-when "The intended record has a different semantic role."
@@ -249,6 +264,7 @@
     word execution-binding
     schema @schema execution-binding
     document ".ia/src/systems/authoring-system/reference/execution-binding.md"
+    default-file "execution-binding.ia"
   guidance
     select-when "Connects a native target to a host-installed entry or operation descriptor."
     avoid-when "The intended record has a different semantic role."
@@ -265,6 +281,7 @@
     word harness
     schema @schema harness
     document ".ia/src/systems/authoring-system/reference/harness.md"
+    default-file "harness.ia"
   guidance
     select-when "Composes profiles and execution bindings in a workspace under a host contract."
     avoid-when "The intended record has a different semantic role."
@@ -281,6 +298,7 @@
     word hook
     schema @schema hook
     document ".ia/src/systems/authoring-system/reference/hook.md"
+    default-file "hook.ia"
   guidance
     select-when "Represents a host event, tool/path selection and guard message. Registration and executing a guard require a host adapter."
     avoid-when "The intended record has a different semantic role."
@@ -297,6 +315,7 @@
     word improvement
     schema @schema improvement
     document ".ia/src/systems/authoring-system/reference/improvement.md"
+    default-file "improvement.ia"
   guidance
     select-when "Represents a proposed change, review metadata and publication metadata. It does not authorize or apply the proposal."
     avoid-when "The intended record has a different semantic role."
@@ -313,6 +332,7 @@
     word intent-shape
     schema @schema kernel-intent-shape
     document ".ia/src/systems/authoring-system/reference/intent-shape.md"
+    default-file "intent-shape.ia"
   guidance
     select-when "Defines a request framing and its retrieval defaults."
     avoid-when "The intended record has a different semantic role."
@@ -329,6 +349,7 @@
     word kind
     schema @schema kernel-kind
     document ".ia/src/systems/authoring-system/reference/kind.md"
+    default-file "kind.ia"
   guidance
     select-when "Defines a closed semantic role for records; lowering determines the role of each registered word."
     avoid-when "The intended record has a different semantic role."
@@ -345,6 +366,7 @@
     word lane
     schema @schema kernel-lane
     document ".ia/src/systems/authoring-system/reference/lane.md"
+    default-file "lane.ia"
   guidance
     select-when "Defines a retrieval lane associated with record kinds."
     avoid-when "The intended record has a different semantic role."
@@ -361,6 +383,7 @@
     word law
     schema @schema law
     document ".ia/src/systems/authoring-system/reference/law.md"
+    default-file "law.ia"
   guidance
     select-when "Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose."
     avoid-when "The intended record has a different semantic role."
@@ -370,15 +393,16 @@
 
 @authoring-guide public-agent-system-mandate
   meaning
-    says "States bounded authority and conditions for a participant. Host authorization remains independent."
+    says "States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers."
     answers "What does @mandate represent?"
   reference
     owner agent-system
     word mandate
     schema @schema mandate
     document ".ia/src/systems/authoring-system/reference/mandate.md"
+    default-file "mandate.ia"
   guidance
-    select-when "States bounded authority and conditions for a participant. Host authorization remains independent."
+    select-when "States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers."
     avoid-when "The intended record has a different semantic role."
     consider "Check required fields and references; declaration is not execution evidence."
   relationships
@@ -393,6 +417,7 @@
     word milestone
     schema @schema milestone
     document ".ia/src/systems/authoring-system/reference/milestone.md"
+    default-file "milestone.ia"
   guidance
     select-when "Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it."
     avoid-when "The intended record has a different semantic role."
@@ -409,6 +434,7 @@
     word move
     schema @schema kernel-move
     document ".ia/src/systems/authoring-system/reference/move.md"
+    default-file "move.ia"
   guidance
     select-when "Defines the closed classification of an agent action or activity."
     avoid-when "The intended record has a different semantic role."
@@ -425,6 +451,7 @@
     word observation
     schema @schema observation
     document ".ia/src/systems/authoring-system/reference/observation.md"
+    default-file "observation.ia"
   guidance
     select-when "Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing."
     avoid-when "The intended record has a different semantic role."
@@ -441,6 +468,7 @@
     word operation
     schema @schema operation
     document ".ia/src/systems/authoring-system/reference/operation.md"
+    default-file "operation.ia"
   guidance
     select-when "Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations."
     avoid-when "The intended record has a different semantic role."
@@ -457,6 +485,7 @@
     word phase
     schema @schema kernel-phase
     document ".ia/src/systems/authoring-system/reference/phase.md"
+    default-file "phase.ia"
   guidance
     select-when "Defines a cognitive phase coordinate: orient, plan, act or learn."
     avoid-when "The intended record has a different semantic role."
@@ -473,6 +502,7 @@
     word placement
     schema @schema kernel-placement
     document ".ia/src/systems/authoring-system/reference/placement.md"
+    default-file "placement.ia"
   guidance
     select-when "Defines source authority and reach metadata."
     avoid-when "The intended record has a different semantic role."
@@ -489,6 +519,7 @@
     word plan
     schema @schema plan
     document ".ia/src/systems/authoring-system/reference/plan.md"
+    default-file "plan.ia"
   guidance
     select-when "Represents an arrangement of milestones toward an intent; it heads the work hierarchy and has no parent. Plans do not nest."
     avoid-when "The intended record has a different semantic role."
@@ -505,6 +536,7 @@
     word playbook
     schema @schema playbook
     document ".ia/src/systems/authoring-system/reference/playbook.md"
+    default-file "playbook.ia"
   guidance
     select-when "Represents a procedure as phase/primitive cells. Cell delivery is generic; the authored method belongs to its author."
     avoid-when "The intended record has a different semantic role."
@@ -521,6 +553,7 @@
     word predicate
     schema @schema kernel-predicate
     document ".ia/src/systems/authoring-system/reference/predicate.md"
+    default-file "predicate.ia"
   guidance
     select-when "Defines a directed relationship and its inverse spelling."
     avoid-when "The intended record has a different semantic role."
@@ -537,6 +570,7 @@
     word primitive
     schema @schema kernel-primitive
     document ".ia/src/systems/authoring-system/reference/primitive.md"
+    default-file "primitive.ia"
   guidance
     select-when "Defines a cognitive primitive coordinate; a cell is selected using its phase and primitive."
     avoid-when "The intended record has a different semantic role."
@@ -553,6 +587,7 @@
     word principle
     schema @schema principle
     document ".ia/src/systems/authoring-system/reference/principle.md"
+    default-file "principle.ia"
   guidance
     select-when "Declares a governing rationale in the shared governance shape."
     avoid-when "The intended record has a different semantic role."
@@ -569,6 +604,7 @@
     word run
     schema @schema run
     document ".ia/src/systems/authoring-system/reference/run.md"
+    default-file "run.ia"
   guidance
     select-when "Represents a governed run identity, declared phase, status and owner. Declaration does not start execution."
     avoid-when "The intended record has a different semantic role."
@@ -585,6 +621,7 @@
     word schema
     schema @schema schema
     document ".ia/src/systems/authoring-system/reference/schema.md"
+    default-file "schema.ia"
   guidance
     select-when "Declares the structural contract for exactly one registered discriminator."
     avoid-when "The intended record has a different semantic role."
@@ -601,6 +638,7 @@
     word spec
     schema @schema spec
     document ".ia/src/systems/authoring-system/reference/spec.md"
+    default-file "spec.ia"
   guidance
     select-when "Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality."
     avoid-when "The intended record has a different semantic role."
@@ -617,6 +655,7 @@
     word system
     schema @schema system
     document ".ia/src/systems/authoring-system/reference/system.md"
+    default-file "system.ia"
   guidance
     select-when "Registers vocabulary, direct system dependencies, a local steward and consent for relationships."
     avoid-when "The intended record has a different semantic role."
@@ -633,6 +672,7 @@
     word task
     schema @schema task
     document ".ia/src/systems/authoring-system/reference/task.md"
+    default-file "task.ia"
   guidance
     select-when "Represents one owner's action toward exactly one milestone. Whether it is ready to start is computed by a work evaluator, never stored on the record."
     avoid-when "The intended record has a different semantic role."
@@ -649,6 +689,7 @@
     word template
     schema @schema template
     document ".ia/src/systems/authoring-system/reference/template.md"
+    default-file "template.ia"
   guidance
     select-when "Represents bounded rendering inputs and output structure. Rendering does not publish or install output."
     avoid-when "The intended record has a different semantic role."
@@ -665,6 +706,7 @@
     word value-type
     schema @schema kernel-value-type
     document ".ia/src/systems/authoring-system/reference/value-type.md"
+    default-file "value-type.ia"
   guidance
     select-when "Defines the field types that schemas may require."
     avoid-when "The intended record has a different semantic role."
@@ -681,6 +723,7 @@
     word voice
     schema @schema voice
     document ".ia/src/systems/authoring-system/reference/voice.md"
+    default-file "voice.ia"
   guidance
     select-when "Declares communication attributes separate from authority and procedure."
     avoid-when "The intended record has a different semantic role."
@@ -697,6 +740,7 @@
     word workspace
     schema @schema workspace
     document ".ia/src/systems/authoring-system/reference/workspace.md"
+    default-file "workspace.ia"
   guidance
     select-when "Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default."
     avoid-when "The intended record has a different semantic role."

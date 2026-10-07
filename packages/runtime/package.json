@@ -106,6 +106,10 @@
       "types": "./dist/machine-protocol.d.ts",
       "default": "./dist/machine-protocol.js"
     },
+    "./internal/mandate-modes": {
+      "types": "./dist/mandate-modes.d.ts",
+      "default": "./dist/mandate-modes.js"
+    },
     "./internal/mentions": {
       "types": "./dist/mentions.d.ts",
       "default": "./dist/mentions.js"
@@ -255,6 +259,10 @@
       "./internal/machine-protocol": {
         "types": "./dist/machine-protocol.d.ts",
         "default": "./dist/machine-protocol.js"
+      },
+      "./internal/mandate-modes": {
+        "types": "./dist/mandate-modes.d.ts",
+        "default": "./dist/mandate-modes.js"
       },
       "./internal/mentions": {
         "types": "./dist/mentions.d.ts",

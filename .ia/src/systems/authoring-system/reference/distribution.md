@@ -6,6 +6,8 @@ Owner: workspace-system. Identity: workspace-system/definition/<facet>/<name>. F
 
 Canonical schema: .ia/src/systems/workspace-system/schemas/distribution.schema.ia.
 
+Default file: distribution.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section distribution: required.
 Section relationships: optional.

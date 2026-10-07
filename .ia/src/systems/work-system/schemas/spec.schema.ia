@@ -17,5 +17,8 @@
     may have work.due as text form iso-date
     may have work.ended as text form iso-date
     may have work.source as text
+    may have work.covers as list of text "Path selections the spec claims, matched by the location resolver."
+    may have work.replaced-scope as text "What a superseding spec replaces when it does not replace the whole predecessor."
   edges
     may supersede spec one
+    may grounded-by decision one

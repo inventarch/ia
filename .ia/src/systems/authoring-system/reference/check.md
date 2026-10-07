@@ -6,6 +6,8 @@ Owner: compliance-system. Identity: compliance-system/check/<facet>/<name>. Face
 
 Canonical schema: .ia/src/systems/compliance-system/schemas/check.schema.ia.
 
+Default file: check.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section check: required.
 Section relationships: optional.

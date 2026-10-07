@@ -6,6 +6,8 @@ Owner: agent-composition-system. Identity: agent-composition-system/binding/<fac
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/execution-binding.schema.ia.
 
+Default file: execution-binding.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section binding: required.
 Section relationships: optional.

@@ -6,6 +6,8 @@ Owner: workspace-system. Identity: workspace-system/definition/<facet>/<name>. F
 
 Canonical schema: .ia/src/systems/workspace-system/schemas/workspace.schema.ia.
 
+Default file: workspace.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section composition: required.
 Section relationships: optional.

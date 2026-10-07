@@ -9,6 +9,7 @@
     word product
     schema @schema product
     document ".ia/src/systems/product-system/schemas/product.SPEC.md"
+    default-file "product.ia"
   guidance
     select-when "A stable product identity groups work plans across service resource bindings."
     avoid-when "Only composition, a release archive, an obligation or a single work plan is needed."

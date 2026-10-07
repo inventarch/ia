@@ -69,6 +69,49 @@ describe('public language conformance', () => {
       'cite',
     ]);
   });
+  it('indexes the typed owner-agent of the example task and grounds the partial spec', () => {
+    const node = (discriminator: string, name: string) =>
+      [...baseline.graph.nodes.values()].find((n) => n.discriminator === discriminator && n.name === name)!;
+    const task = node('task', 'example-task'),
+      steward = node('agent', 'public-work-system-steward'),
+      milestone = node('milestone', 'example-milestone'),
+      spec = node('spec', 'example-reference-spec'),
+      replaced = node('spec', 'example-spec'),
+      decision = node('decision', 'example-split-decision');
+    for (const found of [task, steward, milestone, spec, replaced, decision]) expect(found).toBeDefined();
+    // The ref fields resolve through the reverse field index; none of them is an edge, so no consent row is needed.
+    // The example carries no exit-evidence: its observation would live in another example, and work.ia is copied
+    // alone into fresh workspaces (WS-A05), where that reference could not resolve.
+    expect(
+      baseline.graph.referencedBy
+        .get(steward.identity)
+        ?.filter((r) => r.from === task.identity)
+        .map((r) => [r.field, r.reference]),
+    ).toEqual([['work.owner-agent', { kind: 'ref', discriminator: 'agent', name: 'public-work-system-steward' }]]);
+    expect(
+      baseline.graph.references
+        .filter((r) => r.from === task.identity)
+        .map((r) => r.to)
+        .sort(),
+    ).toEqual([milestone.identity, steward.identity].sort());
+    expect(baseline.graph.edges.filter((e) => e.from === task.identity).map((e) => e.predicate)).toEqual(['require']);
+    // The partially superseding spec is grounded by the decision through the consented ground row, authored inversely.
+    expect(
+      baseline.graph.edges
+        .filter((e) => e.author === spec.identity)
+        .map((e) => [e.predicate, e.from, e.to])
+        .sort(),
+    ).toEqual(
+      [
+        ['supersede', spec.identity, replaced.identity],
+        ['ground', decision.identity, spec.identity],
+      ].sort(),
+    );
+    expect(spec.edges.map((e) => [e.spelling, e.direction])).toEqual([
+      ['supersedes', 'out'],
+      ['grounded-by', 'in'],
+    ]);
+  });
   it('refuses missing required fields', () => {
     const result = changed('composition.ia', '    agent @agent example-reader\n', '');
     expect(result.ok).toBe(false);

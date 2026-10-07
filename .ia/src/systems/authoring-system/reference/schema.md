@@ -6,6 +6,8 @@ Owner: floor. Identity: floor/contract/<facet>/<name>. Facets: head. Artifact se
 
 Canonical schema: .ia/src/floor/floor.schema.ia.
 
+Default file: schema.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section sections: required.
 Section fields: optional.
 Section edges: optional.

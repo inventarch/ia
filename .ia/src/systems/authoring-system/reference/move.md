@@ -6,6 +6,8 @@ Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: move. Art
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 
+Default file: move.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section data: required.
 

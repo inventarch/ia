@@ -53,6 +53,8 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       '',
       `Canonical schema: ${word.schema.path}.`,
       '',
+      `Default file: ${word.word}.ia, relative to the workspace's authored root (the sources row at placement authored).`,
+      '',
       ...word.schema.sections.map(
         (section) => `Section ${section.name}: ${section.required ? 'required' : 'optional'}.`,
       ),
@@ -64,7 +66,8 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       '',
       ...word.schema.edges.map(
         (edge) =>
-          `Relationship ${edge.predicate} to ${edge.target}: ${edge.cardinality}; ${edge.required ? 'required' : 'optional'}.`,
+          // An inbound rule keeps its authored spelling, so `grounded-by decision` never reads as the record grounding it.
+          `Relationship ${edge.direction === 'in' ? `${edge.spelling} from ${edge.target} (inbound ${edge.predicate})` : `${edge.predicate} to ${edge.target}`}: ${edge.cardinality}; ${edge.required ? 'required' : 'optional'}.`,
       ),
       '',
       'A valid declaration establishes structural conformance. Execution, host authority and evidence verification require their respective explicit consumers.',
@@ -82,6 +85,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       `    word ${word.word}`,
       `    schema @schema ${word.schema.name}`,
       `    document "${document}"`,
+      `    default-file "${word.word}.ia"`,
       '  guidance',
       `    select-when ${JSON.stringify(word.description)}`,
       '    avoid-when "The intended record has a different semantic role."',
