@@ -123,8 +123,9 @@ const viewEntry = (row: ViewRow, caps: Capabilities): readonly string[] => {
     row.kind === 'edge'
       ? `${row.direction}, declared`
       : row.kind === 'inverse'
-        ? // Its counterpart declared it; only a row a record declares on itself names the declarer apart.
-          `${row.direction}, derived${row.declaredOn === row.other ? '' : `, declared on ${row.declaredOn}`}`
+        ? // Its counterpart declared it: an assertion's author is always one of its ends, so the declarer is the
+          // counterpart already shown (a row a record declares on itself included) and is not named again.
+          `${row.direction}, derived`
         : `${row.direction}${row.derived ? ', derived' : ''}`;
   return entry(
     [
