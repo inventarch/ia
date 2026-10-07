@@ -1,9 +1,11 @@
 import { CodecError, canonical as canonicalData, copy as copyData, digest as digestData } from '@inventarch/graph';
 
+export { CodecError };
 /**
  * The session refusal. The canonical codec itself lives in @inventarch/graph (`canonical`, `digest`, `copy` and
- * `CodecError`); this package re-exports it under its own error name so every caller that matches on
- * `SessionError` keeps working, and the codes are the ones the graph codec throws.
+ * `CodecError`); this package re-exports graph's `CodecError` class itself and wraps the three functions so their
+ * refusals are `SessionError`, which extends it. Every caller that matches on `SessionError` keeps working,
+ * `instanceof CodecError` holds across both packages, and the codes are the ones the graph codec throws.
  */
 export class SessionError extends CodecError {
   constructor(code: string, message: string) {
