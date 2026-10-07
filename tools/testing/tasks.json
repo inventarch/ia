@@ -1827,6 +1827,7 @@
       "project": "packages/runtime",
       "files": [
         "tests/authoring.test.ts",
+        "tests/body.test.ts",
         "tests/composition.test.ts",
         "tests/context.test.ts",
         "tests/coordinate.test.ts",
