@@ -287,7 +287,79 @@ it('lists held open-band records as pointers and never reads the runtime band', 
     via: { from: SYSTEM, by: 'word', predicate: null, spelling: 'convention', direction: null, declaredOn: null },
   });
   expect(ids(held.loaded)).not.toContain(CONVENTION);
+  // Band descending: the open-band convention is listed after every authored pointer.
+  expect(held.pointers.at(-1)!.identity).toBe(CONVENTION);
   expect(stableSerialize(held)).not.toContain(PROCEDURE);
+  // A composed system held as open-band keeps the field class that composed it, and is not captured as authored.
+  const open = body(
+    workspace(),
+    { word: 'system', depth: 0, budget: 0 },
+    { '.ia/src/systems/governance-system/system.ia': placed('open') },
+  );
+  expect(open.pointers.find((line) => line.identity === SYSTEM)).toMatchObject({
+    band: 50,
+    hop: 0,
+    via: { from: WS, by: 'field', spelling: 'composition.systems', direction: 'out' },
+  });
+  expect(open.captured).toEqual([{ word: 'system', count: 10 }]);
+});
+
+it('meets each pointer once, at the lowest hop it is reached by', () => {
+  const root = workspace();
+  put(
+    root,
+    `${records}/sample-procedure.ia`,
+    readFileSync(resolve(root, `${records}/sample-procedure.ia`), 'utf8').concat(
+      '    cites @case valid-native-record\n',
+    ),
+  );
+  put(
+    root,
+    `${records}/sample-rule.ia`,
+    readFileSync(resolve(root, `${records}/sample-rule.ia`), 'utf8').concat('    uses @case valid-native-record\n'),
+  );
+  // The case is cut at hop 2 (law cited-by procedure cites case) and one out-of-focus row from the law at hop 1.
+  const law = body(root, { seat: LAW, shape: 'context', depth: 2, budget: 0 });
+  expect(
+    law.pointers.find((line) => line.identity === 'compliance-system/definition/scenario/valid-native-record'),
+  ).toMatchObject({
+    hop: 1,
+    via: { from: LAW, by: 'row', predicate: 'use', spelling: 'uses', direction: 'out', declaredOn: LAW },
+  });
+  // The procedure, reached in focus at hop 1 and cut by the budget, is a pointer and not frontier.
+  expect(law.pointers.find((line) => line.identity === PROCEDURE)).toMatchObject({
+    hop: 1,
+    via: { by: 'row', predicate: 'cite' },
+  });
+  expect(law.frontier).toEqual([]);
+});
+
+it('captures only the records under an authored root of the workspace seat', () => {
+  const root = workspace(),
+    at = '.ia/src/systems/workspace-system/records',
+    cases = '.ia/src/systems/compliance-system/cases';
+  put(
+    root,
+    `${at}/foundation-workspace.ia`,
+    readFileSync(resolve(root, `${at}/foundation-workspace.ia`), 'utf8').replace(
+      'session-system]\n',
+      `session-system]\n    sources [".ia/src @authored", "${cases} @adopted"]\n`,
+    ),
+  );
+  const adopted: Location = { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' };
+  const locations = Object.fromEntries(
+    ['foreign-vocabulary', 'missing-required-field', 'valid-native-record'].map((name) => [
+      `${cases}/${name}.ia`,
+      adopted,
+    ]),
+  );
+  const db = database(root, { locations });
+  const within = db.resolveScope({}).token;
+  // The cases are members of the workspace through its adopted root, and composed, but never captured as authored.
+  expect(db.membership({ within }).filter((row) => row.placement === 'adopted' && row.seat === WS).length).toBe(3);
+  const adoptedBody = positionBody(db, within, normalizeScopeKey({ word: 'case', depth: 0, budget: 0 }));
+  expect(adoptedBody.counts.composition).toBe(3);
+  expect(adoptedBody.captured).toEqual([]);
 });
 
 it('prints the two widening-key forms: one hop deeper from the seat, and re-seating at a line', () => {
