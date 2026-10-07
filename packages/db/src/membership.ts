@@ -80,6 +80,9 @@ function placementRoot(node: Node): string {
   const base = at === 0 ? '.ia/src' : `${path.slice(0, at)}/.ia/src`;
   return node.placement.kind === 'floor' && path.startsWith(`${base}/floor/`) ? `${base}/floor` : base;
 }
+/** Admitted @system identities by system name, as membership rule 2 and seat rule 1 both read them. */
+const systemsByName = (all: readonly Node[]): ReadonlyMap<string, string> =>
+  new Map(all.filter((node) => node.discriminator === 'system').map((node) => [node.name, node.identity]));
 /**
  * Membership over a view's admitted winners, one row per node, ordered by identity. Seats come from every admitted
  * @workspace and @system in `admitted`, so a scoped read sees the same seat as an unscoped one. Rules, first match:
@@ -96,7 +99,7 @@ export function membershipOf(admitted: Iterable<Node>, members: Iterable<Node>):
       .filter((node) => node.discriminator === 'workspace')
       .sort((a, b) => compare(a.identity, b.identity)),
     declared = workspaces.flatMap(declaredRoots),
-    systems = new Map(all.filter((node) => node.discriminator === 'system').map((node) => [node.name, node.identity]));
+    systems = systemsByName(all);
   const rows = [...members]
     .filter((node) => node.placement.kind !== 'runtime')
     .map((node): MembershipRow => {
@@ -163,10 +166,8 @@ export function seatOf(graph: Graph, path: string, allowed?: ReadonlySet<string>
     declaredRootsAll = workspaces.flatMap(declaredRoots);
   const member = systemMember(path) ?? systemMember(`${path}/`);
   const seat: Seat = (() => {
-    if (member !== undefined) {
-      const system = all.find((node) => node.discriminator === 'system' && node.name === member.name);
-      return { kind: 'system', name: member.name, identity: system?.identity ?? null };
-    }
+    if (member !== undefined)
+      return { kind: 'system', name: member.name, identity: systemsByName(all).get(member.name) ?? null };
     const claim = declaredRootsAll
       .filter((entry) => entry.root === path || contains(entry.root, path))
       .sort((a, b) => b.root.length - a.root.length || compare(a.seat, b.seat))[0];
