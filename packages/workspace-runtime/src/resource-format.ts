@@ -292,6 +292,14 @@ function jsonStringEnd(input: string, at: number): number {
   }
   return -1;
 }
+/**
+ * A decoded JSON object: its members as own data properties, in input order (array-index keys first, ascending, as for
+ * any object), on a null prototype. A key such as
+ * `__proto__` stays an ordinary own property, never a prototype; the callers that refuse such keys report their own
+ * closed diagnostics after decoding.
+ */
+const jsonObject = (members: ReadonlyMap<string, unknown>): Record<string, unknown> =>
+  Object.setPrototypeOf(Object.fromEntries(members), null) as Record<string, unknown>;
 /** Bounded JSON decoding with decoded-key duplicate rejection; no IA parsing. */
 export function decodeJson(input: string): unknown {
   if (Buffer.byteLength(input) > RESOURCE_LIMITS.serializedBytes)
@@ -314,21 +322,24 @@ export function decodeJson(input: string): unknown {
     if (input[at] === '{') {
       at++;
       white();
-      const row: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+      // Members collect in a Map and become own data properties of a null-prototype object only once the object closes,
+      // so no assignment uses a key read from the input: Object.fromEntries defines each member as an own data property
+      // and no setter such as __proto__ ever runs. The result is the same as before; this only removes the dynamic write.
+      const members = new Map<string, unknown>();
       if (input[at] === '}') {
         at++;
-        return row;
+        return jsonObject(members);
       }
       for (;;) {
         white();
         const key = string();
-        if (Object.hasOwn(row, key)) invalid('Duplicate resource JSON key');
+        if (members.has(key)) invalid('Duplicate resource JSON key');
         white();
         if (input[at++] !== ':') invalid('Malformed resource JSON object');
-        row[key] = value(depth + 1);
+        members.set(key, value(depth + 1));
         white();
         const next = input[at++];
-        if (next === '}') return row;
+        if (next === '}') return jsonObject(members);
         if (next !== ',') invalid('Malformed resource JSON object');
       }
     }
