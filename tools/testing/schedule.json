@@ -3,7 +3,7 @@
   "platforms": {
     "linux": {
       "agent-composition-system:build": 2,
-      "agent-composition-system:test": 57,
+      "agent-composition-system:test": 61,
       "agent-composition-system:typecheck": 5,
       "agent-system:build": 1,
       "agent-system:test": 1,
@@ -71,11 +71,14 @@
       "vocabulary:check": 1,
       "vscode:build": 0,
       "vscode:test": 8,
-      "vscode:typecheck": 1
+      "vscode:typecheck": 1,
+      "workspace-runtime:build": 2,
+      "workspace-runtime:test": 22,
+      "workspace-runtime:typecheck": 5
     },
     "windows": {
       "agent-composition-system:build": 2,
-      "agent-composition-system:test": 103,
+      "agent-composition-system:test": 96,
       "agent-composition-system:typecheck": 5,
       "agent-system:build": 1,
       "agent-system:test": 7,
@@ -143,7 +146,18 @@
       "vocabulary:check": 1,
       "vscode:build": 1,
       "vscode:test": 5,
-      "vscode:typecheck": 3
+      "vscode:typecheck": 3,
+      "workspace-runtime:build": 2,
+      "workspace-runtime:test": 113,
+      "workspace-runtime:typecheck": 6
+    },
+    "macos": {
+      "agent-composition-system:build": 1,
+      "agent-composition-system:test": 46,
+      "agent-composition-system:typecheck": 5,
+      "workspace-runtime:build": 1,
+      "workspace-runtime:test": 26,
+      "workspace-runtime:typecheck": 5
     }
   }
 }
