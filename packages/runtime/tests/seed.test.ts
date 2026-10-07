@@ -244,6 +244,27 @@ it('never enters another workspace closure: another @workspace and its members a
   ]);
 });
 
+it('homes a record or @system seat captured with a @system in the workspace that system belongs to', () => {
+  const root = workspace(),
+    law = { [`${records}/sample-rule.ia`]: placed('adopted') };
+  // The adopted law is a member of its @system; the seat still stays inside the workspace closure.
+  const adoptedLaw = seeded(root, { seat: LAW, shape: 'governance', depth: 2 }, law);
+  expect(adoptedLaw.seat).toEqual({ kind: 'record', identity: LAW, path: null, home: WS });
+  expect([ids(adoptedLaw), adoptedLaw.held]).toEqual([[LAW, CHECK, CONTRACT], []]);
+  expect(ids(seeded(root, { seat: LAW, shape: 'context', depth: 1 }, law))).toEqual([LAW, PROCEDURE]);
+  // The location seat at the same file agrees.
+  expect(seeded(root, { seat: `${records}/sample-rule.ia`, shape: 'governance' }, law).seat.home).toBe(WS);
+  // A fully adopted @system is its own membership seat; its home is the workspace seat.
+  const system = seeded(
+    root,
+    { seat: SYSTEM, shape: 'governance' },
+    { '.ia/src/systems/governance-system/system.ia': placed('adopted') },
+  );
+  expect(system.seat).toEqual({ kind: 'system', identity: SYSTEM, path: null, home: WS });
+  expect(system.held).toEqual([]);
+  expect(system.composition.map((entry) => entry.identity)).toContain(WS);
+});
+
 const rule = (name: string, severity: string, relation = '') =>
   `@law ${name}\n  meaning\n    says "Rule ${name}."\n    answers "Which rule is ${name}?"\n  governance\n    severity ${severity}\n  subject\n    covers ["src/**"]\n${relation === '' ? '' : `  relationships\n    ${relation}\n`}`;
 function rules(): string {
