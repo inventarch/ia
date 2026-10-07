@@ -3,9 +3,25 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { UsageError } from '../src/args.js';
-import { discoverRoot, dispatch, iaHomeOf, Refusal, refusalOf, renderRefusal } from '../src/consumer.js';
+import {
+  discoverRoot,
+  dispatch,
+  iaHomeOf,
+  isMachineInvocation,
+  Refusal,
+  refusalOf,
+  renderRefusal,
+} from '../src/consumer.js';
 import type { Extension, Host, Result } from '../src/consumer.js';
-import { COMMANDS, CORE_TOKENS, EXTENSION_TOKEN, LEGACY_OPERATIONS, RESERVED_TOKEN } from '../src/commands.js';
+import {
+  COMMANDS,
+  CORE_TOKENS,
+  EXTENSION_TOKEN,
+  LEGACY_OPERATIONS,
+  MACHINE_OPERATIONS,
+  RESERVED_TOKEN,
+  SINCE_2_OPERATIONS,
+} from '../src/commands.js';
 import { resolveCapabilities } from '../src/render.js';
 import { fieldTypeText } from '@inventarch/compliance';
 import { MACHINE_PROTOCOL } from '@inventarch/runtime';
@@ -669,6 +685,7 @@ it('§1.6: extension tokens are well-formed and never shadow a core token', asyn
   expect(new Set(EXTENSIONS.map((extension) => extension.token)).size).toBe(EXTENSIONS.length);
   for (const token of [
     ...LEGACY_OPERATIONS,
+    ...MACHINE_OPERATIONS,
     ...COMMANDS.map((command) => command.name),
     RESERVED_TOKEN,
     '--help',
@@ -703,5 +720,110 @@ it('spells a catalogue field type through the language renderer the vocabulary v
 
 // spec-0012 DRF-03: the routing table and the protocol description name the same operations, in the same order.
 it('routes exactly the operations the machine protocol table describes', () => {
-  expect(MACHINE_PROTOCOL.operations.map((operation) => operation.name)).toEqual([...LEGACY_OPERATIONS]);
+  expect(MACHINE_PROTOCOL.operations.map((operation) => operation.name)).toEqual([...MACHINE_OPERATIONS]);
+});
+
+it('splits the machine table into the frozen nine and the operations added since protocol version 2', () => {
+  expect([...LEGACY_OPERATIONS]).toEqual([
+    'scope',
+    'context',
+    'select',
+    'get',
+    'records',
+    'resolve',
+    'search',
+    'traverse',
+    'report',
+  ]);
+  expect([...MACHINE_OPERATIONS]).toEqual([...LEGACY_OPERATIONS, ...SINCE_2_OPERATIONS]);
+  for (const token of SINCE_2_OPERATIONS) expect(LEGACY_OPERATIONS as readonly string[], token).not.toContain(token);
+  // A version-2 operation exists exactly when the protocol is past version 1.
+  expect(SINCE_2_OPERATIONS.length > 0).toBe(MACHINE_PROTOCOL.version > 1);
+});
+
+it('reads a v2 token as a machine invocation only when --params or --schema stands in an option position', () => {
+  // The machine parser reads options at odd positions (main.ts), so the rule looks exactly there.
+  for (const argv of [
+    ['position', '--params', '{}'],
+    ['position', '--schema'],
+    ['position', '--params'],
+    ['read', '--root', fixture, '--params', '-'],
+    ['next', '--root', fixture, '--schema'],
+    ['next', '--params', '{}', '--help'],
+  ])
+    expect(isMachineInvocation(argv), argv.join(' ')).toBe(true);
+  for (const argv of [
+    ['position'],
+    ['position', '--root', fixture],
+    ['position', '--help'],
+    ['position', '--json'],
+    ['read', 'a/b/c/d', '--params', '{}'],
+    ['read', '--root', '--params'],
+    ['next', '--seat', '--schema'],
+    ['position', '--shape', 'context', '--phase', 'orient'],
+  ])
+    expect(isMachineInvocation(argv), argv.join(' ')).toBe(false);
+});
+
+it('dispatches a v2 token by that rule, after the frozen nine and before the consumer verbs', async () => {
+  const since2 = ['position', 'read', 'next'] as const;
+  const v2 = (argv: readonly string[], shadows: readonly Extension[] = extensions): Promise<Result> =>
+    dispatch(argv, makeHost(), legacy, shadows, since2);
+  calls.legacy = [];
+  // The machine route receives the whole argv, unchanged.
+  for (const argv of [
+    ['position', '--params', '{}'],
+    ['read', '--schema'],
+    ['next', '--root', fixture, '--params', '{}'],
+  ]) {
+    expect(await v2(argv), argv.join(' ')).toEqual({ exitCode: 7, stdout: '{"legacy":true}\n', stderr: '' });
+    expect(calls.legacy.at(-1)).toEqual(argv);
+  }
+  // Otherwise the consumer table answers: read's own help and its own usage refusal, never the machine route.
+  const routed = calls.legacy.length;
+  const help = await v2(['read', '--help']);
+  expect(help.exitCode).toBe(0);
+  expect(help.stdout).toContain('ia read');
+  const usage = await v2(['read', 'a/b/c/d', '--params', '{}']);
+  expect(usage.exitCode).toBe(2);
+  expect(usage.stderr).toContain('IA-CLI-USAGE');
+  for (const argv of [['position'], ['position', '--root', fixture], ['next', '--help']])
+    expect((await v2(argv)).exitCode, argv.join(' ')).not.toBe(7);
+  // A near miss suggests the v2 token, as it does a frozen one.
+  expect((await v2(['positon'])).stderr).toContain('Did you mean position?');
+  expect(calls.legacy).toHaveLength(routed);
+  // The frozen nine stay legacy-first and unconditional: no --params is needed to reach them.
+  for (const operation of LEGACY_OPERATIONS) {
+    expect((await v2([operation])).exitCode, operation).toBe(7);
+    expect(calls.legacy.at(-1)).toEqual([operation]);
+  }
+  // An extension never takes a v2 token: like a core token, it falls through to its core route.
+  const claimed: string[] = [];
+  const shadows: readonly Extension[] = since2.map((token) => ({
+    token,
+    summary: 'shadow',
+    run: async () => {
+      claimed.push(token);
+      return { exitCode: 42, stdout: '' };
+    },
+  }));
+  expect((await v2(['position', '--params', '{}'], shadows)).exitCode).toBe(7);
+  expect((await v2(['read', '--help'], shadows)).exitCode).toBe(0);
+  expect(claimed).toEqual([]);
+});
+
+it('keeps every v2 token off the machine route while the protocol does not serve it', async () => {
+  for (const token of ['position', 'read', 'next'].filter(
+    (candidate) => !(SINCE_2_OPERATIONS as readonly string[]).includes(candidate),
+  ))
+    for (const argv of [
+      [token, '--params', '{}'],
+      [token, '--schema'],
+    ]) {
+      const routed = calls.legacy.length,
+        got = await run(argv);
+      expect(calls.legacy, argv.join(' ')).toHaveLength(routed);
+      expect(got.exitCode, argv.join(' ')).toBe(2);
+      expect(got.stderr, argv.join(' ')).toContain('IA-CLI-USAGE');
+    }
 });
