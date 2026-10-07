@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@inventarch/language';
-import { digest, load, recordDigest, resolve, serialize, stableSerialize } from '../src/index.js';
+import { digest, load, recordDigest, resolve, revisionOf, serialize, stableSerialize } from '../src/index.js';
 import type { Graph, LoadOptions, RevisionSource } from '../src/index.js';
 import { inputs, instance, loop, records, registry } from './native.js';
 
@@ -350,6 +350,24 @@ describe('per-record source digest', () => {
     expect(after.b.digest).not.toBe(before.b.digest);
     expect(after.a.digest).toBe(before.a.digest);
   });
+  it('ignores blank lines and comments between records but not comments or spacing inside one', () => {
+    const between = (gap: string) => {
+      const extra = probe(`@playbook a\n  relationships\n    cites @playbook b\n${gap}${edited}`);
+      const graph = load(extra.records, registry, { ...options, sources: [extra.source] });
+      const node = (name: string) => [...graph.nodes.values()].find((n) => n.name === name)!;
+      return { a: node('a'), b: node('b') };
+    };
+    const before = between('\n');
+    const spaced = between('\n\n# a note between the two records\n\n');
+    expect(spaced.a.digest).toBe(before.a.digest);
+    expect(spaced.b.digest).toBe(before.b.digest);
+    const inner = pair('', '@playbook b\n  # a note inside b\n  relationships\n    cites @playbook a');
+    const respaced = pair('', '@playbook b\n  relationships\n    cites  @playbook a');
+    const plainEdited = pair('', edited);
+    expect(inner.b.digest).not.toBe(plainEdited.b.digest);
+    expect(respaced.b.digest).not.toBe(plainEdited.b.digest);
+    expect(inner.a.digest).toBe(plainEdited.a.digest);
+  });
   it('is a tagged sha256 over the CRLF-normalised source slice', () => {
     const lf = pair('', edited);
     const crlf = pair('', edited, '\r\n');
@@ -389,8 +407,8 @@ describe('per-record source digest', () => {
       split.mockRestore();
     }
   });
-  it('puts a digest on every native node without changing the corpus revision', () => {
+  it('puts a digest on every native node and leaves the corpus revision to the revision inputs alone', () => {
     expect([...native.nodes.values()].every((n) => /^[0-9a-f]{64}$/.test(n.digest))).toBe(true);
-    expect(native.revision).toBe(load(records, registry, options).revision);
+    expect(native.revision).toBe(revisionOf(registry, options));
   });
 });
