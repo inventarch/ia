@@ -2,9 +2,11 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { discoverRoot, dispatch, iaHomeOf } from '../src/consumer.js';
+import { UsageError } from '../src/args.js';
+import { discoverRoot, dispatch, iaHomeOf, Refusal, refusalOf, renderRefusal } from '../src/consumer.js';
 import type { Extension, Host, Result } from '../src/consumer.js';
 import { COMMANDS, CORE_TOKENS, EXTENSION_TOKEN, LEGACY_OPERATIONS, RESERVED_TOKEN } from '../src/commands.js';
+import { resolveCapabilities } from '../src/render.js';
 import { fieldTypeText } from '@inventarch/compliance';
 import { MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { runBounded } from '@tools/testing/subprocess.js';
@@ -415,6 +417,83 @@ it('keeps --json a single parseable value with no ANSI, and resolves colour by �
   expect(ascii.stdout).toContain('[error]');
   expect(ascii.stdout).not.toContain('✖');
   expect((await run(['validate', '--root', fixture], { env: { IA_ASCII: '1' } })).stdout).toContain('[error]');
+});
+
+/** A `--json` refusal body's next command: a non-empty string. */
+const nextOf = (stdout: string, label: string): string => {
+  const body = JSON.parse(stdout) as { readonly ok?: boolean; readonly next?: unknown };
+  expect(body.ok, label).toBe(false);
+  expect(typeof body.next, label).toBe('string');
+  expect((body.next as string).trim(), label).not.toBe('');
+  return body.next as string;
+};
+
+it('gives every refusal the funnel renders a next command, whatever was thrown', () => {
+  const caps = resolveCapabilities(makeHost().stdout, { json: true });
+  // Every class of value `refusalOf` admits: a CLI usage error, a service error with and without an IA code, a
+  // non-Error, nothing, a site's own refusal, and a refusal whose next is blank.
+  const thrown: readonly (readonly [string, unknown])[] = [
+    ['usage error', new UsageError('Unknown option --bogus')],
+    ['coded service error', Object.assign(new Error('Missing input x.ia'), { code: 'IA-DIST-INPUT-INVALID' })],
+    ['uncoded error', new Error('boom')],
+    ['non-error', 'thrown text'],
+    ['nothing', undefined],
+    ['site refusal', new Refusal('IA-CLI-CONFLICT', 'held', 3, null, 'Run "ia init" first.')],
+    ['blank next', new Refusal('IA-CLI-FAILED', 'blank', 3, null, ' ')],
+  ];
+  for (const [label, error] of thrown)
+    for (const command of ['validate', undefined]) {
+      const refusal = refusalOf(error, command);
+      nextOf(renderRefusal(refusal, caps, true).stdout, label);
+      expect(renderRefusal(refusal, resolveCapabilities(makeHost().stdout), false).stderr, label).toContain(
+        refusal.next.trim(),
+      );
+    }
+  // A usage error names the refused command's own help; an unmapped failure names the command that checks the
+  // runtime, workspace and installation; a site's own next is kept verbatim.
+  expect(refusalOf(new UsageError('x'), 'validate').next).toContain('"ia validate --help"');
+  expect(refusalOf(new UsageError('x')).next).toContain('"ia --help"');
+  expect(refusalOf(new Error('x'), 'validate').next).toContain('"ia doctor"');
+  expect(refusalOf(Object.assign(new Error('x'), { code: 'IA-DB-ROOT-INVALID' })).next).toContain('"ia doctor"');
+  expect(refusalOf(new Refusal('IA-CLI-CONFLICT', 'held', 3, null, 'Run "ia init" first.')).next).toBe(
+    'Run "ia init" first.',
+  );
+});
+
+it('names a next command in every --json refusal, for each CLI-owned trigger', async () => {
+  const empty = scratch('refusal-next');
+  const refused: readonly (readonly [readonly string[], string])[] = [
+    [['validate', '--severity', 'nope', '--json'], 'IA-CLI-USAGE'],
+    [['init', '--root', empty, '--json'], 'IA-CLI-USAGE'],
+    [['init', join(empty, 'x'), '--apply', '--json'], 'IA-CLI-USAGE'],
+    [['vocabulary', '--root', empty, '--json'], 'IA-CLI-USAGE'],
+    [['pack', '--json'], 'IA-CLI-USAGE'],
+    [['host', 'nope', '--json'], 'IA-CLI-USAGE'],
+    [['nosuchverb', '--json'], 'IA-CLI-USAGE'],
+    [[RESERVED_TOKEN, '--json'], 'IA-CLI-USAGE'],
+    [['format', '--root', fixture, 'missing.ia', '--json'], 'IA-DIST-INPUT-INVALID'],
+    [['install', '--json'], 'IA-DB-ROOT-INVALID'],
+    [['inspect', 'no-such/definition/procedure/record', '--root', fixture, '--json'], 'IA-DB-SOURCE-UNAVAILABLE'],
+    [['host', 'claude', '--root', empty, '--json'], 'IA-CLI-CONFLICT'],
+  ];
+  for (const [argv, code] of refused) {
+    const label = argv.join(' '),
+      result = await run(argv, { cwd: empty });
+    expect(JSON.parse(result.stdout).code, label).toBe(code);
+    nextOf(result.stdout, label);
+  }
+  // A usage refusal from the parser names the refused command's own help.
+  expect(nextOf((await run(['pack', '--json'], { cwd: empty })).stdout, 'pack')).toContain('"ia pack --help"');
+  // §5's interruption is a refusal too: its one object names the rerun.
+  const interrupted = await dispatch(
+    ['validate', '--root', fixture, '--json'],
+    { ...makeHost(), signal: AbortSignal.abort() },
+    legacy,
+    extensions,
+  );
+  expect(interrupted.exitCode).toBe(130);
+  expect(JSON.parse(interrupted.stdout).code).toBe('IA-CLI-INTERRUPTED');
+  expect(nextOf(interrupted.stdout, 'interrupted')).toContain('"ia validate"');
 });
 
 const binary = (args: readonly string[], env?: NodeJS.ProcessEnv) =>

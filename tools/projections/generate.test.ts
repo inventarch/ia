@@ -105,12 +105,17 @@ it('preflights unmanaged or stale files before writing and refuses arbitrary out
   writeFileSync(resolve(base, 'CLAUDE.md'), 'User-authored');
   const first = { path: '.claude/agents/fresh.md', text: PROJECTION_MARKER },
     last = { path: 'CLAUDE.md', text: PROJECTION_MARKER };
+  // Each refusal names its next command: the repair, then the generator rerun.
+  const rerun = '`pnpm projections:generate`';
   expect(() => publishArtifacts(base, [first, last], true)).toThrow('unmanaged');
+  expect(() => publishArtifacts(base, [first, last], true)).toThrow(`Move or delete CLAUDE.md, then run ${rerun}`);
   expect(() => statSync(resolve(base, first.path))).toThrow();
   expect(() => publishArtifacts(base, [{ path: '../escape', text: '' }], true)).toThrow('output set');
+  expect(() => publishArtifacts(base, [{ path: '../escape', text: '' }], true)).toThrow(`then run ${rerun}`);
   mkdirSync(resolve(base, '.claude/agents'), { recursive: true });
   writeFileSync(resolve(base, '.claude/agents/stale.md'), PROJECTION_MARKER);
   expect(() => publishArtifacts(base, [first], false)).toThrow('Stale');
+  expect(() => publishArtifacts(base, [first], false)).toThrow(`Delete .claude/agents/stale.md, then run ${rerun}`);
   symlinkSync(outside, resolve(base, '.agents'), 'junction');
   expect(() =>
     publishArtifacts(
@@ -121,12 +126,13 @@ it('preflights unmanaged or stale files before writing and refuses arbitrary out
       ],
       true,
     ),
-  ).toThrow('aliased');
+  ).toThrow(new RegExp(`aliased.*then run ${rerun}`));
 });
 it('refuses generating a partial corpus with admission errors', () => {
   expect(() => generateProjections(resolve(root, 'packages/compliance/fixtures/loop'), false)).toThrow(
     'corpus has errors',
   );
+  expect(() => generateProjections(resolve(root, 'packages/compliance/fixtures/loop'), false)).toThrow('`ia validate`');
 });
 
 it('renders attributed language references without private methods', () => {
