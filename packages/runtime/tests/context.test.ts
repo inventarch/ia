@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { context, DEFAULT_TOKENIZER, parseLocator, readBody, RuntimeError } from '../src/index.js';
+import { context, DEFAULT_TOKENIZER, locateRecord, parseLocator, readBody, RuntimeError } from '../src/index.js';
 import type { ContextResult, Packet } from '../src/index.js';
 import { database, lawId, lawPath, methodId, methodPath, playbook, put, workspace } from './workspace.js';
 
@@ -440,6 +440,18 @@ it('parses each locator form: identity, identity#phase/primitive, identity#REQ a
   });
   // A path keeps the portable spelling the database records sources in.
   expect(parseLocator('.\\.ia\\src\\a.ia:2')).toEqual({ kind: 'line', path: '.ia/src/a.ia', line: 2 });
+  // A path may hold `#`; its `.`, `..` and empty segments resolve lexically, so a path names one spelling.
+  expect(parseLocator('docs/a#b.ia:3')).toEqual({ kind: 'line', path: 'docs/a#b.ia', line: 3 });
+  expect(parseLocator('x/binding/agent/y#orient/Decision:4')).toEqual({
+    kind: 'line',
+    path: 'x/binding/agent/y#orient/Decision',
+    line: 4,
+  });
+  expect(parseLocator('./.ia/./src/x/../a.ia:2')).toEqual({ kind: 'line', path: '.ia/src/a.ia', line: 2 });
+  expect(parseLocator('.ia//src/a.ia:2')).toEqual({ kind: 'line', path: '.ia/src/a.ia', line: 2 });
+  expect(parseLocator('.ia\\src\\..\\b.ia:7')).toEqual({ kind: 'line', path: '.ia/b.ia', line: 7 });
+  // A path that leaves the root stays outside it, and so names no admitted source.
+  expect(parseLocator('.ia/../../a.ia:2')).toEqual({ kind: 'line', path: '../a.ia', line: 2 });
   for (const text of [
     '',
     'sample-procedure',
@@ -550,4 +562,35 @@ it('reads only the body behind a locator, with the per-record digest, scoped by 
   for (const line of [inner.source.line, inner.source.endLine])
     expect(readBody(nested, parseLocator(`${methodPath}:${line}`)).identity).toBe(inner.identity);
   expect(readBody(nested, parseLocator(`${methodPath}:${method.source.endLine}`)).identity).toBe(outer.identity);
+});
+it('reads a source line by any spelling of its path, and names the record a locator resolves to', () => {
+  const root = workspace();
+  put(root, '.ia/src/odd#name.ia', playbook('first'));
+  const db = database(root),
+    method = db.records().find((n) => n.identity === methodId)!,
+    odd = db.records().find((n) => n.source.path === '.ia/src/odd#name.ia')!;
+  const [dir, file] = [
+    methodPath.slice(0, methodPath.lastIndexOf('/')),
+    methodPath.slice(methodPath.lastIndexOf('/') + 1),
+  ];
+  // A `#` in a path is part of the path, and `./`, `../` and doubled slashes reach the same source.
+  expect(readBody(db, parseLocator(`.ia/src/odd#name.ia:${odd.source.line}`))).toMatchObject({
+    identity: odd.identity,
+    body: 'Fixture procedure first',
+  });
+  for (const spelled of [`./${methodPath}`, `${dir}/./${file}`, `${dir}/x/../${file}`, `${dir}//${file}`])
+    expect(readBody(db, parseLocator(`${spelled}:${method.source.line}`)).identity, spelled).toBe(methodId);
+
+  // The record a locator resolves to, whether or not it has a body to read; undefined when none does.
+  const schema = db.records().find((n) => n.discriminator === 'schema')!;
+  expect(locateRecord(db, parseLocator(methodId))?.identity).toBe(methodId);
+  expect(locateRecord(db, parseLocator(`${methodId}#REQ-NOT-HERE`))?.identity).toBe(methodId);
+  expect(locateRecord(db, parseLocator(`./${methodPath}:${method.source.line}`))?.identity).toBe(methodId);
+  expect(locateRecord(db, parseLocator(`${schema.source.path}:${schema.source.line}`))?.identity).toBe(schema.identity);
+  expect(() => readBody(db, parseLocator(`${schema.source.path}:${schema.source.line}`))).toThrow(
+    'IA-DB-SOURCE-UNAVAILABLE',
+  );
+  expect(locateRecord(db, parseLocator('no-such/definition/procedure/record'))).toBeUndefined();
+  expect(locateRecord(db, parseLocator(`${methodPath}:1`))).toBeUndefined();
+  expect(locateRecord(db, parseLocator('.ia/src/absent.ia:3'))).toBeUndefined();
 });

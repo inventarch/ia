@@ -4,7 +4,16 @@
  * Every verb is exercised in its human and `--json` form and in each exit class its §2 section declares, because
  * the exit class is the part a script depends on and the part a renderer change cannot be trusted to preserve.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { applyHost, planHost } from '@inventarch/distribution/host';
@@ -672,6 +681,17 @@ it('reads the body behind a locator and prints that body only, refusing with a n
     ).stdout,
   ).toBe('Supply the intended owner, complete native registry closure and authored record source.\n');
   expect((await run(['read', `${STEWARD_COPY}:5`, '--root', root])).stdout).toBe(`${STEWARD_SAYS}\n`);
+  // `./`, `../` and doubled slashes reach the same source line.
+  const [stewardDir, stewardFile] = [
+    STEWARD_COPY.slice(0, STEWARD_COPY.lastIndexOf('/')),
+    STEWARD_COPY.slice(STEWARD_COPY.lastIndexOf('/') + 1),
+  ];
+  for (const spelled of [
+    `./${STEWARD_COPY}`,
+    `${stewardDir}/../records/${stewardFile}`,
+    `${stewardDir}//${stewardFile}`,
+  ])
+    expect((await run(['read', `${spelled}:5`, '--root', root])).stdout, spelled).toBe(`${STEWARD_SAYS}\n`);
 
   // Every refusal names one next command, in both forms.
   const refused: readonly (readonly [readonly string[], string, number, string])[] = [
@@ -682,6 +702,15 @@ it('reads the body behind a locator and prints that body only, refusing with a n
     [['read', `${procedure}#REQ-NOT-HERE`], 'IA-DB-SOURCE-UNAVAILABLE', 1, `"ia inspect ${procedure}"`],
     [['read', 'floor/contract/head/agent'], 'IA-DB-SOURCE-UNAVAILABLE', 1, '"ia inspect floor/contract/head/agent"'],
     [['read', `${STEWARD_COPY}:1`], 'IA-DB-SOURCE-UNAVAILABLE', 1, `"ia inspect --path ${STEWARD_COPY}"`],
+    // A path the shell would split is quoted inside the next command.
+    [['read', 'my notes/x.ia:1'], 'IA-DB-SOURCE-UNAVAILABLE', 1, '"ia inspect --path "my notes/x.ia""'],
+    // A line held by a record with no body names that record, whose structure is what there is to see.
+    [
+      ['read', '.ia/src/floor/kernel.schema.ia:3'],
+      'IA-DB-SOURCE-UNAVAILABLE',
+      1,
+      '"ia inspect floor/contract/head/kernel-kind"',
+    ],
   ];
   for (const [argv, code, exit, next] of refused) {
     const label = argv.join(' ');
@@ -698,6 +727,24 @@ it('reads the body behind a locator and prints that body only, refusing with a n
     // The human block wraps at the terminal width, so the next command is compared with its spacing collapsed.
     expect(human.stderr.replace(/\s+/g, ' '), label).toContain(next);
   }
+  const bodyless = JSON.parse(
+    (await run(['read', '.ia/src/floor/kernel.schema.ia:3', '--root', root, '--json'])).stdout,
+  ) as { where: unknown };
+  expect(bodyless.where).toEqual({
+    path: '.ia/src/floor/kernel.schema.ia',
+    line: 3,
+    identity: 'floor/contract/head/kernel-kind',
+  });
+
+  // A `#` in a source path is part of the path, not a fragment.
+  const hashed = '.ia/src/systems/agent-system/records/steward#copy.ia';
+  renameSync(resolve(root, STEWARD_COPY), resolve(root, hashed));
+  expect(await run(['read', `${hashed}:5`, '--root', root])).toEqual({
+    exitCode: 0,
+    stdout: `${STEWARD_SAYS}\n`,
+    stderr: '',
+  });
+
   // An unreadable root is the open's own refusal, and it too names a next command.
   const absent = await run(['read', STEWARD, '--root', resolve(scratch('no-read-root'), 'absent'), '--json']);
   expect(absent.exitCode).toBe(3);
