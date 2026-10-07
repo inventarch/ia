@@ -368,7 +368,7 @@ it('narrows to a milestone or task seat and refuses a request it cannot answer, 
   const notWork = refusal(() => view(db, { seat: OPEN_DECISION }));
   expect(notWork.code).toBe('IA-RUNTIME-REQUEST-INVALID');
   expect(notWork.next).toBe(`ia position --seat ${OPEN_DECISION}`);
-  // A seat that names nothing in the scope.
+  // A seat that names nothing the scope reads.
   const nothing = refusal(() => view(db, { seat: 'work-system/definition/task/no-such-task' }));
   expect(nothing.code).toBe('IA-RUNTIME-REQUEST-INVALID');
   expect(nothing.next).toBe('ia next');
@@ -519,8 +519,43 @@ it('never claims a requirement it cannot read: a target outside the scope blocks
   });
   expect(entry(result, REVIEW).verdict.kind).toBe('blocked');
   expect(entry(result, WRITE).verdict.kind).toBe('evidence');
-  // A seat outside the scope is refused as the database refuses it.
-  expect(() => next(db, within, { seat: MADE_DECISION })).toThrow(/IA-DB-OUT-OF-SCOPE/);
+  // A seat the scope does not read gets one refusal, whether it lies outside the scope or names nothing: the view
+  // reads only through the token, so it cannot tell the two apart.
+  const outside = refusal(() => next(db, within, { seat: MADE_DECISION })),
+    missing = refusal(() => next(db, within, { seat: 'work-system/definition/task/no-such-task' }));
+  expect([outside.code, outside.next]).toEqual(['IA-RUNTIME-REQUEST-INVALID', 'ia next']);
+  expect([missing.code, missing.next]).toEqual([outside.code, outside.next]);
+  expect(outside.message.replace(MADE_DECISION, '<seat>')).toBe(
+    missing.message.replace('work-system/definition/task/no-such-task', '<seat>'),
+  );
+});
+
+it('reads the handle only through the scope token it is given', () => {
+  const db = database(evidenced()),
+    within = db.resolveScope({ identities: [PLAN, BETA, ALPHA, ASK, WRITE, REVIEW, LATER, WRITE_EVIDENCE] }).token,
+    properties = new Set<string>();
+  // Every handle method the view calls must carry the token; any other read is a property, recorded.
+  const guarded = new Proxy(db, {
+    get(target, property) {
+      const value: unknown = Reflect.get(target, property, target);
+      if (typeof value !== 'function') {
+        properties.add(String(property));
+        return value;
+      }
+      return (...args: unknown[]) => {
+        const options = args.at(-1);
+        if (typeof options !== 'object' || options === null || (options as { within?: unknown }).within !== within)
+          throw new Error(`${String(property)} read without the scope token`);
+        return (value as (...values: unknown[]) => unknown).apply(target, args);
+      };
+    },
+  });
+  expect(stableSerialize(next(guarded, within))).toBe(stableSerialize(next(db, within)));
+  expect(next(guarded, within, { seat: BETA }).seat.identity).toBe(BETA);
+  for (const seat of [MADE_DECISION, 'work-system/definition/task/no-such-task'])
+    expect(refusal(() => next(guarded, within, { seat })).next).toBe('ia next');
+  // The findings the accepted line counts come from the handle's report, filtered to the listed record.
+  expect([...properties]).toEqual(['report']);
 });
 
 it('reads a requirement another record declares in the inverse spelling', () => {
