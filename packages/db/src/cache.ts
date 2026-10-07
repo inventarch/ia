@@ -14,22 +14,31 @@ export interface CacheStatus {
   readonly state: 'disabled' | 'hit' | 'written' | 'unavailable';
   readonly observations: readonly CacheObservation[];
 }
-export function publishCache(root: string, graph: Graph, enabled: boolean): CacheStatus {
+export const cacheObservation = (path: string, message: string): CacheObservation =>
+  Object.freeze({ code: 'IA-DB-CACHE-UNAVAILABLE' as const, severity: 'warning' as const, path, message });
+/** D06/D08: the workspace-relative path of the derived file `name`. */
+export const derivedPath = (name: string): string => `.ia/.iadb/${name}.json`;
+/**
+ * D06/D08: publish derived bytes at `derivedPath(name)`. Equal bytes are not rewritten; other bytes replace the
+ * file through a unique same-directory temporary file, with containment rechecked at each access. Any failure is a
+ * warning that leaves the in-memory state usable, and a disabled cache touches nothing.
+ */
+export function publishDerived(root: string, name: string, bytes: () => string, enabled: boolean): CacheStatus {
   if (!enabled) return Object.freeze({ state: 'disabled', observations: Object.freeze([]) });
-  const path = '.ia/.iadb/graph.json';
+  const path = derivedPath(name);
   let temporary: string | undefined;
   try {
-    const bytes = JSON.stringify({ format: 'ia-graph-1', revision: graph.revision, graph: serialize(graph) }) + '\n';
+    const content = bytes();
     const target = safePath(root, path);
     try {
-      if (readFileSync(target, 'utf8') === bytes)
+      if (readFileSync(target, 'utf8') === content)
         return Object.freeze({ state: 'hit', observations: Object.freeze([]) });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
     mkdirSync(safePath(root, '.ia/.iadb'), { recursive: true });
-    temporary = `.ia/.iadb/graph.${randomUUID()}.tmp`;
-    writeFileSync(safePath(root, temporary), bytes, { encoding: 'utf8', flag: 'wx' });
+    temporary = `.ia/.iadb/${name}.${randomUUID()}.tmp`;
+    writeFileSync(safePath(root, temporary), content, { encoding: 'utf8', flag: 'wx' });
     renameSync(safePath(root, temporary), safePath(root, path));
     temporary = undefined;
     return Object.freeze({ state: 'written', observations: Object.freeze([]) });
@@ -43,13 +52,16 @@ export function publishCache(root: string, graph: Graph, enabled: boolean): Cach
     return Object.freeze({
       state: 'unavailable',
       observations: Object.freeze([
-        {
-          code: 'IA-DB-CACHE-UNAVAILABLE' as const,
-          severity: 'warning' as const,
-          path,
-          message: `Cache unavailable: ${error instanceof Error ? error.message : String(error)}`,
-        },
+        cacheObservation(path, `Cache unavailable: ${error instanceof Error ? error.message : String(error)}`),
       ]),
     });
   }
+}
+export function publishCache(root: string, graph: Graph, enabled: boolean): CacheStatus {
+  return publishDerived(
+    root,
+    'graph',
+    () => JSON.stringify({ format: 'ia-graph-1', revision: graph.revision, graph: serialize(graph) }) + '\n',
+    enabled,
+  );
 }

@@ -1,0 +1,24 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Retained previous snapshot; staleness and readiness by digest",
+  "summary": "@inventarch/db handles now retain the previous admitted root snapshot beside the current one: the most recent root snapshot whose revision differs from the current revision. Opening or refreshing at an unchanged revision keeps it; only a revision change rotates the current snapshot into previous, and a failed refresh rotates nothing. Handle, ReadHandle and the editor reader add previousRevision; staleness(identity, options), which answers unchanged, changed, new or removed by comparing the identity's current and previous membership digests (every current identity reads new while no previous snapshot is retained); and readiness(identity, digest, options), which answers current, previous or unknown for a digest observed earlier, such as an `@observation`'s subject-revision. Both bind within, root, phase and revision as get does, answer about the record get returns under those options, and refuse an identity outside a scope with IA-DB-OUT-OF-SCOPE. Only root snapshots are retained, so when a narrower root or phase reads an occurrence other than the root one, staleness is undefined and readiness answers only current or unknown; a read through a scope token never reports removed. The Staleness and Readiness types are exported. With the cache enabled a handle publishes the pair to .ia/.iadb/snapshots.json beside graph.json, and a later handle reads it to seed previous. An unreadable, non-JSON, foreign-format or malformed file, or one whose current snapshot names the fresh revision with other rows, is ignored with an IA-DB-CACHE-UNAVAILABLE warning in cache.observations and replaced when the path can be written; a well-formed pair at another revision cannot be verified and is trusted as written. With cache: false the file is neither read nor written, so previous comes only from the handle's own refreshes, and the cache-free editor reader retains nothing. Workspace revisions, snapshots, the frozen Door operations and ia scope are unchanged; ia capture is not part of this change.",
+  "packages": [
+    "@inventarch/db"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    "CLAUDE.md",
+    "README.md",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "packages/db/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}
