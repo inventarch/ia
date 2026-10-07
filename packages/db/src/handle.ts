@@ -4,11 +4,13 @@ import { canonicalRoot, reaches, resolve, search, stableSerialize, traverse } fr
 import type { FieldReference, Node, Resolution, SearchHit, Traversal, TraverseOptions } from '@inventarch/graph';
 import type { Report } from '@inventarch/compliance';
 import { publishCache } from './cache.js';
-import type { CacheStatus } from './cache.js';
+import type { CacheObservation, CacheStatus } from './cache.js';
 import { DbError } from './errors.js';
 import { inputOptions, readInputs } from './inputs.js';
 import type { InputOptions, InputSnapshot } from './inputs.js';
 import type { MembershipRow } from './membership.js';
+import { digestIn, publishRetained, readRetained, readinessOf, rotate, stalenessOf } from './retention.js';
+import type { Readiness, Retained, RetainedSnapshot, Staleness } from './retention.js';
 import { occurrenceKey, viewBuilder } from './view.js';
 import type { RefusedRecord, View } from './view.js';
 import { previewInputs } from './preview.js';
@@ -48,6 +50,8 @@ interface State {
   readonly rootView: View;
   readonly cache: CacheStatus;
   readonly views: Map<string, View>;
+  /** D08: the most recent admitted root snapshot whose revision differs from rootView's; none in an editor reader. */
+  readonly previous?: RetainedSnapshot;
 }
 interface BoundScope {
   readonly binding: Scope;
@@ -92,6 +96,26 @@ export function stableState(read: () => InputSnapshot, cache: boolean): State {
   }
   throw new DbError('IA-DB-SOURCE-CHANGED', 'Source inputs changed during three consecutive snapshot attempts');
 }
+const rootSnapshot = (state: State): RetainedSnapshot =>
+  Object.freeze({ revision: state.rootView.graph.revision, membership: state.rootView.membership });
+/** D08: rotate `prior` against the published state's root snapshot and publish the pair beside the graph cache. */
+function retain(
+  state: State,
+  prior: Retained | undefined,
+  observations: readonly CacheObservation[],
+  enabled: boolean,
+): State {
+  const retained = rotate(prior, rootSnapshot(state)),
+    published = publishRetained(state.inputs.root, retained, enabled);
+  return {
+    ...state,
+    ...(retained.previous === undefined ? {} : { previous: retained.previous }),
+    cache: Object.freeze({
+      state: state.cache.state,
+      observations: Object.freeze([...state.cache.observations, ...observations, ...published.observations]),
+    }),
+  };
+}
 /** Shared read engine for disk handles and cache-free editor snapshots. */
 export class Reader {
   readonly root: string;
@@ -108,6 +132,12 @@ export class Reader {
   protected get capturedInputs(): InputSnapshot {
     this.#assertOpen();
     return this.#state.inputs;
+  }
+  /** D08: the retained root snapshot pair that a refresh rotates. */
+  protected get retention(): Retained {
+    this.#assertOpen();
+    const previous = this.#state.previous;
+    return Object.freeze({ current: rootSnapshot(this.#state), ...(previous === undefined ? {} : { previous }) });
   }
   protected replaceState(next: State): void {
     this.#assertOpen();
@@ -150,6 +180,13 @@ export class Reader {
       throw new DbError('IA-DB-SCOPE-MISMATCH', 'Explicit read bindings differ from the supplied scope');
     }
     return { view: scope.view, allowed: scope.allowed };
+  }
+  /** D09: the selection for a read about one identity, which must be inside the supplied scope. */
+  #admit(identity: string, options: ReadOptions): Selection {
+    const selection = this.#select(options);
+    if (selection.allowed !== undefined && !selection.allowed.has(identity))
+      throw new DbError('IA-DB-OUT-OF-SCOPE', 'Identity is outside the supplied scope');
+    return selection;
   }
   resolveScope(options: ScopeRequest = {}): Scope {
     this.#assertOpen();
@@ -250,10 +287,39 @@ export class Reader {
     return previewInputs(this.#state.inputs, this.revision, changes, this.#locations);
   }
   get(identity: string, options: ReadOptions = {}): Node | undefined {
-    const { view, allowed } = this.#select(options);
-    if (allowed !== undefined && !allowed.has(identity))
-      throw new DbError('IA-DB-OUT-OF-SCOPE', 'Identity is outside the supplied scope');
-    return view.graph.nodes.get(identity);
+    return this.#admit(identity, options).view.graph.nodes.get(identity);
+  }
+  /** D08: the revision of the retained previous root snapshot, when one is retained. */
+  get previousRevision(): string | undefined {
+    this.#assertOpen();
+    return this.#state.previous?.revision;
+  }
+  /**
+   * D08: the identity's digest in the view `get` reads under `options` and, when that is also its current root digest
+   * (always for a root read), its digest in the previous root snapshot. Only root snapshots are retained, so a narrower
+   * root or phase that reads another digest, or a record only one of the two views holds, is not `rooted`.
+   */
+  #compared(
+    identity: string,
+    options: ReadOptions,
+  ): { readonly now: string | undefined; readonly before: string | undefined; readonly rooted: boolean } {
+    const now = this.#admit(identity, options).view.graph.nodes.get(identity)?.digest,
+      rooted = now === this.#state.rootView.graph.nodes.get(identity)?.digest;
+    return { now, before: rooted ? digestIn(this.#state.previous, identity) : undefined, rooted };
+  }
+  /**
+   * D08: the digest of the record `get` returns against the previous root snapshot's. Undefined when neither side has
+   * one, or when the selected view reads an occurrence the root snapshots do not describe; every current identity is
+   * `new` while no previous snapshot is retained.
+   */
+  staleness(identity: string, options: ReadOptions = {}): Staleness | undefined {
+    const { now, before, rooted } = this.#compared(identity, options);
+    return rooted ? stalenessOf(now, before) : undefined;
+  }
+  /** D08 (position-and-projection row 20): which retained snapshot gives the record `get` returns an observed `digest`. */
+  readiness(identity: string, digest: string, options: ReadOptions = {}): Readiness {
+    const { now, before } = this.#compared(identity, options);
+    return readinessOf(now, before, digest);
   }
   resolve(reference: EdgeReference, options: ReadOptions = {}): Resolution {
     const { view, allowed } = this.#select(options);
@@ -269,9 +335,7 @@ export class Reader {
   }
   /** Graph G06a typed field references naming `identity`, holders pruned to the scope. Derived, not edges: traverse never walks them. */
   referencedBy(identity: string, options: ReadOptions = {}): readonly FieldReference[] {
-    const { view, allowed } = this.#select(options);
-    if (allowed !== undefined && !allowed.has(identity))
-      throw new DbError('IA-DB-OUT-OF-SCOPE', 'Identity is outside the supplied scope');
+    const { view, allowed } = this.#admit(identity, options);
     return Object.freeze(
       (view.graph.referencedBy.get(identity) ?? []).filter(
         (reference) => allowed === undefined || allowed.has(reference.from),
@@ -295,15 +359,17 @@ export class Handle extends Reader {
   #options: OpenOptions;
   constructor(root: string, options: OpenOptions = {}) {
     const selected = Object.freeze({ ...inputOptions(options), cache: options.cache ?? true });
-    super(
-      stableState(() => readInputs(root, selected), selected.cache),
-      selected.locations,
-    );
+    const state = stableState(() => readInputs(root, selected), selected.cache),
+      read: ReturnType<typeof readRetained> = selected.cache
+        ? readRetained(state.inputs.root, rootSnapshot(state))
+        : { observations: [] };
+    super(retain(state, read.prior, read.observations, selected.cache), selected.locations);
     this.#options = selected;
     Object.freeze(this);
   }
   refresh(): Snapshot {
-    this.replaceState(stableState(() => readInputs(this.root, this.#options), this.#options.cache!));
+    const next = stableState(() => readInputs(this.root, this.#options), this.#options.cache!);
+    this.replaceState(retain(next, this.retention, [], this.#options.cache!));
     return this.snapshot();
   }
 }

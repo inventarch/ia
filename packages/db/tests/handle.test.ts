@@ -25,19 +25,26 @@ it('verifies an identical cache without rewriting and preserves authored bytes',
   const root = workspace(),
     before = readInputs(root),
     first = open(root),
-    path = resolve(root, '.ia/.iadb/graph.json');
+    path = resolve(root, '.ia/.iadb/graph.json'),
+    retained = resolve(root, '.ia/.iadb/snapshots.json');
   expect(first.cache.state).toBe('written');
-  const bytes = readFileSync(path, 'utf8');
-  utimesSync(path, new Date(100000), new Date(100000));
+  // D08: a missing retained file seeds nothing and is no warning.
+  expect(first.cache.observations).toEqual([]);
+  const bytes = readFileSync(path, 'utf8'),
+    pair = readFileSync(retained, 'utf8');
+  for (const file of [path, retained]) utimesSync(file, new Date(100000), new Date(100000));
   const modified = statSync(path).mtimeMs;
   const second = open(root);
   expect(second.cache.state).toBe('hit');
-  expect(statSync(path).mtimeMs).toBe(modified);
+  expect(second.cache.observations).toEqual([]);
+  // D08: the retained pair is derived state beside the graph cache; the same revision leaves it unwritten too.
+  expect([statSync(path).mtimeMs, statSync(retained).mtimeMs]).toEqual([modified, modified]);
   expect(second.snapshot()).toEqual(first.snapshot());
   expect(second.refresh()).toEqual(first.snapshot());
   expect(readFileSync(path, 'utf8')).toBe(bytes);
+  expect(readFileSync(retained, 'utf8')).toBe(pair);
   expect(readInputs(root)).toEqual(before);
-  expect(readdirSync(resolve(root, '.ia/.iadb'))).toEqual(['graph.json']);
+  expect(readdirSync(resolve(root, '.ia/.iadb')).sort()).toEqual(['graph.json', 'snapshots.json']);
 });
 it.each(['broken JSON', 'forged'])('replaces %s cache bytes even with a matching revision', (corruption) => {
   const root = workspace(),
@@ -62,12 +69,34 @@ it('keeps fresh reads usable when cache access is obstructed or points outside',
   expect(db.records()).toHaveLength(118);
   expect(db.cache.state).toBe('unavailable');
   expect(db.cache.observations[0]?.code).toBe('IA-DB-CACHE-UNAVAILABLE');
+  expect(db.cache.observations.map((o) => [o.path, o.severity])).toContainEqual([
+    '.ia/.iadb/snapshots.json',
+    'warning',
+  ]);
   const other = workspace(),
-    outside = workspace(false);
+    outside = workspace(false),
+    planted = JSON.stringify({
+      format: 'ia-snapshots-1',
+      current: { revision: '1'.repeat(64), membership: [] },
+      previous: null,
+    });
   put(outside, 'graph.json', 'do not touch');
+  put(outside, 'snapshots.json', planted);
   symlinkSync(outside, resolve(other, '.ia/.iadb'), process.platform === 'win32' ? 'junction' : 'dir');
-  expect(open(other).cache.state).toBe('unavailable');
+  const linked = open(other);
+  expect(linked.cache.state).toBe('unavailable');
+  // D08: the retained file is read through the same containment check, so a well-formed pair behind the link, which
+  // would otherwise be trusted as written, seeds nothing.
+  expect(linked.previousRevision).toBeUndefined();
+  expect(linked.cache.observations).toContainEqual(
+    expect.objectContaining({
+      path: '.ia/.iadb/snapshots.json',
+      message: expect.stringMatching(/^Retained snapshots ignored: IA-DB-PATH-UNSAFE/),
+    }),
+  );
+  expect(readdirSync(outside).sort()).toEqual(['graph.json', 'snapshots.json']);
   expect(readFileSync(resolve(outside, 'graph.json'), 'utf8')).toBe('do not touch');
+  expect(readFileSync(resolve(outside, 'snapshots.json'), 'utf8')).toBe(planted);
 });
 it('publishes a new immutable generation after a byte edit without changing record identity', () => {
   const root = workspace(),
@@ -86,10 +115,18 @@ it('publishes a new immutable generation after a byte edit without changing reco
 it('preserves the last published state when refresh fails', () => {
   const root = workspace(),
     db = open(root),
-    before = db.snapshot();
+    first = db.revision,
+    retained = resolve(root, '.ia/.iadb/snapshots.json');
+  put(root, methodPath, readFileSync(resolve(root, methodPath), 'utf8') + '\n# revision-only edit\n');
+  const before = db.refresh(),
+    pair = readFileSync(retained, 'utf8');
   put(root, '.ia/src/invalid.ia', new Uint8Array([0xc3, 0x28]));
   expect(() => db.refresh()).toThrow(expect.objectContaining({ code: 'IA-DB-SOURCE-UNAVAILABLE' }));
   expect(db.snapshot()).toEqual(before);
+  // D08: a failed refresh rotates and publishes nothing.
+  expect(db.previousRevision).toBe(first);
+  expect(db.staleness(methodId)).toBe('unchanged');
+  expect(readFileSync(retained, 'utf8')).toBe(pair);
 });
 it('retries unstable scans at most three times and publishes only a stable candidate', () => {
   const root = workspace(false),
@@ -130,6 +167,9 @@ it('closes idempotently and refuses all subsequent reads and refreshes', () => {
     () => db.report,
     () => db.refused,
     () => db.cache,
+    () => db.previousRevision,
+    () => db.staleness(methodId),
+    () => db.readiness(methodId, '0'.repeat(64)),
   ]) {
     expect(read).toThrow(expect.objectContaining({ code: 'IA-DB-CLOSED' }));
   }
