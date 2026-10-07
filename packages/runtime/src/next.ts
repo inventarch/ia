@@ -173,11 +173,14 @@ export interface DeliveryView {
   /** The revision of the snapshot the handle retains; null when it retains none. */
   readonly snapshot: string | null;
   readonly evidence: { readonly reader: string; readonly overlay: string | null };
-  /** False when a require cycle leaves no order to claim; the entries then follow identity order. */
+  /**
+   * False when a require cycle leaves no order to claim: the records the cycle does not hold up still come first in
+   * require order, those it leaves unordered follow in identity order, the cycle is a review item and `next` is null.
+   */
   readonly ordered: boolean;
   readonly entries: readonly DeliveryEntry[];
   readonly review: readonly ReviewItem[];
-  /** Position at the first task in order with no declared blocker; null when there is none. */
+  /** Position at the first task in order with no declared blocker; null when there is none or no order is claimed. */
   readonly next: string | null;
 }
 
@@ -609,7 +612,9 @@ export function next(
     tasksOf(seat.node.identity);
   } else listed.push({ identity: seat.node.identity, word: 'task' });
   const entries = listed.map(({ identity, word }) => entryOf(read, read.nodes.get(identity)!, word, participant)),
-    first = entries.find((item) => item.word === 'task' && item.verdict.kind === 'clear');
+    // A cycle leaves no order to claim, so no task is first.
+    first =
+      review.length > 0 ? undefined : entries.find((item) => item.word === 'task' && item.verdict.kind === 'clear');
   return freeze({
     format: NEXT_VIEW_FORMAT,
     revision: read.revision,
