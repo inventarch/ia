@@ -21,7 +21,7 @@ import { foundationAdoptionEvaluators } from './foundation-adoption.js';
 import { generateKernel, readKernel } from '../kernel/generate.js';
 import { runRefusalFixtures } from '../../packages/compliance/fixtures/refusals.js';
 import { HOOK_CODES, PUBLICATION_CODES, RUNTIME_CODES, RUNTIME_ESCALATIONS } from '../../packages/runtime/src/index.js';
-import { runMandateFixtures, runRuntimeFixtures } from './runtime-fixtures.js';
+import { runMandateFixtures, runReadFixtures, runRuntimeFixtures } from './runtime-fixtures.js';
 import { runEvidenceFixtures } from './evidence-fixtures.js';
 import { runHookFixtures } from './hook-fixtures.js';
 import { EXEC_CODES } from '../systems/types.js';
@@ -127,6 +127,7 @@ export function checkCompliance(root: string) {
       ...runEvidenceFixtures(graph),
       ...runRuntimeFixtures(root),
       ...runMandateFixtures(corpus.records),
+      ...runReadFixtures(root),
       ...runHookFixtures(root),
       ...runExecutionFixtures(root),
       ...runPublicationFixtures(),

@@ -57,3 +57,13 @@ export {
   mandateRefusal,
 } from './mandate-modes.js';
 export type { MandateAuthority, MandateCode, MandateRefusal, Mode, Move } from './mandate-modes.js';
+export {
+  READ_CODES,
+  SOURCE_LOCATORS,
+  fragmentText,
+  headingAnchor,
+  markdownSection,
+  parseLocator,
+  readBody,
+} from './locator.js';
+export type { Body, BodyResult, Locator, ReadBodyOptions, ReadCode, ReadRefusal } from './locator.js';

@@ -195,6 +195,7 @@ it('is the first import of every Vitest configuration a task runs', () => {
 // skipped: tools/systems/fixture.ts exists only in the public tree, several others only in this one.
 const NOT_ENTRY_POINTS: Readonly<Record<string, { reason: string; loadedBy?: readonly string[] }>> = {
   'tools/compliance/publication-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
+  'tools/compliance/runtime-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
   'tools/distribution/qualify-linux.mjs': { reason: 'runs only inside WSL Linux' },
   'tools/quality/capture.ts': {
     reason: 'a library',

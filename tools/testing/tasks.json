@@ -1042,6 +1042,7 @@
         "tests/distribution-verbs.test.ts",
         "tests/equivalence.test.ts",
         "tests/host-projection.test.ts",
+        "tests/read.test.ts",
         "tests/refusal-next.test.ts",
         "tests/workspace-verbs.test.ts"
       ],
@@ -1839,6 +1840,7 @@
         "tests/coordinate.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
+        "tests/locator.test.ts",
         "tests/loop.test.ts",
         "tests/mandate-modes.test.ts",
         "tests/publication.test.ts",

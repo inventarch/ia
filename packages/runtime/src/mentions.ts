@@ -2,6 +2,7 @@ import { KINDS } from '@inventarch/language';
 import type { EdgeReference } from '@inventarch/language';
 import type { Node } from '@inventarch/graph';
 import type { ReadHandle } from '@inventarch/db';
+import { fragmentText } from './locator.js';
 
 interface Mention {
   readonly address: string;
@@ -89,11 +90,7 @@ export function resolveMention(
     identity = matches[0]!.identity;
   }
   const node = nodes.find((n) => n.identity === identity)!;
-  if (
-    fragment !== undefined &&
-    !node.cells.some((c) => `${c.phase}/${c.primitive}` === fragment) &&
-    !node.requirements.some((r) => r.id === fragment)
-  )
+  if (fragment !== undefined && fragmentText(node, fragment) === undefined)
     return { detail: `No cell or requirement fragment '${fragment}'` };
   return { node, ...(fragment === undefined ? {} : { fragment }) };
 }

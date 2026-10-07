@@ -189,9 +189,10 @@ export function inputOptions(options: InputOptions): InputOptions {
     ...(writableSystems === undefined ? {} : { writableSystems }),
   });
 }
-export function readInputs(root: string, supplied: InputOptions = {}): InputSnapshot {
+/** A read of the workspace's inputs, refusing a filesystem failure with a db code. */
+function discovering<T>(root: string, read: () => T): T {
   try {
-    return discover(root, supplied);
+    return read();
   } catch (error) {
     if (error instanceof DbError) throw error;
     throw new DbError(
@@ -200,13 +201,39 @@ export function readInputs(root: string, supplied: InputOptions = {}): InputSnap
     );
   }
 }
+export function readInputs(root: string, supplied: InputOptions = {}): InputSnapshot {
+  return discovering(root, () => discover(root, supplied));
+}
+export interface AdoptedBinding {
+  readonly id: string;
+  /** The canonical workspace-relative directory whose `.ia/src` the binding captures. */
+  readonly path: string;
+  readonly revision: string;
+  /** The `.ia/adopted/<id>/<revision>` label the mount's sources carry in place of `path`; no file lives under it. */
+  readonly tree: string;
+}
+const adoptedTree = (id: string, revision: string): string => `.ia/adopted/${id}/${revision}`;
+/**
+ * The bindings `.ia/workspace.json` declares, validated as discovery validates them but without reading or verifying the
+ * bound sources; [] when there is no manifest. A host maps a mount's tree label back to its directory with them.
+ */
+export function adoptedBindings(root: string): readonly AdoptedBinding[] {
+  return discovering(root, () =>
+    Object.freeze(
+      bindings(workspaceRoot(root)).map((binding) =>
+        Object.freeze({ ...binding, tree: adoptedTree(binding.id, binding.revision) }),
+      ),
+    ),
+  );
+}
+/** A `.ia/workspace.json` binding discovery refuses. */
+const invalid = (message: string): never => {
+  throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `.ia/workspace.json: ${message}`);
+};
 /** Local, pinned source bindings. This is host data, never a code loader or a write grant. */
-function workspaceSources(root: string): readonly AdoptedSource[] {
+function bindings(root: string): readonly { readonly id: string; readonly path: string; readonly revision: string }[] {
   const path = safePath(root, '.ia/workspace.json');
   if (!existsSync(path)) return [];
-  const invalid = (message: string): never => {
-    throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `.ia/workspace.json: ${message}`);
-  };
   if (!statSync(path).isFile() || statSync(path).size > 65_536)
     invalid('Expected a regular manifest of at most 64 KiB');
   let value: unknown;
@@ -253,7 +280,12 @@ function workspaceSources(root: string): readonly AdoptedSource[] {
     if (ids.has(binding.id) || paths.has(key)) invalid('Duplicate source identity or directory');
     ids.add(binding.id);
     paths.add(key);
-    const directory = safePath(root, local),
+    return { id: binding.id, path: local, revision: binding.revision };
+  });
+}
+function workspaceSources(root: string): readonly AdoptedSource[] {
+  return bindings(root).map((binding) => {
+    const directory = safePath(root, binding.path),
       sourceRoot = safePath(directory, '.ia/src');
     if (!existsSync(sourceRoot) || !statSync(sourceRoot).isDirectory())
       invalid(`Missing source tree for ${binding.id}`);
@@ -267,14 +299,18 @@ function workspaceSources(root: string): readonly AdoptedSource[] {
     return { id: binding.id, revision, sources };
   });
 }
-function discover(root: string, supplied: InputOptions): InputSnapshot {
-  let canonical: string;
+/** The canonical directory of a workspace root, refused with IA-DB-ROOT-INVALID when it is none. */
+function workspaceRoot(root: string): string {
   try {
-    canonical = realpathSync(resolve(root));
+    const canonical = realpathSync(resolve(root));
     if (!statSync(canonical).isDirectory()) throw new Error('Not a directory');
+    return canonical;
   } catch (error) {
     throw new DbError('IA-DB-ROOT-INVALID', `Cannot open workspace ${root}: ${String(error)}`);
   }
+}
+function discover(root: string, supplied: InputOptions): InputSnapshot {
+  const canonical = workspaceRoot(root);
   const options = inputOptions({ ...supplied, adopted: supplied.adopted ?? workspaceSources(canonical) }),
     sourceRoot = safePath(canonical, '.ia/src'),
     floorRoot = safePath(canonical, '.ia/src/floor');
@@ -440,7 +476,7 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
   if (installed) sources.push(...installed.sources);
   for (const mount of options.adopted ?? [])
     for (const source of mount.sources) {
-      const path = `.ia/adopted/${mount.id}/${mount.revision}/${source.path}`;
+      const path = `${adoptedTree(mount.id, mount.revision)}/${source.path}`;
       sources.push(
         Object.freeze({
           path,
