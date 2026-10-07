@@ -21,6 +21,8 @@ import {
 import type { Assessment, Report, SystemFolder } from '@inventarch/compliance';
 import type { InputSnapshot } from './inputs.js';
 import { systemMember } from './inputs.js';
+import { declaredRoots, membershipOf } from './membership.js';
+import type { DeclaredRoot, MembershipRow } from './membership.js';
 import { InstallationError } from './distribution/codec.js';
 
 export interface RefusedRecord {
@@ -37,6 +39,8 @@ export interface View {
   readonly admittedSystems: readonly string[];
   readonly blockedSystems: readonly string[];
   readonly boundary: readonly string[];
+  /** D02a capture membership of every admitted node, in `graph.nodes` order. */
+  readonly membership: readonly MembershipRow[];
 }
 interface Context {
   readonly sources: readonly Source[];
@@ -104,7 +108,10 @@ export function viewBuilder(input: InputSnapshot): (location?: string, phase?: P
     location: { placement: { kind: 'runtime', band: 0, reach: '' }, provenance: 'runtime' },
   };
   const revisionSources = [...input.sources, metadata];
-  return (requested = '', phase) => {
+  // D02a: the capture declares roots once, by the @workspace records the root view admits, and every view seats its
+  // records by them, so a narrower root or phase never re-roots an occurrence.
+  let declared: readonly DeclaredRoot[] | undefined;
+  const build = (requested = '', phase?: Phase): View => {
     const location = canonicalRoot(requested),
       context = analyze(location),
       registry = context.registry;
@@ -264,6 +271,8 @@ export function viewBuilder(input: InputSnapshot): (location?: string, phase?: P
         }
       if (before === excluded.size + blocked.size + blockedFolders.size) break;
     }
+    if (location === '' && phase === undefined) declared ??= declaredRoots(graph);
+    else if (declared === undefined) build();
     const report = evaluate(graph, {
       sourceDiagnostics,
       folders: folders.filter((f) => !blockedFolders.has(f.path)),
@@ -278,6 +287,8 @@ export function viewBuilder(input: InputSnapshot): (location?: string, phase?: P
       ),
       admittedSystems: Object.freeze(registry.order.filter((name) => !blocked.has(name))),
       blockedSystems: Object.freeze([...blocked].sort(compare)),
+      membership: membershipOf([...graph.nodes.values()], declared!),
     });
   };
+  return build;
 }

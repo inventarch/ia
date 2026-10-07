@@ -326,6 +326,7 @@ it('inspects admitted structure only, and never through the private assessment n
   expect(machine).toMatchObject({ version: 1, root: fixture });
   expect(machine.records).toHaveLength(1);
   expect(machine.records[0].identity).toBe(identity);
+  expect(machine.records[0].digest).toMatch(/^[0-9a-f]{64}$/);
   // §2.6: this envelope is not the frozen `ia get` one, which wraps its record in {ok, result}.
   expect(machine.ok).toBeUndefined();
   expect(Array.isArray(machine.edges)).toBe(true);

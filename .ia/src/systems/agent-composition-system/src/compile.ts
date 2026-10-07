@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { systemMember } from '@inventarch/db';
+import type { Node } from '@inventarch/graph';
 import type { CompiledRecord, CompiledValue } from '@inventarch/language';
 import { context } from '@inventarch/runtime';
 import { canonical, copy, digest } from '@inventarch/session-system';
@@ -95,13 +96,15 @@ class Compiler {
     if (this.components.has(node.identity)) return;
     if (this.components.size >= 2000)
       fail('IA-COMPOSITION-UNAVAILABLE', 'Executable closure exceeds 2,000 components', node);
+    // A component pin digests the admitted record as it did before graph G13 added the per-record digest.
+    const { digest: _recordDigest, ...record } = node as Node;
     this.components.set(node.identity, {
       identity: node.identity,
       owner: node.system,
       physicalOwner: systemMember(node.source.path)?.name ?? null,
       schema: node.schema,
       source: { ...node.source, digest: this.source(node.source.path) },
-      digest: digest(node),
+      digest: digest(record),
     });
     const registry = this.reader.inspect().graph.registry;
     const schema = registry.schemas.get(registry.registrations.get(node.discriminator)?.schema ?? node.name);

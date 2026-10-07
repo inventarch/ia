@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { canonicalPath } from '@inventarch/language';
-import type { FrozenRegistry, Location } from '@inventarch/language';
+import type { CompiledChild, CompiledRecord, FrozenRegistry, Location } from '@inventarch/language';
+import { digest } from './codec.js';
 import { assertLocation, canonicalRoot } from './paths.js';
 
 export interface RevisionSource {
@@ -67,4 +68,69 @@ export function revisionOf(registry: FrozenRegistry, inputs: RevisionInputs): st
       }),
     )
     .digest('hex');
+}
+/**
+ * Compiled fields and items without their spans, one row each in authored order: its `path` of indexes among its
+ * parents' children, then its key, value and `when` words, or its item. Rows keep nested blocks in the form while its
+ * depth stays bounded however deeply they nest, so every compiled record fits the codec's nesting limit.
+ */
+function authored(children: readonly CompiledChild[], parent: readonly number[] = []): unknown[] {
+  return children.flatMap((child, index) => {
+    const path = [...parent, index];
+    return 'item' in child
+      ? [{ path, item: child.item }]
+      : [
+          { path, key: child.key, value: child.value, ...(child.when === undefined ? {} : { when: child.when }) },
+          ...authored(child.fields ?? [], path),
+        ];
+  });
+}
+/**
+ * G13: the per-record digest, the codec `digest` of what a record says with where it was read left out. It covers the
+ * identity slots, `parent`, head and section fields with their nested blocks, each compiled edge's predicate,
+ * direction, spelling, reference, fragment and condition, cells, selectors, variants, requirements and `schema`. It
+ * omits `source`, every span, `placement` and `provenance` (both supplied by the loader from the source's location;
+ * capture membership carries root and band) and each edge's compile-time `target`, which resolves against the other
+ * records of its file. Moving a record to another file or placement, or shifting its lines, leaves the digest unchanged
+ * while its text compiles the same way. It is not a `revisionOf` input.
+ */
+export function recordDigest(record: CompiledRecord): string {
+  const condition = (product: { readonly condition?: unknown }) =>
+    product.condition === undefined ? {} : { condition: product.condition };
+  return digest({
+    identity: record.identity,
+    system: record.system,
+    kind: record.kind,
+    facet: record.facet,
+    name: record.name,
+    displayName: record.displayName,
+    discriminator: record.discriminator,
+    parent: record.parent ?? null,
+    head: authored(record.head),
+    sections: record.sections.map((section) => ({ name: section.name, fields: authored(section.fields) })),
+    edges: record.edges.map((edge) => ({
+      predicate: edge.predicate,
+      direction: edge.direction,
+      spelling: edge.spelling,
+      reference: edge.reference,
+      ...(edge.fragment === undefined ? {} : { fragment: edge.fragment }),
+      ...condition(edge),
+    })),
+    cells: record.cells.map((cell) => ({
+      phase: cell.phase,
+      primitive: cell.primitive,
+      primary: cell.primary,
+      text: cell.text,
+      ...condition(cell),
+    })),
+    selectors: record.selectors,
+    variants: record.variants.map((variant) => ({ key: variant.key, value: variant.value, ...condition(variant) })),
+    requirements: record.requirements.map((requirement) => ({
+      id: requirement.id,
+      kind: requirement.kind,
+      text: requirement.text,
+      ...condition(requirement),
+    })),
+    schema: record.schema,
+  });
 }

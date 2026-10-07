@@ -211,6 +211,8 @@ it('compiles a deterministic artifact, refuses to overwrite it, and never rolls 
   expect(artifact.language).toBe('1.0');
   expect(artifact.kernelDigest).toMatch(/^[0-9a-f]{64}$/);
   expect(artifact.counts['records']).toBe(artifact.records.length);
+  // ia.compiled.v1 predates graph G13, so its records and digest stay without the per-record digest.
+  expect(artifact.records.some((record) => 'digest' in record)).toBe(false);
   expect(artifact.counts['notEvaluated']).toBeGreaterThan(0);
   expect(artifact.diagnostics.some((finding) => finding.code === 'IA-COMP-NOT-EVALUATED')).toBe(true);
   // Sorted by canonical identity and serialized with sorted keys, so two runs are byte-identical.

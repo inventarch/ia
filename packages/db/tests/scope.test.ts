@@ -26,12 +26,14 @@ it('issues opaque immutable scope bindings, inherits them on reads and intersect
     (parent as { root: string }).root = '';
   }).toThrow();
   expect(Object.keys(db.snapshot({ within: child.token })).sort()).toEqual([
+    'membership',
     'phase',
     'records',
     'revision',
     'root',
     'systems',
   ]);
+  expect(db.snapshot({ within: child.token }).membership.map((row) => row.identity)).toEqual([methodId]);
   const empty = db.resolveScope({ within: child.token, identities: [] });
   expect(db.records({ within: empty.token })).toEqual([]);
 });

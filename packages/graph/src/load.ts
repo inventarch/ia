@@ -13,7 +13,7 @@ import type { GraphDiagnostic } from './diagnostics.js';
 import { snapshot } from './immutable.js';
 import { assertLocation, canonicalRoot, reaches } from './paths.js';
 import { referenceKey, resolve } from './resolve.js';
-import { compare, revisionOf, stableSerialize } from './revision.js';
+import { compare, recordDigest, revisionOf, stableSerialize } from './revision.js';
 import { buildTextIndex } from './text.js';
 import type { CellRef, Edge, FieldReference, Graph, LoadOptions, Node, Occurrence, Shadow, Tie } from './types.js';
 
@@ -62,6 +62,7 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
         band: record.placement.band,
         reach: canonicalRoot(record.placement.reach),
         dimensions: dimensions.dimensions,
+        digest: recordDigest(record),
       };
       return { key, node, status: dimensions.diagnostics.length > 0 ? 'refused' : 'inactive' };
     })
