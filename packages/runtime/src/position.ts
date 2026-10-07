@@ -42,11 +42,15 @@ export interface CapturedRevisions {
   readonly previousRevision: string | null;
   readonly freshness: Freshness;
 }
-/** The admitted records now against the captured current snapshot, by their per-record digests. */
+/**
+ * The admitted records now against the captured current snapshot, by their per-record digests: the whole workspace's
+ * under a scope that holds the whole workspace, else only the records the scope admits.
+ */
 export interface StalenessSummary {
   readonly changed: number;
   readonly new: number;
-  readonly removed: number;
+  /** Null under a narrower scope: a record no longer admitted cannot be placed inside or outside it. */
+  readonly removed: number | null;
   readonly unchanged: number;
 }
 /** The key as it was asked: its value, whether that value is K0, and how each part was supplied. */
@@ -99,10 +103,13 @@ function factsOf(options: PositionOptions): Readonly<Record<Fact, string | null>
 /**
  * The host note: the capture store at the handle's workspace root (`readCapturedSnapshot`, which needs no cache)
  * against the admitted revision and per-record digests now, the host's facts and the key used. Captures are of the
- * whole workspace, so freshness and staleness compare the whole admitted workspace, whatever the body's scope.
+ * whole workspace, so freshness compares the whole admitted workspace. Staleness counts the records `within`
+ * admits: all of them under a whole-workspace scope, removals included; under a narrower one only its own records,
+ * with removals unknown, so a narrowed scope never counts what lies outside it.
  */
 function noteOf(
   handle: ReadHandle,
+  within: string,
   body: PositionBody,
   key: NormalizedScopeKey,
   options: PositionOptions = {},
@@ -113,8 +120,9 @@ function noteOf(
   let staleness: StalenessSummary | null = null;
   if (current !== undefined) {
     const captured = new Map(current.membership.map((member) => [member.identity, member.digest])),
-      now = handle.membership();
-    const summary = { changed: 0, new: 0, removed: 0, unchanged: 0 };
+      now = handle.membership({ within }),
+      whole = now.length === handle.membership().length;
+    const summary = { changed: 0, new: 0, unchanged: 0 };
     for (const member of now) {
       const was = captured.get(member.identity);
       if (was === undefined) summary.new++;
@@ -122,8 +130,12 @@ function noteOf(
       else summary.changed++;
     }
     const present = new Set(now.map((member) => member.identity));
-    for (const identity of captured.keys()) if (!present.has(identity)) summary.removed++;
-    staleness = summary;
+    staleness = {
+      changed: summary.changed,
+      new: summary.new,
+      removed: whole ? [...captured.keys()].filter((identity) => !present.has(identity)).length : null,
+      unchanged: summary.unchanged,
+    };
   }
   return freeze({
     format: HOST_NOTE_FORMAT,
@@ -153,5 +165,5 @@ export function position(
   options: PositionOptions = {},
 ): Position {
   const body = positionBody(handle, within, key);
-  return freeze({ body, digest: bodyDigest(body), hostNote: noteOf(handle, body, key, options) });
+  return freeze({ body, digest: bodyDigest(body), hostNote: noteOf(handle, within, body, key, options) });
 }

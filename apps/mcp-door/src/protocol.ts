@@ -75,7 +75,7 @@ export class Protocol {
           capabilities: { tools: {} },
           serverInfo: { name: 'ia-mcp-door', version: PACKAGE_VERSION },
           instructions:
-            'Declare phase and primitive for context/selection. Scope tokens live only in this server process. These tools read; selection grants no execution permission.',
+            'Declare phase and primitive for context/selection. ia_position delivers the body for a scope key with a host note; ia_read returns the text behind a locator. Scope tokens live only in this server process. These tools read; selection grants no execution permission.',
         });
       }
       if (this.#state !== 'ready')

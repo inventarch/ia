@@ -380,8 +380,10 @@ function mandatesOf(read: BodyReading): readonly MandateLine[] {
   };
   for (const [identity, selections] of claimants(read, 'authority.covers'))
     for (const value of selections) reason(identity, { by: 'covers', value });
-  // The participant a seat answers for is its home workspace's steward (`composition.steward`).
-  const participants = seat.home === null ? [] : referenced(read, seat.home, 'composition.steward');
+  // The participant a seat answers for is its home workspace's steward (`composition.steward`), read only when the
+  // scope admits that workspace: a narrower scope reads nothing outside it.
+  const participants =
+    seat.home === null || !nodes.has(seat.home) ? [] : referenced(read, seat.home, 'composition.steward');
   for (const node of [...nodes.values()].sort(byBand))
     if (node.discriminator === 'mandate')
       for (const participant of referenced(read, node.identity, 'authority.participant'))

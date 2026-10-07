@@ -33,7 +33,7 @@ import { runFormat } from './format.js';
 import { runHost } from './host.js';
 import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
-import { SCHEMA_TOKEN } from './operation-help.js';
+import { describeOperation, renderOperationHelp, SCHEMA_TOKEN } from './operation-help.js';
 import { runPack } from './pack.js';
 import { runRead } from './read.js';
 import { runValidate } from './validate.js';
@@ -269,6 +269,20 @@ export function renderHelp(host: Host, caps: Capabilities, namespaces: readonly 
         { depth: 1 },
         caps,
       ),
+      // The operations a later protocol version added, on their own line so the frozen line above stays as it was.
+      ...(SINCE_2_OPERATIONS.length === 0
+        ? []
+        : entry(
+            [
+              [
+                atom('Since v2:', null, 0),
+                atom(SINCE_2_OPERATIONS.join('  ')),
+                ...words('— the machine route only with --params or --schema'),
+              ],
+            ],
+            { depth: 1 },
+            caps,
+          )),
       ...fieldRows(
         [
           { label: 'ia <operation> --help', value: words('Parameters, refusals and an example for one operation') },
@@ -523,6 +537,25 @@ export async function dispatch(
       dispose?.();
     }
   }
+  // A version-2 operation whose consumer command has not shipped: its help is the operation's own, and any other
+  // call is refused with the machine form it has, never "unknown" and never a suggestion of itself.
+  const served = since2.includes(token) ? describeOperation(token) : undefined;
+  if (served !== undefined) {
+    if (argv.slice(1).some((arg) => HELP_TOKENS.has(arg)))
+      return { exitCode: 0, stdout: renderOperationHelp(served), stderr: '' };
+    return renderRefusal(
+      new Refusal(
+        'IA-CLI-USAGE',
+        `ia ${token} needs --params or --schema: it has no consumer command yet, only the machine operation`,
+        2,
+        null,
+        `Run "ia ${token} --params '{}'", or "ia ${token} --help" for its parameters.`,
+        `ia ${token}`,
+      ),
+      caps,
+      wantsJson(argv),
+    );
+  }
   if (token === RESERVED_TOKEN)
     return renderRefusal(
       new Refusal(
@@ -544,7 +577,10 @@ export async function dispatch(
       ...extensions.map((entry) => entry.token).filter((candidate) => !CORE_TOKENS.has(candidate)),
     ]),
   ];
-  const near = nearestTokens(token, admitted);
+  const near = nearestTokens(
+    token,
+    admitted.filter((candidate) => candidate !== token),
+  );
   return renderRefusal(
     new Refusal(
       'IA-CLI-USAGE',

@@ -19,7 +19,7 @@ const withFormat = (schema: JsonSchema): JsonSchema => ({
   ...schema,
   properties: { ...(schema['properties'] as Record<string, unknown>), format: FORMAT },
 });
-/** M04: the eight door operations, described once in @inventarch/runtime's MACHINE_PROTOCOL (spec-0012 MCP-01). */
+/** M04: every door operation with an MCP name, described once in @inventarch/runtime's MACHINE_PROTOCOL (spec-0012 MCP-01). */
 const served = MACHINE_PROTOCOL.operations.flatMap((operation) =>
   operation.mcp === null
     ? []

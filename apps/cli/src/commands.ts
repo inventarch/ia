@@ -22,9 +22,9 @@ export const LEGACY_OPERATIONS = [
 /**
  * The operations machine protocol version 2 adds after the frozen nine, in protocol-table order. Each shares its
  * name with a consumer command, so it takes the machine route only by `isMachineInvocation` (consumer.ts); the
- * frozen nine never need that test. Empty while the protocol serves version 1 only.
+ * frozen nine never need that test.
  */
-export const SINCE_2_OPERATIONS: readonly string[] = [];
+export const SINCE_2_OPERATIONS: readonly string[] = ['position', 'read'];
 /** The whole machine routing table: the frozen nine, then the version-2 operations. It equals the protocol table. */
 export const MACHINE_OPERATIONS: readonly string[] = [...LEGACY_OPERATIONS, ...SINCE_2_OPERATIONS];
 

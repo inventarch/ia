@@ -6,7 +6,11 @@ import { DbError, open } from '@inventarch/db';
 import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
 import { context } from './context.js';
 import { RuntimeError } from './errors.js';
+import { parseLocator, readBody } from './locator.js';
+import { MACHINE_PROTOCOL } from './machine-protocol.js';
+import { position } from './position.js';
 import type { PositionOptions } from './position.js';
+import { normalizeScopeKey, SCOPE_KEY_PARTS } from './scope-key.js';
 import { select } from './select.js';
 import { freeze } from './types.js';
 import type { Budget, ContextRequest, Refusal } from './types.js';
@@ -64,17 +68,30 @@ function reference(value: unknown): EdgeReference {
 }
 const BINDINGS = ['within', 'root', 'phase', 'revision'];
 const CONTEXT = ['within', 'text', 'coordinate', 'subject', 'follow', 'revision'];
+/**
+ * The next action of each refusal the operations protocol version 2 added can give, from their protocol rows: the
+ * table describes, the Door still decides. Version-1 operations are not listed, so their refusals carry no next.
+ */
+/** A version-2 refusal the protocol row does not list still names a next action. */
+const NO_NEXT = "Compare the request with this operation's description: its parameters and refusals.";
+const NEXT: ReadonlyMap<string, ReadonlyMap<string, string>> = new Map(
+  MACHINE_PROTOCOL.operations
+    .filter((operation) => operation.since !== undefined)
+    .map((operation) => [operation.name, new Map(operation.refusals.map((refusal) => [refusal.code, refusal.next]))]),
+);
 export class Door {
   #handle: Handle;
   #initial: Scope;
   #tokens = new Set<string>();
   #allowReport: boolean;
+  #position: PositionOptions;
   #closed = false;
   constructor(root: string, options: DoorOptions = {}) {
     this.#handle = open(root, options);
     this.#initial = this.#handle.resolveScope(options.boundary);
     this.#tokens.add(this.#initial.token);
     this.#allowReport = options.allowReport ?? false;
+    this.#position = options.hostFacts === undefined ? {} : { hostFacts: options.hostFacts };
     Object.freeze(this);
   }
   #within(params: Params): string {
@@ -107,12 +124,13 @@ export class Door {
     };
   }
   request(input: unknown): DoorResponse {
+    let operation: string | undefined;
     try {
       if (this.#closed) throw new DbError('IA-DB-CLOSED', 'This door is closed');
       const envelope = object(input, 'request');
       keys(envelope, ['operation', 'params']);
-      const operation = string(envelope['operation'], 'operation'),
-        params = envelope['params'] === undefined ? {} : object(envelope['params'], 'params');
+      operation = string(envelope['operation'], 'operation');
+      const params = envelope['params'] === undefined ? {} : object(envelope['params'], 'params');
       let result: unknown;
       switch (operation) {
         case 'scope': {
@@ -211,20 +229,37 @@ export class Door {
           if (!this.#allowReport) invalid('This host has not enabled privileged report inspection');
           result = this.#handle.report;
           break;
+        // Protocol version 2. Neither issues a scope token; both read through the one `within` names.
+        case 'position': {
+          keys(params, ['within', ...SCOPE_KEY_PARTS]);
+          const within = this.#within(params),
+            key = normalizeScopeKey(Object.fromEntries(Object.entries(params).filter(([name]) => name !== 'within')));
+          result = position(this.#handle, within, key, this.#position);
+          break;
+        }
+        case 'read': {
+          keys(params, ['within', 'locator']);
+          const within = this.#within(params);
+          result = readBody(this.#handle, parseLocator(string(params['locator'], 'locator')), { within });
+          break;
+        }
         default:
           return invalid(
-            `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}`,
+            `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}, position, read`,
           );
       }
       return freeze({ ok: true, result });
     } catch (error) {
-      return freeze({
-        ok: false,
-        code:
+      const code =
           error instanceof DbError || error instanceof GraphUsageError || error instanceof RuntimeError
             ? error.code
             : 'IA-RUNTIME-REQUEST-INVALID',
+        next = operation === undefined ? undefined : NEXT.get(operation);
+      return freeze({
+        ok: false,
+        code,
         message: error instanceof Error ? error.message : 'Invalid request',
+        ...(next === undefined ? {} : { next: next.get(code) ?? NO_NEXT }),
       });
     }
   }

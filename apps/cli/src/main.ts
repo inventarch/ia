@@ -1,17 +1,49 @@
 #!/usr/bin/env node
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isatty } from 'node:tty';
 import type { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { readInstalledState } from '@inventarch/distribution/services';
 import { Door, isEntry } from '@inventarch/runtime';
-import type { DoorResponse } from '@inventarch/runtime';
+import type { DoorResponse, HostFacts } from '@inventarch/runtime';
 import { dispatch, HELP_TOKENS } from './consumer.js';
 import type { Extension, Host } from './consumer.js';
 import { describeOperation, renderOperationHelp, renderOperationSchema, SCHEMA_TOKEN } from './operation-help.js';
 
 const USAGE =
-  'Usage: ia <scope|context|select|get|records|resolve|search|traverse|report> [--root <workspace>] [--params <JSON|->]\nUse --params - for stdin JSON. Scope tokens last for one invocation.\n';
+  'Usage: ia <scope|context|select|get|records|resolve|search|traverse|report> [--root <workspace>] [--params <JSON|->]\nUse --params - for stdin JSON. Scope tokens last for one invocation.\n' +
+  'Since protocol v2: ia <position|read> [--root <workspace>] --params <JSON|->; without --params or --schema these names are consumer commands.\n';
+/** Canonical JSON: object keys sorted at every depth and absent ones left out, so equal values digest alike. */
+const canonical = (value: unknown): string =>
+  Array.isArray(value)
+    ? `[${value.map(canonical).join(',')}]`
+    : value !== null && typeof value === 'object'
+      ? `{${Object.entries(value)
+          .filter(([, child]) => child !== undefined)
+          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+          .map(([key, child]) => `${JSON.stringify(key)}:${canonical(child)}`)
+          .join(',')}}`
+      : JSON.stringify(value);
+/**
+ * The facts this CLI tells a position's host note: itself as `ia@<version>`, and the SHA-256 of its workspace's
+ * installed state (`{format: 'ia-installed-state-1', status, pointer, lock, inputs}` in canonical JSON), which only a
+ * host that can read the distribution store knows. An installed state that cannot be read is left out, so the host
+ * note says null rather than the position being refused.
+ */
+export function cliHostFacts(root: string): HostFacts {
+  let installedStateDigest: string | undefined;
+  try {
+    const { status, pointer, lock, inputs } = readInstalledState({ root: resolve(root) });
+    installedStateDigest = createHash('sha256')
+      .update(canonical({ format: 'ia-installed-state-1', status, pointer, lock, inputs }))
+      .digest('hex');
+  } catch {
+    installedStateDigest = undefined;
+  }
+  return { cli: `ia@${version()}`, ...(installedStateDigest === undefined ? {} : { installedStateDigest }) };
+}
 export function runCli(
   args: readonly string[],
   stdin: () => string = () => readFileSync(0, 'utf8'),
@@ -55,7 +87,9 @@ export function runCli(
     } catch {
       return usage('--params must contain valid JSON');
     }
-    door = new Door(root, { cache: false, allowReport: true });
+    // Only the position operation asks for the host facts, once; the nine version-1 routes never read them.
+    const workspace = root;
+    door = new Door(root, { cache: false, allowReport: true, hostFacts: () => cliHostFacts(workspace) });
     const response: DoorResponse = door.request({ operation, params });
     const reportFailed =
       operation === 'report' &&

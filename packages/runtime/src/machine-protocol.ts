@@ -2,11 +2,13 @@
  * The machine protocol's one description (docs/specs/command-discoverability/README.md §2). For each Door operation:
  * its purpose, parameter schema, result, refusals with a next action, and an example that returns `ok: true` on
  * packages/compliance/fixtures/loop. `ia <operation> --help`, the MCP door's tools/list and
- * docs/reference/cli/machine-protocol.md are projections of this table. It describes the frozen wire format and changes none
+ * docs/reference/cli/machine-protocol.md are projections of this table. It describes the wire format and changes none
  * of it: the Door validates every request itself, and tests/select-door.test.ts and apps/cli/tests/cli.test.ts hold this
- * table to what the Door admits and refuses.
+ * table to what the Door admits and refuses. Version 1's nine operations come first and stay as version 1 described
+ * them; an operation a later version adds follows them and carries `since`.
  */
 import { COORDINATE_DOMAINS } from './coordinate.js';
+import { SCOPE_KEY_CAPS } from './scope-key.js';
 import { freeze } from './types.js';
 
 export type JsonSchema = Readonly<Record<string, unknown>>;
@@ -26,6 +28,11 @@ export interface ProtocolOperation {
   readonly example: Readonly<Record<string, unknown>>;
   /** The MCP tool that serves it, or null where `differences` says why it is CLI-only. */
   readonly mcp: string | null;
+  /**
+   * The protocol version that added the operation. Absent on the nine operations version 1 describes, so their rows
+   * stay as version 1 printed them.
+   */
+  readonly since?: number;
 }
 export interface ProtocolDifference {
   readonly topic: string;
@@ -172,16 +179,23 @@ const BOUND = [REQUEST_INVALID, SCOPE_UNAVAILABLE, SCOPE_MISMATCH, VALUE_UNKNOWN
 /** context and select: phase is a coordinate axis there, not a binding, and revision is the only scope assertion. */
 const REQUESTED = [REQUEST_INVALID, SCOPE_UNAVAILABLE, REVISION_MISMATCH, COORDINATE_INCOMPLETE, VALUE_UNKNOWN];
 const EXAMPLE_IDENTITY = 'governance-system/definition/procedure/sample-procedure';
+const count = (part: keyof typeof SCOPE_KEY_CAPS, description: string) => ({
+  type: 'integer',
+  minimum: 0,
+  maximum: SCOPE_KEY_CAPS[part],
+  description,
+});
 
 /** Frozen deeply, so a projection that shares its schema objects (the MCP tools) cannot change it. */
 export const MACHINE_PROTOCOL: MachineProtocol = freeze({
-  version: 1,
+  version: 2,
   flow: [
     'scope issues a token that bounds later reads by phase or identities, and by root only where sources declare a reach. It is optional: without within, a call reads the initial boundary.',
     'context delivers the cited procedure cells and governance that apply to a coordinate; select chooses exactly one binding among candidates, or refuses.',
     'get, records, resolve, search and traverse read admitted records inside the scope; pass within to stay inside a narrowed one.',
     'A token lives as long as the process that issued it: one CLI invocation, or the MCP server process. A CLI invocation performs one operation, so its reads always cover the initial boundary; narrowing takes scope, then within, in one MCP session.',
     "report is privileged inspection of the whole workspace's admission, served by the CLI only.",
+    'Since version 2: position delivers the body for a scope key, its digest and a host note, and issues no token; read returns the text behind one locator. Their refusals carry a next action. The nine operations above are unchanged, and on the CLI these two take the machine route only with --params or --schema.',
   ],
   operations: [
     {
@@ -383,6 +397,88 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       ],
       example: {},
       mcp: null,
+    },
+    {
+      name: 'position',
+      summary: 'Deliver the position body for a scope key, with its digest and a host note.',
+      description:
+        "Deliver body(K) for the scope key K = (seat, shape, phase, depth, budget, word): the seat, the records loaded around it, pointer lines, tallies, applicable rules, cells and mandates, read through the scope. The body is a pure function of the key's value and the admitted revision, so equal keys give one digest on every host; the host note beside it tells this host's capture freshness and facts and is never part of the body. An empty key is K0. It issues no scope token.",
+      params: object({
+        within: read.within,
+        seat: text('A record identity or a workspace-relative path to seat the body at; omitted, the workspace seat.'),
+        shape: {
+          type: 'string',
+          enum: COORDINATE_DOMAINS.shape,
+          description: 'The shape the body is told in; omitted, context. It also fixes the primitive.',
+        },
+        phase: {
+          type: 'string',
+          enum: COORDINATE_DOMAINS.phase,
+          description: "The phase; omitted, the anchor phase of the shape's primitive.",
+        },
+        depth: count('depth', 'Hops from the seeds; omitted, 1, or 0 for an empty key.'),
+        budget: count('budget', 'Records loaded beyond the seat; omitted, 16, or 0 for an empty key.'),
+        word: text('A word that restricts the seeds and tallies, such as law.'),
+      }),
+      result:
+        "{body, digest, hostNote}: body is the position body; digest is the SHA-256 of {format: 'ia-body-1', body} in the canonical codec; hostNote ('ia-host-note-1') carries the revision, the capture store's revisions and freshness, staleness counts, the host's facts and the key used.",
+      refusals: [
+        REQUEST_INVALID,
+        SCOPE_UNAVAILABLE,
+        {
+          code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+          when: 'shape or phase is outside its closed set.',
+          next: 'Use one of the values the message lists.',
+        },
+        {
+          code: 'IA-DB-OUT-OF-SCOPE',
+          when: 'seat names an admitted record outside the scope.',
+          next: 'Seat the body at a record inside the scope, or omit seat for the workspace seat.',
+        },
+        {
+          code: 'IA-DB-PATH-UNSAFE',
+          when: 'seat is a path that leaves the workspace.',
+          next: 'Pass a record identity or a workspace-relative path, such as docs/guide.md.',
+        },
+      ],
+      example: { shape: 'context', phase: 'orient' },
+      mcp: 'ia_position',
+      since: 2,
+    },
+    {
+      name: 'read',
+      summary: 'Read the text behind one locator: a record, a cell, a requirement or a source line.',
+      description:
+        "Read the body behind a locator inside the scope: a record's own text, one cell's or one requirement's text, or the innermost record holding a source line, with that record's per-record digest. Structure is read with get, not here.",
+      params: object(
+        {
+          within: read.within,
+          locator: text('identity, identity#phase/Primitive, identity#REQ-ID or path:line.'),
+        },
+        ['locator'],
+      ),
+      result: "{identity, fragment, body, digest, source}: the text read, its record's digest and source 'record'.",
+      refusals: [
+        {
+          code: 'IA-RUNTIME-REQUEST-INVALID',
+          when: 'locator is missing or is none of the four forms, or a parameter is unknown.',
+          next: 'Pass locator as identity, identity#phase/Primitive, identity#REQ-ID or path:line.',
+        },
+        SCOPE_UNAVAILABLE,
+        {
+          code: 'IA-DB-OUT-OF-SCOPE',
+          when: 'locator names an identity that is not admitted inside the scope.',
+          next: 'Pick an identity that records or search returns in this scope.',
+        },
+        {
+          code: 'IA-DB-SOURCE-UNAVAILABLE',
+          when: 'Nothing is readable behind the locator: no such cell or requirement, no body text, or no record at that line.',
+          next: 'Read the record with get to see its cells and requirements, or name a line a record holds.',
+        },
+      ],
+      example: { locator: EXAMPLE_IDENTITY },
+      mcp: 'ia_read',
+      since: 2,
     },
   ],
   differences: [

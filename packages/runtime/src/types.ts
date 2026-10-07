@@ -88,6 +88,11 @@ export interface Refusal {
   readonly missing?: readonly string[];
   readonly required?: Budget;
   readonly reduction?: readonly string[];
+  /**
+   * What to do instead: set on refusals of the operations protocol version 2 added (position, read), from their
+   * protocol rows. The nine version-1 operations never set it, so their refusals stay as version 1 printed them.
+   */
+  readonly next?: string;
 }
 export type ContextResult = { readonly ok: true; readonly packet: Packet } | Refusal;
 

@@ -52,7 +52,22 @@ export function renderOperationHelp(operation: ProtocolOperation): string {
     entry([[atom(`ia ${operation.name}`, null, 0), ...words(operation.summary, null, 2)]], { depth: 0 }, PLAIN),
     [
       sectionLabel('Usage', PLAIN),
-      ...entry([[atom(`ia ${operation.name} [--root <workspace>] [--params <JSON|->]`, null, 0)]], { depth: 1 }, PLAIN),
+      // An operation a later version added shares its name with a consumer command: --params selects this route.
+      ...entry(
+        [
+          [
+            atom(
+              operation.since === undefined
+                ? `ia ${operation.name} [--root <workspace>] [--params <JSON|->]`
+                : `ia ${operation.name} [--root <workspace>] --params <JSON|->`,
+              null,
+              0,
+            ),
+          ],
+        ],
+        { depth: 1 },
+        PLAIN,
+      ),
       ...entry([[atom(`ia ${operation.name} ${SCHEMA_TOKEN}`, null, 0)]], { depth: 1 }, PLAIN),
     ],
     entry([words(operation.description)], { depth: 0 }, PLAIN),
@@ -85,7 +100,7 @@ export function renderOperationHelp(operation: ProtocolOperation): string {
     entry(
       [
         words(
-          `Machine protocol v${MACHINE_PROTOCOL.version}: JSON in, one JSON line out, no color. ${operation.mcp === null ? 'The MCP door does not serve it.' : `MCP tool: ${operation.mcp}.`}`,
+          `Machine protocol v${MACHINE_PROTOCOL.version}: JSON in, one JSON line out, no color. ${operation.mcp === null ? 'The MCP door does not serve it.' : `MCP tool: ${operation.mcp}.`}${operation.since === undefined ? '' : ` Added in protocol v${operation.since}; without --params or --schema, ia ${operation.name} is a consumer command.`}`,
         ),
       ],
       { depth: 0 },

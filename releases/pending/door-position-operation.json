@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Machine protocol version 2: the position and read operations",
+  "summary": "The machine protocol is version 2. Its nine version-1 operations (scope, context, select, get, records, resolve, search, traverse, report) are unchanged: same rows, same parameters, same results and refusals. After them it adds `position`, which delivers the position body for a scope key {seat, shape, phase, depth, budget, word} with its digest and a host note and issues no scope token, and `read`, which returns the text behind a locator (identity, identity#phase/Primitive, identity#REQ-ID or path:line). Their rows carry `since: 2`, and their refusals carry a `next` action. The CLI serves them as `ia position --params <JSON>` and `ia read --params <JSON>` (or `--schema`); without --params or --schema the names stay consumer commands, and `ia position` without them is refused with IA-CLI-USAGE naming the machine form until its consumer command ships. `ia --help` and the machine usage list them on a line of their own. The CLI supplies its name and an installed-state digest to the position host note. The MCP door lists eleven tools, adding ia_position and ia_read. A position's staleness counts under a narrowed scope cover only that scope's records, with removals reported as null.",
+  "packages": [
+    "@inventarch/runtime",
+    "@inventarch/cli",
+    "@inventarch/mcp-door"
+  ],
+  "paths": [
+    "packages/runtime/",
+    "apps/cli/",
+    "apps/mcp-door/"
+  ]
+}
