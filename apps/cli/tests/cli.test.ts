@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
-import { installSignals, readLine, runCli } from '../src/main.js';
+import { cliHostFacts, installSignals, readLine, runCli } from '../src/main.js';
 
 const root = resolve(import.meta.dirname, '../../..'),
   fixture = resolve(root, 'packages/compliance/fixtures/loop');
@@ -148,8 +148,15 @@ const requested = (
   'coordinate-incomplete': { ...base, coordinate: { phase: base.coordinate.phase } },
   'IA-GRAPH-COORDINATE-VALUE-UNKNOWN': { ...base, coordinate: { ...base.coordinate, phase: 'unlisted' } },
 });
+/** A refusal that needs a narrowed scope first: the parameters are built from the Door the case runs on. */
+type Trigger = Record<string, unknown> | ((door: Door) => Record<string, unknown>);
+const narrowed = (door: Door, identities: readonly string[]): string => {
+  const response = door.request({ operation: 'scope', params: { identities } });
+  if (!response.ok) throw new Error(response.message);
+  return (response.result as { token: string }).token;
+};
 /** Parameters that produce each documented refusal on the loop fixture; spec-0012 ERR-03 makes this set the proof. */
-const TRIGGERS: Readonly<Record<string, Readonly<Record<string, Record<string, unknown>>>>> = {
+const TRIGGERS: Readonly<Record<string, Readonly<Record<string, Trigger>>>> = {
   scope: bound({}),
   context: {
     ...requested({ text: '', coordinate: ORIENT }),
@@ -176,6 +183,22 @@ const TRIGGERS: Readonly<Record<string, Readonly<Record<string, Record<string, u
     'IA-GRAPH-TRAVERSAL-INVALID': { start: [ID], depth: 9 },
   },
   report: { 'IA-RUNTIME-REQUEST-INVALID': { unlisted: 1 } },
+  position: {
+    'IA-RUNTIME-REQUEST-INVALID': { unlisted: 1 },
+    'IA-DB-SCOPE-UNAVAILABLE': { within: 'forged' },
+    'IA-GRAPH-COORDINATE-VALUE-UNKNOWN': { shape: 'unlisted' },
+    'IA-DB-OUT-OF-SCOPE': (door) => ({
+      within: narrowed(door, [ID]),
+      seat: 'governance-system/definition/procedure/fallback',
+    }),
+    'IA-DB-PATH-UNSAFE': { seat: '../outside' },
+  },
+  read: {
+    'IA-RUNTIME-REQUEST-INVALID': { locator: 'not a locator' },
+    'IA-DB-SCOPE-UNAVAILABLE': { locator: ID, within: 'forged' },
+    'IA-DB-OUT-OF-SCOPE': { locator: 'a/b/c/d' },
+    'IA-DB-SOURCE-UNAVAILABLE': { locator: `${ID}#REQ-NONE-1` },
+  },
 };
 // spec-0012 DRF-02: every example returns ok: true, every required parameter is required, and the refusal list is proven both ways.
 it('holds the machine protocol table to the loop fixture', () => {
@@ -194,9 +217,17 @@ it('holds the machine protocol table to the loop fixture', () => {
         ).toBe(false);
       }
       const triggers = TRIGGERS[operation.name] ?? {};
-      const observed = Object.values(triggers).map((params) => {
+      const observed = Object.values(triggers).map((trigger) => {
+        const params = typeof trigger === 'function' ? trigger(door) : trigger;
         const response = door.request({ operation: operation.name, params });
-        return response.ok ? 'accepted' : response.code;
+        if (response.ok) return 'accepted';
+        // An operation a later version added names its next action from its row; version 1's nine name none.
+        expect(response.next, `${operation.name} ${response.code}`).toBe(
+          operation.since === undefined
+            ? undefined
+            : operation.refusals.find((refusal) => refusal.code === response.code)?.next,
+        );
+        return response.code;
       });
       expect(observed, operation.name).toEqual(Object.keys(triggers));
       expect(operation.refusals.map((refusal) => refusal.code).sort(), operation.name).toEqual(
@@ -234,7 +265,11 @@ it('answers operation help on the machine route without opening a workspace', as
       timeoutMs: SUBPROCESS,
     });
   for (const operation of MACHINE_PROTOCOL.operations) {
-    const got = await help([operation.name, '--help']);
+    // An operation a later version added shares its name with a consumer command, so its help is asked on the
+    // machine route, behind --params.
+    const got = await help(
+      operation.since === undefined ? [operation.name, '--help'] : [operation.name, '--params', '{}', '--help'],
+    );
     expect(got.status, operation.name).toBe(0);
     expect(got.stderr, operation.name).toBe('');
     expect(got.stdout, operation.name).not.toMatch(/[\u001b\u009b]/);
@@ -245,6 +280,12 @@ it('answers operation help on the machine route without opening a workspace', as
     // CLI-02: 80 columns; only the example command, one unbreakable token, may run past them.
     for (const line of got.stdout.split('\n'))
       if (!line.includes(`--params '`)) expect(line.length, `${operation.name}: ${line}`).toBeLessThanOrEqual(80);
+  }
+  // Bare, such a name answers its consumer command's help, or, before that command ships, the operation's own.
+  for (const operation of MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined)) {
+    const got = await help([operation.name, '--help']);
+    expect([got.status, got.stderr], operation.name).toEqual([0, '']);
+    expect(got.stdout, operation.name).toContain(`ia ${operation.name}`);
   }
   const reference = (await help(['traverse', '--help'])).stdout;
   for (const args of [
@@ -268,6 +309,36 @@ it('prints one operation description as one JSON line for --schema', async () =>
     expect(JSON.parse(got.stdout)).toEqual({ version: MACHINE_PROTOCOL.version, ...operation });
   }
   expect((await run(['context', '--params', '--schema'])).status).toBe(2);
+});
+it('keeps the frozen usage line and adds the version-2 operations on a line of their own', () => {
+  const usage = runCli(['--help']);
+  expect(usage.exitCode).toBe(0);
+  const [frozen, stdin, since] = usage.stdout.split('\n');
+  expect(frozen).toBe(
+    'Usage: ia <scope|context|select|get|records|resolve|search|traverse|report> [--root <workspace>] [--params <JSON|->]',
+  );
+  expect(stdin).toBe('Use --params - for stdin JSON. Scope tokens last for one invocation.');
+  expect(since).toMatch(/^Since protocol v2: ia <position\|read> \[--root <workspace>\] --params <JSON\|->/);
+});
+// The CLI tells a position's host note who served it and a digest of the workspace's installed state.
+it('supplies its own name and the installed-state digest to the position host note, and to nothing else', () => {
+  const facts = cliHostFacts(fixture),
+    version = (JSON.parse(readFileSync(resolve(root, 'apps/cli/package.json'), 'utf8')) as { version: string }).version;
+  expect(facts).toEqual({ cli: `ia@${version}`, installedStateDigest: expect.stringMatching(/^[0-9a-f]{64}$/) });
+  // The same state digests alike, from a relative or an absolute root.
+  expect(cliHostFacts(relative(process.cwd(), fixture))).toEqual(facts);
+  const got = runCli(['position', '--root', fixture, '--params', '{}']);
+  expect(got.exitCode).toBe(0);
+  const note = (JSON.parse(got.stdout) as { result: { hostNote: Record<string, unknown> } }).result.hostNote;
+  expect([note['cli'], note['installedStateDigest'], note['adapter']]).toEqual([
+    facts.cli,
+    facts.installedStateDigest,
+    null,
+  ]);
+  // An installed state the CLI cannot read leaves the digest out rather than refusing the position.
+  expect(cliHostFacts(resolve(fixture, 'absent'))).toEqual({ cli: `ia@${version}` });
+  // The nine version-1 routes print no host facts.
+  expect(runCli(['records', '--root', fixture]).stdout).not.toContain(facts.installedStateDigest!);
 });
 // spec-0012 CLI-01: help is decided before `--params -` would read stdin, so a stdin that throws is never touched.
 it('answers operation help without reading stdin', () => {

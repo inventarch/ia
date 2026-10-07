@@ -812,6 +812,51 @@ it('dispatches a v2 token by that rule, after the frozen nine and before the con
   expect(claimed).toEqual([]);
 });
 
+it('lists the version-2 operations on a line of their own under the frozen nine in ia --help', async () => {
+  const help = (await run(['--help'])).stdout.split('\n');
+  // The frozen line is the nine, as before; the operations added since sit on their own line.
+  expect(help).toContain(`  ${LEGACY_OPERATIONS.join('  ')}`);
+  const since = help.filter((line) => line.includes('Since v2:'));
+  expect(since).toEqual([
+    `  Since v2: ${SINCE_2_OPERATIONS.join('  ')} — the machine route only with --params or --schema`,
+  ]);
+});
+
+it('answers a version-2 operation without a consumer command by naming its machine form', async () => {
+  // read has its consumer command; position does not have one yet.
+  expect(COMMANDS.some((command) => command.name === 'read')).toBe(true);
+  expect(COMMANDS.some((command) => command.name === 'position')).toBe(false);
+  calls.legacy = [];
+  for (const argv of [['position'], ['position', '--root', fixture], ['position', '--shape', 'context']]) {
+    const got = await run(argv);
+    expect(got.exitCode, argv.join(' ')).toBe(2);
+    expect(got.stderr, argv.join(' ')).toContain('IA-CLI-USAGE');
+    expect(got.stderr, argv.join(' ')).toContain('ia position needs --params or --schema');
+    expect(got.stderr, argv.join(' ')).toContain(`Run "ia position --params '{}'"`);
+    // Never "unknown", and never a suggestion of itself.
+    expect(got.stderr, argv.join(' ')).not.toContain('Unknown command');
+    expect(got.stderr, argv.join(' ')).not.toContain('Did you mean');
+  }
+  const json = await run(['position', '--json']);
+  expect(json.exitCode).toBe(2);
+  expect(JSON.parse(json.stdout)).toMatchObject({
+    ok: false,
+    code: 'IA-CLI-USAGE',
+    next: `Run "ia position --params '{}'", or "ia position --help" for its parameters.`,
+  });
+  // Its help is the operation's own until the consumer command ships.
+  const help = await run(['position', '--help']);
+  expect(help.exitCode).toBe(0);
+  expect(help.stdout).toContain('ia position  Deliver the position body');
+  expect(help.stdout).toContain('ia_position');
+  expect(calls.legacy).toEqual([]);
+  // A near miss suggests each admitted name once, and never the token that was asked.
+  expect((await run(['raed'])).stderr.match(/\bread\b/g)).toHaveLength(1);
+  const asked = await dispatch(['next'], makeHost(), legacy, extensions, ['position', 'read', 'next']);
+  expect(asked.stderr).toContain('Unknown command next');
+  expect(asked.stderr).not.toContain('Did you mean next');
+});
+
 it('keeps every v2 token off the machine route while the protocol does not serve it', async () => {
   for (const token of ['position', 'read', 'next'].filter(
     (candidate) => !(SINCE_2_OPERATIONS as readonly string[]).includes(candidate),

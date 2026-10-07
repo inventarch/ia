@@ -26,7 +26,7 @@ import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { withScope } from '@tools/testing/resources.js';
 import { runBounded, spawnOwned } from '@tools/testing/subprocess.js';
-import { LEGACY_OPERATIONS } from '../src/commands.js';
+import { LEGACY_OPERATIONS, SINCE_2_OPERATIONS } from '../src/commands.js';
 import { cleanup, scratch, workspace } from './workspace-fixture.js';
 
 const repository = resolve(import.meta.dirname, '../../..');
@@ -166,6 +166,39 @@ function oneJsonLine(stdout: string, label: string): unknown {
   expect(JSON.stringify(value) + '\n', label).toBe(stdout);
   return value;
 }
+
+it('keeps the version-2 machine routes one undecorated JSON line under C03 exit classes', async () => {
+  expect([...SINCE_2_OPERATIONS]).toEqual(['position', 'read']);
+  const classes = new Set<number>();
+  for (const operation of SINCE_2_OPERATIONS) {
+    const got = await legacy([operation, '--root', FIXTURE, '--params', '{}']);
+    expect(got.stderr, operation).toBe('');
+    const value = oneJsonLine(got.stdout, operation) as { ok: boolean; code?: string; next?: string };
+    expect(got.status, `${operation} ${String(value.code)}`).toBe(
+      value.ok ? 0 : value.code === 'IA-RUNTIME-REQUEST-INVALID' ? 2 : 1,
+    );
+    // Their refusals name a next action.
+    if (!value.ok) expect(value.next, operation).toEqual(expect.any(String));
+    classes.add(got.status!);
+  }
+  // position {} is K0 and succeeds; read {} lacks its locator.
+  expect([...classes].sort()).toEqual([0, 2]);
+  // The position a scope key asks for: one line holding the body, its digest and the host note.
+  const got = await legacy(['position', '--root', FIXTURE, '--params', '{"shape":"context","phase":"orient"}']);
+  expect([got.status, got.stderr]).toEqual([0, '']);
+  const value = oneJsonLine(got.stdout, 'position') as {
+    ok: boolean;
+    result: { body: { key: Record<string, unknown> }; digest: string; hostNote: { format: string } };
+  };
+  expect(value.ok).toBe(true);
+  expect(Object.keys(value.result)).toEqual(['body', 'digest', 'hostNote']);
+  expect(value.result.body.key).toMatchObject({ shape: 'context', phase: 'orient' });
+  expect(value.result.hostNote.format).toBe('ia-host-note-1');
+  // Without --params the name is the consumer's: never a machine line.
+  const consumer = await legacy(['position', '--root', FIXTURE]);
+  expect(consumer.status).toBe(2);
+  expect(consumer.stdout).toBe('');
+});
 
 it('keeps the nine machine routes one undecorated JSON line under C03 exit classes', async () => {
   const classes = new Set<number>();

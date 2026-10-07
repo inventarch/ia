@@ -1,9 +1,21 @@
 import { createHash } from 'node:crypto';
+import { readFileSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { CAPTURE_DIR, captureOf, writeCaptured } from '@inventarch/db';
 import { KINDS } from '@inventarch/language';
-import { expect, it } from 'vitest';
-import { Door, MACHINE_PROTOCOL, context, select } from '../src/index.js';
-import type { ContextRequest, Scope } from '../src/index.js';
-import { database, methodId, playbook, put, workspace } from './workspace.js';
+import { expect, it, vi } from 'vitest';
+import {
+  Door,
+  MACHINE_PROTOCOL,
+  context,
+  normalizeScopeKey,
+  parseLocator,
+  position,
+  readBody,
+  select,
+} from '../src/index.js';
+import type { ContextRequest, DoorResponse, HostFacts, Scope } from '../src/index.js';
+import { database, lawId, methodId, methodPath, playbook, put, workspace } from './workspace.js';
 
 it('refuses equal leading choices and resolves a stronger applicable selector without ordering bias', () => {
   const root = workspace();
@@ -263,23 +275,195 @@ it('describes exactly the operations and parameters the Door admits', () => {
 /** spec-0012 VER-01: the parameter digest each description version carries. */
 const PARAMS_DIGESTS: Readonly<Record<number, string>> = {
   1: 'b92e71f8d59eadd34034974eb77cdc868ccd33b34a6c3c73fe2b2999707f7206',
+  2: '3913d713d71aa4f7a9357bf178044c8c1a5a4615ea6ea5a25027d01a9986ceb3',
 };
-it("bumps the protocol description version whenever an operation's parameters change", () => {
-  const strip = (value: unknown): unknown =>
-    Array.isArray(value)
-      ? value.map(strip)
-      : value !== null && typeof value === 'object'
-        ? Object.fromEntries(
-            Object.entries(value)
-              .filter(([key]) => key !== 'description')
-              .map(([key, child]) => [key, strip(child)]),
-          )
-        : value;
-  const digest = createHash('sha256')
-    .update(JSON.stringify(MACHINE_PROTOCOL.operations.map((operation) => [operation.name, strip(operation.params)])))
+const strip = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map(strip)
+    : value !== null && typeof value === 'object'
+      ? Object.fromEntries(
+          Object.entries(value)
+            .filter(([key]) => key !== 'description')
+            .map(([key, child]) => [key, strip(child)]),
+        )
+      : value;
+const paramsDigest = (operations: typeof MACHINE_PROTOCOL.operations): string =>
+  createHash('sha256')
+    .update(JSON.stringify(operations.map((operation) => [operation.name, strip(operation.params)])))
     .digest('hex');
+it("bumps the protocol description version whenever an operation's parameters change", () => {
   // Rewording a description keeps the digest; a changed key, type or closed set changes it and needs a new version.
-  expect(digest, "An operation's params changed: bump MACHINE_PROTOCOL.version and pin its digest here").toBe(
-    PARAMS_DIGESTS[MACHINE_PROTOCOL.version],
-  );
+  expect(
+    paramsDigest(MACHINE_PROTOCOL.operations),
+    "An operation's params changed: bump MACHINE_PROTOCOL.version and pin its digest here",
+  ).toBe(PARAMS_DIGESTS[MACHINE_PROTOCOL.version]);
+});
+/** The nine operations protocol version 1 described, in its order. */
+const VERSION_1 = ['scope', 'context', 'select', 'get', 'records', 'resolve', 'search', 'traverse', 'report'];
+it("adds version 2's operations after version 1's nine, whose parameters still digest to version 1's", () => {
+  expect(MACHINE_PROTOCOL.version).toBe(2);
+  const first = MACHINE_PROTOCOL.operations.slice(0, VERSION_1.length),
+    added = MACHINE_PROTOCOL.operations.slice(VERSION_1.length);
+  expect(first.map((operation) => operation.name)).toEqual(VERSION_1);
+  // The nine rows carry no since, so they print as version 1 printed them; their parameters are version 1's.
+  for (const operation of first) expect(Object.hasOwn(operation, 'since'), operation.name).toBe(false);
+  expect(paramsDigest(first)).toBe(PARAMS_DIGESTS[1]);
+  expect(added.map((operation) => [operation.name, operation.since, operation.mcp])).toEqual([
+    ['position', 2, 'ia_position'],
+    ['read', 2, 'ia_read'],
+  ]);
+  // One flow line, the last, tells what version 2 adds.
+  expect(MACHINE_PROTOCOL.flow.at(-1)).toMatch(/^Since version 2: position .* read /);
+});
+
+/** The refusal's next action for `code`, as the operation's protocol row lists it. */
+const nextOf = (operation: string, code: string): string | undefined =>
+  MACHINE_PROTOCOL.operations.find((row) => row.name === operation)?.refusals.find((refusal) => refusal.code === code)
+    ?.next;
+const refused = (response: DoorResponse, operation: string, code: string): void => {
+  expect(response, `${operation} ${code}`).toMatchObject({ ok: false, code });
+  expect(response.ok ? undefined : response.next, `${operation} ${code}`).toBe(nextOf(operation, code));
+  expect(nextOf(operation, code), `${operation} ${code}`).toEqual(expect.any(String));
+};
+
+it('serves position: the body and digest position() gives, its host note, and no new scope token', () => {
+  const root = workspace(),
+    facts = vi.fn((): HostFacts => ({ cli: 'ia@9.9.9', installedStateDigest: 'f'.repeat(64) })),
+    door = new Door(root, { cache: false, hostFacts: facts }),
+    db = database(root),
+    within = db.resolveScope().token;
+  try {
+    for (const key of [{}, { shape: 'governance', phase: 'plan', depth: 2, budget: 64 }, { word: 'law', depth: 0 }]) {
+      const got = door.request({ operation: 'position', params: key });
+      if (!got.ok) throw new Error(`position ${JSON.stringify(key)}: ${got.message}`);
+      const expected = position(db, within, normalizeScopeKey(key));
+      const result = got.result as typeof expected;
+      expect(Object.keys(result)).toEqual(['body', 'digest', 'hostNote']);
+      // body(K) is the same through the Door and through position(): the token and the host's facts never reach it.
+      expect(result.body).toEqual(expected.body);
+      expect(result.digest).toBe(expected.digest);
+      expect(result.hostNote).toMatchObject({
+        revision: db.revision,
+        cli: 'ia@9.9.9',
+        installedStateDigest: 'f'.repeat(64),
+        adapter: null,
+        key: { ...expected.hostNote.key },
+      });
+      expect(JSON.stringify(result)).not.toMatch(/"token"/);
+    }
+    // The host is asked for its facts once per position, and never by another operation.
+    expect(facts).toHaveBeenCalledTimes(3);
+    expect(door.request({ operation: 'records', params: {} }).ok).toBe(true);
+    expect(facts).toHaveBeenCalledTimes(3);
+    // A scope issued by the Door seats the body inside it.
+    const narrowed = door.request({ operation: 'scope', params: { identities: [methodId] } });
+    if (!narrowed.ok) throw new Error(narrowed.message);
+    const token = (narrowed.result as Scope).token;
+    const seated = door.request({ operation: 'position', params: { within: token, seat: methodId } });
+    expect(seated).toMatchObject({ ok: true, result: { body: { seat: { identity: methodId } } } });
+  } finally {
+    door.close();
+  }
+});
+
+it('refuses position and read with a next action from their protocol rows, and the nine routes without one', () => {
+  const door = new Door(workspace(), { cache: false });
+  try {
+    const narrowed = door.request({ operation: 'scope', params: { identities: [methodId] } });
+    if (!narrowed.ok) throw new Error(narrowed.message);
+    const token = (narrowed.result as Scope).token;
+    const position = (params: Record<string, unknown>) => door.request({ operation: 'position', params });
+    refused(position({ unlisted: 1 }), 'position', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(position({ depth: 3 }), 'position', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(position({ budget: 65 }), 'position', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(position({ seat: '' }), 'position', 'IA-RUNTIME-REQUEST-INVALID');
+    // A host-supplied participant is no part of a scope key: the body stays a function of the key alone.
+    refused(position({ participant: 'someone' }), 'position', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(position({ within: 'forged' }), 'position', 'IA-DB-SCOPE-UNAVAILABLE');
+    refused(position({ shape: 'unlisted' }), 'position', 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN');
+    refused(position({ phase: 'unlisted' }), 'position', 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN');
+    refused(position({ within: token, seat: lawId }), 'position', 'IA-DB-OUT-OF-SCOPE');
+    refused(position({ seat: '../outside' }), 'position', 'IA-DB-PATH-UNSAFE');
+    const read = (params: Record<string, unknown>) => door.request({ operation: 'read', params });
+    refused(read({}), 'read', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(read({ locator: 'not a locator' }), 'read', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(read({ locator: methodId, unlisted: 1 }), 'read', 'IA-RUNTIME-REQUEST-INVALID');
+    refused(read({ locator: methodId, within: 'forged' }), 'read', 'IA-DB-SCOPE-UNAVAILABLE');
+    refused(read({ locator: lawId, within: token }), 'read', 'IA-DB-OUT-OF-SCOPE');
+    refused(read({ locator: 'a/b/c/d' }), 'read', 'IA-DB-OUT-OF-SCOPE');
+    refused(read({ locator: `${methodId}#REQ-NONE-1` }), 'read', 'IA-DB-SOURCE-UNAVAILABLE');
+    refused(read({ locator: 'nowhere.ia:1' }), 'read', 'IA-DB-SOURCE-UNAVAILABLE');
+    // The nine version-1 routes refuse as version 1 did: code and message, no next.
+    for (const request of [
+      { operation: 'get', params: {} },
+      { operation: 'scope', params: { within: 'forged' } },
+      { operation: 'get', params: { identity: lawId, within: token } },
+      { operation: 'unlisted', params: {} },
+    ]) {
+      const got = door.request(request);
+      expect(got.ok, request.operation).toBe(false);
+      expect(Object.keys(got), request.operation).toEqual(['ok', 'code', 'message']);
+    }
+    // An unknown operation lists the version-2 operations after the nine, in table order.
+    expect(door.request({ operation: 'unlisted' })).toMatchObject({
+      message: expect.stringMatching(/admitted: scope, .*, traverse, position, read$/),
+    });
+  } finally {
+    door.close();
+  }
+});
+
+it('serves read: the body readBody gives behind a locator, inside the scope', () => {
+  const root = workspace(),
+    door = new Door(root, { cache: false }),
+    db = database(root),
+    within = db.resolveScope().token;
+  try {
+    for (const locator of [methodId, `${methodId}#orient/Decision`, `${methodPath}:3`]) {
+      const got = door.request({ operation: 'read', params: { locator } });
+      expect(got, locator).toEqual({ ok: true, result: readBody(db, parseLocator(locator), { within }) });
+    }
+    const narrowed = door.request({ operation: 'scope', params: { identities: [methodId] } });
+    if (!narrowed.ok) throw new Error(narrowed.message);
+    expect(
+      door.request({ operation: 'read', params: { locator: methodId, within: (narrowed.result as Scope).token } }),
+    ).toMatchObject({ ok: true, result: { identity: methodId, source: 'record' } });
+  } finally {
+    door.close();
+  }
+});
+
+it("counts a position's staleness over the records its scope admits", () => {
+  const root = workspace();
+  put(root, '.ia/src/gone.ia', playbook('gone'));
+  const first = database(root),
+    members = first.membership().length;
+  writeCaptured(root, CAPTURE_DIR, captureOf(first));
+  // After the capture: edit the scoped record, add one record and remove another.
+  put(root, methodPath, readFileSync(resolve(root, methodPath), 'utf8').replace('statement 1.', 'statement one.'));
+  put(root, '.ia/src/fresh.ia', playbook('fresh'));
+  rmSync(resolve(root, '.ia/src/gone.ia'));
+  const door = new Door(root, { cache: false });
+  try {
+    // The initial scope holds the whole workspace: every record counts, removals included.
+    expect(door.request({ operation: 'position', params: {} })).toMatchObject({
+      ok: true,
+      result: { hostNote: { staleness: { changed: 1, new: 1, removed: 1, unchanged: members - 2 } } },
+    });
+    // A narrowed scope counts its own records only; a removal cannot be placed inside or outside it.
+    const narrowed = door.request({ operation: 'scope', params: { identities: [methodId] } });
+    if (!narrowed.ok) throw new Error(narrowed.message);
+    const within = (narrowed.result as Scope).token;
+    expect(door.request({ operation: 'position', params: { within, seat: methodId } })).toMatchObject({
+      ok: true,
+      result: {
+        hostNote: {
+          captured: { freshness: 'stale' },
+          staleness: { changed: 1, new: 0, removed: null, unchanged: 0 },
+        },
+      },
+    });
+  } finally {
+    door.close();
+  }
 });

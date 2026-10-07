@@ -223,12 +223,18 @@ it('accepts host facts on the door without reading them on the nine routes', () 
       { operation: 'context', params: { text: 'sample', coordinate: { phase: 'act', primitive: 'Decision' } } },
     ])
       expect(door.request(request)).toMatchObject({ ok: true });
-    // Position is not a Door operation yet: the admitted list is the nine routes' list, unchanged.
-    expect(door.request({ operation: 'position', params: {} })).toMatchObject({
+    // The nine routes' admitted list is unchanged; the position operation follows it.
+    expect(door.request({ operation: 'unlisted', params: {} })).toMatchObject({
       ok: false,
       message: expect.stringContaining('admitted: scope, context, select, get, records, resolve, search, traverse'),
     });
     expect(facts).not.toHaveBeenCalled();
+    // Only the position operation asks for them, once, for its host note.
+    expect(door.request({ operation: 'position', params: {} })).toMatchObject({
+      ok: true,
+      result: { hostNote: { cli: 'ia@9.9.9' } },
+    });
+    expect(facts).toHaveBeenCalledTimes(1);
   } finally {
     door.close();
   }

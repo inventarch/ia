@@ -27,7 +27,7 @@ afterEach(() => {
   for (const value of instances.splice(0)) value.close();
   vi.restoreAllMocks();
 });
-it('negotiates the pinned profile, discovers nine tools and enforces initialization order', () => {
+it('negotiates the pinned profile, discovers eleven tools and enforces initialization order', () => {
   const value = protocol();
   expect(value.request(message(1, 'tools/list'))?.error?.code).toBe(-32000);
   expect(value.request(message(1, 'initialize', {}))?.error?.code).toBe(-32602);
@@ -55,11 +55,58 @@ it('negotiates the pinned profile, discovers nine tools and enforces initializat
   const listed = value.request(message(3, 'tools/list'))?.result as {
     tools: { name: string; annotations: { readOnlyHint: boolean } }[];
   };
-  expect(listed.tools).toHaveLength(9);
-  expect(listed.tools.at(-1)?.name).toBe('ia_vocabulary');
+  // Ten door operations (the eight version-1 ones served here, then ia_position and ia_read) and ia_vocabulary.
+  expect(listed.tools).toHaveLength(11);
+  expect(listed.tools.slice(-3).map((tool) => tool.name)).toEqual(['ia_position', 'ia_read', 'ia_vocabulary']);
   expect(listed.tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
   expect(listed.tools.some((t) => t.name === 'ia_report')).toBe(false);
   expect(value.request(message(4, 'initialize'))?.error?.code).toBe(-32600);
+});
+it('serves ia_position and ia_read as the Door answers them, refusals with their next action', () => {
+  const value = protocol();
+  initialize(value);
+  const door = new Door(fixture, { cache: false });
+  try {
+    let id = 2;
+    const call = (name: string, args: Record<string, unknown>) =>
+      value.request(message(id++, 'tools/call', { name, arguments: args }))?.result as {
+        content: { type: string; text: string }[];
+        structuredContent: Record<string, unknown>;
+        isError: boolean;
+      };
+    const position = call('ia_position', { shape: 'context', phase: 'orient' });
+    expect(position.isError).toBe(false);
+    expect(JSON.parse(position.content[0]!.text)).toEqual(position.structuredContent);
+    const expected = door.request({ operation: 'position', params: { shape: 'context', phase: 'orient' } });
+    if (!expected.ok) throw new Error(expected.message);
+    const result = position.structuredContent['result'] as Record<string, unknown>;
+    expect(result['body']).toEqual((expected.result as Record<string, unknown>)['body']);
+    // The MCP door has no CLI and reads no installed state: those host facts are null.
+    expect(result['hostNote']).toMatchObject({ cli: null, adapter: null, installedStateDigest: null });
+    const locator = MACHINE_PROTOCOL.operations.find((operation) => operation.name === 'read')!.example;
+    expect(call('ia_read', locator)).toMatchObject({
+      isError: false,
+      structuredContent: door.request({ operation: 'read', params: locator }),
+    });
+    expect(call('ia_read', {})).toMatchObject({
+      isError: true,
+      structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID', next: expect.any(String) },
+    });
+    expect(call('ia_position', { depth: 3 })).toMatchObject({
+      isError: true,
+      structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID', next: expect.any(String) },
+    });
+    // A scope issued by ia_scope narrows a later position in the same server process.
+    const scope = call('ia_scope', { identities: [locator['locator']] }).structuredContent['result'] as {
+      token: string;
+    };
+    expect(call('ia_position', { within: scope.token, seat: locator['locator'] })).toMatchObject({
+      isError: false,
+      structuredContent: { ok: true, result: { body: { seat: { identity: locator['locator'] } } } },
+    });
+  } finally {
+    door.close();
+  }
 });
 it('returns exact door successes and refusals as matching text and structured tool content', () => {
   const value = protocol();
