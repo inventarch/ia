@@ -87,7 +87,7 @@ export function renderProjectionFor(root: string, host: HostName): readonly Arti
         rendered.assessment.findings.map((finding) => finding.message).join('; '),
         3,
         { path: root },
-        'Run "ia validate" and "ia inspect" to check each system\'s steward declaration.',
+        'Fix each system\'s steward declaration named above, then run "ia validate" to confirm the workspace admits.',
       );
     return rendered.artifacts;
   } finally {

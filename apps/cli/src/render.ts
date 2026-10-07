@@ -128,6 +128,29 @@ export function words(text: string, role: Role | null = null, gap = 1): readonly
   }
   return tokens;
 }
+/** A command quoted in prose: a program this CLI names and its arguments, one with a space JSON-quoted (`quote`). */
+const QUOTED_COMMAND = /"(?:ia|ia-distribution|pnpm)(?: (?:"(?:[^"\\]|\\.)*"|[^\s"]+))*"/g;
+/**
+ * §6.4 for prose that quotes a command, such as a refusal's next action (design row 27): the words wrap as `words`
+ * splits them, and each quoted command, with the punctuation touching it, is one `atom`, so a line break never falls
+ * inside the command and it stays copy-pasteable, overrunning the width when it must.
+ */
+export function remedyWords(text: string, role: Role | null = null, gap = 1): readonly Token[] {
+  const tokens: Token[] = [];
+  const lead = (): number => (tokens.length === 0 ? gap : 1);
+  let at = 0;
+  for (const match of text.matchAll(QUOTED_COMMAND)) {
+    if (match.index < at) continue;
+    const start = Math.max(text.lastIndexOf(' ', match.index) + 1, at),
+      space = text.indexOf(' ', match.index + match[0].length),
+      end = space === -1 ? text.length : space;
+    tokens.push(...words(text.slice(at, start), role, lead()));
+    tokens.push(atom(text.slice(start, end), role, lead()));
+    at = end;
+  }
+  tokens.push(...words(text.slice(at), role, lead()));
+  return tokens;
+}
 
 /**
  * §6.4: words wrap at the effective width; a token is never split, so an over-wide identifier overruns its line whole.

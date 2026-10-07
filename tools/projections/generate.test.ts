@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
@@ -105,12 +106,17 @@ it('preflights unmanaged or stale files before writing and refuses arbitrary out
   writeFileSync(resolve(base, 'CLAUDE.md'), 'User-authored');
   const first = { path: '.claude/agents/fresh.md', text: PROJECTION_MARKER },
     last = { path: 'CLAUDE.md', text: PROJECTION_MARKER };
-  expect(() => publishArtifacts(base, [first, last], true)).toThrow('unmanaged');
+  // Design row 27: the refusal names the file to delete and the one command that follows.
+  expect(() => publishArtifacts(base, [first, last], true)).toThrow(
+    'Refusing unmanaged projection: CLAUDE.md; delete CLAUDE.md, then run "pnpm projections:generate"',
+  );
   expect(() => statSync(resolve(base, first.path))).toThrow();
   expect(() => publishArtifacts(base, [{ path: '../escape', text: '' }], true)).toThrow('output set');
   mkdirSync(resolve(base, '.claude/agents'), { recursive: true });
   writeFileSync(resolve(base, '.claude/agents/stale.md'), PROJECTION_MARKER);
-  expect(() => publishArtifacts(base, [first], false)).toThrow('Stale');
+  expect(() => publishArtifacts(base, [first], false)).toThrow(
+    'Stale managed projection requires source-aware reconciliation: .claude/agents/stale.md; delete .claude/agents/stale.md, then run "pnpm projections:generate"',
+  );
   symlinkSync(outside, resolve(base, '.agents'), 'junction');
   expect(() =>
     publishArtifacts(
@@ -123,10 +129,30 @@ it('preflights unmanaged or stale files before writing and refuses arbitrary out
     ),
   ).toThrow('aliased');
 });
-it('refuses generating a partial corpus with admission errors', () => {
+it('refuses generating a partial corpus with admission errors, naming the command that prints them', () => {
   expect(() => generateProjections(resolve(root, 'packages/compliance/fixtures/loop'), false)).toThrow(
-    'corpus has errors',
+    'Native corpus has errors; projections refused; run "pnpm native:check" for the findings',
   );
+});
+
+it('names one next command in every refusal the generator raises (design row 27)', () => {
+  // Every construction site in the source, so a refusal added later without a next command fails here.
+  const source = readFileSync(resolve(import.meta.dirname, 'generate.ts'), 'utf8');
+  const messages = [...source.matchAll(/throw new Error\(\s*`([^`]*)`/g)].map((match) => match[1]!);
+  expect(source.match(/throw new Error\(/g)).toHaveLength(messages.length);
+  expect(messages).toHaveLength(11);
+  for (const message of messages)
+    expect(message.match(/\$\{(?:GENERATE|SHOW_FINDINGS|SHOW_RENDERER)\}/g), message).toHaveLength(1);
+});
+it('names the next command for a usage refusal of the generator run as a program', () => {
+  const result = spawnSync(
+    process.execPath,
+    ['--conditions=development', '--import', 'tsx', resolve(import.meta.dirname, 'generate.ts')],
+    { cwd: root, encoding: 'utf8', timeout: 15000 },
+  );
+  expect(result.status, result.stderr).toBe(1);
+  expect(result.stdout).toBe('');
+  expect(result.stderr.split(/\r?\n/)).toContain('Usage: generate.ts --check|--write; run "pnpm projections:generate"');
 });
 
 it('renders attributed language references without private methods', () => {

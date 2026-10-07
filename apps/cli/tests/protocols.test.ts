@@ -27,6 +27,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { withScope } from '@tools/testing/resources.js';
 import { runBounded, spawnOwned } from '@tools/testing/subprocess.js';
 import { LEGACY_OPERATIONS } from '../src/commands.js';
+import { quote } from '../src/render.js';
 import { cleanup, scratch, workspace } from './workspace-fixture.js';
 
 const repository = resolve(import.meta.dirname, '../../..');
@@ -470,8 +471,10 @@ globalThis.fetch = async () => new Response(new ReadableStream({
         expect(result.stdout).toBe('');
       } else {
         expect(result.messages).toContain('cleaned');
-        expect(oneJsonLine(result.stdout, signal)).toMatchObject({ code: 'IA-CLI-INTERRUPTED', exit: 130 });
-        expect(result.stderr).toBe('Interrupted.\n');
+        // Design row 27: the interruption names the invocation to run again, as it was typed.
+        const next = `Run "ia install fixture/foundation --root ${quote(root)} --catalog .ia/work/catalog.json --apply --yes --json" again.`;
+        expect(oneJsonLine(result.stdout, signal)).toMatchObject({ code: 'IA-CLI-INTERRUPTED', exit: 130, next });
+        expect(result.stderr).toBe(`Interrupted. ${next}\n`);
       }
       for (const path of [
         '.ia/distributions/cache',

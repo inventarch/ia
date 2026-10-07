@@ -11,11 +11,11 @@ import { readdirSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { formatSource, readWorkspaceFile, replace } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
-import { Refusal, requireRoot } from './consumer.js';
+import { Refusal, requireRoot, respell } from './consumer.js';
 import { codeOf, openSession } from './session.js';
 import type { Session } from './session.js';
 import type { Capabilities } from './render.js';
-import { atom, document, entry, headerLine, sectionLabel, truncateDigest, words } from './render.js';
+import { atom, document, entry, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
 
 export type FormatStatus = 'unchanged' | 'differs' | 'rewritten' | 'refused' | 'unsupported';
 export interface FormatFile {
@@ -32,8 +32,11 @@ export interface FormatView {
   readonly changed: number;
 }
 
-/** §2.3 names IA-DIST-PATH-UNSAFE for a path resolving outside --root; a directory never reaches a service. */
-const contain = (supplied: string): string => {
+/**
+ * §2.3 names IA-DIST-PATH-UNSAFE for a path resolving outside --root; a directory never reaches a service. `retry`
+ * spells the refused invocation with `<path>` in place of the path it refuses.
+ */
+const contain = (supplied: string, retry: (supplied: string) => string): string => {
   const path = supplied.replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/+$/, '');
   if (path === '' || isAbsolute(supplied) || path.split('/').includes('..'))
     throw new Refusal(
@@ -41,7 +44,7 @@ const contain = (supplied: string): string => {
       `Unsafe relative path: ${supplied}`,
       3,
       { path: supplied },
-      'Name a path inside the workspace root, relative to it.',
+      `Run "${retry(supplied)}" naming a path inside the workspace root, relative to it.`,
     );
   return path;
 };
@@ -62,10 +65,16 @@ function walk(root: string, path: string): readonly string[] {
     return [];
   }
 }
+/** The rerun an unsafe path names when the caller spells none: a check of the corrected path in this root. */
+const checkAgain = (root: string) => (): string => `ia format <path> --root ${quote(root)}`;
 /** §2.3: the default selection is `.ia/src`; a positional is a file or a directory relative to the root. */
-export function selectSources(root: string, filters: readonly string[]): readonly string[] {
+export function selectSources(
+  root: string,
+  filters: readonly string[],
+  retry: (supplied: string) => string = checkAgain(root),
+): readonly string[] {
   const selected = (filters.length === 0 ? ['.ia/src'] : filters).flatMap((supplied) => {
-    const path = contain(supplied);
+    const path = contain(supplied, retry);
     return path.endsWith('.ia') ? [path] : walk(root, path);
   });
   return [...new Set(selected)].sort();
@@ -77,8 +86,13 @@ interface Draft {
   readonly path: string;
   readonly text: string;
 }
-export function collectFormat(root: string, filters: readonly string[], write: boolean): FormatView {
-  const paths = selectSources(root, filters);
+export function collectFormat(
+  root: string,
+  filters: readonly string[],
+  write: boolean,
+  retry: (supplied: string) => string = checkAgain(root),
+): FormatView {
+  const paths = selectSources(root, filters, retry);
   let session: Session | undefined;
   try {
     session = openSession(root);
@@ -223,7 +237,10 @@ export function renderFormat(view: FormatView, caps: Capabilities): string {
 
 export function runFormat(context: Context): Result {
   const { args, caps, json } = context;
-  const view = collectFormat(requireRoot(context), args.positionals, args.flag('write'));
+  // Design row 27: the refused path's rerun keeps every other argument, the root and the mode included.
+  const retry = (supplied: string): string =>
+    respell(context, { positionals: args.positionals.map((path) => (path === supplied ? '<path>' : path)) });
+  const view = collectFormat(requireRoot(context), args.positionals, args.flag('write'), retry);
   const exitCode = formatExit(view);
   return json
     ? { exitCode, stdout: JSON.stringify(formatEnvelope(view)) + '\n', stderr: '' }

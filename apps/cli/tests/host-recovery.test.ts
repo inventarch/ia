@@ -73,13 +73,7 @@ it('names the rerun after a failure past the first element, the lock recovery, o
     code: 'IA-DIST-RECOVERY-REQUIRED',
     where: { path: '.ia/distributions/hosts/guard-pending.json' },
   });
-  expect(pending.next).toBe(
-    rootedNext(
-      `Run "ia-distribution recover-guard --root ${quote(other.root)}", then rerun "ia host claude".`,
-      'claude',
-      other.root,
-    ),
-  );
+  expect(pending.next).toBe(`Run "ia-distribution recover-guard --root ${quote(other.root)}", then rerun.`);
 });
 
 it('names recover-host for a leftover host lock in apply, removal and doctor, and the named recovery converges', async () => {

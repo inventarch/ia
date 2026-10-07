@@ -96,7 +96,12 @@ it('does not apply when cancellation arrives with a confirmation answer', async 
     },
     [],
   );
-  expect(result).toEqual({ exitCode: 130, stdout: '', stderr: 'Interrupted.\n' });
+  // Design row 27: the interruption names the invocation to run again, as it was typed.
+  expect(result).toEqual({
+    exitCode: 130,
+    stdout: '',
+    stderr: `Interrupted. Run "ia install ${ID} --root ${quote(root)} --catalog .ia/work/catalog.json --apply" again.\n`,
+  });
   for (const path of [
     '.ia/distributions.lock.json',
     '.ia/distributions/active.json',
@@ -123,9 +128,12 @@ it('packs a reviewable archive, prints its integrity values and refuses to repla
   const again = await run(['pack', '--root', root, '--descriptor', '.ia/work/descriptor.json']);
   expect(again.exitCode).toBe(3);
   expect(again.stderr).toContain('IA-DIST-LOCAL-MODIFICATION');
-  expect(again.stderr).toContain('--force');
+  // Design row 27: the one command is this pack again with --force, every argument it was given included.
+  expect(again.stderr.replace(/\s+/g, ' ')).toContain(
+    `Run "ia pack --descriptor .ia/work/descriptor.json --force --root ${quote(root)}" to overwrite it.`,
+  );
   const forced = await run(['pack', '--root', root, '--descriptor', '.ia/work/descriptor.json', '--force', '--json']);
-  expect(forced.exitCode).toBe(0);
+  expect(forced.exitCode, forced.stdout).toBe(0);
   expect(forced.stdout).not.toMatch(ANSI);
   const result = JSON.parse(forced.stdout) as {
     version: number;
@@ -474,8 +482,10 @@ it('separates an unreachable artifact from a refusal by exit class', async () =>
     (await run(['install', `${ID}@^0.1.0`, '--root', root, '--catalog', '.ia/work/catalog.json', '--json'])).stdout,
   );
   expect(machine).toMatchObject({ version: 1, ok: false, code: 'IA-DIST-ARTIFACT-UNAVAILABLE', exit: 4 });
-  // The catalog route's remedy names the catalog it resolves from: --offline alone reads no catalog (registry spec §5.4).
-  expect(machine.next).toContain('re-run with --catalog <file> --offline');
+  // The catalog route's remedy is the retry of this invocation, the catalog it resolves from included (design row 27).
+  expect(machine.next).toBe(
+    `Retry "ia install ${ID}@^0.1.0 --catalog .ia/work/catalog.json --root ${quote(root)}" when the host is reachable.`,
+  );
 
   // Registry spec §6.4: the service maps a transport failure to ARTIFACT-UNAVAILABLE naming the URL, still class 4.
   vi.stubGlobal('fetch', async () => {

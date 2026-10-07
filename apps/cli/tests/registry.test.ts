@@ -34,7 +34,8 @@ import {
   sourcedClosure,
 } from './registry-fixture.js';
 import type { FixtureReleaseSpec, SourcedRelease } from './registry-fixture.js';
-import { cleanup, run, scratch } from './workspace-fixture.js';
+import { quote } from '../src/render.js';
+import { cleanup, nextArgv, run, scratch } from './workspace-fixture.js';
 
 const BASE = 'https://registry.test/base/';
 /**
@@ -245,15 +246,18 @@ it('pins HTTPS artifact URLs from IA_REGISTRY and restores a fresh clone to byte
   expect(installedState(clone)).toEqual(installedState(root));
 });
 
-it('refuses an unmapped provider at class 3 and names the workspace file and the flag', async () => {
+it('refuses an unmapped provider at class 3, naming the workspace file to map it in and the flag in its message', async () => {
   const root = target();
   trapFetch();
   const machine = await run(['install', 'acme/app', '--root', root, '--json']);
   expect(machine.exitCode).toBe(3);
   const failure = json<Failure>(machine.stdout);
   expect(failure).toMatchObject({ code: 'IA-DIST-REGISTRY-UNMAPPED', exit: 3 });
-  expect(failure.next).toContain('.ia/registries.json');
-  expect(failure.next).toContain('--registry');
+  // Design row 27: one command, the rerun after the map is written; the service's message names the flag.
+  expect(failure.next).toBe(
+    `Every requested and locked package's provider needs a registry: map the provider to an HTTPS URL or a workspace directory in .ia/registries.json. Then run "ia install acme/app --root ${quote(root)}".`,
+  );
+  expect(failure.message).toContain('--registry');
   const human = await run(['install', 'acme/app', '--root', root]);
   expect(human.exitCode).toBe(3);
   expect(human.stderr).toContain('IA-DIST-REGISTRY-UNMAPPED');
@@ -389,7 +393,7 @@ it('refuses a restore whose locked release the registry withdrew, unless --allow
   expect(machine.registries).toEqual([{ provider: 'acme', base: resolve(dir), level: 'flag' }]);
 });
 
-it('reports an unavailable default registry at class 4 and names every other source', async () => {
+it('reports an unavailable default registry at class 4, naming every other source in its message and one next command', async () => {
   for (const status of [503, 404]) {
     const root = target(),
       requested: string[] = [];
@@ -401,8 +405,15 @@ it('reports an unavailable default registry at class 4 and names every other sou
     expect(machine.exitCode, `${status}: ${machine.stdout}`).toBe(4);
     const failure = json<Failure>(machine.stdout);
     expect(failure).toMatchObject({ code: 'IA-DIST-ARTIFACT-UNAVAILABLE', exit: 4 });
-    for (const named of ['--registry', '.ia/registries.json', '--catalog'])
-      expect(failure.next, `${status} ${named}`).toContain(named);
+    const again = `ia install ${DEFAULT_PROVIDER}/x --root ${quote(root)}`;
+    if (status === 503)
+      expect(failure.next).toBe(`Check network access to the registry named above, then retry "${again}".`);
+    else {
+      // An unprovisioned default: the service's message names every other source, the next action the map.
+      for (const named of ['--registry', '.ia/registries.json', '--catalog'])
+        expect(failure.message, named).toContain(named);
+      expect(failure.next).toBe(`Map the provider to a registry in .ia/registries.json, then run "${again}".`);
+    }
     expect(requested).toEqual([DEFAULT_INFO]);
     const human = await run(['install', `${DEFAULT_PROVIDER}/x`, '--root', root]);
     expect(human.exitCode).toBe(4);
@@ -423,9 +434,10 @@ it('gives an unreachable registry index a registry remedy, not a catalog one', a
   const failure = json<Failure>(machine.stdout);
   expect(failure.code).toBe('IA-DIST-ARTIFACT-UNAVAILABLE');
   expect(failure.message).toContain(`${BASE}packages/acme/app.json`);
-  for (const named of ['network access', '--registry', '.ia/registries.json', '--catalog'])
-    expect(failure.next).toContain(named);
-  expect(failure.next).not.toContain('catalog entry');
+  expect(failure.next).toBe(
+    `Check network access to the registry named above, then retry "ia install acme/app --registry ${BASE} --root ${quote(root)}".`,
+  );
+  expect(failure.next).not.toContain('catalog');
 });
 
 it('gives an artifact an HTTPS registry cannot serve a registry remedy, not a catalog one', async () => {
@@ -443,9 +455,10 @@ it('gives an artifact an HTTPS registry cannot serve a registry remedy, not a ca
   expect(failure.message).toMatch(
     /^Artifact request https:\/\/registry\.test\/base\/artifacts\/[0-9a-f]{64}\.ia\.tgz returned 503$/,
   );
-  for (const named of ['network access', '--registry', '.ia/registries.json', '--catalog'])
-    expect(failure.next).toContain(named);
-  expect(failure.next).not.toContain('catalog entry');
+  expect(failure.next).toBe(
+    `Check network access to the registry named above, then retry "ia install acme/app --registry ${BASE} --root ${quote(root)}".`,
+  );
+  expect(failure.next).not.toContain('catalog');
 });
 
 it('names an incomplete directory registry when it lacks an artifact it lists', async () => {
@@ -458,8 +471,11 @@ it('names an incomplete directory registry when it lacks an artifact it lists', 
   expect(failure.code).toBe('IA-DIST-ARTIFACT-UNAVAILABLE');
   expect(failure.message).toMatch(/has no artifacts\/[0-9a-f]{64}\.ia\.tgz$/);
   expect(failure.next).toContain('incomplete');
-  expect(failure.next).toContain('ia-distribution registry add');
-  expect(failure.next).not.toContain('Retry when the host is reachable');
+  // The release is re-added to the directory the message names; only the archive is the user's to supply.
+  const named = /^Registry (.+) has no artifacts\//.exec(failure.message)![1]!;
+  expect(realpathSync(named)).toBe(realpathSync(dir));
+  expect(failure.next).toContain(`"ia-distribution registry add --registry ${quote(named)} --archive <file>"`);
+  expect(failure.next).not.toContain('Retry');
 });
 
 it('restores the committed lock over an active generation it drifted from', async () => {
@@ -500,13 +516,35 @@ it('reports an oversized registry document at class 4', async () => {
   const failure = json<Failure>(machine.stdout);
   expect(failure.code).toBe('IA-DIST-LIMIT-EXCEEDED');
   expect(failure.message).toBe(`Registry document exceeds 4 MiB: ${BASE}ia-registry.json`);
-  // A size limit is not a network fault, so the remedy is another source rather than a retry.
-  expect(failure.next).toContain('4 MiB');
-  expect(failure.next).not.toContain('network access');
-  for (const named of ['--registry', '.ia/registries.json', '--catalog']) expect(failure.next).toContain(named);
+  // A size limit is not a network fault, so the remedy is another source rather than a retry. `--registry` chose this
+  // registry and outranks .ia/registries.json, so the one command names another registry in its place.
+  const why = 'The registry named above serves a document over the 4 MiB limit, and retrying will not change that.';
+  expect(failure.next).toBe(
+    `${why} Run "ia install acme/app --registry <url|dir> --root ${quote(root)}" naming another registry.`,
+  );
+  const another = registry(APP_ON_LIB);
+  const elsewhere = [...nextArgv(failure.next!), '--json'].map((token) => (token === '<url|dir>' ? another : token));
+  expect((await run(elsewhere)).exitCode).toBe(0);
+  // IA_REGISTRY chose it: the variable is what changes. The workspace map chose it: the map is.
+  const variable = json<Failure>(
+    (await run(['install', 'acme/app', '--root', root, '--json'], { env: { IA_REGISTRY: BASE } })).stdout,
+  );
+  expect(variable.next).toBe(
+    `${why} Set IA_REGISTRY to another registry, then run "ia install acme/app --root ${quote(root)}".`,
+  );
+  mkdirSync(join(root, '.ia'), { recursive: true });
+  const map = (registries: Record<string, string>): void =>
+    writeFileSync(join(root, '.ia/registries.json'), JSON.stringify({ format: 'ia.registries.v1', registries }));
+  map({ acme: BASE });
+  const mapped = json<Failure>((await run(['install', 'acme/app', '--root', root, '--json'])).stdout);
+  const again = `ia install acme/app --root ${quote(root)}`;
+  expect(mapped.next).toBe(`${why} Map the provider to another registry in .ia/registries.json, then run "${again}".`);
+  cpSync(another, join(root, 'vendor/registry'), { recursive: true });
+  map({ acme: 'vendor/registry' });
+  expect((await run([...nextArgv(mapped.next!), '--json'])).exitCode).toBe(0);
 });
 
-it('refuses a licensed-only release at class 3 and names the catalog route', async () => {
+it('refuses a licensed-only release at class 3 and names the catalog route as a command that runs', async () => {
   const dir = registry([{ id: 'acme/app', version: '1.0.0', licensed: true }]),
     root = target();
   const machine = await run(['install', 'acme/app', '--root', root, '--registry', dir, '--json']);
@@ -514,8 +552,35 @@ it('refuses a licensed-only release at class 3 and names the catalog route', asy
   const failure = json<Failure>(machine.stdout);
   expect(failure.code).toBe('IA-DIST-LICENSE-REQUIRED');
   expect(failure.message).toContain('acme/app@1.0.0');
-  expect(failure.next).toContain('licensed acquisition');
-  expect(failure.next).toContain('--catalog');
+  // `--catalog` replaces `--registry`, which it may not stand beside.
+  expect(failure.next).toBe(
+    `This CLI has no licensed acquisition path. Obtain the archive through its licensed channel, then install it from a local catalog with "ia install acme/app --catalog <file> --root ${quote(root)}".`,
+  );
+  writeFileSync(join(root, 'catalog.json'), '[]\n');
+  const local = [...nextArgv(failure.next!), '--json'].map((token) => (token === '<file>' ? 'catalog.json' : token));
+  const parsed = json<Failure>((await run(local)).stdout);
+  expect(parsed.code).not.toBe('IA-CLI-USAGE');
+});
+
+it('names the restore that applies when a restore cannot reach its registry, since restore has no preview', async () => {
+  const dir = registry(APP_ON_LIB),
+    root = target();
+  serveDirectory(dir, BASE);
+  expect(
+    (await run(['install', 'acme/app', '--root', root, '--registry', BASE, '--apply', '--yes', '--json'])).exitCode,
+  ).toBe(0);
+  const clone = target();
+  mkdirSync(join(clone, '.ia'), { recursive: true });
+  copyFileSync(join(root, '.ia/distributions.lock.json'), join(clone, '.ia/distributions.lock.json'));
+  vi.stubGlobal('fetch', async () => new Response('unavailable', { status: 503 }));
+  const failure = json<Failure>(
+    (await run(['restore', '--root', clone, '--registry', BASE, '--apply', '--yes', '--json'])).stdout,
+  );
+  expect(failure).toMatchObject({ code: 'IA-DIST-ARTIFACT-UNAVAILABLE', exit: 4 });
+  const again = `ia restore --registry ${BASE} --root ${quote(clone)} --apply --yes`;
+  expect(failure.next).toBe(`Check network access to the registry named above, then retry "${again}".`);
+  // Run as printed it parses — `--apply` is required — and fails only for the same unreachable registry.
+  expect(json<Failure>((await run([...nextArgv(failure.next!), '--json'])).stdout).code).toBe(failure.code);
 });
 
 it('names the cache file to delete when a cached archive is unreadable, and the cache when it is over its bound', async () => {
@@ -528,13 +593,42 @@ it('names the cache file to delete when a cached archive is unreadable, and the 
   const invalid = json<Failure>((await run(['install', 'acme/app', '--root', root, '--offline', '--json'])).stdout);
   expect(invalid).toMatchObject({ code: 'IA-DIST-ARCHIVE-INVALID', exit: 3 });
   expect(invalid.where?.path).toBe(`.ia/distributions/cache/${digest}.ia.tgz`);
-  expect(invalid.next).toContain(`Delete .ia/distributions/cache/${digest}.ia.tgz`);
+  // An --offline rerun reads only the cache, so the rerun after the deletion is the online one, which fetches it again.
+  const again = `ia install acme/app --offline --root ${quote(root)}`;
+  expect(invalid.next).toBe(
+    `Delete .ia/distributions/cache/${digest}.ia.tgz, then rerun "ia install acme/app --root ${quote(root)}"; a published archive is fetched again from its registry or catalog.`,
+  );
+  expect(nextArgv(invalid.next!)).not.toContain('--offline');
 
   for (let n = 0; n <= 1000; n += 1) writeFileSync(join(cache, `${n.toString(16).padStart(64, '0')}.ia.tgz`), '');
   const full = json<Failure>((await run(['install', 'acme/app', '--root', root, '--offline', '--json'])).stdout);
   expect(full).toMatchObject({ code: 'IA-DIST-LIMIT-EXCEEDED', exit: 3 });
-  expect(full.next).toContain('.ia/distributions/cache/');
-  expect(full.next).toContain('--registry');
+  expect(full.next).toBe(
+    `Remove archives this workspace no longer needs from .ia/distributions/cache/, then rerun "${again}".`,
+  );
+});
+
+it('names an online rerun after deleting a corrupt cached archive, and that rerun fetches it again', async () => {
+  const root = target(),
+    cache = join(root, '.ia/distributions/cache');
+  cpSync(registry([{ id: 'acme/app', version: '1.0.0' }]), join(root, 'vendor/registry'), { recursive: true });
+  mkdirSync(join(root, '.ia'), { recursive: true });
+  writeFileSync(
+    join(root, '.ia/registries.json'),
+    JSON.stringify({ format: 'ia.registries.v1', registries: { acme: 'vendor/registry' } }),
+  );
+  expect((await run(['install', 'acme/app', '--root', root, '--json'])).exitCode).toBe(0);
+  const [archive] = readdirSync(cache);
+  writeFileSync(join(cache, archive!), 'not an archive');
+  const invalid = json<Failure>((await run(['install', 'acme/app', '--root', root, '--offline', '--json'])).stdout);
+  expect(invalid).toMatchObject({
+    code: 'IA-DIST-ARCHIVE-INVALID',
+    where: { path: `.ia/distributions/cache/${archive}` },
+  });
+  rmSync(join(cache, archive!));
+  // Run as printed, the rerun resolves the package again from its registry and refills the cache.
+  expect((await run([...nextArgv(invalid.next!), '--json'])).exitCode).toBe(0);
+  expect(readdirSync(cache)).toEqual([archive]);
 });
 
 // Registry spec §5.1 and §6.3 (operator decision 2026-09-23): an `ia init` workspace keeps its unpublished base pin.

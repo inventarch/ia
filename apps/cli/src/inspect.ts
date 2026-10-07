@@ -6,14 +6,15 @@
  * recommendation. Its `--json` envelope is deliberately not interchangeable with the frozen `ia get` one.
  */
 import type { HostObservation } from '@inventarch/distribution/services';
-import { openWorkspaceSession, readInstalledState } from '@inventarch/distribution/services';
+import { readInstalledState } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import { pinnedRelease } from './host.js';
 import type { Capabilities, Field, Token } from './render.js';
-import { atom, document, entry, fieldRows, headerLine, sectionLabel, truncateDigest, words } from './render.js';
+import { atom, document, entry, fieldRows, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
+import { openSession } from './session.js';
+import type { Session } from './session.js';
 
-type Session = ReturnType<typeof openWorkspaceSession>;
 type Record_ = ReturnType<Session['reader']['records']>[number];
 type Traversal = ReturnType<Session['reader']['traverse']>;
 type Direction = 'in' | 'out' | 'both';
@@ -164,31 +165,18 @@ export function runInspect(context: Context): Result {
   const path = args.value('path');
   const direction = (args.value('edges') ?? 'out') as Direction;
   const depth = args.integer('depth', 1);
+  const supplied = args.value('root'),
+    rooted = supplied === undefined ? '' : ` --root ${quote(supplied)}`;
   if (identity !== undefined && !IDENTITY.test(identity))
     throw new Refusal(
       'IA-CLI-USAGE',
       `Malformed identity ${identity}; a canonical identity is system/kind/facet/name in lowercase`,
       2,
       null,
-      'Run "ia inspect" with no argument for a workspace overview, or "ia vocabulary <word>" for the identity shape of a word.',
+      `Run "ia inspect${rooted}" with no argument for a workspace overview of the admitted identities.`,
     );
 
-  let session: Session;
-  try {
-    session = openWorkspaceSession({ root });
-  } catch (error) {
-    const code =
-      error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
-        ? error.code
-        : 'IA-DB-ROOT-INVALID';
-    throw new Refusal(
-      code,
-      error instanceof Error ? error.message : String(error),
-      3,
-      { path: root },
-      'Pass --root <path> with an existing workspace.',
-    );
-  }
+  const session: Session = openSession(root);
   try {
     const reader = session.reader;
     const records = reader.records();
@@ -205,7 +193,7 @@ export function runInspect(context: Context): Result {
         `${identity ?? path} is not admitted in this workspace`,
         1,
         identity === undefined ? { path: portable(path!) } : { path: root, identity },
-        'Run "ia validate" to see whether the source was refused, or "ia inspect" for the admitted overview.',
+        `Run "ia validate${rooted}" to see whether the source was refused.`,
       );
 
     if (selected.length > 0) {

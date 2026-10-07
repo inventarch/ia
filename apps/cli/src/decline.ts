@@ -17,7 +17,7 @@ import { resolveIaHome } from '@inventarch/distribution/ia-home';
 import type { Context, Result } from './consumer.js';
 import { Refusal, refusalOf } from './consumer.js';
 import { homeSrcRemedy } from './home-remedy.js';
-import { document, entry, words } from './render.js';
+import { document, entry, quote, words } from './render.js';
 
 type Env = Readonly<Record<string, string | undefined>>;
 const homeOf = (env: Env): string => resolveIaHome(env, homedir()).home;
@@ -27,8 +27,9 @@ const homeOf = (env: Env): string => resolveIaHome(env, homedir()).home;
  * `resolveIaHome` itself refused (a relative IA_HOME/IA_HOST_HOME), before any file could be named; `ia host`'s own
  * `homeSrcRemedy` is reused rather than duplicated for the home-looks-like-a-workspace cause, and an invalid
  * decisions file is inspected directly with `readDecisions` rather than by pattern-matching the caught message.
+ * Each remedy ends in the one command that runs the refused decline again (design row 27).
  */
-function declineRefusal(home: string | undefined, error: unknown): Refusal {
+function declineRefusal(home: string | undefined, error: unknown, rerun: string): Refusal {
   const refusal = refusalOf(error);
   if (home === undefined)
     return new Refusal(
@@ -36,17 +37,17 @@ function declineRefusal(home: string | undefined, error: unknown): Refusal {
       refusal.message,
       3,
       null,
-      'Set IA_HOME to an absolute directory, or unset it to use ~/.ia.',
+      `Set IA_HOME to an absolute directory, or unset it to use ~/.ia; then run "${rerun}".`,
     );
   if (refusal.code === 'IA-DIST-PATH-UNSAFE')
-    return new Refusal(refusal.code, refusal.message, 3, null, homeSrcRemedy(home));
+    return new Refusal(refusal.code, refusal.message, 3, null, homeSrcRemedy(home, rerun));
   if (refusal.code === 'IA-DIST-INPUT-INVALID') {
     const file = join(home, DECISIONS);
     const { reason } = readDecisions(home);
     const next =
       reason === 'parse' || reason === 'schema'
-        ? `Fix or delete ${file}, then rerun.`
-        : `Check the permissions of ${file}, then rerun.`;
+        ? `Fix or delete ${file}, then run "${rerun}".`
+        : `Check the permissions of ${file}, then run "${rerun}".`;
     return new Refusal(refusal.code, refusal.message, 3, { path: file }, next);
   }
   return refusal;
@@ -63,7 +64,14 @@ export function runDecline(context: Context, target: string, kind: DeclineKind |
     if (kind === undefined) forgotten = forgetDecision(home, target);
     else decision = recordDecision(home, target, kind, args.value('host') ?? 'none');
   } catch (error) {
-    throw declineRefusal(home, error);
+    const host = args.value('host');
+    const rerun = [
+      'ia init',
+      ...args.positionals.map(quote),
+      ...(kind === undefined ? ['--forget-decline'] : ['--decline', kind]),
+      ...(host === undefined ? [] : ['--host', host]),
+    ].join(' ');
+    throw declineRefusal(home, error, rerun);
   }
   if (json)
     return {

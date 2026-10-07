@@ -18,7 +18,7 @@ import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import { codeOf } from './session.js';
 import type { Capabilities } from './render.js';
-import { atom, document, entry, fieldRows, headerLine, sectionLabel, truncateDigest, words } from './render.js';
+import { atom, document, entry, fieldRows, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
 
 export const DEFAULT_OUT = '.ia/work/dist';
 /** §2.7: the rendered form lists the first 20 members and names the rest rather than printing them. */
@@ -115,6 +115,8 @@ export function collectPack(
   descriptorPath: string,
   out: string | undefined,
   force: boolean,
+  /** The command that overwrites, named by the existing-archive refusal; by default this pack in this root again. */
+  overwrite: string = forced(descriptorPath, out, root),
 ): PackView {
   // outputRoot is a thunk: a pack that refuses never selects or creates a destination for an archive that does
   // not exist. With --force the archive lands in a private directory first, because the packer's own publish
@@ -125,7 +127,7 @@ export function collectPack(
     return selected;
   };
   if (!force) {
-    const packed = attempt(() => packToDirectory({ sourceRoot: root, descriptorPath, outputRoot: select }));
+    const packed = attempt(() => packToDirectory({ sourceRoot: root, descriptorPath, outputRoot: select }), overwrite);
     return { root, out: select(), packed };
   }
   let staging: string | undefined;
@@ -134,7 +136,7 @@ export function collectPack(
     return staging;
   };
   try {
-    const packed = attempt(() => packToDirectory({ sourceRoot: root, descriptorPath, outputRoot: stage }));
+    const packed = attempt(() => packToDirectory({ sourceRoot: root, descriptorPath, outputRoot: stage }), overwrite);
     const content = readWorkspaceFile({ root: staging!, path: packed.path, limit: DISTRIBUTION_LIMITS.compressed });
     replace(select(), packed.path, content);
     return { root, out: select(), packed };
@@ -144,7 +146,7 @@ export function collectPack(
 }
 
 /** The existing-archive refusal is the service's own code; only the next action naming --force is the CLI's. */
-function attempt(run: () => PackedArchive): PackedArchive {
+function attempt(run: () => PackedArchive, overwrite: string): PackedArchive {
   try {
     return run();
   } catch (error) {
@@ -154,15 +156,33 @@ function attempt(run: () => PackedArchive): PackedArchive {
       'An archive with this content digest is already in the output directory',
       3,
       null,
-      'Pass --force to overwrite it, or pack into another --out directory.',
+      `Run "${overwrite}" to overwrite it.`,
     );
   }
+}
+
+/** The refused pack again with `--force`, so the one flag the remedy needs is named in a runnable command. */
+function forced(descriptor: string, out: string | undefined, root: string | undefined): string {
+  return [
+    'ia pack --descriptor',
+    quote(descriptor),
+    ...(out === undefined ? [] : ['--out', quote(out)]),
+    '--force',
+    ...(root === undefined ? [] : ['--root', quote(root)]),
+  ].join(' ');
 }
 
 export function runPack(context: Context): Result {
   const { args, caps, json } = context;
   const root = requireRoot(context);
-  const view = collectPack(root, context.host.cwd, args.value('descriptor')!, args.value('out'), args.flag('force'));
+  const view = collectPack(
+    root,
+    context.host.cwd,
+    args.value('descriptor')!,
+    args.value('out'),
+    args.flag('force'),
+    forced(args.value('descriptor')!, args.value('out'), args.value('root')),
+  );
   // §2.7: packing has no "ran correctly, bad result" state, so this verb never returns 1.
   return json
     ? { exitCode: 0, stdout: JSON.stringify(packEnvelope(view)) + '\n', stderr: '' }
