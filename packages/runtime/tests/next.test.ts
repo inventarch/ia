@@ -429,6 +429,19 @@ it('narrows to a milestone or task seat and refuses a request it cannot answer, 
   });
 });
 
+it('counts on the accepted line the findings that name the record', () => {
+  const root = workspace();
+  delivery(root, [task('agentless-task', 'beta-milestone', [], '    owner-agent @agent no-such-agent\n')]);
+  const result = view(database(root));
+  // An owner agent that names no record is a warning on the task, which is still admitted.
+  expect(line(result, 'work-system/definition/task/agentless-task', 'accepted')).toEqual({
+    line: 'accepted',
+    value: 'accepted',
+    basis: 'admitted against floor/contract/head/task; 1 finding names it',
+  });
+  expect(line(result, ASK, 'accepted').basis).toBe('admitted against floor/contract/head/task');
+});
+
 it('stores nothing and gives one frozen view whatever the scope token', () => {
   const root = evidenced(),
     before = listing(root),
