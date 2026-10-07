@@ -392,6 +392,15 @@ describe('derived directed view (G14)', () => {
     expect(directedView(graph, b).map((r) => [r.kind, r.spelling, r.declaredOn])).toEqual([['edge', 'cited-by', b]]);
   });
 
+  it('reads a row a record declares on itself from both ends: declared out, derived in', () => {
+    const graph = graphOf(probe('@playbook a\n  relationships\n    cites @playbook a'));
+    const a = [...graph.nodes.values()].find((n) => n.name === 'a')!.identity;
+    expect(directedView(graph, a).map((r) => [r.kind, r.direction, r.spelling, r.declaredOn, r.other])).toEqual([
+      ['edge', 'out', 'cites', a, a],
+      ['inverse', 'in', 'cited-by', a, a],
+    ]);
+  });
+
   it('keeps a dangling row declared, with no counterpart and no consent established', () => {
     const graph = graphOf(probe('@playbook a\n  relationships\n    cites @playbook missing'));
     const a = [...graph.nodes.values()].find((n) => n.name === 'a')!.identity;

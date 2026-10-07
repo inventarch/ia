@@ -415,7 +415,11 @@ it('labels derived rows of the directed view on the inbound side of inspect', as
   expect(declared.view).toContainEqual(
     expect.objectContaining({ spelling: 'enforced-by', declaredOn: law, other: check, kind: 'edge', derived: false }),
   );
-  expect(declared.view.every((row: { direction: string }) => row.direction === 'in')).toBe(true);
+  // `--edges in` keeps the inbound rows only: the check declares and derives rows on both sides.
+  const inward = JSON.parse((await run(['inspect', check, '--root', fixture, '--edges', 'in', '--json'])).stdout).view;
+  expect(inward.length).toBeGreaterThan(0);
+  expect(inward).toEqual(both.view.filter((row: { direction: string }) => row.direction === 'in'));
+  expect(inward.length).toBeLessThan(both.view.length);
   expect(
     JSON.parse((await run(['inspect', check, '--root', fixture, '--edges', 'both', '--depth', '0', '--json'])).stdout)
       .view,
