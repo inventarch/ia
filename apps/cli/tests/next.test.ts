@@ -6,7 +6,7 @@
  * value. So the tests hold it to the machine route on the same workspace: the same seat gives the same view whichever
  * way it is asked, the snapshot the capture store keeps as current included, and asking writes nothing.
  */
-import { cpSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { MACHINE_PROTOCOL, NEXT_COMMANDS, STATE_LINES } from '@inventarch/runtime';
@@ -142,6 +142,31 @@ it('narrows to a milestone or a task seat, and tells the view as text in plan or
   // The first task with no declared blocker is the next command, or the text says there is none.
   expect(text).toContain(view.next === null ? 'No task is clear of declared blockers.' : view.next);
   expect(text).toContain('Run "ia next --json" for the view as data.');
+});
+
+it('names the position of the first task with no declared blocker as the next command', async () => {
+  // The conformance corpus with one plan whose first task waits for nothing and whose second waits for the first.
+  const root = native(false);
+  mkdirSync(resolve(root, WORK, '..'), { recursive: true });
+  writeFileSync(
+    resolve(root, WORK),
+    '#! ia 1.0\n\n' +
+      '@plan ship-plan\n  meaning\n    says "Ship."\n  work\n    title "ship"\n    status open\n\n' +
+      '@milestone ship-milestone\n  meaning\n    says "Ship milestone."\n  work\n    title "ship milestone"\n' +
+      '    status open\n    plan @plan ship-plan\n    exit "Shipped."\n\n' +
+      '@task build-task\n  meaning\n    says "Build."\n  work\n    title "build"\n    status open\n' +
+      '    milestone @milestone ship-milestone\n\n' +
+      '@task release-task\n  meaning\n    says "Release."\n  work\n    title "release"\n    status open\n' +
+      '    milestone @milestone ship-milestone\n  relationships\n    requires @task build-task\n',
+  );
+  const view = await json(['--root', root]);
+  const build = 'work-system/definition/task/build-task',
+    release = 'work-system/definition/task/release-task';
+  expect(view.entries.map((entry) => entry.identity).slice(-2)).toEqual([build, release]);
+  expect(view.next).toBe(NEXT_COMMANDS.position(build));
+  const text = await run(['next', '--root', root]);
+  expect([text.exitCode, text.stderr]).toEqual([0, '']);
+  expect(flat(text.stdout)).toContain(`Next → ${NEXT_COMMANDS.position(build)}`);
 });
 
 it('prints --json as one value, byte for byte the same on every run, with no colour', async () => {
