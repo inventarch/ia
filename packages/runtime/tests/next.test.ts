@@ -588,12 +588,9 @@ it('never claims a requirement it cannot read: a target outside the scope blocks
   );
 });
 
-it('reads the handle only through the scope token it is given', () => {
-  const db = database(evidenced()),
-    within = db.resolveScope({ identities: [PLAN, BETA, ALPHA, ASK, WRITE, REVIEW, LATER, WRITE_EVIDENCE] }).token,
-    properties = new Set<string>();
-  // Every handle method the view calls must carry the token; any other read is a property, recorded.
-  const guarded = new Proxy(db, {
+/** `db` with every method call checked to carry `within`; any other read is a property, recorded in `properties`. */
+function guarded(db: Handle, within: string, properties: Set<string>): Handle {
+  return new Proxy(db, {
     get(target, property) {
       const value: unknown = Reflect.get(target, property, target);
       if (typeof value !== 'function') {
@@ -608,11 +605,47 @@ it('reads the handle only through the scope token it is given', () => {
       };
     },
   });
-  expect(stableSerialize(next(guarded, within))).toBe(stableSerialize(next(db, within)));
-  expect(next(guarded, within, { seat: BETA }).seat.identity).toBe(BETA);
+}
+
+it('reads the handle only through the scope token it is given', () => {
+  const db = database(evidenced()),
+    within = db.resolveScope({ identities: [PLAN, BETA, ALPHA, ASK, WRITE, REVIEW, LATER, WRITE_EVIDENCE] }).token,
+    properties = new Set<string>(),
+    guard = guarded(db, within, properties);
+  expect(stableSerialize(next(guard, within))).toBe(stableSerialize(next(db, within)));
+  expect(next(guard, within, { seat: BETA }).seat.identity).toBe(BETA);
   for (const seat of [MADE_DECISION, 'work-system/definition/task/no-such-task'])
-    expect(refusal(() => next(guarded, within, { seat })).next).toBe('ia next');
+    expect(refusal(() => next(guard, within, { seat })).next).toBe('ia next');
   // The findings the accepted line counts come from the handle's report, filtered to the listed record.
+  expect([...properties]).toEqual(['report']);
+  // Supersessions, in either spelling, and the decisions grounding them are read through the token too.
+  const OLD = 'work-system/definition/task/aaa-old-task',
+    NEW = 'work-system/definition/task/zzz-new-task',
+    PRIOR = 'work-system/definition/task/aab-prior-task',
+    LATEST = 'work-system/definition/task/zzy-latest-task',
+    SPLIT = 'work-system/definition/decision/split-decision';
+  const relating = (name: string, rows: string) =>
+    `@task ${name}\n  meaning\n    says "Fixture task ${name}."\n  work\n    title "${name}"\n    status open\n` +
+    `    milestone @milestone beta-milestone\n  relationships\n${rows}`;
+  const root = workspace();
+  delivery(root, [
+    task('aaa-old-task', 'beta-milestone'),
+    relating('zzz-new-task', '    supersedes @task aaa-old-task\n'),
+    relating('aab-prior-task', '    superseded-by @task zzy-latest-task\n'),
+    task('zzy-latest-task', 'beta-milestone'),
+    `${decision('split-decision', 'the newer task')}    effective-revision "${'0'.repeat(63)}1"\n` +
+      `  relationships\n    grounds @task zzz-new-task\n`,
+  ]);
+  const related = database(root),
+    scoped = related.resolveScope({
+      identities: [PLAN, BETA, ALPHA, ASK, WRITE, REVIEW, LATER, OLD, NEW, PRIOR, LATEST, SPLIT],
+    }).token,
+    read = next(guarded(related, scoped, properties), scoped);
+  expect(stableSerialize(read)).toBe(stableSerialize(next(related, scoped)));
+  expect(entry(read, OLD).verdict.text).toBe(`blocked (superseded by ${NEW} (grounded by ${SPLIT}))`);
+  expect(entry(read, PRIOR).verdict.text).toBe(
+    `blocked (superseded by ${LATEST} (supersession declared, not grounded))`,
+  );
   expect([...properties]).toEqual(['report']);
 });
 
