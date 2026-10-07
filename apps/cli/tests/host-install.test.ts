@@ -326,8 +326,11 @@ it('names the host rerun when an install refresh fails with an error no refusal 
     },
   }));
   vi.resetModules();
+  // The re-imported fixture keeps its own list of scratch directories (the config home it hands this run); only its own
+  // cleanup removes them, so the finally below calls it.
+  let fresh: typeof import('./workspace-fixture.js') | undefined;
   try {
-    const fresh = await import('./workspace-fixture.js');
+    fresh = await import('./workspace-fixture.js');
     const refused = await fresh.run(
       ['install', '--requests', REQUESTS, '--catalog', CATALOG, '--root', root, '--apply', '--yes', '--json'],
       { env },
@@ -340,6 +343,7 @@ it('names the host rerun when an install refresh fails with an error no refusal 
     });
     expect(lockedIds(root)).toEqual(['fixture/foundation']);
   } finally {
+    fresh?.cleanup();
     vi.doUnmock('../src/host-projection.js');
     vi.resetModules();
   }
