@@ -242,6 +242,7 @@
   "dependencies": {
     "@inventarch/agent-system": "workspace:*",
     "@inventarch/session-system": "workspace:*",
+    "@inventarch/authoring-system": "workspace:*",
     "@inventarch/template-system": "workspace:*",
     "@inventarch/runtime": "workspace:*",
     "@inventarch/db": "workspace:*",

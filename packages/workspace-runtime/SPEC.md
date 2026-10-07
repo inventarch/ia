@@ -4,7 +4,7 @@
 
 `@inventarch/workspace-runtime` is the generic workspace runtime. It owns workspace capture and adoption, captured resources, projections, publication and candidates, templates, lifecycle, authoring index and manifest, installed catalog and source policy, sources, the local store and adapters. The composition compiler (catalog, compile, compiled, execution, fields, inputs, installed read, task capture, task context declaration, task teaching closure, draft tools) stays in `@inventarch/agent-composition-system`, which depends on this package. There is no reverse edge: no module here imports `@inventarch/agent-composition-system`, and `tests/boundary.test.ts` fails if one appears.
 
-`installedImplementationDigest` pins the installed bytes of this package and its fixed first-party dependencies. An upper package pins its own installed entrypoint by passing it as an additional entry; the entries are never record- or model-supplied paths.
+`installedImplementationDigest` pins the installed bytes of this package and its fixed first-party dependencies. An upper package pins its own installed entrypoint by passing it as an additional entry; the entries are never record- or model-supplied paths. Each pinned package directory is walked within the steward hook implementation bounds (depth 16, 2,000 entries, 8 MiB per code file and 32 MiB per package); a larger tree or a nonregular code file is refused with `IA-CORPUS-DENIED`, never truncated, and `tests/installed-catalog.test.ts` exercises each bound.
 
 ## Dependency policy
 
@@ -16,4 +16,4 @@ The installed manifest declares only the dependencies the emitted modules import
 
 ## Provenance
 
-Moved from @inventarch/agent-composition-system on 2026-10-06 (plan words-functional, task split-composition-runtime, inventarch/ia#16). The moved modules keep their names and behaviour; `@inventarch/agent-composition-system` re-exports the moved root symbols and subpaths, deprecated for one major.
+Moved from @inventarch/agent-composition-system on 2026-10-06 (inventarch/ia#16). The moved modules keep their names and behaviour, except that the installed catalog now takes additional entries and bounds its walk; `@inventarch/agent-composition-system` keeps the moved root symbols and every moved subpath, `./internal/*` included, as plain aliases that forward here until its next major.
