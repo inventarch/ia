@@ -11,7 +11,7 @@ The public scope is `@inventarch`. Every public npm package moves together at th
 | Command | When | What it does |
 | --- | --- | --- |
 | `pnpm release:note` | In a pull request that changes a public package | Drafts `releases/pending/<id>.json` from the branch diff |
-| `pnpm release:check` | CI on every pull request and push | Checks cohort versions, published changeset integrity and a note for every changed package |
+| `pnpm release:check` | CI on every pull request and push | Checks package manifest form and published exports, cohort versions, published changeset integrity and a note for every changed package |
 | `pnpm release:version` | Dry run at any time; `--write` by the release workflow or a maintainer | Computes the next version and, with `--write`, applies it |
 | `pnpm release:check --strict` | Before preparing archives | Requires exact changed-file coverage and no pending notes |
 | `pnpm release:collect` | After editing release prose by hand | Re-derives coverage and regenerates `CHANGELOG.md` |
