@@ -574,6 +574,68 @@ it('reads a requirement another record declares in the inverse spelling', () => 
   expect(order.indexOf('work-system/definition/task/yield-task')).toBeLessThan(order.indexOf(LATER));
 });
 
+it('blocks a record another one supersedes, names the supersession, and never offers it as next', () => {
+  const OLD = 'work-system/definition/task/aaa-old-task',
+    NEW = 'work-system/definition/task/zzz-new-task',
+    PRIOR = 'work-system/definition/task/aab-prior-task',
+    LATEST = 'work-system/definition/task/zzy-latest-task',
+    SPLIT = 'work-system/definition/decision/split-decision';
+  const superseding = (name: string, rows: string) =>
+    `@task ${name}\n  meaning\n    says "Fixture task ${name}."\n  work\n    title "${name}"\n    status open\n` +
+    `    milestone @milestone beta-milestone\n  relationships\n${rows}`;
+  const root = workspace();
+  delivery(root, [
+    task('aaa-old-task', 'beta-milestone'),
+    superseding('zzz-new-task', '    supersedes @task aaa-old-task\n'),
+    // The inverse spelling, declared on the superseded record.
+    superseding('aab-prior-task', '    superseded-by @task zzy-latest-task\n'),
+    task('zzy-latest-task', 'beta-milestone'),
+  ]);
+  const result = view(database(root));
+  // aaa-old-task sorts first and waits for nothing it requires, yet a declared supersession blocks it.
+  expect(entry(result, OLD).verdict).toEqual({
+    kind: 'blocked',
+    text: `blocked (superseded by ${NEW} (supersession declared, not grounded))`,
+    observation: null,
+    evaluator: null,
+    selfAttributed: false,
+  });
+  expect(entry(result, OLD).basis).toEqual([
+    {
+      predicate: 'supersede',
+      target: NEW,
+      resolved: true,
+      word: 'task',
+      standing: `superseded by ${NEW} (supersession declared, not grounded)`,
+      blocking: true,
+    },
+  ]);
+  expect(entry(result, PRIOR).verdict.text).toBe(
+    `blocked (superseded by ${LATEST} (supersession declared, not grounded))`,
+  );
+  // The superseding records wait for nothing; a supersession is no requirement.
+  expect(entry(result, NEW).verdict.text).toBe('no declared blocker');
+  expect(entry(result, LATEST).verdict.text).toBe('no declared blocker');
+  expect(line(result, OLD, 'realizable')).toMatchObject({ value: 'resolved', basis: 'declares no requirement' });
+  // The next command skips the superseded records.
+  expect(result.next).toBe(`ia position --seat ${WRITE}`);
+  // A grounding decision with a choice and an effective revision names the grounding.
+  put(
+    root,
+    `${workRecords}/grounding.ia`,
+    file(
+      `${decision('split-decision', 'the newer task')}    effective-revision "${'0'.repeat(63)}1"\n` +
+        `  relationships\n    grounds @task zzz-new-task\n`,
+    ),
+  );
+  expect(entry(view(database(root)), OLD).verdict.text).toBe(`blocked (superseded by ${NEW} (grounded by ${SPLIT}))`);
+  // A superseding record in the runtime band is never read: the supersession is not seen.
+  const latestPath = `${workRecords}/latest.ia`;
+  put(root, latestPath, file(superseding('zzx-runtime-task', '    supersedes @task aab-prior-task\n')));
+  const banded = view(database(root, { locations: { [latestPath]: runtime } }));
+  expect(entry(banded, PRIOR).basis.map((item) => item.target)).toEqual([LATEST]);
+});
+
 it("takes the observation a record's work.exit-evidence names, whatever subject it names", () => {
   const root = workspace();
   delivery(root, [task('declared-task', 'beta-milestone', [], '    exit-evidence @observation declared-evidence\n')]);
