@@ -16,7 +16,7 @@ import {
   isPrimitive,
 } from '../taxonomy.js';
 import type { Band, Category } from '../taxonomy.js';
-import { fieldOf, restAfter, spelledAs, stringOf } from './fields.js';
+import { fieldOf, fieldsOf, restAfter, spelledAs, stringOf } from './fields.js';
 import { ANY_ADOPTER, RESERVED_KEYWORDS } from './floor.js';
 import { conditionsIn, recordsIn } from './records.js';
 import type { ConsentRow, Entry, RequiredSystem, Steward, SystemDeclaration } from './types.js';
@@ -252,8 +252,17 @@ function entryOf(
     ok = false;
   }
   const element = `discriminator '${keyword}'`;
+  // Every entry row is written once: a second row for the same key is a fault on the second, and neither value wins.
+  const once = (key: string): FieldNode | undefined => {
+    const [row, second] = fieldsOf(field.children, [key]);
+    if (second !== undefined) {
+      incomplete(element, second.span.line, `states ${key} twice`);
+      ok = false;
+    }
+    return row;
+  };
   let category: Category | undefined;
-  const categoryField = fieldOf(field.children, ['category']);
+  const categoryField = once('category');
   if (categoryField === undefined) {
     incomplete(element, line, 'needs `category <category>`');
     ok = false;
@@ -277,7 +286,7 @@ function entryOf(
     }
   }
   const facets: string[] = [];
-  const facetsField = fieldOf(field.children, ['facets']);
+  const facetsField = once('facets');
   if (facetsField === undefined || facetsField.value.kind !== 'list' || facetsField.value.items.length === 0) {
     incomplete(element, line, 'needs `facets [<facet>, ...]` with at least one facet');
     ok = false;
@@ -290,7 +299,7 @@ function entryOf(
       }
     }
   }
-  const schemaField = fieldOf(field.children, ['schema']);
+  const schemaField = once('schema');
   const schema =
     schemaField !== undefined &&
     schemaField.value.kind === 'ref' &&
@@ -302,7 +311,7 @@ function entryOf(
     incomplete(element, line, 'needs `schema @schema <name>`');
     ok = false;
   }
-  const lowering = loweringOf(field, element, incomplete);
+  const lowering = loweringOf(element, incomplete, once);
   if (!ok || lowered === undefined || category === undefined || schema === undefined || lowering === undefined)
     return undefined;
   return { keyword, kind: lowered, category, facets, schema, ...lowering, span: field.span };
@@ -310,13 +319,14 @@ function entryOf(
 
 /**
  * The optional lowering extras of an entry: `artifact-set <set>`, `primitive <primitive>` and `move <move>`, each a
- * bare closed kernel value (spec 4.2). Absent rows leave the registration without them; a present row whose value is
- * outside the kernel refuses the entry like any other incomplete row.
+ * bare closed kernel value (spec 4.2), written at most once. Absent rows leave the registration without them; a present
+ * row whose value is outside the kernel, or a second row for the same key, refuses the entry like any other incomplete
+ * row.
  */
 function loweringOf(
-  field: FieldNode,
   element: string,
   incomplete: Incomplete,
+  once: (key: string) => FieldNode | undefined,
 ): Pick<Entry, 'artifactSet' | 'primitive' | 'move'> | undefined {
   let ok = true;
   const value = <T extends string>(
@@ -324,7 +334,8 @@ function loweringOf(
     admits: (x: string) => x is T,
     admitted: readonly string[],
   ): T | undefined => {
-    const row = fieldOf(field.children, [key]);
+    // `once` refuses a second row for the key at the second row, as for every entry row; the first is still checked.
+    const row = once(key);
     if (row === undefined) return undefined;
     if (row.value.kind !== 'scalar') {
       incomplete(element, row.span.line, `names its ${key} as a bare word`);

@@ -524,6 +524,14 @@ export class EditorWorkspace {
               .filter(({ phrase }) => cursor.words.join(' ').startsWith(phrase + ' '))
               .sort((a, b) => b.phrase.length - a.phrase.length)[0]?.verb
           : undefined;
+      // A schema may hold an outbound and an inbound rule for one predicate; only the rules written in the line's
+      // direction constrain it. The candidate is the other endpoint (an inbound rule's source) and may match any of them.
+      const rules =
+        relationVerb === undefined
+          ? []
+          : (schema?.edges ?? []).filter(
+              (e) => e.predicate === relationVerb.predicate && e.direction === relationVerb.direction,
+            );
       for (const node of this.#db.current.records({ root: location })) {
         if (cursor.discriminator !== undefined && !node.discriminator.startsWith(cursor.discriminator)) continue;
         const targetRegistration = registry.registrations.get(node.discriminator);
@@ -535,13 +543,7 @@ export class EditorWorkspace {
           const from = relationVerb.direction === 'out' ? cursor.record.discriminator : node.discriminator;
           const to = relationVerb.direction === 'out' ? node.discriminator : cursor.record.discriminator;
           if (consentFor(registry, relationVerb.predicate, from, to) !== undefined) continue;
-          const constraint = schema?.edges.find((e) => e.predicate === relationVerb.predicate);
-          if (
-            relationVerb.direction === 'out' &&
-            constraint !== undefined &&
-            constraint.target !== node.kind &&
-            constraint.target !== node.discriminator
-          )
+          if (rules.length > 0 && !rules.some((e) => e.target === node.kind || e.target === node.discriminator))
             continue;
         }
         if (cursor.slot === 'fragment') {
