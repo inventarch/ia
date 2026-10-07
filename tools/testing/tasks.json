@@ -1613,6 +1613,7 @@
         "tests/editor.test.ts",
         "tests/handle.test.ts",
         "tests/inputs.test.ts",
+        "tests/membership.test.ts",
         "tests/preview.test.ts",
         "tests/scope.test.ts",
         "tests/view.test.ts",
@@ -1671,6 +1672,7 @@
       "project": "packages/graph",
       "files": [
         "tests/codec.test.ts",
+        "tests/digest.test.ts",
         "tests/field-relations-baseline.test.ts",
         "tests/floor-citation.test.ts",
         "tests/load.test.ts",

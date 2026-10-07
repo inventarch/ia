@@ -8,6 +8,7 @@ import type { CacheStatus } from './cache.js';
 import { DbError } from './errors.js';
 import { inputOptions, readInputs } from './inputs.js';
 import type { InputOptions, InputSnapshot } from './inputs.js';
+import type { MembershipRow } from './membership.js';
 import { occurrenceKey, viewBuilder } from './view.js';
 import type { RefusedRecord, View } from './view.js';
 import { previewInputs } from './preview.js';
@@ -37,6 +38,8 @@ export interface Snapshot {
   readonly phase?: Phase;
   readonly records: readonly Node[];
   readonly systems: readonly string[];
+  /** D02a capture membership: one row per record, in `records` order. */
+  readonly membership: readonly MembershipRow[];
 }
 export interface DatabaseTraversalOptions extends Omit<TraverseOptions, 'scope'>, ReadOptions {}
 interface State {
@@ -231,6 +234,12 @@ export class Reader {
         [...view.graph.nodes.values()].filter((node) => allowed === undefined || allowed.has(node.identity)),
       ),
       systems: view.admittedSystems,
+      // A row depends only on its occurrence and the capture's declared roots, so a narrowed scope prunes rows and
+      // never re-roots one.
+      membership:
+        allowed === undefined
+          ? view.membership
+          : Object.freeze(view.membership.filter((row) => allowed.has(row.identity))),
     });
   }
   records(options: ReadOptions = {}): readonly Node[] {

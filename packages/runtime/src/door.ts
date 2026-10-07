@@ -1,6 +1,7 @@
 import { KINDS } from '@inventarch/language';
 import type { ConditionAxis, EdgeReference, Kind, Phase } from '@inventarch/language';
 import { GraphUsageError, validateCoordinate } from '@inventarch/graph';
+import type { Node } from '@inventarch/graph';
 import { DbError, open } from '@inventarch/db';
 import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
 import { context } from './context.js';
@@ -58,6 +59,8 @@ function reference(value: unknown): EdgeReference {
 }
 const BINDINGS = ['within', 'root', 'phase', 'revision'];
 const CONTEXT = ['within', 'text', 'coordinate', 'subject', 'follow', 'revision'];
+/** MACHINE_PROTOCOL version 1 is frozen: get and records answer without graph G13's per-record digest. */
+const versionOne = ({ digest: _digest, ...record }: Node): Omit<Node, 'digest'> => record;
 export class Door {
   #handle: Handle;
   #initial: Scope;
@@ -147,14 +150,19 @@ export class Door {
           result = got.selection;
           break;
         }
-        case 'get':
+        case 'get': {
           keys(params, [...BINDINGS, 'identity']);
-          result = this.#handle.get(string(params['identity'], 'identity'), this.#bindings(params)) ?? null;
+          const record = this.#handle.get(string(params['identity'], 'identity'), this.#bindings(params));
+          result = record === undefined ? null : versionOne(record);
           break;
-        case 'records':
+        }
+        case 'records': {
           keys(params, BINDINGS);
-          result = this.#handle.snapshot(this.#bindings(params));
+          // Database D02a membership is read through the handle; the version 1 snapshot keeps its four fields.
+          const { membership: _membership, ...snapshot } = this.#handle.snapshot(this.#bindings(params));
+          result = { ...snapshot, records: snapshot.records.map(versionOne) };
           break;
+        }
         case 'resolve':
           keys(params, [...BINDINGS, 'reference']);
           result = this.#handle.resolve(reference(params['reference']), this.#bindings(params));

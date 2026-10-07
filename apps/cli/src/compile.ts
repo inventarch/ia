@@ -67,7 +67,10 @@ const orderFindings = (findings: readonly Finding[]): readonly Finding[] =>
 
 export function buildArtifact(root: string, session: Session): CompileView {
   const admission = session.admission();
-  const records = [...session.reader.records()].sort((a, b) => compare(a.identity, b.identity));
+  // ia.compiled.v1 records predate graph G13, so the artifact and its digest omit the per-record digest.
+  const records = [...session.reader.records()]
+    .sort((a, b) => compare(a.identity, b.identity))
+    .map(({ digest: _digest, ...record }) => record);
   const diagnostics = orderFindings(admission.findings);
   const artifact: CompiledArtifact = {
     formatVersion: 1,

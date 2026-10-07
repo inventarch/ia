@@ -19,6 +19,8 @@ export interface Node extends CompiledRecord {
   readonly band: Band;
   readonly reach: string;
   readonly dimensions: Dimensions;
+  /** G13: `recordDigest` of this occurrence, computed once at load; its source path, lines, placement and provenance are not in it. */
+  readonly digest: string;
 }
 export interface Occurrence {
   readonly key: string;
