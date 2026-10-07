@@ -80,15 +80,17 @@ export function referenceRows(references: ReturnType<Session['reader']['referenc
 }
 
 /**
- * One row of the record's derived directed view (graph G14, db `directedView`), its source path in portable spelling.
+ * One row of a selected record's derived directed view (graph G14, db `directedView`), led by that record's identity so
+ * the rows of several selected records (`--path` over a file) stay attributable, its source path in portable spelling.
  * `kind` says whether the record declared it (`edge`), its counterpart did (`inverse`, derived) or it is a typed field
  * reference (`field-ref`, derived when it names the record).
  */
-type ViewRow = ReturnType<Session['reader']['directedView']>[number];
-export function viewRows(rows: readonly ViewRow[], direction: Direction): readonly ViewRow[] {
+type DirectedRow = ReturnType<Session['reader']['directedView']>[number];
+type ViewRow = { readonly identity: string } & DirectedRow;
+export function viewRows(identity: string, rows: readonly DirectedRow[], direction: Direction): readonly ViewRow[] {
   return rows
     .filter((row) => direction === 'both' || row.direction === direction)
-    .map((row) => ({ ...row, source: { path: portable(row.source.path), line: row.source.line } }));
+    .map((row) => ({ identity, ...row, source: { path: portable(row.source.path), line: row.source.line } }));
 }
 
 /** The inspect section labels, one per row kind of the directed view; `Field references` was `Referenced by`. */
@@ -279,7 +281,10 @@ export function runInspect(context: Context): Result {
       if (inbound)
         for (const record of selected) {
           references.set(record.identity, depth === 0 ? [] : referenceRows(reader.referencedBy(record.identity)));
-          views.set(record.identity, depth === 0 ? [] : viewRows(reader.directedView(record.identity), direction));
+          views.set(
+            record.identity,
+            depth === 0 ? [] : viewRows(record.identity, reader.directedView(record.identity), direction),
+          );
         }
       if (json) {
         const body = {
