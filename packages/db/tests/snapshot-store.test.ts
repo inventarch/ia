@@ -139,3 +139,29 @@ it('keeps an existing store .gitignore and refuses store paths that escape or tr
     expect.objectContaining({ code: 'IA-DB-ROOT-INVALID' }),
   );
 });
+
+it('confines the store to a directory under .ia/work and ignores only a directory it created', () => {
+  const root = workspace(),
+    snapshot = captureOf(open(root, { cache: false })),
+    before = readdirSync(resolve(root, '.ia/src'), { recursive: true }).sort();
+  // A store elsewhere would drop its self-ignoring .gitignore beside authored sources.
+  for (const dir of ['.ia', '.ia/src', '.ia/work', 'docs/snapshot', '.ia/workspace/snapshot']) {
+    expect(() => writeCaptured(root, dir, snapshot)).toThrow(
+      expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE', message: expect.stringContaining('.ia/work/') }),
+    );
+    expect(() => readCaptured(root, dir)).toThrow(expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }));
+  }
+  expect(readdirSync(resolve(root, '.ia')).sort()).toEqual(['src']);
+  expect(readdirSync(resolve(root, '.ia/src'), { recursive: true }).sort()).toEqual(before);
+  expect(existsSync(resolve(root, 'docs'))).toBe(false);
+
+  // An existing directory without a .gitignore is the consumer's: nothing is added to it.
+  put(root, '.ia/work/kept/notes.txt', 'mine');
+  expect(writeCaptured(root, '.ia/work/kept', snapshot)).toEqual({ rotated: false, written: true });
+  expect(readdirSync(resolve(root, '.ia/work/kept')).sort()).toEqual(['current.json', 'notes.txt']);
+  // A directory this call creates is ignored.
+  writeCaptured(root, '.ia/work/fresh/nested', snapshot);
+  expect(readdirSync(resolve(root, '.ia/work/fresh/nested')).sort()).toEqual(['.gitignore', 'current.json']);
+  expect(existsSync(resolve(root, '.ia/work/fresh/.gitignore'))).toBe(false);
+  expect(readFileSync(resolve(root, '.ia/work/fresh/nested/.gitignore'), 'utf8')).toBe(CAPTURE_IGNORE);
+});

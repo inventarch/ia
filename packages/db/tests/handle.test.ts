@@ -130,6 +130,7 @@ it('closes idempotently and refuses all subsequent reads and refreshes', () => {
     () => db.membership(),
     () => db.staleness(methodId),
     () => db.readiness(methodId, 'f'.repeat(64)),
+    () => db.previous(),
     () => db.refresh(),
     () => db.revision,
     () => db.report,
@@ -256,7 +257,7 @@ it('keeps the prior digests as previous across a refresh and reports staleness b
   rmSync(resolve(root, '.ia/src/invalid.ia'));
   expect(db.staleness(methodId)).toBe('unchanged');
 });
-it('reports new and removed identities, and nothing for an identity in neither snapshot', () => {
+it('reports new and removed identities, and unknown for an identity in neither snapshot', () => {
   const root = workspace(),
     db = open(root, { cache: false });
   put(root, '.ia/src/team.ia', workspaceRecord('team-workspace', ''));
@@ -267,7 +268,7 @@ it('reports new and removed identities, and nothing for an identity in neither s
   db.refresh();
   expect(db.get(team)).toBeUndefined();
   expect(db.staleness(team)).toBe('removed');
-  expect(db.staleness('workspace-system/definition/workspace/nowhere')).toBeUndefined();
+  expect(db.staleness('workspace-system/definition/workspace/nowhere')).toBe('unknown');
   const scope = db.resolveScope({ identities: [methodId] });
   expect(db.staleness(methodId, { within: scope.token })).toBe('unchanged');
   expect(() => db.staleness(team, { within: scope.token })).toThrow(
@@ -302,6 +303,47 @@ it('seeds previous from a supplied digest index so a later process can compare',
   // The handle copied the index: caller mutation cannot change it.
   expect(later.staleness(methodId)).toBe('changed');
   expect(() => open(root, { cache: false, previous: { revision: 7, digests } as never })).toThrow(
+    expect.objectContaining({ code: 'IA-DB-SNAPSHOT-UNAVAILABLE' }),
+  );
+});
+it('exposes the retained previous digest index as a copy, pruned to a supplied scope', () => {
+  const root = workspace(),
+    db = open(root, { cache: false }),
+    revision = db.revision,
+    digests = new Map(db.records().map((node) => [node.identity, node.digest]));
+  expect(db.previous()).toBeUndefined();
+  put(root, '.ia/src/team.ia', workspaceRecord('team-workspace', ''));
+  put(root, methodPath, edited(readFileSync(resolve(root, methodPath), 'utf8')));
+  db.refresh();
+  const previous = db.previous()!;
+  expect(previous).toEqual({ revision, digests });
+  expect(Object.isFrozen(previous)).toBe(true);
+  // A copy: mutating it changes neither the handle nor a later read.
+  (previous.digests as Map<string, string>).clear();
+  expect(db.previous()!.digests).toEqual(digests);
+  expect(db.staleness(methodId)).toBe('changed');
+  const scope = db.resolveScope({ identities: [methodId] });
+  expect(db.previous({ within: scope.token })).toEqual({
+    revision,
+    digests: new Map([[methodId, digests.get(methodId)]]),
+  });
+  // A seeded index reads back as given, and any ReadonlyMap seeds it.
+  const view: ReadonlyMap<string, string> = {
+    get size() {
+      return digests.size;
+    },
+    get: (key) => digests.get(key),
+    has: (key) => digests.has(key),
+    forEach: (each) => digests.forEach(each),
+    entries: () => digests.entries(),
+    keys: () => digests.keys(),
+    values: () => digests.values(),
+    [Symbol.iterator]: () => digests[Symbol.iterator](),
+  };
+  const later = open(root, { cache: false, previous: { revision, digests: view } });
+  expect(later.previous()).toEqual({ revision, digests });
+  expect(later.staleness(methodId)).toBe('changed');
+  expect(() => open(root, { cache: false, previous: { revision, digests: [['a', 'b']] } as never })).toThrow(
     expect.objectContaining({ code: 'IA-DB-SNAPSHOT-UNAVAILABLE' }),
   );
 });
