@@ -16,6 +16,11 @@ export function fieldOf(children: readonly ChildNode[], spelling: readonly strin
   return undefined;
 }
 
+/** Every field among `children` spelled `spelling`, in source order. */
+export function fieldsOf(children: readonly ChildNode[], spelling: readonly string[]): readonly FieldNode[] {
+  return children.filter((child): child is FieldNode => child.kind === 'field' && spelledAs(child, spelling));
+}
+
 /** The words after a spelling on an all-words line: the scalar it carries. */
 export function restAfter(field: FieldNode, spelling: readonly string[]): readonly string[] {
   return field.words.slice(spelling.length);

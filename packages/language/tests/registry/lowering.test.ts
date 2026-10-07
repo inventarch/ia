@@ -42,4 +42,55 @@ describe('lowering rows', () => {
       expect(diagnostics.map((d) => [d.code, d.line])).toEqual([['IA-LANG-REGISTRATION-INCOMPLETE', 10]]);
     }
   });
+
+  it('refuses a row stated twice at the second row, whether or not the second value is in the kernel', () => {
+    for (const [key, rows] of [
+      ['artifact-set', '      artifact-set operational\n      artifact-set contract\n'],
+      ['primitive', '      primitive Attention\n      primitive Memory\n'],
+      ['move', '      move Delegation\n      move Delegation\n'],
+      ['primitive', '      primitive Attention\n      primitive Bogus\n'],
+    ] as const) {
+      const { systems, diagnostics } = extract(entry(rows));
+      expect(systems).toHaveLength(1);
+      expect(systems[0]!.entries).toEqual([]);
+      expect(diagnostics.map((d) => [d.code, d.line])).toEqual([['IA-LANG-REGISTRATION-INCOMPLETE', 11]]);
+      expect(diagnostics[0]!.message).toContain(`discriminator 'agent' states ${key} twice`);
+    }
+  });
+
+  it('refuses a repeated category, facets or schema row at the second row: every entry row is written once', () => {
+    const rows = (category: string, facets: string, schema: string) =>
+      `${HEAD}    agent lowers to binding\n${category}${facets}${schema}`;
+    for (const [key, source, line] of [
+      [
+        'category',
+        rows(
+          '      category capability\n      category Bogus\n',
+          '      facets [head]\n',
+          '      schema @schema Agent\n',
+        ),
+        8,
+      ],
+      [
+        'facets',
+        rows('      category capability\n', '      facets [head]\n      facets [x]\n', '      schema @schema Agent\n'),
+        9,
+      ],
+      [
+        'schema',
+        rows(
+          '      category capability\n',
+          '      facets [head]\n',
+          '      schema @schema Agent\n      schema @schema Other\n',
+        ),
+        10,
+      ],
+    ] as const) {
+      const { systems, diagnostics } = extract(source);
+      expect(systems).toHaveLength(1);
+      expect(systems[0]!.entries).toEqual([]);
+      expect(diagnostics.map((d) => [d.code, d.line])).toEqual([['IA-LANG-REGISTRATION-INCOMPLETE', line]]);
+      expect(diagnostics[0]!.message).toContain(`discriminator 'agent' states ${key} twice`);
+    }
+  });
 });

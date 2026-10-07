@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../../src/parser/index.js';
 import { extractSchemas, fieldTypeText } from '../../src/registry/schemas.js';
+import { VERB_PHRASES } from '../../src/semantic/vocabulary.js';
 
 const extract = (source: string) => {
   const parsed = parse(source, 'sch.ia');
@@ -346,10 +347,14 @@ describe('extractSchemas', () => {
         ['govern', 'in', 'governed-by'],
       ]);
     });
-    it('names the whole verb text when no spelling admits it', () => {
+    it('names the whole verb text when no spelling admits it and lists every accepted spelling', () => {
       const result = extract(`${BASE}  edges\n    may records lineage law one\n`);
       expect(result.diagnostics.map((d) => [d.code, d.line])).toEqual([['IA-LANG-PREDICATE-UNKNOWN', 7]]);
-      expect(result.diagnostics[0]?.message).toContain("'records lineage' is not a predicate");
+      expect(result.diagnostics[0]?.message).toContain(
+        `'records lineage' is not a predicate spelling; admitted: ${VERB_PHRASES.join(', ')}`,
+      );
+      expect(result.diagnostics[0]?.message).toContain('governed-by');
+      expect(result.diagnostics[0]?.message).toContain('records lineage from');
       expect([...result.refused]).toEqual(['s']);
     });
   });

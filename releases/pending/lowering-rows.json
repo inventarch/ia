@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "Registrations declare each word's artifact set, primitive and move",
-  "summary": "A @system discriminator entry may add artifact-set, primitive and move rows (closed kernel values); every public word now declares them and the vocabulary catalogue (ia vocabulary --json, the MCP door catalogue, docs/reference/language) and the per-word references carry them. A row outside the kernel refuses the entry; absent rows leave a registration without them. The kernel digest and every derived revision change accordingly.",
+  "summary": "A @system discriminator entry may add artifact-set, primitive and move rows (closed kernel values); every public word now declares them and the vocabulary catalogue (ia vocabulary --json, the MCP door catalogue, docs/reference/language) and the per-word references carry them. A row outside the kernel refuses the entry; absent rows leave a registration without them. Every entry row is written once: a second category, facets, schema, artifact-set, primitive or move row refuses the entry, reported at the second row. The kernel digest and every derived revision change accordingly.",
   "packages": [
     "@inventarch/agent-composition-system",
     "@inventarch/agent-system",

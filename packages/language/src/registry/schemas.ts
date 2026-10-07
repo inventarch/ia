@@ -1,11 +1,10 @@
 import type { ChildNode, FieldNode, FileNode, RecordNode, Value } from '../ast.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
-import { verbOf } from '../semantic/vocabulary.js';
+import { VERB_PHRASES, verbOf } from '../semantic/vocabulary.js';
 import {
   CARDINALITIES,
   KINDS,
-  PREDICATES,
   TEXT_FORMS,
   VALUE_TYPES,
   fieldTypeOf,
@@ -307,7 +306,7 @@ function schemaOf(
           'IA-LANG-PREDICATE-UNKNOWN',
           path,
           line,
-          `${path}:${line}: '${spelling}' is not a predicate; admitted: ${PREDICATES.join(', ')}`,
+          `${path}:${line}: '${spelling}' is not a predicate spelling; admitted: ${VERB_PHRASES.join(', ')}`,
         ),
       );
       ok = false;
