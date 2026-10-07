@@ -400,6 +400,61 @@ it('reports the dangling rows and unconsented edges of loaded records as unknown
   expect(seeded(root, { seat: 'src/app.ts', shape: 'governance', budget: 0 }, adopted).unknowns).toEqual([]);
 });
 
+it('reports the seat record own dangling rows in either direction, and a refusal only at the record declaring it', () => {
+  const root = rules(),
+    pair = `${records}/order-pair.ia`;
+  put(
+    root,
+    `${records}/order-enforced.ia`,
+    `#! ia 1.0\n\n${rule('enforced-rule', 'advisory', 'enforced-by @check missing-check')}`,
+  );
+  const convention = (name: string, relation: string) =>
+    `@convention ${name}\n  meaning\n    says "Convention ${name}."\n    answers "Which convention is ${name}?"\n  governance\n    severity advisory\n${relation}`;
+  put(
+    root,
+    pair,
+    `#! ia 1.0\n\n${convention('loud-convention', '  relationships\n    constrains @contract foundation-authoring-contract\n')}\n${convention('quiet-convention', '')}`,
+  );
+  const at = (seat: string) =>
+    seeded(root, { seat, shape: 'governance', depth: 0 }, { ...adopted, [pair]: placed('adopted') });
+  const enforced = 'governance-system/governance/law/enforced-rule';
+  // enforced-by is read from the check's end: an `in` row, dangling on the seat that declares it.
+  expect(at(enforced).unknowns).toEqual([
+    { identity: enforced, reason: 'dangling', path: `${records}/order-enforced.ia`, line: 12, text: 'enforced-by' },
+  ]);
+  expect(at(ORDER.advisory).unknowns).toEqual([
+    { identity: ORDER.advisory, reason: 'dangling', path: `${records}/order-rules.ia`, line: 12, text: 'governs' },
+  ]);
+  const loud = 'governance-system/governance/convention/loud-convention';
+  expect(at(loud).unknowns).toEqual([
+    {
+      identity: loud,
+      reason: 'unconsented',
+      path: pair,
+      line: 10,
+      text: `source system refuses constrain from ${loud} to ${CONTRACT}`,
+    },
+  ]);
+  // The quiet convention shares the file but declares nothing.
+  expect(at('governance-system/governance/convention/quiet-convention').unknowns).toEqual([]);
+});
+
+it('marks a location seat unknown when nothing the seeding reads is declared there or claims it', () => {
+  const db = database(workspace(), { locations: { [`${records}/sample-procedure.ia`]: placed('runtime') } }),
+    at = (seat: string, within = db.resolveScope({}).token) => seatOf(db, within, normalizeScopeKey({ seat }));
+  // The mandate claiming the path lies outside a narrow scope.
+  expect(at('docs/guide.md', db.resolveScope({ identities: [WS, LAW] }).token)).toMatchObject({
+    kind: 'location',
+    unknown: 'no record claims docs/guide.md',
+  });
+  expect(at('docs/guide.md')).not.toHaveProperty('unknown');
+  // The only record declared at the path is in the runtime band, which is never read.
+  expect(at(`${records}/sample-procedure.ia`)).toMatchObject({
+    kind: 'location',
+    unknown: `no record claims ${records}/sample-procedure.ia`,
+  });
+});
+
 it('names no record outside the scope: an unconsented edge to one is no unknown, as its row would be pruned', () => {
   const db = database(rules(), { locations: adopted }),
     at = (identities: readonly string[]) =>
