@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@inventarch/language';
 import { digest, load, recordDigest, resolve, serialize, stableSerialize } from '../src/index.js';
@@ -377,6 +377,17 @@ describe('per-record source digest', () => {
     expect(after.member.digest).not.toBe(before.member.digest);
     expect(after.lead.digest).not.toBe(before.lead.digest);
     expect(after.other.digest).toBe(before.other.digest);
+  });
+  it('cuts each revision source into lines once, however many records it holds', () => {
+    const many = probe(Array.from({ length: 40 }, (_, i) => `@playbook p${i}`).join('\n\n'));
+    const split = vi.spyOn(String.prototype, 'split');
+    try {
+      const graph = load(many.records, registry, { ...options, sources: [many.source] });
+      expect(graph.nodes.size).toBe(40);
+      expect(split.mock.contexts.filter((context) => String(context) === many.source.text)).toHaveLength(1);
+    } finally {
+      split.mockRestore();
+    }
   });
   it('puts a digest on every native node without changing the corpus revision', () => {
     expect([...native.nodes.values()].every((n) => /^[0-9a-f]{64}$/.test(n.digest))).toBe(true);
