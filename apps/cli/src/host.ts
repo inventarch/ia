@@ -761,13 +761,7 @@ export async function runHost(context: Context): Promise<Result> {
     // Refusals raised before a view exists — the --context gate, a pending journal — name `ia host` commands too.
     const supplied = args.value('root'),
       name = args.positionals[0];
-    if (
-      !(error instanceof Refusal) ||
-      error.next === null ||
-      supplied === undefined ||
-      (name !== 'claude' && name !== 'codex')
-    )
-      throw error;
+    if (!(error instanceof Refusal) || supplied === undefined || (name !== 'claude' && name !== 'codex')) throw error;
     // The real path requireRoot resolved, which succeeded before any of these refusals could be raised.
     throw new Refusal(
       error.code,

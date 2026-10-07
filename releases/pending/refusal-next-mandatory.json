@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Every ia refusal names a next command",
+  "summary": "Every consumer refusal of the ia CLI now names one next command: it is printed after the message and carried as a non-empty next string in --json output, including the IA-CLI-INTERRUPTED object. A refusal whose cause has no remedy of its own falls back to the refused command's --help for a usage failure (IA-CLI-USAGE) and to ia doctor otherwise. Automation that read next as nullable can now rely on a string. The machine protocol's refusal shape is unchanged.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/",
+    "tools/"
+  ]
+}

@@ -74,7 +74,7 @@ import {
 } from '@inventarch/distribution/services';
 import { UsageError } from './args.js';
 import type { Context, Host, Result } from './consumer.js';
-import { confirm, Refusal, refusalOf, requireRoot } from './consumer.js';
+import { confirm, fallbackNext, Refusal, refusalOf, requireRoot } from './consumer.js';
 import type { HostName } from './host-projection.js';
 import { renderProjectionFor } from './host-projection.js';
 import { hostNext, lockRefusal, projectionRepair, refusedPath, STATE } from './host.js';
@@ -251,7 +251,7 @@ async function acquiring<T>(run: () => Promise<T>, where: string | null, route: 
     if (code === 'IA-DIST-LICENSE-REQUIRED') throw new Refusal(code, message, 3, at, LICENSED);
     // A service refusal the service located keeps its code and class 3, and gains its location (§4.3).
     if (!(error instanceof Refusal) && own !== null)
-      throw new Refusal(code, message, 3, at, cachedFile !== null ? deleteCached(cachedFile) : null);
+      throw new Refusal(code, message, 3, at, cachedFile !== null ? deleteCached(cachedFile) : fallbackNext(code));
     throw error;
   }
 }
@@ -344,6 +344,8 @@ function chooserOf(request: PlanRequest): (id: string) => RegistryChoice {
       'IA-CLI-FAILED',
       `ia ${request.operation} resolves from registries but was given no registry chooser`,
       3,
+      null,
+      fallbackNext('IA-CLI-FAILED'),
     );
   return request.choose;
 }

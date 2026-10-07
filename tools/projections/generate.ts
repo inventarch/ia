@@ -19,20 +19,29 @@ import type { HostArtifact, ProjectionMembership } from '../../packages/complian
 import { HOST_MODES, launcherInvocation } from '../../apps/distribution/src/host-modes.js';
 
 const BOOTSTRAP_HASH = 'b4df6f906cd3d27a26061eddc3cf997f58015866fc610a195c5b228d619ef2eb';
+/** The command that regenerates the projections; every refusal below names it after its repair. */
+const RERUN = '`pnpm projections:generate`';
+/** A refusal naming its next command: the repair, then the rerun. */
+const refusal = (message: string, repair: string): Error => new Error(`${message}. ${repair}, then run ${RERUN}.`);
 const skillPaths = ['.agents/skills/ia-authoring/SKILL.md', '.claude/skills/ia-authoring/SKILL.md'];
 function safe(root: string, path: string): string {
   const base = resolve(root),
     target = resolve(base, path),
     rel = relative(base, target);
   if (isAbsolute(rel) || rel === '..' || rel.startsWith('..' + sep))
-    throw new Error(`Projection path escapes root: ${path}`);
+    throw refusal(`Projection path escapes root: ${path}`, 'Name a path inside the repository root');
   // Another case or normalization of the same names is not an alias (#315); a link anywhere in the root still is.
-  if (!unaliased(base, realpathSync.native(base))) throw new Error('Projection root is aliased');
+  if (!unaliased(base, realpathSync.native(base)))
+    throw refusal('Projection root is aliased', `Change to the real path ${realpathSync.native(base)}`);
   let current = base;
   for (const part of ['', ...rel.split(sep)]) {
     current = resolve(current, part);
     try {
-      if (lstatSync(current).isSymbolicLink()) throw new Error(`Projection path is aliased: ${path}`);
+      if (lstatSync(current).isSymbolicLink())
+        throw refusal(
+          `Projection path is aliased: ${path}`,
+          `Replace the link ${relative(base, current) || base} with a directory`,
+        );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
@@ -57,7 +66,10 @@ export function publishArtifacts(root: string, artifacts: readonly HostArtifact[
     ) ||
     /^\.claude\/agents\/[a-z][a-z0-9-]*\.md$/.test(path);
   if (expected.size !== artifacts.length || artifacts.some((a) => !allowed(a.path)))
-    throw new Error('Invalid projection output set');
+    throw refusal(
+      'Invalid projection output set',
+      'Fix the projection renderer so it emits only allowed paths, each once',
+    );
   const agents = safe(root, '.claude/agents');
   if (existsSync(agents))
     for (const entry of readdirSync(agents, { withFileTypes: true })) {
@@ -68,7 +80,7 @@ export function publishArtifacts(root: string, artifacts: readonly HostArtifact[
         !expected.has(path) &&
         readFileSync(target, 'utf8').split(/\r?\n/).includes(PROJECTION_MARKER)
       )
-        throw new Error(`Stale managed projection requires source-aware reconciliation: ${path}`);
+        throw refusal(`Stale managed projection requires source-aware reconciliation: ${path}`, `Delete ${path}`);
     }
   for (const host of ['.agents', '.claude'])
     for (const directory of ['parts', 'scripts']) {
@@ -79,7 +91,7 @@ export function publishArtifacts(root: string, artifacts: readonly HostArtifact[
         const path = `${prefix}/${entry.name}`,
           target = safe(root, path);
         if (entry.isFile() && !expected.has(path) && owned(readFileSync(target), path))
-          throw new Error(`Stale managed projection requires source-aware reconciliation: ${path}`);
+          throw refusal(`Stale managed projection requires source-aware reconciliation: ${path}`, `Delete ${path}`);
       }
     }
   // Preflight the complete set before publishing any file.
@@ -88,7 +100,8 @@ export function publishArtifacts(root: string, artifacts: readonly HostArtifact[
     if (existsSync(target)) {
       const bytes = readFileSync(target);
       if (bytes.equals(Buffer.from(artifact.text))) continue;
-      if (!owned(bytes, artifact.path)) throw new Error(`Refusing unmanaged projection: ${artifact.path}`);
+      if (!owned(bytes, artifact.path))
+        throw refusal(`Refusing unmanaged projection: ${artifact.path}`, `Move or delete ${artifact.path}`);
     }
     pending.push(artifact);
   }
@@ -102,7 +115,10 @@ export function publishArtifacts(root: string, artifacts: readonly HostArtifact[
         writeFileSync(temp, artifact.text, { encoding: 'utf8', flag: 'wx' });
         safe(root, artifact.path);
         if (existsSync(target) && !owned(readFileSync(target), artifact.path))
-          throw new Error(`Projection changed before publication: ${artifact.path}`);
+          throw refusal(
+            `Projection changed before publication: ${artifact.path}`,
+            `Stop whatever else is writing ${artifact.path}`,
+          );
         renameSync(temp, target);
       } finally {
         safe(root, relative(resolve(root), temp));
@@ -127,7 +143,7 @@ export function generateProjections(root: string, write: boolean): readonly stri
   const db = open(root, { cache: false });
   try {
     if (db.report.findings.some((f) => f.severity === 'error'))
-      throw new Error('Native corpus has errors; projections refused');
+      throw refusal('Native corpus has errors; projections refused', 'Fix the errors `ia validate` reports');
     const records = db.records(),
       rendered = renderHostArtifacts(
         records,
@@ -137,7 +153,10 @@ export function generateProjections(root: string, write: boolean): readonly stri
         { requireStewardProfiles: true },
       );
     if (rendered.assessment.outcome !== 'pass')
-      throw new Error(rendered.assessment.findings.map((f) => f.message).join('; '));
+      throw refusal(
+        rendered.assessment.findings.map((f) => f.message).join('; '),
+        'Fix the native records these findings cite',
+      );
     return publishArtifacts(root, rendered.artifacts, write);
   } finally {
     db.close();
@@ -146,7 +165,7 @@ export function generateProjections(root: string, write: boolean): readonly stri
 if (isEntry(process.argv[1], import.meta.url)) {
   try {
     if (process.argv.length !== 3 || !['--check', '--write'].includes(process.argv[2]!))
-      throw new Error('Usage: generate.ts --check|--write');
+      throw new Error(`Usage: generate.ts --check|--write. Run \`pnpm projections:check\` or ${RERUN}.`);
     const write = process.argv[2] === '--write',
       changed = generateProjections(resolve(import.meta.dirname, '../..'), write);
     process.stdout.write(

@@ -94,14 +94,17 @@ export interface Context {
   readonly json: boolean;
 }
 
-/** §4: a refusal carries the service's own code unchanged, its exit class, and where it happened. */
+/**
+ * §4: a refusal carries the service's own code unchanged, its exit class, where it happened, and the one next command
+ * that moves the user on. `next` is required: a site that has no remedy of its own passes `fallbackNext`.
+ */
 export class Refusal extends Error {
   constructor(
     readonly code: string,
     message: string,
     readonly exit: number,
-    readonly where: { readonly path?: string; readonly line?: number; readonly identity?: string } | null = null,
-    readonly next: string | null = null,
+    readonly where: { readonly path?: string; readonly line?: number; readonly identity?: string } | null,
+    readonly next: string,
     /** §6.5 element 1 when there is no `where`: the invocation that was refused, rendered but never serialized. */
     readonly at: string | null = null,
   ) {
@@ -111,9 +114,9 @@ export class Refusal extends Error {
 }
 
 /**
- * §5's first signal, raised by a verb that had already written when it observed the signal. The JSON result stays
- * §5's fixed object; the one stderr line gains the rerun that finishes the work, which M5.2 §5 requires `ia init`
- * to name once it has written anything.
+ * §5's first signal, raised by a verb that had already written when it observed the signal. The JSON result is §5's
+ * object with this rerun as its `next`, and the one stderr line gains the same rerun that finishes the work, which
+ * M5.2 §5 requires `ia init` to name once it has written anything.
  */
 export class Interrupted extends Error {
   constructor(readonly next: string) {
@@ -129,15 +132,29 @@ const codeOf = (error: unknown): string | undefined => {
   return typeof code === 'string' && IA_CODE.test(code) ? code : undefined;
 };
 /**
+ * The next command for a refusal whose raiser named none: the refused command's own help for a usage error, and
+ * otherwise `ia doctor`, which observes the runtime, workspace and installation without changing them. Every
+ * fallback wording lives here, so a rule for how next commands are phrased changes in one place.
+ */
+export const fallbackNext = (code: string, command?: string): string =>
+  code === 'IA-CLI-USAGE'
+    ? `Run "ia ${command === undefined ? '' : `${command} `}--help" for the arguments it accepts.`
+    : 'Run "ia doctor" to check the runtime, workspace and installation.';
+/**
  * §4.1: the consumer never rewrites a service's code. Class 4 is unreachable from the three verbs this release
  * implements, because none of them acquires anything over a network, so every unmapped failure is class 3.
+ * Whatever was thrown, the refusal returned names a non-empty next command; `command` is the refused verb.
  */
-export function refusalOf(error: unknown): Refusal {
-  if (error instanceof Refusal) return error;
+export function refusalOf(error: unknown, command?: string): Refusal {
+  if (error instanceof Refusal)
+    return typeof error.next === 'string' && error.next.trim() !== ''
+      ? error
+      : new Refusal(error.code, error.message, error.exit, error.where, fallbackNext(error.code, command), error.at);
   const message = error instanceof Error ? error.message : String(error);
-  if (error instanceof UsageError) return new Refusal('IA-CLI-USAGE', message, 2);
-  const code = codeOf(error);
-  return code === undefined ? new Refusal('IA-CLI-FAILED', message, 3) : new Refusal(code, message, 3);
+  if (error instanceof UsageError)
+    return new Refusal('IA-CLI-USAGE', message, 2, null, fallbackNext('IA-CLI-USAGE', command));
+  const code = codeOf(error) ?? 'IA-CLI-FAILED';
+  return new Refusal(code, message, 3, null, fallbackNext(code, command));
 }
 
 /** §4.3 and §6.5. Human mode renders the block on stderr; `--json` emits the one object on stdout. */
@@ -174,7 +191,7 @@ export function renderRefusal(refusal: Refusal, caps: Capabilities, json: boolea
       ...(refusal.where?.identity === undefined ? {} : { identity: refusal.where.identity }),
       code: refusal.code,
       message: refusal.message,
-      ...(refusal.next === null ? {} : { next: words(refusal.next) }),
+      next: words(refusal.next),
     },
     { depth: 0 },
     caps,
@@ -400,22 +417,40 @@ export async function runCommand(command: CommandSpec, argv: readonly string[], 
     }
     const context: Context = { host, command, args, caps, json };
     const handler = HANDLERS[command.name];
-    if (handler === undefined) throw new Refusal('IA-CLI-FAILED', `No handler is installed for ia ${command.name}`, 3);
+    if (handler === undefined)
+      throw new Refusal(
+        'IA-CLI-FAILED',
+        `No handler is installed for ia ${command.name}`,
+        3,
+        null,
+        fallbackNext('IA-CLI-FAILED'),
+      );
     host.signal?.throwIfAborted();
     const result = await handler(context);
     host.signal?.throwIfAborted();
     return result;
   } catch (error) {
-    if (host.signal?.aborted)
+    if (host.signal?.aborted) {
+      // Like every refusal, the one object names the next command: the rerun a verb that had written supplies, or
+      // otherwise the interrupted command itself.
+      const next =
+        error instanceof Interrupted ? error.next : `Run the interrupted "ia ${command.name}" command again.`;
       return {
         exitCode: 130,
         stdout: wantsJson(argv)
-          ? JSON.stringify({ version: 1, ok: false, code: 'IA-CLI-INTERRUPTED', message: 'Interrupted.', exit: 130 }) +
-            '\n'
+          ? JSON.stringify({
+              version: 1,
+              ok: false,
+              code: 'IA-CLI-INTERRUPTED',
+              message: 'Interrupted.',
+              exit: 130,
+              next,
+            }) + '\n'
           : '',
         stderr: error instanceof Interrupted ? `Interrupted. ${error.next}\n` : 'Interrupted.\n',
       };
-    const raw = refusalOf(error);
+    }
+    const raw = refusalOf(error, command.name);
     const refusal =
       raw.where === null && raw.at === null
         ? new Refusal(raw.code, raw.message, raw.exit, null, raw.next, `ia ${command.name}`)

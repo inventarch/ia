@@ -751,6 +751,7 @@ export async function applyInit(view: InitView, options: ApplyOptions): Promise<
         `The compiled workspace has no @distribution ${name}-distribution in ${recordsPath(name)}`,
         3,
         { path: root },
+        `Run "ia validate --root ${quote(root)}" to see why ${recordsPath(name)} was not admitted.`,
       );
     distribution = record.identity;
   } finally {
@@ -1109,8 +1110,15 @@ function registerHost(context: Context, selected: 'claude' | 'codex', root: stri
     return applyHostSet(collectHost({ ...context, command, args }), context.host.packageRoot, context.host.signal);
   } catch (error) {
     if (error instanceof Interrupted) throw new Interrupted(composed(error.next));
+    // Only a refusal `ia host` raised carries its own remedy; anything else gets the rerun that finishes registration.
     const refusal = refusalOf(error);
-    throw new Refusal(refusal.code, refusal.message, refusal.exit, refusal.where, composed(refusal.next));
+    throw new Refusal(
+      refusal.code,
+      refusal.message,
+      refusal.exit,
+      refusal.where,
+      composed(error instanceof Refusal ? refusal.next : null),
+    );
   }
 }
 /**
