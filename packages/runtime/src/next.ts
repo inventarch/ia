@@ -130,7 +130,10 @@ export interface StateValue {
 export interface Basis {
   /** `require`: a record this one requires; `supersede`: a record that supersedes this one. */
   readonly predicate: 'require' | 'supersede';
-  /** The required or superseding record's identity, or the reference as written when it resolves to none. */
+  /**
+   * The required or superseding record's identity, or the reference as written when it resolves to none or the view
+   * cannot read what it resolves to.
+   */
   readonly target: string;
   readonly resolved: boolean;
   /** The required record's word; null when the view cannot read it. */
@@ -303,11 +306,13 @@ export function specStanding(
 /**
  * The supersessions of a listed record as blocking bases (`superseded by <record> (<grounding>)`). A superseded plan,
  * milestone or task is where work stopped, so a declared supersession blocks it whether or not a decision grounds it
- * yet; the basis says which. Reading supersession as blocking only once grounded, as a spec's is, changes this one
- * function.
+ * yet; the basis says which. A supersession the record itself declares never reads as clear: a superseding record the
+ * view cannot read (outside the scope or in the runtime band) blocks as `superseded by <record> (outside the scope)`,
+ * as a requirement it cannot read does, and one that resolves to no record as `superseded by <reference> (unresolved)`.
+ * Reading supersession as blocking only once grounded, as a spec's is, changes this one function.
  */
 function supersessionBasis(read: Reading, node: Node): readonly Basis[] {
-  return supersessionsOf(read.handle, read.within, node.identity)
+  const seen: Basis[] = supersessionsOf(read.handle, read.within, node.identity)
     .filter(({ by }) => read.nodes.has(by.identity))
     .map(({ by, grounding }) => ({
       predicate: 'supersede',
@@ -317,6 +322,30 @@ function supersessionBasis(read: Reading, node: Node): readonly Basis[] {
       standing: `superseded by ${by.identity} (${grounding === null ? 'supersession declared, not grounded' : `grounded by ${grounding}`})`,
       blocking: true,
     }));
+  // The record's own declared rows, by source line: a row the scope token prunes is absent, a dangling one has no other.
+  const own = new Map(
+    read.handle
+      .directedView(node.identity, { within: read.within })
+      .filter((row) => row.kind === 'edge' && row.declaredOn === node.identity && row.predicate === 'supersede')
+      .map((row) => [row.source.line, row.other]),
+  );
+  for (const edge of node.edges) {
+    if (edge.predicate !== 'supersede' || edge.direction !== 'in') continue;
+    const other = own.get(edge.span.line);
+    if (other !== undefined && other !== null && read.nodes.has(other)) continue;
+    const resolved = other !== null,
+      target = other ?? edge.target ?? written(edge.reference);
+    if (seen.some((item) => item.target === target)) continue;
+    seen.push({
+      predicate: 'supersede',
+      target,
+      resolved,
+      word: null,
+      standing: `superseded by ${target} (${resolved ? 'outside the scope' : 'unresolved'})`,
+      blocking: true,
+    });
+  }
+  return seen.sort((x, y) => compare(x.target, y.target));
 }
 
 /** The records `node` requires: its own `require` rows, resolved or not, and the inverse rows others declare. */
