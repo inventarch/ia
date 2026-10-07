@@ -110,6 +110,9 @@ export function digestIndex(snapshot: CapturedSnapshot): DigestIndex {
 }
 
 function storeDir(dir: string): string {
+  // A NUL byte never names a file; refused here, it never reaches the filesystem as a write failure.
+  if (dir.includes('\0'))
+    throw new DbError('IA-DB-PATH-UNSAFE', `The snapshot store path holds a NUL byte: ${JSON.stringify(dir)}`);
   let canonical: string;
   try {
     canonical = canonicalRoot(dir);
