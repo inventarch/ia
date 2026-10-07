@@ -306,7 +306,7 @@ export function seed(handle: ReadHandle, within: string, key: NormalizedScopeKey
       priming.length,
       ...handle
         .directedView(identity, { within })
-        .filter((view) => view.consented && view.other !== null && view.predicate !== null)
+        .filter((view) => view.consented && view.other !== null && nodes.has(view.other) && view.predicate !== null)
         .map((view) => priming.indexOf(view.predicate!))
         .filter((index) => index >= 0),
     );
