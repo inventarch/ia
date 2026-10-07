@@ -10,7 +10,7 @@ import { resolveCapabilities } from '../src/render.js';
 import { fieldTypeText } from '@inventarch/compliance';
 import { MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { runBounded } from '@tools/testing/subprocess.js';
-import { scratch } from './workspace-fixture.js';
+import { scratch, STEWARD, STEWARD_SAYS, withSteward, workspace } from './workspace-fixture.js';
 
 /** Links a file. Windows grants file links only with a privilege (Developer Mode or elevation): without it, EPERM, and false. */
 const fileLink = (target: string, path: string): boolean => {
@@ -476,6 +476,8 @@ it('names a next command in every --json refusal, for each CLI-owned trigger', a
     [['format', '--root', fixture, 'missing.ia', '--json'], 'IA-DIST-INPUT-INVALID'],
     [['install', '--json'], 'IA-DB-ROOT-INVALID'],
     [['inspect', 'no-such/definition/procedure/record', '--root', fixture, '--json'], 'IA-DB-SOURCE-UNAVAILABLE'],
+    [['read', 'no-such/definition/procedure/record', '--root', fixture, '--json'], 'IA-DB-SOURCE-UNAVAILABLE'],
+    [['read', 'Not/An/Identity/X', '--root', fixture, '--json'], 'IA-RUNTIME-REQUEST-INVALID'],
     [['host', 'claude', '--root', empty, '--json'], 'IA-CLI-CONFLICT'],
   ];
   for (const [argv, code] of refused) {
@@ -538,6 +540,28 @@ it('preserves the frozen machine protocol and the consumer streams in the built 
   expect(refusal.stdout).toBe('');
   expect(refusal.stderr).toContain('IA-CLI-USAGE');
   expect(refusal.stderr).toContain('--apply without a terminal requires --yes');
+});
+
+it('serves ia read from the consumer table in the built binary, never as a frozen machine route', async () => {
+  // A later protocol may add a read operation; the frozen routes dispatch first, so this verb must never be one.
+  expect(LEGACY_OPERATIONS as readonly string[]).not.toContain('read');
+  expect(COMMANDS.map((command) => command.name)).toContain('read');
+  const copy = withSteward(workspace());
+  try {
+    const got = await binary(['read', STEWARD, '--root', copy]);
+    expect({ status: got.status, stdout: got.stdout, stderr: got.stderr }).toEqual({
+      status: 0,
+      stdout: `${STEWARD_SAYS}\n`,
+      stderr: '',
+    });
+    const routed = calls.legacy.length;
+    expect((await run(['read', STEWARD, '--root', copy])).stdout).toBe(`${STEWARD_SAYS}\n`);
+    expect(calls.legacy).toHaveLength(routed);
+  } finally {
+    const owned = dirname(copy);
+    if (dirname(owned) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+    rmSync(owned, { recursive: true, force: true });
+  }
 });
 
 it('runs the built binary when a link reaches it, as npm .bin entries and global installs do', async () => {

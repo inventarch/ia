@@ -40,6 +40,17 @@ export function workspace(options: { readonly foreign?: boolean } = {}): string 
   if (options.foreign !== true) rmSync(resolve(root, FOREIGN));
   return root;
 }
+/** A fixture copy of the steward record `ia read`'s exit names, so the test does not depend on the repository's own. */
+export const STEWARD_COPY = '.ia/src/systems/agent-system/records/public-agent-system-steward.ia';
+export const STEWARD = 'agent-system/binding/agent/public-agent-system-steward';
+export const STEWARD_SAYS = 'Identifies the owner of agent-system contracts in this example.';
+export const withSteward = (root: string): string => {
+  writeFileSync(
+    resolve(root, STEWARD_COPY),
+    `#! ia 1.0\n\n@agent public-agent-system-steward\n  meaning\n    says "${STEWARD_SAYS}"\n    answers "Who owns the agent and mandate words in this example?"\n  governance\n    applies [agent, mandate]\n`,
+  );
+  return root;
+};
 /** A workspace plus the LICENSE and descriptor `ia pack` needs to build `fixture/foundation`. */
 export function packable(): string {
   const root = workspace();

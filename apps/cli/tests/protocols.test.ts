@@ -268,6 +268,8 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     ['format', '--root', root, '--json'],
     ['compile', '--root', root, '--json'],
     ['capture', '--root', root, '--json'],
+    ['read', 'governance-system/definition/procedure/sample-procedure', '--root', root, '--json'],
+    ['read', 'no-such/definition/procedure/record', '--root', root, '--json'],
     ['doctor', '--root', root, '--json'],
     ['install', 'fixture/foundation', '--root', root, '--offline', '--json'],
   ];

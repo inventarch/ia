@@ -1,5 +1,5 @@
 /**
- * `ia init`, `ia format`, `ia compile`, `ia capture` and `ia doctor`, against the committed loop fixture.
+ * `ia init`, `ia format`, `ia compile`, `ia capture`, `ia read` and `ia doctor`, against the committed loop fixture.
  *
  * Every verb is exercised in its human and `--json` form and in each exit class its §2 section declares, because
  * the exit class is the part a script depends on and the part a renderer change cannot be trusted to preserve.
@@ -13,7 +13,18 @@ import { json, sha256 } from '@inventarch/distribution/services';
 import { ARTIFACT, collectCompile, COMPILE_DEPRECATION } from '../src/compile.js';
 import { collectDoctor } from '../src/doctor.js';
 import { NOT_EVALUATED } from '../src/validate.js';
-import { cleanup, cli, FORMATTABLE, run, scratch, workspace } from './workspace-fixture.js';
+import {
+  cleanup,
+  cli,
+  FORMATTABLE,
+  run,
+  scratch,
+  STEWARD,
+  STEWARD_COPY,
+  STEWARD_SAYS,
+  withSteward,
+  workspace,
+} from './workspace-fixture.js';
 
 const ANSI = /\u001b\[/;
 afterAll(cleanup);
@@ -618,6 +629,71 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
   });
 });
 
+it('reads the body behind a locator and prints that body only, refusing with a next command', async () => {
+  const root = withSteward(workspace());
+  // The plan's exit: an @agent's says text, and nothing else on either stream.
+  expect(await run(['read', STEWARD, '--root', root])).toEqual({
+    exitCode: 0,
+    stdout: `${STEWARD_SAYS}\n`,
+    stderr: '',
+  });
+  const machine = JSON.parse((await run(['read', STEWARD, '--root', root, '--json'])).stdout) as Record<string, unknown>;
+  const inspected = JSON.parse((await run(['inspect', STEWARD, '--root', root, '--json'])).stdout) as {
+    records: { digest: string }[];
+  };
+  expect(machine).toEqual({
+    version: 1,
+    identity: STEWARD,
+    fragment: null,
+    source: 'record',
+    digest: inspected.records[0]!.digest,
+    body: STEWARD_SAYS,
+  });
+
+  // A cell, a requirement and a source line each read their own text; structure stays in ia inspect.
+  const procedure = 'governance-system/definition/procedure/sample-procedure';
+  expect((await run(['read', `${procedure}#orient/Decision`, '--root', root])).stdout).toBe(
+    'Sample fixture statement 6.\n',
+  );
+  expect(
+    JSON.parse((await run(['read', `${procedure}#orient/Decision`, '--root', root, '--json'])).stdout),
+  ).toMatchObject({ identity: procedure, fragment: 'orient/Decision' });
+  expect(
+    (await run(['read', 'compliance-system/contract/signature/foundation-authoring-contract#REQ-FOUNDATION-INPUT', '--root', root]))
+      .stdout,
+  ).toBe('Supply the intended owner, complete native registry closure and authored record source.\n');
+  expect((await run(['read', `${STEWARD_COPY}:5`, '--root', root])).stdout).toBe(`${STEWARD_SAYS}\n`);
+
+  // Every refusal names one next command, in both forms.
+  const refused: readonly (readonly [readonly string[], string, number, string])[] = [
+    [['read', 'Not/An/Identity/X'], 'IA-RUNTIME-REQUEST-INVALID', 2, '"ia read --help"'],
+    [['read', `${procedure}#orient`], 'IA-RUNTIME-REQUEST-INVALID', 2, '"ia read --help"'],
+    [['read'], 'IA-CLI-USAGE', 2, '"ia read --help"'],
+    [['read', 'no-such/definition/procedure/record'], 'IA-DB-SOURCE-UNAVAILABLE', 1, '"ia inspect"'],
+    [['read', `${procedure}#REQ-NOT-HERE`], 'IA-DB-SOURCE-UNAVAILABLE', 1, `"ia inspect ${procedure}"`],
+    [['read', 'floor/contract/head/agent'], 'IA-DB-SOURCE-UNAVAILABLE', 1, '"ia inspect floor/contract/head/agent"'],
+    [['read', `${STEWARD_COPY}:1`], 'IA-DB-SOURCE-UNAVAILABLE', 1, `"ia inspect --path ${STEWARD_COPY}"`],
+  ];
+  for (const [argv, code, exit, next] of refused) {
+    const label = argv.join(' ');
+    const machine = await run([...argv, '--root', root, '--json']);
+    expect(machine.exitCode, label).toBe(exit);
+    expect(machine.stderr, label).toBe('');
+    const body = JSON.parse(machine.stdout) as { ok: boolean; code: string; next: string };
+    expect(body, label).toMatchObject({ ok: false, code });
+    expect(body.next, label).toContain(next);
+    const human = await run([...argv, '--root', root]);
+    expect(human.exitCode, label).toBe(exit);
+    expect(human.stdout, label).toBe('');
+    expect(human.stderr, label).toContain(code);
+    expect(human.stderr, label).toContain(next);
+  }
+  // An unreadable root is the open's own refusal, and it too names a next command.
+  const absent = await run(['read', STEWARD, '--root', scratch('no-read-root'), '--json']);
+  expect(absent.exitCode).toBe(3);
+  expect((JSON.parse(absent.stdout) as { next: string }).next.trim()).not.toBe('');
+});
+
 it("keeps every new verb's --json stdout one parseable value with no ANSI, in success and in refusal", async () => {
   const root = workspace();
   const empty = scratch('json');
@@ -636,6 +712,8 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
     { argv: ['capture', '--root', root, '--json'], refusal: false },
     { argv: ['capture', '--root', root, '--preview', '--json'], refusal: false },
     { argv: ['capture', '--root', empty, '--json'], refusal: true },
+    { argv: ['read', 'governance-system/definition/procedure/sample-procedure', '--root', root, '--json'], refusal: false },
+    { argv: ['read', 'no-such/definition/procedure/record', '--root', root, '--json'], refusal: true },
     { argv: ['doctor', '--json'], refusal: false },
     { argv: ['pack', '--root', root, '--descriptor', '.ia/work/absent.json', '--json'], refusal: true },
     { argv: ['install', 'a/b', '--root', root, '--offline', '--json'], refusal: true },

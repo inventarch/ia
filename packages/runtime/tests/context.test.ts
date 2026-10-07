@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { context, DEFAULT_TOKENIZER } from '../src/index.js';
+import { context, DEFAULT_TOKENIZER, parseLocator, readBody, RuntimeError } from '../src/index.js';
 import type { ContextResult, Packet } from '../src/index.js';
 import { database, lawId, lawPath, methodId, methodPath, playbook, put, workspace } from './workspace.js';
 
@@ -418,4 +418,121 @@ it('finds an exact minimum-count blocking reduction for both token and identity 
     ok: false,
     reduction: [prefix + 'large', prefix + 'medium'],
   });
+});
+it('parses each locator form: identity, identity#phase/primitive, identity#REQ and path:line', () => {
+  const id = 'agent-system/binding/agent/public-agent-system-steward';
+  expect(parseLocator(id)).toEqual({ kind: 'identity', identity: id });
+  expect(parseLocator('x/binding/agent/y#orient/Decision')).toEqual({
+    kind: 'cell',
+    identity: 'x/binding/agent/y',
+    phase: 'orient',
+    primitive: 'Decision',
+  });
+  expect(parseLocator(`${id}#REQ-FOUNDATION-INPUT`)).toEqual({
+    kind: 'requirement',
+    identity: id,
+    id: 'REQ-FOUNDATION-INPUT',
+  });
+  expect(parseLocator('.ia/src/systems/agent-system/system.ia:33')).toEqual({
+    kind: 'line',
+    path: '.ia/src/systems/agent-system/system.ia',
+    line: 33,
+  });
+  // A path keeps the portable spelling the database records sources in.
+  expect(parseLocator('.\\.ia\\src\\a.ia:2')).toEqual({ kind: 'line', path: '.ia/src/a.ia', line: 2 });
+  for (const text of [
+    '',
+    'sample-procedure',
+    'Not/An/Identity/X',
+    'a/b/c',
+    'a/b/c/d/e',
+    `${id}#`,
+    `${id}#orient`,
+    `${id}#orient/Nothing`,
+    `${id}#nowhere/Decision`,
+    `${id}#orient/Decision/extra`,
+    `${id}#req-lowercase`,
+    'file.ia:0',
+    'file.ia:-1',
+    'file.ia:x',
+    ':4',
+  ]) {
+    expect(() => parseLocator(text), JSON.stringify(text)).toThrow(RuntimeError);
+    expect(() => parseLocator(text), JSON.stringify(text)).toThrow('IA-RUNTIME-REQUEST-INVALID');
+  }
+});
+it('reads only the body behind a locator, with the per-record digest, scoped by the read token', () => {
+  const root = workspace();
+  put(
+    root,
+    '.ia/src/pair.ia',
+    playbook('first') +
+      '\n' +
+      playbook('second', '', '    learn\n      primary Learning\n      Learning means "Later"\n').replace('#! ia 1.0\n', ''),
+  );
+  const db = database(root),
+    records = db.records(),
+    method = records.find((n) => n.identity === methodId)!,
+    contract = records.find((n) => n.name === 'foundation-authoring-contract')!,
+    system = records.find((n) => n.identity === 'floor/definition/system/agent-system')!,
+    schema = records.find((n) => n.discriminator === 'schema')!;
+  // Every admitted identity is a locator, so a read never needs a second address form.
+  for (const node of records) expect(parseLocator(node.identity)).toEqual({ kind: 'identity', identity: node.identity });
+
+  expect(readBody(db, parseLocator(methodId))).toEqual({
+    identity: methodId,
+    fragment: null,
+    body: 'Sample fixture statement 1.',
+    digest: method.digest,
+    source: 'record',
+  });
+  const cell = method.cells.find((c) => c.phase === 'orient' && c.primitive === 'Decision')!;
+  expect(readBody(db, parseLocator(`${methodId}#orient/Decision`))).toEqual({
+    identity: methodId,
+    fragment: 'orient/Decision',
+    body: cell.text,
+    digest: method.digest,
+    source: 'record',
+  });
+  expect(readBody(db, parseLocator(`${contract.identity}#REQ-FOUNDATION-INPUT`))).toMatchObject({
+    identity: contract.identity,
+    fragment: 'REQ-FOUNDATION-INPUT',
+    body: 'Supply the intended owner, complete native registry closure and authored record source.',
+    digest: contract.digest,
+  });
+  // A @system says nothing in a meaning section; its body is the head's describes.
+  expect(readBody(db, parseLocator(system.identity)).body).toBe('Public agent-system vocabulary contracts');
+
+  // path:line names the innermost record whose source lines hold it, then reads it as its identity would.
+  expect(readBody(db, parseLocator(`${methodPath}:${method.source.line}`))).toMatchObject({
+    identity: methodId,
+    fragment: null,
+    body: 'Sample fixture statement 1.',
+  });
+  const second = records.find((n) => n.identity === 'governance-system/definition/procedure/second')!;
+  expect(readBody(db, parseLocator(`.ia/src/pair.ia:${second.source.endLine}`))).toMatchObject({
+    identity: second.identity,
+    body: 'Fixture procedure second',
+  });
+
+  // Nothing to read is a database refusal that names what was asked for, never an empty body.
+  expect(() => readBody(db, parseLocator(`${methodId}#REQ-NOT-HERE`))).toThrow('IA-DB-SOURCE-UNAVAILABLE');
+  expect(() => readBody(db, parseLocator(`${methodId}#REQ-NOT-HERE`))).toThrow('REQ-NOT-HERE');
+  expect(() => readBody(db, parseLocator('governance-system/definition/procedure/second#orient/Memory'))).toThrow(
+    'IA-DB-SOURCE-UNAVAILABLE',
+  );
+  expect(() => readBody(db, parseLocator('no-such/definition/procedure/record'))).toThrow('IA-DB-SOURCE-UNAVAILABLE');
+  expect(() => readBody(db, parseLocator(`${methodPath}:1`))).toThrow('IA-DB-SOURCE-UNAVAILABLE');
+  expect(() => readBody(db, parseLocator('.ia/src/absent.ia:3'))).toThrow('IA-DB-SOURCE-UNAVAILABLE');
+  // A @schema carries neither says nor describes: its structure is inspected, not read.
+  expect(() => readBody(db, parseLocator(schema.identity))).toThrow('IA-DB-SOURCE-UNAVAILABLE');
+
+  // The read goes through the supplied token: outside its scope is refused, not read unscoped.
+  const within = db.resolveScope({ identities: [methodId] }).token;
+  expect(readBody(db, parseLocator(methodId), { within }).body).toBe('Sample fixture statement 1.');
+  expect(() => readBody(db, parseLocator(contract.identity), { within })).toThrow('IA-DB-OUT-OF-SCOPE');
+  expect(() => readBody(db, parseLocator(`.ia/src/pair.ia:${second.source.line}`), { within })).toThrow(
+    'IA-DB-SOURCE-UNAVAILABLE',
+  );
+  expect(Object.isFrozen(readBody(db, parseLocator(methodId)))).toBe(true);
 });
