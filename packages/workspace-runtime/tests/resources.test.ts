@@ -9,6 +9,7 @@ import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
 import { digest } from '@inventarch/session-system';
 import { adoptWorkspace, captureWorkspace } from '../src/index.js';
+import { decodeJson } from '../src/resource-format.js';
 import type { Capture } from '../src/index.js';
 import {
   captureResources,
@@ -532,4 +533,30 @@ it('accepts a maximum-size escaped text file and refuses aggregate overflow befo
   expect(() => captureResources(capture, { roots: [request.roots[0]!], files, associations })).toThrow(
     /oversized resource file selection/,
   );
+});
+
+describe('decodeJson objects', () => {
+  it('returns members as own properties in input order on a null prototype', () => {
+    const decoded = decodeJson('{"b":1,"a":{"c":[true,null]},"z":"x"}') as Record<string, unknown>;
+    expect(Object.getPrototypeOf(decoded)).toBeNull();
+    expect(Object.keys(decoded)).toEqual(['b', 'a', 'z']);
+    expect(Object.getPrototypeOf(decoded['a'])).toBeNull();
+    expect(JSON.stringify(decoded)).toBe('{"b":1,"a":{"c":[true,null]},"z":"x"}');
+    expect(Object.keys(decodeJson('{}') as object)).toEqual([]);
+    expect(Object.getPrototypeOf(decodeJson('{}'))).toBeNull();
+    expect(Object.getPrototypeOf((decodeJson('{"a":{}}') as Record<string, unknown>)['a'])).toBeNull();
+    // Array-index keys come first, ascending, as for any object; the old construction ordered them the same way.
+    expect(Object.keys(decodeJson('{"b":1,"1":2,"0":3}') as object)).toEqual(['0', '1', 'b']);
+  });
+  it('keeps a __proto__ or constructor key an ordinary own property, never a prototype, and refuses duplicates', () => {
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      const decoded = decodeJson(`{"ok":1,"${key}":{"polluted":true}}`) as Record<string, unknown>;
+      expect(Object.getPrototypeOf(decoded)).toBeNull();
+      expect(Object.keys(decoded)).toEqual(['ok', key]);
+      expect(Object.getOwnPropertyDescriptor(decoded, key)?.value).toEqual({ polluted: true });
+    }
+    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+    expect(() => decodeJson('{"a":1,"a":2}')).toThrow('Duplicate resource JSON key');
+    expect(() => decodeJson('{"__proto__":1,"__proto__":2}')).toThrow('Duplicate resource JSON key');
+  });
 });

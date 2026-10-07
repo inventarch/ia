@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { closeSync, constants, fstatSync, openSync, readdirSync, readSync } from 'node:fs';
 import { dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -15,6 +15,39 @@ const INVENTORY_DEPTH = 16,
   PACKAGE_BYTES = 32 * 1024 * 1024;
 function refuse(message: string): never {
   throw new SessionError('IA-CORPUS-DENIED', message);
+}
+/** Open errors that mean the entry stopped being a regular file after the directory was read. */
+const SWAPPED_ENTRY = new Set(['ELOOP', 'EMLINK', 'ENXIO', 'EOPNOTSUPP']);
+/**
+ * Opens a code file once and reads it through that descriptor, so the file checked is the file read: never through a
+ * link where the host can refuse one, never blocking on a FIFO, and never past `limit` bytes even if it grows. An entry
+ * swapped for a link, socket or device after the directory was read is refused like any nonregular file.
+ */
+function readCodeFile(path: string, limit: number): Buffer {
+  let fd: number;
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    if (SWAPPED_ENTRY.has((error as NodeJS.ErrnoException).code ?? ''))
+      refuse('Installed implementation has a nonregular file');
+    throw error;
+  }
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) refuse('Installed implementation has a nonregular file');
+    if (stat.size > limit) refuse('Installed implementation bytes exceed their bound');
+    const bytes = Buffer.alloc(stat.size + 1);
+    let length = 0;
+    for (;;) {
+      const read = readSync(fd, bytes, length, bytes.length - length, null);
+      if (read === 0) break;
+      length += read;
+      if (length > stat.size) refuse('Installed implementation changed while it was read');
+    }
+    return bytes.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
 }
 /** Node host helper over fixed installed package entrypoints, never record- or model-supplied paths.
  * An upper package pins its own installed entrypoint through `additional`, taken from its own module URL.
@@ -52,14 +85,15 @@ export function installedImplementationDigest(additional: readonly InstalledImpl
           !child.name.endsWith('.d.ts') &&
           !(child.isFile() && platformDebris(child.name))
         ) {
-          const stat = lstatSync(path);
-          if (!stat.isFile()) refuse('Installed implementation has a nonregular file');
-          if (stat.size > FILE_BYTES || (total += stat.size) > PACKAGE_BYTES)
-            refuse('Installed implementation bytes exceed their bound');
+          // A FIFO, socket or device present when the directory was read is refused without ever being opened.
+          if (!child.isFile()) refuse('Installed implementation has a nonregular file');
+          // The file and package bounds are both judged from the open descriptor's size before any byte is read.
+          const bytes = readCodeFile(path, Math.min(FILE_BYTES, PACKAGE_BYTES - total));
+          total += bytes.length;
           files.push({
             package: name,
             path: relative(root, path).replaceAll('\\', '/'),
-            digest: createHash('sha256').update(readFileSync(path)).digest('hex'),
+            digest: createHash('sha256').update(bytes).digest('hex'),
           });
         }
       }
