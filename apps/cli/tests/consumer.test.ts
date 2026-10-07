@@ -401,6 +401,7 @@ it('labels derived rows of the directed view on the inbound side of inspect', as
   expect(Object.keys(both)).toEqual(['version', 'root', 'revision', 'records', 'edges', 'referencedBy', 'view']);
   expect(both.view.filter((row: { derived: boolean }) => row.derived).length).toBeGreaterThan(0);
   expect(both.view).toContainEqual({
+    identity: check,
     predicate: 'enforce',
     direction: 'out',
     spelling: 'enforce',
@@ -437,6 +438,27 @@ it('labels derived rows of the directed view on the inbound side of inspect', as
   const outward = (await run(['inspect', check, '--root', fixture])).stdout;
   expect(outward).toContain('Edges');
   expect(outward).not.toContain('Derived inverses');
+});
+
+it('attributes every directed view row to the selected record it belongs to', async () => {
+  // A file holding many records selects them all; each view row names the one whose view it is.
+  const path = '.ia/src/floor/kernel.schema.ia';
+  const file = JSON.parse(
+    (await run(['inspect', '--path', path, '--root', fixture, '--edges', 'both', '--json'])).stdout,
+  );
+  const selected: string[] = file.records.map((record: { identity: string }) => record.identity);
+  expect(selected.length).toBeGreaterThan(1);
+  expect(file.view.length).toBeGreaterThan(0);
+  for (const row of file.view) expect(selected, JSON.stringify(row)).toContain(row.identity);
+  // The rows of each record are exactly what inspecting that record alone reports, in the same order.
+  for (const identity of selected) {
+    const alone = JSON.parse((await run(['inspect', identity, '--root', fixture, '--edges', 'both', '--json'])).stdout);
+    expect(
+      file.view.filter((row: { identity: string }) => row.identity === identity),
+      identity,
+    ).toEqual(alone.view);
+    for (const row of alone.view) expect(row.identity).toBe(identity);
+  }
 });
 
 it('keeps --json a single parseable value with no ANSI, and resolves colour by §6.7 precedence', async () => {
