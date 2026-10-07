@@ -1,5 +1,5 @@
 import { REQUIREMENT_KINDS } from '@inventarch/language';
-import type { CompiledChild, CompiledValue, Variant } from '@inventarch/language';
+import type { CompiledChild, CompiledField, CompiledValue, Variant } from '@inventarch/language';
 import { conditionHolds } from '@inventarch/graph';
 import type { Coordinate, Node } from '@inventarch/graph';
 import type { Clause } from './types.js';
@@ -37,6 +37,19 @@ export function purposeOf(node: Node): string | undefined {
     .flatMap((s) => s.fields)
     .filter((f) => 'key' in f && (f.key === 'says' || f.key === 'answers'));
   return fields.length === 0 ? undefined : childrenText(fields);
+}
+/**
+ * The record's own body (`ia read`, position-and-projection row 23): the part of what recordText renders that the record
+ * states rather than structures, its `meaning.says`. A `@system`, which has no meaning section, states its head
+ * `describes`; a record that states neither (a `@schema`) has an empty body.
+ */
+export function bodyOf(node: Node): string {
+  const says = node.sections
+    .filter((s) => s.name === 'meaning')
+    .flatMap((s) => s.fields)
+    .filter((f): f is CompiledField => 'key' in f && f.key === 'says');
+  const stated = says.length > 0 ? says : node.head.filter((f) => f.key === 'describes');
+  return stated.map((f) => valueText(f.value)).join('\n');
 }
 export function clausesOf(node: Node, selected: ReadonlyMap<string, Variant>): readonly Clause[] {
   return [...selected.values()].map((variant) => {

@@ -1,8 +1,8 @@
 export { DB_CODES, DbError } from './errors.js';
 export type { DbCode } from './errors.js';
-export { readInputs, systemMember } from './inputs.js';
+export { adoptedBindings, readInputs, systemMember } from './inputs.js';
 export { caseFold, linked, pathKey, sameFile, unaliased, within } from './paths.js';
-export type { AdoptedSource, FloorSource, InputOptions, InputSnapshot } from './inputs.js';
+export type { AdoptedBinding, AdoptedSource, FloorSource, InputOptions, InputSnapshot } from './inputs.js';
 export { open, Handle } from './handle.js';
 export type {
   OpenOptions,
@@ -13,6 +13,7 @@ export type {
   Scope,
   ScopeRequest,
 } from './handle.js';
+export { sourceTree } from './membership.js';
 export type { MembershipRow } from './membership.js';
 export type { Readiness, Staleness } from './retention.js';
 export type { SeatResolution } from './seat.js';

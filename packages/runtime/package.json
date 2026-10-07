@@ -102,6 +102,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./internal/locator": {
+      "types": "./dist/locator.d.ts",
+      "default": "./dist/locator.js"
+    },
     "./internal/machine-protocol": {
       "types": "./dist/machine-protocol.d.ts",
       "default": "./dist/machine-protocol.js"
@@ -255,6 +259,10 @@
       "./internal/index": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./internal/locator": {
+        "types": "./dist/locator.d.ts",
+        "default": "./dist/locator.js"
       },
       "./internal/machine-protocol": {
         "types": "./dist/machine-protocol.d.ts",

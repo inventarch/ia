@@ -440,6 +440,30 @@ function invocations(): readonly {
       argv: ['inspect', 'Not/An/Identity/X', '--root', FIXTURE],
       command: `ia inspect --root ${root}`,
     },
+    { code: 'IA-CLI-USAGE', argv: ['read', 'Not/An/Identity', '--root', FIXTURE], command: 'ia read --help' },
+    // A read whose locator no admitted record answers names the overview, unless it is a line of a workspace source:
+    // a refused source names the validation, an admitted one the inspection of its records. One whose fragment is
+    // missing names the record.
+    {
+      code: 'IA-RUNTIME-READ-UNADMITTED',
+      argv: ['read', 'agent-system/binding/agent/absent', '--root', FIXTURE],
+      command: `ia inspect --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-READ-UNADMITTED',
+      argv: ['read', '.ia/src/systems/agent-system/records/foreign.ia:3', '--root', FIXTURE],
+      command: `ia validate --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-READ-UNADMITTED',
+      argv: ['read', '.ia/src/systems/agent-system/steward.ia:1', '--root', FIXTURE],
+      command: `ia inspect --path .ia/src/systems/agent-system/steward.ia --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-READ-FRAGMENT',
+      argv: ['read', 'agent-system/binding/agent/agent-steward#REQ-ABSENT', '--root', FIXTURE],
+      command: `ia inspect agent-system/binding/agent/agent-steward --root ${root}`,
+    },
     {
       code: 'IA-CLI-USAGE',
       argv: ['vocabulary', 'playbok', '--schema'],

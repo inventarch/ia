@@ -270,6 +270,7 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     ['inspect', '--root', root, '--json'],
     ['format', '--root', root, '--json'],
     ['capture', '--root', root, '--json'],
+    ['read', 'agent-system/binding/agent/agent-steward', '--root', root, '--json'],
     ['doctor', '--root', root, '--json'],
     ['install', 'fixture/foundation', '--root', root, '--offline', '--json'],
   ];

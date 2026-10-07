@@ -40,7 +40,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all fourteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Applies to all fifteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -208,6 +208,27 @@ export const COMMANDS: readonly CommandSpec[] = [
         }),
       ],
       positionals('identity', 0, 1),
+    ),
+  },
+  {
+    // Position-and-projection §5 and design row 23: the body reader. A body is never structure, which stays in
+    // `ia inspect`, and never a certification.
+    name: 'read',
+    group: 'workspace',
+    summary: 'Print the body behind a locator, with its digest',
+    syntax: [
+      'ia read <identity>[#<phase>/<Primitive> | #<REQ-ID>] [--include-runtime] [--json]',
+      'ia read <path>:<line> [--include-runtime] [--json]',
+    ],
+    grammar: grammar(
+      [
+        option({
+          name: 'include-runtime',
+          kind: 'boolean',
+          summary: 'Also read a record at runtime placement (band 0)',
+        }),
+      ],
+      positionals('locator', 1, 1),
     ),
   },
   {

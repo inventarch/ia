@@ -20,8 +20,12 @@ export interface DeclaredRoot {
   /** The identity of the declaring @workspace: the seat of a path under the root (D02b). */
   readonly workspace: string;
 }
-/** The directory holding the `.ia/src` tree a source was captured from: '' for the repository's own tree. */
-function treeOf(path: string): string {
+/**
+ * D02a: the directory above the `.ia/src` tree a source was captured from, '' for the repository's own tree. An
+ * installed package's is its store directory; an adopted mount's is the `.ia/adopted/<id>/<revision>` label its sources
+ * carry, which is no directory (`adoptedBindings` names the directory bound to it).
+ */
+export function sourceTree(path: string): string {
   const at = path.indexOf('/.ia/src/');
   return path.startsWith('.ia/src/') || at < 0 ? '' : path.slice(0, at);
 }
@@ -52,7 +56,7 @@ export function declaredRoots(graph: Graph): readonly DeclaredRoot[] {
             }
             return [
               {
-                root: [treeOf(node.source.path), relative].filter(Boolean).join('/'),
+                root: [sourceTree(node.source.path), relative].filter(Boolean).join('/'),
                 placement,
                 workspace: node.identity,
               },
