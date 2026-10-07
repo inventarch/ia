@@ -375,7 +375,7 @@ function linesOf(
   const warnings = read.handle.report.findings.filter(
       (finding) => (finding as { identity?: string }).identity === node.identity,
     ).length,
-    accepted = `admitted against ${node.schema}${warnings === 0 ? '' : `; ${warnings} finding${warnings === 1 ? '' : 's'} name it`}`;
+    accepted = `admitted against ${node.schema}${warnings === 0 ? '' : `; ${warnings} ${warnings === 1 ? 'finding names' : 'findings name'} it`}`;
   const previous = read.previous,
     held = previous?.digests.get(node.identity);
   const admitted: Omit<StateValue, 'line'> =
