@@ -54,12 +54,36 @@ export function selectionProblem(selection: string): string | undefined {
   return undefined;
 }
 
-const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const segmentPattern = (segment: string): RegExp => new RegExp(`^${segment.split('*').map(escape).join('[^/]*')}$`);
+/**
+ * Whether one path segment matches one selection segment, where `*` matches any run of characters (none included) and
+ * every other character is literal. Greedy two-pointer matching that returns to the last `*` on a mismatch: at most
+ * O(pattern × text) steps, never the exponential backtracking a compiled `[^/]*` expression can take.
+ */
+function segmentMatches(pattern: string, text: string): boolean {
+  let p = 0,
+    t = 0,
+    star = -1,
+    resume = 0;
+  while (t < text.length) {
+    if (p < pattern.length && pattern[p] === '*') {
+      star = p++;
+      resume = t;
+    } else if (p < pattern.length && pattern[p] === text[t]) {
+      p++;
+      t++;
+    } else if (star !== -1) {
+      p = star + 1;
+      t = ++resume;
+    } else return false;
+  }
+  while (p < pattern.length && pattern[p] === '*') p++;
+  return p === pattern.length;
+}
 
 /**
  * Whether the workspace-relative `path` lies in `selection` (G15). Both are POSIX paths compared case-sensitively;
  * `path` is canonicalized like a scope root. An invalid selection or a path outside the workspace is a usage error.
+ * Matching is a table over (selection segment, path segment) pairs, so `**` costs O(selection × path segments).
  */
 export function matchesSelection(path: string, selection: string): boolean {
   const problem = selectionProblem(selection);
@@ -68,20 +92,24 @@ export function matchesSelection(path: string, selection: string): boolean {
   const target = canonicalRoot(path),
     parts = target === '' ? [] : target.split('/');
   const pattern = selection.endsWith('/') ? [...selection.slice(0, -1).split('/'), '**'] : selection.split('/');
-  const matchers = pattern.map((segment) => (segment === '**' ? null : segmentPattern(segment)));
-  const memo = new Map<string, boolean>();
-  const match = (p: number, s: number): boolean => {
-    const key = `${p}:${s}`,
-      known = memo.get(key);
-    if (known !== undefined) return known;
-    let result: boolean;
-    if (p === matchers.length) result = s === parts.length;
-    else if (matchers[p] === null) result = match(p + 1, s) || (s < parts.length && match(p, s + 1));
-    else result = s < parts.length && matchers[p]!.test(parts[s]!) && match(p + 1, s + 1);
-    memo.set(key, result);
-    return result;
-  };
-  return match(0, 0);
+  // after[s]: whether the selection segments after the current one match parts[s..]; filled from the last segment back.
+  let after = new Uint8Array(parts.length + 1);
+  after[parts.length] = 1;
+  for (let p = pattern.length - 1; p >= 0; p--) {
+    const segment = pattern[p]!,
+      here = new Uint8Array(parts.length + 1);
+    for (let s = parts.length; s >= 0; s--)
+      here[s] =
+        segment === '**'
+          ? after[s] === 1 || (s < parts.length && here[s + 1] === 1)
+            ? 1
+            : 0
+          : s < parts.length && after[s + 1] === 1 && segmentMatches(segment, parts[s]!)
+            ? 1
+            : 0;
+    after = here;
+  }
+  return after[0] === 1;
 }
 
 const texts = (value: CompiledValue): string[] =>
