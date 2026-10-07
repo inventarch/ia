@@ -1,7 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import type { EdgeReference, Phase } from '@inventarch/language';
-import { canonicalRoot, reaches, resolve, search, stableSerialize, traverse } from '@inventarch/graph';
-import type { FieldReference, Node, Resolution, SearchHit, Traversal, TraverseOptions } from '@inventarch/graph';
+import { canonicalRoot, directedView, reaches, resolve, search, stableSerialize, traverse } from '@inventarch/graph';
+import type {
+  DirectedRow,
+  FieldReference,
+  Node,
+  Resolution,
+  SearchHit,
+  Traversal,
+  TraverseOptions,
+} from '@inventarch/graph';
 import type { Report } from '@inventarch/compliance';
 import { publishCache } from './cache.js';
 import type { CacheObservation, CacheStatus } from './cache.js';
@@ -341,6 +349,15 @@ export class Reader {
         (reference) => allowed === undefined || allowed.has(reference.from),
       ),
     );
+  }
+  /**
+   * Graph G06b directed view of `identity`: its declared edge rows, the derived inverses of its counterparts' declarations
+   * and its typed field references both ways, rows whose counterpart is outside the scope pruned (D09).
+   */
+  directedView(identity: string, options: ReadOptions = {}): readonly DirectedRow[] {
+    const { view, allowed } = this.#admit(identity, options);
+    const rows = directedView(view.graph, identity);
+    return allowed === undefined ? rows : Object.freeze(rows.filter((row) => allowed.has(row.counterpart)));
   }
   search(text: string, options: ReadOptions = {}): readonly SearchHit[] {
     const { view, allowed } = this.#select(options);

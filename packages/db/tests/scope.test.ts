@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { DirectedEdgeRow } from '@inventarch/graph';
 import type { Location } from '@inventarch/language';
 import { expect, it } from 'vitest';
 import { open } from '../src/index.js';
@@ -51,6 +52,42 @@ it('reads typed field references by target and prunes holders outside the scope'
   expect(db.referencedBy(methodId, { within: alone.token })).toEqual([]);
   expect(() => db.referencedBy(all[0]!.from, { within: alone.token })).toThrow(code('OUT-OF-SCOPE'));
 });
+it('reads the graph directed view and prunes rows whose counterpart is outside the scope', () => {
+  const db = open(workspace(), { cache: false }),
+    all = db.directedView(methodId);
+  const declared = all.find((row): row is DirectedEdgeRow => row.kind === 'edge')!;
+  // The counterpart's view reads the same assertion as a derived inverse declared on this record.
+  expect(db.directedView(declared.counterpart)).toContainEqual(
+    expect.objectContaining({
+      kind: 'inverse',
+      derived: true,
+      predicate: declared.predicate,
+      counterpart: methodId,
+      declaredOn: methodId,
+    }),
+  );
+  // Its inbound field-ref rows are referencedBy's references, read from the target's side.
+  expect(
+    all
+      .filter((row) => row.kind === 'field-ref' && row.direction === 'in')
+      .map((row) => row.counterpart)
+      .sort(),
+  ).toEqual(
+    db
+      .referencedBy(methodId)
+      .map((reference) => reference.from)
+      .sort(),
+  );
+  const counterpart = declared.counterpart,
+    pair = db.resolveScope({ identities: [methodId, counterpart] }),
+    alone = db.resolveScope({ identities: [methodId] });
+  expect(db.directedView(methodId, { within: pair.token })).toEqual(
+    all.filter((row) => row.counterpart === counterpart),
+  );
+  expect(db.directedView(methodId, { within: alone.token })).toEqual([]);
+  expect(() => db.directedView(counterpart, { within: alone.token })).toThrow(code('OUT-OF-SCOPE'));
+  expect(db.directedView('governance-system/definition/procedure/absent')).toEqual([]);
+});
 it('checks explicit root, phase and revision assertions and refuses wider child roots', () => {
   const db = open(workspace(false), { cache: false }),
     scope = db.resolveScope({ root: 'team', phase: 'act' });
@@ -72,6 +109,7 @@ it('checks unknown, foreign and closed tokens on every scoped read', () => {
       () => db.records({ within }),
       () => db.get(methodId, { within }),
       () => db.referencedBy(methodId, { within }),
+      () => db.directedView(methodId, { within }),
       () => db.resolve({ kind: 'identity', identity: methodId }, { within }),
       () => db.search('fixture', { within }),
       () => db.traverse({ start: [methodId], within }),

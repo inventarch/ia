@@ -25,6 +25,8 @@ export type {
 } from './types.js';
 export { cell, conditionHolds, effectiveSeverity, selectors, variants } from './queries.js';
 export type { SelectorMatch, VariantSelection } from './queries.js';
+export { directedView } from './directed.js';
+export type { DirectedEdgeRow, DirectedFieldRow, DirectedRow } from './directed.js';
 export { traverse } from './traverse.js';
 export type { Traversal, TraverseOptions, Via, WalkNode } from './traverse.js';
 export { fold, tokenize, search } from './text.js';

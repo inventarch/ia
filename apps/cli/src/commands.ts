@@ -187,7 +187,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'edges',
           kind: 'value',
           values: ['in', 'out', 'both'],
-          summary: 'Edge direction (default out); in and both also list typed field references',
+          summary: 'Edge and typed field reference direction (default out)',
         }),
         option({
           name: 'depth',
