@@ -197,3 +197,29 @@ it('refuses a store path whose last segment is only dots on every platform, befo
   expect(writeCaptured(root, '.ia/work/a..b', snapshot)).toEqual({ rotated: false, written: true });
   expect(readCaptured(root, '.ia/work/a..b').current).toEqual(snapshot);
 });
+
+it('refuses any store path segment that Windows would rename, before anything is written', () => {
+  const root = workspace(false),
+    snapshot = captureOf(open(root, { cache: false }));
+  // Windows drops trailing dots and spaces from every path segment, so each of these would name another directory there.
+  for (const dir of [
+    '.ia/work/.../x',
+    '.ia/work/x/.../y',
+    '.ia/work/x./y',
+    '.ia/work/x.',
+    '.ia/work/x /y',
+    '.ia/work/x ',
+    '.ia/work/x. /y',
+  ]) {
+    expect(() => writeCaptured(root, dir, snapshot), JSON.stringify(dir)).toThrow(
+      expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }),
+    );
+    expect(() => readCaptured(root, dir), JSON.stringify(dir)).toThrow(
+      expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }),
+    );
+  }
+  expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
+  // Inner dots and spaces stay ordinary names.
+  expect(writeCaptured(root, '.ia/work/.x/a b/c.d', snapshot)).toEqual({ rotated: false, written: true });
+  expect(readCaptured(root, '.ia/work/.x/a b/c.d').current).toEqual(snapshot);
+});
