@@ -1826,6 +1826,7 @@
       "kind": "vitest",
       "project": "packages/runtime",
       "files": [
+        "tests/applies.test.ts",
         "tests/authoring.test.ts",
         "tests/body.test.ts",
         "tests/composition.test.ts",
