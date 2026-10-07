@@ -1,0 +1,24 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "ia capture writes the admitted snapshot; ia compile becomes its deprecated alias",
+  "summary": "The new ia capture [--json] command admits the workspace and writes its snapshot to .ia/work/snapshot/current.json in the ia-snapshot-1 format: one JSON document with sorted keys holding format, language, kernelDigest, revision, the admitted records sorted by identity with their per-record digest, one {identity, root, band, digest} capture membership row per record, the admission diagnostics ordered by path, line, code and message, and their counts. .ia/work/snapshot/previous.json holds the most recent capture whose revision differs from the current one: a capture at a new revision first moves the prior current.json there byte for byte, even when no record's digest changed, and a capture at an unchanged revision keeps previous.json as it is while it holds a capture at another revision. With no prior capture (the first one, or a current.json that is not an ia-snapshot-1 capture, which the capture names and replaces), or a previous.json that holds no capture at another revision, no previous capture is retained and that previous.json is removed. Each file is replaced through a temporary file and a rename, a current.json that already holds the capture's bytes is not rewritten, and only .ia/work/snapshot/ is written; .ia/src is never touched, and ia init adds no ignore rule for .ia/work/. The report gives the revision, the record count and how each record's digest compares with the prior capture's current.json, as changed, unchanged, new and removed, so two captures with no edit between them report 0 changed and a first capture reports every record new. With --json the report is {version, snapshot, format, revision, digest, records, changed, unchanged, new, removed, prior, ignored, previous, rotated, admission}: it adds the snapshot's path and SHA-256, the prior revision it compared with, why an existing current.json was not taken as a capture, the retained previous capture, whether this capture rotated it, and admission as {status, errors, warnings, notEvaluated}. Admission findings never stop the write: a workspace with errors is still captured, and the command exits 1. A link on the snapshot path, or a snapshot file the capture reads that is not a regular file, refuses with IA-DIST-PATH-UNSAFE (exit 3) before anything is written and names ia capture for that root. Concurrent captures of one root are last-writer-wins, there is no --preview, and no other command reads the snapshot files yet. ia compile is now a deprecated alias of ia capture, to be removed in 3.0, and runs the capture. Its stdout is now ia capture's report, human or --json: with --json it prints the capture report above instead of {version, artifact, revision, digest, counts}, so the written path is at snapshot and the error count at admission.errors. Its exit codes stay 0, or 1 when admission has errors. Whenever it runs the capture it prints one deprecation line on stderr, also with --json; a refusal, its own or one the capture raises, prints only the refusal. It no longer writes .ia/work/compiled.json, so a second run no longer refuses with IA-DIST-LOCAL-MODIFICATION; --force is accepted and changes nothing, and --out <file> and --stdout, alone or together, now refuse with IA-CLI-USAGE (exit 2) and name the ia capture command to run instead. For code that imports @inventarch/cli/internal/compile: buildArtifact, collectCompile, compileExit, compileEnvelope and renderCompile still build the ia.compiled.v1 artifact unchanged, and runCompile now runs the alias.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    "CLAUDE.md",
+    "README.md",
+    "apps/cli/",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

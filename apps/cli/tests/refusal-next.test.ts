@@ -403,7 +403,7 @@ function invocations(): readonly {
     bare = resolve(scratch('refusal-bare'), 'workspace'),
     file = resolve(empty, 'file.txt'),
     absent = resolve(empty, 'absent'),
-    compiled = workspace(),
+    snapshotLinked = workspace(),
     refused = workspace({ foreign: true }),
     linked = workspace(),
     undecodable = workspace();
@@ -417,6 +417,9 @@ function invocations(): readonly {
   // the db refuses to read.
   writeFileSync(resolve(linked, '.ia/release.json'), '{}\n');
   symlinkSync(scratch('refusal-link-target'), resolve(linked, '.ia/src/linked'), 'junction');
+  // A capture's snapshot directory reached through a junction, which the snapshot writer refuses to write through.
+  mkdirSync(resolve(snapshotLinked, '.ia/work'), { recursive: true });
+  symlinkSync(scratch('refusal-snapshot-target'), resolve(snapshotLinked, '.ia/work/snapshot'), 'junction');
   const root = quote(FIXTURE),
     unreadable = quote(realpathSync(linked));
   return [
@@ -495,6 +498,7 @@ function invocations(): readonly {
       command: `ia validate --root ${quote(realpathSync(undecodable))}`,
     },
     { code: 'IA-DB-PATH-UNSAFE', argv: ['inspect', '--root', linked], command: `ia validate --root ${unreadable}` },
+    { code: 'IA-DB-PATH-UNSAFE', argv: ['capture', '--root', linked], command: `ia validate --root ${unreadable}` },
     { code: 'IA-DB-PATH-UNSAFE', argv: ['compile', '--root', linked], command: `ia validate --root ${unreadable}` },
     {
       code: 'IA-DB-PATH-UNSAFE',
@@ -539,19 +543,24 @@ function invocations(): readonly {
       argv: ['install', 'acme/app', `--root=${FIXTURE}`, '--catalog', 'missing.json'],
       command: `ia doctor --root ${root}`,
     },
+    // A snapshot path the writer does not admit names the capture to run again once it is repaired.
     {
-      code: 'IA-DIST-LOCAL-MODIFICATION',
-      argv: ['compile', '--root', compiled],
-      command: `ia compile --force --root ${quote(compiled)}`,
+      code: 'IA-DIST-PATH-UNSAFE',
+      argv: ['capture', '--root', snapshotLinked],
+      command: `ia capture --root ${quote(snapshotLinked)}`,
+    },
+    // The deprecated alias refuses the flags a capture has no place for, naming the capture to run instead.
+    { code: 'IA-CLI-USAGE', argv: ['compile', '--stdout', '--root', FIXTURE], command: `ia capture --root ${root}` },
+    {
+      code: 'IA-CLI-USAGE',
+      argv: ['compile', '--out', 'x.json', '--root', FIXTURE],
+      command: `ia capture --root ${root}`,
     },
   ];
 }
 
 it('prints one next command for every kind of consumer refusal, in --json and in human output', async () => {
   const rows = invocations();
-  // The compile row refuses only once its artifact exists.
-  const compiled = rows.find((row) => row.code === 'IA-DIST-LOCAL-MODIFICATION')!;
-  expect((await run(compiled.argv)).exitCode).toBe(0);
   for (const row of rows) {
     const label = row.argv.join(' ');
     const machine = await run([...row.argv, '--json'], row.cwd === undefined ? {} : { cwd: row.cwd });

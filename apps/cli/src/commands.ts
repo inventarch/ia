@@ -40,7 +40,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all thirteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Applies to all fourteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -135,20 +135,30 @@ export const COMMANDS: readonly CommandSpec[] = [
     ),
   },
   {
+    // Position-and-projection §5: the capture effect. It takes no output option, because a snapshot has one place.
+    name: 'capture',
+    group: 'workspace',
+    summary: 'Admit the workspace and write its current and previous snapshot',
+    syntax: ['ia capture [--json]'],
+    grammar: grammar([]),
+  },
+  {
+    // Decision compile-verb-fate: a deprecated alias of `ia capture` for 2.x, removed in 3.0. Each former flag stays
+    // in the grammar so the alias states what became of it rather than refusing it as unknown, and none conflicts with
+    // another, so `--out` with `--stdout` still reaches the refusal that names `ia capture`.
     name: 'compile',
     group: 'workspace',
-    summary: 'Write a deterministic compiled artifact',
-    syntax: ['ia compile [--out <file> | --stdout] [--force] [--json]'],
+    summary: 'Deprecated alias of ia capture; removed in 3.0',
+    syntax: ['ia compile [--force] [--json]'],
     grammar: grammar([
       option({
         name: 'out',
         kind: 'value',
-        conflicts: ['stdout'],
         placeholder: '<file>',
-        summary: 'Artifact path under <root>/.ia/work/',
+        summary: 'Refused: ia capture writes .ia/work/snapshot/ and takes no path',
       }),
-      option({ name: 'stdout', kind: 'boolean', summary: 'Write the artifact to stdout instead of a file' }),
-      option({ name: 'force', kind: 'boolean', summary: 'Overwrite an existing artifact' }),
+      option({ name: 'stdout', kind: 'boolean', summary: 'Refused: ia capture never writes its snapshot to stdout' }),
+      option({ name: 'force', kind: 'boolean', summary: 'Accepted: ia capture never refuses to replace its snapshot' }),
     ]),
   },
   {
