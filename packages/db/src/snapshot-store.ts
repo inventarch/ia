@@ -123,10 +123,14 @@ function storeDir(dir: string): string {
     throw new DbError('IA-DB-PATH-UNSAFE', `The snapshot store must be a canonical workspace subdirectory: '${dir}'`);
   if (!canonical.startsWith(WORK))
     throw new DbError('IA-DB-PATH-UNSAFE', `The snapshot store must be a directory under ${WORK}: '${dir}'`);
-  // Windows drops trailing dots from a segment, so a last segment of only dots would name its parent there; it is
-  // refused on every platform so a store path means the same directory everywhere.
-  if (/^\.+$/.test(canonical.slice(canonical.lastIndexOf('/') + 1)))
-    throw new DbError('IA-DB-PATH-UNSAFE', `The snapshot store's last segment must not be only dots: '${dir}'`);
+  // Windows drops trailing dots and spaces from every segment, so `x.`, `x ` or `...` would name another directory
+  // there (a last segment of only dots names its parent); they are refused on every platform so a store path means
+  // the same directory everywhere.
+  if (canonical.split('/').some((segment) => /[. ]$/.test(segment)))
+    throw new DbError(
+      'IA-DB-PATH-UNSAFE',
+      `The snapshot store's path segments must not end in a dot or a space: '${dir}'`,
+    );
   return canonical;
 }
 function readSlot(root: string, path: string): { bytes?: string; snapshot?: CapturedSnapshot; error?: string } {
