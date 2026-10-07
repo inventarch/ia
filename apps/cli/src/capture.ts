@@ -102,7 +102,7 @@ export function collectCapture(root: string, preview: boolean): CaptureView {
         error.code,
         error.message.slice(`${error.code}: `.length),
         3,
-        null,
+        error.where ?? null,
         'Write each composition.sources entry the message names as "<root> @<placement>" (for example ".ia/src @authored"), then run "ia capture" again; the stored snapshot is kept.',
       );
     throw error;

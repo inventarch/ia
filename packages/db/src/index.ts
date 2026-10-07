@@ -1,5 +1,5 @@
 export { DB_CODES, DbError } from './errors.js';
-export type { DbCode } from './errors.js';
+export type { DbCode, DbErrorLocation } from './errors.js';
 export { readInputs, systemMember } from './inputs.js';
 export { caseFold, linked, pathKey, sameFile, unaliased, within } from './paths.js';
 export type { AdoptedSource, FloorSource, InputOptions, InputSnapshot } from './inputs.js';

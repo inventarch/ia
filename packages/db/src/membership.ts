@@ -57,6 +57,7 @@ function declaredRoots(workspace: Node): Declared[] {
         throw new DbError(
           'IA-DB-SOURCES-INVALID',
           `${workspace.identity} at ${workspace.source.path}:${line} declares composition.sources entry ${JSON.stringify(entry)}, which ${reason}; each entry is spelled <root> @<placement>, for example ".ia/src @authored"`,
+          { path: workspace.source.path, line, identity: workspace.identity },
         );
       };
       const match = DECLARED.exec(entry.trim());
