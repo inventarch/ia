@@ -1,6 +1,8 @@
 export { GRAPH_CODES, GraphUsageError } from './diagnostics.js';
 export type { GraphCode, GraphDiagnostic } from './diagnostics.js';
 export { canonicalRoot, reaches } from './paths.js';
+export { CLAIM_FIELDS, matchesSelection, selectionProblem } from './claimants.js';
+export type { Claim, ClaimField, InvalidClaim } from './claimants.js';
 export { stableSerialize, revisionOf } from './revision.js';
 export type { RevisionInputs, RevisionSource } from './revision.js';
 export { CodecError, canonical, copy, digest } from './codec.js';

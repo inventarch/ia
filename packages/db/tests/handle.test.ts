@@ -385,7 +385,10 @@ it('resolves a path to its declared-at seat, the records declared there and the 
   // A path spelled another way names the same location; a directory is declared-at for the records beneath it.
   expect(db.resolveSeat('./.ia/src/systems/work-system/records/work.ia')).toEqual(seat);
   expect(db.resolveSeat('.ia/src/systems/work-system').seat).toEqual(seat.seat);
-  expect(db.resolveSeat('.ia/src/systems/work-system').declared).toEqual([identity('spec', 'work-scope')]);
+  const folder = db.resolveSeat('.ia/src/systems/work-system').declared;
+  expect(folder).toContain(identity('spec', 'work-scope'));
+  expect(folder).toContain(identity('system', 'work-system'));
+  expect(folder.every((id) => db.get(id)!.source.path.startsWith('.ia/src/systems/work-system/'))).toBe(true);
 });
 it('orders claimants by band descending before identity, and names an unclaimed path', () => {
   const adopted = { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' } as const,

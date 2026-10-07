@@ -11,6 +11,7 @@ export const DB_CODES = [
   'IA-DB-CACHE-UNAVAILABLE',
   'IA-DB-DRAFT-INVALID',
   'IA-DB-SNAPSHOT-UNAVAILABLE',
+  'IA-DB-SOURCES-INVALID',
 ] as const;
 export type DbCode = (typeof DB_CODES)[number];
 export class DbError extends Error {

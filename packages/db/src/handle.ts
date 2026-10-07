@@ -1,6 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import type { EdgeReference, Phase } from '@inventarch/language';
-import { canonicalRoot, directedView, reaches, resolve, search, stableSerialize, traverse } from '@inventarch/graph';
+import {
+  GraphUsageError,
+  canonicalRoot,
+  directedView,
+  reaches,
+  resolve,
+  search,
+  stableSerialize,
+  traverse,
+} from '@inventarch/graph';
 import type {
   DirectedRow,
   FieldReference,
@@ -18,8 +27,8 @@ import { inputOptions, readInputs } from './inputs.js';
 import type { InputOptions, InputSnapshot } from './inputs.js';
 import { occurrenceKey, viewBuilder } from './view.js';
 import type { RefusedRecord, View } from './view.js';
-import { membershipOf } from './membership.js';
-import type { MembershipRow } from './membership.js';
+import { membershipOf, seatOf } from './membership.js';
+import type { MembershipRow, SeatResolution } from './membership.js';
 import { previewInputs } from './preview.js';
 import type { DigestIndex } from './snapshot-store.js';
 import type { DraftChange, DraftPreview } from './preview.js';
@@ -346,6 +355,24 @@ export class Reader {
       nodes,
       nodes.filter((node) => allowed === undefined || allowed.has(node.identity)),
     );
+  }
+  /**
+   * D15: `path` (workspace-relative) as a location seat: its seat, the records declared at or under it and the records
+   * whose covers or paths selection claims it (graph G15), ordered band descending then identity, pruned to the scope.
+   */
+  resolveSeat(path: string, options: ReadOptions = {}): SeatResolution {
+    const { view, allowed } = this.#select(options);
+    let location: string;
+    try {
+      location = canonicalRoot(path);
+    } catch (error) {
+      if (!(error instanceof GraphUsageError)) throw error;
+      throw new DbError(
+        'IA-DB-PATH-UNSAFE',
+        `Seat path '${path}' must be workspace-relative and stay inside the workspace, for example 'docs/guide.md'`,
+      );
+    }
+    return seatOf(view.graph, location, allowed);
   }
   /** D08: a copy of the retained previous root-view digest index, pruned to a supplied scope; undefined before any. */
   previous(options: ReadOptions = {}): DigestIndex | undefined {

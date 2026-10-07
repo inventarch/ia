@@ -8,10 +8,10 @@
  * capture without change keeps previous. The effect is reported apart from validation: records changed, unchanged,
  * new and removed against the stored current, and beside it the admission's error, warning and not-evaluated
  * counts. Admission findings (unresolved references, foreign records) are retained, never refused, and carry the
- * exit class (1 on an error); only a root with no @workspace or a floor input that fails to parse is refused,
- * before anything is written.
+ * exit class (1 on an error); only a root with no @workspace, a floor input that fails to parse, or a @workspace
+ * whose `composition.sources` entry is malformed (db D13) is refused, before anything is written.
  */
-import { CAPTURE_DIR, captureOf, readCapturedSnapshot, writeCaptured } from '@inventarch/db';
+import { CAPTURE_DIR, DbError, captureOf, readCapturedSnapshot, writeCaptured } from '@inventarch/db';
 import type { CapturedSnapshot, CapturedStore, SnapshotObservation } from '@inventarch/db';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
@@ -95,6 +95,17 @@ export function collectCapture(root: string, preview: boolean): CaptureView {
   try {
     findings = admit(root, session);
     snapshot = captureOf(session.reader);
+  } catch (error) {
+    // Membership seats records under the declared source roots, so a root it cannot read is refused, not guessed.
+    if (error instanceof DbError && error.code === 'IA-DB-SOURCES-INVALID')
+      throw new Refusal(
+        error.code,
+        error.message.slice(`${error.code}: `.length),
+        3,
+        null,
+        'Write each composition.sources entry the message names as "<root> @<placement>" (for example ".ia/src @authored"), then run "ia capture" again; the stored snapshot is kept.',
+      );
+    throw error;
   } finally {
     session.close();
   }

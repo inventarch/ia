@@ -483,11 +483,16 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
       .digest('hex'),
   });
 }
+/**
+ * The folders under `.ia/` that mount another `.ia/src` at `<prefix>/<sha256>/.ia/src`, as regular-expression source:
+ * adopted roots (`adopted/<id>`) and the installed distribution store. A new mount kind is one entry here.
+ */
+export const MOUNT_PREFIXES: readonly string[] = Object.freeze(['adopted/[a-z][a-z0-9-]*', 'distributions/store']);
+const MOUNTED = new RegExp(
+  `^(\\.ia\\/(?:(?:${MOUNT_PREFIXES.join('|')})\\/[a-f0-9]{64}\\/\\.ia\\/)?src\\/systems\\/([^/]+))\\/`,
+);
 /** Shared membership for local and qualified adopted sources. */
 export function systemMember(path: string): { name: string; root: string } | undefined {
-  const match =
-    /^(\.ia\/(?:(?:adopted\/[a-z][a-z0-9-]*|distributions\/store)\/[a-f0-9]{64}\/\.ia\/)?src\/systems\/([^/]+))\//.exec(
-      path,
-    ) ?? /^((?!\.ia\/)(?:[^/]+\/)+\.ia\/src\/systems\/([^/]+))\//.exec(path);
+  const match = MOUNTED.exec(path) ?? /^((?!\.ia\/)(?:[^/]+\/)+\.ia\/src\/systems\/([^/]+))\//.exec(path);
   return match ? { name: match[2]!, root: match[1]! } : undefined;
 }

@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./internal/claimants": {
+      "types": "./dist/claimants.d.ts",
+      "default": "./dist/claimants.js"
+    },
     "./internal/codec": {
       "types": "./dist/codec.d.ts",
       "default": "./dist/codec.js"
@@ -97,6 +101,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./internal/claimants": {
+        "types": "./dist/claimants.d.ts",
+        "default": "./dist/claimants.js"
       },
       "./internal/codec": {
         "types": "./dist/codec.d.ts",

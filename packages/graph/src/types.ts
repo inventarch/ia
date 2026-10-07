@@ -10,6 +10,7 @@ import type {
   Span,
   Term,
 } from '@inventarch/language';
+import type { Claim, InvalidClaim } from './claimants.js';
 import type { Dimensions } from './coordinate.js';
 import type { GraphDiagnostic } from './diagnostics.js';
 import type { RevisionInputs } from './revision.js';
@@ -110,6 +111,10 @@ export interface Graph {
   readonly references: readonly FieldReference[];
   /** `references` keyed by target identity, each list in `references` order. */
   readonly referencedBy: ReadonlyMap<string, readonly FieldReference[]>;
+  /** G15: the readable path selections winners declare in CLAIM_FIELDS fields, the input of location seat claimants. */
+  readonly claims: readonly Claim[];
+  /** G15: declared selections that cannot be read, each with its reason; they claim nothing. */
+  readonly invalidClaims: readonly InvalidClaim[];
 }
 export interface CellSelection {
   readonly kind: 'exact' | 'primary';

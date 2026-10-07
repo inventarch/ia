@@ -1,6 +1,8 @@
+import { PLACEMENT_KINDS, isPlacementKind } from '@inventarch/language';
 import type { Band, CompiledValue, PlacementKind } from '@inventarch/language';
-import { canonicalRoot } from '@inventarch/graph';
-import type { Node } from '@inventarch/graph';
+import { canonicalRoot, matchesSelection } from '@inventarch/graph';
+import type { Claim, Graph, InvalidClaim, Node } from '@inventarch/graph';
+import { DbError } from './errors.js';
 import { systemMember } from './inputs.js';
 
 /**
@@ -24,33 +26,50 @@ interface Declared {
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const DECLARED = /^(\S+)\s+@([a-z]+)$/;
 const contains = (root: string, path: string): boolean => root === '' || path.startsWith(`${root}/`);
+const texts = (value: CompiledValue | undefined): string[] =>
+  value === undefined
+    ? []
+    : value.kind === 'list'
+      ? value.items.flatMap(texts)
+      : value.kind === 'string' || value.kind === 'scalar' || value.kind === 'prose'
+        ? [value.text]
+        : [];
 
-/** `composition.sources` entries, spelled `<root> @<placement>`; a malformed or unsafe entry declares nothing. */
+/**
+ * `composition.sources` entries, spelled `<root> @<placement>` with a workspace-relative root and one of the closed
+ * placements. A malformed or unsafe entry refuses with IA-DB-SOURCES-INVALID naming the record, its line and the entry,
+ * because silently reading less would seat records and paths in the wrong workspace.
+ */
 function declaredRoots(workspace: Node): Declared[] {
-  const texts = (value: CompiledValue | undefined): string[] =>
-    value === undefined
-      ? []
-      : value.kind === 'list'
-        ? value.items.flatMap(texts)
-        : value.kind === 'string' || value.kind === 'scalar' || value.kind === 'prose'
-          ? [value.text]
-          : [];
   return workspace.sections
     .filter((section) => section.name === 'composition')
     .flatMap((section) => section.fields)
     .flatMap((child) =>
       'key' in child && child.key === 'sources'
-        ? [...texts(child.value), ...(child.fields ?? []).flatMap((item) => ('item' in item ? texts(item.item) : []))]
+        ? [
+            ...texts(child.value),
+            ...(child.fields ?? []).flatMap((item) => ('item' in item ? texts(item.item) : [])),
+          ].map((entry) => ({ entry, line: child.span.line }))
         : [],
     )
-    .flatMap((entry) => {
+    .map(({ entry, line }) => {
+      const refuse = (reason: string): never => {
+        throw new DbError(
+          'IA-DB-SOURCES-INVALID',
+          `${workspace.identity} at ${workspace.source.path}:${line} declares composition.sources entry ${JSON.stringify(entry)}, which ${reason}; each entry is spelled <root> @<placement>, for example ".ia/src @authored"`,
+        );
+      };
       const match = DECLARED.exec(entry.trim());
-      if (match === null) return [];
+      if (match === null) return refuse('is not <root> @<placement>');
+      if (!isPlacementKind(match[2]!))
+        return refuse(`names no placement; the placement is one of ${PLACEMENT_KINDS.join(', ')}`);
+      let root: string;
       try {
-        return [{ root: canonicalRoot(match[1]!), placement: match[2]!, seat: workspace.identity }];
+        root = canonicalRoot(match[1]!);
       } catch {
-        return [];
+        return refuse('has a root outside the workspace; the root is workspace-relative');
       }
+      return { root, placement: match[2]!, seat: workspace.identity };
     });
 }
 /** The source root a placement captures a path under when nothing declares one: the nearest `.ia/src` (or its `floor`). */
@@ -104,4 +123,70 @@ export function membershipOf(admitted: Iterable<Node>, members: Iterable<Node>):
     })
     .sort((a, b) => compare(a.identity, b.identity));
   return Object.freeze(rows);
+}
+
+/** Where a location seat sits (D15): a system folder's @system, else a @workspace; identity null when none is admitted. */
+export type Seat =
+  | { readonly kind: 'system'; readonly name: string; readonly identity: string | null }
+  | { readonly kind: 'workspace'; readonly identity: string | null };
+/**
+ * A path resolved as a location seat (D15): its seat, the records whose source lies at or under it (`declared`), the
+ * claims whose selection matches it (`claimants`, band descending then identity), the claims whose selection cannot be
+ * read (`invalid`), and `unknown` naming the path when nothing is declared there or claims it.
+ */
+export interface SeatResolution {
+  readonly path: string;
+  readonly seat: Seat;
+  readonly declared: readonly string[];
+  readonly claimants: readonly Claim[];
+  readonly invalid: readonly InvalidClaim[];
+  readonly unknown?: string;
+}
+const claimantOrder = (a: Claim, b: Claim): number =>
+  b.band - a.band ||
+  compare(a.identity, b.identity) ||
+  compare(a.field, b.field) ||
+  compare(a.selection, b.selection) ||
+  a.source.line - b.source.line;
+/**
+ * D15 over a view's graph. The seat, first match: (1) a path in a system folder (`systemMember`, the folder itself
+ * included) is that @system; (2) the longest `composition.sources` root containing the path, at any placement, is its
+ * @workspace (ties: identity ascending); (3) exactly one admitted @workspace; (4) the synthetic workspace closure.
+ * Seats are view-wide; `declared`, `claimants` and `invalid` hold only identities `allowed` admits.
+ */
+export function seatOf(graph: Graph, path: string, allowed?: ReadonlySet<string>): SeatResolution {
+  const all = [...graph.nodes.values()],
+    visible = (identity: string) => allowed === undefined || allowed.has(identity),
+    workspaces = all
+      .filter((node) => node.discriminator === 'workspace')
+      .sort((a, b) => compare(a.identity, b.identity)),
+    declaredRootsAll = workspaces.flatMap(declaredRoots);
+  const member = systemMember(path) ?? systemMember(`${path}/`);
+  const seat: Seat = (() => {
+    if (member !== undefined) {
+      const system = all.find((node) => node.discriminator === 'system' && node.name === member.name);
+      return { kind: 'system', name: member.name, identity: system?.identity ?? null };
+    }
+    const claim = declaredRootsAll
+      .filter((entry) => entry.root === path || contains(entry.root, path))
+      .sort((a, b) => b.root.length - a.root.length || compare(a.seat, b.seat))[0];
+    if (claim !== undefined) return { kind: 'workspace', identity: claim.seat };
+    return { kind: 'workspace', identity: workspaces.length === 1 ? workspaces[0]!.identity : null };
+  })();
+  const declared = all
+    .filter((node) => visible(node.identity) && (node.source.path === path || contains(path, node.source.path)))
+    .map((node) => node.identity)
+    .sort(compare);
+  const claimants = graph.claims
+    .filter((claim) => visible(claim.identity) && matchesSelection(path, claim.selection))
+    .sort(claimantOrder);
+  const invalid = graph.invalidClaims.filter((claim) => visible(claim.identity));
+  return Object.freeze({
+    path,
+    seat: Object.freeze(seat),
+    declared: Object.freeze([...new Set(declared)]),
+    claimants: Object.freeze(claimants),
+    invalid: Object.freeze([...invalid]),
+    ...(declared.length === 0 && claimants.length === 0 ? { unknown: `no record claims ${path}` } : {}),
+  });
 }

@@ -7,6 +7,7 @@ import type {
   FrozenRegistry,
   Predicate,
 } from '@inventarch/language';
+import { claimsOf } from './claimants.js';
 import { dimensionsOf } from './coordinate.js';
 import { sliceDigest, sourceLines } from './digest.js';
 import { GraphUsageError, graphDiagnostic } from './diagnostics.js';
@@ -330,6 +331,7 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
     byDanglingReference,
     references,
     referencedBy,
+    ...claimsOf(nodes.values()),
     text: buildTextIndex(nodes.values()),
   });
 }
