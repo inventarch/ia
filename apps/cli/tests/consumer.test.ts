@@ -346,7 +346,7 @@ it('inspects admitted structure only, and never through the private assessment n
   expect((await run(['inspect', 'a/b/c/d', '--path', 'x', '--root', fixture])).exitCode).toBe(2);
 });
 
-it('lists typed field references on the inbound side of inspect, apart from the edges', async () => {
+it('lists typed field references in the asked direction of inspect, apart from the edges', async () => {
   // agent-steward is named only by its system's head `steward` field: no edge reaches it, but inspect must not
   // present it as unreferenced (graph G06a).
   const identity = 'agent-system/binding/agent/agent-steward';
@@ -366,20 +366,32 @@ it('lists typed field references on the inbound side of inspect, apart from the 
     JSON.parse((await run(['inspect', identity, '--root', fixture, '--edges', 'in', '--depth', '0', '--json'])).stdout)
       .referencedBy,
   ).toEqual([]);
-  // `--edges out` keeps the envelope it always had: no key rather than an empty claim.
-  expect(Object.keys(JSON.parse((await run(['inspect', identity, '--root', fixture, '--json'])).stdout))).toEqual([
-    'version',
-    'root',
-    'revision',
-    'records',
-    'edges',
+  // `--edges out` keeps the keys it always had, with no `referencedBy` rather than an empty claim, and adds the view.
+  const outward = JSON.parse((await run(['inspect', identity, '--root', fixture, '--json'])).stdout);
+  expect(Object.keys(outward)).toEqual(['version', 'root', 'revision', 'records', 'edges', 'directed']);
+  expect(outward.directed).toEqual([]);
+  // The same reference is a derived field-ref row of the directed view, read from the named record's side.
+  expect(inbound.directed).toEqual([
+    {
+      identity,
+      depth: 1,
+      kind: 'field-ref',
+      derived: true,
+      direction: 'in',
+      field: 'head.steward',
+      counterpart: row.from,
+      declaredOn: row.from,
+      source: row.source,
+    },
   ]);
 
   const human = await run(['inspect', identity, '--root', fixture, '--edges', 'in']);
   expect(human.stdout).toMatch(
-    /Referenced by\n.*head\.steward +floor\/definition\/system\/agent-system\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
+    /Field references\n.*head\.steward\s+floor\/definition\/system\/agent-system\s+in, derived,\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
   );
-  expect((await run(['inspect', identity, '--root', fixture])).stdout).not.toContain('Referenced by');
+  const out = (await run(['inspect', identity, '--root', fixture])).stdout;
+  expect(out).not.toContain('head.steward');
+  expect(out).toContain('This record names no record in a typed field.');
   const unnamed = await run([
     'inspect',
     'governance-system/definition/procedure/sample-procedure',
@@ -389,6 +401,136 @@ it('lists typed field references on the inbound side of inspect, apart from the 
     'in',
   ]);
   expect(unnamed.stdout).toContain('No record names this one in a typed field.');
+
+  // The holder lists the same reference under the default `--edges out`, and only there.
+  const holder = row.from;
+  const held = {
+    identity: holder,
+    depth: 1,
+    kind: 'field-ref',
+    derived: true,
+    direction: 'out',
+    field: 'head.steward',
+    counterpart: identity,
+    declaredOn: holder,
+    source: row.source,
+  };
+  const fieldRefs = (args: readonly string[]) =>
+    run(['inspect', holder, '--root', fixture, ...args, '--json']).then((result) =>
+      JSON.parse(result.stdout).directed.filter((listed: { kind: string }) => listed.kind === 'field-ref'),
+    );
+  expect(await fieldRefs([])).toEqual([held]);
+  expect(await fieldRefs(['--edges', 'both'])).toContainEqual(held);
+  expect(await fieldRefs(['--edges', 'in'])).toEqual([
+    expect.objectContaining({ direction: 'in', field: 'composition.systems' }),
+  ]);
+  expect((await run(['inspect', holder, '--root', fixture])).stdout).toMatch(
+    /Field references\n.*head\.steward\s+agent-system\/binding\/agent\/agent-steward\s+out, derived,\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
+  );
+  expect((await run(['inspect', holder, '--root', fixture, '--edges', 'in'])).stdout).not.toContain('head.steward');
+
+  // At depth 0 nothing is read, so the section says so rather than denying the references the record holds.
+  for (const direction of ['out', 'in', 'both']) {
+    const shallow = (await run(['inspect', holder, '--root', fixture, '--edges', direction, '--depth', '0'])).stdout;
+    expect(shallow).toMatch(/Field references\n\s+None at this depth and direction\./);
+    for (const claim of [
+      'This record names no record in a typed field.',
+      'No record names this one in a typed field.',
+      'No typed field names this record or is held by it.',
+    ])
+      expect(shallow).not.toContain(claim);
+  }
+});
+
+it('labels declared edges, derived inverses and their declaring side from the directed view', async () => {
+  const check = 'compliance-system/check/gate/instance-schema-check',
+    contract = 'compliance-system/contract/signature/foundation-authoring-contract',
+    law = 'governance-system/governance/law/sample-rule',
+    procedure = 'governance-system/definition/procedure/sample-procedure';
+  const both = await run(['inspect', check, '--root', fixture, '--edges', 'both']);
+  expect(both.exitCode).toBe(0);
+  const section = (name: string, next: string): string =>
+    both.stdout.slice(both.stdout.indexOf(`\n${name}\n`), both.stdout.indexOf(`\n${next}\n`));
+  // The check's own `enforces` line is declared; the law's `enforced-by` line reads here in the active spelling.
+  const declared = section('Edges', 'Derived inverses');
+  expect(declared).toMatch(
+    /enforces\s+compliance-system\/contract\/signature\/foundation-authoring-contract\s+out,\s+depth\s+1,\s+declared\s+by\s+source/,
+  );
+  expect(declared).not.toContain('derived');
+  const derived = section('Derived inverses', 'Field references');
+  expect(derived).toMatch(
+    /enforce\s+governance-system\/governance\/law\/sample-rule\s+out,\s+depth\s+1,\s+derived,\s+declared\s+by\s+target,\s+when\s+phase\s+is\s+act\s+and\s+severity\s+is\s+blocking/,
+  );
+  expect(derived).toMatch(
+    /governed-by\s+compliance-system\/contract\/signature\/foundation-authoring-contract\s+in,\s+depth\s+1,\s+derived,\s+declared\s+by\s+source/,
+  );
+  expect(derived).toMatch(
+    /used-by\s+governance-system\/definition\/procedure\/sample-procedure\s+in,\s+depth\s+1,\s+derived,\s+declared\s+by\s+source/,
+  );
+  expect(both.stdout).toContain('No typed field names this record or is held by it.');
+
+  // Two assertions differing only by fragment stay apart, the fragment printed on the record it addresses: beside the
+  // referenced counterpart of a declared row, and on the viewed record of a derived one.
+  const scenario = 'compliance-system/definition/scenario/valid-native-record';
+  const implemented = (await run(['inspect', contract, '--root', fixture, '--edges', 'in'])).stdout;
+  const implementing = (await run(['inspect', scenario, '--root', fixture])).stdout;
+  for (const requirement of ['REQ-FOUNDATION-INPUT', 'REQ-FOUNDATION-VALID']) {
+    expect(implemented).toMatch(
+      new RegExp(
+        `implemented-by\\s+${scenario}\\s+in,\\s+depth\\s+1,\\s+derived,\\s+declared\\s+by\\s+source,\\s+at\\s+#${requirement}\\n`,
+      ),
+    );
+    expect(implementing).toMatch(
+      new RegExp(`implements\\s+${contract}#${requirement}\\s+out,\\s+depth\\s+1,\\s+declared\\s+by\\s+source\\n`),
+    );
+  }
+
+  const machine = JSON.parse((await run(['inspect', check, '--root', fixture, '--edges', 'both', '--json'])).stdout);
+  const brief = (row: Record<string, unknown>) => [
+    row['kind'],
+    row['direction'],
+    row['spelling'],
+    row['counterpart'],
+    row['declaredOn'],
+    row['declaredBy'],
+    row['derived'],
+  ];
+  expect(machine.directed.map(brief)).toEqual([
+    ['edge', 'out', 'enforces', contract, check, 'source', false],
+    ['inverse', 'out', 'enforce', law, law, 'target', true],
+    ['inverse', 'in', 'governed-by', contract, contract, 'source', true],
+    ['inverse', 'in', 'used-by', procedure, procedure, 'source', true],
+  ]);
+  expect(machine.directed[1]).toMatchObject({
+    predicate: 'enforce',
+    condition: [
+      { axis: 'phase', value: 'act' },
+      { axis: 'severity', value: 'blocking' },
+    ],
+    source: { path: '.ia/src/systems/governance-system/records/sample-rule.ia', line: 13 },
+  });
+  // The traversal rows keep their shape: one per relationship, normalized to the active direction.
+  expect(machine.edges).toContainEqual({ from: contract, predicate: 'govern', to: check, depth: 1 });
+  for (const direction of ['out', 'in'])
+    expect(
+      JSON.parse((await run(['inspect', check, '--root', fixture, '--edges', direction, '--json'])).stdout).directed,
+    ).toEqual(machine.directed.filter((row: { direction: string }) => row.direction === direction));
+
+  // Deeper rows are read from the nearer record's view and name it.
+  const deep = JSON.parse(
+    (await run(['inspect', law, '--root', fixture, '--edges', 'both', '--depth', '2', '--json'])).stdout,
+  );
+  expect(
+    deep.directed
+      .filter((row: { depth: number }) => row.depth === 2)
+      .map((row: Record<string, unknown>) => [row['identity'], ...brief(row)]),
+  ).toEqual([
+    [check, 'edge', 'out', 'enforces', contract, check, 'source', false],
+    [check, 'inverse', 'in', 'governed-by', contract, contract, 'source', true],
+  ]);
+  expect((await run(['inspect', law, '--root', fixture, '--edges', 'both', '--depth', '2'])).stdout).toMatch(
+    /governed-by\s+compliance-system\/contract\/signature\/foundation-authoring-contract\s+in,\s+depth\s+2\s+via\s+compliance-system\/check\/gate\/instance-schema-check,\s+derived,\s+declared\s+by\s+source/,
+  );
 });
 
 it('keeps --json a single parseable value with no ANSI, and resolves colour by §6.7 precedence', async () => {

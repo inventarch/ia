@@ -1675,6 +1675,7 @@
       "files": [
         "tests/codec.test.ts",
         "tests/digest.test.ts",
+        "tests/directed.test.ts",
         "tests/field-relations-baseline.test.ts",
         "tests/floor-citation.test.ts",
         "tests/load.test.ts",
