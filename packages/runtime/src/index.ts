@@ -28,6 +28,17 @@ export type {
   SystemLine,
   Widening,
 } from './body.js';
+export { BODY_DIGEST_FORMAT, HOST_NOTE_FORMAT, bodyDigest, position } from './position.js';
+export type {
+  CapturedRevisions,
+  Freshness,
+  HostFacts,
+  HostNote,
+  KeyUsed,
+  Position,
+  PositionOptions,
+  StalenessSummary,
+} from './position.js';
 export { context, DEFAULT_TOKENIZER } from './context.js';
 export type {
   ContextRequest,

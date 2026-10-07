@@ -6,11 +6,12 @@ import { DbError, open } from '@inventarch/db';
 import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
 import { context } from './context.js';
 import { RuntimeError } from './errors.js';
+import type { PositionOptions } from './position.js';
 import { select } from './select.js';
 import { freeze } from './types.js';
 import type { Budget, ContextRequest, Refusal } from './types.js';
 
-export interface DoorOptions extends OpenOptions {
+export interface DoorOptions extends OpenOptions, PositionOptions {
   readonly boundary?: Omit<ScopeRequest, 'within'>;
   readonly allowReport?: boolean;
 }

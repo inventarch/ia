@@ -174,7 +174,7 @@ it('carries the key used with its sources and no classification rule', () => {
     seat: null,
     shape: 'governance',
     phase: 'plan',
-    primitive: 'Decision',
+    primitive: 'Inference',
     depth: 1,
     budget: 16,
     word: 'law',

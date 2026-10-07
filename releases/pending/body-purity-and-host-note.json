@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Position: body digest and a separate host note",
+  "summary": "`@inventarch/runtime` exports position(handle, within, key, options?), which hands over a scope key's position body unchanged, its digest (bodyDigest: SHA-256 of {format: 'ia-body-1', body} in the canonical codec) and a separate host note (ia-host-note-1). The body is a pure function of the key's value and the admitted revision: the scope token, host facts, capture store, cache, clock, absolute paths and how each key part was supplied never reach it, so equal key values give one digest on every host. The host note carries the capture store's current and previous revisions and freshness, per-record staleness of the workspace against the captured snapshot (read without the cache), the key used with each part's source, and the CLI, adapter and installed-state digest a host supplies through hostFacts, which DoorOptions also accepts. It is not a Door operation; the nine routes are unchanged.",
+  "packages": [
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/runtime/"
+  ]
+}
