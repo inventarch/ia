@@ -4,7 +4,7 @@ import { validateSystems } from '@inventarch/compliance';
 import type { SystemFolder } from '@inventarch/compliance';
 import { stableSerialize } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
-import type { FrozenRegistry } from '@inventarch/language';
+import type { FrozenRegistry, Location } from '@inventarch/language';
 import { beforeAll, expect, it } from 'vitest';
 import {
   MODE_MOVES,
@@ -61,8 +61,8 @@ function corpus(...names: readonly string[]): string {
   }
   return root;
 }
-function body(root: string, key: ScopeKey = {}): PositionBody {
-  const db = database(root);
+function body(root: string, key: ScopeKey = {}, locations: Readonly<Record<string, Location>> = {}): PositionBody {
+  const db = database(root, { locations });
   return positionBody(db, db.resolveScope({}).token, normalizeScopeKey(key));
 }
 const ids = (lines: readonly { readonly identity: string }[]): readonly string[] => lines.map((line) => line.identity);
@@ -356,6 +356,13 @@ it('names the nearest phase with a cell when a playbook has none at the key phas
       nearest: 'act',
     },
   ]);
+  // When both phases one away have a cell, the earlier one is the nearest.
+  put(
+    root,
+    `${governanceRecords}/late.ia`,
+    '#! ia 1.0\n@playbook late\n  meaning\n    says "A fixture procedure with orient and act cells."\n    answers "Which phase has a cell?"\n  cognition\n    orient\n      primary Attention\n      Attention means "Look around."\n    act\n      primary Attention\n      Attention means "Watch the step."\n',
+  );
+  expect(body(root, { seat: late, shape: 'context', phase: 'plan' }).cells.listed[0]!.nearest).toBe('orient');
 });
 
 it('keeps the fixture blocking law outside the budget among the applicable rules', () => {
@@ -382,9 +389,22 @@ it('keeps the fixture blocking law outside the budget among the applicable rules
     truncated: 1,
   });
   // With room, the advisory rules follow the blocking ones, by band then id.
-  expect(ids(body(root, { seat: FIXTURE_PLAYBOOK, shape: 'governance', budget: 16 }).rules.listed)).toEqual([
+  put(root, `${governanceRecords}/z-law.ia`, law('z-law', '    subject-kind definition\n'));
+  put(root, `${governanceRecords}/a-law.ia`, law('a-law', '    subject-kind definition\n'));
+  const open: Location = { placement: { kind: 'open', band: 50, reach: '' }, provenance: 'methodology' };
+  expect(
+    ids(
+      body(
+        root,
+        { seat: FIXTURE_PLAYBOOK, shape: 'governance', budget: 16 },
+        { [`${governanceRecords}/a-law.ia`]: open },
+      ).rules.listed,
+    ),
+  ).toEqual([
     FIXTURE_LAW,
+    'governance-system/governance/law/z-law',
     PRINCIPLE,
+    'governance-system/governance/law/a-law',
   ]);
   // A path the fixture law covers: the law claims the location seat.
   const located = body(root, { seat: 'docs/guide.md', budget: 0 }).rules;
