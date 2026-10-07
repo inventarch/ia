@@ -453,6 +453,8 @@ it('gives every refusal the funnel renders a next command, whatever was thrown',
   // runtime, workspace and installation; a site's own next is kept verbatim.
   expect(refusalOf(new UsageError('x'), 'validate').next).toContain('"ia validate --help"');
   expect(refusalOf(new UsageError('x')).next).toContain('"ia --help"');
+  // A usage refusal an inner site converted without knowing the verb gets the verb's own help once the funnel does.
+  expect(refusalOf(refusalOf(new UsageError('x')), 'validate').next).toContain('"ia validate --help"');
   expect(refusalOf(new Error('x'), 'validate').next).toContain('"ia doctor"');
   expect(refusalOf(Object.assign(new Error('x'), { code: 'IA-DB-ROOT-INVALID' })).next).toContain('"ia doctor"');
   expect(refusalOf(new Refusal('IA-CLI-CONFLICT', 'held', 3, null, 'Run "ia init" first.')).next).toBe(

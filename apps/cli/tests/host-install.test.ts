@@ -313,3 +313,34 @@ it('names the host lock recovery when an install refresh finds the lock held', a
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
   expect(installedSection(root)).toBe('- fixture/foundation 0.1.0');
 });
+
+it('names the host rerun when an install refresh fails with an error no refusal carries', async () => {
+  const { root, env } = await offered();
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  // The renderer fails with a plain error: no code, no file, no next action of its own. Only this case's own copy of
+  // the CLI sees it; the host registration above and every other case use the real renderer.
+  vi.doMock('../src/host-projection.js', async (original) => ({
+    ...(await original<typeof import('../src/host-projection.js')>()),
+    renderProjectionFor: () => {
+      throw new Error('The renderer stopped.');
+    },
+  }));
+  vi.resetModules();
+  try {
+    const fresh = await import('./workspace-fixture.js');
+    const refused = await fresh.run(
+      ['install', '--requests', REQUESTS, '--catalog', CATALOG, '--root', root, '--apply', '--yes', '--json'],
+      { env },
+    );
+    expect(refused.exitCode, refused.stdout).toBe(3);
+    expect(JSON.parse(refused.stdout)).toMatchObject({
+      code: 'IA-CLI-FAILED',
+      message: 'The renderer stopped.',
+      next: rootedNext('The installation is applied. Run "ia host claude --apply" to finish.', 'claude', root),
+    });
+    expect(lockedIds(root)).toEqual(['fixture/foundation']);
+  } finally {
+    vi.doUnmock('../src/host-projection.js');
+    vi.resetModules();
+  }
+});
