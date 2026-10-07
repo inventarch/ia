@@ -1,0 +1,18 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "ia next and the next operation: the delivery view on every route",
+  "summary": "The machine protocol's version 2 adds a third operation after position and read: `next` {within?, seat?} answers the delivery view of a plan, milestone or task (omitted seat: the scope's only authored plan) and issues no scope token. Its row carries `since: 2`; the nine version-1 operations are unchanged. A refusal of the view carries the next command for its cause (a plan's worked example, a plan to seat at, the view without a seat, or a position at a record that is no work record); its other refusals carry the row's next. A Door whose host names no retained snapshot now retains the capture store's current snapshot, so the view's admitted line reads against what was last captured; the nine routes, position and read answer as before. New `ia next [--seat <plan|milestone|task>] [--json]` shows the view: the seat, the participant, the retained snapshot, then each listed record in plan order with its verdict, five state lines and their basis, and its requirements, then review items and the ia position command for the first task with no declared blocker. It writes nothing. --json prints the view under the consumer version; refusals keep the operation's code and next command at exit 1. `ia next --params` and `--schema` are the machine operation, the machine usage names it, and the MCP door lists twelve tools, adding ia_next.",
+  "packages": [
+    "@inventarch/runtime",
+    "@inventarch/cli",
+    "@inventarch/mcp-door"
+  ],
+  "paths": [
+    "README.md",
+    "packages/runtime/",
+    "apps/cli/",
+    "apps/mcp-door/",
+    "tools/"
+  ]
+}

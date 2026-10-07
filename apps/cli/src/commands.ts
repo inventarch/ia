@@ -25,7 +25,7 @@ export const LEGACY_OPERATIONS = [
  * name with a consumer command, so it takes the machine route only by `isMachineInvocation` (consumer.ts); the
  * frozen nine never need that test.
  */
-export const SINCE_2_OPERATIONS: readonly string[] = ['position', 'read'];
+export const SINCE_2_OPERATIONS: readonly string[] = ['position', 'read', 'next'];
 /** The whole machine routing table: the frozen nine, then the version-2 operations. It equals the protocol table. */
 export const MACHINE_OPERATIONS: readonly string[] = [...LEGACY_OPERATIONS, ...SINCE_2_OPERATIONS];
 
@@ -270,6 +270,21 @@ export const COMMANDS: readonly CommandSpec[] = [
         kind: 'value',
         placeholder: '<word>',
         summary: 'Restrict the seeds and tallies to one word, such as law',
+      }),
+    ]),
+  },
+  {
+    // The consumer command over the delivery view; `ia next --params` is the machine operation of the same name.
+    name: 'next',
+    group: 'workspace',
+    summary: 'Show what is next under a plan, a milestone or a task: the delivery view',
+    syntax: ['ia next [--seat <plan|milestone|task>] [--json]'],
+    grammar: grammar([
+      option({
+        name: 'seat',
+        kind: 'value',
+        placeholder: '<plan|milestone|task>',
+        summary: "Plan, milestone or task identity (default: the workspace's only authored plan)",
       }),
     ]),
   },

@@ -2,12 +2,13 @@ import { KINDS } from '@inventarch/language';
 import type { ConditionAxis, EdgeReference, Kind, Phase } from '@inventarch/language';
 import { GraphUsageError, validateCoordinate } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
-import { DbError, open } from '@inventarch/db';
-import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
+import { DbError, digestIndex, open, readCapturedSnapshot } from '@inventarch/db';
+import type { DigestIndex, Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
 import { context } from './context.js';
 import { RuntimeError } from './errors.js';
 import { parseLocator, readBody } from './locator.js';
 import { MACHINE_PROTOCOL } from './machine-protocol.js';
+import { DeliveryRefusal, next as deliveryView } from './next.js';
 import { position } from './position.js';
 import type { PositionOptions } from './position.js';
 import { normalizeScopeKey, SCOPE_KEY_PARTS } from './scope-key.js';
@@ -79,6 +80,20 @@ const NEXT: ReadonlyMap<string, ReadonlyMap<string, string>> = new Map(
     .filter((operation) => operation.since !== undefined)
     .map((operation) => [operation.name, new Map(operation.refusals.map((refusal) => [refusal.code, refusal.next]))]),
 );
+/**
+ * The snapshot a Door's handle retains when its host names none: the capture store's current snapshot at `root`
+ * (`readCapturedSnapshot`, which needs no cache), the one a later process compares against. A store that is absent or
+ * unreadable, or a root that cannot be read, seeds nothing; opening the workspace then decides the root's refusal. Only
+ * the delivery view reads the retained snapshot; the nine routes and position never do.
+ */
+function captured(root: string): DigestIndex | undefined {
+  try {
+    const current = readCapturedSnapshot(root).current;
+    return current === undefined ? undefined : digestIndex(current);
+  } catch {
+    return undefined;
+  }
+}
 export class Door {
   #handle: Handle;
   #initial: Scope;
@@ -87,7 +102,8 @@ export class Door {
   #position: PositionOptions;
   #closed = false;
   constructor(root: string, options: DoorOptions = {}) {
-    this.#handle = open(root, options);
+    const previous = options.previous ?? captured(root);
+    this.#handle = open(root, previous === undefined ? options : { ...options, previous });
     this.#initial = this.#handle.resolveScope(options.boundary);
     this.#tokens.add(this.#initial.token);
     this.#allowReport = options.allowReport ?? false;
@@ -229,7 +245,7 @@ export class Door {
           if (!this.#allowReport) invalid('This host has not enabled privileged report inspection');
           result = this.#handle.report;
           break;
-        // Protocol version 2. Neither issues a scope token; both read through the one `within` names.
+        // Protocol version 2. None issues a scope token; each reads through the one `within` names.
         case 'position': {
           keys(params, ['within', ...SCOPE_KEY_PARTS]);
           const within = this.#within(params),
@@ -243,9 +259,19 @@ export class Door {
           result = readBody(this.#handle, parseLocator(string(params['locator'], 'locator')), { within });
           break;
         }
+        case 'next': {
+          keys(params, ['within', 'seat']);
+          const within = this.#within(params);
+          result = deliveryView(
+            this.#handle,
+            within,
+            params['seat'] === undefined ? {} : { seat: string(params['seat'], 'seat') },
+          );
+          break;
+        }
         default:
           return invalid(
-            `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}, position, read`,
+            `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}, position, read, next`,
           );
       }
       return freeze({ ok: true, result });
@@ -259,7 +285,10 @@ export class Door {
         ok: false,
         code,
         message: error instanceof Error ? error.message : 'Invalid request',
-        ...(next === undefined ? {} : { next: next.get(code) ?? NO_NEXT }),
+        // A refusal of the delivery view names the command for its own cause, which the row's one next cannot.
+        ...(next === undefined
+          ? {}
+          : { next: error instanceof DeliveryRefusal ? error.next : (next.get(code) ?? NO_NEXT) }),
       });
     }
   }

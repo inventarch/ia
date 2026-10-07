@@ -34,6 +34,7 @@ import { runFormat } from './format.js';
 import { runHost } from './host.js';
 import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
+import { runNext } from './next.js';
 import { describeOperation, renderOperationHelp, SCHEMA_TOKEN } from './operation-help.js';
 import { runPack } from './pack.js';
 import { runPosition } from './position.js';
@@ -279,7 +280,7 @@ export function renderHelp(host: Host, caps: Capabilities, namespaces: readonly 
               [
                 atom('Since v2:', null, 0),
                 atom(SINCE_2_OPERATIONS.join('  ')),
-                ...words('— the machine route only with --params or --schema'),
+                ...words('— machine route only with --params or --schema'),
               ],
             ],
             { depth: 1 },
@@ -433,6 +434,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   inspect: runInspect,
   read: runRead,
   position: runPosition,
+  next: runNext,
   pack: runPack,
   install: runDistribute('install'),
   update: runDistribute('update'),

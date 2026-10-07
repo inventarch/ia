@@ -13,7 +13,7 @@ import { describeOperation, renderOperationHelp, renderOperationSchema, SCHEMA_T
 
 const USAGE =
   'Usage: ia <scope|context|select|get|records|resolve|search|traverse|report> [--root <workspace>] [--params <JSON|->]\nUse --params - for stdin JSON. Scope tokens last for one invocation.\n' +
-  'Since protocol v2: ia <position|read> [--root <workspace>] --params <JSON|->; without --params or --schema these names are consumer commands.\n';
+  'Since protocol v2: ia <position|read|next> [--root <workspace>] --params <JSON|->; without --params or --schema these names are consumer commands.\n';
 /**
  * The facts this CLI tells a position's host note: itself as `ia@<version>` and its workspace's installed-state digest
  * (`hostFactsOf`, which the consumer command asks too).

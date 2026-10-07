@@ -1,7 +1,8 @@
 /**
  * The machine protocol's one description (docs/specs/command-discoverability/README.md §2). For each Door operation:
  * its purpose, parameter schema, result, refusals with a next action, and an example that returns `ok: true` on
- * packages/compliance/fixtures/loop. `ia <operation> --help`, the MCP door's tools/list and
+ * packages/compliance/fixtures/loop (next reads work records loop does not hold: its example answers on a workspace with
+ * one authored plan). `ia <operation> --help`, the MCP door's tools/list and
  * docs/reference/cli/machine-protocol.md are projections of this table. It describes the wire format and changes none
  * of it: the Door validates every request itself, and tests/select-door.test.ts and apps/cli/tests/cli.test.ts hold this
  * table to what the Door admits and refuses. Version 1's nine operations come first and stay as version 1 described
@@ -195,7 +196,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
     'get, records, resolve, search and traverse read admitted records inside the scope; pass within to stay inside a narrowed one.',
     'A token lives as long as the process that issued it: one CLI invocation, or the MCP server process. A CLI invocation performs one operation, so its reads always cover the initial boundary; narrowing takes scope, then within, in one MCP session.',
     "report is privileged inspection of the whole workspace's admission, served by the CLI only.",
-    'Since version 2: position delivers the body for a scope key, its digest and a host note, and issues no token; read returns the text behind one locator. Their refusals carry a next action. The nine operations above are unchanged, and on the CLI these two take the machine route only with --params or --schema.',
+    'Since version 2: position delivers the body for a scope key, its digest and a host note, and issues no token; read returns the text behind one locator; next delivers the delivery view of a plan, milestone or task. Their refusals carry a next action. The nine operations above are unchanged, and on the CLI these three take the machine route only with --params or --schema.',
   ],
   operations: [
     {
@@ -478,6 +479,29 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       ],
       example: { locator: EXAMPLE_IDENTITY },
       mcp: 'ia_read',
+      since: 2,
+    },
+    {
+      name: 'next',
+      summary: 'Tell what is next under a plan, a milestone or a task: the delivery view.',
+      description:
+        "Deliver the delivery view at a plan, milestone or task, computed on each call and never stored: the plan's milestones and each milestone's tasks in require order, five state lines per record (accepted, admitted, realizable, realized, worked), each with its basis, every requirement's standing, and one verdict per record: no declared blocker, blocked naming its basis, or exit evidence recorded naming the observation and its evaluator. It reads the records the scope admits, never the runtime band, and authored observations as evidence; admitted compares a record with the snapshot the capture store holds as current. Omitted, seat is the scope's only authored plan. It issues no scope token.",
+      params: object({
+        within: read.within,
+        seat: text("A plan, milestone or task identity; omitted, the scope's only authored plan."),
+      }),
+      result:
+        "The delivery view ('ia-next-1'): {format, revision, seat, participant, snapshot, evidence, ordered, entries, review, next}. Each entry carries identity, word, milestone, status, owner, its five lines, its requirements and its verdict; review lists require cycles, and next is the ia position command for the first task with no declared blocker, or null.",
+      refusals: [
+        {
+          code: 'IA-RUNTIME-REQUEST-INVALID',
+          when: 'A parameter is unknown or seat is not a string; or without seat the scope admits no authored plan or more than one; or seat names no plan, milestone or task the scope admits.',
+          next: 'Pass only within and a seat identity. A refusal about the seat or the plan names its own next command instead: the worked example of a plan, a plan to seat at, or the view without seat.',
+        },
+        SCOPE_UNAVAILABLE,
+      ],
+      example: {},
+      mcp: 'ia_next',
       since: 2,
     },
   ],

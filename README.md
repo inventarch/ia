@@ -200,9 +200,9 @@ The [language floor](.ia/src/floor/README.md) supplies the kernel. These systems
 
 | Work with | Commands |
 | --- | --- |
-| **Workspace records** | `init`, `validate`, `capture`, `format`, `inspect`, `read`, `position`, `vocabulary`; `compile` is a deprecated alias of `capture` |
+| **Workspace records** | `init`, `validate`, `capture`, `format`, `inspect`, `read`, `position`, `next`, `vocabulary`; `compile` is a deprecated alias of `capture` |
 | **Distributions and hosts** | `pack`, `install`, `update`, `remove`, `restore`, `doctor`, `host` |
-| **Machine operations** | `scope`, `context`, `select`, `get`, `records`, `resolve`, `search`, `traverse`, `report`, with inputs through `--params` |
+| **Machine operations** | `scope`, `context`, `select`, `get`, `records`, `resolve`, `search`, `traverse`, `report`, with inputs through `--params`; since protocol v2 also `position`, `read` and `next`, which take the machine route only with `--params` or `--schema` |
 
 Use `ia --help` or `ia <command> --help` for options. `ia doctor` reports observed runtime, workspace and installation state; an unavailable update check remains unknown.
 
