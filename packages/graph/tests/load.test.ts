@@ -2,12 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@inventarch/language';
 import {
+  CLAIM_FIELDS,
   digest,
   directedView,
   load,
+  matchesSelection,
   recordDigest,
   resolve,
   revisionOf,
+  selectionProblem,
   serialize,
   stableSerialize,
 } from '../src/index.js';
@@ -593,5 +596,169 @@ describe('per-record source digest', () => {
   it('puts a digest on every native node and leaves the corpus revision to the revision inputs alone', () => {
     expect([...native.nodes.values()].every((n) => /^[0-9a-f]{64}$/.test(n.digest))).toBe(true);
     expect(native.revision).toBe(revisionOf(registry, options));
+  });
+});
+
+// Path selections (`covers`, `paths`) are workspace-relative POSIX paths: literal, except `*` within one segment, `**`
+// across any number of whole segments, and a trailing `/` for a directory and everything under it.
+describe('path selections and the claimant index (G15)', () => {
+  it.each([
+    ['docs/a.md', 'docs/a.md', true],
+    ['docs/a.md', 'docs/b.md', false],
+    ['docs/a.md/more', 'docs/a.md', false],
+    ['Docs/a.md', 'docs/a.md', false],
+    ['src/a.ts', 'src/*.ts', true],
+    ['src/.env', 'src/*', true],
+    ['src/x/a.ts', 'src/*.ts', false],
+    ['src', 'src/*', false],
+    ['src/a.ts', 'src/**/*.ts', true],
+    ['src/x/y/a.ts', 'src/**/*.ts', true],
+    ['src/x/y/a.js', 'src/**/*.ts', false],
+    ['any/depth/at/all', '**', true],
+    ['', '**', true],
+    ['docs', 'docs/', true],
+    ['docs/x/y.md', 'docs/', true],
+    ['docsx/y.md', 'docs/', false],
+    ['docs/x', 'docs/**', true],
+    ['a?b', 'a?b', true],
+    ['axb', 'a?b', false],
+    ['[x]/{y}', '[x]/{y}', true],
+    ['./docs/a.md', 'docs/a.md', true],
+  ])('matches path %j against selection %j: %s', (path, selection, expected) =>
+    expect(matchesSelection(path, selection)).toBe(expected),
+  );
+  it.each([
+    ['', 'empty'],
+    ['/etc/**', 'absolute'],
+    ['C:/work/**', 'absolute'],
+    ['docs\\a.md', 'backslash'],
+    ['../outside/**', '..'],
+    ['docs/./a.md', '.'],
+    ['docs//a.md', 'empty segment'],
+    ['src/**x', '**'],
+    ['***', '**'],
+    ['!docs/**', 'negation'],
+  ])('refuses the selection %j (%s) with the accepted form', (selection, reason) => {
+    expect(selectionProblem(selection)).toContain(reason);
+    expect(() => matchesSelection('docs/a.md', selection)).toThrow(
+      expect.objectContaining({
+        code: 'IA-GRAPH-SCOPE-INVALID',
+        message: expect.stringContaining('`*` matches within one segment'),
+      }),
+    );
+  });
+  it('accepts every well-formed selection and refuses a path outside the workspace', () => {
+    for (const selection of ['docs/a.md', 'docs/', 'src/**/*.ts', '**', 'a?b', '.github/**'])
+      expect(selectionProblem(selection)).toBeUndefined();
+    for (const path of ['/etc/passwd', '../outside'])
+      expect(() => matchesSelection(path, '**')).toThrow(expect.objectContaining({ code: 'IA-GRAPH-SCOPE-INVALID' }));
+  });
+  it('reads claims from a closed table of path-selection fields', () => {
+    expect(CLAIM_FIELDS).toEqual([
+      { word: 'convention', field: 'subject.covers' },
+      { word: 'hook', field: 'hook.paths' },
+      { word: 'law', field: 'subject.covers' },
+      { word: 'mandate', field: 'authority.covers' },
+      { word: 'playbook', field: 'subject.covers' },
+      { word: 'spec', field: 'work.covers' },
+    ]);
+    expect(Object.isFrozen(CLAIM_FIELDS)).toBe(true);
+  });
+  const claiming = probe(
+    [
+      '@law covering-rule',
+      '  meaning',
+      '    says "Covers the typed sources."',
+      '    answers "Which files does the rule govern?"',
+      '  governance',
+      '    severity blocking',
+      '  subject',
+      '    covers ["src/**/*.ts", "docs/"]',
+      '',
+      '@hook billing-guard',
+      '  meaning',
+      '    says "Guards billing writes."',
+      '    answers "Which writes need review?"',
+      '  hook',
+      '    event pre-write',
+      '    tools [write]',
+      '    paths ["src/billing/**"]',
+      '    message "Billing writes need review."',
+      '',
+      '@spec billing-api',
+      '  meaning',
+      '    says "The billing interface."',
+      '  work',
+      '    title "Billing API"',
+      '    status accepted',
+      '    covers ["src/billing/"]',
+      '',
+      '@law broken-rule',
+      '  meaning',
+      '    says "Claims what it cannot."',
+      '    answers "What does a malformed selection claim?"',
+      '  governance',
+      '    severity blocking',
+      '  subject',
+      '    covers ["/etc/**", "docs/*.md"]',
+    ].join('\n'),
+    'claims.ia',
+  );
+  const lineOf = (needle: string): number =>
+    claiming.source.text.split('\n').findIndex((line) => line.includes(needle)) + 1;
+  const identityOf = (name: string): string => claiming.records.find((r) => r.name === name)!.identity;
+  const claimed = graphOf(claiming);
+  const claim = (name: string, word: string, field: string, selection: string, needle: string) => ({
+    identity: identityOf(name),
+    word,
+    field,
+    selection,
+    band: 100,
+    source: { path: 'claims.ia', line: lineOf(needle), endLine: lineOf(needle) },
+  });
+  it('indexes covers and paths selections of admitted winners at load', () => {
+    const own = claimed.claims.filter((c) => c.source.path === 'claims.ia');
+    expect(own).toEqual(
+      [
+        claim('billing-api', 'spec', 'work.covers', 'src/billing/', 'covers ["src/billing/"]'),
+        claim('billing-guard', 'hook', 'hook.paths', 'src/billing/**', 'paths ['),
+        claim('broken-rule', 'law', 'subject.covers', 'docs/*.md', 'covers ["/etc/**"'),
+        claim('covering-rule', 'law', 'subject.covers', 'docs/', 'covers ["src/**/*.ts"'),
+        claim('covering-rule', 'law', 'subject.covers', 'src/**/*.ts', 'covers ["src/**/*.ts"'),
+      ].sort((a, b) => (a.identity < b.identity ? -1 : a.identity > b.identity ? 1 : 0)),
+    );
+    // A selection that cannot be read claims nothing; it is listed with the reason, never silently dropped.
+    expect(claimed.invalidClaims).toEqual([
+      {
+        ...claim('broken-rule', 'law', 'subject.covers', '/etc/**', 'covers ["/etc/**"'),
+        reason: expect.stringContaining('absolute'),
+      },
+    ]);
+    // The shipped fixture mandate claims through authority.covers; a check's scope is descriptive text, not a claim.
+    const mandate = records.find((r) => r.discriminator === 'mandate' && r.name === 'sample-mandate')!;
+    expect(native.claims.filter((c) => c.identity === mandate.identity).map((c) => [c.field, c.selection])).toEqual([
+      ['authority.covers', 'docs/**'],
+    ]);
+    expect(native.claims.some((c) => c.word === 'check')).toBe(false);
+    expect(native.invalidClaims).toEqual([]);
+  });
+  it('adds no diagnostic, edge or reference and leaves the revision to its sources', () => {
+    const plain = graphOf(probe('@playbook nothing-claimed', 'claims.ia'));
+    expect(claimed.diagnostics).toEqual(plain.diagnostics);
+    expect(claimed.revision).toBe(revisionOf(registry, { ...options, sources: [...inputs, claiming.source] }));
+    expect(claimed.edges.filter((e) => e.source.path === 'claims.ia')).toEqual([]);
+    expect(claimed.references.filter((r) => r.source.path === 'claims.ia')).toEqual([]);
+  });
+  it('is total, independent of input order and frozen', () => {
+    const reversed = load([...claiming.records, ...records].reverse(), registry, {
+      ...options,
+      sources: [claiming.source, ...inputs].reverse(),
+    });
+    expect(stableSerialize(reversed.claims)).toBe(stableSerialize(claimed.claims));
+    expect(stableSerialize(reversed.invalidClaims)).toBe(stableSerialize(claimed.invalidClaims));
+    expect(() => (claimed.claims as unknown[]).pop()).toThrow();
+    expect(() => {
+      (claimed.claims[0] as { selection: string }).selection = '**';
+    }).toThrow();
   });
 });

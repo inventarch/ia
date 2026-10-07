@@ -855,3 +855,39 @@ it('shows the observed host state in the inspect overview, compared against the 
   applyHost(planHost(root, 'claude', other));
   expect((await run(['inspect', '--root', root])).stdout).toMatch(/Host +claude stale \(release\)/);
 });
+
+it('refuses to capture a @workspace whose composition.sources entry is malformed, naming the entry and the form', async () => {
+  const root = workspace();
+  await capture(root);
+  const kept = stored(root, 'current');
+  const schema = resolve(root, '.ia/src/systems/workspace-system/schemas/workspace.schema.ia'),
+    record = resolve(root, '.ia/src/systems/workspace-system/records/foundation-workspace.ia');
+  writeFileSync(
+    schema,
+    readFileSync(schema, 'utf8').replace(
+      /( +)must have composition\.systems as list of ref[^\n]*\n/,
+      (line, indent: string) => `${line}${indent}may have composition.sources as list of text\n`,
+    ),
+  );
+  writeFileSync(
+    record,
+    readFileSync(record, 'utf8').replace(
+      /( +)systems \[[^\n]*\n/,
+      (line, indent: string) => `${line}${indent}sources ["docs"]\n`,
+    ),
+  );
+  const got = await run(['capture', '--root', root, '--json']);
+  expect(got.exitCode).toBe(3);
+  expect(got.stderr).toBe('');
+  const refusal = JSON.parse(got.stdout) as { ok: boolean; code: string; message: string; next: string };
+  expect(refusal).toMatchObject({ ok: false, code: 'IA-DB-SOURCES-INVALID' });
+  expect(refusal.message).toContain('"docs"');
+  expect(refusal.message).toContain('foundation-workspace.ia:');
+  expect(refusal.next).toContain('<root> @<placement>');
+  expect(refusal.next).toContain('ia capture');
+  // Nothing is written: the stored snapshot is the one captured before the edit.
+  expect(stored(root, 'current')).toBe(kept);
+  const told = await run(['capture', '--root', root]);
+  expect(told.exitCode).toBe(3);
+  expect(told.stderr).toContain('IA-DB-SOURCES-INVALID');
+});

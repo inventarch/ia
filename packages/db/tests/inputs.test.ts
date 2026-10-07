@@ -15,6 +15,7 @@ import { afterEach, expect, it } from 'vitest';
 import { KERNEL_SOURCES, buildRegistry, compile, parse } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import { caseFold, linked, pathKey, readInputs, sameFile, systemMember, unaliased, within } from '../src/index.js';
+import { MOUNT_PREFIXES } from '../src/inputs.js';
 
 const temporary: string[] = [];
 const workspace = () => {
@@ -348,4 +349,23 @@ it('reads a systems folder spelled in another case as the systems folder where t
   expect(paths).toEqual([
     folds ? '.ia/src/systems/demo-system/records/a.ia' : '.ia/src/Systems/demo-system/records/a.ia',
   ]);
+});
+it('reads system folders under the workspace, a package root, and each mount prefix only', () => {
+  const sha = 'a'.repeat(64);
+  expect(MOUNT_PREFIXES).toEqual(['adopted/[a-z][a-z0-9-]*', 'distributions/store']);
+  expect(Object.isFrozen(MOUNT_PREFIXES)).toBe(true);
+  expect(systemMember('.ia/src/systems/demo/records/a.ia')).toEqual({ name: 'demo', root: '.ia/src/systems/demo' });
+  for (const mount of [`adopted/foundation/${sha}`, `distributions/store/${sha}`])
+    expect(systemMember(`.ia/${mount}/.ia/src/systems/demo/a.ia`)).toEqual({
+      name: 'demo',
+      root: `.ia/${mount}/.ia/src/systems/demo`,
+    });
+  for (const path of [
+    `.ia/open/peer/${sha}/.ia/src/systems/demo/a.ia`,
+    `.ia/adopted/Foundation/${sha}/.ia/src/systems/demo/a.ia`,
+    `.ia/adopted/foundation/short/.ia/src/systems/demo/a.ia`,
+    '.ia/src/systems/demo',
+    'docs/a.md',
+  ])
+    expect(systemMember(path)).toBeUndefined();
 });

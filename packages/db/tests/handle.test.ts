@@ -347,3 +347,136 @@ it('exposes the retained previous digest index as a copy, pruned to a supplied s
     expect.objectContaining({ code: 'IA-DB-SNAPSHOT-UNAVAILABLE' }),
   );
 });
+
+const WORK_PATH = '.ia/src/systems/work-system/records/work.ia';
+const MANDATE_PATH = '.ia/src/systems/agent-system/records/work-mandate.ia';
+const workSpec =
+  '#! ia 1.0\n\n@spec work-scope\n  meaning\n    says "The work-system records."\n  work\n    title "Work records"\n    status accepted\n    covers [".ia/src/systems/work-system/**"]\n';
+const workMandate =
+  '#! ia 1.0\n\n@mandate work-mandate\n  meaning\n    says "Covers the work-system records."\n    answers "Who may change the work-system records?"\n  governance\n    requires "Changes keep the work records admitted."\n  authority\n    moves [Observation]\n    covers [".ia/src/systems/work-system/records/"]\n';
+const seated = (locations = {}) => {
+  const root = workspace();
+  put(root, WORK_PATH, workSpec);
+  put(root, MANDATE_PATH, workMandate);
+  const db = open(root, { cache: false, locations }),
+    identity = (word: string, name: string) =>
+      db.records().find((r) => r.discriminator === word && r.name === name)!.identity;
+  return { root, db, identity };
+};
+it('resolves a path to its declared-at seat, the records declared there and the records that claim it', () => {
+  const { db, identity } = seated(),
+    seat = db.resolveSeat(WORK_PATH);
+  expect(db.refused).toEqual([]);
+  expect(seat.path).toBe(WORK_PATH);
+  expect(seat.seat).toEqual({ kind: 'system', name: 'work-system', identity: identity('system', 'work-system') });
+  expect(seat.declared).toEqual([identity('spec', 'work-scope')]);
+  // Equal bands order by identity ascending: the agent-system mandate before the work-system spec.
+  expect(seat.claimants.map((c) => [c.identity, c.word, c.field, c.selection, c.band])).toEqual([
+    [identity('mandate', 'work-mandate'), 'mandate', 'authority.covers', '.ia/src/systems/work-system/records/', 100],
+    [identity('spec', 'work-scope'), 'spec', 'work.covers', '.ia/src/systems/work-system/**', 100],
+  ]);
+  expect(seat.claimants[0]!.source).toEqual({ path: MANDATE_PATH, line: 11, endLine: 11 });
+  expect(seat.invalid).toEqual([]);
+  expect(seat.unknown).toBeUndefined();
+  expect(() => (seat.claimants as unknown[]).pop()).toThrow();
+  expect(() => {
+    (seat as { path: string }).path = 'elsewhere';
+  }).toThrow();
+  // A path spelled another way names the same location; a directory is declared-at for the records beneath it.
+  expect(db.resolveSeat('./.ia/src/systems/work-system/records/work.ia')).toEqual(seat);
+  expect(db.resolveSeat('.ia/src/systems/work-system').seat).toEqual(seat.seat);
+  expect(db.resolveSeat('.ia/src/systems/work-system').declared).toEqual([identity('spec', 'work-scope')]);
+});
+it('orders claimants by band descending before identity, and names an unclaimed path', () => {
+  const adopted = { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' } as const,
+    { db, identity } = seated({ [MANDATE_PATH]: adopted }),
+    seat = db.resolveSeat(WORK_PATH);
+  expect(seat.claimants.map((c) => [c.identity, c.band])).toEqual([
+    [identity('spec', 'work-scope'), 100],
+    [identity('mandate', 'work-mandate'), 90],
+  ]);
+  // The shipped fixture mandate claims docs/**; outside every system folder the one admitted @workspace is the seat.
+  const workspaceId = identity('workspace', 'foundation-workspace'),
+    docs = db.resolveSeat('docs/guide.md');
+  expect(docs.seat).toEqual({ kind: 'workspace', identity: workspaceId });
+  expect(docs.declared).toEqual([]);
+  expect(docs.claimants.map((c) => c.identity)).toEqual([identity('mandate', 'sample-mandate')]);
+  const none = db.resolveSeat('src/unclaimed.ts');
+  expect(none).toMatchObject({
+    seat: { kind: 'workspace', identity: workspaceId },
+    declared: [],
+    claimants: [],
+    unknown: 'no record claims src/unclaimed.ts',
+  });
+});
+it('prunes declared records and claimants to a supplied scope while the seat stays view-wide', () => {
+  const { db, identity } = seated(),
+    spec = identity('spec', 'work-scope'),
+    scope = db.resolveScope({ identities: [spec] }),
+    scoped = db.resolveSeat(WORK_PATH, { within: scope.token });
+  expect(scoped.seat).toEqual(db.resolveSeat(WORK_PATH).seat);
+  expect(scoped.declared).toEqual([spec]);
+  expect(scoped.claimants.map((c) => c.identity)).toEqual([spec]);
+  const elsewhere = db.resolveScope({ identities: [methodId] }),
+    unseen = db.resolveSeat(WORK_PATH, { within: elsewhere.token });
+  expect(unseen).toMatchObject({ declared: [], claimants: [], unknown: `no record claims ${WORK_PATH}` });
+});
+it('seats a path under the longest declared source root, else the one workspace, else no workspace', () => {
+  const root = workspace();
+  put(root, '.ia/src/team.ia', workspaceRecord('team-workspace', '    sources ["docs @authored"]\n'));
+  put(root, '.ia/src/guides.ia', workspaceRecord('guide-workspace', '    sources ["docs/guides @open"]\n'));
+  const db = open(root, { cache: false }),
+    identity = (name: string) => db.records().find((r) => r.name === name)!.identity;
+  expect(db.refused).toEqual([]);
+  expect(db.resolveSeat('docs/a.md').seat).toEqual({ kind: 'workspace', identity: identity('team-workspace') });
+  // A path carries no placement, so any declared root contains it; the longest wins.
+  expect(db.resolveSeat('docs/guides/b.md').seat).toEqual({
+    kind: 'workspace',
+    identity: identity('guide-workspace'),
+  });
+  // Three admitted workspaces and no declared root: the synthetic workspace closure, named by no identity.
+  expect(db.resolveSeat('src/a.ts').seat).toEqual({ kind: 'workspace', identity: null });
+  // A system folder is a system seat whatever the workspaces declare; an unadmitted system has no identity.
+  expect(db.resolveSeat('.ia/src/systems/no-such-system/x.ia').seat).toEqual({
+    kind: 'system',
+    name: 'no-such-system',
+    identity: null,
+  });
+});
+it('lists claims whose selection cannot be read instead of matching them, and refuses a path outside the workspace', () => {
+  const root = workspace();
+  put(
+    root,
+    '.ia/src/systems/governance-system/records/broken-rule.ia',
+    '#! ia 1.0\n\n@law broken-rule\n  meaning\n    says "Claims what it cannot."\n    answers "What does a malformed selection claim?"\n  governance\n    severity blocking\n  subject\n    covers ["/etc/**", "src/**"]\n',
+  );
+  const db = open(root, { cache: false }),
+    rule = db.records().find((r) => r.name === 'broken-rule')!.identity,
+    seat = db.resolveSeat('src/a.ts');
+  expect(db.refused).toEqual([]);
+  expect(seat.claimants.map((c) => [c.identity, c.selection])).toEqual([[rule, 'src/**']]);
+  expect(seat.invalid).toEqual([
+    expect.objectContaining({ identity: rule, selection: '/etc/**', reason: expect.stringContaining('absolute') }),
+  ]);
+  for (const path of ['/etc/passwd', '../outside', 'C:/work'])
+    expect(() => db.resolveSeat(path)).toThrow(
+      expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE', message: expect.stringContaining('workspace-relative') }),
+    );
+  db.close();
+  expect(() => db.resolveSeat('src/a.ts')).toThrow(expect.objectContaining({ code: 'IA-DB-CLOSED' }));
+});
+it('refuses a malformed composition.sources entry by name, in membership and seat resolution alike', () => {
+  for (const entry of ['docs', 'docs @nowhere', '../outside @authored', '/abs @authored', 'docs @Authored']) {
+    const root = workspace();
+    put(root, '.ia/src/team.ia', workspaceRecord('team-workspace', `    sources [".ia/src @authored", "${entry}"]\n`));
+    const db = open(root, { cache: false });
+    expect(db.refused).toEqual([]);
+    const refusal = expect.objectContaining({
+      code: 'IA-DB-SOURCES-INVALID',
+      message: expect.stringMatching(/team-workspace.*\.ia\/src\/team\.ia:\d+.*<root> @<placement>/),
+    });
+    expect(() => db.membership()).toThrow(refusal);
+    expect(() => db.resolveSeat('docs/a.md')).toThrow(refusal);
+    expect(() => db.membership()).toThrow(expect.objectContaining({ message: expect.stringContaining(entry) }));
+  }
+});
