@@ -128,8 +128,9 @@ export interface StateValue {
 }
 /** One requirement of a listed record and where it stands. */
 export interface Basis {
-  readonly predicate: 'require';
-  /** The required record's identity, or the reference as written when it resolves to none. */
+  /** `require`: a record this one requires; `supersede`: a record that supersedes this one. */
+  readonly predicate: 'require' | 'supersede';
+  /** The required or superseding record's identity, or the reference as written when it resolves to none. */
   readonly target: string;
   readonly resolved: boolean;
   /** The required record's word; null when the view cannot read it. */
@@ -226,6 +227,45 @@ function evidenceOf(read: Reading, node: Node): Chosen | undefined {
 }
 const recorded = (chosen: Chosen): boolean => chosen.readiness === 'current' && chosen.evidence.verdict === 'success';
 
+/** The @decision grounding `identity` with a choice and an effective revision (the smallest identity); null for none. */
+function groundingOf(handle: ReadHandle, within: string, identity: string): string | null {
+  return (
+    handle
+      .directedView(identity, { within })
+      .filter((row) => row.predicate === 'ground' && row.direction === 'in' && row.other !== null)
+      .map((row) => handle.get(row.other!, { within }))
+      .filter(
+        (decision): decision is Node =>
+          decision !== undefined &&
+          decision.discriminator === 'decision' &&
+          decision.placement.kind !== 'runtime' &&
+          fieldText(decision, 'decision', 'choice') !== null &&
+          fieldText(decision, 'decision', 'effective-revision') !== null,
+      )
+      .map((decision) => decision.identity)
+      .sort(compare)[0] ?? null
+  );
+}
+/**
+ * The records that supersede `identity`, in identity order: its consented `supersede` rows read from the superseded
+ * end (either spelling), through the token and outside the runtime band, each with the decision grounding it.
+ */
+function supersessionsOf(
+  handle: ReadHandle,
+  within: string,
+  identity: string,
+): readonly { readonly by: Node; readonly grounding: string | null }[] {
+  const found = new Map<string, Node>();
+  for (const row of handle.directedView(identity, { within })) {
+    if (row.predicate !== 'supersede' || row.direction !== 'in' || row.other === null || !row.consented) continue;
+    const by = handle.get(row.other, { within });
+    if (by !== undefined && by.placement.kind !== 'runtime') found.set(by.identity, by);
+  }
+  return [...found.values()]
+    .sort((a, b) => compare(a.identity, b.identity))
+    .map((by) => ({ by, grounding: groundingOf(handle, within, by.identity) }));
+}
+
 /**
  * Where a spec stands: superseded only when a superseding spec is grounded by a @decision with a choice and an
  * effective revision; a grounded supersession whose superseding spec states `work.replaced-scope` leaves the spec live
@@ -236,28 +276,10 @@ export function specStanding(
   within: string,
   spec: string,
 ): { readonly standing: string; readonly blocking: boolean } {
-  const rows = handle.directedView(spec, { within }),
-    standings: { standing: string; blocking: boolean; rank: number }[] = [];
-  for (const row of rows) {
-    if (row.predicate !== 'supersede' || row.direction !== 'in' || row.other === null) continue;
-    const by = row.other,
-      record = handle.get(by, { within });
-    if (record === undefined || record.placement.kind === 'runtime') continue;
-    const grounding = handle
-      .directedView(by, { within })
-      .filter((other) => other.predicate === 'ground' && other.direction === 'in' && other.other !== null)
-      .map((other) => handle.get(other.other!, { within }))
-      .filter(
-        (decision): decision is Node =>
-          decision !== undefined &&
-          decision.discriminator === 'decision' &&
-          decision.placement.kind !== 'runtime' &&
-          fieldText(decision, 'decision', 'choice') !== null &&
-          fieldText(decision, 'decision', 'effective-revision') !== null,
-      )
-      .map((decision) => decision.identity)
-      .sort(compare)[0];
-    if (grounding === undefined)
+  const standings: { standing: string; blocking: boolean; rank: number }[] = [];
+  for (const { by: record, grounding } of supersessionsOf(handle, within, spec)) {
+    const by = record.identity;
+    if (grounding === null)
       standings.push({ standing: `supersession declared, not grounded (${by})`, blocking: false, rank: 2 });
     else if (fieldText(record, 'work', 'replaced-scope') !== null)
       standings.push({
@@ -273,6 +295,25 @@ export function specStanding(
       ? { standing: 'current', blocking: false }
       : { standing: chosen.standing, blocking: chosen.blocking },
   );
+}
+
+/**
+ * The supersessions of a listed record as blocking bases (`superseded by <record> (<grounding>)`). A superseded plan,
+ * milestone or task is where work stopped, so a declared supersession blocks it whether or not a decision grounds it
+ * yet; the basis says which. Reading supersession as blocking only once grounded, as a spec's is, changes this one
+ * function.
+ */
+function supersessionBasis(read: Reading, node: Node): readonly Basis[] {
+  return supersessionsOf(read.handle, read.within, node.identity)
+    .filter(({ by }) => read.nodes.has(by.identity))
+    .map(({ by, grounding }) => ({
+      predicate: 'supersede',
+      target: by.identity,
+      resolved: true,
+      word: by.discriminator,
+      standing: `superseded by ${by.identity} (${grounding === null ? 'supersession declared, not grounded' : `grounded by ${grounding}`})`,
+      blocking: true,
+    }));
 }
 
 /** The records `node` requires: its own `require` rows, resolved or not, and the inverse rows others declare. */
@@ -380,7 +421,8 @@ function linesOf(
 }
 
 function entryOf(read: Reading, node: Node, word: WorkWord, participant: string | null): DeliveryEntry {
-  const basis = requirements(read, node),
+  const required = requirements(read, node),
+    basis = [...required, ...supersessionBasis(read, node)],
     chosen = evidenceOf(read, node),
     blocking = basis.filter((item) => item.blocking);
   let verdict: DeliveryVerdict;
@@ -400,7 +442,7 @@ function entryOf(read: Reading, node: Node, word: WorkWord, participant: string 
       blocking.length > 0
         ? {
             kind: 'blocked',
-            text: `blocked (${blocking.map((item) => `${item.target} ${item.standing}`).join('; ')})`,
+            text: `blocked (${blocking.map((item) => (item.predicate === 'supersede' ? item.standing : `${item.target} ${item.standing}`)).join('; ')})`,
             observation: null,
             evaluator: null,
             selfAttributed: false,
@@ -413,7 +455,7 @@ function entryOf(read: Reading, node: Node, word: WorkWord, participant: string 
       word === 'task' ? (references(read.handle, read.within, node.identity, 'work.milestone')[0] ?? null) : null,
     status: fieldText(node, 'work', 'status'),
     owner: fieldText(node, 'work', 'owner'),
-    lines: linesOf(read, node, basis, chosen),
+    lines: linesOf(read, node, required, chosen),
     basis,
     verdict,
   };
