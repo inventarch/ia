@@ -143,11 +143,12 @@ export const fallbackNext = (code: string, command?: string): string =>
 /**
  * §4.1: the consumer never rewrites a service's code. Class 4 is unreachable from the three verbs this release
  * implements, because none of them acquires anything over a network, so every unmapped failure is class 3.
- * Whatever was thrown, the refusal returned names a non-empty next command; `command` is the refused verb.
+ * Whatever was thrown, the refusal returned names a non-empty next command; `command` is the refused verb. A refusal
+ * an inner site converted without the verb carries the verbless fallback, which is re-derived here with the verb.
  */
 export function refusalOf(error: unknown, command?: string): Refusal {
   if (error instanceof Refusal)
-    return typeof error.next === 'string' && error.next.trim() !== ''
+    return typeof error.next === 'string' && error.next.trim() !== '' && error.next !== fallbackNext(error.code)
       ? error
       : new Refusal(error.code, error.message, error.exit, error.where, fallbackNext(error.code, command), error.at);
   const message = error instanceof Error ? error.message : String(error);

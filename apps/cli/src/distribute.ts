@@ -450,7 +450,12 @@ function refreshed(view: PlanView, host: HostName): Refusal | null {
     const refusal = refusalOf(error),
       path = refusedPath(error),
       rerun = `ia host ${host} --apply`;
-    const next = path !== null ? projectionRepair(host, path, rerun) : (refusal.next ?? `Run "${rerun}" to finish.`);
+    const next =
+      path !== null
+        ? projectionRepair(host, path, rerun)
+        : error instanceof Refusal
+          ? refusal.next
+          : `Run "${rerun}" to finish.`;
     return new Refusal(
       refusal.code,
       refusal.message,
