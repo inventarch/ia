@@ -24,15 +24,15 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/README.md",
-      "bytes": 679,
-      "sha256": "5e03e27aa4635a35685ecae3daee5b185d4dc565bda0beeef5e33acde066f88c",
+      "bytes": 974,
+      "sha256": "64da36ba677616d0e59a087982ddb451c865a5cd39401afd993405115c4b1a99",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/SPEC.md",
-      "bytes": 2070,
-      "sha256": "efc5bc5f8facd432de198bb675326d1500dbe56cc1d51f0a46973f3c9cbec3ed",
+      "bytes": 2620,
+      "sha256": "4105c6e9d538a47be3cfb4a4752d091c9a412500843ab1b967721aacdd7de35b",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -45,8 +45,8 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/references/public-spec.md",
-      "bytes": 1293,
-      "sha256": "c9041987e65ff71f174743a655171fc1cdababdc35a707696a1a815849f56a07",
+      "bytes": 1469,
+      "sha256": "ffde9c03b92827ce71cb472f92a3aec32172f07dd77efd8dfca1b0739e3ec7df",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

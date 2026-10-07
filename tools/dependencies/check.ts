@@ -74,6 +74,24 @@ export interface Component {
   readonly path: string;
   readonly app: boolean;
 }
+const importMeta = (node: ts.Expression): boolean =>
+  ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword && node.name.text === 'meta';
+/** `createRequire(import.meta.url)` or `createRequire(import.meta.filename)`: a require anchored at this module. A
+ * require anchored anywhere else resolves through that other package's own declared dependencies. */
+const selfRequire = (node: ts.Expression): boolean => {
+  if (!ts.isCallExpression(node)) return false;
+  const callee = node.expression,
+    anchor = node.arguments[0];
+  return (
+    ((ts.isIdentifier(callee) && callee.text === 'createRequire') ||
+      (ts.isPropertyAccessExpression(callee) && callee.name.text === 'createRequire')) &&
+    anchor !== undefined &&
+    ((ts.isPropertyAccessExpression(anchor) &&
+      importMeta(anchor.expression) &&
+      ['url', 'filename'].includes(anchor.name.text)) ||
+      (ts.isIdentifier(anchor) && anchor.text === '__filename'))
+  );
+};
 export function importedModules(source: string, path: string): readonly (string | null)[] {
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true),
     modules: (string | null)[] = [];
@@ -86,12 +104,22 @@ export function importedModules(source: string, path: string): readonly (string 
     else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference))
       add(node.moduleReference.expression);
     else if (ts.isImportTypeNode(node)) add(ts.isLiteralTypeNode(node.argument) ? node.argument.literal : undefined);
-    else if (
-      ts.isCallExpression(node) &&
-      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-        (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
-    )
-      add(node.arguments[0]);
+    else if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      // A resolution names the same installed dependency a load would: import.meta.resolve, require.resolve and
+      // createRequire(import.meta.url).resolve count as imports, as do require and dynamic import calls.
+      if (
+        callee.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(callee) && callee.text === 'require') ||
+        selfRequire(callee) ||
+        (ts.isPropertyAccessExpression(callee) &&
+          callee.name.text === 'resolve' &&
+          (importMeta(callee.expression) ||
+            (ts.isIdentifier(callee.expression) && callee.expression.text === 'require') ||
+            selfRequire(callee.expression)))
+      )
+        add(node.arguments[0]);
+    }
     ts.forEachChild(node, visit);
   };
   visit(file);

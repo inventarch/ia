@@ -18,6 +18,7 @@
       "@inventarch/session-system",
       "@inventarch/template-system",
       "@inventarch/work-system",
+      "@inventarch/workspace-runtime",
       "@inventarch/workspace-system"
     ]
   ]

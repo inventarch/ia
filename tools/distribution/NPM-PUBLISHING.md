@@ -11,7 +11,7 @@ The public scope is `@inventarch`. Every public npm package moves together at th
 | Command | When | What it does |
 | --- | --- | --- |
 | `pnpm release:note` | In a pull request that changes a public package | Drafts `releases/pending/<id>.json` from the branch diff |
-| `pnpm release:check` | CI on every pull request and push | Checks cohort versions, published changeset integrity and a note for every changed package |
+| `pnpm release:check` | CI on every pull request and push | Checks package manifest form and published exports, cohort versions, published changeset integrity and a note for every changed package |
 | `pnpm release:version` | Dry run at any time; `--write` by the release workflow or a maintainer | Computes the next version and, with `--write`, applies it |
 | `pnpm release:check --strict` | Before preparing archives | Requires exact changed-file coverage and no pending notes |
 | `pnpm release:collect` | After editing release prose by hand | Re-derives coverage and regenerates `CHANGELOG.md` |
@@ -67,7 +67,7 @@ pnpm npm:preflight --version <version>
 
 `artifacts/npm` must be absent or empty before preparation. The installed consumers import JavaScript exports and separately verify native data archives, bindings and complete dependency closure. npm 12 uses its default install security settings. On Windows, invoke `npm:consumer --npm-cli /path/to/npm/bin/npm-cli.js`.
 
-The version 2 release receipt retains exact source, changeset and compatibility digests, archive integrity, the complete packed dependency graph and explicit cycle groups. Packing adds native dependencies, so source manifests alone cannot define publication order. All 11 system packages currently form one reviewed cycle. Every new package name publishes first; the existing packages follow, each group before its consumers. The receipt's `packages` list is that order. Every internal dependency must be present at the exact cohort version, and version alignment does not eliminate cycles. A new packed cycle refuses until `cycles` in `releases/current.json` records it.
+The version 2 release receipt retains exact source, changeset and compatibility digests, archive integrity, the complete packed dependency graph and explicit cycle groups. Packing adds native dependencies, so source manifests alone cannot define publication order. All 11 system packages and `@inventarch/workspace-runtime` currently form one reviewed cycle: the composition package depends on workspace-runtime, which depends on the agent, session and template system packages. Every new package name publishes first; the existing packages follow, each group before its consumers. The receipt's `packages` list is that order. Every internal dependency must be present at the exact cohort version, and version alignment does not eliminate cycles. A new packed cycle refuses until `cycles` in `releases/current.json` records it.
 
 `npm:plan` validates local artifacts. `npm:preflight` reads live registry metadata without publishing. It refuses missing names, immutable byte conflicts, newer versions or inconsistent retry tags. Package existence does not prove permission to publish.
 

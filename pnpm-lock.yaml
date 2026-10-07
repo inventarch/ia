@@ -627,6 +627,9 @@ importers:
       '@inventarch/agent-system':
         specifier: workspace:*
         version: link:../../.ia/src/systems/agent-system
+      '@inventarch/authoring-system':
+        specifier: workspace:*
+        version: link:../../.ia/src/systems/authoring-system
       '@inventarch/db':
         specifier: workspace:*
         version: link:../db

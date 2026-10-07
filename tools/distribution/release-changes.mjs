@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { publicPackages } from './release-packages.mjs';
+import { manifestProblems, publicPackages } from './release-packages.mjs';
 import { BUMPS, bumpVersion, maxBump, packageOwner, pendingNotes, releaseBump } from './release-notes.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -397,6 +397,11 @@ if (isEntry(process.argv[1], import.meta.url)) {
     positionals.length === 1 && ['check', 'collect', 'notes'].includes(positionals[0]),
     'Use check [--strict], collect or notes --version <version>',
   );
+  // Both checks refuse a manifest the version rewrite or the packed exports cannot rely on.
+  if (positionals[0] === 'check') {
+    const problems = manifestProblems(root);
+    assert.equal(problems.length, 0, 'Package manifests need repair:\n' + problems.map((row) => '  ' + row).join('\n'));
+  }
   if (positionals[0] === 'notes') {
     assert.ok(stableVersion(values.version), 'notes requires --version');
     process.stdout.write(releaseNotes(root, values.version));
