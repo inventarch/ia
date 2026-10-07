@@ -422,11 +422,12 @@ it('labels derived rows of the directed view on the inbound side of inspect', as
   ).toEqual([]);
 
   const human = (await run(['inspect', check, '--root', fixture, '--edges', 'both'])).stdout;
-  expect(human).toMatch(/Derived inverses\n.*enforce +governance-system\/governance\/law\/sample-rule\s+out, derived/);
-  expect(human).toMatch(/Derived inverses[\s\S]*declared on governance-system\/governance\/law\/sample-rule/);
+  expect(human).toMatch(
+    /Derived inverses\n.*enforce +governance-system\/governance\/law\/sample-rule\s+out,\s+derived\n/,
+  );
   expect(human).toContain('Field references');
   expect((await run(['inspect', law, '--root', fixture, '--edges', 'in'])).stdout).toMatch(
-    /Edges\n.*enforced-by +compliance-system\/check\/gate\/instance-schema-check\s+in, declared/,
+    /Edges\n.*enforced-by +compliance-system\/check\/gate\/instance-schema-check\s+in,\s+declared\n/,
   );
   // `--edges out` keeps the walk it always printed, with no derived claim.
   const outward = (await run(['inspect', check, '--root', fixture])).stdout;

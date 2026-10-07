@@ -79,16 +79,71 @@ export function referenceRows(references: ReturnType<Session['reader']['referenc
   }));
 }
 
+/**
+ * One row of the record's derived directed view (graph G14, db `directedView`), its source path in portable spelling.
+ * `kind` says whether the record declared it (`edge`), its counterpart did (`inverse`, derived) or it is a typed field
+ * reference (`field-ref`, derived when it names the record).
+ */
+type ViewRow = ReturnType<Session['reader']['directedView']>[number];
+export function viewRows(rows: readonly ViewRow[], direction: Direction): readonly ViewRow[] {
+  return rows
+    .filter((row) => direction === 'both' || row.direction === direction)
+    .map((row) => ({ ...row, source: { path: portable(row.source.path), line: row.source.line } }));
+}
+
+/** The C08 labels: one section per row kind of the directed view. */
+export const VIEW_SECTIONS = { edge: 'Edges', inverse: 'Derived inverses', 'field-ref': 'Field references' } as const;
+
 const tally = (values: readonly string[]): readonly (readonly [string, number])[] => {
   const counts = new Map<string, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 };
 
+const walkEntry = (record: Record_, edge: EdgeRow, caps: Capabilities): readonly string[] => {
+  // from/to already carry the direction; the marker names it so an inverse spelling is not a duplicate.
+  const outward = edge.from === record.identity;
+  return entry(
+    [
+      [
+        atom(edge.predicate, null, 0),
+        atom(outward ? edge.to : edge.from, 'cyan', 2),
+        ...words(`${outward ? 'out' : 'in'}, depth ${edge.depth}`, 'dim', 2),
+      ],
+    ],
+    { depth: 1, symbol: 'info' },
+    caps,
+  );
+};
+
+const viewEntry = (row: ViewRow, caps: Capabilities): readonly string[] => {
+  const label =
+    row.kind === 'edge'
+      ? `${row.direction}, declared`
+      : row.kind === 'inverse'
+        ? // Its counterpart declared it; only a row a record declares on itself names the declarer apart.
+          `${row.direction}, derived${row.declaredOn === row.other ? '' : `, declared on ${row.declaredOn}`}`
+        : `${row.direction}${row.derived ? ', derived' : ''}`;
+  return entry(
+    [
+      [
+        atom(row.spelling, null, 0),
+        atom(row.other ?? 'unresolved', 'cyan', 2),
+        ...words(label, 'dim', 2),
+        ...(row.kind === 'field-ref' ? words(`${row.source.path}:${row.source.line}`, 'dim', 2) : []),
+      ],
+    ],
+    { depth: 1, symbol: 'info' },
+    caps,
+  );
+};
+
+const none = (text: string, caps: Capabilities): readonly string[] => entry([words(text)], { depth: 1 }, caps);
+
 const recordBlocks = (
   record: Record_,
   edges: readonly EdgeRow[],
-  references: readonly ReferenceRow[] | undefined,
+  view: { readonly rows: readonly ViewRow[]; readonly direction: Direction } | undefined,
   caps: Capabilities,
 ): readonly (readonly string[])[] => {
   const sections = record.sections.map((section) => section.name);
@@ -115,45 +170,45 @@ const recordBlocks = (
         caps,
       ),
     ]);
-  blocks.push([
-    sectionLabel('Edges', caps),
-    ...(edges.length === 0
-      ? entry([words('None at this depth and direction.')], { depth: 1 }, caps)
-      : edges.flatMap((edge) => {
-          // from/to already carry the direction; the marker names it so an inverse spelling is not a duplicate.
-          const outward = edge.from === record.identity;
-          return entry(
-            [
-              [
-                atom(edge.predicate, null, 0),
-                atom(outward ? edge.to : edge.from, 'cyan', 2),
-                ...words(`${outward ? 'out' : 'in'}, depth ${edge.depth}`, 'dim', 2),
-              ],
-            ],
-            { depth: 1, symbol: 'info' },
-            caps,
-          );
-        })),
-  ]);
-  if (references !== undefined)
+  if (view === undefined) {
     blocks.push([
-      sectionLabel('Referenced by', caps),
-      ...(references.length === 0
-        ? entry([words('No record names this one in a typed field.')], { depth: 1 }, caps)
-        : references.flatMap((reference) =>
-            entry(
-              [
-                [
-                  atom(reference.field, null, 0),
-                  atom(reference.from, 'cyan', 2),
-                  ...words(`${reference.source.path}:${reference.source.line}`, 'dim', 2),
-                ],
-              ],
-              { depth: 1, symbol: 'info' },
-              caps,
-            ),
-          )),
+      sectionLabel('Edges', caps),
+      ...(edges.length === 0
+        ? none('None at this depth and direction.', caps)
+        : edges.flatMap((edge) => walkEntry(record, edge, caps))),
     ]);
+    return blocks;
+  }
+  // The direct rows come from the directed view, labelled by who declared them; a deeper walk keeps its own rows.
+  const declared = [
+    ...view.rows.filter((row) => row.kind === 'edge').map((row) => viewEntry(row, caps)),
+    ...edges.filter((edge) => edge.depth > 1).map((edge) => walkEntry(record, edge, caps)),
+  ];
+  const inverses = view.rows.filter((row) => row.kind === 'inverse');
+  const references = view.rows.filter((row) => row.kind === 'field-ref');
+  blocks.push(
+    [
+      sectionLabel(VIEW_SECTIONS.edge, caps),
+      ...(declared.length === 0 ? none('None at this depth and direction.', caps) : declared.flat()),
+    ],
+    [
+      sectionLabel(VIEW_SECTIONS.inverse, caps),
+      ...(inverses.length === 0
+        ? none('None at this depth and direction.', caps)
+        : inverses.flatMap((row) => viewEntry(row, caps))),
+    ],
+    [
+      sectionLabel(VIEW_SECTIONS['field-ref'], caps),
+      ...(references.length === 0
+        ? none(
+            view.direction === 'in'
+              ? 'No record names this one in a typed field.'
+              : 'No typed field reference names or is held by this record.',
+            caps,
+          )
+        : references.flatMap((row) => viewEntry(row, caps))),
+    ],
+  );
   return blocks;
 };
 
@@ -219,9 +274,13 @@ export function runInspect(context: Context): Result {
       // reported whenever the inbound side is asked for, and absent from `--edges out` rather than an empty claim.
       const inbound = direction !== 'out';
       const references = new Map<string, readonly ReferenceRow[]>();
+      // The directed view rides the same rule: direct rows only, on the inbound side, filtered to the asked direction.
+      const views = new Map<string, readonly ViewRow[]>();
       if (inbound)
-        for (const record of selected)
+        for (const record of selected) {
           references.set(record.identity, depth === 0 ? [] : referenceRows(reader.referencedBy(record.identity)));
+          views.set(record.identity, depth === 0 ? [] : viewRows(reader.directedView(record.identity), direction));
+        }
       if (json) {
         const body = {
           version: 1,
@@ -229,7 +288,12 @@ export function runInspect(context: Context): Result {
           revision: reader.revision,
           records: selected,
           edges: selected.flatMap((record) => walks.get(record.identity) ?? []),
-          ...(inbound ? { referencedBy: selected.flatMap((record) => references.get(record.identity) ?? []) } : {}),
+          ...(inbound
+            ? {
+                referencedBy: selected.flatMap((record) => references.get(record.identity) ?? []),
+                view: selected.flatMap((record) => views.get(record.identity) ?? []),
+              }
+            : {}),
         };
         return { exitCode: 0, stdout: JSON.stringify(body) + '\n', stderr: '' };
       }
@@ -237,7 +301,12 @@ export function runInspect(context: Context): Result {
         exitCode: 0,
         stdout: document(
           selected.flatMap((record) =>
-            recordBlocks(record, walks.get(record.identity) ?? [], references.get(record.identity), caps),
+            recordBlocks(
+              record,
+              walks.get(record.identity) ?? [],
+              inbound ? { rows: views.get(record.identity) ?? [], direction } : undefined,
+              caps,
+            ),
           ),
           { leadingBlank: true },
         ),

@@ -2,7 +2,7 @@
 
 Filesystem composition of language, graph and compliance. [SPEC.md](SPEC.md) owns admitted views, revisions, read scopes and the disposable cache.
 
-Use `open(workspacePath)` to discover `.ia/src`, then `resolveScope({root, phase})` and pass its `token` as `within` to `snapshot`, `records`, `get`, `referencedBy`, `resolve`, `search` and `traverse`. Runtime consumers must use tokens. Unscoped methods and independent scope issuance are privileged host inspection. A child scope intersects physical occurrences; changing its effective registry refuses. Identity allowlists only narrow. `report` and `refused` expose root-view admission evidence to the privileged host.
+Use `open(workspacePath)` to discover `.ia/src`, then `resolveScope({root, phase})` and pass its `token` as `within` to `snapshot`, `records`, `get`, `referencedBy`, `directedView`, `resolve`, `search` and `traverse`. Runtime consumers must use tokens. Unscoped methods and independent scope issuance are privileged host inspection. A child scope intersects physical occurrences; changing its effective registry refuses. Identity allowlists only narrow. `report` and `refused` expose root-view admission evidence to the privileged host.
 
 `refresh()` rebuilds and verifies stable inputs before replacing the state. A failed refresh preserves the previous view. A source change stales existing scopes even if those bytes are subsequently restored. `close()` refuses future reads. Cached root graphs are always verified against a fresh build; corrupt or forged payloads are replaced, equal bytes are not rewritten, and unavailable cache storage leaves in-memory reads usable with a warning. Set `cache:false` for a fully read-only open.
 

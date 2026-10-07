@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@inventarch/language';
-import { digest, directedView, load, recordDigest, resolve, revisionOf, serialize, stableSerialize } from '../src/index.js';
+import {
+  digest,
+  directedView,
+  load,
+  recordDigest,
+  resolve,
+  revisionOf,
+  serialize,
+  stableSerialize,
+} from '../src/index.js';
 import type { Graph, LoadOptions, RevisionSource } from '../src/index.js';
 import { inputs, instance, loop, records, registry } from './native.js';
 
@@ -405,7 +414,9 @@ describe('derived directed view (G14)', () => {
   });
 
   it('lists field references held by the record as declared and those naming it as derived', () => {
-    const graph = graphOf(probe('@agent-profile probe-profile\n  composition\n    mandate @mandate agent-system-stewardship'));
+    const graph = graphOf(
+      probe('@agent-profile probe-profile\n  composition\n    mandate @mandate agent-system-stewardship'),
+    );
     const holder = [...graph.nodes.values()].find((n) => n.name === 'probe-profile')!.identity;
     const mandate = records.find((r) => r.discriminator === 'mandate' && r.name === 'agent-system-stewardship')!;
     const held = {
@@ -444,7 +455,13 @@ describe('derived directed view (G14)', () => {
       }),
     );
     expect(directedView(graph, law)).toContainEqual(
-      expect.objectContaining({ direction: 'in', spelling: 'enforced-by', declaredOn: law, kind: 'edge', derived: false }),
+      expect.objectContaining({
+        direction: 'in',
+        spelling: 'enforced-by',
+        declaredOn: law,
+        kind: 'edge',
+        derived: false,
+      }),
     );
   });
 
@@ -457,9 +474,9 @@ describe('derived directed view (G14)', () => {
     );
     expect(views.filter((r) => r.kind === 'field-ref')).toHaveLength(2 * native.references.length);
     // Derived is exactly an inverse or a reference naming the record; nothing it declares is ever derived.
-    expect(views.every((r) => r.derived === (r.kind === 'inverse' || (r.kind === 'field-ref' && r.direction === 'in')))).toBe(
-      true,
-    );
+    expect(
+      views.every((r) => r.derived === (r.kind === 'inverse' || (r.kind === 'field-ref' && r.direction === 'in'))),
+    ).toBe(true);
     expect(views.filter((r) => r.kind === 'inverse')).not.toHaveLength(0);
   });
 

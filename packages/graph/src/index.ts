@@ -9,6 +9,8 @@ export { RECORD_DIGEST_FORMAT, recordDigest } from './digest.js';
 export { validateCoordinate, dimensionsOf } from './coordinate.js';
 export type { Coordinate, Dimensions } from './coordinate.js';
 export { load, serialize } from './load.js';
+export { counterpartSpelling, directedView } from './directed.js';
+export type { DirectedRow } from './directed.js';
 export { resolve } from './resolve.js';
 export type { Resolution } from './resolve.js';
 export type {

@@ -1,7 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import type { EdgeReference, Phase } from '@inventarch/language';
-import { canonicalRoot, reaches, resolve, search, stableSerialize, traverse } from '@inventarch/graph';
-import type { FieldReference, Node, Resolution, SearchHit, Traversal, TraverseOptions } from '@inventarch/graph';
+import { canonicalRoot, directedView, reaches, resolve, search, stableSerialize, traverse } from '@inventarch/graph';
+import type {
+  DirectedRow,
+  FieldReference,
+  Node,
+  Resolution,
+  SearchHit,
+  Traversal,
+  TraverseOptions,
+} from '@inventarch/graph';
 import type { Report } from '@inventarch/compliance';
 import { publishCache } from './cache.js';
 import type { CacheStatus } from './cache.js';
@@ -315,6 +323,20 @@ export class Reader {
         (reference) => allowed === undefined || allowed.has(reference.from),
       ),
     );
+  }
+  /**
+   * Graph G14's derived directed view of `identity`, rows whose counterpart lies outside the scope pruned; a dangling
+   * row stays, since it is declared on the identity itself. Computed by graph on each read: db keeps no second
+   * adjacency (D09).
+   */
+  directedView(identity: string, options: ReadOptions = {}): readonly DirectedRow[] {
+    const { view, allowed } = this.#select(options);
+    if (allowed !== undefined && !allowed.has(identity))
+      throw new DbError('IA-DB-OUT-OF-SCOPE', 'Identity is outside the supplied scope');
+    const rows = directedView(view.graph, identity);
+    return allowed === undefined
+      ? rows
+      : Object.freeze(rows.filter((row) => row.other === null || allowed.has(row.other)));
   }
   /** D13: one capture-membership row per admitted record in the scope, ordered by identity; seats are view-wide. */
   membership(options: ReadOptions = {}): readonly MembershipRow[] {

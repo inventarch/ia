@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "ia inspect labels declared and derived rows",
+  "summary": "`@inventarch/graph` exports directedView(graph, identity), which lists every row touching a record: the rows it declares in the spelling it wrote (kind edge), the rows its counterparts declared seen from its end (kind inverse, derived, spelled in the opposite canonical form), and typed field references it holds or that name it (kind field-ref, derived when they name it), each with declaredOn, the counterpart (null when unresolved), consented and its source line. `@inventarch/db` adds Reader.directedView(identity, options), scoped like referencedBy. ia inspect --edges in or both now prints Edges (declared rows), Derived inverses and Field references (replacing Referenced by), and --json adds a view array after referencedBy; --edges out output is unchanged.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/graph"
+  ],
+  "paths": [
+    "apps/cli/",
+    "packages/db/",
+    "packages/graph/"
+  ]
+}
