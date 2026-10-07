@@ -1,4 +1,3 @@
-import { DbError } from '@inventarch/db';
 import type { ReadHandle } from '@inventarch/db';
 import type { Node } from '@inventarch/graph';
 import type { CompiledRecord, EdgeReference } from '@inventarch/language';
@@ -497,13 +496,10 @@ function seatOfView(read: Reading, request: NextRequest): { node: Node; word: Wo
   const seat: unknown = request.seat;
   if (typeof seat !== 'string' || seat === '')
     throw new DeliveryRefusal('The seat must be a plan, milestone or task identity', NEXT_COMMANDS.dropSeat());
+  // Read through the token only: a seat outside the scope and one that names nothing get the same refusal.
   const node = read.nodes.get(seat);
-  if (node === undefined) {
-    const outside = read.handle.get(seat);
-    if (outside !== undefined && outside.placement.kind !== 'runtime')
-      throw new DbError('IA-DB-OUT-OF-SCOPE', `Seat ${seat} is outside the supplied scope`);
-    throw new DeliveryRefusal(`Seat ${seat} names no plan, milestone or task in the scope`, NEXT_COMMANDS.dropSeat());
-  }
+  if (node === undefined)
+    throw new DeliveryRefusal(`Seat ${seat} names no record the scope reads`, NEXT_COMMANDS.dropSeat());
   if (!isWork(node.discriminator))
     throw new DeliveryRefusal(
       `Seat ${seat} is a @${node.discriminator}, not a plan, milestone or task`,
