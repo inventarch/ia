@@ -648,7 +648,7 @@ describe('path selections and the claimant index (G15)', () => {
     );
   });
   it('accepts every well-formed selection and refuses a path outside the workspace', () => {
-    for (const selection of ['docs/a.md', 'docs/', 'src/**/*.ts', '**', 'a?b', '.github/**'])
+    for (const selection of ['docs/a.md', 'docs/', 'src/**/*.ts', '**', 'a?b', '.config/**'])
       expect(selectionProblem(selection)).toBeUndefined();
     for (const path of ['/etc/passwd', '../outside'])
       expect(() => matchesSelection(path, '**')).toThrow(expect.objectContaining({ code: 'IA-GRAPH-SCOPE-INVALID' }));
