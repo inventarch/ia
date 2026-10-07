@@ -7,11 +7,7 @@ import { Engine } from '@inventarch/agent-system';
 import { open } from '@inventarch/db';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
 import { isEntry } from '@inventarch/runtime/entry';
-import {
-  captureResources,
-  resourceOccurrences,
-  resolveResources,
-} from '@inventarch/agent-composition-system/resources';
+import { captureResources, resourceOccurrences, resolveResources } from '@inventarch/workspace-runtime/resources';
 import { readFixture } from './installed-read-fixture.mjs';
 
 const anchorPath = '.ia/src/systems/work-system/records/joined-spec-fixture.ia';

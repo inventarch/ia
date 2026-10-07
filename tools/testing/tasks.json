@@ -542,9 +542,11 @@
       "kind": "vitest",
       "project": ".ia/src/systems/agent-composition-system",
       "files": [
+        "tests/compatibility.test.ts",
         "tests/compile.test.ts",
         "tests/contracts.test.ts",
         "tests/execution.test.ts",
+        "tests/installed-catalog.test.ts",
         "tests/installed-read.test.ts",
         "tests/spec-read-boundary.test.ts",
         "tests/task-capture.test.ts",
@@ -1959,6 +1961,7 @@
       "inputProfile": "owner-source",
       "dependsOn": [
         "agent-system:build",
+        "authoring-system:build",
         "db:build",
         "graph:build",
         "language:build",
@@ -2016,6 +2019,7 @@
         "tests/authoring-shipped.test.ts",
         "tests/authoring.test.ts",
         "tests/boundary.test.ts",
+        "tests/installed-catalog.test.ts",
         "tests/installed-sources.test.ts",
         "tests/lifecycle-profile.test.ts",
         "tests/lifecycle-segments.test.ts",
