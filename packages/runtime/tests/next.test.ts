@@ -694,6 +694,52 @@ it('blocks a record another one supersedes, names the supersession, and never of
   expect(entry(banded, PRIOR).basis.map((item) => item.target)).toEqual([LATEST]);
 });
 
+it('never offers a record that names its superseder outside the scope: the supersession blocks as unread', () => {
+  const OLD = 'work-system/definition/task/aaa-old-task',
+    NEW = 'work-system/definition/task/zzz-new-task',
+    GONE = 'work-system/definition/task/aab-gone-task',
+    newPath = `${workRecords}/new.ia`;
+  const superseded = (name: string, by: string) =>
+    `@task ${name}\n  meaning\n    says "Fixture task ${name}."\n  work\n    title "${name}"\n    status open\n` +
+    `    milestone @milestone beta-milestone\n  relationships\n    superseded-by @task ${by}\n`;
+  const root = workspace();
+  // The inverse spelling, declared on the superseded record itself; the superseding record is in another file.
+  delivery(root, [superseded('aaa-old-task', 'zzz-new-task'), superseded('aab-gone-task', 'no-such-task')]);
+  put(root, newPath, file(task('zzz-new-task', 'beta-milestone')));
+  const unread = (target: string) => ({
+    predicate: 'supersede',
+    target,
+    resolved: true,
+    word: null,
+    standing: `superseded by ${target} (outside the scope)`,
+    blocking: true,
+  });
+  // The superseding record lies outside the scope: the token prunes its row, so the view names the reference as
+  // written, and the record cannot claim it is clear, as with a requirement.
+  const db = database(root),
+    narrow = next(db, db.resolveScope({ identities: [PLAN, BETA, ALPHA, ASK, WRITE, REVIEW, LATER, OLD, GONE] }).token);
+  expect(entry(narrow, OLD).basis).toEqual([unread('@task zzz-new-task')]);
+  expect(entry(narrow, OLD).verdict.text).toBe('blocked (superseded by @task zzz-new-task (outside the scope))');
+  // A superseding record that resolves to none blocks too.
+  expect(entry(narrow, GONE).basis).toEqual([
+    {
+      predicate: 'supersede',
+      target: '@task no-such-task',
+      resolved: false,
+      word: null,
+      standing: 'superseded by @task no-such-task (unresolved)',
+      blocking: true,
+    },
+  ]);
+  expect(narrow.next).toBe(`ia position --seat ${WRITE}`);
+  // A superseding record in the runtime band is never read: the same basis, naming the record.
+  expect(entry(view(database(root, { locations: { [newPath]: runtime } })), OLD).basis).toEqual([unread(NEW)]);
+  // With the full scope, the superseding record is read and named.
+  expect(entry(view(db), OLD).basis).toEqual([
+    { ...unread(NEW), word: 'task', standing: `superseded by ${NEW} (supersession declared, not grounded)` },
+  ]);
+});
+
 it("takes the observation a record's work.exit-evidence names, whatever subject it names", () => {
   const root = workspace();
   delivery(root, [task('declared-task', 'beta-milestone', [], '    exit-evidence @observation declared-evidence\n')]);
