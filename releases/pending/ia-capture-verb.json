@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "ia capture keeps the admitted snapshot; ia compile becomes its deprecated alias",
+  "summary": "New ia capture [--preview] admits the workspace and keeps its current and previous snapshots under .ia/work/snapshot/, with one membership row and per-record source digest per admitted record and no absolute paths. The previous snapshot is replaced only when the revision changes, and --json reports records changed, unchanged, new and removed apart from the admission counts. A root with no `@workspace` or a floor input that fails to parse is refused with a next command. Behaviour change: ia compile is now a deprecated alias of ia capture for 2.x, removed in 3.0. It runs capture and prints a one-line deprecation notice on stderr in text mode; it no longer writes .ia/work/compiled.json (ia.compiled.v1). --force is accepted (capture always replaces its snapshot); --out and --stdout are refused with exit 2, naming ia capture and ia capture --preview --json. The ./internal/compile module still exports the ia.compiled.v1 builder for 2.x.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "README.md",
+    "apps/cli/"
+  ]
+}

@@ -40,7 +40,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all thirteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Applies to all fourteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -135,20 +135,28 @@ export const COMMANDS: readonly CommandSpec[] = [
     ),
   },
   {
+    name: 'capture',
+    group: 'workspace',
+    summary: 'Admit the workspace and keep its current and previous snapshots',
+    syntax: ['ia capture [--preview] [--json]'],
+    grammar: grammar([
+      option({ name: 'preview', kind: 'boolean', summary: 'Report what capture would keep and write nothing' }),
+    ]),
+  },
+  {
     name: 'compile',
     group: 'workspace',
-    summary: 'Write a deterministic compiled artifact',
-    syntax: ['ia compile [--out <file> | --stdout] [--force] [--json]'],
+    summary: 'Deprecated alias of capture, removed in 3.0',
+    syntax: ['ia compile [--force] [--json]'],
     grammar: grammar([
       option({
         name: 'out',
         kind: 'value',
-        conflicts: ['stdout'],
         placeholder: '<file>',
-        summary: 'Artifact path under <root>/.ia/work/',
+        summary: 'Refused: capture keeps one store under .ia/work/snapshot/',
       }),
-      option({ name: 'stdout', kind: 'boolean', summary: 'Write the artifact to stdout instead of a file' }),
-      option({ name: 'force', kind: 'boolean', summary: 'Overwrite an existing artifact' }),
+      option({ name: 'stdout', kind: 'boolean', summary: 'Refused: run "ia capture --preview --json" instead' }),
+      option({ name: 'force', kind: 'boolean', summary: 'Accepted: capture always replaces its stored snapshot' }),
     ]),
   },
   {

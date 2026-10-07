@@ -47,6 +47,10 @@
       "types": "./dist/briefing.d.ts",
       "default": "./dist/briefing.js"
     },
+    "./internal/capture": {
+      "types": "./dist/capture.d.ts",
+      "default": "./dist/capture.js"
+    },
     "./internal/channel": {
       "types": "./dist/channel.d.ts",
       "default": "./dist/channel.js"
@@ -162,6 +166,10 @@
       "./internal/briefing": {
         "types": "./dist/briefing.d.ts",
         "default": "./dist/briefing.js"
+      },
+      "./internal/capture": {
+        "types": "./dist/capture.d.ts",
+        "default": "./dist/capture.js"
       },
       "./internal/channel": {
         "types": "./dist/channel.d.ts",

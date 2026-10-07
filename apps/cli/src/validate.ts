@@ -56,7 +56,8 @@ const ACTIONS: Readonly<Record<string, string>> = {
 
 export const locationOf = (finding: Finding): string | null =>
   finding.path === '' ? null : `${finding.path}:${finding.line}`;
-const countsOf = (findings: readonly Finding[]) => ({
+/** Error, warning and not-evaluated counts over one finding set; `ia capture` reports admission with the same three. */
+export const countsOf = (findings: readonly Finding[]) => ({
   errors: findings.filter((finding) => finding.severity === 'error').length,
   warnings: findings.filter((finding) => finding.severity === 'warning').length,
   notEvaluated: findings.filter((finding) => NOT_EVALUATED.has(finding.code)).length,

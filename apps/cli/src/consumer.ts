@@ -24,6 +24,7 @@ import {
   nearestTokens,
   RESERVED_TOKEN,
 } from './commands.js';
+import { runCapture } from './capture.js';
 import { runCompile } from './compile.js';
 import { runDistribute } from './distribute.js';
 import { runDoctor } from './doctor.js';
@@ -250,7 +251,7 @@ export function renderHelp(host: Host, caps: Capabilities, namespaces: readonly 
   const common = OPTION_ORDER.map((name) => COMMON_OPTIONS.find((row) => row.name === name)!);
   return document([
     entry(
-      [[atom('ia', 'bold', 0), atom(`${host.version} — author, compile and distribute .ia records`)]],
+      [[atom('ia', 'bold', 0), atom(`${host.version} — author, capture and distribute .ia records`)]],
       { depth: 0 },
       caps,
     ),
@@ -378,11 +379,12 @@ const wantsHelp = (argv: readonly string[]): boolean => {
 };
 
 type Handler = (context: Context) => Result | Promise<Result>;
-/** The thirteen verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
+/** The fourteen verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
 const HANDLERS: Readonly<Record<string, Handler>> = {
   init: runInit,
   vocabulary: runVocabulary,
   format: runFormat,
+  capture: runCapture,
   compile: runCompile,
   validate: runValidate,
   inspect: runInspect,

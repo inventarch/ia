@@ -1,28 +1,24 @@
 /**
- * `ia compile`: docs/specs/consumer-cli-contract/README.md §2.4.
+ * `ia compile`: a deprecated alias of `ia capture` for 2.x, removed in 3.0 (apps/cli/SPEC.md, Workspace
+ * commands).
+ * The verb runs capture (capture.ts); `COMPILE_FLAGS` says what becomes of each of its former options.
  *
- * One deterministic document, `ia.compiled.v1`. Determinism is a requirement on this writer, not a hope: records
- * are sorted by canonical identity, diagnostics by (path, line, code, message), object keys are emitted sorted and
- * the document ends in exactly one newline — which is what the distribution's own `json()` serializer does, so it
- * is the function called rather than a second encoder beside it.
+ * The `ia.compiled.v1` builder below stays exported through `./internal/compile` for the same major, though no
+ * verb writes it any longer. One deterministic document, `ia.compiled.v1`. Determinism is a requirement on this
+ * writer, not a hope: records are sorted by canonical identity, diagnostics by (path, line, code, message), object
+ * keys are emitted sorted and the document ends in exactly one newline — which is what the distribution's own
+ * `json()` serializer does, so it is the function called rather than a second encoder beside it.
  *
  * No product-quality claim. Compilation establishes that records parse, that references resolve and that declared
  * structural obligations are satisfied. Where a semantic evaluator is unavailable the compiler carries
  * IA-COMP-NOT-EVALUATED through into `diagnostics` and `counts.notEvaluated`; that result is never rolled into a
  * pass, never suppressed and never omitted from --json.
  */
-import { resolve } from 'node:path';
-import {
-  createFile,
-  json,
-  LANGUAGE_IDENTITY,
-  replace,
-  sha256,
-  workOutputPath,
-} from '@inventarch/distribution/services';
+import { json, LANGUAGE_IDENTITY, sha256 } from '@inventarch/distribution/services';
+import { runCapture } from './capture.js';
 import type { Context, Result } from './consumer.js';
-import { Refusal, requireRoot } from './consumer.js';
-import { codeOf, openSession } from './session.js';
+import { Refusal } from './consumer.js';
+import { openSession } from './session.js';
 import type { Session } from './session.js';
 import { NOT_EVALUATED } from './validate.js';
 import type { Capabilities } from './render.js';
@@ -32,6 +28,23 @@ type Admission = ReturnType<Session['admission']>;
 type Finding = Admission['findings'][number];
 
 export const DEFAULT_OUT = '.ia/work/compiled.json';
+/** One stderr line in text mode only, so `--json` keeps stdout to its one value and stderr empty. */
+export const COMPILE_DEPRECATION = 'Deprecated: "ia compile" is an alias of "ia capture" and is removed in 3.0.';
+/**
+ * The alias's handling of the options `ia compile` had before `ia capture`: `map` where capture has an equivalent,
+ * otherwise a usage refusal whose next command is the capture invocation to run instead. Capture always replaces its
+ * stored current (rotating it to previous only on a revision change), so `--force` is what it already does; it has
+ * one fixed store and prints a report, so neither another path nor the artifact on stdout has an equivalent.
+ */
+export const COMPILE_FLAGS: Readonly<
+  Record<'force' | 'out' | 'stdout', { readonly map: true } | { readonly next: string }>
+> = {
+  force: { map: true },
+  out: {
+    next: 'Run "ia capture"; it keeps the snapshot under .ia/work/snapshot/, the one place a later command reads it.',
+  },
+  stdout: { next: 'Run "ia capture --preview --json" to see what capture would keep without writing anything.' },
+};
 export const ARTIFACT = 'ia.compiled.v1';
 
 export interface CompileCounts {
@@ -168,47 +181,17 @@ export function renderCompile(view: CompileView, path: string, caps: Capabilitie
   );
 }
 
-/**
- * §2.4: running `ia compile` twice is the ordinary case, so refusing by default is stated rather than discovered.
- * `createFile` raises IA-DIST-LOCAL-MODIFICATION on an existing entry; the code is carried through unchanged and
- * only the next action is added, because a refusal whose remedy is one flag must name that flag.
- */
-function publish(root: string, path: string, content: Buffer, force: boolean): void {
-  if (force) {
-    replace(root, path, content);
-    return;
-  }
-  try {
-    createFile(root, path, content);
-  } catch (error) {
-    if (codeOf(error, '') !== 'IA-DIST-LOCAL-MODIFICATION') throw error;
-    throw new Refusal(
-      'IA-DIST-LOCAL-MODIFICATION',
-      `${path} already exists`,
-      3,
-      { path },
-      'Pass --force to overwrite it, or choose another --out under .ia/work/.',
-    );
-  }
-}
-
 export function runCompile(context: Context): Result {
-  const { args, caps, json: machine } = context;
-  const root = requireRoot(context);
-  // Placement is decided before the workspace is read, so an unsafe --out never costs a compilation.
-  const path = args.flag('stdout')
-    ? null
-    : workOutputPath({
-        root,
-        path: args.value('out') ?? DEFAULT_OUT,
-        refusal: 'A compiled artifact is written under .ia/work/',
-      });
-  const view = collectCompile(root);
-  const exitCode = compileExit(view);
-  // §2.4: with --stdout the artifact is the single value on stdout, so nothing else may be written there.
-  if (path === null) return { exitCode, stdout: view.text, stderr: '' };
-  publish(root, path, Buffer.from(view.text, 'utf8'), args.flag('force'));
-  return machine
-    ? { exitCode, stdout: JSON.stringify(compileEnvelope(view, resolve(root, path))) + '\n', stderr: '' }
-    : { exitCode, stdout: renderCompile(view, path, caps), stderr: '' };
+  // Usage first, before the root is read: an option capture cannot honour is refused with the command to run instead.
+  for (const [flag, handling] of Object.entries(COMPILE_FLAGS))
+    if ('next' in handling && (flag === 'out' ? context.args.value(flag) !== undefined : context.args.flag(flag)))
+      throw new Refusal(
+        'IA-CLI-USAGE',
+        `ia compile is now an alias of ia capture, which has no --${flag}`,
+        2,
+        null,
+        handling.next,
+      );
+  const result = runCapture(context);
+  return context.json ? result : { ...result, stderr: `${COMPILE_DEPRECATION}\n${result.stderr}` };
 }
