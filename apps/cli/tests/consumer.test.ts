@@ -378,9 +378,10 @@ it('lists typed field references on the inbound side of inspect, apart from the 
 
   const human = await run(['inspect', identity, '--root', fixture, '--edges', 'in']);
   expect(human.stdout).toMatch(
-    /Referenced by\n.*head\.steward +floor\/definition\/system\/agent-system\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
+    /Field references\n.*head\.steward +floor\/definition\/system\/agent-system\s+in, derived\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
   );
-  expect((await run(['inspect', identity, '--root', fixture])).stdout).not.toContain('Referenced by');
+  expect(human.stdout).not.toContain('Referenced by');
+  expect((await run(['inspect', identity, '--root', fixture])).stdout).not.toContain('Field references');
   const unnamed = await run([
     'inspect',
     'governance-system/definition/procedure/sample-procedure',
@@ -390,6 +391,47 @@ it('lists typed field references on the inbound side of inspect, apart from the 
     'in',
   ]);
   expect(unnamed.stdout).toContain('No record names this one in a typed field.');
+});
+
+it('labels derived rows of the directed view on the inbound side of inspect', async () => {
+  // The loop fixture law declares `enforced-by` the check: the check's row is derived, the law's is declared.
+  const check = 'compliance-system/check/gate/instance-schema-check';
+  const law = 'governance-system/governance/law/sample-rule';
+  const both = JSON.parse((await run(['inspect', check, '--root', fixture, '--edges', 'both', '--json'])).stdout);
+  expect(Object.keys(both)).toEqual(['version', 'root', 'revision', 'records', 'edges', 'referencedBy', 'view']);
+  expect(both.view.filter((row: { derived: boolean }) => row.derived).length).toBeGreaterThan(0);
+  expect(both.view).toContainEqual({
+    predicate: 'enforce',
+    direction: 'out',
+    spelling: 'enforce',
+    declaredOn: law,
+    other: law,
+    kind: 'inverse',
+    derived: true,
+    consented: true,
+    source: { path: '.ia/src/systems/governance-system/records/sample-rule.ia', line: 13 },
+  });
+  const declared = JSON.parse((await run(['inspect', law, '--root', fixture, '--edges', 'in', '--json'])).stdout);
+  expect(declared.view).toContainEqual(
+    expect.objectContaining({ spelling: 'enforced-by', declaredOn: law, other: check, kind: 'edge', derived: false }),
+  );
+  expect(declared.view.every((row: { direction: string }) => row.direction === 'in')).toBe(true);
+  expect(
+    JSON.parse((await run(['inspect', check, '--root', fixture, '--edges', 'both', '--depth', '0', '--json'])).stdout)
+      .view,
+  ).toEqual([]);
+
+  const human = (await run(['inspect', check, '--root', fixture, '--edges', 'both'])).stdout;
+  expect(human).toMatch(/Derived inverses\n.*enforce +governance-system\/governance\/law\/sample-rule\s+out, derived/);
+  expect(human).toMatch(/Derived inverses[\s\S]*declared on governance-system\/governance\/law\/sample-rule/);
+  expect(human).toContain('Field references');
+  expect((await run(['inspect', law, '--root', fixture, '--edges', 'in'])).stdout).toMatch(
+    /Edges\n.*enforced-by +compliance-system\/check\/gate\/instance-schema-check\s+in, declared/,
+  );
+  // `--edges out` keeps the walk it always printed, with no derived claim.
+  const outward = (await run(['inspect', check, '--root', fixture])).stdout;
+  expect(outward).toContain('Edges');
+  expect(outward).not.toContain('Derived inverses');
 });
 
 it('keeps --json a single parseable value with no ANSI, and resolves colour by §6.7 precedence', async () => {

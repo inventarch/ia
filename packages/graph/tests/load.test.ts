@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@inventarch/language';
-import { digest, load, recordDigest, resolve, revisionOf, serialize, stableSerialize } from '../src/index.js';
+import { digest, directedView, load, recordDigest, resolve, revisionOf, serialize, stableSerialize } from '../src/index.js';
 import type { Graph, LoadOptions, RevisionSource } from '../src/index.js';
 import { inputs, instance, loop, records, registry } from './native.js';
 
@@ -319,6 +319,162 @@ describe('typed field references (G06a)', () => {
     expect(reversed.revision).toBe(native.revision);
     expect(() => (native.references as unknown[]).pop()).toThrow();
     expect(() => (native.referencedBy as Map<string, unknown>).clear()).toThrow();
+  });
+});
+
+// G14: one directed view per identity labels each row by who declared it; derived rows are never authored ones.
+describe('derived directed view (G14)', () => {
+  const pair = (a: string, b: string) => {
+    const left = probe(a, 'a.ia'),
+      right = probe(b, 'b.ia');
+    const graph = load([...left.records, ...right.records], registry, {
+      ...options,
+      sources: [left.source, right.source],
+    });
+    return { graph, a: left.records[0]!.identity, b: right.records[0]!.identity };
+  };
+
+  it('labels an authored row declared and its counterpart a derived inverse in the opposite spelling', () => {
+    const { graph, a, b } = pair('@playbook a\n  relationships\n    cites @playbook b', '@playbook b');
+    expect(directedView(graph, a)).toEqual([
+      {
+        predicate: 'cite',
+        direction: 'out',
+        spelling: 'cites',
+        declaredOn: a,
+        other: b,
+        kind: 'edge',
+        derived: false,
+        consented: true,
+        source: { path: 'a.ia', line: 4 },
+      },
+    ]);
+    expect(directedView(graph, b)).toEqual([
+      {
+        predicate: 'cite',
+        direction: 'in',
+        spelling: 'cited-by',
+        declaredOn: a,
+        other: a,
+        kind: 'inverse',
+        derived: true,
+        consented: true,
+        source: { path: 'a.ia', line: 4 },
+      },
+    ]);
+  });
+
+  it('derives the active spelling for a row its author wrote in the inverse spelling', () => {
+    const { graph, a, b } = pair('@playbook a\n  relationships\n    cited-by @playbook b', '@playbook b');
+    expect(directedView(graph, a).map((r) => [r.kind, r.direction, r.spelling, r.declaredOn, r.other])).toEqual([
+      ['edge', 'in', 'cited-by', a, b],
+    ]);
+    expect(directedView(graph, b).map((r) => [r.kind, r.direction, r.spelling, r.declaredOn, r.derived])).toEqual([
+      ['inverse', 'out', 'cite', a, true],
+    ]);
+  });
+
+  it('derives no inverse where both ends declared the row, each in its own spelling', () => {
+    const { graph, a, b } = pair(
+      '@playbook a\n  relationships\n    cites @playbook b',
+      '@playbook b\n  relationships\n    cited-by @playbook a',
+    );
+    expect(directedView(graph, a).map((r) => [r.kind, r.spelling, r.declaredOn])).toEqual([['edge', 'cites', a]]);
+    expect(directedView(graph, b).map((r) => [r.kind, r.spelling, r.declaredOn])).toEqual([['edge', 'cited-by', b]]);
+  });
+
+  it('keeps a dangling row declared, with no counterpart and no consent established', () => {
+    const graph = graphOf(probe('@playbook a\n  relationships\n    cites @playbook missing'));
+    const a = [...graph.nodes.values()].find((n) => n.name === 'a')!.identity;
+    expect(directedView(graph, a)).toEqual([
+      expect.objectContaining({ kind: 'edge', other: null, derived: false, consented: false, spelling: 'cites' }),
+    ]);
+  });
+
+  it('leaves a consent-refused assertion out of the view: it stays a graph finding', () => {
+    const consent = new Map(registry.consent);
+    consent.set('governance-system', []);
+    const graph = graphOf(probe('@playbook a\n  relationships\n    cites @playbook b\n@playbook b'), {
+      ...registry,
+      consent,
+    });
+    const id = (name: string) => [...graph.nodes.values()].find((n) => n.name === name)!.identity;
+    expect(graph.diagnostics.map((d) => d.code)).toContain('IA-GRAPH-EDGE-UNCONSENTED');
+    expect(directedView(graph, id('a'))).toEqual([]);
+    expect(directedView(graph, id('b'))).toEqual([]);
+  });
+
+  it('lists field references held by the record as declared and those naming it as derived', () => {
+    const graph = graphOf(probe('@agent-profile probe-profile\n  composition\n    mandate @mandate agent-system-stewardship'));
+    const holder = [...graph.nodes.values()].find((n) => n.name === 'probe-profile')!.identity;
+    const mandate = records.find((r) => r.discriminator === 'mandate' && r.name === 'agent-system-stewardship')!;
+    const held = {
+      predicate: null,
+      direction: 'out',
+      spelling: 'composition.mandate',
+      declaredOn: holder,
+      other: mandate.identity,
+      kind: 'field-ref',
+      derived: false,
+      consented: true,
+      source: { path: 'probe.ia', line: 4 },
+    };
+    expect(directedView(graph, holder)).toEqual([held]);
+    expect(directedView(graph, mandate.identity)).toContainEqual({
+      ...held,
+      direction: 'in',
+      other: holder,
+      derived: true,
+    });
+  });
+
+  it('labels the conditioned inverse the loop fixture law declares on its check', () => {
+    const graph = load(loop.records, loop.registry, { ...options, sources: loop.inputs });
+    const check = 'compliance-system/check/gate/instance-schema-check',
+      law = 'governance-system/governance/law/sample-rule';
+    expect(directedView(graph, check)).toContainEqual(
+      expect.objectContaining({
+        predicate: 'enforce',
+        direction: 'out',
+        spelling: 'enforce',
+        declaredOn: law,
+        other: law,
+        kind: 'inverse',
+        derived: true,
+      }),
+    );
+    expect(directedView(graph, law)).toContainEqual(
+      expect.objectContaining({ direction: 'in', spelling: 'enforced-by', declaredOn: law, kind: 'edge', derived: false }),
+    );
+  });
+
+  it('covers every edge end and field reference of the native corpus exactly once', () => {
+    const views = [...native.nodes.keys()].flatMap((identity) => directedView(native, identity));
+    const ends = native.edges.reduce((n, e) => n + (e.from === null ? 0 : 1) + (e.to === null ? 0 : 1), 0);
+    const reciprocal = native.edges.filter((e) => new Set(e.assertions.map((x) => x.direction)).size === 2).length;
+    expect(views.filter((r) => r.kind !== 'field-ref')).toHaveLength(
+      ends + native.edges.reduce((n, e) => n + e.assertions.length, 0) - native.edges.length - reciprocal,
+    );
+    expect(views.filter((r) => r.kind === 'field-ref')).toHaveLength(2 * native.references.length);
+    // Derived is exactly an inverse or a reference naming the record; nothing it declares is ever derived.
+    expect(views.every((r) => r.derived === (r.kind === 'inverse' || (r.kind === 'field-ref' && r.direction === 'in')))).toBe(
+      true,
+    );
+    expect(views.filter((r) => r.kind === 'inverse')).not.toHaveLength(0);
+  });
+
+  it('is total, independent of input order, frozen, and empty for an identity nothing touches', () => {
+    const reversed = load([...records].reverse(), registry, { ...options, sources: [...inputs].reverse() });
+    for (const identity of native.nodes.keys())
+      expect(stableSerialize(directedView(reversed, identity))).toBe(stableSerialize(directedView(native, identity)));
+    const steward = records.find((r) => r.discriminator === 'agent' && r.name === 'agent-steward')!.identity;
+    const rows = directedView(native, steward);
+    expect(rows.length).toBeGreaterThan(1);
+    expect(() => (rows as unknown[]).pop()).toThrow();
+    expect(() => {
+      (rows[0] as { spelling: string }).spelling = 'x';
+    }).toThrow();
+    expect(directedView(native, 'no-such/definition/procedure/record')).toEqual([]);
   });
 });
 

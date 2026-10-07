@@ -49,6 +49,33 @@ it('reads typed field references by target and prunes holders outside the scope'
   expect(db.referencedBy(methodId, { within: alone.token })).toEqual([]);
   expect(() => db.referencedBy(all[0]!.from, { within: alone.token })).toThrow(code('OUT-OF-SCOPE'));
 });
+it('reads the derived directed view through graph and prunes counterparts outside the scope', () => {
+  const db = open(workspace(), { cache: false }),
+    all = db.directedView(methodId);
+  // The holder's typed field reference reaches the method only as a derived row; the edges it declares stay declared.
+  expect(all).toContainEqual(
+    expect.objectContaining({
+      kind: 'field-ref',
+      direction: 'in',
+      spelling: 'composition.playbooks',
+      other: 'agent-composition-system/definition/capability/governance-system-stewardship',
+      derived: true,
+    }),
+  );
+  expect(all.filter((r) => r.kind === 'edge').every((r) => r.declaredOn === methodId && !r.derived)).toBe(true);
+  expect(all.some((r) => r.kind !== 'field-ref')).toBe(true);
+  const counterpart = all.find((r) => r.other !== null && r.other !== methodId)!.other!,
+    pair = db.resolveScope({ identities: [methodId, counterpart] }),
+    alone = db.resolveScope({ identities: [methodId] });
+  expect(db.directedView(methodId, { within: pair.token })).toEqual(
+    all.filter((r) => r.other === null || r.other === methodId || r.other === counterpart),
+  );
+  expect(db.directedView(methodId, { within: alone.token })).toEqual(
+    all.filter((r) => r.other === null || r.other === methodId),
+  );
+  expect(() => db.directedView(counterpart, { within: alone.token })).toThrow(code('OUT-OF-SCOPE'));
+  expect(() => db.directedView(methodId, { within: 'forged' })).toThrow(code('SCOPE-UNAVAILABLE'));
+});
 it('checks explicit root, phase and revision assertions and refuses wider child roots', () => {
   const db = open(workspace(false), { cache: false }),
     scope = db.resolveScope({ root: 'team', phase: 'act' });
@@ -70,6 +97,7 @@ it('checks unknown, foreign and closed tokens on every scoped read', () => {
       () => db.records({ within }),
       () => db.get(methodId, { within }),
       () => db.referencedBy(methodId, { within }),
+      () => db.directedView(methodId, { within }),
       () => db.resolve({ kind: 'identity', identity: methodId }, { within }),
       () => db.search('fixture', { within }),
       () => db.traverse({ start: [methodId], within }),
