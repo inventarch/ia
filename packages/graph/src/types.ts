@@ -19,6 +19,8 @@ export interface Node extends CompiledRecord {
   readonly band: Band;
   readonly reach: string;
   readonly dimensions: Dimensions;
+  /** G13: `recordDigest` over this record's own source lines; it moves only when that text changes. */
+  readonly digest: string;
 }
 export interface Occurrence {
   readonly key: string;

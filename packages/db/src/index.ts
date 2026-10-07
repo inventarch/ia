@@ -14,5 +14,6 @@ export type {
   ScopeRequest,
 } from './handle.js';
 export type { CacheStatus, CacheObservation } from './cache.js';
+export type { MembershipRow } from './membership.js';
 export type { RefusedRecord } from './view.js';
 export type { DraftChange, DraftPreview } from './preview.js';

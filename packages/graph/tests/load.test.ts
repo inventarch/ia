@@ -326,7 +326,9 @@ describe('typed field references (G06a)', () => {
 // nothing else: compiled spans, placement and resolved targets shift when other text moves, the slice does not.
 describe('per-record source digest', () => {
   const pair = (above: string, b: string, newline = '\n') => {
-    const extra = probe(`${above}@playbook a\n  relationships\n    cites @playbook b\n\n${b}`.replaceAll('\n', newline));
+    const extra = probe(
+      `${above}@playbook a\n  relationships\n    cites @playbook b\n\n${b}`.replaceAll('\n', newline),
+    );
     const graph = load(extra.records, registry, { ...options, sources: [extra.source] });
     expect(graph.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
     const node = (name: string) => [...graph.nodes.values()].find((n) => n.name === name)!;
@@ -362,7 +364,9 @@ describe('per-record source digest', () => {
   });
   it('covers nested records inside their parent: a child edit moves the parent digest too', () => {
     const nested = (says: string) => {
-      const extra = probe(`@agent lead\n  team\n    @agent member\n      meaning\n        says "${says}"\n    size 2\n@agent other`);
+      const extra = probe(
+        `@agent lead\n  team\n    @agent member\n      meaning\n        says "${says}"\n    size 2\n@agent other`,
+      );
       const graph = load(extra.records, registry, { ...options, sources: [extra.source] });
       const node = (name: string) => [...graph.nodes.values()].find((n) => n.name === name)!;
       return { lead: node('lead'), member: node('member'), other: node('other') };

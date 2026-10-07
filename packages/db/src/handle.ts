@@ -10,6 +10,8 @@ import { inputOptions, readInputs } from './inputs.js';
 import type { InputOptions, InputSnapshot } from './inputs.js';
 import { occurrenceKey, viewBuilder } from './view.js';
 import type { RefusedRecord, View } from './view.js';
+import { membershipOf } from './membership.js';
+import type { MembershipRow } from './membership.js';
 import { previewInputs } from './preview.js';
 import type { DraftChange, DraftPreview } from './preview.js';
 
@@ -267,6 +269,15 @@ export class Reader {
       (view.graph.referencedBy.get(identity) ?? []).filter(
         (reference) => allowed === undefined || allowed.has(reference.from),
       ),
+    );
+  }
+  /** D13: one capture-membership row per admitted record in the scope, ordered by identity; seats are view-wide. */
+  membership(options: ReadOptions = {}): readonly MembershipRow[] {
+    const { view, allowed } = this.#select(options);
+    const nodes = [...view.graph.nodes.values()];
+    return membershipOf(
+      nodes,
+      nodes.filter((node) => allowed === undefined || allowed.has(node.identity)),
     );
   }
   search(text: string, options: ReadOptions = {}): readonly SearchHit[] {

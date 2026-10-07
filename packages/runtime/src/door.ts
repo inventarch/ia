@@ -1,6 +1,7 @@
 import { KINDS } from '@inventarch/language';
 import type { ConditionAxis, EdgeReference, Kind, Phase } from '@inventarch/language';
 import { GraphUsageError, validateCoordinate } from '@inventarch/graph';
+import type { Node } from '@inventarch/graph';
 import { DbError, open } from '@inventarch/db';
 import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
 import { context } from './context.js';
@@ -15,6 +16,10 @@ export interface DoorOptions extends OpenOptions {
 }
 export type DoorResponse = { readonly ok: true; readonly result: unknown } | Refusal;
 type Params = Record<string, unknown>;
+/** The released record shape of the frozen get/records results: the per-record digest (graph G13) stays off the wire. */
+function released(node: Node): Omit<Node, 'digest'> {
+  return Object.fromEntries(Object.entries(node).filter(([key]) => key !== 'digest')) as Omit<Node, 'digest'>;
+}
 function invalid(message: string): never {
   throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', message);
 }
@@ -149,11 +154,17 @@ export class Door {
         }
         case 'get':
           keys(params, [...BINDINGS, 'identity']);
-          result = this.#handle.get(string(params['identity'], 'identity'), this.#bindings(params)) ?? null;
+          {
+            const node = this.#handle.get(string(params['identity'], 'identity'), this.#bindings(params));
+            result = node === undefined ? null : released(node);
+          }
           break;
         case 'records':
           keys(params, BINDINGS);
-          result = this.#handle.snapshot(this.#bindings(params));
+          {
+            const snapshot = this.#handle.snapshot(this.#bindings(params));
+            result = { ...snapshot, records: snapshot.records.map(released) };
+          }
           break;
         case 'resolve':
           keys(params, [...BINDINGS, 'reference']);

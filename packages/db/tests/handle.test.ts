@@ -185,8 +185,16 @@ it('moves a membership digest only when that record text changes', () => {
 });
 it('seats records under the longest declared source root, then identity', () => {
   const root = workspace();
-  put(root, '.ia/src/team.ia', workspaceRecord('team-workspace', '    sources [".ia/src/systems/governance-system @authored"]\n'));
-  put(root, '.ia/src/whole.ia', workspaceRecord('whole-workspace', '    sources [".ia/src @authored", ".ia/src/floor @floor"]\n'));
+  put(
+    root,
+    '.ia/src/team.ia',
+    workspaceRecord('team-workspace', '    sources [".ia/src/systems/governance-system @authored"]\n'),
+  );
+  put(
+    root,
+    '.ia/src/whole.ia',
+    workspaceRecord('whole-workspace', '    sources [".ia/src @authored", ".ia/src/floor @floor"]\n'),
+  );
   put(root, '.ia/src/twin.ia', workspaceRecord('a-twin-workspace', '    sources [".ia/src @authored"]\n'));
   const db = open(root, { cache: false }),
     identity = (name: string) => db.records().find((r) => r.name === name)!.identity,

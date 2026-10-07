@@ -2,7 +2,7 @@
 
 Bounded traversal extension (Workbench): optional `maxNodes`/`maxEdges` retain normal authority, scope, direction and condition behavior while bounding emitted records and edge examination. A bounded result reports `truncated`; callers must not describe it as a complete graph. Calls without limits preserve the original contract.
 
-Status: G01–G11 implemented under the graph plan; G12 states the canonical codec re-homed here from session-system. Shared concepts: graph/matrix design. Pure Node-compatible package depending only on @inventarch/language; no filesystem, clock, default registry or source-text lexer. Task-delivery paragraphs below retain historical counts and next steps; current readiness covers the completed downstream consumers.
+Status: G01–G11 and G13 implemented under the graph plan; G12 states the canonical codec re-homed here from session-system. Shared concepts: graph/matrix design. Pure Node-compatible package depending only on @inventarch/language; no filesystem, clock, default registry or source-text lexer. Task-delivery paragraphs below retain historical counts and next steps; current readiness covers the completed downstream consumers.
 
 ## Construction and revision
 
@@ -11,6 +11,8 @@ G01. `load(records, registry, options)` returns an immutable Graph containing so
 G02. Graph snapshots all inputs and exposes read-only collection views backed by inaccessible copies; casting a ReadonlyMap to Map must not make mutation possible. Nested record/schema/registry arrays and objects are frozen copies. `serialize(graph)` has total stable ordering independent of source, record and map insertion order. Object keys sort by code point, maps by serialized key, sets by serialized value. Source text is revision input, never re-lexed here. SHA-256 uses the pure deterministic node:crypto hash API.
 
 G03. Canonical reach/location roots are corpus-relative paths using language canonicalPath with an empty-root sentinel. Above-root traversal or absolute roots are usage errors. Empty reach covers every location; a nonempty reach covers itself and segment-boundary descendants only. Validate each record's placement kind/band pair. Provenance never determines authority.
+
+G13. Every Node carries `digest`, the per-record source digest: `recordDigest(text, span)` hashes `{format: 'ia-record-1', text}` with the canonical codec (`digest`), where `text` is the record's own source lines `line..endLine` from its revision source, with a leading byte-order mark dropped, CRLF folded to LF and lines joined by LF. It is a contract for downstream readers (capture membership, observed subject revisions): it moves when that record's text changes and with nothing else, so lines added above a record, other files, placement, provenance and resolved targets leave it unchanged, while the corpus revision (G01) still moves with any byte. A nested record lies inside its parent's lines, so editing the child moves the parent's digest too. The digest lives on Node, not on CompiledRecord; compiled records and their fixtures are unchanged. A different definition takes a new format tag, never a new meaning for `ia-record-1`.
 
 ## Authority and indexes
 

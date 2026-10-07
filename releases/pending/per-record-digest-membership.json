@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Records carry a per-record source digest; the database reports capture membership",
+  "summary": "Every graph Node now carries digest, a SHA-256 over the record's own source lines (format ia-record-1, CRLF folded, a leading byte-order mark dropped), exposed with recordDigest and RECORD_DIGEST_FORMAT from @inventarch/graph. It changes only when that record's text changes: lines added above it or edits elsewhere leave it alone; editing a nested record also moves its parent. Compiled records are unchanged. The database adds Reader.membership(options?), one row per admitted record ({identity, seat, root, placement, band, digest}, ordered by identity and scope-pruned), seating each record in the `@workspace` whose composition.sources declares its root, in its `@system` for adopted sources, or in the only `@workspace`. Snapshot is unchanged, and the door's get and records results keep their released shape without the digest.",
+  "packages": [
+    "@inventarch/db",
+    "@inventarch/graph",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/db/",
+    "packages/graph/",
+    "packages/runtime/"
+  ]
+}
