@@ -1,0 +1,465 @@
+==> ia scope --help <==
+ia scope  Issue a read-only scope, or narrow one by phase or identities.
+
+Usage
+  ia scope [--root <workspace>] [--params <JSON|->]
+  ia scope --schema
+
+Issue a read-only scope or narrow an existing scope by phase or identity set;
+its root narrows only where sources declare a reach. Pass its token as within to
+later calls in the same process.
+
+Parameters (the --params JSON object)
+  within      string. Parent scope token issued earlier in the same process;
+  omitted, the parent is the initial boundary.
+  root        string. Workspace-relative location the new scope resolves from:
+  the parent's root or a directory below it. A source is admitted where its
+  declared reach covers this location, and the default empty reach covers every
+  location, so this is not a path filter.
+  phase       one of orient | plan | act | learn or null. Phase to bind the new
+  scope to; omitted keeps the parent's phase, and null binds none.
+  revision    string. Asserts the parent scope's revision; any other value
+  refuses with IA-DB-SCOPE-MISMATCH.
+  identities  array of string. Identities the new scope admits; it stays inside
+  the parent's boundary.
+
+Result
+  The scope: {token, root, revision}, plus phase when one is bound.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID         Exit 2. A parameter is unknown, missing or
+  of the wrong type. Match the parameters to this operation's schema; the
+  message names what was expected.
+  IA-DB-SCOPE-UNAVAILABLE            Exit 1. within is a token this process did
+  not issue. Omit within, or pass a token issued earlier in the same process; a
+  CLI token ends with its invocation.
+  IA-DB-SCOPE-MISMATCH               Exit 1. revision differs from the parent
+  scope's, or root lies outside the parent's root. Omit revision or pass the
+  parent's, and choose a root at or below the parent's.
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN  Exit 1. A phase or coordinate value is
+  outside its closed set, or coordinate names an unknown axis. Use one of the
+  values or axes the message lists.
+
+Example
+  ia scope --root <workspace> --params '{"identities":["governance-system/definition/procedure/sample-procedure"]}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. MCP tool: ia_scope.
+==> ia context --help <==
+ia context  Deliver the cited procedure cells and governance that apply to a
+coordinate.
+
+Usage
+  ia context [--root <workspace>] [--params <JSON|->]
+  ia context --schema
+
+Deliver cited IA procedure cells and applicable governance for a declared phase
+and primitive. Budget.tokens counts delivered text and purpose, not the whole
+JSON response. Blocking obligations cannot be silently budgeted away. Narrow
+topical context with the search and scope operations.
+
+Parameters (the --params JSON object)
+  within      string. Scope token issued earlier in the same process: one CLI
+  invocation, or the MCP server process. Omitted, the call reads the initial
+  boundary.
+  text        Required. string. The request in plain words; may be empty.
+  coordinate  Required. {shape, category, phase, primitive, move, kind, lane,
+  predicate, artifact-set, severity, provenance}. Where the work stands. phase
+  and primitive are required; each further axis narrows what applies.
+  subject     string or {kind, identity, fragment} or {kind, discriminator,
+  name, fragment}. The record the request is about: an identity or a typed
+  reference.
+  follow      array of string. Relationship verbs to follow from the delivered
+  records.
+  revision    string. Asserts the scope's revision; any other value refuses with
+  IA-DB-SCOPE-MISMATCH.
+  ranking     one of native | topical. Default native preserves procedure-first
+  ordering. Topical prioritizes scoped search relevance after reserving all
+  blocking governance; it does not affect execution selection.
+  budget      {tokens, records}. Delivery limits; default {tokens: 4000,
+  records: 50}.
+
+Result
+  A cited packet: {revision, scope, coordinate, included, omitted, followed,
+  gated, dangling, limits}. included holds the delivered cells with their
+  citations; omitted names what the budget, a disqualifying condition or an
+  unresolved reference left out.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID         Exit 2. A parameter is unknown, missing or
+  of the wrong type. Match the parameters to this operation's schema; the
+  message names what was expected.
+  IA-DB-SCOPE-UNAVAILABLE            Exit 1. within is a token this process did
+  not issue. Omit within, or pass a token issued earlier in the same process; a
+  CLI token ends with its invocation.
+  IA-DB-SCOPE-MISMATCH               Exit 1. revision differs from the scope's
+  own. Drop revision or pass the scope's own.
+  coordinate-incomplete              Exit 1. coordinate lacks an axis this
+  operation needs; missing names each one. Declare every axis in missing on
+  coordinate.
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN  Exit 1. A phase or coordinate value is
+  outside its closed set, or coordinate names an unknown axis. Use one of the
+  values or axes the message lists.
+  IA-GRAPH-VERB-UNKNOWN              Exit 1. follow names a verb the language
+  does not define. Use the verbs the message lists.
+  IA-RUNTIME-BUDGET-INVALID          Exit 1. budget.tokens or budget.records is
+  negative or not a safe integer. Pass nonnegative integers, or omit budget for
+  the default.
+  IA-GRAPH-BUDGET-BLOCKING-OVERFLOW  Exit 1. The budget cannot hold every
+  applicable blocking obligation; required gives the minimum. Raise budget to at
+  least required, or narrow the scope.
+
+Example
+  ia context --root <workspace> --params '{"text":"author a record","coordinate":{"phase":"orient","primitive":"Decision"}}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. MCP tool: ia_context.
+==> ia select --help <==
+ia select  Choose exactly one binding among candidate identities, or refuse.
+
+Usage
+  ia select [--root <workspace>] [--params <JSON|->]
+  ia select --schema
+
+Choose exclusively among supplied identities; ties or missing required
+coordinates refuse. This grants no execution permission.
+
+Parameters (the --params JSON object)
+  within        string. Scope token issued earlier in the same process: one CLI
+  invocation, or the MCP server process. Omitted, the call reads the initial
+  boundary.
+  text          Required. string. The request in plain words; may be empty.
+  coordinate    Required. {shape, category, phase, primitive, move, kind, lane,
+  predicate, artifact-set, severity, provenance}. Where the work stands. phase
+  and primitive are required; each further axis narrows what applies.
+  subject       string or {kind, identity, fragment} or {kind, discriminator,
+  name, fragment}. The record the request is about: an identity or a typed
+  reference.
+  follow        array of string. Accepted for symmetry with context; select
+  ignores it.
+  revision      string. Asserts the scope's revision; any other value refuses
+  with IA-DB-SCOPE-MISMATCH.
+  candidates    Required. array of string. Identities to choose among.
+  requiredAxes  array of one of shape | category | phase | primitive | move |
+  kind | lane | predicate | artifact-set | severity | provenance. Further
+  coordinate axes the request must declare; a missing one refuses with
+  coordinate-incomplete.
+
+Result
+  The chosen binding: {revision, scope, entry}.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID         Exit 2. A parameter is unknown, missing or
+  of the wrong type. Match the parameters to this operation's schema; the
+  message names what was expected.
+  IA-DB-SCOPE-UNAVAILABLE            Exit 1. within is a token this process did
+  not issue. Omit within, or pass a token issued earlier in the same process; a
+  CLI token ends with its invocation.
+  IA-DB-SCOPE-MISMATCH               Exit 1. revision differs from the scope's
+  own. Drop revision or pass the scope's own.
+  coordinate-incomplete              Exit 1. coordinate lacks an axis this
+  operation needs; missing names each one. Declare every axis in missing on
+  coordinate.
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN  Exit 1. A phase or coordinate value is
+  outside its closed set, or coordinate names an unknown axis. Use one of the
+  values or axes the message lists.
+  no-candidate                       Exit 1. No candidate is admitted in this
+  scope and applies to the coordinate. Pass candidates that apply; context lists
+  the procedures that do.
+  deny-wins-tie                      Exit 1. Candidates tie on step, score and
+  band. Declare more coordinate axes so one applies more specifically, or pass
+  fewer candidates.
+
+Example
+  ia select --root <workspace> --params '{"text":"","coordinate":{"phase":"act","primitive":"Decision","category":"process"},"candidates":["governance-system/definition/procedure/sample-procedure"]}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. MCP tool: ia_select.
+==> ia get --help <==
+ia get  Read one admitted record inside the scope.
+
+Usage
+  ia get [--root <workspace>] [--params <JSON|->]
+  ia get --schema
+
+Read one admitted IA record inside the scope.
+
+Parameters (the --params JSON object)
+  within    string. Scope token issued earlier in the same process: one CLI
+  invocation, or the MCP server process. Omitted, the call reads the initial
+  boundary.
+  root      string. Asserts the scope's root ("" for the initial scope); a path
+  to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow
+  the read: issue a scope and pass its token as within. Not the workspace path,
+  which is --root on the CLI and the configured root on MCP.
+  phase     one of orient | plan | act | learn or null. Asserts the scope's
+  phase (null for a scope without one); a different one refuses with
+  IA-DB-SCOPE-MISMATCH, and a value outside the phase set with
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read.
+  revision  string. Asserts the scope's revision; any other value refuses with
+  IA-DB-SCOPE-MISMATCH.
+  identity  Required. string. Admitted identity to read.
+
+Result
+  The admitted record: {identity, system, kind, discriminator, name, source,
+  sections, edges, cells, ...}.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID         Exit 2. A parameter is unknown, missing or
+  of the wrong type. Match the parameters to this operation's schema; the
+  message names what was expected.
+  IA-DB-SCOPE-UNAVAILABLE            Exit 1. within is a token this process did
+  not issue. Omit within, or pass a token issued earlier in the same process; a
+  CLI token ends with its invocation.
+  IA-DB-SCOPE-MISMATCH               Exit 1. root, phase or revision differs
+  from the scope's own value. Drop the binding or pass the scope's own value. To
+  read a narrower scope, issue one with scope and pass its token as within in
+  the same process; a CLI invocation performs one operation, so its reads cover
+  the initial boundary.
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN  Exit 1. A phase or coordinate value is
+  outside its closed set, or coordinate names an unknown axis. Use one of the
+  values or axes the message lists.
+  IA-DB-OUT-OF-SCOPE                 Exit 1. The identity is outside the scope.
+  Pick an identity that records or search returns in this scope, or widen the
+  scope.
+
+Example
+  ia get --root <workspace> --params '{"identity":"governance-system/definition/procedure/sample-procedure"}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. MCP tool: ia_get.
+==> ia records --help <==
+ia records  Read the whole admitted snapshot inside the scope.
+
+Usage
+  ia records [--root <workspace>] [--params <JSON|->]
+  ia records --schema
+
+Read the admitted immutable record snapshot inside the scope. It can be large;
+search, get and traverse read less.
+
+Parameters (the --params JSON object)
+  within    string. Scope token issued earlier in the same process: one CLI
+  invocation, or the MCP server process. Omitted, the call reads the initial
+  boundary.
+  root      string. Asserts the scope's root ("" for the initial scope); a path
+  to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow
+  the read: issue a scope and pass its token as within. Not the workspace path,
+  which is --root on the CLI and the configured root on MCP.
+  phase     one of orient | plan | act | learn or null. Asserts the scope's
+  phase (null for a scope without one); a different one refuses with
+  IA-DB-SCOPE-MISMATCH, and a value outside the phase set with
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read.
+  revision  string. Asserts the scope's revision; any other value refuses with
+  IA-DB-SCOPE-MISMATCH.
+
+Result
+  The snapshot: {revision, root, records, systems}, plus phase when the scope
+  binds one.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID         Exit 2. A parameter is unknown, missing or
+  of the wrong type. Match the parameters to this operation's schema; the
+  message names what was expected.
+  IA-DB-SCOPE-UNAVAILABLE            Exit 1. within is a token this process did
+  not issue. Omit within, or pass a token issued earlier in the same process; a
+  CLI token ends with its invocation.
+  IA-DB-SCOPE-MISMATCH               Exit 1. root, phase or revision differs
+  from the scope's own value. Drop the binding or pass the scope's own value. To
+  read a narrower scope, issue one with scope and pass its token as within in
+  the same process; a CLI invocation performs one operation, so its reads cover
+  the initial boundary.
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN  Exit 1. A phase or coordinate value is
+  outside its closed set, or coordinate names an unknown axis. Use one of the
+  values or axes the message lists.
+
+Example
+  ia records --root <workspace> --params '{}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. MCP tool: ia_records.
+==> ia resolve --help <==
+ia resolve  Resolve a typed reference or identity to exactly one record.
+
+Usage
+  ia resolve [--root <workspace>] [--params <JSON|->]
+  ia resolve --schema
+
+Resolve a typed reference or identity with exact-cardinality refusal. An
+unresolved reference is still a successful response; its result says why.
+
+Parameters (the --params JSON object)
+  within     string. Scope token issued earlier in the same process: one CLI
+  invocation, or the MCP server process. Omitted, the call reads the initial
+  boundary.
+  root       string. Asserts the scope's root ("" for the initial scope); a path
+  to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow
+  the read: issue a scope and pass its token as within. Not the workspace path,
+  which is --root on the CLI and the configured root on MCP.
+  phase      one of orient | plan | act | learn or null. Asserts the scope's
+  phase (null for a scope without one); a different one refuses with
+  IA-DB-SCOPE-MISMATCH, and a value outside the phase set with
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read.
+  revision   string. Asserts the scope's revision; any other value refuses with
+  IA-DB-SCOPE-MISMATCH.
+  reference  Required. {kind, identity, fragment} or {kind, discriminator, name,
+  fragment}. A typed reference: {kind: "identity", identity} or {kind: "ref",
+  discriminator, name}, each with an optional fragment.
+
+Result
+  {ok: true, identity} when exactly one record matches; otherwise {ok: false,
+  code, ...}, for example IA-GRAPH-TARGET-MISSING.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID         Exit 2. A parameter is unknown, missing or
+  of the wrong type. Match the parameters to this operation's schema; the
+  message names what was expected.
+  IA-DB-SCOPE-UNAVAILABLE            Exit 1. within is a token this process did
+  not issue. Omit within, or pass a token issued earlier in the same process; a
+  CLI token ends with its invocation.
+  IA-DB-SCOPE-MISMATCH               Exit 1. root, phase or revision differs
+  from the scope's own value. Drop the binding or pass the scope's own value. To
+  read a narrower scope, issue one with scope and pass its token as within in
+  the same process; a CLI invocation performs one operation, so its reads cover
+  the initial boundary.
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN  Exit 1. A phase or coordinate value is
+  outside its closed set, or coordinate names an unknown axis. Use one of the
+  values or axes the message lists.
+
+Example
+  ia resolve --root <workspace> --params '{"reference":{"kind":"ref","discriminator":"playbook","name":"sample-procedure"}}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. MCP tool: ia_resolve.
+==> ia search --help <==
+ia search  Search decoded record text inside the scope.
+
+Usage
+  ia search [--root <workspace>] [--params <JSON|->]
+  ia search --schema
+
+Search decoded IA text with statistics restricted to the scope.
+
+Parameters (the --params JSON object)
+  within    string. Scope token issued earlier in the same process: one CLI
+  invocation, or the MCP server process. Omitted, the call reads the initial
+  boundary.
+  root      string. Asserts the scope's root ("" for the initial scope); a path
+  to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow
+  the read: issue a scope and pass its token as within. Not the workspace path,
+  which is --root on the CLI and the configured root on MCP.
+  phase     one of orient | plan | act | learn or null. Asserts the scope's
+  phase (null for a scope without one); a different one refuses with
+  IA-DB-SCOPE-MISMATCH, and a value outside the phase set with
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read.
+  revision  string. Asserts the scope's revision; any other value refuses with
+  IA-DB-SCOPE-MISMATCH.
+  text      Required. string. Words to find.
+
+Result
+  An array of hits inside the scope, each naming an identity.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID         Exit 2. A parameter is unknown, missing or
+  of the wrong type. Match the parameters to this operation's schema; the
+  message names what was expected.
+  IA-DB-SCOPE-UNAVAILABLE            Exit 1. within is a token this process did
+  not issue. Omit within, or pass a token issued earlier in the same process; a
+  CLI token ends with its invocation.
+  IA-DB-SCOPE-MISMATCH               Exit 1. root, phase or revision differs
+  from the scope's own value. Drop the binding or pass the scope's own value. To
+  read a narrower scope, issue one with scope and pass its token as within in
+  the same process; a CLI invocation performs one operation, so its reads cover
+  the initial boundary.
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN  Exit 1. A phase or coordinate value is
+  outside its closed set, or coordinate names an unknown axis. Use one of the
+  values or axes the message lists.
+
+Example
+  ia search --root <workspace> --params '{"text":"authoring"}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. MCP tool: ia_search.
+==> ia traverse --help <==
+ia traverse  Follow typed relationships from start identities.
+
+Usage
+  ia traverse [--root <workspace>] [--params <JSON|->]
+  ia traverse --schema
+
+Follow scoped IA relationships with typed filters and optional conditional
+gating.
+
+Parameters (the --params JSON object)
+  within      string. Scope token issued earlier in the same process: one CLI
+  invocation, or the MCP server process. Omitted, the call reads the initial
+  boundary.
+  root        string. Asserts the scope's root ("" for the initial scope); a
+  path to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not
+  narrow the read: issue a scope and pass its token as within. Not the workspace
+  path, which is --root on the CLI and the configured root on MCP.
+  phase       one of orient | plan | act | learn or null. Asserts the scope's
+  phase (null for a scope without one); a different one refuses with
+  IA-DB-SCOPE-MISMATCH, and a value outside the phase set with
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read.
+  revision    string. Asserts the scope's revision; any other value refuses with
+  IA-DB-SCOPE-MISMATCH.
+  start       Required. array of string. Identities to start from.
+  follow      array of string. Relationship verbs to follow.
+  direction   one of out | in | both. Edge direction.
+  depth       integer 0-8. Hops from start.
+  filter      {kind, discriminator, system}. Keep only records of this kind,
+  discriminator or system.
+  coordinate  {shape, category, phase, primitive, move, kind, lane, predicate,
+  artifact-set, severity, provenance}. Coordinate that conditional relationships
+  are gated by.
+
+Result
+  The walk: {nodes, via, edges, gated, dangling}; each node carries its depth.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID         Exit 2. A parameter is unknown, missing or
+  of the wrong type. Match the parameters to this operation's schema; the
+  message names what was expected.
+  IA-DB-SCOPE-UNAVAILABLE            Exit 1. within is a token this process did
+  not issue. Omit within, or pass a token issued earlier in the same process; a
+  CLI token ends with its invocation.
+  IA-DB-SCOPE-MISMATCH               Exit 1. root, phase or revision differs
+  from the scope's own value. Drop the binding or pass the scope's own value. To
+  read a narrower scope, issue one with scope and pass its token as within in
+  the same process; a CLI invocation performs one operation, so its reads cover
+  the initial boundary.
+  IA-GRAPH-COORDINATE-VALUE-UNKNOWN  Exit 1. A phase or coordinate value is
+  outside its closed set, or coordinate names an unknown axis. Use one of the
+  values or axes the message lists.
+  IA-GRAPH-VERB-UNKNOWN              Exit 1. follow names a verb the language
+  does not define. Use the verbs the message lists.
+  IA-GRAPH-TRAVERSAL-INVALID         Exit 1. depth is not an integer from 0 to
+  8. Pass an integer depth from 0 to 8.
+
+Example
+  ia traverse --root <workspace> --params '{"start":["governance-system/definition/procedure/sample-procedure"],"depth":1}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. MCP tool:
+ia_traverse.
+==> ia report --help <==
+ia report  Report admission verdicts and findings for the whole workspace (CLI
+only).
+
+Usage
+  ia report [--root <workspace>] [--params <JSON|->]
+  ia report --schema
+
+Report admission verdicts and findings for the whole workspace. Privileged local
+inspection: the CLI enables it and the MCP door does not serve it.
+
+Parameters (the --params JSON object)
+  None; pass {} or omit --params.
+
+Result
+  The report: {revision, outcome, verdicts, findings, shadows}. On the CLI an
+  outcome of fail exits 1 although the response is ok.
+
+Refusals
+  IA-RUNTIME-REQUEST-INVALID  Exit 2. A parameter was supplied (report takes
+  none), or the host has not enabled report. Pass {} or omit --params; only the
+  CLI enables report.
+
+Example
+  ia report --root <workspace> --params '{}'
+
+Machine protocol v<version>: JSON in, one JSON line out, no color. The MCP door does not
+serve it.

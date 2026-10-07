@@ -1072,6 +1072,7 @@
       "project": "apps/cli",
       "files": [
         "tests/cli.test.ts",
+        "tests/machine-routes.test.ts",
         "tests/program.test.ts",
         "tests/protocols.test.ts",
         "tests/session-hook.test.ts",
