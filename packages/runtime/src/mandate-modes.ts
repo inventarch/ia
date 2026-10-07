@@ -27,6 +27,16 @@ export const MODE_MOVES = Object.freeze({
   're-seat': 'Delegation',
 } as const satisfies Readonly<Record<string, Move>>);
 export type Mode = keyof typeof MODE_MOVES;
+/**
+ * The mode of each read operation a position serves: `position`, `read` and `next` only tell what is admitted, so a
+ * mandate judges them by the read mode's move. Other commands are assigned a mode with the verbs that consume
+ * `mandateRefusal`.
+ */
+export const OPERATION_MODES = Object.freeze({
+  position: 'read',
+  read: 'read',
+  next: 'read',
+} as const satisfies Readonly<Record<string, keyof typeof MODE_MOVES>>);
 /** The modes in table order. */
 export const MODES: readonly Mode[] = Object.freeze(Object.keys(MODE_MOVES) as Mode[]);
 export function isMode(value: unknown): value is Mode {

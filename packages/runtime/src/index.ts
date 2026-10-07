@@ -28,6 +28,23 @@ export type {
   SystemLine,
   Widening,
 } from './body.js';
+export { stewardApplies } from './applies.js';
+export type {
+  AppliesByWord,
+  AppliesLine,
+  AppliesTally,
+  CellLine,
+  CellSource,
+  Cells,
+  Described,
+  MandateLine,
+  MandateMatch,
+  RuleLine,
+  RuleMatch,
+  Rules,
+  SubjectMatch,
+  WordAttribution,
+} from './applies.js';
 export { BODY_DIGEST_FORMAT, HOST_NOTE_FORMAT, bodyDigest, position } from './position.js';
 export type {
   CapturedRevisions,
@@ -89,6 +106,7 @@ export {
   MODES,
   MODE_MOVES,
   MOVES,
+  OPERATION_MODES,
   isMode,
   mandateAuthorityOf,
   mandateRefusal,

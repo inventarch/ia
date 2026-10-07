@@ -2,6 +2,8 @@ import { KIND_LANES, SHAPE_ROWS } from '@inventarch/language';
 import type { Band, Kind, Predicate } from '@inventarch/language';
 import type { ReadHandle } from '@inventarch/db';
 import type { Node } from '@inventarch/graph';
+import { onDemand } from './applies.js';
+import type { AppliesByWord, Cells, MandateLine, Rules } from './applies.js';
 import { SCOPE_BODY_LIMITS, SCOPE_KEY_CAPS, SCOPE_KEY_DEFAULTS } from './scope-key.js';
 import type { NormalizedScopeKey } from './scope-key.js';
 import { seed } from './seed.js';
@@ -9,11 +11,12 @@ import type { Composed, Hop, Seat, SeedClass, SeedKey, Unknown } from './seed.js
 import { freeze } from './types.js';
 
 /**
- * body(K): what a scope key hands over, apart from record text and the sections that later read cells and rules. It
- * is the seeding (`seed`) told as lines: the loaded records, pointers to the records met but not loaded, tallies for
- * what the pointer limit and the depth leave out, one pointer line per system of the home workspace, the records
- * captured with a workspace seat, counts and the two widening-key forms. It is a pure function of the key's value
- * and the admitted revision; how each key part was supplied is never part of it.
+ * body(K): what a scope key hands over, apart from record text. It is the seeding (`seed`) told as lines: the loaded
+ * records, pointers to the records met but not loaded, tallies for what the pointer limit and the depth leave out,
+ * one pointer line per system of the home workspace, the records captured with a workspace seat, then the on-demand
+ * sections (`applies by word`, playbook cells, applicable rules and governing mandates), counts and the two
+ * widening-key forms. It is a pure function of the key's value and the admitted revision; how each key part was
+ * supplied is never part of it.
  */
 
 /** How a line's record was reached: a C0 class from the seat, a directed-view row, or a loaded record's own field. */
@@ -106,6 +109,14 @@ export interface PositionBody {
   readonly frontier: readonly FrontierTally[];
   readonly systems: readonly SystemLine[];
   readonly captured: readonly CapturedTally[];
+  /** Rules and playbooks whose subject names a loaded word or kind: a field match, not a row. */
+  readonly appliesByWord: AppliesByWord;
+  /** Playbook cells at the key's phase and the shape's primitive. */
+  readonly cells: Cells;
+  /** The governance rules that apply to the seat or the key's word; blocking ones outside the budget. */
+  readonly rules: Rules;
+  /** The mandates whose covers claims the seat or that bind the seat workspace's participant. */
+  readonly mandates: readonly MandateLine[];
   readonly counts: BodyCounts;
   readonly widening: Widening;
   readonly unknowns: readonly Unknown[];
@@ -357,6 +368,22 @@ export function positionBody(handle: ReadHandle, within: string, key: Normalized
   }
   lines.sort((a, b) => compare(a.identity, b.identity));
 
+  const sections = onDemand({
+    handle,
+    within,
+    key,
+    seat,
+    nodes,
+    loaded: seeding.loaded,
+    composition: seeding.composition.map((entry) => entry.identity),
+    describe: (node) => {
+      const { hop: _hop, via: _via, ...described } = line(node, 0, null);
+      return described;
+    },
+    owner,
+    view,
+  });
+
   const value = seeding.key;
   return freeze({
     revision: seeding.revision,
@@ -368,6 +395,7 @@ export function positionBody(handle: ReadHandle, within: string, key: Normalized
     frontier: [...frontier.values()].sort((a, b) => compare(a.system, b.system) || compare(a.kind, b.kind)),
     systems: lines,
     captured: [...captured].sort(([a], [b]) => compare(a, b)).map(([word, count]) => ({ word, count })),
+    ...sections,
     counts: {
       composition: seeding.composition.length,
       seeds: seeding.seeds.length,

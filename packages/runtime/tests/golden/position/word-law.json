@@ -116,6 +116,67 @@
       "count": 1
     }
   ],
+  "appliesByWord": {
+    "words": [
+      {
+        "word": "workspace",
+        "stewards": [
+          "agent-system/binding/agent/workspace-steward"
+        ]
+      }
+    ],
+    "listed": [
+      {
+        "identity": "governance-system/governance/principle/sample-principle",
+        "word": "principle",
+        "kind": "governance",
+        "lane": "authority",
+        "system": "governance-system",
+        "steward": "agent-system/binding/agent/governance-steward",
+        "band": 100,
+        "words": [
+          "workspace"
+        ],
+        "by": [
+          {
+            "field": "subject-kind",
+            "value": "definition"
+          }
+        ]
+      }
+    ],
+    "tallies": [],
+    "count": 1
+  },
+  "cells": {
+    "listed": [],
+    "count": 0
+  },
+  "rules": {
+    "listed": [
+      {
+        "identity": "governance-system/governance/principle/sample-principle",
+        "word": "principle",
+        "kind": "governance",
+        "lane": "authority",
+        "system": "governance-system",
+        "steward": "agent-system/binding/agent/governance-steward",
+        "band": 100,
+        "severity": "advisory",
+        "blocking": false,
+        "by": [
+          {
+            "by": "subject-kind",
+            "value": "definition",
+            "of": "seat"
+          }
+        ]
+      }
+    ],
+    "count": 1,
+    "truncated": 0
+  },
+  "mandates": [],
   "counts": {
     "composition": 1,
     "seeds": 0,

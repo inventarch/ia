@@ -1192,6 +1192,138 @@
       "count": 1
     }
   ],
+  "appliesByWord": {
+    "words": [
+      {
+        "word": "check",
+        "stewards": [
+          "agent-system/binding/agent/compliance-steward"
+        ]
+      },
+      {
+        "word": "contract",
+        "stewards": [
+          "agent-system/binding/agent/compliance-steward"
+        ]
+      },
+      {
+        "word": "convention",
+        "stewards": [
+          "agent-system/binding/agent/governance-steward"
+        ]
+      },
+      {
+        "word": "law",
+        "stewards": [
+          "agent-system/binding/agent/governance-steward"
+        ]
+      },
+      {
+        "word": "mandate",
+        "stewards": [
+          "agent-system/binding/agent/agent-steward"
+        ]
+      },
+      {
+        "word": "principle",
+        "stewards": [
+          "agent-system/binding/agent/governance-steward"
+        ]
+      },
+      {
+        "word": "workspace",
+        "stewards": [
+          "agent-system/binding/agent/workspace-steward"
+        ]
+      }
+    ],
+    "listed": [
+      {
+        "identity": "governance-system/governance/convention/sample-convention",
+        "word": "convention",
+        "kind": "governance",
+        "lane": "authority",
+        "system": "governance-system",
+        "steward": "agent-system/binding/agent/governance-steward",
+        "band": 100,
+        "words": [
+          "contract"
+        ],
+        "by": [
+          {
+            "field": "subject-word",
+            "value": "contract"
+          },
+          {
+            "field": "subject-kind",
+            "value": "contract"
+          }
+        ]
+      },
+      {
+        "identity": "governance-system/governance/principle/sample-principle",
+        "word": "principle",
+        "kind": "governance",
+        "lane": "authority",
+        "system": "governance-system",
+        "steward": "agent-system/binding/agent/governance-steward",
+        "band": 100,
+        "words": [
+          "workspace"
+        ],
+        "by": [
+          {
+            "field": "subject-kind",
+            "value": "definition"
+          }
+        ]
+      }
+    ],
+    "tallies": [],
+    "count": 2
+  },
+  "cells": {
+    "listed": [
+      {
+        "playbook": "governance-system/definition/procedure/sample-procedure",
+        "via": [
+          "seat"
+        ],
+        "address": "governance-system/definition/procedure/sample-procedure#plan/Inference",
+        "selection": "exact",
+        "phase": "plan",
+        "primitive": "Inference",
+        "text": "Sample fixture statement 11.",
+        "nearest": null
+      }
+    ],
+    "count": 1
+  },
+  "rules": {
+    "listed": [
+      {
+        "identity": "governance-system/governance/principle/sample-principle",
+        "word": "principle",
+        "kind": "governance",
+        "lane": "authority",
+        "system": "governance-system",
+        "steward": "agent-system/binding/agent/governance-steward",
+        "band": 100,
+        "severity": "advisory",
+        "blocking": false,
+        "by": [
+          {
+            "by": "subject-kind",
+            "value": "definition",
+            "of": "seat"
+          }
+        ]
+      }
+    ],
+    "count": 1,
+    "truncated": 0
+  },
+  "mandates": [],
   "counts": {
     "composition": 67,
     "seeds": 6,

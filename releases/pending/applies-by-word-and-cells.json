@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Position body: applies by word, cells, rules and mandates",
+  "summary": "The position body from @inventarch/runtime gains four on-demand sections, read beside the seeding without changing what it loads: appliesByWord (rules and playbooks whose subject.subject-word or subject.subject-kind names the word or kind of a loaded record, a field match listed up to 48 then tallied, plus each loaded word once with the agents whose unconditioned governance.applies names it), cells (playbook cells at the key's phase and the shape's primitive, exact else primary, at most four, from the playbooks that apply by word and those at the seat, with the nearest phase when none fits), rules (governance records whose subject.covers claims the seat's path, that a governance-focus row joins to the seat, or whose subject names the seat's or the key word's word or kind; blocking ones outside the budget) and mandates (those whose authority.covers claims the seat or whose participant is the seat workspace's composition.steward, within their declared scope, each with the refusal a read gets under it). stewardApplies and OPERATION_MODES (position, read and next map to the read mode) are exported. Bodies and their digests change; the sections before the new ones are byte-unchanged.",
+  "packages": [
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/runtime/"
+  ]
+}
