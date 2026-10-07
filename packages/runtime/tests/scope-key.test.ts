@@ -151,9 +151,10 @@ it('refuses unknown parts, unknown shapes and phases, and malformed seats and wo
     "IA-RUNTIME-REQUEST-INVALID: Unknown scope key part 'primitive'; admitted: seat, shape, phase, depth, budget, word",
   );
   expect(() => normalizeScopeKey({ pointers: 48 })).toThrow("Unknown scope key part 'pointers'");
-  expect(() => normalizeScopeKey({ shape: 'thinking' })).toThrow('IA-GRAPH-COORDINATE-VALUE-UNKNOWN');
-  expect(() => normalizeScopeKey({ phase: 'dream' })).toThrow('IA-GRAPH-COORDINATE-VALUE-UNKNOWN');
-  expect(() => normalizeScopeKey({ shape: 7 })).toThrow('IA-GRAPH-COORDINATE-VALUE-UNKNOWN');
+  for (const key of [{ shape: 'thinking' }, { phase: 'dream' }, { shape: 7 }, { phase: null }])
+    expect(() => normalizeScopeKey(key), JSON.stringify(key)).toThrow(
+      expect.objectContaining({ code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN' }),
+    );
   for (const key of [{ seat: '' }, { seat: 1 }, { seat: null }, { word: '' }, { word: ['law'] }, { word: null }])
     expect(() => normalizeScopeKey(key), JSON.stringify(key)).toThrow('IA-RUNTIME-REQUEST-INVALID');
   for (const input of [null, [], 'context', 0])

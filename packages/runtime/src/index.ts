@@ -4,6 +4,15 @@ export { classify, scoreShapes, defaultClassifier } from './classify.js';
 export type { Classifier, Shape } from './classify.js';
 export { prepareCoordinate, COORDINATE_DOMAINS } from './coordinate.js';
 export type { PreparedCoordinate, CoordinateOptions, AxisSource } from './coordinate.js';
+export {
+  K0,
+  SCOPE_BODY_LIMITS,
+  SCOPE_KEY_CAPS,
+  SCOPE_KEY_DEFAULTS,
+  SCOPE_KEY_PARTS,
+  normalizeScopeKey,
+} from './scope-key.js';
+export type { NormalizedScopeKey, ScopeKey, ScopeKeyPart, ScopeKeySource } from './scope-key.js';
 export { context, DEFAULT_TOKENIZER } from './context.js';
 export type {
   ContextRequest,

@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Normalize a scope key with caps, K0 and a derived primitive",
+  "summary": "`@inventarch/runtime` exports normalizeScopeKey(key), which validates and completes a scope key (seat, shape, phase, depth, budget, word) without reading a record, and the K0, SCOPE_KEY_PARTS, SCOPE_KEY_CAPS, SCOPE_KEY_DEFAULTS and SCOPE_BODY_LIMITS constants. An empty key is K0: the workspace seat, the context shape, the orient phase, depth 0, budget 0 and no word. A non-empty key gets depth 1 and budget 16 when it omits them; depth is capped at 2 and budget, the records loaded beyond the seat, at 64, and a value outside the caps is refused with IA-RUNTIME-REQUEST-INVALID. The primitive comes from the shape and an omitted phase from the primitive's anchor phase, so a shape and a phase alone give a complete coordinate; every part is marked declared, derived or default. prepareCoordinate, context and select are unchanged and still require a declared phase and primitive.",
+  "packages": [
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/runtime/"
+  ]
+}
