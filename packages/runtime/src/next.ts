@@ -131,8 +131,8 @@ export interface Basis {
   /** `require`: a record this one requires; `supersede`: a record that supersedes this one. */
   readonly predicate: 'require' | 'supersede';
   /**
-   * The required or superseding record's identity, or the reference as written when it resolves to none or the view
-   * cannot read what it resolves to.
+   * The required or superseding record's identity, or the reference as written when it resolves to none or the scope
+   * token hides what it resolves to, wherever that record is declared.
    */
   readonly target: string;
   readonly resolved: boolean;
@@ -304,6 +304,40 @@ export function specStanding(
 }
 
 /**
+ * The rows `node` itself declares for `predicate` in `direction`, each read through the scoped directed view by its
+ * source line, never through the compiled edge's target: the compiler resolves a target only within its own file, so
+ * a record declared in another file reads as resolved only through the graph. `other` is the record the row resolves
+ * to; null when it resolves to none (a dangling row stays in the view); undefined when the view has no row, because
+ * the scope token prunes a row to a record outside the scope. `target` names it: the record, or the reference as
+ * written when the row resolves to none or the token hides what it resolves to, wherever that record is declared.
+ */
+function declared(
+  read: Reading,
+  node: Node,
+  predicate: 'require' | 'supersede',
+  direction: 'out' | 'in',
+): readonly { readonly other: string | null | undefined; readonly target: string }[] {
+  const own = new Map(
+    read.handle
+      .directedView(node.identity, { within: read.within })
+      .filter(
+        (row) =>
+          row.kind === 'edge' &&
+          row.declaredOn === node.identity &&
+          row.predicate === predicate &&
+          row.direction === direction,
+      )
+      .map((row) => [row.source.line, row.other]),
+  );
+  return node.edges
+    .filter((edge) => edge.predicate === predicate && edge.direction === direction)
+    .map((edge) => {
+      const other = own.get(edge.span.line);
+      return { other, target: other ?? written(edge.reference) };
+    });
+}
+
+/**
  * The supersessions of a listed record as blocking bases (`superseded by <record> (<grounding>)`). A superseded plan,
  * milestone or task is where work stopped, so a declared supersession blocks it whether or not a decision grounds it
  * yet; the basis says which. A supersession the record itself declares never reads as clear: a superseding record the
@@ -322,19 +356,9 @@ function supersessionBasis(read: Reading, node: Node): readonly Basis[] {
       standing: `superseded by ${by.identity} (${grounding === null ? 'supersession declared, not grounded' : `grounded by ${grounding}`})`,
       blocking: true,
     }));
-  // The record's own declared rows, by source line: a row the scope token prunes is absent, a dangling one has no other.
-  const own = new Map(
-    read.handle
-      .directedView(node.identity, { within: read.within })
-      .filter((row) => row.kind === 'edge' && row.declaredOn === node.identity && row.predicate === 'supersede')
-      .map((row) => [row.source.line, row.other]),
-  );
-  for (const edge of node.edges) {
-    if (edge.predicate !== 'supersede' || edge.direction !== 'in') continue;
-    const other = own.get(edge.span.line);
-    if (other !== undefined && other !== null && read.nodes.has(other)) continue;
-    const resolved = other !== null,
-      target = other ?? edge.target ?? written(edge.reference);
+  for (const { other, target } of declared(read, node, 'supersede', 'in')) {
+    if (typeof other === 'string' && read.nodes.has(other)) continue;
+    const resolved = other !== null;
     if (seen.some((item) => item.target === target)) continue;
     seen.push({
       predicate: 'supersede',
@@ -351,9 +375,7 @@ function supersessionBasis(read: Reading, node: Node): readonly Basis[] {
 /** The records `node` requires: its own `require` rows, resolved or not, and the inverse rows others declare. */
 function requirements(read: Reading, node: Node): readonly Basis[] {
   const targets = new Map<string, boolean>();
-  for (const edge of node.edges)
-    if (edge.predicate === 'require' && edge.direction === 'out')
-      targets.set(edge.target ?? written(edge.reference), edge.target !== null);
+  for (const { other, target } of declared(read, node, 'require', 'out')) targets.set(target, other !== null);
   for (const row of read.handle.directedView(node.identity, { within: read.within }))
     if (
       row.predicate === 'require' &&

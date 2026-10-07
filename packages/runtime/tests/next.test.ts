@@ -893,7 +893,8 @@ it('reads requirements, supersessions and exit evidence across files as within o
       }).token,
     );
   const unread = narrow(db);
-  expect(unread.entries.map((item) => item.identity)).toEqual([PLAN, BETA, CCC, MMM, AAA, ALPHA, ASK]);
+  // Nothing aaa-task requires is listed now, so identity order places it first.
+  expect(unread.entries.map((item) => item.identity)).toEqual([PLAN, BETA, AAA, CCC, MMM, ALPHA, ASK]);
   expect(entry(unread, AAA).basis).toEqual([
     {
       predicate: 'require',
