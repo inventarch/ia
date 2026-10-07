@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto';
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 /**
- * A canonical-form refusal. The `code` is the stable contract; a package that re-exports this codec may subclass
- * the error to keep its own name (session-system's `SessionError` does), and the codes are unchanged by that.
+ * A canonical-form refusal. The `code` is the stable contract; a package that wraps this codec may subclass the
+ * error to keep its own name (session-system's `SessionError` does), and the codes are unchanged by that.
  */
 export class CodecError extends Error {
   constructor(
