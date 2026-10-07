@@ -19,6 +19,8 @@ import type { InputOptions, InputSnapshot } from './inputs.js';
 import type { MembershipRow } from './membership.js';
 import { digestIn, publishRetained, readRetained, readinessOf, rotate, stalenessOf } from './retention.js';
 import type { Readiness, Retained, RetainedSnapshot, Staleness } from './retention.js';
+import { seatOf } from './seat.js';
+import type { SeatResolution } from './seat.js';
 import { occurrenceKey, viewBuilder } from './view.js';
 import type { RefusedRecord, View } from './view.js';
 import { previewInputs } from './preview.js';
@@ -358,6 +360,14 @@ export class Reader {
     const { view, allowed } = this.#admit(identity, options);
     const rows = directedView(view.graph, identity);
     return allowed === undefined ? rows : Object.freeze(rows.filter((row) => allowed.has(row.counterpart)));
+  }
+  /**
+   * D02b (position-and-projection row 17): the seat `path` is declared at, a @system or @workspace identity, and the
+   * graph G06c claimants whose path selections select it, records outside the scope treated as absent (D09).
+   */
+  resolveSeat(path: string, options: ReadOptions = {}): SeatResolution {
+    const { view, allowed } = this.#select(options);
+    return seatOf(view, path, allowed);
   }
   search(text: string, options: ReadOptions = {}): readonly SearchHit[] {
     const { view, allowed } = this.#select(options);

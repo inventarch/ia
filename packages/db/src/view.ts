@@ -23,6 +23,7 @@ import type { InputSnapshot } from './inputs.js';
 import { systemMember } from './inputs.js';
 import { declaredRoots, membershipOf } from './membership.js';
 import type { DeclaredRoot, MembershipRow } from './membership.js';
+import { repositoryWorkspace } from './seat.js';
 import { InstallationError } from './distribution/codec.js';
 
 export interface RefusedRecord {
@@ -41,6 +42,10 @@ export interface View {
   readonly boundary: readonly string[];
   /** D02a capture membership of every admitted node, in `graph.nodes` order. */
   readonly membership: readonly MembershipRow[];
+  /** D02a roots the capture declares, longest first, then by workspace; they seat paths (D02b) as well as records. */
+  readonly declared: readonly DeclaredRoot[];
+  /** D02b: the repository's own @workspace, decided once per capture; absent when none or several qualify. */
+  readonly repository?: string;
 }
 interface Context {
   readonly sources: readonly Source[];
@@ -109,8 +114,9 @@ export function viewBuilder(input: InputSnapshot): (location?: string, phase?: P
   };
   const revisionSources = [...input.sources, metadata];
   // D02a: the capture declares roots once, by the @workspace records the root view admits, and every view seats its
-  // records by them, so a narrower root or phase never re-roots an occurrence.
-  let declared: readonly DeclaredRoot[] | undefined;
+  // records by them, so a narrower root or phase never re-roots an occurrence. D02b decides the repository's own
+  // @workspace at the same moment, for every view's path seats.
+  let declared: readonly DeclaredRoot[] | undefined, repository: string | undefined;
   const build = (requested = '', phase?: Phase): View => {
     const location = canonicalRoot(requested),
       context = analyze(location),
@@ -271,8 +277,12 @@ export function viewBuilder(input: InputSnapshot): (location?: string, phase?: P
         }
       if (before === excluded.size + blocked.size + blockedFolders.size) break;
     }
-    if (location === '' && phase === undefined) declared ??= declaredRoots(graph);
-    else if (declared === undefined) build();
+    if (location === '' && phase === undefined) {
+      if (declared === undefined) {
+        declared = declaredRoots(graph);
+        repository = repositoryWorkspace(graph, declared);
+      }
+    } else if (declared === undefined) build();
     const report = evaluate(graph, {
       sourceDiagnostics,
       folders: folders.filter((f) => !blockedFolders.has(f.path)),
@@ -288,6 +298,8 @@ export function viewBuilder(input: InputSnapshot): (location?: string, phase?: P
       admittedSystems: Object.freeze(registry.order.filter((name) => !blocked.has(name))),
       blockedSystems: Object.freeze([...blocked].sort(compare)),
       membership: membershipOf([...graph.nodes.values()], declared!),
+      declared: declared!,
+      ...(repository === undefined ? {} : { repository }),
     });
   };
   return build;

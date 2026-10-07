@@ -13,6 +13,7 @@ export type { Resolution } from './resolve.js';
 export type {
   CellRef,
   CellSelection,
+  Claim,
   Edge,
   EdgeAssertion,
   FieldReference,
@@ -25,6 +26,8 @@ export type {
 } from './types.js';
 export { cell, conditionHolds, effectiveSeverity, selectors, variants } from './queries.js';
 export type { SelectorMatch, VariantSelection } from './queries.js';
+export { CLAIM_FIELDS, claimants, selects } from './claims.js';
+export type { ClaimMatch, Claimant } from './claims.js';
 export { directedView } from './directed.js';
 export type { DirectedEdgeRow, DirectedFieldRow, DirectedRow } from './directed.js';
 export { traverse } from './traverse.js';

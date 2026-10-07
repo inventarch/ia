@@ -4,6 +4,8 @@ import { canonicalRoot, reaches } from '@inventarch/graph';
 import type { Graph, Node } from '@inventarch/graph';
 import { systemMember } from './inputs.js';
 
+const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 /** D02a capture membership: one admitted record, the root it was captured under, its band and graph G13 digest. */
 export interface MembershipRow {
   readonly identity: string;
@@ -15,6 +17,8 @@ export interface MembershipRow {
 export interface DeclaredRoot {
   readonly root: string;
   readonly placement: PlacementKind;
+  /** The identity of the declaring @workspace: the seat of a path under the root (D02b). */
+  readonly workspace: string;
 }
 /** The directory holding the `.ia/src` tree a source was captured from: '' for the repository's own tree. */
 function treeOf(path: string): string {
@@ -23,8 +27,8 @@ function treeOf(path: string): string {
 }
 /**
  * D02a: each `<root> @<placement>` entry of the @workspace records `graph` admits, read relative to the tree that holds
- * the declaring record, so an adopted or installed workspace speaks only for its own mount, longest root first. Other
- * text, an absolute root or one escaping that tree declares nothing.
+ * the declaring record, so an adopted or installed workspace speaks only for its own mount, longest root first, then
+ * by declaring workspace identity. Other text, an absolute root or one escaping that tree declares nothing.
  */
 export function declaredRoots(graph: Graph): readonly DeclaredRoot[] {
   return Object.freeze(
@@ -46,10 +50,16 @@ export function declaredRoots(graph: Graph): readonly DeclaredRoot[] {
             } catch {
               return [];
             }
-            return [{ root: [treeOf(node.source.path), relative].filter(Boolean).join('/'), placement }];
+            return [
+              {
+                root: [treeOf(node.source.path), relative].filter(Boolean).join('/'),
+                placement,
+                workspace: node.identity,
+              },
+            ];
           }),
       )
-      .sort((a, b) => b.root.length - a.root.length),
+      .sort((a, b) => b.root.length - a.root.length || compare(a.workspace, b.workspace)),
   );
 }
 /**

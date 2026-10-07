@@ -219,6 +219,21 @@ describe('the directed view over the native corpus (G06b)', () => {
     expect(count('field-ref', 'in')).toBe(native.references.length);
   });
 
+  it('reads the references a record holds from the by-holder index, as a scan of every reference finds them', () => {
+    const held = (identity: string) =>
+      native.references
+        .filter((reference) => reference.from === identity)
+        .map((reference) => stableSerialize([reference.field, reference.to, reference.source]))
+        .sort();
+    for (const [identity, rows] of views)
+      expect(
+        rows
+          .filter((row) => row.kind === 'field-ref' && row.direction === 'out')
+          .map((row) => stableSerialize(['field' in row && row.field, row.counterpart, row.source]))
+          .sort(),
+      ).toEqual(held(identity));
+  });
+
   it('orders rows totally, independent of input order, and leaves the graph unchanged', () => {
     const before = serialize(native);
     const reversed = load([...records].reverse(), registry, { ...options, sources: [...inputs].reverse() });
