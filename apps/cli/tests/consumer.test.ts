@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { UsageError } from '../src/args.js';
 import {
+  answerMachineOnly,
   discoverRoot,
   dispatch,
   iaHomeOf,
@@ -822,34 +823,48 @@ it('lists the version-2 operations on a line of their own under the frozen nine 
   ]);
 });
 
-it('answers a version-2 operation without a consumer command by naming its machine form', async () => {
-  // read has its consumer command; position does not have one yet.
-  expect(COMMANDS.some((command) => command.name === 'read')).toBe(true);
-  expect(COMMANDS.some((command) => command.name === 'position')).toBe(false);
+it('answers a version-2 operation by its consumer command, and by its machine form while it has none', async () => {
+  // Every version-2 operation has its consumer command now, so a call without --params or --schema runs it.
+  for (const operation of SINCE_2_OPERATIONS)
+    expect(
+      COMMANDS.some((command) => command.name === operation),
+      operation,
+    ).toBe(true);
   calls.legacy = [];
-  for (const argv of [['position'], ['position', '--root', fixture], ['position', '--shape', 'context']]) {
+  for (const argv of [
+    ['position', '--root', fixture],
+    ['position', '--shape', 'context', '--root', fixture],
+  ]) {
     const got = await run(argv);
+    expect([got.exitCode, got.stderr], argv.join(' ')).toEqual([0, '']);
+    expect(got.stdout, argv.join(' ')).toContain('Position');
+  }
+  expect(calls.legacy).toEqual([]);
+  // An operation whose consumer command has not shipped answers with the machine form it has: never "unknown", and
+  // never a suggestion of itself.
+  const caps = resolveCapabilities(makeHost().stdout, {}),
+    served = MACHINE_PROTOCOL.operations.find((operation) => operation.name === 'position')!;
+  for (const argv of [['position'], ['position', '--root', fixture], ['position', '--shape', 'context']]) {
+    const got = answerMachineOnly(served, argv, caps);
     expect(got.exitCode, argv.join(' ')).toBe(2);
     expect(got.stderr, argv.join(' ')).toContain('IA-CLI-USAGE');
     expect(got.stderr, argv.join(' ')).toContain('ia position needs --params or --schema');
     expect(got.stderr, argv.join(' ')).toContain(`Run "ia position --params '{}'"`);
-    // Never "unknown", and never a suggestion of itself.
     expect(got.stderr, argv.join(' ')).not.toContain('Unknown command');
     expect(got.stderr, argv.join(' ')).not.toContain('Did you mean');
   }
-  const json = await run(['position', '--json']);
+  const json = answerMachineOnly(served, ['position', '--json'], caps);
   expect(json.exitCode).toBe(2);
   expect(JSON.parse(json.stdout)).toMatchObject({
     ok: false,
     code: 'IA-CLI-USAGE',
     next: `Run "ia position --params '{}'", or "ia position --help" for its parameters.`,
   });
-  // Its help is the operation's own until the consumer command ships.
-  const help = await run(['position', '--help']);
+  // Its help is the operation's own.
+  const help = answerMachineOnly(served, ['position', '--help'], caps);
   expect(help.exitCode).toBe(0);
   expect(help.stdout).toContain('ia position  Deliver the position body');
   expect(help.stdout).toContain('ia_position');
-  expect(calls.legacy).toEqual([]);
   // A near miss suggests each admitted name once, and never the token that was asked.
   expect((await run(['raed'])).stderr.match(/\bread\b/g)).toHaveLength(1);
   const asked = await dispatch(['next'], makeHost(), legacy, extensions, ['position', 'read', 'next']);

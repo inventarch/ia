@@ -194,10 +194,11 @@ it('keeps the version-2 machine routes one undecorated JSON line under C03 exit 
   expect(Object.keys(value.result)).toEqual(['body', 'digest', 'hostNote']);
   expect(value.result.body.key).toMatchObject({ shape: 'context', phase: 'orient' });
   expect(value.result.hostNote.format).toBe('ia-host-note-1');
-  // Without --params the name is the consumer's: never a machine line.
+  // Without --params the name is the consumer's: its text, never a machine line.
   const consumer = await legacy(['position', '--root', FIXTURE]);
-  expect(consumer.status).toBe(2);
-  expect(consumer.stdout).toBe('');
+  expect([consumer.status, consumer.stderr]).toEqual([0, '']);
+  // This environment asks for colour, so the text is styled; its first word is still the command's own.
+  expect(consumer.stdout.replace(/\u001b\[[0-9;]*m/g, '')).toMatch(/^Position {2}/);
 });
 
 it('keeps the nine machine routes one undecorated JSON line under C03 exit classes', async () => {
@@ -303,6 +304,8 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     ['capture', '--root', root, '--json'],
     ['read', 'governance-system/definition/procedure/sample-procedure', '--root', root, '--json'],
     ['read', 'no-such/definition/procedure/record', '--root', root, '--json'],
+    ['position', '--shape', 'governance', '--root', root, '--json'],
+    ['position', '--depth', '9', '--root', root, '--json'],
     ['doctor', '--root', root, '--json'],
     ['install', 'fixture/foundation', '--root', root, '--offline', '--json'],
   ];
