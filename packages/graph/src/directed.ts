@@ -53,31 +53,29 @@ const rowOrder = (a: DirectedRow, b: DirectedRow): number =>
   KIND_ORDER[a.kind] - KIND_ORDER[b.kind] ||
   compare(a.spelling, b.spelling);
 
-function edgeRows(edge: Edge, identity: string): DirectedRow[] {
-  const rows: DirectedRow[] = [];
-  for (const side of ['out', 'in'] as const) {
-    if ((side === 'out' ? edge.from : edge.to) !== identity) continue;
-    const other = side === 'out' ? edge.to : edge.from;
-    // An assertion's direction names its author's end: `out` is written on `from`, `in` on `to` (G06).
-    const own = edge.assertions.filter((assertion) => assertion.direction === side);
-    for (const assertion of own)
-      rows.push({
-        predicate: edge.predicate,
-        direction: side,
-        spelling: assertion.spelling,
-        declaredOn: assertion.author,
-        other,
-        kind: 'edge',
-        derived: false,
-        consented: consented(other),
-        source: at(assertion.source),
-      });
-    if (own.length > 0) continue;
-    const declaring = edge.assertions
-      .filter((assertion) => assertion.direction !== side)
-      .sort((a, b) => compare(a.source.path, b.source.path) || a.source.line - b.source.line)[0];
-    if (declaring === undefined) continue;
-    rows.push({
+/** The rows one end of `edge` reads: `side` is that end (`out` = `from`, `in` = `to`). */
+function edgeRows(edge: Edge, side: 'out' | 'in'): DirectedRow[] {
+  const other = side === 'out' ? edge.to : edge.from;
+  // An assertion's direction names its author's end: `out` is written on `from`, `in` on `to` (G06).
+  const own = edge.assertions.filter((assertion) => assertion.direction === side);
+  if (own.length > 0)
+    return own.map((assertion) => ({
+      predicate: edge.predicate,
+      direction: side,
+      spelling: assertion.spelling,
+      declaredOn: assertion.author,
+      other,
+      kind: 'edge',
+      derived: false,
+      consented: consented(other),
+      source: at(assertion.source),
+    }));
+  const declaring = edge.assertions
+    .filter((assertion) => assertion.direction !== side)
+    .sort((a, b) => compare(a.source.path, b.source.path) || a.source.line - b.source.line)[0];
+  if (declaring === undefined) return [];
+  return [
+    {
       predicate: edge.predicate,
       direction: side,
       spelling: counterpartSpelling(edge.predicate, declaring.direction),
@@ -87,9 +85,8 @@ function edgeRows(edge: Edge, identity: string): DirectedRow[] {
       derived: true,
       consented: consented(other),
       source: at(declaring.source),
-    });
-  }
-  return rows;
+    },
+  ];
 }
 
 /**
@@ -97,10 +94,11 @@ function edgeRows(edge: Edge, identity: string): DirectedRow[] {
  * references on each call; it adds no adjacency, changes no edge and is empty for an identity nothing touches.
  */
 export function directedView(graph: Graph, identity: string): readonly DirectedRow[] {
-  const edges = new Set<Edge>();
-  for (const map of [graph.out.get(identity), graph.in.get(identity)])
-    for (const list of map?.values() ?? []) for (const edge of list) edges.add(edge);
-  const rows = [...edges].flatMap((edge) => edgeRows(edge, identity));
+  // Each end reads its own adjacency map: a row a record declares on itself sits in both, as separate copies.
+  const rows: DirectedRow[] = [];
+  for (const side of ['out', 'in'] as const)
+    for (const list of (side === 'out' ? graph.out : graph.in).get(identity)?.values() ?? [])
+      for (const edge of list) rows.push(...edgeRows(edge, side));
   for (const reference of graph.references)
     if (reference.from === identity)
       rows.push({

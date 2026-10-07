@@ -396,8 +396,9 @@ describe('derived directed view (G14)', () => {
     const graph = graphOf(probe('@playbook a\n  relationships\n    cites @playbook a'));
     const a = [...graph.nodes.values()].find((n) => n.name === 'a')!.identity;
     expect(directedView(graph, a).map((r) => [r.kind, r.direction, r.spelling, r.declaredOn, r.other])).toEqual([
-      ['edge', 'out', 'cites', a, a],
+      // G14 order puts `in` before `out`.
       ['inverse', 'in', 'cited-by', a, a],
+      ['edge', 'out', 'cites', a, a],
     ]);
   });
 
