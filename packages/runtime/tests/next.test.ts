@@ -356,6 +356,9 @@ it('reports a require cycle as a review item with its owner and claims no order'
   // Every record is still listed with its lines and verdict.
   expect(result.entries.map((item) => item.identity)).toContain('work-system/definition/task/loop-a-task');
   expect(entry(result, 'work-system/definition/task/loop-a-task').verdict.kind).toBe('blocked');
+  // write-task has no declared blocker, but with no order to claim the view names no next command.
+  expect(entry(result, WRITE).verdict.kind).toBe('clear');
+  expect(result.next).toBeNull();
 });
 
 it('narrows to a milestone or task seat and refuses a request it cannot answer, naming the next command', () => {
