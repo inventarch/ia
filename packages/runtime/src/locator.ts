@@ -6,6 +6,7 @@
  * or a requirement's text. Structure stays with the database read and the CLI's inspect. Every read goes through the
  * handle and the caller's scope token, so a door can serve it under the same boundary as its other reads.
  */
+import { posix } from 'node:path';
 import { isRequirementId, PHASES, PRIMITIVES } from '@inventarch/language';
 import type { Phase, Primitive } from '@inventarch/language';
 import type { Node } from '@inventarch/graph';
@@ -37,11 +38,15 @@ export interface Body {
 
 /** The canonical four-segment identity, `system/kind/facet/name`, in lowercase. */
 const IDENTITY = /^[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*$/;
-const LINE = /^([^#]+):([1-9][0-9]*)$/;
+/** Any text ending in `:<line>`: identities and fragments never hold a colon, so a `#` before it is the path's own. */
+const LINE = /^(.+):([1-9][0-9]*)$/;
 const FORMS =
   'system/kind/facet/name, system/kind/facet/name#phase/Primitive, system/kind/facet/name#REQ-ID or path:line';
-/** Sources are recorded root-relative with forward slashes; a locator path is compared in that spelling. */
-const portable = (path: string): string => path.replaceAll('\\', '/').replace(/^(?:\.\/)+/, '');
+/**
+ * Sources are recorded root-relative with forward slashes; a locator path is compared in that spelling, with its `.`,
+ * `..` and empty segments resolved lexically. A path that leaves the root keeps its leading `..` and names no source.
+ */
+const portable = (path: string): string => posix.normalize(path.replaceAll('\\', '/')).replace(/^\.\/|\/$/g, '');
 
 function invalid(text: string, why: string): never {
   throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', `Locator ${JSON.stringify(text)} ${why}; a locator is ${FORMS}`);
@@ -79,22 +84,37 @@ function recordText(node: Node): string | undefined {
   return field === undefined || !('value' in field) ? undefined : valueText(field.value);
 }
 /** The innermost admitted record whose source lines hold the line: the smallest span, then the latest start. */
-function recordAt(handle: ReadHandle, path: string, line: number, options: ReadBodyOptions): Node {
-  const holding = handle
+function recordAt(handle: ReadHandle, path: string, line: number, options: ReadBodyOptions): Node | undefined {
+  const at = portable(path);
+  return handle
     .records(options)
-    .filter((node) => portable(node.source.path) === path && node.source.line <= line && line <= node.source.endLine)
+    .filter((node) => portable(node.source.path) === at && node.source.line <= line && line <= node.source.endLine)
     .sort(
       (a, b) => a.source.endLine - a.source.line - (b.source.endLine - b.source.line) || b.source.line - a.source.line,
-    );
-  return holding[0] ?? unavailable(`No admitted record holds ${path}:${line}`);
+    )[0];
+}
+const scopeOf = (options: ReadBodyOptions): ReadBodyOptions =>
+  options.within === undefined ? {} : { within: options.within };
+
+/**
+ * The admitted record a locator resolves to, whether or not it has a body to read: the identity's record (a cell or
+ * requirement locator names its record), or the innermost record holding a source line; undefined when none does.
+ */
+export function locateRecord(handle: ReadHandle, locator: Locator, options: ReadBodyOptions = {}): Node | undefined {
+  const read = scopeOf(options);
+  return locator.kind === 'line'
+    ? recordAt(handle, locator.path, locator.line, read)
+    : handle.get(locator.identity, read);
 }
 
 export function readBody(handle: ReadHandle, locator: Locator, options: ReadBodyOptions = {}): Body {
-  const read = options.within === undefined ? {} : { within: options.within };
   const node =
-    locator.kind === 'line'
-      ? recordAt(handle, locator.path, locator.line, read)
-      : (handle.get(locator.identity, read) ?? unavailable(`${locator.identity} is not admitted`));
+    locateRecord(handle, locator, options) ??
+    unavailable(
+      locator.kind === 'line'
+        ? `No admitted record holds ${locator.path}:${locator.line}`
+        : `${locator.identity} is not admitted`,
+    );
   let fragment: string | null = null,
     body: string | undefined;
   switch (locator.kind) {
