@@ -26,7 +26,9 @@ import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { withScope } from '@tools/testing/resources.js';
 import { runBounded, spawnOwned } from '@tools/testing/subprocess.js';
+import { SNAPSHOT_FORMAT } from '../src/capture.js';
 import { LEGACY_OPERATIONS } from '../src/commands.js';
+import { DEPRECATION } from '../src/compile.js';
 import { quote } from '../src/render.js';
 import { cleanup, scratch, workspace } from './workspace-fixture.js';
 
@@ -267,7 +269,7 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     ['validate', '--root', root, '--json'],
     ['inspect', '--root', root, '--json'],
     ['format', '--root', root, '--json'],
-    ['compile', '--root', root, '--json'],
+    ['capture', '--root', root, '--json'],
     ['doctor', '--root', root, '--json'],
     ['install', 'fixture/foundation', '--root', root, '--offline', '--json'],
   ];
@@ -283,11 +285,22 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     expect(got.status, label).not.toBeNull();
     oneJsonLine(got.stdout, label);
     // §4.4 and §6.6: in `--json` mode stderr may carry progress and notes, and no verb in this release emits
-    // either, so the observable is that nothing narrates onto either stream — including a prompt, which cannot
-    // be answered here because stdin is an empty closed pipe and neither stream is a terminal.
+    // either but the deprecated `ia compile` (below), so the observable is that nothing narrates onto either stream —
+    // including a prompt, which cannot be answered here because stdin is an empty closed pipe and neither stream is a
+    // terminal.
     expect(got.stderr, label).toBe('');
     expect([0, 1, 2, 3, 4, 130], label).toContain(got.status);
   }
+  // Decision compile-verb-fate: the alias keeps stdout the capture's one value and puts its one note on stderr.
+  const alias = await runBounded(process.execPath, [MAIN, 'compile', '--root', root, '--json'], {
+    cwd: empty,
+    env: colourful(),
+    input: '',
+    timeoutMs: 60_000,
+  });
+  expect(alias.status).toBe(0);
+  expect((oneJsonLine(alias.stdout, 'compile') as { format: string }).format).toBe(SNAPSHOT_FORMAT);
+  expect(alias.stderr).toBe(DEPRECATION);
   // M5.1 §3.2: the bundled base ships in the packed @inventarch/cli's `assets`, so the installed binary initializes offline.
   const initialized = await runBounded(process.execPath, [MAIN, 'init', 'fresh', '--apply', '--yes', '--json'], {
     cwd: empty,

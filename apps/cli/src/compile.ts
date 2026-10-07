@@ -1,36 +1,37 @@
 /**
- * `ia compile`: docs/specs/consumer-cli-contract/README.md §2.4.
+ * `ia compile`: a deprecated alias of `ia capture` for 2.x, removed in 3.0 (decision compile-verb-fate).
  *
- * One deterministic document, `ia.compiled.v1`. Determinism is a requirement on this writer, not a hope: records
- * are sorted by canonical identity, diagnostics by (path, line, code, message), object keys are emitted sorted and
- * the document ends in exactly one newline — which is what the distribution's own `json()` serializer does, so it
- * is the function called rather than a second encoder beside it.
+ * The verb runs the capture, so one snapshot format is written rather than two, and prints one deprecation line on
+ * stderr, never on stdout. Its three flags are mapped by what each did: `--force` permitted overwriting the artifact,
+ * and a capture never refuses to replace its snapshot, so it maps onto `ia capture` unchanged; `--out <file>` and `--stdout`
+ * chose where the artifact went, and a capture has one place and never writes its snapshot to stdout, so each refuses,
+ * alone or together, and names the `ia capture` to run instead. The `ia.compiled.v1` builders below stay exported for
+ * code that imports this module; the verb no longer writes that artifact.
+ *
+ * docs/specs/consumer-cli-contract/README.md §2.4: one deterministic document, `ia.compiled.v1`. Determinism is a
+ * requirement on this writer, not a hope: records are sorted by canonical identity, diagnostics by (path, line, code,
+ * message), object keys are emitted sorted and the document ends in exactly one newline — which is what the
+ * distribution's own `json()` serializer does, so it is the function called rather than a second encoder beside it.
  *
  * No product-quality claim. Compilation establishes that records parse, that references resolve and that declared
  * structural obligations are satisfied. Where a semantic evaluator is unavailable the compiler carries
  * IA-COMP-NOT-EVALUATED through into `diagnostics` and `counts.notEvaluated`; that result is never rolled into a
  * pass, never suppressed and never omitted from --json.
  */
-import { resolve } from 'node:path';
-import {
-  createFile,
-  json,
-  LANGUAGE_IDENTITY,
-  replace,
-  sha256,
-  workOutputPath,
-} from '@inventarch/distribution/services';
+import { json, LANGUAGE_IDENTITY, sha256 } from '@inventarch/distribution/services';
+import { CURRENT, findingCounts, orderFindings, PREVIOUS, runCapture } from './capture.js';
+import { findCommand } from './commands.js';
 import type { Context, Result } from './consumer.js';
-import { Refusal, requireRoot } from './consumer.js';
-import { codeOf, openSession } from './session.js';
+import { Refusal, respell } from './consumer.js';
+import { openSession } from './session.js';
 import type { Session } from './session.js';
-import { NOT_EVALUATED } from './validate.js';
 import type { Capabilities } from './render.js';
-import { atom, document, entry, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
+import { atom, document, entry, headerLine, sectionLabel, truncateDigest, words } from './render.js';
 
 type Admission = ReturnType<Session['admission']>;
 type Finding = Admission['findings'][number];
 
+/** Where `ia compile` wrote the artifact before it became an alias of `ia capture`. */
 export const DEFAULT_OUT = '.ia/work/compiled.json';
 export const ARTIFACT = 'ia.compiled.v1';
 
@@ -59,11 +60,6 @@ export interface CompileView {
 }
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-/** The ordering the compliance layer already applies, reused rather than reinvented. */
-const orderFindings = (findings: readonly Finding[]): readonly Finding[] =>
-  [...findings].sort(
-    (a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.code, b.code) || compare(a.message, b.message),
-  );
 
 export function buildArtifact(root: string, session: Session): CompileView {
   const admission = session.admission();
@@ -81,12 +77,7 @@ export function buildArtifact(root: string, session: Session): CompileView {
     revision: admission.revision,
     records,
     diagnostics,
-    counts: {
-      records: records.length,
-      errors: diagnostics.filter((finding) => finding.severity === 'error').length,
-      warnings: diagnostics.filter((finding) => finding.severity === 'warning').length,
-      notEvaluated: diagnostics.filter((finding) => NOT_EVALUATED.has(finding.code)).length,
-    },
+    counts: findingCounts(records.length, diagnostics),
   };
   const text = json(artifact);
   return { artifact, text, digest: sha256(text) };
@@ -172,57 +163,33 @@ export function renderCompile(view: CompileView, path: string, caps: Capabilitie
 }
 
 /**
- * §2.4: running `ia compile` twice is the ordinary case, so refusing by default is stated rather than discovered.
- * `createFile` raises IA-DIST-LOCAL-MODIFICATION on an existing entry; the code is carried through unchanged and
- * only the next action is added, because a refusal whose remedy is one flag must name that flag.
+ * The one line the alias prints on stderr, in `--json` mode too, whenever it runs the capture; a refusal prints only
+ * the refusal. It says where the snapshot is, which holds whether or not this run rewrote it. The snapshot path is
+ * spelled out because this module and capture.ts import each other through consumer.ts, so capture's `CURRENT` may
+ * not be initialized yet when this constant is.
  */
-function publish(root: string, path: string, content: Buffer, force: boolean, overwrite: string): void {
-  if (force) {
-    replace(root, path, content);
-    return;
-  }
-  try {
-    createFile(root, path, content);
-  } catch (error) {
-    if (codeOf(error, '') !== 'IA-DIST-LOCAL-MODIFICATION') throw error;
-    throw new Refusal(
-      'IA-DIST-LOCAL-MODIFICATION',
-      `${path} already exists`,
-      3,
-      { path },
-      `Run "${overwrite}" to overwrite it.`,
-    );
-  }
-}
-/** The refused invocation again with `--force`, so the one flag the remedy needs is named in a runnable command. */
-function forced(context: Context): string {
-  const out = context.args.value('out'),
-    root = context.args.value('root');
-  return [
-    'ia compile',
-    ...(out === undefined ? [] : ['--out', quote(out)]),
-    '--force',
-    ...(root === undefined ? [] : ['--root', quote(root)]),
-  ].join(' ');
-}
+export const DEPRECATION = `Deprecated: ia compile is an alias of "ia capture" and is removed in 3.0; the snapshot is at .ia/work/snapshot/current.json, not ${DEFAULT_OUT}.\n`;
 
 export function runCompile(context: Context): Result {
-  const { args, caps, json: machine } = context;
-  const root = requireRoot(context);
-  // Placement is decided before the workspace is read, so an unsafe --out never costs a compilation.
-  const path = args.flag('stdout')
-    ? null
-    : workOutputPath({
-        root,
-        path: args.value('out') ?? DEFAULT_OUT,
-        refusal: 'A compiled artifact is written under .ia/work/',
-      });
-  const view = collectCompile(root);
-  const exitCode = compileExit(view);
-  // §2.4: with --stdout the artifact is the single value on stdout, so nothing else may be written there.
-  if (path === null) return { exitCode, stdout: view.text, stderr: '' };
-  publish(root, path, Buffer.from(view.text, 'utf8'), args.flag('force'), forced(context));
-  return machine
-    ? { exitCode, stdout: JSON.stringify(compileEnvelope(view, resolve(root, path))) + '\n', stderr: '' }
-    : { exitCode, stdout: renderCompile(view, path, caps), stderr: '' };
+  const { args } = context;
+  // The capture's own refusals then name `ia capture`, carrying only the options a capture takes.
+  const capture: Context = { ...context, command: findCommand('capture')! };
+  if (args.flag('stdout'))
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      `ia compile --stdout is retired: ia capture writes its snapshot only to ${CURRENT}, never to stdout`,
+      2,
+      null,
+      `Run "${respell(capture)}", then read ${CURRENT}.`,
+    );
+  if (args.value('out') !== undefined)
+    throw new Refusal(
+      'IA-CLI-USAGE',
+      `ia compile --out is retired: ia capture writes ${CURRENT} and ${PREVIOUS} and takes no output path`,
+      2,
+      null,
+      `Run "${respell(capture)}" to write the snapshot.`,
+    );
+  const result = runCapture(capture);
+  return { ...result, stderr: DEPRECATION + result.stderr };
 }

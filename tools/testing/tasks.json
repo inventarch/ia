@@ -1036,6 +1036,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/capture.test.ts",
         "tests/consumer.test.ts",
         "tests/decline.test.ts",
         "tests/distribution-verbs.test.ts",
