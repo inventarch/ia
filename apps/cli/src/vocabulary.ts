@@ -172,6 +172,8 @@ const detail = (word: Word, full: boolean, caps: Capabilities): readonly (readon
           word.schema.fields.map((field) => ({
             label: field.path,
             value: [atom(typeText(field), null, 0), ...words(field.required ? 'required' : 'optional', 'dim', 2)],
+            // A field's quoted schema description, when it has one, sits under its row at the value column.
+            note: field.description ? words(field.description, 'dim') : undefined,
           })),
           { depth: 1 },
           caps,

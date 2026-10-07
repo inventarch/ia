@@ -96,18 +96,18 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, reference, guidance, relationships. Optional sections: none.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| reference.owner | id | yes |
-| reference.word | id | yes |
-| reference.schema | ref | yes |
-| reference.document | text | yes |
-| reference.default-file | text | no |
-| guidance.select-when | text | yes |
-| guidance.avoid-when | text | yes |
-| guidance.consider | text | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| reference.owner | id | yes |  |
+| reference.word | id | yes |  |
+| reference.schema | ref | yes |  |
+| reference.document | text | yes |  |
+| reference.default-file | text | no | The file a new record of this word is authored in, relative to the workspace's authored root. |
+| guidance.select-when | text | yes |  |
+| guidance.avoid-when | text | yes |  |
+| guidance.consider | text | yes |  |
 
 ## @axis
 
@@ -320,24 +320,24 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, work, decision. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | no |
-| work.title | text | yes |
-| work.status | id in [open, made, superseded, withdrawn] | yes |
-| work.owner | text | no |
-| work.start | text form iso-date | no |
-| work.due | text form iso-date | no |
-| work.ended | text form iso-date | no |
-| work.source | text | no |
-| decision.question | text | yes |
-| decision.options | list of text | no |
-| decision.decider | text | no |
-| decision.choice | text | no |
-| decision.rationale | text | no |
-| decision.constraints | list of text | no |
-| decision.effective-revision | text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | no |  |
+| work.title | text | yes |  |
+| work.status | id in [open, made, superseded, withdrawn] | yes |  |
+| work.owner | text | no |  |
+| work.start | text form iso-date | no |  |
+| work.due | text form iso-date | no |  |
+| work.ended | text form iso-date | no |  |
+| work.source | text | no |  |
+| decision.question | text | yes |  |
+| decision.options | list of text | no |  |
+| decision.decider | text | no |  |
+| decision.choice | text | no |  |
+| decision.rationale | text | no |  |
+| decision.constraints | list of text | no |  |
+| decision.effective-revision | text | no | The snapshot revision from which the decision takes effect. |
 
 Relationship: supersede → decision; one; optional.
 
@@ -616,24 +616,24 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, governance. Optional sections: execution, authority, relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| execution.contract | id | no |
-| execution.limit-steps | number | no |
-| execution.limit-model-calls | number | no |
-| execution.limit-operations | number | no |
-| execution.limit-tokens | number | no |
-| execution.limit-children | number | no |
-| execution.limit-depth | number | no |
-| execution.limit-bytes | number | no |
-| execution.limit-duration-ms | number | no |
-| authority.participant | ref to agent | no |
-| authority.moves | list of id in [Observation, Execution, Delegation, Synthesis, Verification] | no |
-| authority.scope | list of ref to workspace | no |
-| authority.excluded-words | list of id | no |
-| authority.covers | list of text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| execution.contract | id | no |  |
+| execution.limit-steps | number | no |  |
+| execution.limit-model-calls | number | no |  |
+| execution.limit-operations | number | no |  |
+| execution.limit-tokens | number | no |  |
+| execution.limit-children | number | no |  |
+| execution.limit-depth | number | no |  |
+| execution.limit-bytes | number | no |  |
+| execution.limit-duration-ms | number | no |  |
+| authority.participant | ref to agent | no | The agent this mandate binds. |
+| authority.moves | list of id in [Observation, Execution, Delegation, Synthesis, Verification] | no |  |
+| authority.scope | list of ref to workspace | no | The workspaces the mandate applies in. |
+| authority.excluded-words | list of id | no | Words the participant may not author under this mandate. |
+| authority.covers | list of text | no | Path selections the mandate claims, matched by the location resolver. |
 
 ## @milestone
 
@@ -704,34 +704,34 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, evidence, interpretation, retention. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| evidence.origin | id | yes |
-| evidence.actor | text | yes |
-| evidence.observed-at | text | yes |
-| evidence.captured-at | text | yes |
-| evidence.workspace | text | yes |
-| evidence.locator | text | yes |
-| evidence.revision | text | yes |
-| evidence.bundle | text | yes |
-| evidence.digest | text | yes |
-| evidence.availability | id | yes |
-| evidence.subject | ref | no |
-| evidence.subject-revision | text | no |
-| evidence.snapshot-revision | text | no |
-| evidence.evaluator | text | no |
-| evidence.move | id in [Observation, Execution, Delegation, Synthesis, Verification] | no |
-| evidence.verdict | id in [success, refusal, inconclusive] | no |
-| evidence.implementation | text | no |
-| evidence.target | text | no |
-| interpretation.applies | text | yes |
-| interpretation.limits | text | yes |
-| interpretation.reason | text | yes |
-| interpretation.basis | id | yes |
-| retention.status | id | yes |
-| retention.explanation | text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| evidence.origin | id | yes |  |
+| evidence.actor | text | yes |  |
+| evidence.observed-at | text | yes |  |
+| evidence.captured-at | text | yes |  |
+| evidence.workspace | text | yes |  |
+| evidence.locator | text | yes |  |
+| evidence.revision | text | yes |  |
+| evidence.bundle | text | yes |  |
+| evidence.digest | text | yes |  |
+| evidence.availability | id | yes |  |
+| evidence.subject | ref | no | The record the evidence is about, as a typed reference; evidence.locator spells the same subject as text. |
+| evidence.subject-revision | text | no | The subject's per-record digest when the evidence was taken; readiness compares it with the subject's current digest. evidence.revision is its free-text form. |
+| evidence.snapshot-revision | text | no | The revision of the snapshot the subject was read from. |
+| evidence.evaluator | text | no | Who produced the evidence, as a ref identity or \<tool>@\<version>; evidence.actor is its free-text form. |
+| evidence.move | id in [Observation, Execution, Delegation, Synthesis, Verification] | no |  |
+| evidence.verdict | id in [success, refusal, inconclusive] | no |  |
+| evidence.implementation | text | no | The \<id>@\<version> of the check implementation that produced the evidence; evidence.origin names only its kind. |
+| evidence.target | text | no | The host id the evidence was produced on; with evidence.implementation it types what evidence.origin names. |
+| interpretation.applies | text | yes |  |
+| interpretation.limits | text | yes |  |
+| interpretation.reason | text | yes |  |
+| interpretation.basis | id | yes |  |
+| retention.status | id | yes |  |
+| retention.explanation | text | no |  |
 
 ## @operation
 
@@ -975,19 +975,19 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, work. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | no |
-| work.title | text | yes |
-| work.status | id in [draft, accepted, superseded, withdrawn] | yes |
-| work.owner | text | no |
-| work.start | text form iso-date | no |
-| work.due | text form iso-date | no |
-| work.ended | text form iso-date | no |
-| work.source | text | no |
-| work.covers | list of text | no |
-| work.replaced-scope | text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | no |  |
+| work.title | text | yes |  |
+| work.status | id in [draft, accepted, superseded, withdrawn] | yes |  |
+| work.owner | text | no |  |
+| work.start | text form iso-date | no |  |
+| work.due | text form iso-date | no |  |
+| work.ended | text form iso-date | no |  |
+| work.source | text | no |  |
+| work.covers | list of text | no | Path selections the spec claims, matched by the location resolver. |
+| work.replaced-scope | text | no | What a superseding spec replaces when it does not replace the whole predecessor. |
 
 Relationship: supersede → spec; one; optional.
 Relationship: grounded-by ← decision (inbound ground); one; optional.
@@ -1027,22 +1027,22 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, work. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | no |
-| work.title | text | yes |
-| work.status | id in [proposed, open, held, closed, dropped, superseded] | yes |
-| work.milestone | ref to milestone | yes |
-| work.owner | text | no |
-| work.start | text form iso-date | no |
-| work.due | text form iso-date | no |
-| work.ended | text form iso-date | no |
-| work.source | text | no |
-| work.action | text | no |
-| work.expected-artifact | text | no |
-| work.exit-evidence | ref to observation | no |
-| work.owner-agent | ref to agent | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | no |  |
+| work.title | text | yes |  |
+| work.status | id in [proposed, open, held, closed, dropped, superseded] | yes |  |
+| work.milestone | ref to milestone | yes |  |
+| work.owner | text | no |  |
+| work.start | text form iso-date | no |  |
+| work.due | text form iso-date | no |  |
+| work.ended | text form iso-date | no |  |
+| work.source | text | no |  |
+| work.action | text | no | What the task's owner does to complete it. |
+| work.expected-artifact | text | no | The artifact the task produces, as a path or name. |
+| work.exit-evidence | ref to observation | no | The observation whose success verdict closes the task. |
+| work.owner-agent | ref to agent | no | The agent that owns the task; work.owner stays the free-text owner. |
 
 Relationship: require → task; one-or-more; optional.
 Relationship: require → milestone; one-or-more; optional.
@@ -1134,10 +1134,10 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, composition. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| composition.systems | list of ref | yes |
-| composition.sources | list of text | no |
-| composition.steward | ref to agent | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| composition.systems | list of ref | yes |  |
+| composition.sources | list of text | no | A root and the placement it is captured at, spelled \<root> @\<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored. |
+| composition.steward | ref to agent | no |  |

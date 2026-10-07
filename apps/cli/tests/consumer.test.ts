@@ -158,6 +158,24 @@ it('looks words up from the shipped catalogue with no workspace anywhere above t
     expect(one.stdout).toContain('Word');
     expect(one.stdout).toContain('compliance-system/check/<facet>/<name>');
     expect(one.stdout).toContain('Fields');
+    // A field's quoted schema description sits on its own lines under its row, at the value column, so no line of it
+    // starts where field labels start; a field without one shows its type and obligation only.
+    for (const flags of [[], ['--ascii']]) {
+      const described = await run(['vocabulary', 'workspace', '--schema', ...flags], { cwd: empty });
+      const lines = described.stdout.split('\n');
+      const row = lines.findIndex((line) => /^ {2}composition\.sources +list of text {2}optional$/.test(line));
+      expect(row, described.stdout).toBeGreaterThan(0);
+      const valueColumn = lines[row]!.indexOf('list of text');
+      const note = lines.slice(
+        row + 1,
+        lines.findIndex((line) => line.startsWith('  composition.steward')),
+      );
+      expect(note.length).toBeGreaterThan(0);
+      expect(note[0]!.trim()).toMatch(/^A root and the placement/);
+      for (const line of note) expect(line.length - line.trimStart().length).toBe(valueColumn);
+      expect(described.stdout).toMatch(/\n {2}composition\.steward +ref to agent {2}optional\n/);
+      if (flags.length > 0) expect(/[^\x00-\x7f]/.test(described.stdout)).toBe(false);
+    }
     const filtered = await run(['vocabulary', '--domain', 'taxonomy', '--kind', 'definition'], { cwd: empty });
     expect(filtered.exitCode).toBe(0);
     expect(filtered.stdout).toContain('@kind');

@@ -222,6 +222,27 @@ it('rule 4: aligns one value column per block at max(len(label)) + 2', () => {
   ]);
 });
 
+it('hangs a row note at the value column, under the row and before its action', () => {
+  const noted = [
+    { label: 'composition.sources', value: words('list of text  optional'), note: words('A root and its placement.') },
+    { label: 'steward', value: words('ref to agent'), action: words('ia inspect') },
+  ];
+  expect(fieldRows(noted, { depth: 1 }, { color: false, ascii: true, width: 40 })).toEqual([
+    '  composition.sources  list of text',
+    '  optional',
+    '                       A root and its',
+    '                       placement.',
+    '  steward              ref to agent',
+    '  ->  ia inspect',
+  ]);
+  // Without a value column the note hangs two past the content column, still never where labels start.
+  expect(fieldRows(noted.slice(0, 1), { depth: 1 }, { color: false, ascii: true, width: 30 })).toEqual([
+    '  composition.sources  list of',
+    '  text  optional',
+    '    A root and its placement.',
+  ]);
+});
+
 it('wraps prose at word boundaries and never breaks an identifier that overruns the width', () => {
   const identity = 'compliance-system/contract/signature/foundation-authoring-contract#REQ-FOUNDATION-INPUT:';
   const lines = entry(
