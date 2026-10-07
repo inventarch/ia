@@ -113,21 +113,47 @@ interface Reading {
   readonly revision: string;
   readonly nodes: ReadonlyMap<string, Node>;
   readonly membership: ReadonlyMap<string, MembershipRow>;
+  /** The workspace seat: the seat the empty path resolves to; null for the synthetic workspace closure. */
+  readonly workspace: string | null;
 }
 function reading(handle: ReadHandle, within: string): Reading {
-  const snapshot = handle.snapshot({ within });
+  const snapshot = handle.snapshot({ within }),
+    // '' never lies in a system folder, so its seat is a workspace seat.
+    workspace = handle.resolveSeat('', { within }).seat;
   return {
     handle,
     within,
     revision: snapshot.revision,
     nodes: new Map(snapshot.records.filter((node) => !unread(node)).map((node) => [node.identity, node])),
     membership: new Map(handle.membership({ within }).map((row) => [row.identity, row])),
+    workspace: workspace.kind === 'workspace' ? workspace.identity : null,
   };
 }
-/** The workspace closure a record is captured in: its membership seat, unless that seat is an admitted @system. */
+/**
+ * Whether `seat`, the membership seat of the in-scope record `identity`, is a @system: read from the seat record when
+ * it is in the scope, else from the seat rule at the record's path (a system folder seats its @system). Seats are
+ * view-wide, so a scoped read can name a seat record it cannot read.
+ */
+function systemSeat(read: Reading, identity: string, seat: string): boolean {
+  const node = read.nodes.get(seat);
+  if (node !== undefined) return node.discriminator === 'system';
+  const path = read.nodes.get(identity)?.source.path;
+  if (path === undefined) return false;
+  const at = read.handle.resolveSeat(path, { within: read.within }).seat;
+  return at.kind === 'system' && at.identity === seat;
+}
+/**
+ * The workspace closure a @system belongs to: its own membership seat when that is a workspace, else (an adopted
+ * @system is its own seat, and one outside the scope has no row) the workspace seat.
+ */
+function systemClosure(read: Reading, system: string): string | null {
+  const own = read.membership.get(system)?.seat ?? null;
+  return own !== null && own !== system && !systemSeat(read, system, own) ? own : read.workspace;
+}
+/** The workspace closure a record is captured in: its membership seat, or the closure of the @system seating it. */
 function closureOf(read: Reading, identity: string): string | null {
   const seat = read.membership.get(identity)?.seat ?? null;
-  return seat === null || read.nodes.get(seat)?.discriminator === 'system' ? null : seat;
+  return seat !== null && systemSeat(read, identity, seat) ? systemClosure(read, seat) : seat;
 }
 interface Located {
   readonly seat: Seat;
@@ -137,9 +163,7 @@ interface Located {
 function located(read: Reading, key: NormalizedScopeKey): Located {
   const { handle, within, nodes } = read;
   if (key.seat === null) {
-    // The workspace seat is the seat the empty path resolves to; '' never lies in a system folder.
-    const seat = handle.resolveSeat('', { within }).seat,
-      identity = seat.kind === 'workspace' ? seat.identity : null;
+    const identity = read.workspace;
     return {
       seat: { kind: 'workspace', identity, path: null, home: identity },
       node: identity === null ? undefined : nodes.get(identity),
@@ -174,7 +198,7 @@ function located(read: Reading, key: NormalizedScopeKey): Located {
       kind: 'location',
       identity: null,
       path: location.path,
-      home: at.identity === null ? null : at.kind === 'workspace' ? at.identity : closureOf(read, at.identity),
+      home: at.kind === 'workspace' || at.identity === null ? at.identity : systemClosure(read, at.identity),
       ...(claimed ? {} : { unknown: `no record claims ${location.path}` }),
     },
     node: undefined,
