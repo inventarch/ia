@@ -1,0 +1,18 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "JSON string tokens are scanned without a backtracking regex",
+  "summary": "The strict JSON parser in @inventarch/db and the resource decoder in @inventarch/workspace-runtime find the end of a string token with one left-to-right scan of the JSON string grammar instead of a regular expression CodeQL flags as polynomial. Behaviour is unchanged.",
+  "packages": [
+    "@inventarch/db",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "package.json",
+    "packages/db/",
+    "packages/workspace-runtime/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}
