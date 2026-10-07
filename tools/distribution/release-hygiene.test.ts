@@ -1,9 +1,11 @@
 import '../temp/physical-temp.mjs';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { releaseChanges, compareVersions, validateChangeset, type Changeset } from './release-changes.mjs';
 import { releaseGraph } from './release-graph.mjs';
+import { manifestProblems } from './release-packages.mjs';
 import { publicPackageInputs } from '../release/public-pack.mjs';
 import { executableExports } from './installed-consumer.mjs';
 import {
@@ -37,6 +39,79 @@ it('requires one exact version across every public package and the input map', (
   const drift = structuredClone(packages);
   drift[0]!.manifest.version = '1.0.0';
   expect(() => validatePackages(drift, version, versions)).toThrow(/version differs/);
+});
+it('keeps every manifest canonical and publishes exactly the entrypoints each public package develops against', () => {
+  expect(manifestProblems(root)).toEqual([]);
+  const directory = realpathSync(mkdtempSync(resolve(tmpdir(), 'ia-release-manifests-')));
+  try {
+    const put = (path: string, text: string) => {
+      mkdirSync(dirname(resolve(directory, path)), { recursive: true });
+      writeFileSync(resolve(directory, path), text);
+    };
+    const canonical = (manifest: object) => JSON.stringify(manifest, null, 2) + '\n';
+    const target = (name: string) => ({ types: `./dist/${name}.d.ts`, default: `./dist/${name}.js` });
+    const manifest = (exports: object | string, packed: object) => ({
+      name: '@inventarch/example',
+      version: '1.1.0',
+      exports,
+      publishConfig: { exports: packed, access: 'public' },
+    });
+    const developed = {
+      '.': { development: './src/index.ts', ...target('index') },
+      './internal/codec': target('codec'),
+    };
+    const exact = manifest(developed, { '.': target('index'), './internal/codec': target('codec') });
+    put('packages/exact/package.json', canonical(exact));
+    put('packages/indented/package.json', JSON.stringify(exact, null, 1) + '\n');
+    put('packages/crlf/package.json', canonical(exact).replaceAll('\n', '\r\n'));
+    put('packages/unterminated/package.json', JSON.stringify(exact, null, 2));
+    put('packages/unpublished/package.json', canonical(manifest(developed, { '.': target('index') })));
+    put('packages/undeveloped/package.json', canonical(manifest({ '.': developed['.'] }, exact.publishConfig.exports)));
+    put(
+      'packages/retargeted/package.json',
+      canonical(manifest(developed, { '.': target('index'), './internal/codec': target('other') })),
+    );
+    // Conditions resolve in declaration order, so a published entry must keep the developed order too.
+    const reordered = { default: './dist/codec.js', types: './dist/codec.d.ts' };
+    put(
+      'packages/reordered/package.json',
+      canonical(manifest(developed, { ...exact.publishConfig.exports, './internal/codec': reordered })),
+    );
+    put('packages/shorthand/package.json', canonical(manifest('./dist/index.js', { '.': './dist/index.js' })));
+    // A published development condition would point at sources the package does not ship.
+    put('packages/development/package.json', canonical(manifest({ '.': developed['.'] }, { '.': developed['.'] })));
+    put(
+      '.ia/src/systems/native/package.json',
+      canonical(manifest({ './native.ia.tgz': './native.ia.tgz' }, { './native.ia.tgz': './dist/native.ia.tgz' })),
+    );
+    put(
+      'apps/unconfigured/package.json',
+      canonical({ name: '@inventarch/tool', version: '1.1.0', exports: developed }),
+    );
+    // A private manifest keeps the canonical bytes, but it publishes nothing, so its exports need no published map.
+    put('apps/editor/package.json', JSON.stringify({ name: 'editor', private: true, exports: developed }, null, '\t'));
+    put('apps/private/package.json', canonical({ name: 'private', private: true, exports: developed }));
+    const format = (path: string) =>
+      `${path}/package.json: not written as JSON.stringify(manifest, null, 2) and one final newline`;
+    const differs = (path: string, subpath: string) =>
+      `${path}/package.json: publishConfig.exports ${subpath} differs from exports ${subpath} without development`;
+    expect(manifestProblems(directory)).toEqual([
+      differs('.ia/src/systems/native', './native.ia.tgz'),
+      format('apps/editor'),
+      'apps/unconfigured/package.json: publishConfig.exports omits .',
+      'apps/unconfigured/package.json: publishConfig.exports omits ./internal/codec',
+      format('packages/crlf'),
+      differs('packages/development', '.'),
+      format('packages/indented'),
+      differs('packages/reordered', './internal/codec'),
+      differs('packages/retargeted', './internal/codec'),
+      'packages/undeveloped/package.json: exports omits ./internal/codec',
+      'packages/unpublished/package.json: publishConfig.exports omits ./internal/codec',
+      format('packages/unterminated'),
+    ]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 const validate = (entry: Changeset) => () => validateChangeset(entry, policy(), projects, coverage());
 it('requires all packages and rejects an unknown or unlisted new package in the changeset', () => {

@@ -161,7 +161,8 @@ If you are an agent working in this checkout, start here:
 | Package | Role |
 | --- | --- |
 | [`@inventarch/language`](packages/language/SPEC.md) | Parsing, registration, compilation, native kernel generation and formatting |
-| [`@inventarch/graph`](packages/graph/SPEC.md) | Typed graph, identity resolution and queries |
+| [`@inventarch/graph`](packages/graph/SPEC.md) | Typed graph, identity resolution, queries and the canonical digest codec |
+| [`@inventarch/workspace-runtime`](packages/workspace-runtime/SPEC.md) | Workspace capture, captured resources, projections, publication, templates, lifecycle, authoring manifest and the installed implementation digest |
 | [`@inventarch/compliance`](packages/compliance/SPEC.md) | Schema checks, assessments and explicit refusals |
 | [`@inventarch/db`](packages/db/SPEC.md) | Workspace readers, scoped views, cache, preview, adoption and bindings |
 | [`@inventarch/runtime`](packages/runtime/SPEC.md) | Context delivery, machine operations, steward evaluation and editor/authoring interfaces |

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { openLocalAuthoringView } from '@inventarch/agent-composition-system/authoring-manifest';
-import { prepareAuthoringTarget, resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
+import { openLocalAuthoringView } from '@inventarch/workspace-runtime/authoring-manifest';
+import { prepareAuthoringTarget, resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
 import { checkNative, readNative } from '../native/check.js';
 
 const root = resolve(import.meta.dirname, '../..');

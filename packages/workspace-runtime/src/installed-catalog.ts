@@ -1,15 +1,57 @@
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import { closeSync, constants, fstatSync, openSync, readdirSync, readSync } from 'node:fs';
 import { dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { platformDebris } from '@inventarch/db/distribution';
-import { digest } from '@inventarch/session-system';
+import { SessionError, digest } from '@inventarch/session-system';
 
 /** One installed package to pin: its name and the file path of its installed entrypoint. */
 export type InstalledImplementationEntry = readonly [name: string, entry: string];
+/** Each pinned package directory is walked within the bounds of the steward hook implementation inventory. */
+const INVENTORY_DEPTH = 16,
+  INVENTORY_ENTRIES = 2000,
+  FILE_BYTES = 8 * 1024 * 1024,
+  PACKAGE_BYTES = 32 * 1024 * 1024;
+function refuse(message: string): never {
+  throw new SessionError('IA-CORPUS-DENIED', message);
+}
+/** Open errors that mean the entry stopped being a regular file after the directory was read. */
+const SWAPPED_ENTRY = new Set(['ELOOP', 'EMLINK', 'ENXIO', 'EOPNOTSUPP']);
+/**
+ * Opens a code file once and reads it through that descriptor, so the file checked is the file read: never through a
+ * link where the host can refuse one, never blocking on a FIFO, and never past `limit` bytes even if it grows. An entry
+ * swapped for a link, socket or device after the directory was read is refused like any nonregular file.
+ */
+function readCodeFile(path: string, limit: number): Buffer {
+  let fd: number;
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    if (SWAPPED_ENTRY.has((error as NodeJS.ErrnoException).code ?? ''))
+      refuse('Installed implementation has a nonregular file');
+    throw error;
+  }
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) refuse('Installed implementation has a nonregular file');
+    if (stat.size > limit) refuse('Installed implementation bytes exceed their bound');
+    const bytes = Buffer.alloc(stat.size + 1);
+    let length = 0;
+    for (;;) {
+      const read = readSync(fd, bytes, length, bytes.length - length, null);
+      if (read === 0) break;
+      length += read;
+      if (length > stat.size) refuse('Installed implementation changed while it was read');
+    }
+    return bytes.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
+}
 /** Node host helper over fixed installed package entrypoints, never record- or model-supplied paths.
  * An upper package pins its own installed entrypoint through `additional`, taken from its own module URL.
+ * Every pinned directory walk is bounded in depth, entries and bytes; a larger tree is refused, never truncated.
  * Bundled hosts supply their verified release artifact digest to inspectionCatalog instead. */
 export function installedImplementationDigest(additional: readonly InstalledImplementationEntry[] = []): string {
   const database = import.meta.resolve('@inventarch/db');
@@ -29,24 +71,34 @@ export function installedImplementationDigest(additional: readonly InstalledImpl
   const files: { package: string; path: string; digest: string }[] = [];
   for (const [name, entry] of entries) {
     const root = dirname(entry);
-    const visit = (directory: string): void => {
+    let count = 0,
+      total = 0;
+    const visit = (directory: string, depth: number): void => {
+      if (depth > INVENTORY_DEPTH) refuse('Installed implementation inventory exceeds its bound');
       for (const child of readdirSync(directory, { withFileTypes: true })) {
+        if (++count > INVENTORY_ENTRIES) refuse('Installed implementation inventory exceeds its bound');
         if (child.isSymbolicLink()) throw new Error('Installed code aliases are unsupported');
         const path = resolve(directory, child.name);
-        if (child.isDirectory()) visit(path);
+        if (child.isDirectory()) visit(path, depth + 1);
         else if (
           /\.(?:[cm]?js|ts)$/.test(child.name) &&
           !child.name.endsWith('.d.ts') &&
           !(child.isFile() && platformDebris(child.name))
-        )
+        ) {
+          // A FIFO, socket or device present when the directory was read is refused without ever being opened.
+          if (!child.isFile()) refuse('Installed implementation has a nonregular file');
+          // The file and package bounds are both judged from the open descriptor's size before any byte is read.
+          const bytes = readCodeFile(path, Math.min(FILE_BYTES, PACKAGE_BYTES - total));
+          total += bytes.length;
           files.push({
             package: name,
             path: relative(root, path).replaceAll('\\', '/'),
-            digest: createHash('sha256').update(readFileSync(path)).digest('hex'),
+            digest: createHash('sha256').update(bytes).digest('hex'),
           });
+        }
       }
     };
-    visit(root);
+    visit(root, 0);
   }
   files.sort((a, b) => (`${a.package}/${a.path}` < `${b.package}/${b.path}` ? -1 : 1));
   return digest(files);

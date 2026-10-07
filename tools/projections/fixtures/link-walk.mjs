@@ -4,7 +4,7 @@ import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import { join, posix, sep } from 'node:path';
 
 // Exactly the schemes the projection serializer passes through unchanged (resourceMarkdown in
-// .ia/src/systems/agent-composition-system/src/projection-host.ts). They name no product file.
+// packages/workspace-runtime/src/projection-host.ts). They name no product file.
 const EXTERNAL = /^(?:https?|mailto):/i;
 // Any other scheme (a drive letter included) or an absolute path. The serializer refuses these, so one in output is a defect.
 const UNSUPPORTED = /^(?:[a-z][a-z0-9+.-]*:|\/|\\)/i;
