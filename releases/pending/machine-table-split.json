@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Machine routing table split ahead of protocol version 2",
+  "summary": "No change for consumers. The ia CLI's machine routing table now names the nine version-1 operations and, after them, the operations a later protocol version adds, which is empty in this release. Such an operation shares its name with a consumer command and would take the machine route only when --params or --schema is given in an option position. The nine machine routes, their --help and their --schema output are unchanged.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/",
+    "tools/"
+  ]
+}

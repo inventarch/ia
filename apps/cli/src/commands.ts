@@ -19,6 +19,14 @@ export const LEGACY_OPERATIONS = [
   'traverse',
   'report',
 ] as const;
+/**
+ * The operations machine protocol version 2 adds after the frozen nine, in protocol-table order. Each shares its
+ * name with a consumer command, so it takes the machine route only by `isMachineInvocation` (consumer.ts); the
+ * frozen nine never need that test. Empty while the protocol serves version 1 only.
+ */
+export const SINCE_2_OPERATIONS: readonly string[] = [];
+/** The whole machine routing table: the frozen nine, then the version-2 operations. It equals the protocol table. */
+export const MACHINE_OPERATIONS: readonly string[] = [...LEGACY_OPERATIONS, ...SINCE_2_OPERATIONS];
 
 /** §1.2 step 6. Reserved so a later milestone can take the name without a rename; see §1.5. */
 export const RESERVED_TOKEN = 'agent';
@@ -461,7 +469,7 @@ export const COMMANDS: readonly CommandSpec[] = [
  * routes such a token to its core route even when an extension claims it.
  */
 export const CORE_TOKENS: ReadonlySet<string> = new Set<string>([
-  ...LEGACY_OPERATIONS,
+  ...MACHINE_OPERATIONS,
   ...COMMANDS.map((command) => command.name),
   RESERVED_TOKEN,
   '--help',

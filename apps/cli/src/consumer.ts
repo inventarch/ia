@@ -23,6 +23,7 @@ import {
   LEGACY_OPERATIONS,
   nearestTokens,
   RESERVED_TOKEN,
+  SINCE_2_OPERATIONS,
 } from './commands.js';
 import { runCapture } from './capture.js';
 import { runCompile } from './compile.js';
@@ -32,6 +33,7 @@ import { runFormat } from './format.js';
 import { runHost } from './host.js';
 import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
+import { SCHEMA_TOKEN } from './operation-help.js';
 import { runPack } from './pack.js';
 import { runRead } from './read.js';
 import { runValidate } from './validate.js';
@@ -476,15 +478,27 @@ export interface Legacy {
   (args: readonly string[]): { readonly exitCode: number; readonly stdout: string };
 }
 
+/** The two options that make an invocation of a version-2 operation a machine call. */
+const MACHINE_OPTIONS: ReadonlySet<string> = new Set(['--params', SCHEMA_TOKEN]);
+/**
+ * Whether `argv` asks for the machine route of a version-2 operation: `--params` or `--schema` stands in an option
+ * position, the odd positions the machine parser (main.ts) reads options from. Anything else is a consumer call.
+ */
+export const isMachineInvocation = (argv: readonly string[]): boolean =>
+  argv.some((token, index) => index % 2 === 1 && MACHINE_OPTIONS.has(token));
+
 /**
  * §1.2's ordered table. The first match wins and the order is normative: step 4 precedes step 5 unconditionally,
- * so a legacy operation can never be shadowed by a consumer verb.
+ * so a legacy operation can never be shadowed by a consumer verb. A version-2 operation shares its name with a
+ * consumer command and takes the machine route only for a machine invocation, between those two steps. `since2`
+ * is that operation list (`SINCE_2_OPERATIONS` unless a test passes another).
  */
 export async function dispatch(
   argv: readonly string[],
   host: Host,
   legacy: Legacy,
   extensions: readonly Extension[],
+  since2: readonly string[] = SINCE_2_OPERATIONS,
 ): Promise<Result> {
   const plain = (result: { readonly exitCode: number; readonly stdout: string }): Result => ({ ...result, stderr: '' });
   const token = argv[0];
@@ -495,9 +509,11 @@ export async function dispatch(
     return { exitCode: 0, stdout: renderHelp(host, caps, extensions), stderr: '' };
   if (argv.length === 1 && token === '--version') return { exitCode: 0, stdout: host.version + '\n', stderr: '' };
   // §1.6: an extension never takes a core, legacy or reserved token; such a token falls through to its core route.
-  const extension = CORE_TOKENS.has(token) ? undefined : extensions.find((candidate) => candidate.token === token);
+  const core = CORE_TOKENS.has(token) || since2.includes(token);
+  const extension = core ? undefined : extensions.find((candidate) => candidate.token === token);
   if (extension !== undefined) return plain(await extension.run(argv.slice(1)));
   if ((LEGACY_OPERATIONS as readonly string[]).includes(token)) return plain(legacy(argv));
+  if (since2.includes(token) && isMachineInvocation(argv)) return plain(legacy(argv));
   const command = findCommand(token);
   if (command !== undefined) {
     const dispose = host.onConsumerRoute?.();
@@ -521,9 +537,12 @@ export async function dispatch(
       wantsJson(argv),
     );
   const admitted = [
-    ...COMMANDS.map((entry) => entry.name),
-    ...LEGACY_OPERATIONS,
-    ...extensions.map((entry) => entry.token).filter((candidate) => !CORE_TOKENS.has(candidate)),
+    ...new Set([
+      ...COMMANDS.map((entry) => entry.name),
+      ...LEGACY_OPERATIONS,
+      ...since2,
+      ...extensions.map((entry) => entry.token).filter((candidate) => !CORE_TOKENS.has(candidate)),
+    ]),
   ];
   const near = nearestTokens(token, admitted);
   return renderRefusal(
