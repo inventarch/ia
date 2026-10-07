@@ -1,0 +1,20 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "The language workspace names its participant and mandate",
+  "summary": "records/language.ia declares `@agent language-participant` (governance.applies is empty) and `@mandate language-mandate` (authority: participant language-participant; moves Observation, Verification and Synthesis; scope language-workspace; covers .ia/src). language-workspace names the participant as its composition.steward. The bundled inventarch/language base that `ia init` installs carries both records, so consumer workspaces receive them. The mandate grants no host permission. No word or schema changes; the vocabulary catalogues carry a new source digest.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/mcp-door",
+    "@inventarch/workspace-system"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/src/systems/workspace-system/",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/mcp-door/",
+    "docs/",
+    "examples/"
+  ]
+}

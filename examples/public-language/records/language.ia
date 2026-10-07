@@ -7,6 +7,26 @@
   composition
     systems [@system agent-system, @system compliance-system, @system workspace-system, @system governance-system, @system session-system, @system authoring-system, @system agent-composition-system, @system template-system, @system hook-authoring-system, @system learning-system, @system work-system]
     sources [".ia/src @authored"]
+    steward @agent language-participant
+
+@agent language-participant
+  meaning
+    says "The participant that directs the public language workspace by default."
+    answers "Which participant directs the public language workspace?"
+  governance
+    applies []
+
+@mandate language-mandate
+  meaning
+    says "The bounded authority of the language participant in the public language workspace."
+    answers "Which moves may the language participant make, and over which paths?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent language-participant
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src"]
 
 @distribution language-distribution
   meaning

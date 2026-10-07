@@ -8,7 +8,7 @@ These small examples demonstrate representation and generic compilation. They co
 | [quality.ia](records/quality.ia) | Adopted newline requirement, named check and declared scenario |
 | [architecture.ia](records/architecture.ia) | Interface/storage boundaries, a dependency edge and adopted constraint |
 | [evidence.ia](records/evidence.ia) | Evidence attribution with explicitly unavailable bytes |
-| [language.ia](records/language.ia) | Workspace and distribution root composing the eleven public systems |
+| [language.ia](records/language.ia) | Workspace and distribution root composing the eleven public systems; the workspace's participant and its mandate |
 | [work.ia](records/work.ia) | A plan, its milestone, one task and the open decision it waits on; a made decision grounding a spec that partially supersedes another |
 
 The starter system that `ia init` writes requires `agent-system`, `work-system` and `workspace-system`, so a new workspace can author `@plan`, `@milestone`, `@task` and `@decision` records without editing it. A system may use only words owned by systems it directly requires; a system of your own that does not list `- work-system` in `requires` refuses each such record with `IA-COMP-DISCRIMINATOR-FOREIGN`.
