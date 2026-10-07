@@ -624,6 +624,14 @@ describe('path selections and the claimant index (G15)', () => {
     ['axb', 'a?b', false],
     ['[x]/{y}', '[x]/{y}', true],
     ['./docs/a.md', 'docs/a.md', true],
+    ['src/aXbYc', 'src/a*b*c', true],
+    ['src/abc', 'src/a*b*c*', true],
+    ['src/abcb', 'src/*b', true],
+    ['src/ab', 'src/a*b*c', false],
+    ['src/abca', 'src/a*b*c', false],
+    ['src/a.b.c', 'src/**/*.*.*', true],
+    ['x/a/y/a/z', '**/a/**/a/**', true],
+    ['x/a/y/z', '**/a/**/a/**', false],
   ])('matches path %j against selection %j: %s', (path, selection, expected) =>
     expect(matchesSelection(path, selection)).toBe(expected),
   );
@@ -646,6 +654,32 @@ describe('path selections and the claimant index (G15)', () => {
         message: expect.stringContaining('`*` matches within one segment'),
       }),
     );
+  });
+  it('matches in time linear in the selection and path sizes, however many wildcards a selection holds', () => {
+    // The fastest of up to three runs, so one scheduling pause on a loaded machine is not read as a slow matcher.
+    const fastest = (run: () => boolean, expected: boolean): number => {
+      let best = Number.POSITIVE_INFINITY;
+      for (let attempt = 0; attempt < 3 && best >= 50; attempt++) {
+        const start = performance.now();
+        expect(run()).toBe(expected);
+        best = Math.min(best, performance.now() - start);
+      }
+      return best;
+    };
+    // Each case is thousands of character steps for a linear matcher, so 50ms is a wide margin; a backtracking
+    // matcher needs seconds already on the first and would not finish the later ones.
+    const cases: readonly (readonly [string, string, boolean])[] = [
+      [`src/${'a'.repeat(40)}`, `src/${'*a'.repeat(9)}*b`, false],
+      [`src/${'a'.repeat(200)}`, `src/${'*a'.repeat(20)}*b`, false],
+      [`src/${'a'.repeat(200)}b`, `src/${'*a'.repeat(20)}*b`, true],
+      [`src/${'a'.repeat(2000)}`, `src/${'*a'.repeat(250)}*b`, false],
+      [Array.from({ length: 200 }, () => 'a').join('/'), `${'**/a/'.repeat(20)}b`, false],
+    ];
+    for (const [path, selection, expected] of cases)
+      expect(
+        fastest(() => matchesSelection(path, selection), expected),
+        selection.slice(0, 40),
+      ).toBeLessThan(50);
   });
   it('accepts every well-formed selection and refuses a path outside the workspace', () => {
     for (const selection of ['docs/a.md', 'docs/', 'src/**/*.ts', '**', 'a?b', '.config/**'])
