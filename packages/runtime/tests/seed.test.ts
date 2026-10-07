@@ -297,6 +297,17 @@ it('orders governance by priming index, band, hop, severity and identity', () =>
   expect(seeding.truncated).toBe(0);
 });
 
+it('never primes on a row to a runtime-band record, which is never read', () => {
+  const runtime = { ...adopted, '.ia/src/systems/governance-system/steward.ia': placed('runtime') };
+  // steward-rule governs the steward; with the steward in the runtime band it primes like the rest.
+  expect(ids(seeded(rules(), { seat: 'src/app.ts', shape: 'governance' }, runtime))).toEqual([
+    ORDER.blocking,
+    ORDER.advisory,
+    ORDER.steward,
+    ORDER.convention,
+  ]);
+});
+
 it('reads hop before severity under governance, and the whole priming list, implement included', () => {
   const root = rules();
   put(
