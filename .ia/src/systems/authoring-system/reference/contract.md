@@ -6,6 +6,8 @@ Owner: compliance-system. Identity: compliance-system/contract/<facet>/<name>. F
 
 Canonical schema: .ia/src/systems/compliance-system/schemas/contract.schema.ia.
 
+Default file: contract.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section relationships: required.
 Section inputs: optional.

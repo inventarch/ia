@@ -18,6 +18,10 @@
     may have work.due as text form iso-date
     may have work.ended as text form iso-date
     may have work.source as text
+    may have work.action as text "What the task's owner does to complete it."
+    may have work.expected-artifact as text "The artifact the task produces, as a path or name."
+    may have work.exit-evidence as ref to observation "The observation whose success verdict closes the task."
+    may have work.owner-agent as ref to agent "The agent that owns the task; work.owner stays the free-text owner."
   edges
     may require task one-or-more
     may require milestone one-or-more

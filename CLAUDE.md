@@ -2,7 +2,7 @@
 
 # IA language
 
-Source revision: f83f50f25cc4705e37d4c91e5a5386105a0156610975099b65c30f268b978e8b
+Source revision: b2caca3a3036daf0c1158c81c8a4f3166d50bb753c25e4c90fd2e487486fb98e
 
 Read docs/reference/language/README.md and vocabulary.json for language contracts.
 

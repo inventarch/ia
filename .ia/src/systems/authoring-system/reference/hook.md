@@ -6,6 +6,8 @@ Owner: hook-authoring-system. Identity: hook-authoring-system/binding/<facet>/<n
 
 Canonical schema: .ia/src/systems/hook-authoring-system/schemas/hook.schema.ia.
 
+Default file: hook.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section hook: required.
 Section relationships: optional.

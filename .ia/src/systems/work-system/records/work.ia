@@ -28,6 +28,9 @@
     status open
     milestone @milestone example-milestone
     owner "example owner"
+    owner-agent @agent public-work-system-steward
+    action "Write the reference page from the first word's schema and authoring guide."
+    expected-artifact "docs/reference/first-word.md"
   relationships
     requires @decision example-decision
 
@@ -43,6 +46,21 @@
     options ["generated from the schemas", "written by hand"]
     decider "example owner"
 
+@decision example-split-decision
+  meaning
+    says "The reference pages leave the provisional consumer specification for a specification of their own."
+  work
+    title "Split the reference pages out"
+    status made
+    ended "2026-10-05"
+  decision
+    question "Do the example module's reference pages stay in the provisional consumer specification or get their own?"
+    options ["stay in the consumer specification", "get a specification of their own"]
+    decider "example owner"
+    choice "get a specification of their own"
+    rationale "The reference pages change with every release; the rest of the consumer contract does not."
+    effective-revision "0000000000000000000000000000000000000000000000000000000000000003"
+
 @spec example-spec
   meaning
     says "A provisional maintained specification anchor; no document body or execution evidence has been supplied."
@@ -50,3 +68,16 @@
   work
     title "Provisional consumer specification"
     status draft
+
+@spec example-reference-spec
+  meaning
+    says "Specifies the example module's reference pages, taking that scope over from the provisional consumer specification."
+    answers "Which specification governs the example module's reference pages, and what does it leave in place?"
+  work
+    title "Reference page specification"
+    status accepted
+    covers ["docs/reference/**"]
+    replaced-scope "The reference-page scope of the provisional consumer specification; its other scopes stay in force."
+  relationships
+    supersedes @spec example-spec
+    grounded-by @decision example-split-decision

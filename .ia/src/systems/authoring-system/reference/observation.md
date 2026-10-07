@@ -6,6 +6,8 @@ Owner: learning-system. Identity: learning-system/definition/<facet>/<name>. Fac
 
 Canonical schema: .ia/src/systems/learning-system/schemas/observation.schema.ia.
 
+Default file: observation.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section evidence: required.
 Section interpretation: required.

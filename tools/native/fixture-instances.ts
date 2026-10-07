@@ -37,7 +37,18 @@ export const fixtureInstances: readonly NativeInput[] = [
   },
   {
     path: '.ia/src/systems/authoring-system/records/minimal-authoring-guide.ia',
-    text: '#! ia 1.0\n@authoring-guide minimal-authoring-guide\n  meaning\n    says "An inert instance for structural coverage."\n    answers "Which word is exercised?"\n  reference\n    owner agent-system\n    word agent\n    schema @schema agent\n    document "fixture.md"\n  guidance\n    select-when "Testing."\n    avoid-when "Not testing."\n    consider "Fixture only."\n  relationships\n',
+    text: '#! ia 1.0\n@authoring-guide minimal-authoring-guide\n  meaning\n    says "An inert instance for structural coverage."\n    answers "Which word is exercised?"\n  reference\n    owner agent-system\n    word agent\n    schema @schema agent\n    document "fixture.md"\n    default-file "agent.ia"\n  guidance\n    select-when "Testing."\n    avoid-when "Not testing."\n    consider "Fixture only."\n  relationships\n',
+    location: { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' },
+  },
+  {
+    path: '.ia/src/systems/agent-system/records/minimal-mandate.ia',
+    text: '#! ia 1.0\n@mandate minimal-mandate\n  meaning\n    says "An inert authority for structural coverage of the authority section."\n    answers "Which fixture mandate binds a participant to closed moves?"\n  governance\n    requires "Fixture only."\n  authority\n    participant @agent agent-steward\n    moves [Observation, Verification]\n    scope [@workspace foundation-workspace]\n    excluded-words [hook]\n    covers ["docs/**"]\n',
+    location: { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' },
+  },
+  {
+    // The public work example names this steward as a task owner-agent; the conformance tree declares work-steward.
+    path: '.ia/src/systems/work-system/records/public-steward.ia',
+    text: '#! ia 1.0\n@agent public-work-system-steward\n  meaning\n    says "Identifies the owner of work-system contracts in this example."\n    answers "Who owns the plan, milestone, task, decision and spec words in this example?"\n  governance\n    applies [plan, milestone, task, decision, spec]\n',
     location: { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' },
   },
 ];

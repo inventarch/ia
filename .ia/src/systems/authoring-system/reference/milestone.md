@@ -6,6 +6,8 @@ Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: mil
 
 Canonical schema: .ia/src/systems/work-system/schemas/milestone.schema.ia.
 
+Default file: milestone.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section work: required.
 Section relationships: optional.

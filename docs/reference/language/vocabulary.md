@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `67f90e54134068bec09a65987ddf082c7c7fb4955683e299caf3a0ecfcf8c151`.
+This catalogue contains 44 words. Source digest: `f76960635f9ddb5d2513bdd888d918aaeb4a239325b133f2d222f8c4e252156f`.
 
 ## @agent
 
@@ -104,6 +104,7 @@ Required sections: meaning, reference, guidance, relationships. Optional section
 | reference.word | id | yes |
 | reference.schema | ref | yes |
 | reference.document | text | yes |
+| reference.default-file | text | no |
 | guidance.select-when | text | yes |
 | guidance.avoid-when | text | yes |
 | guidance.consider | text | yes |
@@ -336,6 +337,7 @@ Required sections: meaning, work, decision. Optional sections: relationships.
 | decision.choice | text | no |
 | decision.rationale | text | no |
 | decision.constraints | list of text | no |
+| decision.effective-revision | text | no |
 
 Relationship: supersede → decision; one; optional.
 
@@ -602,7 +604,7 @@ Required sections: meaning, governance. Optional sections: relationships, subjec
 
 ## @mandate
 
-States bounded authority and conditions for a participant. Host authorization remains independent.
+States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers.
 
 Owner: `agent-system`. Kind: `policy`. Category: `rule`. Artifact set: `principle`. Primitive: `Escalation`. Move: `Delegation`. Identity: `agent-system/policy/<facet>/<name>`.
 
@@ -612,7 +614,7 @@ Facets: `mandate`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, governance. Optional sections: execution, relationships.
+Required sections: meaning, governance. Optional sections: execution, authority, relationships.
 
 | Field | Type | Required |
 |---|---|---|
@@ -627,6 +629,11 @@ Required sections: meaning, governance. Optional sections: execution, relationsh
 | execution.limit-depth | number | no |
 | execution.limit-bytes | number | no |
 | execution.limit-duration-ms | number | no |
+| authority.participant | ref to agent | no |
+| authority.moves | list of id in [Observation, Execution, Delegation, Synthesis, Verification] | no |
+| authority.scope | list of ref to workspace | no |
+| authority.excluded-words | list of id | no |
+| authority.covers | list of text | no |
 
 ## @milestone
 
@@ -979,8 +986,11 @@ Required sections: meaning, work. Optional sections: relationships.
 | work.due | text form iso-date | no |
 | work.ended | text form iso-date | no |
 | work.source | text | no |
+| work.covers | list of text | no |
+| work.replaced-scope | text | no |
 
 Relationship: supersede → spec; one; optional.
+Relationship: grounded-by ← decision (inbound ground); one; optional.
 
 ## @system
 
@@ -1029,6 +1039,10 @@ Required sections: meaning, work. Optional sections: relationships.
 | work.due | text form iso-date | no |
 | work.ended | text form iso-date | no |
 | work.source | text | no |
+| work.action | text | no |
+| work.expected-artifact | text | no |
+| work.exit-evidence | ref to observation | no |
+| work.owner-agent | ref to agent | no |
 
 Relationship: require → task; one-or-more; optional.
 Relationship: require → milestone; one-or-more; optional.

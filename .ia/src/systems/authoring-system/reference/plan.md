@@ -6,6 +6,8 @@ Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: pla
 
 Canonical schema: .ia/src/systems/work-system/schemas/plan.schema.ia.
 
+Default file: plan.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section work: required.
 Section relationships: optional.

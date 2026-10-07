@@ -6,6 +6,8 @@ Owner: agent-composition-system. Identity: agent-composition-system/definition/<
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/harness.schema.ia.
 
+Default file: harness.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section composition: required.
 Section execution: required.

@@ -6,6 +6,8 @@ Owner: governance-system. Identity: governance-system/governance/<facet>/<name>.
 
 Canonical schema: .ia/src/systems/governance-system/schemas/principle.schema.ia.
 
+Default file: principle.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section governance: required.
 Section relationships: optional.

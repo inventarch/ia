@@ -6,6 +6,8 @@ Owner: governance-system. Identity: governance-system/definition/<facet>/<name>.
 
 Canonical schema: .ia/src/systems/governance-system/schemas/playbook.schema.ia.
 
+Default file: playbook.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section cognition: required.
 Section relationships: optional.

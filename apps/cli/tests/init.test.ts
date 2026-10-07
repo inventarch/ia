@@ -405,6 +405,10 @@ it('admits one plan, milestone, task and decision in a fresh workspace with no e
   const result = json(validated);
   expect(result.status).toBe('admitted');
   expect(result.findings.filter((finding: { severity: string }) => finding.severity === 'error')).toEqual([]);
+  // The example is self-contained: every field reference resolves inside the starter's closure.
+  expect(result.findings.filter((finding: { code: string }) => finding.code === 'IA-COMP-FIELD-REF-MISSING')).toEqual(
+    [],
+  );
   expect(readFileSync(system, 'utf8')).toBe(starter);
   const inspected = await run(['inspect', '--root', root, '--path', '.ia/src/systems/demo/records/work.ia', '--json']);
   expect(inspected.exitCode, inspected.stdout).toBe(0);
@@ -413,16 +417,20 @@ it('admits one plan, milestone, task and decision in a fresh workspace with no e
       .records.map((record: { identity: string }) => record.identity)
       .sort(),
   ).toEqual([
+    'work-system/contract/spec/example-reference-spec',
     'work-system/contract/spec/example-spec',
-    ...['decision', 'milestone', 'plan', 'task'].map((word) => `work-system/definition/${word}/example-${word}`),
+    'work-system/definition/decision/example-decision',
+    'work-system/definition/decision/example-split-decision',
+    ...['milestone', 'plan', 'task'].map((word) => `work-system/definition/${word}/example-${word}`),
   ]);
-  // The selected work example also contains a spec contract. The requirement admits all five;
-  // without it every definition and the spec contract must refuse through the same foreign-discriminator check.
+  // The selected work example also contains two spec contracts, one partially superseding the other. The
+  // requirement admits all seven; without it every definition and both spec contracts must refuse through the same
+  // foreign-discriminator check.
   writeFileSync(system, starter.replace('    - work-system\n', ''));
   const refused = json(await run(['validate', '--root', root, '--json']));
   const errors = refused.findings.filter((finding: { severity: string }) => finding.severity === 'error');
   expect(errors.map((finding: { code: string }) => finding.code)).toEqual(
-    Array(5).fill('IA-COMP-DISCRIMINATOR-FOREIGN'),
+    Array(7).fill('IA-COMP-DISCRIMINATOR-FOREIGN'),
   );
 });
 

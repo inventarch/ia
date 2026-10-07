@@ -6,6 +6,8 @@ Owner: agent-composition-system. Identity: agent-composition-system/binding/<fac
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/agent-profile.schema.ia.
 
+Default file: agent-profile.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section composition: required.
 Section execution: required.

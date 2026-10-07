@@ -6,6 +6,8 @@ Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: axis. Art
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 
+Default file: axis.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section data: required.
 

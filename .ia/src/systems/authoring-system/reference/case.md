@@ -6,6 +6,8 @@ Owner: compliance-system. Identity: compliance-system/definition/<facet>/<name>.
 
 Canonical schema: .ia/src/systems/compliance-system/schemas/case.schema.ia.
 
+Default file: case.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section scenario: required.
 Section relationships: required.

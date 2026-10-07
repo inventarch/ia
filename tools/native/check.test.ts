@@ -165,6 +165,20 @@ describe('native system closure', () => {
   it('implements the native foreign-vocabulary refusal scenario', () => {
     expect(foundation.observations.find((o) => o.id === 'foreign-vocabulary')!.outcome).toBe('pass');
   });
+  it('refuses a mandate whose authority moves leave the closed kernel list with a schema finding', () => {
+    const result = checkNative(
+      change(
+        'agent-system/records/minimal-mandate.ia',
+        '    moves [Observation, Verification]',
+        '    moves [Observation, Invented]',
+      ),
+      native.folders,
+    );
+    expect(result.ok).toBe(false);
+    expect(findings(result).filter((f) => f.code === 'IA-COMP-FIELD-VALUE')).toEqual([
+      expect.objectContaining({ path: '.ia/src/systems/agent-system/records/minimal-mandate.ia' }),
+    ]);
+  });
   it('refuses incomplete minting and its instances', () => {
     const result = checkNative(change('agent-system/system.ia', '      schema @schema agent\n', ''), native.folders);
     expect(result.ok).toBe(false);

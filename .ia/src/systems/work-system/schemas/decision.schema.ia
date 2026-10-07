@@ -24,5 +24,6 @@
     may have decision.choice as text
     may have decision.rationale as text
     may have decision.constraints as list of text
+    may have decision.effective-revision as text "The snapshot revision from which the decision takes effect."
   edges
     may supersede decision one

@@ -25,7 +25,8 @@ export const descriptions: Readonly<Record<string, string>> = {
   'value-type': 'Defines the field types that schemas may require.',
   cardinality: 'Defines relationship multiplicity constraints.',
   agent: 'Names a participant and the vocabulary to which its governance applies. It does not grant host permissions.',
-  mandate: 'States bounded authority and conditions for a participant. Host authorization remains independent.',
+  mandate:
+    'States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers.',
   contract:
     'Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence.',
   check: 'Names a check implementation and scope. Declaring an implementation name does not install or execute it.',

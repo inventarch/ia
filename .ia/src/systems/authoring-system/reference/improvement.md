@@ -6,6 +6,8 @@ Owner: learning-system. Identity: learning-system/definition/<facet>/<name>. Fac
 
 Canonical schema: .ia/src/systems/learning-system/schemas/improvement.schema.ia.
 
+Default file: improvement.ia, relative to the workspace's authored root (the sources row at placement authored).
+
 Section meaning: required.
 Section proposal: required.
 Section review: required.

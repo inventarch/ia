@@ -1830,6 +1830,7 @@
         "tests/editor.test.ts",
         "tests/entry.test.ts",
         "tests/loop.test.ts",
+        "tests/mandate-modes.test.ts",
         "tests/publication.test.ts",
         "tests/select-door.test.ts",
         "tests/steward.test.ts"

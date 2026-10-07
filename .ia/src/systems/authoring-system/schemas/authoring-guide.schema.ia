@@ -15,6 +15,7 @@
     must have reference.word as id
     must have reference.schema as ref
     must have reference.document as text
+    may have reference.default-file as text "The file a new record of this word is authored in, relative to the workspace's authored root."
     must have guidance.select-when as text
     must have guidance.avoid-when as text
     must have guidance.consider as text
