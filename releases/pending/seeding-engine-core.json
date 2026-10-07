@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Seed a scope key: seat, composition, seeds, hops, order and budget",
+  "summary": "`@inventarch/runtime` exports seatOf(handle, within, key) and seed(handle, within, key), which choose the records a normalized scope key loads, reading through a scope token. The seat is the workspace seat when the key has none, an admitted record, or a path resolved as a location seat. Composition is one level from the seat: field references both ways, the records captured with a workspace, the records of a system's words, and the records declared at or claiming a location, restricted to the key's word. Seeds are the composed records in the shape's kind or lane focus; hops follow the shape's predicates in either direction over the derived directed view up to the depth; records are ordered by the shape's order keys and cut at the budget beyond the seat, with blocking governance loaded outside it. Open-band records and other workspaces are held, never entered; runtime-band records are never read; dangling rows and consent refusals of loaded records are listed as unknowns. Equal key values over one revision give byte-identical results, with no scope token or absolute path. It is not a Door operation.",
+  "packages": [
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/runtime/"
+  ]
+}

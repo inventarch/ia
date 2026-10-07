@@ -130,6 +130,10 @@
       "types": "./dist/scope-key.d.ts",
       "default": "./dist/scope-key.js"
     },
+    "./internal/seed": {
+      "types": "./dist/seed.d.ts",
+      "default": "./dist/seed.js"
+    },
     "./internal/select": {
       "types": "./dist/select.d.ts",
       "default": "./dist/select.js"
@@ -291,6 +295,10 @@
       "./internal/scope-key": {
         "types": "./dist/scope-key.d.ts",
         "default": "./dist/scope-key.js"
+      },
+      "./internal/seed": {
+        "types": "./dist/seed.d.ts",
+        "default": "./dist/seed.js"
       },
       "./internal/select": {
         "types": "./dist/select.d.ts",
