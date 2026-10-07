@@ -228,6 +228,10 @@ it('never enters another workspace closure: another @workspace and its members a
       via: { from: WS, predicate: 'require', spelling: 'requires', direction: 'out', declaredOn: WS },
     },
   ]);
+  // Without the word the second workspace is a C0 member of the first, held there and not met again by the hop.
+  expect(seeded(root, { seat: WS, shape: 'context' }).held).toEqual([
+    { identity: second, reason: 'workspace', hop: 0, via: '.ia/src' },
+  ]);
   const members = seeded(root, { seat: WS }).composition.map((entry) => entry.identity);
   expect(members).toContain(CONTRACT);
   expect(members.some((identity) => identity.startsWith('compliance-system/definition/scenario/'))).toBe(false);
@@ -272,12 +276,35 @@ it('orders governance by priming index, band, hop, severity and identity', () =>
   expect(seeding.truncated).toBe(0);
 });
 
+it('reads hop before severity under governance, and the whole priming list, implement included', () => {
+  const root = rules();
+  put(
+    root,
+    `${records}/order-hops.ia`,
+    `#! ia 1.0\n\n${rule('governing-rule', 'informational', 'governs @law governed-rule')}\n${rule('implementing-rule', 'advisory', 'implements @contract foundation-authoring-contract')}\n@law governed-rule\n  meaning\n    says "Rule governed-rule."\n    answers "Which rule is governed?"\n  governance\n    severity advisory\n`,
+  );
+  const law = (name: string) => `governance-system/governance/law/${name}`;
+  // Prime 0 at hop 0, then prime 0 at hop 1 (by severity), then implement's priming index 4, then prime 5.
+  expect(ids(seeded(root, { seat: 'src/app.ts', shape: 'governance' }, adopted))).toEqual([
+    law('governing-rule'),
+    ORDER.steward,
+    law('governed-rule'),
+    STEWARD,
+    law('implementing-rule'),
+    ORDER.blocking,
+    ORDER.advisory,
+    ORDER.convention,
+  ]);
+});
+
 it('orders the other shapes by band, hop, lane focus and identity', () => {
   const root = workspace();
   put(
     root,
     `${records}/sample-procedure.ia`,
-    readFileSync(resolve(root, `${records}/sample-procedure.ia`), 'utf8').concat('    cites @spec seeding-spec\n'),
+    readFileSync(resolve(root, `${records}/sample-procedure.ia`), 'utf8').concat(
+      '    cites @spec seeding-spec\n    cites @capability agent-system-stewardship\n    cites @case valid-native-record\n',
+    ),
   );
   const spec = '.ia/src/systems/work-system/records/seeding-spec.ia';
   put(
@@ -285,13 +312,25 @@ it('orders the other shapes by band, hop, lane focus and identity', () => {
     spec,
     '#! ia 1.0\n\n@spec seeding-spec\n  meaning\n    says "A spec the sample procedure cites."\n  work\n    title "Seeding spec"\n    status accepted\n',
   );
-  const SPEC = 'work-system/contract/spec/seeding-spec';
-  // The capability is a C0 seed (hop 0); the spec (contracts lane) comes before the law (outside the lane focus).
-  expect(ids(seeded(root, { seat: PROCEDURE, shape: 'context' }))).toEqual([PROCEDURE, CAPABILITY, SPEC, LAW]);
+  const SPEC = 'work-system/contract/spec/seeding-spec',
+    CITED = 'agent-composition-system/definition/capability/agent-system-stewardship',
+    CASE = 'compliance-system/definition/scenario/valid-native-record';
+  // The C0 capability (hop 0) comes before the cited one (hop 1, a smaller identity); among hop 1 the definitions
+  // lane by identity, then the spec (contracts lane), then the law (outside the lane focus).
+  expect(ids(seeded(root, { seat: PROCEDURE, shape: 'context' }))).toEqual([
+    PROCEDURE,
+    CAPABILITY,
+    CITED,
+    CASE,
+    SPEC,
+    LAW,
+  ]);
   // Band outranks the lane: an adopted spec follows the authored law.
   expect(ids(seeded(root, { seat: PROCEDURE, shape: 'context' }, { [spec]: placed('adopted') }))).toEqual([
     PROCEDURE,
     CAPABILITY,
+    CITED,
+    CASE,
     LAW,
     SPEC,
   ]);
