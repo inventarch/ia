@@ -12,7 +12,25 @@ export type {
   DatabaseTraversalOptions,
   Scope,
   ScopeRequest,
+  Staleness,
+  Readiness,
 } from './handle.js';
+export {
+  CAPTURE_DIR,
+  CAPTURE_IGNORE,
+  captureOf,
+  digestIndex,
+  readCaptured,
+  readCapturedSnapshot,
+  writeCaptured,
+} from './snapshot-store.js';
+export type {
+  CapturedSnapshot,
+  CapturedStore,
+  CaptureWrite,
+  DigestIndex,
+  SnapshotObservation,
+} from './snapshot-store.js';
 export type { CacheStatus, CacheObservation } from './cache.js';
 export type { MembershipRow } from './membership.js';
 export type { RefusedRecord } from './view.js';

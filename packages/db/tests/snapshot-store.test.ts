@@ -46,6 +46,14 @@ it('retains current and previous, rotating only when the captured revision chang
   db.refresh();
   expect(writeCaptured(root, CAPTURE_DIR, captureOf(db))).toEqual({ rotated: false, written: false });
   expect(readCapturedSnapshot(root).previous).toEqual(first);
+  // Same revision, other bytes (a newer membership rule, say): current is rewritten and nothing rotates.
+  const reseated = {
+    ...second,
+    membership: second.membership.map((row, i) => (i === 0 ? { ...row, root: 'moved' } : row)),
+  };
+  expect(writeCaptured(root, CAPTURE_DIR, reseated)).toEqual({ rotated: false, written: true });
+  expect(readCapturedSnapshot(root)).toEqual({ current: reseated, previous: first, observations: [] });
+  expect(writeCaptured(root, CAPTURE_DIR, second)).toEqual({ rotated: false, written: true });
 
   // Only two snapshots are retained, and no temporary file survives.
   edit(root, 'An edited statement.', 'A second edit.');

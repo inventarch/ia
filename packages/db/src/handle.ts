@@ -13,11 +13,18 @@ import type { RefusedRecord, View } from './view.js';
 import { membershipOf } from './membership.js';
 import type { MembershipRow } from './membership.js';
 import { previewInputs } from './preview.js';
+import type { DigestIndex } from './snapshot-store.js';
 import type { DraftChange, DraftPreview } from './preview.js';
 
 export interface OpenOptions extends InputOptions {
   readonly cache?: boolean;
+  /** Seeds `staleness`/`readiness` before the first refresh, e.g. from the capture store (D14). Copied. */
+  readonly previous?: DigestIndex;
 }
+/** A record's digest against the retained previous one (D08): absent there is `new`, absent now is `removed`. */
+export type Staleness = 'unchanged' | 'changed' | 'new' | 'removed';
+/** Which retained digest an observed subject revision matches: the current one, the previous one, or neither. */
+export type Readiness = 'current' | 'previous' | 'unknown';
 export interface ReadOptions {
   readonly root?: string;
   readonly phase?: Phase | null;
@@ -61,6 +68,23 @@ interface Selection {
   readonly view: View;
   readonly allowed?: ReadonlySet<string>;
 }
+function indexOf(view: View): DigestIndex {
+  return Object.freeze({
+    revision: view.graph.revision,
+    digests: new Map([...view.graph.nodes.values()].map((node) => [node.identity, node.digest])),
+  });
+}
+function copyIndex(index: DigestIndex): DigestIndex {
+  if (
+    typeof index !== 'object' ||
+    index === null ||
+    typeof index.revision !== 'string' ||
+    !(index.digests instanceof Map) ||
+    [...index.digests].some(([identity, digest]) => typeof identity !== 'string' || typeof digest !== 'string')
+  )
+    throw new DbError('IA-DB-SNAPSHOT-UNAVAILABLE', 'A previous digest index needs a revision and a Map of digests');
+  return Object.freeze({ revision: index.revision, digests: new Map(index.digests) });
+}
 function scopeRoot(value: string): string {
   try {
     return canonicalRoot(value);
@@ -99,9 +123,15 @@ export class Reader {
   #closed = false;
   #generation = 0;
   #scopes = new Map<string, BoundScope>();
-  constructor(state: State, locations: Readonly<Record<string, import('@inventarch/language').Location>> = {}) {
+  #previous: DigestIndex | undefined;
+  constructor(
+    state: State,
+    locations: Readonly<Record<string, import('@inventarch/language').Location>> = {},
+    previous?: DigestIndex,
+  ) {
     this.#locations = locations;
     this.#state = state;
+    this.#previous = previous;
     this.root = state.inputs.root;
   }
   protected get capturedInputs(): InputSnapshot {
@@ -110,7 +140,11 @@ export class Reader {
   }
   protected replaceState(next: State): void {
     this.#assertOpen();
-    if (next.inputs.fingerprint !== this.#state.inputs.fingerprint) this.#generation++;
+    // Rotate with the generation: a refresh that changed nothing keeps the retained previous digests.
+    if (next.inputs.fingerprint !== this.#state.inputs.fingerprint) {
+      this.#generation++;
+      this.#previous = indexOf(this.#state.rootView);
+    }
     this.#state = next;
   }
   #assertOpen(): void {
@@ -280,6 +314,24 @@ export class Reader {
       nodes.filter((node) => allowed === undefined || allowed.has(node.identity)),
     );
   }
+  /** D08: the record's digest against the retained previous root-view digest; undefined when neither holds it. */
+  staleness(identity: string, options: ReadOptions = {}): Staleness | undefined {
+    const { view, allowed } = this.#select(options);
+    if (allowed !== undefined && !allowed.has(identity))
+      throw new DbError('IA-DB-OUT-OF-SCOPE', 'Identity is outside the supplied scope');
+    const current = view.graph.nodes.get(identity)?.digest,
+      previous = this.#previous?.digests.get(identity);
+    if (current === undefined) return previous === undefined ? undefined : 'removed';
+    return previous === undefined ? 'new' : previous === current ? 'unchanged' : 'changed';
+  }
+  /** D08: whether an observed subject revision (a per-record digest) is the current or the previous one. */
+  readiness(identity: string, subjectRevision: string, options: ReadOptions = {}): Readiness {
+    const { view, allowed } = this.#select(options);
+    if (allowed !== undefined && !allowed.has(identity))
+      throw new DbError('IA-DB-OUT-OF-SCOPE', 'Identity is outside the supplied scope');
+    if (view.graph.nodes.get(identity)?.digest === subjectRevision) return 'current';
+    return this.#previous?.digests.get(identity) === subjectRevision ? 'previous' : 'unknown';
+  }
   search(text: string, options: ReadOptions = {}): readonly SearchHit[] {
     const { view, allowed } = this.#select(options);
     return search(view.graph, text, allowed);
@@ -296,10 +348,13 @@ export class Reader {
 export class Handle extends Reader {
   #options: OpenOptions;
   constructor(root: string, options: OpenOptions = {}) {
-    const selected = Object.freeze({ ...inputOptions(options), cache: options.cache ?? true });
+    const { previous, ...rest } = options,
+      seed = previous === undefined ? undefined : copyIndex(previous),
+      selected = Object.freeze({ ...inputOptions(rest), cache: options.cache ?? true });
     super(
       stableState(() => readInputs(root, selected), selected.cache),
       selected.locations,
+      seed,
     );
     this.#options = selected;
     Object.freeze(this);

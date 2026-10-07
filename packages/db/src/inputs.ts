@@ -267,14 +267,18 @@ function workspaceSources(root: string): readonly AdoptedSource[] {
     return { id: binding.id, revision, sources };
   });
 }
-function discover(root: string, supplied: InputOptions): InputSnapshot {
-  let canonical: string;
+/** The canonical existing workspace directory `root` names (D01), or IA-DB-ROOT-INVALID. */
+export function workspaceRoot(root: string): string {
   try {
-    canonical = realpathSync(resolve(root));
+    const canonical = realpathSync(resolve(root));
     if (!statSync(canonical).isDirectory()) throw new Error('Not a directory');
+    return canonical;
   } catch (error) {
     throw new DbError('IA-DB-ROOT-INVALID', `Cannot open workspace ${root}: ${String(error)}`);
   }
+}
+function discover(root: string, supplied: InputOptions): InputSnapshot {
+  const canonical = workspaceRoot(root);
   const options = inputOptions({ ...supplied, adopted: supplied.adopted ?? workspaceSources(canonical) }),
     sourceRoot = safePath(canonical, '.ia/src'),
     floorRoot = safePath(canonical, '.ia/src/floor');
