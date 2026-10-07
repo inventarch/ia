@@ -91,7 +91,7 @@ export function viewRows(rows: readonly ViewRow[], direction: Direction): readon
     .map((row) => ({ ...row, source: { path: portable(row.source.path), line: row.source.line } }));
 }
 
-/** The C08 labels: one section per row kind of the directed view. */
+/** The inspect section labels, one per row kind of the directed view; `Field references` was `Referenced by`. */
 export const VIEW_SECTIONS = { edge: 'Edges', inverse: 'Derived inverses', 'field-ref': 'Field references' } as const;
 
 const tally = (values: readonly string[]): readonly (readonly [string, number])[] => {
