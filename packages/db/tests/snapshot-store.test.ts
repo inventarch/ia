@@ -179,3 +179,21 @@ it('refuses a store path holding a NUL byte as unsafe, before anything is writte
   }
   expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
 });
+
+it('refuses a store path whose last segment is only dots on every platform, before anything is written', () => {
+  const root = workspace(false),
+    snapshot = captureOf(open(root, { cache: false }));
+  // Windows drops trailing dots from a path segment, so `.ia/work/...` there would name `.ia/work` itself.
+  for (const dir of ['.ia/work/...', '.ia/work/..', '.ia/work/x/....']) {
+    expect(() => writeCaptured(root, dir, snapshot), JSON.stringify(dir)).toThrow(
+      expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }),
+    );
+    expect(() => readCaptured(root, dir), JSON.stringify(dir)).toThrow(
+      expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }),
+    );
+  }
+  expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
+  // Dots beside other characters make an ordinary name.
+  expect(writeCaptured(root, '.ia/work/a..b', snapshot)).toEqual({ rotated: false, written: true });
+  expect(readCaptured(root, '.ia/work/a..b').current).toEqual(snapshot);
+});
