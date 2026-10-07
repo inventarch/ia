@@ -477,6 +477,15 @@ it('refuses a malformed composition.sources entry by name, in membership and sea
     const refusal = expect.objectContaining({
       code: 'IA-DB-SOURCES-INVALID',
       message: expect.stringMatching(/team-workspace.*\.ia\/src\/team\.ia:\d+.*<root> @<placement>/),
+      // The refusal carries the declaring record and the line of its sources field, not only in its message.
+      where: {
+        path: '.ia/src/team.ia',
+        line:
+          readFileSync(resolve(root, '.ia/src/team.ia'), 'utf8')
+            .split('\n')
+            .findIndex((l) => l.includes('sources [')) + 1,
+        identity: db.records().find((r) => r.name === 'team-workspace')!.identity,
+      },
     });
     expect(() => db.membership()).toThrow(refusal);
     expect(() => db.resolveSeat('docs/a.md')).toThrow(refusal);

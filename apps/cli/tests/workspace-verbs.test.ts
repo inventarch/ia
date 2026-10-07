@@ -879,8 +879,23 @@ it('refuses to capture a @workspace whose composition.sources entry is malformed
   const got = await run(['capture', '--root', root, '--json']);
   expect(got.exitCode).toBe(3);
   expect(got.stderr).toBe('');
-  const refusal = JSON.parse(got.stdout) as { ok: boolean; code: string; message: string; next: string };
+  const refusal = JSON.parse(got.stdout) as {
+    ok: boolean;
+    code: string;
+    message: string;
+    next: string;
+    where: unknown;
+  };
   expect(refusal).toMatchObject({ ok: false, code: 'IA-DB-SOURCES-INVALID' });
+  // Located like the floor refusal: the @workspace record and the line of its sources entry.
+  expect(refusal.where).toEqual({
+    path: '.ia/src/systems/workspace-system/records/foundation-workspace.ia',
+    line:
+      readFileSync(record, 'utf8')
+        .split('\n')
+        .findIndex((line) => line.includes('sources ["docs"]')) + 1,
+    identity: expect.stringMatching(/\/foundation-workspace$/),
+  });
   expect(refusal.message).toContain('"docs"');
   expect(refusal.message).toContain('foundation-workspace.ia:');
   expect(refusal.next).toContain('<root> @<placement>');
