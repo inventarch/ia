@@ -11,7 +11,9 @@ import type { MembershipRow } from './membership.js';
  * the disposable D06 cache, so it is written and read with `cache: false`.
  */
 export const CAPTURE_DIR = '.ia/work/snapshot';
-/** Written into the store directory when it has no `.gitignore`: snapshots regenerate per clone and are not committed. */
+/** Every store lives strictly under this generated-output directory, never beside authored sources. */
+const WORK = '.ia/work/';
+/** Written into a store directory that a write created: snapshots regenerate per clone and are not committed. */
 export const CAPTURE_IGNORE = '# Written by IA capture: snapshots regenerate per clone.\n*\n';
 const FORMAT = 'ia-snapshot-1';
 const SLOTS = ['current', 'previous'] as const;
@@ -116,6 +118,8 @@ function storeDir(dir: string): string {
   }
   if (canonical === '' || canonical !== dir)
     throw new DbError('IA-DB-PATH-UNSAFE', `The snapshot store must be a canonical workspace subdirectory: '${dir}'`);
+  if (!canonical.startsWith(WORK))
+    throw new DbError('IA-DB-PATH-UNSAFE', `The snapshot store must be a directory under ${WORK}: '${dir}'`);
   return canonical;
 }
 function readSlot(root: string, path: string): { bytes?: string; snapshot?: CapturedSnapshot; error?: string } {
@@ -150,7 +154,7 @@ function publish(root: string, dir: string, name: string, bytes: string): void {
   }
 }
 
-/** Reads the retained snapshots under `dir` (default CAPTURE_DIR). Reads no sources and needs no cache. */
+/** Reads the retained snapshots under `dir` (default CAPTURE_DIR, always under `.ia/work/`). Reads no sources and needs no cache. */
 export function readCaptured(root: string, dir: string = CAPTURE_DIR): CapturedStore {
   const base = workspaceRoot(root),
     store = storeDir(dir),
@@ -177,8 +181,9 @@ export function readCapturedSnapshot(root: string): CapturedStore {
   return readCaptured(root, CAPTURE_DIR);
 }
 /**
- * Publishes `next` as current. The stored current becomes previous only when its revision differs from `next`'s, so a
- * capture without change keeps previous; an unreadable current is replaced, never rotated. Only two are retained.
+ * Publishes `next` as current under `dir`, a directory strictly under `.ia/work/`. The stored current becomes previous
+ * only when its revision differs from `next`'s, so a capture without change keeps previous; an unreadable current is
+ * replaced, never rotated. Only two are retained. There is no lock: concurrent writers are last-writer-wins (D14).
  */
 export function writeCaptured(root: string, dir: string, next: CapturedSnapshot): CaptureWrite {
   const base = workspaceRoot(root),
@@ -186,14 +191,15 @@ export function writeCaptured(root: string, dir: string, next: CapturedSnapshot)
     bytes = encode(snapshotOf(next)),
     stored = readSlot(base, `${store}/current.json`);
   if (stored.bytes === bytes) return Object.freeze({ rotated: false, written: false });
+  let created: string | undefined;
   try {
-    mkdirSync(safePath(base, store), { recursive: true });
+    created = mkdirSync(safePath(base, store), { recursive: true });
   } catch (error) {
     if (error instanceof DbError) throw error;
     throw unusable(`Cannot create ${store}: ${String(error)}`);
   }
-  const ignore = readSlot(base, `${store}/.gitignore`);
-  if (ignore.bytes === undefined && ignore.error === undefined) publish(base, store, '.gitignore', CAPTURE_IGNORE);
+  // Only a directory this write created is ignored: an existing one, and any .gitignore in it, is the consumer's.
+  if (created !== undefined) publish(base, store, '.gitignore', CAPTURE_IGNORE);
   const rotated = stored.snapshot !== undefined && stored.snapshot.revision !== next.revision;
   if (rotated) publish(base, store, 'previous.json', encode(stored.snapshot!));
   publish(base, store, 'current.json', bytes);

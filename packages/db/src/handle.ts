@@ -21,8 +21,11 @@ export interface OpenOptions extends InputOptions {
   /** Seeds `staleness`/`readiness` before the first refresh, e.g. from the capture store (D14). Copied. */
   readonly previous?: DigestIndex;
 }
-/** A record's digest against the retained previous one (D08): absent there is `new`, absent now is `removed`. */
-export type Staleness = 'unchanged' | 'changed' | 'new' | 'removed';
+/**
+ * A record's digest against the retained previous one (D08): absent there is `new`, absent now is `removed`, absent
+ * from both is `unknown`.
+ */
+export type Staleness = 'unchanged' | 'changed' | 'new' | 'removed' | 'unknown';
 /** Which retained digest an observed subject revision matches: the current one, the previous one, or neither. */
 export type Readiness = 'current' | 'previous' | 'unknown';
 export interface ReadOptions {
@@ -75,15 +78,23 @@ function indexOf(view: View): DigestIndex {
   });
 }
 function copyIndex(index: DigestIndex): DigestIndex {
-  if (
-    typeof index !== 'object' ||
-    index === null ||
-    typeof index.revision !== 'string' ||
-    !(index.digests instanceof Map) ||
-    [...index.digests].some(([identity, digest]) => typeof identity !== 'string' || typeof digest !== 'string')
-  )
-    throw new DbError('IA-DB-SNAPSHOT-UNAVAILABLE', 'A previous digest index needs a revision and a Map of digests');
-  return Object.freeze({ revision: index.revision, digests: new Map(index.digests) });
+  const refused = () =>
+    new DbError('IA-DB-SNAPSHOT-UNAVAILABLE', 'A previous digest index needs a revision and a map of digests');
+  if (typeof index !== 'object' || index === null || typeof index.revision !== 'string') throw refused();
+  const source: unknown = index.digests;
+  let entries: unknown[];
+  try {
+    // Any ReadonlyMap: read through its entries(), never trusting its class.
+    entries = [...(source as ReadonlyMap<unknown, unknown>).entries()];
+  } catch {
+    throw refused();
+  }
+  const digests = new Map<string, string>();
+  for (const entry of entries) {
+    if (!Array.isArray(entry) || typeof entry[0] !== 'string' || typeof entry[1] !== 'string') throw refused();
+    digests.set(entry[0], entry[1]);
+  }
+  return Object.freeze({ revision: index.revision, digests });
 }
 function scopeRoot(value: string): string {
   try {
@@ -314,14 +325,24 @@ export class Reader {
       nodes.filter((node) => allowed === undefined || allowed.has(node.identity)),
     );
   }
-  /** D08: the record's digest against the retained previous root-view digest; undefined when neither holds it. */
-  staleness(identity: string, options: ReadOptions = {}): Staleness | undefined {
+  /** D08: a copy of the retained previous root-view digest index, pruned to a supplied scope; undefined before any. */
+  previous(options: ReadOptions = {}): DigestIndex | undefined {
+    const { allowed } = this.#select(options),
+      retained = this.#previous;
+    if (retained === undefined) return undefined;
+    return Object.freeze({
+      revision: retained.revision,
+      digests: new Map([...retained.digests].filter(([identity]) => allowed === undefined || allowed.has(identity))),
+    });
+  }
+  /** D08: the record's digest against the retained previous root-view digest; `unknown` when neither holds it. */
+  staleness(identity: string, options: ReadOptions = {}): Staleness {
     const { view, allowed } = this.#select(options);
     if (allowed !== undefined && !allowed.has(identity))
       throw new DbError('IA-DB-OUT-OF-SCOPE', 'Identity is outside the supplied scope');
     const current = view.graph.nodes.get(identity)?.digest,
       previous = this.#previous?.digests.get(identity);
-    if (current === undefined) return previous === undefined ? undefined : 'removed';
+    if (current === undefined) return previous === undefined ? 'unknown' : 'removed';
     return previous === undefined ? 'new' : previous === current ? 'unchanged' : 'changed';
   }
   /** D08: whether an observed subject revision (a per-record digest) is the current or the previous one. */
