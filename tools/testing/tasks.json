@@ -1836,6 +1836,7 @@
         "tests/mandate-modes.test.ts",
         "tests/publication.test.ts",
         "tests/scope-key.test.ts",
+        "tests/seed.test.ts",
         "tests/select-door.test.ts",
         "tests/steward.test.ts"
       ],
