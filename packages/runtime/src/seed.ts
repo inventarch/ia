@@ -100,6 +100,8 @@ export interface Seeding {
 }
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/** The ends of a consent refusal's message: `<end> system refuses <predicate> from <from> to <to>`. */
+const REFUSED = /^\S+ system refuses \S+ from (\S+) to (\S+)$/;
 /** Runtime-band records are never read; open-band records are met but never composed, seeded or entered. */
 const unread = (node: Node): boolean => node.placement.kind === 'runtime';
 const open = (node: Node): boolean => node.placement.kind === 'open';
@@ -364,14 +366,15 @@ export function seed(handle: ReadHandle, within: string, key: NormalizedScopeKey
         finding.line >= node.source.line &&
         finding.line <= node.source.endLine
       ) {
-        const prefix = `${finding.path}:${finding.line}: `;
-        unknowns.push({
-          identity,
-          reason: 'unconsented',
-          path: finding.path,
-          line: finding.line,
-          text: finding.message.startsWith(prefix) ? finding.message.slice(prefix.length) : finding.message,
-        });
+        const prefix = `${finding.path}:${finding.line}: `,
+          text = finding.message.startsWith(prefix) ? finding.message.slice(prefix.length) : finding.message,
+          ends = REFUSED.exec(text);
+        // Like a directed-view row, a refusal whose other end is outside the scope (or never read) is pruned.
+        if (ends === null) continue;
+        const [, from, to] = ends,
+          other = from === identity ? to! : to === identity ? from! : undefined;
+        if (other === undefined || !nodes.has(other)) continue;
+        unknowns.push({ identity, reason: 'unconsented', path: finding.path, line: finding.line, text });
       }
   }
   unknowns.sort(
