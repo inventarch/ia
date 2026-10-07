@@ -55,6 +55,17 @@ export const packageOwner = (projects, path) =>
 export const releaseManaged = (path) =>
   RELEASE_MANAGED.some((prefix) => (prefix.endsWith('/') ? path.startsWith(prefix) : path === prefix));
 
+/**
+ * A bare `@name` (not a scoped package such as `@inventarch/graph`) renders as a GitHub account mention wherever the
+ * notes are published: the release pull request body and the GitHub release notes both reuse them. IA words such as
+ * `@workspace` or `@decision` are real account names, so release prose writes every such token in a code span.
+ */
+const BARE_MENTION = /(^|[^`\w.-])(@[A-Za-z0-9][A-Za-z0-9-]*)(?!\/[A-Za-z0-9])(?![\w-])/;
+const outsideCode = (text) =>
+  text
+    .split(/(`[^`]*`)/)
+    .filter((_, index) => index % 2 === 0)
+    .join('');
 export function validateNote(id, note, names) {
   assert.match(id, ID, `${PENDING}/${id}.json: use a lowercase kebab-case file name`);
   assert.ok(!GENERATED_CHANGES.includes(id), `${PENDING}/${id}.json: that change id is reserved`);
@@ -67,6 +78,16 @@ export function validateNote(id, note, names) {
     `${id}: a one-line title is required`,
   );
   assert.ok(typeof note.summary === 'string' && note.summary.trim(), `${id}: a user-facing summary is required`);
+  for (const [field, text] of [
+    ['title', note.title],
+    ['summary', note.summary],
+  ]) {
+    const mention = outsideCode(text).match(BARE_MENTION)?.[2];
+    assert.ok(
+      mention === undefined,
+      `${id}: the ${field} writes ${mention} bare, which mentions a GitHub account where the notes are published; put it in backticks`,
+    );
+  }
   assert.ok(
     Array.isArray(note.packages) && note.packages.length && new Set(note.packages).size === note.packages.length,
     `${id}: name each affected public package once`,

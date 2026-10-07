@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "patch",
   "title": "Shipped LANGUAGE.md copies follow the regenerated guide",
-  "summary": "Each package's shipped LANGUAGE.md is the regenerated public-language guide again, whose @workspace row now names sources and steward. No code changes.",
+  "summary": "Each package's shipped LANGUAGE.md is the regenerated public-language guide again, whose `@workspace` row now names sources and steward. No code changes.",
   "packages": [
     "@inventarch/cli",
     "@inventarch/compliance",

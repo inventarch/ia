@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "Governance words carry a subject section",
-  "summary": "@law, @principle, @convention and @playbook may declare a subject section with subject-word and subject-kind; @law and @convention may also declare subject.covers, a list of path selections. The section is not read as governance variants. The native fixture instances add a @law with subject.covers and a @playbook with a primary cell in every phase.",
+  "summary": "`@law`, `@principle`, `@convention` and `@playbook` may declare a subject section with subject-word and subject-kind; `@law` and `@convention` may also declare subject.covers, a list of path selections. The section is not read as governance variants. The native fixture instances add a `@law` with subject.covers and a `@playbook` with a primary cell in every phase.",
   "packages": [
     "@inventarch/authoring-system",
     "@inventarch/cli",
