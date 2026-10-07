@@ -1,0 +1,24 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Every `ia` consumer command refusal names one next command",
+  "summary": "Every consumer command refusal now carries a next action: the --json refusal object always has a non-empty string next, where a refusal raised by a service used to carry null, and human output prints the same text on the → line without breaking the command it quotes across lines. The text quotes exactly one command and spells no other command or option beside it; remedies that used to list alternative flags or sources now name one command, and a service message may still name the alternatives. The command is an ia command, except that a recovery or a directory registry repair names ia-distribution, the binary of @inventarch/distribution, which a global install of @inventarch/cli does not put on PATH. It carries the values the invocation supplied that it needs, such as the root (the target directory for ia init), host, package ids, registry or catalog source, descriptor or --force. Except after an unknown or interrupted command, which repeat the invocation as typed (below), a command that reruns the refused one repeats no output flag such as --json, and a rerun of an install or update names its plan, without --apply; a rerun of ia restore carries --apply --yes, the rerun after deleting a corrupt cached archive drops --offline so the archive is fetched again, and a placeholder such as <directory>, <path>, <file> or <url|dir> stands only for the value to correct or supply. It may begin with one manual step, such as deleting a named file, replacing a link under .ia/src, mapping a provider in .ia/registries.json or setting IA_HOME. A workspace whose sources cannot be read, such as one with a link under .ia/src, names that repair and then ia validate for its root. A service refusal without a remedy of its own names the command's --help for a usage error, ia validate for a record finding (IA-COMP, IA-GRAPH and IA-LANG codes) and ia doctor for any other code, with the root the invocation gave. An unknown command names the nearest one with the rest of the invocation as typed, keeping only --root and --params for a machine operation. ia host with a --root that does not exist now refuses as IA-DB-ROOT-INVALID instead of IA-CLI-FAILED. An interrupted command (exit 130) gains next in its JSON object and on its stderr line: the rerun that finishes work the command had already written, or otherwise the same invocation as typed, with any --apply, --yes and --json it was given. Many next texts are reworded, so automation should match the code, not the sentence. The nine machine protocol operations and their output are unchanged. For code that imports the published internal subpaths: the Refusal constructor in @inventarch/cli/internal/consumer now requires its where and next arguments, next being a string, and PlanRequest in @inventarch/cli/internal/distribute gains a required reruns field.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    "CLAUDE.md",
+    "README.md",
+    "apps/cli/",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

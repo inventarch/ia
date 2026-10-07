@@ -26,7 +26,7 @@ import { codeOf, openSession } from './session.js';
 import type { Session } from './session.js';
 import { NOT_EVALUATED } from './validate.js';
 import type { Capabilities } from './render.js';
-import { atom, document, entry, headerLine, sectionLabel, truncateDigest, words } from './render.js';
+import { atom, document, entry, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
 
 type Admission = ReturnType<Session['admission']>;
 type Finding = Admission['findings'][number];
@@ -176,7 +176,7 @@ export function renderCompile(view: CompileView, path: string, caps: Capabilitie
  * `createFile` raises IA-DIST-LOCAL-MODIFICATION on an existing entry; the code is carried through unchanged and
  * only the next action is added, because a refusal whose remedy is one flag must name that flag.
  */
-function publish(root: string, path: string, content: Buffer, force: boolean): void {
+function publish(root: string, path: string, content: Buffer, force: boolean, overwrite: string): void {
   if (force) {
     replace(root, path, content);
     return;
@@ -190,9 +190,20 @@ function publish(root: string, path: string, content: Buffer, force: boolean): v
       `${path} already exists`,
       3,
       { path },
-      'Pass --force to overwrite it, or choose another --out under .ia/work/.',
+      `Run "${overwrite}" to overwrite it.`,
     );
   }
+}
+/** The refused invocation again with `--force`, so the one flag the remedy needs is named in a runnable command. */
+function forced(context: Context): string {
+  const out = context.args.value('out'),
+    root = context.args.value('root');
+  return [
+    'ia compile',
+    ...(out === undefined ? [] : ['--out', quote(out)]),
+    '--force',
+    ...(root === undefined ? [] : ['--root', quote(root)]),
+  ].join(' ');
 }
 
 export function runCompile(context: Context): Result {
@@ -210,7 +221,7 @@ export function runCompile(context: Context): Result {
   const exitCode = compileExit(view);
   // §2.4: with --stdout the artifact is the single value on stdout, so nothing else may be written there.
   if (path === null) return { exitCode, stdout: view.text, stderr: '' };
-  publish(root, path, Buffer.from(view.text, 'utf8'), args.flag('force'));
+  publish(root, path, Buffer.from(view.text, 'utf8'), args.flag('force'), forced(context));
   return machine
     ? { exitCode, stdout: JSON.stringify(compileEnvelope(view, resolve(root, path))) + '\n', stderr: '' }
     : { exitCode, stdout: renderCompile(view, path, caps), stderr: '' };

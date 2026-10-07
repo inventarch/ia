@@ -93,7 +93,56 @@ export function makeHost(options: HostOptions = {}): Host {
     packageRoot: cli,
   };
 }
+/**
+ * Design row 27's programs a next action may name: this binary, the distribution binary it ships with, and repository
+ * tooling. An argument with a space is JSON-quoted inside the command (`quote` in render.ts), so it is one argument here
+ * too.
+ */
+const ARGUMENT = String.raw`(?:"(?:[^"\\]|\\.)*"|[^\s"]+)`;
+export const COMMAND = new RegExp(String.raw`"((?:ia|ia-distribution|pnpm)(?: ${ARGUMENT})*)"`, 'g');
+export const commandsIn = (next: string): readonly string[] => [...next.matchAll(COMMAND)].map((match) => match[1]!);
+/** The argv of the first command a next action names, each argument unquoted as a shell hands it over, the program dropped. */
+export const nextArgv = (next: string): string[] =>
+  [...(commandsIn(next)[0] ?? '').matchAll(new RegExp(ARGUMENT, 'g'))]
+    .map((match) => (match[0].startsWith('"') ? (JSON.parse(match[0]) as string) : match[0]))
+    .slice(1);
+/**
+ * Why a next action breaks design row 27, or null when it keeps it: exactly one quoted command, and no option spelled
+ * outside it, because an option in prose (`or pass --registry <url|dir>`) offers a second invocation.
+ */
+export function nextDefect(next: string): string | null {
+  const commands = commandsIn(next);
+  if (commands.length !== 1) return `names ${commands.length} commands`;
+  const prose = next.replace(COMMAND, '').match(/(?<![\w-])--[a-z][\w-]*/g);
+  return prose === null ? null : `spells ${prose.join(', ')} outside its command`;
+}
+/** A refusal's next action, from its `--json` object or its human `→` line, or null for any other result. */
+function refusalNext(result: Result): string | null {
+  if (result.exitCode === 0) return null;
+  const line = result.stdout.trim();
+  if (line.startsWith('{') && !line.includes('\n')) {
+    let body: { readonly ok?: unknown; readonly next?: unknown };
+    try {
+      body = JSON.parse(line) as typeof body;
+    } catch {
+      return null;
+    }
+    return body.ok === false && typeof body.next === 'string' ? body.next : null;
+  }
+  return result.stderr.replace(/\s+/g, ' ').split('→ ')[1]?.trim() ?? null;
+}
+
 const legacy = () => ({ exitCode: 2, stdout: '' });
 const extensions: readonly Extension[] = [];
-export const run = (argv: readonly string[], options: HostOptions = {}): Promise<Result> =>
-  dispatch(argv, makeHost(options), legacy, extensions);
+/**
+ * One in-process invocation. Every refusal any suite provokes is held to design row 27 here, so a next action a verb
+ * computes at run time is checked wherever a test reaches it, not only where a test asserts its text.
+ */
+export async function run(argv: readonly string[], options: HostOptions = {}): Promise<Result> {
+  const result = await dispatch(argv, makeHost(options), legacy, extensions);
+  const next = refusalNext(result),
+    defect = next === null ? null : nextDefect(next);
+  if (defect !== null)
+    throw new Error(`Design row 27: ia ${argv.join(' ')} refused, and its next action ${defect}: ${next}`);
+  return result;
+}

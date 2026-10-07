@@ -116,9 +116,7 @@ it('refuses an install that fails after the marketplace was added, keeping the d
   const refusal = JSON.parse(result.stdout);
   expect(refusal).toMatchObject({ ok: false, code: 'IA-CLI-HOST-COMMAND-FAILED' });
   expect(refusal.message).toContain('claude plugin install ia@inventarch --scope user exited 1');
-  expect(refusal.next).toBe(
-    'Run "claude plugin install ia@inventarch --scope user" yourself to see why, then rerun "ia host claude --user --apply".',
-  );
+  expect(refusal.next).toBe('Fix what claude reported above, then rerun "ia host claude --user --apply".');
   expect(calls(log)).toEqual(registration(env.IA_HOME));
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace/plugins/ia/.claude-plugin/plugin.json'))).toBe(true);
 });
@@ -276,7 +274,7 @@ it('refuses a marketplace held by another run as IA-DIST-INSTALL-BUSY, naming wh
   expect(refusal).toMatchObject({ ok: false, code: 'IA-DIST-INSTALL-BUSY' });
   expect(refusal.message).toContain(resolve(env.IA_HOME, 'claude/.lock'));
   expect(refusal.next).toBe(
-    `Wait for any other "ia host --user" run to finish and close Claude Code sessions, editors or terminals using ${resolve(env.IA_HOME, 'claude')}; ` +
+    `Wait for any other user-level host registration to finish and close Claude Code sessions, editors or terminals using ${resolve(env.IA_HOME, 'claude')}; ` +
       `if no run is active, delete ${resolve(env.IA_HOME, 'claude/.lock')}; then rerun "ia host claude --user --apply".`,
   );
   expect(calls(log)).toEqual([]);
@@ -324,7 +322,7 @@ it('refuses an IA home that looks like a workspace at plan time', async () => {
   expect(result.exitCode).toBe(3);
   expect(JSON.parse(result.stdout)).toMatchObject({
     code: 'IA-DIST-PATH-UNSAFE',
-    next: `Move ${resolve(env.IA_HOME, 'src')} out of the IA home, or set IA_HOME to another absolute directory.`,
+    next: `Move ${resolve(env.IA_HOME, 'src')} out of the IA home, or set IA_HOME to another absolute directory; then run "ia host claude --user".`,
   });
 });
 it('removes only what claude lists, then the directory (uninstall and remove exit 1 when absent, spec §2.3)', async () => {

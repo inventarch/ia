@@ -100,7 +100,7 @@ it('routes the seven dispatch steps in order and never shadows a legacy operatio
   const unknown = await run(['validte']);
   expect(unknown.exitCode).toBe(2);
   expect(unknown.stderr).toContain('Unknown command validte');
-  expect(unknown.stderr).toContain('Did you mean validate?');
+  expect(unknown.stderr).toContain('Did you mean "ia validate"?');
   expect((await run(['xyzzy'])).stderr).toContain('Run "ia --help"');
 });
 
@@ -192,7 +192,7 @@ it('looks words up from the shipped catalogue with no workspace anywhere above t
     const typo = await run(['vocabulary', 'playbok'], { cwd: empty });
     expect(typo.exitCode).toBe(2);
     expect(typo.stderr).toContain('Unknown word @playbok');
-    expect(typo.stderr).toContain('Did you mean @playbook?');
+    expect(typo.stderr).toContain('Did you mean "ia vocabulary playbook"?');
     // §2.2: the shipped catalogue carries no example field, and the command says so instead of composing one.
     const example = await run(['vocabulary', 'playbook', '--example'], { cwd: empty });
     expect(example.exitCode).toBe(1);

@@ -285,7 +285,7 @@ it('doctor fails a forged registration and a vanished Node executable, and each 
   });
   expect(row(forged.checks, 'host-claude')!.detail).toContain(
     rootedNext(
-      'Delete the ia-workspace entry in .mcp.json, then run "ia host claude --remove --apply" and "ia host claude --apply".',
+      'Delete the ia-workspace entry in .mcp.json, then run "ia host claude --remove --apply" and register again.',
       'claude',
       root,
     ),
@@ -318,7 +318,7 @@ it('names the whole Codex IA block as the repair for an edit inside it, and the 
   );
   const block =
     'Delete the IA block in .codex/config.toml, from "# BEGIN IA PROJECTION host-workspace" through "# END IA PROJECTION host-workspace", markers included';
-  const next = `${block}, then run "ia host codex --remove --apply" and "ia host codex --apply".`;
+  const next = `${block}, then run "ia host codex --remove --apply" and register again.`;
   expect(JSON.parse((await host(root, env, 'codex', '--apply', '--yes')).stdout)).toMatchObject({
     code: 'IA-DIST-LOCAL-MODIFICATION',
     next: rootedNext(next, 'codex', root),
@@ -403,5 +403,7 @@ it('names --root in every ia host next action only when the invocation gave it, 
   expect(JSON.parse(discovered.stdout).next).toBe(bare);
   // Refusals raised before a plan exists carry the root too.
   const gated = await host(root, env, 'claude', '--context', 'x');
-  expect(JSON.parse(gated.stdout).next).toBe(`Run "ia host claude --root ${quote(root)}" without --context.`);
+  expect(JSON.parse(gated.stdout).next).toBe(
+    `Run "ia host claude --root ${quote(root)}" to plan the registration without the context element.`,
+  );
 });

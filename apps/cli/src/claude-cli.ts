@@ -116,7 +116,7 @@ function cmdArgument(value: string): string {
       `claude is reachable only through cmd.exe here (no claude executable on PATH, so an npm claude.cmd shim), and cmd.exe cannot pass ${value} unchanged because it contains % or "`,
       3,
       null,
-      'Set IA_HOME to a directory whose path has no % or ", or install Claude Code so that claude.exe is on PATH, then rerun.',
+      'Set IA_HOME to a directory whose path has no % or double quote, or install Claude Code so that claude.exe is on PATH, then run "ia host claude --user" to plan again.',
     );
   return /^[\w\-.:\\/@=+,]+$/.test(value) ? value : `"${value}"`;
 }

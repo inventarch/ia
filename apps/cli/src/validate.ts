@@ -10,9 +10,8 @@
  * supplies of its own is the display root, which §2.5 already defines as a CLI-resolved value and which is the
  * one part of this output that differs between machines.
  */
-import { openWorkspaceSession } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
-import { Refusal, requireRoot } from './consumer.js';
+import { requireRoot } from './consumer.js';
 import type { Capabilities, ErrorElements, Token } from './render.js';
 import {
   atom,
@@ -27,8 +26,9 @@ import {
   truncateDigest,
   words,
 } from './render.js';
+import { openSession } from './session.js';
+import type { Session } from './session.js';
 
-type Session = ReturnType<typeof openWorkspaceSession>;
 type Admission = ReturnType<Session['admission']>;
 type Finding = Admission['findings'][number];
 export type Severity = 'error' | 'warning';
@@ -106,24 +106,7 @@ export const validationExit = (view: ValidationView): 0 | 1 => (countsOf(view.fi
 
 /** Opens the workspace, reads its admission and closes it. The only part of this verb that touches a workspace. */
 export function collectValidation(root: string): ValidationView {
-  let session: Session;
-  try {
-    session = openWorkspaceSession({ root });
-  } catch (error) {
-    const code =
-      error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
-        ? error.code
-        : 'IA-DB-ROOT-INVALID';
-    throw new Refusal(
-      code,
-      error instanceof Error ? error.message : String(error),
-      3,
-      { path: root },
-      code === 'IA-DB-SOURCE-UNAVAILABLE'
-        ? `An interrupted installation blocks the read. Run "ia-distribution recover --root ${root}".`
-        : 'Pass --root <path> with an existing workspace, or run "ia init" to see what a new one would contain.',
-    );
-  }
+  const session: Session = openSession(root);
   try {
     const admission = session.admission();
     return {

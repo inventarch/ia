@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { GUARD_SCOPE, MACHINE_LOCAL, rootedNext } from '../src/host.js';
+import { quote } from '../src/render.js';
 import { cli, run, scratch } from './workspace-fixture.js';
 import { put, read, initialized, host, human, element } from './host-fixture.js';
 import { afterAll, expect, it, vi } from 'vitest';
@@ -384,19 +385,23 @@ it('refuses a workspace inside the host home, a host home inside the workspace a
     expect(refused.exitCode, home).toBe(3);
     const body = JSON.parse(refused.stdout);
     expect(body).toMatchObject({ ok: false, code: 'IA-DIST-PATH-UNSAFE', exit: 3 });
-    expect(body.next).toMatch(/IA_HOME/);
+    expect(body.next).toBe(
+      `Move the workspace, or set IA_HOME to an absolute directory outside it; then run "ia host claude --root ${quote(root)}".`,
+    );
   }
   expect(existsSync(resolve(dirname(root), 'hosts'))).toBe(false);
   expect(existsSync(resolve(root, '.ia/host-home'))).toBe(false);
   const relative = JSON.parse((await host(root, { IA_HOST_HOME: 'relative/home' }, 'claude')).stdout);
   expect(relative).toMatchObject({ ok: false, code: 'IA-DIST-INPUT-INVALID', exit: 3 });
-  expect(relative.next).toMatch(/absolute directory/);
+  expect(relative.next).toBe(
+    `Set IA_HOME to an absolute directory, or unset it to use ~/.ia; then run "ia host claude --root ${quote(root)}".`,
+  );
 });
 
 it('refuses at plan time when the IA home contains src/, in plan and apply alike', async () => {
   const { root, env } = await initialized();
   mkdirSync(resolve(env.IA_HOST_HOME, 'src'), { recursive: true });
-  const remedy = `Move ${join(env.IA_HOST_HOME, 'src')} out of the IA home, or set IA_HOME to another absolute directory.`;
+  const remedy = `Move ${join(env.IA_HOST_HOME, 'src')} out of the IA home, or set IA_HOME to another absolute directory; then run "ia host claude --root ${quote(root)}".`;
   for (const extra of [[], ['--apply', '--yes']]) {
     const refused = JSON.parse((await host(root, env, 'claude', ...extra)).stdout);
     expect(refused, extra.join(' ')).toMatchObject({ ok: false, code: 'IA-DIST-PATH-UNSAFE', exit: 3 });
@@ -419,7 +424,7 @@ it('refuses a host home reached through a link or junction, naming a remedy, and
       ok: false,
       code: 'IA-DIST-PATH-UNSAFE',
       exit: 3,
-      next: 'Set IA_HOME to a directory path with no links, or unset it.',
+      next: `Set IA_HOME to a directory path with no links, or unset it; then run "ia host claude --root ${quote(root)}".`,
     });
   }
   expect(readdirSync(real)).toEqual([]);
@@ -499,7 +504,7 @@ it('names the restore remedy for a modified owned entry and removes one the user
   const refused = JSON.parse((await host(root, env, 'claude', '--apply', '--yes')).stdout);
   expect(refused.next).toBe(
     rootedNext(
-      'Delete the ia-workspace entry in .mcp.json, then run "ia host claude --remove --apply" and "ia host claude --apply".',
+      'Delete the ia-workspace entry in .mcp.json, then run "ia host claude --remove --apply" and register again.',
       'claude',
       root,
     ),
@@ -533,6 +538,7 @@ it('refuses an uninitialized root', async () => {
   expect(JSON.parse(refused.stdout)).toMatchObject({
     ok: false,
     code: 'IA-CLI-CONFLICT',
-    next: 'Run "ia init" first.',
+    // The root the refused invocation named, so the init it names targets the same directory.
+    next: `Run "ia init ${quote(realpathSync(root))}" first.`,
   });
 });
