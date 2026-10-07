@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Position body: pointers, tallies, frontier and system lines for a scope key",
+  "summary": "`@inventarch/runtime` exports positionBody(handle, within, key), which tells a scope key's seeding as its body: the loaded records, pointers to the composed, cut, held and out-of-focus records listed up to 48 and then tallied per word and owner system with the system's steward, frontier tallies per owner system and kind one row beyond the loaded records, one pointer line per system of the home workspace with its words and steward, per-word tallies of the records captured with a workspace seat, counts, and the two widening keys (one hop deeper, and re-seating at a line). A key's word restricts every tally. Equal key values over one revision give byte-identical bodies, with no scope token or absolute path. It is not a Door operation.",
+  "packages": [
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/runtime/"
+  ]
+}

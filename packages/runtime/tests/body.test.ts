@@ -74,21 +74,23 @@ it('lists the composition, cut and held records and the out-of-focus rows of loa
   ]);
   // The seat's C0 records that are not loaded are pointers at hop 0, with the class that composed them.
   const workspaceSeat = body(workspace(), { shape: 'governance', budget: 0 });
-  expect(workspaceSeat.loaded.map((line) => line.identity)).toEqual([WS]);
-  expect(workspaceSeat.pointers.find((line) => line.identity === 'floor/definition/system/agent-system')).toMatchObject(
-    {
-      hop: 0,
-      via: {
-        from: WS,
-        by: 'field',
-        predicate: null,
-        spelling: 'composition.systems',
-        direction: 'out',
-        declaredOn: null,
-      },
+  // The sample rule is blocking under governance: loaded outside the budget, so never a pointer.
+  expect(workspaceSeat.loaded.map((line) => line.identity)).toEqual([WS, LAW]);
+  // Listed pointers follow the shape's lane focus, so K0 (context) lists the composed systems among its first lines.
+  expect(
+    body(workspace()).pointers.find((line) => line.identity === 'floor/definition/system/agent-system'),
+  ).toMatchObject({
+    hop: 0,
+    via: {
+      from: WS,
+      by: 'field',
+      predicate: null,
+      spelling: 'composition.systems',
+      direction: 'out',
+      declaredOn: null,
     },
-  );
-  expect(workspaceSeat.pointers.find((line) => line.identity === LAW)).toMatchObject({
+  });
+  expect(workspaceSeat.pointers.find((line) => line.identity === CONVENTION)).toMatchObject({
     hop: 0,
     via: { from: WS, by: 'capture', predicate: null, spelling: '.ia/src', direction: null, declaredOn: null },
   });
@@ -96,7 +98,7 @@ it('lists the composition, cut and held records and the out-of-focus rows of loa
   const loaded = new Set(ids(workspaceSeat.loaded));
   expect(workspaceSeat.pointers.some((line) => loaded.has(line.identity))).toBe(false);
   expect(new Set(ids(workspaceSeat.pointers)).size).toBe(workspaceSeat.pointers.length);
-  expect(workspaceSeat.counts.pointers).toBe(67);
+  expect(workspaceSeat.counts.pointers).toBe(66);
 });
 
 it('lists pointers up to the pointer limit and tallies the rest per word and owner system with the steward', () => {

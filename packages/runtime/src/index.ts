@@ -15,6 +15,19 @@ export {
 export type { NormalizedScopeKey, ScopeKey, ScopeKeyPart, ScopeKeySource } from './scope-key.js';
 export { SEED_CLASSES, seatOf, seed } from './seed.js';
 export type { Composed, Held, Hop, Ranked, Seat, SeatKind, SeedClass, SeedKey, Seeding, Unknown } from './seed.js';
+export { positionBody } from './body.js';
+export type {
+  BodyCounts,
+  CapturedTally,
+  FrontierTally,
+  Line,
+  LoadedLine,
+  PointerTally,
+  PositionBody,
+  Reach,
+  SystemLine,
+  Widening,
+} from './body.js';
 export { context, DEFAULT_TOKENIZER } from './context.js';
 export type {
   ContextRequest,

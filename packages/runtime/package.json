@@ -54,6 +54,10 @@
       "types": "./dist/authoring/index.d.ts",
       "default": "./dist/authoring/index.js"
     },
+    "./internal/body": {
+      "types": "./dist/body.d.ts",
+      "default": "./dist/body.js"
+    },
     "./internal/candidate": {
       "types": "./dist/candidate.d.ts",
       "default": "./dist/candidate.js"
@@ -219,6 +223,10 @@
       "./internal/authoring/index": {
         "types": "./dist/authoring/index.d.ts",
         "default": "./dist/authoring/index.js"
+      },
+      "./internal/body": {
+        "types": "./dist/body.d.ts",
+        "default": "./dist/body.js"
       },
       "./internal/candidate": {
         "types": "./dist/candidate.d.ts",

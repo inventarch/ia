@@ -1,0 +1,148 @@
+{
+  "revision": "<revision>",
+  "key": {
+    "seat": null,
+    "shape": "context",
+    "phase": "orient",
+    "primitive": "Attention",
+    "depth": 0,
+    "budget": 64,
+    "word": "law"
+  },
+  "seat": {
+    "kind": "workspace",
+    "identity": "workspace-system/definition/workspace/foundation-workspace",
+    "path": null,
+    "home": "workspace-system/definition/workspace/foundation-workspace"
+  },
+  "loaded": [
+    {
+      "identity": "workspace-system/definition/workspace/foundation-workspace",
+      "word": "workspace",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "workspace-system",
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "band": 100,
+      "hop": 0,
+      "via": null,
+      "blocking": false
+    }
+  ],
+  "pointers": [
+    {
+      "identity": "governance-system/governance/law/sample-rule",
+      "word": "law",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    }
+  ],
+  "tallies": [],
+  "frontier": [],
+  "systems": [
+    {
+      "system": "agent-system",
+      "identity": "floor/definition/system/agent-system",
+      "words": [
+        "agent",
+        "mandate"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/agent-steward",
+      "read": "ia read agent-system/binding/agent/agent-steward"
+    },
+    {
+      "system": "compliance-system",
+      "identity": "floor/definition/system/compliance-system",
+      "words": [
+        "contract",
+        "check",
+        "case"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "read": "ia read agent-system/binding/agent/compliance-steward"
+    },
+    {
+      "system": "governance-system",
+      "identity": "floor/definition/system/governance-system",
+      "words": [
+        "law",
+        "principle",
+        "convention",
+        "playbook"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/governance-steward",
+      "read": "ia read agent-system/binding/agent/governance-steward"
+    },
+    {
+      "system": "session-system",
+      "identity": "floor/definition/system/session-system",
+      "words": [
+        "run"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/session-steward",
+      "read": "ia read agent-system/binding/agent/session-steward"
+    },
+    {
+      "system": "workspace-system",
+      "identity": "floor/definition/system/workspace-system",
+      "words": [
+        "workspace",
+        "distribution"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "read": "ia read agent-system/binding/agent/workspace-steward"
+    }
+  ],
+  "captured": [
+    {
+      "word": "law",
+      "count": 1
+    }
+  ],
+  "counts": {
+    "composition": 1,
+    "seeds": 0,
+    "loaded": 1,
+    "truncated": 0,
+    "pointers": 1,
+    "truncatedPointers": 0,
+    "frontier": 0
+  },
+  "widening": {
+    "deepen": {
+      "seat": null,
+      "shape": "context",
+      "phase": "orient",
+      "primitive": "Attention",
+      "depth": 1,
+      "budget": 64,
+      "word": "law"
+    },
+    "reseat": {
+      "shape": "context",
+      "phase": "orient",
+      "primitive": "Attention",
+      "depth": 1,
+      "budget": 16,
+      "word": null
+    }
+  },
+  "unknowns": []
+}

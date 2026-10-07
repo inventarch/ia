@@ -1,0 +1,1224 @@
+{
+  "revision": "<revision>",
+  "key": {
+    "seat": null,
+    "shape": "governance",
+    "phase": "plan",
+    "primitive": "Inference",
+    "depth": 1,
+    "budget": 16,
+    "word": null
+  },
+  "seat": {
+    "kind": "workspace",
+    "identity": "workspace-system/definition/workspace/foundation-workspace",
+    "path": null,
+    "home": "workspace-system/definition/workspace/foundation-workspace"
+  },
+  "loaded": [
+    {
+      "identity": "workspace-system/definition/workspace/foundation-workspace",
+      "word": "workspace",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "workspace-system",
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "band": 100,
+      "hop": 0,
+      "via": null,
+      "blocking": false
+    },
+    {
+      "identity": "compliance-system/check/gate/instance-schema-check",
+      "word": "check",
+      "kind": "check",
+      "lane": "enforcement",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      },
+      "blocking": false
+    },
+    {
+      "identity": "compliance-system/contract/signature/foundation-authoring-contract",
+      "word": "contract",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 1,
+      "via": {
+        "from": "compliance-system/check/gate/instance-schema-check",
+        "by": "row",
+        "predicate": "enforce",
+        "spelling": "enforces",
+        "direction": "out",
+        "declaredOn": "compliance-system/check/gate/instance-schema-check"
+      },
+      "blocking": false
+    },
+    {
+      "identity": "governance-system/governance/law/sample-rule",
+      "word": "law",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      },
+      "blocking": true
+    },
+    {
+      "identity": "governance-system/governance/convention/sample-convention",
+      "word": "convention",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      },
+      "blocking": false
+    },
+    {
+      "identity": "governance-system/governance/principle/sample-principle",
+      "word": "principle",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      },
+      "blocking": false
+    },
+    {
+      "identity": "agent-system/policy/mandate/agent-system-stewardship",
+      "word": "mandate",
+      "kind": "policy",
+      "lane": "enforcement",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      },
+      "blocking": false
+    },
+    {
+      "identity": "agent-system/policy/mandate/sample-mandate",
+      "word": "mandate",
+      "kind": "policy",
+      "lane": "enforcement",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      },
+      "blocking": false
+    }
+  ],
+  "pointers": [
+    {
+      "identity": "agent-composition-system/binding/agent-profile/agent-steward-profile",
+      "word": "agent-profile",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-composition-system",
+      "steward": "agent-system/binding/agent/agent-composition-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-composition-system/definition/capability/agent-system-stewardship",
+      "word": "capability",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "agent-composition-system",
+      "steward": "agent-system/binding/agent/agent-composition-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-composition-system/definition/capability/governance-system-stewardship",
+      "word": "capability",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "agent-composition-system",
+      "steward": "agent-system/binding/agent/agent-composition-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-composition-system/definition/voice/steward-voice",
+      "word": "voice",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "agent-composition-system",
+      "steward": "agent-system/binding/agent/agent-composition-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/agent-composition-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/agent-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/authoring-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/compliance-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/governance-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/hook-authoring-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/learning-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/session-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/template-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/work-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "agent-system/binding/agent/workspace-steward",
+      "word": "agent",
+      "kind": "binding",
+      "lane": "bindings",
+      "system": "agent-system",
+      "steward": "agent-system/binding/agent/agent-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "compliance-system/definition/scenario/foreign-vocabulary",
+      "word": "case",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "compliance-system/definition/scenario/missing-required-field",
+      "word": "case",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "compliance-system/definition/scenario/valid-native-record",
+      "word": "case",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/agent",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/agent-profile",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/authoring-guide",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/capability",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/case",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/check",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/contract",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/convention",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/decision",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/distribution",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/execution-binding",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/harness",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/hook",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/improvement",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/law",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/mandate",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/milestone",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/observation",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/operation",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/plan",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/playbook",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/principle",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/run",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/spec",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/task",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/template",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/voice",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/contract/head/workspace",
+      "word": "schema",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/definition/system/agent-composition-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "capture",
+        "predicate": null,
+        "spelling": ".ia/src",
+        "direction": null,
+        "declaredOn": null
+      }
+    },
+    {
+      "identity": "floor/definition/system/agent-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "steward": null,
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "by": "field",
+        "predicate": null,
+        "spelling": "composition.systems",
+        "direction": "out",
+        "declaredOn": null
+      }
+    }
+  ],
+  "tallies": [
+    {
+      "word": "distribution",
+      "system": "workspace-system",
+      "count": 1,
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "seat": "floor/definition/system/workspace-system",
+      "read": "ia read agent-system/binding/agent/workspace-steward"
+    },
+    {
+      "word": "playbook",
+      "system": "governance-system",
+      "count": 1,
+      "steward": "agent-system/binding/agent/governance-steward",
+      "seat": "floor/definition/system/governance-system",
+      "read": "ia read agent-system/binding/agent/governance-steward"
+    },
+    {
+      "word": "run",
+      "system": "session-system",
+      "count": 1,
+      "steward": "agent-system/binding/agent/session-steward",
+      "seat": "floor/definition/system/session-system",
+      "read": "ia read agent-system/binding/agent/session-steward"
+    },
+    {
+      "word": "system",
+      "system": "floor",
+      "count": 9,
+      "steward": null,
+      "seat": null,
+      "read": null
+    }
+  ],
+  "frontier": [],
+  "systems": [
+    {
+      "system": "agent-system",
+      "identity": "floor/definition/system/agent-system",
+      "words": [
+        "agent",
+        "mandate"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/agent-steward",
+      "read": "ia read agent-system/binding/agent/agent-steward"
+    },
+    {
+      "system": "compliance-system",
+      "identity": "floor/definition/system/compliance-system",
+      "words": [
+        "contract",
+        "check",
+        "case"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "read": "ia read agent-system/binding/agent/compliance-steward"
+    },
+    {
+      "system": "governance-system",
+      "identity": "floor/definition/system/governance-system",
+      "words": [
+        "law",
+        "principle",
+        "convention",
+        "playbook"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/governance-steward",
+      "read": "ia read agent-system/binding/agent/governance-steward"
+    },
+    {
+      "system": "session-system",
+      "identity": "floor/definition/system/session-system",
+      "words": [
+        "run"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/session-steward",
+      "read": "ia read agent-system/binding/agent/session-steward"
+    },
+    {
+      "system": "workspace-system",
+      "identity": "floor/definition/system/workspace-system",
+      "words": [
+        "workspace",
+        "distribution"
+      ],
+      "band": 100,
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "read": "ia read agent-system/binding/agent/workspace-steward"
+    }
+  ],
+  "captured": [
+    {
+      "word": "agent",
+      "count": 11
+    },
+    {
+      "word": "agent-profile",
+      "count": 1
+    },
+    {
+      "word": "capability",
+      "count": 2
+    },
+    {
+      "word": "case",
+      "count": 3
+    },
+    {
+      "word": "check",
+      "count": 1
+    },
+    {
+      "word": "contract",
+      "count": 1
+    },
+    {
+      "word": "convention",
+      "count": 1
+    },
+    {
+      "word": "distribution",
+      "count": 1
+    },
+    {
+      "word": "law",
+      "count": 1
+    },
+    {
+      "word": "mandate",
+      "count": 2
+    },
+    {
+      "word": "playbook",
+      "count": 1
+    },
+    {
+      "word": "principle",
+      "count": 1
+    },
+    {
+      "word": "run",
+      "count": 1
+    },
+    {
+      "word": "schema",
+      "count": 28
+    },
+    {
+      "word": "system",
+      "count": 11
+    },
+    {
+      "word": "voice",
+      "count": 1
+    },
+    {
+      "word": "workspace",
+      "count": 1
+    }
+  ],
+  "counts": {
+    "composition": 67,
+    "seeds": 6,
+    "loaded": 8,
+    "truncated": 0,
+    "pointers": 60,
+    "truncatedPointers": 12,
+    "frontier": 0
+  },
+  "widening": {
+    "deepen": {
+      "seat": null,
+      "shape": "governance",
+      "phase": "plan",
+      "primitive": "Inference",
+      "depth": 2,
+      "budget": 16,
+      "word": null
+    },
+    "reseat": {
+      "shape": "governance",
+      "phase": "plan",
+      "primitive": "Inference",
+      "depth": 1,
+      "budget": 16,
+      "word": null
+    }
+  },
+  "unknowns": []
+}
