@@ -566,10 +566,11 @@ it('never claims a requirement it cannot read: a target outside the scope blocks
     db = database(root),
     within = db.resolveScope({ identities: [PLAN, BETA, ALPHA, ASK, WRITE, REVIEW, LATER, WRITE_EVIDENCE] }).token,
     result = next(db, within);
-  // The made decision lies outside the scope: review-task cannot claim it has a choice.
+  // The made decision lies outside the scope: review-task cannot claim it has a choice. The token hides what the
+  // requirement resolves to, so the view names the reference as written, wherever the decision is declared.
   expect(entry(result, REVIEW).basis).toContainEqual({
     predicate: 'require',
-    target: MADE_DECISION,
+    target: '@decision made-decision',
     resolved: true,
     word: null,
     standing: 'outside the scope',
@@ -789,4 +790,141 @@ it("takes the observation a record's work.exit-evidence names, whatever subject 
   expect(entry(view(database(root)), declared).verdict.text).toBe(
     'exit evidence recorded (learning-system/definition/observation/declared-evidence, evaluator fixture-tool@1.0.0)',
   );
+});
+
+/**
+ * Work records spread across files, as real plans keep them: the plan, its milestones and the decisions in one file,
+ * the tasks in two others, requiring, superseding and naming exit evidence across them. With `together`, every task
+ * sits in one file instead: the view must read the same either way.
+ */
+function spread(root: string, together = false): void {
+  const AAA = task('aaa-task', 'beta-milestone', ['@task zzz-task', '@decision made-decision']),
+    CCC = `${task('ccc-old-task', 'beta-milestone')}  relationships\n    superseded-by @task zzz-task\n`,
+    MMM = task('mmm-task', 'beta-milestone', [], '    exit-evidence @observation mmm-evidence\n'),
+    ZZZ = task('zzz-task', 'beta-milestone', ['@task mmm-task']),
+    ASK_TASK = task('ask-task', 'alpha-milestone', ['@decision open-decision']);
+  put(
+    root,
+    `${workRecords}/plan.ia`,
+    file(
+      plan('release-plan'),
+      milestone('alpha-milestone', 'alpha owner', ['@milestone beta-milestone']),
+      milestone('beta-milestone', 'beta owner'),
+      decision('open-decision'),
+      decision('made-decision', 'the fixture way'),
+    ),
+  );
+  if (together) put(root, `${workRecords}/tasks.ia`, file(AAA, CCC, MMM, ZZZ, ASK_TASK));
+  else {
+    put(root, `${workRecords}/tasks-first.ia`, file(AAA, CCC, MMM));
+    put(root, `${workRecords}/tasks-second.ia`, file(ZZZ, ASK_TASK));
+  }
+  evidence(
+    root,
+    observation('mmm-evidence', {
+      subject: '@decision made-decision',
+      revision: digestOf(root, 'work-system/definition/task/mmm-task'),
+      evaluator: 'fixture-tool@1.0.0',
+      verdict: 'success',
+    }),
+  );
+}
+
+it('reads requirements, supersessions and exit evidence across files as within one', () => {
+  const AAA = 'work-system/definition/task/aaa-task',
+    CCC = 'work-system/definition/task/ccc-old-task',
+    MMM = 'work-system/definition/task/mmm-task',
+    ZZZ = 'work-system/definition/task/zzz-task',
+    MMM_EVIDENCE = 'learning-system/definition/observation/mmm-evidence';
+  const apart = workspace(),
+    together = workspace();
+  spread(apart);
+  spread(together, true);
+  const db = database(apart),
+    full = view(db, { seat: PLAN });
+  // aaa-task requires zzz-task in the other file, which requires mmm-task back in the first: require order, not
+  // identity order. The superseded ccc-old-task still takes its place; the plan's tasks are found across files.
+  expect(full.entries.map((item) => item.identity)).toEqual([PLAN, BETA, CCC, MMM, ZZZ, AAA, ALPHA, ASK]);
+  expect(full.ordered).toBe(true);
+  expect(full.review).toEqual([]);
+  expect(entry(full, AAA).basis).toEqual([
+    {
+      predicate: 'require',
+      target: MADE_DECISION,
+      resolved: true,
+      word: 'decision',
+      standing: 'choice made',
+      blocking: false,
+    },
+    { predicate: 'require', target: ZZZ, resolved: true, word: 'task', standing: 'no exit evidence', blocking: true },
+  ]);
+  expect(entry(full, AAA).verdict.text).toBe(`blocked (${ZZZ} no exit evidence)`);
+  expect(line(full, AAA, 'realizable')).toMatchObject({ value: 'resolved', basis: '2 requirements resolved' });
+  // zzz-task's requirement in the first file carries the exit evidence its work.exit-evidence names.
+  expect(entry(full, ZZZ).basis).toEqual([
+    {
+      predicate: 'require',
+      target: MMM,
+      resolved: true,
+      word: 'task',
+      standing: `exit evidence ${MMM_EVIDENCE}`,
+      blocking: false,
+    },
+  ]);
+  expect(entry(full, ZZZ).verdict.text).toBe('no declared blocker');
+  expect(line(full, ZZZ, 'realizable')).toMatchObject({ value: 'resolved', basis: '1 requirement resolved' });
+  expect(entry(full, MMM).verdict.text).toBe(`exit evidence recorded (${MMM_EVIDENCE}, evaluator fixture-tool@1.0.0)`);
+  expect(line(full, MMM, 'worked')).toMatchObject({ value: 'observed success' });
+  expect(entry(full, CCC).verdict.text).toBe(`blocked (superseded by ${ZZZ} (supersession declared, not grounded))`);
+  expect(entry(full, ASK).verdict.text).toBe(`blocked (${OPEN_DECISION} no choice)`);
+  expect(full.next).toBe(`ia position --seat ${ZZZ}`);
+  expect(view(db, { seat: BETA }).entries.map((item) => item.identity)).toEqual([BETA, CCC, MMM, ZZZ, AAA]);
+  // The file a record is written in changes nothing the view reads.
+  const one = database(together);
+  expect(full.entries).toEqual(view(one, { seat: PLAN }).entries);
+
+  // zzz-task lies outside a narrower scope: what aaa-task requires and what supersedes ccc-old-task are named as
+  // written, as the token hides what they resolve to, and neither reads clear.
+  const narrow = (handle: Handle) =>
+    next(
+      handle,
+      handle.resolveScope({
+        identities: [PLAN, ALPHA, BETA, OPEN_DECISION, MADE_DECISION, AAA, CCC, MMM, ASK, MMM_EVIDENCE],
+      }).token,
+    );
+  const unread = narrow(db);
+  expect(unread.entries.map((item) => item.identity)).toEqual([PLAN, BETA, CCC, MMM, AAA, ALPHA, ASK]);
+  expect(entry(unread, AAA).basis).toEqual([
+    {
+      predicate: 'require',
+      target: '@task zzz-task',
+      resolved: true,
+      word: null,
+      standing: 'outside the scope',
+      blocking: true,
+    },
+    {
+      predicate: 'require',
+      target: MADE_DECISION,
+      resolved: true,
+      word: 'decision',
+      standing: 'choice made',
+      blocking: false,
+    },
+  ]);
+  expect(entry(unread, AAA).verdict.text).toBe('blocked (@task zzz-task outside the scope)');
+  expect(line(unread, AAA, 'realizable')).toMatchObject({
+    value: 'unknown',
+    basis: 'outside the scope: @task zzz-task',
+  });
+  expect(entry(unread, CCC).verdict.text).toBe('blocked (superseded by @task zzz-task (outside the scope))');
+  expect(unread.next).toBeNull();
+  expect(unread.entries).toEqual(narrow(one).entries);
+  // Every row these reads take still goes through the token.
+  const within = db.resolveScope({
+      identities: [PLAN, ALPHA, BETA, OPEN_DECISION, MADE_DECISION, AAA, CCC, MMM, ASK, MMM_EVIDENCE],
+    }).token,
+    properties = new Set<string>();
+  expect(stableSerialize(next(guarded(db, within, properties), within))).toBe(stableSerialize(unread));
+  expect([...properties]).toEqual(['report']);
 });
