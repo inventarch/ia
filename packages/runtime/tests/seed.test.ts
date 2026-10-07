@@ -389,6 +389,28 @@ it('reports the dangling rows and unconsented edges of loaded records as unknown
   expect(seeded(root, { seat: 'src/app.ts', shape: 'governance', budget: 0 }, adopted).unknowns).toEqual([]);
 });
 
+it('names no record outside the scope: an unconsented edge to one is no unknown, as its row would be pruned', () => {
+  const db = database(rules(), { locations: adopted }),
+    at = (identities: readonly string[]) =>
+      seed(
+        db,
+        db.resolveScope({ identities: [...identities] }).token,
+        normalizeScopeKey({ seat: ORDER.convention, shape: 'governance' }),
+      );
+  const narrow = at([ORDER.convention]);
+  expect(narrow.unknowns).toEqual([]);
+  expect(stableSerialize(narrow)).not.toContain(CONTRACT);
+  expect(at([ORDER.convention, CONTRACT]).unknowns).toEqual([
+    {
+      identity: ORDER.convention,
+      reason: 'unconsented',
+      path: `${records}/order-convention.ia`,
+      line: 12,
+      text: `source system refuses constrain from ${ORDER.convention} to ${CONTRACT}`,
+    },
+  ]);
+});
+
 it('serves K0 as the workspace seat alone, every seed cut at budget 0', () => {
   const k0 = seeded(workspace());
   expect(k0.seat).toEqual({ kind: 'workspace', identity: WS, path: null, home: WS });
