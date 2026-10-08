@@ -1,0 +1,24 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "position returns body(K) with its digest and host note, and runtime-band records stay out of the body",
+  "summary": "@inventarch/runtime exports position(handle, within, partial?) from the package root and @inventarch/runtime/internal/position, with the PositionOutput, HostNote and Freshness types. It completes the partial key with normalizeScopeKey, resolves it with resolveScopeKey through the scope token within, assembles the body with positionBody and returns the frozen {body, digest, hostNote}. digest is the @inventarch/graph codec digest of the body. hostNote is undigested host state, {revision, capturedRevision?, previousRevision?, freshness, key}: revision is the handle's revision; capturedRevision is the revision of the capture ia capture last wrote and previousRevision that of the previous snapshot the handle retains, each omitted when there is none; freshness is current when the capture is at revision, stale when it is at another and no-capture when there is none; and key is the key normalizeScopeKey completed, a location seat as the caller spelled it. The key's parts stay closed, so a text, token or within part is refused as an unknown part (IA-RUNTIME-REQUEST-INVALID) and nothing text-driven runs. One key over two copies of a workspace at different roots gives byte-equal bodies and equal digests, and neither a context call with any text nor a written capture changes them. A position needs no capture: freshness is reported, never refused. positionBody now leaves records at runtime placement (band 0) out of the body: none is composition, a seed, a hop, loaded, a rule, a pointer, a tally or frontier, no row or claim of one ranks or reaches another record, none is the record a location is declared at, so a location whose declarer and claimants are all at runtime placement names the seat unknown, and a seat at runtime placement, K0's included, is refused with IA-RUNTIME-REQUEST-INVALID; a key whose seat the token does not admit (one resolved through another token) is refused with IA-RUNTIME-REQUEST-INVALID too. Limits: the body's revision and the handle's revision still hash every source, runtime-placed ones included, so a runtime-band source appearing moves the revision, and with it the digest and, against a capture taken before, the freshness; admission's findings still resolve references against every placement, so a runtime-band record that an authored loaded record's edge or field reference names (an observation a task's work.exit-evidence names, say) takes that reference's missing-target or missing-field-reference finding out of the body's unknowns, and the body then names that relation neither as a pointer nor as an unknown; a runtime-band `@workspace` or `@system` can still move the database's seat and root decisions the closure is built from, a location's resolved seat then naming no unknown; installed state and the CLI and adapter identities are not reported; and no Door operation, MACHINE_PROTOCOL row, MCP tool or CLI verb serves position, so the nine version 1 routes and ia scope are unchanged.",
+  "packages": [
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    "CLAUDE.md",
+    "README.md",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "packages/runtime/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

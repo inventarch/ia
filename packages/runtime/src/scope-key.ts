@@ -14,8 +14,9 @@ import { freeze } from './types.js';
  * A key names where a reader sits (the seat), what it intends (the shape), the phase it works in, how many rows a body
  * may hop (depth) and how many entries it may load (budget), optionally restricted to one word. This module holds the
  * caps, the defaults and K0, completes a partial key, validates a key against a scoped read, resolves its seat and
- * derives its coordinate. `positionBody` (src/position.ts, R15) assembles the body a resolved key gives; the host note
- * and the Door `position` operation are later tasks, and no version 1 Door route reads a key.
+ * derives its coordinate. `positionBody` (src/position.ts, R15) assembles the body a resolved key gives, and `position`
+ * (R16) adds its digest and host note; the Door `position` operation is a later task, and no version 1 Door route
+ * reads a key.
  */
 
 /** Decision scope-key-caps: depth in 0..2 hops, budget in 0..64 entries. */
