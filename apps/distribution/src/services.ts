@@ -380,7 +380,32 @@ export interface WorkspaceSession {
   /** The complete disclosed workspace scope; refuses while admission has errors. */
   within(): string;
   admission(): WorkspaceAdmission;
+  /**
+   * The admission as a validation reports it: admission's findings and an `IA-COMP-FIELD-VALUE` warning for each
+   * declaration that declares nothing (db `inertDeclarations`), in the report's order (path, line, code, message). Status, revision and record count are admission's, since the warnings refuse
+   * nothing. `ia validate`, `ia capture` and `ia-distribution validate` all report this one finding set.
+   */
+  validation(): WorkspaceAdmission;
   close(): void;
+}
+const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/**
+ * The declarations db D02a and D02b read that declare nothing (`inertDeclarations`): a `composition.sources` entry that
+ * names no root, and a path selection the dialect reads as none. Each is an `IA-COMP-FIELD-VALUE` warning at the line
+ * that states it, so a typo that silently re-roots records or claims no path is seen where it is authored. They are not
+ * admission findings: admission, its report and the frozen Door routes do not change.
+ */
+function inertFindings(reader: Handle): Findings {
+  return reader.inertDeclarations().map((declaration) => ({
+    code: 'IA-COMP-FIELD-VALUE',
+    severity: 'warning',
+    path: declaration.path,
+    line: declaration.line,
+    identity: declaration.identity,
+    message: `${declaration.field} value ${JSON.stringify(declaration.value)} ${declaration.reason}${
+      declaration.field === 'composition.sources' ? ', so it declares no root' : ''
+    }`,
+  }));
 }
 export function openWorkspaceSession(options: { readonly root: string }): WorkspaceSession {
   const reader = open(workspace(options.root), { cache: false });
@@ -390,28 +415,43 @@ export function openWorkspaceSession(options: { readonly root: string }): Worksp
   // refresh() builds a new view, an older token stays bound to the records of the older one, and a
   // draft admitted against those is admitted against a workspace the handle no longer reports.
   const errors = (): Findings => reader.report.findings.filter((f) => f.severity === 'error');
+  const admission = (): WorkspaceAdmission => {
+    const findings = reader.report.findings;
+    return {
+      status: findings.some((f) => f.severity === 'error') ? 'refused' : 'admitted',
+      revision: reader.revision,
+      findings,
+      records: reader.records().length,
+    };
+  };
   return {
     reader,
     within: (): string => {
       if (errors().length) fail('CLOSURE-INCOMPLETE', 'Workspace admission failed; run validate for diagnostics');
       return reader.resolveScope().token;
     },
-    admission: (): WorkspaceAdmission => {
-      const findings = reader.report.findings;
+    admission,
+    validation: (): WorkspaceAdmission => {
+      const admitted = admission();
       return {
-        status: findings.some((f) => f.severity === 'error') ? 'refused' : 'admitted',
-        revision: reader.revision,
-        findings,
-        records: reader.records().length,
+        ...admitted,
+        findings: [...admitted.findings, ...inertFindings(reader)].sort(
+          (a, b) =>
+            compareText(a.path, b.path) ||
+            a.line - b.line ||
+            compareText(a.code, b.code) ||
+            compareText(a.message, b.message),
+        ),
       };
     },
     close: (): void => reader.close(),
   };
 }
+/** One workspace's validation (`WorkspaceSession.validation`): admission's findings and the inert-declaration warnings. */
 export function validateWorkspace(options: { readonly root: string }): WorkspaceAdmission {
   const session = openWorkspaceSession(options);
   try {
-    return session.admission();
+    return session.validation();
   } finally {
     session.close();
   }

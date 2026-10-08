@@ -231,8 +231,13 @@ function oversized(reruns: Reruns): string {
 const INCOMPLETE_REGISTRY = /^Registry (.+) has no artifacts\//;
 const INCOMPLETE = (dir: string): string =>
   `That registry directory is incomplete: it lists a release whose artifact file is missing. Re-add the release with "ia-distribution registry add --registry ${quote(dir)} --archive <file>".`;
-/** Registry spec §4's remedy for an unmapped provider; `ia doctor` names the same one. */
+/**
+ * Registry spec §4's remedy for an unmapped provider, as `ia doctor` prints it. The exported 1.x text is unchanged
+ * (decision release-bump); a refusal names `UNMAPPED_NEXT` instead, whose one command is the rerun (design row 27).
+ */
 export const UNMAPPED =
+  "Every requested and locked package's provider needs a registry. Map the provider to an HTTPS URL or a workspace directory in .ia/registries.json, or pass --registry <url|dir>.";
+const UNMAPPED_NEXT =
   "Every requested and locked package's provider needs a registry: map the provider to an HTTPS URL or a workspace directory in .ia/registries.json.";
 const LICENSED = (reruns: Reruns): string =>
   `This CLI has no licensed acquisition path. Obtain the archive through its licensed channel, then install it from a local catalog with "${reruns.local}".`;
@@ -282,7 +287,7 @@ async function acquiring<T>(run: () => Promise<T>, where: string | null, route: 
         route === 'registry' ? REGISTRY_RETRY(reruns) : RETRY(reruns),
       );
     if (code === 'IA-DIST-REGISTRY-UNMAPPED')
-      throw new Refusal(code, message, 3, at, `${UNMAPPED} Then run "${reruns.again}".`);
+      throw new Refusal(code, message, 3, at, `${UNMAPPED_NEXT} Then run "${reruns.again}".`);
     if (code === 'IA-DIST-LICENSE-REQUIRED') throw new Refusal(code, message, 3, at, LICENSED(reruns));
     // A service refusal the service located keeps its code and class 3, and gains its location (§4.3) and the
     // rerun after the file it names is repaired.
@@ -374,7 +379,11 @@ export interface PlanRequest {
   readonly allowWithdrawn: boolean;
   readonly planOut: string | undefined;
   readonly invocation: string;
-  readonly reruns: Reruns;
+  /**
+   * The commands this request's remedies name. Optional, so a 1.x request keeps its form (decision release-bump): when
+   * absent they are spelled from the request itself (`requestReruns`).
+   */
+  readonly reruns?: Reruns;
   /** Whether the invocation named `--root`; commands printed for a registered projection then carry it. */
   readonly rooted?: boolean;
   /** The registered projections, when the caller already found them; otherwise they are found here. */
@@ -510,7 +519,7 @@ function refreshed(view: PlanView, host: HostName): Refusal | null {
     const next =
       path !== null
         ? projectionRepair(host, path, rerun)
-        : error instanceof Refusal
+        : error instanceof Refusal && refusal.next !== null
           ? refusal.next
           : `Run "${rerun}" to finish.`;
     return new Refusal(
@@ -540,9 +549,65 @@ function installedLock(root: string, operation: Operation): DistributionLock | u
   }
 }
 
+/**
+ * The `Reruns` of a request that supplies none (a 1.x caller of this published function), spelled from its own fields
+ * as `rerunsOf` spells them from the parsed arguments: `--root` when the request says it was named, the registry
+ * chosen by the per-provider map, since the request carries no `--registry` value.
+ */
+function requestReruns(request: PlanRequest): Reruns {
+  const { operation, to, root } = request;
+  const apply = operation === 'restore' ? ' --apply --yes' : '';
+  const spell = (
+    named: Operation,
+    variant: { readonly ids?: readonly string[]; readonly source?: readonly string[]; readonly online?: boolean } = {},
+  ): string => {
+    const parts = [`ia ${named}`, ...(variant.ids ?? request.ids).map(quote)];
+    if (named === 'update' && to !== undefined) parts.push('--to', quote(to));
+    if (request.requestsFile !== undefined) parts.push('--requests', quote(request.requestsFile));
+    if (variant.source !== undefined) parts.push(...variant.source);
+    else if (request.catalog !== undefined) parts.push('--catalog', quote(request.catalog));
+    if (request.planOut !== undefined) parts.push('--plan-out', quote(request.planOut));
+    if (variant.source === undefined && variant.online !== true && request.offline) parts.push('--offline');
+    if (request.allowWithdrawn) parts.push('--allow-withdrawn');
+    if (request.rooted === true) parts.push('--root', quote(root));
+    return parts.join(' ');
+  };
+  return {
+    again: `${spell(operation)}${apply}`,
+    online: `${spell(operation, { online: true })}${apply}`,
+    local: `${spell(operation, { source: ['--catalog', '<file>'] })}${apply}`,
+    chosen: 'map',
+    another: `${spell(operation, { source: ['--registry', '<url|dir>'] })}${apply}`,
+    install: spell('install', { ids: request.ids.map((id) => (to === undefined ? id : `${id}@${to}`)) }),
+    inspect: `ia inspect${request.rooted === true ? ` --root ${quote(root)}` : ''}`,
+  };
+}
+
 export async function collectPlan(request: PlanRequest): Promise<PlanView> {
   request.signal?.throwIfAborted();
   const { root, operation } = request;
+  const reruns = request.reruns ?? requestReruns(request);
+  /**
+   * A file the invocation named (`--catalog`, `--requests`), read as the service reads it; one that is not there names
+   * the rerun with that one value to correct, the service's code and message carried through unchanged (§4.1).
+   */
+  const supplied = (path: string, option: 'catalog' | 'requests'): unknown => {
+    try {
+      return readWorkspaceJson({ root, path });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (codeOf(error, '') !== 'IA-DIST-INPUT-INVALID' || !message.endsWith(`Missing input ${path}`)) throw error;
+      const rerun =
+        option === 'catalog' ? reruns.local : reruns.again.replace(`--requests ${quote(path)}`, '--requests <file>');
+      throw new Refusal(
+        'IA-DIST-INPUT-INVALID',
+        message,
+        3,
+        null,
+        `Run "${rerun}" naming an existing ${option === 'catalog' ? 'catalog' : 'requests'} file.`,
+      );
+    }
+  };
   const previous = installedLock(root, operation);
   let plan: InstallationPlan;
   let withdrawn: readonly string[] = [];
@@ -568,7 +633,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         },
         null,
         'registry',
-        request.reruns,
+        reruns,
       );
       plan = restored.plan;
       withdrawn = restored.withdrawn;
@@ -578,8 +643,8 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         lock.packages.filter((pkg) => !unpublished.has(pkg.id)).map((pkg) => choose(pkg.id)),
       );
     } else {
-      const entries = request.offline ? undefined : readWorkspaceJson({ root, path: request.catalog! });
-      await warm(root, entries, request.offline, request.reruns, request.signal);
+      const entries = request.offline ? undefined : supplied(request.catalog!, 'catalog');
+      await warm(root, entries, request.offline, reruns, request.signal);
       const restored = await acquiring(
         () =>
           planRestore({
@@ -593,7 +658,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
           }),
         request.catalog ?? null,
         'catalog',
-        request.reruns,
+        reruns,
       );
       plan = restored.plan;
       withdrawn = restored.withdrawn;
@@ -608,25 +673,25 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     const updated = operation === 'update' ? request.ids[0]! : undefined;
     const requests =
       updated !== undefined
-        ? repin(previous, updated, request.to, request.reruns)
+        ? repin(previous, updated, request.to, reruns)
         : request.requestsFile === undefined
           ? mergeRequests(previous, request.ids)
-          : decodeDistributionRequests(readWorkspaceJson({ root, path: request.requestsFile }));
+          : decodeDistributionRequests(supplied(request.requestsFile, 'requests'));
     let choices: readonly ReleaseCandidate<BundleMetadata>[];
     if (request.catalog !== undefined) {
-      const entries = readWorkspaceJson({ root, path: request.catalog });
-      await warm(root, entries, request.offline, request.reruns, request.signal);
+      const entries = supplied(request.catalog, 'catalog');
+      await warm(root, entries, request.offline, reruns, request.signal);
       choices = await acquiring(
         () => resolveCatalog({ root, entries, offline: request.offline, signal: request.signal }),
         request.catalog,
         'catalog',
-        request.reruns,
+        reruns,
       );
     } else if (request.offline) {
       choices = cached(
         root,
         [...requests.map((dependency) => dependency.id), ...(previous?.packages ?? []).map((pkg) => pkg.id)],
-        request.reruns,
+        reruns,
       );
     } else {
       // Registry spec §5: metadata selection, then only the selected archives are fetched and verified. Only the ids the
@@ -659,7 +724,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
           }),
         null,
         'registry',
-        request.reruns,
+        reruns,
       );
       choices = resolution.candidates;
       registries = registrySources(resolution.sources.values());

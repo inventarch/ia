@@ -200,13 +200,13 @@ The [language floor](.ia/src/floor/README.md) supplies the kernel. These systems
 
 | Work with | Commands |
 | --- | --- |
-| **Workspace records** | `init`, `validate`, `capture`, `format`, `inspect`, `read`, `vocabulary`, and `compile`, a deprecated alias of `capture` |
+| **Workspace records** | `init`, `validate`, `capture`, `format`, `inspect`, `read`, `vocabulary`, and the deprecated `compile` |
 | **Distributions and hosts** | `pack`, `install`, `update`, `remove`, `restore`, `doctor`, `host` |
 | **Machine operations** | `scope`, `context`, `select`, `get`, `records`, `resolve`, `search`, `traverse`, `report`, with inputs through `--params` |
 
 Use `ia --help` or `ia <command> --help` for options. `ia doctor` reports observed runtime, workspace and installation state; an unavailable update check remains unknown.
 
-Commands that preview changes require `--apply` to perform them, and `--yes` when applying without a terminal. `capture` writes its snapshot under `.ia/work/snapshot/` directly, and `format --write` rewrites source formatting. Host registration is an explicit operation.
+Commands that preview changes require `--apply` to perform them, and `--yes` when applying without a terminal. `capture` writes its snapshot under `.ia/work/snapshot/` directly, as the deprecated `compile` writes its artifact under `.ia/work/`, and `format --write` rewrites source formatting. Host registration is an explicit operation.
 
 Native declarations describe structure and intent. Passing schema validation does not establish that a declared test ran or that its evidence is true. The [language guide](docs/reference/language/README.md) explains composition, execution and evaluation outcomes.
 

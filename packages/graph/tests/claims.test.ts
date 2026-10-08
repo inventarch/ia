@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
-import { CLAIM_FIELDS, claimants, load, selects, serialize, stableSerialize } from '../src/index.js';
+import { CLAIM_FIELDS, claimants, isSelection, load, selects, serialize, stableSerialize } from '../src/index.js';
 import type { Graph, LoadOptions } from '../src/index.js';
 import { inputs, records, registry } from './native.js';
 
@@ -115,8 +115,13 @@ describe('the path selection dialect (G06c)', () => {
   });
 
   it('selects nothing for an empty, absolute or non-canonical selection', () => {
-    for (const selection of ['', '/', '/abs/**', 'C:/x/**', 'C:\\x', 'a//b', './a', 'a/./b', 'a/../b', '..', '//'])
+    for (const selection of ['', '/', '/abs/**', 'C:/x/**', 'C:\\x', 'a//b', './a', 'a/./b', 'a/../b', '..', '//']) {
       expect(selects(selection, 'a/b')).toBe(false);
+      // isSelection names each as one the dialect does not read, so a host can say so where it is authored.
+      expect(isSelection(selection), selection).toBe(false);
+    }
+    for (const selection of ['a/b', 'a/', '**', 'docs/*.md', 'supplied module source'])
+      expect(isSelection(selection), selection).toBe(true);
   });
 
   it('stays bounded on selections built to backtrack', () => {

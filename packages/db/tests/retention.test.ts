@@ -1,12 +1,46 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
-import { open } from '../src/index.js';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { expect, it, vi } from 'vitest';
+import {
+  CAPTURE_CURRENT,
+  CAPTURE_DIRECTORY,
+  CAPTURE_FORMAT,
+  CAPTURE_PREVIOUS,
+  open,
+  writeCapture,
+} from '../src/index.js';
 import type { Snapshot } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
 import { methodId, methodPath, put, workspace } from './workspace.js';
 
-const retainedPath = '.ia/.iadb/snapshots.json';
+/**
+ * Seams on node:fs: the renames a capture makes, so a test can fail one of them, and the paths every stat or read
+ * touches, so a test can show that a handle opens no capture file until it is asked. Every call passes through.
+ */
+const hooks = vi.hoisted(() => ({
+  rename: undefined as ((from: string, to: string) => void) | undefined,
+  touched: undefined as string[] | undefined,
+}));
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  const touching = <F extends (...args: never[]) => unknown>(call: F): F =>
+    ((...args: Parameters<F>) => {
+      hooks.touched?.push(String(args[0]).replaceAll('\\', '/'));
+      return call(...args);
+    }) as F;
+  return {
+    ...actual,
+    renameSync: (from: Parameters<typeof actual.renameSync>[0], to: Parameters<typeof actual.renameSync>[1]) => {
+      hooks.rename?.(String(from), String(to));
+      actual.renameSync(from, to);
+    },
+    lstatSync: touching(actual.lstatSync),
+    statSync: touching(actual.statSync),
+    readFileSync: touching(actual.readFileSync),
+    openSync: touching(actual.openSync),
+  };
+});
+
 const otherId = 'governance-system/governance/law/sample-rule';
 const edit = (root: string, text: string) =>
   put(root, methodPath, text.replace('Sample fixture statement 3.', 'An edited cell.'));
@@ -15,6 +49,21 @@ const stale = (db: ReturnType<typeof open>, snapshot: Snapshot) =>
   snapshot.records.flatMap((r) =>
     db.staleness(r.identity) === 'unchanged' ? [] : [[r.identity, db.staleness(r.identity)]],
   );
+/** The retained part of an `ia-snapshot-1` capture of the handle's root view, as `ia capture` writes it. */
+const captureOf = (db: ReturnType<typeof open>): string =>
+  `${JSON.stringify({ format: CAPTURE_FORMAT, revision: db.revision, membership: db.snapshot().membership })}\n`;
+/** Every file below `directory` with its text, so a read is shown to write nothing there. */
+const tree = (directory: string): Readonly<Record<string, string>> =>
+  existsSync(directory)
+    ? Object.fromEntries(
+        readdirSync(directory, { recursive: true, withFileTypes: true })
+          .filter((dirent) => dirent.isFile())
+          .map((dirent) => {
+            const path = join(dirent.parentPath, dirent.name);
+            return [path, readFileSync(path, 'utf8')];
+          }),
+      )
+    : {};
 
 it('reports exactly the edited record as changed after a refresh, and only a revision change rotates', () => {
   const root = workspace(),
@@ -60,46 +109,43 @@ it('reports exactly the edited record as changed after a refresh, and only a rev
   }
 });
 
-it('lets a new handle on the same root see the same answer from the persisted pair', () => {
+it('seeds a new handle from the capture pair, whatever its cache setting, and never writes it', () => {
   const root = workspace(),
     text = readFileSync(resolve(root, methodPath), 'utf8'),
-    earlier = open(root),
-    refreshed = open(root),
+    earlier = open(root, { cache: false }),
     revision = earlier.revision,
     before = earlier.get(methodId)!.digest;
+  // No capture yet: nothing seeds, and a read never creates the pair.
+  expect([earlier.previousRevision, earlier.capturedRevision]).toEqual([undefined, undefined]);
+  expect(writeCapture(root, captureOf(earlier))).toMatchObject({ prior: null, previous: null, rotated: false });
   earlier.close();
   edit(root, text);
-  // A process that opens after the edit rotates the capture the earlier process published.
-  const later = open(root);
-  try {
-    expect(later.revision).not.toBe(revision);
-    expect(later.previousRevision).toBe(revision);
-    expect(stale(later, later.snapshot())).toEqual([[methodId, 'changed']]);
-    expect(later.readiness(methodId, before)).toBe('previous');
-    expect(later.readiness(methodId, later.get(methodId)!.digest)).toBe('current');
-    // A handle that lived through the edit agrees after its refresh, and a plain open at that revision keeps it.
-    refreshed.refresh();
-    expect(refreshed.previousRevision).toBe(revision);
-    const again = open(root);
+  const pair = tree(resolve(root, CAPTURE_DIRECTORY));
+  for (const cache of [false, true]) {
+    // A process that opens after the edit finds the capture at another revision: it is the previous snapshot.
+    const later = open(root, { cache });
     try {
-      expect(again.previousRevision).toBe(revision);
-      for (const record of again.records())
-        expect(again.staleness(record.identity)).toBe(later.staleness(record.identity));
-      expect(again.cache.observations).toEqual([]);
+      expect(later.revision).not.toBe(revision);
+      expect([later.previousRevision, later.capturedRevision]).toEqual([revision, revision]);
+      expect(stale(later, later.snapshot())).toEqual([[methodId, 'changed']]);
+      expect(later.readiness(methodId, before)).toBe('previous');
+      expect(later.readiness(methodId, later.get(methodId)!.digest)).toBe('current');
+      expect(later.cache.observations).toEqual([]);
     } finally {
-      again.close();
+      later.close();
     }
-    const pair = JSON.parse(readFileSync(resolve(root, retainedPath), 'utf8')) as {
-      format: string;
-      current: Snapshot;
-      previous: Snapshot;
-    };
-    expect(pair.format).toBe('ia-snapshots-1');
-    expect([pair.current.revision, pair.previous.revision]).toEqual([later.revision, revision]);
-    expect(pair.current.membership).toEqual(later.snapshot().membership);
+  }
+  expect(tree(resolve(root, CAPTURE_DIRECTORY))).toEqual(pair);
+  // Once the edit is captured, a handle at that revision reads the earlier capture from previous.json.
+  const edited = open(root, { cache: false });
+  expect(writeCapture(root, captureOf(edited))).toMatchObject({ prior: revision, previous: revision, rotated: true });
+  edited.close();
+  const again = open(root, { cache: false });
+  try {
+    expect([again.previousRevision, again.capturedRevision]).toEqual([revision, again.revision]);
+    expect(stale(again, again.snapshot())).toEqual([[methodId, 'changed']]);
   } finally {
-    later.close();
-    refreshed.close();
+    again.close();
   }
 });
 
@@ -229,109 +275,338 @@ it('compares the occurrence get reads, and makes no root comparison for one the 
   }
 });
 
-type Pair = { readonly current: Pick<Snapshot, 'revision' | 'membership'> };
+type Pair = Pick<Snapshot, 'revision' | 'membership'>;
 /**
- * A well-formed previous snapshot at another revision, with `row` merged into the edited record's row: each forgery
- * below carries one, so a file trusted despite its defect would visibly seed `previousRevision`.
+ * A well-formed capture at another revision, with `row` merged into the edited record's row: each forgery below carries
+ * one, so a file trusted despite its defect would visibly seed `previousRevision`.
  */
 const seeded = (good: Pair, row: Record<string, unknown> = {}) => ({
+  format: CAPTURE_FORMAT,
   revision: '1'.repeat(64),
-  membership: good.current.membership.map((r) => (r.identity === methodId ? { ...r, ...row } : r)),
+  membership: good.membership.map((r) => (r.identity === methodId ? { ...r, ...row } : r)),
 });
 it.each([
   ['broken JSON', () => '{'],
-  ['a foreign format', (good: Pair) => JSON.stringify({ ...good, format: 'ia-snapshots-0', previous: seeded(good) })],
-  ['an extra top-level key', (good: Pair) => JSON.stringify({ ...good, previous: seeded(good), extra: true })],
-  ['an extra snapshot key', (good: Pair) => JSON.stringify({ ...good, previous: { ...seeded(good), extra: true } })],
-  [
-    'a short revision',
-    (good: Pair) => JSON.stringify({ ...good, previous: { ...seeded(good), revision: '1'.repeat(63) } }),
-  ],
-  [
-    'a row missing keys',
-    (good: Pair) => JSON.stringify({ ...good, previous: { ...seeded(good), membership: [{ identity: methodId }] } }),
-  ],
-  ['an extra row key', (good: Pair) => JSON.stringify({ ...good, previous: seeded(good, { extra: true }) })],
-  ['a non-text root', (good: Pair) => JSON.stringify({ ...good, previous: seeded(good, { root: 1 }) })],
-  ['an invalid band', (good: Pair) => JSON.stringify({ ...good, previous: seeded(good, { band: 99 }) })],
-  ['a non-hex digest', (good: Pair) => JSON.stringify({ ...good, previous: seeded(good, { digest: 'Z'.repeat(64) }) })],
+  ['a foreign format', (good: Pair) => JSON.stringify({ ...seeded(good), format: 'ia.compiled.v1' })],
+  ['a short revision', (good: Pair) => JSON.stringify({ ...seeded(good), revision: '1'.repeat(63) })],
+  ['a row missing keys', (good: Pair) => JSON.stringify({ ...seeded(good), membership: [{ identity: methodId }] })],
+  ['an extra row key', (good: Pair) => JSON.stringify(seeded(good, { extra: true }))],
+  ['a non-text root', (good: Pair) => JSON.stringify(seeded(good, { root: 1 }))],
+  ['an invalid band', (good: Pair) => JSON.stringify(seeded(good, { band: 99 }))],
+  ['a non-hex digest', (good: Pair) => JSON.stringify(seeded(good, { digest: 'Z'.repeat(64) }))],
   [
     'a duplicate identity',
     (good: Pair) => {
-      const previous = seeded(good),
-        row = previous.membership.find((r) => r.identity === methodId)!;
-      return JSON.stringify({
-        ...good,
-        previous: { ...previous, membership: [...previous.membership, { ...row, digest: '0'.repeat(64) }] },
-      });
+      const capture = seeded(good),
+        row = capture.membership.find((r) => r.identity === methodId)!;
+      return JSON.stringify({ ...capture, membership: [...capture.membership, { ...row, digest: '0'.repeat(64) }] });
     },
   ],
-  ['a previous snapshot at the current revision', (good: Pair) => JSON.stringify({ ...good, previous: good.current })],
-  [
-    'a forged current snapshot',
-    (good: Pair) =>
-      JSON.stringify({
-        ...good,
-        current: { ...good.current, membership: seeded(good, { digest: '0'.repeat(64) }).membership },
-        previous: seeded(good),
-      }),
-  ],
-])('never trusts a retained file holding %s: it warns, seeds nothing and replaces the file', (_name, forge) => {
+])('never seeds from a capture file holding %s, and still reads', (_name, forge) => {
   const root = workspace(),
-    path = resolve(root, retainedPath);
-  open(root).close();
-  const good = readFileSync(path, 'utf8');
-  put(root, retainedPath, forge(JSON.parse(good)));
-  const db = open(root);
-  try {
-    expect(db.previousRevision).toBeUndefined();
-    expect(db.staleness(methodId)).toBe('new');
-    expect(db.cache.state).toBe('hit');
-    expect(db.cache.observations).toEqual([
-      expect.objectContaining({ code: 'IA-DB-CACHE-UNAVAILABLE', severity: 'warning', path: retainedPath }),
-    ]);
-    expect(readFileSync(path, 'utf8')).toBe(good);
-  } finally {
-    db.close();
+    probe = open(root, { cache: false }),
+    good = probe.snapshot();
+  probe.close();
+  for (const path of [CAPTURE_CURRENT, CAPTURE_PREVIOUS]) {
+    rmSync(resolve(root, CAPTURE_DIRECTORY), { recursive: true, force: true });
+    put(root, path, forge(good));
+    const db = open(root, { cache: false });
+    try {
+      expect([db.previousRevision, db.capturedRevision], path).toEqual([undefined, undefined]);
+      expect(db.staleness(methodId), path).toBe('new');
+      expect(db.records().length, path).toBeGreaterThan(100);
+    } finally {
+      db.close();
+    }
   }
 });
 
-it('keeps reads usable when the retained file cannot be read or published', () => {
-  const root = workspace();
-  mkdirSync(resolve(root, retainedPath), { recursive: true });
-  const db = open(root);
+it('trusts a capture at another revision as written, never one at the fresh revision with other rows', () => {
+  const root = workspace(),
+    probe = open(root, { cache: false }),
+    good = probe.snapshot();
+  probe.close();
+  // A capture at the fresh revision holding other rows is not this workspace's capture there: the pair seeds nothing.
+  put(root, CAPTURE_CURRENT, JSON.stringify({ ...seeded(good, { digest: '0'.repeat(64) }), revision: good.revision }));
+  put(root, CAPTURE_PREVIOUS, JSON.stringify(seeded(good)));
+  let db = open(root, { cache: false });
+  expect([db.previousRevision, db.capturedRevision]).toEqual([undefined, undefined]);
+  db.close();
+  // previous.json at the revision current.json names is no previous capture; with current.json at another revision,
+  // that capture is the previous snapshot.
+  put(root, CAPTURE_CURRENT, JSON.stringify(seeded(good)));
+  db = open(root, { cache: false });
+  expect([db.previousRevision, db.capturedRevision]).toEqual(['1'.repeat(64), '1'.repeat(64)]);
+  expect(db.readiness(methodId, good.membership.find((r) => r.identity === methodId)!.digest)).toBe('current');
+  db.close();
+  // With no readable current.json, a capture at previous.json is still the most recent capture there is.
+  put(root, CAPTURE_CURRENT, 'not a capture');
+  db = open(root, { cache: false });
+  expect([db.previousRevision, db.capturedRevision]).toEqual(['1'.repeat(64), undefined]);
+  db.close();
+});
+
+it('keeps reads usable when the capture pair cannot be read, and never follows a link to it', () => {
+  const root = workspace(),
+    outside = workspace(false),
+    probe = open(root, { cache: false }),
+    good = probe.snapshot();
+  probe.close();
+  mkdirSync(resolve(root, CAPTURE_CURRENT), { recursive: true });
+  let db = open(root, { cache: false });
+  expect([db.previousRevision, db.capturedRevision]).toEqual([undefined, undefined]);
+  expect(db.cache.observations).toEqual([]);
+  db.close();
+  // A well-formed capture behind a junction would otherwise be trusted as written; it seeds nothing.
+  rmSync(resolve(root, '.ia/work'), { recursive: true, force: true });
+  put(outside, 'current.json', JSON.stringify(seeded(good)));
+  mkdirSync(resolve(root, '.ia/work'), { recursive: true });
+  symlinkSync(outside, resolve(root, CAPTURE_DIRECTORY), process.platform === 'win32' ? 'junction' : 'dir');
+  db = open(root, { cache: false });
   try {
+    expect([db.previousRevision, db.capturedRevision]).toEqual([undefined, undefined]);
     expect(db.records().length).toBeGreaterThan(100);
-    expect(db.cache.state).toBe('written');
-    expect(db.previousRevision).toBeUndefined();
-    expect(db.cache.observations.map((o) => [o.code, o.severity, o.path])).toEqual([
-      ['IA-DB-CACHE-UNAVAILABLE', 'warning', retainedPath],
-      ['IA-DB-CACHE-UNAVAILABLE', 'warning', retainedPath],
-    ]);
+    expect(() => writeCapture(root, captureOf(db))).toThrow(expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }));
+    expect(readdirSync(outside)).toEqual(['current.json']);
   } finally {
     db.close();
   }
 });
 
-it('neither reads nor publishes the retained file with the cache disabled', () => {
+it('writes the pair as D08 rotates it, counts by digest, and replaces nothing it does not have to', () => {
+  const root = workspace(),
+    text = readFileSync(resolve(root, methodPath), 'utf8'),
+    at = (path: string) => readFileSync(resolve(root, path));
+  const first = open(root, { cache: false }),
+    r1 = captureOf(first);
+  expect(() => writeCapture(root, '{"format":"ia.compiled.v1"}')).toThrow(TypeError);
+  expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
+  const records = first.records().length;
+  first.close();
+  expect(writeCapture(root, r1)).toEqual({
+    prior: null,
+    ignored: null,
+    previous: null,
+    rotated: false,
+    changed: 0,
+    unchanged: 0,
+    added: records,
+    removed: 0,
+  });
+  const written = statSync(resolve(root, CAPTURE_CURRENT)).mtimeMs;
+  expect(writeCapture(root, r1)).toMatchObject({ prior: JSON.parse(r1).revision, unchanged: records, added: 0 });
+  expect(statSync(resolve(root, CAPTURE_CURRENT)).mtimeMs).toBe(written);
+  expect(readdirSync(resolve(root, CAPTURE_DIRECTORY))).toEqual(['current.json']);
+  edit(root, text);
+  const second = open(root, { cache: false }),
+    r2 = captureOf(second);
+  second.close();
+  expect(writeCapture(root, r2)).toMatchObject({
+    prior: JSON.parse(r1).revision,
+    previous: JSON.parse(r1).revision,
+    rotated: true,
+    changed: 1,
+    unchanged: records - 1,
+  });
+  // The prior current.json became previous.json byte for byte, and no temporary file is left.
+  expect(at(CAPTURE_PREVIOUS).toString('utf8')).toBe(r1);
+  expect(at(CAPTURE_CURRENT).toString('utf8')).toBe(r2);
+  expect(readdirSync(resolve(root, CAPTURE_DIRECTORY)).sort()).toEqual(['current.json', 'previous.json']);
+  // A current.json that is no capture is replaced, and the previous.json at another revision is kept.
+  put(root, CAPTURE_CURRENT, 'not a capture');
+  expect(writeCapture(root, r2)).toMatchObject({
+    prior: null,
+    ignored: 'is not JSON',
+    previous: JSON.parse(r1).revision,
+    rotated: false,
+  });
+  expect(at(CAPTURE_PREVIOUS).toString('utf8')).toBe(r1);
+  // A previous.json at the revision being written is no previous capture, and is removed once current.json is written.
+  put(root, CAPTURE_PREVIOUS, r2);
+  expect(writeCapture(root, r2)).toMatchObject({ previous: null, rotated: false });
+  expect(existsSync(resolve(root, CAPTURE_PREVIOUS))).toBe(false);
+  // An entry at either path that is not a regular file refuses before anything is written.
+  mkdirSync(resolve(root, CAPTURE_PREVIOUS));
+  expect(() => writeCapture(root, r1)).toThrow(expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }));
+  expect(at(CAPTURE_CURRENT).toString('utf8')).toBe(r2);
+  expect(readdirSync(resolve(root, CAPTURE_DIRECTORY)).sort()).toEqual(['current.json', 'previous.json']);
+});
+
+it('leaves the pair it found when a write fails, at whichever step it fails', () => {
+  const root = workspace(),
+    text = readFileSync(resolve(root, methodPath), 'utf8'),
+    at = (path: string) => readFileSync(resolve(root, path), 'utf8');
+  const snapshot = () => {
+    const db = open(root, { cache: false });
+    try {
+      return captureOf(db);
+    } finally {
+      db.close();
+    }
+  };
+  const r1 = snapshot();
+  writeCapture(root, r1);
+  edit(root, text);
+  const r2 = snapshot();
+  writeCapture(root, r2);
+  put(root, methodPath, text.replace('Sample fixture statement 3.', 'Edited twice.'));
+  const r3 = snapshot();
+  const failure = Object.assign(new Error('EPERM: operation not permitted, rename'), { code: 'EPERM' });
+  // Each rename a rotation makes, failed in turn: previous.json aside, current.json to previous.json, the new current.
+  for (const step of [1, 2, 3]) {
+    let renames = 0;
+    hooks.rename = () => {
+      renames += 1;
+      if (renames === step) throw failure;
+    };
+    try {
+      expect(() => writeCapture(root, r3), `step ${step}`).toThrow(failure);
+    } finally {
+      hooks.rename = undefined;
+    }
+    expect([at(CAPTURE_CURRENT), at(CAPTURE_PREVIOUS)], `step ${step}`).toEqual([r2, r1]);
+    expect(readdirSync(resolve(root, CAPTURE_DIRECTORY)).sort(), `step ${step}`).toEqual([
+      'current.json',
+      'previous.json',
+    ]);
+  }
+  // The failed attempts lost nothing: the next capture rotates exactly as it would have.
+  expect(writeCapture(root, r3)).toMatchObject({ previous: JSON.parse(r2).revision, rotated: true });
+  expect([at(CAPTURE_CURRENT), at(CAPTURE_PREVIOUS)]).toEqual([r3, r2]);
+});
+
+it('leaves the pair it found when a write that drops previous.json fails, at whichever step it fails', () => {
+  const root = workspace(),
+    db = open(root, { cache: false }),
+    text = captureOf(db),
+    junk = 'not a capture\n';
+  db.close();
+  put(root, CAPTURE_PREVIOUS, junk);
+  const failure = Object.assign(new Error('EBUSY: resource busy or locked, rename'), { code: 'EBUSY' });
+  // With nothing to rotate, the renames are previous.json aside and the new current.json; fail each in turn.
+  for (const step of [1, 2]) {
+    let renames = 0;
+    hooks.rename = () => {
+      renames += 1;
+      if (renames === step) throw failure;
+    };
+    try {
+      expect(() => writeCapture(root, text), `step ${step}`).toThrow(failure);
+    } finally {
+      hooks.rename = undefined;
+    }
+    expect(readdirSync(resolve(root, CAPTURE_DIRECTORY)), `step ${step}`).toEqual(['previous.json']);
+    expect(readFileSync(resolve(root, CAPTURE_PREVIOUS), 'utf8'), `step ${step}`).toBe(junk);
+  }
+  // Written at last, the capture drops the previous.json that is no capture and publishes current.json.
+  expect(writeCapture(root, text)).toMatchObject({ prior: null, previous: null, rotated: false });
+  expect(readdirSync(resolve(root, CAPTURE_DIRECTORY))).toEqual(['current.json']);
+  expect(readFileSync(resolve(root, CAPTURE_CURRENT), 'utf8')).toBe(text);
+});
+
+it('reads the capture pair only when asked: never on open, on a plain read or on a refresh', () => {
   const root = workspace(),
     text = readFileSync(resolve(root, methodPath), 'utf8');
-  open(root).close();
-  const pair = readFileSync(resolve(root, retainedPath), 'utf8');
+  const first = open(root, { cache: false }),
+    revision = first.revision;
+  writeCapture(root, captureOf(first));
+  first.close();
   edit(root, text);
+  const snapshotFiles = (): readonly string[] =>
+    (hooks.touched ?? []).filter((path) => path.includes(`/${CAPTURE_DIRECTORY}`));
+  for (const cache of [false, true]) {
+    hooks.touched = [];
+    const db = open(root, { cache });
+    try {
+      // Every frozen Door route reads through these; none of them asks for the retained pair.
+      db.records();
+      db.get(methodId);
+      db.snapshot();
+      db.directedView(methodId);
+      db.resolveSeat(methodPath);
+      db.inertDeclarations();
+      db.search('procedure');
+      db.refresh();
+      db.records();
+      expect(snapshotFiles(), `cache ${cache}`).toEqual([]);
+      // Asked, the handle reads the pair, and the capture at another revision is its previous snapshot.
+      expect(db.previousRevision).toBe(revision);
+      expect(snapshotFiles().length).toBeGreaterThan(0);
+    } finally {
+      hooks.touched = undefined;
+      db.close();
+    }
+  }
+});
+
+it('reads the captured revision again after a refresh and rotates the seeded pair it holds', () => {
+  const root = workspace(),
+    text = readFileSync(resolve(root, methodPath), 'utf8');
+  const first = open(root, { cache: false }),
+    r1 = first.revision;
+  writeCapture(root, captureOf(first));
+  first.close();
   const db = open(root, { cache: false });
   try {
-    expect(db.previousRevision).toBeUndefined();
-    expect(db.cache).toEqual({ state: 'disabled', observations: [] });
-    const first = db.revision;
-    put(root, methodPath, text);
+    // Seeded at the captured revision: the capture is current, and no capture at another revision is retained.
+    expect([db.previousRevision, db.capturedRevision]).toEqual([undefined, r1]);
+    edit(root, text);
     db.refresh();
-    expect(db.previousRevision).toBe(first);
-    expect(stale(db, db.snapshot())).toEqual([[methodId, 'changed']]);
-    expect(readFileSync(resolve(root, retainedPath), 'utf8')).toBe(pair);
+    const r2 = db.revision;
+    // The seeded current snapshot rotated into previous; nothing has captured the edit yet.
+    expect([db.previousRevision, db.capturedRevision]).toEqual([r1, r1]);
+    expect(db.staleness(methodId)).toBe('changed');
+    // `ia capture` runs between two refreshes at one revision: previous stays, the captured revision is read again.
+    expect(writeCapture(root, captureOf(db))).toMatchObject({ prior: r1, previous: r1, rotated: true });
+    db.refresh();
+    expect([db.previousRevision, db.capturedRevision]).toEqual([r1, r2]);
+    // The next edit rotates the snapshot the handle held, which is the one just captured.
+    put(root, methodPath, text.replace('Sample fixture statement 3.', 'Edited twice.'));
+    db.refresh();
+    expect([db.previousRevision, db.capturedRevision]).toEqual([r2, r2]);
   } finally {
     db.close();
   }
+  // A handle that never asked before refreshing answers the same, its seed read only when first asked.
+  const unasked = workspace(),
+    base = readFileSync(resolve(unasked, methodPath), 'utf8');
+  const seed = open(unasked, { cache: false }),
+    s1 = seed.revision;
+  writeCapture(unasked, captureOf(seed));
+  seed.close();
+  const later = open(unasked, { cache: false });
+  try {
+    edit(unasked, base);
+    later.refresh();
+    writeCapture(unasked, captureOf(later));
+    later.refresh();
+    expect([later.previousRevision, later.capturedRevision]).toEqual([s1, later.revision]);
+  } finally {
+    later.close();
+  }
+});
+
+it('refuses a snapshot directory, or .ia/work, that is not a directory, before anything is written', () => {
+  const root = workspace(),
+    db = open(root, { cache: false }),
+    text = captureOf(db);
+  db.close();
+  put(root, CAPTURE_DIRECTORY, 'a file where the snapshot directory belongs');
+  expect(() => writeCapture(root, text)).toThrow(
+    expect.objectContaining({
+      code: 'IA-DB-PATH-UNSAFE',
+      message: `IA-DB-PATH-UNSAFE: ${CAPTURE_DIRECTORY} is not a directory`,
+    }),
+  );
+  expect(readFileSync(resolve(root, CAPTURE_DIRECTORY), 'utf8')).toBe('a file where the snapshot directory belongs');
+  rmSync(resolve(root, '.ia/work'), { recursive: true, force: true });
+  put(root, '.ia/work', 'a file where .ia/work belongs');
+  expect(() => writeCapture(root, text)).toThrow(
+    expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE', message: 'IA-DB-PATH-UNSAFE: .ia/work is not a directory' }),
+  );
+  expect(readFileSync(resolve(root, '.ia/work'), 'utf8')).toBe('a file where .ia/work belongs');
+  rmSync(resolve(root, '.ia/work'));
+  expect(writeCapture(root, text)).toMatchObject({ prior: null, rotated: false });
 });
 
 it('retains nothing in the cache-free editor reader', () => {

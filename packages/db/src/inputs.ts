@@ -230,8 +230,18 @@ export function adoptedBindings(root: string): readonly AdoptedBinding[] {
 const invalid = (message: string): never => {
   throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `.ia/workspace.json: ${message}`);
 };
-/** Local, pinned source bindings. This is host data, never a code loader or a write grant. */
-function bindings(root: string): readonly { readonly id: string; readonly path: string; readonly revision: string }[] {
+interface Binding {
+  readonly id: string;
+  readonly path: string;
+  readonly revision: string;
+}
+/**
+ * Local, pinned source bindings. This is host data, never a code loader or a write grant. `each` runs on every binding
+ * as soon as it is validated, before the next one is, so a caller that reads a binding's sources there refuses with the
+ * first faulty binding's own fault, read-time ones included, exactly as 1.x discovery did; the frozen Door routes and
+ * `ia scope` report that refusal, so the order is part of their output.
+ */
+function bindings<T = Binding>(root: string, each: (binding: Binding) => T = (binding) => binding as T): readonly T[] {
   const path = safePath(root, '.ia/workspace.json');
   if (!existsSync(path)) return [];
   if (!statSync(path).isFile() || statSync(path).size > 65_536)
@@ -280,11 +290,11 @@ function bindings(root: string): readonly { readonly id: string; readonly path: 
     if (ids.has(binding.id) || paths.has(key)) invalid('Duplicate source identity or directory');
     ids.add(binding.id);
     paths.add(key);
-    return { id: binding.id, path: local, revision: binding.revision };
+    return each({ id: binding.id, path: local, revision: binding.revision });
   });
 }
 function workspaceSources(root: string): readonly AdoptedSource[] {
-  return bindings(root).map((binding) => {
+  return bindings(root, (binding) => {
     const directory = safePath(root, binding.path),
       sourceRoot = safePath(directory, '.ia/src');
     if (!existsSync(sourceRoot) || !statSync(sourceRoot).isDirectory())

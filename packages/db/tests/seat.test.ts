@@ -339,6 +339,41 @@ it('orders claimants band descending then identity ascending across claimant fie
       ['hook-authoring-system/binding/hook/source-hook', 100, 'hook.paths src/billing/**'],
       ['governance-system/governance/law/adopted-law', 90, 'subject.covers **'],
     ]);
+    // Every selection here is one the dialect reads, so none is named as declaring nothing.
+    expect(db.inertDeclarations().filter((declaration) => declaration.field !== 'composition.sources')).toEqual([]);
+  } finally {
+    db.close();
+  }
+});
+
+it('names each claimant selection the dialect reads as none, where it is authored, and claims nothing with it', () => {
+  const root = covered(),
+    lawPath = '.ia/src/systems/governance-system/records/rooted-law.ia';
+  put(
+    root,
+    lawPath,
+    '#! ia 1.0\n\n@law rooted-law\n  meaning\n    says "A rooted law."\n    answers "Which law covers billing?"\n  governance\n    severity blocking\n  subject\n    covers ["/src/billing/", "./src/billing/**", "src/billing/"]\n',
+  );
+  const db = open(root, { cache: false });
+  try {
+    expect(errors(db)).toEqual([]);
+    const law = 'governance-system/governance/law/rooted-law';
+    expect(db.inertDeclarations()).toEqual(
+      ['/src/billing/', './src/billing/**'].map((value) => ({
+        identity: law,
+        field: 'subject.covers',
+        value,
+        path: lawPath,
+        line: 10,
+        reason: 'selects nothing: a selection is a workspace-relative path with no empty, . or .. segment',
+      })),
+    );
+    // Only the workspace-relative selection claims the path.
+    expect(brief(db.resolveSeat('src/billing/invoice.ts')).claimants).toContainEqual([
+      law,
+      100,
+      'subject.covers src/billing/',
+    ]);
   } finally {
     db.close();
   }

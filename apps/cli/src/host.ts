@@ -785,6 +785,7 @@ export async function runHost(context: Context): Promise<Result> {
     const given = supplied === undefined ? undefined : resolve(host.cwd, supplied);
     if (
       !(error instanceof Refusal) ||
+      error.next === null ||
       given === undefined ||
       !statSync(given, { throwIfNoEntry: false })?.isDirectory() ||
       (name !== 'claude' && name !== 'codex')

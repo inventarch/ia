@@ -82,6 +82,28 @@ it('seats a record under the longest root a workspace declares at its placement'
     );
     const scope = db.resolveScope({ identities: [methodId, agentId] });
     expect(db.snapshot({ within: scope.token }).membership).toEqual([row(snapshot, agentId), row(snapshot, methodId)]);
+    // The four entries that declare nothing are named where they are authored, and are no admission finding.
+    const line =
+      readFileSync(resolve(root, workspacePath), 'utf8')
+        .split('\n')
+        .findIndex((l) => l.includes('sources [')) + 1;
+    expect(db.inertDeclarations()).toEqual(
+      [
+        ['no placement', 'is not spelled <root> @<placement>'],
+        ['/absolute @authored', 'names a root that is absolute or escapes the tree holding the record'],
+        ['../outside @authored', 'names a root that is absolute or escapes the tree holding the record'],
+        ['.ia/src @elsewhere', 'names @elsewhere, which is no placement'],
+      ].map(([value, reason]) => ({
+        identity: workspaceId,
+        field: 'composition.sources',
+        value,
+        path: workspacePath,
+        line,
+        reason,
+      })),
+    );
+    expect(db.report.findings.filter((finding) => finding.path === workspacePath && finding.line === line)).toEqual([]);
+    expect(db.inertDeclarations({ within: scope.token })).toEqual([]);
   } finally {
     db.close();
   }

@@ -53,6 +53,13 @@ function selectionSegments(selection: string): readonly string[] | undefined {
   const segments = (text.endsWith('/') ? `${text}**` : text).split('/');
   return segments.some((segment) => segment === '' || segment === '.' || segment === '..') ? undefined : segments;
 }
+/**
+ * G06c: whether the dialect reads `selection` as a workspace-relative selection at all. An empty or absolute selection,
+ * or one with an empty, `.` or `..` segment, is none and selects nothing; a host can say so where it is authored.
+ */
+export function isSelection(selection: string): boolean {
+  return selectionSegments(selection) !== undefined;
+}
 /** A path's canonical segments (none for the workspace root); undefined when it is absolute or escapes the workspace. */
 function pathSegments(path: string): readonly string[] | undefined {
   let canonical: string;

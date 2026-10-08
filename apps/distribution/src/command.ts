@@ -80,8 +80,9 @@ export function run(argv: readonly string[]): { exitCode: number; result: unknow
     reader = session.reader;
   try {
     if (command === 'validate') {
-      const admission = session.admission();
-      return { exitCode: admission.status === 'refused' ? 1 : 0, result: admission };
+      // The finding set `ia validate --json` reports, from the one service behind both (inert declarations included).
+      const validation = session.validation();
+      return { exitCode: validation.status === 'refused' ? 1 : 0, result: validation };
     }
     const within = session.within();
     if (command === 'render') {

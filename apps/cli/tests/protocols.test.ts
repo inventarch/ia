@@ -26,9 +26,8 @@ import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { withScope } from '@tools/testing/resources.js';
 import { runBounded, spawnOwned } from '@tools/testing/subprocess.js';
-import { SNAPSHOT_FORMAT } from '../src/capture.js';
 import { LEGACY_OPERATIONS } from '../src/commands.js';
-import { DEPRECATION } from '../src/compile.js';
+import { ARTIFACT, DEPRECATION } from '../src/compile.js';
 import { quote } from '../src/render.js';
 import { cleanup, scratch, workspace } from './workspace-fixture.js';
 
@@ -292,16 +291,23 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     expect(got.stderr, label).toBe('');
     expect([0, 1, 2, 3, 4, 130], label).toContain(got.status);
   }
-  // Decision compile-verb-fate: the alias keeps stdout the capture's one value and puts its one note on stderr.
-  const alias = await runBounded(process.execPath, [MAIN, 'compile', '--root', root, '--json'], {
+  // Decision release-bump: the deprecated 1.x `ia compile` keeps stdout its own one value and puts its one note on stderr.
+  const compiled = await runBounded(process.execPath, [MAIN, 'compile', '--root', root, '--json'], {
     cwd: empty,
     env: colourful(),
     input: '',
     timeoutMs: 60_000,
   });
-  expect(alias.status).toBe(0);
-  expect((oneJsonLine(alias.stdout, 'compile') as { format: string }).format).toBe(SNAPSHOT_FORMAT);
-  expect(alias.stderr).toBe(DEPRECATION);
+  expect(compiled.status).toBe(0);
+  expect(Object.keys(oneJsonLine(compiled.stdout, 'compile') as object)).toEqual([
+    'version',
+    'artifact',
+    'revision',
+    'digest',
+    'counts',
+  ]);
+  expect(readFileSync(resolve(root, '.ia/work/compiled.json'), 'utf8')).toContain(ARTIFACT);
+  expect(compiled.stderr).toBe(DEPRECATION);
   // M5.1 §3.2: the bundled base ships in the packed @inventarch/cli's `assets`, so the installed binary initializes offline.
   const initialized = await runBounded(process.execPath, [MAIN, 'init', 'fresh', '--apply', '--yes', '--json'], {
     cwd: empty,

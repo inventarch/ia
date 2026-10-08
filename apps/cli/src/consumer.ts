@@ -112,14 +112,19 @@ export interface Context {
  * (position-and-projection §12): it also names its next action, which quotes exactly one command carrying every value
  * this invocation supplied that the command needs. A manual step the CLI cannot take for the user (delete or move a
  * named file, set a variable) may come first; an explanation may follow. It spells no other command or option.
+ *
+ * The published constructor keeps its 1.x form (decision release-bump): `where` and `next` default to null, and a
+ * refusal without a next action of its own is given `serviceNext`'s when it is rendered, so `--json` `next` is always
+ * a string. Every construction site in this CLI still names its next action explicitly; tests/refusal-next.test.ts
+ * fails a site that omits it or passes null.
  */
 export class Refusal extends Error {
   constructor(
     readonly code: string,
     message: string,
     readonly exit: number,
-    readonly where: { readonly path?: string; readonly line?: number; readonly identity?: string } | null,
-    readonly next: string,
+    readonly where: { readonly path?: string; readonly line?: number; readonly identity?: string } | null = null,
+    readonly next: string | null = null,
     /** §6.5 element 1 when there is no `where`: the invocation that was refused, rendered but never serialized. */
     readonly at: string | null = null,
   ) {
@@ -170,20 +175,37 @@ export function serviceNext(code: string, refused: Refused): string {
 }
 /**
  * §4.1: the consumer never rewrites a service's code. Class 4 is unreachable from the three verbs this release
- * implements, because none of them acquires anything over a network, so every unmapped failure is class 3. The next
- * action is `serviceNext`'s, spelled for the refused invocation when the caller names it.
+ * implements, because none of them acquires anything over a network, so every unmapped failure is class 3. With the
+ * refused invocation named, the next action is `serviceNext`'s spelled for it; without, it is null as in 1.x, and
+ * `renderRefusal` supplies the fallback.
  */
-export function refusalOf(error: unknown, refused: Refused = { command: null }): Refusal {
+export function refusalOf(error: unknown, refused?: Refused): Refusal {
   if (error instanceof Refusal) return error;
   const message = error instanceof Error ? error.message : String(error);
   if (error instanceof UsageError)
-    return new Refusal('IA-CLI-USAGE', message, 2, null, serviceNext(error.code, refused));
+    return new Refusal(
+      'IA-CLI-USAGE',
+      message,
+      2,
+      null,
+      refused === undefined ? null : serviceNext(error.code, refused),
+    );
   const code = codeOf(error) ?? 'IA-CLI-FAILED';
-  return new Refusal(code, message, 3, null, serviceNext(code, refused));
+  return new Refusal(code, message, 3, null, refused === undefined ? null : serviceNext(code, refused));
 }
 
-/** §4.3 and §6.5. Human mode renders the block on stderr; `--json` emits the one object on stdout. */
-export function renderRefusal(refusal: Refusal, caps: Capabilities, json: boolean): Result {
+/**
+ * §4.3 and §6.5. Human mode renders the block on stderr; `--json` emits the one object on stdout. Design row 27 holds
+ * at this boundary: a refusal built without a next action (the 1.x constructor form) is given `serviceNext`'s, spelled
+ * for `refused` when the caller names the refused invocation.
+ */
+export function renderRefusal(
+  refusal: Refusal,
+  caps: Capabilities,
+  json: boolean,
+  refused: Refused = { command: null },
+): Result {
+  const next = refusal.next ?? serviceNext(refusal.code, refused);
   const located =
     refusal.where?.path === undefined || refusal.where.path === ''
       ? null
@@ -206,7 +228,7 @@ export function renderRefusal(refusal: Refusal, caps: Capabilities, json: boolea
               line: refusal.where.line ?? null,
               identity: refusal.where.identity ?? null,
             },
-      next: refusal.next,
+      next,
     };
     return { exitCode: refusal.exit, stdout: JSON.stringify(body) + '\n', stderr: '' };
   }
@@ -217,7 +239,7 @@ export function renderRefusal(refusal: Refusal, caps: Capabilities, json: boolea
       code: refusal.code,
       message: refusal.message,
       // Design row 27: the command it names stays on one line, so it is copied and run as printed.
-      next: remedyWords(refusal.next),
+      next: remedyWords(next),
     },
     { depth: 0 },
     caps,
@@ -521,12 +543,13 @@ export async function runCommand(command: CommandSpec, argv: readonly string[], 
         stderr: `Interrupted. ${next}\n`,
       };
     }
-    const raw = refusalOf(error, { command: command.name, root: args?.value('root') });
+    const refused: Refused = { command: command.name, root: args?.value('root') };
+    const raw = refusalOf(error, refused);
     const refusal =
       raw.where === null && raw.at === null
         ? new Refusal(raw.code, raw.message, raw.exit, null, raw.next, `ia ${command.name}`)
         : raw;
-    return renderRefusal(refusal, refusal.exit === 2 ? preliminary : caps, wantsJson(argv));
+    return renderRefusal(refusal, refusal.exit === 2 ? preliminary : caps, wantsJson(argv), refused);
   }
 }
 /** A refusal raised before or during parsing still has to honor §5, so `--json` is read from argv directly. */
