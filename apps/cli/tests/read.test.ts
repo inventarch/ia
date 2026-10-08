@@ -18,12 +18,15 @@ import {
 } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
-import { readInputs } from '@inventarch/db';
+import { open, readInputs } from '@inventarch/db';
+import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
 // Through the root development dependency, as the db pins an adopted revision.
 import { stableSerialize } from '@inventarch/graph';
+import { Door, readBody } from '@inventarch/runtime';
+import type { DoorOptions, DoorResponse, ReadBody } from '@inventarch/runtime';
 import { parseArguments } from '../src/args.js';
 import { findCommand } from '../src/commands.js';
-import { NOT_CERTIFIED, readRefusal } from '../src/read.js';
+import { NOT_CERTIFIED, readEnvelope, readOptions, readRefusal } from '../src/read.js';
 import { quote } from '../src/render.js';
 import { cleanup, commandsIn, nextArgv, repository, run, scratch, workspace } from './workspace-fixture.js';
 
@@ -64,6 +67,21 @@ async function read(root: string, locator: string, exitCode = 0, extra: readonly
   expect(result.stdout.slice(0, -1)).not.toContain('\n');
   return JSON.parse(result.stdout) as Envelope & RefusalBody;
 }
+/** The runtime Door's `read` of `locator` on `root`, through its own workspace reader and the manifest's mounts. */
+function doorRead(root: string, locator: string, options: DoorOptions = {}, includeRuntime = false): DoorResponse {
+  const door = new Door(root, { cache: false, ...options });
+  try {
+    return door.request({ operation: 'read', params: { locator, ...(includeRuntime ? { includeRuntime } : {}) } });
+  } finally {
+    door.close();
+  }
+}
+/** The Door's body as `ia read --json` prints one, so the two are compared byte for byte. */
+const doorEnvelope = (root: string, locator: string): unknown => {
+  const got = doorRead(root, locator);
+  if (!got.ok) throw new Error(`${got.code}: ${got.message}`);
+  return readEnvelope(got.result as ReadBody);
+};
 /** Every file below `directory` with its bytes, so a read is shown to write nothing anywhere in the workspace. */
 const tree = (directory: string): Readonly<Record<string, string>> =>
   Object.fromEntries(
@@ -263,9 +281,98 @@ it("reads an adopted record's document from the directory .ia/workspace.json bin
     body: '## Writing\n\nState the status.\n',
     certified: false,
   });
+  // The runtime Door binds the mount from the same manifest and reads the same body and digest.
+  expect(doorEnvelope(root, guide)).toEqual(await read(root, guide));
   // Nothing is written, and no directory appears under the label the mount's sources carry.
   expect(tree(root)).toEqual(before);
   expect(existsSync(resolve(root, '.ia/adopted'))).toBe(false);
+});
+
+// Plan risk "two file readers for read": the Door reads through db readWorkspaceBytes and this verb through the
+// distribution workspace reader, so the two are held to the same bodies, digests and refusals.
+it('agrees with the runtime Door read on body and digest, on link, nonportable-path and size refusals, and on a runtime placement', async () => {
+  const root = located();
+  for (const locator of [
+    LOOP_STEWARD,
+    'floor/definition/system/agent-system',
+    `${PROCEDURE}#act/Decision`,
+    `${CONTRACT}#REQ-FOUNDATION-INPUT`,
+    '.ia/src/systems/agent-system/steward.ia:3',
+    `${SPECS}:4`,
+    'work-system/contract/spec/whole-spec',
+    'work-system/contract/spec/section-spec',
+  ])
+    expect(doorEnvelope(root, locator), locator).toEqual(await read(root, locator));
+  // Refusals: both readers refuse the record's document with the same code, for the same record and document path, and
+  // give the same reason up to the reader's own words.
+  const refusesAlike = async (identity: string, source: string, cause: RegExp): Promise<void> => {
+    const verb = await read(root, identity, 3),
+      door = doorRead(root, identity);
+    expect(door, identity).toMatchObject({ ok: false, code: verb.code, identity, path: verb.where.path });
+    const reason = `The work.source of ${identity}, ${source}, cannot be read: `;
+    expect(verb.message.startsWith(reason) && !door.ok && door.message.startsWith(reason), identity).toBe(true);
+    expect(!door.ok && door.message.slice(reason.length), identity).toMatch(cause);
+  };
+  // A link: both refuse to read through the junction.
+  await refusesAlike(
+    'work-system/contract/spec/linked-spec',
+    'linked/located.md',
+    /^IA-DB-PATH-UNSAFE: Symlink\/junction traversal is not admitted: linked\/located\.md$/,
+  );
+  // Nonportable paths, which name files that exist: both refuse a decomposed (NFD) name, and a colon, which on Windows
+  // names an alternate data stream of docs/located.md and elsewhere a file of its own. And the bound: a document of
+  // exactly the workspace file reader's limit reads alike, and one byte more is refused by both.
+  const nfd = 'docs/café.md',
+    stream = 'docs/located.md:hidden';
+  writeFileSync(resolve(root, nfd), '# Decomposed\n');
+  writeFileSync(resolve(root, stream), '# Hidden\n');
+  writeFileSync(resolve(root, 'docs/bound.md'), 'b'.repeat(DISTRIBUTION_LIMITS.metadata));
+  writeFileSync(resolve(root, 'docs/oversized.md'), 'o'.repeat(DISTRIBUTION_LIMITS.metadata + 1));
+  writeFileSync(
+    resolve(root, '.ia/src/systems/work-system/records/portable.ia'),
+    [
+      '#! ia 1.0\n',
+      spec('nfd-spec', nfd),
+      spec('stream-spec', stream),
+      spec('bound-spec', 'docs/bound.md'),
+      spec('oversized-spec', 'docs/oversized.md'),
+    ].join(''),
+  );
+  for (const [name, source] of [
+    ['nfd-spec', nfd],
+    ['stream-spec', stream],
+  ] as const)
+    await refusesAlike(`work-system/contract/spec/${name}`, source, /^IA-DB-PATH-UNSAFE: Nonportable workspace path: /);
+  const bound = 'work-system/contract/spec/bound-spec';
+  expect(doorEnvelope(root, bound)).toEqual(await read(root, bound));
+  await refusesAlike(
+    'work-system/contract/spec/oversized-spec',
+    'docs/oversized.md',
+    new RegExp(`^IA-DB-SOURCE-UNAVAILABLE: File exceeds ${DISTRIBUTION_LIMITS.metadata} bytes: docs/oversized\\.md$`),
+  );
+  // A runtime placement: this verb opens every source at its default placement, so its own reader options read the
+  // handle the Door opens with the placement, and the two answer alike with and without the flag.
+  const principle = 'governance-system/governance/principle/sample-principle',
+    locations: NonNullable<DoorOptions['locations']> = {
+      '.ia/src/systems/governance-system/records/sample-principle.ia': {
+        placement: { kind: 'runtime', band: 0, reach: '' },
+        provenance: 'runtime',
+      },
+    };
+  const handle = open(root, { cache: false, locations });
+  try {
+    for (const includeRuntime of [false, true]) {
+      const verbs = readBody(handle, principle, readOptions(root, handle, includeRuntime));
+      expect(doorRead(root, principle, { locations }, includeRuntime), String(includeRuntime)).toEqual(
+        verbs.ok ? { ok: true, result: verbs.body } : verbs,
+      );
+      expect(verbs, String(includeRuntime)).toMatchObject(
+        includeRuntime ? { ok: true } : { ok: false, code: 'IA-RUNTIME-READ-PLACEMENT', identity: principle },
+      );
+    }
+  } finally {
+    handle.close();
+  }
 });
 
 it('refuses a locator no admitted record answers, a missing fragment and a malformed locator, each naming one command', async () => {

@@ -1838,6 +1838,7 @@
         "tests/composition.test.ts",
         "tests/context.test.ts",
         "tests/coordinate.test.ts",
+        "tests/door-read.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
         "tests/locator.test.ts",

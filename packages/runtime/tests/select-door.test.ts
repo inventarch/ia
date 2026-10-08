@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { KINDS } from '@inventarch/language';
 import { expect, it } from 'vitest';
 import { Door, MACHINE_PROTOCOL, context, select } from '../src/index.js';
@@ -276,11 +278,39 @@ it('describes exactly the operations and parameters the Door admits', () => {
   } finally {
     door.close();
   }
+  // A door serving version 1, as the CLI's machine routes do (plan amendment A2), names exactly the version 1 rows, and
+  // refuses a later version's operation before reading its parameters, with the bytes of 1.1.0's unknown operation.
+  const routes = new Door(workspace(), { cache: false, allowReport: true, protocol: 1 });
+  try {
+    const unknown = routes.request({ operation: 'unlisted' });
+    expect(unknown.ok ? [] : /admitted: (.*)$/.exec(unknown.message)?.[1]?.split(', ')).toEqual(
+      MACHINE_PROTOCOL.operations
+        .filter((operation) => operation.since === undefined)
+        .map((operation) => operation.name),
+    );
+    for (const operation of MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined))
+      expect(
+        routes.request({ operation: operation.name, params: { ...operation.example, unlisted: 1 } }),
+        operation.name,
+      ).toEqual({
+        ok: false,
+        code: 'IA-RUNTIME-REQUEST-INVALID',
+        message: `IA-RUNTIME-REQUEST-INVALID: Unknown operation '${operation.name}'; admitted: scope, context, select, get, records, resolve, search, traverse, report`,
+      });
+  } finally {
+    routes.close();
+  }
+  for (const protocol of [0, 1.5, MACHINE_PROTOCOL.version + 1])
+    expect(() => new Door(workspace(), { cache: false, protocol }), String(protocol)).toThrow(TypeError);
 }, 30_000);
 
-/** spec-0012 VER-01: the parameter digest each description version carries. */
+/**
+ * spec-0012 VER-01: the parameter digest each description version carries, over the operations that version describes:
+ * version 1's nine, frozen, and every later version's over its own rows and the rows before it.
+ */
 const PARAMS_DIGESTS: Readonly<Record<number, string>> = {
   1: 'b92e71f8d59eadd34034974eb77cdc868ccd33b34a6c3c73fe2b2999707f7206',
+  2: '1b22c378e83759c74791989b537898ecb3265754cb3bfbf32730469177e1f9f4',
 };
 it("bumps the protocol description version whenever an operation's parameters change", () => {
   const strip = (value: unknown): unknown =>
@@ -293,11 +323,42 @@ it("bumps the protocol description version whenever an operation's parameters ch
               .map(([key, child]) => [key, strip(child)]),
           )
         : value;
-  const digest = createHash('sha256')
-    .update(JSON.stringify(MACHINE_PROTOCOL.operations.map((operation) => [operation.name, strip(operation.params)])))
-    .digest('hex');
+  const digest = (version: number): string =>
+    createHash('sha256')
+      .update(
+        JSON.stringify(
+          MACHINE_PROTOCOL.operations
+            .filter((operation) => (operation.since ?? 1) <= version)
+            .map((operation) => [operation.name, strip(operation.params)]),
+        ),
+      )
+      .digest('hex');
   // Rewording a description keeps the digest; a changed key, type or closed set changes it and needs a new version.
-  expect(digest, "An operation's params changed: bump MACHINE_PROTOCOL.version and pin its digest here").toBe(
-    PARAMS_DIGESTS[MACHINE_PROTOCOL.version],
+  expect(digest(1), 'A version 1 operation changed its params, which the frozen version 1 rows never do').toBe(
+    PARAMS_DIGESTS[1],
   );
+  expect(
+    digest(MACHINE_PROTOCOL.version),
+    "An operation's params changed: bump MACHINE_PROTOCOL.version and pin its digest here",
+  ).toBe(PARAMS_DIGESTS[MACHINE_PROTOCOL.version]);
+  expect(Math.max(...Object.keys(PARAMS_DIGESTS).map(Number))).toBe(MACHINE_PROTOCOL.version);
+});
+
+// The operator's additive constraint (plan amendment A2): a later version appends rows, so the nine version 1 rows keep
+// the bytes 1.1.0 exported. The golden holds the rows as tag v1.1.0 exports them: it was written from a build whose
+// src/machine-protocol.ts was the tag's, unchanged, and whose dist/machine-protocol.js was the published 1.1.0 file's.
+it('keeps the nine version 1 rows byte-identical to 1.1.0 and marks each later row with its version', () => {
+  const golden = readFileSync(resolve(import.meta.dirname, 'golden/machine-protocol-v1.json'), 'utf8'),
+    rows = MACHINE_PROTOCOL.operations;
+  expect(JSON.stringify(rows.slice(0, 9), null, 2) + '\n').toBe(golden);
+  // No version 1 row carries the key, not even undefined, which JSON would not show.
+  expect(rows.slice(0, 9).every((operation) => !('since' in operation))).toBe(true);
+  const since = rows.slice(9).map((operation) => operation.since!);
+  expect(since.length).toBeGreaterThan(0);
+  expect(
+    since.every(
+      (version, index) => version >= 2 && version <= MACHINE_PROTOCOL.version && version >= (since[index - 1] ?? 2),
+    ),
+  ).toBe(true);
+  expect(since.at(-1)).toBe(MACHINE_PROTOCOL.version);
 });

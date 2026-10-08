@@ -78,6 +78,80 @@ export function safePath(root: string, path: string): string {
   }
   return current;
 }
+/**
+ * The portable path rule the distribution workspace file reader (`ia read`'s) applies, over a canonical workspace-relative
+ * path, so the two readers admit the same paths: NFC text of at most 1024 code units, with no backslash, control character
+ * or any of `<>:"|?*` (on Windows a colon names a file's alternate data stream), and no segment that ends in a dot or a
+ * space or names a reserved device.
+ */
+const portable = (path: string): boolean =>
+  path !== '' &&
+  path === path.normalize('NFC') &&
+  path.length <= 1024 &&
+  !/[\\\u0000-\u001f<>:"|?*]/.test(path) &&
+  path.split('/').every((part) => !/[. ]$/.test(part) && !/^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(part));
+/**
+ * D01a: the bytes of the workspace file at the workspace-relative `path`, bounded and checked as package source capture
+ * reads a source file. A path that escapes the workspace is IA-DB-PATH-UNSAFE with no `path`, as it has no canonical one;
+ * a nonportable path, a symbolic link or junction on the way, or anything but a regular file with one link is
+ * IA-DB-PATH-UNSAFE; a missing or unreadable file, or one of more than `limit` bytes, is IA-DB-SOURCE-UNAVAILABLE, and one
+ * replaced or resized while it is read IA-DB-SOURCE-CHANGED. Each of those errors' `path` is the canonical path, the only
+ * path its message names; an invalid root is IA-DB-ROOT-INVALID. It reads one file a host names, such as the document a
+ * record's source locator names (runtime `Door` `read`), and admits nothing.
+ */
+export function readWorkspaceBytes(root: string, path: string, limit: number): Uint8Array {
+  if (!Number.isSafeInteger(limit) || limit < 0) throw new TypeError('A byte limit is a nonnegative safe integer');
+  const relative = relativePath(path);
+  if (!portable(relative)) throw new DbError('IA-DB-PATH-UNSAFE', `Nonportable workspace path: ${relative}`, relative);
+  const canonical = workspaceRoot(root);
+  try {
+    let file: string;
+    try {
+      file = safePath(canonical, relative);
+    } catch (error) {
+      // safePath's refusal names the link by its absolute location; this one names the canonical path alone.
+      if (error instanceof DbError)
+        throw new DbError(error.code, `Symlink/junction traversal is not admitted: ${relative}`, relative);
+      throw error;
+    }
+    const stat = lstatSync(file);
+    if (!stat.isFile() || stat.nlink !== 1)
+      throw new DbError('IA-DB-PATH-UNSAFE', `Expected an unaliased regular file: ${relative}`, relative);
+    if (stat.size > limit)
+      throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `File exceeds ${limit} bytes: ${relative}`, relative);
+    // Bound allocation and reading even if a concurrent writer grows the file, as package source capture does.
+    const fd = openSync(file, 'r'),
+      buffer = Buffer.alloc(stat.size + 1);
+    let length = 0;
+    try {
+      const opened = fstatSync(fd);
+      if (!opened.isFile() || opened.dev !== stat.dev || opened.ino !== stat.ino)
+        throw new DbError('IA-DB-SOURCE-CHANGED', `File replaced during read: ${relative}`, relative);
+      while (length < buffer.length) {
+        const count = readSync(fd, buffer, length, buffer.length - length, null);
+        if (!count) break;
+        length += count;
+      }
+    } finally {
+      closeSync(fd);
+    }
+    if (length !== stat.size)
+      throw new DbError('IA-DB-SOURCE-CHANGED', `File changed during read: ${relative}`, relative);
+    return buffer.subarray(0, length);
+  } catch (error) {
+    if (error instanceof DbError) throw error;
+    // A path through a file is missing too: ENOENT on Windows, ENOTDIR on POSIX. Only the error code is kept, as a
+    // filesystem message names the absolute path.
+    const code = (error as NodeJS.ErrnoException).code;
+    throw new DbError(
+      'IA-DB-SOURCE-UNAVAILABLE',
+      code === 'ENOENT' || code === 'ENOTDIR'
+        ? `Missing file ${relative}`
+        : `Cannot read ${relative}${typeof code === 'string' ? ` (${code})` : ''}`,
+      relative,
+    );
+  }
+}
 function location(value: Location): Location {
   if (
     !isPlacementKind(value.placement.kind) ||

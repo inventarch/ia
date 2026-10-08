@@ -2,10 +2,13 @@ import { KINDS } from '@inventarch/language';
 import type { ConditionAxis, EdgeReference, Kind, Phase } from '@inventarch/language';
 import { GraphUsageError, validateCoordinate } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
-import { DbError, open } from '@inventarch/db';
+import { DbError, adoptedBindings, open, readWorkspaceBytes } from '@inventarch/db';
 import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
+import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
 import { context } from './context.js';
 import { RuntimeError } from './errors.js';
+import { readBody } from './locator.js';
+import { MACHINE_PROTOCOL } from './machine-protocol.js';
 import { select } from './select.js';
 import { freeze } from './types.js';
 import type { Budget, ContextRequest, Refusal } from './types.js';
@@ -13,6 +16,17 @@ import type { Budget, ContextRequest, Refusal } from './types.js';
 export interface DoorOptions extends OpenOptions {
   readonly boundary?: Omit<ScopeRequest, 'within'>;
   readonly allowReport?: boolean;
+  /**
+   * The reader `read` hands the canonical workspace-relative path of a document to (`ReadBodyOptions.read`); by
+   * default db `readWorkspaceBytes` over the door's root, bounded as the CLI's workspace file reader is.
+   */
+  readonly read?: (path: string) => Uint8Array;
+  /**
+   * The MACHINE_PROTOCOL version the door serves, by default the table's: an operation a later version adds (its row's
+   * `since`) is refused as an unknown operation, and that refusal names only the operations served, so a door serving
+   * version 1, as the CLI's machine routes do (plan amendment A2), refuses `read` with the bytes 1.1.0's door did.
+   */
+  readonly protocol?: number;
 }
 export type DoorResponse = { readonly ok: true; readonly result: unknown } | Refusal;
 type Params = Record<string, unknown>;
@@ -59,6 +73,8 @@ function reference(value: unknown): EdgeReference {
 }
 const BINDINGS = ['within', 'root', 'phase', 'revision'];
 const CONTEXT = ['within', 'text', 'coordinate', 'subject', 'follow', 'revision'];
+/** The bound on one document `read` returns: the CLI's workspace file reader's, so the two readers agree. */
+const READ_LIMIT = DISTRIBUTION_LIMITS.metadata;
 /** MACHINE_PROTOCOL version 1 is frozen: get and records answer without graph G13's per-record digest. */
 const versionOne = ({ digest: _digest, ...record }: Node): Omit<Node, 'digest'> => record;
 export class Door {
@@ -66,13 +82,35 @@ export class Door {
   #initial: Scope;
   #tokens = new Set<string>();
   #allowReport: boolean;
+  #protocol: number;
+  #read: (path: string) => Uint8Array;
+  #mounts: ReadonlyMap<string, string>;
   #closed = false;
   constructor(root: string, options: DoorOptions = {}) {
+    const protocol = options.protocol ?? MACHINE_PROTOCOL.version;
+    if (!Number.isSafeInteger(protocol) || protocol < 1 || protocol > MACHINE_PROTOCOL.version)
+      throw new TypeError(`A door serves a MACHINE_PROTOCOL version from 1 to ${MACHINE_PROTOCOL.version}`);
     this.#handle = open(root, options);
     this.#initial = this.#handle.resolveScope(options.boundary);
     this.#tokens.add(this.#initial.token);
     this.#allowReport = options.allowReport ?? false;
+    this.#protocol = protocol;
+    const canonical = this.#handle.root;
+    this.#read = options.read ?? ((path) => readWorkspaceBytes(canonical, path, READ_LIMIT));
+    // The directory each adopted mount's tree label is bound to, bound once from the manifest `open` has just read, so
+    // the mounts match the handle's snapshot as `ia read`'s match its session. Explicit captures replace the manifest
+    // and name no directory, and a door that serves no `read` binds none.
+    this.#mounts =
+      options.adopted === undefined && protocol >= 2
+        ? new Map(adoptedBindings(canonical).map((binding) => [binding.tree, binding.path]))
+        : new Map();
     Object.freeze(this);
+  }
+  /** The refusal of an operation this door does not serve, naming the ones it does in table order. */
+  #unknown(operation: string): never {
+    return invalid(
+      `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}${this.#protocol >= 2 ? ', read' : ''}`,
+    );
   }
   #within(params: Params): string {
     const token = params['within'] === undefined ? this.#initial.token : string(params['within'], 'within');
@@ -207,10 +245,25 @@ export class Door {
           if (!this.#allowReport) invalid('This host has not enabled privileged report inspection');
           result = this.#handle.report;
           break;
+        case 'read': {
+          // MACHINE_PROTOCOL version 2: always read through a token, so a locator outside the scope reads as one plain
+          // refusal that discloses nothing beyond it (R12). A door serving version 1 knows no such operation.
+          if (this.#protocol < 2) this.#unknown(operation);
+          keys(params, ['within', 'locator', 'includeRuntime']);
+          if (params['includeRuntime'] !== undefined && typeof params['includeRuntime'] !== 'boolean')
+            invalid('includeRuntime must be a boolean');
+          const got = readBody(this.#handle, string(params['locator'], 'locator'), {
+            within: this.#within(params),
+            read: this.#read,
+            mounts: this.#mounts,
+            includeRuntime: params['includeRuntime'] === true,
+          });
+          if (!got.ok) return got;
+          result = got.body;
+          break;
+        }
         default:
-          return invalid(
-            `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}`,
-          );
+          return this.#unknown(operation);
       }
       return freeze({ ok: true, result });
     } catch (error) {

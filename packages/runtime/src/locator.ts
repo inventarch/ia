@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { isPhase, isPrimitive, isRequirementId } from '@inventarch/language';
 import { canonicalRoot } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
-import { sourceTree } from '@inventarch/db';
+import { DbError, sourceTree } from '@inventarch/db';
 import type { ReadHandle } from '@inventarch/db';
 import { RUNTIME_CODES, RuntimeError } from './errors.js';
 import type { RuntimeCode } from './errors.js';
@@ -68,6 +68,13 @@ export interface ReadBodyOptions {
   readonly mounts?: ReadonlyMap<string, string>;
   /** Read a record at runtime placement (band 0), which is refused otherwise. */
   readonly includeRuntime?: boolean;
+  /**
+   * The scope token every lookup reads through, `get` and `records` alike, so the scope bounds the read by identity: a
+   * locator no admitted record in it answers gets one plain IA-RUNTIME-READ-UNADMITTED, `The locator is not in this
+   * scope`, which names no path, line, identity or refused record, as what lies outside a scope is not disclosed. Without
+   * it the read is in the handle's root view and says what the workspace's sources hold.
+   */
+  readonly within?: string;
 }
 export interface ReadBody {
   /** The locator as given. */
@@ -247,10 +254,22 @@ function sourceOf(node: Node): { readonly field: string; readonly value: string 
 const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
 const refuse = (code: ReadCode, message: string, where: Omit<ReadRefusal, 'ok' | 'code' | 'message'>): ReadRefusal =>
   freeze({ ok: false, code, message, ...where });
+/** A scoped read's one refusal for a locator no admitted record in the scope answers, whatever lies outside it. */
+const SCOPED_MISS: ReadRefusal = refuse('IA-RUNTIME-READ-UNADMITTED', 'The locator is not in this scope', {});
+/** The record `identity` names in the scope `within`, or undefined for one outside it; a token failure keeps its code. */
+function scopedGet(handle: ReadHandle, identity: string, within: string): Node | undefined {
+  try {
+    return handle.get(identity, { within });
+  } catch (error) {
+    if (error instanceof DbError && error.code === 'IA-DB-OUT-OF-SCOPE') return undefined;
+    throw error;
+  }
+}
 
 /**
- * The body behind `locator` in the root view of `handle`, or one refusal: IA-RUNTIME-READ-UNADMITTED when no admitted
- * record answers it, IA-RUNTIME-READ-PLACEMENT for a record at runtime placement unless `includeRuntime` is set,
+ * The body behind `locator` in the root view of `handle`, or in the scope `within` names, or one refusal:
+ * IA-RUNTIME-READ-UNADMITTED when no admitted record answers it (in a scope, the plain `SCOPED_MISS`),
+ * IA-RUNTIME-READ-PLACEMENT for a record at runtime placement unless `includeRuntime` is set,
  * IA-RUNTIME-READ-FRAGMENT when the record has no cell or requirement at the fragment, and IA-RUNTIME-READ-UNREACHABLE
  * when its source locator names a file outside the workspace (or the record's tree), a record of an adopted mount
  * `mounts` binds to no directory, a file the host's reader does not return, bytes that are not UTF-8, or an anchor that
@@ -265,6 +284,7 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
       'IA-RUNTIME-REQUEST-INVALID',
       `Locator '${locator}' is not <identity>, <identity>#<phase>/<Primitive>, <identity>#<REQ-ID> or <path>:<line>`,
     );
+  const { within } = options;
   let node: Node | undefined;
   if (parsed.form === 'line') {
     let path: string | undefined;
@@ -274,9 +294,10 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
       path = undefined;
     }
     node = handle
-      .records()
+      .records(within === undefined ? undefined : { within })
       .filter((r) => r.source.path === path && r.source.line <= parsed.line && parsed.line <= r.source.endLine)
       .sort((a, b) => a.source.endLine - a.source.line - (b.source.endLine - b.source.line))[0];
+    if (node === undefined && within !== undefined) return SCOPED_MISS;
     if (node === undefined) {
       const at = path ?? parsed.path,
         file = handle.refused.some((r) => r.path === path)
@@ -298,6 +319,9 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
         { path: at, line: parsed.line, ...(file === undefined ? {} : { file }) },
       );
     }
+  } else if (within !== undefined) {
+    node = scopedGet(handle, parsed.identity, within);
+    if (node === undefined) return SCOPED_MISS;
   } else {
     node = handle.get(parsed.identity);
     // A source holding the identity whose record admission refused is in the workspace's sources; only an identity no
