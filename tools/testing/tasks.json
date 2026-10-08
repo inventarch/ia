@@ -1843,6 +1843,7 @@
         "tests/locator.test.ts",
         "tests/loop.test.ts",
         "tests/mandate-modes.test.ts",
+        "tests/next.test.ts",
         "tests/publication.test.ts",
         "tests/scope-key.test.ts",
         "tests/select-door.test.ts",

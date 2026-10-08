@@ -1,5 +1,5 @@
 import { REQUIREMENT_KINDS } from '@inventarch/language';
-import type { CompiledChild, CompiledField, CompiledValue, Variant } from '@inventarch/language';
+import type { CompiledChild, CompiledField, CompiledRecord, CompiledValue, Variant } from '@inventarch/language';
 import { conditionHolds } from '@inventarch/graph';
 import type { Coordinate, Node } from '@inventarch/graph';
 import type { Clause } from './types.js';
@@ -29,6 +29,18 @@ function childrenText(children: readonly CompiledChild[]): string {
         .join(' ');
     })
     .join('\n');
+}
+/**
+ * The text the record states unconditionally at `field`, a `section.key` path: a text, string or scalar value. Undefined
+ * when the record does not state it, states it only under a condition, or states a value that is not text.
+ */
+export function statedText(node: CompiledRecord, field: string): string | undefined {
+  const [section, key] = field.split('.');
+  const stated = node.sections
+    .filter((s) => s.name === section)
+    .flatMap((s) => s.fields)
+    .find((f): f is CompiledField => 'key' in f && f.key === key && f.when === undefined && 'text' in f.value);
+  return stated === undefined || !('text' in stated.value) ? undefined : stated.value.text;
 }
 /** The record's `says` and `answers`, rendered as recordText renders its meaning, or undefined when it has neither. */
 export function purposeOf(node: Node): string | undefined {

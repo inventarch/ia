@@ -1,0 +1,84 @@
+#! ia 1.0
+
+@observation schema-checked
+  meaning
+    says "The fixture schema was checked at its current digest; the schema task names this observation as its exit evidence."
+    answers "Is the fixture schema written?"
+  evidence
+    origin check
+    actor "ia-compliance@1.1.0"
+    observed-at "2026-10-08T00:00:00Z"
+    captured-at "2026-10-08T00:00:00Z"
+    workspace "delivery"
+    locator "work-system/definition/task/schema"
+    revision "92c48b100d8197030bed67cf3f31716e53c7d69e9dbe80baa32818f1f5de60c3"
+    bundle ".ia/learning/observations/schema-checked.json"
+    digest "0000000000000000000000000000000000000000000000000000000000000000"
+    availability unavailable
+    subject-revision "92c48b100d8197030bed67cf3f31716e53c7d69e9dbe80baa32818f1f5de60c3"
+    evaluator "ia-compliance@1.1.0"
+    move Verification
+    verdict success
+  interpretation
+    applies "The schema task at the named subject revision only."
+    limits "A fixture; no execution is attested."
+    reason "The delivery view reads exit evidence a task names in work.exit-evidence."
+    basis inference
+  retention
+    status retained
+
+@observation guide-checked
+  meaning
+    says "The fixture guide was checked, at a digest the guide no longer has."
+    answers "Was the fixture guide written?"
+  evidence
+    origin check
+    actor "ia-compliance@1.1.0"
+    observed-at "2026-10-08T00:00:00Z"
+    captured-at "2026-10-08T00:00:00Z"
+    workspace "delivery"
+    locator "work-system/definition/task/guide"
+    revision "1111111111111111111111111111111111111111111111111111111111111111"
+    bundle ".ia/learning/observations/guide-checked.json"
+    digest "0000000000000000000000000000000000000000000000000000000000000000"
+    availability unavailable
+    subject @task guide
+    subject-revision "1111111111111111111111111111111111111111111111111111111111111111"
+    evaluator "ia-compliance@1.1.0"
+    move Verification
+    verdict success
+  interpretation
+    applies "The guide task at the named subject revision only."
+    limits "A fixture; the subject revision is not the guide's current digest."
+    reason "The delivery view reads an observation at another digest as no exit evidence."
+    basis inference
+  retention
+    status retained
+
+@observation examples-checked
+  meaning
+    says "The fixture examples were checked at their current digest by the agent that owns the task."
+    answers "Are the fixture examples written?"
+  evidence
+    origin check
+    actor "fixture owner"
+    observed-at "2026-10-08T00:00:00Z"
+    captured-at "2026-10-08T00:00:00Z"
+    workspace "delivery"
+    locator "work-system/definition/task/examples"
+    revision "b72afbda60811583ed998f5a37373669db4bd6dca40fa1de217533be73135858"
+    bundle ".ia/learning/observations/examples-checked.json"
+    digest "0000000000000000000000000000000000000000000000000000000000000000"
+    availability unavailable
+    subject @task examples
+    subject-revision "b72afbda60811583ed998f5a37373669db4bd6dca40fa1de217533be73135858"
+    evaluator "agent-system/binding/agent/fixture-owner"
+    move Verification
+    verdict success
+  interpretation
+    applies "The examples task at the named subject revision only."
+    limits "A fixture; the evaluator is the task's own owner-agent, so the evidence is self-attributed."
+    reason "The delivery view marks exit evidence its task's owner-agent recorded as self-attributed."
+    basis inference
+  retention
+    status retained

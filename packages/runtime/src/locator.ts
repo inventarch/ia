@@ -1,13 +1,12 @@
 import { createHash } from 'node:crypto';
 import { isPhase, isPrimitive, isRequirementId } from '@inventarch/language';
-import type { CompiledField } from '@inventarch/language';
 import { canonicalRoot } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
 import { sourceTree } from '@inventarch/db';
 import type { ReadHandle } from '@inventarch/db';
 import { RUNTIME_CODES, RuntimeError } from './errors.js';
 import type { RuntimeCode } from './errors.js';
-import { bodyOf } from './render.js';
+import { bodyOf, statedText } from './render.js';
 import { freeze } from './types.js';
 
 /**
@@ -205,12 +204,8 @@ export function markdownSection(text: string, anchor: string): string | undefine
 function sourceOf(node: Node): { readonly field: string; readonly value: string } | undefined {
   const field = SOURCE_LOCATORS[node.discriminator];
   if (field === undefined) return undefined;
-  const [section, key] = field.split('.');
-  const stated = node.sections
-    .filter((s) => s.name === section)
-    .flatMap((s) => s.fields)
-    .find((f): f is CompiledField => 'key' in f && f.key === key && f.when === undefined && 'text' in f.value);
-  return stated === undefined || !('text' in stated.value) ? undefined : { field, value: stated.value.text };
+  const value = statedText(node, field);
+  return value === undefined ? undefined : { field, value };
 }
 const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
 const refuse = (code: ReadCode, message: string, where: Omit<ReadRefusal, 'ok' | 'code' | 'message'>): ReadRefusal =>

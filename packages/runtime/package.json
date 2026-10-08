@@ -118,6 +118,10 @@
       "types": "./dist/mentions.d.ts",
       "default": "./dist/mentions.js"
     },
+    "./internal/next": {
+      "types": "./dist/next.d.ts",
+      "default": "./dist/next.js"
+    },
     "./internal/publication": {
       "types": "./dist/publication.d.ts",
       "default": "./dist/publication.js"
@@ -279,6 +283,10 @@
       "./internal/mentions": {
         "types": "./dist/mentions.d.ts",
         "default": "./dist/mentions.js"
+      },
+      "./internal/next": {
+        "types": "./dist/next.d.ts",
+        "default": "./dist/next.js"
       },
       "./internal/publication": {
         "types": "./dist/publication.d.ts",
