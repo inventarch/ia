@@ -42,6 +42,15 @@ A note is one JSON file under `releases/pending/`. The file name is the change i
 A version is published when its immutable `v<version>` tag exists. The tag is created only after registry verification. `pnpm release:version --write` behaves differently in each state.
 
 - **Published.** It makes the tagged commit the new baseline. It applies the largest pending bump to the published version and consumes the notes into `releases/changesets/<version>.json`. With only `none` notes pending, it waits.
+
+  First it checks that npm has the published cohort. That cohort is every package the changeset at the tag lists, by npm name, including packages moved, renamed or removed since. A missing one refuses as an unfinished publication, naming the packages npm lacks. npm isn't asked about a package that changeset doesn't list; it publishes with the next version.
+
+  Each package's `previous` version follows its npm name, wherever its directory is now:
+  - A package the tag lists gets the published version.
+  - A package that returns after a release dropped it gets the newest version an earlier changeset lists it at.
+  - A package no changeset lists is new: its `previous` is `null`, and it publishes first, with the other new names.
+
+  A tag whose commit has no changeset, or one that lists no packages, falls back to every current package and to the manifest at the same path, which must name the same package.
 - **Prepared but untagged.** The release workflow waits (`--published-only`), because that release may already be publishing from its own commit. A maintainer who abandons or extends an unpublished release can run `pnpm release:version --write` locally. That amends it with the pending notes, renaming it if they raise the bump. Pass `--refresh` to re-collect an unpublished release whose coverage went stale without new notes.
 
 Each write updates every cohort `package.json`, the VS Code extension manifest and its dependency notices, each system's `npmVersion` in `system-package-policy.json`, and `releases/current.json`. It then writes the changeset with exact file coverage, regenerates `CHANGELOG.md`, deletes the consumed notes and reseals the public inputs. Packages that no note names receive a generated version-only entry. Changed files outside every package are accounted for by an internal maintenance entry, which the changelog omits. A changed package that no note names refuses before anything is written. The write requires a clean checkout and stages every file it changes. If a later step fails, it restores the files it touched. The release workflow uses only Node built-ins and Git, so it installs no dependencies while it holds a write token.

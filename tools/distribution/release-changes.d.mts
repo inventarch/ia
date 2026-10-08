@@ -50,6 +50,13 @@ export declare function changesetPath(version: string): string;
 export declare function releaseTag(version: string): string;
 export declare function releasePolicy(root: string): ReleasePolicy;
 export declare function publishedCommit(root: string, version: string): string | null;
+export declare function publishedCohort(root: string, baseline: ReleasePolicy['baseline']): string[] | null;
+export declare function baselineVersion(
+  root: string,
+  baseline: ReleasePolicy['baseline'],
+  cohort: string[] | null,
+  pkg: { name: string; directory: string },
+): string | null;
 export declare function trackedChanges(
   root: string,
   policy: Pick<ReleasePolicy, 'version' | 'baseline'>,
