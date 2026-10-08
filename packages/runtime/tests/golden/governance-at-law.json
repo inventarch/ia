@@ -64,6 +64,10 @@
     }
   ],
   "pointerTallies": [],
+  "appliesByWord": [],
+  "appliesByWordTallies": [],
+  "cells": [],
+  "mandates": [],
   "frontier": [
     {
       "system": "compliance-system",
@@ -85,9 +89,11 @@
     "loaded": 2,
     "rules": 0,
     "pointers": 1,
+    "appliesByWord": 0,
     "frontier": 1,
     "truncatedLoaded": 0,
-    "truncatedPointers": 0
+    "truncatedPointers": 0,
+    "truncatedAppliesByWord": 0
   },
   "widening": {
     "deeper": {

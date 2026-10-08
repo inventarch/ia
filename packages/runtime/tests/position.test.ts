@@ -7,7 +7,7 @@ import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
 import { K0, normalizeScopeKey, positionBody, resolveScopeKey } from '../src/index.js';
 import type { LoadedRecord, PositionBody, ScopeKey } from '../src/index.js';
-import { database, law, lawId, lawPath, methodPath, put, workspace } from './workspace.js';
+import { database, declare, law, lawId, lawPath, methodPath, put, workspace, workspacePath } from './workspace.js';
 
 // R15 (position-and-projection §1, §6 and §7, design item 10; decision scope-key-caps): body(K) over the conformance
 // corpus. The golden bodies are regenerated only by `node packages/runtime/tests/golden/write.mjs`, which sets
@@ -17,7 +17,6 @@ const foundation = 'workspace-system/definition/workspace/foundation-workspace',
   check = 'compliance-system/check/gate/instance-schema-check',
   contract = 'compliance-system/contract/signature/foundation-authoring-contract',
   procedure = 'governance-system/definition/procedure/sample-procedure',
-  workspacePath = '.ia/src/systems/workspace-system/records/foundation-workspace.ia',
   records = '.ia/src/systems/governance-system/records';
 const GOLDEN: Readonly<Record<string, Partial<ScopeKey>>> = {
   k0: {},
@@ -28,18 +27,6 @@ const GOLDEN: Readonly<Record<string, Partial<ScopeKey>>> = {
 const bodyOf = (db: Handle, within: string, partial: Partial<ScopeKey> = {}): PositionBody =>
   positionBody(db, within, resolveScopeKey(db, within, normalizeScopeKey(partial)));
 const ids = (entries: readonly object[]) => entries.map((entry) => ('identity' in entry ? entry.identity : undefined));
-/** The foundation workspace declaring `sources`, so the records under them are its capture members. */
-function declare(root: string, sources: readonly string[]): void {
-  const text = readFileSync(resolve(root, workspacePath), 'utf8');
-  put(
-    root,
-    workspacePath,
-    text.replace(
-      '  relationships\n',
-      `    sources [${sources.map((s) => JSON.stringify(s)).join(', ')}]\n  relationships\n`,
-    ),
-  );
-}
 
 it('matches the golden bodies of K0 and three keys over the conformance corpus, the revision asserted apart', () => {
   const db = database(workspace()),
@@ -82,16 +69,19 @@ it('gives K0 the pointer and tally shape: the seat alone loaded, the N system po
     },
   ]);
   expect(body.pointers.some((p) => p.identity === contract)).toBe(false);
-  // Budget 0 loads none of the six seeds the composition holds; each is a pointer.
+  // Budget 0 loads none of the six seeds the composition holds; each is a pointer. The sample principle, whose
+  // subject-kind is the workspace's kind, applies by word (R17).
   expect(body.counts).toEqual({
     composition: 6,
     seeds: 7,
     loaded: 1,
     rules: 0,
     pointers: 6,
+    appliesByWord: 1,
     frontier: 1,
     truncatedLoaded: 6,
     truncatedPointers: 0,
+    truncatedAppliesByWord: 0,
   });
   // The conformance workspace declares no sources: no capture members, named, and no refusal.
   expect(body.unknowns).toEqual([

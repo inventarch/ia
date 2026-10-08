@@ -205,6 +205,72 @@
     }
   ],
   "pointerTallies": [],
+  "appliesByWord": [
+    {
+      "identity": "governance-system/governance/convention/sample-convention",
+      "word": "convention",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "subject",
+        "label": "field match, not a row",
+        "matches": [
+          {
+            "field": "subject.subject-word",
+            "value": "contract",
+            "record": "compliance-system/contract/signature/foundation-authoring-contract"
+          },
+          {
+            "field": "subject.subject-kind",
+            "value": "contract",
+            "record": "compliance-system/contract/signature/foundation-authoring-contract"
+          }
+        ]
+      },
+      "reseat": {
+        "seat": "governance-system/governance/convention/sample-convention",
+        "shape": "sequence",
+        "phase": "plan",
+        "depth": 1,
+        "budget": 16
+      }
+    },
+    {
+      "identity": "governance-system/governance/principle/sample-principle",
+      "word": "principle",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "subject",
+        "label": "field match, not a row",
+        "matches": [
+          {
+            "field": "subject.subject-kind",
+            "value": "definition",
+            "record": "workspace-system/definition/workspace/foundation-workspace"
+          }
+        ]
+      },
+      "reseat": {
+        "seat": "governance-system/governance/principle/sample-principle",
+        "shape": "sequence",
+        "phase": "plan",
+        "depth": 1,
+        "budget": 16
+      }
+    }
+  ],
+  "appliesByWordTallies": [],
+  "cells": [],
+  "mandates": [],
   "frontier": [],
   "unknowns": [
     {
@@ -219,9 +285,11 @@
     "loaded": 2,
     "rules": 0,
     "pointers": 10,
+    "appliesByWord": 2,
     "frontier": 0,
     "truncatedLoaded": 0,
-    "truncatedPointers": 0
+    "truncatedPointers": 0,
+    "truncatedAppliesByWord": 0
   },
   "widening": {
     "reseat": {

@@ -1,9 +1,11 @@
-import { SEVERITIES, SHAPE_ROWS } from '@inventarch/language';
-import type { Band, Kind, Lane, Predicate } from '@inventarch/language';
+import { PHASES, SEVERITIES, SHAPE_ROWS } from '@inventarch/language';
+import type { Band, Kind, Lane, Phase, Predicate } from '@inventarch/language';
 import { digest, effectiveSeverity, laneOf, reaches } from '@inventarch/graph';
-import type { ClaimMatch, DirectedEdgeRow, DirectedRow } from '@inventarch/graph';
+import type { ClaimMatch, DirectedEdgeRow, DirectedRow, Node } from '@inventarch/graph';
 import type { ReadHandle } from '@inventarch/db';
 import { RuntimeError } from './errors.js';
+import { fragmentText } from './locator.js';
+import { statedText } from './render.js';
 import { SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey } from './scope-key.js';
 import type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
 import { freeze } from './types.js';
@@ -16,13 +18,16 @@ import { freeze } from './types.js';
  * One scope key, resolved through one scope token, gives one body: the seat, the composition one level from it at cost
  * 0, the seeds the shape's kind or lane focus picks from it, the records reached by hops along the shape's predicate
  * focus, the blocking governance reserved outside the budget, the loaded set cut at the budget, the pointers and their
- * tallies, the frontier one hop past the loaded set, the unknowns, the counts and the two widening keys. It is a pure
- * function of the key and the admitted records the token reads, and only a whole-workspace token (db PT5) also reads
- * the admission findings it alone may disclose: no root path, token, time, request text or capture state enters it,
- * and nothing is written. Record bodies are never in it; `ia read` fetches one on demand. A record at runtime placement
- * (band 0) is never entered, listed, tallied or reached through (design §4, excluded; decision evidence-placement:
- * runtime-band evidence is admitted below authored and must not move what agents are given). The revision, the
- * database's seat and root decisions and admission's findings still read every placement (R15, R16).
+ * tallies, the rules and playbooks that apply by word to the loaded and reserved records and their playbooks' cells
+ * (R17), the mandates that govern the seat, the frontier one hop past the loaded set, the unknowns, the counts and the
+ * two widening keys.
+ * It is a pure function of the key and the admitted records the token reads, and only a whole-workspace token (db PT5)
+ * also reads the admission findings it alone may disclose: no root path, token, time, request text or capture state
+ * enters it, and nothing is written. Record bodies are never in it, only the cells delivered; `ia read` fetches a body
+ * on demand. A record at runtime placement (band 0) is never entered, listed, tallied or reached through (design §4,
+ * excluded; decision evidence-placement: runtime-band evidence is admitted below authored and must not move what agents
+ * are given). The revision, the database's seat and root decisions and admission's findings still read every placement
+ * (R15, R16).
  */
 
 /** One way an entry was first reached: a row, a field reference, or one of the composition classes of design §7. */
@@ -44,7 +49,23 @@ export type PositionVia =
   /** A claimant of a location seat, with each of its selections that selects the path (graph G06c). */
   | { readonly by: 'claim'; readonly matches: readonly ClaimMatch[] }
   /** The record a location seat is declared at, and the rule that declares it (db D02b). */
-  | { readonly by: 'declared-at'; readonly rule: 'system' | 'root' | 'repository' };
+  | { readonly by: 'declared-at'; readonly rule: 'system' | 'root' | 'repository' }
+  /**
+   * A field match of design row 18, not a row: the entry's `subject.subject-word` names the word, or its
+   * `subject.subject-kind` the kind, of a record. It costs no hop and claims no relation or consent (R17).
+   */
+  | { readonly by: 'subject'; readonly label: 'field match, not a row'; readonly matches: readonly SubjectMatch[] };
+/** One subject field a rule or playbook states that the word or kind of a record answers (design row 18, R17). */
+export interface SubjectMatch {
+  readonly field: 'subject.subject-word' | 'subject.subject-kind';
+  /** The word or kind the field states. */
+  readonly value: string;
+  /**
+   * The first record of that word or kind: in `loaded` order, then `rules` order, for an applies-by-word entry, and
+   * among the candidates, the seat first and then by identity, for a rule reserved by word.
+   */
+  readonly record: string;
+}
 /** The pointer 9-tuple of design §7: (id, word, kind, lane, owner system, steward, band, hop, reaching row/field). */
 export interface PositionRecord {
   readonly identity: string;
@@ -57,8 +78,9 @@ export interface PositionRecord {
   readonly steward?: string;
   readonly band: Band;
   /**
-   * 0 for the seat, the seeds and a composition record no hop reaches; else the hop that first reached it (a
-   * composition record a hop reaches included), or for a pointer read from a loaded record, that record's hop.
+   * 0 for the seat, the seeds, a composition record no hop reaches, a mandate and a field match; else the hop that
+   * first reached it (a composition record a hop reaches included), or for a pointer read from a loaded record, that
+   * record's hop.
    */
   readonly hop: number;
   /** Absent for the seat; the first row that reached a hop-reached record, else its composition class. */
@@ -85,6 +107,38 @@ export interface PointerTally {
   readonly steward?: string;
   readonly count: number;
 }
+/**
+ * An applies-by-word entry (design row 18, plan amendment A4): a @law, @convention, @principle or @playbook whose
+ * subject names the word or kind of a loaded record or of a blocking candidate reserved in `rules`. It is a field
+ * match, listed whether or not the record is also loaded or a pointer, and carries the key that seats at it.
+ */
+export interface AppliesByWord extends PositionRecord {
+  readonly via: Extract<PositionVia, { readonly by: 'subject' }>;
+  /** (x, H, P, 1, 16, no word): the re-seat key of design §7 at this entry. */
+  readonly reseat: ScopeKey;
+}
+/**
+ * A playbook's cell at (P, primitive(H)) (design row 19): the text of its cells at that address, as `ia read
+ * <address>` reads it, or, when it has none there, the nearest phase whose cells include that primitive's.
+ */
+export type PositionCell =
+  | {
+      readonly playbook: string;
+      /** `<identity>#<phase>/<Primitive>`. */
+      readonly address: string;
+      readonly text: string;
+    }
+  | {
+      readonly playbook: string;
+      /** The address that has no cell. */
+      readonly missing: string;
+      /**
+       * The nearest phase in the cycle orient, plan, act, learn with a cell of the primitive, a tie going to the phase
+       * that order lists first (from learn, orient before act).
+       */
+      readonly nearest?: Phase;
+      readonly message: string;
+    };
 /** The frontier, per (owner system, kind): records one hop past the loaded set, never entered. */
 export interface FrontierTally {
   readonly system: string;
@@ -116,11 +170,15 @@ export interface PositionCounts {
   readonly rules: number;
   /** Every pointer, listed or tallied. */
   readonly pointers: number;
+  /** |A|: every applies-by-word entry, listed or tallied. */
+  readonly appliesByWord: number;
   readonly frontier: number;
   /** Seeds and reached records the budget left out of `loaded`; each is a pointer. */
   readonly truncatedLoaded: number;
   /** Pointers past the first 48, counted in the tallies. */
   readonly truncatedPointers: number;
+  /** Applies-by-word entries past the first 48, counted in their tallies. */
+  readonly truncatedAppliesByWord: number;
 }
 export interface PositionWidening {
   /** (S, H, P, d + 1, n, w); absent at the depth cap. */
@@ -136,11 +194,25 @@ export interface PositionBody {
   readonly seat: ResolvedSeat;
   /** The seat first, then the first n of the other seeds and the reached records, in the shape's order. */
   readonly loaded: readonly LoadedEntry[];
-  /** The blocking governance candidates, reserved outside the budget, in the governance order. */
+  /**
+   * The blocking governance candidates, and the blocking rules that apply by word to a candidate (R17), reserved
+   * outside the budget, in the governance order.
+   */
   readonly rules: readonly LoadedRecord[];
   /** The first 48 pointers in the shape's order. */
   readonly pointers: readonly PositionPointer[];
   readonly pointerTallies: readonly PointerTally[];
+  /**
+   * The first 48 rules and playbooks outside `rules` that apply by word to a loaded record or a blocking candidate in
+   * `rules`, by band ↓, identity ↑.
+   */
+  readonly appliesByWord: readonly AppliesByWord[];
+  /** The applies-by-word entries past the listed ones, per (word, owner system). */
+  readonly appliesByWordTallies: readonly PointerTally[];
+  /** The cells at (P, primitive(H)) of the first four playbooks that apply by word. */
+  readonly cells: readonly PositionCell[];
+  /** The @mandate records that claim a location seat or whose `authority.scope` names the seat's workspace. */
+  readonly mandates: readonly PositionPointer[];
   readonly frontier: readonly FrontierTally[];
   readonly unknowns: readonly PositionUnknown[];
   readonly counts: PositionCounts;
@@ -174,8 +246,13 @@ export interface PositionOutput {
 
 /** p, the listed pointer lines before the tallies (design §1: a rendering constant, not a key part). */
 const LISTED = 48;
+/** c, the playbook cells a body delivers (design §1: a rendering constant, not a key part). */
+const CELLS = 4;
 /** The depth and budget of a re-seat key (design §7). */
 const RESEAT = { depth: 1, budget: 16 } as const;
+/** The words whose subject fields apply them by word (design row 18, plan amendment A4). */
+const SUBJECT_WORDS: readonly string[] = ['law', 'convention', 'principle', 'playbook'];
+const FIELD_MATCH = 'field match, not a row';
 const PRIMING: readonly string[] = SHAPE_ROWS.governance.priming;
 /** The admission findings that make a loaded record's relations unknown: unresolved references and unconsented rows. */
 const FINDINGS: ReadonlySet<string> = new Set([
@@ -196,22 +273,11 @@ interface Reach {
   readonly hop: number;
   readonly via?: PositionVia;
 }
-/**
- * The body, and K, the candidates before any truncation ({S} ∪ C0 ∪ Σ ∪ C, identity order): the applies-by-word
- * section, a later task, reserves its blocking matches over them as `rules` reserves R.
- */
-interface Seated {
-  readonly body: PositionBody;
-  readonly candidates: readonly string[];
-}
-
-/**
- * R15: body(K) for the key `resolved` that resolveScopeKey returned for the same scope token `within`. Every read goes
- * through `within`, and admission findings are read only on a whole-workspace one (db PT5). A missing token, or a seat
- * at runtime placement, is IA-RUNTIME-REQUEST-INVALID, and an unknown, stale or closed token keeps its database code.
- */
-export function positionBody(handle: ReadHandle, within: string, resolved: ResolvedScopeKey): PositionBody {
-  return seated(handle, within, resolved).body;
+/** A rule or playbook of the closure that states a subject word or kind. */
+interface Subject {
+  readonly identity: string;
+  readonly word?: string;
+  readonly kind?: string;
 }
 
 /**
@@ -239,7 +305,13 @@ export function position(handle: ReadHandle, within: string, partial: Partial<Sc
   });
 }
 
-function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey): Seated {
+/**
+ * R15: body(K) for the key `resolved` that resolveScopeKey returned for the same scope token `within`. Every read goes
+ * through `within`, and admission findings are read only on a whole-workspace one (db PT5). A missing token, or a seat
+ * at runtime placement, is IA-RUNTIME-REQUEST-INVALID, and an unknown, stale or closed token keeps its database code.
+ * R17 adds the sections that apply by word, their cells and the mandates, and reserves blocking rules by word too.
+ */
+export function positionBody(handle: ReadHandle, within: string, resolved: ResolvedScopeKey): PositionBody {
   if (typeof within !== 'string' || within.length === 0)
     throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', 'Runtime reads require an explicit scope token');
   // A record at runtime placement (band 0) is no part of a body: neither the seat's composition, a seed, a hop or
@@ -371,8 +443,43 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
   const hopReached = [...reached.keys()].filter(
     (identity) => reached.get(identity)!.hop > 0 && !waypoints.has(identity),
   );
+  // The blocking rules reserved by word alone (R17), which no composition class or hop reaches.
+  const matched = new Map<string, Reach>();
   const reachOf = (identity: string): Reach =>
-    identity === seatId ? { hop: 0 } : (reached.get(identity) ?? { hop: 0, via: c0.get(identity)! });
+    identity === seatId
+      ? { hop: 0 }
+      : (reached.get(identity) ?? matched.get(identity) ?? { hop: 0, via: c0.get(identity)! });
+
+  // Applies by word (design row 18, plan amendment A4, R17): the @law, @convention, @principle and @playbook records of
+  // the closure (with w set, of w) whose `subject.subject-word` is the word, or `subject.subject-kind` the kind, of a
+  // record. A field match, not a row: it costs no hop and claims no relation or consent.
+  const subjects: readonly Subject[] = records.flatMap((node) => {
+    if (!SUBJECT_WORDS.includes(node.discriminator) || !inside(node.identity) || !wanted(node.identity)) return [];
+    const word = statedText(node, 'subject.subject-word'),
+      kind = statedText(node, 'subject.subject-kind');
+    return word === undefined && kind === undefined
+      ? []
+      : [{ identity: node.identity, ...(word === undefined ? {} : { word }), ...(kind === undefined ? {} : { kind }) }];
+  });
+  /** The subject fields of `subject` that the word or kind of a record of `against` answers, each with the first. */
+  const matchesOf = (subject: Subject, against: readonly string[]): readonly SubjectMatch[] => {
+    const first = (value: string | undefined, of: (node: Node) => string) =>
+      value === undefined ? undefined : against.find((identity) => of(nodes.get(identity)!) === value);
+    const byWord = first(subject.word, (node) => node.discriminator),
+      byKind = first(subject.kind, (node) => node.kind);
+    return [
+      ...(byWord === undefined
+        ? []
+        : [{ field: 'subject.subject-word' as const, value: subject.word!, record: byWord }]),
+      ...(byKind === undefined
+        ? []
+        : [{ field: 'subject.subject-kind' as const, value: subject.kind!, record: byKind }]),
+    ];
+  };
+  const blocking = (identity: string): boolean => {
+    const node = nodes.get(identity)!;
+    return node.kind === 'governance' && effectiveSeverity(node.dimensions, values) === 'blocking';
+  };
 
   // The order keys of design §6, total: governance (prime, band ↓, hop, sev, id), every other shape (band ↓, hop,
   // lane, id). prime is the least priming index of a row incident to the record, sev its severity's rank.
@@ -407,17 +514,18 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
   const governance = key.shape === 'governance',
     hopOfReach = (identity: string): number => reachOf(identity).hop;
 
-  // K = {S} ∪ C0 ∪ Σ ∪ C before truncation. R, its blocking governance, is reserved outside n, then
+  // K = {S} ∪ C0 ∪ Σ ∪ C before truncation. R, its blocking governance, and the blocking rules that apply by word to a
+  // record of K, whichever records n truncates (R17), are reserved outside n, then
   // L = {S} ∪ first n of sort(((Σ \ {S}) ∪ C) \ R).
-  const candidates = new Set([...c0.keys(), ...hopReached]);
-  const rules = sorted(
-    [...candidates].filter((identity) => {
-      const node = nodes.get(identity)!;
-      return node.kind === 'governance' && effectiveSeverity(node.dimensions, values) === 'blocking';
-    }),
-    hopOfReach,
-    true,
-  );
+  const candidates = new Set([...c0.keys(), ...hopReached]),
+    among = [...(seatId === undefined ? [] : [seatId]), ...[...candidates].sort(order)];
+  for (const subject of subjects)
+    if (subject.identity !== seatId && !candidates.has(subject.identity) && blocking(subject.identity)) {
+      const matches = matchesOf(subject, among);
+      if (matches.length > 0)
+        matched.set(subject.identity, { hop: 0, via: { by: 'subject', label: FIELD_MATCH, matches } });
+    }
+  const rules = sorted([...[...candidates].filter(blocking), ...matched.keys()], hopOfReach, true);
   const reserved = new Set(rules);
   const pool = sorted(
     new Set([...seeds, ...hopReached].filter((identity) => !reserved.has(identity))),
@@ -460,6 +568,75 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
         )
           frontier.add(to);
       }
+
+  // The rules and playbooks outside `rules` that apply by word to a record of L or of R: R is delivered in full, as L
+  // is, so reserving a blocking candidate outside n keeps what applies to it. A rule `rules` holds by word alone is a
+  // field match itself, not a record of L or R, so matches never chain. Each is listed once, whichever of its fields
+  // match and however many records answer them, and with no row or hop to rank by, it ranks by band ↓ then identity,
+  // as claimants and cells do.
+  const delivered = [...entered, ...rules.filter((identity) => candidates.has(identity))];
+  const byBand = (a: string, b: string): number => nodes.get(b)!.band - nodes.get(a)!.band || order(a, b);
+  const applies = subjects
+    .filter((subject) => !reserved.has(subject.identity))
+    .map((subject) => ({ identity: subject.identity, matches: matchesOf(subject, delivered) }))
+    .filter((entry) => entry.matches.length > 0)
+    .sort((a, b) => byBand(a.identity, b.identity));
+
+  // The cells at (P, primitive(H)) of the first c playbooks that apply by word (design row 19): the text `ia read`
+  // reads at the address, every cell there in source order, conditions unevaluated; else the nearest phase with a cell
+  // of that primitive, by distance in the cycle orient, plan, act, learn, a tie going to the phase that order lists
+  // first.
+  const primitive = SHAPE_ROWS[key.shape].primitive,
+    phaseAt = PHASES.indexOf(key.phase);
+  const cellOf = (identity: string): PositionCell => {
+    const node = nodes.get(identity)!,
+      fragment = `${key.phase}/${primitive}`,
+      text = fragmentText(node, fragment);
+    if (text !== undefined) return { playbook: identity, address: `${identity}#${fragment}`, text };
+    const has = (phase: Phase): boolean =>
+      node.cells.some((cell) => cell.phase === phase && cell.primitive === primitive);
+    const distance = (phase: Phase): number => {
+      const apart = Math.abs(PHASES.indexOf(phase) - phaseAt);
+      return Math.min(apart, PHASES.length - apart);
+    };
+    const nearest = PHASES.filter(has).sort(
+      (a, b) => distance(a) - distance(b) || PHASES.indexOf(a) - PHASES.indexOf(b),
+    )[0];
+    return {
+      playbook: identity,
+      missing: `${identity}#${fragment}`,
+      ...(nearest === undefined ? {} : { nearest }),
+      message:
+        nearest === undefined
+          ? `no cell; no phase has a cell at ${primitive}`
+          : `no cell; nearest phase with a cell: ${nearest}`,
+    };
+  };
+  const cells = applies
+    .filter((entry) => nodes.get(entry.identity)!.discriminator === 'playbook')
+    .slice(0, CELLS)
+    .map((entry) => cellOf(entry.identity));
+
+  // The mandates (plan amendment A8; participant matching arrives with milestone position-packet): those of the
+  // closure that claim a location seat or whose `authority.scope` names the seat's workspace, each once, a mandate
+  // that does both keeping its claim, all ranked by band ↓ then identity.
+  const governing = new Map<string, PositionVia>();
+  const govern = (identity: string, via: PositionVia): void => {
+    if (
+      nodes.get(identity)?.discriminator === 'mandate' &&
+      inside(identity) &&
+      wanted(identity) &&
+      !governing.has(identity)
+    )
+      governing.set(identity, via);
+  };
+  if (seat.kind === 'location' && resolution !== undefined)
+    for (const claimant of resolution.claimants) govern(claimant.identity, { by: 'claim', matches: claimant.matches });
+  if (home !== undefined)
+    for (const row of rowsOf(home))
+      if (row.kind === 'field-ref' && row.direction === 'in' && row.field === 'authority.scope')
+        govern(row.counterpart, viaRow(home, row));
+  const mandates = [...governing.keys()].sort(byBand);
 
   /** The steward the @system `system` names in `head.steward`, when the scope admits that @system. */
   const stewardOf = (system: string): string | undefined => {
@@ -513,6 +690,11 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
     const steward = stewardOf(system);
     return steward === undefined ? {} : { steward };
   };
+  /** The entries past the listed ones, per (word, owner system). */
+  const wordTallies = (identities: readonly string[]): readonly PointerTally[] =>
+    tally(identities, (identity) => [nodes.get(identity)!.system, nodes.get(identity)!.discriminator]).map(
+      ({ system, value, count }) => ({ system, word: value, ...withSteward(system), count }),
+    );
 
   // Unknowns: the seat's, its workspace's sources, and on a whole-workspace scope the unresolved references and
   // unconsented rows admission found on a loaded record.
@@ -582,9 +764,21 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
     ],
     rules: rules.map((identity) => loadedRecord(identity)),
     pointers: listed.map(pointer),
-    pointerTallies: tally(tallied, (identity) => [nodes.get(identity)!.system, nodes.get(identity)!.discriminator]).map(
-      ({ system, value, count }) => ({ system, word: value, ...withSteward(system), count }),
-    ),
+    pointerTallies: wordTallies(tallied),
+    appliesByWord: applies.slice(0, LISTED).map(({ identity, matches }) => {
+      const via = { by: 'subject', label: FIELD_MATCH, matches } as const;
+      return {
+        ...record(identity, { hop: 0, via }),
+        via,
+        reseat: { seat: identity, shape: key.shape, phase: key.phase, ...RESEAT },
+      };
+    }),
+    appliesByWordTallies: wordTallies(applies.slice(LISTED).map((entry) => entry.identity)),
+    cells,
+    mandates: mandates.map((identity) => {
+      const via = governing.get(identity)!;
+      return { ...record(identity, { hop: 0, via }), via };
+    }),
     frontier: tally(frontierIds, (identity) => [nodes.get(identity)!.system, nodes.get(identity)!.kind]).map(
       ({ system, value, count }) => ({ system, kind: value, ...withSteward(system), count }),
     ),
@@ -595,17 +789,16 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
       loaded: 1 + chosen.length,
       rules: rules.length,
       pointers: pointers.length,
+      appliesByWord: applies.length,
       frontier: frontier.size,
       truncatedLoaded: pool.length - chosen.length,
       truncatedPointers: tallied.length,
+      truncatedAppliesByWord: Math.max(0, applies.length - LISTED),
     },
     widening: {
       ...(key.depth < SCOPE_KEY_CAPS.depth ? { deeper: { ...key, depth: key.depth + 1 } } : {}),
       reseat: { shape: key.shape, phase: key.phase, ...RESEAT },
     },
   };
-  return freeze({
-    body,
-    candidates: [...(seatId === undefined ? [] : [seatId]), ...candidates].sort(order),
-  });
+  return freeze(body);
 }

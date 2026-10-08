@@ -119,6 +119,39 @@
     }
   ],
   "pointerTallies": [],
+  "appliesByWord": [
+    {
+      "identity": "governance-system/governance/principle/sample-principle",
+      "word": "principle",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "subject",
+        "label": "field match, not a row",
+        "matches": [
+          {
+            "field": "subject.subject-kind",
+            "value": "definition",
+            "record": "workspace-system/definition/workspace/foundation-workspace"
+          }
+        ]
+      },
+      "reseat": {
+        "seat": "governance-system/governance/principle/sample-principle",
+        "shape": "context",
+        "phase": "orient",
+        "depth": 1,
+        "budget": 16
+      }
+    }
+  ],
+  "appliesByWordTallies": [],
+  "cells": [],
+  "mandates": [],
   "frontier": [
     {
       "system": "compliance-system",
@@ -140,9 +173,11 @@
     "loaded": 1,
     "rules": 0,
     "pointers": 6,
+    "appliesByWord": 1,
     "frontier": 1,
     "truncatedLoaded": 6,
-    "truncatedPointers": 0
+    "truncatedPointers": 0,
+    "truncatedAppliesByWord": 0
   },
   "widening": {
     "deeper": {

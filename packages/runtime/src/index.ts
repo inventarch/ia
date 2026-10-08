@@ -8,6 +8,7 @@ export { K0, SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey } from './scope-
 export type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
 export { position, positionBody } from './position.js';
 export type {
+  AppliesByWord,
   Freshness,
   FrontierTally,
   HostNote,
@@ -16,6 +17,7 @@ export type {
   LoadedRecord,
   PointerTally,
   PositionBody,
+  PositionCell,
   PositionCounts,
   PositionOutput,
   PositionPointer,
@@ -23,6 +25,7 @@ export type {
   PositionUnknown,
   PositionVia,
   PositionWidening,
+  SubjectMatch,
 } from './position.js';
 export { context, DEFAULT_TOKENIZER } from './context.js';
 export type {

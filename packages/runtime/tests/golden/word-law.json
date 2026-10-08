@@ -44,6 +44,10 @@
   ],
   "pointers": [],
   "pointerTallies": [],
+  "appliesByWord": [],
+  "appliesByWordTallies": [],
+  "cells": [],
+  "mandates": [],
   "frontier": [],
   "unknowns": [
     {
@@ -58,9 +62,11 @@
     "loaded": 1,
     "rules": 1,
     "pointers": 0,
+    "appliesByWord": 0,
     "frontier": 0,
     "truncatedLoaded": 0,
-    "truncatedPointers": 0
+    "truncatedPointers": 0,
+    "truncatedAppliesByWord": 0
   },
   "widening": {
     "deeper": {
