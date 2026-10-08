@@ -94,6 +94,31 @@ it('keeps the issuer alive for reusable tokens and returns only protocol output'
         }),
       );
       expect((await read()).result).toMatchObject({ isError: true, structuredContent: { code: 'IA-DB-OUT-OF-SCOPE' } });
+      // ia_read (protocol version 2) reads through the same live token: the body inside it, one plain refusal outside.
+      for (const [id, locator] of [
+        [5, 'governance-system/definition/procedure/sample-procedure#act/Decision'],
+        [6, 'agent-system/binding/agent/agent-steward'],
+      ] as const)
+        child.stdin.write(
+          line({
+            jsonrpc: '2.0',
+            id,
+            method: 'tools/call',
+            params: { name: 'ia_read', arguments: { within: scope.token, locator } },
+          }),
+        );
+      expect((await read()).result).toMatchObject({
+        isError: false,
+        structuredContent: {
+          ok: true,
+          result: { kind: 'record', body: 'Sample fixture statement 18.', certified: false },
+        },
+      });
+      expect((await read()).result.structuredContent).toEqual({
+        ok: false,
+        code: 'IA-RUNTIME-READ-UNADMITTED',
+        message: 'The locator is not in this scope',
+      });
       const closing = once(child, 'close');
       child.stdin.end();
       expect((await closing)[0]).toBe(0);

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -27,7 +28,7 @@ afterEach(() => {
   for (const value of instances.splice(0)) value.close();
   vi.restoreAllMocks();
 });
-it('negotiates the pinned profile, discovers nine tools and enforces initialization order', () => {
+it('negotiates the pinned profile, discovers ten tools and enforces initialization order', () => {
   const value = protocol();
   expect(value.request(message(1, 'tools/list'))?.error?.code).toBe(-32000);
   expect(value.request(message(1, 'initialize', {}))?.error?.code).toBe(-32602);
@@ -55,7 +56,9 @@ it('negotiates the pinned profile, discovers nine tools and enforces initializat
   const listed = value.request(message(3, 'tools/list'))?.result as {
     tools: { name: string; annotations: { readOnlyHint: boolean } }[];
   };
-  expect(listed.tools).toHaveLength(9);
+  // Plan amendment A3: the eight version 1 door tools, ia_read from protocol version 2, and ia_vocabulary.
+  expect(listed.tools).toHaveLength(10);
+  expect(listed.tools.map((tool) => tool.name)).toContain('ia_read');
   expect(listed.tools.at(-1)?.name).toBe('ia_vocabulary');
   expect(listed.tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
   expect(listed.tools.some((t) => t.name === 'ia_report')).toBe(false);
@@ -75,6 +78,44 @@ it('returns exact door successes and refusals as matching text and structured to
   const bad = value.request(message(3, 'tools/call', { name: 'ia_records', arguments: { within: 'forged' } }))?.result;
   expect(bad).toMatchObject({ isError: true, structuredContent: { ok: false, code: 'IA-DB-SCOPE-UNAVAILABLE' } });
   expect(value.request(message(4, 'tools/call', { name: 'ia_report' }))?.error?.code).toBe(-32602);
+});
+const PROCEDURE = 'governance-system/definition/procedure/sample-procedure';
+it('serves ia_read through the door: the body inside the scope a token names, and one plain refusal outside it', () => {
+  const value = protocol();
+  initialize(value);
+  const call = (id: number, args: unknown) =>
+    value.request(message(id, 'tools/call', { name: 'ia_read', arguments: args }))?.result as {
+      content: { text: string }[];
+      structuredContent: unknown;
+      isError: boolean;
+    };
+  const cell = call(2, { locator: `${PROCEDURE}#act/Decision` });
+  expect(cell.isError).toBe(false);
+  expect(JSON.parse(cell.content[0]!.text)).toEqual(cell.structuredContent);
+  expect(cell.structuredContent).toEqual({
+    ok: true,
+    result: {
+      locator: `${PROCEDURE}#act/Decision`,
+      identity: PROCEDURE,
+      kind: 'record',
+      digest: createHash('sha256').update('Sample fixture statement 18.').digest('hex'),
+      body: 'Sample fixture statement 18.',
+      certified: false,
+    },
+  });
+  // A token ia_scope issued narrows later reads in the same server process; outside it nothing is named.
+  const scope = value.request(message(3, 'tools/call', { name: 'ia_scope', arguments: { identities: [PROCEDURE] } }))
+    ?.result as { structuredContent: { result: { token: string } } };
+  const within = scope.structuredContent.result.token;
+  expect(call(4, { within, locator: PROCEDURE }).isError).toBe(false);
+  expect(call(5, { within, locator: 'agent-system/binding/agent/agent-steward' })).toMatchObject({
+    isError: true,
+    structuredContent: { ok: false, code: 'IA-RUNTIME-READ-UNADMITTED', message: 'The locator is not in this scope' },
+  });
+  expect(call(6, { locator: PROCEDURE, unlisted: 1 })).toMatchObject({
+    isError: true,
+    structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID' },
+  });
 });
 it('rejects malformed framing/envelopes/parameters and unknown methods while ignoring notifications', () => {
   const value = protocol();

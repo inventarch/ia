@@ -55,7 +55,9 @@ export function runCli(
     } catch {
       return usage('--params must contain valid JSON');
     }
-    door = new Door(root, { cache: false, allowReport: true });
+    // Plan amendment A2: the machine routes are the version 1 operations, so the door serves version 1 and refuses a later
+    // version's operation, such as `read`, as the unknown operation 1.1.0 refused, byte for byte.
+    door = new Door(root, { cache: false, allowReport: true, protocol: 1 });
     const response: DoorResponse = door.request({ operation, params });
     const reportFailed =
       operation === 'report' &&

@@ -1,0 +1,1366 @@
+[
+  {
+    "name": "scope",
+    "summary": "Issue a read-only scope, or narrow one by phase or identities.",
+    "description": "Issue a read-only scope or narrow an existing scope by phase or identity set; its root narrows only where sources declare a reach. Pass its token as within to later calls in the same process.",
+    "params": {
+      "type": "object",
+      "properties": {
+        "within": {
+          "type": "string",
+          "description": "Parent scope token issued earlier in the same process; omitted, the parent is the initial boundary."
+        },
+        "root": {
+          "type": "string",
+          "description": "Workspace-relative location the new scope resolves from: the parent's root or a directory below it. A source is admitted where its declared reach covers this location, and the default empty reach covers every location, so this is not a path filter."
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase to bind the new scope to; omitted keeps the parent's phase, and null binds none."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Asserts the parent scope's revision; any other value refuses with IA-DB-SCOPE-MISMATCH."
+        },
+        "identities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Identities the new scope admits; it stays inside the parent's boundary."
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "result": "The scope: {token, root, revision}, plus phase when one is bound.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter is unknown, missing or of the wrong type.",
+        "next": "Match the parameters to this operation's schema; the message names what was expected."
+      },
+      {
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "when": "within is a token this process did not issue.",
+        "next": "Omit within, or pass a token issued earlier in the same process; a CLI token ends with its invocation."
+      },
+      {
+        "code": "IA-DB-SCOPE-MISMATCH",
+        "when": "revision differs from the parent scope's, or root lies outside the parent's root.",
+        "next": "Omit revision or pass the parent's, and choose a root at or below the parent's."
+      },
+      {
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "when": "A phase or coordinate value is outside its closed set, or coordinate names an unknown axis.",
+        "next": "Use one of the values or axes the message lists."
+      }
+    ],
+    "example": {
+      "identities": [
+        "governance-system/definition/procedure/sample-procedure"
+      ]
+    },
+    "mcp": "ia_scope"
+  },
+  {
+    "name": "context",
+    "summary": "Deliver the cited procedure cells and governance that apply to a coordinate.",
+    "description": "Deliver cited IA procedure cells and applicable governance for a declared phase and primitive. Budget.tokens counts delivered text and purpose, not the whole JSON response. Blocking obligations cannot be silently budgeted away. Narrow topical context with the search and scope operations.",
+    "params": {
+      "type": "object",
+      "properties": {
+        "within": {
+          "type": "string",
+          "description": "Scope token issued earlier in the same process: one CLI invocation, or the MCP server process. Omitted, the call reads the initial boundary."
+        },
+        "text": {
+          "type": "string",
+          "description": "The request in plain words; may be empty."
+        },
+        "coordinate": {
+          "type": "object",
+          "description": "Where the work stands. phase and primitive are required; each further axis narrows what applies.",
+          "properties": {
+            "shape": {
+              "type": "string",
+              "enum": [
+                "context",
+                "governance",
+                "execution",
+                "sequence",
+                "learning"
+              ]
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "thing",
+                "kind",
+                "property",
+                "state",
+                "event",
+                "relation",
+                "rule",
+                "capability",
+                "intent",
+                "decision",
+                "evidence",
+                "representation",
+                "process",
+                "measure",
+                "boundary"
+              ]
+            },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            "primitive": {
+              "type": "string",
+              "enum": [
+                "Memory",
+                "Attention",
+                "Inference",
+                "Decision",
+                "Escalation",
+                "Learning"
+              ]
+            },
+            "move": {
+              "type": "string",
+              "enum": [
+                "Observation",
+                "Execution",
+                "Delegation",
+                "Synthesis",
+                "Verification"
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "governance",
+                "contract",
+                "definition",
+                "template",
+                "check",
+                "policy",
+                "binding"
+              ]
+            },
+            "lane": {
+              "type": "string",
+              "enum": [
+                "authority",
+                "contracts",
+                "definitions",
+                "templates",
+                "enforcement",
+                "bindings"
+              ]
+            },
+            "predicate": {
+              "type": "string",
+              "enum": [
+                "govern",
+                "enforce",
+                "ground",
+                "constrain",
+                "implement",
+                "produce",
+                "consume",
+                "record-lineage-from",
+                "grant-access-to",
+                "run-before",
+                "trigger",
+                "cite",
+                "supersede",
+                "require",
+                "use",
+                "forbid",
+                "route",
+                "land"
+              ]
+            },
+            "artifact-set": {
+              "type": "string",
+              "enum": [
+                "inquiry",
+                "decision",
+                "contract",
+                "product-definition",
+                "execution",
+                "operational",
+                "evidence",
+                "projection",
+                "principle"
+              ]
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "blocking",
+                "advisory",
+                "informational"
+              ]
+            },
+            "provenance": {
+              "type": "string",
+              "enum": [
+                "workspace",
+                "methodology",
+                "bootstrap",
+                "runtime"
+              ]
+            }
+          },
+          "required": [
+            "phase",
+            "primitive"
+          ],
+          "additionalProperties": false
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "description": "A typed reference: {kind: \"identity\", identity} or {kind: \"ref\", discriminator, name}, each with an optional fragment.",
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "identity"
+                    },
+                    "identity": {
+                      "type": "string",
+                      "description": "Admitted identity."
+                    },
+                    "fragment": {
+                      "type": "string",
+                      "description": "Fragment inside the record."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "identity"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "ref"
+                    },
+                    "discriminator": {
+                      "type": "string",
+                      "description": "Record discriminator, such as playbook."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Record name."
+                    },
+                    "fragment": {
+                      "type": "string",
+                      "description": "Fragment inside the record."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "discriminator",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          ],
+          "description": "The record the request is about: an identity or a typed reference."
+        },
+        "follow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Relationship verbs to follow from the delivered records."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Asserts the scope's revision; any other value refuses with IA-DB-SCOPE-MISMATCH."
+        },
+        "ranking": {
+          "enum": [
+            "native",
+            "topical"
+          ],
+          "description": "Default native preserves procedure-first ordering. Topical prioritizes scoped search relevance after reserving all blocking governance; it does not affect execution selection."
+        },
+        "budget": {
+          "type": "object",
+          "description": "Delivery limits; default {tokens: 4000, records: 50}.",
+          "properties": {
+            "tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "records": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "tokens",
+            "records"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "text",
+        "coordinate"
+      ],
+      "additionalProperties": false
+    },
+    "result": "A cited packet: {revision, scope, coordinate, included, omitted, followed, gated, dangling, limits}. included holds the delivered cells with their citations; omitted names what the budget, a disqualifying condition or an unresolved reference left out.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter is unknown, missing or of the wrong type.",
+        "next": "Match the parameters to this operation's schema; the message names what was expected."
+      },
+      {
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "when": "within is a token this process did not issue.",
+        "next": "Omit within, or pass a token issued earlier in the same process; a CLI token ends with its invocation."
+      },
+      {
+        "code": "IA-DB-SCOPE-MISMATCH",
+        "when": "revision differs from the scope's own.",
+        "next": "Drop revision or pass the scope's own."
+      },
+      {
+        "code": "coordinate-incomplete",
+        "when": "coordinate lacks an axis this operation needs; missing names each one.",
+        "next": "Declare every axis in missing on coordinate."
+      },
+      {
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "when": "A phase or coordinate value is outside its closed set, or coordinate names an unknown axis.",
+        "next": "Use one of the values or axes the message lists."
+      },
+      {
+        "code": "IA-GRAPH-VERB-UNKNOWN",
+        "when": "follow names a verb the language does not define.",
+        "next": "Use the verbs the message lists."
+      },
+      {
+        "code": "IA-RUNTIME-BUDGET-INVALID",
+        "when": "budget.tokens or budget.records is negative or not a safe integer.",
+        "next": "Pass nonnegative integers, or omit budget for the default."
+      },
+      {
+        "code": "IA-GRAPH-BUDGET-BLOCKING-OVERFLOW",
+        "when": "The budget cannot hold every applicable blocking obligation; required gives the minimum.",
+        "next": "Raise budget to at least required, or narrow the scope."
+      }
+    ],
+    "example": {
+      "text": "author a record",
+      "coordinate": {
+        "phase": "orient",
+        "primitive": "Decision"
+      }
+    },
+    "mcp": "ia_context"
+  },
+  {
+    "name": "select",
+    "summary": "Choose exactly one binding among candidate identities, or refuse.",
+    "description": "Choose exclusively among supplied identities; ties or missing required coordinates refuse. This grants no execution permission.",
+    "params": {
+      "type": "object",
+      "properties": {
+        "within": {
+          "type": "string",
+          "description": "Scope token issued earlier in the same process: one CLI invocation, or the MCP server process. Omitted, the call reads the initial boundary."
+        },
+        "text": {
+          "type": "string",
+          "description": "The request in plain words; may be empty."
+        },
+        "coordinate": {
+          "type": "object",
+          "description": "Where the work stands. phase and primitive are required; each further axis narrows what applies.",
+          "properties": {
+            "shape": {
+              "type": "string",
+              "enum": [
+                "context",
+                "governance",
+                "execution",
+                "sequence",
+                "learning"
+              ]
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "thing",
+                "kind",
+                "property",
+                "state",
+                "event",
+                "relation",
+                "rule",
+                "capability",
+                "intent",
+                "decision",
+                "evidence",
+                "representation",
+                "process",
+                "measure",
+                "boundary"
+              ]
+            },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            "primitive": {
+              "type": "string",
+              "enum": [
+                "Memory",
+                "Attention",
+                "Inference",
+                "Decision",
+                "Escalation",
+                "Learning"
+              ]
+            },
+            "move": {
+              "type": "string",
+              "enum": [
+                "Observation",
+                "Execution",
+                "Delegation",
+                "Synthesis",
+                "Verification"
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "governance",
+                "contract",
+                "definition",
+                "template",
+                "check",
+                "policy",
+                "binding"
+              ]
+            },
+            "lane": {
+              "type": "string",
+              "enum": [
+                "authority",
+                "contracts",
+                "definitions",
+                "templates",
+                "enforcement",
+                "bindings"
+              ]
+            },
+            "predicate": {
+              "type": "string",
+              "enum": [
+                "govern",
+                "enforce",
+                "ground",
+                "constrain",
+                "implement",
+                "produce",
+                "consume",
+                "record-lineage-from",
+                "grant-access-to",
+                "run-before",
+                "trigger",
+                "cite",
+                "supersede",
+                "require",
+                "use",
+                "forbid",
+                "route",
+                "land"
+              ]
+            },
+            "artifact-set": {
+              "type": "string",
+              "enum": [
+                "inquiry",
+                "decision",
+                "contract",
+                "product-definition",
+                "execution",
+                "operational",
+                "evidence",
+                "projection",
+                "principle"
+              ]
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "blocking",
+                "advisory",
+                "informational"
+              ]
+            },
+            "provenance": {
+              "type": "string",
+              "enum": [
+                "workspace",
+                "methodology",
+                "bootstrap",
+                "runtime"
+              ]
+            }
+          },
+          "required": [
+            "phase",
+            "primitive"
+          ],
+          "additionalProperties": false
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "description": "A typed reference: {kind: \"identity\", identity} or {kind: \"ref\", discriminator, name}, each with an optional fragment.",
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "identity"
+                    },
+                    "identity": {
+                      "type": "string",
+                      "description": "Admitted identity."
+                    },
+                    "fragment": {
+                      "type": "string",
+                      "description": "Fragment inside the record."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "identity"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "ref"
+                    },
+                    "discriminator": {
+                      "type": "string",
+                      "description": "Record discriminator, such as playbook."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Record name."
+                    },
+                    "fragment": {
+                      "type": "string",
+                      "description": "Fragment inside the record."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "discriminator",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          ],
+          "description": "The record the request is about: an identity or a typed reference."
+        },
+        "follow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Accepted for symmetry with context; select ignores it."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Asserts the scope's revision; any other value refuses with IA-DB-SCOPE-MISMATCH."
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Identities to choose among."
+        },
+        "requiredAxes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "shape",
+              "category",
+              "phase",
+              "primitive",
+              "move",
+              "kind",
+              "lane",
+              "predicate",
+              "artifact-set",
+              "severity",
+              "provenance"
+            ]
+          },
+          "description": "Further coordinate axes the request must declare; a missing one refuses with coordinate-incomplete."
+        }
+      },
+      "required": [
+        "text",
+        "coordinate",
+        "candidates"
+      ],
+      "additionalProperties": false
+    },
+    "result": "The chosen binding: {revision, scope, entry}.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter is unknown, missing or of the wrong type.",
+        "next": "Match the parameters to this operation's schema; the message names what was expected."
+      },
+      {
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "when": "within is a token this process did not issue.",
+        "next": "Omit within, or pass a token issued earlier in the same process; a CLI token ends with its invocation."
+      },
+      {
+        "code": "IA-DB-SCOPE-MISMATCH",
+        "when": "revision differs from the scope's own.",
+        "next": "Drop revision or pass the scope's own."
+      },
+      {
+        "code": "coordinate-incomplete",
+        "when": "coordinate lacks an axis this operation needs; missing names each one.",
+        "next": "Declare every axis in missing on coordinate."
+      },
+      {
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "when": "A phase or coordinate value is outside its closed set, or coordinate names an unknown axis.",
+        "next": "Use one of the values or axes the message lists."
+      },
+      {
+        "code": "no-candidate",
+        "when": "No candidate is admitted in this scope and applies to the coordinate.",
+        "next": "Pass candidates that apply; context lists the procedures that do."
+      },
+      {
+        "code": "deny-wins-tie",
+        "when": "Candidates tie on step, score and band.",
+        "next": "Declare more coordinate axes so one applies more specifically, or pass fewer candidates."
+      }
+    ],
+    "example": {
+      "text": "",
+      "coordinate": {
+        "phase": "act",
+        "primitive": "Decision",
+        "category": "process"
+      },
+      "candidates": [
+        "governance-system/definition/procedure/sample-procedure"
+      ]
+    },
+    "mcp": "ia_select"
+  },
+  {
+    "name": "get",
+    "summary": "Read one admitted record inside the scope.",
+    "description": "Read one admitted IA record inside the scope.",
+    "params": {
+      "type": "object",
+      "properties": {
+        "within": {
+          "type": "string",
+          "description": "Scope token issued earlier in the same process: one CLI invocation, or the MCP server process. Omitted, the call reads the initial boundary."
+        },
+        "root": {
+          "type": "string",
+          "description": "Asserts the scope's root (\"\" for the initial scope); a path to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow the read: issue a scope and pass its token as within. Not the workspace path, which is --root on the CLI and the configured root on MCP."
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Asserts the scope's phase (null for a scope without one); a different one refuses with IA-DB-SCOPE-MISMATCH, and a value outside the phase set with IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Asserts the scope's revision; any other value refuses with IA-DB-SCOPE-MISMATCH."
+        },
+        "identity": {
+          "type": "string",
+          "description": "Admitted identity to read."
+        }
+      },
+      "required": [
+        "identity"
+      ],
+      "additionalProperties": false
+    },
+    "result": "The admitted record: {identity, system, kind, discriminator, name, source, sections, edges, cells, ...}.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter is unknown, missing or of the wrong type.",
+        "next": "Match the parameters to this operation's schema; the message names what was expected."
+      },
+      {
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "when": "within is a token this process did not issue.",
+        "next": "Omit within, or pass a token issued earlier in the same process; a CLI token ends with its invocation."
+      },
+      {
+        "code": "IA-DB-SCOPE-MISMATCH",
+        "when": "root, phase or revision differs from the scope's own value.",
+        "next": "Drop the binding or pass the scope's own value. To read a narrower scope, issue one with scope and pass its token as within in the same process; a CLI invocation performs one operation, so its reads cover the initial boundary."
+      },
+      {
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "when": "A phase or coordinate value is outside its closed set, or coordinate names an unknown axis.",
+        "next": "Use one of the values or axes the message lists."
+      },
+      {
+        "code": "IA-DB-OUT-OF-SCOPE",
+        "when": "The identity is outside the scope.",
+        "next": "Pick an identity that records or search returns in this scope, or widen the scope."
+      }
+    ],
+    "example": {
+      "identity": "governance-system/definition/procedure/sample-procedure"
+    },
+    "mcp": "ia_get"
+  },
+  {
+    "name": "records",
+    "summary": "Read the whole admitted snapshot inside the scope.",
+    "description": "Read the admitted immutable record snapshot inside the scope. It can be large; search, get and traverse read less.",
+    "params": {
+      "type": "object",
+      "properties": {
+        "within": {
+          "type": "string",
+          "description": "Scope token issued earlier in the same process: one CLI invocation, or the MCP server process. Omitted, the call reads the initial boundary."
+        },
+        "root": {
+          "type": "string",
+          "description": "Asserts the scope's root (\"\" for the initial scope); a path to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow the read: issue a scope and pass its token as within. Not the workspace path, which is --root on the CLI and the configured root on MCP."
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Asserts the scope's phase (null for a scope without one); a different one refuses with IA-DB-SCOPE-MISMATCH, and a value outside the phase set with IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Asserts the scope's revision; any other value refuses with IA-DB-SCOPE-MISMATCH."
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "result": "The snapshot: {revision, root, records, systems}, plus phase when the scope binds one.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter is unknown, missing or of the wrong type.",
+        "next": "Match the parameters to this operation's schema; the message names what was expected."
+      },
+      {
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "when": "within is a token this process did not issue.",
+        "next": "Omit within, or pass a token issued earlier in the same process; a CLI token ends with its invocation."
+      },
+      {
+        "code": "IA-DB-SCOPE-MISMATCH",
+        "when": "root, phase or revision differs from the scope's own value.",
+        "next": "Drop the binding or pass the scope's own value. To read a narrower scope, issue one with scope and pass its token as within in the same process; a CLI invocation performs one operation, so its reads cover the initial boundary."
+      },
+      {
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "when": "A phase or coordinate value is outside its closed set, or coordinate names an unknown axis.",
+        "next": "Use one of the values or axes the message lists."
+      }
+    ],
+    "example": {},
+    "mcp": "ia_records"
+  },
+  {
+    "name": "resolve",
+    "summary": "Resolve a typed reference or identity to exactly one record.",
+    "description": "Resolve a typed reference or identity with exact-cardinality refusal. An unresolved reference is still a successful response; its result says why.",
+    "params": {
+      "type": "object",
+      "properties": {
+        "within": {
+          "type": "string",
+          "description": "Scope token issued earlier in the same process: one CLI invocation, or the MCP server process. Omitted, the call reads the initial boundary."
+        },
+        "root": {
+          "type": "string",
+          "description": "Asserts the scope's root (\"\" for the initial scope); a path to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow the read: issue a scope and pass its token as within. Not the workspace path, which is --root on the CLI and the configured root on MCP."
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Asserts the scope's phase (null for a scope without one); a different one refuses with IA-DB-SCOPE-MISMATCH, and a value outside the phase set with IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Asserts the scope's revision; any other value refuses with IA-DB-SCOPE-MISMATCH."
+        },
+        "reference": {
+          "description": "A typed reference: {kind: \"identity\", identity} or {kind: \"ref\", discriminator, name}, each with an optional fragment.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "identity"
+                },
+                "identity": {
+                  "type": "string",
+                  "description": "Admitted identity."
+                },
+                "fragment": {
+                  "type": "string",
+                  "description": "Fragment inside the record."
+                }
+              },
+              "required": [
+                "kind",
+                "identity"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "ref"
+                },
+                "discriminator": {
+                  "type": "string",
+                  "description": "Record discriminator, such as playbook."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Record name."
+                },
+                "fragment": {
+                  "type": "string",
+                  "description": "Fragment inside the record."
+                }
+              },
+              "required": [
+                "kind",
+                "discriminator",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "reference"
+      ],
+      "additionalProperties": false
+    },
+    "result": "{ok: true, identity} when exactly one record matches; otherwise {ok: false, code, ...}, for example IA-GRAPH-TARGET-MISSING.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter is unknown, missing or of the wrong type.",
+        "next": "Match the parameters to this operation's schema; the message names what was expected."
+      },
+      {
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "when": "within is a token this process did not issue.",
+        "next": "Omit within, or pass a token issued earlier in the same process; a CLI token ends with its invocation."
+      },
+      {
+        "code": "IA-DB-SCOPE-MISMATCH",
+        "when": "root, phase or revision differs from the scope's own value.",
+        "next": "Drop the binding or pass the scope's own value. To read a narrower scope, issue one with scope and pass its token as within in the same process; a CLI invocation performs one operation, so its reads cover the initial boundary."
+      },
+      {
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "when": "A phase or coordinate value is outside its closed set, or coordinate names an unknown axis.",
+        "next": "Use one of the values or axes the message lists."
+      }
+    ],
+    "example": {
+      "reference": {
+        "kind": "ref",
+        "discriminator": "playbook",
+        "name": "sample-procedure"
+      }
+    },
+    "mcp": "ia_resolve"
+  },
+  {
+    "name": "search",
+    "summary": "Search decoded record text inside the scope.",
+    "description": "Search decoded IA text with statistics restricted to the scope.",
+    "params": {
+      "type": "object",
+      "properties": {
+        "within": {
+          "type": "string",
+          "description": "Scope token issued earlier in the same process: one CLI invocation, or the MCP server process. Omitted, the call reads the initial boundary."
+        },
+        "root": {
+          "type": "string",
+          "description": "Asserts the scope's root (\"\" for the initial scope); a path to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow the read: issue a scope and pass its token as within. Not the workspace path, which is --root on the CLI and the configured root on MCP."
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Asserts the scope's phase (null for a scope without one); a different one refuses with IA-DB-SCOPE-MISMATCH, and a value outside the phase set with IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Asserts the scope's revision; any other value refuses with IA-DB-SCOPE-MISMATCH."
+        },
+        "text": {
+          "type": "string",
+          "description": "Words to find."
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "result": "An array of hits inside the scope, each naming an identity.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter is unknown, missing or of the wrong type.",
+        "next": "Match the parameters to this operation's schema; the message names what was expected."
+      },
+      {
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "when": "within is a token this process did not issue.",
+        "next": "Omit within, or pass a token issued earlier in the same process; a CLI token ends with its invocation."
+      },
+      {
+        "code": "IA-DB-SCOPE-MISMATCH",
+        "when": "root, phase or revision differs from the scope's own value.",
+        "next": "Drop the binding or pass the scope's own value. To read a narrower scope, issue one with scope and pass its token as within in the same process; a CLI invocation performs one operation, so its reads cover the initial boundary."
+      },
+      {
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "when": "A phase or coordinate value is outside its closed set, or coordinate names an unknown axis.",
+        "next": "Use one of the values or axes the message lists."
+      }
+    ],
+    "example": {
+      "text": "authoring"
+    },
+    "mcp": "ia_search"
+  },
+  {
+    "name": "traverse",
+    "summary": "Follow typed relationships from start identities.",
+    "description": "Follow scoped IA relationships with typed filters and optional conditional gating.",
+    "params": {
+      "type": "object",
+      "properties": {
+        "within": {
+          "type": "string",
+          "description": "Scope token issued earlier in the same process: one CLI invocation, or the MCP server process. Omitted, the call reads the initial boundary."
+        },
+        "root": {
+          "type": "string",
+          "description": "Asserts the scope's root (\"\" for the initial scope); a path to any other location refuses with IA-DB-SCOPE-MISMATCH. It does not narrow the read: issue a scope and pass its token as within. Not the workspace path, which is --root on the CLI and the configured root on MCP."
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Asserts the scope's phase (null for a scope without one); a different one refuses with IA-DB-SCOPE-MISMATCH, and a value outside the phase set with IA-GRAPH-COORDINATE-VALUE-UNKNOWN. It does not narrow the read."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Asserts the scope's revision; any other value refuses with IA-DB-SCOPE-MISMATCH."
+        },
+        "start": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Identities to start from."
+        },
+        "follow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Relationship verbs to follow."
+        },
+        "direction": {
+          "enum": [
+            "out",
+            "in",
+            "both"
+          ],
+          "description": "Edge direction."
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8,
+          "description": "Hops from start."
+        },
+        "filter": {
+          "type": "object",
+          "description": "Keep only records of this kind, discriminator or system.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "governance",
+                "contract",
+                "definition",
+                "template",
+                "check",
+                "policy",
+                "binding"
+              ]
+            },
+            "discriminator": {
+              "type": "string",
+              "description": "Record discriminator."
+            },
+            "system": {
+              "type": "string",
+              "description": "Owning system."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "coordinate": {
+          "type": "object",
+          "description": "Coordinate that conditional relationships are gated by.",
+          "properties": {
+            "shape": {
+              "type": "string",
+              "enum": [
+                "context",
+                "governance",
+                "execution",
+                "sequence",
+                "learning"
+              ]
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "thing",
+                "kind",
+                "property",
+                "state",
+                "event",
+                "relation",
+                "rule",
+                "capability",
+                "intent",
+                "decision",
+                "evidence",
+                "representation",
+                "process",
+                "measure",
+                "boundary"
+              ]
+            },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "orient",
+                "plan",
+                "act",
+                "learn"
+              ]
+            },
+            "primitive": {
+              "type": "string",
+              "enum": [
+                "Memory",
+                "Attention",
+                "Inference",
+                "Decision",
+                "Escalation",
+                "Learning"
+              ]
+            },
+            "move": {
+              "type": "string",
+              "enum": [
+                "Observation",
+                "Execution",
+                "Delegation",
+                "Synthesis",
+                "Verification"
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "governance",
+                "contract",
+                "definition",
+                "template",
+                "check",
+                "policy",
+                "binding"
+              ]
+            },
+            "lane": {
+              "type": "string",
+              "enum": [
+                "authority",
+                "contracts",
+                "definitions",
+                "templates",
+                "enforcement",
+                "bindings"
+              ]
+            },
+            "predicate": {
+              "type": "string",
+              "enum": [
+                "govern",
+                "enforce",
+                "ground",
+                "constrain",
+                "implement",
+                "produce",
+                "consume",
+                "record-lineage-from",
+                "grant-access-to",
+                "run-before",
+                "trigger",
+                "cite",
+                "supersede",
+                "require",
+                "use",
+                "forbid",
+                "route",
+                "land"
+              ]
+            },
+            "artifact-set": {
+              "type": "string",
+              "enum": [
+                "inquiry",
+                "decision",
+                "contract",
+                "product-definition",
+                "execution",
+                "operational",
+                "evidence",
+                "projection",
+                "principle"
+              ]
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "blocking",
+                "advisory",
+                "informational"
+              ]
+            },
+            "provenance": {
+              "type": "string",
+              "enum": [
+                "workspace",
+                "methodology",
+                "bootstrap",
+                "runtime"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "start"
+      ],
+      "additionalProperties": false
+    },
+    "result": "The walk: {nodes, via, edges, gated, dangling}; each node carries its depth.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter is unknown, missing or of the wrong type.",
+        "next": "Match the parameters to this operation's schema; the message names what was expected."
+      },
+      {
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "when": "within is a token this process did not issue.",
+        "next": "Omit within, or pass a token issued earlier in the same process; a CLI token ends with its invocation."
+      },
+      {
+        "code": "IA-DB-SCOPE-MISMATCH",
+        "when": "root, phase or revision differs from the scope's own value.",
+        "next": "Drop the binding or pass the scope's own value. To read a narrower scope, issue one with scope and pass its token as within in the same process; a CLI invocation performs one operation, so its reads cover the initial boundary."
+      },
+      {
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "when": "A phase or coordinate value is outside its closed set, or coordinate names an unknown axis.",
+        "next": "Use one of the values or axes the message lists."
+      },
+      {
+        "code": "IA-GRAPH-VERB-UNKNOWN",
+        "when": "follow names a verb the language does not define.",
+        "next": "Use the verbs the message lists."
+      },
+      {
+        "code": "IA-GRAPH-TRAVERSAL-INVALID",
+        "when": "depth is not an integer from 0 to 8.",
+        "next": "Pass an integer depth from 0 to 8."
+      }
+    ],
+    "example": {
+      "start": [
+        "governance-system/definition/procedure/sample-procedure"
+      ],
+      "depth": 1
+    },
+    "mcp": "ia_traverse"
+  },
+  {
+    "name": "report",
+    "summary": "Report admission verdicts and findings for the whole workspace (CLI only).",
+    "description": "Report admission verdicts and findings for the whole workspace. Privileged local inspection: the CLI enables it and the MCP door does not serve it.",
+    "params": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "result": "The report: {revision, outcome, verdicts, findings, shadows}. On the CLI an outcome of fail exits 1 although the response is ok.",
+    "refusals": [
+      {
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "when": "A parameter was supplied (report takes none), or the host has not enabled report.",
+        "next": "Pass {} or omit --params; only the CLI enables report."
+      }
+    ],
+    "example": {},
+    "mcp": null
+  }
+]

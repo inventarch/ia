@@ -16,7 +16,7 @@ import { isAbsolute, relative, sep } from 'node:path';
 import { adoptedBindings } from '@inventarch/db';
 import { readWorkspaceFile } from '@inventarch/distribution/services';
 import { parseLocator, readBody } from '@inventarch/runtime';
-import type { ReadBody, ReadRefusal } from '@inventarch/runtime';
+import type { ReadBody, ReadBodyOptions, ReadRefusal } from '@inventarch/runtime';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import type { Capabilities } from './render.js';
@@ -137,6 +137,19 @@ function workspaceLocator(locator: string, root: string): string {
     : `${local.split(sep).join('/')}:${parsed.line}`;
 }
 
+/**
+ * What `ia read` hands the runtime: the workspace file reader the capture already uses, and the directory
+ * `.ia/workspace.json` binds each adopted mount to. The runtime Door reads through db `readWorkspaceBytes` and the same
+ * bindings, and tests/read.test.ts holds the two to the same bodies, digests and refusals.
+ */
+export function readOptions(root: string, reader: Session['reader'], includeRuntime: boolean): ReadBodyOptions {
+  return {
+    read: (path) => readWorkspaceFile({ root, path }),
+    mounts: new Map(adoptedBindings(reader.root).map((binding) => [binding.tree, binding.path])),
+    includeRuntime,
+  };
+}
+
 export function runRead(context: Context): Result {
   const { args, caps, json } = context;
   const locator = args.positionals[0]!;
@@ -154,11 +167,7 @@ export function runRead(context: Context): Result {
   const session = openSession(root);
   let got: ReturnType<typeof readBody>;
   try {
-    got = readBody(session.reader, target, {
-      read: (path) => readWorkspaceFile({ root, path }),
-      mounts: new Map(adoptedBindings(session.reader.root).map((binding) => [binding.tree, binding.path])),
-      includeRuntime: args.flag('include-runtime'),
-    });
+    got = readBody(session.reader, target, readOptions(root, session.reader, args.flag('include-runtime')));
     // Refused while the workspace is open, so an identity no source holds is answered from what it admits.
     if (!got.ok) throw readRefusal(got, context, root, session.reader);
   } finally {

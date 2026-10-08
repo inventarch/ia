@@ -1,10 +1,12 @@
 /**
  * The machine protocol's one description (docs/specs/command-discoverability/README.md §2). For each Door operation:
  * its purpose, parameter schema, result, refusals with a next action, and an example that returns `ok: true` on
- * packages/compliance/fixtures/loop. `ia <operation> --help`, the MCP door's tools/list and
- * docs/reference/cli/machine-protocol.md are projections of this table. It describes the frozen wire format and changes none
- * of it: the Door validates every request itself, and tests/select-door.test.ts and apps/cli/tests/cli.test.ts hold this
- * table to what the Door admits and refuses.
+ * packages/compliance/fixtures/loop. `ia <operation> --help` (the version 1 operations, which are the CLI's machine routes),
+ * the MCP door's tools/list and docs/reference/cli/machine-protocol.md are projections of this table. It describes the
+ * frozen wire format and changes none of it: the Door validates every request itself, and tests/select-door.test.ts,
+ * tests/door-read.test.ts and apps/cli/tests/cli.test.ts hold this table to what the Door admits and refuses. A later
+ * version only appends operations (`since`), so the version 1 rows stay byte-identical to 1.1.0's
+ * (tests/golden/machine-protocol-v1.json).
  */
 import { COORDINATE_DOMAINS } from './coordinate.js';
 import { freeze } from './types.js';
@@ -26,6 +28,11 @@ export interface ProtocolOperation {
   readonly example: Readonly<Record<string, unknown>>;
   /** The MCP tool that serves it, or null where `differences` says why it is CLI-only. */
   readonly mcp: string | null;
+  /**
+   * The protocol version that added the operation, absent on the version 1 operations, whose rows are unchanged. The
+   * CLI's machine routes are the version 1 operations; a later one is served by the Door and the MCP door.
+   */
+  readonly since?: number;
 }
 export interface ProtocolDifference {
   readonly topic: string;
@@ -175,13 +182,14 @@ const EXAMPLE_IDENTITY = 'governance-system/definition/procedure/sample-procedur
 
 /** Frozen deeply, so a projection that shares its schema objects (the MCP tools) cannot change it. */
 export const MACHINE_PROTOCOL: MachineProtocol = freeze({
-  version: 1,
+  version: 2,
   flow: [
     'scope issues a token that bounds later reads by phase or identities, and by root only where sources declare a reach. It is optional: without within, a call reads the initial boundary.',
     'context delivers the cited procedure cells and governance that apply to a coordinate; select chooses exactly one binding among candidates, or refuses.',
     'get, records, resolve, search and traverse read admitted records inside the scope; pass within to stay inside a narrowed one.',
     'A token lives as long as the process that issued it: one CLI invocation, or the MCP server process. A CLI invocation performs one operation, so its reads always cover the initial boundary; narrowing takes scope, then within, in one MCP session.',
     "report is privileged inspection of the whole workspace's admission, served by the CLI only.",
+    'Version 2 adds read: the body behind one locator inside the scope, with its digest. The Door and the MCP door serve it; on the CLI the consumer verb ia read returns the same body and digest, and the machine routes stay the version 1 operations.',
   ],
   operations: [
     {
@@ -383,6 +391,54 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       ],
       example: {},
       mcp: null,
+    },
+    {
+      name: 'read',
+      summary: 'Read the body behind one locator inside the scope, with its digest.',
+      description:
+        "Read the body behind one locator inside the scope: a cell's or requirement's text for a fragment, else the document the record's source locator names (the section under its markdown anchor), else the record's own body. digest is the SHA-256 of the body's UTF-8 bytes; a read certifies nothing. A locator outside the scope is refused without naming what lies outside it.",
+      params: object(
+        {
+          within: read.within,
+          locator: text(
+            '<identity>, <identity>#<phase>/<Primitive>, <identity>#<REQ-ID> or <path>:<line>, the path relative to the workspace root.',
+          ),
+          includeRuntime: {
+            type: 'boolean',
+            description: 'Read a record at runtime placement (band 0), which is refused otherwise; default false.',
+          },
+        },
+        ['locator'],
+      ),
+      result:
+        "The body: {locator, identity, kind, path?, digest, body, certified: false}. kind is record for a record's own body or a fragment's text, and document for the file its source locator names, at the workspace-relative path.",
+      refusals: [
+        REQUEST_INVALID,
+        SCOPE_UNAVAILABLE,
+        {
+          code: 'IA-RUNTIME-READ-UNADMITTED',
+          when: 'No admitted record inside the scope answers the locator. The refusal names no path, line, identity or refused record.',
+          next: 'Read a locator that records or search returns in this scope, or widen the scope.',
+        },
+        {
+          code: 'IA-RUNTIME-READ-FRAGMENT',
+          when: 'The record has no cell at the phase/Primitive address, or no requirement with the id.',
+          next: 'Read a cell address or requirement id that get returns for the record, or the record without a fragment.',
+        },
+        {
+          code: 'IA-RUNTIME-READ-UNREACHABLE',
+          when: "The document the record's source locator names cannot be read: a URL, a path outside the workspace or the record's tree, an adopted mount bound to no directory, a nonportable path, a missing, linked or oversized file, bytes that are not UTF-8, or an anchor no markdown heading has.",
+          next: "Restore the file the refusal's path names, or correct the record's source locator, which get shows with its source line.",
+        },
+        {
+          code: 'IA-RUNTIME-READ-PLACEMENT',
+          when: 'The record is at runtime placement (band 0) and includeRuntime is not true.',
+          next: 'Pass includeRuntime: true to read it.',
+        },
+      ],
+      example: { locator: `${EXAMPLE_IDENTITY}#act/Decision` },
+      mcp: 'ia_read',
+      since: 2,
     },
   ],
   differences: [
