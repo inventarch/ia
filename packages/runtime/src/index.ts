@@ -6,15 +6,18 @@ export { prepareCoordinate, COORDINATE_DOMAINS } from './coordinate.js';
 export type { PreparedCoordinate, CoordinateOptions, AxisSource } from './coordinate.js';
 export { K0, SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey } from './scope-key.js';
 export type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
-export { positionBody } from './position.js';
+export { position, positionBody } from './position.js';
 export type {
+  Freshness,
   FrontierTally,
+  HostNote,
   LoadedEntry,
   LoadedPlace,
   LoadedRecord,
   PointerTally,
   PositionBody,
   PositionCounts,
+  PositionOutput,
   PositionPointer,
   PositionRecord,
   PositionUnknown,

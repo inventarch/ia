@@ -1847,6 +1847,7 @@
         "tests/next.test.ts",
         "tests/position.test.ts",
         "tests/publication.test.ts",
+        "tests/purity.test.ts",
         "tests/scope-key.test.ts",
         "tests/select-door.test.ts",
         "tests/steward.test.ts"

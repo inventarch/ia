@@ -38,6 +38,10 @@ export function database(root: string, options: OpenOptions = {}): Handle {
   handles.push(db);
   return db;
 }
+/** A fixture @law of `severity`, `more` appended as further sections. */
+export function law(name: string, severity: string, more = ''): string {
+  return `#! ia 1.0\n@law ${name}\n  meaning\n    says "Fixture law ${name}."\n    answers "What does ${name} require?"\n  governance\n    severity ${severity}\n${more}`;
+}
 export function playbook(
   name: string,
   body = '',

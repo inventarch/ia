@@ -7,7 +7,7 @@ import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
 import { K0, normalizeScopeKey, positionBody, resolveScopeKey } from '../src/index.js';
 import type { LoadedRecord, PositionBody, ScopeKey } from '../src/index.js';
-import { database, lawId, lawPath, methodPath, put, workspace } from './workspace.js';
+import { database, law, lawId, lawPath, methodPath, put, workspace } from './workspace.js';
 
 // R15 (position-and-projection §1, §6 and §7, design item 10; decision scope-key-caps): body(K) over the conformance
 // corpus. The golden bodies are regenerated only by `node packages/runtime/tests/golden/write.mjs`, which sets
@@ -28,8 +28,6 @@ const GOLDEN: Readonly<Record<string, Partial<ScopeKey>>> = {
 const bodyOf = (db: Handle, within: string, partial: Partial<ScopeKey> = {}): PositionBody =>
   positionBody(db, within, resolveScopeKey(db, within, normalizeScopeKey(partial)));
 const ids = (entries: readonly object[]) => entries.map((entry) => ('identity' in entry ? entry.identity : undefined));
-const law = (name: string, severity: string, more = '') =>
-  `#! ia 1.0\n@law ${name}\n  meaning\n    says "Fixture law ${name}."\n    answers "What does ${name} require?"\n  governance\n    severity ${severity}\n${more}`;
 /** The foundation workspace declaring `sources`, so the records under them are its capture members. */
 function declare(root: string, sources: readonly string[]): void {
   const text = readFileSync(resolve(root, workspacePath), 'utf8');

@@ -1,16 +1,17 @@
 import { SEVERITIES, SHAPE_ROWS } from '@inventarch/language';
 import type { Band, Kind, Lane, Predicate } from '@inventarch/language';
-import { effectiveSeverity, laneOf, reaches } from '@inventarch/graph';
+import { digest, effectiveSeverity, laneOf, reaches } from '@inventarch/graph';
 import type { ClaimMatch, DirectedEdgeRow, DirectedRow } from '@inventarch/graph';
 import type { ReadHandle } from '@inventarch/db';
 import { RuntimeError } from './errors.js';
-import { SCOPE_KEY_CAPS } from './scope-key.js';
+import { SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey } from './scope-key.js';
 import type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
 import { freeze } from './types.js';
 
 /**
  * The position body: body(K), position-and-projection §1, §6 (bound, order keys, quantification) and §7 (traversal),
- * design item 10; decision scope-key-caps.
+ * design item 10; decision scope-key-caps. `position` returns it with its digest and the host note (design §1 and item
+ * 11, R16).
  *
  * One scope key, resolved through one scope token, gives one body: the seat, the composition one level from it at cost
  * 0, the seeds the shape's kind or lane focus picks from it, the records reached by hops along the shape's predicate
@@ -18,7 +19,10 @@ import { freeze } from './types.js';
  * tallies, the frontier one hop past the loaded set, the unknowns, the counts and the two widening keys. It is a pure
  * function of the key and the admitted records the token reads, and only a whole-workspace token (db PT5) also reads
  * the admission findings it alone may disclose: no root path, token, time, request text or capture state enters it,
- * and nothing is written. Record bodies are never in it; `ia read` fetches one on demand.
+ * and nothing is written. Record bodies are never in it; `ia read` fetches one on demand. A record at runtime placement
+ * (band 0) is never entered, listed, tallied or reached through (design §4, excluded; decision evidence-placement:
+ * runtime-band evidence is admitted below authored and must not move what agents are given). The revision, the
+ * database's seat and root decisions and admission's findings still read every placement (R15, R16).
  */
 
 /** One way an entry was first reached: a row, a field reference, or one of the composition classes of design §7. */
@@ -142,6 +146,31 @@ export interface PositionBody {
   readonly counts: PositionCounts;
   readonly widening: PositionWidening;
 }
+/** The host note's freshness: the capture `ia capture` last wrote against the revision the handle reads. */
+export type Freshness = 'current' | 'stale' | 'no-capture';
+/**
+ * The host note (design §1): host state printed beside the body, never digested and never claimed identical across
+ * hosts or working trees. Installed state is not reported before receipts exist (milestone position-packet).
+ */
+export interface HostNote {
+  /** The revision of the handle's root view, which a capture is compared with. */
+  readonly revision: string;
+  /** The revision of the capture at `.ia/work/snapshot/current.json` (db D08a), when there is one. */
+  readonly capturedRevision?: string;
+  /** The revision of the previous root snapshot the handle retains (db D08), when it retains one. */
+  readonly previousRevision?: string;
+  /** `current` when the capture is at `revision`, `stale` when it is at another, `no-capture` when there is none. */
+  readonly freshness: Freshness;
+  /** The key used: the partial key completed by normalizeScopeKey, a location as the caller spelled it. */
+  readonly key: ScopeKey;
+}
+/** The two outputs of a position (design §1), always printed together and never merged. */
+export interface PositionOutput {
+  readonly body: PositionBody;
+  /** Graph's codec digest of `body`, its canonical JSON text's SHA-256. */
+  readonly digest: string;
+  readonly hostNote: HostNote;
+}
 
 /** p, the listed pointer lines before the tallies (design §1: a rendering constant, not a key part). */
 const LISTED = 48;
@@ -178,19 +207,48 @@ interface Seated {
 
 /**
  * R15: body(K) for the key `resolved` that resolveScopeKey returned for the same scope token `within`. Every read goes
- * through `within`, and admission findings are read only on a whole-workspace one (db PT5). A missing token is
- * IA-RUNTIME-REQUEST-INVALID, and an unknown, stale or closed one keeps its database code.
+ * through `within`, and admission findings are read only on a whole-workspace one (db PT5). A missing token, or a seat
+ * at runtime placement, is IA-RUNTIME-REQUEST-INVALID, and an unknown, stale or closed token keeps its database code.
  */
 export function positionBody(handle: ReadHandle, within: string, resolved: ResolvedScopeKey): PositionBody {
   return seated(handle, within, resolved).body;
 }
 
+/**
+ * R16: the position of the partial key `partial` through the scope token `within`: body(K) for the key normalizeScopeKey
+ * completes and resolveScopeKey resolves, its digest, and the host note. The key's parts are closed, so request text or
+ * a token in it is refused as an unknown part, and nothing text-driven runs; the body reads no capture, and the note
+ * reads the handle's capture pair, so writing a capture moves only the note. Refusals are those of the three steps.
+ */
+export function position(handle: ReadHandle, within: string, partial: Partial<ScopeKey> = {}): PositionOutput {
+  const key = normalizeScopeKey(partial),
+    body = positionBody(handle, within, resolveScopeKey(handle, within, key));
+  const revision = handle.revision,
+    captured = handle.capturedRevision,
+    previous = handle.previousRevision;
+  return freeze({
+    body,
+    digest: digest(body),
+    hostNote: {
+      revision,
+      ...(captured === undefined ? {} : { capturedRevision: captured }),
+      ...(previous === undefined ? {} : { previousRevision: previous }),
+      freshness: captured === undefined ? 'no-capture' : captured === revision ? 'current' : 'stale',
+      key,
+    },
+  });
+}
+
 function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey): Seated {
   if (typeof within !== 'string' || within.length === 0)
     throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', 'Runtime reads require an explicit scope token');
+  // A record at runtime placement (band 0) is no part of a body: neither the seat's composition, a seed, a hop or
+  // waypoint, loaded, reserved, a pointer, tallied nor frontier, and no row or claim of one ranks or reaches another,
+  // nor is one the record a location is declared at.
   const read = { within },
     snapshot = handle.snapshot(read),
-    nodes = new Map(snapshot.records.map((node) => [node.identity, node])),
+    records = snapshot.records.filter((node) => node.placement.kind !== 'runtime'),
+    nodes = new Map(records.map((node) => [node.identity, node])),
     rootOf = new Map(snapshot.membership.map((row) => [row.identity, row.root])),
     roots = handle.roots(read);
   const { key, seat, resolution, coordinate } = resolved,
@@ -198,10 +256,18 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
     values = coordinate.values,
     seatId = seat.identity,
     word = key.word;
+  if (seatId !== undefined && !nodes.has(seatId))
+    throw new RuntimeError(
+      'IA-RUNTIME-REQUEST-INVALID',
+      snapshot.records.some((node) => node.identity === seatId)
+        ? `The seat '${seatId}' is at runtime placement (band 0), which no position body enters`
+        : `The seat '${seatId}' is not an admitted record in this scope`,
+    );
   const viewed = new Map<string, readonly DirectedRow[]>();
   const rowsOf = (identity: string): readonly DirectedRow[] => {
     let rows = viewed.get(identity);
-    if (rows === undefined) viewed.set(identity, (rows = handle.directedView(identity, read)));
+    if (rows === undefined)
+      viewed.set(identity, (rows = handle.directedView(identity, read).filter((row) => nodes.has(row.counterpart))));
     return rows;
   };
   /** The word filter: with w set, only records of w are composition, seeds, loaded, pointers or tallied. */
@@ -234,8 +300,8 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
     return at !== undefined && nodes.get(at)?.discriminator === 'workspace' ? at : undefined;
   };
   const workspaceOf = (identity: string | undefined): string | undefined => {
-    if (identity === undefined) return repository();
-    if (nodes.get(identity)?.discriminator === 'workspace') return identity;
+    if (identity === undefined || !nodes.has(identity)) return repository();
+    if (nodes.get(identity)!.discriminator === 'workspace') return identity;
     const root = rootOf.get(identity);
     if (root === undefined) return repository();
     const holder = roots.find((r) => reaches(r.root, root))?.workspace;
@@ -259,7 +325,7 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
       for (const row of snapshot.membership)
         if (own.has(row.root)) compose(row.identity, { by: 'membership', root: row.root });
     if (node.discriminator === 'system')
-      for (const record of snapshot.records)
+      for (const record of records)
         if (record.system === node.name) compose(record.identity, { by: 'word', system: node.name });
   }
   if (seat.kind === 'location' && resolution !== undefined) {
@@ -452,14 +518,15 @@ function seated(handle: ReadHandle, within: string, resolved: ResolvedScopeKey):
   // unconsented rows admission found on a loaded record.
   const unknowns: PositionUnknown[] = [];
   if (seat.kind === 'location') {
-    const path = seat.path!;
-    if (resolution?.seat === undefined && (resolution?.claimants.length ?? 0) === 0)
+    const path = seat.path!,
+      declaredAt = resolution?.seat !== undefined && nodes.has(resolution.seat);
+    if (!declaredAt && !resolution?.claimants.some((claimant) => nodes.has(claimant.identity)))
       unknowns.push({
         kind: 'seat',
         subject: path,
         message: `no record claims '${path}' and none is declared at it; widening key: the workspace`,
       });
-    else if (seat.unknown !== undefined)
+    else if (!declaredAt)
       unknowns.push({
         kind: 'seat',
         subject: path,
