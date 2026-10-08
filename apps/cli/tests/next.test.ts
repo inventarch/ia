@@ -9,6 +9,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { afterAll, expect, it } from 'vitest';
 import { Door } from '@inventarch/runtime';
 import type { DeliveryView, DoorResponse } from '@inventarch/runtime';
@@ -105,6 +106,69 @@ it('prints the view the Door returns as one --json value, from any seat of the p
   });
   for (const seat of [PLAN, 'work-system/definition/milestone/build', task('schema')])
     expect(await next(root, ['--seat', seat]), seat).toEqual(machine);
+});
+
+it('renders admitted evaluator terminal commands as visible text while preserving the machine view', async () => {
+  const root = delivery(),
+    path = resolve(root, '.ia/src/evidence.ia'),
+    evaluator = 'ia-compliance@1.1.0\u001b[2J\u001b[HFAKE-CLEAN-REPORT';
+  writeFileSync(
+    path,
+    readFileSync(path, 'utf8').replace('evaluator "ia-compliance@1.1.0"', `evaluator "${evaluator}"`),
+  );
+  const machine = await next(root),
+    served = door(root);
+  if (!served.ok) throw new Error(served.message);
+  expect(machine.view).toEqual(served.result);
+  expect(machine.view.tasks.find((item) => item.identity === task('schema'))).toMatchObject({
+    verdict: 'evidenced',
+    evidence: { evaluator },
+  });
+  const human = await run(['next', '--root', root, '--ascii', '--no-color']);
+  expect(human.exitCode, human.stderr).toBe(0);
+  expect(human.stdout).not.toContain('\u001b');
+  expect(human.stdout).toContain('ia-compliance@1.1.0\\u001b[2J\\u001b[HFAKE-CLEAN-REPORT');
+  expect(human.stdout).toContain('\nTasks\n');
+  expect(human.stdout).toContain('\nReview\n');
+  const plain = renderNext(machine.view, { color: false, ascii: true, width: 80 }),
+    colored = renderNext(machine.view, { color: true, ascii: true, width: 80 });
+  expect(colored).toContain('\u001b[1mPlan\u001b[0m');
+  expect(colored).not.toContain('\u001b[2J');
+  expect(colored).not.toContain('\u001b[H');
+  expect(stripVTControlCharacters(colored)).toBe(plain);
+  expect((await next(root)).view).toEqual(machine.view);
+});
+
+it('keeps scalar controls from creating or overwriting report lines without changing ordinary text', async () => {
+  const view = (await next(delivery())).view,
+    text = 'caf\u00e9 "quoted" C:\\work\rREWRITE\b!\nFORGED\tCOLUMN\u007f\u009b2J',
+    visible = 'caf\u00e9 "quoted" C:\\work\\u000dREWRITE\\u0008!\\u000aFORGED\\u0009COLUMN\\u007f\\u009b2J';
+  const report: DeliveryView = {
+    ...view,
+    plan: text,
+    revision: text,
+    summary: text,
+    milestones: [{ ...view.milestones[0]!, identity: text, status: text, basis: text }],
+    tasks: [
+      {
+        ...view.tasks[0]!,
+        identity: text,
+        line: text,
+        status: text,
+        prerequisites: [{ target: task('schema'), satisfied: true, basis: text }],
+        states: [{ dimension: 'intent', value: text, basis: text }],
+      },
+    ],
+    review: [{ kind: 'admission', records: [], owner: text, message: text }],
+    next: `ia position ${text}`,
+  };
+  const rendered = renderNext(report, { color: false, ascii: true, width: 400 }, ` --root ${text}`);
+  expect(rendered).not.toMatch(/[\r\b\t\u007f\u009b]/);
+  expect(rendered).not.toContain('\nFORGED');
+  expect(rendered.split(visible)).toHaveLength(18);
+  expect(rendered).toContain('\nTasks\n');
+  expect(rendered).toContain('\nReview\n');
+  expect(report.tasks[0]!.line).toBe(text);
 });
 
 it('lists each task in order with its verdict, status, basis and five state lines, then review and next', async () => {

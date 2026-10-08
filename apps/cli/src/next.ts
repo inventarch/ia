@@ -40,6 +40,13 @@ const VERDICT_SYMBOL: Readonly<Record<DeliveryTask['verdict'], SymbolName>> = {
   blocked: 'warning',
 };
 
+/** Escape scalar terminal controls before layout and colour; generated newlines and SGR remain presentation-owned. */
+const terminalText = (text: string): string =>
+  text.replace(
+    /[\u0000-\u001f\u007f-\u009f]/g,
+    (control) => `\\u${control.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+
 /**
  * The plan and its summary; its milestones, satisfied or not and why; each task in the view's order with its verdict
  * line, its self-declared status, a basis line per requirement and its five state lines; the review items; and, when a
@@ -51,9 +58,9 @@ export function renderNext(view: DeliveryView, caps: Capabilities, rooted = ''):
   const milestones = view.milestones.flatMap((milestone) =>
     entry(
       [
-        [atom(milestone.identity, 'cyan', 0)],
-        words(`${milestone.satisfied ? 'satisfied' : 'not satisfied'}: ${milestone.basis}`),
-        words(milestone.status, 'dim'),
+        [atom(terminalText(milestone.identity), 'cyan', 0)],
+        words(`${milestone.satisfied ? 'satisfied' : 'not satisfied'}: ${terminalText(milestone.basis)}`),
+        words(terminalText(milestone.status), 'dim'),
       ],
       { depth: 1, symbol: milestone.satisfied ? 'success' : 'warning', symbolWidth },
       caps,
@@ -64,11 +71,11 @@ export function renderNext(view: DeliveryView, caps: Capabilities, rooted = ''):
     ...(index === 0 ? [sectionLabel('Tasks', caps)] : []),
     ...entry(
       [
-        [atom(task.identity, 'cyan', 0)],
-        words(task.line),
-        words(task.status, 'dim'),
-        ...task.prerequisites.map((prerequisite) => words(`requires ${prerequisite.basis}`)),
-        ...task.states.map((state) => words(`${state.dimension} ${state.value}: ${state.basis}`, 'dim')),
+        [atom(terminalText(task.identity), 'cyan', 0)],
+        words(terminalText(task.line)),
+        words(terminalText(task.status), 'dim'),
+        ...task.prerequisites.map((prerequisite) => words(terminalText(`requires ${prerequisite.basis}`))),
+        ...task.states.map((state) => words(terminalText(`${state.dimension} ${state.value}: ${state.basis}`), 'dim')),
       ],
       { depth: 1, symbol: VERDICT_SYMBOL[task.verdict], symbolWidth },
       caps,
@@ -80,8 +87,10 @@ export function renderNext(view: DeliveryView, caps: Capabilities, rooted = ''):
       : view.review.flatMap((item) =>
           entry(
             [
-              [atom(item.kind, null, 0), ...words(item.message, null, 2)],
-              ...(item.owner === undefined ? [] : [[atom('owner', 'dim', 0), atom(item.owner, 'cyan', 2)]]),
+              [atom(item.kind, null, 0), ...words(terminalText(item.message), null, 2)],
+              ...(item.owner === undefined
+                ? []
+                : [[atom('owner', 'dim', 0), atom(terminalText(item.owner), 'cyan', 2)]]),
             ],
             { depth: 1, symbol: 'warning' },
             caps,
@@ -92,17 +101,19 @@ export function renderNext(view: DeliveryView, caps: Capabilities, rooted = ''):
     view.next === null || first === undefined
       ? null
       : remedyWords(
-          `Run "${view.next}${rooted}" for the position of ${first.identity}, the next task with no declared blocker.`,
+          terminalText(
+            `Run "${view.next}${rooted}" for the position of ${first.identity}, the next task with no declared blocker.`,
+          ),
         );
   return document(
     [
       headerLine(
         'Plan',
-        view.plan,
-        [{ text: `revision ${truncateDigest(view.revision, caps.ascii)}`, column: 50 }],
+        terminalText(view.plan),
+        [{ text: `revision ${terminalText(truncateDigest(view.revision, caps.ascii))}`, column: 50 }],
         caps,
       ),
-      entry([words(view.summary)], { depth: 1, symbol: 'info' }, caps),
+      entry([words(terminalText(view.summary))], { depth: 1, symbol: 'info' }, caps),
       milestones.length === 0 ? [] : [sectionLabel('Milestones', caps), ...milestones],
       ...tasks,
       [sectionLabel('Review', caps), ...review],

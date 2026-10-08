@@ -5,7 +5,7 @@ import { expect, it } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
 import { readInputs } from '@inventarch/db';
 import type { Location } from '@inventarch/language';
-import { READ_CODES, RUNTIME_CODES, SOURCE_LOCATORS, parseLocator, readBody } from '../src/index.js';
+import { Door, READ_CODES, RUNTIME_CODES, SOURCE_LOCATORS, parseLocator, readBody } from '../src/index.js';
 import type { ReadBodyOptions, ReadResult } from '../src/index.js';
 import { headingAnchor, markdownSection } from '../src/locator.js';
 import { database, methodId, playbook, put, workspace } from './workspace.js';
@@ -261,6 +261,108 @@ it('reads the links of a heading in time linear in its length, however many brac
   expect(headingAnchor(`${'[a'.repeat(3)}[x](y) and ![alt](src)`)).toBe('aaax-and-alt');
 });
 
+it.each([
+  '- Item\n\n  ## Overview\n\n  Nested body.\n',
+  '1. Item\n\n   ## Overview\n\n   Nested body.\n',
+  '- Item\nlazy continuation\n\n  ## Overview\n\n  Nested body.\n',
+  '- Item\n  - Child\n\n  ## Overview\n\n  Nested body.\n',
+  '-\n  ## Overview\n\n  Nested body.\n',
+])('excludes list continuation headings from anchors and duplicate numbering: %j', (listed) => {
+  const first = '## Overview\n\nFirst top-level body.\n\n',
+    second = '## Overview\n\nSecond top-level body.\n',
+    document = `${listed}\n${first}${second}`;
+  expect(markdownSection(listed, 'overview')).toBeUndefined();
+  expect(markdownSection(document, 'overview')).toBe(first);
+  expect(markdownSection(document, 'overview-1')).toBe(second);
+  expect(markdownSection(document, 'overview-2')).toBeUndefined();
+});
+
+it('keeps same-level and higher-level list headings inside their enclosing top-level section byte for byte', () => {
+  const section = '\uFEFF## Main\r\n\r\n- Item\r\n\r\n  ## Same\r\n\r\n  # Higher\r\n\r\nOutside prose.\r\n\r\n',
+    next = '  ## Next\r\nLast body.';
+  expect(markdownSection(section + next, 'main')).toBe(section);
+  expect(markdownSection(section + next, 'next')).toBe(next);
+  expect(markdownSection(section + next, 'same')).toBeUndefined();
+  expect(markdownSection(section + next, 'higher')).toBeUndefined();
+});
+
+it.each([
+  '-\n\n',
+  '- Item\n\nOutside paragraph.\n\n',
+  '-   Item\n\n',
+  '-\tItem\n\n',
+  'Paragraph.\n2. Item\n\n',
+  'Paragraph.\n-\n\n',
+  '***\n\n',
+  '* * *\n\n',
+  '- Item\n---\n\n',
+  '- Item\n> Quote outside the list.\n\n',
+])('recognizes top-level indented headings after an ended or non-list block: %j', (before) => {
+  const section = '   # Target\n\nBody.\n';
+  expect(markdownSection(before + section, 'target')).toBe(section);
+});
+
+it.each(['```inline code```', '```lang`info', '   ````lang`info', '```lang\\`info'])(
+  'does not treat a backtick in fence info as a fence opener: %j',
+  (inline) => {
+    const section = `# Main\n\n${inline}\n\n`,
+      next = '# Next\n\nOther body.\n';
+    expect(markdownSection(section + next, 'main')).toBe(section);
+    expect(markdownSection(section + next, 'next')).toBe(next);
+  },
+);
+
+it('keeps valid fences scoped to their list or quote and ignores marker-looking fenced contents', () => {
+  const document = [
+    '- ```md',
+    '  # Listed code',
+    '  ```',
+    '',
+    '  # Listed heading',
+    '',
+    '# Main',
+    '',
+    '~~~lang`info',
+    '- An apparent list inside code',
+    '# Fenced heading',
+    '~~~',
+    '',
+    '> ```',
+    '> # Quoted code',
+    '# Next',
+    '',
+    '- Item',
+    '  ```',
+    '  # Unterminated listed code',
+    '# Last',
+    'Body.',
+    '',
+  ].join('\n');
+  expect(markdownSection(document, 'main')).toBe(
+    document.slice(document.indexOf('# Main'), document.indexOf('# Next')),
+  );
+  expect(markdownSection(document, 'next')).toBe(
+    document.slice(document.indexOf('# Next'), document.indexOf('# Last')),
+  );
+  expect(markdownSection(document, 'last')).toBe('# Last\nBody.\n');
+  for (const anchor of ['listed-code', 'listed-heading', 'fenced-heading', 'quoted-code', 'unterminated-listed-code'])
+    expect(markdownSection(document, anchor), anchor).toBeUndefined();
+});
+
+it.each([0, 1, 2, 3])('preserves supported top-level ATX indentation of %i spaces', (indent) => {
+  const section = `${' '.repeat(indent)}# Title\nBody.\n`;
+  expect(markdownSection(section + '# Next\n', 'title')).toBe(section);
+});
+
+it('starts a new list after an unmatched container instead of lazily continuing its paragraph', () => {
+  const section = '  # Target\nBody.\n';
+  for (const before of ['- Item\n2. Item\n', '- > Item\n2. Item\n', '> Item\n2. Item\n'])
+    expect(markdownSection(before + section, 'target'), before).toBe(section);
+  const fenced = '# Main\n\n+ Item\n10) Item\n   ```\n# Stop\n';
+  expect(markdownSection(fenced, 'main')).toBe(fenced);
+  expect(markdownSection(fenced, 'stop')).toBeUndefined();
+});
+
 it('reads a record without a source locator as its meaning.says, and the plan exit evidence identity says only that', () => {
   const root = workspace(),
     db = database(root);
@@ -288,6 +390,66 @@ it('reads a record without a source locator as its meaning.says, and the plan ex
   expect(body(readBody(db, `${CONTRACT}#REQ-FOUNDATION-REFUSE`, { read }))).toMatchObject({
     kind: 'record',
     body: 'Missing required fields or foreign vocabulary receives a named refusal and is not reported as conforming.',
+  });
+});
+
+it('reads an admitted custom word named constructor without treating inherited properties as source locators', () => {
+  const root = workspace(),
+    systemPath = '.ia/src/systems/agent-system/system.ia',
+    schemaPath = '.ia/src/systems/agent-system/schemas/agent.schema.ia',
+    stewardPath = '.ia/src/systems/agent-system/steward.ia',
+    identity = 'agent-system/binding/agent/custom-reader',
+    text = 'The custom word reads its own body.';
+  put(
+    root,
+    systemPath,
+    readFileSync(resolve(root, systemPath), 'utf8').replace(
+      '  edges\n',
+      '    constructor lowers to binding\n      category capability\n      facets [agent]\n      schema @schema constructor\n  edges\n',
+    ),
+  );
+  put(
+    root,
+    '.ia/src/systems/agent-system/schemas/constructor.schema.ia',
+    readFileSync(resolve(root, schemaPath), 'utf8').replace('@schema agent', '@schema constructor'),
+  );
+  put(
+    root,
+    stewardPath,
+    readFileSync(resolve(root, stewardPath), 'utf8').replace(
+      'applies [agent, mandate]',
+      'applies [agent, mandate, constructor]',
+    ),
+  );
+  put(
+    root,
+    '.ia/src/systems/agent-system/records/custom-reader.ia',
+    `#! ia 1.0\n@constructor custom-reader\n  meaning\n    says "${text}"\n    answers "What is read?"\n  governance\n    applies []\n`,
+  );
+  const db = database(root);
+  expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+  expect(db.get(identity)?.discriminator).toBe('constructor');
+  const gate = new Door(root, { cache: false });
+  try {
+    expect(gate.request({ operation: 'read', params: { locator: identity } })).toMatchObject({
+      ok: true,
+      result: { identity, kind: 'record', body: text, digest: sha256(text), certified: false },
+    });
+  } finally {
+    gate.close();
+  }
+  expect(
+    body(
+      readBody(db, identity, {
+        read: () => {
+          throw new Error('No document should be read');
+        },
+      }),
+    ),
+  ).toMatchObject({
+    kind: 'record',
+    body: text,
+    digest: sha256(text),
   });
 });
 

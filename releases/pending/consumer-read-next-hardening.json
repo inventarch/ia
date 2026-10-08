@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Harden body reads and terminal delivery reports",
+  "summary": "The runtime body reader looks up source-locator fields only among declared table entries, so an admitted custom word named constructor reads its own body instead of failing on an inherited JavaScript property. Markdown body reads ignore headings inside list and quote containers, keep fences within their containers and reject invalid backtick fence openers, preserving top-level section boundaries and exact source bytes. The human ia next report escapes terminal control characters in source-derived text before layout and styling; JSON and Door values remain unchanged. Clean installed-package qualification now exercises capture idempotence, read bodies and digests, next dependency ordering and self-declared status, read-only effects, refusal paths and the retained 1.x compile artifact contract.",
+  "packages": ["@inventarch/runtime", "@inventarch/cli"],
+  "paths": [
+    "packages/runtime/src/locator.ts",
+    "packages/runtime/tests/locator.test.ts",
+    "apps/cli/src/next.ts",
+    "apps/cli/tests/next.test.ts",
+    "tools/distribution/qualify-packages.mjs"
+  ]
+}

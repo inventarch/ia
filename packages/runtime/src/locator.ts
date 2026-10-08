@@ -149,7 +149,46 @@ export function fragmentText(node: Node, fragment: string): string | undefined {
 }
 
 const HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+const QUOTE = /^ {0,3}> ?/;
+const BREAK = /^ {0,3}(?:(?:\* *){3,}|(?:- *){3,}|(?:_ *){3,})$/;
+const SETEXT = /^ {0,3}(?:=+|-+) *$/;
+type MarkdownContainer = { readonly indent: number; empty: boolean } | 'quote';
+
+/** Structural tabs use four-column stops; the original line, heading text and returned bytes are never expanded. */
+function blockLine(line: string): string {
+  let added = 0;
+  return line.replace(/\t/g, (_, offset: number) => {
+    const width = 4 - ((offset + added) % 4);
+    added += width - 1;
+    return ' '.repeat(width);
+  });
+}
+function openingFence(line: string): string | undefined {
+  const match = FENCE.exec(line);
+  return match === null || (match[1]![0] === '`' && match[2]!.includes('`')) ? undefined : match[1];
+}
+/** A list's content indentation includes its marker and one to four padding spaces (one for empty/code items). */
+function listItem(line: string, paragraph: boolean): Exclude<MarkdownContainer, string> | undefined {
+  const match = /^( {0,3})([*+-]|\d{1,9}[.)])(?: +(.*)|$)/.exec(line);
+  if (match === null || BREAK.test(line)) return undefined;
+  const marker = match[2]!,
+    empty = match[3] === undefined || /^ *$/.test(match[3]);
+  if (paragraph && (empty || (marker.length > 1 && Number(marker.slice(0, -1)) !== 1))) return undefined;
+  const end = match[1]!.length + marker.length,
+    padding = /^ */.exec(line.slice(end))![0].length;
+  return { indent: end + (empty || padding > 4 ? 1 : padding), empty };
+}
+/** A missing container prefix can continue only a paragraph, not a heading, fence, quote or new list. */
+function startsBlock(line: string): boolean {
+  return (
+    HEADING.test(line) ||
+    openingFence(line) !== undefined ||
+    QUOTE.test(line) ||
+    BREAK.test(line) ||
+    listItem(line, false) !== undefined
+  );
+}
 /**
  * The first index of `character` in `text` at or after a position, asked for positions that never decrease, as one
  * scan: a position past the last found is searched from there, and every other answer is the one already found.
@@ -210,7 +249,8 @@ export function headingAnchor(heading: string): string {
  */
 export function markdownSection(text: string, anchor: string): string | undefined {
   const lines = text.split(/(?<=\n)/),
-    occurrences = new Map<string, number>();
+    occurrences = new Map<string, number>(),
+    containers: MarkdownContainer[] = [];
   const unique = (base: string): string => {
     let result = base;
     while (occurrences.has(result)) {
@@ -223,25 +263,76 @@ export function markdownSection(text: string, anchor: string): string | undefine
   };
   let fence: string | undefined,
     start: number | undefined,
-    level = 0;
+    level = 0,
+    paragraph = false;
   for (const [index, raw] of lines.entries()) {
-    const line = (index === 0 ? raw.replace(/^\uFEFF/, '') : raw).replace(/\r?\n$/, ''),
-      marker = FENCE.exec(line)?.[1];
+    const line = (index === 0 ? raw.replace(/^\uFEFF/, '') : raw).replace(/\r?\n$/, '');
+    let content = blockLine(line),
+      matched = 0;
+    // Match existing containers before their leaf block. A fence ends when its containing list or quote ends.
+    for (const container of containers) {
+      if (container === 'quote') {
+        const quote = QUOTE.exec(content);
+        if (quote === null) break;
+        content = content.slice(quote[0].length);
+      } else if (/^ *$/.test(content)) {
+        // The marker's own blank content is the one blank line an empty item may start with.
+        if (container.empty) break;
+      } else {
+        if (!content.startsWith(' '.repeat(container.indent))) break;
+        content = content.slice(container.indent);
+        container.empty = false;
+      }
+      matched++;
+    }
+    if (matched < containers.length) {
+      // The open paragraph belongs to an unmatched container. A new block at the matched level can start any list;
+      // the ordered-1/nonempty interruption rule applies only while that paragraph's containers remain matched.
+      if (paragraph && !/^ *$/.test(content) && !startsBlock(content)) continue;
+      containers.length = matched;
+      fence = undefined;
+      paragraph = false;
+    }
     if (fence !== undefined) {
-      if (marker !== undefined && marker[0] === fence[0] && marker.length >= fence.length && line.trim() === marker)
+      const closing = FENCE.exec(content),
+        marker = closing?.[1];
+      if (marker !== undefined && marker[0] === fence[0] && marker.length >= fence.length && /^ *$/.test(closing![2]!))
         fence = undefined;
       continue;
     }
-    if (marker !== undefined) {
-      fence = marker;
+    // New containers may nest on one line, but cannot arise inside fenced or indented code.
+    for (;;) {
+      const quote = QUOTE.exec(content),
+        item = listItem(content, paragraph);
+      if (quote !== null) {
+        containers.push('quote');
+        content = content.slice(quote[0].length);
+      } else if (item !== undefined) {
+        containers.push(item);
+        content = content.slice(item.indent);
+      } else break;
+      paragraph = false;
+    }
+    fence = openingFence(content);
+    if (fence !== undefined) {
+      paragraph = false;
       continue;
     }
-    const heading = HEADING.exec(line);
-    if (heading === null) continue;
+    const heading = HEADING.exec(content);
+    if (heading === null) {
+      paragraph =
+        !/^ *$/.test(content) &&
+        !BREAK.test(content) &&
+        !(paragraph && SETEXT.test(content)) &&
+        (paragraph || !content.startsWith('    '));
+      continue;
+    }
+    paragraph = false;
+    if (containers.length > 0) continue;
     const depth = heading[1]!.length;
     if (start !== undefined) {
       if (depth <= level) return lines.slice(start, index).join('');
-    } else if (unique(headingAnchor(heading[2] ?? '')) === anchor) {
+    } else if (unique(headingAnchor(HEADING.exec(line)![2] ?? '')) === anchor) {
       start = index;
       level = depth;
     }
@@ -251,6 +342,7 @@ export function markdownSection(text: string, anchor: string): string | undefine
 
 /** The record's source locator: the field its word names in SOURCE_LOCATORS, when the record states it unconditionally. */
 function sourceOf(node: Node): { readonly field: string; readonly value: string } | undefined {
+  if (!Object.hasOwn(SOURCE_LOCATORS, node.discriminator)) return undefined;
   const field = SOURCE_LOCATORS[node.discriminator];
   if (field === undefined) return undefined;
   const value = statedText(node, field);
