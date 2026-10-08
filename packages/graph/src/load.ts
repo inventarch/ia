@@ -1,4 +1,4 @@
-import { KIND_LANES, canonicalPath, consentFor, isPhase, validatePool } from '@inventarch/language';
+import { canonicalPath, consentFor, isPhase, validatePool } from '@inventarch/language';
 import type {
   CompiledChild,
   CompiledEdge,
@@ -13,6 +13,7 @@ import { GraphUsageError, graphDiagnostic } from './diagnostics.js';
 import type { GraphDiagnostic } from './diagnostics.js';
 import { snapshot } from './immutable.js';
 import { assertLocation, canonicalRoot, reaches } from './paths.js';
+import { laneOf } from './queries.js';
 import { referenceKey, resolve } from './resolve.js';
 import { compare, recordDigest, revisionOf, stableSerialize } from './revision.js';
 import { buildTextIndex } from './text.js';
@@ -143,11 +144,7 @@ export function load(records: readonly CompiledRecord[], registry: FrozenRegistr
     post(byKind, node.kind, node.identity);
     post(bySystem, node.system, node.identity);
     post(byCategory, registry.registrations.get(node.discriminator)!.category, node.identity);
-    post(
-      byLane,
-      node.kind === 'contract' && node.facet === 'authority' ? 'authority' : KIND_LANES[node.kind],
-      node.identity,
-    );
+    post(byLane, laneOf(node), node.identity);
     if (node.dimensions.artifactSet !== undefined) post(byArtifactSet, node.dimensions.artifactSet, node.identity);
     for (const cell of node.cells) {
       const key = `${cell.phase}/${cell.primitive}`,

@@ -1,0 +1,234 @@
+{
+  "format": "ia.position-body.v1",
+  "revision": "<revision>",
+  "key": {
+    "shape": "sequence",
+    "phase": "plan",
+    "depth": 2,
+    "budget": 16
+  },
+  "seat": {
+    "kind": "workspace",
+    "identity": "workspace-system/definition/workspace/foundation-workspace"
+  },
+  "loaded": [
+    {
+      "identity": "workspace-system/definition/workspace/foundation-workspace",
+      "word": "workspace",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "workspace-system",
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "band": 100,
+      "hop": 0,
+      "digest": "fd7465f81dcfade97defc4929fa98c35067fabcc576cfffe74f62349911a4cf2"
+    },
+    {
+      "identity": "compliance-system/contract/signature/foundation-authoring-contract",
+      "word": "contract",
+      "kind": "contract",
+      "lane": "contracts",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 1,
+      "via": {
+        "by": "row",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "predicate": "require",
+        "spelling": "requires",
+        "declaredBy": "source"
+      },
+      "digest": "68a9199a402992000eef23f3d5f81c8a06274460a8aca9c668062f4f243d5fbe"
+    }
+  ],
+  "rules": [],
+  "pointers": [
+    {
+      "identity": "floor/definition/system/agent-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "floor/definition/system/compliance-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "floor/definition/system/governance-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "floor/definition/system/session-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "floor/definition/system/workspace-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "workspace-system/definition/distribution/foundation-distribution",
+      "word": "distribution",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "workspace-system",
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "distribution.records",
+        "direction": "in"
+      }
+    },
+    {
+      "identity": "compliance-system/check/gate/instance-schema-check",
+      "word": "check",
+      "kind": "check",
+      "lane": "enforcement",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 1,
+      "via": {
+        "by": "row",
+        "from": "compliance-system/contract/signature/foundation-authoring-contract",
+        "predicate": "govern",
+        "spelling": "governs",
+        "declaredBy": "source"
+      }
+    },
+    {
+      "identity": "compliance-system/definition/scenario/foreign-vocabulary",
+      "word": "case",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 1,
+      "via": {
+        "by": "row",
+        "from": "compliance-system/contract/signature/foundation-authoring-contract",
+        "predicate": "implement",
+        "spelling": "implemented-by",
+        "declaredBy": "source"
+      }
+    },
+    {
+      "identity": "compliance-system/definition/scenario/missing-required-field",
+      "word": "case",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 1,
+      "via": {
+        "by": "row",
+        "from": "compliance-system/contract/signature/foundation-authoring-contract",
+        "predicate": "implement",
+        "spelling": "implemented-by",
+        "declaredBy": "source"
+      }
+    },
+    {
+      "identity": "compliance-system/definition/scenario/valid-native-record",
+      "word": "case",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "compliance-system",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "band": 100,
+      "hop": 1,
+      "via": {
+        "by": "row",
+        "from": "compliance-system/contract/signature/foundation-authoring-contract",
+        "predicate": "implement",
+        "spelling": "implemented-by",
+        "declaredBy": "source"
+      }
+    }
+  ],
+  "pointerTallies": [],
+  "frontier": [],
+  "unknowns": [
+    {
+      "kind": "sources",
+      "subject": "workspace-system/definition/workspace/foundation-workspace",
+      "message": "workspace declares no sources: workspace-system/definition/workspace/foundation-workspace has no capture members, and its closure is the floor, the adopted records and every record no workspace declares a root for"
+    }
+  ],
+  "counts": {
+    "composition": 6,
+    "seeds": 1,
+    "loaded": 2,
+    "rules": 0,
+    "pointers": 10,
+    "frontier": 0,
+    "truncatedLoaded": 0,
+    "truncatedPointers": 0
+  },
+  "widening": {
+    "reseat": {
+      "shape": "sequence",
+      "phase": "plan",
+      "depth": 1,
+      "budget": 16
+    }
+  }
+}

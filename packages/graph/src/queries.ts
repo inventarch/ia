@@ -1,5 +1,5 @@
-import { SEVERITIES } from '@inventarch/language';
-import type { Term, Variant } from '@inventarch/language';
+import { KIND_LANES, SEVERITIES } from '@inventarch/language';
+import type { CompiledRecord, Lane, Term, Variant } from '@inventarch/language';
 import { validateCoordinate } from './coordinate.js';
 import type { Coordinate, Dimensions } from './coordinate.js';
 import { graphDiagnostic } from './diagnostics.js';
@@ -7,6 +7,11 @@ import type { GraphDiagnostic } from './diagnostics.js';
 import { snapshot } from './immutable.js';
 import { compare } from './revision.js';
 import type { CellSelection, Node } from './types.js';
+
+/** G05: a record's lane, the kernel's lane for its kind, except that a contract of facet `authority` is `authority`. */
+export function laneOf(record: Pick<CompiledRecord, 'kind' | 'facet'>): Lane {
+  return record.kind === 'contract' && record.facet === 'authority' ? 'authority' : KIND_LANES[record.kind];
+}
 
 /** Both severity sources can raise the stakes; the native list is strongest first. */
 export function effectiveSeverity(subject: Dimensions, coordinate: Coordinate): string | undefined {
