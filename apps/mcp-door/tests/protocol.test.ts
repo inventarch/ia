@@ -1,15 +1,17 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { relative, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { Protocol, PROTOCOL_VERSION } from '../src/protocol.js';
 
 const fixture = resolve(import.meta.dirname, '../../../packages/compliance/fixtures/loop'),
-  instances: Protocol[] = [];
+  instances: Protocol[] = [],
+  temporary: string[] = [];
 const message = (id: number | string, method: string, params: unknown = {}) => ({ jsonrpc: '2.0', id, method, params });
-function protocol() {
-  const value = new Protocol(fixture);
+function protocol(root = fixture) {
+  const value = new Protocol(root);
   instances.push(value);
   return value;
 }
@@ -26,9 +28,22 @@ function initialize(value: Protocol) {
 }
 afterEach(() => {
   for (const value of instances.splice(0)) value.close();
+  for (const root of temporary.splice(0)) {
+    const path = relative(tmpdir(), root);
+    if (path.startsWith('..') || !path.startsWith('ia-mcp-delivery-')) throw new Error('Unsafe test cleanup');
+    rmSync(root, { recursive: true, force: true });
+  }
   vi.restoreAllMocks();
 });
-it('negotiates the pinned profile, discovers ten tools and enforces initialization order', () => {
+/** The runtime's delivery fixture (one plan, two milestones, five tasks) laid over the conformance corpus. */
+function delivery(): string {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-mcp-delivery-'));
+  temporary.push(root);
+  for (const source of ['examples/conformance/native', 'packages/runtime/tests/fixtures/delivery/base'])
+    cpSync(resolve(import.meta.dirname, '../../..', source), resolve(root, '.ia/src'), { recursive: true });
+  return root;
+}
+it('negotiates the pinned profile, discovers eleven tools and enforces initialization order', () => {
   const value = protocol();
   expect(value.request(message(1, 'tools/list'))?.error?.code).toBe(-32000);
   expect(value.request(message(1, 'initialize', {}))?.error?.code).toBe(-32602);
@@ -56,9 +71,10 @@ it('negotiates the pinned profile, discovers ten tools and enforces initializati
   const listed = value.request(message(3, 'tools/list'))?.result as {
     tools: { name: string; annotations: { readOnlyHint: boolean } }[];
   };
-  // Plan amendment A3: the eight version 1 door tools, ia_read from protocol version 2, and ia_vocabulary.
-  expect(listed.tools).toHaveLength(10);
+  // Plan amendment A3: the eight version 1 door tools, ia_read and ia_next from protocol version 2, and ia_vocabulary.
+  expect(listed.tools).toHaveLength(11);
   expect(listed.tools.map((tool) => tool.name)).toContain('ia_read');
+  expect(listed.tools.map((tool) => tool.name)).toContain('ia_next');
   expect(listed.tools.at(-1)?.name).toBe('ia_vocabulary');
   expect(listed.tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
   expect(listed.tools.some((t) => t.name === 'ia_report')).toBe(false);
@@ -116,6 +132,73 @@ it('serves ia_read through the door: the body inside the scope a token names, an
     isError: true,
     structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID' },
   });
+});
+it("serves ia_next through the door: one plan's delivery view inside the scope, and a refusal naming its next command", () => {
+  const value = protocol(delivery());
+  initialize(value);
+  const call = (id: number, args: unknown, on = value) =>
+    on.request(message(id, 'tools/call', { name: 'ia_next', arguments: args }))?.result as {
+      content: { text: string }[];
+      structuredContent: { ok: boolean; result?: { plan: string; tasks: { identity: string }[] } };
+      isError: boolean;
+    };
+  const plan = 'work-system/definition/plan/release',
+    task = (name: string) => `work-system/definition/task/${name}`;
+  const view = call(2, {});
+  expect(view.isError).toBe(false);
+  expect(JSON.parse(view.content[0]!.text)).toEqual(view.structuredContent);
+  expect(view.structuredContent).toMatchObject({
+    ok: true,
+    result: { format: 'ia.delivery-view.v1', plan, next: `ia position --seat ${task('guide')} --shape sequence` },
+  });
+  expect(view.structuredContent.result!.tasks.map((t) => t.identity)).toEqual(
+    ['guide', 'schema', 'examples', 'package', 'release-notes'].map(task),
+  );
+  expect(call(3, { seat: task('package') }).structuredContent).toEqual(view.structuredContent);
+  // A token ia_scope issued narrows the view in the same server process.
+  const scope = value.request(
+    message(4, 'tools/call', { name: 'ia_scope', arguments: { identities: [plan, task('schema')] } }),
+  )?.result as { structuredContent: { result: { token: string } } };
+  expect(call(5, { within: scope.structuredContent.result.token, seat: plan })).toMatchObject({
+    isError: false,
+    structuredContent: { ok: true, result: { plan, milestones: [], tasks: [] } },
+  });
+  // A version 2 refusal carries the one command deliveryView names; the loop fixture authors no plan.
+  const loop = protocol();
+  initialize(loop);
+  expect(call(6, {}, loop)).toMatchObject({
+    isError: true,
+    structuredContent: {
+      ok: false,
+      code: 'IA-RUNTIME-NEXT-NO-PLAN',
+      message: 'No admitted @plan at authored placement (band 100) in this scope',
+      next: 'ia next --help',
+    },
+  });
+  expect(call(7, { seat: plan, unlisted: 1 })).toMatchObject({
+    isError: true,
+    structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID' },
+  });
+});
+it('names a record admission refused through ia_next on the initial whole-workspace scope only', () => {
+  const root = delivery(),
+    migrate = 'work-system/definition/task/migrate';
+  writeFileSync(
+    resolve(root, '.ia/src/migrate.ia'),
+    '#! ia 1.0\n\n@task migrate\n  meaning\n    says "Migrate the fixture data."\n  work\n    title "Migrate"\n    status bogus\n    milestone @milestone foundation\n',
+  );
+  const value = protocol(root);
+  initialize(value);
+  const call = (id: number, name: string, args: unknown) =>
+    (
+      value.request(message(id, 'tools/call', { name, arguments: args }))?.result as {
+        structuredContent: { result: { token?: string; review?: { kind: string; records: string[] }[] } };
+      }
+    ).structuredContent.result;
+  expect(call(2, 'ia_next', {}).review).toMatchObject([{ kind: 'admission', records: [migrate] }]);
+  // db PT5: a token ia_scope issued is never the whole workspace, so its view names no refused record.
+  const { token } = call(3, 'ia_scope', { identities: ['work-system/definition/plan/release'] });
+  expect(call(4, 'ia_next', { within: token }).review).toEqual([]);
 });
 it('rejects malformed framing/envelopes/parameters and unknown methods while ignoring notifications', () => {
   const value = protocol();

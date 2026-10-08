@@ -1042,6 +1042,7 @@
         "tests/distribution-verbs.test.ts",
         "tests/equivalence.test.ts",
         "tests/host-projection.test.ts",
+        "tests/next.test.ts",
         "tests/read.test.ts",
         "tests/refusal-next.test.ts",
         "tests/workspace-verbs.test.ts"

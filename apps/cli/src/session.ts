@@ -66,10 +66,40 @@ export function openSession(root: string): Session {
   }
 }
 
+/** The words `ia next` reads a plan from, as its `--seat`. */
+const SEAT_WORDS: readonly string[] = ['plan', 'milestone', 'task'];
+
 /**
- * Design row 27 for an identity a workspace verb finds no admitted record of, so `ia inspect` and `ia read` name the
- * same command for the same cause: a source holds it and admission refused it names `ia validate`, which says why; else
- * the nearest admitted identity, run through the same verb, answers a misspelling; else the workspace overview.
+ * Design row 27 for an identity a workspace verb finds no admitted record of, where the workspace says what answers
+ * it, so `ia inspect`, `ia read` and `ia next` name the same command for the same cause: a source holds it and
+ * admission refused it names `ia validate`, which says why; else the nearest admitted identity, run through the same
+ * verb, answers a misspelling (for `ia next`, the nearest @plan, @milestone or @task as its seat). Null when neither does.
+ */
+export function nearestNext(
+  reader: Session['reader'],
+  identity: string,
+  verb: 'inspect' | 'read' | 'next',
+  rooted: string,
+): string | null {
+  if (reader.refused.some((record) => record.identity === identity))
+    return `Run "ia validate${rooted}" to see why admission refused ${identity}.`;
+  const [nearest] = nearestTokens(
+    identity,
+    reader
+      .records()
+      .filter((record) => verb !== 'next' || SEAT_WORDS.includes(record.discriminator))
+      .map((record) => record.identity),
+    1,
+  );
+  if (nearest === undefined) return null;
+  return verb === 'next'
+    ? `Run "ia next --seat ${nearest}${rooted}" for the nearest admitted @plan, @milestone or @task.`
+    : `Run "ia ${verb} ${nearest}${rooted}" for the nearest admitted identity.`;
+}
+
+/**
+ * Design row 27 for an identity `ia inspect` or `ia read` finds no admitted record of: what `nearestNext` names, else
+ * the workspace overview.
  */
 export function identityNext(
   reader: Session['reader'],
@@ -77,14 +107,8 @@ export function identityNext(
   verb: 'inspect' | 'read',
   rooted: string,
 ): string {
-  if (reader.refused.some((record) => record.identity === identity))
-    return `Run "ia validate${rooted}" to see why admission refused ${identity}.`;
-  const [nearest] = nearestTokens(
-    identity,
-    reader.records().map((record) => record.identity),
-    1,
+  return (
+    nearestNext(reader, identity, verb, rooted) ??
+    `Run "ia inspect${rooted}" for the overview of what the workspace admits.`
   );
-  return nearest !== undefined
-    ? `Run "ia ${verb} ${nearest}${rooted}" for the nearest admitted identity.`
-    : `Run "ia inspect${rooted}" for the overview of what the workspace admits.`;
 }

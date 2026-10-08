@@ -22,7 +22,7 @@ import {
 } from '../src/compile.js';
 import { collectDoctor } from '../src/doctor.js';
 import { resolveCapabilities } from '../src/render.js';
-import { cleanup, cli, FORMATTABLE, run, scratch, workspace } from './workspace-fixture.js';
+import { cleanup, cli, delivery, FORMATTABLE, run, scratch, workspace } from './workspace-fixture.js';
 
 const ANSI = /\u001b\[/;
 afterAll(cleanup);
@@ -480,7 +480,8 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
 });
 
 it("keeps every new verb's --json stdout one parseable value with no ANSI, in success and in refusal", async () => {
-  const root = workspace();
+  const root = workspace(),
+    delivered = delivery();
   const empty = scratch('json');
   // IA_HOST_HOME keeps `init --host`'s payload in scratch rather than the real IA home.
   const options = { isTTY: true, columns: 120, env: { FORCE_COLOR: '1', IA_HOST_HOME: scratch('json-host-home') } };
@@ -498,6 +499,8 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
     { argv: ['compile', '--root', root, '--stdout', '--json'], refusal: false },
     { argv: ['read', 'agent-system/binding/agent/agent-steward', '--root', root, '--json'], refusal: false },
     { argv: ['read', 'agent-system/binding/agent/absent', '--root', root, '--json'], refusal: true },
+    { argv: ['next', '--root', delivered, '--json'], refusal: false },
+    { argv: ['next', '--root', root, '--json'], refusal: true },
     { argv: ['doctor', '--json'], refusal: false },
     { argv: ['pack', '--root', root, '--descriptor', '.ia/work/absent.json', '--json'], refusal: true },
     { argv: ['install', 'a/b', '--root', root, '--offline', '--json'], refusal: true },

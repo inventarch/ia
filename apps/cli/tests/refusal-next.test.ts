@@ -19,6 +19,7 @@ import { quote, resolveCapabilities } from '../src/render.js';
 import {
   cleanup,
   commandsIn,
+  delivery,
   FIXTURE,
   FORMATTABLE,
   makeHost,
@@ -476,8 +477,17 @@ function invocations(): readonly {
     snapshotLinked = workspace(),
     refused = workspace({ foreign: true }),
     linked = workspace(),
-    undecodable = workspace();
+    undecodable = workspace(),
+    plans = delivery('plans'),
+    cycle = delivery('cycle'),
+    planRefused = delivery();
   mkdirSync(resolve(bare, '.ia/src'), { recursive: true });
+  // A delivery plan whose status is outside its closed set: a source holds it and admission refuses it.
+  const work = resolve(planRefused, '.ia/src/work.ia');
+  writeFileSync(
+    work,
+    readFileSync(work, 'utf8').replace(/(@plan release\r?\n(?:.*\r?\n)*? {4}status )open/, '$1bogus'),
+  );
   // A floor source that no longer parses: a capture refuses rather than drop its records.
   const floor = resolve(floorBroken, '.ia/src/floor/artifact-set.ia');
   writeFileSync(floor, `${readFileSync(floor, 'utf8')}\n@@@ not a record header\n`);
@@ -542,6 +552,33 @@ function invocations(): readonly {
       argv: ['read', 'agent-system/binding/agent/agent-steward#REQ-ABSENT', '--root', FIXTURE],
       command: `ia inspect agent-system/binding/agent/agent-steward --root ${root}`,
     },
+    // A delivery refusal names the inspection of a record of another word (the runtime names ia position, not a verb
+    // yet); the view again once a plan is authored, for a seat the workspace does not admit near no admitted @plan,
+    // @milestone or @task in a workspace that authors no plan, as for no seat; the validation for a plan admission
+    // refused; the first of several authored plans; and the view again once a cycle's row is removed.
+    { code: 'IA-CLI-USAGE', argv: ['next', 'stray', '--root', FIXTURE], command: 'ia next --help' },
+    {
+      code: 'IA-RUNTIME-NEXT-SEAT',
+      argv: ['next', '--seat', 'governance-system/governance/law/sample-rule', '--root', FIXTURE],
+      command: `ia inspect governance-system/governance/law/sample-rule --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-NEXT-SEAT',
+      argv: ['next', '--seat', 'work-system/definition/task/absent', '--root', FIXTURE],
+      command: `ia next --root ${root}`,
+    },
+    { code: 'IA-RUNTIME-NEXT-NO-PLAN', argv: ['next', '--root', FIXTURE], command: `ia next --root ${root}` },
+    {
+      code: 'IA-RUNTIME-NEXT-NO-PLAN',
+      argv: ['next', '--root', planRefused],
+      command: `ia validate --root ${quote(planRefused)}`,
+    },
+    {
+      code: 'IA-RUNTIME-NEXT-AMBIGUOUS',
+      argv: ['next', '--root', plans],
+      command: `ia next --seat work-system/definition/plan/research --root ${quote(plans)}`,
+    },
+    { code: 'IA-RUNTIME-NEXT-CYCLE', argv: ['next', '--root', cycle], command: `ia next --root ${quote(cycle)}` },
     {
       code: 'IA-CLI-USAGE',
       argv: ['vocabulary', 'playbok', '--schema'],

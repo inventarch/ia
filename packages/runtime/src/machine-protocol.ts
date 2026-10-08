@@ -1,12 +1,13 @@
 /**
  * The machine protocol's one description (docs/specs/command-discoverability/README.md §2). For each Door operation:
  * its purpose, parameter schema, result, refusals with a next action, and an example that returns `ok: true` on
- * packages/compliance/fixtures/loop. `ia <operation> --help` (the version 1 operations, which are the CLI's machine routes),
- * the MCP door's tools/list and docs/reference/cli/machine-protocol.md are projections of this table. It describes the
- * frozen wire format and changes none of it: the Door validates every request itself, and tests/select-door.test.ts,
- * tests/door-read.test.ts and apps/cli/tests/cli.test.ts hold this table to what the Door admits and refuses. A later
- * version only appends operations (`since`), so the version 1 rows stay byte-identical to 1.1.0's
- * (tests/golden/machine-protocol-v1.json).
+ * packages/compliance/fixtures/loop, or for `next`, as that fixture authors no @plan, on the delivery fixture
+ * packages/runtime/tests/fixtures/delivery/base laid over the conformance corpus. `ia <operation> --help` (the version
+ * 1 operations, which are the CLI's machine routes), the MCP door's tools/list and docs/reference/cli/machine-protocol.md
+ * are projections of this table. It describes the frozen wire format and changes none of it: the Door validates every
+ * request itself, and tests/select-door.test.ts, tests/door-read.test.ts, tests/next.test.ts and
+ * apps/cli/tests/cli.test.ts hold this table to what the Door admits and refuses. A later version only appends
+ * operations (`since`), so the version 1 rows stay byte-identical to 1.1.0's (tests/golden/machine-protocol-v1.json).
  */
 import { COORDINATE_DOMAINS } from './coordinate.js';
 import { freeze } from './types.js';
@@ -190,6 +191,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
     'A token lives as long as the process that issued it: one CLI invocation, or the MCP server process. A CLI invocation performs one operation, so its reads always cover the initial boundary; narrowing takes scope, then within, in one MCP session.',
     "report is privileged inspection of the whole workspace's admission, served by the CLI only.",
     'Version 2 adds read: the body behind one locator inside the scope, with its digest. The Door and the MCP door serve it; on the CLI the consumer verb ia read returns the same body and digest, and the machine routes stay the version 1 operations.',
+    "Version 2 also adds next: one plan's delivery view inside the scope, its tasks in prerequisite order with their verdicts, computed per call and never stored. The Door and the MCP door serve it, and on the CLI the consumer verb ia next prints the same view. Its refusals carry next, the one command to run, and the plans or the cycle they name.",
   ],
   operations: [
     {
@@ -438,6 +440,47 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       ],
       example: { locator: `${EXAMPLE_IDENTITY}#act/Decision` },
       mcp: 'ia_read',
+      since: 2,
+    },
+    {
+      name: 'next',
+      summary: "Read one plan's delivery view inside the scope: its tasks in order, each with a verdict.",
+      description:
+        "Read one plan's delivery view inside the scope, computed per call and never stored: its milestones and tasks in one prerequisites-first order, each task with a basis line per requirement (its own and its milestone's), one verdict (exit evidence recorded, no declared blocker, or blocked), its work.status as self-declared, which is never a basis, and five state lines; then review items and the next task. Exit evidence is a success @observation on the task whose subject-revision is its current digest. What the scope does not read is never counted as met.",
+      params: object({
+        within: read.within,
+        seat: text(
+          "A @plan, @milestone or @task identity; the view is that plan's, or the plan of that milestone or task. Omitted, the only admitted @plan at authored placement (band 100).",
+        ),
+      }),
+      result:
+        'The view: {format: ia.delivery-view.v1, revision, plan, milestones, tasks, review, next, summary}. Each task is {identity, milestone, status, prerequisites, verdict, line, evidence?, states}; next is the command for the first task with no declared blocker, or null when every task has exit evidence or every other one is blocked, which summary says.',
+      refusals: [
+        REQUEST_INVALID,
+        SCOPE_UNAVAILABLE,
+        {
+          code: 'IA-RUNTIME-NEXT-SEAT',
+          when: 'seat is not an admitted record in the scope, or is not a @plan, @milestone or @task.',
+          next: "Run the command the refusal's next names: ia next without seat for a seat no admitted record answers, or the position of a record of another word.",
+        },
+        {
+          code: 'IA-RUNTIME-NEXT-NO-PLAN',
+          when: 'seat belongs to no admitted @plan, or no seat is given and no @plan is authored at band 100.',
+          next: "Author a @plan, @milestone records that name it in work.plan and @task records that name those in work.milestone; the refusal's next names the help that says so.",
+        },
+        {
+          code: 'IA-RUNTIME-NEXT-AMBIGUOUS',
+          when: 'No seat is given and several @plan records are authored at band 100; the refusal lists them in plans.',
+          next: "Pass one of plans as seat, as the refusal's next does with the first.",
+        },
+        {
+          code: 'IA-RUNTIME-NEXT-CYCLE',
+          when: "The plan's require rows form a cycle among its tasks, milestones or both, so no order exists; the refusal lists the cycle's declared rows in cycle.",
+          next: "Remove one of the require rows in cycle; the refusal's next names the position of its first task, or else its first milestone.",
+        },
+      ],
+      example: {},
+      mcp: 'ia_next',
       since: 2,
     },
   ],

@@ -40,6 +40,17 @@ export function workspace(options: { readonly foreign?: boolean } = {}): string 
   if (options.foreign !== true) rmSync(resolve(root, FOREIGN));
   return root;
 }
+/**
+ * A copy of the conformance corpus, which authors no work records, with one of the runtime's delivery fixtures
+ * (packages/runtime/tests/fixtures/delivery) laid over its `.ia/src`: `base` (one plan, two milestones, five tasks),
+ * `cycle` (tasks that require each other) or `plans` (two authored plans).
+ */
+export function delivery(overlay: 'base' | 'cycle' | 'plans' = 'base'): string {
+  const root = resolve(scratch('delivery'), 'workspace');
+  for (const source of ['examples/conformance/native', `packages/runtime/tests/fixtures/delivery/${overlay}`])
+    cpSync(resolve(repository, source), resolve(root, '.ia/src'), { recursive: true });
+  return root;
+}
 /** A workspace plus the LICENSE and descriptor `ia pack` needs to build `fixture/foundation`. */
 export function packable(): string {
   const root = workspace();
