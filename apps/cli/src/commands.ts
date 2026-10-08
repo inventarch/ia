@@ -40,7 +40,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all sixteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Applies to all seventeen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -231,6 +231,60 @@ export const COMMANDS: readonly CommandSpec[] = [
       ],
       positionals('locator', 1, 1),
     ),
+  },
+  {
+    // Position-and-projection §1, §6 and §7 and design item 10: body(K) for a scope key, with its digest and host note,
+    // the consumer verb beside the frozen `ia scope` route (decision scope-verb-dispatch). It is the Door's `position`
+    // operation (MACHINE_PROTOCOL version 2) as a consumer verb, never a machine route (plan amendment A2). The key's
+    // closed sets and caps are the runtime's, which refuses a value outside them naming the call to run instead, so no
+    // option here declares them.
+    name: 'position',
+    group: 'workspace',
+    summary: 'Show the position body for a scope key and its host note',
+    syntax: [
+      'ia position [--seat <id|path>] [--shape <H>] [--phase <P>] [--depth <d>]',
+      '            [--budget <n>] [--word <w>] [--json]',
+    ],
+    grammar: grammar([
+      option({
+        name: 'seat',
+        kind: 'value',
+        placeholder: '<id|path>',
+        summary:
+          "A record identity, or a workspace path, ./ first for one spelled as an identity (default: the repository's @workspace)",
+      }),
+      option({
+        name: 'shape',
+        kind: 'value',
+        placeholder: '<H>',
+        summary: 'context, governance, execution, sequence or learning (default context)',
+      }),
+      option({
+        name: 'phase',
+        kind: 'value',
+        placeholder: '<P>',
+        summary: "orient, plan, act or learn (default: the anchor phase of the shape's primitive)",
+      }),
+      option({
+        name: 'depth',
+        kind: 'value',
+        placeholder: '<d>',
+        summary: "Hops along the shape's predicates, 0-2 (default 1; 0 when no part is named)",
+      }),
+      option({
+        name: 'budget',
+        kind: 'value',
+        placeholder: '<n>',
+        summary: 'Records loaded beyond the seat, 0-64 (default 16; 0 when no part is named)',
+      }),
+      option({
+        name: 'word',
+        kind: 'value',
+        placeholder: '<w>',
+        summary:
+          'Load, point at and tally only records of this word; rules, applies-by-word entries, cells and mandates of any word are kept',
+      }),
+    ]),
   },
   {
     // Position-and-projection §9 step 2 and design rows 21 and 22: the delivery view, computed per read and never

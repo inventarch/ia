@@ -501,6 +501,13 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
     { argv: ['read', 'agent-system/binding/agent/absent', '--root', root, '--json'], refusal: true },
     { argv: ['next', '--root', delivered, '--json'], refusal: false },
     { argv: ['next', '--root', root, '--json'], refusal: true },
+    { argv: ['position', '--root', root, '--json'], refusal: false },
+    { argv: ['position', '--shape', 'governance', '--word', 'law', '--root', delivered, '--json'], refusal: false },
+    { argv: ['position', '--depth', '3', '--root', root, '--json'], refusal: true },
+    {
+      argv: ['position', '--seat', 'governance-system/governance/law/absent', '--root', root, '--json'],
+      refusal: true,
+    },
     { argv: ['doctor', '--json'], refusal: false },
     { argv: ['pack', '--root', root, '--descriptor', '.ia/work/absent.json', '--json'], refusal: true },
     { argv: ['install', 'a/b', '--root', root, '--offline', '--json'], refusal: true },

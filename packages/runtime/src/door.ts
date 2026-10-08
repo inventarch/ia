@@ -309,21 +309,9 @@ export class Door {
           try {
             result = position(this.#handle, within, partial as Partial<ScopeKey>);
           } catch (error) {
-            if (!(error instanceof RuntimeError)) throw error;
-            // The seat refusals positionBody raises (R15), a seat at runtime placement, name no command of their own:
-            // the position without that seat, K0, unless the seat is the one K0 takes, the repository's own @workspace,
-            // whether the key names it or not, which K0 refuses alike; then the overview of what the workspace admits.
-            const seat = partial['seat'];
-            return freeze({
-              ok: false,
-              code: error.code,
-              message: error.message,
-              next:
-                error.next ??
-                (seat === undefined || seat === this.#handle.resolveSeat('', { within }).seat
-                  ? 'ia inspect'
-                  : 'ia position'),
-            });
+            // A refusal of the key (R14) or of its seat (R15) names the one command to run as the error's `next`.
+            if (!(error instanceof RuntimeError) || error.next === undefined) throw error;
+            return freeze({ ok: false, code: error.code, message: error.message, next: error.next });
           }
           break;
         }

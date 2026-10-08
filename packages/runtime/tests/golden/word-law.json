@@ -44,7 +44,36 @@
   ],
   "pointers": [],
   "pointerTallies": [],
-  "appliesByWord": [],
+  "appliesByWord": [
+    {
+      "identity": "governance-system/governance/principle/sample-principle",
+      "word": "principle",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "subject",
+        "label": "field match, not a row",
+        "matches": [
+          {
+            "field": "subject.subject-kind",
+            "value": "definition",
+            "record": "floor/definition/system/governance-system"
+          }
+        ]
+      },
+      "reseat": {
+        "seat": "governance-system/governance/principle/sample-principle",
+        "shape": "governance",
+        "phase": "plan",
+        "depth": 1,
+        "budget": 16
+      }
+    }
+  ],
   "appliesByWordTallies": [],
   "cells": [],
   "mandates": [],
@@ -62,7 +91,7 @@
     "loaded": 1,
     "rules": 1,
     "pointers": 0,
-    "appliesByWord": 0,
+    "appliesByWord": 1,
     "frontier": 0,
     "truncatedLoaded": 0,
     "truncatedPointers": 0,

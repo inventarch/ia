@@ -552,15 +552,15 @@ function invocations(): readonly {
       argv: ['read', 'agent-system/binding/agent/agent-steward#REQ-ABSENT', '--root', FIXTURE],
       command: `ia inspect agent-system/binding/agent/agent-steward --root ${root}`,
     },
-    // A delivery refusal names the inspection of a record of another word (the runtime names ia position, not a verb
-    // yet); the view again once a plan is authored, for a seat the workspace does not admit near no admitted @plan,
-    // @milestone or @task in a workspace that authors no plan, as for no seat; the validation for a plan admission
-    // refused; the first of several authored plans; and the view again once a cycle's row is removed.
+    // A delivery refusal names the position of a record of another word, as the runtime does; the view again once a
+    // plan is authored, for a seat the workspace does not admit near no admitted @plan, @milestone or @task in a
+    // workspace that authors no plan, as for no seat; the validation for a plan admission refused; the first of several
+    // authored plans; and the sequence position of the cycle's first task.
     { code: 'IA-CLI-USAGE', argv: ['next', 'stray', '--root', FIXTURE], command: 'ia next --help' },
     {
       code: 'IA-RUNTIME-NEXT-SEAT',
       argv: ['next', '--seat', 'governance-system/governance/law/sample-rule', '--root', FIXTURE],
-      command: `ia inspect governance-system/governance/law/sample-rule --root ${root}`,
+      command: `ia position --seat governance-system/governance/law/sample-rule --root ${root}`,
     },
     {
       code: 'IA-RUNTIME-NEXT-SEAT',
@@ -578,7 +578,49 @@ function invocations(): readonly {
       argv: ['next', '--root', plans],
       command: `ia next --seat work-system/definition/plan/research --root ${quote(plans)}`,
     },
-    { code: 'IA-RUNTIME-NEXT-CYCLE', argv: ['next', '--root', cycle], command: `ia next --root ${quote(cycle)}` },
+    {
+      code: 'IA-RUNTIME-NEXT-CYCLE',
+      argv: ['next', '--root', cycle],
+      command: `ia position --seat work-system/definition/task/alpha --shape sequence --root ${quote(cycle)}`,
+    },
+    // A key refusal names the same call with the closed set or the cap in place of the part, the vocabulary for a word
+    // the closure does not register, and K0 for a seat the workspace does not answer.
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--shape', 'bogus', '--word', 'law', '--root', FIXTURE],
+      command: `ia position --shape <context|governance|execution|sequence|learning> --word law --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--phase', 'later', '--root', FIXTURE],
+      command: `ia position --phase <orient|plan|act|learn> --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--depth', '3', '--shape', 'governance', '--root', FIXTURE],
+      command: `ia position --shape governance --depth 2 --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--budget', '65', '--root', FIXTURE],
+      command: `ia position --budget 64 --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--word', 'nope', '--root', FIXTURE],
+      command: 'ia vocabulary',
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--seat', 'governance-system/governance/law/absent', '--root', FIXTURE],
+      command: `ia position --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--seat', '../outside.md', '--root', FIXTURE],
+      command: `ia position --root ${root}`,
+    },
+    { code: 'IA-CLI-USAGE', argv: ['position', 'stray', '--root', FIXTURE], command: 'ia position --help' },
     {
       code: 'IA-CLI-USAGE',
       argv: ['vocabulary', 'playbok', '--schema'],
@@ -644,6 +686,7 @@ function invocations(): readonly {
     { code: 'IA-DB-PATH-UNSAFE', argv: ['inspect', '--root', linked], command: `ia validate --root ${unreadable}` },
     { code: 'IA-DB-PATH-UNSAFE', argv: ['capture', '--root', linked], command: `ia validate --root ${unreadable}` },
     { code: 'IA-DB-PATH-UNSAFE', argv: ['compile', '--root', linked], command: `ia validate --root ${unreadable}` },
+    { code: 'IA-DB-PATH-UNSAFE', argv: ['position', '--root', linked], command: `ia validate --root ${unreadable}` },
     {
       code: 'IA-DB-PATH-UNSAFE',
       argv: ['host', 'claude', '--apply', '--yes', '--root', linked],

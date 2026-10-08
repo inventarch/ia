@@ -192,26 +192,50 @@ it('refuses a key with its next command and keeps the three keys of the refusals
     expect(Object.keys(response), label).toEqual(['ok', 'code', 'message', 'next']);
   }
   // A seat at runtime placement: the position without it, K0, which recovers, or the overview when the seat is the one
-  // K0 takes, the repository's own @workspace, whether the key names it or not, as K0 refuses it alike.
-  const placed = door(workspace(), { locations: { [lawPath]: RUNTIME } });
-  expect(positioned(placed)({ seat: lawId })).toEqual({
+  // K0 takes, the repository's own @workspace, whether the key names it or not, as K0 refuses it alike. positionBody
+  // raises each with that `next` (R15), so the Door answers with the error `position` throws, as for a key refusal.
+  const thrownBy = (handle: ReturnType<typeof database>, params: Partial<ScopeKey> = {}): unknown => {
+    try {
+      position(handle, handle.resolveScope().token, params);
+    } catch (error) {
+      return error;
+    }
+    throw new Error('position did not refuse');
+  };
+  const lawPlaced = { locations: { [lawPath]: RUNTIME } },
+    placed = door(workspace(), lawPlaced);
+  const runtimeSeat = {
     ok: false,
     code: 'IA-RUNTIME-REQUEST-INVALID',
     message: `IA-RUNTIME-REQUEST-INVALID: The seat '${lawId}' is at runtime placement (band 0), which no position body enters`,
     next: 'ia position',
+  };
+  expect(positioned(placed)({ seat: lawId })).toEqual(runtimeSeat);
+  expect(thrownBy(database(workspace(), lawPlaced), { seat: lawId })).toMatchObject({
+    code: runtimeSeat.code,
+    message: runtimeSeat.message,
+    next: runtimeSeat.next,
   });
   expect(positioned(placed)().ok).toBe(true);
-  const unseated = door(workspace(), {
-    locations: { '.ia/src/systems/workspace-system/records/foundation-workspace.ia': RUNTIME },
-  });
+  const workspacePlaced = {
+      locations: { '.ia/src/systems/workspace-system/records/foundation-workspace.ia': RUNTIME },
+    },
+    unseated = door(workspace(), workspacePlaced),
+    unseatedDb = database(workspace(), workspacePlaced);
   const overview = {
     ok: false,
     code: 'IA-RUNTIME-REQUEST-INVALID',
     message: `IA-RUNTIME-REQUEST-INVALID: The seat '${foundation}' is at runtime placement (band 0), which no position body enters`,
     next: 'ia inspect',
   };
-  for (const params of [undefined, { shape: 'governance' }, { seat: foundation }, { seat: foundation, depth: 2 }])
+  for (const params of [undefined, { shape: 'governance' }, { seat: foundation }, { seat: foundation, depth: 2 }]) {
     expect(positioned(unseated)(params), JSON.stringify(params)).toEqual(overview);
+    expect(thrownBy(unseatedDb, params as Partial<ScopeKey> | undefined), JSON.stringify(params)).toMatchObject({
+      code: overview.code,
+      message: overview.message,
+      next: overview.next,
+    });
+  }
   // The Door's own refusals: request text, a token or any other part the key does not have is an unknown parameter, a
   // within that is no string or that the door did not issue, and a version 1 operation's refusal.
   for (const request of [

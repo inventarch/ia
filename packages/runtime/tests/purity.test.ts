@@ -249,10 +249,15 @@ it('leaves records at runtime placement out of every body; only the revision the
     expect(() => at(unseated, partial)).toThrow(
       refusal(`The seat '${foundation}' is at runtime placement (band 0), which no position body enters`),
     );
-  // A key resolved through one token and assembled through a narrower one that does not admit its seat.
+  // A key resolved through one token and assembled through a narrower one that does not admit its seat names the
+  // position without that seat, as resolveScopeKey's refusal of a seat outside the scope does (R14).
   const resolved = resolveScopeKey(plain, plain.resolveScope().token, normalizeScopeKey({ seat: lawId }));
   expect(() => positionBody(plain, plain.resolveScope({ identities: [check] }).token, resolved)).toThrow(
-    refusal(`The seat '${lawId}' is not an admitted record in this scope`),
+    expect.objectContaining({
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      message: expect.stringContaining(`The seat '${lawId}' is not an admitted record in this scope`),
+      next: 'ia position',
+    }),
   );
 });
 

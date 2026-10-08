@@ -11,6 +11,7 @@ import {
   normalizeScopeKey,
   prepareCoordinate,
   resolveScopeKey,
+  rootRelative,
   select,
 } from '../src/index.js';
 import type { ScopeKey, Shape } from '../src/index.js';
@@ -401,6 +402,29 @@ it('reads an absolute path inside the root as the root-relative path it names', 
     `${slashed}/src/../../${lawPath}`,
   ])
     expect(() => seated(path)).toThrow(outside(path));
+});
+
+it('exports the one absolute-path rule that a location seat and an ia read locator share', () => {
+  const root = resolve(workspace()),
+    slashed = root.split(sep).join('/');
+  // A path inside the root, in native separators, forward slashes or a mix, is its `/`-separated relative path.
+  for (const path of [resolve(root, lawPath), `${slashed}/${lawPath}`, `${root}${sep}${lawPath}`])
+    expect(rootRelative(root, path), path).toBe(lawPath);
+  // The root itself is '', the workspace root, however it is spelled.
+  for (const path of [root, slashed, `${root}${sep}`, `${slashed}/.`, `${slashed}/src/..`])
+    expect(rootRelative(root, path), path).toBe('');
+  // The check is segment by segment: a name that only begins with '..' is inside; a '..' segment escapes.
+  for (const path of ['..cache', '..cache/x.md', '...x'])
+    expect(rootRelative(root, resolve(root, path)), path).toBe(path);
+  for (const path of [resolve(root, '..'), `${slashed}/../x`, `${root}-sibling${sep}${lawPath}`])
+    expect(rootRelative(root, path), path).toBeUndefined();
+  // A relative path is the database's to canonicalise, so it is returned as given, an escaping one included.
+  for (const path of [lawPath, '../outside.md', '.']) expect(rootRelative(root, path)).toBe(path);
+  if (process.platform === 'win32') {
+    const other = `${root.slice(0, 2).toUpperCase() === 'Z:' ? 'Y:' : 'Z:'}${root.slice(2)}\\${lawPath}`;
+    expect(rootRelative(root, other)).toBeUndefined();
+    expect(rootRelative(root, `${root.slice(0, 2).toLowerCase()}${root.slice(2)}\\${lawPath}`)).toBe(lawPath);
+  }
 });
 
 it.skipIf(process.platform !== 'win32')('reads a Windows absolute path as the file system compares it', () => {

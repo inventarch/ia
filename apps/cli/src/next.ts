@@ -11,7 +11,7 @@
  * refused (db PT5). Nothing is written.
  */
 import { deliveryView } from '@inventarch/runtime';
-import type { DeliveryResult, DeliveryTask, DeliveryView, NextRefusal } from '@inventarch/runtime';
+import type { CycleRow, DeliveryResult, DeliveryTask, DeliveryView, NextRefusal } from '@inventarch/runtime';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot, respell } from './consumer.js';
 import type { Capabilities, SymbolName, Token } from './render.js';
@@ -182,14 +182,39 @@ function unseated(reader: Session['reader'], rooted: string): string {
 }
 
 /**
+ * The record IA-RUNTIME-NEXT-CYCLE's own `next` seats at (runtime SPEC R18), read from the rows the refusal lists: the
+ * cycle's first task in the view's order, by milestone then task, else the first milestone a row requires. Every task
+ * in the cycle is named by one of its rows and every milestone a row requires closes it, so this is the runtime's seat.
+ * The runtime's `next` is not forwarded: a next action this CLI names is built here, where design row 27 is checked.
+ */
+function cycleSeat(rows: readonly CycleRow[], reader: Session['reader']): string {
+  const milestoneOf = (task: string): string =>
+    reader
+      .directedView(task)
+      .find(
+        (row) =>
+          row.kind === 'field-ref' &&
+          row.field === 'work.milestone' &&
+          row.direction === 'out' &&
+          reader.get(row.counterpart)?.discriminator === 'milestone',
+      )?.counterpart ?? '';
+  const byte = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+  const tasks = [...new Set(rows.flatMap((row) => [row.from, row.to]))]
+    .filter((identity) => identity.split('/')[2] === 'task')
+    .map((task) => ({ task, milestone: milestoneOf(task) }))
+    .sort((a, b) => byte(a.milestone, b.milestone) || byte(a.task, b.task));
+  return tasks[0]?.task ?? rows.map((row) => row.to).sort(byte)[0]!;
+}
+
+/**
  * Design row 27: the one command after each delivery refusal, carrying the root the invocation gave, which the runtime's
  * own `next` does not. A seat the workspace does not admit names what `ia inspect` and `ia read` name for an identity
  * they do not admit (`nearestNext`): the validation for a record admission refused, else the nearest @plan,
  * @milestone or @task as the seat, else the view without a seat (`unseated`). A record of another word names its
- * inspection, where the runtime names `ia position`, which is not a verb of this CLI yet. A missing plan names what the
- * view without a seat names, or with a seat the validation for a record admission refused on its way to its plan, else
- * the records to author, then the same view again. Several plans name the view of the first, which the message lists
- * with the others, and a cycle the row to remove, then the same view again.
+ * position, as the runtime does. A missing plan names what the view without a seat names, or with a seat the
+ * validation for a record admission refused on its way to its plan, else the records to author, then the same view
+ * again. Several plans name the view of the first, which the message lists with the others, and a cycle the sequence
+ * position of the record the runtime's own `next` seats at (`cycleSeat`), whose require rows the message lists.
  */
 function nextAfter(
   refusal: NextRefusal,
@@ -201,7 +226,7 @@ function nextAfter(
   switch (refusal.code) {
     case 'IA-RUNTIME-NEXT-SEAT':
       if (seat !== undefined && reader.get(seat) !== undefined)
-        return `Run "ia inspect ${quote(seat)}${rooted}" to see that record; the delivery view is read from a @plan, @milestone or @task.`;
+        return `Run "ia position --seat ${quote(seat)}${rooted}" for where that record sits; the delivery view is read from a @plan, @milestone or @task.`;
       // deliveryView refuses a seat it does not admit only when it was given one.
       return nearestNext(reader, seat ?? '', 'next', rooted) ?? unseated(reader, rooted);
     case 'IA-RUNTIME-NEXT-NO-PLAN': {
@@ -214,7 +239,7 @@ function nextAfter(
     case 'IA-RUNTIME-NEXT-AMBIGUOUS':
       return `Run "ia next --seat ${quote(refusal.plans![0]!)}${rooted}" to read the first plan the message lists; seat any other the same way.`;
     case 'IA-RUNTIME-NEXT-CYCLE':
-      return `Remove one of the require rows the message names, then run "${respell(context)}" again.`;
+      return `Run "ia position --seat ${cycleSeat(refusal.cycle!, reader)} --shape sequence${rooted}" for the require rows around the cycle the message names; one of them must go before the plan has an order.`;
   }
 }
 /**

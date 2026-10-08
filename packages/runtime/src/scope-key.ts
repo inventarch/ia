@@ -171,16 +171,19 @@ export function normalizeScopeKey(partial: Partial<ScopeKey> = {}): ScopeKey {
   });
 }
 /**
- * A location seat's path relative to the root. An absolute path reads as the path Node's `path.relative` gives from the
- * root, as `ia read` reads the path of a `<path>:<line>` locator, and the root itself, a location though no line is in
- * it, as `''`. A relative path, or an absolute one on another drive, which has no path from the root, is left as given.
- * The database then canonicalises the path segment by segment and names one that escapes the root `outside`, so an
- * in-root name that only begins with `..`, such as `..cache`, stays inside.
+ * R14: the one absolute-path rule, which a location seat and `ia read`'s `<path>:<line>` locator share. An absolute
+ * `path` reads as the path Node's `path.relative` gives from `root` (on Windows without case, with either separator),
+ * `/`-separated, and the root itself, however it is spelled, as `''`. It names no path inside the root, so the result
+ * is undefined, when that path's first segment is `..` (the check is segment by segment, so an in-root name that only
+ * begins with `..`, such as `..cache`, is inside) or when it is on another drive, which has no path from the root. A
+ * relative `path` is returned as given: the database canonicalises it segment by segment and names one that escapes the
+ * root `outside` (db D02b).
  */
-function rootRelative(root: string, path: string): string {
+export function rootRelative(root: string, path: string): string | undefined {
   if (!isAbsolute(path)) return path;
   const local = relative(root, path);
-  return isAbsolute(local) ? path : local.split(sep).join('/');
+  if (isAbsolute(local) || local.split(sep)[0] === '..') return undefined;
+  return local.split(sep).join('/');
 }
 /**
  * R14: validate `key` against the read `within` names and resolve its seat. Every key-validation refusal is
@@ -221,7 +224,8 @@ export function resolveScopeKey(handle: ReadHandle, within: string, key: ScopeKe
       coordinate,
     });
   }
-  const resolution = handle.resolveSeat(rootRelative(handle.root, seat.path), { within });
+  // A path outside the root goes as given, and the database names it `outside`, as it does a relative one escaping it.
+  const resolution = handle.resolveSeat(rootRelative(handle.root, seat.path) ?? seat.path, { within });
   if (resolution.unknown === 'outside')
     invalid(
       `Scope key seat path '${seat.path}' must be inside the workspace: workspace-relative, or absolute under its root`,

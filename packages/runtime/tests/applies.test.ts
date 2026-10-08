@@ -597,7 +597,7 @@ it("delivers the mandates that claim a location seat or whose authority.scope na
   ]);
 });
 
-it('keeps the word filter: with w set, the sections list records of w only', () => {
+it('filters only what loads, lists and tallies by the word: rules, applies by word, cells and mandates stay whole', () => {
   const root = workspace();
   put(root, `${records}/law-rule.ia`, law('law-rule', 'advisory', '  subject\n    subject-word law\n'));
   put(
@@ -611,21 +611,36 @@ it('keeps the word filter: with w set, the sections list records of w only', () 
     lawRule = 'governance-system/governance/law/law-rule',
     blockConvention = 'governance-system/governance/convention/block-convention';
   expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
-  const all = bodyOf(db, { seat: governanceSystem, shape: 'governance' }),
-    laws = bodyOf(db, { seat: governanceSystem, shape: 'governance', word: 'law' });
+  const key = { seat: governanceSystem, shape: 'governance', phase: 'plan' } as const,
+    all = bodyOf(db, key),
+    laws = bodyOf(db, { ...key, word: 'law' });
   expect(ids(all.appliesByWord)).toEqual([procedure, lawRule, principle]);
   expect(all.cells).toHaveLength(1);
   expect(ids(all.mandates)).toEqual([scopedMandate]);
   expect(ids(all.rules)).toEqual([lawId, blockConvention]);
-  // The law that applies to laws applies to itself, loaded among the word's records.
+  // The word restricts what loads, the pointers and their tallies: the seat, then laws only.
   expect(ids(laws.loaded)).toContain(lawRule);
-  expect(ids(laws.appliesByWord)).toEqual([lawRule]);
-  expect(laws.cells).toEqual([]);
-  expect(laws.mandates).toEqual([]);
-  // The blocking convention names the @system's kind, but is of another word: it is no rule of the word law.
-  expect(ids(laws.rules)).toEqual([lawId]);
-  // At the workspace, no class or hop reaches the convention, which R17 reserves by its subject-kind alone; the word
-  // filter keeps it under its own word and leaves it out under another.
+  expect(laws.loaded.slice(1).every((entry) => 'word' in entry && entry.word === 'law')).toBe(true);
+  expect([...laws.pointers, ...laws.pointerTallies].every((entry) => entry.word === 'law')).toBe(true);
+  // Decision scope-key-caps reserves blockers outside n and restricts seeds and tallies: the blocking convention, a
+  // word member of the @system, governs the seat whatever the word, so it stays in `rules`; the rules, the cells and
+  // the mandates are those of the body without the word, and the applies-by-word section lists the same rules and
+  // playbooks, of every word, since each here applies to the seat or to a reserved rule.
+  for (const word of ['law', 'convention', 'playbook', 'contract']) {
+    const filtered = bodyOf(db, { ...key, word });
+    for (const part of ['rules', 'cells', 'mandates'] as const)
+      expect(filtered[part], `${word} ${part}`).toEqual(all[part]);
+    expect(ids(filtered.appliesByWord), word).toEqual(ids(all.appliesByWord));
+    expect(filtered.counts.rules, word).toBe(2);
+  }
+  // A match names the first answering record in `loaded`, then `rules`: under another word the advisory law-rule is
+  // not loaded, so the rule that applies to laws names the reserved law instead.
+  const conventions = bodyOf(db, { ...key, word: 'convention' }),
+    ruleMatch = (body: PositionBody) => body.appliesByWord.find((entry) => entry.identity === lawRule)!.via.matches;
+  expect(ruleMatch(all)).toEqual([{ field: 'subject.subject-word', value: 'law', record: lawRule }]);
+  expect(ruleMatch(conventions)).toEqual([{ field: 'subject.subject-word', value: 'law', record: lawId }]);
+  // At the workspace, no class or hop reaches the convention, which R17 reserves by its subject-kind alone; it is
+  // reserved under every word, its own or another.
   const reservedBy = (word?: string) =>
     bodyOf(db, { shape: 'governance', ...(word === undefined ? {} : { word }) }).rules.map((rule) => [
       rule.identity,
@@ -636,16 +651,71 @@ it('keeps the word filter: with w set, the sections list records of w only', () 
     label: field,
     matches: [{ field: 'subject.subject-kind', value: 'definition', record: foundation }],
   };
-  expect(reservedBy()).toEqual([[blockConvention, byKind]]);
-  expect(reservedBy('convention')).toEqual([[blockConvention, byKind]]);
-  expect(reservedBy('law')).toEqual([]);
-  // With w = playbook, the playbook applies, alone, and its plan cell is delivered.
-  const playbooks = bodyOf(db, { seat: governanceSystem, shape: 'governance', phase: 'plan', word: 'playbook' });
-  expect(ids(playbooks.appliesByWord)).toEqual([procedure]);
+  for (const word of [undefined, 'convention', 'law'])
+    expect(reservedBy(word), word).toEqual([[blockConvention, byKind]]);
+  // With w = playbook, no playbook loads (none is the @system's word member), yet the playbook applying by word to the
+  // seat still delivers its plan cell.
+  const playbooks = bodyOf(db, { ...key, word: 'playbook' });
+  expect(ids(playbooks.loaded)).toEqual([governanceSystem]);
   expect(playbooks.cells).toEqual([
     { playbook: procedure, address: `${procedure}#plan/Inference`, text: 'Sample fixture statement 11.' },
   ]);
-  expect([...playbooks.rules, ...playbooks.mandates]).toEqual([]);
+});
+
+it('reserves a blocking law under another word, by its claim on a location, by a hop and by its subject-word', () => {
+  // From the check under governance, the law is reached at hop 1 along the check's enforce row. Under the word contract
+  // the walk follows it as a waypoint only, so `rules` reserves it from the walk without the word, with the hop and the
+  // row that reach it there, as the body without the word does.
+  const plain = database(workspace()),
+    enforced = { seat: check, shape: 'governance', depth: 1 } as const,
+    hopped = bodyOf(plain, { ...enforced, word: 'contract' });
+  expect(hopped.loaded.slice(1).every((entry) => 'word' in entry && entry.word === 'contract')).toBe(true);
+  expect(ids(hopped.loaded)).not.toContain(lawId);
+  expect(hopped.rules).toEqual([
+    expect.objectContaining({
+      identity: lawId,
+      hop: 1,
+      via: expect.objectContaining({ by: 'row', from: check, predicate: 'enforce' }),
+    }),
+  ]);
+  expect(hopped.rules).toEqual(bodyOf(plain, enforced).rules);
+  const root = workspace();
+  subject(root, lawPath, '    subject-word contract\n    covers ["src/billing/**"]\n');
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  // At a path the blocking law claims, under the word contract: the claim is composition of another word, so nothing
+  // loads or is listed, but the law governs the location and is reserved in `rules`.
+  const claimed = bodyOf(db, { seat: { path: 'src/billing/invoice.ts' }, depth: 0, budget: 0, word: 'contract' });
+  expect(claimed.loaded).toEqual([{ path: 'src/billing/invoice.ts' }]);
+  expect([...claimed.pointers, ...claimed.pointerTallies]).toEqual([]);
+  expect(claimed.rules).toEqual([
+    expect.objectContaining({
+      identity: lawId,
+      word: 'law',
+      via: { by: 'claim', matches: [{ field: 'subject.covers', selection: 'src/billing/**' }] },
+    }),
+  ]);
+  // From the workspace under sequence, the contract the workspace requires loads at hop 1 under its own word, and the
+  // law, which applies to contracts by its subject-word and no row reaches, is reserved in `rules`, outside the
+  // budget, as it is without the word.
+  const key = { shape: 'sequence', depth: 1 } as const,
+    contracts = bodyOf(db, { ...key, word: 'contract' });
+  expect(ids(contracts.loaded)).toEqual([foundation, contract]);
+  expect(contracts.rules).toEqual([
+    expect.objectContaining({
+      identity: lawId,
+      via: {
+        by: 'subject',
+        label: field,
+        matches: [{ field: 'subject.subject-word', value: 'contract', record: contract }],
+      },
+    }),
+  ]);
+  expect(contracts.rules).toEqual(bodyOf(db, key).rules);
+  // Under the word contract with budget 0, the contract is a pointer and the law is still reserved.
+  const truncated = bodyOf(db, { ...key, budget: 0, word: 'contract' });
+  expect(ids(truncated.pointers)).toEqual([contract]);
+  expect(ids(truncated.rules)).toEqual([lawId]);
 });
 
 it('reads no record at runtime placement: none applies by word, is reserved by word, gives a cell or governs', () => {

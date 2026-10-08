@@ -208,10 +208,28 @@ it('refuses each delivery refusal at exit 1 with the runtime code and message, n
     orphaned = delivery(),
     plans = delivery('plans'),
     cycle = delivery('cycle'),
+    crossed = delivery(),
+    milestones = delivery(),
     loop = workspace(),
     planRefused = refuse(delivery(), '@plan release'),
     milestoneRefused = refuse(delivery(), '@milestone foundation');
   writeFileSync(resolve(refused, '.ia/src/migrate.ia'), REFUSED_TASK);
+  // Two cycles the runtime's own delivery tests read: the guide (milestone foundation) requiring the release notes
+  // (milestone build), which require it; and the foundation milestone requiring build, which requires it.
+  const edit = (root: string, from: string, to: string): void => {
+    const path = resolve(root, '.ia/src/work.ia');
+    writeFileSync(path, readFileSync(path, 'utf8').replace(from, to));
+  };
+  edit(
+    crossed,
+    '    requires @decision guide-format\n',
+    '    requires @decision guide-format\n    requires @task release-notes\n',
+  );
+  edit(
+    milestones,
+    '    exit "The schema, the guide and the examples are written."\n',
+    '    exit "The schema, the guide and the examples are written."\n  relationships\n    requires @milestone build\n',
+  );
   writeFileSync(
     resolve(orphaned, '.ia/src/orphan.ia'),
     '#! ia 1.0\n\n@milestone orphan\n  meaning\n    says "A milestone whose plan is not authored."\n  work\n    title "Orphan"\n    status open\n    plan @plan absent\n    exit "Never."\n',
@@ -229,8 +247,15 @@ it('refuses each delivery refusal at exit 1 with the runtime code and message, n
     /** The exit of the named command: a repair the user makes comes first where it is still refused. */
     readonly then: number;
   }[] = [
-    // A record of another word names its inspection; ia position, which the runtime names, is not a verb yet.
-    { root: base, seat: law, code: 'IA-RUNTIME-NEXT-SEAT', command: `ia inspect ${law} ${rooted(base)}`, then: 0 },
+    // A record of another word names its position, as the runtime does.
+    {
+      root: base,
+      seat: law,
+      code: 'IA-RUNTIME-NEXT-SEAT',
+      command: `ia position --seat ${law} ${rooted(base)}`,
+      says: 'for where that record sits',
+      then: 0,
+    },
     // A seat no source holds names the nearest @plan, @milestone or @task, as ia inspect names the nearest identity;
     // with none near, the view without a seat by how many plans the workspace authors, as the view counts them.
     {
@@ -310,7 +335,27 @@ it('refuses each delivery refusal at exit 1 with the runtime code and message, n
       command: `ia next --seat work-system/definition/plan/research ${rooted(plans)}`,
       then: 0,
     },
-    { root: cycle, code: 'IA-RUNTIME-NEXT-CYCLE', command: `ia next ${rooted(cycle)}`, then: 1 },
+    // A cycle names the sequence position of the record the runtime names, whose require rows the message lists: the
+    // cycle's first task by milestone, then task, whichever milestones its tasks are in, else the first milestone a row
+    // requires.
+    {
+      root: cycle,
+      code: 'IA-RUNTIME-NEXT-CYCLE',
+      command: `ia position --seat ${task('alpha')} --shape sequence ${rooted(cycle)}`,
+      then: 0,
+    },
+    {
+      root: crossed,
+      code: 'IA-RUNTIME-NEXT-CYCLE',
+      command: `ia position --seat ${task('release-notes')} --shape sequence ${rooted(crossed)}`,
+      then: 0,
+    },
+    {
+      root: milestones,
+      code: 'IA-RUNTIME-NEXT-CYCLE',
+      command: `ia position --seat work-system/definition/milestone/build --shape sequence ${rooted(milestones)}`,
+      then: 0,
+    },
   ];
   for (const row of rows) {
     const label = `${row.code} ${row.seat ?? ''}`,
@@ -320,6 +365,9 @@ it('refuses each delivery refusal at exit 1 with the runtime code and message, n
     if (expected.ok) throw new Error(`${label}: the Door read a view`);
     expect(body, label).toMatchObject({ ok: false, code: row.code, message: expected.message, exit: 1 });
     expect(commandsIn(body.next), label).toEqual([row.command]);
+    // Where the runtime names `ia position`, the CLI names that command, with the root it was given.
+    const named = (expected as { readonly next?: string }).next ?? '';
+    if (named.startsWith('ia position')) expect(row.command, label).toBe(`${named} ${rooted(row.root)}`);
     if (row.says !== undefined) expect(body.next, label).toContain(row.says);
     expect((await run(nextArgv(body.next))).exitCode, `${label}: ${body.next}`).toBe(row.then);
     // Human output names the same command on its `→` line.

@@ -413,6 +413,20 @@ it('refuses a locator no admitted record answers, a missing fragment and a malfo
   const relativeRead = await read(root, '.ia/src/systems/agent-system/steward.ia:3');
   expect(steward).toMatchObject({ locator: absolute, kind: 'record', identity: relativeRead.identity });
   expect(steward.digest).toBe(relativeRead.digest);
+  // One absolute-path rule with `ia position --seat` (runtime rootRelative): the root itself reads as `.`, the
+  // workspace root, and an in-root name that only begins with `..` as the path it names, each refused exactly as its
+  // relative spelling is, never as a path outside the root.
+  for (const [absolute, spelled] of [
+    [`${realpathSync(root)}:3`, '.:3'],
+    [`${resolve(realpathSync(root), '..cache/notes.ia')}:3`, '..cache/notes.ia:3'],
+  ] as const) {
+    const given = await read(root, absolute, 1);
+    expect(given, absolute).toEqual(await read(root, spelled, 1));
+    expect(given.message, absolute).not.toContain('is not a path relative to the workspace root');
+  }
+  expect((await read(root, '.:3', 1)).message).toBe(
+    'No admitted record spans .:3; . is the workspace root, a directory and no source',
+  );
   // A line no admitted record spans: of an admitted source, a source whose records admission refused, or no source.
   for (const [path, message, command] of [
     [

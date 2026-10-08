@@ -529,7 +529,9 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
           description:
             'n, the entries loaded beyond the seat, blocking governance reserved outside it; omitted, 16, or 0 when no part is named (K0).',
         },
-        word: text('w, a word the closure registers: only records of it load, list or count. Omitted, none.'),
+        word: text(
+          'w, a word the closure registers: only records of it load, are pointers or are tallied as pointers or frontier; the reserved rules, the rules and playbooks that apply by word with their tallies and cells, and the mandates are listed whatever their word. Omitted, none.',
+        ),
       }),
       result:
         "The position: {body, digest, hostNote}. body is body(K) in the format ia.position-body.v1, its key the one resolved and its revision that of the view the scope reads; digest is the SHA-256 of the body's canonical JSON text; hostNote is {revision, capturedRevision?, previousRevision?, freshness, key}, host state never digested, freshness current, stale or no-capture against the last capture and key the key as completed.",

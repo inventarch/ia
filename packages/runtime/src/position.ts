@@ -192,26 +192,29 @@ export interface PositionBody {
   readonly revision: string;
   readonly key: ScopeKey;
   readonly seat: ResolvedSeat;
-  /** The seat first, then the first n of the other seeds and the reached records, in the shape's order. */
+  /** The seat first, then the first n of the other seeds and the reached records, in the shape's order, of w only. */
   readonly loaded: readonly LoadedEntry[];
   /**
    * The blocking governance candidates, and the blocking rules that apply by word to a candidate (R17), reserved
-   * outside the budget, in the governance order.
+   * outside the budget, in the governance order: the candidates of the walk without the word, so w hides none.
    */
   readonly rules: readonly LoadedRecord[];
-  /** The first 48 pointers in the shape's order. */
+  /** The first 48 pointers in the shape's order, of w only. */
   readonly pointers: readonly PositionPointer[];
   readonly pointerTallies: readonly PointerTally[];
   /**
    * The first 48 rules and playbooks outside `rules` that apply by word to a loaded record or a blocking candidate in
-   * `rules`, by band ↓, identity ↑.
+   * `rules`, by band ↓, identity ↑, of any word whatever w is.
    */
   readonly appliesByWord: readonly AppliesByWord[];
   /** The applies-by-word entries past the listed ones, per (word, owner system). */
   readonly appliesByWordTallies: readonly PointerTally[];
   /** The cells at (P, primitive(H)) of the first four playbooks that apply by word. */
   readonly cells: readonly PositionCell[];
-  /** The @mandate records that claim a location seat or whose `authority.scope` names the seat's workspace. */
+  /**
+   * The @mandate records that claim a location seat or whose `authority.scope` names the seat's workspace, whatever w
+   * is.
+   */
   readonly mandates: readonly PositionPointer[];
   readonly frontier: readonly FrontierTally[];
   readonly unknowns: readonly PositionUnknown[];
@@ -328,13 +331,21 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     values = coordinate.values,
     seatId = seat.identity,
     word = key.word;
-  if (seatId !== undefined && !nodes.has(seatId))
+  // Each seat refusal names the one command to run (design row 27), as a key refusal does (R14): the position without
+  // that seat, K0, unless the seat at runtime placement is the one K0 takes, the repository's own @workspace, whether
+  // the key names it or not, which K0 refuses alike; then the overview of what the workspace admits.
+  if (seatId !== undefined && !nodes.has(seatId)) {
+    const placed = snapshot.records.some((node) => node.identity === seatId);
     throw new RuntimeError(
       'IA-RUNTIME-REQUEST-INVALID',
-      snapshot.records.some((node) => node.identity === seatId)
+      placed
         ? `The seat '${seatId}' is at runtime placement (band 0), which no position body enters`
         : `The seat '${seatId}' is not an admitted record in this scope`,
+      placed && (seat.kind === 'workspace' || seatId === handle.resolveSeat('', read).seat)
+        ? 'ia inspect'
+        : 'ia position',
     );
+  }
   const viewed = new Map<string, readonly DirectedRow[]>();
   const rowsOf = (identity: string): readonly DirectedRow[] => {
     let rows = viewed.get(identity);
@@ -342,7 +353,12 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       viewed.set(identity, (rows = handle.directedView(identity, read).filter((row) => nodes.has(row.counterpart))));
     return rows;
   };
-  /** The word filter: with w set, only records of w are composition, seeds, loaded, pointers or tallied. */
+  /**
+   * The word filter (decision scope-key-caps: w restricts seeds and tallies): with w set, only records of w are
+   * composition, seeds, loaded, pointers, pointer tallies or frontier. The blocking rules reserved outside the budget,
+   * the applies-by-word section, its cells and the mandates are never filtered, so no rule that governs the loaded
+   * records is hidden by the word.
+   */
   const wanted = (identity: string): boolean => word === undefined || nodes.get(identity)!.discriminator === word;
   /** The rows a hop may follow: edge rows, either direction, whose predicate is in the shape's focus. */
   const inFocus = (row: DirectedRow): row is DirectedEdgeRow =>
@@ -404,57 +420,69 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     if (resolution.seat !== undefined) compose(resolution.seat, { by: 'declared-at', rule: resolution.by! });
     for (const claimant of resolution.claimants) compose(claimant.identity, { by: 'claim', matches: claimant.matches });
   }
-  const c0 = new Map<string, PositionVia>(),
-    boundary = new Map<string, Reach>();
-  for (const [identity, via] of composition)
-    if (wanted(identity)) {
-      if (inside(identity)) c0.set(identity, via);
-      else boundary.set(identity, { hop: 0, via });
-    }
-  // Σ = {S} ∪ {r ∈ C0 : kind(r) ∈ kind focus ∨ lane(r) ∈ lane focus}.
-  const seeds = [...c0.keys()]
-    .filter((identity) => {
-      const node = nodes.get(identity)!;
-      return kinds.includes(node.kind) || lanes.includes(laneOf(node));
-    })
-    .sort(order);
-
-  // Hops 1..d from Σ over edge rows in predicate focus, either direction, never leaving the closure: a record outside
-  // it is a pointer, not entered; with w set, a record of another word is a waypoint, followed, never loaded or listed.
-  const reached = new Map<string, Reach>(seeds.map((identity) => [identity, { hop: 0, via: c0.get(identity)! }])),
-    waypoints = new Set<string>();
-  let level = [...(seatId === undefined ? [] : [seatId]), ...seeds];
-  for (let hop = 1; hop <= key.depth; hop++) {
-    const next: string[] = [];
-    for (const from of level)
-      for (const row of rowsOf(from)) {
-        const to = row.counterpart;
-        if (!inFocus(row) || to === seatId || reached.has(to) || boundary.has(to)) continue;
-        if (!inside(to)) {
-          if (wanted(to)) boundary.set(to, { hop, via: viaRow(from, row) });
-          continue;
-        }
-        reached.set(to, { hop, via: viaRow(from, row) });
-        if (!wanted(to)) waypoints.add(to);
-        next.push(to);
+  /**
+   * C0, Σ and the hops under one word filter `keep`. With w set the body walks twice: under the filter for what loads,
+   * the pointers, their tallies and the frontier, and without it for the candidates whose blocking rules are reserved.
+   */
+  const traverse = (keep: (identity: string) => boolean) => {
+    const c0 = new Map<string, PositionVia>(),
+      boundary = new Map<string, Reach>();
+    for (const [identity, via] of composition)
+      if (keep(identity)) {
+        if (inside(identity)) c0.set(identity, via);
+        else boundary.set(identity, { hop: 0, via });
       }
-    level = next.sort(order);
-  }
-  const hopReached = [...reached.keys()].filter(
-    (identity) => reached.get(identity)!.hop > 0 && !waypoints.has(identity),
-  );
+    // Σ = {S} ∪ {r ∈ C0 : kind(r) ∈ kind focus ∨ lane(r) ∈ lane focus}.
+    const seeds = [...c0.keys()]
+      .filter((identity) => {
+        const node = nodes.get(identity)!;
+        return kinds.includes(node.kind) || lanes.includes(laneOf(node));
+      })
+      .sort(order);
+
+    // Hops 1..d from Σ over edge rows in predicate focus, either direction, never leaving the closure: a record outside
+    // it is a pointer, not entered; with w set, a record of another word is a waypoint, followed, never loaded or
+    // listed.
+    const reached = new Map<string, Reach>(seeds.map((identity) => [identity, { hop: 0, via: c0.get(identity)! }])),
+      waypoints = new Set<string>();
+    let level = [...(seatId === undefined ? [] : [seatId]), ...seeds];
+    for (let hop = 1; hop <= key.depth; hop++) {
+      const next: string[] = [];
+      for (const from of level)
+        for (const row of rowsOf(from)) {
+          const to = row.counterpart;
+          if (!inFocus(row) || to === seatId || reached.has(to) || boundary.has(to)) continue;
+          if (!inside(to)) {
+            if (keep(to)) boundary.set(to, { hop, via: viaRow(from, row) });
+            continue;
+          }
+          reached.set(to, { hop, via: viaRow(from, row) });
+          if (!keep(to)) waypoints.add(to);
+          next.push(to);
+        }
+      level = next.sort(order);
+    }
+    const hopReached = [...reached.keys()].filter(
+      (identity) => reached.get(identity)!.hop > 0 && !waypoints.has(identity),
+    );
+    return { c0, boundary, seeds, reached, hopReached };
+  };
+  const unfiltered = traverse(() => true),
+    { c0, boundary, seeds, reached, hopReached } = word === undefined ? unfiltered : traverse(wanted);
+  /** How a record of the word's walk was first reached: the seat, a hop, else its composition class. */
+  const reachOf = (identity: string): Reach =>
+    identity === seatId ? { hop: 0 } : (reached.get(identity) ?? { hop: 0, via: c0.get(identity)! });
   // The blocking rules reserved by word alone (R17), which no composition class or hop reaches.
   const matched = new Map<string, Reach>();
-  const reachOf = (identity: string): Reach =>
-    identity === seatId
-      ? { hop: 0 }
-      : (reached.get(identity) ?? matched.get(identity) ?? { hop: 0, via: c0.get(identity)! });
+  /** How a reserved rule was first reached, in the walk without the word, or by its field match. */
+  const ruleReach = (identity: string): Reach =>
+    unfiltered.reached.get(identity) ?? matched.get(identity) ?? { hop: 0, via: unfiltered.c0.get(identity)! };
 
   // Applies by word (design row 18, plan amendment A4, R17): the @law, @convention, @principle and @playbook records of
-  // the closure (with w set, of w) whose `subject.subject-word` is the word, or `subject.subject-kind` the kind, of a
-  // record. A field match, not a row: it costs no hop and claims no relation or consent.
+  // the closure whose `subject.subject-word` is the word, or `subject.subject-kind` the kind, of a record, of any word
+  // whatever w is. A field match, not a row: it costs no hop and claims no relation or consent.
   const subjects: readonly Subject[] = records.flatMap((node) => {
-    if (!SUBJECT_WORDS.includes(node.discriminator) || !inside(node.identity) || !wanted(node.identity)) return [];
+    if (!SUBJECT_WORDS.includes(node.discriminator) || !inside(node.identity)) return [];
     const word = statedText(node, 'subject.subject-word'),
       kind = statedText(node, 'subject.subject-kind');
     return word === undefined && kind === undefined
@@ -514,10 +542,10 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   const governance = key.shape === 'governance',
     hopOfReach = (identity: string): number => reachOf(identity).hop;
 
-  // K = {S} ∪ C0 ∪ Σ ∪ C before truncation. R, its blocking governance, and the blocking rules that apply by word to a
-  // record of K, whichever records n truncates (R17), are reserved outside n, then
-  // L = {S} ∪ first n of sort(((Σ \ {S}) ∪ C) \ R).
-  const candidates = new Set([...c0.keys(), ...hopReached]),
+  // K = {S} ∪ C0 ∪ Σ ∪ C before truncation, and before the word filter. R, its blocking governance, and the blocking
+  // rules that apply by word to a record of K, whichever records n truncates or w leaves out (R17), are reserved
+  // outside n, then L = {S} ∪ first n of sort(((Σ \ {S}) ∪ C) \ R), Σ and C under the word.
+  const candidates = new Set([...unfiltered.c0.keys(), ...unfiltered.hopReached]),
     among = [...(seatId === undefined ? [] : [seatId]), ...[...candidates].sort(order)];
   for (const subject of subjects)
     if (subject.identity !== seatId && !candidates.has(subject.identity) && blocking(subject.identity)) {
@@ -525,7 +553,11 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       if (matches.length > 0)
         matched.set(subject.identity, { hop: 0, via: { by: 'subject', label: FIELD_MATCH, matches } });
     }
-  const rules = sorted([...[...candidates].filter(blocking), ...matched.keys()], hopOfReach, true);
+  const rules = sorted(
+    [...[...candidates].filter(blocking), ...matched.keys()],
+    (identity) => ruleReach(identity).hop,
+    true,
+  );
   const reserved = new Set(rules);
   const pool = sorted(
     new Set([...seeds, ...hopReached].filter((identity) => !reserved.has(identity))),
@@ -622,12 +654,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // that does both keeping its claim, all ranked by band ↓ then identity.
   const governing = new Map<string, PositionVia>();
   const govern = (identity: string, via: PositionVia): void => {
-    if (
-      nodes.get(identity)?.discriminator === 'mandate' &&
-      inside(identity) &&
-      wanted(identity) &&
-      !governing.has(identity)
-    )
+    if (nodes.get(identity)?.discriminator === 'mandate' && inside(identity) && !governing.has(identity))
       governing.set(identity, via);
   };
   if (seat.kind === 'location' && resolution !== undefined)
@@ -662,8 +689,8 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       ...(reach.via === undefined ? {} : { via: reach.via }),
     };
   };
-  const loadedRecord = (identity: string): LoadedRecord => ({
-    ...record(identity, reachOf(identity)),
+  const loadedRecord = (identity: string, reach: Reach): LoadedRecord => ({
+    ...record(identity, reach),
     digest: nodes.get(identity)!.digest,
   });
   const pointer = (identity: string): PositionPointer => {
@@ -759,10 +786,10 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     key,
     seat,
     loaded: [
-      seatId === undefined ? { path: seat.path ?? '' } : loadedRecord(seatId),
-      ...chosen.map((identity) => loadedRecord(identity)),
+      seatId === undefined ? { path: seat.path ?? '' } : loadedRecord(seatId, reachOf(seatId)),
+      ...chosen.map((identity) => loadedRecord(identity, reachOf(identity))),
     ],
-    rules: rules.map((identity) => loadedRecord(identity)),
+    rules: rules.map((identity) => loadedRecord(identity, ruleReach(identity))),
     pointers: listed.map(pointer),
     pointerTallies: wordTallies(tallied),
     appliesByWord: applies.slice(0, LISTED).map(({ identity, matches }) => {

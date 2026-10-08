@@ -4,7 +4,7 @@ export { classify, scoreShapes, defaultClassifier } from './classify.js';
 export type { Classifier, Shape } from './classify.js';
 export { prepareCoordinate, COORDINATE_DOMAINS } from './coordinate.js';
 export type { PreparedCoordinate, CoordinateOptions, AxisSource } from './coordinate.js';
-export { K0, SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey } from './scope-key.js';
+export { K0, SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey, rootRelative } from './scope-key.js';
 export type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
 export { position, positionBody } from './position.js';
 export type {

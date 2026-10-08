@@ -383,9 +383,10 @@ it('loads the seat plus only records of the word, follows other words as waypoin
     within = db.resolveScope().token,
     advisory = 'governance-system/governance/law/advisory-rule';
   expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  // What the word restricts: the loaded records, the pointers and their tallies. The rules are those of the body without
+  // the word (R15), here the one blocking law.
   const words = (body: PositionBody) => [
     ...body.loaded.slice(1).map((e) => (e as LoadedRecord).word),
-    ...body.rules.map((e) => e.word),
     ...body.pointers.map((p) => p.word),
     ...body.pointerTallies.map((t) => t.word),
   ];

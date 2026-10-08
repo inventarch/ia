@@ -324,7 +324,9 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
               ? `the admitted records of ${at} span other lines`
               : path === undefined
                 ? `${parsed.path} is not a path relative to the workspace root`
-                : `no record of this workspace's sources is in ${at}`
+                : path === ''
+                  ? `${parsed.path} is the workspace root, a directory and no source`
+                  : `no record of this workspace's sources is in ${at}`
         }`,
         { path: at, line: parsed.line, ...(file === undefined ? {} : { file }) },
       );

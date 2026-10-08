@@ -346,6 +346,15 @@ it('reads the record whose source span holds a line, the innermost one, and refu
       path,
       line: 3,
     });
+  // The workspace root itself, `.` or any spelling of it, is a directory: no source, so no record spans a line of it.
+  for (const spelled of ['.', './', 'src/..'])
+    expect(readBody(db, `${spelled}:3`, options), spelled).toEqual({
+      ok: false,
+      code: 'IA-RUNTIME-READ-UNADMITTED',
+      message: `No admitted record spans ${spelled}:3; ${spelled} is the workspace root, a directory and no source`,
+      path: '',
+      line: 3,
+    });
 });
 
 it('says that admission refused the records of a source whose line no admitted record spans', () => {
