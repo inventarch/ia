@@ -26,7 +26,7 @@ import { DbError } from './errors.js';
 import { inputOptions, readInputs } from './inputs.js';
 import type { InputOptions, InputSnapshot } from './inputs.js';
 import { inertSources } from './membership.js';
-import type { InertDeclaration, MembershipRow } from './membership.js';
+import type { DeclaredRoot, InertDeclaration, MembershipRow } from './membership.js';
 import { digestIn, readCapture, readinessOf, rotate, stalenessOf } from './retention.js';
 import type { Readiness, RetainedSnapshot, Staleness } from './retention.js';
 import { seatOf } from './seat.js';
@@ -441,6 +441,21 @@ export class Reader {
         .filter((registration) => admitted.has(registration.system))
         .map((registration) => registration.keyword)
         .sort(),
+    );
+  }
+  /**
+   * D02c (position-and-projection row 3): the roots the capture declares (D02a), longest first, then by declaring
+   * workspace, as frozen copies; a root whose declaring @workspace the read does not admit is pruned, as the seat rule
+   * prunes it (D02b, D09). Membership rows keep their roots whatever the scope, so a pruned root is never re-rooted.
+   */
+  roots(options: ReadOptions = {}): readonly DeclaredRoot[] {
+    const { view, allowed } = this.#select(options);
+    return Object.freeze(
+      view.declared
+        .filter(
+          (root) => view.graph.nodes.has(root.workspace) && (allowed === undefined || allowed.has(root.workspace)),
+        )
+        .map((root) => Object.freeze({ ...root })),
     );
   }
   search(text: string, options: ReadOptions = {}): readonly SearchHit[] {

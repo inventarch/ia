@@ -1,0 +1,161 @@
+{
+  "format": "ia.position-body.v1",
+  "revision": "<revision>",
+  "key": {
+    "shape": "context",
+    "phase": "orient",
+    "depth": 0,
+    "budget": 0
+  },
+  "seat": {
+    "kind": "workspace",
+    "identity": "workspace-system/definition/workspace/foundation-workspace"
+  },
+  "loaded": [
+    {
+      "identity": "workspace-system/definition/workspace/foundation-workspace",
+      "word": "workspace",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "workspace-system",
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "band": 100,
+      "hop": 0,
+      "digest": "fd7465f81dcfade97defc4929fa98c35067fabcc576cfffe74f62349911a4cf2"
+    }
+  ],
+  "rules": [],
+  "pointers": [
+    {
+      "identity": "floor/definition/system/agent-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "floor/definition/system/compliance-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "floor/definition/system/governance-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "floor/definition/system/session-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "floor/definition/system/workspace-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "composition.systems",
+        "direction": "out"
+      }
+    },
+    {
+      "identity": "workspace-system/definition/distribution/foundation-distribution",
+      "word": "distribution",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "workspace-system",
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "field",
+        "from": "workspace-system/definition/workspace/foundation-workspace",
+        "field": "distribution.records",
+        "direction": "in"
+      }
+    }
+  ],
+  "pointerTallies": [],
+  "frontier": [
+    {
+      "system": "compliance-system",
+      "kind": "contract",
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "count": 1
+    }
+  ],
+  "unknowns": [
+    {
+      "kind": "sources",
+      "subject": "workspace-system/definition/workspace/foundation-workspace",
+      "message": "workspace declares no sources: workspace-system/definition/workspace/foundation-workspace has no capture members, and its closure is the floor, the adopted records and every record no workspace declares a root for"
+    }
+  ],
+  "counts": {
+    "composition": 6,
+    "seeds": 7,
+    "loaded": 1,
+    "rules": 0,
+    "pointers": 6,
+    "frontier": 1,
+    "truncatedLoaded": 6,
+    "truncatedPointers": 0
+  },
+  "widening": {
+    "deeper": {
+      "shape": "context",
+      "phase": "orient",
+      "depth": 1,
+      "budget": 0
+    },
+    "reseat": {
+      "shape": "context",
+      "phase": "orient",
+      "depth": 1,
+      "budget": 16
+    }
+  }
+}

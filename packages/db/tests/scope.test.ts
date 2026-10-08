@@ -112,6 +112,7 @@ it('checks unknown, foreign and closed tokens on every scoped read', () => {
       () => db.directedView(methodId, { within }),
       () => db.resolveSeat(methodPath, { within }),
       () => db.words({ within }),
+      () => db.roots({ within }),
       () => db.resolve({ kind: 'identity', identity: methodId }, { within }),
       () => db.search('fixture', { within }),
       () => db.traverse({ start: [methodId], within }),

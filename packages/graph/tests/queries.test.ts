@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
+import { KERNEL_DIGEST, KIND_LANES, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import {
   cell,
   conditionHolds,
   effectiveSeverity,
+  laneOf,
   load,
   selectors,
   serialize,
@@ -65,6 +66,16 @@ describe('conditions and subject dimensions', () => {
     expect(effectiveSeverity(subject, { severity: 'informational' })).toBe('advisory');
     expect(effectiveSeverity({ provenance: 'workspace' }, {})).toBeUndefined();
     expect(effectiveSeverity({ provenance: 'workspace' }, { severity: 'blocking' })).toBe('blocking');
+  });
+  it('reads a lane from the kind, an authority-facet contract excepted, as the lane index posts it (G05)', () => {
+    for (const [kind, lane] of Object.entries(KIND_LANES))
+      expect(laneOf({ kind: kind as keyof typeof KIND_LANES, facet: 'any' })).toBe(lane);
+    expect(laneOf({ kind: 'contract', facet: 'authority' })).toBe('authority');
+    expect(laneOf({ kind: 'definition', facet: 'authority' })).toBe('definitions');
+    // The index and the function are one definition: every winner is posted under its own lane only.
+    for (const node of native.nodes.values())
+      for (const [lane, identities] of native.byLane)
+        expect(identities.includes(node.identity)).toBe(lane === laneOf(node));
   });
 });
 describe('selector alternatives and specificity', () => {

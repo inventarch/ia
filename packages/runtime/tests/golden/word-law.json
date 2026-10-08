@@ -1,0 +1,81 @@
+{
+  "format": "ia.position-body.v1",
+  "revision": "<revision>",
+  "key": {
+    "seat": "floor/definition/system/governance-system",
+    "shape": "governance",
+    "phase": "plan",
+    "depth": 1,
+    "budget": 16,
+    "word": "law"
+  },
+  "seat": {
+    "kind": "record",
+    "identity": "floor/definition/system/governance-system"
+  },
+  "loaded": [
+    {
+      "identity": "floor/definition/system/governance-system",
+      "word": "system",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "floor",
+      "band": 100,
+      "hop": 0,
+      "digest": "5a0d8c75ed6c0840a424989adb45a9c5f6d0f1c877304ab75d3e40c1ff763381"
+    }
+  ],
+  "rules": [
+    {
+      "identity": "governance-system/governance/law/sample-rule",
+      "word": "law",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "word",
+        "system": "governance-system"
+      },
+      "digest": "7604efa496f163523e6d97015185f1970c15e3c3071be6729ac5d64b5bdd8ffd"
+    }
+  ],
+  "pointers": [],
+  "pointerTallies": [],
+  "frontier": [],
+  "unknowns": [
+    {
+      "kind": "sources",
+      "subject": "workspace-system/definition/workspace/foundation-workspace",
+      "message": "workspace declares no sources: workspace-system/definition/workspace/foundation-workspace has no capture members, and its closure is the floor, the adopted records and every record no workspace declares a root for"
+    }
+  ],
+  "counts": {
+    "composition": 1,
+    "seeds": 2,
+    "loaded": 1,
+    "rules": 1,
+    "pointers": 0,
+    "frontier": 0,
+    "truncatedLoaded": 0,
+    "truncatedPointers": 0
+  },
+  "widening": {
+    "deeper": {
+      "seat": "floor/definition/system/governance-system",
+      "shape": "governance",
+      "phase": "plan",
+      "depth": 2,
+      "budget": 16,
+      "word": "law"
+    },
+    "reseat": {
+      "shape": "governance",
+      "phase": "plan",
+      "depth": 1,
+      "budget": 16
+    }
+  }
+}
