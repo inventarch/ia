@@ -428,6 +428,21 @@ export class Reader {
         .map((declaration) => Object.freeze(declaration)),
     );
   }
+  /**
+   * D09a (position-and-projection row 10): the words the read's registry registers for its admitted systems, the
+   * floor's two included, sorted. A scope narrows records, never the registry, so every scope of a view reads the same
+   * words; the registry itself stays private.
+   */
+  words(options: ReadOptions = {}): readonly string[] {
+    const { view } = this.#select(options),
+      admitted = new Set(view.admittedSystems);
+    return Object.freeze(
+      [...view.graph.registry.registrations.values()]
+        .filter((registration) => admitted.has(registration.system))
+        .map((registration) => registration.keyword)
+        .sort(),
+    );
+  }
   search(text: string, options: ReadOptions = {}): readonly SearchHit[] {
     const { view, allowed } = this.#select(options);
     return search(view.graph, text, allowed);

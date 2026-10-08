@@ -525,6 +525,8 @@ it('reads the capture pair only when asked: never on open, on a plain read or on
       db.directedView(methodId);
       db.resolveSeat(methodPath);
       db.inertDeclarations();
+      // Nor does words (D09a), which a runtime scope key's word is checked against.
+      db.words();
       db.search('procedure');
       db.refresh();
       db.records();

@@ -126,6 +126,10 @@
       "types": "./dist/render.d.ts",
       "default": "./dist/render.js"
     },
+    "./internal/scope-key": {
+      "types": "./dist/scope-key.d.ts",
+      "default": "./dist/scope-key.js"
+    },
     "./internal/select": {
       "types": "./dist/select.d.ts",
       "default": "./dist/select.js"
@@ -283,6 +287,10 @@
       "./internal/render": {
         "types": "./dist/render.d.ts",
         "default": "./dist/render.js"
+      },
+      "./internal/scope-key": {
+        "types": "./dist/scope-key.d.ts",
+        "default": "./dist/scope-key.js"
       },
       "./internal/select": {
         "types": "./dist/select.d.ts",
