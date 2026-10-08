@@ -18,6 +18,8 @@ import {
   publicPackages,
   REPOSITORY_URL,
   REGISTRY,
+  REGISTRY_VISIBILITY,
+  REGISTRY_WAIT,
   validatePackages,
   releaseVersions,
   verifyRelease,
@@ -267,6 +269,30 @@ it('runs the release helper on pinned Node and dispatches only after unsuppresse
     'node tools/distribution/github-release.mjs',
     'gh workflow run release-pr.yml --ref main',
   ]);
+});
+
+// A change detector: NPM-PUBLISHING.md documents these values.
+it('pins the frozen registry visibility bound at 15 minutes, polling every 20 s, and the verify job limit at 30 minutes', () => {
+  expect(REGISTRY_VISIBILITY).toEqual({ timeoutMs: 15 * 60_000, intervalMs: 20_000 });
+  expect(Object.isFrozen(REGISTRY_VISIBILITY)).toBe(true);
+  const workflow = parse(readFileSync(resolve(root, '.github/workflows/npm-publish.yml'), 'utf8'));
+  expect(workflow.jobs.verify['timeout-minutes']).toBe(30);
+});
+
+it('waits in verify-registry with that bound, a real delay, the monotonic process clock and stderr', async () => {
+  expect(Object.isFrozen(REGISTRY_WAIT)).toBe(true);
+  expect({ timeoutMs: REGISTRY_WAIT.timeoutMs, intervalMs: REGISTRY_WAIT.intervalMs }).toEqual({
+    timeoutMs: 15 * 60_000,
+    intervalMs: 20_000,
+  });
+  expect(REGISTRY_WAIT.log).toBe(console.error);
+  const before = performance.now(),
+    read = REGISTRY_WAIT.now(),
+    after = performance.now();
+  expect(read).toBeGreaterThanOrEqual(before);
+  expect(read).toBeLessThanOrEqual(after);
+  await REGISTRY_WAIT.sleep(40);
+  expect(performance.now() - after).toBeGreaterThanOrEqual(20);
 });
 
 it('refuses a missing or changed system compatibility companion', () =>

@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
 
@@ -215,23 +216,139 @@ export function publicationPlan(release, registryPackages) {
     return { ...entry, action: published ? 'skip-identical' : 'publish' };
   });
 }
+function verifyPublishedDist(entry, registryPackages) {
+  const dist = registryPackages[entry.name].versions[entry.version].dist;
+  assert.equal(new URL(dist.tarball).origin, REGISTRY, 'Unexpected registry tarball origin');
+  assert.ok(dist.attestations?.provenance, 'Published package lacks npm provenance');
+  assert.equal(new URL(dist.attestations.url).origin, REGISTRY, 'Unexpected attestation origin');
+}
 export function verifyRegistryCohort(release, registryPackages) {
   const plan = publicationPlan(release, registryPackages);
   for (const entry of plan) {
     assert.equal(entry.action, 'skip-identical', entry.name + ': incomplete published cohort');
-    const dist = registryPackages[entry.name].versions[entry.version].dist;
-    assert.equal(new URL(dist.tarball).origin, REGISTRY, 'Unexpected registry tarball origin');
-    assert.ok(dist.attestations?.provenance, 'Published package lacks npm provenance');
-    assert.equal(new URL(dist.attestations.url).origin, REGISTRY, 'Unexpected attestation origin');
+    verifyPublishedDist(entry, registryPackages);
   }
   return plan;
 }
+/**
+ * npm accepts a publish before it serves the new version; the 1.1.1 publication saw versions appear up to about six
+ * minutes after acceptance. Final verification has one budget of `timeoutMs` for the whole cohort, counted from its
+ * first poll, and polls every `intervalMs`.
+ */
+export const REGISTRY_VISIBILITY = Object.freeze({ timeoutMs: 15 * 60_000, intervalMs: 20_000 });
+/** What `verify-registry` waits with. Progress goes to stderr, so stdout stays the verification result. */
+export const REGISTRY_WAIT = Object.freeze({
+  ...REGISTRY_VISIBILITY,
+  sleep: delay,
+  now: () => performance.now(),
+  log: console.error,
+});
+/**
+ * The cohort packages a read did not show at the release version, in publication order: a 404, a failed read or a
+ * packument without the version. Everything the read did show is checked in full, so a refusal never waits for the
+ * rest of the cohort.
+ */
+function unshownPackages(release, registryPackages) {
+  const served = release.packages.filter((entry) => registryPackages[entry.name] !== null),
+    shown = new Set();
+  for (const entry of publicationPlan({ ...release, packages: served }, registryPackages))
+    if (entry.action === 'skip-identical') {
+      verifyPublishedDist(entry, registryPackages);
+      shown.add(entry.name);
+    }
+  return release.packages.map((entry) => entry.name).filter((name) => !shown.has(name));
+}
+/** A read failure that a later read can answer differently: a timeout or abort, a network failure, HTTP 429 or a 5xx. */
+const transientReadFailure = (error) =>
+  error?.name === 'TimeoutError' ||
+  error?.name === 'AbortError' ||
+  (error instanceof TypeError && ['fetch failed', 'terminated'].includes(error.message)) ||
+  error?.status === 429 ||
+  error?.status >= 500;
+/** A lookup error's message without the package name it may start with, followed by its cause. */
+function readFailure(name, error) {
+  const message = String(error?.message ?? error),
+    own = message.startsWith(name + ': ') ? message.slice(name.length + 2) : message;
+  return error?.cause?.message ? `${own}: ${error.cause.message}` : own;
+}
+/** Reads one package: its packument, null for a 404 or a transient failure, which `failure` then describes. */
+async function readPackage(name, lookup) {
+  try {
+    return { remote: await lookup(name) };
+  } catch (error) {
+    if (transientReadFailure(error)) return { remote: null, failure: readFailure(name, error) };
+    if (String(error?.message).startsWith(name + ': ')) throw error;
+    throw Object.assign(new assert.AssertionError({ message: `${name}: ${readFailure(name, error)}` }), {
+      cause: error,
+    });
+  }
+}
+/**
+ * `verifyRegistryCohort` on one read of the whole cohort that shows every version: the first read when it already does,
+ * otherwise a fresh read once every package has shown, which waits again for anything it no longer shows. Until a read
+ * shows a package, it is read again every `intervalMs`: after a 404, a packument without the version, or a timeout,
+ * network failure, HTTP 429 or 5xx. A poll that still misses a package when `timeoutMs` has passed since the first
+ * refuses the incomplete cohort, naming the package and its last read failure. Any other refusal or read failure ends
+ * the wait at once and names the package.
+ */
+export async function waitForRegistryCohort(release, lookup, { timeoutMs, intervalMs, sleep, now, log }) {
+  const start = now(),
+    names = release.packages.map((entry) => entry.name),
+    registryPackages = {},
+    failures = new Map();
+  for (let poll = 1, reading = names; ; ) {
+    for (const [name, read] of await Promise.all(
+      reading.map(async (name) => [name, await readPackage(name, lookup)]),
+    )) {
+      registryPackages[name] = read.remote;
+      if (read.failure) failures.set(name, read.failure);
+      else failures.delete(name);
+    }
+    const pending = unshownPackages(release, registryPackages);
+    if (pending.length === 0) {
+      // Only a read of the whole cohort gives the verdict; after a partial read, the same poll reads it all again.
+      if (reading.length === names.length)
+        return { plan: verifyRegistryCohort(release, registryPackages), registryPackages };
+      reading = names;
+      continue;
+    }
+    const elapsed = now() - start,
+      described = pending.map((name) => (failures.has(name) ? `${name} (${failures.get(name)})` : name));
+    log(
+      `Poll ${poll} (${Math.round(elapsed / 1000)} s of ${timeoutMs / 1000} s): npm does not show ${release.version} of ${described.join(', ')} yet`,
+    );
+    const last = failures.get(pending[0]);
+    assert.ok(
+      elapsed < timeoutMs,
+      pending[0] + ': incomplete published cohort' + (last ? `; its last read failed: ${last}` : ''),
+    );
+    await sleep(intervalMs);
+    reading = pending;
+    poll++;
+  }
+}
 
-async function registryPackage(name) {
-  const response = await fetch(`${REGISTRY}/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(30_000) });
+/** One packument, or null for a 404. Any other unsuccessful status refuses, naming the package and keeping the status. */
+export async function registryPackage(name, request = fetch) {
+  const response = await request(`${REGISTRY}/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(30_000) });
   if (response.status === 404) return null;
-  assert.ok(response.ok, `${name}: registry returned ${response.status}`);
+  if (!response.ok)
+    throw Object.assign(new assert.AssertionError({ message: `${name}: registry returned ${response.status}` }), {
+      status: response.status,
+    });
   return response.json();
+}
+
+/** Downloads each verified archive from the registry and checks its size and integrity against the release receipt. */
+export async function verifyRegistryArchives(plan, registryPackages, request = fetch) {
+  for (const entry of plan) {
+    const dist = registryPackages[entry.name].versions[entry.version].dist;
+    const response = await request(dist.tarball, { signal: AbortSignal.timeout(30000) });
+    assert.ok(response.ok, `${entry.name}: archive download returned ${response.status}`);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(bytes.length, entry.bytes);
+    assert.equal(integrity(bytes), entry.integrity, 'Downloaded registry bytes differ');
+  }
 }
 
 export function assertPublisherEnvironment(release, env) {
@@ -291,19 +408,9 @@ async function main() {
       );
     console.log(`Publishing ${release.changeset.path} sha256:${release.changeset.sha256}`);
   }
-  const registryPackages = Object.fromEntries(
-    await Promise.all(release.packages.map(async ({ name }) => [name, await registryPackage(name)])),
-  );
   if (positionals[0] === 'verify-registry') {
-    const checked = verifyRegistryCohort(release, registryPackages);
-    for (const entry of checked) {
-      const dist = registryPackages[entry.name].versions[entry.version].dist;
-      const response = await fetch(dist.tarball, { signal: AbortSignal.timeout(30000) });
-      assert.ok(response.ok);
-      const bytes = Buffer.from(await response.arrayBuffer());
-      assert.equal(bytes.length, entry.bytes);
-      assert.equal(integrity(bytes), entry.integrity, 'Downloaded registry bytes differ');
-    }
+    const { plan: checked, registryPackages } = await waitForRegistryCohort(release, registryPackage, REGISTRY_WAIT);
+    await verifyRegistryArchives(checked, registryPackages);
     console.log(
       JSON.stringify(
         {
@@ -319,6 +426,9 @@ async function main() {
     );
     return;
   }
+  const registryPackages = Object.fromEntries(
+    await Promise.all(release.packages.map(async ({ name }) => [name, await registryPackage(name)])),
+  );
   const plan = publicationPlan(release, registryPackages);
   if (positionals[0] === 'preflight') {
     console.log(
