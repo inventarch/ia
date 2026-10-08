@@ -249,6 +249,10 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.2'
+          package-manager-cache: false
       - uses: actions/download-artifact@v8
         with:
           name: npm-release-${{ github.sha }}
@@ -261,21 +265,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="v$RELEASE_VERSION"
-          existing="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2> /dev/null || true)"
-          if [ -z "$existing" ]; then
-            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$RELEASE_SHA" > /dev/null
-          elif [ "$existing" != "$RELEASE_SHA" ]; then
-            echo "::error::$tag already names $existing, not the published commit $RELEASE_SHA"
-            exit 1
-          fi
-          node tools/distribution/release-changes.mjs notes --version "$RELEASE_VERSION" > "$RUNNER_TEMP/release-notes.md"
-          if gh release view "$tag" > /dev/null 2>&1; then
-            echo "The $tag GitHub release already exists."
-          else
-            gh release create "$tag" --verify-tag --title "IA $RELEASE_VERSION" --notes-file "$RUNNER_TEMP/release-notes.md" \
-              artifacts/npm/*.vsix artifacts/npm/npm-release.json artifacts/npm/system-compatibility.json
-          fi
+          node tools/distribution/github-release.mjs
           # Notes merged while this release awaited publication can now become the next release pull request.
           # A tag made with this workflow's token starts no workflow by itself; a dispatch does.
           gh workflow run release-pr.yml --ref main

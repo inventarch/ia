@@ -203,7 +203,7 @@ it('checks the actual repository manifest for shape, coverage and qualification 
   expect(validateManifest({ manifest, projects, discovery, leaves: qualificationLeaves(root), tracked: [] })).toEqual(
     [],
   );
-  expect(trackedTestFiles(root).length).toBe(225);
+  expect(trackedTestFiles(root).length).toBe(226);
 });
 
 it('exposes the declared timeout profiles and refuses a worker limit above a ceiling', () => {
