@@ -1844,6 +1844,7 @@
         "tests/loop.test.ts",
         "tests/mandate-modes.test.ts",
         "tests/publication.test.ts",
+        "tests/scope-key.test.ts",
         "tests/select-door.test.ts",
         "tests/steward.test.ts"
       ],
@@ -1951,6 +1952,14 @@
         {
           "case": "tests/publication.test.ts > qualified local NTFS publication refuses non-ntfs volume qualification without creating output or caching failure",
           "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/scope-key.test.ts > reads a Windows absolute path as the file system compares it",
+          "reason": "Drive letters, their case and backslash separators are Windows path semantics; Linux and macOS cover absolute seat paths inside and outside the root, the root itself included, through the case that reads an absolute path inside the root.",
           "platforms": [
             "linux",
             "macos"

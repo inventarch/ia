@@ -1,5 +1,5 @@
 import { CONDITION_AXES, SHAPE_ROWS, valuesFor } from '@inventarch/language';
-import type { ConditionAxis, Kind, Lane, Predicate } from '@inventarch/language';
+import type { ConditionAxis, Kind, Lane, Phase, Predicate } from '@inventarch/language';
 import { GraphUsageError, validateCoordinate } from '@inventarch/graph';
 import type { Coordinate } from '@inventarch/graph';
 import { defaultClassifier } from './classify.js';
@@ -70,5 +70,19 @@ export function prepareCoordinate(
       lanes: Object.freeze([...row.lanes]),
       predicates: Object.freeze([...row.predicates]),
     }),
+  });
+}
+/**
+ * R14: the coordinate of a scope key. The key declares shape and phase; category and primitive are derived from the
+ * shape's native row, the primitive as SHAPE_ROWS[shape].primitive, so a key is never coordinate-incomplete. Only this
+ * path derives a primitive: prepareCoordinate, which the version 1 `context` and `select` requests use, still refuses
+ * to supply one (R01).
+ */
+export function scopeCoordinate(shape: Shape, phase: Phase): PreparedCoordinate {
+  const prepared = prepareCoordinate('', { shape, phase });
+  return Object.freeze({
+    values: Object.freeze({ ...prepared.values, primitive: SHAPE_ROWS[shape].primitive }),
+    sources: Object.freeze({ ...prepared.sources, primitive: 'derived' as const }),
+    focus: prepared.focus,
   });
 }
