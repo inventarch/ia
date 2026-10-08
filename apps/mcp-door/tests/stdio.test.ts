@@ -119,6 +119,26 @@ it('keeps the issuer alive for reusable tokens and returns only protocol output'
         code: 'IA-RUNTIME-READ-UNADMITTED',
         message: 'The locator is not in this scope',
       });
+      // ia_next (protocol version 2) answers through the same token; the loop fixture authors no plan, so its refusal
+      // names the one command to run, as a version 2 refusal may.
+      child.stdin.write(
+        line({
+          jsonrpc: '2.0',
+          id: 7,
+          method: 'tools/call',
+          params: { name: 'ia_next', arguments: { within: scope.token } },
+        }),
+      );
+      expect((await read()).result).toEqual({
+        content: [{ type: 'text', text: expect.stringContaining('"code":"IA-RUNTIME-NEXT-NO-PLAN"') }],
+        structuredContent: {
+          ok: false,
+          code: 'IA-RUNTIME-NEXT-NO-PLAN',
+          message: 'No admitted @plan at authored placement (band 100) in this scope',
+          next: 'ia next --help',
+        },
+        isError: true,
+      });
       const closing = once(child, 'close');
       child.stdin.end();
       expect((await closing)[0]).toBe(0);

@@ -9,6 +9,7 @@ import { context } from './context.js';
 import { RuntimeError } from './errors.js';
 import { readBody } from './locator.js';
 import { MACHINE_PROTOCOL } from './machine-protocol.js';
+import { deliveryView } from './next.js';
 import { select } from './select.js';
 import { freeze } from './types.js';
 import type { Budget, ContextRequest, Refusal } from './types.js';
@@ -24,10 +25,16 @@ export interface DoorOptions extends OpenOptions {
   /**
    * The MACHINE_PROTOCOL version the door serves, by default the table's: an operation a later version adds (its row's
    * `since`) is refused as an unknown operation, and that refusal names only the operations served, so a door serving
-   * version 1, as the CLI's machine routes do (plan amendment A2), refuses `read` with the bytes 1.1.0's door did.
+   * version 1, as the CLI's machine routes do (plan amendment A2), refuses `read` and `next` with the bytes 1.1.0's
+   * door did.
    */
   readonly protocol?: number;
 }
+/**
+ * A version 1 operation's refusal keeps its 1.1.0 shape. A later version's operation answers with the refusal its
+ * runtime function returns, which may carry more: `read` the `ReadRefusal` fields, and `next` the `NextRefusal`'s
+ * `next` command, `plans` and `cycle` (R12).
+ */
 export type DoorResponse = { readonly ok: true; readonly result: unknown } | Refusal;
 type Params = Record<string, unknown>;
 function invalid(message: string): never {
@@ -109,7 +116,7 @@ export class Door {
   /** The refusal of an operation this door does not serve, naming the ones it does in table order. */
   #unknown(operation: string): never {
     return invalid(
-      `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}${this.#protocol >= 2 ? ', read' : ''}`,
+      `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}${this.#protocol >= 2 ? ', read, next' : ''}`,
     );
   }
   #within(params: Params): string {
@@ -260,6 +267,17 @@ export class Door {
           });
           if (!got.ok) return got;
           result = got.body;
+          break;
+        }
+        case 'next': {
+          // MACHINE_PROTOCOL version 2: one plan's delivery view through a token, so a narrowed scope reads only what it
+          // admits; the refusal is deliveryView's own, with the one command it names (R12, R18).
+          if (this.#protocol < 2) this.#unknown(operation);
+          keys(params, ['within', 'seat']);
+          const seat = params['seat'] === undefined ? undefined : string(params['seat'], 'seat');
+          const got = deliveryView(this.#handle, this.#within(params), seat);
+          if (!got.ok) return got;
+          result = got.view;
           break;
         }
         default:

@@ -29,7 +29,7 @@ import { runBounded, spawnOwned } from '@tools/testing/subprocess.js';
 import { LEGACY_OPERATIONS } from '../src/commands.js';
 import { ARTIFACT, DEPRECATION } from '../src/compile.js';
 import { quote } from '../src/render.js';
-import { cleanup, scratch, workspace } from './workspace-fixture.js';
+import { cleanup, delivery, scratch, workspace } from './workspace-fixture.js';
 
 const repository = resolve(import.meta.dirname, '../../..');
 let MAIN: string, DISTRIBUTION: string, installedRoot: string;
@@ -259,6 +259,7 @@ it('keeps ia-distribution on stdout at 0, stderr at 1, and out of exit class 2 e
 
 it('keeps consumer --json one parseable value with no colour, no prompt and no narration when installed', async () => {
   const root = workspace(),
+    delivered = delivery(),
     empty = scratch('protocol'),
     home = resolve(scratch('protocol-home'), '.ia');
   const invocations: readonly (readonly string[])[] = [
@@ -270,6 +271,8 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     ['format', '--root', root, '--json'],
     ['capture', '--root', root, '--json'],
     ['read', 'agent-system/binding/agent/agent-steward', '--root', root, '--json'],
+    ['next', '--root', delivered, '--json'],
+    ['next', '--root', root, '--json'],
     ['doctor', '--root', root, '--json'],
     ['install', 'fixture/foundation', '--root', root, '--offline', '--json'],
   ];

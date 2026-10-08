@@ -40,7 +40,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all fifteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Applies to all sixteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -230,6 +230,25 @@ export const COMMANDS: readonly CommandSpec[] = [
       ],
       positionals('locator', 1, 1),
     ),
+  },
+  {
+    // Position-and-projection §9 step 2 and design rows 21 and 22: the delivery view, computed per read and never
+    // stored. It is the Door's `next` operation (MACHINE_PROTOCOL version 2) as a consumer verb, never a machine route
+    // (plan amendment A2).
+    name: 'next',
+    group: 'workspace',
+    summary: "Show a plan's tasks in delivery order with verdict and basis",
+    syntax: ['ia next [--seat <plan|milestone|task>] [--json]'],
+    grammar: grammar([
+      option({
+        name: 'seat',
+        kind: 'value',
+        placeholder: '<plan|milestone|task>',
+        // The help IA-RUNTIME-NEXT-NO-PLAN names says which records make a plan the view can read.
+        summary:
+          'A @plan, @milestone or @task identity (default: the only @plan authored, with @milestone records that name it in work.plan and @task records that name those in work.milestone)',
+      }),
+    ]),
   },
   {
     name: 'vocabulary',

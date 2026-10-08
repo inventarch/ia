@@ -140,7 +140,7 @@ export interface DeliveryView {
 }
 export type DeliveryResult = { readonly ok: true; readonly view: DeliveryView } | NextRefusal;
 
-/** The command IA-RUNTIME-NEXT-NO-PLAN names: its help says to author a @plan, @milestone and @task, then capture. */
+/** The command IA-RUNTIME-NEXT-NO-PLAN names: its help says which @plan, @milestone and @task records make a plan. */
 const NO_PLAN_NEXT = 'ia next --help';
 const SEATS = ['plan', 'milestone', 'task'];
 const ATTRIBUTION_SUFFIX = { self: ', self-attributed', other: '', unknown: ', self-attribution unknown' } as const;

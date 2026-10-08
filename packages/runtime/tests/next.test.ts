@@ -1,11 +1,18 @@
 import { createHash } from 'node:crypto';
 import { cpSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 import { CAPTURE_FORMAT, writeCapture } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
-import { NEXT_CODES, RUNTIME_CODES, deliveryView } from '../src/index.js';
-import type { DeliveryResult, DeliveryTask, DeliveryView, NextRefusal } from '../src/index.js';
+import { Door, MACHINE_PROTOCOL, NEXT_CODES, RUNTIME_CODES, deliveryView } from '../src/index.js';
+import type {
+  DeliveryResult,
+  DeliveryTask,
+  DeliveryView,
+  DoorOptions,
+  DoorResponse,
+  NextRefusal,
+} from '../src/index.js';
 import { database, lawId, put, workspace } from './workspace.js';
 
 /**
@@ -967,4 +974,180 @@ it('reads what a narrowed scope leaves out as unknown, never as met', () => {
     line: `exit evidence recorded (${id('observation', 'examples-checked')}, evaluator ${OWNER}, self-attribution unknown)`,
     evidence: { evaluator: OWNER, attribution: 'unknown' },
   });
+});
+
+/** A door over `root`, closed with the test's handles. */
+function door(root: string, options: DoorOptions = {}): Door {
+  const opened = new Door(root, { cache: false, ...options });
+  doors.push(opened);
+  return opened;
+}
+const doors: Door[] = [];
+afterEach(() => {
+  for (const opened of doors.splice(0)) opened.close();
+});
+
+// MACHINE_PROTOCOL version 2 (R12): the Door's `next` is deliveryView through the door's own token, its view as the
+// result and its refusal, `next`, `plans` and `cycle` included, as the response; a version 1 refusal keeps its shape.
+it('serves the delivery view on the Door through its token, and answers a refusal with its next command', () => {
+  const root = delivery('base'),
+    gate = door(root);
+  const before = tree(root);
+  const { db, result: direct } = read(root);
+  if (!direct.ok) throw new Error(direct.message);
+  const served = JSON.stringify({ ok: true, result: direct.view });
+  expect(JSON.stringify(gate.request({ operation: 'next' }))).toBe(served);
+  // Every seat of the plan, the plan itself, each milestone and each task, reads the same view.
+  const seats = [
+    direct.view.plan,
+    ...direct.view.milestones.map((m) => m.identity),
+    ...direct.view.tasks.map((t) => t.identity),
+  ];
+  expect(seats).toHaveLength(8);
+  for (const seat of seats)
+    expect(JSON.stringify(gate.request({ operation: 'next', params: { seat } })), seat).toBe(served);
+  // A token the door issued narrows the view as it narrows any read.
+  const scope = gate.request({
+    operation: 'scope',
+    params: { identities: db.records().flatMap((node) => (node.identity === task('package') ? [] : [node.identity])) },
+  });
+  if (!scope.ok) throw new Error(scope.message);
+  const narrowed = gate.request({ operation: 'next', params: { within: (scope.result as { token: string }).token } });
+  expect(narrowed.ok && (narrowed.result as DeliveryView).tasks.map((t) => t.identity)).toEqual(
+    ['guide', 'schema', 'examples', 'release-notes'].map(task),
+  );
+  // The refusal is deliveryView's own value, its next command and its extras included.
+  const refused = new Map<string, DoorResponse>();
+  for (const [fixture, seat] of [
+    ['plans', undefined],
+    ['cycle', undefined],
+    ['base', lawId],
+  ] as const) {
+    const where = delivery(fixture),
+      expected = read(where, seat).result,
+      response = door(where).request({ operation: 'next', params: seat === undefined ? {} : { seat } });
+    expect(expected.ok, fixture).toBe(false);
+    expect(response, fixture).toEqual(expected);
+    refused.set(fixture, response);
+  }
+  expect(refused.get('plans')).toMatchObject({
+    code: 'IA-RUNTIME-NEXT-AMBIGUOUS',
+    next: `ia next --seat ${id('plan', 'research')}`,
+    plans: [id('plan', 'research'), id('plan', 'rollout')],
+  });
+  // A version 1 operation's refusal, and the Door's own refusals of a next request, keep the three keys 1.1.0's had.
+  for (const request of [
+    { operation: 'get', params: { identity: lawId, within: 'forged' } },
+    { operation: 'next', params: { within: 'forged' } },
+    { operation: 'next', params: { seat: 1 } },
+    { operation: 'next', params: { seat: task('guide'), unlisted: 1 } },
+  ]) {
+    const response = gate.request(request);
+    expect(Object.keys(response), JSON.stringify(request)).toEqual(['ok', 'code', 'message']);
+  }
+  expect(gate.request({ operation: 'next', params: { seat: 1 } })).toMatchObject({
+    code: 'IA-RUNTIME-REQUEST-INVALID',
+    message: 'IA-RUNTIME-REQUEST-INVALID: seat must be a string',
+  });
+  // The door opened without the db cache, and the view writes nothing.
+  expect(tree(root)).toBe(before);
+  // A door serving version 1, as the CLI's machine routes do, knows no next operation.
+  expect(door(root, { protocol: 1 }).request({ operation: 'next' })).toEqual({
+    ok: false,
+    code: 'IA-RUNTIME-REQUEST-INVALID',
+    message:
+      "IA-RUNTIME-REQUEST-INVALID: Unknown operation 'next'; admitted: scope, context, select, get, records, resolve, search, traverse",
+  });
+});
+
+// db PT5 through the Door (R12): only the initial token of a door opened without a boundary is a whole-workspace one,
+// so only it names the records admission refused. A token the door issued narrower, or the initial token of a door
+// opened with a boundary, names none, even one that admits every record the workspace admits.
+it('names the records admission refused on the Door only through a whole-workspace token', () => {
+  const root = delivery('base');
+  put(
+    root,
+    '.ia/src/migrate.ia',
+    [
+      '#! ia 1.0',
+      '',
+      '@task migrate',
+      '  meaning',
+      '    says "Migrate the fixture data."',
+      '  work',
+      '    title "Migrate"',
+      '    status bogus',
+      '    milestone @milestone foundation',
+      '',
+    ].join('\n'),
+  );
+  const every = database(root)
+      .records()
+      .map((node) => node.identity),
+    gate = door(root);
+  const whole = gate.request({ operation: 'next' });
+  if (!whole.ok) throw new Error(whole.message);
+  expect((whole.result as DeliveryView).review).toEqual([
+    {
+      kind: 'admission',
+      records: [task('migrate')],
+      owner: STEWARD,
+      message: `admission refused ${task('migrate')} at .ia/src/migrate.ia:3 (IA-COMP-FIELD-VALUE), so no plan can place it; ia validate reports why`,
+    },
+  ]);
+  const scope = gate.request({ operation: 'scope', params: { identities: every } });
+  if (!scope.ok) throw new Error(scope.message);
+  for (const [label, response] of [
+    ['narrowed', gate.request({ operation: 'next', params: { within: (scope.result as { token: string }).token } })],
+    ['bounded', door(root, { boundary: { identities: every } }).request({ operation: 'next' })],
+  ] as const) {
+    if (!response.ok) throw new Error(`${label}: ${response.message}`);
+    const narrow = response.result as DeliveryView;
+    expect(narrow.review, label).toEqual([]);
+    expect(
+      narrow.tasks.map((t) => t.identity),
+      label,
+    ).toEqual((whole.result as DeliveryView).tasks.map((t) => t.identity));
+    // It reads as a narrowed scope reads, what it cannot see unknown, and nothing in it names the refused task.
+    expect(state(narrow, 'package', 'worked'), label).toEqual({
+      dimension: 'worked',
+      value: 'unknown',
+      basis: 'no @observation in this scope names it',
+    });
+    expect(JSON.stringify(narrow), label).not.toContain('migrate');
+  }
+});
+
+// spec-0012 DRF-02 for the next row: its example reads the delivery fixture (the loop fixture the other rows' examples
+// read authors no plan, so there it is refused), it requires no parameter, and its refusal list is proven both ways.
+it('holds the next row of the machine protocol table to the Door', () => {
+  const row = MACHINE_PROTOCOL.operations.find((operation) => operation.name === 'next')!;
+  expect(row).toMatchObject({ since: 2, mcp: 'ia_next' });
+  expect((row.params as { required: readonly string[] }).required).toEqual([]);
+  const base = door(delivery('base'));
+  expect(base.request({ operation: 'next', params: row.example })).toMatchObject({
+    ok: true,
+    result: { format: 'ia.delivery-view.v1', plan: id('plan', 'release') },
+  });
+  expect(
+    door(resolve(import.meta.dirname, '../../compliance/fixtures/loop')).request({
+      operation: 'next',
+      params: row.example,
+    }),
+  ).toMatchObject({ ok: false, code: 'IA-RUNTIME-NEXT-NO-PLAN', next: 'ia next --help' });
+  const triggers: Readonly<Record<string, readonly [Door, Record<string, unknown>]>> = {
+    'IA-RUNTIME-REQUEST-INVALID': [base, { unlisted: 1 }],
+    'IA-DB-SCOPE-UNAVAILABLE': [base, { within: 'forged' }],
+    'IA-RUNTIME-NEXT-SEAT': [base, { seat: lawId }],
+    'IA-RUNTIME-NEXT-NO-PLAN': [door(workspace()), {}],
+    'IA-RUNTIME-NEXT-AMBIGUOUS': [door(delivery('plans')), {}],
+    'IA-RUNTIME-NEXT-CYCLE': [door(delivery('cycle')), {}],
+  };
+  const observed = Object.values(triggers).map(([gate, params]) => {
+    const response = gate.request({ operation: 'next', params });
+    return response.ok ? 'accepted' : response.code;
+  });
+  expect(observed).toEqual(Object.keys(triggers));
+  expect(row.refusals.map((refusal) => refusal.code).sort()).toEqual(Object.keys(triggers).sort());
+  expect(NEXT_CODES.every((code) => row.refusals.some((refusal) => refusal.code === code))).toBe(true);
 });

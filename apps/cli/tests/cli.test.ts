@@ -12,7 +12,8 @@ const root = resolve(import.meta.dirname, '../../..'),
   fixture = resolve(root, 'packages/compliance/fixtures/loop');
 /**
  * Plan amendment A2: the machine routes are the version 1 rows, described at version 1. A row a later protocol version
- * appends (`since`) is a Door and MCP operation, held to the Door by packages/runtime/tests/door-read.test.ts.
+ * appends (`since`) is a Door and MCP operation, held to the Door by packages/runtime/tests/door-read.test.ts and
+ * packages/runtime/tests/next.test.ts.
  */
 const ROUTES = MACHINE_PROTOCOL.operations.filter((operation) => operation.since === undefined);
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
@@ -144,7 +145,7 @@ it('refuses a later protocol version operation on the machine route exactly as 1
     })}\n`,
   });
   const later = MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined);
-  expect(later.map((row) => row.name)).toContain('read');
+  expect(later.map((row) => row.name)).toEqual(expect.arrayContaining(['read', 'next']));
   for (const operation of later) {
     expect(runCli([operation.name, '--root', fixture, '--params', JSON.stringify(operation.example)])).toEqual(
       unknown(operation.name),
