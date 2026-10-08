@@ -137,7 +137,8 @@ describe('the path selection dialect (G06c)', () => {
 
 describe('the claimant index (G06c)', () => {
   it('names the claimant fields', () => {
-    expect(CLAIM_FIELDS).toEqual(['authority.covers', 'subject.covers', 'work.covers', 'hook.paths', 'check.scope']);
+    // A @check's `check.scope` is required prose, not a path selection (decision check-scope-claims).
+    expect(CLAIM_FIELDS).toEqual(['authority.covers', 'subject.covers', 'work.covers', 'hook.paths']);
     expect(Object.isFrozen(CLAIM_FIELDS)).toBe(true);
   });
 
@@ -147,7 +148,6 @@ describe('the claimant index (G06c)', () => {
     expect(probed.map((c) => [c.from, c.field, c.selection])).toEqual([
       [mandate, 'authority.covers', 'src/**'],
       [mandate, 'authority.covers', 'docs/'],
-      [check, 'check.scope', 'src/billing/*.ts'],
       [playbook, 'subject.covers', 'src/**'],
       [convention, 'subject.covers', 'src/**/*.ts'],
       [adoptedLaw, 'subject.covers', 'src/'],
@@ -155,8 +155,10 @@ describe('the claimant index (G06c)', () => {
       [hook, 'hook.paths', 'src/billing/**'],
       [spec, 'work.covers', 'src/billing/invoice.ts'],
     ]);
-    // A ref item, a nested `covers` and a `covers` outside a claimant section are not claims.
+    // A ref item, a nested `covers`, a `covers` outside a claimant section and a check's scope, even one that reads as
+    // a path, are not claims.
     expect(graph.claims.some((c) => c.selection === 'nested/**' || c.selection === 'never/**')).toBe(false);
+    expect(graph.claims.some((c) => c.from === check || c.field === 'check.scope')).toBe(false);
     expect(graph.claims.find((c) => c.from === spec)).toEqual({
       from: spec,
       field: 'work.covers',
@@ -168,9 +170,9 @@ describe('the claimant index (G06c)', () => {
   });
 
   it('indexes the native corpus claims and nothing for records without claimant fields', () => {
+    // The native check's prose scope, "every admitted native record", is no claim.
     expect(native.claims.map((c) => [c.from, c.field, c.selection])).toEqual([
       ['agent-system/policy/mandate/sample-mandate', 'authority.covers', 'docs/**'],
-      ['compliance-system/check/gate/instance-schema-check', 'check.scope', 'every admitted native record'],
     ]);
   });
 
@@ -194,7 +196,6 @@ describe('claimants of a path (G06c)', () => {
     // The band-90 law sorts after every band-100 claimant, although its identity precedes the band-100 law's.
     expect(brief('src/billing/invoice.ts')).toEqual([
       [mandate, 100, ['authority.covers src/**']],
-      [check, 100, ['check.scope src/billing/*.ts']],
       [playbook, 100, ['subject.covers src/**']],
       [convention, 100, ['subject.covers src/**/*.ts']],
       [law, 100, ['subject.covers **']],

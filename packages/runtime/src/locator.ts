@@ -27,13 +27,16 @@ import { freeze } from './types.js';
  */
 
 /**
- * The field whose text names each word's document body, as its schema declares it: `work.source` on @spec and @plan
- * (position-and-projection rows 2d and 23) and on a @task that states one, `reference.document` on @authoring-guide
- * (row 2h) and `template.resource`, a @template's input. Row 2d makes no locator of a @decision's or @milestone's
- * `work.source`, so those records read their own body.
+ * The field whose text names each word's document body, as its schema declares it: `work.source` on every work word
+ * that states one, @spec, @plan, @milestone, @task and @decision (position-and-projection rows 2d and 23, widened by
+ * decision work-source-locator: all five schemas declare the one field, and a plan's records name their sections of
+ * its document with it), `reference.document` on @authoring-guide (row 2h) and `template.resource`, a @template's
+ * input. A record that states none reads its own body.
  */
 export const SOURCE_LOCATORS: Readonly<Record<string, string>> = Object.freeze({
   'authoring-guide': 'reference.document',
+  decision: 'work.source',
+  milestone: 'work.source',
   plan: 'work.source',
   spec: 'work.source',
   task: 'work.source',
