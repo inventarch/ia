@@ -1,4 +1,5 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, vi } from 'vitest';
@@ -50,6 +51,23 @@ export function database(root: string, options: OpenOptions = {}): Handle {
   const db = open(root, { cache: false, ...options });
   handles.push(db);
   return db;
+}
+/** Every file under `root`, by path, hashed with its bytes, to show a read wrote nothing. */
+export function tree(root: string): string {
+  const hash = createHash('sha256');
+  const walk = (directory: string, prefix: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const path = `${prefix}${entry.name}`;
+      if (entry.isDirectory()) walk(resolve(directory, entry.name), `${path}/`);
+      else
+        hash
+          .update(`${path}\0`)
+          .update(readFileSync(resolve(directory, entry.name)))
+          .update('\0');
+    }
+  };
+  walk(root, '');
+  return hash.digest('hex');
 }
 /** A fixture @law of `severity`, `more` appended as further sections. */
 export function law(name: string, severity: string, more = ''): string {

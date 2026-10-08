@@ -1,11 +1,21 @@
 /**
  * The Door's `read` operation (MACHINE_PROTOCOL version 2, SPEC R12): `readBody` bound to the door's scope by identity,
  * reading documents through db `readWorkspaceBytes` (or the host's injected reader) and adopted mounts through the
- * `.ia/workspace.json` bindings, over copies of the conformance corpus and the loop fixture.
+ * `.ia/workspace.json` bindings, over copies of the conformance corpus and the loop fixture. A narrowed scope's misses
+ * are one plain refusal, a whole-workspace one's name what the sources hold, and no refusal names the server's root.
  */
 import { createHash } from 'node:crypto';
-import { cpSync, linkSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  cpSync,
+  linkSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
 import { readInputs } from '@inventarch/db';
@@ -170,9 +180,9 @@ it('reads through the scope its token names: the initial boundary when within is
     expect(read(OUTSIDE)).toMatchObject({ ok: true, result: { identity: OUTSIDE } });
     expect(read(OUTSIDE, { within: token })).toEqual(MISS);
     expect(read(INSIDE, { within: token })).toMatchObject({ ok: true, result: { identity: INSIDE } });
-    // Every scoped miss is the plain refusal, the initial whole-workspace boundary's too.
-    expect(read(FOREIGN)).toEqual(MISS);
-    expect(read('agent-system/binding/agent/absent')).toEqual(MISS);
+    // Every miss in the narrowed scope is the plain refusal; the initial whole-workspace boundary's are not (below).
+    expect(read(FOREIGN, { within: token })).toEqual(MISS);
+    expect(read('agent-system/binding/agent/absent', { within: token })).toEqual(MISS);
     expect(read(INSIDE, { within: 'forged' })).toMatchObject({ ok: false, code: 'IA-DB-SCOPE-UNAVAILABLE' });
     for (const params of [{}, { locator: 3 }, { locator: 'Not/A/Locator' }, { locator: INSIDE, includeRuntime: 'yes' }])
       expect(gate.request({ operation: 'read', params }), JSON.stringify(params)).toMatchObject({
@@ -183,6 +193,124 @@ it('reads through the scope its token names: the initial boundary when within is
     gate.close();
   }
   expect(read(INSIDE)).toMatchObject({ ok: false, code: 'IA-DB-CLOSED' });
+});
+
+// One disclosure rule for the version 2 operations (R12, db PT5), as next has it: only a whole-workspace token names a
+// record admission refused, with its reason. A token is one when its scope, and every scope it was issued under, is at
+// the workspace root with no phase or identities (db isCompleteScope): the initial token of a door opened without a
+// boundary, or with one that narrows nothing, and a token `scope` issues from such a token without narrowing it. A
+// token bound to a root below the workspace root, a phase or identities names nothing outside its scope, even one that
+// admits every record the workspace admits.
+it('names a record admission refused, with its reason, only through a whole-workspace token', () => {
+  const root = corpus(),
+    db = database(root),
+    options = { read: () => new Uint8Array() },
+    every = db.records().map((node) => node.identity),
+    refused = db.refused.find((record) => record.identity === FOREIGN)!;
+  expect(refused).toMatchObject({ path: MIXED, reason: expect.any(String) });
+  const gate = door(root),
+    read = reading(gate);
+  try {
+    // The whole workspace's token reads as the root view reads, so its misses are the root view's: the refused record
+    // with its path, line and reason, an identity no source holds, and what a source holds at a line.
+    expect(read(FOREIGN)).toEqual({
+      ok: false,
+      code: 'IA-RUNTIME-READ-UNADMITTED',
+      message: `${FOREIGN} is in this workspace's sources, but admission refused it`,
+      identity: FOREIGN,
+      path: MIXED,
+      line: refused.line,
+      file: 'refused',
+      reason: refused.reason,
+    });
+    for (const locator of [
+      FOREIGN,
+      'agent-system/binding/agent/absent',
+      `${MIXED}:20`,
+      `${MIXED}:999`,
+      '../outside.ia:3',
+    ])
+      expect(read(locator), locator).toEqual(readBody(db, locator, options));
+    const through = (params: Record<string, unknown>) => {
+      const scope = gate.request({ operation: 'scope', params });
+      if (!scope.ok) throw new Error(scope.message);
+      const within = (scope.result as Scope).token;
+      return (locator: string) => read(locator, { within });
+    };
+    const unbounded = door(root, { boundary: {} }),
+      bounded = door(root, { boundary: { identities: every } });
+    try {
+      // A scope that narrows nothing is the whole workspace however it was issued, so its misses are the initial
+      // token's, the refused record named with its reason.
+      for (const [label, whole] of [
+        ['scope {}', through({})],
+        ["scope {root: ''}", through({ root: '' })],
+        ['scope {phase: null}', through({ phase: null })],
+        ['boundary {}', reading(unbounded)],
+      ] as const)
+        for (const locator of [FOREIGN, `${MIXED}:20`, 'agent-system/binding/agent/absent'])
+          expect(whole(locator), `${label} ${locator}`).toEqual(read(locator));
+      for (const [label, narrowed] of [
+        ['identities', through({ identities: every })],
+        ['phase', through({ phase: 'act' })],
+        ['root', through({ root: '.ia/src/systems' })],
+        ['bounded', reading(bounded)],
+      ] as const)
+        for (const locator of [FOREIGN, `${FOREIGN}#act/Decision`, `${MIXED}:20`, 'agent-system/binding/agent/absent'])
+          expect(narrowed(locator), `${label} ${locator}`).toEqual(MISS);
+      // Admitted records read alike through every token that holds them.
+      expect(reading(bounded)(OUTSIDE)).toEqual(read(OUTSIDE));
+      expect(through({ identities: every })(OUTSIDE)).toEqual(read(OUTSIDE));
+    } finally {
+      unbounded.close();
+      bounded.close();
+    }
+  } finally {
+    gate.close();
+  }
+});
+
+// The Door's reader names a document by its workspace-relative path alone, never by where the server keeps the
+// workspace (R12): the CLI's own reader may name a link by its local path, but a Door answers a remote caller.
+it("names a document it cannot read by its path relative to the workspace, never the server's root", () => {
+  const root = corpus(),
+    canonical = realpathSync(root),
+    spellings = (directory: string) => [
+      directory,
+      directory.replaceAll('\\', '/'),
+      JSON.stringify(directory).slice(1, -1),
+      basename(directory),
+    ];
+  put(root, `${SPECS.slice(0, -'.ia'.length)}-escape.ia`, `#! ia 1.0\n${spec('escaping-spec', '../outside.md')}`);
+  const target = realpathSync(resolve(root, 'linked')),
+    gate = door(root),
+    read = reading(gate);
+  const unreadable = (name: string, message: RegExp): void => {
+    const got = read(`work-system/contract/spec/${name}`);
+    expect(got, name).toMatchObject({ ok: false, code: 'IA-RUNTIME-READ-UNREACHABLE' });
+    expect(got.ok ? '' : got.message, name).toMatch(message);
+    for (const spelling of [...spellings(root), ...spellings(canonical), ...spellings(target)])
+      expect(JSON.stringify(got), `${name} ${spelling}`).not.toContain(spelling);
+  };
+  try {
+    unreadable('linked-spec', /Symlink\/junction traversal is not admitted: linked\/located\.md$/);
+    unreadable('escaping-spec', /, \.\.\/outside\.md, is outside the workspace$/);
+    // The workspace moved while the door serves: the root it opened can no longer be opened, which db names by the
+    // root; the door names the document alone.
+    renameSync(root, `${root}-moved`);
+    try {
+      unreadable(
+        'whole-spec',
+        /cannot be read: IA-DB-ROOT-INVALID: The workspace can no longer be opened to read docs\/located\.md$/,
+      );
+      expect(read('work-system/contract/spec/whole-spec')).toMatchObject({ path: 'docs/located.md' });
+    } finally {
+      renameSync(`${root}-moved`, root);
+    }
+    expect(read('work-system/contract/spec/whole-spec')).toMatchObject({ ok: true, result: { body: DOCUMENT } });
+  } finally {
+    gate.close();
+  }
 });
 
 it('reads documents through the db workspace reader or the reader the host injects, refusing a link either way', () => {

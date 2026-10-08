@@ -21,8 +21,13 @@ import { database, lawId, lawPath, methodId, put, workspace } from './workspace.
 const foundation = 'workspace-system/definition/workspace/foundation-workspace',
   governanceSystem = 'floor/definition/system/governance-system',
   sampleMandate = 'agent-system/policy/mandate/sample-mandate';
-const invalid = (message: string) =>
-  expect.objectContaining({ code: 'IA-RUNTIME-REQUEST-INVALID', message: expect.stringContaining(message) });
+/** A key refusal, and, when `next` is given, the one command it names (design row 27). */
+const invalid = (message: string, next?: string) =>
+  expect.objectContaining({
+    code: 'IA-RUNTIME-REQUEST-INVALID',
+    message: expect.stringContaining(message),
+    ...(next === undefined ? {} : { next }),
+  });
 const keyed = (part: Readonly<Record<string, unknown>>) => ({ ...K0, ...part }) as unknown as ScopeKey;
 const partial = (part: Readonly<Record<string, unknown>>) => part as Partial<ScopeKey>;
 const outside = (path: string) =>
@@ -98,11 +103,11 @@ it('refuses a partial key outside the closed sets, caps and seat form, and reads
   // An unknown part is refused even where nothing else is named; a key never declares its primitive.
   for (const part of ['primitive', 'text', 'within'])
     expect(normalizing({ [part]: undefined })).toThrow(
-      invalid(`Unknown scope key part '${part}'; admitted: seat, shape, phase, depth, budget, word`),
+      invalid(`Unknown scope key part '${part}'; admitted: seat, shape, phase, depth, budget, word`, 'ia position'),
     );
   for (const key of [null, [], 'K0'])
     expect(() => normalizeScopeKey(key as unknown as Partial<ScopeKey>)).toThrow(
-      invalid('A scope key must be an object'),
+      invalid('A scope key must be an object', 'ia position'),
     );
   // A shape is checked before its anchor phase is taken, and null names a part as any other value does.
   for (const shape of ['invented', 'Context', null, 3])
@@ -247,11 +252,11 @@ it('refuses a shape, phase or part outside the closed sets, and reads only throu
     expect(resolving({ phase })).toThrow(invalid('Scope key phase must be one of orient, plan, act, learn'));
   // The primitive is derived, never declared on a key.
   expect(resolving({ primitive: 'Memory' })).toThrow(
-    invalid("Unknown scope key part 'primitive'; admitted: seat, shape, phase, depth, budget, word"),
+    invalid("Unknown scope key part 'primitive'; admitted: seat, shape, phase, depth, budget, word", 'ia position'),
   );
   for (const key of [null, [], 'K0'])
     expect(() => resolveScopeKey(db, within, key as unknown as ScopeKey)).toThrow(
-      invalid('A scope key must be an object'),
+      invalid('A scope key must be an object', 'ia position'),
     );
   expect(() => resolveScopeKey(db, '', K0)).toThrow(invalid('Runtime reads require an explicit scope token'));
   // Every seat form and the word read through the token, and a database token failure keeps its code: forged, stale

@@ -139,6 +139,47 @@ it('keeps the issuer alive for reusable tokens and returns only protocol output'
         },
         isError: true,
       });
+      // ia_position (protocol version 2) reads body(K) through the same token, which reads no admission finding and
+      // says so; a refusal of the key names the one command to run.
+      for (const [id, args] of [
+        [
+          8,
+          {
+            within: scope.token,
+            seat: 'governance-system/definition/procedure/sample-procedure',
+            shape: 'governance',
+          },
+        ],
+        [9, { within: scope.token, budget: 65 }],
+      ] as const)
+        child.stdin.write(
+          line({ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'ia_position', arguments: args } }),
+        );
+      const positioned = (await read()).result;
+      expect(positioned).toMatchObject({
+        isError: false,
+        structuredContent: {
+          ok: true,
+          result: {
+            body: {
+              format: 'ia.position-body.v1',
+              key: { seat: 'governance-system/definition/procedure/sample-procedure', shape: 'governance' },
+              loaded: [{ identity: 'governance-system/definition/procedure/sample-procedure' }],
+            },
+            digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+            hostNote: { freshness: expect.any(String) },
+          },
+        },
+      });
+      expect(positioned.structuredContent.result.body.unknowns).toContainEqual(
+        expect.objectContaining({ kind: 'unread' }),
+      );
+      expect((await read()).result.structuredContent).toEqual({
+        ok: false,
+        code: 'IA-RUNTIME-REQUEST-INVALID',
+        message: 'IA-RUNTIME-REQUEST-INVALID: Scope key budget must be an integer in 0..64',
+        next: 'ia position --budget 64',
+      });
       const closing = once(child, 'close');
       child.stdin.end();
       expect((await closing)[0]).toBe(0);
