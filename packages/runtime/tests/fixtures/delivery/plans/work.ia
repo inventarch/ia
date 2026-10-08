@@ -1,0 +1,84 @@
+#! ia 1.0
+
+@plan rollout
+  meaning
+    says "Roll the fixture service out: provision servers, then launch."
+  work
+    title "Rollout"
+    status open
+
+@milestone launch
+  meaning
+    says "The service is announced and deployed."
+  work
+    title "Launch"
+    status open
+    plan @plan rollout
+    exit "The service answers on its public address."
+
+@milestone provision
+  meaning
+    says "The servers exist."
+  work
+    title "Provision"
+    status open
+    plan @plan rollout
+    exit "The servers answer."
+
+@task announce
+  meaning
+    says "Announce the launch."
+  work
+    title "Announce"
+    status open
+    milestone @milestone launch
+
+@task deploy
+  meaning
+    says "Deploy to the provisioned servers, a requirement across milestones that neither milestone states."
+  work
+    title "Deploy"
+    status open
+    milestone @milestone launch
+  relationships
+    requires @task servers
+
+@task accounts
+  meaning
+    says "Create the service accounts; it sorts before announce, but its milestone sorts after announce's."
+  work
+    title "Accounts"
+    status open
+    milestone @milestone provision
+
+@task servers
+  meaning
+    says "Provision the servers."
+  work
+    title "Servers"
+    status open
+    milestone @milestone provision
+
+@plan research
+  meaning
+    says "A second authored plan, so the workspace has no single plan."
+  work
+    title "Research"
+    status open
+
+@milestone findings
+  meaning
+    says "The research is written up."
+  work
+    title "Findings"
+    status open
+    plan @plan research
+    exit "The findings are published."
+
+@task survey
+  meaning
+    says "Survey the users."
+  work
+    title "Survey"
+    status open
+    milestone @milestone findings

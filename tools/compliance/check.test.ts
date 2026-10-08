@@ -16,7 +16,7 @@ it('discovers the actual conformance tree without stray entries', () => {
 it('executes native graph, all language fixtures, all refusal-code boundaries and kernel generation', () => {
   const { report, fixtures, boundaries, qualification } = checkCompliance(root);
   expect(fixtures).toBe(179);
-  expect(boundaries).toBe(101);
+  expect(boundaries).toBe(105);
   expect(qualification).toEqual({
     platform: process.platform,
     deferredPlatformCodes:
