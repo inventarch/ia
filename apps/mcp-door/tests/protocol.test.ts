@@ -1,9 +1,18 @@
 import { createHash } from 'node:crypto';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { relative, resolve } from 'node:path';
+import { basename, relative, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
+import { Door, MACHINE_PROTOCOL, openDatabase, position } from '@inventarch/runtime';
 import { Protocol, PROTOCOL_VERSION } from '../src/protocol.js';
 
 const fixture = resolve(import.meta.dirname, '../../../packages/compliance/fixtures/loop'),
@@ -30,7 +39,7 @@ afterEach(() => {
   for (const value of instances.splice(0)) value.close();
   for (const root of temporary.splice(0)) {
     const path = relative(tmpdir(), root);
-    if (path.startsWith('..') || !path.startsWith('ia-mcp-delivery-')) throw new Error('Unsafe test cleanup');
+    if (path.startsWith('..') || !/^ia-mcp-(?:delivery|read)-/.test(path)) throw new Error('Unsafe test cleanup');
     rmSync(root, { recursive: true, force: true });
   }
   vi.restoreAllMocks();
@@ -43,7 +52,34 @@ function delivery(): string {
     cpSync(resolve(import.meta.dirname, '../../..', source), resolve(root, '.ia/src'), { recursive: true });
   return root;
 }
-it('negotiates the pinned profile, discovers eleven tools and enforces initialization order', () => {
+const FOREIGN = 'governance-system/definition/procedure/foreign-procedure';
+const spec = (name: string, source: string): string =>
+  `\n@spec ${name}\n  meaning\n    says "The ${name} statement."\n  work\n    title "${name}"\n    status draft\n    source "${source}"\n`;
+/**
+ * The conformance corpus with a @playbook the agent system's folder cannot author, which admission refuses, and specs
+ * whose documents lie under a junction to another directory and outside the workspace.
+ */
+function reading(): { readonly root: string; readonly target: string } {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-mcp-read-')),
+    target = mkdtempSync(resolve(tmpdir(), 'ia-mcp-read-target-'));
+  temporary.push(root, target);
+  cpSync(resolve(import.meta.dirname, '../../../examples/conformance/native'), resolve(root, '.ia/src'), {
+    recursive: true,
+  });
+  writeFileSync(
+    resolve(root, '.ia/src/systems/agent-system/records/foreign.ia'),
+    '#! ia 1.0\n@playbook foreign-procedure\n  meaning\n    says "Foreign here."\n    answers "What is foreign?"\n  cognition\n    act\n      primary Decision\n      Decision means "Foreign."\n',
+  );
+  mkdirSync(resolve(root, '.ia/src/systems/work-system/records'), { recursive: true });
+  writeFileSync(
+    resolve(root, '.ia/src/systems/work-system/records/located.ia'),
+    `#! ia 1.0\n${spec('linked-spec', 'linked/located.md')}${spec('escaping-spec', '../outside.md')}`,
+  );
+  writeFileSync(resolve(target, 'located.md'), '# Elsewhere\n');
+  symlinkSync(target, resolve(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
+  return { root, target: realpathSync(target) };
+}
+it('negotiates the pinned profile, discovers twelve tools and enforces initialization order', () => {
   const value = protocol();
   expect(value.request(message(1, 'tools/list'))?.error?.code).toBe(-32000);
   expect(value.request(message(1, 'initialize', {}))?.error?.code).toBe(-32602);
@@ -71,10 +107,10 @@ it('negotiates the pinned profile, discovers eleven tools and enforces initializ
   const listed = value.request(message(3, 'tools/list'))?.result as {
     tools: { name: string; annotations: { readOnlyHint: boolean } }[];
   };
-  // Plan amendment A3: the eight version 1 door tools, ia_read and ia_next from protocol version 2, and ia_vocabulary.
-  expect(listed.tools).toHaveLength(11);
-  expect(listed.tools.map((tool) => tool.name)).toContain('ia_read');
-  expect(listed.tools.map((tool) => tool.name)).toContain('ia_next');
+  // Plan amendment A3: the eight version 1 door tools, ia_read, ia_next and ia_position from protocol version 2, and
+  // ia_vocabulary.
+  expect(listed.tools).toHaveLength(12);
+  expect(listed.tools.map((tool) => tool.name).slice(8, 11)).toEqual(['ia_read', 'ia_next', 'ia_position']);
   expect(listed.tools.at(-1)?.name).toBe('ia_vocabulary');
   expect(listed.tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
   expect(listed.tools.some((t) => t.name === 'ia_report')).toBe(false);
@@ -131,6 +167,107 @@ it('serves ia_read through the door: the body inside the scope a token names, an
   expect(call(6, { locator: PROCEDURE, unlisted: 1 })).toMatchObject({
     isError: true,
     structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID' },
+  });
+});
+it("names a refused record through ia_read on a whole-workspace scope only, and never the server's root", () => {
+  const { root, target } = reading(),
+    value = protocol(root);
+  initialize(value);
+  const call = (id: number, args: unknown) =>
+    value.request(message(id, 'tools/call', { name: 'ia_read', arguments: args }))?.result as {
+      content: { text: string }[];
+      structuredContent: { ok: boolean; code?: string; message?: string; reason?: string };
+      isError: boolean;
+    };
+  // db PT5: the server's initial scope is the whole workspace, so a record admission refused is named with its reason.
+  const refused = call(2, { locator: FOREIGN });
+  expect(refused).toMatchObject({
+    isError: true,
+    structuredContent: {
+      ok: false,
+      code: 'IA-RUNTIME-READ-UNADMITTED',
+      message: `${FOREIGN} is in this workspace's sources, but admission refused it`,
+      path: '.ia/src/systems/agent-system/records/foreign.ia',
+      file: 'refused',
+      reason: expect.any(String),
+    },
+  });
+  // A token ia_scope issued with identities, a phase or a root below the workspace root is narrower than the whole
+  // workspace, so through it the same locator names nothing; one issued without narrowing is the whole workspace still.
+  const token = (id: number, args: unknown) =>
+    (
+      value.request(message(id, 'tools/call', { name: 'ia_scope', arguments: args }))?.result as {
+        structuredContent: { result: { token: string } };
+      }
+    ).structuredContent.result.token;
+  expect(call(4, { within: token(3, { identities: [PROCEDURE] }), locator: FOREIGN }).structuredContent).toEqual({
+    ok: false,
+    code: 'IA-RUNTIME-READ-UNADMITTED',
+    message: 'The locator is not in this scope',
+  });
+  expect(call(6, { within: token(5, {}), locator: FOREIGN }).structuredContent).toEqual(refused.structuredContent);
+  // A document under a junction and one outside the workspace are refused by their workspace-relative paths alone.
+  for (const [id, name, cause] of [
+    [7, 'linked-spec', /Symlink\/junction traversal is not admitted: linked\/located\.md$/],
+    [8, 'escaping-spec', /, \.\.\/outside\.md, is outside the workspace$/],
+  ] as const) {
+    const got = call(id, { locator: `work-system/contract/spec/${name}` });
+    expect(got, name).toMatchObject({ isError: true, structuredContent: { code: 'IA-RUNTIME-READ-UNREACHABLE' } });
+    expect(got.structuredContent.message, name).toMatch(cause);
+    for (const directory of [root, realpathSync(root), target])
+      for (const spelling of [directory, directory.replaceAll('\\', '/'), basename(directory)])
+        expect(got.content[0]!.text, `${name} ${spelling}`).not.toContain(spelling);
+  }
+});
+it('serves ia_position through the door: body(K) as runtime position reads it, and a key refusal naming its next command', () => {
+  const value = protocol();
+  initialize(value);
+  const call = (id: number, args: unknown) =>
+    value.request(message(id, 'tools/call', { name: 'ia_position', arguments: args }))?.result as {
+      content: { text: string }[];
+      structuredContent: unknown;
+      isError: boolean;
+    };
+  const db = openDatabase(fixture, { cache: false });
+  try {
+    // K0 and a governance key, byte for byte what runtime position returns through the whole workspace's scope.
+    for (const [id, key] of [
+      [2, {}],
+      [3, { seat: PROCEDURE, shape: 'governance' }],
+    ] as const) {
+      const got = call(id, key);
+      expect(got.isError).toBe(false);
+      expect(got.content[0]!.text).toBe(JSON.stringify(got.structuredContent));
+      expect(got.content[0]!.text).toBe(
+        JSON.stringify({ ok: true, result: position(db, db.resolveScope().token, key) }),
+      );
+    }
+    // A token ia_scope issued narrows the position in the same server process.
+    const scope = value.request(message(4, 'tools/call', { name: 'ia_scope', arguments: { identities: [PROCEDURE] } }))
+      ?.result as { structuredContent: { result: { token: string } } };
+    const key = { seat: PROCEDURE, shape: 'governance' } as const;
+    expect(call(5, { ...key, within: scope.structuredContent.result.token }).content[0]!.text).toBe(
+      JSON.stringify({ ok: true, result: position(db, db.resolveScope({ identities: [PROCEDURE] }).token, key) }),
+    );
+  } finally {
+    db.close();
+  }
+  // A refusal of the key carries the one command to run; the Door's own refusal of a parameter keeps three keys.
+  expect(call(6, { depth: 3 })).toEqual({
+    content: [{ type: 'text', text: expect.stringContaining('"next":"ia position --depth 2"') }],
+    structuredContent: {
+      ok: false,
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      message: 'IA-RUNTIME-REQUEST-INVALID: Scope key depth must be an integer in 0..2',
+      next: 'ia position --depth 2',
+    },
+    isError: true,
+  });
+  expect(call(7, { text: 'what governs billing' }).structuredContent).toEqual({
+    ok: false,
+    code: 'IA-RUNTIME-REQUEST-INVALID',
+    message:
+      "IA-RUNTIME-REQUEST-INVALID: Unknown parameter 'text'; admitted: within, seat, shape, phase, depth, budget, word",
   });
 });
 it("serves ia_next through the door: one plan's delivery view inside the scope, and a refusal naming its next command", () => {
@@ -196,7 +333,8 @@ it('names a record admission refused through ia_next on the initial whole-worksp
       }
     ).structuredContent.result;
   expect(call(2, 'ia_next', {}).review).toMatchObject([{ kind: 'admission', records: [migrate] }]);
-  // db PT5: a token ia_scope issued is never the whole workspace, so its view names no refused record.
+  // db PT5: a token ia_scope issued with identities is narrower than the whole workspace, so its view names no refused
+  // record.
   const { token } = call(3, 'ia_scope', { identities: ['work-system/definition/plan/release'] });
   expect(call(4, 'ia_next', { within: token }).review).toEqual([]);
 });

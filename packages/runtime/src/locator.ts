@@ -69,10 +69,13 @@ export interface ReadBodyOptions {
   /** Read a record at runtime placement (band 0), which is refused otherwise. */
   readonly includeRuntime?: boolean;
   /**
-   * The scope token every lookup reads through, `get` and `records` alike, so the scope bounds the read by identity: a
-   * locator no admitted record in it answers gets one plain IA-RUNTIME-READ-UNADMITTED, `The locator is not in this
-   * scope`, which names no path, line, identity or refused record, as what lies outside a scope is not disclosed. Without
-   * it the read is in the handle's root view and says what the workspace's sources hold.
+   * The scope token every lookup reads through, `get` and `records` alike, so the scope bounds the read by identity. In
+   * a scope narrower than the whole workspace, a locator no admitted record in it answers gets one plain
+   * IA-RUNTIME-READ-UNADMITTED, `The locator is not in this scope`, which names no path, line, identity or refused
+   * record, as what lies outside a scope is not disclosed. A whole-workspace token (db `isCompleteScope`, PT5) reads
+   * what the root view reads, so a miss there is refused as there, naming a record admission refused with its reason,
+   * as deliveryView names one. Without it the read is in the handle's root view and says what the workspace's sources
+   * hold.
    */
   readonly within?: string;
 }
@@ -108,6 +111,8 @@ export interface ReadRefusal {
    * workspace's sources is in that file. For an identity, `refused` when a source holds it and admission refused it.
    */
   readonly file?: 'admitted' | 'refused';
+  /** For an identity a source holds whose record admission refused, the reason admission gives (db `refused`). */
+  readonly reason?: string;
 }
 export type ReadResult = { readonly ok: true; readonly body: ReadBody } | ReadRefusal;
 
@@ -231,7 +236,8 @@ function scopedGet(handle: ReadHandle, identity: string, within: string): Node |
 
 /**
  * The body behind `locator` in the root view of `handle`, or in the scope `within` names, or one refusal:
- * IA-RUNTIME-READ-UNADMITTED when no admitted record answers it (in a scope, the plain `SCOPED_MISS`),
+ * IA-RUNTIME-READ-UNADMITTED when no admitted record answers it (in a scope narrower than the whole workspace, the
+ * plain `SCOPED_MISS`; in the root view or a whole-workspace scope, what the workspace's sources hold there),
  * IA-RUNTIME-READ-PLACEMENT for a record at runtime placement unless `includeRuntime` is set,
  * IA-RUNTIME-READ-FRAGMENT when the record has no cell or requirement at the fragment, and IA-RUNTIME-READ-UNREACHABLE
  * when its source locator names a file outside the workspace (or the record's tree), a record of an adopted mount
@@ -247,7 +253,11 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
       'IA-RUNTIME-REQUEST-INVALID',
       `Locator '${locator}' is not <identity>, <identity>#<phase>/<Primitive>, <identity>#<REQ-ID> or <path>:<line>`,
     );
-  const { within } = options;
+  const { within } = options,
+    // One disclosure rule for the version 2 Door operations (R12): a whole-workspace token (db PT5) reads what the root
+    // view reads, so its misses are the root view's, a record admission refused named with its reason; any narrower
+    // scope answers every miss with the one plain refusal, which names nothing beyond it.
+    narrowed = within !== undefined && !handle.isCompleteScope(within);
   let node: Node | undefined;
   if (parsed.form === 'line') {
     let path: string | undefined;
@@ -260,7 +270,7 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
       .records(within === undefined ? undefined : { within })
       .filter((r) => r.source.path === path && r.source.line <= parsed.line && parsed.line <= r.source.endLine)
       .sort((a, b) => a.source.endLine - a.source.line - (b.source.endLine - b.source.line))[0];
-    if (node === undefined && within !== undefined) return SCOPED_MISS;
+    if (node === undefined && narrowed) return SCOPED_MISS;
     if (node === undefined) {
       const at = path ?? parsed.path,
         file = handle.refused.some((r) => r.path === path)
@@ -282,11 +292,9 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
         { path: at, line: parsed.line, ...(file === undefined ? {} : { file }) },
       );
     }
-  } else if (within !== undefined) {
-    node = scopedGet(handle, parsed.identity, within);
-    if (node === undefined) return SCOPED_MISS;
   } else {
-    node = handle.get(parsed.identity);
+    node = within === undefined ? handle.get(parsed.identity) : scopedGet(handle, parsed.identity, within);
+    if (node === undefined && narrowed) return SCOPED_MISS;
     // A source holding the identity whose record admission refused is in the workspace's sources; only an identity no
     // source holds is not.
     const refused = node === undefined ? handle.refused.find((r) => r.identity === parsed.identity) : undefined;
@@ -294,7 +302,7 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
       return refuse(
         'IA-RUNTIME-READ-UNADMITTED',
         `${parsed.identity} is in this workspace's sources, but admission refused it`,
-        { identity: parsed.identity, path: refused.path, line: refused.line, file: 'refused' },
+        { identity: parsed.identity, path: refused.path, line: refused.line, file: 'refused', reason: refused.reason },
       );
     if (node === undefined)
       return refuse('IA-RUNTIME-READ-UNADMITTED', `${parsed.identity} is not in this workspace's sources`, {

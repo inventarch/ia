@@ -310,7 +310,7 @@ it('describes exactly the operations and parameters the Door admits', () => {
  */
 const PARAMS_DIGESTS: Readonly<Record<number, string>> = {
   1: 'b92e71f8d59eadd34034974eb77cdc868ccd33b34a6c3c73fe2b2999707f7206',
-  2: '4035005b8d26662aa761646bcb6983d2b529433401c468b6254824eadc3322cb',
+  2: '09cfa22896d7f1738bc0aa339991fe24a6b87e1c8a902dbb56b96c24fb8412c0',
 };
 it("bumps the protocol description version whenever an operation's parameters change", () => {
   const strip = (value: unknown): unknown =>

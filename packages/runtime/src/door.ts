@@ -10,6 +10,8 @@ import { RuntimeError } from './errors.js';
 import { readBody } from './locator.js';
 import { MACHINE_PROTOCOL } from './machine-protocol.js';
 import { deliveryView } from './next.js';
+import { position } from './position.js';
+import type { ScopeKey } from './scope-key.js';
 import { select } from './select.js';
 import { freeze } from './types.js';
 import type { Budget, ContextRequest, Refusal } from './types.js';
@@ -25,15 +27,15 @@ export interface DoorOptions extends OpenOptions {
   /**
    * The MACHINE_PROTOCOL version the door serves, by default the table's: an operation a later version adds (its row's
    * `since`) is refused as an unknown operation, and that refusal names only the operations served, so a door serving
-   * version 1, as the CLI's machine routes do (plan amendment A2), refuses `read` and `next` with the bytes 1.1.0's
-   * door did.
+   * version 1, as the CLI's machine routes do (plan amendment A2), refuses `read`, `next` and `position` with the bytes
+   * 1.1.0's door did.
    */
   readonly protocol?: number;
 }
 /**
  * A version 1 operation's refusal keeps its 1.1.0 shape. A later version's operation answers with the refusal its
- * runtime function returns, which may carry more: `read` the `ReadRefusal` fields, and `next` the `NextRefusal`'s
- * `next` command, `plans` and `cycle` (R12).
+ * runtime function returns, which may carry more: `read` the `ReadRefusal` fields, `next` the `NextRefusal`'s `next`
+ * command, `plans` and `cycle`, and `position` a key's `next` command (R12).
  */
 export type DoorResponse = { readonly ok: true; readonly result: unknown } | Refusal;
 type Params = Record<string, unknown>;
@@ -80,6 +82,8 @@ function reference(value: unknown): EdgeReference {
 }
 const BINDINGS = ['within', 'root', 'phase', 'revision'];
 const CONTEXT = ['within', 'text', 'coordinate', 'subject', 'follow', 'revision'];
+/** `position`: the scope token and the six parts of the scope key K, which normalizeScopeKey completes (R14). */
+const POSITION = ['within', 'seat', 'shape', 'phase', 'depth', 'budget', 'word'];
 /** The bound on one document `read` returns: the CLI's workspace file reader's, so the two readers agree. */
 const READ_LIMIT = DISTRIBUTION_LIMITS.metadata;
 /** MACHINE_PROTOCOL version 1 is frozen: get and records answer without graph G13's per-record digest. */
@@ -103,7 +107,20 @@ export class Door {
     this.#allowReport = options.allowReport ?? false;
     this.#protocol = protocol;
     const canonical = this.#handle.root;
-    this.#read = options.read ?? ((path) => readWorkspaceBytes(canonical, path, READ_LIMIT));
+    // The default reader names a document by its workspace-relative path alone, never by where the server keeps the
+    // workspace (R12): its link, escape and file refusals already do, and the one that names the root, a root that can
+    // no longer be opened, as when the workspace moves while the door serves, is answered without it.
+    this.#read =
+      options.read ??
+      ((path) => {
+        try {
+          return readWorkspaceBytes(canonical, path, READ_LIMIT);
+        } catch (error) {
+          if (error instanceof DbError && error.code === 'IA-DB-ROOT-INVALID')
+            throw new DbError(error.code, `The workspace can no longer be opened to read ${path}`, path);
+          throw error;
+        }
+      });
     // The directory each adopted mount's tree label is bound to, bound once from the manifest `open` has just read, so
     // the mounts match the handle's snapshot as `ia read`'s match its session. Explicit captures replace the manifest
     // and name no directory, and a door that serves no `read` binds none.
@@ -116,7 +133,7 @@ export class Door {
   /** The refusal of an operation this door does not serve, naming the ones it does in table order. */
   #unknown(operation: string): never {
     return invalid(
-      `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}${this.#protocol >= 2 ? ', read, next' : ''}`,
+      `Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse${this.#allowReport ? ', report' : ''}${this.#protocol >= 2 ? ', read, next, position' : ''}`,
     );
   }
   #within(params: Params): string {
@@ -253,8 +270,9 @@ export class Door {
           result = this.#handle.report;
           break;
         case 'read': {
-          // MACHINE_PROTOCOL version 2: always read through a token, so a locator outside the scope reads as one plain
-          // refusal that discloses nothing beyond it (R12). A door serving version 1 knows no such operation.
+          // MACHINE_PROTOCOL version 2: always read through a token, so a locator outside a narrowed scope reads as one
+          // plain refusal that discloses nothing beyond it, and only a whole-workspace token names a record admission
+          // refused (R12, db PT5). A door serving version 1 knows no such operation.
           if (this.#protocol < 2) this.#unknown(operation);
           keys(params, ['within', 'locator', 'includeRuntime']);
           if (params['includeRuntime'] !== undefined && typeof params['includeRuntime'] !== 'boolean')
@@ -278,6 +296,35 @@ export class Door {
           const got = deliveryView(this.#handle, this.#within(params), seat);
           if (!got.ok) return got;
           result = got.view;
+          break;
+        }
+        case 'position': {
+          // MACHINE_PROTOCOL version 2: body(K) for the key the parts complete, read through a token, with its digest
+          // and the host note (R12, R16). The parameters are closed and the token the Door's, as for every operation;
+          // a refusal of the key itself names the one command to run (design row 27).
+          if (this.#protocol < 2) this.#unknown(operation);
+          keys(params, POSITION);
+          const within = this.#within(params),
+            { within: _within, ...partial } = params;
+          try {
+            result = position(this.#handle, within, partial as Partial<ScopeKey>);
+          } catch (error) {
+            if (!(error instanceof RuntimeError)) throw error;
+            // The seat refusals positionBody raises (R15), a seat at runtime placement, name no command of their own:
+            // the position without that seat, K0, unless the seat is the one K0 takes, the repository's own @workspace,
+            // whether the key names it or not, which K0 refuses alike; then the overview of what the workspace admits.
+            const seat = partial['seat'];
+            return freeze({
+              ok: false,
+              code: error.code,
+              message: error.message,
+              next:
+                error.next ??
+                (seat === undefined || seat === this.#handle.resolveSeat('', { within }).seat
+                  ? 'ia inspect'
+                  : 'ia position'),
+            });
+          }
           break;
         }
         default:

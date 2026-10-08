@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto';
-import { cpSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { CAPTURE_FORMAT, writeCapture } from '@inventarch/db';
@@ -13,7 +12,7 @@ import type {
   DoorResponse,
   NextRefusal,
 } from '../src/index.js';
-import { database, lawId, put, workspace } from './workspace.js';
+import { database, lawId, put, tree, workspace } from './workspace.js';
 
 /**
  * The delivery fixtures (packages/runtime/tests/fixtures/delivery) are laid over the conformance corpus at `.ia/src`:
@@ -114,23 +113,6 @@ function evidence(root: string, names: readonly string[]): void {
       ),
     ].join('\n'),
   );
-}
-/** Every file under `root`, by path, hashed with its bytes. */
-function tree(root: string): string {
-  const hash = createHash('sha256');
-  const walk = (directory: string, prefix: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
-      const path = `${prefix}${entry.name}`;
-      if (entry.isDirectory()) walk(resolve(directory, entry.name), `${path}/`);
-      else
-        hash
-          .update(`${path}\0`)
-          .update(readFileSync(resolve(directory, entry.name)))
-          .update('\0');
-    }
-  };
-  walk(root, '');
-  return hash.digest('hex');
 }
 
 it('registers each delivery refusal in RUNTIME_CODES', () => {
@@ -1060,9 +1042,9 @@ it('serves the delivery view on the Door through its token, and answers a refusa
   });
 });
 
-// db PT5 through the Door (R12): only the initial token of a door opened without a boundary is a whole-workspace one,
-// so only it names the records admission refused. A token the door issued narrower, or the initial token of a door
-// opened with a boundary, names none, even one that admits every record the workspace admits.
+// db PT5 through the Door (R12): only a whole-workspace token, here the initial token of a door opened without a
+// boundary, names the records admission refused. A token narrowed by identities, one `scope` issued or the initial
+// token of a door opened with such a boundary, names none, even one that admits every record the workspace admits.
 it('names the records admission refused on the Door only through a whole-workspace token', () => {
   const root = delivery('base');
   put(

@@ -15,8 +15,8 @@ import { freeze } from './types.js';
  * may hop (depth) and how many entries it may load (budget), optionally restricted to one word. This module holds the
  * caps, the defaults and K0, completes a partial key, validates a key against a scoped read, resolves its seat and
  * derives its coordinate. `positionBody` (src/position.ts, R15) assembles the body a resolved key gives, and `position`
- * (R16) adds its digest and host note; the Door `position` operation is a later task, and no version 1 Door route
- * reads a key.
+ * (R16) adds its digest and host note, which the Door's `position` operation (MACHINE_PROTOCOL version 2) serves; no
+ * version 1 Door route reads a key. Each key refusal names the one command to run as its `next` (design row 27).
  */
 
 /** Decision scope-key-caps: depth in 0..2 hops, budget in 0..64 entries. */
@@ -80,24 +80,39 @@ export interface ResolvedScopeKey {
 
 const PARTS = ['seat', 'shape', 'phase', 'depth', 'budget', 'word'] as const;
 type Part = (typeof PARTS)[number];
-function invalid(message: string): never {
-  throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', message);
+/**
+ * Design row 27 and §11: the one command each key refusal names, its closed set printed or its cap given. A key that is
+ * no key and a seat the scope does not hold name the position without one, K0, which every scope can compute, and a
+ * word the closure does not register names the vocabulary.
+ */
+const NEXT = {
+  key: 'ia position',
+  seat: 'ia position',
+  shape: `ia position --shape <${SHAPES.join('|')}>`,
+  phase: `ia position --phase <${PHASES.join('|')}>`,
+  depth: `ia position --depth ${SCOPE_KEY_CAPS.depth}`,
+  budget: `ia position --budget ${SCOPE_KEY_CAPS.budget}`,
+  word: 'ia vocabulary',
+} as const;
+function invalid(message: string, next?: string): never {
+  throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', message, next);
 }
 function capped(value: unknown, part: keyof typeof SCOPE_KEY_CAPS): number {
   if (!Number.isSafeInteger(value) || (value as number) < 0 || (value as number) > SCOPE_KEY_CAPS[part])
-    invalid(`Scope key ${part} must be an integer in 0..${SCOPE_KEY_CAPS[part]}`);
+    invalid(`Scope key ${part} must be an integer in 0..${SCOPE_KEY_CAPS[part]}`, NEXT[part]);
   return value as number;
 }
 function shapeOf(value: unknown): Shape {
-  if (!(SHAPES as readonly unknown[]).includes(value)) invalid(`Scope key shape must be one of ${SHAPES.join(', ')}`);
+  if (!(SHAPES as readonly unknown[]).includes(value))
+    invalid(`Scope key shape must be one of ${SHAPES.join(', ')}`, NEXT.shape);
   return value as Shape;
 }
 /** An object whose own parts are all key parts. */
 function parted(key: unknown): Readonly<Partial<Record<Part, unknown>>> {
-  if (key === null || typeof key !== 'object' || Array.isArray(key)) invalid('A scope key must be an object');
+  if (key === null || typeof key !== 'object' || Array.isArray(key)) invalid('A scope key must be an object', NEXT.key);
   for (const part of Object.keys(key))
     if (!(PARTS as readonly string[]).includes(part))
-      invalid(`Unknown scope key part '${part}'; admitted: ${PARTS.join(', ')}`);
+      invalid(`Unknown scope key part '${part}'; admitted: ${PARTS.join(', ')}`, NEXT.key);
   return key as Readonly<Partial<Record<Part, unknown>>>;
 }
 /**
@@ -108,10 +123,11 @@ function formed(supplied: unknown): ScopeKey {
   const key = parted(supplied),
     { seat, phase, word } = key,
     shape = shapeOf(key.shape);
-  if (typeof phase !== 'string' || !isPhase(phase)) invalid(`Scope key phase must be one of ${PHASES.join(', ')}`);
+  if (typeof phase !== 'string' || !isPhase(phase))
+    invalid(`Scope key phase must be one of ${PHASES.join(', ')}`, NEXT.phase);
   const depth = capped(key.depth, 'depth'),
     budget = capped(key.budget, 'budget');
-  if (word !== undefined && typeof word !== 'string') invalid('Scope key word must be a string');
+  if (word !== undefined && typeof word !== 'string') invalid('Scope key word must be a string', NEXT.word);
   if (
     seat !== undefined &&
     typeof seat !== 'string' &&
@@ -121,7 +137,7 @@ function formed(supplied: unknown): ScopeKey {
       Object.keys(seat).join() !== 'path' ||
       typeof (seat as { path: unknown }).path !== 'string')
   )
-    invalid('Scope key seat must be a record identity or {path}');
+    invalid('Scope key seat must be a record identity or {path}', NEXT.seat);
   return freeze({
     ...(seat === undefined
       ? {}
@@ -168,11 +184,11 @@ function rootRelative(root: string, path: string): string {
 }
 /**
  * R14: validate `key` against the read `within` names and resolve its seat. Every key-validation refusal is
- * IA-RUNTIME-REQUEST-INVALID naming the bound it breaks. The parts, closed sets, caps and seat form are checked before
- * any read, so a key malformed in them is refused whatever the token; the word and the seat are then read through the
- * token, and database token failures keep their codes. A path outside the workspace root or escaping it is refused,
- * but a seat inside it that no record declares is not: the seat names the unknown, so K0 stays computable in a
- * repository whose own `@workspace` is undecided.
+ * IA-RUNTIME-REQUEST-INVALID naming the bound it breaks, and its `next` the one command to run. The parts, closed sets,
+ * caps and seat form are checked before any read, so a key malformed in them is refused whatever the token; the word
+ * and the seat are then read through the token, and database token failures keep their codes. A path outside the
+ * workspace root or escaping it is refused, but a seat inside it that no record declares is not: the seat names the
+ * unknown, so K0 stays computable in a repository whose own `@workspace` is undecided.
  */
 export function resolveScopeKey(handle: ReadHandle, within: string, key: ScopeKey): ResolvedScopeKey {
   if (typeof within !== 'string' || within.length === 0) invalid('Runtime reads require an explicit scope token');
@@ -183,13 +199,13 @@ export function resolveScopeKey(handle: ReadHandle, within: string, key: ScopeKe
   if (word !== undefined) {
     const words = handle.words({ within });
     if (!words.includes(word))
-      invalid(`Scope key word '${word}' is not registered in this closure; registered: ${words.join(', ')}`);
+      invalid(`Scope key word '${word}' is not registered in this closure; registered: ${words.join(', ')}`, NEXT.word);
   }
   const unknown = (resolution: SeatResolution) =>
     resolution.unknown === undefined ? {} : { unknown: resolution.unknown as 'undeclared' };
   if (typeof seat === 'string') {
     if (!handle.resolve({ kind: 'identity', identity: seat }, { within }).ok)
-      invalid(`Scope key seat '${seat}' is not an admitted record in this scope`);
+      invalid(`Scope key seat '${seat}' is not an admitted record in this scope`, NEXT.seat);
     return freeze({ key: valid, seat: { kind: 'record', identity: seat }, coordinate });
   }
   if (seat === undefined) {
@@ -209,6 +225,7 @@ export function resolveScopeKey(handle: ReadHandle, within: string, key: ScopeKe
   if (resolution.unknown === 'outside')
     invalid(
       `Scope key seat path '${seat.path}' must be inside the workspace: workspace-relative, or absolute under its root`,
+      NEXT.seat,
     );
   return freeze({
     key: { ...valid, seat: { path: resolution.path } },

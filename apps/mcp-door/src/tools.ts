@@ -21,7 +21,8 @@ const withFormat = (schema: JsonSchema): JsonSchema => ({
 });
 /**
  * M04: the door operations whose row names a tool, described once in @inventarch/runtime's MACHINE_PROTOCOL (spec-0012
- * MCP-01): the eight of version 1 (report is CLI-only), and read and next, which version 2 adds (plan amendment A3).
+ * MCP-01): the eight of version 1 (report is CLI-only), and read, next and position, which version 2 adds (plan
+ * amendment A3).
  */
 const served = MACHINE_PROTOCOL.operations.flatMap((operation) =>
   operation.mcp === null
