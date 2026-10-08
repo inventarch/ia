@@ -333,9 +333,9 @@ it('orders claimants band descending then identity ascending across claimant fie
   const db = open(root, { cache: false, locations: { [lawPath]: adopted } });
   try {
     expect(errors(db)).toEqual([]);
+    // The check's scope reads as a path but is the schema's prose scope, so the check claims nothing (G06c).
     expect(brief(db.resolveSeat('src/billing/invoice.ts')).claimants).toEqual([
       [mandateId, 100, 'authority.covers src/**'],
-      ['compliance-system/check/gate/billing-check', 100, 'check.scope src/billing/*.ts'],
       ['hook-authoring-system/binding/hook/source-hook', 100, 'hook.paths src/billing/**'],
       ['governance-system/governance/law/adopted-law', 90, 'subject.covers **'],
     ]);
@@ -353,6 +353,13 @@ it('names each claimant selection the dialect reads as none, where it is authore
     root,
     lawPath,
     '#! ia 1.0\n\n@law rooted-law\n  meaning\n    says "A rooted law."\n    answers "Which law covers billing?"\n  governance\n    severity blocking\n  subject\n    covers ["/src/billing/", "./src/billing/**", "src/billing/"]\n',
+  );
+  // A check's scope is prose, not a claimant selection (graph G06c), so even one the dialect would read as none is
+  // never named here.
+  put(
+    root,
+    '.ia/src/systems/compliance-system/checks/prose-check.ia',
+    '#! ia 1.0\n\n@check prose-check\n  meaning\n    says "A prose-scoped check."\n    answers "Which check reads shared sources?"\n  check\n    runs COMP-SCHEMA\n    scope "../shared or /srv"\n',
   );
   const db = open(root, { cache: false });
   try {

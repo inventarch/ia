@@ -73,7 +73,7 @@ export interface FieldReference {
 }
 /**
  * One path selection a winner states in a claimant field (G06c): `field` is `authority.covers`, `subject.covers`,
- * `work.covers`, `hook.paths` or `check.scope`, `selection` the text as authored. Derived only, like a FieldReference:
+ * `work.covers` or `hook.paths`, `selection` the text as authored. Derived only, like a FieldReference:
  * not an Edge, no predicate, never consent-checked.
  */
 export interface Claim {
