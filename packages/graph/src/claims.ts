@@ -7,15 +7,16 @@ import type { Claim, Graph, Node } from './types.js';
 /**
  * G06c: the claimant fields, each a section field whose text values are path selections (position-and-projection row
  * 17; the covers-field-vs-predicate decision keeps `covers` a field, not a predicate): `covers` in a @mandate's
- * `authority`, a @law's or @convention's `subject` and a @spec's `work`, a @hook's `hook.paths` and a @check's
- * `check.scope`. A field is read by its path on any winner that holds it; schema admission keeps undeclared ones out.
+ * `authority`, a @law's or @convention's `subject` and a @spec's `work`, and a @hook's `hook.paths`. A field is read by
+ * its path on any winner that holds it; schema admission keeps undeclared ones out. A @check's `check.scope` is not one
+ * (decision check-scope-claims): the schema requires it as prose, such as "every admitted native record", which no path
+ * selection reads, so a check claims no path until its schema gives it a field of path selections.
  */
 export const CLAIM_FIELDS: readonly string[] = Object.freeze([
   'authority.covers',
   'subject.covers',
   'work.covers',
   'hook.paths',
-  'check.scope',
 ]);
 
 /**
