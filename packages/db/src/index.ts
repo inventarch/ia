@@ -14,8 +14,9 @@ export type {
   ScopeRequest,
 } from './handle.js';
 export { sourceTree } from './membership.js';
-export type { MembershipRow } from './membership.js';
-export type { Readiness, Staleness } from './retention.js';
+export type { InertDeclaration, MembershipRow } from './membership.js';
+export { CAPTURE_CURRENT, CAPTURE_DIRECTORY, CAPTURE_FORMAT, CAPTURE_PREVIOUS, writeCapture } from './retention.js';
+export type { CaptureWrite, Readiness, Staleness } from './retention.js';
 export type { SeatResolution } from './seat.js';
 export type { CacheStatus, CacheObservation } from './cache.js';
 export type { RefusedRecord } from './view.js';

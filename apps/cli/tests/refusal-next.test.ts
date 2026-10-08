@@ -103,8 +103,49 @@ it('gives a service refusal of every code one next command, in --json and in hum
     expect(flat(human.stderr), code).toContain(`→ ${flat(next)}`);
   }
   // With no verb or root known, the fallback is the binary's own help or a bare `ia doctor`.
-  expect(refusalOf(new UsageError('x')).next).toBe('Run "ia --help" for the accepted syntax.');
-  expect(commandsIn(refusalOf(new Error('x')).next)).toEqual(['ia doctor']);
+  expect(refusalOf(new UsageError('x'), { command: null }).next).toBe('Run "ia --help" for the accepted syntax.');
+  expect(commandsIn(refusalOf(new Error('x'), { command: null }).next!)).toEqual(['ia doctor']);
+});
+
+it('keeps the 1.x Refusal and refusalOf forms of @inventarch/cli/internal/consumer, with next filled where rendered', () => {
+  // Decision release-bump: published internal/* signatures keep their old forms through defaults.
+  const caps = resolveCapabilities({ env: {}, isTTY: false }, {});
+  const old = new Refusal('IA-ACME-HELD', 'Something held', 3);
+  expect(old.where).toBeNull();
+  expect(old.next).toBeNull();
+  expect(new Refusal('IA-ACME-HELD', 'Something held', 3, null, null).next).toBeNull();
+  // Without the refused invocation, refusalOf names no next action, as 1.x did, so a caller can supply its own.
+  expect(refusalOf(new Error('x')).next).toBeNull();
+  expect(refusalOf(new UsageError('x')).next).toBeNull();
+  expect(refusalOf(Object.assign(new Error('x'), { code: 'IA-DIST-INPUT-INVALID' }))).toMatchObject({
+    code: 'IA-DIST-INPUT-INVALID',
+    exit: 3,
+    where: null,
+    next: null,
+  });
+  // Rendered, each carries serviceNext's next action, spelled for the refused invocation when the caller names it.
+  const rows: readonly (readonly [Refusal, Parameters<typeof renderRefusal>[3], string])[] = [
+    [old, undefined, 'ia doctor'],
+    [old, { command: 'install', root: '/w' }, 'ia doctor --root /w'],
+    [refusalOf(new UsageError('x')), { command: 'pack' }, 'ia pack --help'],
+    [new Refusal('IA-COMP-X', 'm', 3, { path: 'a.ia', line: 2 }), { command: 'validate' }, 'ia validate'],
+  ];
+  for (const [refusal, refused, command] of rows) {
+    const machine = JSON.parse(renderRefusal(refusal, caps, true, refused).stdout) as { next: string };
+    expect(commandsIn(machine.next), refusal.code).toEqual([command]);
+    expect(nextDefect(machine.next), refusal.code).toBeNull();
+    const human = renderRefusal(refusal, caps, false, refused);
+    expect(flat(human.stderr), refusal.code).toContain(`→ ${flat(machine.next)}`);
+  }
+  expect(JSON.parse(renderRefusal(old, caps, true).stdout)).toEqual({
+    version: 1,
+    ok: false,
+    code: 'IA-ACME-HELD',
+    message: 'Something held',
+    exit: 3,
+    where: null,
+    next: 'Run "ia doctor" for the observed runtime, workspace, installation and host state.',
+  });
 });
 
 it('keeps the command a next action quotes on one terminal line, however long, and wraps the prose around it', () => {
@@ -146,6 +187,9 @@ const PROBE = [
   "  new Refusal('IA-X-FOREIGN', 'm', 3, null, row.next),",
   "  new Refusal('IA-X-QUOTED', 'm', 3, null, `Run \"${row.next}\".`),",
   "  new Refusal('IA-X-CARRIED', 'm', 3, null, refused.next),",
+  "  new Refusal('IA-X-NULL', 'm', 3, null, null),",
+  "  new Refusal('IA-X-OMITTED', 'm', 3),",
+  `  new Refusal('IA-X-BRANCH', 'm', 3, null, refused.exit > 2 ? 'Run "ia doctor".' : null),`,
   '];',
 ];
 const probe = resolve(scratch('refusal-probe'), 'probe.ts');
@@ -291,6 +335,15 @@ interface Scan {
   /** `<file>:<line>: <why>` for each next action that breaks design row 27 or that the checker cannot resolve. */
   readonly defects: readonly string[];
 }
+/**
+ * The one place a null next action is the contract: `refusalOf` called without the refused invocation keeps its 1.x
+ * result for callers of @inventarch/cli/internal/consumer, and `renderRefusal` supplies the next action it lacks.
+ */
+function published(site: ts.Node): boolean {
+  let node: ts.Node | undefined = site;
+  while (node !== undefined && !ts.isFunctionDeclaration(node)) node = node.parent;
+  return node?.name?.text === 'refusalOf' && resolve(node.getSourceFile().fileName) === resolve(consumerSource);
+}
 /** Every `Refusal` and `Interrupted` construction site in `paths`, its next action checked. */
 function scanSites(paths: readonly string[]): Scan {
   let sites = 0,
@@ -298,19 +351,24 @@ function scanSites(paths: readonly string[]): Scan {
   const defects: string[] = [];
   const pending = new Map<ts.ParameterDeclaration, string>();
   /** One next action at `at`: each branch checked on its own, an unbound parameter checked at its callers. */
-  const check = (expression: ts.Expression, at: string): void => {
-    if (ts.isParenthesizedExpression(expression)) return check(expression.expression, at);
+  const check = (expression: ts.Expression, at: string, nullable = false): void => {
+    if (ts.isParenthesizedExpression(expression)) return check(expression.expression, at, nullable);
     if (ts.isConditionalExpression(expression)) {
-      check(expression.whenTrue, at);
-      check(expression.whenFalse, at);
+      check(expression.whenTrue, at, nullable);
+      check(expression.whenFalse, at, nullable);
       return;
     }
     if (ts.isBinaryExpression(expression) && expression.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
-      check(expression.left, at);
-      check(expression.right, at);
+      check(expression.left, at, nullable);
+      check(expression.right, at, nullable);
       return;
     }
-    if (expression.kind === ts.SyntaxKind.NullKeyword) return;
+    // The published constructor defaults `next` to null (decision release-bump), so the checker no longer refuses a
+    // site that names none; this scan does, for an omitted argument (below) and for null in any branch.
+    if (expression.kind === ts.SyntaxKind.NullKeyword) {
+      if (!nullable) defects.push(`${at}: a null next action`);
+      return;
+    }
     if (ts.isIdentifier(expression)) {
       const declaration = declarationOf(expression);
       if (declaration !== undefined && ts.isVariableDeclaration(declaration) && declaration.initializer !== undefined)
@@ -339,7 +397,7 @@ function scanSites(paths: readonly string[]): Scan {
           const at = `${path}:${file.getLineAndCharacterOfPosition(node.getStart()).line + 1}`;
           const next = kind === 'Refusal' ? node.arguments?.[4] : node.arguments?.[0];
           if (next === undefined) defects.push(`${at}: no next argument`);
-          else check(next, at);
+          else check(next, at, published(node));
         }
       }
       ts.forEachChild(node, visit);
@@ -379,10 +437,20 @@ it('passes a one-command next action at every Refusal and Interrupted constructi
 it("fails a site whose next action is prose, an unquoted or second command, or another type's next action", () => {
   const lineOf = (code: string): number => PROBE.findIndex((line) => line.includes(`'${code}'`)) + 1;
   const scan = scanSites([probe]);
-  expect(scan.sites).toBe(6);
-  // The next action carried from a `Refusal` passes; each of the other five fails at its own line.
+  expect(scan.sites).toBe(9);
+  // The next action carried from a `Refusal` passes; each of the other eight fails at its own line, a null or an
+  // omitted one included, which the 1.x constructor's defaults let the type checker admit.
   expect(scan.defects.map((defect) => Number(/:(\d+): /.exec(defect)?.[1]))).toEqual(
-    ['IA-X-PROSE', 'IA-X-BARE', 'IA-X-TWO', 'IA-X-FOREIGN', 'IA-X-QUOTED'].map(lineOf),
+    [
+      'IA-X-PROSE',
+      'IA-X-BARE',
+      'IA-X-TWO',
+      'IA-X-FOREIGN',
+      'IA-X-QUOTED',
+      'IA-X-NULL',
+      'IA-X-OMITTED',
+      'IA-X-BRANCH',
+    ].map(lineOf),
   );
 });
 
@@ -403,11 +471,16 @@ function invocations(): readonly {
     bare = resolve(scratch('refusal-bare'), 'workspace'),
     file = resolve(empty, 'file.txt'),
     absent = resolve(empty, 'absent'),
+    compiled = workspace(),
+    floorBroken = workspace(),
     snapshotLinked = workspace(),
     refused = workspace({ foreign: true }),
     linked = workspace(),
     undecodable = workspace();
   mkdirSync(resolve(bare, '.ia/src'), { recursive: true });
+  // A floor source that no longer parses: a capture refuses rather than drop its records.
+  const floor = resolve(floorBroken, '.ia/src/floor/artifact-set.ia');
+  writeFileSync(floor, `${readFileSync(floor, 'utf8')}\n@@@ not a record header\n`);
   // A source whose bytes are not UTF-8: the db cannot read it, and no installation is involved.
   writeFileSync(resolve(undecodable, '.ia/src/undecodable.ia'), Buffer.from([0x40, 0xff, 0xfe, 0x0a]));
   writeFileSync(file, 'not a directory\n');
@@ -441,12 +514,17 @@ function invocations(): readonly {
       command: `ia inspect --root ${root}`,
     },
     { code: 'IA-CLI-USAGE', argv: ['read', 'Not/An/Identity', '--root', FIXTURE], command: 'ia read --help' },
-    // A read whose locator no admitted record answers names the overview, unless it is a line of a workspace source:
-    // a refused source names the validation, an admitted one the inspection of its records. One whose fragment is
-    // missing names the record.
+    // A read whose locator no admitted record answers names the nearest admitted identity, as `ia inspect` does, else
+    // the overview, unless it is a line of a workspace source: a refused source names the validation, an admitted one
+    // the inspection of its records. One whose fragment is missing names the record.
     {
       code: 'IA-RUNTIME-READ-UNADMITTED',
       argv: ['read', 'agent-system/binding/agent/absent', '--root', FIXTURE],
+      command: `ia read agent-system/binding/agent/agent-steward --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-READ-UNADMITTED',
+      argv: ['read', 'nope/nope/nope/nope', '--root', FIXTURE],
       command: `ia inspect --root ${root}`,
     },
     {
@@ -511,7 +589,12 @@ function invocations(): readonly {
     {
       code: 'IA-DB-SOURCE-UNAVAILABLE',
       argv: ['inspect', 'no-such/definition/procedure/record', '--root', FIXTURE],
-      command: `ia validate --root ${root}`,
+      command: `ia inspect --root ${root}`,
+    },
+    {
+      code: 'IA-DB-SOURCE-UNAVAILABLE',
+      argv: ['inspect', 'agent-system/binding/agent/agent-stewart', '--root', FIXTURE],
+      command: `ia inspect agent-system/binding/agent/agent-steward --root ${root}`,
     },
     // A workspace whose sources the db does not read names the repair, then the check that it opens; never `ia init`.
     { code: 'IA-DB-PATH-UNSAFE', argv: ['validate', '--root', linked], command: `ia validate --root ${unreadable}` },
@@ -556,35 +639,70 @@ function invocations(): readonly {
       argv: ['update', 'acme/app', '--to', '1.0.0', '--root', bare],
       command: `ia install acme/app@1.0.0 --root ${quote(bare)}`,
     },
-    // A service refusal with no remedy of its own names `ia doctor` for the root the parser understood.
+    // A file the invocation named that is not there names the same command with that one value to correct, never
+    // `ia doctor`, which reads none of them.
     {
       code: 'IA-DIST-INPUT-INVALID',
       argv: ['install', 'acme/app', '--root', FIXTURE, '--catalog', 'missing.json'],
-      command: `ia doctor --root ${root}`,
+      command: `ia install acme/app --catalog <file> --root ${root}`,
     },
     {
       code: 'IA-DIST-INPUT-INVALID',
       argv: ['install', 'acme/app', `--root=${FIXTURE}`, '--catalog', 'missing.json'],
-      command: `ia doctor --root ${root}`,
+      command: `ia install acme/app --catalog <file> --root ${root}`,
+    },
+    {
+      code: 'IA-DIST-INPUT-INVALID',
+      argv: ['install', '--requests', 'missing.json', '--catalog', 'c.json', '--root', FIXTURE],
+      command: `ia install --requests <file> --catalog c.json --root ${root}`,
+    },
+    {
+      code: 'IA-DIST-INPUT-INVALID',
+      argv: ['pack', '--descriptor', 'missing.json', '--root', FIXTURE],
+      command: `ia pack --descriptor <file> --root ${root}`,
     },
     // A snapshot path the writer does not admit names the capture to run again once it is repaired.
     {
-      code: 'IA-DIST-PATH-UNSAFE',
+      code: 'IA-DB-PATH-UNSAFE',
       argv: ['capture', '--root', snapshotLinked],
       command: `ia capture --root ${quote(snapshotLinked)}`,
     },
-    // The deprecated alias refuses the flags a capture has no place for, naming the capture to run instead.
-    { code: 'IA-CLI-USAGE', argv: ['compile', '--stdout', '--root', FIXTURE], command: `ia capture --root ${root}` },
+    // Position-and-projection §11: a root with no @workspace names `ia init`, a floor that fails to parse `ia validate`.
+    {
+      code: 'IA-DB-ROOT-INVALID',
+      argv: ['capture', '--root', empty],
+      command: `ia init ${quote(realpathSync(empty))}`,
+    },
+    {
+      code: 'IA-LANG-HEADER-MALFORMED',
+      argv: ['capture', '--root', floorBroken],
+      command: `ia validate --root ${quote(floorBroken)}`,
+    },
+    // The deprecated 1.x `ia compile` keeps its refusals: an existing artifact names the rerun with --force, an --out
+    // outside .ia/work/ the rerun with the one value to correct, and --out with --stdout the verb's help.
+    {
+      code: 'IA-DIST-LOCAL-MODIFICATION',
+      argv: ['compile', '--root', compiled],
+      command: `ia compile --force --root ${quote(compiled)}`,
+    },
+    {
+      code: 'IA-DIST-PATH-UNSAFE',
+      argv: ['compile', '--out', '../outside.json', '--root', FIXTURE],
+      command: `ia compile --out <file> --root ${root}`,
+    },
     {
       code: 'IA-CLI-USAGE',
-      argv: ['compile', '--out', 'x.json', '--root', FIXTURE],
-      command: `ia capture --root ${root}`,
+      argv: ['compile', '--out', '.ia/work/x.json', '--stdout', '--root', FIXTURE],
+      command: 'ia compile --help',
     },
   ];
 }
 
 it('prints one next command for every kind of consumer refusal, in --json and in human output', async () => {
   const rows = invocations();
+  // The compile row refuses only once its artifact exists.
+  const compiled = rows.find((row) => row.code === 'IA-DIST-LOCAL-MODIFICATION')!;
+  expect((await run(compiled.argv)).exitCode).toBe(0);
   for (const row of rows) {
     const label = row.argv.join(' ');
     const machine = await run([...row.argv, '--json'], row.cwd === undefined ? {} : { cwd: row.cwd });

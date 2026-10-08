@@ -9,7 +9,7 @@
  * compared as the deliberate divergence they are rather than asserted equal: §1.4, §3 and §4.4 require the three
  * protocols to stay observably different, and decisions.md:65 forbids normalizing them.
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { cleanup, DESCRIPTOR, FIXTURE, packable, repository, scratch, workspace } from './workspace-fixture.js';
@@ -43,6 +43,7 @@ function result(
 }
 
 interface Finding {
+  readonly code: string;
   readonly severity: string;
 }
 it('reports one admission through ia validate --json and ia-distribution validate', async () => {
@@ -71,6 +72,32 @@ it('reports one admission through ia validate --json and ia-distribution validat
   // §2.5: the consumer adds a report outcome the native verdict does not carry; it is a read of the same report.
   expect(refusedConsumer['reportOutcome']).toBe('fail');
   expect(Object.hasOwn(refusedMachine, 'reportOutcome')).toBe(false);
+});
+
+it('reports the declarations that declare nothing through both entrypoints, from the one validation service', async () => {
+  // The native corpus with a `composition.sources` entry whose placement is misspelled and a mandate selection with a
+  // `./` segment: each declares nothing, and each is a warning that admission does not count (db D02a, D02b).
+  const root = resolve(scratch('equivalence-inert'), 'workspace'),
+    workspaceRecord = resolve(root, '.ia/src/systems/workspace-system/records/foundation-workspace.ia'),
+    mandate = resolve(root, '.ia/src/systems/agent-system/records/sample-mandate.ia');
+  cpSync(resolve(repository, 'examples/conformance/native'), resolve(root, '.ia/src'), { recursive: true });
+  const edit = (path: string, from: string, to: string): void => {
+    const text = readFileSync(path, 'utf8');
+    expect(text).toContain(from);
+    writeFileSync(path, text.replace(from, to));
+  };
+  edit(workspaceRecord, '  relationships\n', '    sources [".ia/src @authorded"]\n  relationships\n');
+  edit(mandate, 'covers ["docs/**"]', 'covers ["./docs/**"]');
+  const consumer = result(await ia(['validate', '--root', root, '--json']), 'stdout', 0, 'consumer validate');
+  const machine = result(await native(['validate', '--root', root]), 'stdout', 0, 'native validate');
+  const findings = machine['findings'] as readonly Finding[];
+  expect(findings.filter((finding) => finding.code === 'IA-COMP-FIELD-VALUE')).toHaveLength(2);
+  expect(consumer['findings']).toEqual(findings);
+  expect(consumer['counts']).toMatchObject({
+    errors: 0,
+    warnings: findings.filter((finding) => finding.severity === 'warning').length,
+  });
+  expect(consumer['status']).toBe(machine['status']);
 });
 
 it('produces one archive through ia pack --json and ia-distribution pack', async () => {

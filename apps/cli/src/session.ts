@@ -7,6 +7,7 @@
  */
 import { openWorkspaceSession } from '@inventarch/distribution/services';
 import { Refusal, serviceNext } from './consumer.js';
+import { nearestTokens } from './commands.js';
 import { recoverCommand } from './host.js';
 import { quote } from './render.js';
 
@@ -63,4 +64,27 @@ export function openSession(root: string): Session {
       openNext(error, root),
     );
   }
+}
+
+/**
+ * Design row 27 for an identity a workspace verb finds no admitted record of, so `ia inspect` and `ia read` name the
+ * same command for the same cause: a source holds it and admission refused it names `ia validate`, which says why; else
+ * the nearest admitted identity, run through the same verb, answers a misspelling; else the workspace overview.
+ */
+export function identityNext(
+  reader: Session['reader'],
+  identity: string,
+  verb: 'inspect' | 'read',
+  rooted: string,
+): string {
+  if (reader.refused.some((record) => record.identity === identity))
+    return `Run "ia validate${rooted}" to see why admission refused ${identity}.`;
+  const [nearest] = nearestTokens(
+    identity,
+    reader.records().map((record) => record.identity),
+    1,
+  );
+  return nearest !== undefined
+    ? `Run "ia ${verb} ${nearest}${rooted}" for the nearest admitted identity.`
+    : `Run "ia inspect${rooted}" for the overview of what the workspace admits.`;
 }

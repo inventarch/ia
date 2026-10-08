@@ -22,7 +22,7 @@ import {
 } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { DEFAULT_REGISTRIES } from '@inventarch/distribution/registry';
+import { DEFAULT_REGISTRIES, registryChooser } from '@inventarch/distribution/registry';
 import {
   baseCompanionArchive,
   buildFixtureRegistry,
@@ -34,6 +34,8 @@ import {
   sourcedClosure,
 } from './registry-fixture.js';
 import type { FixtureReleaseSpec, SourcedRelease } from './registry-fixture.js';
+import { collectPlan, UNMAPPED } from '../src/distribute.js';
+import type { PlanRequest } from '../src/distribute.js';
 import { quote } from '../src/render.js';
 import { cleanup, nextArgv, run, scratch } from './workspace-fixture.js';
 
@@ -562,6 +564,84 @@ it('refuses a licensed-only release at class 3 and names the catalog route as a 
   expect(parsed.code).not.toBe('IA-CLI-USAGE');
 });
 
+it('keeps the exported 1.1 UNMAPPED text, which ia doctor prints as its remedy', () => {
+  // Decision release-bump: @inventarch/cli/internal/distribute keeps its 1.x exports; this is v1.1.0's text exactly.
+  expect(UNMAPPED).toBe(
+    "Every requested and locked package's provider needs a registry. Map the provider to an HTTPS URL or a workspace directory in .ia/registries.json, or pass --registry <url|dir>.",
+  );
+});
+
+it('spells each remedy family a 1.x collectPlan request can reach, though it carries no reruns, from the request', async () => {
+  // Decision release-bump: a PlanRequest without `reruns` keeps the service's code, and each next action names one
+  // command spelled from the request's own fields: the local catalog route, the same rerun with --offline kept, the
+  // rerun without --offline that fetches a deleted cache file again, restore's --apply --yes and the overview of an
+  // installation. The install update needs is pinned in distribution-verbs.test.ts; a 1.x request chooses no
+  // registry, so the route through another registry is never its remedy.
+  const env = { IA_CONFIG_HOME: scratch('registry-1x-config') };
+  const request = (root: string, overrides: Partial<PlanRequest> = {}): PlanRequest => ({
+    root,
+    operation: 'install',
+    ids: ['acme/app'],
+    requestsFile: undefined,
+    catalog: undefined,
+    offline: false,
+    to: undefined,
+    allowWithdrawn: false,
+    planOut: undefined,
+    invocation: 'ia install acme/app',
+    ...overrides,
+  });
+  const chooser = (root: string, flag?: string) =>
+    registryChooser({ root, env, cwd: root, ...(flag === undefined ? {} : { flag }) });
+  const licensed = registry([{ id: 'acme/app', version: '1.0.0', licensed: true }]),
+    root = target();
+  await expect(collectPlan(request(root, { choose: chooser(root, licensed) }))).rejects.toMatchObject({
+    code: 'IA-DIST-LICENSE-REQUIRED',
+    exit: 3,
+    next: 'This CLI has no licensed acquisition path. Obtain the archive through its licensed channel, then install it from a local catalog with "ia install acme/app --catalog <file>".',
+  });
+  await expect(collectPlan(request(root, { choose: chooser(root) }))).rejects.toMatchObject({
+    code: 'IA-DIST-REGISTRY-UNMAPPED',
+    exit: 3,
+    next: `Every requested and locked package's provider needs a registry: map the provider to an HTTPS URL or a workspace directory in .ia/registries.json. Then run "ia install acme/app".`,
+  });
+  // The same rerun under --offline keeps --offline: a missing --requests file names it with that one value to correct.
+  await expect(
+    collectPlan(request(root, { ids: [], requestsFile: 'missing.json', offline: true, rooted: true })),
+  ).rejects.toMatchObject({
+    code: 'IA-DIST-INPUT-INVALID',
+    exit: 3,
+    next: `Run "ia install --requests <file> --offline --root ${quote(root)}" naming an existing requests file.`,
+  });
+  const cached = `.ia/distributions/cache/${'c'.repeat(64)}.ia.tgz`;
+  mkdirSync(join(root, '.ia/distributions/cache'), { recursive: true });
+  writeFileSync(join(root, cached), 'not an archive');
+  await expect(collectPlan(request(root, { offline: true, rooted: true }))).rejects.toMatchObject({
+    code: 'IA-DIST-ARCHIVE-INVALID',
+    where: { path: cached },
+    next: `Delete ${cached}, then rerun "ia install acme/app --root ${quote(root)}"; a published archive is fetched again from its registry or catalog.`,
+  });
+  const { root: installed, base } = await initialized();
+  await expect(
+    collectPlan(request(installed, { operation: 'restore', ids: [], catalog: 'missing.json' })),
+  ).rejects.toMatchObject({
+    code: 'IA-DIST-INPUT-INVALID',
+    next: 'Run "ia restore --catalog <file> --apply --yes" naming an existing catalog file.',
+  });
+  await expect(
+    collectPlan(request(installed, { operation: 'update', ids: [base.id], catalog: 'missing.json' })),
+  ).rejects.toMatchObject({
+    code: 'IA-DIST-INPUT-INVALID',
+    next: `Run "ia update ${base.id} --catalog <file>" naming an existing catalog file.`,
+  });
+  await expect(
+    collectPlan(request(installed, { operation: 'update', ids: ['acme/other'], offline: true, rooted: true })),
+  ).rejects.toMatchObject({
+    code: 'IA-DIST-INPUT-INVALID',
+    next: `Run "ia inspect --root ${quote(installed)}" for the installed generation and name one of its direct requests.`,
+  });
+});
+
 it('names the restore that applies when a restore cannot reach its registry, since restore has no preview', async () => {
   const dir = registry(APP_ON_LIB),
     root = target();
@@ -790,7 +870,7 @@ it('doctor warns about a locked provider that no level maps, and names .ia/regis
   expect(rows[0]).toMatchObject({ id: 'registry-acme', title: 'Registry acme', status: 'warn' });
   expect(rows[0]!.detail).toContain('IA-DIST-REGISTRY-UNMAPPED');
   expect(rows[0]!.detail).toContain('provider acme');
-  expect(rows[0]!.remedy).toContain('.ia/registries.json');
+  expect(rows[0]!.remedy).toBe(UNMAPPED);
   expect(trapped).not.toHaveBeenCalled();
 });
 
@@ -845,7 +925,7 @@ function expectMappedAndUnmapped(stdout: string, root: string): void {
   ]);
   expect(rows[0]).toMatchObject({ title: 'Registry acme', status: 'warn' });
   expect(rows[0]!.detail).toContain('IA-DIST-REGISTRY-UNMAPPED');
-  expect(rows[0]!.remedy).toContain('.ia/registries.json');
+  expect(rows[0]!.remedy).toBe(UNMAPPED);
   expect(rows[1]).toEqual({
     id: 'registry-beta',
     title: 'Registry beta',

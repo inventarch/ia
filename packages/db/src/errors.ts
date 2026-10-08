@@ -13,11 +13,15 @@ export const DB_CODES = [
 ] as const;
 export type DbCode = (typeof DB_CODES)[number];
 export class DbError extends Error {
+  /** The root-relative path the error is about, when one entry is at fault; absent otherwise, as in 1.x. */
+  declare readonly path?: string;
   constructor(
     readonly code: DbCode,
     message: string,
+    path?: string,
   ) {
     super(`${code}: ${message}`);
     this.name = 'DbError';
+    if (path !== undefined) this.path = path;
   }
 }

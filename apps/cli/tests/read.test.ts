@@ -271,7 +271,34 @@ it('refuses a locator no admitted record answers, a missing fragment and a malfo
     message: "agent-system/binding/agent/absent is not in this workspace's sources",
     where: { path: realpathSync(root), line: null, identity: 'agent-system/binding/agent/absent' },
   });
-  expect(commandsIn(unadmitted.next)).toEqual([`ia inspect ${rooted}`]);
+  // An identity no source holds names the nearest admitted one, as `ia inspect` names it, or else the overview.
+  expect(commandsIn(unadmitted.next)).toEqual([`ia read ${LOOP_STEWARD} ${rooted}`]);
+  const inspected = JSON.parse(
+    (await run(['inspect', 'agent-system/binding/agent/absent', '--root', root, '--json'])).stdout,
+  ) as RefusalBody;
+  expect(commandsIn(inspected.next)).toEqual([`ia inspect ${LOOP_STEWARD} ${rooted}`]);
+  const distant = await read(root, 'nope/nope/nope/nope', 1);
+  expect(commandsIn(distant.next)).toEqual([`ia inspect ${rooted}`]);
+  // An identity a source holds whose record admission refused is in the workspace's sources: both verbs name the
+  // validation that says why.
+  const foreign = 'governance-system/definition/procedure/foreign-procedure';
+  const refused = await read(root, foreign, 1);
+  expect(refused).toMatchObject({
+    code: 'IA-RUNTIME-READ-UNADMITTED',
+    message: `${foreign} is in this workspace's sources, but admission refused it`,
+    where: { path: '.ia/src/systems/agent-system/records/foreign.ia', line: 2, identity: foreign },
+  });
+  expect(commandsIn(refused.next)).toEqual([`ia validate ${rooted}`]);
+  const refusedInspect = JSON.parse((await run(['inspect', foreign, '--root', root, '--json'])).stdout) as RefusalBody;
+  expect(refusedInspect).toMatchObject({ code: 'IA-DB-SOURCE-UNAVAILABLE', exit: 1 });
+  expect(commandsIn(refusedInspect.next)).toEqual([`ia validate ${rooted}`]);
+  // A line locator's path is relative to the root; an absolute path inside the root reads the path it names, and the
+  // locator is echoed as given.
+  const absolute = `${resolve(realpathSync(root), '.ia/src/systems/agent-system/steward.ia')}:3`;
+  const steward = await read(root, absolute);
+  const relativeRead = await read(root, '.ia/src/systems/agent-system/steward.ia:3');
+  expect(steward).toMatchObject({ locator: absolute, kind: 'record', identity: relativeRead.identity });
+  expect(steward.digest).toBe(relativeRead.digest);
   // A line no admitted record spans: of an admitted source, a source whose records admission refused, or no source.
   for (const [path, message, command] of [
     [
@@ -337,5 +364,5 @@ it('names the read that includes a runtime-placed record, whose flag the runtime
     exit: 3,
     where: { path: '.ia/src/systems/governance-system/records/sample-principle.ia', line: 3, identity: locator },
   });
-  expect(commandsIn(refusal.next)).toEqual([`ia read ${locator} --include-runtime --root "a b"`]);
+  expect(commandsIn(refusal.next!)).toEqual([`ia read ${locator} --include-runtime --root "a b"`]);
 });

@@ -57,13 +57,6 @@ export {
   mandateRefusal,
 } from './mandate-modes.js';
 export type { MandateAuthority, MandateCode, MandateRefusal, Mode, Move } from './mandate-modes.js';
-export {
-  READ_CODES,
-  SOURCE_LOCATORS,
-  fragmentText,
-  headingAnchor,
-  markdownSection,
-  parseLocator,
-  readBody,
-} from './locator.js';
-export type { Body, BodyResult, Locator, ReadBodyOptions, ReadCode, ReadRefusal } from './locator.js';
+// The markdown and fragment helpers stay on the ./internal/locator subpath; the root names the reader and its terms.
+export { READ_CODES, SOURCE_LOCATORS, parseLocator, readBody } from './locator.js';
+export type { Locator, ReadBody, ReadBodyOptions, ReadCode, ReadRefusal, ReadResult } from './locator.js';

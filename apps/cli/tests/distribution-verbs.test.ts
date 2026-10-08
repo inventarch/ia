@@ -22,6 +22,7 @@ import { resolve, sep } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
 import { cleanup, cli, FORMATTABLE, makeHost, packable, run, scratch, workspace } from './workspace-fixture.js';
 import { dispatch } from '../src/consumer.js';
+import { collectPlan } from '../src/distribute.js';
 import { collectDoctor } from '../src/doctor.js';
 import { quote } from '../src/render.js';
 
@@ -182,6 +183,7 @@ it('opens a --root reached through a link at its real path for every verb, and s
   for (const argv of [
     ['format', '--write'],
     ['capture'],
+    ['compile'],
     ['pack', '--descriptor', descriptor],
     ['pack', '--descriptor', descriptor, '--force'],
   ]) {
@@ -190,6 +192,7 @@ it('opens a --root reached through a link at its real path for every verb, and s
   }
   expect(readFileSync(formattable, 'utf8')).toBe(formatted);
   expect(existsSync(resolve(root, '.ia/work/snapshot/current.json'))).toBe(true);
+  expect(existsSync(resolve(root, '.ia/work/compiled.json'))).toBe(true);
   expect(readdirSync(resolve(root, '.ia/work/dist'))).toHaveLength(1);
   const env = { IA_HOME: resolve(scratch('linked-doctor-home'), '.ia') };
   const rows = async (at: string) =>
@@ -286,7 +289,7 @@ it('plans and applies an installation, an update, a restore and a removal throug
   ]);
   expect(saved.exitCode).toBe(0);
   expect(existsSync(resolve(root, '.ia/work/install-plan.json'))).toBe(true);
-  // §2.8: a saved plan must be a new file, the newness rule `ia compile` met before it became an alias of `ia capture`.
+  // §2.8: a saved plan must be a new file, which is the same newness rule `ia compile` meets.
   const twice = await run([
     'install',
     `${ID}@^0.1.0`,
@@ -448,6 +451,34 @@ it('refuses without a confirmation and without an existing installation', async 
   expect(nothing.stderr).toContain('IA-DIST-INPUT-INVALID');
   const offlineOnly = await run(['restore', '--root', root, '--offline', '--apply', '--yes']);
   expect(offlineOnly.exitCode).toBe(3);
+});
+
+it('keeps the 1.x collectPlan request form of @inventarch/cli/internal/distribute, its remedies spelled from the request', async () => {
+  // Decision release-bump: a request without `reruns` (the 1.x PlanRequest) refuses with the service's code, not a
+  // TypeError, and its next action is spelled from the request's own fields.
+  const { root } = await catalogued();
+  const request = {
+    root,
+    operation: 'update' as const,
+    ids: [ID],
+    requestsFile: undefined,
+    catalog: '.ia/work/catalog.json',
+    offline: true,
+    to: '^0.2.0',
+    allowWithdrawn: false,
+    planOut: undefined,
+    invocation: `ia update ${ID}`,
+  };
+  await expect(collectPlan(request)).rejects.toMatchObject({
+    name: 'Refusal',
+    code: 'IA-DIST-INPUT-INVALID',
+    message: 'Update requires an existing installation',
+    exit: 3,
+    next: `Run "ia install ${ID}@^0.2.0 --catalog .ia/work/catalog.json --offline" first.`,
+  });
+  await expect(collectPlan({ ...request, rooted: true })).rejects.toMatchObject({
+    next: `Run "ia install ${ID}@^0.2.0 --catalog .ia/work/catalog.json --offline --root ${quote(root)}" first.`,
+  });
 });
 
 it('separates an unreachable artifact from a refusal by exit class', async () => {

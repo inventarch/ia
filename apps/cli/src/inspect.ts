@@ -12,7 +12,7 @@ import { Refusal, requireRoot } from './consumer.js';
 import { pinnedRelease } from './host.js';
 import type { Capabilities, Field, Token } from './render.js';
 import { atom, document, entry, fieldRows, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
-import { openSession } from './session.js';
+import { identityNext, openSession } from './session.js';
 import type { Session } from './session.js';
 
 type Record_ = ReturnType<Session['reader']['records']>[number];
@@ -230,12 +230,11 @@ const recordBlocks = (
       ? entry([words(depth === 0 ? NONE_AT_DEPTH : NO_FIELD_REFERENCE[direction])], { depth: 1 }, caps)
       : fields.flatMap((row) =>
           entry(
+            // The field and its counterpart on one line, its direction, label and location on the next, so a long
+            // identity never splits them.
             [
-              [
-                atom(row.field, null, 0),
-                atom(row.counterpart, 'cyan', 2),
-                ...words(`${row.direction}, derived, ${row.source.path}:${row.source.line}`, 'dim', 2),
-              ],
+              [atom(row.field, null, 0), atom(row.counterpart, 'cyan', 2)],
+              words(`${row.direction}, derived, ${row.source.path}:${row.source.line}`, 'dim'),
             ],
             { depth: 1, symbol: 'info' },
             caps,
@@ -260,7 +259,7 @@ export function runInspect(context: Context): Result {
       `Malformed identity ${identity}; a canonical identity is system/kind/facet/name in lowercase`,
       2,
       null,
-      `Run "ia inspect${rooted}" with no argument for a workspace overview of the admitted identities.`,
+      `Run "ia inspect${rooted}" with no argument for the overview of what the workspace admits.`,
     );
 
   const session: Session = openSession(root);
@@ -280,7 +279,11 @@ export function runInspect(context: Context): Result {
         `${identity ?? path} is not admitted in this workspace`,
         1,
         identity === undefined ? { path: portable(path!) } : { path: root, identity },
-        `Run "ia validate${rooted}" to see whether the source was refused.`,
+        identity !== undefined
+          ? identityNext(reader, identity, 'inspect', rooted)
+          : reader.refused.some((record) => portable(record.path) === portable(path!))
+            ? `Run "ia validate${rooted}" to see why admission refused the records of that source.`
+            : `Run "ia inspect${rooted}" for the overview of what the workspace admits.`,
       );
 
     if (selected.length > 0) {

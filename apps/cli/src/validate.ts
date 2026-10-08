@@ -108,7 +108,9 @@ export const validationExit = (view: ValidationView): 0 | 1 => (countsOf(view.fi
 export function collectValidation(root: string): ValidationView {
   const session: Session = openSession(root);
   try {
-    const admission = session.admission();
+    // The distribution's one validation service, which `ia-distribution validate` reports as well: admission's findings
+    // and the warnings for db D02a/D02b declarations that declare nothing.
+    const admission = session.validation();
     return {
       root,
       revision: admission.revision,

@@ -1,6 +1,6 @@
 /**
- * `ia init`, `ia format` and `ia doctor` against the committed loop fixture, and the `ia.compiled.v1` builders the
- * deprecated `ia compile` keeps exporting (the verb itself is tests/capture.test.ts's).
+ * `ia init`, `ia format`, `ia compile` and `ia doctor`, against the committed loop fixture. `ia compile` is the
+ * deprecated 1.x verb, unchanged but for its one stderr line naming `ia capture` (decision release-bump).
  *
  * Every verb is exercised in its human and `--json` form and in each exit class its §2 section declares, because
  * the exit class is the part a script depends on and the part a renderer change cannot be trusted to preserve.
@@ -11,7 +11,15 @@ import { afterAll, expect, it } from 'vitest';
 import { applyHost, planHost } from '@inventarch/distribution/host';
 import { materializeHostPayload, readHostPin } from '@inventarch/distribution/host-home';
 import { json, sha256 } from '@inventarch/distribution/services';
-import { ARTIFACT, collectCompile, compileEnvelope, compileExit, DEFAULT_OUT, renderCompile } from '../src/compile.js';
+import {
+  ARTIFACT,
+  collectCompile,
+  compileEnvelope,
+  compileExit,
+  DEFAULT_OUT,
+  DEPRECATION,
+  renderCompile,
+} from '../src/compile.js';
 import { collectDoctor } from '../src/doctor.js';
 import { resolveCapabilities } from '../src/render.js';
 import { cleanup, cli, FORMATTABLE, run, scratch, workspace } from './workspace-fixture.js';
@@ -189,6 +197,84 @@ it('checks formatting by default, rewrites only with --write, and refuses a path
   const closure = await run(['format', '--root', broken]);
   expect(closure.exitCode).toBe(3);
   expect(closure.stderr).toContain('IA-DIST-CLOSURE-INCOMPLETE');
+});
+
+it('compiles a deterministic artifact, refuses to overwrite it, and never rolls not-evaluated into a pass', async () => {
+  // Decision release-bump: in 1.x `ia compile` keeps this behaviour and adds one stderr line naming `ia capture`.
+  const root = workspace();
+  const first = await run(['compile', '--root', root]);
+  expect(first.exitCode).toBe(0);
+  expect(first.stdout).toContain('ia.compiled.v1');
+  expect(first.stdout).toContain('not evaluated');
+  expect(first.stderr).toBe(DEPRECATION);
+  expect(DEPRECATION.split('\n')).toEqual([expect.stringContaining('"ia capture"'), '']);
+  const path = resolve(root, '.ia/work/compiled.json');
+  const bytes = readFileSync(path);
+  const artifact = JSON.parse(bytes.toString('utf8')) as {
+    formatVersion: number;
+    artifact: string;
+    language: string;
+    kernelDigest: string;
+    revision: string;
+    records: { identity: string }[];
+    diagnostics: { code: string }[];
+    counts: Record<string, number>;
+  };
+  expect(artifact.formatVersion).toBe(1);
+  expect(artifact.artifact).toBe('ia.compiled.v1');
+  expect(artifact.language).toBe('1.0');
+  expect(artifact.kernelDigest).toMatch(/^[0-9a-f]{64}$/);
+  expect(artifact.counts['records']).toBe(artifact.records.length);
+  // ia.compiled.v1 predates graph G13, so its records and digest stay without the per-record digest.
+  expect(artifact.records.some((record) => 'digest' in record)).toBe(false);
+  expect(artifact.counts['notEvaluated']).toBeGreaterThan(0);
+  expect(artifact.diagnostics.some((finding) => finding.code === 'IA-COMP-NOT-EVALUATED')).toBe(true);
+  // Sorted by canonical identity and serialized with sorted keys, so two runs are byte-identical.
+  expect([...artifact.records].sort((a, b) => (a.identity < b.identity ? -1 : 1))).toEqual(artifact.records);
+  expect(Object.keys(artifact)).toEqual([...Object.keys(artifact)].sort());
+  // The verb writes the 1.x artifact only; the capture's snapshot is `ia capture`'s alone.
+  expect(existsSync(resolve(root, '.ia/work/snapshot'))).toBe(false);
+
+  const again = await run(['compile', '--root', root]);
+  expect(again.exitCode).toBe(3);
+  expect(again.stderr).toContain('IA-DIST-LOCAL-MODIFICATION');
+  expect(again.stderr).toContain('--force');
+  expect(again.stderr).not.toContain(DEPRECATION.trim());
+  const forcedRun = await run(['compile', '--root', root, '--force', '--json']);
+  expect(forcedRun.stderr).toBe(DEPRECATION);
+  const forced = JSON.parse(forcedRun.stdout) as {
+    version: number;
+    artifact: string;
+    digest: string;
+    counts: Record<string, number>;
+  };
+  expect(Object.keys(forced)).toEqual(['version', 'artifact', 'revision', 'digest', 'counts']);
+  expect(forced.artifact).toBe(resolve(realpathSync(root), DEFAULT_OUT));
+  expect(readFileSync(path)).toEqual(bytes);
+  expect(forced.digest).toMatch(/^[0-9a-f]{64}$/);
+  expect(forced.counts['notEvaluated']).toBe(artifact.counts['notEvaluated']);
+
+  const outside = await run(['compile', '--root', root, '--out', '.ia/elsewhere.json']);
+  expect(outside.exitCode).toBe(3);
+  expect(outside.stderr).toContain('IA-DIST-PATH-UNSAFE');
+  expect(existsSync(resolve(root, '.ia/elsewhere.json'))).toBe(false);
+  expect((await run(['compile', '--root', root, '--out', 'x', '--stdout'])).exitCode).toBe(2);
+  const elsewhere = await run(['compile', '--root', root, '--out', '.ia/work/x.json', '--json']);
+  expect(elsewhere.exitCode).toBe(0);
+  expect(readFileSync(resolve(root, '.ia/work/x.json'))).toEqual(bytes);
+
+  const streamed = await run(['compile', '--root', root, '--stdout']);
+  expect(streamed.exitCode).toBe(0);
+  expect(streamed.stdout).toBe(bytes.toString('utf8'));
+  expect(streamed.stdout).not.toMatch(ANSI);
+  expect(streamed.stderr).toBe(DEPRECATION);
+
+  // A workspace with an error still produces an artifact; the exit class carries the verdict, not the file.
+  const broken = workspace({ foreign: true });
+  const refused = await run(['compile', '--root', broken, '--json']);
+  expect(refused.exitCode).toBe(1);
+  expect(JSON.parse(refused.stdout).counts.errors).toBeGreaterThan(0);
+  expect(existsSync(resolve(broken, '.ia/work/compiled.json'))).toBe(true);
 });
 
 it('keeps the ia.compiled.v1 builders of @inventarch/cli/internal/compile deterministic and never a pass', () => {
@@ -407,7 +493,9 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
     { argv: ['format', '--root', root, '../outside', '--json'], refusal: true },
     { argv: ['capture', '--root', root, '--json'], refusal: false },
     { argv: ['capture', '--root', root, '--json'], refusal: false },
-    { argv: ['compile', '--root', root, '--stdout', '--json'], refusal: true },
+    { argv: ['compile', '--root', root, '--json'], refusal: false },
+    { argv: ['compile', '--root', root, '--json'], refusal: true },
+    { argv: ['compile', '--root', root, '--stdout', '--json'], refusal: false },
     { argv: ['read', 'agent-system/binding/agent/agent-steward', '--root', root, '--json'], refusal: false },
     { argv: ['read', 'agent-system/binding/agent/absent', '--root', root, '--json'], refusal: true },
     { argv: ['doctor', '--json'], refusal: false },
@@ -421,9 +509,11 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
     const stream = result.stdout;
     expect(stream, argv.join(' ')).not.toMatch(ANSI);
     expect(stream.endsWith('\n'), argv.join(' ')).toBe(true);
-    expect(stream.slice(0, -1), argv.join(' ')).not.toContain('\n');
+    // One value: --stdout carries the compiled artifact, which is one JSON document rather than one line.
+    if (!argv.includes('--stdout')) expect(stream.slice(0, -1), argv.join(' ')).not.toContain('\n');
     expect(() => JSON.parse(stream), argv.join(' ')).not.toThrow();
-    expect(result.stderr, argv.join(' ')).toBe('');
+    // The deprecated `ia compile` notes its deprecation on stderr whenever it runs; a refusal prints only the refusal.
+    expect(result.stderr, argv.join(' ')).toBe(argv[0] === 'compile' && !refusal ? DEPRECATION : '');
     if (refusal) expect(JSON.parse(stream), argv.join(' ')).toMatchObject({ version: 1, ok: false });
   }
 });

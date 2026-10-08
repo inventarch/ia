@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { expect, it, vi } from 'vitest';
@@ -101,6 +102,28 @@ it('preserves unavailable-root errors instead of fabricating an empty workspace'
   const got = await run(['records', '--root', resolve(fixture, 'absent')]);
   expect(got.status).toBe(1);
   expect(JSON.parse(got.stdout).code).toBe('IA-DB-ROOT-INVALID');
+});
+it('answers a manifest with two faulty bindings with the first one, as 1.1 did, on every frozen route', () => {
+  // `.ia/workspace.json` binding 1 has no source tree and binding 2 repeats its id: 1.1 read binding 1 before it
+  // validated binding 2, so every route reports the missing tree, never the duplicate (db D01, inputs.ts bindings).
+  const workspace = mkdtempSync(resolve(tmpdir(), 'ia-cli-bindings-'));
+  try {
+    mkdirSync(resolve(workspace, '.ia/src'), { recursive: true });
+    const entry = { id: 'lib', path: 'vendor/lib', revision: 'a'.repeat(64) };
+    writeFileSync(resolve(workspace, '.ia/workspace.json'), JSON.stringify({ version: 1, adopted: [entry, entry] }));
+    const expected = `${JSON.stringify({
+      ok: false,
+      code: 'IA-DB-SOURCE-UNAVAILABLE',
+      message: 'IA-DB-SOURCE-UNAVAILABLE: .ia/workspace.json: Missing source tree for lib',
+    })}\n`;
+    for (const operation of MACHINE_PROTOCOL.operations.map((row) => row.name))
+      expect(runCli([operation, '--root', workspace, '--params', '{}']), operation).toEqual({
+        exitCode: 1,
+        stdout: expected,
+      });
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
 });
 
 it('unwinds a pending stdin read on the first signal and forces exit only on the second', async () => {

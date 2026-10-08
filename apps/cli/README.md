@@ -1,6 +1,6 @@
 # @inventarch/cli
 
-The IA 1.1.0 command-line interface creates workspaces, validates, inspects, reads and captures native records, and manages native distributions and host registrations. It requires Node.js 22.22.0 or later within Node 22.
+The IA 1.1.0 command-line interface creates workspaces, validates, inspects, reads and captures native records, compiles artifacts, and manages native distributions and host registrations. It requires Node.js 22.22.0 or later within Node 22.
 
 Install the [published package](https://www.npmjs.com/package/@inventarch/cli) globally with `npm install --global @inventarch/cli@1.1.0` to use `ia` across projects. For a project-local installation, run `npm install --save-dev --save-exact @inventarch/cli@1.1.0` in your JavaScript or TypeScript repository and use `npx ia` in place of `ia`. Either way, each initialized project keeps its own records in `.ia/`.
 
@@ -19,7 +19,7 @@ ia vocabulary plan --schema
 
 `init` previews changes unless `--apply` is supplied. Its language base, `inventarch/language` 1.1.0, is bundled with the CLI, so creating a workspace needs no registry connection. Place authored `.ia` files in the generated `.ia/src/systems/demo/` directory. The starter system already requires the agent, work and workspace vocabularies, and its `@workspace` record composes the eleven public systems.
 
-`ia capture` writes the admitted snapshot, with each record's digest and capture membership, to `.ia/work/snapshot/current.json` and keeps the most recent capture at another revision as `previous.json`; it reports how many records changed since the prior capture. `ia compile` is a deprecated alias of `ia capture`, kept for 2.x and removed in 3.0.
+`ia capture` writes the admitted snapshot, with each record's digest and capture membership, to `.ia/work/snapshot/current.json` and keeps the most recent capture at another revision as `previous.json`; it reports how many records changed since the prior capture. It refuses, writing nothing, a directory whose `.ia/src` declares no `@workspace` and a floor, installed or adopted source that fails to parse; any other finding is written into the snapshot. `ia compile` still writes the 1.x `ia.compiled.v1` artifact, unchanged, and is deprecated in favour of `ia capture`: it prints one deprecation line on stderr, and in 2.0 it becomes an alias of `ia capture`.
 
 `ia read <locator>` prints the body behind a locator with its SHA-256 and the line `body not certified by this read`: the text of one cell (`<identity>#<phase>/<Primitive>`) or one requirement (`<identity>#<REQ-ID>`); else the document a record's source locator names (`work.source` on a `@spec`, `@plan` or `@task`, `reference.document`, `template.resource`), only the section under its heading when the locator carries a markdown anchor, and for an adopted record from the directory `.ia/workspace.json` binds its mount to; else the record's own `meaning.says`. `<path>:<line>` reads the record whose source spans that line. It writes nothing, and `ia inspect` keeps the record's structure.
 

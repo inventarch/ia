@@ -129,6 +129,36 @@ it('refuses unknown fields, duplicate bindings, invalid revisions and missing tr
   mkdirSync(resolve(directory, '.ia/workspace.json'), { recursive: true });
   expect(() => readInputs(directory)).toThrow('regular manifest');
 });
+it('refuses with the first faulty binding, its read-time fault included, before a later binding is validated', () => {
+  // The order 1.x discovery refused in, which the frozen Door routes and `ia scope` report: binding 1 is read before
+  // binding 2 is validated, so binding 1's link, pin or missing tree answers before binding 2's syntax fault.
+  const { root, entry } = fixture();
+  symlinkSync(resolve(root, path), resolve(root, 'alias'), process.platform === 'win32' ? 'junction' : 'dir');
+  const cases: readonly (readonly [readonly unknown[], string, string])[] = [
+    [[{ ...entry, path: 'alias' }, entry], 'IA-DB-PATH-UNSAFE', 'Symlink/junction traversal is not admitted'],
+    [
+      [
+        { ...entry, revision: 'f'.repeat(64) },
+        { ...entry, id: 'BAD', path: 'other' },
+      ],
+      'IA-DB-SOURCE-UNAVAILABLE',
+      '.ia/workspace.json: Pinned source revision differs for foundation',
+    ],
+    [
+      [{ ...entry, path: 'missing' }, entry],
+      'IA-DB-SOURCE-UNAVAILABLE',
+      '.ia/workspace.json: Missing source tree for foundation',
+    ],
+  ];
+  for (const [adopted, code, message] of cases) {
+    put(root, '.ia/workspace.json', JSON.stringify({ version: 1, adopted }));
+    expect(() => readInputs(root), message).toThrow(expect.objectContaining({ code }));
+    expect(() => readInputs(root), message).toThrow(message);
+  }
+  // adoptedBindings validates every binding and reads none, so the later syntax fault is the one it reports.
+  put(root, '.ia/workspace.json', JSON.stringify({ version: 1, adopted: [{ ...entry, path: 'missing' }, entry] }));
+  expect(() => adoptedBindings(root)).toThrow('Duplicate source identity or directory');
+});
 it('names each binding with the tree label its sources carry, and refuses a manifest as discovery does', () => {
   const { root, entry } = fixture();
   const bindings = adoptedBindings(root),

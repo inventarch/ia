@@ -5,16 +5,9 @@ import { expect, it } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
 import { readInputs } from '@inventarch/db';
 import type { Location } from '@inventarch/language';
-import {
-  READ_CODES,
-  RUNTIME_CODES,
-  SOURCE_LOCATORS,
-  headingAnchor,
-  markdownSection,
-  parseLocator,
-  readBody,
-} from '../src/index.js';
-import type { BodyResult, ReadBodyOptions } from '../src/index.js';
+import { READ_CODES, RUNTIME_CODES, SOURCE_LOCATORS, parseLocator, readBody } from '../src/index.js';
+import type { ReadBodyOptions, ReadResult } from '../src/index.js';
+import { headingAnchor, markdownSection } from '../src/locator.js';
 import { database, methodId, playbook, put, workspace } from './workspace.js';
 
 const sha256 = (bytes: string | Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
@@ -68,6 +61,7 @@ const RECORD_TEXT = [
   record('spec', 'absent-spec', '    title "Absent"\n    status draft\n    source "docs/absent.md"\n'),
   record('spec', 'escaping-spec', '    title "Escaping"\n    status draft\n    source "../outside.md"\n'),
   record('spec', 'absolute-spec', '    title "Absolute"\n    status draft\n    source "/etc/hosts"\n'),
+  record('spec', 'url-spec', '    title "Remote"\n    status draft\n    source "https://example.com/spec.md"\n'),
   record('spec', 'binary-spec', '    title "Binary"\n    status draft\n    source "docs/binary.md"\n'),
   record('spec', 'fileless-spec', '    title "Fileless"\n    status draft\n    source "#spec"\n'),
   record('spec', 'upper-spec', '    title "Upper"\n    status draft\n    source "docs/UPPER.MD#upper"\n'),
@@ -115,7 +109,7 @@ function located(): { readonly root: string; readonly options: ReadBodyOptions; 
     },
   };
 }
-const body = (result: BodyResult) => {
+const body = (result: ReadResult) => {
   if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
   return result.body;
 };
@@ -306,15 +300,21 @@ it('reads the record whose source span holds a line, the innermost one, and refu
       line,
       file: 'admitted',
     });
-  // A file that holds no record of the workspace's sources, or is outside the workspace, says so.
-  for (const [locator, path] of [
-    ['.ia/src/systems/agent-system/absent.ia:3', '.ia/src/systems/agent-system/absent.ia'],
-    ['../outside.ia:3', '../outside.ia'],
+  // A file that holds no record of the workspace's sources says so, and a path outside the workspace, or one not
+  // relative to its root, says that.
+  for (const [locator, path, why] of [
+    [
+      '.ia/src/systems/agent-system/absent.ia:3',
+      '.ia/src/systems/agent-system/absent.ia',
+      "no record of this workspace's sources is in .ia/src/systems/agent-system/absent.ia",
+    ],
+    ['../outside.ia:3', '../outside.ia', '../outside.ia is not a path relative to the workspace root'],
+    ['/abs/outside.ia:3', '/abs/outside.ia', '/abs/outside.ia is not a path relative to the workspace root'],
   ] as const)
     expect(readBody(db, locator, options), locator).toEqual({
       ok: false,
       code: 'IA-RUNTIME-READ-UNADMITTED',
-      message: `No admitted record spans ${path}:3; no record of this workspace's sources is in ${path}`,
+      message: `No admitted record spans ${path}:3; ${why}`,
       path,
       line: 3,
     });
@@ -430,7 +430,9 @@ it('refuses an unreachable locator: a missing file or anchor, an anchor outside 
   // No path escape: a locator outside the workspace never reaches the host's reader.
   unreachable('escaping-spec', '../outside.md', 'is outside the workspace');
   unreachable('absolute-spec', '/etc/hosts', 'is outside the workspace');
-  expect(asked.some((path) => path.includes('outside') || path.includes('hosts'))).toBe(false);
+  // A URL is no workspace path: it is not canonicalized into one, and nothing is fetched or read.
+  unreachable('url-spec', 'https://example.com/spec.md', 'is a URL, and a read fetches nothing');
+  expect(asked.some((path) => /outside|hosts|example/.test(path))).toBe(false);
 });
 
 it('reads the authoring guide reference and the template resource of an adopted mount from the directory bound to it', () => {

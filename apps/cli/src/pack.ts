@@ -15,7 +15,7 @@ import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
 import { packToDirectory, readWorkspaceFile, replace } from '@inventarch/distribution/services';
 import type { PackedArchive } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
-import { Refusal, requireRoot } from './consumer.js';
+import { Refusal, requireRoot, respell } from './consumer.js';
 import { codeOf } from './session.js';
 import type { Capabilities } from './render.js';
 import { atom, document, entry, fieldRows, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
@@ -174,15 +174,31 @@ function forced(descriptor: string, out: string | undefined, root: string | unde
 
 export function runPack(context: Context): Result {
   const { args, caps, json } = context;
-  const root = requireRoot(context);
-  const view = collectPack(
-    root,
-    context.host.cwd,
-    args.value('descriptor')!,
-    args.value('out'),
-    args.flag('force'),
-    forced(args.value('descriptor')!, args.value('out'), args.value('root')),
-  );
+  const root = requireRoot(context),
+    descriptor = args.value('descriptor')!;
+  let view: PackView;
+  try {
+    view = collectPack(
+      root,
+      context.host.cwd,
+      descriptor,
+      args.value('out'),
+      args.flag('force'),
+      forced(descriptor, args.value('out'), args.value('root')),
+    );
+  } catch (error) {
+    // A descriptor that is not there names the pack with the one value to correct; the code and message are the
+    // service's (§4.1), and `ia doctor`, which reads no descriptor, would be no remedy.
+    const message = error instanceof Error ? error.message : String(error);
+    if (codeOf(error, '') !== 'IA-DIST-INPUT-INVALID' || !message.endsWith(`Missing input ${descriptor}`)) throw error;
+    throw new Refusal(
+      'IA-DIST-INPUT-INVALID',
+      message,
+      3,
+      null,
+      `Run "${respell(context, { options: { descriptor: ['<file>'] } })}" naming an existing descriptor.`,
+    );
+  }
   // §2.7: packing has no "ran correctly, bad result" state, so this verb never returns 1.
   return json
     ? { exitCode: 0, stdout: JSON.stringify(packEnvelope(view)) + '\n', stderr: '' }

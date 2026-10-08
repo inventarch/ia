@@ -67,7 +67,7 @@ export interface ReadBodyOptions {
   /** Read a record at runtime placement (band 0), which is refused otherwise. */
   readonly includeRuntime?: boolean;
 }
-export interface Body {
+export interface ReadBody {
   /** The locator as given. */
   readonly locator: string;
   readonly identity: string;
@@ -96,11 +96,11 @@ export interface ReadRefusal {
   /**
    * For a line no admitted record spans, what the workspace's sources hold in its file: `refused` when admission
    * refused records there, else `admitted` when admitted records there span other lines. Absent when no record of the
-   * workspace's sources is in that file.
+   * workspace's sources is in that file. For an identity, `refused` when a source holds it and admission refused it.
    */
   readonly file?: 'admitted' | 'refused';
 }
-export type BodyResult = { readonly ok: true; readonly body: Body } | ReadRefusal;
+export type ReadResult = { readonly ok: true; readonly body: ReadBody } | ReadRefusal;
 
 const IDENTITY = /^[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*$/;
 const LINE = /^(.+):([1-9][0-9]*)$/;
@@ -223,7 +223,7 @@ const refuse = (code: ReadCode, message: string, where: Omit<ReadRefusal, 'ok' |
  * A document path is read relative to the record's tree (db `sourceTree`): the workspace root for its own `.ia/src`,
  * a package or installed store directory as it is, and for an adopted mount the directory `mounts` binds its label to.
  */
-export function readBody(handle: ReadHandle, locator: string, options: ReadBodyOptions): BodyResult {
+export function readBody(handle: ReadHandle, locator: string, options: ReadBodyOptions): ReadResult {
   const parsed = parseLocator(locator);
   if (parsed === undefined)
     throw new RuntimeError(
@@ -256,13 +256,24 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
             ? `admission refused records of ${at}`
             : file === 'admitted'
               ? `the admitted records of ${at} span other lines`
-              : `no record of this workspace's sources is in ${at}`
+              : path === undefined
+                ? `${parsed.path} is not a path relative to the workspace root`
+                : `no record of this workspace's sources is in ${at}`
         }`,
         { path: at, line: parsed.line, ...(file === undefined ? {} : { file }) },
       );
     }
   } else {
     node = handle.get(parsed.identity);
+    // A source holding the identity whose record admission refused is in the workspace's sources; only an identity no
+    // source holds is not.
+    const refused = node === undefined ? handle.refused.find((r) => r.identity === parsed.identity) : undefined;
+    if (refused !== undefined)
+      return refuse(
+        'IA-RUNTIME-READ-UNADMITTED',
+        `${parsed.identity} is in this workspace's sources, but admission refused it`,
+        { identity: parsed.identity, path: refused.path, line: refused.line, file: 'refused' },
+      );
     if (node === undefined)
       return refuse('IA-RUNTIME-READ-UNADMITTED', `${parsed.identity} is not in this workspace's sources`, {
         identity: parsed.identity,
@@ -275,7 +286,7 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
       `${identity} is at runtime placement (band 0), which a read includes only when asked to`,
       { identity, path: node.source.path, line: node.source.line },
     );
-  const found = (kind: Body['kind'], body: string, path?: string): BodyResult =>
+  const found = (kind: ReadBody['kind'], body: string, path?: string): ReadResult =>
     freeze({
       ok: true,
       body: {
@@ -309,6 +320,8 @@ export function readBody(handle: ReadHandle, locator: string, options: ReadBodyO
       identity,
       ...(path === undefined ? {} : { path }),
     });
+  // A scheme names a resource a read never fetches; it is no workspace path, so it is not canonicalized into one.
+  if (/^[A-Za-z][A-Za-z0-9+.-]+:/.test(file)) return unreachable('is a URL, and a read fetches nothing');
   let relative: string;
   try {
     relative = canonicalRoot(file);
