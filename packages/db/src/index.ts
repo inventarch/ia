@@ -3,6 +3,7 @@ export type { DbCode } from './errors.js';
 export { adoptedBindings, readInputs, systemMember } from './inputs.js';
 export { caseFold, linked, pathKey, sameFile, unaliased, within } from './paths.js';
 export type { AdoptedBinding, AdoptedSource, FloorSource, InputOptions, InputSnapshot } from './inputs.js';
+export { readWorkspaceBytes } from './inputs.js';
 export { open, Handle } from './handle.js';
 export type {
   OpenOptions,

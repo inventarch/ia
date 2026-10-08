@@ -1,3 +1,7 @@
 # @inventarch/mcp-door
 
 See [the package contract](SPEC.md) and the exported TypeScript declarations.
+
+`ia-mcp-door [--root <workspace>]` serves read-only MCP 2025-11-25 tools over one workspace root, as UTF-8 JSON-RPC lines on stdin and stdout. `tools/list` projects `MACHINE_PROTOCOL` from `@inventarch/runtime`: one tool per Door operation whose row names one, with the row's parameter schema as its `inputSchema` (`ia_context` adds the transport-only `format`), plus `ia_vocabulary`, which reads the catalogue shipped with the server and no workspace. That is ten tools: `ia_scope`, `ia_context`, `ia_select`, `ia_get`, `ia_records`, `ia_resolve`, `ia_search` and `ia_traverse` from protocol version 1, `ia_read` from version 2, and `ia_vocabulary`. `report` is CLI-only. A scope token lives as long as the server process, so a token `ia_scope` issues narrows later calls.
+
+`ia_read` returns the body behind one locator (`<identity>`, `<identity>#<phase>/<Primitive>`, `<identity>#<REQ-ID>` or `<path>:<line>`) inside the scope, with the SHA-256 of its UTF-8 bytes and `certified: false`: a fragment's text, else the document the record's source locator names, read from the workspace or, for an adopted mount, from the directory `.ia/workspace.json` binds it to, else the record's own body. A locator that no admitted record in the scope answers is refused as `IA-RUNTIME-READ-UNADMITTED` without naming what lies outside the scope. Pass `includeRuntime: true` to read a record at runtime placement.

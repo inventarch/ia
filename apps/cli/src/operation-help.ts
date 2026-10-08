@@ -9,13 +9,19 @@ import type { Capabilities } from './render.js';
 import { atom, document, entry, fieldRows, MAX_WIDTH, sectionLabel, words } from './render.js';
 
 const PLAIN: Capabilities = { color: false, ascii: true, width: MAX_WIDTH };
+/**
+ * Plan amendment A2: the machine routes are the version 1 operations, described at version 1 as 1.1.0 described them.
+ * An operation a later version adds (`since`) is the Door's and the MCP door's, and a consumer verb here, so it has no
+ * route, help or schema on this one.
+ */
+const ROUTE_VERSION = 1;
 /** spec-0012 CLI-05: asks for the operation's description as JSON rather than as help text. */
 export const SCHEMA_TOKEN = '--schema';
 export const describeOperation = (name: string): ProtocolOperation | undefined =>
-  MACHINE_PROTOCOL.operations.find((operation) => operation.name === name);
+  MACHINE_PROTOCOL.operations.find((operation) => operation.since === undefined && operation.name === name);
 /** CLI-05: one JSON line, the same object the MCP door's input schema is derived from. */
 export const renderOperationSchema = (operation: ProtocolOperation): string =>
-  JSON.stringify({ version: MACHINE_PROTOCOL.version, ...operation }) + '\n';
+  JSON.stringify({ version: ROUTE_VERSION, ...operation }) + '\n';
 type Schema = Readonly<Record<string, unknown>>;
 /** A JSON Schema fragment spelled for a reader: `string`, `array of string`, `integer 0-8`, `one of a | b`, `{a, b}`. */
 export function typeText(schema: Schema): string {
@@ -85,7 +91,7 @@ export function renderOperationHelp(operation: ProtocolOperation): string {
     entry(
       [
         words(
-          `Machine protocol v${MACHINE_PROTOCOL.version}: JSON in, one JSON line out, no color. ${operation.mcp === null ? 'The MCP door does not serve it.' : `MCP tool: ${operation.mcp}.`}`,
+          `Machine protocol v${ROUTE_VERSION}: JSON in, one JSON line out, no color. ${operation.mcp === null ? 'The MCP door does not serve it.' : `MCP tool: ${operation.mcp}.`}`,
         ),
       ],
       { depth: 0 },
