@@ -1,0 +1,1284 @@
+{
+  "examples": {
+    "scope": [
+      ".ok",
+      ".result",
+      ".result.revision",
+      ".result.root",
+      ".result.token"
+    ],
+    "context": [
+      ".ok",
+      ".result",
+      ".result.coordinate",
+      ".result.coordinate.focus",
+      ".result.coordinate.focus.kinds",
+      ".result.coordinate.focus.lanes",
+      ".result.coordinate.focus.predicates",
+      ".result.coordinate.sources",
+      ".result.coordinate.sources.artifact-set",
+      ".result.coordinate.sources.category",
+      ".result.coordinate.sources.kind",
+      ".result.coordinate.sources.lane",
+      ".result.coordinate.sources.move",
+      ".result.coordinate.sources.phase",
+      ".result.coordinate.sources.predicate",
+      ".result.coordinate.sources.primitive",
+      ".result.coordinate.sources.provenance",
+      ".result.coordinate.sources.severity",
+      ".result.coordinate.sources.shape",
+      ".result.coordinate.values",
+      ".result.coordinate.values.category",
+      ".result.coordinate.values.phase",
+      ".result.coordinate.values.primitive",
+      ".result.coordinate.values.shape",
+      ".result.dangling",
+      ".result.followed",
+      ".result.followed[].assertions",
+      ".result.followed[].assertions[].author",
+      ".result.followed[].assertions[].direction",
+      ".result.followed[].assertions[].reference",
+      ".result.followed[].assertions[].reference.discriminator",
+      ".result.followed[].assertions[].reference.fragment",
+      ".result.followed[].assertions[].reference.kind",
+      ".result.followed[].assertions[].reference.name",
+      ".result.followed[].assertions[].source",
+      ".result.followed[].assertions[].source.endLine",
+      ".result.followed[].assertions[].source.line",
+      ".result.followed[].assertions[].source.path",
+      ".result.followed[].author",
+      ".result.followed[].conditionSubject",
+      ".result.followed[].fragment",
+      ".result.followed[].fragmentEndpoint",
+      ".result.followed[].from",
+      ".result.followed[].predicate",
+      ".result.followed[].reference",
+      ".result.followed[].reference.discriminator",
+      ".result.followed[].reference.fragment",
+      ".result.followed[].reference.kind",
+      ".result.followed[].reference.name",
+      ".result.followed[].source",
+      ".result.followed[].source.endLine",
+      ".result.followed[].source.line",
+      ".result.followed[].source.path",
+      ".result.followed[].to",
+      ".result.gated",
+      ".result.included",
+      ".result.included[].address",
+      ".result.included[].band",
+      ".result.included[].citations",
+      ".result.included[].citations[].endLine",
+      ".result.included[].citations[].line",
+      ".result.included[].citations[].path",
+      ".result.included[].clauses",
+      ".result.included[].clauses[].citation",
+      ".result.included[].clauses[].citation.endLine",
+      ".result.included[].clauses[].citation.line",
+      ".result.included[].clauses[].citation.path",
+      ".result.included[].clauses[].key",
+      ".result.included[].clauses[].text",
+      ".result.included[].identity",
+      ".result.included[].kind",
+      ".result.included[].score",
+      ".result.included[].severity",
+      ".result.included[].step",
+      ".result.included[].text",
+      ".result.included[].why",
+      ".result.limits",
+      ".result.limits.envelopeBytes",
+      ".result.limits.estimator",
+      ".result.limits.records",
+      ".result.limits.recordsUsed",
+      ".result.limits.tokens",
+      ".result.limits.tokensUsed",
+      ".result.omitted",
+      ".result.omitted[].address",
+      ".result.omitted[].detail",
+      ".result.omitted[].reason",
+      ".result.revision",
+      ".result.scope",
+      ".result.scope.phase",
+      ".result.scope.revision",
+      ".result.scope.root",
+      ".result.scope.token"
+    ],
+    "select": [
+      ".ok",
+      ".result",
+      ".result.entry",
+      ".result.entry.address",
+      ".result.entry.band",
+      ".result.entry.citations",
+      ".result.entry.citations[].endLine",
+      ".result.entry.citations[].line",
+      ".result.entry.citations[].path",
+      ".result.entry.identity",
+      ".result.entry.kind",
+      ".result.entry.score",
+      ".result.entry.step",
+      ".result.entry.text",
+      ".result.entry.why",
+      ".result.revision",
+      ".result.scope",
+      ".result.scope.phase",
+      ".result.scope.revision",
+      ".result.scope.root",
+      ".result.scope.token"
+    ],
+    "get": [
+      ".ok",
+      ".result",
+      ".result.band",
+      ".result.cells",
+      ".result.cells[].phase",
+      ".result.cells[].primary",
+      ".result.cells[].primitive",
+      ".result.cells[].span",
+      ".result.cells[].span.endLine",
+      ".result.cells[].span.line",
+      ".result.cells[].text",
+      ".result.dimensions",
+      ".result.dimensions.provenance",
+      ".result.discriminator",
+      ".result.displayName",
+      ".result.edges",
+      ".result.edges[].direction",
+      ".result.edges[].predicate",
+      ".result.edges[].reference",
+      ".result.edges[].reference.discriminator",
+      ".result.edges[].reference.kind",
+      ".result.edges[].reference.name",
+      ".result.edges[].span",
+      ".result.edges[].span.endLine",
+      ".result.edges[].span.line",
+      ".result.edges[].target",
+      ".result.facet",
+      ".result.head",
+      ".result.identity",
+      ".result.kind",
+      ".result.name",
+      ".result.placement",
+      ".result.placement.band",
+      ".result.placement.kind",
+      ".result.placement.reach",
+      ".result.provenance",
+      ".result.reach",
+      ".result.requirements",
+      ".result.schema",
+      ".result.sections",
+      ".result.sections[].fields",
+      ".result.sections[].fields[].fields",
+      ".result.sections[].fields[].fields[].key",
+      ".result.sections[].fields[].fields[].span",
+      ".result.sections[].fields[].fields[].span.endLine",
+      ".result.sections[].fields[].fields[].span.line",
+      ".result.sections[].fields[].fields[].value",
+      ".result.sections[].fields[].fields[].value.kind",
+      ".result.sections[].fields[].fields[].value.text",
+      ".result.sections[].fields[].key",
+      ".result.sections[].fields[].span",
+      ".result.sections[].fields[].span.endLine",
+      ".result.sections[].fields[].span.line",
+      ".result.sections[].fields[].value",
+      ".result.sections[].fields[].value.discriminator",
+      ".result.sections[].fields[].value.kind",
+      ".result.sections[].fields[].value.name",
+      ".result.sections[].fields[].value.text",
+      ".result.sections[].fields[].when",
+      ".result.sections[].name",
+      ".result.sections[].span",
+      ".result.sections[].span.endLine",
+      ".result.sections[].span.line",
+      ".result.selectors",
+      ".result.selectors[][].axis",
+      ".result.selectors[][].value",
+      ".result.source",
+      ".result.source.endLine",
+      ".result.source.line",
+      ".result.source.path",
+      ".result.system",
+      ".result.variants"
+    ],
+    "records": [
+      ".ok",
+      ".result",
+      ".result.records",
+      ".result.records[].band",
+      ".result.records[].cells",
+      ".result.records[].cells[].phase",
+      ".result.records[].cells[].primary",
+      ".result.records[].cells[].primitive",
+      ".result.records[].cells[].span",
+      ".result.records[].cells[].span.endLine",
+      ".result.records[].cells[].span.line",
+      ".result.records[].cells[].text",
+      ".result.records[].dimensions",
+      ".result.records[].dimensions.provenance",
+      ".result.records[].dimensions.severity",
+      ".result.records[].discriminator",
+      ".result.records[].displayName",
+      ".result.records[].edges",
+      ".result.records[].edges[].condition",
+      ".result.records[].edges[].condition[].axis",
+      ".result.records[].edges[].condition[].value",
+      ".result.records[].edges[].direction",
+      ".result.records[].edges[].fragment",
+      ".result.records[].edges[].predicate",
+      ".result.records[].edges[].reference",
+      ".result.records[].edges[].reference.discriminator",
+      ".result.records[].edges[].reference.fragment",
+      ".result.records[].edges[].reference.kind",
+      ".result.records[].edges[].reference.name",
+      ".result.records[].edges[].span",
+      ".result.records[].edges[].span.endLine",
+      ".result.records[].edges[].span.line",
+      ".result.records[].edges[].target",
+      ".result.records[].facet",
+      ".result.records[].head",
+      ".result.records[].head[].key",
+      ".result.records[].head[].span",
+      ".result.records[].head[].span.endLine",
+      ".result.records[].head[].span.line",
+      ".result.records[].head[].value",
+      ".result.records[].head[].value.discriminator",
+      ".result.records[].head[].value.kind",
+      ".result.records[].head[].value.name",
+      ".result.records[].head[].value.text",
+      ".result.records[].identity",
+      ".result.records[].kind",
+      ".result.records[].name",
+      ".result.records[].placement",
+      ".result.records[].placement.band",
+      ".result.records[].placement.kind",
+      ".result.records[].placement.reach",
+      ".result.records[].provenance",
+      ".result.records[].reach",
+      ".result.records[].requirements",
+      ".result.records[].requirements[].id",
+      ".result.records[].requirements[].kind",
+      ".result.records[].requirements[].span",
+      ".result.records[].requirements[].span.endLine",
+      ".result.records[].requirements[].span.line",
+      ".result.records[].requirements[].text",
+      ".result.records[].schema",
+      ".result.records[].sections",
+      ".result.records[].sections[].fields",
+      ".result.records[].sections[].fields[].fields",
+      ".result.records[].sections[].fields[].fields[].item",
+      ".result.records[].sections[].fields[].fields[].item.kind",
+      ".result.records[].sections[].fields[].fields[].item.text",
+      ".result.records[].sections[].fields[].fields[].key",
+      ".result.records[].sections[].fields[].fields[].span",
+      ".result.records[].sections[].fields[].fields[].span.endLine",
+      ".result.records[].sections[].fields[].fields[].span.line",
+      ".result.records[].sections[].fields[].fields[].value",
+      ".result.records[].sections[].fields[].fields[].value.discriminator",
+      ".result.records[].sections[].fields[].fields[].value.items",
+      ".result.records[].sections[].fields[].fields[].value.items[].kind",
+      ".result.records[].sections[].fields[].fields[].value.items[].text",
+      ".result.records[].sections[].fields[].fields[].value.kind",
+      ".result.records[].sections[].fields[].fields[].value.name",
+      ".result.records[].sections[].fields[].fields[].value.text",
+      ".result.records[].sections[].fields[].item",
+      ".result.records[].sections[].fields[].item.kind",
+      ".result.records[].sections[].fields[].item.text",
+      ".result.records[].sections[].fields[].key",
+      ".result.records[].sections[].fields[].span",
+      ".result.records[].sections[].fields[].span.endLine",
+      ".result.records[].sections[].fields[].span.line",
+      ".result.records[].sections[].fields[].value",
+      ".result.records[].sections[].fields[].value.discriminator",
+      ".result.records[].sections[].fields[].value.fragment",
+      ".result.records[].sections[].fields[].value.items",
+      ".result.records[].sections[].fields[].value.items[].discriminator",
+      ".result.records[].sections[].fields[].value.items[].kind",
+      ".result.records[].sections[].fields[].value.items[].name",
+      ".result.records[].sections[].fields[].value.items[].text",
+      ".result.records[].sections[].fields[].value.kind",
+      ".result.records[].sections[].fields[].value.name",
+      ".result.records[].sections[].fields[].value.text",
+      ".result.records[].sections[].fields[].when",
+      ".result.records[].sections[].name",
+      ".result.records[].sections[].span",
+      ".result.records[].sections[].span.endLine",
+      ".result.records[].sections[].span.line",
+      ".result.records[].selectors",
+      ".result.records[].selectors[][].axis",
+      ".result.records[].selectors[][].value",
+      ".result.records[].source",
+      ".result.records[].source.endLine",
+      ".result.records[].source.line",
+      ".result.records[].source.path",
+      ".result.records[].system",
+      ".result.records[].variants",
+      ".result.records[].variants[].condition",
+      ".result.records[].variants[].condition[].axis",
+      ".result.records[].variants[].condition[].value",
+      ".result.records[].variants[].key",
+      ".result.records[].variants[].span",
+      ".result.records[].variants[].span.endLine",
+      ".result.records[].variants[].span.line",
+      ".result.records[].variants[].value",
+      ".result.records[].variants[].value.items",
+      ".result.records[].variants[].value.items[].kind",
+      ".result.records[].variants[].value.items[].text",
+      ".result.records[].variants[].value.kind",
+      ".result.records[].variants[].value.text",
+      ".result.revision",
+      ".result.root",
+      ".result.systems"
+    ],
+    "resolve": [
+      ".ok",
+      ".result",
+      ".result.identity",
+      ".result.ok"
+    ],
+    "search": [
+      ".ok",
+      ".result",
+      ".result[].identity",
+      ".result[].score",
+      ".result[].terms"
+    ],
+    "traverse": [
+      ".ok",
+      ".result",
+      ".result.dangling",
+      ".result.edges",
+      ".result.edges[].assertions",
+      ".result.edges[].assertions[].author",
+      ".result.edges[].assertions[].direction",
+      ".result.edges[].assertions[].reference",
+      ".result.edges[].assertions[].reference.discriminator",
+      ".result.edges[].assertions[].reference.kind",
+      ".result.edges[].assertions[].reference.name",
+      ".result.edges[].assertions[].source",
+      ".result.edges[].assertions[].source.endLine",
+      ".result.edges[].assertions[].source.line",
+      ".result.edges[].assertions[].source.path",
+      ".result.edges[].author",
+      ".result.edges[].conditionSubject",
+      ".result.edges[].from",
+      ".result.edges[].predicate",
+      ".result.edges[].reference",
+      ".result.edges[].reference.discriminator",
+      ".result.edges[].reference.kind",
+      ".result.edges[].reference.name",
+      ".result.edges[].source",
+      ".result.edges[].source.endLine",
+      ".result.edges[].source.line",
+      ".result.edges[].source.path",
+      ".result.edges[].to",
+      ".result.gated",
+      ".result.nodes",
+      ".result.nodes[].depth",
+      ".result.nodes[].identity",
+      ".result.via",
+      ".result.via[].direction",
+      ".result.via[].from",
+      ".result.via[].predicate",
+      ".result.via[].target"
+    ],
+    "report": [
+      ".ok",
+      ".result",
+      ".result.findings",
+      ".result.findings[].code",
+      ".result.findings[].identity",
+      ".result.findings[].line",
+      ".result.findings[].message",
+      ".result.findings[].path",
+      ".result.findings[].severity",
+      ".result.outcome",
+      ".result.revision",
+      ".result.shadows",
+      ".result.verdicts",
+      ".result.verdicts[].check",
+      ".result.verdicts[].findings",
+      ".result.verdicts[].findings[].code",
+      ".result.verdicts[].findings[].identity",
+      ".result.verdicts[].findings[].line",
+      ".result.verdicts[].findings[].message",
+      ".result.verdicts[].findings[].path",
+      ".result.verdicts[].findings[].severity",
+      ".result.verdicts[].outcome",
+      ".result.verdicts[].revision",
+      ".result.verdicts[].scope"
+    ]
+  },
+  "answers": [
+    {
+      "operation": "traverse",
+      "params": {
+        "start": [
+          "governance-system/governance/law/sample-rule"
+        ],
+        "follow": [
+          "enforced-by"
+        ],
+        "depth": 1,
+        "coordinate": {
+          "phase": "plan"
+        }
+      },
+      "answer": {
+        "ok": true,
+        "result": {
+          "nodes": [
+            {
+              "identity": "governance-system/governance/law/sample-rule",
+              "depth": 0
+            }
+          ],
+          "via": [],
+          "edges": [],
+          "gated": [
+            {
+              "from": "compliance-system/check/gate/instance-schema-check",
+              "predicate": "enforce",
+              "to": "governance-system/governance/law/sample-rule",
+              "author": "governance-system/governance/law/sample-rule",
+              "reference": {
+                "kind": "ref",
+                "discriminator": "check",
+                "name": "instance-schema-check"
+              },
+              "conditionSubject": "governance-system/governance/law/sample-rule",
+              "source": {
+                "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+                "line": 13,
+                "endLine": 13
+              },
+              "condition": [
+                {
+                  "axis": "phase",
+                  "value": "act"
+                },
+                {
+                  "axis": "severity",
+                  "value": "blocking"
+                }
+              ],
+              "assertions": [
+                {
+                  "author": "governance-system/governance/law/sample-rule",
+                  "direction": "in",
+                  "reference": {
+                    "kind": "ref",
+                    "discriminator": "check",
+                    "name": "instance-schema-check"
+                  },
+                  "source": {
+                    "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+                    "line": 13,
+                    "endLine": 13
+                  }
+                }
+              ]
+            }
+          ],
+          "dangling": [
+            {
+              "from": null,
+              "predicate": "enforce",
+              "to": "governance-system/governance/law/sample-rule",
+              "author": "governance-system/governance/law/sample-rule",
+              "reference": {
+                "kind": "ref",
+                "discriminator": "check",
+                "name": "absent-check"
+              },
+              "conditionSubject": "governance-system/governance/law/sample-rule",
+              "source": {
+                "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+                "line": 14,
+                "endLine": 14
+              },
+              "assertions": [
+                {
+                  "author": "governance-system/governance/law/sample-rule",
+                  "direction": "in",
+                  "reference": {
+                    "kind": "ref",
+                    "discriminator": "check",
+                    "name": "absent-check"
+                  },
+                  "source": {
+                    "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+                    "line": 14,
+                    "endLine": 14
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "traverse",
+      "params": {
+        "start": [
+          "governance-system/governance/law/sample-rule"
+        ],
+        "follow": [
+          "enforced-by"
+        ],
+        "depth": 1,
+        "coordinate": {
+          "phase": "act",
+          "severity": "blocking"
+        }
+      },
+      "answer": {
+        "ok": true,
+        "result": {
+          "nodes": [
+            {
+              "identity": "governance-system/governance/law/sample-rule",
+              "depth": 0
+            },
+            {
+              "identity": "compliance-system/check/gate/instance-schema-check",
+              "depth": 1
+            }
+          ],
+          "via": [
+            {
+              "from": "governance-system/governance/law/sample-rule",
+              "predicate": "enforce",
+              "direction": "in",
+              "target": "compliance-system/check/gate/instance-schema-check"
+            }
+          ],
+          "edges": [
+            {
+              "from": "compliance-system/check/gate/instance-schema-check",
+              "predicate": "enforce",
+              "to": "governance-system/governance/law/sample-rule",
+              "author": "governance-system/governance/law/sample-rule",
+              "reference": {
+                "kind": "ref",
+                "discriminator": "check",
+                "name": "instance-schema-check"
+              },
+              "conditionSubject": "governance-system/governance/law/sample-rule",
+              "source": {
+                "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+                "line": 13,
+                "endLine": 13
+              },
+              "condition": [
+                {
+                  "axis": "phase",
+                  "value": "act"
+                },
+                {
+                  "axis": "severity",
+                  "value": "blocking"
+                }
+              ],
+              "assertions": [
+                {
+                  "author": "governance-system/governance/law/sample-rule",
+                  "direction": "in",
+                  "reference": {
+                    "kind": "ref",
+                    "discriminator": "check",
+                    "name": "instance-schema-check"
+                  },
+                  "source": {
+                    "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+                    "line": 13,
+                    "endLine": 13
+                  }
+                }
+              ]
+            }
+          ],
+          "gated": [],
+          "dangling": [
+            {
+              "from": null,
+              "predicate": "enforce",
+              "to": "governance-system/governance/law/sample-rule",
+              "author": "governance-system/governance/law/sample-rule",
+              "reference": {
+                "kind": "ref",
+                "discriminator": "check",
+                "name": "absent-check"
+              },
+              "conditionSubject": "governance-system/governance/law/sample-rule",
+              "source": {
+                "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+                "line": 14,
+                "endLine": 14
+              },
+              "assertions": [
+                {
+                  "author": "governance-system/governance/law/sample-rule",
+                  "direction": "in",
+                  "reference": {
+                    "kind": "ref",
+                    "discriminator": "check",
+                    "name": "absent-check"
+                  },
+                  "source": {
+                    "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+                    "line": 14,
+                    "endLine": 14
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "get",
+      "params": {
+        "identity": "governance-system/governance/law/sample-rule"
+      },
+      "answer": {
+        "ok": true,
+        "result": {
+          "identity": "governance-system/governance/law/sample-rule",
+          "system": "governance-system",
+          "kind": "governance",
+          "facet": "law",
+          "name": "sample-rule",
+          "displayName": "sample-rule",
+          "discriminator": "law",
+          "source": {
+            "path": ".ia/src/systems/governance-system/records/sample-rule.ia",
+            "line": 3,
+            "endLine": 14
+          },
+          "head": [],
+          "sections": [
+            {
+              "name": "meaning",
+              "span": {
+                "line": 4,
+                "endLine": 6
+              },
+              "fields": [
+                {
+                  "key": "says",
+                  "value": {
+                    "kind": "string",
+                    "text": "Sample fixture statement 1."
+                  },
+                  "span": {
+                    "line": 5,
+                    "endLine": 5
+                  }
+                },
+                {
+                  "key": "answers",
+                  "value": {
+                    "kind": "string",
+                    "text": "Sample fixture statement 2."
+                  },
+                  "span": {
+                    "line": 6,
+                    "endLine": 6
+                  }
+                }
+              ]
+            },
+            {
+              "name": "governance",
+              "span": {
+                "line": 7,
+                "endLine": 11
+              },
+              "fields": [
+                {
+                  "key": "severity",
+                  "value": {
+                    "kind": "scalar",
+                    "text": "blocking"
+                  },
+                  "span": {
+                    "line": 8,
+                    "endLine": 8
+                  }
+                },
+                {
+                  "key": "requires",
+                  "value": {
+                    "kind": "string",
+                    "text": "Sample fixture statement 3."
+                  },
+                  "span": {
+                    "line": 9,
+                    "endLine": 9
+                  }
+                },
+                {
+                  "key": "requires",
+                  "value": {
+                    "kind": "string",
+                    "text": "Sample fixture statement 4."
+                  },
+                  "span": {
+                    "line": 10,
+                    "endLine": 11
+                  },
+                  "fields": [
+                    {
+                      "key": "when",
+                      "value": {
+                        "kind": "scalar",
+                        "text": "primitive is Memory and severity is blocking"
+                      },
+                      "span": {
+                        "line": 11,
+                        "endLine": 11
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "relationships",
+              "span": {
+                "line": 12,
+                "endLine": 14
+              },
+              "fields": [
+                {
+                  "key": "enforced-by",
+                  "value": {
+                    "kind": "ref",
+                    "discriminator": "check",
+                    "name": "instance-schema-check"
+                  },
+                  "when": [
+                    "phase",
+                    "is",
+                    "act",
+                    "and",
+                    "severity",
+                    "is",
+                    "blocking"
+                  ],
+                  "span": {
+                    "line": 13,
+                    "endLine": 13
+                  }
+                },
+                {
+                  "key": "enforced-by",
+                  "value": {
+                    "kind": "ref",
+                    "discriminator": "check",
+                    "name": "absent-check"
+                  },
+                  "span": {
+                    "line": 14,
+                    "endLine": 14
+                  }
+                }
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "predicate": "enforce",
+              "direction": "in",
+              "reference": {
+                "kind": "ref",
+                "discriminator": "check",
+                "name": "instance-schema-check"
+              },
+              "target": null,
+              "condition": [
+                {
+                  "axis": "phase",
+                  "value": "act"
+                },
+                {
+                  "axis": "severity",
+                  "value": "blocking"
+                }
+              ],
+              "span": {
+                "line": 13,
+                "endLine": 13
+              }
+            },
+            {
+              "predicate": "enforce",
+              "direction": "in",
+              "reference": {
+                "kind": "ref",
+                "discriminator": "check",
+                "name": "absent-check"
+              },
+              "target": null,
+              "span": {
+                "line": 14,
+                "endLine": 14
+              }
+            }
+          ],
+          "cells": [],
+          "selectors": [],
+          "variants": [
+            {
+              "key": "requires",
+              "value": {
+                "kind": "string",
+                "text": "Sample fixture statement 3."
+              },
+              "span": {
+                "line": 9,
+                "endLine": 9
+              }
+            },
+            {
+              "key": "requires",
+              "value": {
+                "kind": "string",
+                "text": "Sample fixture statement 4."
+              },
+              "condition": [
+                {
+                  "axis": "primitive",
+                  "value": "Memory"
+                },
+                {
+                  "axis": "severity",
+                  "value": "blocking"
+                }
+              ],
+              "span": {
+                "line": 10,
+                "endLine": 11
+              }
+            }
+          ],
+          "requirements": [],
+          "schema": "floor/contract/head/law",
+          "provenance": "workspace",
+          "placement": {
+            "kind": "authored",
+            "band": 100,
+            "reach": ""
+          },
+          "band": 100,
+          "reach": "",
+          "dimensions": {
+            "provenance": "workspace",
+            "severity": "blocking"
+          }
+        }
+      }
+    },
+    {
+      "operation": "resolve",
+      "params": {
+        "reference": {
+          "kind": "ref",
+          "discriminator": "law",
+          "name": "sample-rule"
+        }
+      },
+      "answer": {
+        "ok": true,
+        "result": {
+          "ok": true,
+          "identity": "governance-system/governance/law/sample-rule"
+        }
+      }
+    },
+    {
+      "operation": "get",
+      "params": {
+        "identity": "governance-system/governance/law/absent"
+      },
+      "answer": {
+        "ok": false,
+        "code": "IA-DB-OUT-OF-SCOPE",
+        "message": "IA-DB-OUT-OF-SCOPE: Identity is outside the supplied scope"
+      }
+    },
+    {
+      "operation": "get",
+      "params": {
+        "identity": "governance-system/governance/law/sample-rule",
+        "unlisted": 1
+      },
+      "answer": {
+        "ok": false,
+        "code": "IA-RUNTIME-REQUEST-INVALID",
+        "message": "IA-RUNTIME-REQUEST-INVALID: Unknown parameter 'unlisted'; admitted: within, root, phase, revision, identity"
+      }
+    },
+    {
+      "operation": "traverse",
+      "params": {
+        "start": [
+          "governance-system/governance/law/sample-rule"
+        ],
+        "depth": 99
+      },
+      "answer": {
+        "ok": false,
+        "code": "IA-GRAPH-TRAVERSAL-INVALID",
+        "message": "Traversal depth must be an integer from 0 to 8"
+      }
+    },
+    {
+      "operation": "traverse",
+      "params": {
+        "start": [
+          "governance-system/governance/law/sample-rule"
+        ],
+        "depth": 1,
+        "coordinate": {
+          "phase": "nowhere"
+        }
+      },
+      "answer": {
+        "ok": false,
+        "code": "IA-GRAPH-COORDINATE-VALUE-UNKNOWN",
+        "message": "Unknown phase value 'nowhere'; admitted: orient, plan, act, learn"
+      }
+    },
+    {
+      "operation": "context",
+      "params": {
+        "text": "enforce the rule",
+        "coordinate": {
+          "phase": "orient"
+        }
+      },
+      "answer": {
+        "ok": false,
+        "code": "coordinate-incomplete",
+        "escalation": "coordinate-incomplete",
+        "message": "Declare primitive on the request",
+        "missing": [
+          "primitive"
+        ]
+      }
+    },
+    {
+      "operation": "select",
+      "params": {
+        "text": "",
+        "coordinate": {
+          "phase": "act",
+          "primitive": "Decision"
+        },
+        "candidates": []
+      },
+      "answer": {
+        "ok": false,
+        "code": "no-candidate",
+        "escalation": "no-candidate",
+        "message": "No supplied candidate is eligible in this scope and coordinate"
+      }
+    },
+    {
+      "operation": "resolve",
+      "params": {
+        "reference": {
+          "kind": "ref",
+          "discriminator": "law",
+          "name": "absent"
+        }
+      },
+      "answer": {
+        "ok": true,
+        "result": {
+          "ok": false,
+          "code": "IA-GRAPH-TARGET-MISSING"
+        }
+      }
+    },
+    {
+      "operation": "scope",
+      "params": {
+        "within": "forged"
+      },
+      "answer": {
+        "ok": false,
+        "code": "IA-DB-SCOPE-UNAVAILABLE",
+        "message": "IA-DB-SCOPE-UNAVAILABLE: Token was not issued by this door"
+      }
+    }
+  ],
+  "shapes": [
+    {
+      "operation": "context",
+      "params": {
+        "text": "enforce the rule",
+        "coordinate": {
+          "phase": "plan",
+          "primitive": "Decision"
+        },
+        "subject": "governance-system/governance/law/sample-rule",
+        "follow": [
+          "enforced-by"
+        ]
+      },
+      "paths": [
+        ".ok",
+        ".result",
+        ".result.coordinate",
+        ".result.coordinate.focus",
+        ".result.coordinate.focus.kinds",
+        ".result.coordinate.focus.lanes",
+        ".result.coordinate.focus.predicates",
+        ".result.coordinate.sources",
+        ".result.coordinate.sources.artifact-set",
+        ".result.coordinate.sources.category",
+        ".result.coordinate.sources.kind",
+        ".result.coordinate.sources.lane",
+        ".result.coordinate.sources.move",
+        ".result.coordinate.sources.phase",
+        ".result.coordinate.sources.predicate",
+        ".result.coordinate.sources.primitive",
+        ".result.coordinate.sources.provenance",
+        ".result.coordinate.sources.severity",
+        ".result.coordinate.sources.shape",
+        ".result.coordinate.values",
+        ".result.coordinate.values.category",
+        ".result.coordinate.values.phase",
+        ".result.coordinate.values.primitive",
+        ".result.coordinate.values.shape",
+        ".result.dangling",
+        ".result.dangling[].assertions",
+        ".result.dangling[].assertions[].author",
+        ".result.dangling[].assertions[].direction",
+        ".result.dangling[].assertions[].reference",
+        ".result.dangling[].assertions[].reference.discriminator",
+        ".result.dangling[].assertions[].reference.kind",
+        ".result.dangling[].assertions[].reference.name",
+        ".result.dangling[].assertions[].source",
+        ".result.dangling[].assertions[].source.endLine",
+        ".result.dangling[].assertions[].source.line",
+        ".result.dangling[].assertions[].source.path",
+        ".result.dangling[].author",
+        ".result.dangling[].conditionSubject",
+        ".result.dangling[].from",
+        ".result.dangling[].predicate",
+        ".result.dangling[].reference",
+        ".result.dangling[].reference.discriminator",
+        ".result.dangling[].reference.kind",
+        ".result.dangling[].reference.name",
+        ".result.dangling[].source",
+        ".result.dangling[].source.endLine",
+        ".result.dangling[].source.line",
+        ".result.dangling[].source.path",
+        ".result.dangling[].to",
+        ".result.followed",
+        ".result.gated",
+        ".result.gated[].assertions",
+        ".result.gated[].assertions[].author",
+        ".result.gated[].assertions[].direction",
+        ".result.gated[].assertions[].reference",
+        ".result.gated[].assertions[].reference.discriminator",
+        ".result.gated[].assertions[].reference.kind",
+        ".result.gated[].assertions[].reference.name",
+        ".result.gated[].assertions[].source",
+        ".result.gated[].assertions[].source.endLine",
+        ".result.gated[].assertions[].source.line",
+        ".result.gated[].assertions[].source.path",
+        ".result.gated[].author",
+        ".result.gated[].condition",
+        ".result.gated[].conditionSubject",
+        ".result.gated[].condition[].axis",
+        ".result.gated[].condition[].value",
+        ".result.gated[].from",
+        ".result.gated[].predicate",
+        ".result.gated[].reference",
+        ".result.gated[].reference.discriminator",
+        ".result.gated[].reference.kind",
+        ".result.gated[].reference.name",
+        ".result.gated[].source",
+        ".result.gated[].source.endLine",
+        ".result.gated[].source.line",
+        ".result.gated[].source.path",
+        ".result.gated[].to",
+        ".result.included",
+        ".result.included[].address",
+        ".result.included[].band",
+        ".result.included[].citations",
+        ".result.included[].citations[].endLine",
+        ".result.included[].citations[].line",
+        ".result.included[].citations[].path",
+        ".result.included[].clauses",
+        ".result.included[].clauses[].citation",
+        ".result.included[].clauses[].citation.endLine",
+        ".result.included[].clauses[].citation.line",
+        ".result.included[].clauses[].citation.path",
+        ".result.included[].clauses[].key",
+        ".result.included[].clauses[].text",
+        ".result.included[].identity",
+        ".result.included[].kind",
+        ".result.included[].score",
+        ".result.included[].severity",
+        ".result.included[].step",
+        ".result.included[].text",
+        ".result.included[].why",
+        ".result.limits",
+        ".result.limits.envelopeBytes",
+        ".result.limits.estimator",
+        ".result.limits.records",
+        ".result.limits.recordsUsed",
+        ".result.limits.tokens",
+        ".result.limits.tokensUsed",
+        ".result.omitted",
+        ".result.omitted[].address",
+        ".result.omitted[].detail",
+        ".result.omitted[].reason",
+        ".result.revision",
+        ".result.scope",
+        ".result.scope.phase",
+        ".result.scope.revision",
+        ".result.scope.root",
+        ".result.scope.token"
+      ]
+    },
+    {
+      "operation": "context",
+      "params": {
+        "text": "enforce the rule",
+        "coordinate": {
+          "phase": "act",
+          "primitive": "Decision"
+        },
+        "subject": "governance-system/governance/law/sample-rule",
+        "follow": [
+          "enforced-by"
+        ]
+      },
+      "paths": [
+        ".ok",
+        ".result",
+        ".result.coordinate",
+        ".result.coordinate.focus",
+        ".result.coordinate.focus.kinds",
+        ".result.coordinate.focus.lanes",
+        ".result.coordinate.focus.predicates",
+        ".result.coordinate.sources",
+        ".result.coordinate.sources.artifact-set",
+        ".result.coordinate.sources.category",
+        ".result.coordinate.sources.kind",
+        ".result.coordinate.sources.lane",
+        ".result.coordinate.sources.move",
+        ".result.coordinate.sources.phase",
+        ".result.coordinate.sources.predicate",
+        ".result.coordinate.sources.primitive",
+        ".result.coordinate.sources.provenance",
+        ".result.coordinate.sources.severity",
+        ".result.coordinate.sources.shape",
+        ".result.coordinate.values",
+        ".result.coordinate.values.category",
+        ".result.coordinate.values.phase",
+        ".result.coordinate.values.primitive",
+        ".result.coordinate.values.shape",
+        ".result.dangling",
+        ".result.dangling[].assertions",
+        ".result.dangling[].assertions[].author",
+        ".result.dangling[].assertions[].direction",
+        ".result.dangling[].assertions[].reference",
+        ".result.dangling[].assertions[].reference.discriminator",
+        ".result.dangling[].assertions[].reference.kind",
+        ".result.dangling[].assertions[].reference.name",
+        ".result.dangling[].assertions[].source",
+        ".result.dangling[].assertions[].source.endLine",
+        ".result.dangling[].assertions[].source.line",
+        ".result.dangling[].assertions[].source.path",
+        ".result.dangling[].author",
+        ".result.dangling[].conditionSubject",
+        ".result.dangling[].from",
+        ".result.dangling[].predicate",
+        ".result.dangling[].reference",
+        ".result.dangling[].reference.discriminator",
+        ".result.dangling[].reference.kind",
+        ".result.dangling[].reference.name",
+        ".result.dangling[].source",
+        ".result.dangling[].source.endLine",
+        ".result.dangling[].source.line",
+        ".result.dangling[].source.path",
+        ".result.dangling[].to",
+        ".result.followed",
+        ".result.followed[].assertions",
+        ".result.followed[].assertions[].author",
+        ".result.followed[].assertions[].direction",
+        ".result.followed[].assertions[].reference",
+        ".result.followed[].assertions[].reference.discriminator",
+        ".result.followed[].assertions[].reference.kind",
+        ".result.followed[].assertions[].reference.name",
+        ".result.followed[].assertions[].source",
+        ".result.followed[].assertions[].source.endLine",
+        ".result.followed[].assertions[].source.line",
+        ".result.followed[].assertions[].source.path",
+        ".result.followed[].author",
+        ".result.followed[].condition",
+        ".result.followed[].conditionSubject",
+        ".result.followed[].condition[].axis",
+        ".result.followed[].condition[].value",
+        ".result.followed[].from",
+        ".result.followed[].predicate",
+        ".result.followed[].reference",
+        ".result.followed[].reference.discriminator",
+        ".result.followed[].reference.kind",
+        ".result.followed[].reference.name",
+        ".result.followed[].source",
+        ".result.followed[].source.endLine",
+        ".result.followed[].source.line",
+        ".result.followed[].source.path",
+        ".result.followed[].to",
+        ".result.gated",
+        ".result.included",
+        ".result.included[].address",
+        ".result.included[].band",
+        ".result.included[].citations",
+        ".result.included[].citations[].endLine",
+        ".result.included[].citations[].line",
+        ".result.included[].citations[].path",
+        ".result.included[].clauses",
+        ".result.included[].clauses[].citation",
+        ".result.included[].clauses[].citation.endLine",
+        ".result.included[].clauses[].citation.line",
+        ".result.included[].clauses[].citation.path",
+        ".result.included[].clauses[].key",
+        ".result.included[].clauses[].text",
+        ".result.included[].identity",
+        ".result.included[].kind",
+        ".result.included[].score",
+        ".result.included[].severity",
+        ".result.included[].step",
+        ".result.included[].text",
+        ".result.included[].why",
+        ".result.limits",
+        ".result.limits.envelopeBytes",
+        ".result.limits.estimator",
+        ".result.limits.records",
+        ".result.limits.recordsUsed",
+        ".result.limits.tokens",
+        ".result.limits.tokensUsed",
+        ".result.omitted",
+        ".result.omitted[].address",
+        ".result.omitted[].detail",
+        ".result.omitted[].reason",
+        ".result.revision",
+        ".result.scope",
+        ".result.scope.phase",
+        ".result.scope.revision",
+        ".result.scope.root",
+        ".result.scope.token"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import { PHASES, SEVERITIES, SHAPE_ROWS } from '@inventarch/language';
 import type { Band, Kind, Lane, Phase, Predicate } from '@inventarch/language';
-import { digest, effectiveSeverity, laneOf, reaches } from '@inventarch/graph';
+import { conditionHolds, digest, effectiveSeverity, laneOf, reaches } from '@inventarch/graph';
 import type { ClaimMatch, DirectedEdgeRow, DirectedRow, Node } from '@inventarch/graph';
 import type { ReadHandle } from '@inventarch/db';
 import { RuntimeError } from './errors.js';
@@ -346,11 +346,25 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
         : 'ia position',
     );
   }
+  // A row with a condition is a row of the body only where its condition holds at the key's coordinate (decision
+  // conditional-relations-in-delivery), read as graph traversal reads it for the same coordinate: graph `conditionHolds`
+  // over the coordinate scopeCoordinate builds, the condition's subject being the record that states the row, the
+  // author graph G06 keeps as an edge's condition subject. A row that does not hold is never followed, primes nothing
+  // and names no pointer or frontier record, so nothing is reached through it. A conditional row stated by a record the
+  // body does not enter (a runtime-band @workspace's, read when one is the home) holds for nothing in it.
+  const live = (row: DirectedRow): boolean => {
+    if (row.kind === 'field-ref' || row.condition === undefined) return true;
+    const subject = nodes.get(row.declaredOn);
+    return subject !== undefined && conditionHolds(row.condition, subject.dimensions, values);
+  };
   const viewed = new Map<string, readonly DirectedRow[]>();
   const rowsOf = (identity: string): readonly DirectedRow[] => {
     let rows = viewed.get(identity);
     if (rows === undefined)
-      viewed.set(identity, (rows = handle.directedView(identity, read).filter((row) => nodes.has(row.counterpart))));
+      viewed.set(
+        identity,
+        (rows = handle.directedView(identity, read).filter((row) => nodes.has(row.counterpart) && live(row))),
+      );
     return rows;
   };
   /**
@@ -379,10 +393,13 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       root = rootOf.get(identity)!;
     return band === 10 || band === 90 || (own.size > 0 ? own.has(root) : !declared.has(root));
   };
-  // The seat's workspace: the seat itself when it is a @workspace; else, of the workspace whose declared root holds the
-  // seat record's membership root (a location's: the record it is declared at) and the repository's own @workspace,
-  // the first whose closure holds that record. When neither does, no workspace holds the seat: the seat is never
-  // outside its own closure (design §1).
+  // The seat's workspace: the seat itself when it is a @workspace; else, of the repository's own @workspace and the
+  // workspace whose declared root holds the seat record's membership root (a location's: the record it is declared at),
+  // the first whose closure holds that record. A floor or adopted record, an installed one included, is in every
+  // closure, so it is seated in the repository's workspace with the records the repository authors, even when the
+  // installed or adopted @workspace that ships it declares the root it sits in (plan T2's fallback: the floor, the
+  // adopted records and the repository's own roots). When neither closure holds the record, no workspace holds the
+  // seat: the seat is never outside its own closure (design §1).
   const repository = (): string | undefined => {
     const at = handle.resolveSeat('', read).seat;
     return at !== undefined && nodes.get(at)?.discriminator === 'workspace' ? at : undefined;
@@ -393,7 +410,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     const root = rootOf.get(identity);
     if (root === undefined) return repository();
     const holder = roots.find((r) => reaches(r.root, root))?.workspace;
-    return [holder, repository()].find((at) => at !== undefined && holds(ownOf(at), identity));
+    return [repository(), holder].find((at) => at !== undefined && holds(ownOf(at), identity));
   };
   const home = workspaceOf(seat.kind === 'location' ? resolution?.seat : seatId),
     own = ownOf(home);
@@ -729,11 +746,14 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   if (seat.kind === 'location') {
     const path = seat.path!,
       declaredAt = resolution?.seat !== undefined && nodes.has(resolution.seat);
+    // A narrowed scope prunes the claimants it does not admit (db D09), so it can say only that none in it claims.
     if (!declaredAt && !resolution?.claimants.some((claimant) => nodes.has(claimant.identity)))
       unknowns.push({
         kind: 'seat',
         subject: path,
-        message: `no record claims '${path}' and none is declared at it; widening key: the workspace`,
+        message: handle.isCompleteScope(within)
+          ? `no record claims '${path}' and none is declared at it; widening key: the workspace`
+          : `no record in this scope claims '${path}' and none in it is declared at it; widening key: the workspace`,
       });
     else if (!declaredAt)
       unknowns.push({

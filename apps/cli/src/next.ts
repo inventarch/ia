@@ -24,6 +24,7 @@ import {
   quote,
   remedyWords,
   sectionLabel,
+  terminalText,
   truncateDigest,
   words,
 } from './render.js';
@@ -39,13 +40,6 @@ const VERDICT_SYMBOL: Readonly<Record<DeliveryTask['verdict'], SymbolName>> = {
   unblocked: 'info',
   blocked: 'warning',
 };
-
-/** Escape scalar terminal controls before layout and colour; generated newlines and SGR remain presentation-owned. */
-const terminalText = (text: string): string =>
-  text.replace(
-    /[\u0000-\u001f\u007f-\u009f]/g,
-    (control) => `\\u${control.charCodeAt(0).toString(16).padStart(4, '0')}`,
-  );
 
 /**
  * The plan and its summary; its milestones, satisfied or not and why; each task in the view's order with its verdict

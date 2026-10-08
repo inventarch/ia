@@ -15,13 +15,18 @@ const PLAIN: Capabilities = { color: false, ascii: true, width: MAX_WIDTH };
  * route, help or schema on this one.
  */
 const ROUTE_VERSION = 1;
+/**
+ * The protocol version that describes `operation`: version 1 for a route, and for a row a later version adds, which the
+ * published renderers below may also be handed, that row's own `since`.
+ */
+const versionOf = (operation: ProtocolOperation): number => operation.since ?? ROUTE_VERSION;
 /** spec-0012 CLI-05: asks for the operation's description as JSON rather than as help text. */
 export const SCHEMA_TOKEN = '--schema';
 export const describeOperation = (name: string): ProtocolOperation | undefined =>
   MACHINE_PROTOCOL.operations.find((operation) => operation.since === undefined && operation.name === name);
 /** CLI-05: one JSON line, the same object the MCP door's input schema is derived from. */
 export const renderOperationSchema = (operation: ProtocolOperation): string =>
-  JSON.stringify({ version: ROUTE_VERSION, ...operation }) + '\n';
+  JSON.stringify({ version: versionOf(operation), ...operation }) + '\n';
 type Schema = Readonly<Record<string, unknown>>;
 /** A JSON Schema fragment spelled for a reader: `string`, `array of string`, `integer 0-8`, `one of a | b`, `{a, b}`. */
 export function typeText(schema: Schema): string {
@@ -91,7 +96,7 @@ export function renderOperationHelp(operation: ProtocolOperation): string {
     entry(
       [
         words(
-          `Machine protocol v${ROUTE_VERSION}: JSON in, one JSON line out, no color. ${operation.mcp === null ? 'The MCP door does not serve it.' : `MCP tool: ${operation.mcp}.`}`,
+          `Machine protocol v${versionOf(operation)}: JSON in, one JSON line out, no color. ${operation.mcp === null ? 'The MCP door does not serve it.' : `MCP tool: ${operation.mcp}.`}`,
         ),
       ],
       { depth: 0 },

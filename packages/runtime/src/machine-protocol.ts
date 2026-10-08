@@ -449,7 +449,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       name: 'next',
       summary: "Read one plan's delivery view inside the scope: its tasks in order, each with a verdict.",
       description:
-        "Read one plan's delivery view inside the scope, computed per call and never stored: its milestones and tasks in one prerequisites-first order, each task with a basis line per requirement (its own and its milestone's), one verdict (exit evidence recorded, no declared blocker, or blocked), its work.status as self-declared, which is never a basis, and five state lines; then review items and the next task. Exit evidence is a success @observation on the task whose subject-revision is its current digest. What the scope does not read is never counted as met.",
+        "Read one plan's delivery view inside the scope, computed per call and never stored: its milestones and tasks in one prerequisites-first order, each task with a basis line per requirement (its own and its milestone's), one verdict (exit evidence recorded, no declared blocker, or blocked), its work.status as self-declared, which is never a basis, and five state lines; then review items and the next task. Exit evidence is a success @observation on the task whose subject-revision is its current digest. What the scope does not read is never counted as met, and a relation row that carries a condition counts only where it holds at the coordinate the scope binds, as graph traversal decides it: a term that coordinate leaves undecided, such as a phase where none is bound or a severity the stating record's own does not decide, leaves the row conditional, its basis unknown, never met.",
       params: object({
         within: read.within,
         seat: text(
@@ -464,7 +464,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
         {
           code: 'IA-RUNTIME-NEXT-SEAT',
           when: 'seat is not an admitted record in the scope, or is not a @plan, @milestone or @task.',
-          next: "Run the command the refusal's next names: ia next without seat for a seat no admitted record answers, or the position of a record of another word.",
+          next: "Run the command the refusal's next names: the view without a seat for a seat no admitted record answers (ia next, the first authored plan's, or ia next --help when none is authored), or the position of a record of another word.",
         },
         {
           code: 'IA-RUNTIME-NEXT-NO-PLAN',
@@ -490,7 +490,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       name: 'position',
       summary: 'Read body(K), what a scope key loads inside the scope, with its digest and host note.',
       description:
-        "Read the position a scope key K = (seat, shape, phase, depth, budget, word) names inside the scope: body(K), the seat, the records the key loads in the shape's order, the blocking governance reserved outside the budget, pointers and their tallies, the frontier one hop past it, what is unknown and the keys that widen it; its digest; and the host note beside it. A key naming no part is K0 (the repository's @workspace, context, orient, depth 0, budget 0); one naming any part takes context, the anchor phase of its shape's primitive, depth 1 and budget 16 for the rest. The body is a pure function of the key and the admitted records the scope reads: it names no root path, token, time or capture, nothing text-driven runs, and no record body enters it; read fetches one. A refusal of the key carries next, the one command to run.",
+        "Read the position a scope key K = (seat, shape, phase, depth, budget, word) names inside the scope: body(K), the seat, the records the key loads in the shape's order, the blocking governance reserved outside the budget, pointers and their tallies, the rules and playbooks that apply by word with their tallies and the playbook cells they deliver, the mandates that govern the seat, the frontier one hop past it, what is unknown and the keys that widen it; its digest; and the host note beside it. A key naming no part is K0 (the repository's @workspace, context, orient, depth 0, budget 0); one naming any part takes context, the anchor phase of its shape's primitive, depth 1 and budget 16 for the rest. A relation row with a condition is followed only where the condition holds at the key's coordinate. The body is a pure function of the key and the admitted records the scope reads: it names no root path, token, time or capture, nothing text-driven runs, and no record body enters it, only the cells delivered; read fetches a body. A refusal of the key carries next, the one command to run.",
       params: object({
         within: read.within,
         seat: {

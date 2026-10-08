@@ -1,5 +1,7 @@
-import type { EdgeReference } from '@inventarch/language';
-import type { DirectedRow } from '@inventarch/graph';
+import { valuesFor } from '@inventarch/language';
+import type { ConditionAxis, EdgeReference, Term } from '@inventarch/language';
+import { conditionHolds } from '@inventarch/graph';
+import type { Coordinate, DirectedEdgeRow, DirectedRow } from '@inventarch/graph';
 import type { ReadHandle, Readiness } from '@inventarch/db';
 import { RUNTIME_CODES } from './errors.js';
 import type { RuntimeCode } from './errors.js';
@@ -23,6 +25,13 @@ import { freeze } from './types.js';
  * answer this scope does not read blocks, as unknown; and no milestone is satisfied through its tasks, nor is every
  * task said to have exit evidence, while some task may go unread: on a narrowed scope, and on a whole-workspace scope
  * (db PT5, the only one that may disclose admission findings) while admission refuses a @task, or a whole file (D03).
+ *
+ * A relation row that carries a condition, such as `grounds @task guide when phase is act`, counts only where its
+ * condition holds at the coordinate the scope binds (decision conditional-relations-in-delivery), decided as graph
+ * traversal decides it; where the coordinates the scope may still be completed to disagree on it, as on an axis the
+ * scope binds no value for, the row is conditional and its basis unknown, so it is never satisfied: a conditional
+ * requirement blocks as unknown and orders nothing, and the intent read through a conditional grounding or supersession
+ * is unknown unless it reads the same at every such coordinate.
  */
 
 export type NextCode = Extract<RuntimeCode, `IA-RUNTIME-NEXT-${string}`>;
@@ -149,6 +158,14 @@ const refuse = (code: NextCode, message: string, next: string, more: Partial<Nex
   freeze({ ok: false, code, message, next, ...more });
 const referenceText = (reference: EdgeReference): string =>
   reference.kind === 'identity' ? reference.identity : `@${reference.discriminator} ${reference.name}`;
+/**
+ * The most coordinates the intent line is read at to learn whether a conditional row can change it; past that many, a
+ * line that reads a conditional row stays unknown.
+ */
+const COMPLETIONS = 256;
+/** A condition as its terms read: `phase is act and severity is blocking`. */
+const conditionText = (condition: readonly Term[]): string =>
+  condition.map((term) => `${term.axis} is ${term.value}`).join(' and ');
 /** The first of `items` per key, in their order. */
 function firstPer<T>(items: readonly T[], key: (item: T) => string): readonly T[] {
   const kept = new Map<string, T>();
@@ -242,6 +259,29 @@ function sortVertices(
   };
 }
 
+/**
+ * A relation row the view reads, and whether its condition holds where it is read: true, or undefined when the
+ * coordinates the bound one may still be completed to disagree on it.
+ */
+interface Related {
+  readonly row: DirectedEdgeRow;
+  readonly holds: true | undefined;
+}
+/**
+ * Where a condition is read: at the coordinate the scope binds, `closed` false, where an axis it binds no value for is
+ * still open; or at one completion of it, `closed` true, where every axis is decided, an absent one included.
+ */
+interface Reading {
+  readonly at: Coordinate;
+  readonly closed: boolean;
+}
+/** A conditional row a reading leaves undecided, in words, with its condition and the record that states it. */
+interface Pending {
+  readonly text: string;
+  readonly condition: readonly Term[];
+  readonly subject: string;
+}
+
 interface Observed {
   readonly observation: string;
   readonly verdict?: string;
@@ -281,14 +321,82 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
     rowsOf(identity)
       .filter((row) => row.kind === 'field-ref' && row.field === field && row.direction === direction)
       .map((row) => row.counterpart);
-  /** The rows of `predicate` read from `identity`'s side, whichever end declared them, the first per counterpart. */
-  const related = (identity: string, predicate: string, direction: 'out' | 'in'): readonly DirectedRow[] =>
-    firstPer(
-      rowsOf(identity).filter(
-        (row) => row.kind !== 'field-ref' && row.predicate === predicate && row.direction === direction,
-      ),
-      (row) => row.counterpart,
-    );
+  // Decision conditional-relations-in-delivery: the coordinate the scope binds, a phase or none (db resolveScope binds no
+  // other condition axis), which a row's condition is read against as graph traversal reads it.
+  const bound: Coordinate = snapshot.phase === undefined ? {} : { phase: snapshot.phase },
+    BOUND: Reading = { at: bound, closed: false };
+  /** The coordinates `at` may be completed to on `axis`: itself where it binds the axis, else with it absent or set. */
+  const completions = (at: Coordinate, axis: ConditionAxis): readonly Coordinate[] =>
+    at[axis] !== undefined ? [at] : [at, ...(valuesFor(axis) ?? []).map((value) => ({ ...at, [axis]: value }))];
+  /**
+   * The axes of `condition`, stated by `subject`, on which the bound coordinate leaves it undecided: graph
+   * `conditionHolds` reads the condition's terms on that axis differently at two of its completions. An axis the scope
+   * binds no value for is such an axis, but for provenance and artifact set, which `conditionHolds` reads from the
+   * subject alone, and for severity where the subject's own severity decides it (graph `effectiveSeverity` takes the
+   * stronger of the subject's and the coordinate's, so the coordinate can raise it but never lower it).
+   */
+  const openAxes = (condition: readonly Term[], subject: string): readonly ConditionAxis[] => {
+    const node = nodes.get(subject),
+      axes = [...new Set(condition.map((term) => term.axis))];
+    return node === undefined
+      ? axes
+      : axes.filter((axis) => {
+          const terms = condition.filter((term) => term.axis === axis);
+          return new Set(completions(bound, axis).map((at) => conditionHolds(terms, node.dimensions, at))).size > 1;
+        });
+  };
+  /**
+   * Whether `condition`, stated by `subject` (the author, graph G06's condition subject), holds where `reading` reads
+   * it, as graph `conditionHolds` decides it: at a closed reading's coordinate, true or false; at the bound coordinate,
+   * true or false where every completion of it agrees, else undefined, unless a term on another axis fails everywhere.
+   */
+  const holds = (condition: readonly Term[] | undefined, subject: string, reading = BOUND): boolean | undefined => {
+    if (condition === undefined) return true;
+    const node = nodes.get(subject);
+    if (node === undefined) return undefined;
+    if (reading.closed) return conditionHolds(condition, node.dimensions, reading.at);
+    let open = false;
+    for (const axis of new Set(condition.map((term) => term.axis))) {
+      const terms = condition.filter((term) => term.axis === axis),
+        results = new Set(completions(bound, axis).map((at) => conditionHolds(terms, node.dimensions, at)));
+      if (results.size > 1) open = true;
+      else if (!results.has(true)) return false;
+    }
+    return open ? undefined : true;
+  };
+  /** Why an undecided condition is unknown here: its terms, and the axes the scope binds no value to decide. */
+  const undecided = (condition: readonly Term[], subject: string): string =>
+    `conditional on ${conditionText(condition)}, which the scope binds no ${openAxes(condition, subject).join(' or ')} to decide (unknown)`;
+  /**
+   * The rows of `predicate` read from `identity`'s side, whichever end declared them, one per counterpart, the first
+   * whose condition holds, else the first undecided one (`holds` undefined); a row whose condition fails where it is
+   * read is no row.
+   */
+  const related = (
+    identity: string,
+    predicate: string,
+    direction: 'out' | 'in',
+    reading = BOUND,
+  ): readonly Related[] => {
+    const kept = new Map<string, Related>();
+    for (const row of rowsOf(identity)) {
+      if (row.kind === 'field-ref' || row.predicate !== predicate || row.direction !== direction) continue;
+      const at = holds(row.condition, row.declaredOn, reading);
+      if (at === false) continue;
+      const prior = kept.get(row.counterpart);
+      if (prior === undefined || (prior.holds === undefined && at === true))
+        kept.set(row.counterpart, { row, holds: at });
+    }
+    return [...kept.values()];
+  };
+  /** The rows of `related` whose condition holds where they are read, or that have none. */
+  const holding = (
+    identity: string,
+    predicate: string,
+    direction: 'out' | 'in',
+    reading = BOUND,
+  ): readonly DirectedEdgeRow[] =>
+    related(identity, predicate, direction, reading).flatMap((entry) => (entry.holds === true ? [entry.row] : []));
   const status = (identity: string): string =>
     `status ${text(identity, 'work.status') ?? 'not stated'} (self-declared)`;
   /** The record states `field`, a `section.key` path, whatever its value. */
@@ -330,11 +438,18 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
         : undefined;
 
   // The plan: the seat's, else the only authored one.
+  const authored = of(
+    snapshot.records.filter((node) => node.band === 100).map((node) => node.identity),
+    'plan',
+  );
+  /** The view read without a seat, which runs: the only authored plan's, else the first's, else what makes a plan. */
+  const unseated =
+    authored.length === 0 ? NO_PLAN_NEXT : authored.length === 1 ? 'ia next' : `ia next --seat ${authored[0]!}`;
   let plan: string;
   if (seat !== undefined) {
     const node = nodes.get(seat);
     if (node === undefined)
-      return refuse('IA-RUNTIME-NEXT-SEAT', `${seat} is not an admitted record in this scope`, 'ia next');
+      return refuse('IA-RUNTIME-NEXT-SEAT', `${seat} is not an admitted record in this scope`, unseated);
     if (!SEATS.includes(node.discriminator))
       return refuse(
         'IA-RUNTIME-NEXT-SEAT',
@@ -352,10 +467,7 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
       return refuse('IA-RUNTIME-NEXT-NO-PLAN', `${seat} belongs to no admitted @plan in this scope`, NO_PLAN_NEXT);
     plan = found;
   } else {
-    const plans = of(
-      snapshot.records.filter((node) => node.band === 100).map((node) => node.identity),
-      'plan',
-    );
+    const plans = authored;
     if (plans.length === 0)
       return refuse(
         'IA-RUNTIME-NEXT-NO-PLAN',
@@ -376,20 +488,37 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
   const tasksOf = (milestone: string): readonly string[] => of(refs(milestone, 'work.milestone', 'in'), 'task');
   const milestoneOf = new Map(milestones.flatMap((milestone) => tasksOf(milestone).map((task) => [task, milestone])));
   const members = [...milestones, ...milestoneOf.keys()];
-  const requires = (identity: string): readonly DirectedRow[] => related(identity, 'require', 'out');
+  /** The records `identity` requires, each row whose condition holds here or that the scope does not decide. */
+  const requires = (identity: string): readonly Related[] => related(identity, 'require', 'out');
   // A requirement no admitted record answers is an admission finding with no row; the traversal still names it, with
-  // the lines that declare it.
-  const unanswered = new Map<string, { readonly reference: string; readonly lines: readonly number[] }[]>();
+  // the lines that declare it and its condition, which is read here as a row's is.
+  const unanswered = new Map<
+    string,
+    {
+      readonly reference: string;
+      readonly lines: readonly number[];
+      readonly holds: boolean | undefined;
+      readonly condition?: readonly Term[];
+      readonly subject: string;
+    }[]
+  >();
   for (const edge of handle.traverse({ ...read, start: members, follow: ['require'], depth: 1 }).dangling)
     if (edge.from !== null)
       unanswered.set(edge.from, [
         ...(unanswered.get(edge.from) ?? []),
-        { reference: referenceText(edge.reference), lines: edge.assertions.map((assertion) => assertion.source.line) },
+        {
+          reference: referenceText(edge.reference),
+          lines: edge.assertions.map((assertion) => assertion.source.line),
+          holds: holds(edge.condition, edge.conditionSubject),
+          ...(edge.condition === undefined ? {} : { condition: edge.condition }),
+          subject: edge.conditionSubject,
+        },
       ]);
   /**
    * The references of `holder`'s own `require` declarations that give neither a row nor a dangling edge in this scope:
    * their answer is outside it (db D09 prunes the row, and the traversal never reaches past the scope) or no row is
-   * read for it, so the requirement is unknown, never met.
+   * read for it, so the requirement is unknown, never met. A declaration whose condition fails here is none; one the
+   * scope does not decide is unknown all the same. Every row and dangling edge answers its lines, conditional or not.
    */
   const unread = (holder: string): readonly string[] => {
     const answered = new Set([
@@ -400,13 +529,19 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
     ]);
     return nodes
       .get(holder)!
-      .edges.filter((edge) => edge.predicate === 'require' && edge.direction === 'out' && !answered.has(edge.span.line))
+      .edges.filter(
+        (edge) =>
+          edge.predicate === 'require' &&
+          edge.direction === 'out' &&
+          !answered.has(edge.span.line) &&
+          holds(edge.condition, holder) !== false,
+      )
       .map((edge) => referenceText(edge.reference));
   };
 
   // One global order. A milestone is two vertices, its start (its own prerequisites met) and its end (satisfied):
   // its tasks follow its start and precede its end, and a record requiring it follows its end. Requirements outside
-  // the plan are basis lines only.
+  // the plan are basis lines only, and so is a conditional requirement the scope does not decide.
   const start = (milestone: string): string => `start ${milestone}`,
     end = (milestone: string): string => `end ${milestone}`;
   const vertices = new Map<string, Vertex>(),
@@ -421,7 +556,7 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
     arcs.push({ from: start(milestone), to: task }, { from: task, to: end(milestone) });
   }
   for (const member of members)
-    for (const row of requires(member)) {
+    for (const row of holding(member, 'require', 'out')) {
       const target = row.counterpart,
         from = milestoneOf.has(target) ? target : milestones.includes(target) ? end(target) : undefined;
       if (from !== undefined)
@@ -513,7 +648,30 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
       basis: via === undefined ? basis : `${basis} (via ${via})`,
     };
   };
-  /** The task's own requirements, then the ones it inherits from its milestone, each target once. */
+  /**
+   * A requirement of `target` whose `condition`, stated by `subject`, the scope does not decide: never satisfied,
+   * whatever the target's state, its basis the condition and the axes the scope binds no value to decide.
+   */
+  const conditional = (
+    target: string,
+    via: string | undefined,
+    condition: readonly Term[],
+    subject: string,
+  ): Prerequisite => {
+    const discriminator = word(target)!,
+      basis = `${['task', 'milestone', 'decision'].includes(discriminator) ? discriminator : `@${discriminator}`} ${target}: ${undecided(condition, subject)}`;
+    return {
+      target,
+      word: discriminator,
+      ...(via === undefined ? {} : { via }),
+      satisfied: false,
+      basis: via === undefined ? basis : `${basis} (via ${via})`,
+    };
+  };
+  /**
+   * The task's own requirements, then the ones it inherits from its milestone, each target once: the first line whose
+   * requirement holds here, else the first conditional one the scope does not decide.
+   */
   const prerequisitesOf = (task: string): readonly Prerequisite[] => {
     const unmet = (reference: string, via: string | undefined, reason: string): Prerequisite => ({
       target: reference,
@@ -521,28 +679,91 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
       satisfied: false,
       basis: `${reference}: ${reason}${via === undefined ? '' : ` (via ${via})`}`,
     });
-    const lines = (holder: string, via: string | undefined): readonly Prerequisite[] => [
-      ...requires(holder).map((row) => prerequisite(row.counterpart, via)),
-      ...(unanswered.get(holder) ?? []).map(({ reference }) => unmet(reference, via, 'no admitted record answers it')),
-      ...unread(holder).map((reference) => unmet(reference, via, 'no record in this scope answers it (unknown)')),
+    const lines = (holder: string, via: string | undefined): readonly { line: Prerequisite; decided: boolean }[] => [
+      ...requires(holder).map(({ row, holds: at }) => ({
+        line:
+          at === true
+            ? prerequisite(row.counterpart, via)
+            : conditional(row.counterpart, via, row.condition!, row.declaredOn),
+        decided: at === true,
+      })),
+      ...(unanswered.get(holder) ?? []).flatMap(({ reference, holds: at, condition, subject }) =>
+        at === false
+          ? []
+          : [
+              {
+                line: unmet(
+                  reference,
+                  via,
+                  at === true
+                    ? 'no admitted record answers it'
+                    : `no admitted record answers it, ${undecided(condition!, subject)}`,
+                ),
+                decided: at === true,
+              },
+            ],
+      ),
+      ...unread(holder).map((reference) => ({
+        line: unmet(reference, via, 'no record in this scope answers it (unknown)'),
+        decided: true,
+      })),
     ];
-    const milestone = milestoneOf.get(task)!;
-    return firstPer([...lines(task, undefined), ...lines(milestone, milestone)], (p) => p.target);
+    const milestone = milestoneOf.get(task)!,
+      kept = new Map<string, { line: Prerequisite; decided: boolean }>();
+    for (const entry of [...lines(task, undefined), ...lines(milestone, milestone)]) {
+      const prior = kept.get(entry.line.target);
+      if (prior === undefined || (!prior.decided && entry.decided)) kept.set(entry.line.target, entry);
+    }
+    return [...kept.values()].map((entry) => entry.line);
   };
 
   /**
-   * The @decision records grounding `record`, in identity order; the live ones, which no other of them supersedes
-   * unless the two supersede each other through a cycle among them, which removes neither; and those in such a cycle.
+   * The @decision records grounding `record` through a row that holds where `reading` reads it, in identity order; the
+   * live ones, which no other of them supersedes unless the two supersede each other through a cycle among them, which
+   * removes neither; those in such a cycle; and the conditional rows the reading leaves undecided among those the
+   * grounding is read from (each grounding row, then each supersession between two decisions grounding it), `record`
+   * named as `label` in them.
    */
-  const groundingOf = (record: string): { readonly live: readonly string[]; readonly cyclic: readonly string[] } => {
-    const decisions = of(
-      related(record, 'ground', 'in').map((row) => row.counterpart),
-      'decision',
-    );
+  const groundingOf = (
+    record: string,
+    reading = BOUND,
+    label = record,
+  ): { readonly live: readonly string[]; readonly cyclic: readonly string[]; readonly pending: readonly Pending[] } => {
+    const grounds = related(record, 'ground', 'in', reading).filter(
+        (entry) => word(entry.row.counterpart) === 'decision',
+      ),
+      decisions = of(
+        grounds.flatMap((entry) => (entry.holds === true ? [entry.row.counterpart] : [])),
+        'decision',
+      ),
+      candidates = of(
+        grounds.map((entry) => entry.row.counterpart),
+        'decision',
+      );
+    const pending: readonly Pending[] = [
+      ...grounds.flatMap(({ row, holds: at }) =>
+        at === true
+          ? []
+          : [{ text: `${row.counterpart} grounds ${label}`, condition: row.condition!, subject: row.declaredOn }],
+      ),
+      ...candidates.flatMap((decision) =>
+        related(decision, 'supersede', 'out', reading).flatMap(({ row, holds: at }) =>
+          at === true || !candidates.includes(row.counterpart)
+            ? []
+            : [
+                {
+                  text: `${decision} supersedes ${row.counterpart}`,
+                  condition: row.condition!,
+                  subject: row.declaredOn,
+                },
+              ],
+        ),
+      ),
+    ];
     const supersedes = new Map(
       decisions.map((decision) => [
         decision,
-        related(decision, 'supersede', 'out')
+        holding(decision, 'supersede', 'out', reading)
           .map((row) => row.counterpart)
           .filter((other) => decisions.includes(other)),
       ]),
@@ -567,42 +788,120 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
           !decisions.some((other) => supersedes.get(other)!.includes(decision) && !reaches(decision, other)),
       ),
       cyclic: decisions.filter((decision) => reaches(decision, decision)),
+      pending,
     };
   };
-  /** The first live @decision grounding `identity` that has a choice and an effective revision (design §10 line 1). */
-  const acceptedBy = (identity: string): { readonly decision: string; readonly revision: string } | undefined => {
-    for (const decision of groundingOf(identity).live) {
+  /** `records` with those `sure` holds before the rest, each part in its order. */
+  const sureFirst = <T>(records: readonly T[], sure: ReadonlySet<string>, key: (record: T) => string): readonly T[] =>
+    [...records].sort((a, b) => Number(!sure.has(key(a))) - Number(!sure.has(key(b))));
+  /**
+   * The first live @decision grounding `identity` where `reading` reads it that has a choice and an effective revision
+   * (design §10 line 1), each conditional row the reading leaves undecided read as no row, a decision a row that holds
+   * at the bound coordinate grounds read before one only a conditional row grounds; and those undecided rows.
+   */
+  const acceptedBy = (
+    identity: string,
+    reading: Reading,
+    label = identity,
+  ): {
+    readonly accepted?: { readonly decision: string; readonly revision: string };
+    readonly pending: readonly Pending[];
+  } => {
+    const grounding = groundingOf(identity, reading, label),
+      sure = new Set(holding(identity, 'ground', 'in').map((row) => row.counterpart));
+    for (const decision of sureFirst(grounding.live, sure, (live) => live)) {
       const revision = text(decision, 'decision.effective-revision');
-      if (text(decision, 'decision.choice') !== undefined && revision !== undefined) return { decision, revision };
+      if (text(decision, 'decision.choice') !== undefined && revision !== undefined)
+        return { accepted: { decision, revision }, pending: grounding.pending };
     }
-    return undefined;
+    return { pending: grounding.pending };
   };
-  const intent = (task: string): StateLine => {
-    for (const row of related(task, 'supersede', 'in')) {
-      const accepted = acceptedBy(row.counterpart);
-      if (accepted !== undefined)
+  /**
+   * The intent line where `reading` reads it, each conditional row the reading leaves undecided read as no row, and
+   * those of them that could change it. A supersession by an accepted record through a row that holds decides it, so no
+   * later supersession is read, a record a row that holds at the bound coordinate names read before one only a
+   * conditional row names; one the reading leaves undecided counts when its record is or may be accepted.
+   */
+  const intentAt = (
+    task: string,
+    reading: Reading,
+  ): { readonly line: StateLine; readonly pending: readonly Pending[] } => {
+    const pending: Pending[] = [],
+      sure = new Set(holding(task, 'supersede', 'in').map((row) => row.counterpart));
+    for (const { row, holds: at } of sureFirst(
+      related(task, 'supersede', 'in', reading),
+      sure,
+      (entry) => entry.row.counterpart,
+    )) {
+      const by = acceptedBy(row.counterpart, reading);
+      if (at === undefined && (by.accepted !== undefined || by.pending.length > 0))
+        pending.push({ text: `${row.counterpart} supersedes it`, condition: row.condition!, subject: row.declaredOn });
+      pending.push(...by.pending);
+      if (at === true && by.accepted !== undefined)
         return {
-          dimension: 'intent',
-          value: 'superseded',
-          basis: `${row.counterpart} supersedes it, grounded by ${accepted.decision} @${accepted.revision}`,
+          line: {
+            dimension: 'intent',
+            value: 'superseded',
+            basis: `${row.counterpart} supersedes it, grounded by ${by.accepted.decision} @${by.accepted.revision}`,
+          },
+          pending,
         };
     }
-    const accepted = acceptedBy(task);
-    if (accepted !== undefined)
+    const own = acceptedBy(task, reading, 'it');
+    pending.push(...own.pending);
+    if (own.accepted !== undefined)
       return {
-        dimension: 'intent',
-        value: 'accepted',
-        basis: `${accepted.decision}: choice made, effective-revision ${accepted.revision}`,
+        line: {
+          dimension: 'intent',
+          value: 'accepted',
+          basis: `${own.accepted.decision}: choice made, effective-revision ${own.accepted.revision}`,
+        },
+        pending,
       };
-    const decision = groundingOf(task).live[0];
+    const decision = groundingOf(task, reading).live[0];
     return {
-      dimension: 'intent',
-      value: 'unknown',
-      basis:
-        decision === undefined
-          ? `no @decision${here} grounds it`
-          : `${decision}: ${text(decision, 'decision.choice') === undefined ? 'no choice' : 'no effective-revision'}`,
+      line: {
+        dimension: 'intent',
+        value: 'unknown',
+        basis:
+          decision === undefined
+            ? `no @decision${here} grounds it`
+            : `${decision}: ${text(decision, 'decision.choice') === undefined ? 'no choice' : 'no effective-revision'}`,
+      },
+      pending,
     };
+  };
+  /**
+   * The intent line (design §10 line 1). When the bound coordinate leaves a row it reads undecided, the line is read
+   * again at each completion of the bound coordinate on the axes those rows leave open (each absent, or set to each of
+   * its values), where every row is decided: a line that reads the same at every one is the line, since no binding the
+   * scope could take changes it and the conditional row is never read as satisfied, as when a decision that only may
+   * ground the task has no choice while another grounds it unconditionally and is accepted; else the intent is unknown,
+   * its basis the first such row. Past COMPLETIONS coordinates the line is not read again and stays unknown.
+   */
+  const intent = (task: string): StateLine => {
+    const { line, pending } = intentAt(task, BOUND);
+    if (pending.length === 0) return line;
+    const axes = [...new Set(pending.flatMap((row) => openAxes(row.condition, row.subject)))],
+      size = axes.reduce((product, axis) => product * ((valuesFor(axis)?.length ?? 0) + 1), 1);
+    if (size <= COMPLETIONS) {
+      const readings = axes
+        .reduce<readonly Coordinate[]>((all, axis) => all.flatMap((at) => completions(at, axis)), [bound])
+        .map((at) => intentAt(task, { at, closed: true }));
+      const [first] = readings;
+      if (
+        first !== undefined &&
+        readings.every(
+          (reading) =>
+            reading.pending.length === 0 &&
+            reading.line.value === first.line.value &&
+            reading.line.basis === first.line.basis,
+        )
+      )
+        return first.line;
+    }
+    const [row] = pending;
+    return { dimension: 'intent', value: 'unknown', basis: `${row!.text} ${undecided(row!.condition, row!.subject)}` };
   };
   const worked = (task: string): StateLine => {
     const observations = observationsOf(task),
@@ -742,7 +1041,7 @@ export function deliveryView(handle: ReadHandle, within: string, seat?: string):
   }
   const accepted = (spec: string): boolean => text(spec, 'work.status') === 'accepted';
   for (const spec of of([...nodes.keys()], 'spec'))
-    for (const row of related(spec, 'supersede', 'out')) {
+    for (const row of holding(spec, 'supersede', 'out')) {
       const replaced = row.counterpart;
       if (
         word(replaced) === 'spec' &&

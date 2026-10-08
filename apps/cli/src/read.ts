@@ -20,7 +20,7 @@ import type { ReadBody, ReadBodyOptions, ReadRefusal } from '@inventarch/runtime
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import type { Capabilities } from './render.js';
-import { atom, document, entry, headerLine, quote, truncateDigest, words } from './render.js';
+import { atom, document, entry, headerLine, quote, terminalText, truncateDigest, words } from './render.js';
 import { identityNext, openSession } from './session.js';
 import type { Session } from './session.js';
 
@@ -40,17 +40,21 @@ export function readEnvelope(body: ReadBody): unknown {
   };
 }
 
-/** What was read, its digest and the not-certified line, then the body exactly as read. */
+/**
+ * What was read, its digest and the not-certified line, then the body exactly as read. The header's identity, locator
+ * and path are escaped by `terminalText`; the body is the source's own bytes, terminal controls included, and `--json`
+ * is the form that escapes them (apps/cli/SPEC.md, `read`).
+ */
 export function renderRead(body: ReadBody, caps: Capabilities): string {
   const header = document(
     [
       // The identity alone is often wider than the effective width, so nothing shares its header line.
-      headerLine('Read', body.identity, [], caps),
+      headerLine('Read', terminalText(body.identity), [], caps),
       entry(
         [
           body.path === undefined
-            ? words(body.locator === body.identity ? 'record' : `record, ${body.locator}`)
-            : [atom('document', null, 0), atom(body.path, 'cyan', 2)],
+            ? words(body.locator === body.identity ? 'record' : `record, ${terminalText(body.locator)}`)
+            : [atom('document', null, 0), atom(terminalText(body.path), 'cyan', 2)],
           [
             atom(`sha256 ${truncateDigest(body.digest, caps.ascii)}`, null, 0),
             ...words(`${Buffer.byteLength(body.body)} bytes`, 'dim', 2),

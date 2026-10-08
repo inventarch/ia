@@ -47,6 +47,7 @@
   "inputProfiles": {
     "owner-source": "The owning package sources, tests and its workspace dependency closure, plus shared execution configuration and runtime identity.",
     "workspace-records": "owner-source plus the authored .ia record tree, schemas, guides and native fixture inventories these tasks read through filesystem discovery.",
+    "installed-cli": "workspace-records plus every app, package and distribution source and the native generators, because the task runs the built CLI through its path, which no import edge names, so its own hash must cover what the CLI is built from.",
     "tooling": "The tools tree, root TypeScript and Vitest configuration, and the repository manifests and lockfile.",
     "repository-inventory": "Every tracked and nonignored file, because these checks assert over repository membership itself.",
     "emitted": "Built package outputs, packed archive bytes, the native corpus and the host scripts an independent installed consumer executes.",
@@ -2435,6 +2436,38 @@
       ],
       "outputs": [
         "artifacts/tests/tools-test-distribution"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-installed-views",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/distribution/installed-views.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "installed-cli",
+      "dependsOn": [
+        "language-base:generate",
+        "distribution:build",
+        "cli:build",
+        "mcp-door:build",
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "artifacts/tests/tools-test-installed-views"
       ],
       "cache": true,
       "workerLimit": 1,

@@ -145,18 +145,29 @@ export function context(
     dangling: walk.dangling,
     limits: { ...budget, tokensUsed, recordsUsed: identities.size, estimator: tokenizer.name, envelopeBytes: 0 },
   };
-  // The envelope estimate excludes delivered text and purpose bytes, which are
-  // already accounted for in tokensUsed. It includes citations, scope and omissions.
-  const envelopeBytes = Buffer.byteLength(
+  return freeze({
+    ok: true,
+    packet: { ...packet, limits: { ...packet.limits, envelopeBytes: envelopeBytes(packet) } },
+  });
+}
+/**
+ * The envelope estimate of a packet as it is answered: its JSON bytes with `limits.envelopeBytes` 0 and without
+ * delivered text and purpose bytes, which are already accounted for in tokensUsed. It includes citations, scope and
+ * omissions. The Door's version 1 `context` answers the packet in 1.1.0's shape and estimates that shape (R12).
+ */
+export function envelopeBytes<P extends { readonly included: readonly Entry[]; readonly limits: Packet['limits'] }>(
+  packet: P,
+): number {
+  return Buffer.byteLength(
     JSON.stringify({
       ...packet,
-      included: included.map((entry) => ({
+      included: packet.included.map((entry) => ({
         ...entry,
         text: '',
         ...(entry.purpose === undefined ? {} : { purpose: '' }),
       })),
+      limits: { ...packet.limits, envelopeBytes: 0 },
     }),
     'utf8',
   );
-  return freeze({ ok: true, packet: { ...packet, limits: { ...packet.limits, envelopeBytes } } });
 }

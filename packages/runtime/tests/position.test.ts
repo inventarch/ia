@@ -21,6 +21,8 @@ const foundation = 'workspace-system/definition/workspace/foundation-workspace',
 const GOLDEN: Readonly<Record<string, Partial<ScopeKey>>> = {
   k0: {},
   'governance-at-law': { seat: lawId, shape: 'governance' },
+  // The law's `enforced-by` row holds only at act (decision conditional-relations-in-delivery): its check loads there.
+  'governance-at-law-act': { seat: lawId, shape: 'governance', phase: 'act' },
   'sequence-depth-2': { shape: 'sequence', depth: 2 },
   'word-law': { seat: governanceSystem, shape: 'governance', word: 'law' },
 };
@@ -127,8 +129,9 @@ it('gives equal keys byte-equal bodies, through every whole-workspace token and 
 it('hops along the predicate focus in either direction, loading in the shape order and pointing out of focus', () => {
   const db = database(workspace()),
     within = db.resolveScope().token;
-  // From the law, the check that enforces it is one `enforced-by` row away, declared by the law (the target).
-  const governance = bodyOf(db, within, { seat: lawId, shape: 'governance' });
+  // From the law, the check that enforces it is one `enforced-by` row away, declared by the law (the target). The row
+  // holds only at phase act (`when phase is act and severity is blocking`), so the key names that phase.
+  const governance = bodyOf(db, within, { seat: lawId, shape: 'governance', phase: 'act' });
   expect(governance.loaded[1]).toMatchObject({
     identity: check,
     hop: 1,
@@ -144,8 +147,8 @@ it('hops along the predicate focus in either direction, loading in the shape ord
   expect(sequence.frontier).toEqual([]);
   expect(sequence.widening.deeper).toBeUndefined();
   // The governance order puts prime first: the check, primed by `governs` from the contract, ranks before the
-  // convention and principle a @system seat composes, which no row primes.
-  const system = bodyOf(db, within, { seat: governanceSystem, shape: 'governance' });
+  // convention and principle a @system seat composes, which no row primes. The law's row reaches the check at act.
+  const system = bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'act' });
   expect(ids(system.loaded)).toEqual([
     governanceSystem,
     check,
@@ -157,7 +160,7 @@ it('hops along the predicate focus in either direction, loading in the shape ord
   expect(system.pointers.some((p) => p.identity === lawId)).toBe(false);
   // A record keeps what first reached it: at depth 2 the check's `enforced-by` row reaches the seed law again, which
   // stays at hop 0 by word membership.
-  expect(bodyOf(db, within, { seat: governanceSystem, shape: 'governance', depth: 2 }).rules).toEqual([
+  expect(bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'act', depth: 2 }).rules).toEqual([
     expect.objectContaining({ identity: lawId, hop: 0, via: { by: 'word', system: 'governance-system' } }),
   ]);
   // The system's word members arrive by word membership, its steward by its head.steward field.
@@ -238,7 +241,7 @@ it('orders by the total keys: band, then hop, then lane, and in governance prime
   const sev = database(severities),
     token = sev.resolveScope().token;
   expect(sev.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
-  const ranked = bodyOf(sev, token, { seat: governanceSystem, shape: 'governance' });
+  const ranked = bodyOf(sev, token, { seat: governanceSystem, shape: 'governance', phase: 'act' });
   expect(ids(ranked.loaded)).toEqual([
     governanceSystem,
     check,
@@ -250,8 +253,9 @@ it('orders by the total keys: band, then hop, then lane, and in governance prime
     'governance-system/governance/law/a-info',
   ]);
   expect(ids(ranked.rules)).toEqual([lawId, blocking]);
-  // Under context the law is one `cites` hop from the procedure and the row-less law at hop 0; prime still leads.
-  const cited = bodyOf(sev, token, { seat: governanceSystem, shape: 'context' });
+  // Under context the law is one `cites` hop from the procedure and the row-less law at hop 0; prime still leads, the
+  // law primed by its `enforced-by` row, which holds at act.
+  const cited = bodyOf(sev, token, { seat: governanceSystem, shape: 'context', phase: 'act' });
   expect(cited.rules.map((r) => [r.identity, r.hop])).toEqual([
     [lawId, 1],
     [blocking, 0],
@@ -291,6 +295,44 @@ it('ranks an adopted record primed by a row before a local one no row primes, th
     ['governance-system/governance/law/local-rule', 100],
     [governanceSystem, 90],
   ]);
+});
+
+// An installed or adopted @workspace may declare the root its own records sit in, as the bundled base's
+// language-workspace declares `.ia/src @authored` in the store. Its @system records are still seated in the
+// repository's workspace, so what the repository authors under their words is inside the closure.
+it("seats an adopted @system in the repository's workspace though its adopted @workspace declares its root", () => {
+  const root = workspace(null),
+    vendor = 'vendor/foundation';
+  cpSync(resolve(import.meta.dirname, '../../../examples/conformance/native'), resolve(root, vendor, '.ia/src'), {
+    recursive: true,
+  });
+  declare(resolve(root, vendor), ['.ia/src @authored']);
+  const pinned = readInputs(resolve(root, vendor), { adopted: [] })
+    .sources.filter((s) => !s.path.startsWith('.ia/src/floor/'))
+    .map(({ path, text }) => ({ path, text }));
+  const revision = createHash('sha256').update(stableSerialize(pinned)).digest('hex');
+  put(
+    root,
+    '.ia/workspace.json',
+    JSON.stringify({ version: 1, adopted: [{ id: 'foundation', path: vendor, revision }] }),
+  );
+  put(
+    root,
+    '.ia/src/systems/workspace-system/records/local-workspace.ia',
+    '#! ia 1.0\n@workspace local-workspace\n  meaning\n    says "The local boundary."\n    answers "What is local?"\n  composition\n    systems [@system governance-system]\n    sources [".ia/src @authored"]\n',
+  );
+  put(root, `${records}/no-secrets.ia`, law('no-secrets', 'blocking', '  subject\n    covers ["src/**"]\n'));
+  const db = database(root),
+    within = db.resolveScope().token,
+    local = 'governance-system/governance/law/no-secrets';
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  // The adopted foundation workspace declares the root the adopted @system sits in.
+  expect(db.roots().map((r) => r.workspace)).toContain(foundation);
+  const body = bodyOf(db, within, { seat: governanceSystem, shape: 'governance' });
+  // The local blocking law is a word member of the seat inside the repository's closure: reserved, never a pointer.
+  expect(ids(body.rules)).toEqual(expect.arrayContaining([local, lawId]));
+  expect(body.pointers.some((p) => p.identity === local)).toBe(false);
+  expect(body.unknowns.filter((u) => u.kind === 'sources')).toEqual([]);
 });
 
 it('seeds by the kind or the lane focus: an authority-facet contract seeds governance by lane, context by kind', () => {
@@ -407,16 +449,18 @@ it('loads the seat plus only records of the word, follows other words as waypoin
   ]);
   // At depth 2 from the blocking law, the check is a waypoint: followed, never loaded or listed, and the advisory
   // law it enforces is loaded at hop 2.
-  const waypoint = bodyOf(db, within, { seat: lawId, shape: 'governance', depth: 2, word: 'law' });
+  const waypoint = bodyOf(db, within, { seat: lawId, shape: 'governance', phase: 'act', depth: 2, word: 'law' });
   expect(ids(waypoint.loaded)).toEqual([lawId, advisory]);
   expect(waypoint.loaded[1]).toMatchObject({ hop: 2, via: { by: 'row', from: check, predicate: 'enforce' } });
   expect([...ids(waypoint.pointers), ...ids(waypoint.loaded)]).not.toContain(check);
   // Unfiltered, the check and the contract it enforces are loaded, and the procedure citing the law is a pointer.
-  const unfiltered = bodyOf(db, within, { seat: lawId, shape: 'governance', depth: 2 });
+  const unfiltered = bodyOf(db, within, { seat: lawId, shape: 'governance', phase: 'act', depth: 2 });
   expect(ids(unfiltered.loaded)).toEqual(expect.arrayContaining([lawId, check, contract, advisory]));
   expect(ids(unfiltered.pointers)).toContain(procedure);
   // The frontier counts only the word too: from the check at depth 0, the two laws it enforces, not the contract.
-  expect(bodyOf(db, within, { seat: check, shape: 'governance', depth: 0, word: 'law' }).frontier).toEqual([
+  expect(
+    bodyOf(db, within, { seat: check, shape: 'governance', phase: 'act', depth: 0, word: 'law' }).frontier,
+  ).toEqual([
     {
       system: 'governance-system',
       kind: 'governance',
@@ -424,7 +468,7 @@ it('loads the seat plus only records of the word, follows other words as waypoin
       count: 2,
     },
   ]);
-  expect(bodyOf(db, within, { seat: check, shape: 'governance', depth: 0 }).frontier).toEqual([
+  expect(bodyOf(db, within, { seat: check, shape: 'governance', phase: 'act', depth: 0 }).frontier).toEqual([
     {
       system: 'compliance-system',
       kind: 'contract',
@@ -480,6 +524,18 @@ it('reserves a blocking law that claims a location seat through subject.covers a
     subject: '.ia/work/notes',
     message: "no record claims '.ia/work/notes' and none is declared at it; widening key: the workspace",
   });
+  // A scope that leaves the claiming law out can say only that none of its records claims the path.
+  const narrowed = db.resolveScope({
+    identities: db.records().flatMap((r) => (r.identity === lawId ? [] : [r.identity])),
+  });
+  expect(
+    bodyOf(db, narrowed.token, { seat: { path: '.ia/work/claimed/note.md' }, depth: 0, budget: 0 }).unknowns[0],
+  ).toEqual({
+    kind: 'seat',
+    subject: '.ia/work/claimed/note.md',
+    message:
+      "no record in this scope claims '.ia/work/claimed/note.md' and none in it is declared at it; widening key: the workspace",
+  });
   // A path the law claims but no record is declared at: the claim is composition, and the seat's unknown is named.
   const claimed = bodyOf(db, within, { seat: { path: '.ia/work/claimed/note.md' }, depth: 0, budget: 0 });
   expect(claimed.rules).toEqual([
@@ -509,8 +565,8 @@ it("never enters another workspace's root: a record there is a pointer naming th
     within = db.resolveScope().token,
     other = 'workspace-system/definition/workspace/compliance-workspace';
   expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
-  const body = bodyOf(db, within, { seat: lawId, shape: 'governance' });
-  // The law is the foundation workspace's member; the check that enforces it is the other workspace's.
+  const body = bodyOf(db, within, { seat: lawId, shape: 'governance', phase: 'act' });
+  // The law is the foundation workspace's member; the check that enforces it, at act, is the other workspace's.
   expect(ids(body.loaded)).toEqual([lawId]);
   expect(body.pointers).toEqual(
     expect.arrayContaining([
@@ -526,7 +582,7 @@ it("never enters another workspace's root: a record there is a pointer naming th
   expect(body.frontier).toEqual([]);
   expect(body.unknowns.some((u) => u.kind === 'sources')).toBe(false);
   // With the word law, the check is of another word outside the closure: neither entered nor listed.
-  const laws = bodyOf(db, within, { seat: lawId, shape: 'governance', word: 'law' });
+  const laws = bodyOf(db, within, { seat: lawId, shape: 'governance', phase: 'act', word: 'law' });
   expect([...ids(laws.loaded), ...ids(laws.pointers)]).toEqual([lawId]);
   // At the foundation workspace, the compliance-system @system its `composition.systems` names is composition of
   // the other workspace's root: a pointer naming it, at hop 0, never loaded or counted in the composition.
@@ -575,7 +631,7 @@ it('gives a seat no declared root holds no workspace: the fallback closure, name
       message: expect.stringContaining('no @workspace holds the seat'),
     });
   expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
-  const system = bodyOf(db, within, { seat: governanceSystem, shape: 'governance' });
+  const system = bodyOf(db, within, { seat: governanceSystem, shape: 'governance', phase: 'act' });
   expect(ids(system.rules)).toEqual([lawId]);
   expect(ids(system.loaded)).toEqual([
     governanceSystem,
@@ -587,12 +643,71 @@ it('gives a seat no declared root holds no workspace: the fallback closure, name
   expect(system.unknowns[0]!.subject).toBeUndefined();
   // The workspace's own records are the ones outside that closure, pointers naming it.
   expect(system.pointers).toContainEqual(expect.objectContaining({ identity: foundation, workspace: foundation }));
-  // Seated at the law, the check that enforces it is entered.
-  const atLaw = bodyOf(db, within, { seat: lawId, shape: 'governance' });
+  // Seated at the law, the check that enforces it at act is entered.
+  const atLaw = bodyOf(db, within, { seat: lawId, shape: 'governance', phase: 'act' });
   expect(ids(atLaw.loaded)).toEqual([lawId, check]);
   expect(atLaw.unknowns).toEqual([fallback]);
   // The workspace itself keeps its closure: its capture members, no unknown.
   expect(bodyOf(db, within).unknowns).toEqual([]);
+});
+
+// Decision conditional-relations-in-delivery: a conditional row is followed only where its condition holds at the key's
+// coordinate, so the body agrees with graph traversal for the same coordinate.
+it('follows a conditional row only where it holds at the key coordinate, as graph traversal gates it', () => {
+  const db = database(workspace()),
+    within = db.resolveScope().token;
+  // The fixture law states `enforced-by @check instance-schema-check when phase is act and severity is blocking`.
+  for (const phase of ['orient', 'plan', 'act', 'learn'] as const) {
+    const partial = { seat: lawId, shape: 'governance', phase } as const,
+      body = bodyOf(db, within, partial),
+      coordinate = resolveScopeKey(db, within, normalizeScopeKey(partial)).coordinate.values,
+      walk = db.traverse({ within, start: [lawId], follow: ['enforced-by'], depth: 1, coordinate });
+    const reached = [...ids(body.loaded), ...ids(body.pointers), ...ids(body.rules)].includes(check);
+    expect(reached, phase).toBe(phase === 'act');
+    expect(walk.edges.length, phase).toBe(phase === 'act' ? 1 : 0);
+    expect(walk.gated.length, phase).toBe(phase === 'act' ? 0 : 1);
+    // A row that does not hold reaches nothing past it either: the contract the check enforces is no frontier.
+    expect(body.frontier.length, phase).toBe(phase === 'act' ? 1 : 0);
+  }
+  // Read from the check's side the same row is gated alike: the law is its frontier at act only.
+  const fromCheck = (phase: 'plan' | 'act') =>
+    bodyOf(db, within, { seat: check, shape: 'governance', phase, depth: 0 }).frontier.find(
+      (tally) => tally.system === 'governance-system',
+    );
+  expect(fromCheck('act')).toMatchObject({ kind: 'governance', count: 1 });
+  expect(fromCheck('plan')).toBeUndefined();
+  // The condition's severity term is read from the law that states the row: an advisory law's row holds at no phase.
+  const advisory = workspace();
+  put(
+    advisory,
+    lawPath,
+    readFileSync(resolve(advisory, lawPath), 'utf8').replace('severity blocking\n', 'severity advisory\n'),
+  );
+  const loose = database(advisory),
+    token = loose.resolveScope().token;
+  expect(ids(bodyOf(loose, token, { seat: lawId, shape: 'governance', phase: 'act' }).loaded)).toEqual([lawId]);
+});
+
+it('reaches a task through a conditional requirement only at the phase it names', () => {
+  const root = workspace();
+  cpSync(resolve(import.meta.dirname, 'fixtures/delivery/base'), resolve(root, '.ia/src'), { recursive: true });
+  const path = resolve(root, '.ia/src/work.ia');
+  writeFileSync(
+    path,
+    readFileSync(path, 'utf8').replace('    requires @task guide\n', '    requires @task guide when phase is act\n'),
+  );
+  const db = database(root),
+    within = db.resolveScope().token,
+    notes = 'work-system/definition/task/release-notes',
+    guide = 'work-system/definition/task/guide';
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  for (const phase of ['orient', 'plan', 'act'] as const) {
+    const body = bodyOf(db, within, { seat: notes, shape: 'sequence', phase, depth: 1 });
+    const entry = [...body.loaded, ...body.pointers].find((e) => 'identity' in e && e.identity === guide);
+    if (phase === 'act')
+      expect(entry, phase).toMatchObject({ hop: 1, via: { by: 'row', from: notes, predicate: 'require' } });
+    else expect(entry, phase).toBeUndefined();
+  }
 });
 
 it('names the unresolved rows of a loaded record on a whole-workspace scope; a narrowed one says it reads none', () => {

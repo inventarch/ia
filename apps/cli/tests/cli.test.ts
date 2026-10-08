@@ -6,7 +6,7 @@ import { expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { installSignals, readLine, runCli } from '../src/main.js';
-import { describeOperation } from '../src/operation-help.js';
+import { describeOperation, renderOperationHelp, renderOperationSchema } from '../src/operation-help.js';
 
 const root = resolve(import.meta.dirname, '../../..'),
   fixture = resolve(root, 'packages/compliance/fixtures/loop');
@@ -340,8 +340,15 @@ it('prints one operation description as one JSON line for --schema', async () =>
   }
   expect((await run(['context', '--params', '--schema'])).status).toBe(2);
   // A later version's operation is no machine route, so no route help or schema describes it.
-  for (const operation of MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined))
+  for (const operation of MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined)) {
     expect(describeOperation(operation.name), operation.name).toBeUndefined();
+    // The published renderers, handed such a row, describe it at the version that added it, never at version 1.
+    expect(JSON.parse(renderOperationSchema(operation)), operation.name).toEqual({
+      version: operation.since,
+      ...operation,
+    });
+    expect(renderOperationHelp(operation), operation.name).toContain(`Machine protocol v${operation.since}: `);
+  }
 });
 // spec-0012 CLI-01: help is decided before `--params -` would read stdin, so a stdin that throws is never touched.
 it('answers operation help without reading stdin', () => {

@@ -40,6 +40,7 @@ import {
   quote,
   remedyWords,
   sectionLabel,
+  terminalSafe,
   truncateDigest,
   words,
 } from './render.js';
@@ -172,14 +173,16 @@ function keyText(key: ScopeKey): string {
  * The key used and the capture's freshness; the loaded records, the pointers and their tallies; the rules and playbooks
  * that apply by word, with their tallies, and the playbook cells; the rules reserved outside the budget; the mandates;
  * the frontier; the unknowns; then the two widening keys as `ia position` commands, with the root this invocation gave:
- * one hop deeper (absent at depth 2), and the re-seat at any pointer or applies-by-word entry.
+ * one hop deeper (absent at depth 2), and the re-seat at any pointer or applies-by-word entry. Every string of the
+ * output, what a source authored (cell text, a finding's message, identities and paths) included, is escaped by
+ * `terminalSafe` before it is laid out, so no terminal control reaches the terminal; `--json` prints the output as is.
  */
 export function renderPosition(output: PositionOutput, caps: Capabilities, rooted = ''): string {
-  const { body, digest, hostNote } = output,
+  const { body, digest, hostNote } = terminalSafe(output),
     seated = body.seat.identity ?? spelled(body.seat.path ?? '');
   const freshness =
     hostNote.freshness === 'stale'
-      ? `stale: the capture is at revision ${truncateDigest(hostNote.capturedRevision ?? '', caps.ascii)}`
+      ? `stale: the capture is at revision ${truncateDigest(hostNote.capturedRevision ?? '', caps.ascii)}; run "ia capture${rooted}" to capture this one`
       : hostNote.freshness === 'current'
         ? 'current: the capture is at this revision'
         : 'no-capture: no capture is written; the body reads the live admitted revision';

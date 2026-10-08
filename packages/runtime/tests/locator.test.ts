@@ -231,10 +231,11 @@ it('slugs plain-text headings as GitHub does and bounds a section by the next he
   expect(markdownSection('- # Listed\n> # Quoted\nSetext\n======\n', 'setext')).toBeUndefined();
 });
 
-// Every heading before the anchor is slugged, so a heading's links are read in time linear in it: the work grows as
-// the input does, never as its square, which the link regular expression this reader replaced did on a run of unclosed
-// brackets or destinations (CodeQL js/polynomial-redos). The sizes are small enough that a quadratic reader finishes in
-// seconds, so a regression fails its growth ratio instead of stalling the suite.
+// A document may be 4 MiB and is read on the long-lived MCP door, so whatever lies before the anchor is read in time
+// linear in it: the work grows as the input does, never as its square, which the regular expressions these readers
+// replaced did on a long run of spaces or of unclosed brackets in a heading, and the per-marker reread did on one line
+// of nested list markers or on blank lines inside deeply nested items. The sizes are small enough that a quadratic
+// reader finishes in seconds, so a regression fails its growth ratio instead of stalling the suite.
 /** The fastest of `runs` reads of the `target` section of `text`, in milliseconds; the section is always `# target`. */
 function fastest(text: string, runs: number): number {
   let best = Number.POSITIVE_INFINITY;
@@ -245,8 +246,9 @@ function fastest(text: string, runs: number): number {
   }
   return best;
 }
-it('reads the links of a heading in time linear in its length, however many brackets stay unclosed', () => {
+it('reads a heading line and its links in time linear in their length, however long a run of spaces or brackets', () => {
   const inputs: Readonly<Record<string, (size: number) => string>> = {
+    spaces: (size) => `# a${' '.repeat(size)}b #\n# target\n`,
     brackets: (size) => `# ${'[a'.repeat(size / 2)}\n# target\n`,
     destinations: (size) => `# ${'[](('.repeat(size / 4)}\n# target\n`,
   };
@@ -257,8 +259,36 @@ it('reads the links of a heading in time linear in its length, however many brac
     // read under a millisecond counts as one, so a linear reader's ratio stays near one at these sizes.
     expect(large / Math.max(small, 1), name).toBeLessThan(32);
   }
-  // A link keeps its text, an image its alt text, and an unclosed bracket is text.
+  // The text between the opening run and a closing run a space or tab precedes is the heading, its links their text.
+  expect(markdownSection(`# a${' '.repeat(40)}b \t## \t\nBody.\n`, `a${'-'.repeat(40)}b`)).toBe(
+    `# a${' '.repeat(40)}b \t## \t\nBody.\n`,
+  );
   expect(headingAnchor(`${'[a'.repeat(3)}[x](y) and ![alt](src)`)).toBe('aaax-and-alt');
+});
+
+it('reads nested list and quote markers on one line, and the lines nested items continue, in linear time', () => {
+  const inputs: Readonly<Record<string, (size: number) => string>> = {
+    'list markers': (size) => `${'- '.repeat(size / 2)}x\n`,
+    'star markers': (size) => `${'* '.repeat(size / 2)}x\n`,
+    'ordered markers': (size) => `${'1. '.repeat(size / 3)}x\n`,
+    'quoted list markers': (size) => `${'> - '.repeat(size / 4)}x\n`,
+    // Each blank line continues every open item, and a line of spaces must not be reread once per item.
+    'blank lines in nested items': (size) => `${'- '.repeat(size / 4)}x\n${'\n'.repeat(size / 2)}`,
+    'spaces in nested items': (size) => `${'- '.repeat(size / 4)}x\n${' '.repeat(size / 2)}x\n`,
+  };
+  for (const [name, input] of Object.entries(inputs)) {
+    const small = fastest(`${input(1 << 12)}# target\n`, 3),
+      large = fastest(`${input(1 << 16)}# target\n`, 3);
+    // Sixteen times the input is about sixteen times the work when it is linear, 256 times when it is quadratic.
+    expect(large / Math.max(small, 1), name).toBeLessThan(64);
+  }
+  // The items still close where they did: a blank line ends an empty item and every quote, and a heading at the left
+  // margin ends every container, so a top-level heading after them is read and one inside them is not.
+  expect(markdownSection(`${'- '.repeat(8)}x\n\n\n# target\n`, 'target')).toBe('# target\n');
+  expect(markdownSection(`${'> - '.repeat(4)}x\n> \n>   # inner\n# target\n`, 'inner')).toBeUndefined();
+  expect(markdownSection('- a\n  - b\n\n\n    # deep\n# target\n', 'deep')).toBeUndefined();
+  expect(markdownSection(`- a\n\n  # inner\n\n  more\n# target\n`, 'inner')).toBeUndefined();
+  expect(markdownSection(`- \n\n  # outer\n`, 'outer')).toBe('  # outer\n');
 });
 
 it.each([

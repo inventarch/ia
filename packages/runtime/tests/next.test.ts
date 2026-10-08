@@ -11,6 +11,8 @@ import type {
   DoorOptions,
   DoorResponse,
   NextRefusal,
+  PositionBody,
+  Prerequisite,
 } from '../src/index.js';
 import { database, lawId, put, tree, workspace } from './workspace.js';
 
@@ -827,6 +829,13 @@ it('refuses several authored plans without a seat, listing them, and reads the p
     plans,
   });
   expect(view(root, milestone('findings')).tasks.map((t) => t.identity)).toEqual([task('survey')]);
+  // A seat the scope does not admit names the view without a seat that runs: here the first plan's, as `ia next` alone
+  // is refused; with no authored plan, the help that says what makes one.
+  expect(refusal(root, task('absent'))).toMatchObject({
+    code: 'IA-RUNTIME-NEXT-SEAT',
+    next: `ia next --seat ${plans[0]!}`,
+  });
+  expect(refusal(workspace(), task('absent'))).toMatchObject({ code: 'IA-RUNTIME-NEXT-SEAT', next: 'ia next --help' });
 });
 
 it('refuses a require cycle among tasks, naming its declared rows and the first task in it', () => {
@@ -958,6 +967,433 @@ it('reads what a narrowed scope leaves out as unknown, never as met', () => {
   });
 });
 
+// Decision evidence-placement: runtime-band evidence is admitted below authored and is visible to `ia next`, so exit
+// evidence counts whatever its placement, though no position body enters a runtime-band record (R15).
+it('counts exit evidence at runtime placement as it counts authored evidence', () => {
+  const root = delivery('base'),
+    authored = view(root),
+    db = database(root, {
+      locations: {
+        '.ia/src/evidence.ia': { placement: { kind: 'runtime', band: 0, reach: '' }, provenance: 'runtime' },
+      },
+    });
+  expect(db.get(id('observation', 'schema-checked'))?.band).toBe(0);
+  const result = deliveryView(db, db.resolveScope().token);
+  if (!result.ok) throw new Error(result.message);
+  const placed = result.view;
+  expect(placed.tasks.map((t) => [t.identity, t.verdict, t.line])).toEqual(
+    authored.tasks.map((t) => [t.identity, t.verdict, t.line]),
+  );
+  expect(byIdentity(placed, 'schema').evidence).toEqual(byIdentity(authored, 'schema').evidence);
+  expect([placed.next, placed.summary, placed.milestones]).toEqual([
+    authored.next,
+    authored.summary,
+    authored.milestones,
+  ]);
+  expect(placed.summary).toBe(`2 of 5 tasks have exit evidence; next: ${task('guide')}, with no declared blocker`);
+});
+
+/**
+ * Decision conditional-relations-in-delivery: the base fixture with guide-format's grounding of guide and
+ * release-notes' requirement of guide each conditional on phase act, as `more` rewrites the fixture further.
+ */
+function conditional(more: (text: string) => string = (text) => text): string {
+  const root = delivery('base'),
+    path = resolve(root, '.ia/src/work.ia');
+  writeFileSync(
+    path,
+    more(
+      readFileSync(path, 'utf8')
+        .replace('    grounds @task guide\n', '    grounds @task guide when phase is act\n')
+        .replace('    requires @task guide\n', '    requires @task guide when phase is act\n'),
+    ),
+  );
+  return root;
+}
+const UNDECIDED = 'conditional on phase is act, which the scope binds no phase to decide (unknown)';
+
+it('reads a conditional row only where it holds at the phase the scope binds, as graph traversal gates it', () => {
+  const root = conditional(),
+    db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const at = (phase: 'orient' | 'act') => {
+    const token = db.resolveScope({ phase }).token,
+      result = deliveryView(db, token);
+    if (!result.ok) throw new Error(result.message);
+    // Traversal for the same scope and coordinate gates the grounding row outside act, and follows it at act.
+    const walk = db.traverse({
+      within: token,
+      start: [task('guide')],
+      follow: ['grounded-by'],
+      depth: 1,
+      coordinate: { phase },
+    });
+    return { delivered: result.view, followed: walk.edges.length, gated: walk.gated.length };
+  };
+  // At orient neither row holds: guide is grounded by no decision, and release-notes does not require it. A
+  // phase-bound scope is no whole-workspace scope (db PT5), so what it does not read is unknown.
+  const orient = at('orient');
+  expect([orient.followed, orient.gated]).toEqual([0, 1]);
+  expect(state(orient.delivered, 'guide', 'intent')).toEqual({
+    dimension: 'intent',
+    value: 'unknown',
+    basis: 'no @decision in this scope grounds it',
+  });
+  expect(byIdentity(orient.delivered, 'release-notes').prerequisites.map((p) => p.target)).toEqual([
+    id('decision', 'release-channel'),
+    milestone('foundation'),
+  ]);
+  // At act both hold, as unconditional rows would.
+  const act = at('act');
+  expect([act.followed, act.gated]).toEqual([1, 0]);
+  expect(state(act.delivered, 'guide', 'intent')).toEqual({
+    dimension: 'intent',
+    value: 'accepted',
+    basis: `${id('decision', 'guide-format')}: choice made, effective-revision ${'0'.repeat(63)}1`,
+  });
+  expect(byIdentity(act.delivered, 'release-notes').prerequisites).toContainEqual({
+    target: task('guide'),
+    word: 'task',
+    satisfied: false,
+    basis: `task ${task('guide')}: no exit evidence`,
+  });
+  // The whole-workspace scope `ia next` reads binds no phase: each row is conditional, its basis unknown, never
+  // satisfied, so release-notes stays blocked on it and guide's intent is unknown, though guide-format is accepted.
+  const whole = view(root);
+  expect(state(whole, 'guide', 'intent')).toEqual({
+    dimension: 'intent',
+    value: 'unknown',
+    basis: `${id('decision', 'guide-format')} grounds it ${UNDECIDED}`,
+  });
+  const notes = byIdentity(whole, 'release-notes');
+  expect(notes.prerequisites).toContainEqual({
+    target: task('guide'),
+    word: 'task',
+    satisfied: false,
+    basis: `task ${task('guide')}: ${UNDECIDED}`,
+  });
+  expect(notes.verdict).toBe('blocked');
+  expect(notes.line).toContain(`task ${task('guide')}: ${UNDECIDED}`);
+  // Even with guide evidenced, the conditional requirement is never read as met.
+  evidence(root, ['guide']);
+  const evidenced = byIdentity(view(root), 'release-notes').prerequisites.find((p) => p.target === task('guide'))!;
+  expect(evidenced).toMatchObject({ satisfied: false, basis: `task ${task('guide')}: ${UNDECIDED}` });
+});
+
+/** The delivery view through a scope bound to `phase`, or the whole-workspace one; `identities` narrows it. */
+function viewAt(root: string, phase?: 'orient' | 'act', identities?: readonly string[]): DeliveryView {
+  const db = database(root),
+    result = deliveryView(
+      db,
+      db.resolveScope({
+        ...(phase === undefined ? {} : { phase }),
+        ...(identities === undefined ? {} : { identities }),
+      }).token,
+    );
+  if (!result.ok) throw new Error(result.message);
+  return result.view;
+}
+const lineOf = (delivered: DeliveryView, name: string, target: string): Prerequisite | undefined =>
+  byIdentity(delivered, name).prerequisites.find((p) => p.target === target);
+
+it('reads a severity term as graph traversal does, and decides a provenance term on the record that states it', () => {
+  // release-notes states no severity, so `when severity is blocking` holds exactly where the coordinate is blocking:
+  // graph effectiveSeverity takes the stronger of the record's severity and the coordinate's. No scope binds a severity,
+  // so the row is conditional at every phase, never dropped as failing, and it blocks. Provenance is the record's own:
+  // release-notes is authored in the workspace, so a `when provenance is workspace` row holds wherever it is read.
+  const root = conditional((text) =>
+    text
+      .replace(
+        '    requires @decision release-channel\n',
+        '    requires @decision release-channel when severity is blocking\n',
+      )
+      .replace(
+        '    requires @task guide when phase is act\n',
+        '    requires @task guide when provenance is workspace\n',
+      ),
+  );
+  const db = database(root);
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const channel = id('decision', 'release-channel'),
+    severity = 'conditional on severity is blocking, which the scope binds no severity to decide (unknown)';
+  for (const phase of [undefined, 'orient', 'act'] as const) {
+    const delivered = viewAt(root, phase),
+      notes = byIdentity(delivered, 'release-notes');
+    expect(lineOf(delivered, 'release-notes', channel), phase).toEqual({
+      target: channel,
+      word: 'decision',
+      satisfied: false,
+      basis: `decision ${channel}: ${severity}`,
+    });
+    expect(lineOf(delivered, 'release-notes', task('guide')), phase).toEqual({
+      target: task('guide'),
+      word: 'task',
+      satisfied: false,
+      basis: `task ${task('guide')}: no exit evidence`,
+    });
+    expect([notes.verdict, notes.line.includes(`decision ${channel}: ${severity}`)], phase).toEqual(['blocked', true]);
+  }
+  // Traversal follows the row at a blocking coordinate and gates it at one that binds no severity.
+  const token = db.resolveScope().token,
+    walk = (coordinate: Record<string, string>) =>
+      db.traverse({ within: token, start: [task('release-notes')], follow: ['require'], depth: 1, coordinate });
+  expect(walk({ severity: 'blocking' }).edges.map((edge) => edge.to)).toContain(channel);
+  expect(walk({}).gated.map((edge) => edge.to)).toContain(channel);
+  // A provenance term the record fails is no row anywhere: release-notes then requires no guide at all.
+  const runtime = conditional((text) =>
+    text.replace(
+      '    requires @task guide when phase is act\n',
+      '    requires @task guide when provenance is runtime\n',
+    ),
+  );
+  for (const phase of [undefined, 'act'] as const)
+    expect(lineOf(viewAt(runtime, phase), 'release-notes', task('guide')), phase).toBeUndefined();
+});
+
+it('prefers a row that holds to a conditional one, and refuses a conditional supersession of a task at admission', () => {
+  // guide-format grounds guide both through a row conditional on act and through one with no condition, which holds
+  // wherever the scope is, so guide is accepted even where no phase is bound.
+  const root = conditional((text) =>
+    text.replace(
+      '    grounds @task guide when phase is act\n',
+      '    grounds @task guide when phase is act\n    grounds @task guide\n',
+    ),
+  );
+  expect(state(view(root), 'guide', 'intent')).toMatchObject({ value: 'accepted' });
+  put(
+    root,
+    '.ia/src/supersede.ia',
+    [
+      '#! ia 1.0',
+      '',
+      '@task guide-v2',
+      '  meaning',
+      '    says "Rewrite the guide."',
+      '  work',
+      '    title "Guide, again"',
+      '    status open',
+      '    milestone @milestone foundation',
+      '  relationships',
+      '    supersedes @task guide when phase is act',
+      '',
+      '@decision rewrite-guide',
+      '  meaning',
+      '    says "The guide is rewritten."',
+      '  work',
+      '    title "Rewrite the guide"',
+      '    status made',
+      '  decision',
+      '    question "Is the guide rewritten?"',
+      '    choice "yes"',
+      `    effective-revision "${'2'.repeat(64)}"`,
+      '  relationships',
+      '    grounds @task guide-v2',
+      '',
+    ].join('\n'),
+  );
+  // Admission refuses a conditional supersession of a task (supersede is cardinality one, which a condition would leave
+  // undecided), so the view never reads one: guide-v2 is no task of the plan, and guide stays accepted.
+  const superseding = database(root),
+    result = deliveryView(superseding, superseding.resolveScope().token);
+  expect(superseding.refused.map((record) => record.identity)).toContain(task('guide-v2'));
+  if (!result.ok) throw new Error(result.message);
+  expect(result.view.tasks.map((t) => t.identity)).not.toContain(task('guide-v2'));
+  expect(state(result.view, 'guide', 'intent')).toMatchObject({ value: 'accepted' });
+});
+
+it('reads the intent a conditional row cannot change at any phase as it reads everywhere, never through that row', () => {
+  // guide-format grounds guide with no condition and is accepted; release-channel, which has no choice, grounds guide
+  // only at act. Accepted by guide-format at act and at every other phase, guide reads accepted with no phase bound too.
+  const accepted = {
+    dimension: 'intent',
+    value: 'accepted',
+    basis: `${id('decision', 'guide-format')}: choice made, effective-revision ${'0'.repeat(63)}1`,
+  };
+  const grounded = (more: (text: string) => string = (text) => text): string => {
+    const root = delivery('base'),
+      path = resolve(root, '.ia/src/work.ia');
+    writeFileSync(
+      path,
+      more(
+        readFileSync(path, 'utf8').replace(
+          '    grounds @task release-notes\n',
+          '    grounds @task release-notes\n    grounds @task guide when phase is act\n',
+        ),
+      ),
+    );
+    return root;
+  };
+  const root = grounded();
+  expect(database(root).report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  for (const phase of [undefined, 'orient', 'act'] as const)
+    expect(state(viewAt(root, phase), 'guide', 'intent'), phase).toEqual(accepted);
+  // An accepted decision that grounds guide only at act, and comes first by identity, is read after guide-format, which
+  // a row that holds names, so with no phase bound guide still reads accepted by guide-format; at act it is the first.
+  const early = grounded((text) =>
+    text.replace(
+      '\n@decision release-channel\n',
+      [
+        '',
+        '@decision a-format',
+        '  meaning',
+        '    says "The guide may need another format at act."',
+        '  work',
+        '    title "Another format"',
+        '    status made',
+        '  decision',
+        '    question "Which format at act?"',
+        '    choice "generated"',
+        `    effective-revision "${'3'.repeat(64)}"`,
+        '  relationships',
+        '    grounds @task guide when phase is act',
+        '',
+        '@decision release-channel\n',
+      ].join('\n'),
+    ),
+  );
+  expect(database(early).report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  for (const phase of [undefined, 'orient'] as const)
+    expect(state(viewAt(early, phase), 'guide', 'intent'), phase).toEqual(accepted);
+  expect(state(viewAt(early, 'act'), 'guide', 'intent')).toEqual({
+    dimension: 'intent',
+    value: 'accepted',
+    basis: `${id('decision', 'a-format')}: choice made, effective-revision ${'3'.repeat(64)}`,
+  });
+  // When release-channel also supersedes guide-format, the conditional grounding decides the intent: at act guide-format
+  // is no live decision and release-channel has no choice, so with no phase bound the intent is unknown, as the row is.
+  const changing = grounded((text) =>
+    text.replace(
+      '    grounds @task guide when phase is act\n',
+      '    grounds @task guide when phase is act\n    supersedes @decision guide-format\n',
+    ),
+  );
+  expect(database(changing).report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  expect(state(viewAt(changing, 'orient'), 'guide', 'intent')).toEqual(accepted);
+  expect(state(viewAt(changing, 'act'), 'guide', 'intent')).toEqual({
+    dimension: 'intent',
+    value: 'unknown',
+    basis: `${id('decision', 'release-channel')}: no choice`,
+  });
+  expect(state(viewAt(changing), 'guide', 'intent')).toEqual({
+    dimension: 'intent',
+    value: 'unknown',
+    basis: `${id('decision', 'release-channel')} grounds it ${UNDECIDED}`,
+  });
+  // A superseding task whose acceptance a conditional grounding cannot change supersedes at every phase: guide-v2,
+  // grounded by the accepted rewrite-guide, supersedes guide with no condition, and release-channel may ground guide-v2.
+  const superseded = delivery('base');
+  put(
+    superseded,
+    '.ia/src/supersede.ia',
+    [
+      '#! ia 1.0',
+      '',
+      '@task guide-v2',
+      '  meaning',
+      '    says "Rewrite the guide."',
+      '  work',
+      '    title "Guide, again"',
+      '    status open',
+      '    milestone @milestone foundation',
+      '  relationships',
+      '    supersedes @task guide',
+      '',
+      '@decision rewrite-guide',
+      '  meaning',
+      '    says "The guide is rewritten."',
+      '  work',
+      '    title "Rewrite the guide"',
+      '    status made',
+      '  decision',
+      '    question "Is the guide rewritten?"',
+      '    choice "yes"',
+      `    effective-revision "${'2'.repeat(64)}"`,
+      '  relationships',
+      '    grounds @task guide-v2',
+      '',
+    ].join('\n'),
+  );
+  const path = resolve(superseded, '.ia/src/work.ia');
+  writeFileSync(
+    path,
+    readFileSync(path, 'utf8').replace(
+      '    grounds @task release-notes\n',
+      '    grounds @task release-notes\n    grounds @task guide-v2 when phase is act\n',
+    ),
+  );
+  expect(database(superseded).report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  for (const phase of [undefined, 'orient', 'act'] as const)
+    expect(state(viewAt(superseded, phase), 'guide', 'intent'), phase).toEqual({
+      dimension: 'intent',
+      value: 'superseded',
+      basis: `${task('guide-v2')} supersedes it, grounded by ${id('decision', 'rewrite-guide')} @${'2'.repeat(64)}`,
+    });
+});
+
+it('reads a conditional requirement no record answers, or none in the scope answers, only where it holds', () => {
+  // A requirement no admitted record answers is read from the traversal's dangling edge, with its condition.
+  const ghost = conditional((text) =>
+      text.replace(
+        '    requires @decision release-channel\n',
+        '    requires @decision release-channel\n    requires @task ghost when phase is act\n',
+      ),
+    ),
+    reference = '@task ghost';
+  expect(lineOf(viewAt(ghost, 'orient'), 'release-notes', reference)).toBeUndefined();
+  expect(lineOf(viewAt(ghost, 'act'), 'release-notes', reference)).toEqual({
+    target: reference,
+    satisfied: false,
+    basis: `${reference}: no admitted record answers it`,
+  });
+  expect(lineOf(viewAt(ghost), 'release-notes', reference)).toEqual({
+    target: reference,
+    satisfied: false,
+    basis: `${reference}: no admitted record answers it, ${UNDECIDED}`,
+  });
+  // A requirement whose answer is outside a narrowed scope gives no row; its declaration is read with its condition.
+  const root = conditional(),
+    outside = database(root)
+      .snapshot()
+      .records.map((node) => node.identity)
+      .filter((identity) => identity !== task('guide'));
+  expect(lineOf(viewAt(root, 'orient', outside), 'release-notes', '@task guide')).toBeUndefined();
+  expect(lineOf(viewAt(root, 'act', outside), 'release-notes', '@task guide')).toEqual({
+    target: '@task guide',
+    satisfied: false,
+    basis: '@task guide: no record in this scope answers it (unknown)',
+  });
+});
+
+it("reads the line of a target the milestone requires with no condition before the task's conditional one", () => {
+  // release-notes requires guide only at act; its milestone build requires guide with no condition, which decides.
+  const root = conditional((text) =>
+      text.replace(
+        '    requires @milestone foundation\n',
+        '    requires @milestone foundation\n    requires @task guide\n',
+      ),
+    ),
+    build = milestone('build');
+  expect(database(root).report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  expect(lineOf(view(root), 'release-notes', task('guide'))).toEqual({
+    target: task('guide'),
+    word: 'task',
+    via: build,
+    satisfied: false,
+    basis: `task ${task('guide')}: no exit evidence (via ${build})`,
+  });
+  // Once guide is evidenced, the decided line is satisfied, so guide no longer blocks release-notes.
+  evidence(root, ['guide']);
+  const evidenced = view(root);
+  expect(lineOf(evidenced, 'release-notes', task('guide'))).toEqual({
+    target: task('guide'),
+    word: 'task',
+    via: build,
+    satisfied: true,
+    basis: `task ${task('guide')}: exit evidence ${id('observation', 'guide-done')} (via ${build})`,
+  });
+  expect(byIdentity(evidenced, 'release-notes').line).not.toContain(task('guide'));
+});
+
 /** A door over `root`, closed with the test's handles. */
 function door(root: string, options: DoorOptions = {}): Door {
   const opened = new Door(root, { cache: false, ...options });
@@ -1040,6 +1476,37 @@ it('serves the delivery view on the Door through its token, and answers a refusa
     message:
       "IA-RUNTIME-REQUEST-INVALID: Unknown operation 'next'; admitted: scope, context, select, get, records, resolve, search, traverse",
   });
+});
+
+// Decision conditional-relations-in-delivery through the Door: a token `scope` binds to a phase decides a conditional
+// row as deliveryView does through the same binding, and the position key's phase decides it for `position`.
+it('reads a conditional row on the Door as deliveryView and position do, by the phase the token or key binds', () => {
+  const root = conditional(),
+    gate = door(root),
+    db = database(root),
+    notes = task('release-notes');
+  for (const phase of ['orient', 'act'] as const) {
+    const scope = gate.request({ operation: 'scope', params: { phase } });
+    if (!scope.ok) throw new Error(scope.message);
+    const direct = deliveryView(db, db.resolveScope({ phase }).token);
+    if (!direct.ok) throw new Error(direct.message);
+    expect(
+      JSON.stringify(
+        gate.request({ operation: 'next', params: { within: (scope.result as { token: string }).token } }),
+      ),
+      phase,
+    ).toBe(JSON.stringify({ ok: true, result: direct.view }));
+    const served = gate.request({ operation: 'position', params: { seat: notes, shape: 'sequence', phase } });
+    if (!served.ok) throw new Error(served.message);
+    const loaded = (served.result as { body: PositionBody }).body.loaded.map((entry) =>
+      'identity' in entry ? entry.identity : undefined,
+    );
+    expect(loaded.includes(task('guide')), phase).toBe(phase === 'act');
+  }
+  // The initial token binds no phase: each conditional row is read as undecided, never satisfied.
+  const whole = gate.request({ operation: 'next' });
+  expect(JSON.stringify(whole)).toBe(JSON.stringify({ ok: true, result: view(root) }));
+  expect(state((whole as { result: DeliveryView }).result, 'guide', 'intent').basis).toContain(UNDECIDED);
 });
 
 // db PT5 through the Door (R12): only a whole-workspace token, here the initial token of a door opened without a

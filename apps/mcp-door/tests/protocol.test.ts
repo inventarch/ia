@@ -317,6 +317,48 @@ it("serves ia_next through the door: one plan's delivery view inside the scope, 
     structuredContent: { ok: false, code: 'IA-RUNTIME-REQUEST-INVALID' },
   });
 });
+// Decision conditional-relations-in-delivery: ia_next reads a conditional row against the phase its token binds, and
+// ia_position against its key's phase, as the Door does.
+it('reads a conditional row through ia_next and ia_position at the phase the token or the key binds', () => {
+  const root = delivery(),
+    path = resolve(root, '.ia/src/work.ia');
+  writeFileSync(
+    path,
+    readFileSync(path, 'utf8')
+      .replace('    grounds @task guide\n', '    grounds @task guide when phase is act\n')
+      .replace('    requires @task guide\n', '    requires @task guide when phase is act\n'),
+  );
+  const value = protocol(root);
+  initialize(value);
+  const call = (id: number, name: string, args: unknown) =>
+    (value.request(message(id, 'tools/call', { name, arguments: args }))?.result as { structuredContent: unknown })
+      .structuredContent as { ok: boolean; result: Record<string, unknown> };
+  const guide = 'work-system/definition/task/guide',
+    notes = 'work-system/definition/task/release-notes';
+  const intent = (view: Record<string, unknown>) =>
+    (view['tasks'] as { identity: string; states: { dimension: string; value: string; basis: string }[] }[])
+      .find((task) => task.identity === guide)!
+      .states.find((line) => line.dimension === 'intent')!;
+  // The initial token binds no phase: the conditional grounding is undecided, never accepted.
+  expect(intent(call(2, 'ia_next', {}).result)).toMatchObject({
+    value: 'unknown',
+    basis: expect.stringContaining('conditional on phase is act'),
+  });
+  let id = 3;
+  for (const phase of ['orient', 'act'] as const) {
+    const token = call(id++, 'ia_scope', { phase }).result['token'];
+    expect(intent(call(id++, 'ia_next', { within: token }).result).value, phase).toBe(
+      phase === 'act' ? 'accepted' : 'unknown',
+    );
+    const body = call(id++, 'ia_position', { seat: notes, shape: 'sequence', phase }).result['body'] as {
+      loaded: { identity?: string }[];
+    };
+    expect(
+      body.loaded.some((entry) => entry.identity === guide),
+      phase,
+    ).toBe(phase === 'act');
+  }
+});
 it('names a record admission refused through ia_next on the initial whole-workspace scope only', () => {
   const root = delivery(),
     migrate = 'work-system/definition/task/migrate';

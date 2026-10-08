@@ -11,6 +11,7 @@
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { afterAll, expect, it } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { open } from '@inventarch/db';
@@ -137,6 +138,28 @@ it("prints the Door's position as one --json value, for K0 and for each flag", a
   expect(JSON.stringify(spelled.body)).not.toContain(JSON.stringify(realpathSync(root)).slice(1, -1));
 });
 
+it('escapes the terminal controls authored text carries in the human report, and keeps them in --json', async () => {
+  const root = conformance(),
+    path = resolve(root, '.ia/src/systems/governance-system/records/sample-procedure.ia'),
+    text = 'Look first\u001b]0;PWNED\u0007\u001b[2J\u001b[31mRED';
+  // The playbook applies by its subject-kind to K0's workspace, so its orient Attention cell is delivered at K0.
+  writeFileSync(
+    path,
+    `${readFileSync(path, 'utf8').replace('Attention means "Sample fixture statement 4."', `Attention means "${text}"`)}  subject\n    subject-kind definition\n`,
+  );
+  const machine = await positioned(root);
+  expect(machine.body.cells).toContainEqual(expect.objectContaining({ text }));
+  const human = await run(['position', '--root', root, '--ascii', '--no-color']);
+  expect(human.exitCode, human.stderr).toBe(0);
+  expect(human.stdout).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/);
+  expect(flat(human.stdout)).toContain('Look first\\u001b]0;PWNED\\u0007\\u001b[2J\\u001b[31mRED');
+  // Colour adds only the renderer's own SGR: stripped of it, the coloured report is the plain one.
+  const output = { body: machine.body, digest: machine.digest, hostNote: machine.hostNote },
+    colored = renderPosition(output, { color: true, ascii: true, width: 80 });
+  expect(colored).not.toContain('\u001b[2J');
+  expect(stripVTControlCharacters(colored)).toBe(renderPosition(output, { color: false, ascii: true, width: 80 }));
+});
+
 it('loads the seat plus only @law records under --word law, tallies only @law and keeps every blocking rule', async () => {
   const root = governed(),
     flags = ['--shape', 'governance', '--phase', 'act', '--word', 'law'];
@@ -250,14 +273,17 @@ it('writes nothing, needs no capture, and moves only the note when a capture is 
   expect(captured.digest).toBe(first.digest);
   const freshness = async () => flat((await run(['position', ...flags, '--root', root])).stdout);
   expect(await freshness()).toContain('freshness current: the capture is at this revision digest');
-  // An edit after the capture moves the body's revision, and the note names the captured one, truncated as digests are.
+  // An edit after the capture moves the body's revision, and the note names the captured one, truncated as digests are,
+  // and the capture that brings it to this revision (design §5: a stale capture is a notice until `ia capture`).
   writeFileSync(resolve(root, RECORDS, 'late-law.ia'), rule('law', 'late-law', 'advisory'));
   const stale = await positioned(root, flags);
   expect(stale.body.revision).not.toBe(first.body.revision);
   expect(stale.hostNote).toMatchObject({ freshness: 'stale', capturedRevision: first.body.revision });
   const ascii = resolveCapabilities({ env: {}, isTTY: false }).ascii;
   expect(await freshness()).toContain(
-    `freshness stale: the capture is at revision ${truncateDigest(first.body.revision, ascii)} digest`,
+    flat(
+      `freshness stale: the capture is at revision ${truncateDigest(first.body.revision, ascii)}; run "ia capture ${rooted(root)}" to capture this one digest`,
+    ),
   );
 });
 

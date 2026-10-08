@@ -90,7 +90,7 @@ function adoptedRoot(edit: (vendor: string) => void = () => {}): string {
   return root;
 }
 
-it("delivers the fixture playbook's plan cell at phase plan, as ia read reads it, and P moves only the cells", () => {
+it("delivers the fixture playbook's plan cell at phase plan, as ia read reads it, and here P moves only the cells", () => {
   const plain = database(workspace()),
     root = workspace();
   subject(root, methodPath, '    subject-kind definition\n');
@@ -127,7 +127,9 @@ it("delivers the fixture playbook's plan cell at phase plan, as ia read reads it
   expect(bodyOf(db, { shape: 'context', phase: 'plan' }).cells).toEqual([
     { playbook: procedure, address: `${procedure}#plan/Attention`, text: 'Sample fixture statement 10.' },
   ]);
-  // The phase changes only the cell delivered and the keys it is spelled in (design §6, routing).
+  // Here the phase changes only the cell delivered and the keys it is spelled in (design §6, routing): no conditional
+  // row bears on this body. A row whose condition holds at one phase only moves the loaded set (decision
+  // conditional-relations-in-delivery; tests/position.test.ts).
   const orient = bodyOf(db, { shape: 'governance', phase: 'orient' });
   expect(orient.cells).toEqual([
     { playbook: procedure, address: `${procedure}#orient/Inference`, text: 'Sample fixture statement 5.' },
@@ -254,9 +256,9 @@ it('reserves the blocking fixture law at budget 0 by a claim and by subject-kind
   expect(truncated.counts.rules).toBe(1);
   // Without its subject the law reaches no record of that key.
   expect(bodyOf(plain, key).rules).toEqual([]);
-  // At the check, the law is an out-of-focus pointer (it is enforced by the check); its subject-word names the check,
-  // so it leaves the pointers for `rules`.
-  const atCheck = { seat: check, shape: 'context', depth: 0, budget: 0 } as const;
+  // At the check, the law is an out-of-focus pointer (it is enforced by the check, at act, where its row holds); its
+  // subject-word names the check, so it leaves the pointers for `rules`.
+  const atCheck = { seat: check, shape: 'context', phase: 'act', depth: 0, budget: 0 } as const;
   expect(ids(bodyOf(plain, atCheck).pointers)).toContain(lawId);
   const reserved = bodyOf(db, atCheck);
   expect(ids(reserved.rules)).toEqual([lawId]);
@@ -301,7 +303,7 @@ it('applies by word to a blocking candidate in rules as to a loaded record, and 
       playbook(
         'law-book',
         '  subject\n    subject-word law\n',
-        '    plan\n      primary Inference\n      Inference means "law-book plan."\n',
+        '    act\n      primary Inference\n      Inference means "law-book act."\n',
       ),
     );
     edit(root);
@@ -310,17 +312,22 @@ it('applies by word to a blocking candidate in rules as to a loaded record, and 
     return db;
   };
   const blocking = corpus(() => {}),
+    // Advisory, the law's `enforced-by` row must not also be conditional on its severity being blocking, or it would
+    // hold nowhere and nothing would reach the law.
     advisory = corpus((root) =>
       put(
         root,
         lawPath,
-        readFileSync(resolve(root, lawPath), 'utf8').replace('severity blocking\n', 'severity advisory\n'),
+        readFileSync(resolve(root, lawPath), 'utf8')
+          .replace('severity blocking\n', 'severity advisory\n')
+          .replace('when phase is act and severity is blocking\n', 'when phase is act\n'),
       ),
     );
-  // At the check under governance, the law is a candidate one enforce row away: blocking, R reserves it in `rules`;
-  // advisory, it is loaded. Either way the convention and the playbook that name its word apply to it, and the
-  // playbook's plan cell is delivered: making the law blocking takes nothing that applies to it away.
-  const key = { seat: check, shape: 'governance', phase: 'plan' } as const,
+  // At the check under governance, the law is a candidate one enforce row away, at act, where the row holds: blocking,
+  // R reserves it in `rules`; advisory, it is loaded. Either way the convention and the playbook that name its word
+  // apply to it, and the playbook's act cell is delivered: making the law blocking takes nothing that applies to it
+  // away.
+  const key = { seat: check, shape: 'governance', phase: 'act' } as const,
     reserved = bodyOf(blocking, key),
     loaded = bodyOf(advisory, key);
   expect(ids(reserved.rules)).toEqual([lawId]);
@@ -331,7 +338,7 @@ it('applies by word to a blocking candidate in rules as to a loaded record, and 
   for (const body of [reserved, loaded]) {
     expect(ids(body.appliesByWord)).toEqual([lawBook, aboutLaws, convention]);
     expect(body.appliesByWord.slice(0, 2).map((entry) => entry.via.matches)).toEqual([onLaw, onLaw]);
-    expect(body.cells).toEqual([{ playbook: lawBook, address: `${lawBook}#plan/Inference`, text: 'law-book plan.' }]);
+    expect(body.cells).toEqual([{ playbook: lawBook, address: `${lawBook}#act/Inference`, text: 'law-book act.' }]);
   }
   // A rule `rules` holds by word alone is a field match itself, no record of L or R: from the workspace at budget 0
   // the law applies by kind to the contract the budget truncated, and nothing applies by word to it.
@@ -360,9 +367,9 @@ it('keeps rules in the governance order, each once and never the seat, a rule re
   const db = database(root);
   expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
   // At a path the claim rule claims, it is in R by its claim, and the fixture law applies to it by word. R and the
-  // rules reserved by word are one order: the law's enforce row primes it before the claim rule, which states no row,
-  // though its identity sorts after.
-  const claimed = bodyOf(db, { seat: { path: 'src/billing/invoice.ts' }, depth: 0, budget: 0 });
+  // rules reserved by word are one order: the law's enforce row, which holds at act, primes it before the claim rule,
+  // which states no row, though its identity sorts after.
+  const claimed = bodyOf(db, { seat: { path: 'src/billing/invoice.ts' }, phase: 'act', depth: 0, budget: 0 });
   expect(claimed.rules.map((rule) => [rule.identity, rule.via])).toEqual([
     [
       lawId,
@@ -372,7 +379,7 @@ it('keeps rules in the governance order, each once and never the seat, a rule re
   ]);
   // At the governance-system @system both laws are word members, in R by that class. Each also applies by word to a
   // candidate, and each is listed once with the class that reached it.
-  const system = bodyOf(db, { seat: governanceSystem, shape: 'governance' });
+  const system = bodyOf(db, { seat: governanceSystem, shape: 'governance', phase: 'act' });
   expect(system.rules.map((rule) => [rule.identity, rule.via])).toEqual([
     [lawId, { by: 'word', system: 'governance-system' }],
     [claimRule, { by: 'word', system: 'governance-system' }],
@@ -617,7 +624,8 @@ it('filters only what loads, lists and tallies by the word: rules, applies by wo
   expect(ids(all.appliesByWord)).toEqual([procedure, lawRule, principle]);
   expect(all.cells).toHaveLength(1);
   expect(ids(all.mandates)).toEqual([scopedMandate]);
-  expect(ids(all.rules)).toEqual([lawId, blockConvention]);
+  // At plan the law's enforce row, which holds only at act, primes nothing: the two blocking rules tie up to identity.
+  expect(ids(all.rules)).toEqual([blockConvention, lawId]);
   // The word restricts what loads, the pointers and their tallies: the seat, then laws only.
   expect(ids(laws.loaded)).toContain(lawRule);
   expect(laws.loaded.slice(1).every((entry) => 'word' in entry && entry.word === 'law')).toBe(true);
@@ -667,7 +675,7 @@ it('reserves a blocking law under another word, by its claim on a location, by a
   // the walk follows it as a waypoint only, so `rules` reserves it from the walk without the word, with the hop and the
   // row that reach it there, as the body without the word does.
   const plain = database(workspace()),
-    enforced = { seat: check, shape: 'governance', depth: 1 } as const,
+    enforced = { seat: check, shape: 'governance', phase: 'act', depth: 1 } as const,
     hopped = bodyOf(plain, { ...enforced, word: 'contract' });
   expect(hopped.loaded.slice(1).every((entry) => 'word' in entry && entry.word === 'contract')).toBe(true);
   expect(ids(hopped.loaded)).not.toContain(lawId);
