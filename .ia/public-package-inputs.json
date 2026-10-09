@@ -5784,7 +5784,7 @@
     },
     {
       "path": "packages/compliance/tests/graph.test.ts",
-      "sha256": "20e34101df5c1bf98ed11edf528ecfec33566c6a39a92e4b4dc20b4778f27df8"
+      "sha256": "99bd8ea809a00aa751ac9bb52b7dab1b6d7afdd0b47f153e8c47517b91f21a74"
     },
     {
       "path": "packages/compliance/tests/host-plugin-node.test.ts",
@@ -7204,7 +7204,7 @@
     },
     {
       "path": "releases/changesets/1.2.0.json",
-      "sha256": "44f0f07e610d6b99d534530b67b84c854953352016ef75444ce9cb372ba59d64"
+      "sha256": "2d4f0b3f2d1646afd391fbeb872398c32163eeb1875c950f083b9addaf647361"
     },
     {
       "path": "releases/current.json",
@@ -7949,10 +7949,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "a2400ded1e61a689d65adaffcdbc22a4307b59b4",
-    "baseTree": "3fbf51bbb94dd1b355558046334236ae1480ae7b",
+    "baseCommit": "6c0ba344b8406fcf0a94f6e1d1d75172fa739463",
+    "baseTree": "827589c73b85ed3bbb5a3615b3643df1dee28304",
     "dirty": true,
-    "inputDigest": "3d791da586f0e602764fc1c394d0cf8c463209f2001488a23031f49888311d07",
+    "inputDigest": "56dd203248e20985fc78b966dd3319abf49d78c00f83f521420f740e631e10dd",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.2.0",
       ".ia/src/systems/agent-system/package.json": "1.2.0",

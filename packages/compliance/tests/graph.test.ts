@@ -350,6 +350,29 @@ describe('graph schema obligations', () => {
       findings: [],
     });
   });
+  it("leaves an outbound rule available when another record's refused inverse spelling names the record", () => {
+    // `other` writes `cited-by @playbook target`: the active edge runs from the target, but the target did not assert it.
+    const inverse = {
+      path: 'inverse.ia',
+      text: '#! ia 1.0\n@playbook other\n  relationships\n    cited-by @playbook target\n@playbook target\n',
+      location,
+    };
+    const asserted = compile(parse(inverse.text, inverse.path).ast, registry, location, []).records;
+    const consent = new Map(registry.consent);
+    consent.set('governance-system', []);
+    const refusing = { ...registry, consent };
+    const target = (graph: ReturnType<typeof graphOf>) =>
+      graph.nodes.get('governance-system/definition/procedure/target')!;
+    const toLaw: SchemaEdge = { ...rule, target: 'law', must: false };
+    const graph = graphOf(asserted, toLaw, refusing, [inverse]);
+    expect(graph.edges).toEqual([]);
+    expect(validateGraphSchema(target(graph), graph)).toMatchObject({ outcome: 'pass', findings: [] });
+    const toPlaybook = graphOf(asserted, { ...toLaw, target: 'playbook' }, refusing, [inverse]);
+    expect(validateGraphSchema(target(toPlaybook), toPlaybook)).toMatchObject({
+      outcome: 'not-evaluated',
+      findings: [],
+    });
+  });
   it('resolves a `ref to` field against the admitted graph and only warns when the target is absent', () => {
     const typed = {
       path: 'typed.ia',
