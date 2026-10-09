@@ -2,7 +2,7 @@
 
 Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose.
 
-Owner: governance-system. Identity: governance-system/governance/<facet>/<name>. Facets: law. Artifact set: principle. Primitive: Inference. Move: Verification.
+Owner: governance-system. Identity: governance-system/governance/\<facet>/\<name>. Facets: law. Artifact set: principle. Primitive: Inference. Move: Verification.
 
 Canonical schema: .ia/src/systems/governance-system/schemas/law.schema.ia.
 

@@ -2,7 +2,7 @@
 
 Defines a cognitive primitive coordinate; a cell is selected using its phase and primitive.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: primitive. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: primitive. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

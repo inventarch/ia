@@ -2,7 +2,7 @@
 
 Associates a vocabulary owner and schema with an authoring reference and usage guidance.
 
-Owner: authoring-system. Identity: authoring-system/definition/<facet>/<name>. Facets: authoring-guide. Artifact set: product-definition. Primitive: Memory. Move: Observation.
+Owner: authoring-system. Identity: authoring-system/definition/\<facet>/\<name>. Facets: authoring-guide. Artifact set: product-definition. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia.
 

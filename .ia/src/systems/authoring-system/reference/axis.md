@@ -2,7 +2,7 @@
 
 Defines a closed coordinate axis for selection.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: axis. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: axis. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

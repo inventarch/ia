@@ -2,7 +2,7 @@
 
 Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence.
 
-Owner: compliance-system. Identity: compliance-system/contract/<facet>/<name>. Facets: signature. Artifact set: contract. Primitive: Memory. Move: Verification.
+Owner: compliance-system. Identity: compliance-system/contract/\<facet>/\<name>. Facets: signature. Artifact set: contract. Primitive: Memory. Move: Verification.
 
 Canonical schema: .ia/src/systems/compliance-system/schemas/contract.schema.ia.
 

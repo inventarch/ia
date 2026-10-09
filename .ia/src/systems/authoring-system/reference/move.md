@@ -2,7 +2,7 @@
 
 Defines the closed classification of an agent action or activity.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: move. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: move. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 
