@@ -99,7 +99,8 @@ export const COMMANDS: readonly CommandSpec[] = [
       next: 'ia init',
     },
     syntax: [
-      'ia init [<directory>] [--id <provider/name>] [--host claude|codex|none] [--apply] [--json] [--yes]',
+      'ia init [<directory>] [--id <provider/name>] [--system] [--host claude|codex|none]',
+      '        [--apply] [--json] [--yes]',
       'ia init [<directory>] --decline today|forever | --forget-decline [--host claude|codex|none] [--json]',
     ],
     grammar: {
@@ -112,6 +113,12 @@ export const COMMANDS: readonly CommandSpec[] = [
           kind: 'value',
           placeholder: '<provider/name>',
           summary: 'Package id (default: local/<directory name>)',
+        }),
+        // Decision local-system-at-init (plan amendment B7): a repository that will own vocabulary opts in.
+        option({
+          name: 'system',
+          kind: 'boolean',
+          summary: 'Also author a local @system, its steward and a @distribution, so ia pack can release it',
         }),
         // Host registration spec §4 "init --host": with --apply, `ia host <host> --apply` runs after initialization.
         option({
@@ -126,13 +133,13 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'decline',
           kind: 'value',
           values: ['today', 'forever'],
-          conflicts: ['apply', 'id', 'forget-decline'],
+          conflicts: ['apply', 'id', 'system', 'forget-decline'],
           summary: 'Record that this repository should not be initialized',
         }),
         option({
           name: 'forget-decline',
           kind: 'boolean',
-          conflicts: ['apply', 'id', 'decline', 'host'],
+          conflicts: ['apply', 'id', 'system', 'decline', 'host'],
           summary: 'Remove a recorded decline for this repository',
         }),
       ],

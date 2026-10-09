@@ -51,7 +51,6 @@ interface CommonRelease {
   readonly formatVersion: 1;
   readonly id: string;
   readonly version: string;
-  readonly distribution: string;
   readonly engine: string;
   readonly language: readonly ['1.0'];
   readonly source: ReleaseSource;
@@ -59,10 +58,16 @@ interface CommonRelease {
   readonly description: string;
 }
 export interface ReleaseDescriptor extends CommonRelease {
+  /**
+   * The native `@distribution` identity the release ships. Absent for a workspace that releases nothing, such as one a
+   * default `ia init` created (position-packet plan amendment B7); a pack of such a descriptor is refused.
+   */
+  readonly distribution?: string;
   readonly dependencies: readonly ExternalDependency[];
   readonly assets: readonly { readonly path: string; readonly role: 'documentation' | 'asset' | 'license' }[];
 }
 export interface BundleManifest extends CommonRelease {
+  readonly distribution: string;
   readonly roots: readonly string[];
   readonly systems: readonly SystemPin[];
   readonly dependencies: readonly Dependency[];
@@ -126,7 +131,8 @@ function url(value: unknown): string {
     refuse('Expected canonical credential-free HTTPS URL without query/fragment');
   return v;
 }
-function common(row: Record<string, unknown>): CommonRelease {
+/** The fields both documents share; `distribution` is decoded whenever the row carries the key. */
+function common(row: Record<string, unknown>): CommonRelease & { readonly distribution?: string } {
   format(row);
   const source = object(row['source'], ['repository', 'commit', 'recipe', 'epoch']);
   const local = source['repository'] === null && source['commit'] === null,
@@ -134,13 +140,14 @@ function common(row: Record<string, unknown>): CommonRelease {
   if (commit !== null && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(commit)) refuse('Expected immutable source commit');
   const grammar = array(row['language'], 1);
   if (grammar.length !== 1 || grammar[0] !== '1.0') refuse('Unsupported grammar');
-  const distribution = identity(row['distribution']);
-  if (!distribution.includes('/distribution/')) refuse('Expected a native distribution identity');
+  const distribution = Object.hasOwn(row, 'distribution') ? identity(row['distribution']) : undefined;
+  if (distribution !== undefined && !distribution.includes('/distribution/'))
+    refuse('Expected a native distribution identity');
   return {
     formatVersion: 1,
     id: packageId(row['id']),
     version: version(row['version']),
-    distribution,
+    ...(distribution === undefined ? {} : { distribution }),
     engine: range(row['engine']),
     language: ['1.0'],
     source: {
@@ -181,7 +188,10 @@ function publicAsset(path: string, role: unknown): boolean {
   );
 }
 export function decodeReleaseDescriptor(input: unknown): ReleaseDescriptor {
-  const row = object(data(input), [...commonKeys, 'dependencies', 'assets']),
+  // Plan amendment B7: `distribution` is the one optional key; every other key stays exact.
+  const value = data(input),
+    named = value !== null && typeof value === 'object' && Object.hasOwn(value, 'distribution');
+  const row = object(value, [...commonKeys.filter((key) => named || key !== 'distribution'), 'dependencies', 'assets']),
     body = common(row);
   const dependencies = sorted(
     array(row['dependencies'], DISTRIBUTION_LIMITS.bundles).map((v) => {
@@ -255,7 +265,8 @@ export function decodeBundleManifest(input: unknown): BundleManifest {
   }
   const deps = dependencies(row['dependencies']);
   if (deps.some((d) => d.id === body.id)) refuse('Self bundle dependency');
-  return frozen({ ...body, roots, systems, dependencies: deps, files });
+  // A manifest's keys are exact, `distribution` included, so common() decoded it; it keeps its place among the keys.
+  return frozen({ ...body, distribution: body.distribution!, roots, systems, dependencies: deps, files });
 }
 export function decodeDistributionLock(input: unknown): DistributionLock {
   const row = object(data(input), ['formatVersion', 'engine', 'requests', 'packages']);

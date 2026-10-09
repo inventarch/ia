@@ -1,9 +1,9 @@
 /**
  * The installed-CLI scenario of `pnpm packages:qualify`: authored expectations against one CLI entry only, run through
  * `node --import ./offline.mjs <cli>` in `cwd`, which must hold an offline.mjs that refuses the network. The workspace
- * is one `ia init --apply` made and `ia host claude` and `ia host codex` applied to. qualify-packages.mjs runs it
- * against the packed and installed CLI; installed-views.test.ts runs it against this checkout's built CLI, so a gate
- * that runs locally holds the same expectations.
+ * is one `ia init --apply` made, which `qualifyInit` checks, and `ia host claude` and `ia host codex` applied to.
+ * qualify-packages.mjs runs it against the packed and installed CLI; installed-views.test.ts runs it against this
+ * checkout's built CLI, so a gate that runs locally holds the same expectations.
  */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -33,6 +33,31 @@ const tree = (directory, directoryTimes = true) =>
       ];
     })
     .sort(([a], [b]) => a.localeCompare(b));
+
+/**
+ * Position-and-projection §3, against what one `ia init <workspace> --apply --json` printed and left: exactly three
+ * authored records in `.ia/src/workspace.ia` (a `@workspace`, its participant `@agent` and that `@mandate`), no
+ * local system or distribution, the ignore file and the capture effect's snapshot, and no project effect without
+ * `--host`.
+ */
+export function qualifyInit(envelope, workspace) {
+  const { applied } = envelope;
+  assert.equal(applied.status, 'initialized');
+  assert.deepEqual(
+    applied.authored.map((identity) => identity.split('/')[2]),
+    ['workspace', 'agent', 'mandate'],
+  );
+  assert.equal(applied.distribution, null);
+  assert.equal(applied.effects.project, 'skipped');
+  assert.match(applied.effects.capture.revision, /^[a-f0-9]{64}$/);
+  assert.deepEqual(readdirSync(resolve(workspace, '.ia/src')), ['workspace.ia']);
+  assert.equal(readFileSync(resolve(workspace, '.ia/.gitignore'), 'utf8'), 'work/\ndistributions/\n');
+  const snapshot = JSON.parse(readFileSync(resolve(workspace, '.ia/work/snapshot/current.json'), 'utf8'));
+  assert.equal(snapshot.revision, applied.effects.capture.revision);
+  assert.equal(snapshot.records.length, applied.effects.capture.records);
+  assert.equal(JSON.parse(readFileSync(resolve(workspace, '.ia/release.json'), 'utf8')).distribution, undefined);
+  return applied.authored;
+}
 
 /** Authored expectations against the installed CLI only; no repository runtime or fixture supplies the oracle. */
 export function qualifyInstalledViews(cli, cwd, env, workspace) {
@@ -64,6 +89,40 @@ export function qualifyInstalledViews(cli, cwd, env, workspace) {
     assert.ok(result.next.includes(repair), `Refusal must explain ${repair}: ${result.next}`);
     assert.deepEqual(tree(workspace, directoryTimes), before, 'Refusal changed workspace files');
   };
+  // The three-record workspace, before anything else is authored: its K0 position names the participant's mandate,
+  // each host's projection renders that one participant and no agent file, the formatter takes the starter file under
+  // the authored root, and a pack is refused because a default initialization names no distribution.
+  const mandates = JSON.parse(readFileSync(resolve(workspace, '.ia/work/snapshot/current.json'), 'utf8'))
+    .membership.filter((row) => row.band === 100 && row.identity.startsWith('agent-system/policy/mandate/'))
+    .map((row) => row.identity);
+  assert.equal(mandates.length, 1);
+  const [mandate] = mandates;
+  assert.deepEqual(
+    machine(['position']).body.mandates.map((row) => row.identity),
+    [mandate],
+  );
+  for (const host of ['claude', 'codex']) {
+    const receipt = JSON.parse(
+      readFileSync(resolve(workspace, `.ia/distributions/hosts/${host}-receipt.json`), 'utf8'),
+    );
+    assert.equal(receipt.participants.length, 1);
+    assert.deepEqual(receipt.mandates, [mandate]);
+    assert.ok(receipt.files.every((file) => !file.path.startsWith('.claude/agents/')));
+  }
+  assert.equal(existsSync(resolve(workspace, '.claude/agents')), false);
+  const formatted = machine(['format', '--check']);
+  assert.deepEqual(
+    formatted.files.map(({ path, status }) => [path, status]),
+    [['.ia/src/workspace.ia', 'unchanged']],
+  );
+  refusal(
+    ['pack', '--descriptor', '.ia/release.json'],
+    3,
+    'IA-CLI-CONFLICT',
+    'ia vocabulary distribution',
+    'a @distribution in a system folder',
+  );
+
   const plan = 'work-system/definition/plan/qualification',
     milestone = 'work-system/definition/milestone/qualification',
     prerequisite = 'work-system/definition/task/z-prepare',
@@ -234,6 +293,8 @@ export function qualifyInstalledViews(cli, cwd, env, workspace) {
   assert.equal(readFileSync(compiledPath, 'utf8'), stdout);
   assert.deepEqual(readFileSync(current), snapshotBytes, 'Legacy compile changed capture output');
   return [
+    'three-record position, packet and format',
+    'pack refusal without a distribution',
     'capture idempotence',
     'read bodies and digests',
     'next dependency order and declared status',

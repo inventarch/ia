@@ -444,6 +444,37 @@ export function writeRepair(root: string, error: unknown, platform: NodeJS.Platf
   return { path: local.replace(/\.[0-9a-f-]{36}\.tmp$/, ''), kind: 'file' };
 }
 
+/**
+ * A capture's failure as this verb refuses it, each repair followed by `rerun`. A refusal from opening the workspace, or
+ * one of the capture's own, already names its own repair and is returned as it is. A snapshot path the db does not
+ * write through is located and named, and so is a file or directory the system would not let a capture write, which a
+ * preview (`writes` false) never writes. Any other failure is returned as it is. `ia init`'s capture effect refuses
+ * through this too, so it locates and repairs what `ia capture` would.
+ */
+export function captureFailure(error: unknown, root: string, rerun: string, writes = true): unknown {
+  if (error instanceof Refusal) return error;
+  const code = codeOf(error, '');
+  if (code === 'IA-DB-PATH-UNSAFE')
+    return new Refusal(
+      code,
+      error instanceof Error ? error.message : String(error),
+      3,
+      { path: property(error, 'path') ?? SNAPSHOT_DIRECTORY },
+      `Replace or remove the path named above, so ${SNAPSHOT_DIRECTORY} is a plain directory holding plain files, then run "${rerun}".`,
+    );
+  if (!writes || !WRITE_REPAIRABLE.has(code)) return error;
+  const repair = writeRepair(root, error);
+  return new Refusal(
+    'IA-CLI-FAILED',
+    error instanceof Error ? error.message : String(error),
+    3,
+    { path: repair.path },
+    repair.kind === 'file'
+      ? `Make ${repair.path} writable, or close what holds it open, then run "${rerun}"; the snapshot pair is as it was.`
+      : `Make the directory ${repair.path} writable, then run "${rerun}"; the snapshot pair is as it was.`,
+  );
+}
+
 export function runCapture(context: Context): Result {
   const { caps, json: machine } = context;
   const root = requireRoot(context),
@@ -452,32 +483,7 @@ export function runCapture(context: Context): Result {
   try {
     view = (preview ? previewCapture : collectCapture)(root, context.args.value('root'));
   } catch (error) {
-    // A refusal from opening the workspace, or one of the capture's own, already names its own repair. A snapshot path
-    // the db does not write through is this verb's to name, and so is a file or directory the system would not let it
-    // write, which a preview never writes.
-    if (error instanceof Refusal) throw error;
-    const code = codeOf(error, '');
-    if (code === 'IA-DB-PATH-UNSAFE')
-      throw new Refusal(
-        code,
-        error instanceof Error ? error.message : String(error),
-        3,
-        { path: property(error, 'path') ?? SNAPSHOT_DIRECTORY },
-        `Replace or remove the path named above, so ${SNAPSHOT_DIRECTORY} is a plain directory holding plain files, then run "${respell(context)}".`,
-      );
-    if (!preview && WRITE_REPAIRABLE.has(code)) {
-      const repair = writeRepair(root, error);
-      throw new Refusal(
-        'IA-CLI-FAILED',
-        error instanceof Error ? error.message : String(error),
-        3,
-        { path: repair.path },
-        repair.kind === 'file'
-          ? `Make ${repair.path} writable, or close what holds it open, then run "${respell(context)}"; the snapshot pair is as it was.`
-          : `Make the directory ${repair.path} writable, then run "${respell(context)}"; the snapshot pair is as it was.`,
-      );
-    }
-    throw error;
+    throw captureFailure(error, root, respell(context), !preview);
   }
   const exitCode = captureExit(view);
   return machine

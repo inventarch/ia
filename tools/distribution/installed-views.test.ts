@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { relative, resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
-import { qualifyInstalledViews } from './installed-views.mjs';
+import { qualifyInit, qualifyInstalledViews } from './installed-views.mjs';
 
 const repository = resolve(import.meta.dirname, '../..'),
   temporary = realpathSync(mkdtempSync(resolve(tmpdir(), 'ia-installed-views-')));
@@ -55,11 +55,18 @@ it('meets the installed-CLI expectations of packages:qualify with the built CLI'
       timeout: 120_000,
       maxBuffer: 16 * 1024 * 1024,
     });
-  expect(JSON.parse(invoke(['init', workspace, '--apply', '--yes', '--json'])).applied.status).toBe('initialized');
+  const initialized = JSON.parse(invoke(['init', workspace, '--apply', '--yes', '--json']));
+  expect(qualifyInit(initialized, workspace)).toEqual([
+    'workspace-system/definition/workspace/workspace-with-spaces',
+    'agent-system/binding/agent/workspace-with-spaces',
+    'agent-system/policy/mandate/workspace-with-spaces-mandate',
+  ]);
   invoke(['validate', '--root', workspace, '--json']);
   for (const host of ['claude', 'codex']) invoke(['host', host, '--root', workspace, '--apply', '--yes', '--json']);
   invoke(['validate', '--root', workspace, '--json']);
   expect(qualifyInstalledViews(cli, cwd, env, workspace)).toEqual([
+    'three-record position, packet and format',
+    'pack refusal without a distribution',
     'capture idempotence',
     'read bodies and digests',
     'next dependency order and declared status',

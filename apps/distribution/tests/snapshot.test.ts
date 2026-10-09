@@ -36,6 +36,18 @@ it('retains captured bytes after filesystem changes without reading a caller-sel
   ).toThrow();
 });
 
+it('refuses to pack a release descriptor that names no distribution', () => {
+  // db decodes such a descriptor (position-packet plan amendment B7); it releases nothing, so the packer refuses it.
+  const snapshot = distributionSnapshot(sourceInput(fixture.input)),
+    { distribution: _distribution, ...unnamed } = descriptor;
+  expect(() => packSnapshot(snapshot, unnamed, new Map([['LICENSE', fixture.license]]))).toThrow(
+    expect.objectContaining({
+      code: 'IA-DIST-CLOSURE-INVALID',
+      message: 'Release descriptor names no distribution; there is nothing to pack',
+    }),
+  );
+});
+
 it('snapshots caller metadata and requires the exact explicit asset inventory', () => {
   const input = structuredClone(sourceInput(fixture.input)),
     snapshot = distributionSnapshot(input);

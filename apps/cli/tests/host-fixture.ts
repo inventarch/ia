@@ -14,6 +14,11 @@ export const put = (root: string, path: string, text: string): void => {
   writeFileSync(resolve(root, path), text);
 };
 export const read = (root: string, path: string): string => readFileSync(resolve(root, path), 'utf8');
+/**
+ * A workspace named `demo` as a default `ia init --apply` leaves it: the three starter records in
+ * `.ia/src/workspace.ia` (`@workspace demo`, its participant `@agent demo` and `@mandate demo-mandate`), no local
+ * system, and its capture.
+ */
 export async function initialized(): Promise<{ root: string; env: { IA_HOST_HOME: string } }> {
   const root = resolve(scratch('host'), 'demo'),
     env = { IA_HOST_HOME: scratch('host-home') };

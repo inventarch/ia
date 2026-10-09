@@ -4,7 +4,7 @@ import { packPublicPackages, COMPATIBILITY } from '../release/public-pack.mjs';
 import { scanPackedPublicContent } from '../release/scan-packed.mjs';
 import assert from 'node:assert/strict';
 import { executableExports, systemVerificationProgram } from './installed-consumer.mjs';
-import { qualifyInstalledViews } from './installed-views.mjs';
+import { qualifyInit, qualifyInstalledViews } from './installed-views.mjs';
 import { execFileSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -193,8 +193,8 @@ try {
     invoke = (args) => run(['--import', './offline.mjs', cli, ...args], cliConsumer, env);
   assert.equal(invoke(['--version']).trim(), releasedVersion);
   assert.match(invoke(['--help']), /ia <command>/);
-  const initialized = JSON.parse(invoke(['init', workspace, '--apply', '--yes', '--json']));
-  assert.equal(initialized.applied.status, 'initialized');
+  // Position-and-projection §3: three authored records, then the capture and project effects, each reported apart.
+  qualifyInit(JSON.parse(invoke(['init', workspace, '--apply', '--yes', '--json'])), workspace);
   invoke(['validate', '--root', workspace, '--json']);
   for (const host of ['claude', 'codex']) invoke(['host', host, '--root', workspace, '--apply', '--yes', '--json']);
   invoke(['validate', '--root', workspace, '--json']);

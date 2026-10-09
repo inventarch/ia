@@ -102,7 +102,8 @@ export function collectFormat(
     for (const path of paths) {
       const current = text(root, path);
       // The formatter's domain is narrower than `*.ia`: it declines a system declaration, a schema and anything
-      // outside an admitted authored system, all with IA-DIST-PATH-UNSAFE. Traversal was already refused by
+      // outside both an admitted authored system and an admitted `@workspace`'s authored root (the floor included),
+      // all with IA-DIST-PATH-UNSAFE (the authoring-system draft target). Traversal was already refused by
       // contain() and the read above, so that code here means "outside the formatter's domain" and is reported
       // per file rather than ending the run — a whole-tree check must not stop at the packaged floor.
       let outcome: ReturnType<typeof formatSource>;

@@ -11,7 +11,7 @@ These small examples demonstrate representation and generic compilation. They co
 | [language.ia](records/language.ia) | Workspace and distribution root composing the eleven public systems |
 | [work.ia](records/work.ia) | A plan, its milestone, one task and the open decision it waits on; a made decision grounding a spec that partially supersedes another |
 
-The starter system that `ia init` writes requires `agent-system`, `work-system` and `workspace-system`, so a new workspace can author `@plan`, `@milestone`, `@task` and `@decision` records without editing it. A system may use only words owned by systems it directly requires; a system of your own that does not list `- work-system` in `requires` refuses each such record with `IA-COMP-DISCRIMINATOR-FOREIGN`.
+A default `ia init` writes no system: its three records sit in `.ia/src/workspace.ia`, and a record authored beside them under `.ia/src`, outside every system folder, is owned by its word's system, so a new workspace can author `@plan`, `@milestone`, `@task` and `@decision` records without editing anything. The local system that `ia init --system` writes requires `agent-system`, `work-system` and `workspace-system`, so its folder can hold them too. A system may use only words owned by systems it directly requires; a system of your own that does not list `- work-system` in `requires` refuses each such record with `IA-COMP-DISCRIMINATOR-FOREIGN`.
 
 Run `pnpm public-language:check` to compile the manifest-selected corpus. Run `pnpm exec vitest run --config vitest.tools.config.mts tools/native/public-language.test.ts` for positive and negative conformance cases, including real toy quality and architecture evaluations. No model or marketplace service is called.
 

@@ -687,11 +687,17 @@ it('refuses a root whose only @workspace is installed or adopted, since the root
   const installed = resolve(scratch('capture-installed-only'), 'demo');
   const initialized = await run(['init', installed, '--apply', '--yes', '--json']);
   expect(initialized.exitCode, initialized.stdout).toBe(0);
-  rmSync(resolve(installed, '.ia/src/systems/demo/records/workspace.ia'));
+  // `ia init` captures once it has initialized (position-and-projection §3), so the pair exists; the refusal keeps it.
+  const kept = bytesAt(installed, CURRENT);
+  expect(JSON.parse(kept.toString('utf8')).revision).toBe(
+    JSON.parse(initialized.stdout).applied.effects.capture.revision,
+  );
+  rmSync(resolve(installed, '.ia/src/workspace.ia'));
   const installedRun = await run(['capture', '--root', installed, '--json']);
   expect(installedRun.exitCode).toBe(3);
   expect(JSON.parse(installedRun.stdout)).toMatchObject({ code: 'IA-DB-ROOT-INVALID' });
-  expect(existsSync(resolve(installed, SNAPSHOT_DIRECTORY))).toBe(false);
+  expect(bytesAt(installed, CURRENT)).toEqual(kept);
+  expect(existsSync(resolve(installed, PREVIOUS))).toBe(false);
 });
 
 it('captures a root whose own @workspace admission refused, and names ia validate for a root that has none', async () => {

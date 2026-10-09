@@ -76,12 +76,34 @@ async function offered(): Promise<{
   install: (...extra: string[]) => ReturnType<typeof run>;
 }> {
   const { root, env } = await initialized();
-  // The starter requires work-system, which fixture/foundation (the loop fixture) does not ship. A consumer who
-  // replaces the bundled base with a foundation lacking it must drop the requirement first, or admission refuses.
-  const starter = '.ia/src/systems/demo/system.ia',
-    text = read(root, starter);
-  expect(text).toContain('    - work-system\n');
-  put(root, starter, text.replace('    - work-system\n', ''));
+  // The starter composes the base's eleven systems, and its @workspace and @mandate state fields the loop fixture's
+  // closed schemas do not declare (`composition.sources` and `steward`, the `authority` section). A consumer who
+  // replaces the bundled base with fixture/foundation authors records that foundation admits first, or admission
+  // refuses: its five systems, and a participant @agent with no @mandate.
+  const starter = '.ia/src/workspace.ia';
+  expect(read(root, starter)).toContain('    sources [".ia/src @authored"]\n');
+  put(
+    root,
+    starter,
+    [
+      '#! ia 1.0',
+      '',
+      '@workspace demo',
+      '  meaning',
+      '    says "The demo workspace and the systems fixture/foundation ships."',
+      '    answers "Which systems does this workspace compose?"',
+      '  composition',
+      `    systems [${['agent-system', 'compliance-system', 'governance-system', 'session-system', 'workspace-system'].map((name) => `@system ${name}`).join(', ')}]`,
+      '',
+      '@agent demo',
+      '  meaning',
+      '    says "The IDE agent operating in the demo workspace, any vendor."',
+      '    answers "Which participant acts in the demo workspace?"',
+      '  governance',
+      '    applies []',
+      '',
+    ].join('\n'),
+  );
   mkdirSync(resolve(root, '.ia/work/dist'), { recursive: true });
   const entries = (await fixtureArchives()).map((archive) => {
     copyFileSync(archive, resolve(root, '.ia/work/dist', basename(archive)));
