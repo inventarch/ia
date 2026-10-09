@@ -1,22 +1,20 @@
-import { createHash } from 'node:crypto';
-import { cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { CAPTURE_FORMAT, readInputs, writeCapture } from '@inventarch/db';
+import { CAPTURE_FORMAT, writeCapture } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
-import { digest, stableSerialize } from '@inventarch/graph';
+import { digest } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
 import { SHAPE_ROWS } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import { entryCount, position, renderPacket } from '../src/index.js';
 import type { PacketCatalogRow, PacketOutput } from '../src/index.js';
-import { database, declare, put, workspace } from './workspace.js';
+import { database, declare, freshInit, packetFixture, put, workspace } from './workspace.js';
 
 // R19 (position-and-projection §4 and items 11 and 12; plan amendments B1 to B5 and B8): the position packet. The golden
 // packet is regenerated only by `node packages/runtime/tests/golden/write.mjs`, which sets IA_POSITION_GOLDEN=write for
 // the golden cases alone; its diff is reviewed with the change that makes it.
-const fixture = resolve(import.meta.dirname, 'fixtures/packet/workspace.ia'),
-  corpus = resolve(import.meta.dirname, '../../../examples/conformance/native'),
+const fixture = packetFixture,
   repository = resolve(import.meta.dirname, '../../..'),
   demo = 'workspace-system/definition/workspace/demo',
   participant = 'agent-system/binding/agent/demo',
@@ -36,28 +34,6 @@ const CATALOG: readonly PacketCatalogRow[] = [
   { command: 'ia position', mode: 'read', move: 'Observation', refuses: 'an unadmitted seat', next: 'ia position' },
   { command: 'ia next', mode: 'read', move: 'Observation', refuses: 'several plans', next: 'ia next --seat <plan>' },
 ];
-/**
- * A fresh init (plan T6 step 1): the three records an `ia init` authors at `.ia/src/workspace.ia`, over the conformance
- * corpus adopted at band 90 as the installed base would be, so the authored root holds those three records alone.
- * `vendored` adds files to the installed base before its revision is pinned.
- */
-function freshInit(records = readFileSync(fixture, 'utf8'), vendored: Readonly<Record<string, string>> = {}): string {
-  const root = workspace(null),
-    vendor = 'vendor/foundation';
-  cpSync(corpus, resolve(root, vendor, '.ia/src'), { recursive: true });
-  for (const [path, text] of Object.entries(vendored)) put(root, `${vendor}/${path}`, text);
-  const pinned = readInputs(resolve(root, vendor), { adopted: [] })
-    .sources.filter((s) => !s.path.startsWith('.ia/src/floor/'))
-    .map(({ path, text }) => ({ path, text }));
-  const revision = createHash('sha256').update(stableSerialize(pinned)).digest('hex');
-  put(
-    root,
-    '.ia/workspace.json',
-    JSON.stringify({ version: 1, adopted: [{ id: 'foundation', path: vendor, revision }] }),
-  );
-  put(root, '.ia/src/workspace.ia', records);
-  return root;
-}
 const render = (db: Handle, catalog: readonly PacketCatalogRow[] = CATALOG): PacketOutput =>
   renderPacket(db, db.resolveScope().token, catalog);
 const errors = (db: Handle) => db.report.findings.filter((finding) => finding.severity === 'error');

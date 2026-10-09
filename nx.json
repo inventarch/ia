@@ -82,6 +82,11 @@
       "workspace-records",
       "{workspaceRoot}/packages/compliance/fixtures/language/**/*"
     ],
+    "host-adapters": [
+      "workspace-records",
+      "{workspaceRoot}/.claude/skills/ia-authoring/SKILL.md",
+      "{workspaceRoot}/.agents/skills/ia-authoring/SKILL.md"
+    ],
     "development-native-build": [
       "workspace-records",
       "{workspaceRoot}/tools/native/language-base.ts",

@@ -3,8 +3,9 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writ
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, vi } from 'vitest';
-import { open } from '@inventarch/db';
+import { open, readInputs } from '@inventarch/db';
 import type { Handle, OpenOptions } from '@inventarch/db';
+import { stableSerialize } from '@inventarch/graph';
 
 // Files importing this helper exercise real native-corpus admission and disk I/O.
 // CI has measured otherwise identical fixtures at 1–10s across runs. Keep their
@@ -18,9 +19,10 @@ export const methodId = 'governance-system/definition/procedure/sample-procedure
 export const lawPath = '.ia/src/systems/governance-system/records/sample-rule.ia';
 export const lawId = 'governance-system/governance/law/sample-rule';
 export const workspacePath = '.ia/src/systems/workspace-system/records/foundation-workspace.ia';
-export function workspace(
-  source: string | null = resolve(import.meta.dirname, '../../../examples/conformance/native'),
-): string {
+/** The three records of plan T6 step 1 that a fresh init authors (B13), for the packet tests. */
+export const packetFixture = resolve(import.meta.dirname, 'fixtures/packet/workspace.ia');
+const conformance = resolve(import.meta.dirname, '../../../examples/conformance/native');
+export function workspace(source: string | null = conformance): string {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-runtime-tests-'));
   temporary.push(root);
   if (source !== null)
@@ -46,6 +48,31 @@ export function declare(root: string, sources: readonly string[]): void {
       `    sources [${sources.map((s) => JSON.stringify(s)).join(', ')}]\n  relationships\n`,
     ),
   );
+}
+/**
+ * A fresh init (plan T6 step 1): the three records an `ia init` authors at `.ia/src/workspace.ia`, over the conformance
+ * corpus adopted at band 90 as the installed base would be, so the authored root holds those three records alone.
+ * `vendored` adds files to the installed base before its revision is pinned.
+ */
+export function freshInit(
+  records = readFileSync(packetFixture, 'utf8'),
+  vendored: Readonly<Record<string, string>> = {},
+): string {
+  const root = workspace(null),
+    vendor = 'vendor/foundation';
+  cpSync(conformance, resolve(root, vendor, '.ia/src'), { recursive: true });
+  for (const [path, text] of Object.entries(vendored)) put(root, `${vendor}/${path}`, text);
+  const pinned = readInputs(resolve(root, vendor), { adopted: [] })
+    .sources.filter((s) => !s.path.startsWith('.ia/src/floor/'))
+    .map(({ path, text }) => ({ path, text }));
+  const revision = createHash('sha256').update(stableSerialize(pinned)).digest('hex');
+  put(
+    root,
+    '.ia/workspace.json',
+    JSON.stringify({ version: 1, adopted: [{ id: 'foundation', path: vendor, revision }] }),
+  );
+  put(root, '.ia/src/workspace.ia', records);
+  return root;
 }
 export function database(root: string, options: OpenOptions = {}): Handle {
   const db = open(root, { cache: false, ...options });

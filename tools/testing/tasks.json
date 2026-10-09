@@ -54,7 +54,8 @@
     "development-native-build": "CLI source, canonical generator source, native owners and their captured teaching manifest.",
     "selected-tests": "Owning production sources, every non-test helper, shared configuration and dependency sources; exclude only declared sibling test files, retaining selected and unassigned files.",
     "selected-tests-workspace-records": "selected-tests plus authored workspace records, teaching resources and native fixture inventories read through the filesystem.",
-    "language-conformance": "workspace-records plus the compliance language fixtures read by the language formatter and conformance suites."
+    "language-conformance": "workspace-records plus the compliance language fixtures read by the language formatter and conformance suites.",
+    "host-adapters": "workspace-records plus this repository's committed ia-authoring skills under .claude/skills and .agents/skills, which the runtime's host adapter tests compare the repository target's skills with through the filesystem, since no import edge names them."
   },
   "tasks": [
     {
@@ -1850,6 +1851,7 @@
         "tests/loop.test.ts",
         "tests/mandate-modes.test.ts",
         "tests/next.test.ts",
+        "tests/packet-host.test.ts",
         "tests/packet.test.ts",
         "tests/position.test.ts",
         "tests/publication.test.ts",
@@ -1865,7 +1867,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "workspace-records",
+      "inputProfile": "host-adapters",
       "dependsOn": [
         "runtime:build"
       ],

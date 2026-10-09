@@ -126,6 +126,10 @@
       "types": "./dist/packet.d.ts",
       "default": "./dist/packet.js"
     },
+    "./internal/packet-host": {
+      "types": "./dist/packet-host.d.ts",
+      "default": "./dist/packet-host.js"
+    },
     "./internal/position": {
       "types": "./dist/position.d.ts",
       "default": "./dist/position.js"
@@ -299,6 +303,10 @@
       "./internal/packet": {
         "types": "./dist/packet.d.ts",
         "default": "./dist/packet.js"
+      },
+      "./internal/packet-host": {
+        "types": "./dist/packet-host.d.ts",
+        "default": "./dist/packet-host.js"
       },
       "./internal/position": {
         "types": "./dist/position.d.ts",
