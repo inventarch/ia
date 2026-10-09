@@ -2360,7 +2360,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "8304522f9eb0b2dfd503246417aee4a979474d362aa3d79681095a962dc9c0c0"
+      "sha256": "2c8eea3bfb882a06fca4721b0fc2a93f9ba7c5698d35f2703d26a9380f77c803"
     },
     {
       "path": "CLAUDE.md",
@@ -7204,23 +7204,11 @@
     },
     {
       "path": "releases/changesets/1.2.0.json",
-      "sha256": "cf00682ff8603a49638d91d56ee4c1803394ea35ab1103b16cb96061684d882d"
+      "sha256": "44f0f07e610d6b99d534530b67b84c854953352016ef75444ce9cb372ba59d64"
     },
     {
       "path": "releases/current.json",
       "sha256": "606f11fb79dd340fec6eca1e1ba28b66884a7bf7429d0d1425b7212697106765"
-    },
-    {
-      "path": "releases/pending/native-versions-1-2.json",
-      "sha256": "9afbfb726a2b5fb294c842ad91e200dcbc254ac7359cd5c728a16e821afb40a7"
-    },
-    {
-      "path": "releases/pending/reference-placeholders.json",
-      "sha256": "74422bbea6d3496e854872b64982cda26d9de8ac80eea7cfede650adb6504c31"
-    },
-    {
-      "path": "releases/pending/refused-edge-target.json",
-      "sha256": "0f1e28c16fa61452144c6eb9e89d420273b722df3227e3e574e86b8c074583ff"
     },
     {
       "path": "tools/compliance/SPEC.md",
@@ -7961,10 +7949,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "68acbbdbabc6dab564a0feb864f89ba58cbfcd1a",
-    "baseTree": "3f5b60ff737bdbb6615445891b6d474bacfc6a59",
+    "baseCommit": "a2400ded1e61a689d65adaffcdbc22a4307b59b4",
+    "baseTree": "3fbf51bbb94dd1b355558046334236ae1480ae7b",
     "dirty": true,
-    "inputDigest": "330cf63ee74e079a0cd8e1e8713d5a18959051309dec8fede80d80b8bd251c2f",
+    "inputDigest": "3d791da586f0e602764fc1c394d0cf8c463209f2001488a23031f49888311d07",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.2.0",
       ".ia/src/systems/agent-system/package.json": "1.2.0",
