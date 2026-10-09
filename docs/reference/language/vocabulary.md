@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `8810e44b6cfd1256201c12427916b0cf03aaff5690b4b583f9868278f2620c09`.
+This catalogue contains 44 words. Source digest: `b57cce54697f36634d379efd7d7edaf0657daa42d5ef92ac33fdcdb021b813c3`.
 
 ## @agent
 

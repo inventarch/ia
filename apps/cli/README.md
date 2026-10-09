@@ -17,7 +17,7 @@ ia read agent-system/binding/agent/public-agent-system-steward --root demo
 ia vocabulary plan --schema
 ```
 
-`init` previews changes unless `--apply` is supplied. Its language base, `inventarch/language` 1.1.0, is bundled with the CLI, so creating a workspace needs no registry connection. Place authored `.ia` files in the generated `.ia/src/systems/demo/` directory. The starter system already requires the agent, work and workspace vocabularies, and its `@workspace` record composes the eleven public systems.
+`init` previews changes unless `--apply` is supplied. Its language base, `inventarch/language` 1.2.0, is bundled with the CLI, so creating a workspace needs no registry connection. Place authored `.ia` files in the generated `.ia/src/systems/demo/` directory. The starter system already requires the agent, work and workspace vocabularies, and its `@workspace` record composes the eleven public systems.
 
 `ia capture` writes the admitted snapshot, with each record's digest and capture membership, to `.ia/work/snapshot/current.json` and keeps the most recent capture at another revision as `previous.json`; it reports how many records changed since the prior capture. It refuses, writing nothing, a directory whose `.ia/src` declares no `@workspace` and a floor, installed or adopted source that fails to parse; any other finding is written into the snapshot. `ia compile` still writes the 1.x `ia.compiled.v1` artifact, unchanged, and is deprecated in favour of `ia capture`: it prints one deprecation line on stderr, and in 2.0 it becomes an alias of `ia capture`.
 

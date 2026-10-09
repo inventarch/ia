@@ -1036,47 +1036,47 @@
     },
     {
       "path": ".claude/agents/public-agent-composition-system-steward.md",
-      "sha256": "3f213c8326e02c39d2b4408d70362cc330795ff593aec1fbc429c80406b7e420"
+      "sha256": "f96e8a788937e9ef94147351e9422203c8624ebaba492a0ad4dae711fcd2c211"
     },
     {
       "path": ".claude/agents/public-agent-system-steward.md",
-      "sha256": "1fc813235f7a015f193f61077b254231c45f394db27ca543f0f4407a96e43a68"
+      "sha256": "d0332378a0c7679c19ac6a6581ec252a314cd2ab7f34f558acfe3605c2590018"
     },
     {
       "path": ".claude/agents/public-authoring-system-steward.md",
-      "sha256": "313f0a805727369f770ad0cbb32d71df7c12a6bf0cb7cb98072c5df2cc1fc9ee"
+      "sha256": "daf6b346fdd72c7aa2762d60accfa75c696ad6b9ac94b8a00b30cc795c472761"
     },
     {
       "path": ".claude/agents/public-compliance-system-steward.md",
-      "sha256": "c440c45335b0ebb9292fe10638167437753cb3989712131c2b77256317cd5e4b"
+      "sha256": "a14e30b045f10f6cccb4ad6eb15b535ecb5cb6fcdd3cad1fbb615cf55e4716a4"
     },
     {
       "path": ".claude/agents/public-governance-system-steward.md",
-      "sha256": "6d74d7cdbe779793728414d7b7e302976cb8db5dcc1ccfee5abaa538671cb875"
+      "sha256": "a9b66586f01c3757cc5c1444996f9536769bc67bc72ce713fb03f57135af7496"
     },
     {
       "path": ".claude/agents/public-hook-authoring-system-steward.md",
-      "sha256": "7d48c4244fdcb2fa76831ba6388f03b8b0d76fed6eee2187e6034e5be203e267"
+      "sha256": "c90499a4639a80c62f5dd9d3ce362a52641401dbd1fa04656d2699011a8caad5"
     },
     {
       "path": ".claude/agents/public-learning-system-steward.md",
-      "sha256": "762b5493f6d2d4faed3ae29d984b0b180b622d0a19ba454e94d8f651c8f6619f"
+      "sha256": "ba7a1de83a415c25d836be1b6933f9b927388687e79599ac1b2accd1e7e8f255"
     },
     {
       "path": ".claude/agents/public-session-system-steward.md",
-      "sha256": "ae8dbdfa5cc17fed956e025a56ae96574426232f7a6b4455a2259fdf7bdee50e"
+      "sha256": "ef89951413824482a28c98fcb6dea3ed896343d5e1efc5011f2e3cb2b19c3442"
     },
     {
       "path": ".claude/agents/public-template-system-steward.md",
-      "sha256": "58f086f84922136494f09613c81ca04cdac6532eef6ff15fbe2318037b54c32e"
+      "sha256": "ebfeb987f50520c9d7814ad903a2f2811e0bd1673ea23cea5ae4011866a434d1"
     },
     {
       "path": ".claude/agents/public-work-system-steward.md",
-      "sha256": "38a44a1ace615b32bf255479f8ba729c601d31ed71fb37ff251f3716829ffc21"
+      "sha256": "98b593700b05865d752f7aa54ed330f264b493a20221b4a06a7459eb218a5bbc"
     },
     {
       "path": ".claude/agents/public-workspace-system-steward.md",
-      "sha256": "4869ddbfd4a5442103aed5028b275b4ec4215282810c6363df0e9dbaad108d4e"
+      "sha256": "9a7e42e7b81a58fbc09dc6a29b82c2e49be642e6b7a7d84ce0e12f5fc82109d0"
     },
     {
       "path": ".claude/skills/ia-authoring/SKILL.md",
@@ -1496,7 +1496,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/system.ia",
-      "sha256": "10b41865ec52d2048a3f1c568d536d629377b0f59376c9d0227f52e92e852a86"
+      "sha256": "341cfd8f4f4b81ff40bd6b0c38f74b9129de64c9cf7c6ffd6aa185c457e58468"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/compatibility.test.ts",
@@ -1644,7 +1644,7 @@
     },
     {
       "path": ".ia/src/systems/agent-system/system.ia",
-      "sha256": "1c1983225f43a8bb43cee818a8c48491c24fb766d96488d1ae57ce44cbc90d45"
+      "sha256": "272b4e4610181797afd5b15bf0ea4fb17009b9e87cf5c64cb81581bbbbb93204"
     },
     {
       "path": ".ia/src/systems/agent-system/tests/contracts.test.ts",
@@ -1912,7 +1912,7 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/system.ia",
-      "sha256": "588a774abe76bc90687836c06ae777d4af33e40fca551e9d93d177c84fc370c8"
+      "sha256": "6b3adfd5f22578651ecdb079363ac86b5a59f19080b6d74f394356acdab59568"
     },
     {
       "path": ".ia/src/systems/authoring-system/tests/drafts.test.ts",
@@ -1968,7 +1968,7 @@
     },
     {
       "path": ".ia/src/systems/compliance-system/system.ia",
-      "sha256": "3858f6221be493d65b8b19c9cde9a97e51dca54cfeee475e52cb06d0a49f4294"
+      "sha256": "caee73ac925a9beacf62eb4aa53c23440d7335bcda936353a24cbc02ebbaf5f5"
     },
     {
       "path": ".ia/src/systems/governance-system/LANGUAGE.md",
@@ -2012,7 +2012,7 @@
     },
     {
       "path": ".ia/src/systems/governance-system/system.ia",
-      "sha256": "9dfabc89d51e5ab0ea4e30677bc7a9bac609e6a11f9154b13deca6e0690de597"
+      "sha256": "88727f106ed2079de5caa7bb2bb6c2febf9935d7a99390d58f7085efaf4cea0a"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md",
@@ -2044,7 +2044,7 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/system.ia",
-      "sha256": "de684e62e3c3523ac79687c318212eb85b79bacde4ad07213acc8eb77c36fc89"
+      "sha256": "b36eb182c9a5906c8e01a1426bfffa0dcb121189871af185f80b1d578e3be9d5"
     },
     {
       "path": ".ia/src/systems/learning-system/LANGUAGE.md",
@@ -2084,7 +2084,7 @@
     },
     {
       "path": ".ia/src/systems/learning-system/system.ia",
-      "sha256": "e76e3564c02e09d132962fb7904c6c2f598c66d5448684adfa24a5f76acf96f8"
+      "sha256": "f726ab622a27003d73ef99868a3835d8a91c941996ffd61934f2ec9720df9592"
     },
     {
       "path": ".ia/src/systems/session-system/LANGUAGE.md",
@@ -2144,7 +2144,7 @@
     },
     {
       "path": ".ia/src/systems/session-system/system.ia",
-      "sha256": "8db6986288d0b148acd2e105bc7d13021c91eee19a93c4fc9fdd3f1f15338ff8"
+      "sha256": "f9e4b842a4fe23cd5af4d6dec843adfdf2c43f4aa5e954557bfe2661c6e69584"
     },
     {
       "path": ".ia/src/systems/session-system/tests/contracts.test.ts",
@@ -2228,7 +2228,7 @@
     },
     {
       "path": ".ia/src/systems/template-system/system.ia",
-      "sha256": "67f2bbcdaaca2e9c5596cae482453745fad24459946b854b0c2dacd0b405ceec"
+      "sha256": "1f2be75b6066ebd67c1685f8a1a30aba87cb811c909a115942dc80ae2dac1cef"
     },
     {
       "path": ".ia/src/systems/template-system/tests/structured.test.ts",
@@ -2300,7 +2300,7 @@
     },
     {
       "path": ".ia/src/systems/work-system/system.ia",
-      "sha256": "336c508acfddb5c8018468a88583d3d4b55121fc2fcf7920e928ff4ed33ad8de"
+      "sha256": "87132d37a96669a08bdda6a8f4a7e6af39add710e84454de16f7b90c82ea0691"
     },
     {
       "path": ".ia/src/systems/workspace-system/LANGUAGE.md",
@@ -2356,7 +2356,7 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/system.ia",
-      "sha256": "fd8e43a4ea3664b4ae72d4028b060284610525071849aaab424ff4769c8878bd"
+      "sha256": "4e63ff64fbd51ffde629b99492062bccd38376a0f1a8d6d31f8591a44389255a"
     },
     {
       "path": "CHANGELOG.md",
@@ -2364,7 +2364,7 @@
     },
     {
       "path": "CLAUDE.md",
-      "sha256": "4b5b5ae3b6b3d4eddad13ba50c2df5b113d3fcc470277642063be6ff96a92fe8"
+      "sha256": "1d3b87171bc37c40459caa4712606ed0321bd81116867e543f6b4faf1aa81269"
     },
     {
       "path": "CODE_OF_CONDUCT.md",
@@ -2412,7 +2412,7 @@
     },
     {
       "path": "apps/cli/README.md",
-      "sha256": "770fec5a5ce52e1ab13959c2c3b95b00ea480c2834dfcc8119e5b269ab02f337"
+      "sha256": "f5e9a216d74e0f42698388c55cc4ae28b338c08d7539eff2389ad3baf1052ce1"
     },
     {
       "path": "apps/cli/SPEC.md",
@@ -2420,7 +2420,7 @@
     },
     {
       "path": "apps/cli/assets/vocabulary.json",
-      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a"
+      "sha256": "e36fd09457652d43463ff37aaf15f4ef2bf3177f3733837d3172eef10c72048c"
     },
     {
       "path": "apps/cli/package.json",
@@ -3084,7 +3084,7 @@
     },
     {
       "path": "apps/mcp-door/assets/vocabulary.json",
-      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a"
+      "sha256": "e36fd09457652d43463ff37aaf15f4ef2bf3177f3733837d3172eef10c72048c"
     },
     {
       "path": "apps/mcp-door/package.json",
@@ -3404,11 +3404,11 @@
     },
     {
       "path": "docs/reference/language/vocabulary.json",
-      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a"
+      "sha256": "e36fd09457652d43463ff37aaf15f4ef2bf3177f3733837d3172eef10c72048c"
     },
     {
       "path": "docs/reference/language/vocabulary.md",
-      "sha256": "99cf8976abcb3248534702ce4fd6c2bd5c135014e515097085174cc5341ac005"
+      "sha256": "fe906e55cdd8391ef1adca667c45c65f8ed07b1488969d1e7b94e4480ffea66a"
     },
     {
       "path": "examples/conformance/SPEC.md",
@@ -3892,47 +3892,47 @@
     },
     {
       "path": "examples/public-language/contracts/agent-composition-system.ia",
-      "sha256": "10b41865ec52d2048a3f1c568d536d629377b0f59376c9d0227f52e92e852a86"
+      "sha256": "341cfd8f4f4b81ff40bd6b0c38f74b9129de64c9cf7c6ffd6aa185c457e58468"
     },
     {
       "path": "examples/public-language/contracts/agent-system.ia",
-      "sha256": "1c1983225f43a8bb43cee818a8c48491c24fb766d96488d1ae57ce44cbc90d45"
+      "sha256": "272b4e4610181797afd5b15bf0ea4fb17009b9e87cf5c64cb81581bbbbb93204"
     },
     {
       "path": "examples/public-language/contracts/authoring-system.ia",
-      "sha256": "588a774abe76bc90687836c06ae777d4af33e40fca551e9d93d177c84fc370c8"
+      "sha256": "6b3adfd5f22578651ecdb079363ac86b5a59f19080b6d74f394356acdab59568"
     },
     {
       "path": "examples/public-language/contracts/compliance-system.ia",
-      "sha256": "3858f6221be493d65b8b19c9cde9a97e51dca54cfeee475e52cb06d0a49f4294"
+      "sha256": "caee73ac925a9beacf62eb4aa53c23440d7335bcda936353a24cbc02ebbaf5f5"
     },
     {
       "path": "examples/public-language/contracts/governance-system.ia",
-      "sha256": "9dfabc89d51e5ab0ea4e30677bc7a9bac609e6a11f9154b13deca6e0690de597"
+      "sha256": "88727f106ed2079de5caa7bb2bb6c2febf9935d7a99390d58f7085efaf4cea0a"
     },
     {
       "path": "examples/public-language/contracts/hook-authoring-system.ia",
-      "sha256": "de684e62e3c3523ac79687c318212eb85b79bacde4ad07213acc8eb77c36fc89"
+      "sha256": "b36eb182c9a5906c8e01a1426bfffa0dcb121189871af185f80b1d578e3be9d5"
     },
     {
       "path": "examples/public-language/contracts/learning-system.ia",
-      "sha256": "e76e3564c02e09d132962fb7904c6c2f598c66d5448684adfa24a5f76acf96f8"
+      "sha256": "f726ab622a27003d73ef99868a3835d8a91c941996ffd61934f2ec9720df9592"
     },
     {
       "path": "examples/public-language/contracts/session-system.ia",
-      "sha256": "8db6986288d0b148acd2e105bc7d13021c91eee19a93c4fc9fdd3f1f15338ff8"
+      "sha256": "f9e4b842a4fe23cd5af4d6dec843adfdf2c43f4aa5e954557bfe2661c6e69584"
     },
     {
       "path": "examples/public-language/contracts/template-system.ia",
-      "sha256": "67f2bbcdaaca2e9c5596cae482453745fad24459946b854b0c2dacd0b405ceec"
+      "sha256": "1f2be75b6066ebd67c1685f8a1a30aba87cb811c909a115942dc80ae2dac1cef"
     },
     {
       "path": "examples/public-language/contracts/work-system.ia",
-      "sha256": "336c508acfddb5c8018468a88583d3d4b55121fc2fcf7920e928ff4ed33ad8de"
+      "sha256": "87132d37a96669a08bdda6a8f4a7e6af39add710e84454de16f7b90c82ea0691"
     },
     {
       "path": "examples/public-language/contracts/workspace-system.ia",
-      "sha256": "fd8e43a4ea3664b4ae72d4028b060284610525071849aaab424ff4769c8878bd"
+      "sha256": "4e63ff64fbd51ffde629b99492062bccd38376a0f1a8d6d31f8591a44389255a"
     },
     {
       "path": "examples/public-language/manifest.json",
@@ -3964,7 +3964,7 @@
     },
     {
       "path": "examples/public-language/versions.json",
-      "sha256": "3f7539dadf0a44d87babddbab3cdf1a90f6584bdeae02cbf7dafab4749fe581b"
+      "sha256": "3d8e41ebc7c0ab90aa3ff979228dcd3882225c763ed8183410a040ed49e646b3"
     },
     {
       "path": "nx.json",
@@ -7211,6 +7211,10 @@
       "sha256": "606f11fb79dd340fec6eca1e1ba28b66884a7bf7429d0d1425b7212697106765"
     },
     {
+      "path": "releases/pending/refused-edge-target.json",
+      "sha256": "0f1e28c16fa61452144c6eb9e89d420273b722df3227e3e574e86b8c074583ff"
+    },
+    {
       "path": "tools/compliance/SPEC.md",
       "sha256": "059a0c3830776dd734eef2994b708d7dca6505c5efb30f869d15662426fdd75a"
     },
@@ -7420,7 +7424,7 @@
     },
     {
       "path": "tools/distribution/system-package-policy.json",
-      "sha256": "3bceb16ed2e2545c0a9a330691723244d8f221187e7a7fe8d72a5b35091c4185"
+      "sha256": "a0b109b595b261a45d34955f28ab599aba183e27bb0baea32f2669c9e38764e7"
     },
     {
       "path": "tools/docs/MARKDOWN.md",
@@ -7949,10 +7953,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "450d53c50734b17e99fd983ce2ddee6dd3ef8e9e",
-    "baseTree": "f1f29e0979bec89daa3fb9e1b4862ef8017a932e",
+    "baseCommit": "8d2194db41a40ef58340e090a0b827bb97594b7f",
+    "baseTree": "ceaad071304fde772ffd6f13f405f4abc2b80adf",
     "dirty": true,
-    "inputDigest": "0d071e7408ad928ac7c8fe473fbd8eaddfd88c4a4830b6531d8e3cf6d8ad2653",
+    "inputDigest": "34ee6e1b56d5aadd833d09e18de163c4ac1ee588efa65f07b2eff1fe0a40b595",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.2.0",
       ".ia/src/systems/agent-system/package.json": "1.2.0",
