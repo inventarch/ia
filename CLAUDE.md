@@ -82,6 +82,7 @@
 | `ia read` | read | Observation | a locator no admitted record answers | `ia inspect` |
 | `ia position` | read | Observation | a seat the workspace does not admit, or a path outside it | `ia position` |
 | `ia next` | read | Observation | no --seat while the workspace authors several `@plan` records, which the message lists | `ia next --seat <plan>` |
+| `ia project` | effect | Execution | a file without the generated marker at a path it writes, which its plan names; --apply writes nothing | `ia project <host>` |
 
 ## SPEC lines
 
@@ -89,4 +90,4 @@
 - state intent to the CLI as shape + optional phase + optional seat + optional word; the CLI never receives free text
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 
-ia-generated ccbf3b7c11ee155f1eaf97958d91962f395f9bba7822ce1e3615e30b1c34dde4 9bebc0fc08cf1693880d98549fa4cb057534112be83727536ea2dcde7a16620c ia-claude
+ia-generated ccbf3b7c11ee155f1eaf97958d91962f395f9bba7822ce1e3615e30b1c34dde4 baff518110105eca21fbeecaf55af6b3fe8147fdd5696ba22bebefb5c2b57bfd ia-claude

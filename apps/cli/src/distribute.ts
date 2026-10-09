@@ -62,7 +62,6 @@ import {
 } from '@inventarch/distribution/registry';
 import type { RegistryChoice, RegistryLevel } from '@inventarch/distribution/registry';
 import { resolveReleases } from '@inventarch/distribution/resolve';
-import { WORKSPACE_HOSTS } from '@inventarch/distribution/hosts';
 import type { BundleMetadata, ReleaseCandidate } from '@inventarch/distribution/services';
 import {
   acquireArtifact,
@@ -85,7 +84,9 @@ import {
   hostNext,
   JOURNALS,
   lockRefusal,
+  projectedHosts,
   projectionRepair,
+  projectionRerun,
   recoverCommand,
   refusedPath,
   SETTINGS,
@@ -475,16 +476,18 @@ function repin(
 }
 
 /**
- * Host registration spec §4: the hosts whose projection this workspace owns. Ownership is the state file's presence,
- * as `ia host` and `ia doctor` decide it. `restore` changes no admitted system, so it has none to refresh.
+ * Host registration spec §4: the hosts whose projection this workspace owns (`projectedHosts`), a projection `ia
+ * project` wrote without a registration included. `restore` changes no admitted system, so it has none to refresh.
  */
 export const registeredProjections = (root: string, operation: Operation): readonly HostName[] =>
-  operation === 'restore' ? [] : WORKSPACE_HOSTS.filter((host) => existsSync(resolve(root, STATE.projection(host))));
+  operation === 'restore' ? [] : projectedHosts(root);
 
 /**
  * Host registration spec §4: `--apply` refuses before any install write when a registered projection would refuse.
  * A hand edit to an owned file is the refusal the refresh would raise (§6.3), so it is found here, before
- * acquisition, the saved plan or the lock is touched; the remedy is the one `ia host` and `ia doctor` name for it.
+ * acquisition, the saved plan or the lock is touched; the remedy is the one `ia doctor` names for it, its rerun
+ * `projectionRerun`'s: `ia host <host> --apply` for a registered host, `ia project <host> --apply` for a projection
+ * `ia project` wrote without a registration (task ia-project-verb).
  * Missing, outdated and unowned files do not block: the refresh rewrites the first two and never touches the third.
  * A file the mechanism cannot read — an unreadable ownership state, an aliased or oversized managed file — would
  * refuse the refresh too, so it is refused here, located at that file, with the repair `ia host` names for it. So is
@@ -493,7 +496,7 @@ export const registeredProjections = (root: string, operation: Operation): reado
  */
 export function requireProjectionsClean(root: string, hosts: readonly HostName[], rooted: boolean): void {
   for (const host of hosts) {
-    const rerun = `ia host ${host} --apply`;
+    const rerun = projectionRerun(root, host);
     let drifts: readonly ProjectionDrift[];
     try {
       planRetirement(root, host);
@@ -540,7 +543,8 @@ export function requireProjectionsClean(root: string, hosts: readonly HostName[]
  * re-checks every file itself and writes the receipt (B12); the retirement comes back as `retired`. A refusal comes
  * back rather than being thrown, so every registered host is attempted before the command refuses. A file the mechanism
  * located gets `ia host`'s repair for it; a held host lock names the recovery that clears a dead holder's; a CLI
- * refusal (the workspace no longer admits) keeps its own next action; anything else names the rerun.
+ * refusal (the workspace no longer admits) keeps its own next action; anything else names the rerun, which is
+ * `projectionRerun`'s, as `ia doctor` names it.
  */
 function refreshed(view: PlanView, host: HostName): Refusal | 'retired' | 'none' {
   try {
@@ -550,7 +554,7 @@ function refreshed(view: PlanView, host: HostName): Refusal | 'retired' | 'none'
     if (busy !== null) return busy;
     const refusal = refusalOf(error),
       path = refusedPath(error),
-      rerun = `ia host ${host} --apply`;
+      rerun = projectionRerun(view.root, host);
     const next =
       path !== null
         ? projectionRepair(host, path, rerun, refusal.code)

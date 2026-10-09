@@ -12,12 +12,15 @@
  * starts a server and a written registration is not a server that answered; `stale` is `fail`, so doctor exits 1
  * (REQ-HRC-5), and its detail names each reason and the repair that works for it; no host state at all is `info`.
  * Projection drift is read from the receipt the projection apply wrote (B12, milestone position-packet): one row per
- * listed file that is missing or changed, one when the records render another packet, and one listing the legacy files
- * it removed and the foreign ones it left. An installation that carries no host payload is a note, not a crash:
+ * listed file that is missing or changed, one when the records render another packet, one `ok` row when it found none of
+ * these, and one listing the legacy files it removed and the foreign ones it left. A projection `ia project` wrote
+ * without a host registration is read the same way, its remedies naming `ia project <host> --apply` as the install
+ * refresh's do (`projectionRerun`, task ia-project-verb), and it leaves the host unregistered in the briefing. An
+ * installation that carries no host payload is a note, not a crash:
  * the release comparison is skipped and the row says so. Observation is total — a malformed state file is a `fail`
  * row, never an exception — and nothing here writes, the host home included. Repairs are worded by `ia host`'s own
- * `stateRepair` and `modifiedRepair`, so the two verbs cannot disagree, and every `ia host` command printed carries
- * `--root` when doctor was given one.
+ * `stateRepair` and `modifiedRepair`, so the two verbs cannot disagree, and every `ia host` or `ia project` command
+ * printed carries `--root` when doctor was given one.
  *
  * The support row compares an observed platform and version against the declaration at
  * docs/reports/open-source-v1/2026-09-30/decisions.md:13. It says "matches the declared target", never "qualified", because
@@ -77,7 +80,9 @@ import {
   MCP_PATH,
   modifiedRepair,
   pinnedRelease,
+  projectedHosts,
   projectionRepair,
+  projectionRerun,
   recoverCommand,
   refusedPath,
   rootedNext,
@@ -267,14 +272,14 @@ const installation = (
  * `ia init --host` uses (`rootedNext`), so a remedy runs from any cwd; with a discovered root it is left out.
  */
 interface Commands {
-  /** A remedy: the bare apply command. */
-  readonly apply: (host: HostName) => string;
-  /** Prose that quotes `"ia host <host> ..."` commands. */
+  /** A remedy: the bare apply command, `ia host <host> --apply` unless `command` names another (`projectionRerun`). */
+  readonly apply: (host: HostName, command?: string) => string;
+  /** Prose that quotes `"ia host <host> ..."` and `"ia project <host> ..."` commands. */
   readonly prose: (host: HostName, text: string) => string;
 }
 const commandsFor = (root: string | undefined): Commands => {
   const prose = (host: HostName, text: string): string => (root === undefined ? text : rootedNext(text, host, root));
-  return { prose, apply: (host) => prose(host, `"ia host ${host} --apply"`).slice(1, -1) };
+  return { prose, apply: (host, command = `ia host ${host} --apply`) => prose(host, `"${command}"`).slice(1, -1) };
 };
 
 /**
@@ -474,20 +479,24 @@ function hostRow(root: string, observed: HostObservation, pinned: Pinned, comman
  * Spec §7 and B12: the projection rows for one host that owns a projection, read from the receipt
  * `applyHostProjection` wrote. Each file it lists is compared with the disk: `missing` is what the next apply writes
  * again, `changed` (a hand edit) makes apply refuse, so it fails and names the repair `ia host` does. The receipt's
- * packet digest is compared with a fresh render: another packet is `outdated`. The legacy files it removed and the
- * foreign files it left are listed in one info row and never checked. No receipt — a projection written by a 1.x
- * release, or a receipt deleted — is `unknown`, and the remedy writes one. The ownership state and the files it lists
- * are read as `ia host` reads them first, so a file apply would refuse to read is a fail row here too. Never throws: a
- * failure to observe is itself a row.
+ * packet digest is compared with a fresh render: another packet is `outdated`, and a render that fails is `unknown`.
+ * With none of these, one `ok` row says the projection has no drift (task ia-project-verb). The legacy files it
+ * removed and the foreign files it left are listed in one info row and never checked. No receipt — a projection
+ * written by a 1.x release, or a receipt deleted — is `unknown`, and the remedy writes one. The ownership state and
+ * the files it lists are read as `ia host` reads them first, so a file apply would refuse to read is a fail row here
+ * too. Every remedy names `projectionRerun`'s apply, as the install refresh does: `ia host <host> --apply` for a
+ * registered host, `ia project <host> --apply` for a projection without a registration. Never throws: a failure to
+ * observe is itself a row.
  */
 function projectionRows(root: string, host: HostName, commands: Commands): readonly Check[] {
   const title = `Projection ${host}`,
     checks: Check[] = [],
-    apply = commands.apply(host);
+    rerun = projectionRerun(root, host),
+    apply = commands.apply(host, rerun);
   // A file the mechanism cannot read: the ownership state, a managed file, or the receipt, located at that file.
   const unreadable = (error: unknown, fallback: string): Check => {
     const path = refusedPath(error) ?? fallback,
-      repair = projectionRepair(host, path, `ia host ${host} --apply`, codeOf(error, ''));
+      repair = projectionRepair(host, path, rerun, codeOf(error, ''));
     const detail = commands.prose(host, `${path} cannot be read (${codeOf(error, 'an unexpected error')}). ${repair}`);
     return installation(
       path === STATE.projection(host) ? `projection-${host}` : `projection-${host}:${path}`,
@@ -535,7 +544,7 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
           id,
           title,
           'fail',
-          `${file.path} changed since ia host wrote it; move or delete it, then run the remedy`,
+          `${file.path} changed since the projection apply wrote it; move or delete it, then run the remedy`,
           apply,
         ),
       );
@@ -565,6 +574,16 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
       ),
     );
   }
+  if (checks.length === 0)
+    checks.push(
+      installation(
+        `projection-${host}`,
+        title,
+        'ok',
+        `No drift: the ${receipt.files.length} files ${STATE.receipt(host)} lists are as written, and the records render the packet it names (${short(receipt.packetDigest)})`,
+        null,
+      ),
+    );
   const left = [
     ...(receipt.removed.length === 0 ? [] : [`removed ${receipt.removed.map((file) => file.path).join(', ')}`]),
     ...(receipt.foreign.length === 0 ? [] : [`foreign, left in place: ${receipt.foreign.join(', ')}`]),
@@ -582,21 +601,34 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
   return checks;
 }
 
-/** Spec §7's rows for a workspace whose installed state could be read. */
+/**
+ * Spec §7's rows for a workspace whose installed state could be read. A host `ia project` projected without a
+ * registration owns a projection state (`projectedHosts`) but no registration, which `observeHosts` does not report,
+ * so its projection rows follow the registered hosts' rows, or the `Host` row when none is registered.
+ */
 function hostRows(
   root: string,
   observed: readonly HostObservation[],
   pinned: Pinned,
   commands: Commands,
 ): readonly Check[] {
+  const projected = projectedHosts(root)
+    .filter((host) => !observed.some((row) => row.host === host))
+    .flatMap((host) => projectionRows(root, host, commands));
   if (observed.length === 0) {
     const none = 'No host registered; run "ia host claude" or "ia host codex" to plan one';
-    return [installation('host', 'Host', 'info', commands.prose('codex', commands.prose('claude', none)), null)];
+    return [
+      installation('host', 'Host', 'info', commands.prose('codex', commands.prose('claude', none)), null),
+      ...projected,
+    ];
   }
-  return observed.flatMap((host) => [
-    hostRow(root, host, pinned, commands),
-    ...(host.elements.includes('projection') ? projectionRows(root, host.host, commands) : []),
-  ]);
+  return [
+    ...observed.flatMap((host) => [
+      hostRow(root, host, pinned, commands),
+      ...(host.elements.includes('projection') ? projectionRows(root, host.host, commands) : []),
+    ]),
+    ...projected,
+  ];
 }
 
 /**
@@ -882,7 +914,9 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
  * §8.2's host state from the rows already collected. `unknown` when the host set was not observed — an interrupted
  * installation, or installed state that could not be read — so the briefing never calls a host missing that doctor did
  * not look at. Stale covers the host row itself, a payload pinned outside the IA home (§3 names re-applying as its
- * remedy) and any failing projection row, which `ia host <host> --apply` also repairs.
+ * remedy) and any failing projection row of a registered host, which `ia host <host> --apply` also repairs. A
+ * projection `ia project` wrote without a registration is no registration to call stale: the host stays `absent`, and
+ * its failing rows name their own repair, `ia project <host> --apply` (task ia-project-verb).
  */
 function hostState(
   host: string,
@@ -901,7 +935,7 @@ function hostState(
     (check) =>
       (check.id === `host-${host}` && check.status !== 'ok') ||
       check.id === `ia-home-moved-${host}` ||
-      (check.id.startsWith(`projection-${host}`) && check.status === 'fail'),
+      (hostCheck !== undefined && check.id.startsWith(`projection-${host}`) && check.status === 'fail'),
   );
   if (failing.length > 0)
     return { status: 'stale', detail: failing.map((check) => check.detail).join('; '), recovery: null };

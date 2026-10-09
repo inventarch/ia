@@ -21,6 +21,7 @@ import {
   rootedApply,
   legacyGuard,
   legacyRegistration,
+  noDrift,
   RECEIPT,
   STEWARD,
 } from './host-fixture.js';
@@ -64,7 +65,7 @@ it('doctor reports registered, then stale after a simulated upgrade, and project
   expect(row(registered.checks, 'host-payload')!.detail).toBe(
     `Release ${release.slice(0, 12)}, present in ${resolve(env.IA_HOST_HOME, 'hosts')}`,
   );
-  expect(registered.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([]);
+  expect(registered.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([noDrift()]);
   // §3.3: an unfinished `.stage-*` materialization is never listed as a payload; another release's directory is.
   mkdirSync(resolve(env.IA_HOST_HOME, 'hosts', '.stage-interrupted'));
   mkdirSync(resolve(env.IA_HOST_HOME, 'hosts', 'a'.repeat(64)));
@@ -168,7 +169,7 @@ it('reports a newly authored local system as an outdated packet, and the rerun c
   expect(existsSync(resolve(root, '.claude/agents'))).toBe(false);
   const cleared = await doctor(root, env);
   expect(cleared.exitCode).toBe(0);
-  expect(cleared.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([]);
+  expect(cleared.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([noDrift()]);
 });
 
 it('reports an upgraded 1.x projection as unknown until a receipt exists, then lists what its apply removed', async () => {
@@ -193,6 +194,7 @@ it('reports an upgraded 1.x projection as unknown until a receipt exists, then l
   const upgraded = await doctor(root, env);
   expect(upgraded.exitCode).toBe(0);
   expect(upgraded.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([
+    noDrift(),
     expect.objectContaining({
       id: 'projection-claude-receipt',
       status: 'info',
@@ -248,7 +250,7 @@ it('reports an interrupted projection apply as unknown, never as a hand edit, an
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
   const converged = await doctor(root, env);
   expect(converged.exitCode).toBe(0);
-  expect(converged.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([]);
+  expect(converged.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([noDrift()]);
 });
 
 it("names ia host's own repair for a 1.x guard group changed by hand, and that repair converges", async () => {

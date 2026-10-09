@@ -46,6 +46,12 @@ export const doctor = async (root: string, env: Record<string, string>) => {
   return { exitCode: result.exitCode, checks: JSON.parse(result.stdout).checks as Row[] };
 };
 export const row = (checks: readonly Row[], id: string): Row | undefined => checks.find((check) => check.id === id);
+/**
+ * Doctor's one projection row when it finds no drift (task ia-project-verb): every file the receipt lists is as
+ * written and the records render the packet it names.
+ */
+export const noDrift = (name = 'claude') =>
+  expect.objectContaining({ id: `projection-${name}`, status: 'ok', detail: expect.stringContaining('No drift: ') });
 /** Doctor was given --root, so each command it prints carries it, in the form `ia init --host` uses (rootedNext). */
 export const rootedApply = (root: string, name = 'claude'): string => `ia host ${name} --root ${quote(root)} --apply`;
 

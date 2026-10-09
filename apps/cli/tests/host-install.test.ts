@@ -22,6 +22,7 @@ import {
   guardGroups,
   LEGACY_FILES,
   legacyRegistration,
+  noDrift,
   RECEIPT,
   STEWARD,
 } from './host-fixture.js';
@@ -154,7 +155,7 @@ it('names registered projections in the plan only when one is registered, and re
   expect(read(root, RULES)).not.toBe(based.rules);
   expect(packetDigest(root)).not.toBe(based.digest);
   const installed = read(root, RULES);
-  expect(await projectionRows(root, env)).toEqual({ exitCode: 0, rows: [] });
+  expect(await projectionRows(root, env)).toEqual({ exitCode: 0, rows: [noDrift()] });
 
   // Human output of an applied update: what was refreshed, never "configured".
   const updated = await run(
@@ -174,13 +175,13 @@ it('names registered projections in the plan only when one is registered, and re
   ).toBe(0);
   const extra = read(root, RULES);
   expect(extra).not.toBe(installed);
-  expect(await projectionRows(root, env)).toEqual({ exitCode: 0, rows: [] });
+  expect(await projectionRows(root, env)).toEqual({ exitCode: 0, rows: [noDrift()] });
   const removed = await run(['remove', 'fixture/extra', '--root', root, '--apply', '--yes', '--json'], { env });
   expect(removed.exitCode, removed.stdout).toBe(0);
   expect(JSON.parse(removed.stdout).refresh).toEqual(['claude']);
   expect(lockedIds(root)).toEqual(['fixture/foundation']);
   expect(read(root, RULES)).not.toBe(extra);
-  expect(await projectionRows(root, env)).toEqual({ exitCode: 0, rows: [] });
+  expect(await projectionRows(root, env)).toEqual({ exitCode: 0, rows: [noDrift()] });
 });
 
 /**
@@ -242,9 +243,11 @@ it('retires the guard before the refresh changes any projection file: a failing 
     seams.failAt = undefined;
   }
   expect(failed.exitCode, failed.stdout).toBe(3);
+  // The fixture owns no MCP registration, so the rerun is the projection's own apply, as doctor names it
+  // (`projectionRerun`, task ia-project-verb).
   expect(JSON.parse(failed.stdout)).toMatchObject({
     message: 'file write failed',
-    next: rootedNext('The installation is applied. Run "ia host claude --apply" to finish.', 'claude', root),
+    next: rootedNext('The installation is applied. Run "ia project claude --apply" to finish.', 'claude', root),
   });
   expect(lockedIds(root)).toEqual(['fixture/foundation']);
   expect(guardGroups(root)).toBe(0);
@@ -253,7 +256,7 @@ it('retires the guard before the refresh changes any projection file: a failing 
   expect(read(root, RULES)).toBe(LEGACY_FILES[RULES]);
   expect(existsSync(resolve(root, RECEIPT))).toBe(false);
   // The named rerun converges: nothing is left to retire, and the steward file goes now.
-  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect((await run(['project', 'claude', '--root', root, '--apply', '--yes', '--json'], { env })).exitCode).toBe(0);
   expect(existsSync(resolve(root, STEWARD))).toBe(false);
   expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'none', removed: [{ path: STEWARD }] });
 });
@@ -281,8 +284,9 @@ it('refuses an install before touching the lock when the guard the refresh would
     ok: false,
     code: 'IA-DIST-LOCAL-MODIFICATION',
     where: { path: '.claude/settings.local.json' },
+    // No MCP registration in the fixture: the rerun is the projection's own apply (`projectionRerun`).
     next: rootedNext(
-      'Delete the IA guard group in .claude/settings.local.json, then run "ia host claude --apply".',
+      'Delete the IA guard group in .claude/settings.local.json, then run "ia project claude --apply".',
       'claude',
       root,
     ),
@@ -292,7 +296,7 @@ it('refuses an install before touching the lock when the guard the refresh would
   // Followed literally: with the group deleted, the retirement removes the ownership state alone.
   delete settings.hooks;
   put(root, '.claude/settings.local.json', JSON.stringify(settings, null, 2) + '\n');
-  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect((await run(['project', 'claude', '--root', root, '--apply', '--yes', '--json'], { env })).exitCode).toBe(0);
   expect(existsSync(resolve(root, GUARD_STATE))).toBe(false);
   expect(existsSync(resolve(root, STEWARD))).toBe(false);
 });
@@ -359,7 +363,7 @@ it('locates an unreadable managed file or ownership state at that file, and each
   rmSync(resolve(root, RULES));
   expect((await install('--apply', '--yes')).exitCode).toBe(0);
   expect(read(root, RULES)).toContain('# IA position packet: demo');
-  expect(await projectionRows(root, env)).toEqual({ exitCode: 0, rows: [] });
+  expect(await projectionRows(root, env)).toEqual({ exitCode: 0, rows: [noDrift()] });
 
   // An ownership state that cannot be read: its own repair, located at it.
   put(root, PROJECTION_STATE, 'garbage\n');
@@ -449,7 +453,58 @@ it('refuses at class 3 naming the applied install when its projection refresh is
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
   expect(read(root, RULES)).not.toBe(rules);
   expect(existsSync(resolve(root, mine))).toBe(true);
-  expect((await projectionRows(root, env)).rows).toEqual([]);
+  expect((await projectionRows(root, env)).rows).toEqual([noDrift()]);
+});
+
+/**
+ * Task ia-project-verb: a projection `ia project` wrote has no host registration, so an install, update or remove names
+ * the repair doctor names for it, `ia project <host> --apply`, which re-applies the projection and registers nothing;
+ * `ia host <host> --apply` would also register an MCP server.
+ */
+it('names ia project, as doctor does, when it refuses a projection ia project wrote without a registration', async () => {
+  const { root, env, install } = await offered();
+  const project = () => run(['project', 'claude', '--root', root, '--apply', '--yes', '--json'], { env });
+  expect((await project()).exitCode).toBe(0);
+  const apply = `ia project claude --root ${quote(root)} --apply`;
+  // A hand edit refuses the install and the removal before anything is acquired.
+  put(root, RULES, read(root, RULES) + 'hand\n');
+  for (const refused of [
+    await install('--apply', '--yes', '--json'),
+    await run(['remove', lockedIds(root)[0]!, '--root', root, '--apply', '--yes', '--json'], { env }),
+  ]) {
+    expect(refused.exitCode).toBe(3);
+    expect(JSON.parse(refused.stdout)).toMatchObject({
+      code: 'IA-DIST-LOCAL-MODIFICATION',
+      where: { path: RULES },
+      next: `Move or delete ${RULES}, then run "${apply}".`,
+    });
+  }
+  const doctor = JSON.parse((await run(['doctor', '--root', root, '--json'], { env })).stdout);
+  expect(doctor.checks.find((check: { id: string }) => check.id === `projection-claude:${RULES}`)).toMatchObject({
+    status: 'fail',
+    remedy: apply,
+  });
+
+  // The refresh after a committed install names it too: the projection state owns the rules file alone, and the
+  // user's own file sits where the skill goes.
+  rmSync(resolve(root, RULES));
+  const state = JSON.parse(read(root, PROJECTION_STATE));
+  put(root, PROJECTION_STATE, json({ ...state, files: { [RULES]: state.files[RULES] } }));
+  const mine = '.claude/skills/ia-authoring/SKILL.md';
+  put(root, mine, 'mine\n');
+  const applied = await install('--apply', '--yes', '--json');
+  expect(applied.exitCode, applied.stdout).toBe(3);
+  expect(JSON.parse(applied.stdout)).toMatchObject({
+    code: 'IA-DIST-LOCAL-MODIFICATION',
+    where: { path: mine },
+    next: `The installation is applied. Move or delete ${mine}, then run "${apply}".`,
+  });
+  expect(lockedIds(root)).toEqual(['fixture/foundation']);
+  // Followed literally, the named repair finishes the refresh and registers no MCP server.
+  rmSync(resolve(root, mine));
+  expect((await project()).exitCode).toBe(0);
+  expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
+  expect((await projectionRows(root, env)).rows).toEqual([noDrift()]);
 });
 
 it('names the host lock recovery when an install refresh finds the lock held', async () => {
@@ -466,7 +521,7 @@ it('names the host lock recovery when an install refresh finds the lock held', a
   const { recoverHost } = await import('@inventarch/distribution/host');
   expect(recoverHost(root).status).toBe('current');
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
-  expect((await projectionRows(root, env)).rows).toEqual([]);
+  expect((await projectionRows(root, env)).rows).toEqual([noDrift()]);
 });
 
 it('names the pending journal recovery, not a projection file, when a journal blocks the guard retirement a refresh would run', async () => {

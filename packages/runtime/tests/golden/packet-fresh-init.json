@@ -439,6 +439,13 @@
       "move": "Observation",
       "refuses": "several plans",
       "next": "ia next --seat <plan>"
+    },
+    {
+      "command": "ia project",
+      "mode": "effect",
+      "move": "Execution",
+      "refuses": "an unmarked file",
+      "next": "ia project <host>"
     }
   ],
   "lines": [

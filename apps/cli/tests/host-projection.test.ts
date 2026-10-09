@@ -73,6 +73,9 @@ it('renders a consumer workspace for claude as its position packet, with no agen
   // Plan amendment B1 on a fresh init: P = M = 1, the seat, N systems, T = 3 tallies, 5 intents, 4 phases, C catalog
   // rows, provenance and 3 SPEC lines.
   expect(receipt.entries).toBe(1 + 1 + 1 + systems.length + 3 + 5 + 4 + packetCatalog().length + 1 + 3);
+  // The milestone's catalog is final (C = 7, task ia-project-verb), so a fresh init renders B1's 26 + N = 37.
+  expect(packetCatalog()).toHaveLength(7);
+  expect(receipt.entries).toBe(37);
 });
 
 it('renders codex rows only', async () => {

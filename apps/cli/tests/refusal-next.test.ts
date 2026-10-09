@@ -713,6 +713,28 @@ function invocations(): readonly {
       argv: ['host', 'claude', '--root', refused],
       command: `ia validate --root ${quote(realpathSync(refused))}`,
     },
+    // `ia project` (task ia-project-verb), with the root as given: an unknown host names the Claude plan, a missing
+    // root the rerun, an uninitialized one its init, and a workspace that does not admit the validation.
+    {
+      code: 'IA-CLI-USAGE',
+      argv: ['project', 'emacs', '--root', FIXTURE],
+      command: `ia project claude --root ${root}`,
+    },
+    {
+      code: 'IA-DB-ROOT-INVALID',
+      argv: ['project', 'claude', '--root', absent],
+      command: 'ia project claude --root <directory>',
+    },
+    {
+      code: 'IA-CLI-CONFLICT',
+      argv: ['project', 'claude', '--root', bare],
+      command: `ia init ${quote(bare)}`,
+    },
+    {
+      code: 'IA-CLI-CONFLICT',
+      argv: ['project', 'codex', '--root', refused],
+      command: `ia validate --root ${quote(refused)}`,
+    },
     // `update` with nothing installed names the install that comes first, its range and root included.
     {
       code: 'IA-DIST-INPUT-INVALID',

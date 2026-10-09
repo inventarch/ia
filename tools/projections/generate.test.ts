@@ -14,7 +14,10 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
+import { open } from '../../packages/db/src/index.js';
+import { entryCount, renderPacket } from '../../packages/runtime/src/packet.js';
 import { PACKET_MARKER } from '../../packages/runtime/src/packet-host.js';
+import { packetCatalog } from '../../apps/cli/src/commands.js';
 import { guardGroup } from '../../apps/distribution/src/guard-registration.js';
 import { json } from '../../apps/distribution/src/files.js';
 import { editJson, presentJson } from '../../apps/distribution/src/json-edit.js';
@@ -100,6 +103,31 @@ it('renders this repository as its position packet: CLAUDE.md and both skills, n
     '- `agent-system/binding/agent/language-participant`: The IDE agent operating in the language workspace, any vendor.',
   ]);
   expect(claude).not.toContain('Host note');
+  // Plan amendment B1 with the milestone's final catalog (C = 7, task ia-project-verb): 1 participant, 1 mandate, the
+  // seat, 11 system lines, 22 tallies, 5 intent rows, 4 phase rows, 7 commands, provenance and 3 SPEC lines. The file
+  // renders one entry per list item and table row, and the provenance line.
+  const db = open(root, { cache: false });
+  try {
+    const { packet } = renderPacket(db, db.resolveScope().token, packetCatalog());
+    expect(
+      [packet.participants, packet.mandates, packet.systems, packet.tallies, packet.commands].map(
+        (rows) => rows.length,
+      ),
+    ).toEqual([1, 1, 11, 22, 7]);
+    expect(entryCount(packet)).toBe(56);
+  } finally {
+    db.close();
+  }
+  const lines = claude.split('\n'),
+    rows = lines.filter(
+      (line, index) => line.startsWith('| ') && !line.startsWith('| ---') && !lines[index + 1]?.startsWith('| ---'),
+    );
+  expect(lines.filter((line) => line.startsWith('- ') || line.startsWith('ia-generated ')).length + rows.length).toBe(
+    56,
+  );
+  expect(rows).toContain(
+    '| `ia project` | effect | Execution | a file without the generated marker at a path it writes, which its plan names; --apply writes nothing | `ia project <host>` |',
+  );
   // GitHub renders the committed file: every IA word in it is a code span, never a mention.
   expect(claude).toContain('`@workspace`');
   expect(bare(claude)).toEqual([]);

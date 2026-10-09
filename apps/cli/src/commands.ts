@@ -57,7 +57,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all seventeen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Applies to all eighteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -368,6 +368,26 @@ export const COMMANDS: readonly CommandSpec[] = [
           'A @plan, @milestone or @task identity (default: the only @plan authored, with @milestone records that name it in work.plan and @task records that name those in work.milestone)',
       }),
     ]),
+  },
+  {
+    // Position-and-projection §5's project effect and design items 11 and 12 (plan amendments B8, B11 and B12): the
+    // workspace projection alone, the plan and apply of `ia host`'s projection element. The host is a positional the
+    // handler checks against the packet's two adapters, so any other host is still usage (exit 2).
+    name: 'project',
+    group: 'workspace',
+    summary: "Plan or apply the position packet's files for one host",
+    // conflictRefusal (project.ts): the plan names the file in the way, and the apply refuses it.
+    catalog: {
+      mode: 'effect',
+      move: 'Execution',
+      refuses: 'a file without the generated marker at a path it writes, which its plan names; --apply writes nothing',
+      next: 'ia project <host>',
+    },
+    syntax: ['ia project <claude|codex> [--apply] [--json] [--yes]'],
+    grammar: grammar(
+      [option({ name: 'apply', kind: 'boolean', summary: 'Apply the plan rather than previewing it' })],
+      positionals('host', 1, 1),
+    ),
   },
   {
     name: 'vocabulary',

@@ -150,6 +150,8 @@ it('tags the agent commands for the packet catalog in table order, each naming o
     ['ia read', 'read', 'Observation'],
     ['ia position', 'read', 'Observation'],
     ['ia next', 'read', 'Observation'],
+    // Task ia-project-verb: the seventh row, C = 7 (plan amendment B1).
+    ['ia project', 'effect', 'Execution'],
   ]);
   // Each row carries the catalog's five fields only, and its refusal is one line.
   for (const row of rows) {

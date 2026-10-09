@@ -1046,6 +1046,7 @@
         "tests/host-projection.test.ts",
         "tests/next.test.ts",
         "tests/position.test.ts",
+        "tests/project.test.ts",
         "tests/read.test.ts",
         "tests/refusal-next.test.ts",
         "tests/workspace-verbs.test.ts"

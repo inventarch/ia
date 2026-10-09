@@ -12,7 +12,9 @@
  * Milestone position-packet task replace-renderers (plan amendments B9, B11 and B12): the projection is the position
  * packet's consumer rendering, and `ia host` registers no steward guard. The projection element lists instead the
  * retirement of a guard an earlier release registered, which `applyHostProjection` (host-projection.ts) performs before
- * any projection file changes, the owned 1.x steward files it deletes and the foreign files it leaves.
+ * any projection file changes, the owned 1.x steward files it deletes and the foreign files it leaves. Task
+ * ia-project-verb: `ia project` (project.ts) plans and applies that element alone, through the same planner
+ * (`projectionElement`), re-plan (`replanProjection`) and writer, and its file rows (`projectionFileRows`).
  *
  * The plan asks the mechanisms themselves. `planHostFor` plans against the payload apply will materialize, described
  * from the pin without reading it (`expectedHostCache`), so a conflict in the preview is the service's own refusal —
@@ -23,7 +25,7 @@ import { existsSync, realpathSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { lifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-profile';
 import type { HostCacheTarget, HostPlan } from '@inventarch/distribution/host';
-import { hostRow, workspaceRow } from '@inventarch/distribution/hosts';
+import { hostRow, WORKSPACE_HOSTS, workspaceRow } from '@inventarch/distribution/hosts';
 import {
   applyHost,
   assertHostRegistrationIdle,
@@ -251,31 +253,36 @@ export function pinnedRelease(packageRoot: string): Pinned {
   }
 }
 
-/** §4: the target must be initialized and admit; anything else names ia init or ia validate. */
-function requireInitialized(root: string): void {
+/**
+ * §4: the target must be initialized and admit; anything else names ia init or ia validate. `named` is the root as the
+ * init it names spells it: `ia host` names the resolved root, and `ia project` the root as its invocation typed it.
+ */
+export function requireInitialized(root: string, named: string = root): void {
   if (!existsSync(resolve(root, '.ia/release.json')))
     throw new Refusal(
       'IA-CLI-CONFLICT',
       'The target is not an initialized workspace: .ia/release.json is absent',
       3,
       { path: root },
-      `Run "ia init ${quote(root)}" first.`,
+      `Run "ia init ${quote(named)}" first.`,
     );
 }
 /** The journal a failed transaction left behind, if any, with the command that recovers it. */
-const pendingJournal = (root: string): readonly [string, string] | undefined =>
+export const pendingJournal = (root: string): readonly [string, string] | undefined =>
   JOURNALS.find(([path]) => existsSync(resolve(root, path)));
 /** Design row 27: the recovery is the one command named; the refused command is simply run again after it. */
-const recoverNext = (root: string, command: string): string => `Run "${recoverCommand(command, root)}"${THEN_RERUN}`;
+export const recoverNext = (root: string, command: string): string =>
+  `Run "${recoverCommand(command, root)}"${THEN_RERUN}`;
 /**
- * A next action of this verb made runnable from any cwd: every quoted `ia host <host>` command it names, and the
- * `ia validate` a workspace that does not admit names (host-projection.ts), gains `--root <root>`. `ia init --host`
- * uses it, because its `<directory>` may not be the cwd a rerun discovers from. Every such command opens with
- * `"ia host <host>` or `"ia validate` and none names `--root` itself, so the rewrite reaches each one and nothing else.
+ * A next action of this verb made runnable from any cwd: every quoted `ia host <host>` or `ia project <host>` command
+ * it names, and the `ia validate` a workspace that does not admit names (host-projection.ts), gains `--root <root>`.
+ * `ia init --host` uses it, because its `<directory>` may not be the cwd a rerun discovers from, and so do `ia project`
+ * and `ia doctor`. Every such command opens with `"ia host <host>`, `"ia project <host>` or `"ia validate`, and one
+ * that names `--root` itself is left as it is, so the rewrite reaches each one and nothing else.
  */
 export const rootedNext = (next: string, host: HostName, root: string): string =>
   next.replace(
-    new RegExp(`"ia (?:host ${host}|validate)(?! --root\\b)`, 'g'),
+    new RegExp(`"ia (?:host ${host}|project ${host}|validate)(?! --root\\b)`, 'g'),
     (command) => `${command} --root ${quote(root)}`,
   );
 /** A next action as printed: with `--root` given, each `ia host <host>` command in it carries the root. */
@@ -297,8 +304,22 @@ export const projectionRepair = (host: HostName, path: string, rerun: string, co
     : code === undefined || code === 'IA-DIST-LOCAL-MODIFICATION'
       ? `Delete ${OWNED_GUARD}, then run "${rerun}".`
       : `Fix ${path}, then run "${rerun}".`);
-/** §8: a pending journal refuses the whole verb and names the recovery that clears it. */
-function requireIdle(root: string, supplied: string): void {
+/**
+ * Host registration spec §4: the hosts whose projection this workspace owns, by their projection state's presence, as
+ * `ia host`, `ia doctor` and the install refresh decide it, a projection `ia project` wrote without a registration
+ * included.
+ */
+export const projectedHosts = (root: string): readonly HostName[] =>
+  WORKSPACE_HOSTS.filter((host) => existsSync(resolve(root, STATE.projection(host))));
+/**
+ * The apply that repairs `host`'s projection, which `ia doctor` and the install refresh both name (task
+ * ia-project-verb): `ia host <host> --apply` for a registered host, and `ia project <host> --apply` for a projection
+ * `ia project` wrote without a registration, which `ia host` would also register an MCP server for.
+ */
+export const projectionRerun = (root: string, host: HostName): string =>
+  existsSync(resolve(root, STATE.mcp(host))) ? `ia host ${host} --apply` : `ia project ${host} --apply`;
+/** §8: a pending journal refuses the whole verb and names the recovery that clears it. `ia project` shares it. */
+export function requireIdle(root: string, supplied: string): void {
   try {
     assertHostRegistrationIdle(root);
   } catch (error) {
@@ -352,9 +373,10 @@ const contextElement = (host: HostName): Element => ({
  * §5.1 `projection`, planned by the real planners: B11's retirement of an owned guard registration, then the file plan
  * (B9). Both read only the workspace, so the plan is exactly apply's. A retirement is a change, and so is a missing
  * receipt, which every apply writes (B12), so a projection whose files are unchanged is then an update; a removal that
- * finds only a guard registration or a receipt removes them.
+ * finds only a guard registration or a receipt removes them. `ia project` plans with it, and both verbs' applies
+ * re-plan with it (`replanProjection`), so no two of them can plan the projection differently.
  */
-function projectionElement(root: string, host: HostName, rendered: HostOutput | null): Element {
+export function projectionElement(root: string, host: HostName, rendered: HostOutput | null): Element {
   const refused = (conflict: Conflict): Element => ({
     id: 'projection',
     action: 'refused',
@@ -536,6 +558,21 @@ function replan<T>(view: HostView, id: ElementId, path: string, run: () => T): T
   }
 }
 /**
+ * Apply's re-plan of the projection, shared by `ia host --apply` and `ia project --apply`: the projection element
+ * planned against the rendering the apply writes, so a conflict either of its planners finds (the guard retirement or
+ * the file plan) is raised, worded by the verb's `refuse`, before anything is written. `applyHostProjection` plans
+ * both again before its first write.
+ */
+export function replanProjection(
+  root: string,
+  host: HostName,
+  rendered: HostOutput | null,
+  refuse: (conflict: Conflict) => Refusal,
+): void {
+  const { conflict } = projectionElement(root, host, rendered);
+  if (conflict !== null) throw refuse(conflict);
+}
+/**
  * §3.3 steps 3-4. A payload directory that fails verification is named by the mechanism and the remedy is to delete
  * it; nothing overwrites it. Any other failure is the bundled payload's own, which only a reinstall repairs.
  */
@@ -622,8 +659,7 @@ export function applyHostSet(
     const cache = materialize(view, packageRoot);
     const mcp = replan(view, 'mcp', MCP_PATH[host], () => planHost(root, host, cache));
     const rendered = renderProjectionFor(root, host);
-    replan(view, 'projection', SETTINGS, () => planRetirement(root, host));
-    replan(view, 'projection', STATE.projection(host), () => planFiles(root, host, rendered));
+    replanProjection(root, host, rendered, (conflict) => refusalFor(view, 'projection', conflict));
     step('mcp', () => ({ status: applyHost(mcp).status }));
     done.push(skipped('context'));
     step('projection', project(rendered));
@@ -631,8 +667,7 @@ export function applyHostSet(
   }
   // A removal plans only what the view found owned; `none` means there is nothing of that element to remove.
   const absent = (id: ElementId): boolean => view.elements.find((element) => element.id === id)!.action === 'none';
-  replan(view, 'projection', SETTINGS, () => planRetirement(root, host));
-  replan(view, 'projection', STATE.projection(host), () => planFiles(root, host, null));
+  replanProjection(root, host, null, (conflict) => refusalFor(view, 'projection', conflict));
   const mcp = absent('mcp')
     ? null
     : replan(view, 'mcp', MCP_PATH[host], () => planHost(root, host, null, HOST_REGISTRATION));
@@ -677,7 +712,7 @@ function elementFields(view: HostView): readonly Field[] {
     const facts = [element.action, element.capability, ...(element.id === 'projection' ? [] : element.paths)];
     if (element.id === 'context' && element.capability === 'unsupported by host')
       facts.push(CODEX_HOOKS.replace(/\.$/, ''));
-    if (element.guard === 'retire') facts.push(`first retires the steward guard registered in ${SETTINGS}`);
+    if (element.guard === 'retire') facts.push(GUARD_RETIRE);
     if (element.conflict !== null) facts.push(`${element.conflict.code} ${element.conflict.reason}`);
     return {
       symbol: elementSymbol(element),
@@ -687,9 +722,18 @@ function elementFields(view: HostView): readonly Field[] {
     };
   });
 }
-/** Each projected file with its action; a foreign steward file says why it is left alone. */
-const fileBlock = (view: HostView, caps: Capabilities): readonly string[] =>
-  (view.elements.find((element) => element.id === 'projection')?.files ?? []).flatMap((file) =>
+/** A projection plan's B11 step as its plan says it, in `ia host` and `ia project` alike. */
+export const GUARD_RETIRE = `first retires the steward guard registered in ${SETTINGS}`;
+/**
+ * Each projected file with its action, at `column`; a foreign steward file says why it is left alone. `ia host` nests
+ * the rows under its projection element and `ia project` lists them as its file plan, so both word them alike.
+ */
+export const projectionFileRows = (
+  files: readonly ProjectionAction[],
+  column: number,
+  caps: Capabilities,
+): readonly string[] =>
+  files.flatMap((file) =>
     entry(
       [
         [
@@ -703,13 +747,16 @@ const fileBlock = (view: HostView, caps: Capabilities): readonly string[] =>
           ),
         ],
       ],
-      // Nested at the elements block's content column (§6.4 rule 3), so each file sits under the element it belongs to.
-      {
-        column: indentOf(1) + blockSymbolWidth(view.elements.map(elementSymbol), caps.ascii) + 2,
-        symbol: FILE_SYMBOL[file.action],
-      },
+      { column, symbol: FILE_SYMBOL[file.action] },
       caps,
     ),
+  );
+/** Each projected file, nested at the elements block's content column (§6.4 rule 3), under the element it belongs to. */
+const fileBlock = (view: HostView, caps: Capabilities): readonly string[] =>
+  projectionFileRows(
+    view.elements.find((element) => element.id === 'projection')?.files ?? [],
+    indentOf(1) + blockSymbolWidth(view.elements.map(elementSymbol), caps.ascii) + 2,
+    caps,
   );
 const headerBlock = (view: HostView, caps: Capabilities): readonly string[] => [
   ...headerLine(
