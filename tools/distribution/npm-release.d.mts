@@ -91,3 +91,39 @@ export declare function verifyRegistryCohort(
   release: Pick<NpmRelease, 'packages' | 'version' | 'tag'>,
   registryPackages: Record<string, RegistryPackage | null>,
 ): (ReleaseArchive & { action: 'publish' | 'skip-identical' })[];
+/** How long final verification waits for npm to show every published version, and how often it looks. */
+export interface RegistryVisibility {
+  timeoutMs: number;
+  intervalMs: number;
+}
+/** The bound with the delay, clock and progress log the wait uses. */
+export interface RegistryWait extends RegistryVisibility {
+  sleep: (ms: number) => Promise<unknown>;
+  now: () => number;
+  log: (line: string) => void;
+}
+export declare const REGISTRY_VISIBILITY: Readonly<RegistryVisibility>;
+/** What `verify-registry` waits with: the bound, a real delay, the monotonic `performance.now()` clock and stderr. */
+export declare const REGISTRY_WAIT: Readonly<RegistryWait>;
+/** The request `registryPackage` makes; `fetch` by default. */
+export type RegistryRequest = (url: string, init: { signal: AbortSignal }) => Promise<Response>;
+/** One packument from the npm registry, or null for a 404; any other unsuccessful status throws with its `status`. */
+export declare function registryPackage(name: string, request?: RegistryRequest): Promise<RegistryPackage | null>;
+/**
+ * `lookup` returns null only for a 404. A timeout or abort, a network failure, or an error whose `status` is 429 or a
+ * 5xx is read again within the bound; any other error refuses at once.
+ */
+export declare function waitForRegistryCohort(
+  release: Pick<NpmRelease, 'packages' | 'version' | 'tag'>,
+  lookup: (name: string) => Promise<RegistryPackage | null>,
+  wait: RegistryWait,
+): Promise<{
+  plan: (ReleaseArchive & { action: 'publish' | 'skip-identical' })[];
+  registryPackages: Record<string, RegistryPackage>;
+}>;
+/** Downloads each verified archive and checks its size and integrity against the release receipt. */
+export declare function verifyRegistryArchives(
+  plan: readonly ReleaseArchive[],
+  registryPackages: Record<string, RegistryPackage>,
+  request?: RegistryRequest,
+): Promise<void>;

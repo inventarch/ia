@@ -1,4 +1,5 @@
 import '../temp/physical-temp.mjs';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { expect, it } from 'vitest';
@@ -12,8 +13,13 @@ import {
 import { releaseGraph, type PackedManifest } from './release-graph.mjs';
 import {
   publicationPlan,
+  REGISTRY,
+  REGISTRY_VISIBILITY,
+  registryPackage,
+  verifyRegistryArchives,
   verifyRegistryCohort,
   verifyRelease,
+  waitForRegistryCohort,
   writeReleaseManifest,
   type ReleaseArchive,
   type RegistryPackage,
@@ -287,6 +293,265 @@ it('refuses a published cohort whose provenance attestation comes from another o
     registry[b] = published(url);
     expect(() => verifyRegistryCohort(cohort(), registry)).toThrow(refusal('Unexpected attestation origin'));
   }
+});
+
+/** One registry response: a packument, null for a 404, another HTTP status, a malformed body or a failed request. */
+type Answer = RegistryPackage | null | number | string | Error;
+/**
+ * Final verification through `registryPackage` against a registry that answers each package's successive requests from
+ * `answers`, repeating the last. The clock moves only when the wait sleeps, so the default 60-second bound with a
+ * 20-second interval polls at 0, 20, 40 and 60 seconds.
+ */
+function verifyWhenShown(
+  answers: Record<string, Answer[]>,
+  { timeoutMs, intervalMs } = { timeoutMs: 60_000, intervalMs: 20_000 },
+) {
+  let clock = 0;
+  const lookups: string[] = [],
+    sleeps: number[] = [],
+    lines: string[] = [];
+  const request = async (url: string) => {
+    const name = decodeURIComponent(url.slice(REGISTRY.length + 1));
+    lookups.push(name);
+    const turns = answers[name]!,
+      answer = turns[Math.min(lookups.filter((looked) => looked === name).length, turns.length) - 1];
+    if (answer instanceof Error) throw answer;
+    if (answer === null) return new Response('Not found', { status: 404 });
+    if (typeof answer === 'number') return new Response('', { status: answer });
+    if (typeof answer === 'string') return new Response(answer);
+    return Response.json(answer);
+  };
+  const verified = waitForRegistryCohort(cohort(), (name) => registryPackage(name, request), {
+    timeoutMs,
+    intervalMs,
+    sleep: async (ms) => {
+      sleeps.push(ms);
+      clock += ms;
+    },
+    now: () => clock,
+    log: (line) => lines.push(line),
+  });
+  return { verified, lookups, sleeps, lines };
+}
+
+function differing(): RegistryPackage {
+  const remote = published();
+  remote.versions!['1.1.0']!.dist!.integrity = 'sha512-other';
+  return remote;
+}
+function retagged(): RegistryPackage {
+  const remote = published();
+  remote['dist-tags'] = { latest: '1.0.0' };
+  return remote;
+}
+const timeout = () => new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+
+it('gives its verdict on the first read alone when that read shows the whole cohort', async () => {
+  const { verified, lookups, sleeps, lines } = verifyWhenShown({ [a]: [published()], [b]: [published()] });
+  expect((await verified).plan.map((entry) => entry.action)).toEqual(['skip-identical', 'skip-identical']);
+  expect(lookups).toEqual([a, b]);
+  expect(sleeps).toEqual([]);
+  expect(lines).toEqual([]);
+});
+
+it('waits for npm to show a published version up to the last poll inside the visibility bound', async () => {
+  const { verified, lookups, sleeps, lines } = verifyWhenShown({
+    [a]: [published()],
+    [b]: [null, null, unpublished(), published()],
+  });
+  const { plan, registryPackages } = await verified;
+  expect(plan.map((entry) => entry.action)).toEqual(['skip-identical', 'skip-identical']);
+  expect(registryPackages).toEqual({ [a]: published(), [b]: published() });
+  // A 404 and a packument without the version are both read again, and only for the package npm does not show yet.
+  // Once b shows, at the bound, the verdict reads the whole cohort once more.
+  expect(lookups).toEqual([a, b, b, b, b, a, b]);
+  expect(sleeps).toEqual([20_000, 20_000, 20_000]);
+  expect(lines).toEqual(
+    [0, 20, 40].map((seconds, poll) => `Poll ${poll + 1} (${seconds} s of 60 s): npm does not show 1.1.0 of ${b} yet`),
+  );
+});
+
+it('verifies a version npm shows six minutes after accepting its publish, the lag seen when 1.1.1 was published', async () => {
+  const { verified, lookups, sleeps, lines } = verifyWhenShown(
+    { [a]: [published()], [b]: [...Array.from({ length: 18 }, unpublished), published()] },
+    REGISTRY_VISIBILITY,
+  );
+  expect((await verified).plan.map((entry) => entry.action)).toEqual(['skip-identical', 'skip-identical']);
+  expect(lookups).toEqual([a, ...Array.from({ length: 19 }, () => b), a, b]);
+  expect(sleeps).toEqual(Array.from({ length: 18 }, () => 20_000));
+  expect(lines).toEqual(
+    Array.from(
+      { length: 18 },
+      (_, poll) => `Poll ${poll + 1} (${poll * 20} s of 900 s): npm does not show 1.1.0 of ${b} yet`,
+    ),
+  );
+});
+
+it('refuses an incomplete published cohort right after the last poll inside the visibility bound', async () => {
+  const { verified, lookups, sleeps, lines } = verifyWhenShown({ [a]: [null], [b]: [unpublished()] });
+  await expect(verified).rejects.toThrow(refusal(`${a}: incomplete published cohort`));
+  expect(lookups).toEqual([a, b, a, b, a, b, a, b]);
+  expect(sleeps).toEqual([20_000, 20_000, 20_000]);
+  expect(lines).toEqual(
+    [0, 20, 40, 60].map(
+      (seconds, poll) => `Poll ${poll + 1} (${seconds} s of 60 s): npm does not show 1.1.0 of ${a}, ${b} yet`,
+    ),
+  );
+});
+
+it('polls again after a poll that ends just inside the visibility bound', async () => {
+  const { verified, lookups, sleeps } = verifyWhenShown(
+    { [a]: [null], [b]: [published()] },
+    { timeoutMs: 40_001, intervalMs: 20_000 },
+  );
+  await expect(verified).rejects.toThrow(refusal(`${a}: incomplete published cohort`));
+  // The poll at 40 s ends inside the bound, so a fourth follows at 60 s.
+  expect(lookups).toEqual([a, b, a, a, a]);
+  expect(sleeps).toEqual([20_000, 20_000, 20_000]);
+});
+
+it('reads a package again after a registry timeout, network failure, 429 or 5xx, until a read succeeds', async () => {
+  const transient: [Error | number, string][] = [
+    [timeout(), 'The operation was aborted due to timeout'],
+    [new DOMException('This operation was aborted', 'AbortError'), 'This operation was aborted'],
+    [new TypeError('fetch failed', { cause: new Error('read ECONNRESET') }), 'fetch failed: read ECONNRESET'],
+    [new TypeError('terminated', { cause: new Error('other side closed') }), 'terminated: other side closed'],
+    [429, 'registry returned 429'],
+    [500, 'registry returned 500'],
+    [503, 'registry returned 503'],
+  ];
+  for (const [failure, text] of transient) {
+    const { verified, lookups, sleeps, lines } = verifyWhenShown({ [a]: [published()], [b]: [failure, published()] });
+    expect((await verified).plan.map((entry) => entry.action)).toEqual(['skip-identical', 'skip-identical']);
+    expect(lookups).toEqual([a, b, b, a, b]);
+    expect(sleeps).toEqual([20_000]);
+    expect(lines).toEqual([`Poll 1 (0 s of 60 s): npm does not show 1.1.0 of ${b} (${text}) yet`]);
+  }
+});
+
+it('refuses a package whose registry reads still fail at the visibility bound, naming it and its last failure', async () => {
+  const { verified, lookups, sleeps, lines } = verifyWhenShown({ [a]: [published()], [b]: [timeout(), 503] });
+  await expect(verified).rejects.toThrow(
+    refusal(`${b}: incomplete published cohort; its last read failed: registry returned 503`),
+  );
+  expect(lookups).toEqual([a, b, b, b, b]);
+  expect(sleeps).toEqual([20_000, 20_000, 20_000]);
+  expect(lines).toEqual([
+    `Poll 1 (0 s of 60 s): npm does not show 1.1.0 of ${b} (The operation was aborted due to timeout) yet`,
+    ...[20, 40, 60].map(
+      (seconds, poll) =>
+        `Poll ${poll + 2} (${seconds} s of 60 s): npm does not show 1.1.0 of ${b} (registry returned 503) yet`,
+    ),
+  ]);
+});
+
+it('drops a read failure from the progress and the refusal once a later read answers', async () => {
+  const { verified, lookups, sleeps, lines } = verifyWhenShown({ [a]: [published()], [b]: [timeout(), null] });
+  await expect(verified).rejects.toThrow(refusal(`${b}: incomplete published cohort`));
+  expect(lookups).toEqual([a, b, b, b, b]);
+  expect(sleeps).toEqual([20_000, 20_000, 20_000]);
+  expect(lines).toEqual([
+    `Poll 1 (0 s of 60 s): npm does not show 1.1.0 of ${b} (The operation was aborted due to timeout) yet`,
+    ...[20, 40, 60].map(
+      (seconds, poll) => `Poll ${poll + 2} (${seconds} s of 60 s): npm does not show 1.1.0 of ${b} yet`,
+    ),
+  ]);
+});
+
+it('refuses a permanent registry failure on the first poll without waiting for the rest of the cohort', async () => {
+  const unattested = published(),
+    elsewhere = published();
+  delete unattested.versions!['1.1.0']!.dist!.attestations;
+  elsewhere.versions!['1.1.0']!.dist!.tarball = 'https://example.invalid/example.tgz';
+  const malformed = '<html>',
+    syntax = (() => {
+      try {
+        JSON.parse(malformed);
+        return '';
+      } catch (error) {
+        return (error as SyntaxError).message;
+      }
+    })();
+  const failures: [Answer, string][] = [
+    [differing(), `${b}@1.1.0: existing npm bytes differ`],
+    [
+      { 'dist-tags': { latest: '2.0.0' }, versions: { '2.0.0': {} } },
+      `${b}: registry already has a newer stable version`,
+    ],
+    [retagged(), `${b}: existing version has an unexpected latest tag; no automatic tag repair`],
+    [unattested, 'Published package lacks npm provenance'],
+    [elsewhere, 'Unexpected registry tarball origin'],
+    [published('https://example.invalid/attestations/example'), 'Unexpected attestation origin'],
+    [400, `${b}: registry returned 400`],
+    [403, `${b}: registry returned 403`],
+    [451, `${b}: registry returned 451`],
+    [new TypeError('boom'), `${b}: boom`],
+    [malformed, `${b}: ${syntax}`],
+  ];
+  for (const [answer, message] of failures) {
+    // The other package is still a 404, so a check that first waited for the whole cohort would sleep.
+    const { verified, lookups, sleeps } = verifyWhenShown({ [a]: [null], [b]: [answer] });
+    await expect(verified).rejects.toThrow(refusal(message));
+    expect(lookups).toEqual([a, b]);
+    expect(sleeps).toEqual([]);
+  }
+});
+
+it('refuses a permanent registry failure that first appears on a later poll', async () => {
+  const { verified, lookups, sleeps } = verifyWhenShown({ [a]: [null], [b]: [null, null, differing()] });
+  await expect(verified).rejects.toThrow(refusal(`${b}@1.1.0: existing npm bytes differ`));
+  expect(lookups).toEqual([a, b, a, b, a, b]);
+  expect(sleeps).toEqual([20_000, 20_000]);
+});
+
+it('gives its verdict on a fresh read of the whole cohort, so a latest tag that moved after its package showed refuses', async () => {
+  const { verified, lookups, sleeps } = verifyWhenShown({
+    [a]: [published(), retagged()],
+    [b]: [unpublished(), published()],
+  });
+  await expect(verified).rejects.toThrow(
+    refusal(`${a}: existing version has an unexpected latest tag; no automatic tag repair`),
+  );
+  // a shows on the first poll and b on the second; the third reads both again.
+  expect(lookups).toEqual([a, b, b, a, b]);
+  expect(sleeps).toEqual([20_000]);
+});
+
+it('waits again, within the same bound, for a package that the fresh read no longer shows', async () => {
+  const { verified, lookups, sleeps, lines } = verifyWhenShown({
+    [a]: [published(), unpublished()],
+    [b]: [unpublished(), published()],
+  });
+  await expect(verified).rejects.toThrow(refusal(`${a}: incomplete published cohort`));
+  // b shows at 20 s; the fresh read at 20 s no longer shows a, which is then read until the bound at 60 s.
+  expect(lookups).toEqual([a, b, b, a, b, a, a]);
+  expect(sleeps).toEqual([20_000, 20_000, 20_000]);
+  expect(lines).toEqual([
+    `Poll 1 (0 s of 60 s): npm does not show 1.1.0 of ${b} yet`,
+    // The fresh read belongs to the poll at 20 s, so the polls stay numbered by their 20-second ticks.
+    ...[20, 40, 60].map(
+      (seconds, poll) => `Poll ${poll + 2} (${seconds} s of 60 s): npm does not show 1.1.0 of ${a} yet`,
+    ),
+  ]);
+});
+
+it('refuses an archive download that fails after the wait, naming the package and the status', async () => {
+  const bytes = Buffer.from('published archive bytes'),
+    entry = {
+      ...archive(a),
+      bytes: bytes.length,
+      integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}`,
+    },
+    requested: string[] = [];
+  const download = (status: number) => async (url: string) => {
+    requested.push(url);
+    return new Response(status === 200 ? bytes : null, { status });
+  };
+  await expect(verifyRegistryArchives([entry], { [a]: published() }, download(200))).resolves.toBeUndefined();
+  await expect(verifyRegistryArchives([entry], { [a]: published() }, download(404))).rejects.toThrow(
+    refusal(`${a}: archive download returned 404`),
+  );
+  expect(requested).toEqual(['https://registry.npmjs.org/example.tgz', 'https://registry.npmjs.org/example.tgz']);
 });
 
 function put(repository: string, path: string, value: unknown): void {
