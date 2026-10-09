@@ -51,9 +51,11 @@ export function validateGraphSchema(record: Node, graph: Graph): Assessment {
         author.edges.some(
           (edge) =>
             edge.predicate === rule.predicate &&
+            // Another record's refused edge reaches this rule only when that record is a target the rule counts.
             (edge.direction === rule.direction
               ? author.identity === record.identity
-              : resolveTarget(edge.reference, graph.registry, [record]).kind === 'resolved') &&
+              : matchesTarget(author, rule) &&
+                resolveTarget(edge.reference, graph.registry, [record]).kind === 'resolved') &&
             graph.diagnostics.some(
               (d) =>
                 d.severity === 'error' &&

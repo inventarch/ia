@@ -5708,7 +5708,7 @@
     },
     {
       "path": "packages/compliance/src/graph-checks.ts",
-      "sha256": "2d66e13b90424b53f71d88648dfd533c2a75c98538f64b69c524c74569c6c6e9"
+      "sha256": "cb58e32ca74fefcb5b8e1c128b5cac262c08ba54ed702de9a25f99a73db4fe2a"
     },
     {
       "path": "packages/compliance/src/host-plugin.ts",
@@ -5784,7 +5784,7 @@
     },
     {
       "path": "packages/compliance/tests/graph.test.ts",
-      "sha256": "8c9b1a5e2fb2e268da2aa6928f8fc1989ba85f3e0ab081607764e3cb7cb926db"
+      "sha256": "20e34101df5c1bf98ed11edf528ecfec33566c6a39a92e4b4dc20b4778f27df8"
     },
     {
       "path": "packages/compliance/tests/host-plugin-node.test.ts",
@@ -7949,10 +7949,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "ab4b679189e2695073c52de5b62527037535e16e",
-    "baseTree": "6876b6673b6bd17eafaf5789fe4717585a98277a",
+    "baseCommit": "450d53c50734b17e99fd983ce2ddee6dd3ef8e9e",
+    "baseTree": "f1f29e0979bec89daa3fb9e1b4862ef8017a932e",
     "dirty": true,
-    "inputDigest": "f755c7a8b4f96d6bfb3b4e61a831561dd89196d3a23bd3f5e01e06a22d678e30",
+    "inputDigest": "0d071e7408ad928ac7c8fe473fbd8eaddfd88c4a4830b6531d8e3cf6d8ad2653",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.2.0",
       ".ia/src/systems/agent-system/package.json": "1.2.0",

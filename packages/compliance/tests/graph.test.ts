@@ -324,6 +324,32 @@ describe('graph schema obligations', () => {
     expect(validateGraphSchema(subject(graph), graph).outcome).toBe('not-evaluated');
     expect(validateGraphSchema(subject(graph), graph).findings).toEqual([]);
   });
+  it("leaves an inbound rule available when a refused edge comes from a record outside the rule's target", () => {
+    // Only the source asserts the citation, and its system refuses it. The target asserts nothing itself.
+    const oneWay = {
+      path: 'one-way.ia',
+      text: '#! ia 1.0\n@playbook source\n  relationships\n    cites @playbook target\n@playbook target\n',
+      location,
+    };
+    const asserted = compile(parse(oneWay.text, oneWay.path).ast, registry, location, []).records;
+    const consent = new Map(registry.consent);
+    consent.set('governance-system', []);
+    const refusing = { ...registry, consent };
+    const target = (graph: ReturnType<typeof graphOf>) =>
+      graph.nodes.get('governance-system/definition/procedure/target')!;
+    // A rule that only a citing law can satisfy: the playbook's refused citation can neither meet nor breach it.
+    const fromLaw: SchemaEdge = { ...rule, direction: 'in', spelling: 'cited-by', target: 'law', must: false };
+    const graph = graphOf(asserted, fromLaw, refusing, [oneWay]);
+    expect(graph.edges).toEqual([]);
+    expect(validateConsent(graph).outcome).toBe('fail');
+    expect(validateGraphSchema(target(graph), graph)).toMatchObject({ outcome: 'pass', findings: [] });
+    // When the refused citation comes from the kind the rule names, admission still owns the fault: unavailable.
+    const fromPlaybook = graphOf(asserted, { ...fromLaw, target: 'playbook' }, refusing, [oneWay]);
+    expect(validateGraphSchema(target(fromPlaybook), fromPlaybook)).toMatchObject({
+      outcome: 'not-evaluated',
+      findings: [],
+    });
+  });
   it('resolves a `ref to` field against the admitted graph and only warns when the target is absent', () => {
     const typed = {
       path: 'typed.ia',
