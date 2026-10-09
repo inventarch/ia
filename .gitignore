@@ -21,6 +21,9 @@ dist/
 /apps/cli/assets/host/
 /apps/cli/assets/host.json
 
+# Host agent definitions, machine-local and never committed (decision packet-tracking-policy); pnpm projections:generate deletes a steward file a 1.x renderer left here
+/.claude/agents/
+
 # Repository scratch and browser output
 /.work/
 /.superpowers/

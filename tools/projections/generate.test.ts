@@ -110,6 +110,41 @@ it('renders this repository as its position packet: CLAUDE.md and both skills, n
   publishArtifacts(base, files, true);
   expect(publishArtifacts(base, files, false)).toEqual([]);
 });
+it('commits CLAUDE.md and both skills, and ignores .claude/agents, where no file is tracked (packet-tracking-policy)', () => {
+  // Milestone position-packet task untrack-steward-agents: no steward agent is tracked, and none can be added unforced.
+  const base = temp(),
+    empty = resolve(base, 'empty'),
+    scratch = resolve(base, 'repository'),
+    agent = '.claude/agents/public-work-system-steward.md';
+  writeFileSync(empty, '');
+  const git = (cwd: string, env: NodeJS.ProcessEnv, ...args: string[]): string[] => {
+    const run = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 15000, env });
+    expect(run.status, run.stderr).toBe(0);
+    return run.stdout.split('\n').filter(Boolean);
+  };
+  // This checkout's index is read with the contributor's own Git environment: ls-files reads no ignore rule, and Git
+  // honours a safe.directory only from system, global or command configuration.
+  const tracked = (...paths: string[]): string[] => git(root, process.env, 'ls-files', '--', ...paths);
+  expect(tracked(...FILES, '.claude/agents').sort()).toEqual([...FILES].sort());
+  // The ignore check runs in a repository made without a template, so without an info/exclude, holding copies of the
+  // tracked ignore files. Its Git has no inherited GIT_* variable, no system or global configuration and an empty
+  // excludes file, so a contributor's own ignore rules can neither hide a tracked file nor stand in for the tracked
+  // rule. --no-index matches each path, tracked or not, and -v names the rule behind each ignored path.
+  const isolated = {
+    ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_'))),
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: empty,
+  };
+  const ignores = (cwd: string, ...args: string[]): string[] =>
+    git(cwd, isolated, '-c', `core.excludesFile=${empty}`, ...args);
+  ignores(base, 'init', '--quiet', '--template=', scratch);
+  for (const path of tracked(':(glob)**/.gitignore')) put(scratch, path, read(root, path));
+  const rule = read(root, '.gitignore').split(/\r?\n/).indexOf('/.claude/agents/') + 1;
+  expect(rule).toBeGreaterThan(0);
+  expect(ignores(scratch, 'check-ignore', '-v', '--no-index', '--', ...FILES, agent)).toEqual([
+    `.gitignore:${rule}:/.claude/agents/\t${agent}`,
+  ]);
+});
 it('checks without writing, publishes changed bytes and leaves equal bytes untouched', () => {
   const base = temp(),
     artifact = { path: 'CLAUDE.md', text: PACKET_MARKER + '\nfirst\n' };

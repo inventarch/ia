@@ -138,7 +138,7 @@ If you are an agent working in this checkout, start here:
 
 1. **Read the contracts.** [SPEC.md](SPEC.md) owns the repository; each package, app and native system has a colocated contract for its behavior.
 2. **Choose the word before writing the record.** Read the [language guide](docs/reference/language/README.md), [vocabulary catalogue](docs/reference/language/vocabulary.md) and canonical schema. The [IA authoring skill](.agents/skills/ia-authoring/SKILL.md) provides the entry point.
-3. **Edit source, then regenerate.** Native declarations live under `.ia/src/`. Vocabulary pages, authoring resources and host projections have their own generators; the corresponding `*:check` commands detect drift.
+3. **Edit source, then regenerate.** Native declarations live under `.ia/src/`. Vocabulary pages, authoring resources, `CLAUDE.md` (this repository's position packet) and the `ia-authoring` skills have their own generators; the corresponding `*:check` commands detect drift.
 4. **Report the checks you ran.** Name the behavior and environment each check exercised. Model execution, evidence evaluation and external effects require explicitly supplied consumers and host authority.
 
 ---
@@ -261,7 +261,7 @@ When using that build in another project, substitute `node /path/to/ia/apps/cli/
 | `pnpm docs:check --all` | Local link targets across tracked Markdown files |
 | `pnpm vocabulary:check` / `pnpm vocabulary:generate` | Check or regenerate the vocabulary catalogue |
 | `pnpm authoring:check` / `pnpm authoring:generate` | Check or regenerate authoring resources |
-| `pnpm projections:check` / `pnpm projections:generate` | Check or regenerate host projections |
+| `pnpm projections:check` / `pnpm projections:generate` | Check or regenerate `CLAUDE.md` (this repository's position packet) and the `ia-authoring` skills |
 | `pnpm public:qualify` | Public records, guides and host artifacts, plus package qualification |
 | `pnpm packages:qualify` | Package exports, installed CLI consumers and VSIX packaging |
 | `pnpm release:note` / `pnpm release:check` / `pnpm release:version` | Add a pending release note, check that changed packages have notes, and compute the next coordinated version |
@@ -271,7 +271,7 @@ When using that build in another project, substitute `node /path/to/ia/apps/cli/
 
 </details>
 
-Edit the corresponding native source before regenerating vocabulary, authoring resources or host projections. Keep validation claims tied to the checks that actually ran and the environments they exercised.
+Edit the corresponding native source before regenerating vocabulary, authoring resources or the position packet. Keep validation claims tied to the checks that actually ran and the environments they exercised.
 
 ---
 
