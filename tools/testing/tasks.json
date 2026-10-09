@@ -1850,6 +1850,7 @@
         "tests/loop.test.ts",
         "tests/mandate-modes.test.ts",
         "tests/next.test.ts",
+        "tests/packet.test.ts",
         "tests/position.test.ts",
         "tests/publication.test.ts",
         "tests/purity.test.ts",

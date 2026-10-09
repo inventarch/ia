@@ -4,6 +4,7 @@
  * One row per verb, carrying its help text and its whole argument grammar. §1.2's order is a property of this
  * table and of the dispatcher that reads it; nothing else in the binary enumerates a verb or a flag name.
  */
+import type { MODE_MOVES, Mode, PacketCatalogRow } from '@inventarch/runtime';
 import type { Grammar, OptionSpec, PositionalSpec } from './args.js';
 import { none, positionals } from './args.js';
 
@@ -24,6 +25,16 @@ export const LEGACY_OPERATIONS = [
 export const RESERVED_TOKEN = 'agent';
 
 export type Group = 'workspace' | 'distribution';
+/**
+ * A command's catalog row without its command: its move is the one MODE_MOVES maps its mode to (design item 13), so a
+ * row whose move is not its mode's fails to typecheck.
+ */
+export type CatalogTag = {
+  readonly [M in Mode]: Omit<PacketCatalogRow, 'command' | 'mode' | 'move'> & {
+    readonly mode: M;
+    readonly move: (typeof MODE_MOVES)[M];
+  };
+}[Mode];
 export interface CommandSpec {
   readonly name: string;
   readonly group: Group;
@@ -31,6 +42,12 @@ export interface CommandSpec {
   /** The syntax lines `ia <command> --help` prints, verbatim from §2. */
   readonly syntax: readonly string[];
   readonly grammar: Grammar;
+  /**
+   * Plan amendment B5 (decision cli-commands-as-operations): an agent command of position-and-projection §5 renders as
+   * one row of the position packet's command catalog. `refuses` summarises the command's main refusal and `next` is
+   * the one command that refusal names, both as the command's own code builds them.
+   */
+  readonly catalog?: CatalogTag;
 }
 
 const option = (spec: OptionSpec): OptionSpec => spec;
@@ -74,6 +91,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'init',
     group: 'workspace',
     summary: 'Plan or create a new workspace',
+    // conflictRefusal (init.ts): the plan, which lists every conflict.
+    catalog: {
+      mode: 'effect',
+      move: 'Execution',
+      refuses: 'a target already initialized, or holding files that conflict with the plan; --apply writes nothing',
+      next: 'ia init',
+    },
     syntax: [
       'ia init [<directory>] [--id <provider/name>] [--host claude|codex|none] [--apply] [--json] [--yes]',
       'ia init [<directory>] --decline today|forever | --forget-decline [--host claude|codex|none] [--json]',
@@ -119,6 +143,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'validate',
     group: 'workspace',
     summary: 'Check records against the language and declared contracts',
+    // requireRoot (consumer.ts): findings are a verdict, not a refusal; a root to validate is the one refusal.
+    catalog: {
+      mode: 'validate',
+      move: 'Verification',
+      refuses: 'no .ia/src directory at the root or in any parent',
+      next: 'ia init',
+    },
     syntax: ['ia validate [<path>...] [--severity error|warning] [--max-findings <n>] [--json]'],
     grammar: grammar(
       [
@@ -139,6 +170,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'capture',
     group: 'workspace',
     summary: 'Admit the workspace and write its current and previous snapshot',
+    // captureRefusal (capture.ts): the root is not a workspace to capture.
+    catalog: {
+      mode: 'effect',
+      move: 'Execution',
+      refuses: 'a root whose .ia/src declares no @workspace; nothing is written',
+      next: 'ia init',
+    },
     syntax: ['ia capture [--json]'],
     grammar: grammar([]),
   },
@@ -217,6 +255,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'read',
     group: 'workspace',
     summary: 'Print the body behind a locator, with its digest',
+    // readNext (read.ts): IA-RUNTIME-READ-UNADMITTED names the overview of what the workspace admits.
+    catalog: { mode: 'read', move: 'Observation', refuses: 'a locator no admitted record answers', next: 'ia inspect' },
     syntax: [
       'ia read <identity>[#<phase>/<Primitive> | #<REQ-ID>] [--include-runtime] [--json]',
       'ia read <path>:<line> [--include-runtime] [--json]',
@@ -241,6 +281,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'position',
     group: 'workspace',
     summary: 'Show the position body for a scope key and its host note',
+    // positionNext (position.ts): the position of the repository's workspace, K0.
+    catalog: {
+      mode: 'read',
+      move: 'Observation',
+      refuses: 'a seat the workspace does not admit, or a path outside it',
+      next: 'ia position',
+    },
     syntax: [
       'ia position [--seat <id|path>] [--shape <H>] [--phase <P>] [--depth <d>]',
       '            [--budget <n>] [--word <w>] [--json]',
@@ -293,6 +340,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'next',
     group: 'workspace',
     summary: "Show a plan's tasks in delivery order with verdict and basis",
+    // nextAfter (next.ts): IA-RUNTIME-NEXT-AMBIGUOUS names the first plan the message lists as the seat.
+    catalog: {
+      mode: 'read',
+      move: 'Observation',
+      refuses: 'no --seat while the workspace authors several @plan records, which the message lists',
+      next: 'ia next --seat <plan>',
+    },
     syntax: ['ia next [--seat <plan|milestone|task>] [--json]'],
     grammar: grammar([
       option({
@@ -562,6 +616,14 @@ export const CORE_TOKENS: ReadonlySet<string> = new Set<string>([
 export const EXTENSION_TOKEN = /^[a-z][a-z0-9-]{0,31}$/;
 
 export const commandNames: readonly string[] = COMMANDS.map((command) => command.name);
+/**
+ * Plan amendment B5: the position packet's command catalog, the rows tagged `catalog`, in table order, which the CLI
+ * passes to the runtime's `renderPacket` as data (B2: nothing imports this app module).
+ */
+export const packetCatalog = (commands: readonly CommandSpec[] = COMMANDS): readonly PacketCatalogRow[] =>
+  commands.flatMap((command) =>
+    command.catalog === undefined ? [] : [{ command: `ia ${command.name}`, ...command.catalog }],
+  );
 export const findCommand = (token: string): CommandSpec | undefined =>
   COMMANDS.find((command) => command.name === token);
 

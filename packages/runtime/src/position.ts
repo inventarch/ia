@@ -666,9 +666,9 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     .slice(0, CELLS)
     .map((entry) => cellOf(entry.identity));
 
-  // The mandates (plan amendment A8; participant matching arrives with milestone position-packet): those of the
-  // closure that claim a location seat or whose `authority.scope` names the seat's workspace, each once, a mandate
-  // that does both keeping its claim, all ranked by band ↓ then identity.
+  // The mandates (plan amendment A8; a body matches no participant, which the position packet selects over body(K0)'s
+  // mandates, R19): those of the closure that claim a location seat or whose `authority.scope` names the seat's
+  // workspace, each once, a mandate that does both keeping its claim, all ranked by band ↓ then identity.
   const governing = new Map<string, PositionVia>();
   const govern = (identity: string, via: PositionVia): void => {
     if (nodes.get(identity)?.discriminator === 'mandate' && inside(identity) && !governing.has(identity))

@@ -27,6 +27,21 @@ export type {
   PositionWidening,
   SubjectMatch,
 } from './position.js';
+export { entryCount, renderPacket } from './packet.js';
+export type {
+  PacketCatalogRow,
+  PacketHostNote,
+  PacketIntent,
+  PacketMandate,
+  PacketOutput,
+  PacketParticipant,
+  PacketPhase,
+  PacketProvenance,
+  PacketSeat,
+  PacketSystem,
+  PacketTally,
+  PositionPacket,
+} from './packet.js';
 export { context, DEFAULT_TOKENIZER } from './context.js';
 export type {
   ContextRequest,

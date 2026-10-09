@@ -122,6 +122,10 @@
       "types": "./dist/next.d.ts",
       "default": "./dist/next.js"
     },
+    "./internal/packet": {
+      "types": "./dist/packet.d.ts",
+      "default": "./dist/packet.js"
+    },
     "./internal/position": {
       "types": "./dist/position.d.ts",
       "default": "./dist/position.js"
@@ -291,6 +295,10 @@
       "./internal/next": {
         "types": "./dist/next.d.ts",
         "default": "./dist/next.js"
+      },
+      "./internal/packet": {
+        "types": "./dist/packet.d.ts",
+        "default": "./dist/packet.js"
       },
       "./internal/position": {
         "types": "./dist/position.d.ts",
