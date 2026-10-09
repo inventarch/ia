@@ -177,8 +177,11 @@ export const COMMANDS: readonly CommandSpec[] = [
       refuses: 'a root whose .ia/src declares no @workspace; nothing is written',
       next: 'ia init',
     },
-    syntax: ['ia capture [--json]'],
-    grammar: grammar([]),
+    syntax: ['ia capture [--preview] [--json]'],
+    // Decision capture-preview-placement: capture writes by default, so its preview is a flag (plan amendment B8).
+    grammar: grammar([
+      option({ name: 'preview', kind: 'boolean', summary: 'Report what the capture would write; write nothing' }),
+    ]),
   },
   {
     // Decision release-bump (operator, 2026-10-07): the 1.x verb, unchanged, deprecated in favour of `ia capture`;

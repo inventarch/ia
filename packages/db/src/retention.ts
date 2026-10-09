@@ -198,6 +198,84 @@ export interface CaptureWrite {
   readonly added: number;
   readonly removed: number;
 }
+/** D08b: what a capture would write, decided before its first write: its result and the identities it counts. */
+export interface CapturePlan extends CaptureWrite {
+  /** The identities `changed`, `added` and `removed` count, each list sorted. */
+  readonly identities: {
+    readonly changed: readonly string[];
+    readonly added: readonly string[];
+    readonly removed: readonly string[];
+  };
+}
+/** The write's result and what its writes act on: the new bytes and the pair as read. */
+interface Planned {
+  readonly result: CaptureWrite;
+  /** The identities the result's `changed`, `added` and `removed` count, in membership order. */
+  readonly identities: { readonly changed: string[]; readonly added: string[]; readonly removed: string[] };
+  readonly bytes: Buffer;
+  /** previous.json as read: null when nothing is there. */
+  readonly kept: Captured | string | null;
+  readonly prior: Captured | undefined;
+  /** The prior capture a new revision rotates into previous.json. */
+  readonly moving: Captured | undefined;
+  /** The previous.json kept when nothing rotates. */
+  readonly keeping: Captured | undefined;
+}
+const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/** Every check and read `writeCapture` makes before its first write; nothing is created or written. */
+function planned(root: string, text: string): Planned {
+  const bytes = Buffer.from(text, 'utf8'),
+    built = capturedOf(bytes);
+  if (typeof built === 'string') throw new TypeError(`The capture to write ${built}`);
+  directories(root);
+  const read = readCaptured(root, CAPTURE_CURRENT),
+    kept = readCaptured(root, CAPTURE_PREVIOUS),
+    prior = read !== null && typeof read === 'object' ? read : undefined,
+    held = kept !== null && typeof kept === 'object' ? kept : undefined;
+  const changed: string[] = [],
+    added: string[] = [];
+  let unchanged = 0;
+  for (const row of built.membership) {
+    const staleness = stalenessOf(row.digest, digestIn(prior, row.identity));
+    if (staleness === 'new') added.push(row.identity);
+    else if (staleness === 'unchanged') unchanged += 1;
+    else changed.push(row.identity);
+  }
+  const now = new Set(built.membership.map((row) => row.identity));
+  const removed =
+    prior === undefined ? [] : prior.membership.filter((row) => !now.has(row.identity)).map((row) => row.identity);
+  const moving = prior !== undefined && prior.revision !== built.revision ? prior : undefined,
+    keeping = moving === undefined && held !== undefined && held.revision !== built.revision ? held : undefined;
+  const result: CaptureWrite = Object.freeze({
+    prior: prior?.revision ?? null,
+    ignored: typeof read === 'string' ? read : null,
+    previous: (moving ?? keeping)?.revision ?? null,
+    rotated: moving !== undefined,
+    changed: changed.length,
+    unchanged,
+    added: added.length,
+    removed: removed.length,
+  });
+  return { result, identities: { changed, added, removed }, bytes, kept, prior, moving, keeping };
+}
+/**
+ * D08b: what `writeCapture(root, text)` would write and report, without writing: the same checks and reads, so it
+ * refuses and throws as the capture would before its first write, and the same counts and rotation, with the
+ * identities they count, each list sorted. It creates no directory and writes nothing, so the pair it reads stays as
+ * it was.
+ */
+export function planCapture(root: string, text: string): CapturePlan {
+  const { result, identities } = planned(root, text);
+  const sorted = (named: string[]): readonly string[] => Object.freeze(named.sort(compare));
+  return Object.freeze({
+    ...result,
+    identities: Object.freeze({
+      changed: sorted(identities.changed),
+      added: sorted(identities.added),
+      removed: sorted(identities.removed),
+    }),
+  });
+}
 const syncDirectory = (path: string): void => {
   // Windows exposes no fsync on a directory handle; a flushed file and a same-volume rename are what it offers.
   if (process.platform === 'win32') return;
@@ -242,40 +320,10 @@ const discard = (root: string, path: string | undefined): void => {
  * IA-DB-PATH-UNSAFE. The new bytes are staged first; a rotation then moves previous.json aside,
  * renames current.json to previous.json and the staged file to current.json, and a failed step renames each file back,
  * so a capture that fails leaves the pair it found, and only the error escapes. A current.json that already holds `text`
- * is not rewritten.
+ * is not rewritten. Everything before the first write is `planCapture`'s.
  */
 export function writeCapture(root: string, text: string): CaptureWrite {
-  const bytes = Buffer.from(text, 'utf8'),
-    built = capturedOf(bytes);
-  if (typeof built === 'string') throw new TypeError(`The capture to write ${built}`);
-  directories(root);
-  const read = readCaptured(root, CAPTURE_CURRENT),
-    kept = readCaptured(root, CAPTURE_PREVIOUS),
-    prior = read !== null && typeof read === 'object' ? read : undefined,
-    held = kept !== null && typeof kept === 'object' ? kept : undefined;
-  let changed = 0,
-    unchanged = 0,
-    added = 0;
-  for (const row of built.membership) {
-    const staleness = stalenessOf(row.digest, digestIn(prior, row.identity));
-    if (staleness === 'new') added += 1;
-    else if (staleness === 'unchanged') unchanged += 1;
-    else changed += 1;
-  }
-  const now = new Set(built.membership.map((row) => row.identity));
-  const removed = prior === undefined ? 0 : prior.membership.filter((row) => !now.has(row.identity)).length;
-  const moving = prior !== undefined && prior.revision !== built.revision ? prior : undefined,
-    keeping = moving === undefined && held !== undefined && held.revision !== built.revision ? held : undefined;
-  const result: CaptureWrite = Object.freeze({
-    prior: prior?.revision ?? null,
-    ignored: typeof read === 'string' ? read : null,
-    previous: (moving ?? keeping)?.revision ?? null,
-    rotated: moving !== undefined,
-    changed,
-    unchanged,
-    added,
-    removed,
-  });
+  const { result, bytes, kept, prior, moving, keeping } = planned(root, text);
   mkdirSync(safePath(root, CAPTURE_DIRECTORY), { recursive: true });
   const current = safePath(root, CAPTURE_CURRENT),
     previous = safePath(root, CAPTURE_PREVIOUS);

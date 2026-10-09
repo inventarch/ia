@@ -21,7 +21,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { afterAll, expect, it } from 'vitest';
+import { stripVTControlCharacters } from 'node:util';
+import { afterAll, expect, it, vi } from 'vitest';
 import { readInputs } from '@inventarch/db';
 import { sha256 } from '@inventarch/distribution/services';
 // Through the root development dependency, as the db pins an adopted revision.
@@ -29,6 +30,8 @@ import { stableSerialize } from '@inventarch/graph';
 import {
   CURRENT,
   PREVIOUS,
+  previewCapture,
+  renderCapture,
   SNAPSHOT_DIRECTORY,
   SNAPSHOT_FORMAT,
   SYNTAX_CODES,
@@ -43,9 +46,24 @@ import { cleanup, commandsIn, nextArgv, repository, run, scratch, workspace } fr
 
 afterAll(cleanup);
 
+/** A seam on db D08b's planCapture, so a test can fail the reads a preview makes. Every call passes through. */
+const seams = vi.hoisted(() => ({ plan: undefined as ((root: string) => void) | undefined }));
+vi.mock('@inventarch/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@inventarch/db')>();
+  return {
+    ...actual,
+    planCapture: (root: string, text: string) => {
+      seams.plan?.(root);
+      return actual.planCapture(root, text);
+    },
+  };
+});
+
 /** A record nothing else in the fixture names, so an edit to it changes its digest and no other. */
 const PRINCIPLE = '.ia/src/systems/governance-system/records/sample-principle.ia';
 const ADDED = '.ia/src/systems/governance-system/records/added-principle.ia';
+const ADDED_RECORD =
+  '#! ia 1.0\n\n@principle added-principle\n  meaning\n    says "Added."\n    answers "Added."\n  governance\n    severity advisory\n    requires "Added."\n';
 
 interface Envelope {
   readonly version: number;
@@ -92,15 +110,26 @@ interface SnapshotFile {
   readonly counts: Readonly<Record<string, number>>;
 }
 
-/** `ia capture --json`: one value on stdout and nothing on stderr. */
-async function capture(root: string, exitCode = 0): Promise<Envelope> {
-  const result = await run(['capture', '--root', root, '--json']);
+/** `ia capture --preview --json`: the capture's shape with `preview: true` and the identities its counts count. */
+interface PreviewEnvelope extends Envelope {
+  readonly preview: true;
+  readonly identities: {
+    readonly changed: readonly string[];
+    readonly new: readonly string[];
+    readonly removed: readonly string[];
+  };
+}
+/** `ia capture --json`, with `flags` before `--root`: one value on stdout and nothing on stderr. */
+async function capture(root: string, exitCode = 0, ...flags: readonly string[]): Promise<Envelope> {
+  const result = await run(['capture', ...flags, '--root', root, '--json']);
   expect(result.exitCode, result.stdout).toBe(exitCode);
   expect(result.stderr).toBe('');
   expect(result.stdout.endsWith('\n')).toBe(true);
   expect(result.stdout.slice(0, -1)).not.toContain('\n');
   return JSON.parse(result.stdout) as Envelope;
 }
+const preview = async (root: string, exitCode = 0): Promise<PreviewEnvelope> =>
+  (await capture(root, exitCode, '--preview')) as PreviewEnvelope;
 const flat = (text: string): string => text.replace(/\s+/g, ' ');
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 /** The order the SPEC states for `diagnostics`: by path, line, code and message. */
@@ -123,6 +152,40 @@ const tree = (directory: string): Readonly<Record<string, string>> =>
         return [path, readFileSync(path, 'utf8')];
       }),
   );
+/** The snapshot directory's files with their bytes and mtimes, so a preview is shown to leave the pair as it was. */
+const pairAt = (root: string): readonly (readonly [string, Buffer, number])[] =>
+  readdirSync(resolve(root, SNAPSHOT_DIRECTORY))
+    .sort()
+    .map((name) => {
+      const path = resolve(root, SNAPSHOT_DIRECTORY, name);
+      return [name, readFileSync(path), statSync(path).mtimeMs] as const;
+    });
+/**
+ * The identities a human preview lists under the heading `label`, up to the next blank line, or null when it prints no
+ * such heading, as it prints none for an empty list.
+ */
+const listedUnder = (stdout: string, label: string): readonly string[] | null => {
+  const lines = stdout.split('\n'),
+    start = lines.indexOf(label);
+  if (start < 0) return null;
+  const end = lines.indexOf('', start);
+  return lines.slice(start + 1, end < 0 ? undefined : end).map((line) => line.trim().split(/\s+/).at(-1)!);
+};
+/**
+ * A capture's human report, flattened, once shown to say nothing a preview says: its own header, no preview line, no
+ * conditional wording and no identity heading, so a capture without --preview reports as it did before.
+ */
+const captureReport = (stdout: string): string => {
+  expect(stdout.split('\n')[1]).toMatch(new RegExp(`^Capture\\s+${SNAPSHOT_FORMAT}\\s+revision `));
+  expect(stdout).not.toMatch(/preview|nothing has been written|would /i);
+  expect(['Changed', 'New', 'Removed'].map((label) => listedUnder(stdout, label))).toEqual([null, null, null]);
+  return flat(stdout);
+};
+/** The footer of a capture whose admission has no errors. */
+const IDENTICAL =
+  'Identical sources on one language version capture identically, so a capture after no edit reports 0 changed.';
+/** Human output with a command's `\` continuation joined back, so the command reads as one. */
+const unwrapped = (text: string): string => text.replace(/ \\\n\s+/g, ' ');
 const edit = (root: string): void => {
   const path = resolve(root, PRINCIPLE),
     text = readFileSync(path, 'utf8');
@@ -301,10 +364,7 @@ it('reports exactly the edited record changed and rotates the prior capture into
 it('counts a record added since the prior capture as new and a deleted one as removed', async () => {
   const root = workspace();
   const first = await capture(root);
-  writeFileSync(
-    resolve(root, ADDED),
-    '#! ia 1.0\n\n@principle added-principle\n  meaning\n    says "Added."\n    answers "Added."\n  governance\n    severity advisory\n    requires "Added."\n',
-  );
+  writeFileSync(resolve(root, ADDED), ADDED_RECORD);
   const added = await capture(root);
   expect(added).toMatchObject({
     records: first.records + 1,
@@ -339,12 +399,15 @@ it('writes the snapshot when admission has errors, exits 1 and reports the findi
   const human = await run(['capture', '--root', root]);
   expect(human.exitCode).toBe(1);
   expect(human.stderr).toBe('');
-  expect(flat(human.stdout)).toContain('Run "ia validate" for their locations');
+  expect(captureReport(human.stdout)).toContain(
+    'The snapshot records these findings. Run "ia validate" for their locations, fix them, then capture again.',
+  );
   // The write succeeded, so the effect line stands, under the warning symbol its admission errors earn.
   const effect = human.stdout.split('\n').find((line) => line.includes('Captured '))!;
   expect(effect).toMatch(/(▲|\[warn\])\s+Captured \d+ records\./);
   const clean = await run(['capture', '--root', workspace()]);
   expect(clean.stdout.split('\n').find((line) => line.includes('Captured '))).toMatch(/(✔|\[ok\])\s+Captured/);
+  expect(captureReport(clean.stdout)).toContain(IDENTICAL);
 });
 
 it('replaces a current.json that is no capture and retains no previous capture beside it', async () => {
@@ -369,7 +432,7 @@ it('replaces a current.json that is no capture and retains no previous capture b
   }
   writeFileSync(resolve(root, CURRENT), 'not json\n');
   const human = await run(['capture', '--root', root]);
-  expect(flat(human.stdout)).toContain(
+  expect(captureReport(human.stdout)).toContain(
     'No prior capture to compare with (the existing current.json is not JSON), so every record is new.',
   );
   // At an unchanged revision a previous.json that is no capture at another revision is not kept either.
@@ -388,14 +451,22 @@ it('renders the effect apart from admission in human output', async () => {
   expect(first.stderr).toBe('');
   for (const text of ['Capture', SNAPSHOT_FORMAT, 'No prior capture to compare with', CURRENT, 'Admission'])
     expect(first.stdout).toContain(text);
-  expect(flat(first.stdout)).toContain('No earlier capture at another revision is retained.');
+  const report = captureReport(first.stdout);
+  expect(report).toContain('No earlier capture at another revision is retained.');
+  expect(report).toMatch(
+    / \d+ checks had no evaluator, so the snapshot records a not-evaluated result rather than a pass\. /,
+  );
+  expect(report).toContain(IDENTICAL);
   const second = await run(['capture', '--root', root]);
-  expect(second.stdout).toContain('0 changed');
+  expect(captureReport(second.stdout)).toContain('0 changed');
   edit(root);
   const third = await run(['capture', '--root', root]);
   expect(third.stdout).toContain('1 changed');
   expect(third.stdout).toContain(PREVIOUS);
-  expect(flat(third.stdout)).toContain('moved from current.json because the revision changed');
+  expect(captureReport(third.stdout)).toContain('moved from current.json because the revision changed');
+  // At an unchanged revision the previous capture is kept, and the report says so.
+  const fourth = await run(['capture', '--root', root]);
+  expect(captureReport(fourth.stdout)).toContain('kept because the revision did not change');
 });
 
 it('refuses a snapshot path it does not admit and names the capture to run once it is repaired', async () => {
@@ -773,6 +844,267 @@ it('refuses a file where the snapshot directory or .ia/work belongs, writing not
   }
 });
 
+it('previews exactly the edited record as changed and writes nothing: both snapshot files keep their bytes and mtimes', async () => {
+  // Decision capture-preview-placement: the counts and the changed, new and removed identities, without writing.
+  const root = workspace();
+  await capture(root);
+  // A revision-only edit, so the pair holds both files before the one edit the preview reports.
+  writeFileSync(resolve(root, PRINCIPLE), `${readFileSync(resolve(root, PRINCIPLE), 'utf8')}\n# revision-only edit\n`);
+  const captured = await capture(root);
+  expect(captured).toMatchObject({ changed: 0, rotated: true });
+  const principle = snapshotAt(root).membership.find((row) => row.identity.endsWith('/sample-principle'))!.identity;
+  edit(root);
+  const pair = pairAt(root);
+  expect(pair.map(([name]) => name)).toEqual(['current.json', 'previous.json']);
+  const previewed = await preview(root);
+  expect(pairAt(root)).toEqual(pair);
+  expect(readdirSync(resolve(root, '.ia/work'))).toEqual(['snapshot']);
+  // The capture's --json shape with preview: true after version and the identities before admission.
+  expect(Object.keys(previewed)).toEqual([
+    'version',
+    'preview',
+    'snapshot',
+    'format',
+    'revision',
+    'digest',
+    'records',
+    'changed',
+    'unchanged',
+    'new',
+    'removed',
+    'prior',
+    'ignored',
+    'previous',
+    'rotated',
+    'identities',
+    'admission',
+  ]);
+  expect(previewed.revision).not.toBe(captured.revision);
+  expect(previewed).toMatchObject({
+    version: 1,
+    preview: true,
+    snapshot: resolve(realpathSync(root), CURRENT),
+    records: captured.records,
+    changed: 1,
+    unchanged: captured.records - 1,
+    new: 0,
+    removed: 0,
+    prior: captured.revision,
+    ignored: null,
+    previous: { path: resolve(realpathSync(root), PREVIOUS), revision: captured.revision },
+    rotated: true,
+    identities: { changed: [principle], new: [], removed: [] },
+    admission: { status: 'admitted', errors: 0 },
+  });
+  // The human preview says it wrote nothing, prints the capture's counts and names the identity.
+  const human = await run(['capture', '--preview', '--root', root]);
+  expect(human.exitCode).toBe(0);
+  expect(human.stderr).toBe('');
+  for (const text of [
+    'This is a preview. Nothing has been written.',
+    `Would capture ${captured.records} records.`,
+    `1 changed, ${captured.records - 1} unchanged, 0 new, 0 removed.`,
+    'would move from current.json because the revision changed',
+    'checks had no evaluator, so the snapshot would record a not-evaluated result rather than a pass.',
+  ])
+    expect(flat(human.stdout)).toContain(text);
+  // Headed as the other previews are, and its effect line is information: nothing was written to mark.
+  expect(human.stdout.split('\n')[1]).toMatch(new RegExp(`^Plan\\s+capture ${SNAPSHOT_FORMAT}\\s+revision `));
+  expect(human.stdout.split('\n').find((line) => line.includes('Would capture '))).toMatch(
+    /(•|\*)\s+Would capture \d+ records\./,
+  );
+  expect(human.stdout).not.toContain('Captured ');
+  // Only the heading with an identity under it is printed.
+  expect(['Changed', 'New', 'Removed'].map((label) => listedUnder(human.stdout, label))).toEqual([
+    [principle],
+    null,
+    null,
+  ]);
+  expect(commandsIn(unwrapped(human.stdout))).toEqual([`ia capture --root ${quote(root)}`]);
+  expect(pairAt(root)).toEqual(pair);
+  // The capture then writes and reports what the preview described, in the capture's own keys.
+  const { preview: _preview, identities: _identities, ...described } = previewed;
+  expect(await capture(root)).toEqual(described);
+  expect(sha256(bytesAt(root, CURRENT))).toBe(previewed.digest);
+  expect(bytesAt(root, PREVIOUS)).toEqual(pair[0]![1]);
+  // At an unchanged revision the preview would keep previous.json and names no identity.
+  const unchanged = await run(['capture', '--preview', '--root', root]);
+  expect(flat(unchanged.stdout)).toContain('would be kept because the revision did not change');
+  expect(['Changed', 'New', 'Removed'].map((label) => listedUnder(unchanged.stdout, label))).toEqual([
+    null,
+    null,
+    null,
+  ]);
+});
+
+it('previews a workspace never captured: no prior, every record new, and no .ia/work directory', async () => {
+  const root = workspace();
+  const previewed = await preview(root);
+  expect(previewed).toMatchObject({
+    preview: true,
+    changed: 0,
+    unchanged: 0,
+    removed: 0,
+    prior: null,
+    ignored: null,
+    previous: null,
+    rotated: false,
+    identities: { changed: [], removed: [] },
+  });
+  expect(previewed.new).toBe(previewed.records);
+  expect(previewed.identities.new).toHaveLength(previewed.records);
+  expect(previewed.identities.new).toEqual([...previewed.identities.new].sort(compare));
+  const human = await run(['capture', '--preview', '--root', root]);
+  expect(human.exitCode).toBe(0);
+  expect(flat(human.stdout)).toContain('No prior capture to compare with, so every record is new.');
+  expect(flat(human.stdout)).toContain('No earlier capture at another revision would be retained.');
+  // Every record is named, in full and in order, under the one heading that has any.
+  expect(['Changed', 'New', 'Removed'].map((label) => listedUnder(human.stdout, label))).toEqual([
+    null,
+    previewed.identities.new,
+    null,
+  ]);
+  expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
+  // The capture then writes the snapshot the preview described.
+  const written = await capture(root);
+  expect(written.digest).toBe(previewed.digest);
+  expect(snapshotAt(root).membership.map((row) => row.identity)).toEqual(previewed.identities.new);
+  // Admission errors exit 1, as the capture would, and the preview still writes nothing.
+  const refused = workspace({ foreign: true });
+  expect((await preview(refused, 1)).admission.status).toBe('refused');
+  const findings = await run(['capture', '--preview', '--root', refused]);
+  expect(findings.exitCode).toBe(1);
+  expect(flat(findings.stdout)).toContain('The snapshot would record these findings. Run "ia validate"');
+  expect(existsSync(resolve(refused, '.ia/work'))).toBe(false);
+});
+
+it('previews a record added since the prior capture as new and a deleted one as removed', async () => {
+  const root = workspace();
+  const first = await capture(root);
+  writeFileSync(resolve(root, ADDED), ADDED_RECORD);
+  const added = await preview(root);
+  expect(added).toMatchObject({
+    records: first.records + 1,
+    changed: 0,
+    unchanged: first.records,
+    new: 1,
+    removed: 0,
+    identities: { changed: [], removed: [] },
+  });
+  expect(added.identities.new).toHaveLength(1);
+  expect(added.identities.new[0]).toMatch(/\/added-principle$/);
+  expect(listedUnder((await run(['capture', '--preview', '--root', root])).stdout, 'New')).toEqual(
+    added.identities.new,
+  );
+  await capture(root);
+  rmSync(resolve(root, ADDED));
+  const pair = pairAt(root);
+  const removed = await preview(root);
+  expect(removed).toMatchObject({
+    records: first.records,
+    changed: 0,
+    new: 0,
+    removed: 1,
+    identities: { changed: [], new: [], removed: added.identities.new },
+  });
+  expect(listedUnder((await run(['capture', '--preview', '--root', root])).stdout, 'Removed')).toEqual(
+    added.identities.new,
+  );
+  expect(pairAt(root)).toEqual(pair);
+});
+
+it('refuses under --preview as a capture does, before anything is written, naming the same next command', async () => {
+  // A root whose own sources declare no @workspace.
+  const empty = realpathSync(scratch('capture-preview-empty'));
+  const refused = await run(['capture', '--preview', '--root', empty, '--json']);
+  expect(refused.exitCode).toBe(3);
+  const body = JSON.parse(refused.stdout) as { code: string; message: string; next: string; where: { path: string } };
+  expect(body).toMatchObject({ code: 'IA-DB-ROOT-INVALID', where: { path: empty } });
+  expect(commandsIn(body.next)).toEqual([`ia init ${quote(empty)}`]);
+  expect(existsSync(resolve(empty, '.ia'))).toBe(false);
+  // A floor input that fails to parse; the pair is kept.
+  const root = workspace();
+  await capture(root);
+  edit(root);
+  await capture(root);
+  const pair = pairAt(root),
+    floor = '.ia/src/floor/artifact-set.ia',
+    text = readFileSync(resolve(root, floor), 'utf8');
+  writeFileSync(resolve(root, floor), `${text}\n@@@ not a record header\n`);
+  const unparsed = await run(['capture', '--preview', '--root', root, '--json']);
+  expect(unparsed.exitCode).toBe(3);
+  const failed = JSON.parse(unparsed.stdout) as typeof body;
+  expect(failed.code).toMatch(/^IA-LANG-/);
+  expect(failed.where.path).toBe(floor);
+  expect(failed.message).toContain('the previous snapshot is kept');
+  expect(commandsIn(failed.next)).toEqual([`ia validate --root ${quote(root)}`]);
+  expect(pairAt(root)).toEqual(pair);
+  // The db's checks refuse a preview too, and the repair names the preview again.
+  const unsafe = workspace();
+  writeFileSync(resolve(unsafe, '.ia/work'), 'not a directory\n');
+  const blocked = JSON.parse((await run(['capture', '--preview', '--root', unsafe, '--json'])).stdout) as typeof body;
+  expect(blocked).toMatchObject({ code: 'IA-DB-PATH-UNSAFE', where: { path: '.ia/work' } });
+  expect(commandsIn(blocked.next)).toEqual([`ia capture --preview --root ${quote(unsafe)}`]);
+  rmSync(resolve(unsafe, '.ia/work'));
+  expect((await run(nextArgv(blocked.next))).exitCode).toBe(0);
+  expect(existsSync(resolve(unsafe, '.ia/work'))).toBe(false);
+});
+
+it('names no path to make writable when a preview cannot read the pair, since a preview writes nothing', async () => {
+  const root = workspace();
+  await capture(root);
+  const pair = pairAt(root);
+  // What reading current.json throws when the system will not let it be read.
+  seams.plan = (at) => {
+    const path = resolve(at, CURRENT);
+    throw Object.assign(new Error(`EACCES: permission denied, open '${path}'`), {
+      code: 'EACCES',
+      syscall: 'open',
+      path,
+    });
+  };
+  try {
+    const refused = await run(['capture', '--preview', '--root', root, '--json']);
+    expect(refused.exitCode).toBe(3);
+    const body = JSON.parse(refused.stdout) as { code: string; next: string; where: unknown };
+    // The generic next for a system error, not the repair a capture's failed write names.
+    expect(body).toMatchObject({ code: 'IA-CLI-FAILED', where: null });
+    expect(body.next).not.toContain('writable');
+    expect(commandsIn(body.next)).toEqual([`ia doctor --root ${quote(root)}`]);
+  } finally {
+    seams.plan = undefined;
+  }
+  expect(pairAt(root)).toEqual(pair);
+  expect((await preview(root)).changed).toBe(0);
+});
+
+it('escapes the terminal controls a prior capture identity carries in the human preview, and keeps them in --json', async () => {
+  // A removed identity is read from the current.json on disk, whose rows only their shape is checked against.
+  const root = workspace();
+  await capture(root);
+  const crafted = 'evil\u001b[2J\u001b[31mFORGED\u0007',
+    prior = snapshotAt(root);
+  writeFileSync(
+    resolve(root, CURRENT),
+    `${JSON.stringify({
+      ...prior,
+      membership: [...prior.membership, { identity: crafted, root: '', band: 100, digest: 'a'.repeat(64) }],
+    })}\n`,
+  );
+  const pair = pairAt(root);
+  expect(await preview(root)).toMatchObject({ removed: 1, ignored: null, identities: { removed: [crafted] } });
+  const human = await run(['capture', '--preview', '--root', root, '--ascii', '--no-color']);
+  expect(human.exitCode, human.stderr).toBe(0);
+  expect(human.stdout).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/);
+  expect(listedUnder(human.stdout, 'Removed')).toEqual(['evil\\u001b[2J\\u001b[31mFORGED\\u0007']);
+  // Colour adds only the renderer's own SGR: stripped of it, the coloured report is the plain one.
+  const view = previewCapture(root),
+    colored = renderCapture(view, { color: true, ascii: true, width: 80 });
+  expect(colored).not.toContain('\u001b[2J');
+  expect(stripVTControlCharacters(colored)).toBe(renderCapture(view, { color: false, ascii: true, width: 80 }));
+  expect(pairAt(root)).toEqual(pair);
+});
+
 it('lists ia capture in the help, and ia compile as the deprecated 1.x verb with its 1.x syntax', async () => {
   const global = (await run(['--help'])).stdout;
   expect(global).toContain('capture');
@@ -784,7 +1116,8 @@ it('lists ia capture in the help, and ia compile as the deprecated 1.x verb with
       command.name,
     ).toBe(true);
   const help = await run(['capture', '--help']);
-  expect(help.stdout).toContain('ia capture [--json]');
+  expect(help.stdout).toContain('ia capture [--preview] [--json]');
+  expect(flat(help.stdout)).toContain('--preview Report what the capture would write; write nothing');
   // Decision release-bump: `ia compile` keeps its 1.x grammar; the alias of decision compile-verb-fate waits for 2.0.
   const compile = await run(['compile', '--help']);
   expect(compile.stdout).toContain('ia compile [--out <file> | --stdout] [--force] [--json]');
