@@ -577,6 +577,11 @@ it('retires the guard, deletes the steward agent file and writes a receipt ia do
   const report = await doctor(root, env);
   expect(report.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([
     expect.objectContaining({
+      id: 'projection-claude',
+      status: 'ok',
+      detail: expect.stringMatching(/^No drift: the 2 files \.ia\/distributions\/hosts\/claude-receipt\.json lists /),
+    }),
+    expect.objectContaining({
       id: 'projection-claude-receipt',
       status: 'info',
       detail: `The last apply removed ${STEWARD}; listed, not checked`,

@@ -2006,7 +2006,7 @@ function admitStarter(
  * two effects follow as `ia init` takes them (design §3): the capture, then each registered host's projection through
  * `applyHostProjection`, which retires the steward guard before any file changes and deletes the owned 1.x steward
  * files (B9, B11). Each effect that fails or is interrupted leaves every earlier result in place and names its
- * own command: `ia capture`, or `ia host <host> --apply` until `ia project` exists. The projections read the live
+ * own command: `ia capture`, or `ia host <host> --apply`, the registered host's command that `ia doctor` names too. The projections read the live
  * revision (B8), so they run after a capture that failed too, and every host is attempted before the first refusal is
  * raised.
  */
