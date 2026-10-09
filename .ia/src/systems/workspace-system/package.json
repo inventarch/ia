@@ -1,6 +1,6 @@
 {
   "name": "@inventarch/workspace-system",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "type": "module",
   "exports": {
     "./native.ia.tgz": "./dist/native.ia.tgz",

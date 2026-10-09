@@ -2,7 +2,7 @@
   "name": "inventarch-ia",
   "displayName": "IA Language",
   "description": "Local IA language diagnostics, completion, navigation and formatting.",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "publisher": "inventarch",
   "icon": "media/inventarch.png",
   "private": true,

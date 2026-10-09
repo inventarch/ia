@@ -1,0 +1,3387 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "1.2.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "994aefc972bef3b86a6d7e974b5f1fc163a16a7f",
+    "version": "1.1.1"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 1.2.0 release of the 22 public npm packages: Authoring guides name each word's default file; `@check` may name its implementation; Canonical codec moves to @inventarch/graph; Consent rows may name any-adopter; Directed view of declared rows and derived inverses; CLI and MCP door stop depending on the composition package; Schema edge rules accept any spelling and the authored spelling is retained; Governance words carry a subject section; ia capture writes the admitted snapshot; ia compile is deprecated in its favour; ia read prints the body behind a locator; the runtime reads it with readBody; JSON string scanning and installed reads clear their CodeQL alerts; Shipped LANGUAGE.md copies follow the regenerated guide; Location seat resolution and the claimant index; Registrations declare each word's artifact set, primitive and move; `@mandate` declares its authority as closed moves; `@observation` records typed evidence; Per-record digests and capture membership; Every `ia` consumer command refusal names one next command; Field descriptions in ia vocabulary --schema; Distribution and steward-hook consume @inventarch/workspace-runtime; Retained previous snapshot; staleness and readiness by digest; Generic workspace runtime moves to @inventarch/workspace-runtime; Work records state partial supersession and identity ownership; `@workspace` declares its sources and steward.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "`@check` may name its implementation. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. Per-record digests and capture membership. Generic workspace runtime moves to @inventarch/workspace-runtime. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/agent-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Authoring guides name each word's default file. `@check` may name its implementation. Governance words carry a subject section. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@observation` records typed evidence. Work records state partial supersession and identity ownership. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/cli": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Authoring guides name each word's default file. `@check` may name its implementation. Directed view of declared rows and derived inverses. CLI and MCP door stop depending on the composition package. Schema edge rules accept any spelling and the authored spelling is retained. Governance words carry a subject section. ia capture writes the admitted snapshot; ia compile is deprecated in its favour. ia read prints the body behind a locator; the runtime reads it with readBody. Shipped LANGUAGE.md copies follow the regenerated guide. Location seat resolution and the claimant index. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@observation` records typed evidence. Per-record digests and capture membership. Every `ia` consumer command refusal names one next command. Field descriptions in ia vocabulary --schema. Work records state partial supersession and identity ownership. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/compliance": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "`@check` may name its implementation. Schema edge rules accept any spelling and the authored spelling is retained. Shipped LANGUAGE.md copies follow the regenerated guide. `@mandate` declares its authority as closed moves."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "`@check` may name its implementation. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/db": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Consent rows may name any-adopter. Directed view of declared rows and derived inverses. ia capture writes the admitted snapshot; ia compile is deprecated in its favour. ia read prints the body behind a locator; the runtime reads it with readBody. JSON string scanning and installed reads clear their CodeQL alerts. Shipped LANGUAGE.md copies follow the regenerated guide. Location seat resolution and the claimant index. `@mandate` declares its authority as closed moves. Per-record digests and capture membership. Retained previous snapshot; staleness and readiness by digest."
+    },
+    "@inventarch/distribution": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Canonical codec moves to @inventarch/graph. Shipped LANGUAGE.md copies follow the regenerated guide. Location seat resolution and the claimant index. `@mandate` declares its authority as closed moves. Per-record digests and capture membership. Distribution and steward-hook consume @inventarch/workspace-runtime."
+    },
+    "@inventarch/governance-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Governance words carry a subject section. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/graph": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Canonical codec moves to @inventarch/graph. Directed view of declared rows and derived inverses. Schema edge rules accept any spelling and the authored spelling is retained. Shipped LANGUAGE.md copies follow the regenerated guide. Location seat resolution and the claimant index. `@mandate` declares its authority as closed moves. Per-record digests and capture membership."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/language": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Consent rows may name any-adopter. Schema edge rules accept any spelling and the authored spelling is retained. Governance words carry a subject section. Shipped LANGUAGE.md copies follow the regenerated guide. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. Field descriptions in ia vocabulary --schema."
+    },
+    "@inventarch/learning-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@observation` records typed evidence. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Authoring guides name each word's default file. `@check` may name its implementation. CLI and MCP door stop depending on the composition package. Schema edge rules accept any spelling and the authored spelling is retained. Governance words carry a subject section. Shipped LANGUAGE.md copies follow the regenerated guide. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@observation` records typed evidence. Work records state partial supersession and identity ownership. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/runtime": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Schema edge rules accept any spelling and the authored spelling is retained. ia read prints the body behind a locator; the runtime reads it with readBody. Shipped LANGUAGE.md copies follow the regenerated guide. `@mandate` declares its authority as closed moves. Per-record digests and capture membership."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Shipped LANGUAGE.md copies follow the regenerated guide. `@mandate` declares its authority as closed moves."
+    },
+    "@inventarch/session-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Canonical codec moves to @inventarch/graph. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Shipped LANGUAGE.md copies follow the regenerated guide. `@mandate` declares its authority as closed moves. Distribution and steward-hook consume @inventarch/workspace-runtime."
+    },
+    "@inventarch/template-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/work-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Consent rows may name any-adopter. Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. Work records state partial supersession and identity ownership. `@workspace` declares its sources and steward."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": null,
+      "kind": "changed",
+      "summary": "JSON string scanning and installed reads clear their CodeQL alerts. Shipped LANGUAGE.md copies follow the regenerated guide. `@mandate` declares its authority as closed moves. Generic workspace runtime moves to @inventarch/workspace-runtime."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "1.1.1",
+      "kind": "changed",
+      "summary": "Registrations declare each word's artifact set, primitive and move. `@mandate` declares its authority as closed moves. `@workspace` declares its sources and steward."
+    }
+  },
+  "changes": [
+    {
+      "id": "authoring-guide-default-file",
+      "title": "Authoring guides name each word's default file",
+      "summary": "An `@authoring-guide` may declare reference.default-file; every generated guide names <word>.ia relative to the workspace's authored root, and the guide generator verifies it.",
+      "packages": [
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/authoring-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "check-schema-implementation",
+      "title": "`@check` may name its implementation",
+      "summary": "A `@check` may declare check.implementation beside check.runs; check.runs is no longer required when implementation is present. Validators read implementation, then runs; an unknown id is still refused at admission, and a check naming both with different values is refused. The field description names its value form: the evaluator id check.runs takes, not the <id>@<version> form of evidence.implementation.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/compliance-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/compliance/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "codec-rehome",
+      "title": "Canonical codec moves to @inventarch/graph",
+      "summary": "canonical, digest, copy and CodecError are exported from @inventarch/graph beside stableSerialize; @inventarch/session-system depends on graph, re-exports CodecError and wraps canonical, digest and copy so their refusals are SessionError, which now extends CodecError (refusal codes are unchanged); @inventarch/distribution imports the codec from graph and no longer depends on session-system. Digests are byte-identical, pinned by a vector test; workspace revisions are untouched.",
+      "packages": [
+        "@inventarch/distribution",
+        "@inventarch/graph",
+        "@inventarch/session-system"
+      ],
+      "paths": [
+        ".ia/src/systems/session-system/",
+        "apps/distribution/",
+        "packages/graph/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "consent-any-adopter",
+      "title": "Consent rows may name any-adopter",
+      "summary": "A consent row side may name any-adopter: the words of every system that requires the ledger's system. work-system admits adopter words on its require and ground rows and admits a spec requiring a contract or another spec, so an adopting workspace's own words can depend on core work records and the coverage chain from spec to contract is consented. any-adopter cannot be registered as a word. Records authored outside a system folder were already admitted; that behaviour is now locked by a test.",
+      "packages": [
+        "@inventarch/db",
+        "@inventarch/language",
+        "@inventarch/work-system"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/work-system/",
+        "CLAUDE.md",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "packages/language/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "derived-directed-view",
+      "title": "Directed view of declared rows and derived inverses",
+      "summary": "@inventarch/graph adds directedView(graph, identity) with its DirectedRow, DirectedEdgeRow and DirectedFieldRow types: every row the graph holds at an identity, read from that identity's side. Each resolved edge assertion is a declared row (kind edge, derived false) on the record that wrote it, in the verb it wrote, and a derived row (kind inverse, derived true) on the other endpoint, spelled for that side from the kernel tables: the active predicate at the source, its inverse such as governed-by at the target. Every edge and inverse row carries predicate, direction, spelling, declaredOn, declaredBy (source or target), counterpart and the declaration's source lines, plus the edge's fragment and condition when it has them; an edge asserted from both ends keeps both declarations. Typed field references appear in both directions as derived field-ref rows carrying direction, field path, counterpart, declaredOn (the holder) and source, with no predicate, spelling or declaredBy. Dangling, ambiguous and consent-refused assertions remain diagnostics and have no rows. Rows are frozen and totally ordered, and the view is computed on read: it adds nothing to loaded graphs, serialize(graph), revisions or per-record digests. The @inventarch/db read handle adds directedView(identity, options): a scope token applies, an identity outside the scope refuses with IA-DB-OUT-OF-SCOPE, and rows whose counterpart is outside it are pruned. ia inspect now lists a record's Edges, Derived inverses and Field references from this view, labels derived rows, names whether the source or the target declared each edge row, and prints an edge row's fragment and condition. Field references follow --edges in every direction, including the default out, and are listed at depth 1 only; at --depth 0 every section says none is listed at that depth. ia inspect --json adds a directed array and keeps its edges and referencedBy keys unchanged. The view is not stored in the database cache, and the frozen Door routes, including traverse, are unchanged. Human ia inspect output prints each edge row in the spelling its record declared, such as cites, where it printed the predicate.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/graph"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "packages/graph/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "drop-dead-composition-deps",
+      "title": "CLI and MCP door stop depending on the composition package",
+      "summary": "@inventarch/cli takes the Codex lifecycle profile from @inventarch/workspace-runtime and @inventarch/mcp-door drops an unused dependency; no command or protocol behaviour changes.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "edge-spelling",
+      "title": "Schema edge rules accept any spelling and the authored spelling is retained",
+      "summary": "A `@schema` edges rule may be written with the active, inverse or present spelling of a predicate and carries its direction; an unknown spelling is refused with every accepted spelling listed, and compliance counts inbound rules against the edges whose active target is the record. Authored compiled edges and graph assertions keep the spelling the author wrote; the vocabulary catalogue and ia vocabulary show it. Editor completion of a relationship target applies only the schema rules written in the direction of the line's spelling. No record changes.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/graph",
+        "@inventarch/language",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/compliance/",
+        "packages/graph/",
+        "packages/language/",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "governance-schema-fields",
+      "title": "Governance words carry a subject section",
+      "summary": "`@law`, `@principle`, `@convention` and `@playbook` may declare a subject section with subject-word and subject-kind; `@law` and `@convention` may also declare subject.covers, a list of path selections. The section is not read as governance variants. The native fixture instances add a `@law` with subject.covers and a `@playbook` with a primary cell in every phase.",
+      "packages": [
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/governance-system",
+        "@inventarch/language",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/governance-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/language/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "ia-capture-verb",
+      "title": "ia capture writes the admitted snapshot; ia compile is deprecated in its favour",
+      "summary": "The new ia capture [--json] command admits the workspace and writes its snapshot to .ia/work/snapshot/current.json in the ia-snapshot-1 format: one JSON document with sorted keys holding format, language, kernelDigest, revision, the admitted records sorted by identity with their per-record digest, one {identity, root, band, digest} capture membership row per record, the diagnostics ordered by path, line, code and message, and their counts. The pair is written by @inventarch/db (writeCapture), and every db handle seeds its previous snapshot from it. .ia/work/snapshot/previous.json holds the most recent capture whose revision differs from the current one: a capture at a new revision renames the prior current.json there byte for byte, even when no record's digest changed, and a capture at an unchanged revision keeps previous.json as it is while it holds a capture at another revision. With no readable prior capture (the first one, or a current.json that is not an ia-snapshot-1 capture, which the capture names and replaces), a previous.json at another revision is kept as the most recent capture there is; a previous.json at the new revision, or one that is no capture, is removed once current.json is written. The new bytes are staged in a temporary file before either file is replaced, a failed write leaves both files as they were, a current.json that already holds the capture's bytes is not rewritten, and only .ia/work/snapshot/ is written; .ia/src is never touched, and ia init adds no ignore rule for .ia/work/. The report gives the revision, the record count and how each record's digest compares with the prior capture's current.json, as changed, unchanged, new and removed, so two captures with no edit between them report 0 changed and a first capture reports every record new. With --json the report is {version, snapshot, format, revision, digest, records, changed, unchanged, new, removed, prior, ignored, previous, rotated, admission}: it adds the snapshot's path and SHA-256, the prior revision it compared with, why an existing current.json was not taken as a capture, the retained previous capture, whether this capture rotated it, and admission as {status, errors, warnings, notEvaluated}. Findings in a source the workspace authors never stop the write: a workspace with errors is still captured, the effect line carries a warning symbol and the command exits 1. Two cases refuse before anything is written, keeping both files: a floor or seed input (the floor, an installed package or an adopted mount) that fails to parse, which is a syntax error the language's scanner or parser reports, refuses with that finding's code, located at it, exit 3, naming ia validate, while any other finding there, such as a keyword two adopted systems both register, is written into the snapshot like a finding in the workspace's own sources; a directory whose own .ia/src declares no `@workspace` refuses as IA-DB-ROOT-INVALID (exit 3), naming ia init for that directory, or ia validate when its own sources have errors. A composition.sources entry that names no root, or a path selection that selects nothing, is written as an IA-COMP-FIELD-VALUE warning at its line, as ia validate reports it. A link or junction on the snapshot path, an entry at .ia/work or .ia/work/snapshot that is not a directory, or an entry at either snapshot path that is not a regular file, refuses with IA-DB-PATH-UNSAFE (exit 3), located at an entry that is not a directory or not a regular file (@inventarch/db DbError gains an optional path naming it; a link is named in the message), and names ia capture for that root. A write the system refuses for a permission, a busy or read-only entry, or an entry of the wrong kind is IA-CLI-FAILED (exit 3), located at and naming what to make writable before ia capture: the read-only or open snapshot file a rename failed on, on Windows, and otherwise the directory the write creates, renames or removes entries in; another system error, such as a full disk, takes the generic next. A failed write leaves the pair it found, also when the capture would drop a previous.json that is no capture or one at the new revision: that file is moved aside first and restored. Concurrent captures of one root are last-writer-wins, and there is no --preview. ia compile is deprecated in favour of ia capture and unchanged in 1.x: it still writes the ia.compiled.v1 artifact to .ia/work/compiled.json or --out <file> under .ia/work/, prints it alone with --stdout, refuses an existing artifact with IA-DIST-LOCAL-MODIFICATION unless --force, prints {version, artifact, revision, digest, counts} with --json and keeps its exit codes. Whenever it runs to a result it now prints one deprecation line on stderr naming ia capture, in every output mode, --json and --stdout included, so stdout is what 1.x wrote; a refusal prints only the refusal. It never writes the capture's snapshot, and ia capture never writes the artifact. In 2.0 ia compile becomes a deprecated alias of ia capture, removed in 3.0. @inventarch/cli/internal/compile exports runCompile and the ia.compiled.v1 builders unchanged, and adds DEPRECATION, the line it prints.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "ia-read-verb",
+      "title": "ia read prints the body behind a locator; the runtime reads it with readBody",
+      "summary": "The new ia read <locator> [--include-runtime] [--json] command in @inventarch/cli prints the body behind a locator with the SHA-256 of its UTF-8 bytes and the line \"body not certified by this read\". It opens the workspace without the db cache and writes nothing, and ia inspect keeps the record's structure. A locator is a canonical system/kind/facet/name identity; that identity with #<phase>/<Primitive> for the text of the record's cells at that address or #<REQ-ID> for one requirement's text; or <path>:<line> for the innermost admitted record whose source span holds that line. A cell or requirement locator reads that text, never a document. Otherwise a record whose word carries a source locator, and which states it, reads the document it names: work.source on `@spec`, `@plan`, `@milestone`, `@task` and `@decision`, reference.document on `@authoring-guide` and template.resource on `@template`. The path is read relative to the tree holding the record's source: the workspace root for its own .ia/src, a package's or an installed store's directory, and for an adopted mount the directory .ia/workspace.json binds it to, whose documents the mount's revision pin does not cover. Files are read through the workspace file reader ia capture uses, which refuses a path through a link or junction, a missing, non-regular or hard-linked file, a name that is not portable and a file over 4 MiB; the bytes must be UTF-8. A source locator <path>#<anchor> on a .md or .markdown file, in any case, reads only the section from the ATX heading with that anchor to the next heading of the same or a higher level, headings in fenced code ignored. The anchor is GitHub's for a plain-text heading (repeated headings numbered -1, -2; a leading byte order mark is not part of the first heading); underscore emphasis, entity and character references, inline HTML and reference links are not rendered first, so such a heading may have another anchor on GitHub, and setext headings and headings in list items or block quotes are not read. Any other record reads its own body, its meaning.says (the head describes of a `@system`; a `@schema` has an empty body). With --json the result is {version, locator, identity, kind, path, digest, body, certified: false}, where kind is record or document and path is present for a document only. The path of <path>:<line> is relative to the workspace root; an absolute path inside the root reads the root-relative path it names. A malformed locator refuses with IA-CLI-USAGE (exit 2) before anything is read. The other refusals keep the runtime's codes and each names one next command: IA-RUNTIME-READ-UNADMITTED (exit 1: an identity a source holds whose record admission refused names ia validate; one no source holds names the read of the nearest admitted identity when one is near, as ia inspect now names the inspection of it for an unknown identity, else the ia inspect overview; a line of a source whose records admission refused names ia validate, a line of an admitted source that no record spans names ia inspect --path, and a line of a file holding no record names the overview), IA-RUNTIME-READ-FRAGMENT (no such cell or requirement, exit 1), IA-RUNTIME-READ-UNREACHABLE (a document path that names no file, a URL, which a read never fetches, a path outside the workspace or the record's tree, a file the reader refuses or cannot find, bytes that are not UTF-8, an anchor on a file that is not markdown or one no heading has; exit 3) and IA-RUNTIME-READ-PLACEMENT (a record at runtime placement, band 0, without --include-runtime; exit 3). The workspace session the CLI opens admits no source at runtime placement, so through ia read the flag changes nothing yet. @inventarch/runtime exports parseLocator, readBody(handle, locator, {read, mounts, includeRuntime}), SOURCE_LOCATORS and READ_CODES with the Locator, ReadBody, ReadBodyOptions, ReadCode, ReadRefusal and ReadResult types; the @inventarch/runtime/internal/locator subpath also carries fragmentText, markdownSection and headingAnchor. The host supplies read, the reader of one workspace file, and mounts, the directory of each adopted mount by the .ia/adopted/<id>/<revision> label its sources carry; the runtime reads no file itself, and without mounts an adopted record's document is unreachable. RUNTIME_CODES gains the four IA-RUNTIME-READ codes, so code that switches exhaustively over RuntimeCode must handle them. resolveMention checks a fragment with fragmentText and refuses exactly as before. @inventarch/db exports adoptedBindings(root), which returns the .ia/workspace.json bindings as frozen {id, path, revision, tree} values, validated as source discovery validates them but without reading or verifying the bound sources (discovery still reads each binding before it validates the next, so a manifest with several faulty bindings refuses as 1.1 did), with the AdoptedBinding type, and sourceTree(path), the tree a source path belongs to by the rule capture membership already applies. No Door operation reads a body, and MACHINE_PROTOCOL version 1, ia scope, workspace revisions and per-record digests are unchanged. The --json locator is the locator as given, also for an absolute path inside the root.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "json-string-scan",
+      "title": "JSON string scanning and installed reads clear their CodeQL alerts",
+      "summary": "The strict JSON parser in @inventarch/db and the resource decoder in @inventarch/workspace-runtime find the end of a string token with one left-to-right scan of the JSON string grammar instead of a regular expression CodeQL flags as polynomial. The resource decoder collects each object's members in a Map and defines them on a null-prototype object instead of assigning by key; every input decodes, or is refused, exactly as before. installedImplementationDigest refuses a nonregular entry without opening it and reads each code file through the descriptor whose size it bounded, so a file that grows or is swapped while it is read is refused with IA-CORPUS-DENIED instead of hashed. Valid installed code digests as before.",
+      "packages": [
+        "@inventarch/db",
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "package.json",
+        "packages/db/",
+        "packages/workspace-runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "language-guide-copies",
+      "title": "Shipped LANGUAGE.md copies follow the regenerated guide",
+      "summary": "Each package's shipped LANGUAGE.md is the regenerated public-language guide again, whose `@workspace` row now names sources and steward. No code changes.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/graph",
+        "@inventarch/language",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/steward-hook",
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/mcp-door/",
+        "apps/steward-hook/",
+        "apps/vscode/LANGUAGE.md",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/compliance/",
+        "packages/db/",
+        "packages/graph/",
+        "packages/language/",
+        "packages/runtime/",
+        "packages/service-contracts/",
+        "packages/workspace-runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "location-seat-resolution",
+      "title": "Location seat resolution and the claimant index",
+      "summary": "@inventarch/graph indexes path selections once per load. Graph gains claims, one Claim {from, field, selection, source} for each text value a record states in authority.covers, subject.covers, work.covers or hook.paths (the list is exported as CLAIM_FIELDS; a `@check` claims no path, since its schema requires check.scope as prose), and referencesFrom, the typed field references keyed by holder; directedView reads referencesFrom instead of scanning every reference, and its output is unchanged. selects(selection, path) implements one path-selection dialect: workspace-relative segments separated by /, ** as a whole segment for any number of segments (none included), * for any run of characters within one segment, ? for one character, a trailing / for the directory and everything below it, and an exact path otherwise; matching is case-sensitive, a backslash reads as /, and there are no braces, classes, escapes or negation. An empty, absolute or non-canonical selection, and any path that is absolute or escapes the workspace, select nothing. isSelection(selection) says whether the dialect reads a selection at all. claimants(graph, path, scope) returns the records whose selections select a path as Claimant {identity, band, matches}, band descending then identity ascending, with every matching field and selection. The @inventarch/db readers (Handle, ReadHandle and the editor reader) add resolveSeat(path, options), which returns a SeatResolution {path, seat, by, claimants, unknown}: the seat is the admitted `@system` of the system folder holding the path (the floor's for .ia/src/floor), else the `@workspace` declaring the longest sources root that contains it, else, for a path in no .ia tree, the repository's own `@workspace` (the one in .ia/src that declares a root, else the only one there). With no seat, unknown reads undeclared, or outside for a path that is absolute or escapes the workspace. Options bind as get binds them, and a scope token prunes the seat and the claimants. The readers also add inertDeclarations(options), which names, with its record, field, value, path, line and reason, each declaration that declares nothing: a composition.sources entry of an admitted `@workspace` that names no root, and a claimant selection the dialect does not read (absolute, ./ or with an empty or .. segment), which selects no path; they are not admission findings. @inventarch/distribution's workspace session adds validation(), admission's findings with an IA-COMP-FIELD-VALUE warning at the line of each such declaration, in the report's order, and validateWorkspace returns it; ia validate, ia capture and ia-distribution validate all report that one finding set, and ia doctor counts its warnings, so such a typo is seen where it is authored. The session's admission() and the ia compile artifact are unchanged. The @inventarch/cli SPEC states the dialect; no ia command resolves a path yet, and the frozen Door routes and ia scope are unchanged. Workspace revisions and per-record digests are unchanged; the .ia/.iadb/graph.json cache payload gains the two indexes, so an existing cache file is rewritten on the next open.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/graph"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "packages/graph/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "lowering-rows",
+      "title": "Registrations declare each word's artifact set, primitive and move",
+      "summary": "A `@system` discriminator entry may add artifact-set, primitive and move rows (closed kernel values); every public word now declares them and the vocabulary catalogue (ia vocabulary --json, the MCP door catalogue, docs/reference/language) and the per-word references carry them. A row outside the kernel refuses the entry; absent rows leave a registration without them. Every entry row is written once: a second category, facets, schema, artifact-set, primitive or move row refuses the entry, reported at the second row. The kernel digest and every derived revision change accordingly.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance-system",
+        "@inventarch/governance-system",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/session-system",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/compliance-system/",
+        ".ia/src/systems/governance-system/",
+        ".ia/src/systems/hook-authoring-system/",
+        ".ia/src/systems/learning-system/",
+        ".ia/src/systems/session-system/",
+        ".ia/src/systems/template-system/",
+        ".ia/src/systems/work-system/",
+        ".ia/src/systems/workspace-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/language/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "mandate-authority-fields",
+      "title": "`@mandate` declares its authority as closed moves",
+      "summary": "A `@mandate` may declare an authority section: participant (ref to agent), moves (closed to Observation, Execution, Delegation, Synthesis and Verification), scope (refs to workspaces), excluded-words and covers (path selections). The runtime publishes the mode-to-move table (read, validate, author, effect, re-seat) and mandateRefusal, which the authoring verbs will consume. A mandate without moves restricts no move, a declared moves list names at least one move, and excluded words are refused whatever the moves.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-runtime",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/compliance-system/",
+        ".ia/src/systems/governance-system/",
+        ".ia/src/systems/hook-authoring-system/",
+        ".ia/src/systems/learning-system/",
+        ".ia/src/systems/session-system/",
+        ".ia/src/systems/template-system/",
+        ".ia/src/systems/work-system/",
+        ".ia/src/systems/workspace-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/mcp-door/",
+        "apps/steward-hook/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/compliance/",
+        "packages/db/",
+        "packages/graph/",
+        "packages/language/",
+        "packages/runtime/",
+        "packages/service-contracts/",
+        "packages/workspace-runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "observation-schema-fields",
+      "title": "`@observation` records typed evidence",
+      "summary": "An `@observation` may declare evidence.subject (ref), subject-revision, snapshot-revision, evaluator, move (one of the five kernel moves), verdict (success, refusal or inconclusive), implementation and target, so checks and runs can record evidence about one record at one revision. Existing fields are unchanged; the learning-system example shows both forms.",
+      "packages": [
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/learning-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "per-record-digest-membership",
+      "title": "Per-record digests and capture membership",
+      "summary": "Every @inventarch/graph Node now carries digest, its per-record digest, and recordDigest(record) computes it: the canonical-codec SHA-256 of what the compiled record says (identity, head and section fields with their nested blocks, edges with their spellings, cells, selectors, variants, requirements and schema), without its source path, lines, spans, placement, provenance or compile-time edge targets. Moving a record to another file, shifting its lines, or reading the same text from an adopted or installed mount therefore leaves the digest unchanged while the text compiles the same way, and the digest fits the codec's nesting limit however deeply blocks nest. @inventarch/db snapshots add membership, one {identity, root, band, digest} row per admitted record in records order: root is the longest root that a `@workspace` admitted at the workspace root declares in composition.sources at the record's placement, read relative to the declaring workspace's own tree, else the record's system folder (adopted and installed records included), else .ia/src/floor for a floor record, else its source directory. Every scope gives an admitted occurrence the same row. A sources entry naming an adopted closure by locator declares no root yet. Workspace revisions, the frozen Door get and records output, ia compile artifacts and composition component digests are byte-identical; ia inspect --json and ia-distribution explain --record records now include digest, and so does each node in serialize(graph) and the .ia/.iadb/graph.json cache payload, still tagged ia-graph-1, so an existing cache file is rewritten on the next open. Snapshot retention, staleness and seat resolution are not part of this change.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/graph",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/agent-composition-system/",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "packages/graph/",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "refusal-next-mandatory",
+      "title": "Every `ia` consumer command refusal names one next command",
+      "summary": "Every consumer command refusal now carries a next action: the --json refusal object always has a non-empty string next, where a refusal raised by a service used to carry null, and human output prints the same text on the → line without breaking the command it quotes across lines. The text quotes exactly one command and spells no other command or option beside it; remedies that used to list alternative flags or sources now name one command, and a service message may still name the alternatives. The command is an ia command, except that a recovery or a directory registry repair names ia-distribution, the binary of @inventarch/distribution, which a global install of @inventarch/cli does not put on PATH. It carries the values the invocation supplied that it needs, such as the root (the target directory for ia init), host, package ids, registry or catalog source, descriptor or --force. Except after an unknown or interrupted command, which repeat the invocation as typed (below), a command that reruns the refused one repeats no output flag such as --json, and a rerun of an install or update names its plan, without --apply; a rerun of ia restore carries --apply --yes, the rerun after deleting a corrupt cached archive drops --offline so the archive is fetched again, and a placeholder such as <directory>, <path>, <file> or <url|dir> stands only for the value to correct or supply. It may begin with one manual step, such as deleting a named file, replacing a link under .ia/src, mapping a provider in .ia/registries.json or setting IA_HOME. A workspace whose sources cannot be read, such as one with a link under .ia/src, names that repair and then ia validate for its root. A service refusal without a remedy of its own names the command's --help for a usage error, ia validate for a record finding (IA-COMP, IA-GRAPH and IA-LANG codes) and ia doctor for any other code, with the root the invocation gave. An unknown command names the nearest one with the rest of the invocation as typed, keeping only --root and --params for a machine operation. A file the invocation named that is not there (the --descriptor of ia pack, the --catalog or --requests of ia install, update and restore) names the same command with that one value as <file>. ia host with a --root that does not exist now refuses as IA-DB-ROOT-INVALID, as every other command does, instead of IA-CLI-FAILED: it used to fail inside its own error handling, so the exit class stays 3 and only the defect's code changes. An interrupted command (exit 130) gains next in its JSON object and on its stderr line: the rerun that finishes work the command had already written, or otherwise the same invocation as typed, with any --apply, --yes and --json it was given. Many next texts are reworded, so automation should match the code, not the sentence. ia compile, deprecated in favour of ia capture and otherwise unchanged in 1.x (its alias of ia capture lands in 2.0), keeps every refusal's code, exit class and location: an existing artifact without --force names the same invocation with --force, an --out outside .ia/work/ names it with --out <file>, and --out with --stdout names ia compile --help. The nine machine protocol operations and their output are unchanged. Code that imports the published internal subpaths keeps its 1.x forms: in @inventarch/cli/internal/consumer the Refusal constructor's where and next still default to null, refusalOf(error) without the refused invocation still returns a null next, and renderRefusal gains an optional refused argument and gives a refusal without a next action the fallback above, so the --json next is a string even then; refusalOf(error, refused) spells that fallback itself. In @inventarch/cli/internal/distribute, PlanRequest gains an optional reruns field; without it collectPlan spells each remedy's command from the request's own fields, and every refusal keeps its code. The exported UNMAPPED text is unchanged. In the 1.x collectPlan request form, a missing --catalog or --requests file now throws the CLI Refusal, with the same code IA-DIST-INPUT-INVALID and exit 3 and a next, where it threw the service DistributionError; collectPlan already threw Refusal for its other refusals in 1.x, so callers should match the code.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "regen-vocabulary-and-guides",
+      "title": "Field descriptions in ia vocabulary --schema",
+      "summary": "ia vocabulary <word> --schema prints a field's schema description, when it has one, on its own lines under the field's row, aligned with the value column; rows without one are unchanged. The language SPEC (L28) now states how relationship lines are lowered to directed edges with their predicate, direction and authored spelling, and when a line is refused.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/language"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/language/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "repoint-workspace-runtime",
+      "title": "Distribution and steward-hook consume @inventarch/workspace-runtime",
+      "summary": "@inventarch/distribution and @inventarch/steward-hook import the generic workspace runtime from @inventarch/workspace-runtime and no longer depend on @inventarch/agent-composition-system. The installed implementation identity they pin now hashes @inventarch/workspace-runtime under its own name instead of @inventarch/agent-composition-system, so a retained context-hook binding refuses with \"Installed hook implementation changed\" until the lifecycle hook is registered again, and a projection published before the upgrade no longer checks as current until its descriptor is re-pinned to the new implementation digest and it is published again; behaviour is otherwise unchanged.",
+      "packages": [
+        "@inventarch/distribution",
+        "@inventarch/steward-hook"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        "apps/distribution/",
+        "apps/steward-hook/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "retain-previous-snapshot",
+      "title": "Retained previous snapshot; staleness and readiness by digest",
+      "summary": "@inventarch/db handles now retain the previous admitted root snapshot beside the current one: the most recent root snapshot whose revision differs from the current revision. Opening or refreshing at an unchanged revision keeps it; only a revision change rotates the current snapshot into previous, and a failed refresh rotates nothing. Handle, ReadHandle and the editor reader add previousRevision; staleness(identity, options), which answers unchanged, changed, new or removed by comparing the identity's current and previous membership digests (every current identity reads new while no previous snapshot is retained); and readiness(identity, digest, options), which answers current, previous or unknown for a digest observed earlier, such as an `@observation`'s subject-revision. Both bind within, root, phase and revision as get does, answer about the record get returns under those options, and refuse an identity outside a scope with IA-DB-OUT-OF-SCOPE. Only root snapshots are retained, so when a narrower root or phase reads an occurrence other than the root one, staleness is undefined and readiness answers only current or unknown; a read through a scope token never reports removed. The Staleness and Readiness types are exported. The pair persists between processes as one capture pair, .ia/work/snapshot/current.json and previous.json, ia-snapshot-1 documents that only a capture writes: writeCapture(root, text), exported with CAPTURE_FORMAT, CAPTURE_DIRECTORY, CAPTURE_CURRENT, CAPTURE_PREVIOUS and the CaptureWrite type, writes the document as current.json, counts its records against the prior capture by digest, renames the prior current.json to previous.json on a revision change, refuses a link, an entry at .ia/work or .ia/work/snapshot that is not a directory, or a non-regular entry at either snapshot path with IA-DB-PATH-UNSAFE before writing anything, and leaves the pair it found when a write fails. Every disk handle, with the cache enabled or not, seeds its previous snapshot from that pair the first time it is asked, never on open or refresh, and never writes it: at the captured revision previous is the capture at previous.json, at another revision the capture at current.json. capturedRevision names the revision of the capture at current.json. A file that is no capture, a link or a non-regular entry is ignored, and a current.json that names the fresh revision with other rows seeds nothing; a capture at another revision cannot be verified and is trusted as written. A refresh rotates the pair in memory without reading the capture pair and reads capturedRevision again when next asked, so a handle that lived through an edit reports it whether or not it was captured, and one that refreshes often holds one pair, and the cache-free editor reader retains nothing. No file under .ia/.iadb holds retention, so the graph cache is unchanged. Workspace revisions, snapshots, the frozen Door operations and ia scope are unchanged, and no frozen route reads the capture pair.",
+      "packages": [
+        "@inventarch/db"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "split-composition-runtime",
+      "title": "Generic workspace runtime moves to @inventarch/workspace-runtime",
+      "summary": "Workspace capture and adoption, resources, projections, publication, candidates, templates, lifecycle, authoring manifest, installed catalog, sources, local store and adapters are published as @inventarch/workspace-runtime. It declares @inventarch/authoring-system, whose installed bytes its implementation digest pins, and bounds the walk of each pinned package directory (depth 16, 2,000 entries, 8 MiB per code file, 32 MiB per package), refusing a larger tree with IA-CORPUS-DENIED. @inventarch/agent-composition-system keeps the composition compiler and depends on the new package. Its root re-exports of the moved symbols and every moved subpath, including the 18 ./internal/* subpaths that 1.1.0 published, remain as plain aliases that forward to @inventarch/workspace-runtime; they carry no per-symbol deprecation hint and are removed at the next major.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/systems/agent-composition-system/",
+        "README.md",
+        "packages/workspace-runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "work-schema-fields",
+      "title": "Work records state partial supersession and identity ownership",
+      "summary": "A `@decision` may carry effective-revision; a `@spec` may carry covers and replaced-scope and may be grounded by a decision; a `@task` may carry action, expected-artifact, exit-evidence (ref to observation) and owner-agent (ref to agent) beside its text owner. The work-system example shows a partially superseded spec.",
+      "packages": [
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/mcp-door",
+        "@inventarch/work-system"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/work-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "workspace-schema-fields",
+      "title": "`@workspace` declares its sources and steward",
+      "summary": "A `@workspace` may declare composition.sources (each <root> @<placement>) and composition.steward (ref to agent). language-workspace declares its authored root. The vocabulary catalogue and the workspace reference carry the fields. Admission does not check the <root> @<placement> form; an entry spelled any other way declares no root.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance-system",
+        "@inventarch/governance-system",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/session-system",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/compliance-system/",
+        ".ia/src/systems/governance-system/",
+        ".ia/src/systems/hook-authoring-system/",
+        ".ia/src/systems/learning-system/",
+        ".ia/src/systems/session-system/",
+        ".ia/src/systems/template-system/",
+        ".ia/src/systems/work-system/",
+        ".ia/src/systems/workspace-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        ".github/",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".claude/agents/public-agent-composition-system-steward.md",
+      "sha256": "3f213c8326e02c39d2b4408d70362cc330795ff593aec1fbc429c80406b7e420",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-agent-system-steward.md",
+      "sha256": "1fc813235f7a015f193f61077b254231c45f394db27ca543f0f4407a96e43a68",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-authoring-system-steward.md",
+      "sha256": "313f0a805727369f770ad0cbb32d71df7c12a6bf0cb7cb98072c5df2cc1fc9ee",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-compliance-system-steward.md",
+      "sha256": "c440c45335b0ebb9292fe10638167437753cb3989712131c2b77256317cd5e4b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-governance-system-steward.md",
+      "sha256": "6d74d7cdbe779793728414d7b7e302976cb8db5dcc1ccfee5abaa538671cb875",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-hook-authoring-system-steward.md",
+      "sha256": "7d48c4244fdcb2fa76831ba6388f03b8b0d76fed6eee2187e6034e5be203e267",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-learning-system-steward.md",
+      "sha256": "762b5493f6d2d4faed3ae29d984b0b180b622d0a19ba454e94d8f651c8f6619f",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-session-system-steward.md",
+      "sha256": "ae8dbdfa5cc17fed956e025a56ae96574426232f7a6b4455a2259fdf7bdee50e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-template-system-steward.md",
+      "sha256": "58f086f84922136494f09613c81ca04cdac6532eef6ff15fbe2318037b54c32e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-work-system-steward.md",
+      "sha256": "38a44a1ace615b32bf255479f8ba729c601d31ed71fb37ff251f3716829ffc21",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".claude/agents/public-workspace-system-steward.md",
+      "sha256": "4869ddbfd4a5442103aed5028b275b4ec4215282810c6363df0e9dbaad108d4e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".github/workflows/npm-publish.yml",
+      "sha256": "b6c4c96fcd19f90d645290de1f3ece19b466d4d28fdf9b20b84f14144ad8d840",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".ia/authoring.resources.json",
+      "sha256": "0a341b15c62ada3c120d21ff165666945762116c7381515081e69ee0e15e05b1",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/floor/taxonomy.system.ia",
+      "sha256": "19ef4f7e1d1fbc6fbdb5c2d3f45e0c52bc708b6be1e68b478f88c1b921623c62",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/README.md",
+      "sha256": "64da36ba677616d0e59a087982ddb451c865a5cd39401afd993405115c4b1a99",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/SPEC.md",
+      "sha256": "4105c6e9d538a47be3cfb4a4752d091c9a412500843ab1b967721aacdd7de35b",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "6f489dd7e298d8d7458e103c41b842f650301e5490ca58cb4294eaaae9c7dc96",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/references/public-spec.md",
+      "sha256": "ffde9c03b92827ce71cb472f92a3aec32172f07dd77efd8dfca1b0739e3ec7df",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/adapters.ts",
+      "sha256": "82e26ba71036400281c38c45d08f03c8c1a35d46d45ddc02c11c9441e39e4fed",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-format.ts",
+      "sha256": "9c5c5333f53156999c749609eb9b43e14848c538805ef253c25b7cb70887e127",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-index.ts",
+      "sha256": "2af5dafce3f8ea4d1a890b18d6ca9ac47c1a2aacc88af0bf1e884ee3dc3d8a7c",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-manifest.ts",
+      "sha256": "8949f5616d65d3e4fb1b1c9593e581384db79ccbd16ee29d8a6ed7048ec12717",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring-types.ts",
+      "sha256": "b0154910b86fd5b06f66bf88017e17d1ab51a05b242a089ea55a1d6de077a161",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/authoring.ts",
+      "sha256": "d8828fd88f4c748478172bdd4d96529146caccf1b78826d19fef7f484586e5e9",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/candidate.ts",
+      "sha256": "1b18efb544850a8a1945bcb907a34091d6b327458ddc1221072eeab2d7d0515a",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/compile.ts",
+      "sha256": "c27b2a660c02fd20fde4fd69e69bacf0e16d21fdc03ecb5d1ec791fb63d41c32",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/corpus.ts",
+      "sha256": "79989f705644df27cdad4393d716394f858eebe869655a3b832a1cc7bedffd5e",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/index.ts",
+      "sha256": "687a3d1976cf6a18c0ad20222d0277aeb3fcacaf4f0c81f4a440c393ddb8b373",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-catalog.ts",
+      "sha256": "666227f3d98d955763de34556a8199dbaf6ec68a7b687cf0735e14687065b862",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-read.ts",
+      "sha256": "29d1b8e7f2606a68f81dcd428fa09dc9b0575aaf82f043466228298d5984b716",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-source-policy.ts",
+      "sha256": "d40ad7df0561e34e141dce7be36138c9784774138def1f648c440d0646035026",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-profile.ts",
+      "sha256": "d38c017b37623c050a47d38d7f37f5174c913871b3e6a1401073bd4148f17e22",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-rows.ts",
+      "sha256": "c3bdeddeb7b2e3c5bc6cd3029141f8e2d65218f553c57d03c10fb770e7f6c9bb",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle-transport.ts",
+      "sha256": "d923d5c2fc6cae016d9c233d9b40d489d75814321cacf3c921593f5a1478d92a",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/lifecycle.ts",
+      "sha256": "db8c8731633aff909f641a15ed28f5075208097d23ab1e02b8cc416adb1d114a",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/local-store.ts",
+      "sha256": "38c6e97713aa372178e58a9c864d35940a3a396a1a8bfb75eb70caccafa458bc",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-codex.ts",
+      "sha256": "f0717c8f467bbc39ed94bb94f614cee5dc2073fbbc2e0db848e1b251268dda26",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-format.ts",
+      "sha256": "6b43e6be9001c2935191d5907abfba8ea728b3d16e116daafa14934cf474c0af",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-host.ts",
+      "sha256": "6683fe9c41a88e1a964586b4b790c3bf384d36addd94bba85cb1493377ba1a06",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projection-routine.ts",
+      "sha256": "90e46a6f1f327138f68f81a6289f4d08d6c9a21c58bc983720b6b633fe920c7c",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/projections.ts",
+      "sha256": "0d375c1945d1405caa26ac81e2c29ae8a03d2a1fea77fdd2bac2a7ff470d5bde",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/publication.ts",
+      "sha256": "12716946bee99854396ae37cef7572b024406b9056a2e288e5bfacfea4c0ee3b",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-context.ts",
+      "sha256": "f8c5e8a7476b26d8abb459a7d1011e441d7577354466791efb380fb8de5c49ad",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-files.ts",
+      "sha256": "31a88e7587459e1742284e507477a845ad36b98180d28c167b8e0ebe620a10d2",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-format.ts",
+      "sha256": "b021c11944b33dc342db15bc87d102e369625745b37fde5779f76533651fa232",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resource-sources.ts",
+      "sha256": "739b609e032e78b72cf2583c9a5fd4472c3371b54a9ef9f77c0856251b1dc29e",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/resources.ts",
+      "sha256": "0900964c9f7a99dbdcffc116b5b74b7de3010705b1b006a5e909f66748f38157",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/sources.ts",
+      "sha256": "6852484973e8f5c8c2615e08754cda9f4d57d17874c972db1c4702d18017b32e",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-capture-format.ts",
+      "sha256": "972d64075584badddedc727ab3c35fa3b9a67772868002f9322a9a4181486fce",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-capture.ts",
+      "sha256": "4e1de0566dc9162003c4e8dc677c9eec823e08ce8742360845d479d081e382a2",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-context-declaration.ts",
+      "sha256": "96de38cc5d23ace135fad39ff17fdcd6e618c364882cc1930c1b41278a153de4",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/task-teaching-closure.ts",
+      "sha256": "e6b07c4afe44445d1a90795e4fc21c8cf38fcc4f368d8ceb333f6a2ddd3afe02",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/templates.ts",
+      "sha256": "e088f6fbc6d95036812148161f4c6707b30f5bf43f151c63f63d51f85379361f",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/tools.ts",
+      "sha256": "c1b8033ec8cba86188174724e740c53e4faab9722eeaedc1a83ed6c70dfa1944",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/system.ia",
+      "sha256": "10b41865ec52d2048a3f1c568d536d629377b0f59376c9d0227f52e92e852a86",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/adapter-fixture.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/adapters.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/authoring-base.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/authoring-bytes.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/authoring-fixture.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/authoring-integrity.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/authoring-lifecycle.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/authoring-shipped.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/authoring.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/compatibility.test.ts",
+      "sha256": "fb304094df009f3f6233734755d0289c30add1396e7054c9b6149ee09d60d584",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/compile.test.ts",
+      "sha256": "af569cfc9689851e2ad7a39f6d838fb3502d8aa24d4e19b38dfffed121616c9e",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/execution.test.ts",
+      "sha256": "ddbd3137c279c536fc390d0102a0638f996c4044aab972fa3567d36f3240a396",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-catalog.test.ts",
+      "sha256": "239d3c0283a7e79676e3a7fc0311545f78823649b8b640326760de04e951bfa5",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-sources.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-profile.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle-segments.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/lifecycle.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/local-store.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/projections.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/public-spec-fixture.d.mts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/public-spec-fixture.mjs",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/public-spec.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/publication-fixture.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/publication.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/resource-context.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/resources.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/sources.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/spec-read-boundary-fixture.mjs",
+      "sha256": "d37d2e961b307c10a12015abf26898ba8256e6aaaa1326eb2da8d3961df738fd",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/task-capture.test.ts",
+      "sha256": "044157f96b9f698210aee2a5fce61d6dd413e33e85e65ac0eac6bfc67251a235",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/templates.test.ts",
+      "sha256": null,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/tools.test.ts",
+      "sha256": "6ef7507511e4bbc68a076f8768250214efe368c1110a69b29329001e2644caa4",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "241d4f354f72549e05bd6d4fbf95ec3633a3601b7c5ea2755c651f3357db861d",
+      "cohortOnly": true,
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/schemas/mandate.schema.ia",
+      "sha256": "0dac04bc15ac095a0ab9d3601eb901c6b7da4d4557fba5f4b4b1196e95f43c12",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/system.ia",
+      "sha256": "1c1983225f43a8bb43cee818a8c48491c24fb766d96488d1ae57ce44cbc90d45",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "f618e1128a097014aa739542956adfd63a9d2b5e9efc0dd853419a6b4bf66d3f",
+      "cohortOnly": true,
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+      "sha256": "3d2782394e310816d925e8b9320e69a9a5bdd7fbee3bbf9f96d02a644ec4a2b6",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/agent-profile.md",
+      "sha256": "e60060704f9ba300065d5b171413a35767e9fa5550122732676a037e306379c1",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/agent.md",
+      "sha256": "a81564700d567c00ed1de1012c7525a575425c82b66e0f0d44deaa51cb94dda3",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/artifact-set.md",
+      "sha256": "7f78bf0797c4200d848bb01f80bf51158d5eacfabd1c08234c714894d3d6cd76",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/authoring-guide.md",
+      "sha256": "e740c6f09039a421cf1c5fd4ca1c1b1e50adcc3aba40b9d73fb2e5b35e4012c9",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/axis.md",
+      "sha256": "8f27295b2a00f929e46716f57afb575f618da0e5ee0ea846dbaaa92ae15ff389",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/capability.md",
+      "sha256": "1e38c59fa9d5d27f7e48f61b22e8ee15c51872d7a990f170892db5591dd801b0",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/cardinality.md",
+      "sha256": "03ea1183b5a99d63ab71ea70937b9b6101933ef895d0fb3a8171fa82c26cbcaf",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/case.md",
+      "sha256": "ed891e7112b5a9e2f275bd41c80f7980b2a0cd953ecc0def076ac943b2de3ff3",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/category.md",
+      "sha256": "b88cf4779ebcd4d0e7253a588fdd48fbc02d176ad691642aae6c005f5b45f291",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/check.md",
+      "sha256": "17d7a99c7bf5b07e7d70e89c9947c32786379317a525135309a3a8abe1d5be04",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/contract.md",
+      "sha256": "7b93346c2608e63df62ef063d07f1a388f02e63130943a56eb6fea884414c81e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/convention.md",
+      "sha256": "6505563030565c3b3bc48f97340d7f6c5ea28cd81cb9ca3b0fe81398a58b1fba",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/decision.md",
+      "sha256": "8f82edfa7b3928290340b4e1917f8f674d5ee00e925090996b7d86f35adaf0ef",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/dimension.md",
+      "sha256": "307b02638e13aa954092d6a5044803e881e7237d2a723c8a5860e30e7cfbe4d1",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/distribution.md",
+      "sha256": "4e09d08f6791236e0c70d3272081a9ecdebe62c4c54dfb8955104dc185edd670",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/execution-binding.md",
+      "sha256": "da94115a5606f174a6d6de913c2ce9fc2172d4073bfe08a7066a0587a5b613cc",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/harness.md",
+      "sha256": "4b94eef5e9706e499b9615febb59ed29fc3a42f6926585d715792c204a66ed17",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/hook.md",
+      "sha256": "202481a2b210a952d56c8617b66621910beb56a70f6c025fd36938e58f8b8b7b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/improvement.md",
+      "sha256": "aa120fa42bae0d958c46e19ecf088a83bb4ff1e7fa8899e4bfc77ee05bd1e363",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/intent-shape.md",
+      "sha256": "4cfcefea74b12dbfac71c7a48d22020553584fca9ee5600b81322330cd215514",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/kind.md",
+      "sha256": "faea93fd825ebb58edf0b3a84fa4e3d18c7407965041f955bfb3a7718fb00643",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/lane.md",
+      "sha256": "841f19ebf2192395a663a2f19989acd642757606ba308e7c449d53f44dbf016d",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/law.md",
+      "sha256": "2cdec735847c2c7fb5008d81a39dac1a854c835d5f8ccd5a482d5e2e7dae9b43",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/mandate.md",
+      "sha256": "17d881a3ee38788bbf613e6ab770a1edd809bdb5ddf0d1c475495e73700207a9",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/milestone.md",
+      "sha256": "81c41c6223b61a19e4e5382d3d875100a6bea8a7fced7b2c77b87b246eeb581a",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/move.md",
+      "sha256": "69e6688bd24161dc0f45fc4e3fae22da57a9745eb7ac2dfcf6e27d258be96e86",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/observation.md",
+      "sha256": "16e15fab1c16cf28645bdbb91170c2fc5ddfce09f52e5469ac1df488dfb220fe",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/operation.md",
+      "sha256": "c7910b80a20a1f2505a0ae18e3e4ae397b43fd2faeb1dac21e0d2cec073ebbfa",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/phase.md",
+      "sha256": "23ea93532a6817a03c1e1e5cb3bd4e7809ed4c57b6a106ba72c5d993138a6e6f",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/placement.md",
+      "sha256": "c225d7e00be7adae27e68ab78760556e6adb04cca2ded349eedd77f727e66107",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/plan.md",
+      "sha256": "abe91b84a033d6a573f037cddc6654a5d672b2d309dcf3870446aa06b7030b0c",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/playbook.md",
+      "sha256": "10cb4c3352661e5e5bf8a713172e5a33dde800ac6f7d3fcdfb549b80aa06e1fe",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/predicate.md",
+      "sha256": "db96c22ec8998ba4a94eaeca256f6c064888c5964ca5b28d4165d36c4d994af1",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/primitive.md",
+      "sha256": "4383e696d2dfd0cd90df4cb5753fa4b78d03496d2bfc2ab15e5d5e045606103b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/principle.md",
+      "sha256": "7f58c7c81f7cca0b18dfcc34baaa9d8fbbacb141e81b7f044379ab6353129866",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/run.md",
+      "sha256": "6979545203d2c8633e134337b27333e6caf9311c1a6c02bdf25175dd41cb70f6",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/schema.md",
+      "sha256": "bc4c9dfbe550628d8f40ddc72591bb66ffaca5e918e7c3243e1e34a0d6d27afb",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/spec.md",
+      "sha256": "fde20eac13549be409169da626853439590b9f8fec561d30f835831909e253f1",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/system.md",
+      "sha256": "58e2b549fd708e5814b69167e318c45a5263850cfc353b441d3e9c0c6917e562",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/task.md",
+      "sha256": "d480dfa3c37adb6e3678cfacc702a8f8cc9613c2306492b8286f092f32ccdcc6",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/template.md",
+      "sha256": "2a37c7a236bdaa7de342cb71b60feee3bb42bc2df7d76e6b6d43df4c106e9059",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/value-type.md",
+      "sha256": "8b3eb52dfa2a813cbe5015b3a0ac68ca3427f943e09c33fb2ca91492715fc136",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/voice.md",
+      "sha256": "95f75068d845860b75ee49b157b1b7885c4c7c2c2dbfcffc3f1fce99d06a5326",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/workspace.md",
+      "sha256": "9e0aacb3d5ee4a735b648751cd590ad2bbc694f659df26e30372353a98fe8b6c",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia",
+      "sha256": "f58844faa19cf863f802fa62594c525cafb9d53a7f01fbd9063294573cd61b29",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/system.ia",
+      "sha256": "588a774abe76bc90687836c06ae777d4af33e40fca551e9d93d177c84fc370c8",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "7a3dcbcb15a7978da9357228f7d9c5f367c8b8aff781a9956feb59c4928ee86a",
+      "cohortOnly": true,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/schemas/check.schema.ia",
+      "sha256": "abe5b33e1465a4199f730debd4f6270291afbd9e6017e227b447dbe85d93539c",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/system.ia",
+      "sha256": "3858f6221be493d65b8b19c9cde9a97e51dca54cfeee475e52cb06d0a49f4294",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "governance-schema-fields"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "5ce1efe35f140f7bb867ac97893a7b33e0258986223e6649ad485b314840433c",
+      "cohortOnly": true,
+      "change": "governance-schema-fields"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/schemas/convention.schema.ia",
+      "sha256": "acef53e969b1ec5702b3ce451361358d68acc647835ecccfb42dd9763ccf478c",
+      "change": "governance-schema-fields"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/schemas/law.schema.ia",
+      "sha256": "c75248c7c89093781337102d17da00c5157ec482130c85d8fa37033b97bd6958",
+      "change": "governance-schema-fields"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/schemas/playbook.schema.ia",
+      "sha256": "94236c960b7555d19aeef696ffc8e718093709bf9ecd8a6c8ee923e201642936",
+      "change": "governance-schema-fields"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/schemas/principle.schema.ia",
+      "sha256": "3f34c6b15a71372840c3e8c8dbfdb21b5ec19952fc4f0e975bcc3286b1fb9b27",
+      "change": "governance-schema-fields"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/system.ia",
+      "sha256": "9dfabc89d51e5ab0ea4e30677bc7a9bac609e6a11f9154b13deca6e0690de597",
+      "change": "governance-schema-fields"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "2f592b15a3bff33ef063647e368c4ece81eaa51499cd46a6f5a0251f9b595fcd",
+      "cohortOnly": true,
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/system.ia",
+      "sha256": "de684e62e3c3523ac79687c318212eb85b79bacde4ad07213acc8eb77c36fc89",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "c3e855acc20c4db76f6c747567bdff55eb773f6b852f854fc55777834598215b",
+      "cohortOnly": true,
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/records/evidence.ia",
+      "sha256": "5a125f970de9bfdae9a4a84944d5618ad8fd104df6f405e4767288eb3dbd62a9",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/schemas/observation.schema.ia",
+      "sha256": "1ebd2eb862c90ccf9d0a65e60f61df8b20bfaf29084590f1dea48a04954e8ea2",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/system.ia",
+      "sha256": "e76e3564c02e09d132962fb7904c6c2f598c66d5448684adfa24a5f76acf96f8",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/session-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "codec-rehome"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "98924bf5a4ec629835f369e678d69fa27b159c179bae399c76306819dc2edc94",
+      "change": "codec-rehome"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/codec.ts",
+      "sha256": "889f5574c3ec06a0815dd62344968beb9ac6ecaac31b63a6330a5610b8865c5e",
+      "change": "codec-rehome"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/index.ts",
+      "sha256": "22ce67d2d492c14c141f5aa43f426256e62d33ad6fc528174ca5937a478cce9c",
+      "change": "codec-rehome"
+    },
+    {
+      "path": ".ia/src/systems/session-system/system.ia",
+      "sha256": "8db6986288d0b148acd2e105bc7d13021c91eee19a93c4fc9fdd3f1f15338ff8",
+      "change": "codec-rehome"
+    },
+    {
+      "path": ".ia/src/systems/session-system/tests/contracts.test.ts",
+      "sha256": "04b0eb9681e8fd10eb0f694d2b477dc8b22b27a686fabc2b56a714d982ac4247",
+      "change": "codec-rehome"
+    },
+    {
+      "path": ".ia/src/systems/template-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "6c479dd842dd1758848c13847b2d48cf07ec6243519c8fc4afedf4ce1976820b",
+      "cohortOnly": true,
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/template-system/system.ia",
+      "sha256": "67f2bbcdaaca2e9c5596cae482453745fad24459946b854b0c2dacd0b405ceec",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/work-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "de8252db805073eb5ac497f5cb80ffa3fefdc91189e60e908ffd3c71907c8043",
+      "cohortOnly": true,
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": ".ia/src/systems/work-system/records/work.ia",
+      "sha256": "5044e02ec1fa0a5c252471a48e760d15d4fee128dc10d1de0dbb36926c9776a0",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": ".ia/src/systems/work-system/schemas/decision.schema.ia",
+      "sha256": "007536332bf15923313a624ae127fd2463f4deab16f3af410b91da283fb2c9c2",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": ".ia/src/systems/work-system/schemas/spec.schema.ia",
+      "sha256": "12a67836b3a1afd68caf84f18cb04f60a660520ee05b474b029b9f27d4c5a646",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": ".ia/src/systems/work-system/schemas/task.schema.ia",
+      "sha256": "31392bdb8bec49589b765cf2297576c6d6f0a3798e98f4375b5daef79029a850",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": ".ia/src/systems/work-system/system.ia",
+      "sha256": "336c508acfddb5c8018468a88583d3d4b55121fc2fcf7920e928ff4ed33ad8de",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "53dd6f355fb0f1935e0a2cfdccb3c56f41de8a65cd6f88822ce5ae75817a54a5",
+      "cohortOnly": true,
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/records/language.ia",
+      "sha256": "bb6f98f2f249586f9c83732e678d0f2fbd8063570a60f15a642cfe4de0d9972b",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/schemas/workspace.schema.ia",
+      "sha256": "bbade0afab76e661e61598d6cc39ead10326ed17a10f703b907fe2623c956490",
+      "change": "lowering-rows"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/system.ia",
+      "sha256": "fd8e43a4ea3664b4ae72d4028b060284610525071849aaab424ff4769c8878bd",
+      "change": "lowering-rows"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "4b5b5ae3b6b3d4eddad13ba50c2df5b113d3fcc470277642063be6ff96a92fe8",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "README.md",
+      "sha256": "b769ffed1efb46ce499ccb33a4601b47d2b0ddd23404f21fe4d92396a9389bc4",
+      "change": "derived-directed-view"
+    },
+    {
+      "path": "apps/cli/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/README.md",
+      "sha256": "770fec5a5ce52e1ab13959c2c3b95b00ea480c2834dfcc8119e5b269ab02f337",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "36decd67ba7794bad33e0dfe78fd80aebb79fb46e7758e16a9a46e90ac106ca6",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/assets/vocabulary.json",
+      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "da28dda0b3aa0ff770befd6e7a1329e484ea16d0e7b62c6463ea210cde029844",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/capture.ts",
+      "sha256": "20e6995ddfbf0ab28741fd60993e48019b5a83482999f0d8e3ebed2eaa4dce36",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/claude-cli.ts",
+      "sha256": "f58924c170dff06e3497c9796507bfc3933a8f3a3d3d25bbd75b38bcd096f249",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/commands.ts",
+      "sha256": "fd69d1fe033f34ce8fe8aabb00eb2e953eec57bbfa940ab238d0f958ac3f0253",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/compile.ts",
+      "sha256": "d3e7cf804c8f99fffd43d9cc9ff75bddd9369110b9b96532df884e2b5a678f6e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/consumer.ts",
+      "sha256": "6214a6c42a036f31b71628d5b3871c53ad05aa0a0c891290a71b1f2949783fa5",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/decline.ts",
+      "sha256": "6a2013f6839b1049772c0afec362e5aac117f801f35d9e19a0f4c319e1b40355",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/distribute.ts",
+      "sha256": "ad40ba8e7ce5e469899b83d3ba9bf2bfc418934d00dec12cf663657d471c5884",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/format.ts",
+      "sha256": "25a2c19fd01ce783a98a99f3ddb9decf7fac89f5168d341649af04c98f2e0bcf",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/home-remedy.ts",
+      "sha256": "506f37b41ab08ae3dc5fdb663d7bbdcf47418f6831825aeff51584b06444ca8e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/host-projection.ts",
+      "sha256": "50ace336ca275bf9953f9c63fd5d6ce3d84fef4de36879c36f8d44caba1638d7",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/host.ts",
+      "sha256": "87b52c1914d98d5cd3a97d1f66c010f210404291188605b359f695007cd380a0",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/init.ts",
+      "sha256": "529eb8316e221639007ac48c38fdddd22d56e97405e5cf36b66f4cbe3e5baf2b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/inspect.ts",
+      "sha256": "8a8d9e6240c669b2362ba87411f2284ca4ab44b155ca213b0159200b41d721fc",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/pack.ts",
+      "sha256": "df43da860bc56279757c2349ed88a33c40e787c6b82cf15dc9a346a74050a599",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/read.ts",
+      "sha256": "add37f592017b37814489d0ae05cbb03aacc694ada1f816303271edb218cb525",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/render.ts",
+      "sha256": "ec9336624f274b8f612a8abdde2e892e43cd352a6a28194acdb6585d6f9824e4",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/session.ts",
+      "sha256": "a338f748e12ca9819197cba717577d76f37c881c3d1080e00ae2b6078d2647be",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/user-host.ts",
+      "sha256": "eeec2138be20a32ab1cefe48bb2c9b1696f7437a3d6eccd56a22a21df184ff70",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/validate.ts",
+      "sha256": "f6cbedea12088b6070ba1fb9ec426cd40920481211125b9f41255d2f5e1f2a73",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/src/vocabulary.ts",
+      "sha256": "dff11fb64e135a1e73553183e90bd32832e881360cc0b1da9657299ad4735aaa",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/capture.test.ts",
+      "sha256": "a68b90a20b7630eb3b8c9299f52c04bde294ed8966e6e5ef360dcd768d24e9a4",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/cli.test.ts",
+      "sha256": "8e1fdf263971806fee3a01687a58989ff3b84327522689770836344b33c5219d",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/consumer.test.ts",
+      "sha256": "6461ccd6cf76456b8f36ecc09094322e3bcfdcdc60e24a0a8072b7d95bcadda9",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/decline.test.ts",
+      "sha256": "b3229cc8fec01ce9b997b8363ec4bb802ef4ac3b62f5cae3ee55d503a8cf9b78",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/distribution-verbs.test.ts",
+      "sha256": "8e2975c1a3e5d38f7b60aabf27851bd69d37de4bbb920342aada21238c8681e2",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/equivalence.test.ts",
+      "sha256": "a9a8646b92216542ba163a43dce7045b0d46bda3858b442c180d356ed0d5b516",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/host-doctor.test.ts",
+      "sha256": "4c514933cc4b286bc8ec4c8f6f5413c22c912ed5dbba50c5f08aedb46bb2157a",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/host-recovery.test.ts",
+      "sha256": "257b9a1523ad961badab35cd613cb5add8c2ff5d53a5260240121fd7e69f4cb5",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/host-registration.test.ts",
+      "sha256": "c4a905b8d4443b90fd69733020bfb05475b38c865fabeb51f03471765dcdf810",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/init.test.ts",
+      "sha256": "85274368b109f2f59ee9f5b26f8d97728a069a8032df57bba579efa202a039e1",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/protocols.test.ts",
+      "sha256": "40f5d49176b78d7bb5a04ef760ea33fb0ee135659da3a0ebd10b53705c29bc18",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/read.test.ts",
+      "sha256": "5840221015f7d5c8ca04850cc52631e737c6dec36fee511f85f1297c55fea056",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/refusal-next.test.ts",
+      "sha256": "103e2e2f20a7de13fa8eaeb837700c7c4873df7398657a7afa08960a46ab66d0",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/registry.test.ts",
+      "sha256": "6701ba36695c9919f38014150b11d2a01999b692ba0aa7c2cda8aa21c1402e7e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/render.test.ts",
+      "sha256": "7b95a8ea597443ca81cb5175ecb912e5f7cc7f9207b1bbb6ade195987fdd382b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/user-host.test.ts",
+      "sha256": "98ff1e5b65f37c74b99797b70cc01fd3543cd375c02d2e1d3529a08592171b4e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/workspace-fixture.ts",
+      "sha256": "132eb44de660bdc4f9f957558df4a6428e43e8efe81bc66362e6378745ac9940",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/cli/tests/workspace-verbs.test.ts",
+      "sha256": "81aa9382ab2bdbf3a17fafcfff1a00df78c70a158962db2914e84c9083e57979",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/distribution/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "02389b6de734c0ea90492730a73ced6dc8f82e2f2dd271d37eb8df9beeb623a2",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/src/authoring-assets.ts",
+      "sha256": "c65b9585a2995bcd94e6afc023e25cde5c97a755dfb330ec8131b35a39abd3a2",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/src/command.ts",
+      "sha256": "0b91df35bba1ea7625677d987b4c5081427c22396918db8c28ad69646f787606",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/src/lifecycle-registration.ts",
+      "sha256": "9a6b234f35d639cc8ecef1ff3ae8c5a4ca7e6c524b87afd86e6c7c887be12880",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/src/minting.ts",
+      "sha256": "95eeb761ec5baab6ecee1aac52c56aaa44d54ad40cc2096901d9864baebb8a5e",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/src/publication.ts",
+      "sha256": "8abe534f50d051e472b660c8493e1563983df92ae6deaaf5e9ca51499c348807",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/src/services.ts",
+      "sha256": "479a5750687027db747c3964a84992a021ef4f9c1359e6e08e9b6a73827b2a6c",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/tests/authoring-consumers.test.ts",
+      "sha256": "596dcc586e8865a8f97eb4dc46c6c28b0eaf47b5dcb21fb945a3ac9030c593c6",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/tests/command.test.ts",
+      "sha256": "4d5f6dccd5a688731df3a12eb7196970f0ff8ebf512635f5bcb776f48a4be844",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/tests/installed.test.ts",
+      "sha256": "27be4da1ebd8b0b16c260eac4d7be357b39c80c31d17e84d1e41359ea803e6fc",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/tests/lifecycle-registration.test.ts",
+      "sha256": "6a6a4fb53cb2f5cdadd37025a8a1234c5e52e2c1015d15f47164a1ca182b5008",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/tests/minting.test.ts",
+      "sha256": "d84b0079bdbdd973d09dfa86b141742edc472d3f67583b98cd4252cfbeeed1d1",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/tests/publication.test.ts",
+      "sha256": "972b48e2239b66e3269f5cb0ffe2a41207a0f441671967f8691aca6bbb773182",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/tests/services.test.ts",
+      "sha256": "97c9c2f9ca8ef7f5da5968cd81242adedf86b38ed03af015e79fbf45c95be9af",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/distribution/tests/source-policy.test.ts",
+      "sha256": "1967b931718865e78cc82623a50e2626f53a462f937dbe55ce9b8207b945020b",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "apps/mcp-door/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/mcp-door/assets/vocabulary.json",
+      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "ea1675e92be7e9edeedbfe63054e42b8747da48e9132928189ea7f5e1481042e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/steward-hook/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "language-guide-copies"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "d6482ee22b2ae705130c5b1c6a1b1c3d57f156a01d99d895904a4fdd4238b088",
+      "change": "language-guide-copies"
+    },
+    {
+      "path": "apps/steward-hook/src/context.ts",
+      "sha256": "3de604a416c34989d59f0111783c066d6dd784c441871b7fe2ae8033842c939f",
+      "change": "language-guide-copies"
+    },
+    {
+      "path": "apps/steward-hook/tests/context-binding.test.ts",
+      "sha256": "c094df325f3cd8aee8edc5e022a8e5a977dd1c8ac73bb5d41a92a97017163529",
+      "change": "language-guide-copies"
+    },
+    {
+      "path": "apps/steward-hook/tests/context-inventory.test.ts",
+      "sha256": "d3ab9b9f2d93c969fdfe52845fda46f9012274ffddd49ea431678e70e8da1bd8",
+      "change": "language-guide-copies"
+    },
+    {
+      "path": "apps/steward-hook/tests/context.test.ts",
+      "sha256": "f0cdffbeb3fc032809493adad1dc1ff8dc15d0f6145671f8e4eaf7d9a29974c4",
+      "change": "language-guide-copies"
+    },
+    {
+      "path": "apps/vscode/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "cffcaf1176c2d69ef788a31b51a5b543cb56f23f16eaaa374cb98d88ddc2b553",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "11baad91e27c4143c1b8d63815f7bd16423e363795d4e58560ba1db4e9a2c96a",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "distributions/product-structure/.ia/src/systems/product-system/guide.ia",
+      "sha256": "7f976a2f6b1bf96e08b72d714e2487c0eb15ff7af5cc51141a0f688a3db4891d",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "docs/reference/language/README.md",
+      "sha256": "10c0c771d1a645786222036e62794b615eb3e1f65db3e762255549500e74ce0d",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.json",
+      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.md",
+      "sha256": "99cf8976abcb3248534702ce4fd6c2bd5c135014e515097085174cc5341ac005",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/agent-system/records/sample-mandate.ia",
+      "sha256": "3cd509be1182fbc16322592f1c5fc6060f763240f0d9cedcd260c452e8c05241",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/agent-system/schemas/mandate.schema.ia",
+      "sha256": "0dac04bc15ac095a0ab9d3601eb901c6b7da4d4557fba5f4b4b1196e95f43c12",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/authoring-system/schemas/authoring-guide.schema.ia",
+      "sha256": "f58844faa19cf863f802fa62594c525cafb9d53a7f01fbd9063294573cd61b29",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/compliance-system/schemas/check.schema.ia",
+      "sha256": "abe5b33e1465a4199f730debd4f6270291afbd9e6017e227b447dbe85d93539c",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/governance-system/records/sample-convention.ia",
+      "sha256": "a9b2503bef1c4471654a2c96b798d49c5b2dd19acf91e9e51520eb70d0a2e25d",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/governance-system/records/sample-principle.ia",
+      "sha256": "6448549801774aa014ec5b93d4d5c3b90e1e82a8de2227664068f0fd21408b5c",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/governance-system/schemas/convention.schema.ia",
+      "sha256": "acef53e969b1ec5702b3ce451361358d68acc647835ecccfb42dd9763ccf478c",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/governance-system/schemas/law.schema.ia",
+      "sha256": "c75248c7c89093781337102d17da00c5157ec482130c85d8fa37033b97bd6958",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/governance-system/schemas/playbook.schema.ia",
+      "sha256": "94236c960b7555d19aeef696ffc8e718093709bf9ecd8a6c8ee923e201642936",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/governance-system/schemas/principle.schema.ia",
+      "sha256": "3f34c6b15a71372840c3e8c8dbfdb21b5ec19952fc4f0e975bcc3286b1fb9b27",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/learning-system/schemas/observation.schema.ia",
+      "sha256": "1ebd2eb862c90ccf9d0a65e60f61df8b20bfaf29084590f1dea48a04954e8ea2",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/work-system/schemas/decision.schema.ia",
+      "sha256": "007536332bf15923313a624ae127fd2463f4deab16f3af410b91da283fb2c9c2",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/work-system/schemas/spec.schema.ia",
+      "sha256": "12a67836b3a1afd68caf84f18cb04f60a660520ee05b474b029b9f27d4c5a646",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/work-system/schemas/task.schema.ia",
+      "sha256": "31392bdb8bec49589b765cf2297576c6d6f0a3798e98f4375b5daef79029a850",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/work-system/system.ia",
+      "sha256": "dfa95df55a38717c8da241fd24d002ba8aaa1a28b70b93ee3ccb7ce3f6fb4aaf",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/conformance/native/systems/workspace-system/schemas/workspace.schema.ia",
+      "sha256": "bbade0afab76e661e61598d6cc39ead10326ed17a10f703b907fe2623c956490",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/README.md",
+      "sha256": "4846bf0fa3cd7599440204cc99018fa5e41e852478c3c6ef0f37989a3422e9fc",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-composition-system.ia",
+      "sha256": "10b41865ec52d2048a3f1c568d536d629377b0f59376c9d0227f52e92e852a86",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-system.ia",
+      "sha256": "1c1983225f43a8bb43cee818a8c48491c24fb766d96488d1ae57ce44cbc90d45",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/authoring-system.ia",
+      "sha256": "588a774abe76bc90687836c06ae777d4af33e40fca551e9d93d177c84fc370c8",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/compliance-system.ia",
+      "sha256": "3858f6221be493d65b8b19c9cde9a97e51dca54cfeee475e52cb06d0a49f4294",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/governance-system.ia",
+      "sha256": "9dfabc89d51e5ab0ea4e30677bc7a9bac609e6a11f9154b13deca6e0690de597",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/hook-authoring-system.ia",
+      "sha256": "de684e62e3c3523ac79687c318212eb85b79bacde4ad07213acc8eb77c36fc89",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/learning-system.ia",
+      "sha256": "e76e3564c02e09d132962fb7904c6c2f598c66d5448684adfa24a5f76acf96f8",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/session-system.ia",
+      "sha256": "8db6986288d0b148acd2e105bc7d13021c91eee19a93c4fc9fdd3f1f15338ff8",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/template-system.ia",
+      "sha256": "67f2bbcdaaca2e9c5596cae482453745fad24459946b854b0c2dacd0b405ceec",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/work-system.ia",
+      "sha256": "336c508acfddb5c8018468a88583d3d4b55121fc2fcf7920e928ff4ed33ad8de",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/contracts/workspace-system.ia",
+      "sha256": "fd8e43a4ea3664b4ae72d4028b060284610525071849aaab424ff4769c8878bd",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/records/evidence.ia",
+      "sha256": "5a125f970de9bfdae9a4a84944d5618ad8fd104df6f405e4767288eb3dbd62a9",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/records/language.ia",
+      "sha256": "bb6f98f2f249586f9c83732e678d0f2fbd8063570a60f15a642cfe4de0d9972b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "examples/public-language/records/work.ia",
+      "sha256": "5044e02ec1fa0a5c252471a48e760d15d4fee128dc10d1de0dbb36926c9776a0",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "package.json",
+      "sha256": "5a8f1fe0c60bed3bbe33778b7ffef4ebed6e60623b97093e9f40770b6b60d1e7",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "packages/compliance/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/README.md",
+      "sha256": "6fb472cc14bb82465acade235d83e8398516bc1014f67be0c6afc202aea14185",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/SPEC.md",
+      "sha256": "711347dad9c1cd5063ec3c439310c5a671c27f3fa3962f294fc3147611df8a31",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/cases/pass/all-scenario-kinds.records.json",
+      "sha256": "2e11e81876834b7ed9c37e9b05b03b3086e76adcc51bc70b096e1ac6b451be2e",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/cells/pass/full-opal-grid.records.json",
+      "sha256": "ee6c7c4a88cd9ccc91ea2f11388f620a8cee2bb122dd3185ca05e16953778d80",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/compile/pass/minimal-floor.records.json",
+      "sha256": "82429589ce11f4bc1db5ec6fc7f0658f77d7a7e5977151d83cfb61968943acc1",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/compile/pass/nested-and-items.records.json",
+      "sha256": "24c87c5b9cf2d2ea694b00f0410bc164fd51fa34956d5c3d466b497e1a44ac48",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/conditions/pass/all-carriers-and-dimensions.records.json",
+      "sha256": "3687ad7999958cd373b556ad85591ce2dd41a7552a062c4111ccdf94b89e3728",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/contracts/pass/all-requirement-kinds.records.json",
+      "sha256": "764a332ff22f4e7c8b8485b3a966ecaa99b85f417bc78653e0e9a2d337e86cbf",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/edges/pass/all-verbs-and-addresses.records.json",
+      "sha256": "68ecd28847d839b7dc0e54152004fdfd2845ef128e76cd7ab8e83a94837f7665",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/identity/pass/facets.records.json",
+      "sha256": "f276c2156f4cf05b9b2c0a66d8f1a2902736f54a2c7604dcded0685c6e209e26",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/registry/pass/requires-order.records.json",
+      "sha256": "d762ca4285f69d96dbab37a04b99346544b687baec7627bc0169a828a5e6e033",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/schema/fail/edge-predicate-unknown.ia",
+      "sha256": "bcde307a2f408840790b6fa86d9ea9d4dcc0cd71e22fadecb5c6be06902b90f0",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/selectors/pass/all-axes-canonical-values.records.json",
+      "sha256": "57b0518f1440811fa9fe782478a87aa0fcc3e08e2539638f5a96a59470e7d31e",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/language/variants/pass/fallback-and-coordinate-families.records.json",
+      "sha256": "6449e45e744ab984662e8b419c88d8a08f2693730b90f4eb0a0038aa05f26440",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/fixtures/refusals.ts",
+      "sha256": "fe6064d9f8aa9a238b07175a5b057b6649594c25a9faf817d6f68863e49e0f07",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "bbc262b43b181ab6bed08f6ae3c3839fe66a42a30681e03cc454af3857621916",
+      "cohortOnly": true,
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/src/catalog.ts",
+      "sha256": "14ac531942057e15c03f63507e5cbd9ab6b89567469828ff1ceac747e58a1481",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/src/evidence.ts",
+      "sha256": "f8d37f101a52edf800e6d8eac5d305dad7942c0d22779e5a1a98c91ddd876c3c",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/src/graph-checks.ts",
+      "sha256": "2d66e13b90424b53f71d88648dfd533c2a75c98538f64b69c524c74569c6c6e9",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/src/index.ts",
+      "sha256": "afa8c9cf788ff88562fce97a9c6c756182cb01c0e3501afdcf0656ec0de482fa",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/src/obligations.ts",
+      "sha256": "4a9e24314c210934a8866b96878d9d23806dde8c2c3e41489fb87ef9c14e3825",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/src/schema.ts",
+      "sha256": "0b889398392ad045667b469306453c71045b377fd90d375bc73bd6471dd77aad",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/src/types.ts",
+      "sha256": "512514b59cc66b6cd4916e362c0058d010a4562e55b5a49d646efff4d9f701fd",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/tests/graph.test.ts",
+      "sha256": "8c9b1a5e2fb2e268da2aa6928f8fc1989ba85f3e0ab081607764e3cb7cb926db",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/compliance/tests/schema.test.ts",
+      "sha256": "5aa4b46b6485a264819a24ee5d8d049566481e0827067d51c2aab998ad178a91",
+      "change": "check-schema-implementation"
+    },
+    {
+      "path": "packages/db/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/README.md",
+      "sha256": "61a141981321ad31ea6b6dbfa031095432f33b707bb32d6415b6f1492112dec9",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/SPEC.md",
+      "sha256": "a5ccea67f3fe1366575bed413a3f909c04a1133fe08bc781cd729a8886d50886",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "73ca978ad14894eb4ad852da0a757b61bcfd84cd12554597b7a5239c309e4870",
+      "cohortOnly": true,
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/errors.ts",
+      "sha256": "b319c3637779dbab4646703fc1ccb3ba007ccfc5f8d9424c39c5168fbdeaed5b",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/handle.ts",
+      "sha256": "f259b06d029cc3a00cfc502ea0aa1497b5ed5c75002a0c0752b143e630fe5cfe",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/index.ts",
+      "sha256": "b89a92304b04bbdbd256a31bd97b007f7a1eb5a16169d36bf4f45b1a7b56bae0",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/inputs.ts",
+      "sha256": "73252b3dcc85715d96c475100cb0eb95c68e7473eb33f7307c772d0f76c4878f",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/json.ts",
+      "sha256": "37fdd5c51cca5f3be58367aeafda7ddd83aff6f4862e5e201ee54a2778357475",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/membership.ts",
+      "sha256": "1fe7ee3b0a209f7c6acf73d41c4f00f50454984cf3c869429c1334c38424b619",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/retention.ts",
+      "sha256": "8f261b67a23259838dec34e6f52148d4f37ffa76f08e63383c3ec82b7a5d9beb",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/seat.ts",
+      "sha256": "ae6328cd71498a578b14039b8f32994976c9364a0a2a3cbbdf915c617cae4ef8",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/src/view.ts",
+      "sha256": "2712d1e59cd42e546823778760c47671291736c6f99b54b5babc0c6cc90aa9ac",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/tests/descriptors.test.ts",
+      "sha256": "80b19f6c7b5d2f4ad54a4d2e9518aaa2d16671976c48d9f388da59d008fd2eff",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/tests/handle.test.ts",
+      "sha256": "aba3fc87838c8d20307d48f74e4373be5b3803eb33ba1f27bd992421565e1ae3",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/tests/membership.test.ts",
+      "sha256": "38cc218a0ceddfabcafb95c2916d7fec1fe2c0cf67f6b7a03d50564f393db08e",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/tests/retention.test.ts",
+      "sha256": "8d8f3318223998b415d518d583e84a578ef7c337b9cc36b1ac27ad5493914a3a",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/tests/scope.test.ts",
+      "sha256": "f23c208b5ac7ade6f67a6a1cc0f2fa86efecbd815eaca22168c31a81d0dd9dcd",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/tests/seat.test.ts",
+      "sha256": "c6e49dac90764cc9e8bfbcbd2354ad40455952cf2e9ea4f5f2a79d7af656d48f",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/tests/view.test.ts",
+      "sha256": "aafc0f0416951a8d19a5282e67fbe5a0ed652597cb091e74137d26e3f88dad20",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/db/tests/workspace-config.test.ts",
+      "sha256": "137b9372db3e6af612e019e9d00bbd1ed4bf1f6fdf51dcdded6578ff07b389ee",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/graph/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/README.md",
+      "sha256": "26379ca5a34ed79fe4802afad583fcc3163670835a8f9179c86f99f42210c0cb",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/SPEC.md",
+      "sha256": "48c8f588052ffbd1d876afa604bd70aa47a9959226bfd413b89377c5e04d4212",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "0cb2b944f4ca7c459bced5c64cbf2e77d14e0314e2630de2c0b9726e49b3e8df",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/src/claims.ts",
+      "sha256": "8d9fd9b3eea5180ef382a9af243acb2b0ce9628c5dd837f58c4064c3afad2076",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/src/codec.ts",
+      "sha256": "a42103ec60886b91b8f336e32e62b05aee9a7011e9c149ca3bf1be8abbf230bf",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/src/directed.ts",
+      "sha256": "29a68a6f7c057c037bdfde5bb1c17871cfc68f90a57c61346396c2f76275b9de",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/src/index.ts",
+      "sha256": "eb7f3d16028016ae0897e16fd5975d7047235aedc02d8d36906d73aa1f3d24d8",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/src/load.ts",
+      "sha256": "5b4a3421284c3a7aee9182a0fac484146480f18960dc2846e7f62fd7d90716ff",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/src/revision.ts",
+      "sha256": "1c4a814ae313317321d95386bb2a62423cf67d0397950f7ce2ecdb4930ff0b49",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/src/types.ts",
+      "sha256": "8756267dd3c7cb3cc59c99e62a544e8278e81cc5a4694882aa10808eca506775",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/tests/claims.test.ts",
+      "sha256": "fcb8241422b02cdc226f58966cda4279b018d748cb4e075ba5595a194589ff30",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/tests/codec.test.ts",
+      "sha256": "2137d8c34c64aa116f26f6450f2db3d91c03aff6a2dda85c6fe35b8cc0afc46e",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/tests/digest.test.ts",
+      "sha256": "7e6ccaaabd429e56f535f1da85576065534027409fcabce3f419b67c47917963",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/tests/directed.test.ts",
+      "sha256": "a32ece139b328203b64fa74588fc0aa0abd2f37589034820f5cd858087558133",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/graph/tests/load.test.ts",
+      "sha256": "d93c3ee1c36d350ffc7e699b0fa25a87d1a5137c9d861756d336cfa0d1b5119e",
+      "change": "codec-rehome"
+    },
+    {
+      "path": "packages/language/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/SPEC.md",
+      "sha256": "8abbabcf84efeae113714903ac99a943e2a2cef29d8e577ff472570c2502c581",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "717b5940a5a8c7822aadef459c6a9f67c27dc829a1dd13898e034767e322c7e0",
+      "cohortOnly": true,
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/compile/compile.ts",
+      "sha256": "547061f8a678aa2b1df70f71bdf93863eec50e13ba8ee03976f4ec4ed43ac1df",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/index.ts",
+      "sha256": "7b95f278e2d73f6278a482af8e9e32c7467fe0f9b7d2a4b0d51bfa6ac56ca596",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/kernel.generated.ts",
+      "sha256": "d33c6865d67777093aa28a5a367d58ef4818292d2d225f6bba52e254792b1e98",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/registry/consent.ts",
+      "sha256": "4ff54c7000a37d3670ffe59c8586d375fdd1c320ce759336d3e8647c86d3f30d",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/registry/extract.ts",
+      "sha256": "45f831995096d790feb6fc06bc1ec6b4ddb32c06c42bb4d89a17fb31659aaaa5",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/registry/fields.ts",
+      "sha256": "b1d279bded38c262b5cd7215fd0572daaf5e55b242dff579c0b0a753e565d310",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/registry/floor.ts",
+      "sha256": "7a6df028421125c3ddc894b72c05aa15bb557c5528e883782e25071fc5780f56",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/registry/index.ts",
+      "sha256": "eb69c8d85248d7fe8aac59bfab8a86d44162e58dc2d33be8892466aeee87aaaa",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/registry/merge.ts",
+      "sha256": "a6f8c3aeaf5878c556ede022cf47ec871c54cfb8efe6ee07c07a9b050d7118c0",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/registry/schemas.ts",
+      "sha256": "7e42d08bfe19e14f5d11c595d69f7fe7d28ebddd180ce02a9e45c77b5e8cce64",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/registry/types.ts",
+      "sha256": "bdcde6bade4e98e4977780b74abcf4b524780586027d4b15c6ea0c1b8f973479",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/semantic/edges.ts",
+      "sha256": "6b1129feb5f17c7e4889f309e63927db95e122bd2cc47be14ae4379c5db99643",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/semantic/types.ts",
+      "sha256": "51b6752a002036127c68b91815bb778aa369c3dff023e002547341605c053f93",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/src/taxonomy.ts",
+      "sha256": "5f504825f8090ce30cce7c3333c533e1132191a529e66238017d96fd621b5086",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/tests/compile/compile.test.ts",
+      "sha256": "73347ad8b26f6f4262ffd612a279069a6016566f39720f0c5ca84dfe2aa3d966",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/tests/registry/consent.test.ts",
+      "sha256": "cc72278b5c31aa2336c29373dcbe7e8eaf00e0e31489456af15f392eddb8ef17",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/tests/registry/lowering.test.ts",
+      "sha256": "775039a1d473670af1a026ac0e05f688530084423a420420c180c6c28ec63f6b",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/tests/registry/schemas.test.ts",
+      "sha256": "415192bcf7d909c51305519363928a941a45b1e18d1c26412af8e188d5b4a3cb",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/tests/semantic/cases.test.ts",
+      "sha256": "cb08555cc7c49d7c20c3690fe848c8ac1c6234d94244cf0a5c6e7d57ef74a419",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/tests/semantic/contracts.test.ts",
+      "sha256": "a8a51ffa3610331fff2cabef352e68cc2908c2feb88040a4a673ed08c1b77941",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/tests/semantic/edges.test.ts",
+      "sha256": "a2d42919a577aaf0ebcb0d1b81a403135e84195a9750abf2c00d2cbc45046fc2",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/language/tests/semantic/variants.test.ts",
+      "sha256": "875eae2f213ef3822492688c27b102e59ae52f9cd11f4e6f81da3249ba325d2b",
+      "change": "consent-any-adopter"
+    },
+    {
+      "path": "packages/runtime/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/README.md",
+      "sha256": "974ac20500c088cfa75d4520d57dc1950e3af60a5ab50db75046098ebf8bc3ef",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/SPEC.md",
+      "sha256": "e7fe94317b129d5cbcd90eaa97b82919c9161511a0a8a935c97c2cc69902fab6",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "63df411bb3abfd2b089fd2a17bf0201b9dc5e191fd2960bd83e200279a626514",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/src/door.ts",
+      "sha256": "abc57b9835391ef51ebc55bc8e0a587f5216163f258fe490b2f82f2b6db17575",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/src/editor/workspace.ts",
+      "sha256": "3a4ac3cdef5228e0cdde1cb2a79740bd2cf5e70b60e54bf6aede978a979bc5c7",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/src/errors.ts",
+      "sha256": "38d0ae6c0f85235b56842ad6b984db922bdadebb23b19c5ec92e077d50ca5e08",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/src/index.ts",
+      "sha256": "b140e03864f96968505eed4980b036e5da8c2361d934fc4839e6b6e3052e496b",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/src/locator.ts",
+      "sha256": "3cce3ab4e60bd8e846be62e9ecb2c15d4a84a8ce5a1b2c2183c4170123d5ad78",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/src/mandate-modes.ts",
+      "sha256": "6cedbec7a77f61a8a8e15344b73756ef0730d6af7aca728c1a0e5c0e6c855b7d",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/src/mentions.ts",
+      "sha256": "e3abd36b96669488e60389a5d3c14d96e1852cdca5dbaa04d914d2db0f445bc8",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/src/render.ts",
+      "sha256": "0dff946c9de6278bfae94b08eeb5dae6200b79c4950c671dc267464254a6b3d0",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/tests/editor.test.ts",
+      "sha256": "4859f3d2225fe0b2ad380012b4204a0706a0bf4f4eabfc4afac2208316d4f38a",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/tests/locator.test.ts",
+      "sha256": "b496ce78ae047855bd534068240652972d6ce81895f96d0de198ac6bd09ecc80",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/tests/mandate-modes.test.ts",
+      "sha256": "7a43e5bef973d241dc02f6b5292242cb9581ad72e983cbe3b3b466b7af59204d",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/runtime/tests/select-door.test.ts",
+      "sha256": "bd5847a72d9c99499109564d4b013369965c21dd11573f21518c923a8099d999",
+      "change": "edge-spelling"
+    },
+    {
+      "path": "packages/service-contracts/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "language-guide-copies"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "0c980798f6e8502b2e6f2c129129fa7ff295e77a4d6291a4beba5e4deac96d7c",
+      "cohortOnly": true,
+      "change": "language-guide-copies"
+    },
+    {
+      "path": "packages/workspace-runtime/LANGUAGE.md",
+      "sha256": "5661c221a26edbd6c2529dfa0b31d6ccddf3eca98b55a30897360c4e4234b909",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/NOTICE",
+      "sha256": "6e0c20ac50ad924c178e12f09e01c736b865d39e7543f15ebba05842b33d8a1d",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/README.md",
+      "sha256": "0ed2a8576df0e20e2b9ddf2ecba36b3315cde23e620e5edcae4de1b6e3d0dd4f",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/SPEC.md",
+      "sha256": "9b2e4d70f3d6892a55254312e31a3ff4e75290e3daf9944baa47a4480b348ff9",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "dcfb836ba2586f9db813946485d7cce23dc698fb1215d366d94bdbe97ab26cf8",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/adapters.ts",
+      "sha256": "8de6e0ba5ab669b62e46cbd6cac92cd7d7d8bd3e82890a700093c566b11da945",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/authoring-format.ts",
+      "sha256": "b0e62e21e93f50902e2337f095da11967f60c3c4caba8fb6c8ff05934d0f5978",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/authoring-index.ts",
+      "sha256": "b7332a9840e2c114e5b587177da94cdf526d2296546606d77f0a415c73d2e44c",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/authoring-manifest.ts",
+      "sha256": "d7773f2135e6a5c8e658dec48f302f3932abb4f61d4b9cce845e147dc32871c2",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/authoring-types.ts",
+      "sha256": "4c756a6afef8dd81fbd99174f83857cb2f6bdb6fbfaac5033182828e6e985ebc",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/authoring.ts",
+      "sha256": "3797057fe3349f5e7ef3d97b1e8d3964e557ae229e29ef017c8174c3f92d8367",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/candidate.ts",
+      "sha256": "2de8bb635d420b37ad9125a733f6ba7c9c6e440883ff673ee6013db5ecd09b3c",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/corpus.ts",
+      "sha256": "6dad31e8c1ba5f19a0780a9f8dfd27c3afc3ec2968d42d23e65e6d7f6ca2eae9",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/index.ts",
+      "sha256": "a31288d180598ddb58cd004abc395a9f8d72ed9643814e99b7d4816fd7a0f913",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/installed-catalog.ts",
+      "sha256": "9a7942b8a8f756ffcf0604d63910050ed33419bdaab79266d3840901d139a9a6",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/installed-source-policy.ts",
+      "sha256": "729a93978b85083e06f42a7f59fa37f7dbfb3f1d672c1795cdd934674dbfe9ba",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/lifecycle-profile.ts",
+      "sha256": "410a44c874f98d0168c392c8e457495a48bf7bdcb616d5ebf9d2e99f33f2ebb1",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/lifecycle-rows.ts",
+      "sha256": "c44e3a60918dc6cbd9006afff6f243756121bd6f5a0de7c2f353b22ad3e3344f",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/lifecycle-transport.ts",
+      "sha256": "932ceeaba87a1adc4ba4328f5041de2d0243257c06d1ea34d43d95ac2b34e137",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/lifecycle.ts",
+      "sha256": "71f297e5331e9ed8f712fd8f6677d0f2b4badcdf277094454c2cb97c20f975bb",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/local-store.ts",
+      "sha256": "5833a85cf5bbd6255c385a601d9ffb9b32fa14e355c3090cb6cc55759bb97dd6",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/projection-codex.ts",
+      "sha256": "bd32269274cac8052645d8334b0e63ad070e2aeb8fc3c99b1a2db7028ac34fa6",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/projection-format.ts",
+      "sha256": "965f6563ffc98c2e0bff1d1fc257284ce7db009a121bc04ca3a3cc6fc22102e7",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/projection-host.ts",
+      "sha256": "2fc21106900be7baf254ea21a8a663e0623cb1597599e38cfdbfb985764140a9",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/projection-routine.ts",
+      "sha256": "c4048ce9a5d1a7d03cc45372f7bd8b36fc2e7ed3df0062371fc7195b60e737dd",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/projections.ts",
+      "sha256": "3b3d7c4062707c5b740bcc3b817cf9a6ac17c41492f69cd839c44c4081dd6474",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/publication.ts",
+      "sha256": "746a795fc36590323e2244551e745845fff2035575aca7ebdaa5f578d25958ec",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/resource-context.ts",
+      "sha256": "99ae549d7b3947262d1451c7f12a951b45d514f566dc4a422d75268d58edfc1e",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/resource-files.ts",
+      "sha256": "78f35fbf262737884c9c488eb3d9f59194ba249413171f4ad3b5ceac4dcb31dc",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/resource-format.ts",
+      "sha256": "1709403bed4838e8ccff5d8533b53d7754e787841c0ffc36eee8b49afbe0793a",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/resource-sources.ts",
+      "sha256": "2429b9600fbcb641add0df2a917c47e178f7d9cb0594a31219dd42c7e05a5ceb",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/resources.ts",
+      "sha256": "6c5e44300ec9048cd203101cd717605c68b278479f6ef7254f1d59fe1c98a142",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/sources.ts",
+      "sha256": "3c32a2ca69b653fbd5144aa299989e5aad6f88a7bf7f5c5d3fbfed84d305397e",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/task-capture-format.ts",
+      "sha256": "b6e7c2453d21067220c54707dee87b61b9e770146a5658347cad74fb9dba7782",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/src/templates.ts",
+      "sha256": "161037d4015ad63a9c3ae3bd2339ed54a856c884cd6d0bae5a4160f720863a16",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/adapter-fixture.ts",
+      "sha256": "e494a3fe89dd2dc7d97f46ebd3e95ace0c7eecdcdbe92c96952f744ebc5c27d6",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/adapters.test.ts",
+      "sha256": "d954796d8835347b555c467bf936851afc87dbaeb6d1431c74923532fb73c0dd",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/authoring-base.test.ts",
+      "sha256": "1d7a83675eee2007e2527026f49b9c61cc0641d86927da6e83622c17cb95ac29",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/authoring-bytes.test.ts",
+      "sha256": "e92e2de5aa075e06fdc682313b88204dd4a16733478c09772517753439560124",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/authoring-fixture.ts",
+      "sha256": "9d58007a4c7cc19ac233b37276d709cf1908003d0cf26208cefda1dd9e0e325c",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/authoring-integrity.test.ts",
+      "sha256": "4883c88552c8ea1374ab03e9e366eac26a81df54e5b165be088fd40117e89bb6",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/authoring-lifecycle.test.ts",
+      "sha256": "199a481fa498cca91d5f55975a80503eef1a3d3a4cb638f77242dc39515cc866",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/authoring-shipped.test.ts",
+      "sha256": "ff06fac2cf5609bc0ed4159303f219bf762f87a8652e7e93c9aadffb8c4a47e9",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/authoring.test.ts",
+      "sha256": "b77bdd1bc1e352f77f82347bacad3192faf617c9bd2a6af3b0c65a12aafa0c1a",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/boundary.test.ts",
+      "sha256": "976c1fe208291d5e7999940443eb784e6cf76deb0f43d2556d1f170db7fdb94c",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/installed-catalog.test.ts",
+      "sha256": "3cacacc3714c7f568943ec4afc9b779fea633e8346cb3c445c2d44b77b09df27",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/installed-sources.test.ts",
+      "sha256": "9c12db0c91c581bbfdf9219ae954212e63e6956ad7301b5568680a0897ec187d",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
+      "sha256": "e7638bb528b365d4fd4695f3772f8b5a72b6914f4e8787a17e889bc683b97fe2",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/lifecycle-segments.test.ts",
+      "sha256": "3e45dfc284aa1b9d8668cd720314f4f0c367d634bd783e9778698c6cc8a9c16b",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/lifecycle.test.ts",
+      "sha256": "514c2ca5b53da15df4efa50847cf58f37bb6b510fb9b5bd11072a77cdd6afad2",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/local-store.test.ts",
+      "sha256": "5ac3c6d86f89fa495b0378ec5f1629456141500a2ebe1498ef66b0c7a17932b4",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/projections.test.ts",
+      "sha256": "918c5d4b3d1b04f2ab8c6cee7f2f71dae9ab3400ae4538dbbd8cb6681f9067b1",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/public-spec-fixture.d.mts",
+      "sha256": "4a61153bf54643ef07ccd84de85828f79531ef14d66394593bbf3a64b5d70133",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/public-spec-fixture.mjs",
+      "sha256": "7fdfc48bd5e481c8d1a1d8359e5e9c4307e2c7502164ad08e817810986fc8416",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/public-spec.test.ts",
+      "sha256": "3dadef9ceeea6ddd14964a6e783a500a057b528fcdc53a7c4df4247ef242359e",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/publication-fixture.ts",
+      "sha256": "8d9899479dc5712c967e74c8543457e858c2cd0e451553bc10afaee82b12395d",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/publication.test.ts",
+      "sha256": "58544a355f5574fee860c898e81f73c98966ab07c6637f15433efb5f07ffcc23",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/resource-context.test.ts",
+      "sha256": "39bde8d9e939830f0dee1e60d5b981bf31d3f3ea605ccab606b28c8551af4273",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/resources.test.ts",
+      "sha256": "df8b85fd1b370fea7dcec347a3969b06d83ffa4c473a059342a59bedafef167c",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/sources.test.ts",
+      "sha256": "c1dcc324999f79110df96c3b08be6e96a570cdf32955f843831eca18ee951b74",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/templates.test.ts",
+      "sha256": "64a3a80e70625f7067e0d58ff0acde71cecedd3b98af094c1eb0d524e7a2b941",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tsconfig.json",
+      "sha256": "43dbb8f769a061bf8a75deac8ef34bb9857ca86fd31cd73beddbc318da4fa4f9",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/tsconfig.tests.json",
+      "sha256": "4a87cfff5ddfd7af028de81dfde06bfba30ce58c2347eecc81a905d86dc43b6e",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "packages/workspace-runtime/vitest.config.mts",
+      "sha256": "575a8b940da494ea3b5f666c2eb90369e6ab6fa38d043265f3b42ea15e8c4d18",
+      "change": "json-string-scan"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "68bf14b848af9708a8b90fe767a022e3e9a3df31f9d44ade7e7bdfff97c173df",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "606f11fb79dd340fec6eca1e1ba28b66884a7bf7429d0d1425b7212697106765",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/compliance/check.test.ts",
+      "sha256": "26320a070cc6aec9481c63a6db5a9bb83bdd0f88126811e4c8e96052446a7280",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/compliance/check.ts",
+      "sha256": "e670349482757d5ab0f2b13cc18410bc731083c45eddeefd95c71ef76e8ce658",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/compliance/runtime-fixtures.ts",
+      "sha256": "5c774049f5bf2156356c1bfed231425fc271456c760d4e2cf0b6b4e7f3837038",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/dependencies/SPEC.md",
+      "sha256": "46fd4bfa2b37e9727debb02b3d849788db11ee4afb0e5207f3d72a9d0c897ff7",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/dependencies/check.test.ts",
+      "sha256": "7d733f520df408ccf4d2aca447c33dae20f2d5f68f1837c31e1d99b43f386898",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/dependencies/check.ts",
+      "sha256": "d05e0ec063a0e739a5b1efc851f6aaac945ecf93022847fc1d6843e6aa539137",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/NPM-PUBLISHING.md",
+      "sha256": "16991eef356e24e7d03302e56cff185c21a076ea3241fdb1da32afc1e01580f1",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/SPEC.md",
+      "sha256": "2aa461404367f8cef783ea5da434e5769a0d1295e030dd4a795492cf047e2660",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/generate-public.d.mts",
+      "sha256": "4049cb491f254839d98cabed4ab1a05acebef67aa4595fd10e334516b0ef261e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/generate-public.mjs",
+      "sha256": "84987cd92269177614d35024237926bab9999e5dee3d1f03711a2426ae81dbf6",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/language-guide.test.ts",
+      "sha256": "413aa45f1105317d2423c3eefab8d0f15b300efdf451548311fdf2bd63576622",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/npm-release.d.mts",
+      "sha256": "26f879e20b5d0526e99973d33974f46843197e252ac0f54741e3c573e9171711",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/npm-release.mjs",
+      "sha256": "031f42e80a72eab94bb88b62b3e59bc70e2659eae7b7ab6df1a14540e7e78393",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/npm-release.test.ts",
+      "sha256": "3b84f4c3504d33c539eed19c441d1f1fa13de0a1720fa90177a5f4b72c39a7b2",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/public-content-policy.json",
+      "sha256": "3465be804388cb2bb9bb213d96e738b281fb0f4d1a370d92516299dbd99175cd",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/qualify-public.mjs",
+      "sha256": "0d8a9f4acdc2b770aaa7f2e3e84726f867a32329c9ad2c7450a4c1e512c0b90b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-changes.d.mts",
+      "sha256": "f87683586b169ff9a023ba29801e0c9ca60207c50517213d156d4e53a564a9af",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-changes.mjs",
+      "sha256": "1b6d481a3a5b97fb892345b909bf26a58bcbc55f8c6e89c191975c79dd4e2fdc",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-hygiene.test.ts",
+      "sha256": "61e92893da14776d589b36bc4214b4605edf94d116b2658c39bc77b4ffe37878",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-notes.mjs",
+      "sha256": "7ce58ebdbf3e9e07218e9993db0abf80510263da2f034176e5d2845c9d7ee688",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-packages.d.mts",
+      "sha256": "f8139c555397c235cb73d27acb91973f1bc0511d470d654e0245fed63f4b2fdf",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-packages.mjs",
+      "sha256": "1f87e298ccdc4ce547307b89b00809b3ebbbe3c0619df1fa5b096edfe2e7249e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-refusals.test.ts",
+      "sha256": "c32bc53ba09b80b3d27b313aeabff768b039be22e9361b6491318f1c9e7ec943",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-version.mjs",
+      "sha256": "4e96e35d5846b7c6cb5ed9180acace8e700b1f1b87f794f82ac8f38d06019c7a",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/release-versioning.test.ts",
+      "sha256": "1a9b9292a933c01f3ba94bf85dad044184d4cbb276575c493f6a755d626b960b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/resources.mjs",
+      "sha256": "f1135615e9974e87781452d9bb98f9b80df2627e609ba2d072a3f1272e5b4c4b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "3bceb16ed2e2545c0a9a330691723244d8f221187e7a7fe8d72a5b35091c4185",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/native/check.test.ts",
+      "sha256": "183ba136f20b61802faa5cc72c546e24e89cd8010dff7c86fa4ed2f4e7c4fbad",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/native/fixture-instances.ts",
+      "sha256": "974dd0c6914a2153a0f4ca8bd7d4cf7242b9344952ce33e4d44af120f6a320e5",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/native/public-language.test.ts",
+      "sha256": "7f582bbe2d663c8a7736c3a40dc07c7ed6bd54e3fa7d54c035491582767a5b52",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/native/public-language.ts",
+      "sha256": "9bef3d700b1a55c3375fd978c2919a2c8983e6c0da761842eb5a50319ab41b11",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/native/public-vocabulary.ts",
+      "sha256": "deb85d119c31cbc295d9dac8aae63f9e12be14444b79721101f6561aa6e7b6cb",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/projections/SPEC.md",
+      "sha256": "55a614d83a79dd617bb650333f769d40a4f6161767d188c4df84a7e91c44bfee",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/projections/fixtures/compile-prose.mjs",
+      "sha256": "5fb56cc461eb60fd97770a8ebd9879981fd7436a132c6c59419ee14a80eb750f",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/projections/fixtures/link-walk.mjs",
+      "sha256": "722cacb0a42e8b6c99007fc5a8064d6ac9c99148b65a7d787404d74d238eed8b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/projections/generate.test.ts",
+      "sha256": "40ab417c0f04394d6543feeb66a3ccf181f0221dbb0f2717e326b220ce222abd",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/projections/generate.ts",
+      "sha256": "d7561596effeee759ec8ac3f46ec41e40c9c98175afc98a335cec46ff7cd7a17",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/projections/qualify-projections.mjs",
+      "sha256": "29ccd9d776d87f4460c2ed4fe698505048a9b5a3ce33ec5d97fe3243c2dbfd1d",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/projections/qualify-resources.mjs",
+      "sha256": "c8c347b2a672a5758761303d4c03af75846af97e3b6b7406158e77912424a69f",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/runtime/qualify-sdk.mjs",
+      "sha256": "e2d81388cb7b5701ae21f3d6e9c05f25e2a8613702701ed8c39f5e0bda0d056b",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/systems/authoring-guides.test.ts",
+      "sha256": "a57cd2592014a0dcec008740e6614bc8f112a6ae53cd4bf66e5b93ed2a911dcf",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/systems/authoring-manifest.test.ts",
+      "sha256": "f5217a8cfaaa62255dd4c55f137eb30827124d0d2938d9bc515b465c778503b2",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/systems/fixtures/native/.ia/src/systems/template-system/cases/render-captured-template-refusal.ia",
+      "sha256": "d736b2e5467514d746b2f4fb20b35a436f3f463959b2d50bbcee66474ec7ded8",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/systems/fixtures/native/.ia/src/systems/template-system/cases/render-captured-template-success.ia",
+      "sha256": "c04fcd35f21ee580e65dfc5a7c015cb03fe8c81e75d90e04116c30c4858ec964",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/systems/fixtures/native/.ia/src/systems/template-system/cases/render-captured-template-unpermitted.ia",
+      "sha256": "3fba32671b7f070bf87d5488b5a0899e048c2a81c1b1c8195800ed24f13dbce1",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/temp/physical-temp.test.ts",
+      "sha256": "fb05de1962eba5c18209d13d36e54afa4f06110a1f65fd6ffc5ff81206d31140",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/testing/inventory.test.ts",
+      "sha256": "a504ad625fef91672f62ef614dc99dcd41f8ffd9ec70f2c7132d7671c0a7057e",
+      "change": "authoring-guide-default-file"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "1c0bc74f82344a004ee6e7b52985b79acca976db01658d779981aa170928b991",
+      "change": "authoring-guide-default-file"
+    }
+  ]
+}
