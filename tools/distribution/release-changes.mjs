@@ -49,6 +49,41 @@ export function publishedCommit(root, version) {
     throw error;
   }
 }
+/**
+ * The npm names a released version's changeset lists at its commit, sorted; null when that commit carries no changeset
+ * or one that lists no packages, as before the first coordinated release.
+ */
+export function publishedCohort(root, baseline) {
+  const path = changesetPath(baseline.version);
+  if (!git(root, 'ls-tree', '--name-only', baseline.commit, '--', path)) return null;
+  const listed = Object.keys(JSON.parse(git(root, 'show', `${baseline.commit}:${path}`)).packages ?? {}).sort();
+  return listed.length ? listed : null;
+}
+/** The newest version whose changeset at `commit` lists `name`; null when none does. */
+function lastListed(root, commit, name) {
+  const versions = git(root, 'ls-tree', '--name-only', commit, '--', 'releases/changesets/')
+    .split('\n')
+    .filter((path) => path.endsWith('.json'))
+    .map((path) => JSON.parse(git(root, 'show', `${commit}:${path}`)))
+    .filter((entry) => entry.packages && Object.hasOwn(entry.packages, name))
+    .map((entry) => entry.version)
+    .sort(compareVersions);
+  return versions.at(-1) ?? null;
+}
+/**
+ * A package's published baseline, by npm name. A name in `cohort` was released at the baseline version wherever its
+ * directory is now. Any other name keeps the newest version an earlier changeset lists it at, as a package that returns
+ * after a release dropped it does, and a name no changeset lists is new. Without a cohort, the manifest at the same path
+ * decides and must name the same package.
+ */
+export function baselineVersion(root, baseline, cohort, { name, directory }) {
+  if (cohort) return cohort.includes(name) ? baseline.version : lastListed(root, baseline.commit, name);
+  const path = directory + '/package.json';
+  if (!git(root, 'ls-tree', '--name-only', baseline.commit, '--', path)) return null;
+  const prior = JSON.parse(git(root, 'show', `${baseline.commit}:${path}`));
+  assert.equal(prior.name, name, 'Package identity differs from published baseline');
+  return prior.version;
+}
 export function trackedChanges(root, policy, since = policy.baseline.commit) {
   const excluded = new Set(['.ia/public-package-inputs.json', 'CHANGELOG.md', changesetPath(policy.version)]);
   const files = git(root, 'diff', '--name-only', '--no-renames', since, '--')
@@ -232,21 +267,13 @@ export function releaseChanges(root, projects) {
     'Pending release notes are not part of this release; run pnpm release:version to fold them in',
   );
   validateChangeset(entry, policy, projects, trackedChanges(root, policy));
-  for (const project of projects) {
-    let previous = null;
-    const path = project.directory + '/package.json';
-    const exists = git(root, 'ls-tree', '--name-only', policy.baseline.commit, '--', path);
-    if (exists) {
-      const prior = JSON.parse(git(root, 'show', policy.baseline.commit + ':' + path));
-      assert.equal(prior.name, project.manifest.name, 'Package identity differs from published baseline');
-      previous = prior.version;
-    }
+  const released = publishedCohort(root, policy.baseline);
+  for (const { directory, manifest } of projects)
     assert.equal(
-      entry.packages[project.manifest.name].previous,
-      previous,
+      entry.packages[manifest.name].previous,
+      baselineVersion(root, policy.baseline, released, { name: manifest.name, directory }),
       'Changeset package baseline differs from source evidence',
     );
-  }
   assert.equal(
     readFileSync(resolve(root, 'CHANGELOG.md'), 'utf8'),
     renderChangelog(entries),

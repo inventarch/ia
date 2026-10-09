@@ -9,8 +9,10 @@ import { REGISTRY } from './npm-release.mjs';
 import {
   RELEASE_POLICY,
   SYSTEM_PACKAGE_POLICY,
+  baselineVersion,
   changesetPath,
   collectChanges,
+  publishedCohort,
   publishedCommit,
   releaseChanges,
   releaseNotes,
@@ -111,13 +113,20 @@ export async function versionRelease(root, projects, options = {}) {
     published = publishedCommit(root, policy.version);
   if (write) assert.equal(git(root, 'status', '--porcelain'), '', 'Commit or stash local changes before versioning');
   if (registry) {
-    const listed = await Promise.all(names.map((name) => registry(name, policy.version)));
-    if (published)
+    // A tag is complete when npm has every package its changeset lists, by npm name, wherever the package lives now and
+    // even after its removal. npm isn't asked about a name that changeset doesn't list: it joins with the next version.
+    // A tag without a changeset, or with one that lists no packages, falls back to every current package.
+    const checked = published
+      ? (publishedCohort(root, { commit: published, version: policy.version }) ?? names)
+      : names;
+    const listed = await Promise.all(checked.map((name) => registry(name, policy.version)));
+    if (published) {
+      const missing = checked.filter((_, index) => !listed[index]);
       assert.ok(
-        listed.every(Boolean),
-        `${releaseTag(policy.version)} exists but npm lacks part of the ${policy.version} cohort; finish that publication first`,
+        !missing.length,
+        `${releaseTag(policy.version)} exists but npm lacks part of the ${policy.version} cohort (${missing.join(', ')}); finish that publication first`,
       );
-    else
+    } else
       assert.ok(
         !listed.some(Boolean),
         `npm already has ${policy.version} but ${releaseTag(policy.version)} is missing; rerun the publish workflow's release job or tag the published commit`,
@@ -220,13 +229,11 @@ export async function versionRelease(root, projects, options = {}) {
         internal: true,
         paths: maintenancePaths(unclaimed),
       });
+    const released = publishedCohort(root, baseline);
     const packages = Object.fromEntries(
       names.map((name) => {
-        const manifest = directories.get(name) + '/package.json',
-          prior = existing?.packages[name],
-          previous = git(root, 'ls-tree', '--name-only', baseline.commit, '--', manifest)
-            ? JSON.parse(git(root, 'show', `${baseline.commit}:${manifest}`)).version
-            : null;
+        const prior = existing?.packages[name],
+          previous = baselineVersion(root, baseline, released, { name, directory: directories.get(name) });
         if (!named.has(name)) {
           const summary =
             prior?.kind === 'cohort'
