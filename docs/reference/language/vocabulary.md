@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `f76960635f9ddb5d2513bdd888d918aaeb4a239325b133f2d222f8c4e252156f`.
+This catalogue contains 44 words. Source digest: `8810e44b6cfd1256201c12427916b0cf03aaff5690b4b583f9868278f2620c09`.
 
 ## @agent
 
@@ -255,13 +255,13 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, check. Optional sections: relationships, governance.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| check.implementation | text | no |
-| check.runs | id | no |
-| check.scope | text | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| check.implementation | text | no | The evaluator that runs the check: a built-in or catalog evaluator id, the same value check.runs takes, and equal to it when both are stated. The \<id>@\<version> form of evidence.implementation is not accepted here. |
+| check.runs | id | no |  |
+| check.scope | text | yes |  |
 
 ## @contract
 
@@ -1139,5 +1139,5 @@ Required sections: meaning, composition. Optional sections: relationships.
 | meaning.says | text | yes |  |
 | meaning.answers | text | yes |  |
 | composition.systems | list of ref | yes |  |
-| composition.sources | list of text | no | A root and the placement it is captured at, spelled \<root> @\<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored. |
+| composition.sources | list of text | no | A root and the placement it is captured at, spelled \<root> @\<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored. Admission does not check this form; an entry spelled any other way declares no root. |
 | composition.steward | ref to agent | no |  |

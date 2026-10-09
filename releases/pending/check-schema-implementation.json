@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "`@check` may name its implementation",
-  "summary": "A `@check` may declare check.implementation beside check.runs; check.runs is no longer required when implementation is present. Validators read implementation, then runs; an unknown id is still refused at admission, and a check naming both with different values is refused.",
+  "summary": "A `@check` may declare check.implementation beside check.runs; check.runs is no longer required when implementation is present. Validators read implementation, then runs; an unknown id is still refused at admission, and a check naming both with different values is refused. The field description names its value form: the evaluator id check.runs takes, not the <id>@<version> form of evidence.implementation.",
   "packages": [
     "@inventarch/agent-composition-system",
     "@inventarch/authoring-system",

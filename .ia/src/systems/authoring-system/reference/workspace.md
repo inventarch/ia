@@ -15,7 +15,7 @@ Section relationships: optional.
 - meaning.says: text; required.
 - meaning.answers: text; required.
 - composition.systems: list of ref; required.
-- composition.sources: list of text; optional. — A root and the placement it is captured at, spelled <root> @<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored.
+- composition.sources: list of text; optional. — A root and the placement it is captured at, spelled <root> @<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored. Admission does not check this form; an entry spelled any other way declares no root.
 - composition.steward: ref to agent; optional.
 
 

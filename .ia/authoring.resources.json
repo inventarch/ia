@@ -171,8 +171,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/check.md",
-      "bytes": 895,
-      "sha256": "aeb6cbf80c872ed41376bfbde2b2b330688b79b7d5f4ae55cc136070bab3427d",
+      "bytes": 1114,
+      "sha256": "17d7a99c7bf5b07e7d70e89c9947c32786379317a525135309a3a8abe1d5be04",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -409,8 +409,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/workspace.md",
-      "bytes": 1251,
-      "sha256": "ef28812a700c5ebe26970f60744915ffadc6b4820d6e21c81bd1f82f8584ed22",
+      "bytes": 1336,
+      "sha256": "9e0aacb3d5ee4a735b648751cd590ad2bbc694f659df26e30372353a98fe8b6c",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
