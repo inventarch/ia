@@ -729,12 +729,8 @@ it.each(['claude', 'codex'] as const)('init --host %s --apply ends initialized a
     id: 'local/demo',
     host: { status: 'host-registered', observed: false },
   });
-  expect(envelope.applied.host.elements.map((row: { id: string }) => row.id)).toEqual([
-    'mcp',
-    'hooks',
-    'context',
-    'projection',
-  ]);
+  // Milestone position-packet (B11): ia host registers no steward guard, so the host step has no hooks element.
+  expect(envelope.applied.host.elements.map((row: { id: string }) => row.id)).toEqual(['mcp', 'context', 'projection']);
   expect(existsSync(resolve(root, '.ia/release.json'))).toBe(true);
   expect(existsSync(resolve(root, selected === 'claude' ? '.mcp.json' : '.codex/config.toml'))).toBe(true);
   // The host step is the `ia host` path itself: planning it again finds its MCP entry already in place.

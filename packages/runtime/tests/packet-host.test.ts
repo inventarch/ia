@@ -39,7 +39,7 @@ const CATALOG: readonly PacketCatalogRow[] = [
   { command: 'ia position', mode: 'read', move: 'Observation', refuses: 'an unadmitted seat', next: 'ia position' },
   { command: 'ia next', mode: 'read', move: 'Observation', refuses: 'several plans', next: 'ia next --seat <plan>' },
 ];
-/** The consumer skill as compliance's renderWorkspaceProjection writes it, its marker line aside (B10). */
+/** The consumer skill as compliance's retired renderWorkspaceProjection wrote it, its marker line aside (B10). */
 const consumerSkill = (revision: string): string =>
   `---\nname: ia-authoring\ndescription: Author or review IA records in this workspace.\n---\n\n${PACKET_MARKER}\n\nSource revision: ${revision}\n\nFind a word and its schema with \`ia vocabulary <word> --schema\`. Check records with \`ia validate\`. Inspect an admitted record with \`ia inspect <identity>\`. Validation establishes conformance to the declared schemas, not design quality.\n`;
 /**
@@ -199,13 +199,15 @@ it('renders each host and target its entry file and ia-authoring skills, never a
 });
 
 it("keeps each ia-authoring skill's text byte for byte, its marker line the new marker", () => {
-  // The repository's skills are the files this repository commits, the marker aside (which replace-renderers moves).
+  // The repository's skills are the files this repository commits, which `pnpm projections:generate` renders with
+  // this adapter since milestone position-packet task replace-renderers: the 1.x marker is gone from both.
   const own = packetOf(repository);
   for (const host of HOSTS)
-    for (const file of render(own, host, 'repository').files.slice(1))
-      expect(file.text, `${host} ${file.path}`).toBe(
-        readFileSync(resolve(repository, file.path), 'utf8').replace(LEGACY, PACKET_MARKER),
-      );
+    for (const file of render(own, host, 'repository').files.slice(1)) {
+      const committed = readFileSync(resolve(repository, file.path), 'utf8');
+      expect(file.text, `${host} ${file.path}`).toBe(committed);
+      expect(committed.split('\n'), `${host} ${file.path}`).not.toContain(LEGACY);
+    }
   // A consumer's skill names the packet's revision, as the consumer renderer named the admitted one.
   const fresh = packetOf(freshInit());
   for (const host of HOSTS)
@@ -373,7 +375,7 @@ it('renders a hand-built packet to exactly this text, every section and its mark
       '',
       '## Seat',
       '',
-      '- workspace undeclared; sources none; systems 0; participants none (no authored @mandate names an @agent)',
+      '- workspace undeclared; sources none; systems 0; participants none (no authored `@mandate` names an `@agent`)',
       '',
       '## Intent shapes',
       '',
@@ -394,6 +396,66 @@ it('renders a hand-built packet to exactly this text, every section and its mark
     ].join('\n'),
   );
   expect(entries(text)).toBe(entryCount(empty));
+});
+
+it('renders each bare IA word token in free text as a code span, the packet and its entries unchanged', () => {
+  const worded: PositionPacket = {
+    ...HAND,
+    participants: [
+      { identity: participant, says: 'Answers for @workspace and @plan owners; mail a@b.c; see @inventarch/db.' },
+    ],
+    commands: [{ ...HAND.commands[0]!, refuses: 'no @workspace; several @plan records' }],
+    lines: [
+      'author an @observation; quote `@spec` as authored',
+      'run `ia author @plan` first; see `scope [@workspace demo]`, ``x @plan @mandate y`` and @agent',
+      'a ` no run closes, then @plan',
+    ],
+  };
+  const before = JSON.stringify(worded),
+    /** A bare token outside every code span, as the adapter finds one: what GitHub would render as a mention. */
+    bare = (text: string): readonly string[] =>
+      text.replace(/(`+)[\s\S]*?(?<!`)\1(?!`)/g, '').match(/(?<![\w.\-/@`])@[a-z][a-z0-9-]*(?![\w\-/@])/g) ?? [];
+  for (const host of HOSTS)
+    for (const target of TARGETS) {
+      const { files, receipt } = renderHost(host, worded, digest(worded), NOTE, target),
+        text = files[0]!.text,
+        name = `${host} ${target}`;
+      expect(items(text, 'Participants'), name).toEqual([
+        '- `agent-system/binding/agent/acme`: Answers for `@workspace` and `@plan` owners; mail a@b.c; see @inventarch/db.',
+      ]);
+      expect(text, name).toContain('| `ia next` | read | Observation | no `@workspace`; several `@plan` records |');
+      // A token already in an authored code span stays as authored, wherever in the span it stands, and so does the
+      // span: wrapping a token after its first character would close the span early and leave the token bare.
+      expect(items(text, 'SPEC lines'), name).toEqual([
+        '- author an `@observation`; quote `@spec` as authored',
+        '- run `ia author @plan` first; see `scope [@workspace demo]`, ``x @plan @mandate y`` and `@agent`',
+        // A backtick no run closes is literal text, so the token's fence is longer than it, and never closes it.
+        '- a ` no run closes, then ``@plan``',
+      ]);
+      expect(bare(text), name).toEqual([]);
+      expect(entries(text), name).toBe(entryCount(worded));
+      expect(receipt.packetDigest, name).toBe(digest(worded));
+    }
+  expect(JSON.stringify(worded)).toBe(before);
+  // A token touching a backtick outside a span is left as authored: no fence could wrap it without joining that run.
+  const touching: PositionPacket = { ...HAND, lines: ['a stray `@plan'] };
+  expect(
+    items(renderHost('claude', touching, digest(touching), NOTE, 'repository').files[0]!.text, 'SPEC lines'),
+  ).toEqual(['- a stray `@plan']);
+  // The seat line's own text when no participant renders, and the receipt's null slug for a packet without one.
+  const empty: PositionPacket = {
+    ...HAND,
+    seat: { sources: [], systems: 0, participants: 'none (no authored @mandate names an @agent)' },
+    participants: [],
+    mandates: [],
+    provenance: { revision: HAND.revision },
+  };
+  const rendered = renderHost('claude', empty, digest(empty), NOTE, 'repository');
+  expect(bare(rendered.files[0]!.text)).toEqual([]);
+  expect(empty.seat.participants).toBe('none (no authored @mandate names an @agent)');
+  expect(rendered.receipt.slug).toBeNull();
+  // This repository's packet, the committed CLAUDE.md, names `@workspace` and `@plan` only in code spans.
+  for (const host of HOSTS) expect(bare(entryOf(packetOf(repository), host, 'repository')), host).toEqual([]);
 });
 
 it("prints the host note's key as ia position prints it, and pads a code span a backtick touches", () => {
@@ -430,8 +492,10 @@ it("returns a receipt whose file digests are the SHA-256 of each file's UTF-8 te
   expect(receipt).toEqual({
     format: 'ia.packet-receipt.v1',
     host: 'claude',
+    cli: null,
     adapter: `ia-claude@${version}`,
     revision: HAND.revision,
+    slug: 'acme',
     packetDigest: digest(HAND),
     bodyDigest: HAND.body,
     entries: 13,

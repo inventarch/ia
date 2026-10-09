@@ -33,9 +33,13 @@ for (const operation of ['validate-ia', 'format-ia']) {
 const base = resolve(root, 'packages/workspace-runtime/dist');
 const { openLocalAuthoringView } = await import(pathToFileURL(resolve(base, 'authoring-manifest.js')).href);
 const { resolveAuthoring, closeAuthoringView } = await import(pathToFileURL(resolve(base, 'authoring.js')).href);
-const { renderHostArtifacts } = await import(
-  pathToFileURL(resolve(root, 'packages/compliance/dist/projections.js')).href
+// The repository projection is the runtime's position packet, rendered by its claude adapter (milestone position-packet
+// task replace-renderers), with the command catalog the CLI tags.
+const { renderPacket } = await import(pathToFileURL(resolve(root, 'packages/runtime/dist/packet.js')).href);
+const { PACKET_MARKER, renderHost } = await import(
+  pathToFileURL(resolve(root, 'packages/runtime/dist/packet-host.js')).href
 );
+const { packetCatalog } = await import(pathToFileURL(resolve(root, 'apps/cli/dist/commands.js')).href);
 const vocabulary = JSON.parse(readFileSync(resolve(root, 'docs/reference/language/vocabulary.json'), 'utf8'));
 const resources = JSON.parse(readFileSync(resolve(root, '.ia/authoring.resources.json'), 'utf8'));
 const local = openLocalAuthoringView({
@@ -49,10 +53,17 @@ let view;
 try {
   const records = [...local.reader.inspect().graph.nodes.values()];
   assert.ok(records.length > 0);
-  const projected = renderHostArtifacts(records, local.reader.revision);
-  assert.equal(projected.assessment.outcome, 'pass');
-  assert.ok(projected.artifacts.length > 0);
-  assert.equal(renderHostArtifacts(records, '').assessment.outcome, 'fail');
+  const { packet, digest, hostNote } = renderPacket(local.reader, local.reader.resolveScope().token, packetCatalog());
+  const projected = renderHost('claude', packet, digest, hostNote, 'repository');
+  assert.deepEqual(
+    projected.files.map((file) => file.path),
+    ['CLAUDE.md', '.claude/skills/ia-authoring/SKILL.md', '.agents/skills/ia-authoring/SKILL.md'],
+  );
+  assert.ok(projected.files.every((file) => file.text.split('\n').includes(PACKET_MARKER)));
+  assert.equal(projected.receipt.packetDigest, digest);
+  assert.throws(() => renderHost('claude', packet, 'f'.repeat(64), hostNote, 'repository'), {
+    code: 'IA-RUNTIME-REQUEST-INVALID',
+  });
   view = resolveAuthoring(local.capture, local.resources, local.index, {
     reader: local.reader,
     within: local.within,
@@ -73,7 +84,7 @@ try {
     [],
   );
   console.log(
-    `Verified ${records.length} public records, ${view.guides.length} guides, ${view.systems.length} systems and ${projected.artifacts.length} host artifacts.`,
+    `Verified ${records.length} public records, ${view.guides.length} guides, ${view.systems.length} systems and ${projected.files.length} host artifacts.`,
   );
 } finally {
   if (view) closeAuthoringView(view);

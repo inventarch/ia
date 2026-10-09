@@ -13,7 +13,6 @@ import {
 } from '@inventarch/graph';
 import type { Graph, Node, RevisionSource } from '@inventarch/graph';
 import {
-  renderHostArtifacts,
   validateAdoption,
   validateCheck,
   validateCoverage,
@@ -399,7 +398,6 @@ export function runRefusalFixtures(
       },
     ],
     ['IA-COMP-NOT-EVALUATED', () => validateParse(undefined).findings],
-    ['IA-COMP-PROJECTION-INVALID', () => renderHostArtifacts(records, '').assessment.findings],
     [
       'IA-COMP-FIXTURE-MISMATCH',
       () =>

@@ -7,7 +7,7 @@ import { existsSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { rootedNext } from '../src/host.js';
 import { quote } from '../src/render.js';
-import { put, read, initialized, host, deadPid, HOST_LOCK, lockNext, doctor, row } from './host-fixture.js';
+import { put, read, initialized, host, deadPid, HOST_LOCK, lockNext, doctor, row, RECEIPT } from './host-fixture.js';
 import { afterAll, expect, it, vi } from 'vitest';
 import { cleanup } from './workspace-fixture.js';
 
@@ -29,30 +29,51 @@ async function hostContext(root: string, env: { IA_HOST_HOME: string }, ...extra
   };
 }
 type Raised = { code?: string; next?: string | null; where?: { path?: string } | null };
-async function cutAfterMcp(root: string, env: { IA_HOST_HOME: string }, cut: () => void): Promise<Raised> {
+/** Applies the planned set, running `cut` once the element `at` completes; the refusal raised, if any. */
+async function cutAfter(
+  root: string,
+  env: { IA_HOST_HOME: string },
+  at: 'mcp' | 'projection',
+  cut: () => void,
+  ...extra: string[]
+): Promise<Raised> {
   const { collectHost, applyHostSet } = await import('../src/host.js');
-  const context = await hostContext(root, env);
+  const context = await hostContext(root, env, ...extra);
   try {
     applyHostSet(collectHost(context), context.host.packageRoot, undefined, (id) => {
-      if (id === 'mcp') cut();
+      if (id === at) cut();
     });
   } catch (error) {
     return error as Raised;
   }
   return {};
 }
+const cutAfterMcp = (root: string, env: { IA_HOST_HOME: string }, cut: () => void): Promise<Raised> =>
+  cutAfter(root, env, 'mcp', cut);
 it('names the rerun after a failure past the first element, the lock recovery, or the recovery a pending journal needs', async () => {
-  // The settings file changes once mcp is written, so the guard's plan is stale: the rerun finishes the set.
+  // A removal runs projection, then mcp. .mcp.json changes once the projection is removed, so the mcp plan is stale:
+  // the rerun finishes the set.
   const { root, env } = await initialized();
-  const stale = await cutAfterMcp(root, env, () =>
-    put(root, '.claude/settings.local.json', '{\n  "permissions": {}\n}\n'),
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  const stale = await cutAfter(
+    root,
+    env,
+    'projection',
+    () => {
+      const mcp = JSON.parse(read(root, '.mcp.json'));
+      put(root, '.mcp.json', JSON.stringify({ ...mcp, note: 1 }, null, 2) + '\n');
+    },
+    '--remove',
   );
   expect(stale).toMatchObject({
     code: 'IA-DIST-PLAN-STALE',
-    next: rootedNext('Run "ia host claude --apply" to finish.', 'claude', root),
+    next: rootedNext('Run "ia host claude --remove --apply" to finish.', 'claude', root),
   });
+  expect((await host(root, env, 'claude', '--remove', '--apply', '--yes')).exitCode).toBe(0);
+  const kept = JSON.parse(read(root, '.mcp.json'));
+  expect(kept.note).toBe(1);
+  expect(kept.mcpServers?.['ia-workspace']).toBeUndefined();
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
-  expect(JSON.parse(read(root, '.claude/settings.local.json')).permissions).toEqual({});
   // Another transaction takes the host lock once mcp is written: the lock's recovery decides whether it is live.
   const lock = resolve(root, '.ia/distributions/hosts/lock.json');
   expect((await host(root, env, 'claude', '--remove', '--apply', '--yes')).exitCode).toBe(0);
@@ -150,14 +171,12 @@ it('reports each pending host journal as a failure naming its own recovery', asy
 it('converges byte for byte after an interruption at each apply and removal boundary', async () => {
   const { root, env } = await initialized();
   const { collectHost, applyHostSet } = await import('../src/host.js');
+  // The receipt records when it was written, so it is compared by presence, not bytes.
   const managed = [
     '.mcp.json',
-    '.claude/settings.local.json',
     '.claude/rules/ia-workspace.md',
     '.claude/skills/ia-authoring/SKILL.md',
-    '.claude/agents/demo-steward.md',
     '.ia/distributions/hosts/claude-workspace.json',
-    '.ia/distributions/hosts/claude-guard-workspace.json',
     '.ia/distributions/hosts/claude-projection.json',
   ];
   const snapshot = (): (string | null)[] =>
@@ -165,7 +184,7 @@ it('converges byte for byte after an interruption at each apply and removal boun
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
   const reference = snapshot();
   expect(reference.every((bytes) => bytes !== null)).toBe(true);
-  for (const cut of ['mcp', 'hooks'] as const) {
+  for (const cut of ['mcp'] as const) {
     expect((await host(root, env, 'claude', '--remove', '--apply', '--yes')).exitCode).toBe(0);
     const context = await hostContext(root, env);
     expect(() =>
@@ -174,8 +193,8 @@ it('converges byte for byte after an interruption at each apply and removal boun
       }),
     ).toThrow('interrupted');
     expect(existsSync(resolve(root, '.mcp.json')), cut).toBe(true);
-    expect(existsSync(resolve(root, '.claude/settings.local.json')), cut).toBe(cut === 'hooks');
     expect(existsSync(resolve(root, '.claude/rules/ia-workspace.md')), cut).toBe(false);
+    expect(existsSync(resolve(root, RECEIPT)), cut).toBe(false);
     // No journal is left at a boundary, so the rerun alone finishes the set.
     expect(
       readdirSync(resolve(root, '.ia/distributions/hosts')).filter(
@@ -185,6 +204,7 @@ it('converges byte for byte after an interruption at each apply and removal boun
     ).toEqual([]);
     expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode, cut).toBe(0);
     expect(snapshot(), cut).toEqual(reference);
+    expect(existsSync(resolve(root, RECEIPT)), cut).toBe(true);
     const report = await doctor(root, env);
     expect(row(report.checks, 'host-claude')?.status, cut).toBe('ok');
     expect(
@@ -192,8 +212,8 @@ it('converges byte for byte after an interruption at each apply and removal boun
       cut,
     ).toEqual([]);
   }
-  // Removal runs projection, hooks, mcp; cut after either of the first two, the rerun removes exactly the rest.
-  for (const cut of ['projection', 'hooks'] as const) {
+  // Removal runs projection, then mcp; cut after the first, the rerun removes exactly the rest.
+  for (const cut of ['projection'] as const) {
     const context = await hostContext(root, env, '--remove');
     expect(() =>
       applyHostSet(collectHost(context), context.host.packageRoot, undefined, (id) => {
@@ -203,6 +223,7 @@ it('converges byte for byte after an interruption at each apply and removal boun
     expect(existsSync(resolve(root, '.mcp.json')), cut).toBe(true);
     expect((await host(root, env, 'claude', '--remove', '--apply', '--yes')).exitCode, cut).toBe(0);
     expect(snapshot(), cut).toEqual(managed.map(() => null));
+    expect(existsSync(resolve(root, RECEIPT)), cut).toBe(false);
     expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode, cut).toBe(0);
     expect(snapshot(), cut).toEqual(reference);
   }

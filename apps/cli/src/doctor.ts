@@ -11,7 +11,9 @@
  * payload pin: `registered` is `ok` and its detail says "written; not observed answering", because doctor never
  * starts a server and a written registration is not a server that answered; `stale` is `fail`, so doctor exits 1
  * (REQ-HRC-5), and its detail names each reason and the repair that works for it; no host state at all is `info`.
- * Projection drift is one row per managed file. An installation that carries no host payload is a note, not a crash:
+ * Projection drift is read from the receipt the projection apply wrote (B12, milestone position-packet): one row per
+ * listed file that is missing or changed, one when the records render another packet, and one listing the legacy files
+ * it removed and the foreign ones it left. An installation that carries no host payload is a note, not a crash:
  * the release comparison is skipped and the row says so. Observation is total — a malformed state file is a `fail`
  * row, never an exception — and nothing here writes, the host home included. Repairs are worded by `ia host`'s own
  * `stateRepair` and `modifiedRepair`, so the two verbs cannot disagree, and every `ia host` command printed carries
@@ -41,7 +43,6 @@
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
 // `within` judges nesting on disk, so a home or cache spelled in another case or normalization is still where it is (#315).
 import { pathKey, within } from '@inventarch/db';
 import { decodeDistributionJson, INSTALL_PATHS } from '@inventarch/db/distribution';
@@ -49,11 +50,17 @@ import type { DistributionLock } from '@inventarch/db/distribution';
 import { verifyHostCache } from '@inventarch/distribution/host';
 import { hostPayloadPath, legacyHostHome } from '@inventarch/distribution/host-home';
 import { resolveIaHome } from '@inventarch/distribution/ia-home';
-import type { ProjectionDrift } from '@inventarch/distribution/projection';
 import { observeProjection } from '@inventarch/distribution/projection';
 import { registryChooser, registryLocation } from '@inventarch/distribution/registry';
 import type { HostObservation } from '@inventarch/distribution/services';
-import { readInstalledState, readWorkspaceLock, validateWorkspace } from '@inventarch/distribution/services';
+import {
+  readInstalledState,
+  readWorkspaceFile,
+  readWorkspaceLock,
+  sha256,
+  validateWorkspace,
+} from '@inventarch/distribution/services';
+import { PACKET_MARKER } from '@inventarch/runtime';
 import { brief } from './briefing.js';
 import type { BriefInput } from './briefing.js';
 import type { Channel } from './channel.js';
@@ -61,8 +68,8 @@ import type { Context, Result } from './consumer.js';
 import { discoverRoot, iaHomeOf } from './consumer.js';
 import { UNMAPPED } from './distribute.js';
 import { userRows } from './doctor-user.js';
-import type { Artifact, HostName } from './host-projection.js';
-import { renderProjectionFor } from './host-projection.js';
+import type { HostName } from './host-projection.js';
+import { readReceipt, renderProjectionFor } from './host-projection.js';
 import {
   HOST_LOCK,
   HOSTS_AREA,
@@ -387,7 +394,7 @@ function unreadableStates(observed: HostObservation): readonly string[] {
 
 /**
  * The repair a stale host needs before `ia host <host> --apply` can succeed, worded as `ia host` words it
- * (`stateRepair`, `modifiedRepair`), or '' when the remedy alone converges.
+ * (`stateRepair`, `modifiedRepair`, `projectionRepair`), or '' when the remedy alone converges.
  */
 function repairOf(root: string, observed: HostObservation): string {
   const host = observed.host,
@@ -412,7 +419,10 @@ function repairOf(root: string, observed: HostObservation): string {
     ...(observed.reasons.includes('mcp-modified') ? (['mcp'] as const) : []),
     ...(observed.reasons.includes('guard-modified') ? (['hooks'] as const) : []),
   ];
-  return modified.length === 0 ? '' : modifiedRepair(host, modified);
+  // B11: the remedy retires the guard, so a guard group changed by hand alone is deleted first, as `ia host` names it;
+  // an MCP entry changed by hand still needs the removal and a new registration.
+  if (modified.length === 0) return '';
+  return modified.includes('mcp') ? modifiedRepair(host, modified) : projectionRepair(host, SETTINGS, apply);
 }
 
 /** A stale host: each reason as a fact, then the repair that works first, where the remedy alone would refuse. */
@@ -428,9 +438,9 @@ function staleDetail(root: string, observed: HostObservation, pinned: Pinned): s
       case 'mcp-modified':
         return `${MCP_PATH[observed.host]} does not hold the ia-workspace entry ia host writes for this registration`;
       case 'guard-modified':
-        return `${SETTINGS} does not hold the IA guard group ia host writes for this registration`;
+        return `${SETTINGS} does not hold the IA guard group an earlier ia host wrote for this registration`;
       case 'guard-form':
-        return `${SETTINGS} holds the IA guard group in a form ia host no longer writes; re-applying rewrites it`;
+        return `${SETTINGS} holds the IA guard group in a form ia host no longer writes; re-applying retires it`;
       case 'node-missing':
         return 'the Node executable the registration runs no longer exists; the remedy records the running one';
       case 'guard-release':
@@ -461,94 +471,114 @@ function hostRow(root: string, observed: HostObservation, pinned: Pinned, comman
 }
 
 /**
- * Spec §7: one row per managed file that drifted. `changed` (a hand edit) and `unmanaged` (a file without the marker
- * where the projection writes) make apply refuse, so they fail and name the same repair `ia host` does; `missing`
- * and `outdated` are what the next apply rewrites; `unowned` is a marked file this workspace's state does not list.
+ * Spec §7 and B12: the projection rows for one host that owns a projection, read from the receipt
+ * `applyHostProjection` wrote. Each file it lists is compared with the disk: `missing` is what the next apply writes
+ * again, `changed` (a hand edit) makes apply refuse, so it fails and names the repair `ia host` does. The receipt's
+ * packet digest is compared with a fresh render: another packet is `outdated`. The legacy files it removed and the
+ * foreign files it left are listed in one info row and never checked. No receipt — a projection written by a 1.x
+ * release, or a receipt deleted — is `unknown`, and the remedy writes one. The ownership state and the files it lists
+ * are read as `ia host` reads them first, so a file apply would refuse to read is a fail row here too. Never throws: a
+ * failure to observe is itself a row.
  */
-function driftRow(
-  host: HostName,
-  drift: ProjectionDrift,
-  artifacts: readonly Artifact[] | null,
-  commands: Commands,
-): Check {
-  const id = `projection-${host}:${drift.path}`,
-    title = `Projection ${host}`,
-    apply = commands.apply(host),
-    unlisted = `${drift.path} unowned: marked but not listed in this workspace's projection state`;
-  switch (drift.drift) {
-    case 'changed':
-      return installation(
-        id,
-        title,
-        'fail',
-        `${drift.path} changed since ia host wrote it; move or delete it, then run the remedy`,
-        apply,
-      );
-    case 'unmanaged':
-      return installation(
-        id,
-        title,
-        'fail',
-        `${drift.path} unmanaged: it lacks the ia host marker where the projection writes; move or delete it, then run the remedy`,
-        apply,
-      );
-    case 'missing':
-      return installation(id, title, 'warn', `${drift.path} missing; the remedy writes it again`, apply);
-    case 'outdated':
-      return installation(
-        id,
-        title,
-        'warn',
-        `${drift.path} outdated: the current records render it differently`,
-        apply,
-      );
-    case 'unowned':
-      // A marked file the projection would write is adopted by the next apply; any other one ia host never touches.
-      if (artifacts === null) return installation(id, title, 'warn', unlisted, null);
-      return artifacts.some((artifact) => artifact.path === drift.path)
-        ? installation(id, title, 'warn', `${unlisted}; the remedy adopts it`, apply)
-        : installation(
-            id,
-            title,
-            'warn',
-            `${unlisted}; ia host leaves it untouched, so delete it if nothing uses it`,
-            null,
-          );
-  }
-}
-
-/** The projection rows for one host that owns a projection. Never throws: a failure to observe is itself a row. */
 function projectionRows(root: string, host: HostName, commands: Commands): readonly Check[] {
   const title = `Projection ${host}`,
-    checks: Check[] = [];
-  let artifacts: readonly Artifact[] | null = null;
+    checks: Check[] = [],
+    apply = commands.apply(host);
+  // A file the mechanism cannot read: the ownership state, a managed file, or the receipt, located at that file.
+  const unreadable = (error: unknown, fallback: string): Check => {
+    const path = refusedPath(error) ?? fallback,
+      repair = projectionRepair(host, path, `ia host ${host} --apply`, codeOf(error, ''));
+    const detail = commands.prose(host, `${path} cannot be read (${codeOf(error, 'an unexpected error')}). ${repair}`);
+    return installation(
+      path === STATE.projection(host) ? `projection-${host}` : `projection-${host}:${path}`,
+      title,
+      'fail',
+      detail,
+      apply,
+    );
+  };
   try {
-    artifacts = renderProjectionFor(root, host);
+    observeProjection({ root, host, artifacts: null, marker: PACKET_MARKER });
+  } catch (error) {
+    return [unreadable(error, STATE.projection(host))];
+  }
+  let receipt: ReturnType<typeof readReceipt>;
+  try {
+    receipt = readReceipt(root, host);
+  } catch (error) {
+    return [unreadable(error, STATE.receipt(host))];
+  }
+  if (receipt === null)
+    return [
+      installation(
+        `projection-${host}`,
+        title,
+        'unknown',
+        `No receipt at ${STATE.receipt(host)}: this projection was written before receipts, or its receipt was deleted; the remedy writes one`,
+        apply,
+      ),
+    ];
+  for (const file of receipt.files) {
+    const id = `projection-${host}:${file.path}`;
+    let digest: string | null;
+    try {
+      digest = existsSync(resolve(root, file.path)) ? sha256(readWorkspaceFile({ root, path: file.path })) : null;
+    } catch (error) {
+      checks.push(unreadable(error, file.path));
+      continue;
+    }
+    if (digest === null)
+      checks.push(installation(id, title, 'warn', `${file.path} missing; the remedy writes it again`, apply));
+    else if (digest !== file.sha256)
+      checks.push(
+        installation(
+          id,
+          title,
+          'fail',
+          `${file.path} changed since ia host wrote it; move or delete it, then run the remedy`,
+          apply,
+        ),
+      );
+  }
+  try {
+    const current = renderProjectionFor(root, host).receipt.packetDigest;
+    if (current !== receipt.packetDigest)
+      checks.push(
+        installation(
+          `projection-${host}-packet`,
+          title,
+          'warn',
+          `outdated: the current records render packet ${short(current)}; the receipt names ${short(receipt.packetDigest)}`,
+          apply,
+        ),
+      );
   } catch (error) {
     // Without a rendering, hand edits and missing files are still observed; only `outdated` cannot be.
     const why = codeOf(error, 'the projection could not be rendered');
-    const detail = `Not compared with the current records; ${why}`;
-    checks.push(installation(`projection-${host}-render`, title, 'unknown', detail, 'ia validate'));
-  }
-  try {
-    for (const drift of observeProjection({ root, host, artifacts, marker: WORKSPACE_PROJECTION_MARKER }))
-      checks.push(driftRow(host, drift, artifacts, commands));
-  } catch (error) {
-    // The mechanism locates the failure at the file it could not read: the ownership state, or a managed file.
-    const state = STATE.projection(host),
-      path = refusedPath(error) ?? state,
-      repair = projectionRepair(host, path, `ia host ${host} --apply`);
-    const detail = commands.prose(host, `${path} cannot be read (${codeOf(error, 'an unexpected error')}). ${repair}`);
     checks.push(
       installation(
-        path === state ? `projection-${host}` : `projection-${host}:${path}`,
+        `projection-${host}-render`,
         title,
-        'fail',
-        detail,
-        commands.apply(host),
+        'unknown',
+        `Not compared with the current records; ${why}`,
+        'ia validate',
       ),
     );
   }
+  const left = [
+    ...(receipt.removed.length === 0 ? [] : [`removed ${receipt.removed.map((file) => file.path).join(', ')}`]),
+    ...(receipt.foreign.length === 0 ? [] : [`foreign, left in place: ${receipt.foreign.join(', ')}`]),
+  ];
+  if (left.length > 0)
+    checks.push(
+      installation(
+        `projection-${host}-receipt`,
+        title,
+        'info',
+        `The last apply ${left.join('; ')}; listed, not checked`,
+        null,
+      ),
+    );
   return checks;
 }
 

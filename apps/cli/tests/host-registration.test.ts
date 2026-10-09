@@ -3,6 +3,7 @@
  * Shared setup lives in host-fixture.ts; every case owns a fresh workspace and IA home.
  * See docs/specs/host-registration/README.md §§4–10.
  */
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   linkSync,
@@ -10,39 +11,71 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  rmSync,
   statSync,
   symlinkSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
+import { PACKET_MARKER } from '@inventarch/runtime';
 import { runBounded } from '@tools/testing/subprocess.js';
-import { GUARD_SCOPE, MACHINE_LOCAL, rootedNext } from '../src/host.js';
+import { GUARD_RETIRED, GUARD_SCOPE, MACHINE_LOCAL, rootedNext } from '../src/host.js';
 import { quote } from '../src/render.js';
 import { cli, run, scratch } from './workspace-fixture.js';
-import { put, read, initialized, host, human, element } from './host-fixture.js';
+import {
+  put,
+  read,
+  initialized,
+  host,
+  human,
+  element,
+  GUARD_STATE,
+  guardGroups,
+  LEGACY_FILES,
+  LEGACY_MARKER,
+  legacyGuard,
+  legacyRegistration,
+  RECEIPT,
+  STEWARD,
+} from './host-fixture.js';
 import { afterAll, expect, it, vi } from 'vitest';
 import { cleanup } from './workspace-fixture.js';
 
 vi.setConfig({ testTimeout: 180_000 });
 afterAll(cleanup);
 
+/**
+ * A seam on apps/distribution's applyProjection, which writes and deletes every projection file, so a test can fail
+ * the first file change of a real `ia host` apply at its `pending` stage. Every call passes through.
+ */
+const seams = vi.hoisted(() => ({ failAt: undefined as string | undefined }));
+vi.mock('@inventarch/distribution/projection', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@inventarch/distribution/projection')>();
+  return {
+    ...actual,
+    applyProjection: (plan: Parameters<typeof actual.applyProjection>[0], checkpoint?: (name: string) => void) =>
+      actual.applyProjection(plan, (name) => {
+        if (name === seams.failAt) throw new Error('file write failed');
+        checkpoint?.(name);
+      }),
+  };
+});
+
 it('plans without writing, then registers a server that answers initialize', async () => {
   const { root, env } = await initialized();
   const planned = JSON.parse((await host(root, env, 'claude')).stdout);
   expect(planned).toMatchObject({ version: 1, command: 'host', root, host: 'claude', apply: false });
-  expect(planned.plan.elements.map((row: { id: string }) => row.id)).toEqual(['mcp', 'hooks', 'context', 'projection']);
-  expect(planned.plan.elements.map((row: { action: string }) => row.action)).toEqual([
-    'create',
-    'create',
-    'none',
-    'create',
-  ]);
+  // Milestone position-packet (B11): ia host registers no steward guard, so the plan has no hooks element.
+  expect(planned.plan.elements.map((row: { id: string }) => row.id)).toEqual(['mcp', 'context', 'projection']);
+  expect(planned.plan.elements.map((row: { action: string }) => row.action)).toEqual(['create', 'none', 'create']);
   expect(planned.plan.elements.map((row: { capability: string }) => row.capability)).toEqual([
-    'registered',
     'registered',
     'not selected',
     'registered',
   ]);
+  expect(element(planned, 'projection')).toMatchObject({
+    guard: 'none',
+    paths: ['.claude/rules/ia-workspace.md', '.claude/skills/ia-authoring/SKILL.md'],
+  });
   expect(planned.plan.elements.every((row: { conflict: unknown }) => row.conflict === null)).toBe(true);
   expect(planned.plan.undo).toBe('ia host claude --remove --apply');
   expect(planned.plan.release).toMatch(/^[a-f0-9]{64}$/);
@@ -58,41 +91,40 @@ it('plans without writing, then registers a server that answers initialize', asy
     status: 'host-registered',
     elements: [
       { id: 'mcp', status: 'host-active' },
-      { id: 'hooks', status: 'guard-registered' },
       { id: 'context', status: 'not selected' },
-      { id: 'projection', status: 'projected' },
+      { id: 'projection', status: 'projected', guard: 'none' },
     ],
     observed: false,
   });
   expect(existsSync(resolve(env.IA_HOST_HOME, 'hosts', envelope.plan.release, 'scripts/ia.mjs'))).toBe(true);
-  expect(read(root, '.claude/rules/ia-workspace.md').split('\n')).toContain(WORKSPACE_PROJECTION_MARKER);
-  expect(existsSync(resolve(root, '.claude/agents/demo-steward.md'))).toBe(true);
-  // Host plugin distribution spec §10 (amends M5.3 §6.2): a steward is now projected for every admitted non-floor
-  // system, authored or installed. The language base installs eleven systems (M5.3 §2.2, plus work-system since
-  // docs/specs/work-system/README.md §9.2) plus this workspace's own starter system ("demo"), so a fresh
-  // init yields 12 subagent files. Measured 2026-09-24 (11) and 2026-09-25 (12) with this test.
-  expect(readdirSync(resolve(root, '.claude/agents')).sort()).toEqual([
-    'demo-steward.md',
-    'public-agent-composition-system-steward.md',
-    'public-agent-system-steward.md',
-    'public-authoring-system-steward.md',
-    'public-compliance-system-steward.md',
-    'public-governance-system-steward.md',
-    'public-hook-authoring-system-steward.md',
-    'public-learning-system-steward.md',
-    'public-session-system-steward.md',
-    'public-template-system-steward.md',
-    'public-work-system-steward.md',
-    'public-workspace-system-steward.md',
-  ]);
-  const guard = JSON.parse(read(root, '.claude/settings.local.json')).hooks.PreToolUse;
-  expect(guard).toHaveLength(1);
-  // Spec §5.1: guard mode with the explicit root, never claude-guard's CLAUDE_PROJECT_DIR. POSIX runs it through /bin/sh,
-  // so that a guard that cannot run denies (#323); the launcher and its arguments close the argument vector either way.
-  const guardArgs = guard[0].hooks[0].args.slice(-4);
-  expect(guard[0].hooks[0].command).toBe(process.platform === 'win32' ? process.execPath : '/bin/sh');
-  expect(guardArgs.slice(1, 3)).toEqual(['guard', '--root']);
-  expect(realpathSync(guardArgs[3])).toBe(realpathSync(root));
+  // The position packet's consumer files, and no per-system agent: the stewards are pointer lines (design §4).
+  expect(read(root, '.claude/rules/ia-workspace.md').split('\n')).toContain(PACKET_MARKER);
+  expect(read(root, '.claude/rules/ia-workspace.md')).toContain('# IA position packet: demo');
+  expect(existsSync(resolve(root, '.claude/agents'))).toBe(false);
+  // No guard is registered (B11), so the settings file is not written at all.
+  expect(existsSync(resolve(root, '.claude/settings.local.json'))).toBe(false);
+  expect(existsSync(resolve(root, GUARD_STATE))).toBe(false);
+  // B12: the receipt beside the projection state names each file it wrote with the digest of its bytes.
+  const receipt = JSON.parse(read(root, RECEIPT)),
+    version = (JSON.parse(readFileSync(resolve(cli, 'package.json'), 'utf8')) as { version: string }).version;
+  expect(receipt).toMatchObject({
+    format: 'ia.packet-receipt.v1',
+    host: 'claude',
+    cli: `@inventarch/cli@${version}`,
+    slug: 'demo',
+    removed: [],
+    foreign: [],
+    guard: 'none',
+  });
+  expect(new Date(receipt.writtenAt).toISOString()).toBe(receipt.writtenAt);
+  expect(receipt.files).toEqual(
+    ['.claude/rules/ia-workspace.md', '.claude/skills/ia-authoring/SKILL.md'].map((path) => ({
+      path,
+      sha256: createHash('sha256')
+        .update(readFileSync(resolve(root, path)))
+        .digest('hex'),
+    })),
+  );
 
   // §10 item 1: the exact recorded argument vector answers MCP initialize. This is test evidence; ia host never
   // claims it, which is why `observed` above is false.
@@ -115,12 +147,7 @@ it('plans without writing, then registers a server that answers initialize', asy
 
   // A second apply converges: every element is unchanged and the payload is reused.
   const again = JSON.parse((await host(root, env, 'claude')).stdout);
-  expect(again.plan.elements.map((row: { action: string }) => row.action)).toEqual([
-    'unchanged',
-    'unchanged',
-    'none',
-    'unchanged',
-  ]);
+  expect(again.plan.elements.map((row: { action: string }) => row.action)).toEqual(['unchanged', 'none', 'unchanged']);
 });
 
 it('answers door records through the materialized launcher with the bytes ia records prints (§10 item 2)', async () => {
@@ -154,9 +181,9 @@ it('prints the machine-local sentence and never claims an observation', async ()
   expect(applied.exitCode, applied.stderr).toBe(0);
   expect(applied.stdout).toContain('written; not observed answering');
   expect(applied.stdout.replace(/\s+/g, ' ')).toContain(MACHINE_LOCAL.claude);
-  // Operator decision 2026-09-23: the guard's scope is disclosed wherever the hooks element is registered, and only there.
+  // Operator decision 2026-10-08 (B11): the guard's retirement is disclosed wherever Claude is registered, and only there.
   expect(GUARD_SCOPE).toBe(
-    "The steward guard denies file-tool edits to the files ia host owns and to records under .ia/src/systems/<name>/ unless the edit comes from that system's steward subagent (<name>-steward).",
+    'ia host registers no steward guard, and applying the projection retires one an earlier release registered: with no per-system steward subagents left, it would deny every edit under .ia/src/systems/<name>/. Until a later release re-keys the guard to @mandate scope, nothing blocks those edits.',
   );
   expect(preview.stdout.replace(/\s+/g, ' ')).toContain(GUARD_SCOPE);
   expect(applied.stdout.replace(/\s+/g, ' ')).toContain(GUARD_SCOPE);
@@ -195,29 +222,19 @@ it('preserves unrelated settings and CLAUDE.md byte for byte, then removes exact
   const release = JSON.parse(applied.stdout).plan.release;
   expect(read(root, '.mcp.json')).toContain('"other": {\r\n      "command": "x"\r\n    }');
   expect(read(root, '.mcp.json')).toContain('ia-workspace');
-  expect(read(root, '.claude/settings.local.json')).toContain('"allow": [\r\n      "Read"\r\n    ]');
-  expect(
-    JSON.parse(read(root, '.claude/settings.local.json')).hooks.PreToolUse.map(
-      (group: { matcher: string }) => group.matcher,
-    ),
-  ).toEqual(['Bash', 'Write|Edit|MultiEdit']);
+  // No guard group joins the user's own (B11): the settings file is not touched.
+  expect(read(root, '.claude/settings.local.json')).toBe(settings);
   expect(read(root, 'CLAUDE.md')).toBe('mine\r\n');
 
   const removed = await host(root, env, 'claude', '--remove', '--apply', '--yes');
   expect(removed.exitCode, removed.stdout).toBe(0);
   const envelope = JSON.parse(removed.stdout);
-  expect(envelope.plan.elements.map((row: { action: string }) => row.action)).toEqual([
-    'remove',
-    'remove',
-    'none',
-    'remove',
-  ]);
+  expect(envelope.plan.elements.map((row: { action: string }) => row.action)).toEqual(['remove', 'none', 'remove']);
   expect(envelope.applied).toEqual({
     status: 'host-removed',
     elements: [
-      { id: 'projection', status: 'projection-removed' },
+      { id: 'projection', status: 'projection-removed', guard: 'none' },
       { id: 'context', status: 'not selected' },
-      { id: 'hooks', status: 'guard-removed' },
       { id: 'mcp', status: 'host-removed' },
     ],
     observed: false,
@@ -225,12 +242,9 @@ it('preserves unrelated settings and CLAUDE.md byte for byte, then removes exact
   expect(read(root, '.mcp.json')).toBe(mcp);
   expect(read(root, '.claude/settings.local.json')).toBe(settings);
   expect(read(root, 'CLAUDE.md')).toBe('mine\r\n');
-  for (const path of [
-    '.claude/rules/ia-workspace.md',
-    '.claude/skills/ia-authoring/SKILL.md',
-    '.claude/agents/demo-steward.md',
-  ])
+  for (const path of ['.claude/rules/ia-workspace.md', '.claude/skills/ia-authoring/SKILL.md'])
     expect(existsSync(resolve(root, path)), path).toBe(false);
+  // The removal deletes the receipt too (B12), so the hosts area holds nothing but the lock file.
   expect(readdirSync(resolve(root, '.ia/distributions/hosts')).filter((name) => name !== 'lock.json')).toEqual([]);
   // §8: removal never touches the lock or the materialized payload.
   expect(readFileSync(resolve(root, '.ia/distributions.lock.json')).equals(lock)).toBe(true);
@@ -240,9 +254,8 @@ it('preserves unrelated settings and CLAUDE.md byte for byte, then removes exact
 
   // Removing what is not owned is a successful no-op.
   const empty = JSON.parse((await host(root, env, 'claude', '--remove', '--apply', '--yes')).stdout);
-  expect(empty.plan.elements.map((row: { action: string }) => row.action)).toEqual(['none', 'none', 'none', 'none']);
+  expect(empty.plan.elements.map((row: { action: string }) => row.action)).toEqual(['none', 'none', 'none']);
   expect(empty.plan.elements.map((row: { capability: string }) => row.capability)).toEqual([
-    'absent',
     'absent',
     'not selected',
     'absent',
@@ -250,7 +263,6 @@ it('preserves unrelated settings and CLAUDE.md byte for byte, then removes exact
   expect(empty.applied.elements.map((row: { status: string }) => row.status)).toEqual([
     'absent',
     'not selected',
-    'absent',
     'absent',
   ]);
 });
@@ -309,23 +321,28 @@ it('reports a malformed .mcp.json as a conflict naming the file, not a crash', a
   expect(read(root, '.mcp.json')).toBe('{ "mcpServers": ');
 });
 
-it('shows an unowned marked steward file in the plan without refusing it, and never touches it', async () => {
+it('lists a steward file the state does not own as foreign, marked or not, never refusing or touching it', async () => {
   const { root, env } = await initialized();
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
-  const stray = `---\nname: stray-steward\n---\n\n${WORKSPACE_PROJECTION_MARKER}\n\nFrom another clone.\n`;
+  const stray = `---\nname: stray-steward\n---\n\n${LEGACY_MARKER}\n\nFrom another clone.\n`,
+    mine = '---\nname: x\n---\n\nMy own reviewer.\n';
   put(root, '.claude/agents/stray-steward.md', stray);
+  put(root, '.claude/agents/x.md', mine);
   const planned = JSON.parse((await host(root, env, 'claude')).stdout);
   const projection = element(planned, 'projection');
   expect(projection.conflict).toBeNull();
   expect(projection.action).toBe('unchanged');
-  expect(projection.files).toContainEqual({ path: '.claude/agents/stray-steward.md', action: 'unowned' });
+  expect(projection.files).toContainEqual({ path: '.claude/agents/stray-steward.md', action: 'foreign' });
+  expect(projection.files).toContainEqual({ path: '.claude/agents/x.md', action: 'foreign' });
   expect(projection.paths).not.toContain('.claude/agents/stray-steward.md');
   const preview = await human(root, env, 'claude');
   expect(preview.stdout).toContain('.claude/agents/stray-steward.md');
-  expect(preview.stdout).toContain('unowned');
+  expect(preview.stdout).toContain('foreign');
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect(JSON.parse(read(root, RECEIPT)).foreign).toEqual(['.claude/agents/stray-steward.md', '.claude/agents/x.md']);
   expect((await host(root, env, 'claude', '--remove', '--apply', '--yes')).exitCode).toBe(0);
   expect(read(root, '.claude/agents/stray-steward.md')).toBe(stray);
+  expect(read(root, '.claude/agents/x.md')).toBe(mine);
 });
 
 it('writes codex rows only and reports hooks unsupported; --context is refused', async () => {
@@ -333,16 +350,16 @@ it('writes codex rows only and reports hooks unsupported; --context is refused',
   const applied = await host(root, env, 'codex', '--apply', '--yes');
   expect(applied.exitCode, applied.stdout).toBe(0);
   const envelope = JSON.parse(applied.stdout);
-  expect(element(envelope, 'hooks')).toMatchObject({ action: 'none', capability: 'unsupported by host', paths: [] });
+  expect(element(envelope, 'hooks')).toBeUndefined();
   expect(element(envelope, 'context')).toMatchObject({ action: 'none', capability: 'unsupported by host' });
   expect(envelope.applied.elements).toEqual([
     { id: 'mcp', status: 'host-active' },
-    { id: 'hooks', status: 'unsupported by host' },
     { id: 'context', status: 'unsupported by host' },
-    { id: 'projection', status: 'projected' },
+    { id: 'projection', status: 'projected', guard: 'none' },
   ]);
   expect(read(root, '.codex/config.toml')).toContain('ia-workspace');
-  expect(read(root, 'AGENTS.md').split('\n')).toContain(WORKSPACE_PROJECTION_MARKER);
+  expect(read(root, 'AGENTS.md').split('\n')).toContain(PACKET_MARKER);
+  expect(JSON.parse(read(root, '.ia/distributions/hosts/codex-receipt.json'))).toMatchObject({ host: 'codex' });
   expect(existsSync(resolve(root, '.agents/skills/ia-authoring/SKILL.md'))).toBe(true);
   for (const path of ['.mcp.json', '.claude']) expect(existsSync(resolve(root, path)), path).toBe(false);
   expect((await host(root, env, 'codex', '--context', 'x/y')).exitCode).toBe(2);
@@ -353,7 +370,11 @@ it('writes codex rows only and reports hooks unsupported; --context is refused',
   expect((await host(root, env, 'emacs')).exitCode).toBe(2);
   const removed = await host(root, env, 'codex', '--remove', '--apply', '--yes');
   expect(removed.exitCode, removed.stdout).toBe(0);
-  for (const path of ['AGENTS.md', '.agents/skills/ia-authoring/SKILL.md'])
+  for (const path of [
+    'AGENTS.md',
+    '.agents/skills/ia-authoring/SKILL.md',
+    '.ia/distributions/hosts/codex-receipt.json',
+  ])
     expect(existsSync(resolve(root, path)), path).toBe(false);
 });
 
@@ -509,23 +530,19 @@ it('names the restore remedy for a modified owned entry and removes one the user
       root,
     ),
   );
-  // The user deletes the owned entry and the owned guard group instead: removal takes only the ownership state.
+  // The user deletes the owned entry instead: removal takes only the ownership state.
   delete modified.mcpServers['ia-workspace'];
   const kept = JSON.stringify(modified, null, 2) + '\n';
   put(root, '.mcp.json', kept);
-  put(root, '.claude/settings.local.json', '{}\n');
   const removed = await host(root, env, 'claude', '--remove', '--apply', '--yes');
   expect(removed.exitCode, removed.stdout).toBe(0);
   expect(JSON.parse(removed.stdout).applied.elements).toEqual([
-    { id: 'projection', status: 'projection-removed' },
+    { id: 'projection', status: 'projection-removed', guard: 'none' },
     { id: 'context', status: 'not selected' },
-    { id: 'hooks', status: 'guard-removed' },
     { id: 'mcp', status: 'host-removed' },
   ]);
   expect(read(root, '.mcp.json')).toBe(kept);
-  expect(read(root, '.claude/settings.local.json')).toBe('{}\n');
   expect(existsSync(resolve(root, '.ia/distributions/hosts/claude-workspace.json'))).toBe(false);
-  expect(existsSync(resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json'))).toBe(false);
 });
 
 it('refuses an uninitialized root', async () => {
@@ -541,4 +558,166 @@ it('refuses an uninitialized root', async () => {
     // The root the refused invocation named, so the init it names targets the same directory.
     next: `Run "ia init ${quote(realpathSync(root))}" first.`,
   });
+});
+
+/**
+ * Milestone position-packet's upgrade path (plan amendments B9, B11 and B12): a workspace a 1.x `ia host claude --apply`
+ * registered — the steward guard's group in .claude/settings.local.json and its ownership state, and a projection state
+ * listing demo-steward.md with that marked file — upgrades in place through `ia host claude --apply`.
+ */
+const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
+it('upgrades a registered 1.x workspace: retires the guard, deletes the steward file, keeps a foreign one, writes the receipt', async () => {
+  const { root, env } = await initialized();
+  legacyRegistration(root, env);
+  expect(guardGroups(root)).toBe(1);
+  put(root, '.claude/agents/x.md', 'my own agent\n');
+  // The plan lists the retirement and each file action, and writes nothing.
+  const planned = JSON.parse((await host(root, env, 'claude')).stdout);
+  expect(element(planned, 'hooks')).toBeUndefined();
+  expect(element(planned, 'projection')).toMatchObject({
+    action: 'update',
+    guard: 'retire',
+    conflict: null,
+    files: [
+      { path: STEWARD, action: 'remove' },
+      { path: '.claude/agents/x.md', action: 'foreign' },
+      { path: '.claude/rules/ia-workspace.md', action: 'update' },
+      { path: '.claude/skills/ia-authoring/SKILL.md', action: 'update' },
+    ],
+  });
+  expect((await human(root, env, 'claude')).stdout.replace(/\s+/g, ' ')).toContain(
+    'first retires the steward guard registered in .claude/settings.local.json',
+  );
+  expect(guardGroups(root)).toBe(1);
+  expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+
+  const applied = await human(root, env, 'claude', '--apply', '--yes');
+  expect(applied.exitCode, applied.stderr).toBe(0);
+  // The result reports the retirement; the guard group and its state file are gone.
+  expect(applied.stdout.replace(/\s+/g, ' ')).toContain(GUARD_RETIRED);
+  expect(guardGroups(root)).toBe(0);
+  expect(existsSync(resolve(root, GUARD_STATE))).toBe(false);
+  // The owned 1.x steward file is deleted and the receipt lists it; the unmarked one is left and listed foreign.
+  expect(existsSync(resolve(root, STEWARD))).toBe(false);
+  expect(read(root, '.claude/agents/x.md')).toBe('my own agent\n');
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({
+    guard: 'retired',
+    removed: [{ path: STEWARD, sha256: sha(LEGACY_FILES[STEWARD]!) }],
+    foreign: ['.claude/agents/x.md'],
+  });
+  for (const path of ['.claude/rules/ia-workspace.md', '.claude/skills/ia-authoring/SKILL.md'])
+    expect(read(root, path).split('\n'), path).toContain(PACKET_MARKER);
+  // Converged: nothing is left to retire or delete, and the JSON report says so.
+  const again = await host(root, env, 'claude', '--apply', '--yes');
+  expect(JSON.parse(again.stdout).applied.elements).toContainEqual({
+    id: 'projection',
+    status: 'projected',
+    guard: 'none',
+  });
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({
+    guard: 'none',
+    removed: [],
+    foreign: ['.claude/agents/x.md'],
+  });
+});
+
+it('retires the guard before any projection file changes: a failing file write leaves it retired and the steward file in place', async () => {
+  const { root, env } = await initialized();
+  legacyRegistration(root, env);
+  // The first file change of `ia host claude --apply` fails; the guard retirement has already run.
+  seams.failAt = 'pending';
+  let failed: Awaited<ReturnType<typeof host>>;
+  try {
+    failed = await host(root, env, 'claude', '--apply', '--yes');
+  } finally {
+    seams.failAt = undefined;
+  }
+  expect(failed.exitCode, failed.stdout).toBe(3);
+  expect(JSON.parse(failed.stdout)).toMatchObject({
+    message: 'file write failed',
+    next: rootedNext('Run "ia host claude --apply" to finish.', 'claude', root),
+  });
+  expect(guardGroups(root)).toBe(0);
+  expect(existsSync(resolve(root, GUARD_STATE))).toBe(false);
+  expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+  expect(read(root, '.claude/rules/ia-workspace.md')).toBe(LEGACY_FILES['.claude/rules/ia-workspace.md']);
+  expect(existsSync(resolve(root, RECEIPT))).toBe(false);
+  // The rerun converges: nothing is left to retire, and the steward file goes now.
+  const rerun = await host(root, env, 'claude', '--apply', '--yes');
+  expect(rerun.exitCode, rerun.stdout).toBe(0);
+  expect(existsSync(resolve(root, STEWARD))).toBe(false);
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'none', removed: [{ path: STEWARD }] });
+});
+
+it('plans an update for a projection whose files are current when its receipt is missing or a guard is left to retire', async () => {
+  const { root, env } = await initialized();
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  const projection = async () => element(JSON.parse((await host(root, env, 'claude')).stdout), 'projection');
+  expect(await projection()).toMatchObject({ action: 'unchanged', guard: 'none' });
+  // Every apply writes the receipt (B12), so a missing one is a change though no file is.
+  rmSync(resolve(root, RECEIPT));
+  const missing = await projection();
+  expect(missing).toMatchObject({ action: 'update', guard: 'none' });
+  expect(missing.files.map((file: { action: string }) => file.action)).toEqual(['unchanged', 'unchanged']);
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'none' });
+  expect(await projection()).toMatchObject({ action: 'unchanged' });
+  // A retirement is a change (B11): a guard registration over current files plans an update, and the apply retires it.
+  legacyGuard(root, env);
+  expect(await projection()).toMatchObject({ action: 'update', guard: 'retire' });
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect(guardGroups(root)).toBe(0);
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'retired', removed: [] });
+  // A removal that finds only a receipt removes it.
+  expect((await host(root, env, 'claude', '--remove', '--apply', '--yes')).exitCode).toBe(0);
+  put(root, RECEIPT, '{}\n');
+  const removal = element(JSON.parse((await host(root, env, 'claude', '--remove')).stdout), 'projection');
+  expect(removal).toMatchObject({ action: 'remove', guard: 'none', paths: [] });
+});
+
+it('retires the guard on removal too, and removes the 1.x files the state owns', async () => {
+  const { root, env } = await initialized();
+  legacyRegistration(root, env);
+  put(root, '.claude/agents/x.md', 'my own agent\n');
+  const removed = await host(root, env, 'claude', '--remove', '--apply', '--yes');
+  expect(removed.exitCode, removed.stdout).toBe(0);
+  const envelope = JSON.parse(removed.stdout);
+  expect(element(envelope, 'projection')).toMatchObject({ action: 'remove', guard: 'retire' });
+  expect(envelope.applied.elements[0]).toEqual({ id: 'projection', status: 'projection-removed', guard: 'retired' });
+  expect(guardGroups(root)).toBe(0);
+  for (const path of [...Object.keys(LEGACY_FILES), GUARD_STATE, RECEIPT])
+    expect(existsSync(resolve(root, path)), path).toBe(false);
+  expect(read(root, '.claude/agents/x.md')).toBe('my own agent\n');
+});
+
+it('refuses a retirement it cannot plan at the settings file, naming the repair for a changed group or unreadable settings', async () => {
+  const { root, env } = await initialized();
+  legacyRegistration(root, env);
+  const settings = JSON.parse(read(root, '.claude/settings.local.json'));
+  settings.hooks.PreToolUse[0].timeout = 99;
+  put(root, '.claude/settings.local.json', JSON.stringify(settings, null, 2) + '\n');
+  expect(element(JSON.parse((await host(root, env, 'claude')).stdout), 'projection')).toMatchObject({
+    action: 'refused',
+    conflict: { code: 'IA-DIST-LOCAL-MODIFICATION', path: '.claude/settings.local.json' },
+  });
+  const changed = JSON.parse((await host(root, env, 'claude', '--apply', '--yes')).stdout);
+  expect(changed).toMatchObject({
+    code: 'IA-DIST-LOCAL-MODIFICATION',
+    where: { path: '.claude/settings.local.json' },
+    next: rootedNext(
+      'Delete the IA guard group in .claude/settings.local.json, then run "ia host claude --apply".',
+      'claude',
+      root,
+    ),
+  });
+  put(root, '.claude/settings.local.json', '{ not json\n');
+  const unreadable = JSON.parse((await host(root, env, 'claude', '--apply', '--yes')).stdout);
+  expect(unreadable).toMatchObject({
+    where: { path: '.claude/settings.local.json' },
+    next: rootedNext('Fix .claude/settings.local.json, then run "ia host claude --apply".', 'claude', root),
+  });
+  // Nothing changed: the steward file and the guard's state are where the 1.x registration left them.
+  expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+  expect(existsSync(resolve(root, GUARD_STATE))).toBe(true);
+  expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
 });

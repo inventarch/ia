@@ -15,8 +15,10 @@ import { freeze } from './types.js';
  * file for any host (design §4: the N system stewards are pointer lines, never agent definitions).
  *
  * The entry file holds the packet's sections in the packet's field order, one entry per list item or table body row,
- * then the provenance line; a host changes only the path, so the sections are byte-identical for both hosts. The one
- * `ia-authoring` skill per host stays (B10) with its text as the compliance renderers wrote it, its marker line aside.
+ * then the provenance line; a host changes only the path, so the sections are byte-identical for both hosts. Each bare
+ * IA word token in free text is a code span (markup only), so no committed or consumer file renders a GitHub mention.
+ * The one `ia-authoring` skill per host stays (B10) with its text as compliance's 1.x renderers wrote it, its marker
+ * line aside.
  */
 
 /** B9: the one marker the packet's files carry, first in an entry file and after a skill's YAML frontmatter. */
@@ -35,17 +37,21 @@ export interface HostFile {
 }
 /**
  * B12: the receipt of one render, which the caller that applies the files writes beside the projection state.
- * `renderHost` fills what the render decides and leaves `removed` and `foreign` empty, `guard` `none` and `writtenAt`
- * null; the caller that writes and deletes the files sets those four (milestone position-packet task
+ * `renderHost` fills what the render decides and leaves `removed` and `foreign` empty, `guard` `none`, and `cli` and
+ * `writtenAt` null; the caller that writes and deletes the files sets those five (milestone position-packet task
  * replace-renderers).
  */
 export interface PacketReceipt {
   readonly format: 'ia.packet-receipt.v1';
   readonly host: PacketHost;
+  /** The applying CLI's `<id>@<version>` (design item 12), which only that caller knows. */
+  readonly cli: string | null;
   /** `<adapter id>@<@inventarch/runtime version>`, `ia-claude@…` or `ia-codex@…`, in either target. */
   readonly adapter: string;
   /** The packet's revision. */
   readonly revision: string;
+  /** The packet's provenance slug, null when it has none (decision identity-namespace: the slug lives here). */
+  readonly slug: string | null;
   readonly packetDigest: string;
   /** The packet's `body`, the digest of body(K0). */
   readonly bodyDigest: string;
@@ -80,7 +86,7 @@ const VERSION: string = (
 const ADAPTERS: Readonly<Record<PacketHost, string>> = { claude: 'ia-claude', codex: 'ia-codex' };
 /**
  * The entry file and the `ia-authoring` skill paths each host renders per target. The repository target's are the
- * files this repository commits besides the steward agents (CLAUDE.md and both skills); codex's are the same in both.
+ * files this repository commits (CLAUDE.md and both skills, no steward agent); codex's are the same in both.
  */
 const PATHS: Readonly<
   Record<PacketHost, Readonly<Record<PacketTarget, { readonly entry: string; readonly skills: readonly string[] }>>>
@@ -99,8 +105,9 @@ const PATHS: Readonly<
 };
 const TARGETS: readonly PacketTarget[] = ['repository', 'consumer'];
 /**
- * The skill each target renders, the text compliance's two renderers wrote, the marker line aside: the repository's
- * (renderHostArtifacts) and a consumer workspace's (renderWorkspaceProjection), whichever host writes it.
+ * The skill each target renders, the text compliance's two 1.x renderers wrote, the marker line aside: the
+ * repository's (renderHostArtifacts) and a consumer workspace's (renderWorkspaceProjection), whichever host writes it.
+ * Milestone position-packet task replace-renderers retired both renderers.
  */
 const skill = (target: PacketTarget, revision: string): string =>
   target === 'repository'
@@ -117,8 +124,34 @@ function code(text: string): string {
     pad = one.startsWith('`') || one.endsWith('`') ? ' ' : '';
   return `${fence}${pad}${one}${pad}${fence}`;
 }
+/** An authored code span as CommonMark finds one: a whole backtick run, its text and the next run of the same length. */
+const SPAN = /(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g;
+/**
+ * A bare IA word token: `@` and a word as the language spells one, where no letter, digit, `_`, `.`, `-`, `/`, `@` or
+ * backtick comes before it and no word character, `-`, `/`, `@` or backtick after it. An address (`a@b.c`), a scoped
+ * package (`@inventarch/db`) and a token touching a backtick, which no fence could wrap without joining that run, are no
+ * such token.
+ */
+const TOKEN = /(?<![\w.\-/@`])@[a-z][a-z0-9-]*(?![\w\-/@`])/;
+/** An authored code span, matched first and kept as written, or else a bare IA word token. */
+const SPAN_OR_TOKEN = new RegExp(`${SPAN.source}|${TOKEN.source}`, 'g');
+/**
+ * Free text on one line, each bare IA word token outside its authored code spans a code span, so no rendered file
+ * shows `@workspace` or `@plan` as a GitHub mention. The token's fence is one backtick, or longer when the text holds a
+ * backtick run no span closes: that run is literal text, and a fence of its length would close it. Markup only (design
+ * §4): an authored span stays as written, a token in it included, and the packet's values and entries are unchanged.
+ */
+function prose(text: string): string {
+  const one = inline(text),
+    loose = new Set((one.replace(SPAN, '').match(/`+/g) ?? []).map((run) => run.length));
+  let fence = '`';
+  while (loose.has(fence.length)) fence += '`';
+  return one.replace(SPAN_OR_TOKEN, (match, open?: string) =>
+    open === undefined ? `${fence}${match}${fence}` : match,
+  );
+}
 /** A list's items, comma-separated, or `none`. */
-const list = (items: readonly string[], each: (item: string) => string = inline): string =>
+const list = (items: readonly string[], each: (item: string) => string = prose): string =>
   items.length === 0 ? 'none' : items.map(each).join(', ');
 /** One table row, each cell on one line with its pipes escaped (GFM escapes them inside code spans too). */
 const row = (cells: readonly string[]): string =>
@@ -155,13 +188,13 @@ function sections(packet: PositionPacket): readonly string[] {
       `sources ${list(seat.sources, code)}`,
       `systems ${seat.systems}`,
       ...(seat.steward === undefined ? [] : [`steward ${code(seat.steward)}`]),
-      ...(seat.participants === undefined ? [] : [`participants ${seat.participants}`]),
+      ...(seat.participants === undefined ? [] : [`participants ${prose(seat.participants)}`]),
     ].join('; ')}`,
   ]);
   section(
     'Participants',
     packet.participants.map(
-      ({ identity, says }) => `- ${code(identity)}${says === undefined ? '' : `: ${inline(says)}`}`,
+      ({ identity, says }) => `- ${code(identity)}${says === undefined ? '' : `: ${prose(says)}`}`,
     ),
   );
   section(
@@ -202,10 +235,10 @@ function sections(packet: PositionPacket): readonly string[] {
     table(
       ['shape', 'category', 'primitive', 'phase', 'kinds', 'lanes', 'predicates', 'priming', 'words'],
       packet.intents.map((intent) => [
-        intent.shape,
-        intent.category,
-        intent.primitive,
-        intent.phase,
+        prose(intent.shape),
+        prose(intent.category),
+        prose(intent.primitive),
+        prose(intent.phase),
         list(intent.kinds),
         list(intent.lanes),
         list(intent.predicates),
@@ -218,7 +251,7 @@ function sections(packet: PositionPacket): readonly string[] {
     'Phases',
     table(
       ['phase', 'primitives', 'what --phase changes'],
-      packet.phases.map((phase) => [phase.phase, list(phase.primitives), phase.changes]),
+      packet.phases.map((phase) => [prose(phase.phase), list(phase.primitives), prose(phase.changes)]),
     ),
   );
   section(
@@ -227,16 +260,16 @@ function sections(packet: PositionPacket): readonly string[] {
       ['command', 'mode', 'move', 'refuses', 'next'],
       packet.commands.map((command) => [
         code(command.command),
-        command.mode,
-        command.move,
-        command.refuses,
+        prose(command.mode),
+        prose(command.move),
+        prose(command.refuses),
         code(command.next),
       ]),
     ),
   );
   section(
     'SPEC lines',
-    packet.lines.map((line) => `- ${inline(line)}`),
+    packet.lines.map((line) => `- ${prose(line)}`),
   );
   return out;
 }
@@ -278,7 +311,7 @@ export function renderHost(
           '',
           `- freshness ${hostNote.freshness}`,
           `- installed ${hostNote.installed}`,
-          `- key ${keyText(hostNote.key)}`,
+          `- key ${prose(keyText(hostNote.key))}`,
         ]
       : []),
   ].join('\n');
@@ -289,8 +322,10 @@ export function renderHost(
   const receipt: PacketReceipt = {
     format: 'ia.packet-receipt.v1',
     host,
+    cli: null,
     adapter,
     revision: packet.revision,
+    slug: packet.provenance.slug ?? null,
     packetDigest,
     bodyDigest: packet.body,
     entries: entryCount(packet),

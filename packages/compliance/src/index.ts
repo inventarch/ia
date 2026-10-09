@@ -91,15 +91,5 @@ export { evaluate } from './report.js';
 export type { Report, ReportOptions } from './report.js';
 export { runLanguageFixture, fixtureCoverage } from './fixtures.js';
 export type { FixtureResult, LanguageFixture } from './fixtures.js';
-export {
-  renderHostArtifacts,
-  PROJECTION_MARKER,
-  LEGACY_STEWARD_TOOLS,
-  REQUIRE_STEWARD_PROFILES,
-  STEWARD_HOST_TABLE,
-} from './projections.js';
-export type { HostArtifact, HostArtifacts, ProjectionMembership, RenderOptions } from './projections.js';
-export { renderWorkspaceProjection, WORKSPACE_PROJECTION_MARKER } from './workspace-projection.js';
-export type { WorkspaceProjectionInput } from './workspace-projection.js';
 export { CLAUDE_MARKETPLACE, CLAUDE_PLUGIN, PLUGIN_MARKER, renderClaudePlugin } from './host-plugin.js';
 export type { ClaudePluginInput, PluginFile } from './host-plugin.js';

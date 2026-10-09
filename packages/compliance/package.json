@@ -50,10 +50,6 @@
       "types": "./dist/profiles.d.ts",
       "default": "./dist/profiles.js"
     },
-    "./internal/projections": {
-      "types": "./dist/projections.d.ts",
-      "default": "./dist/projections.js"
-    },
     "./internal/record-text": {
       "types": "./dist/record-text.d.ts",
       "default": "./dist/record-text.js"
@@ -74,10 +70,6 @@
       "types": "./dist/skill-routine.d.ts",
       "default": "./dist/skill-routine.js"
     },
-    "./internal/steward-profile": {
-      "types": "./dist/steward-profile.d.ts",
-      "default": "./dist/steward-profile.js"
-    },
     "./internal/systems": {
       "types": "./dist/systems.d.ts",
       "default": "./dist/systems.js"
@@ -93,10 +85,6 @@
     "./internal/variants": {
       "types": "./dist/variants.d.ts",
       "default": "./dist/variants.js"
-    },
-    "./internal/workspace-projection": {
-      "types": "./dist/workspace-projection.d.ts",
-      "default": "./dist/workspace-projection.js"
     }
   },
   "files": [
@@ -172,10 +160,6 @@
         "types": "./dist/profiles.d.ts",
         "default": "./dist/profiles.js"
       },
-      "./internal/projections": {
-        "types": "./dist/projections.d.ts",
-        "default": "./dist/projections.js"
-      },
       "./internal/record-text": {
         "types": "./dist/record-text.d.ts",
         "default": "./dist/record-text.js"
@@ -196,10 +180,6 @@
         "types": "./dist/skill-routine.d.ts",
         "default": "./dist/skill-routine.js"
       },
-      "./internal/steward-profile": {
-        "types": "./dist/steward-profile.d.ts",
-        "default": "./dist/steward-profile.js"
-      },
       "./internal/systems": {
         "types": "./dist/systems.d.ts",
         "default": "./dist/systems.js"
@@ -215,10 +195,6 @@
       "./internal/variants": {
         "types": "./dist/variants.d.ts",
         "default": "./dist/variants.js"
-      },
-      "./internal/workspace-projection": {
-        "types": "./dist/workspace-projection.d.ts",
-        "default": "./dist/workspace-projection.js"
       }
     },
     "access": "public",
