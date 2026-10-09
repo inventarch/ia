@@ -213,6 +213,13 @@ it('refuses an unreachable locator, a path escape and a link with the record to 
   await refused('absent-spec', 'docs/absent.md', /docs\/absent\.md, cannot be read: Missing input docs\/absent\.md$/);
   await refused('escaping-spec', null, /\.\.\/outside\.md, is outside the workspace$/);
   await refused('linked-spec', 'linked/located.md', /cannot be read: Link\/junction is not allowed/);
+  // A file the locator names is restored or the locator corrected; a path outside the workspace names no file to restore.
+  expect((await read(root, 'work-system/contract/spec/absent-spec', 3)).next).toBe(
+    `Restore docs/absent.md or correct the record's locator, which "ia inspect work-system/contract/spec/absent-spec ${rooted}" locates at its source line.`,
+  );
+  expect((await read(root, 'work-system/contract/spec/escaping-spec', 3)).next).toBe(
+    `Correct the record's locator, which "ia inspect work-system/contract/spec/escaping-spec ${rooted}" locates at its source line.`,
+  );
   // The named command runs: it shows the record whose locator needs the repair.
   const inspect = await run(nextArgv((await read(root, 'work-system/contract/spec/absent-spec', 3)).next));
   expect(inspect.exitCode).toBe(0);

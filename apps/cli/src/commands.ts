@@ -147,7 +147,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     // the alias of decision compile-verb-fate waits for 2.0.
     name: 'compile',
     group: 'workspace',
-    summary: 'Write a deterministic compiled artifact (deprecated: use ia capture)',
+    // Short enough that its global help row fits 80 columns, so no wrapped fragment reads as a command name.
+    summary: 'Write a deterministic compiled artifact (deprecated: use capture)',
     syntax: ['ia compile [--out <file> | --stdout] [--force] [--json]'],
     grammar: grammar([
       option({

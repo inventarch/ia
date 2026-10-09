@@ -387,7 +387,7 @@ it('lists typed field references in the asked direction of inspect, apart from t
 
   const human = await run(['inspect', identity, '--root', fixture, '--edges', 'in']);
   expect(human.stdout).toMatch(
-    /Field references\n.*head\.steward\s+floor\/definition\/system\/agent-system\s+in, derived,\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
+    /Field references\n.*head\.steward\s+floor\/definition\/system\/agent-system *\n\s+in, derived,\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
   );
   const out = (await run(['inspect', identity, '--root', fixture])).stdout;
   expect(out).not.toContain('head.steward');
@@ -425,7 +425,7 @@ it('lists typed field references in the asked direction of inspect, apart from t
     expect.objectContaining({ direction: 'in', field: 'composition.systems' }),
   ]);
   expect((await run(['inspect', holder, '--root', fixture])).stdout).toMatch(
-    /Field references\n.*head\.steward\s+agent-system\/binding\/agent\/agent-steward\s+out, derived,\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
+    /Field references\n.*head\.steward\s+agent-system\/binding\/agent\/agent-steward *\n\s+out, derived,\s+\.ia\/src\/systems\/agent-system\/system\.ia:7/,
   );
   expect((await run(['inspect', holder, '--root', fixture, '--edges', 'in'])).stdout).not.toContain('head.steward');
 

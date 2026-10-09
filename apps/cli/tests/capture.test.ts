@@ -36,6 +36,7 @@ import {
   WRITE_REPAIRABLE,
   writeRepair,
 } from '../src/capture.js';
+import { COMMANDS } from '../src/commands.js';
 import { DEFAULT_OUT, DEPRECATION } from '../src/compile.js';
 import { quote } from '../src/render.js';
 import { cleanup, commandsIn, nextArgv, repository, run, scratch, workspace } from './workspace-fixture.js';
@@ -773,13 +774,21 @@ it('refuses a file where the snapshot directory or .ia/work belongs, writing not
 });
 
 it('lists ia capture in the help, and ia compile as the deprecated 1.x verb with its 1.x syntax', async () => {
-  expect((await run(['--help'])).stdout).toContain('capture');
+  const global = (await run(['--help'])).stdout;
+  expect(global).toContain('capture');
+  // Every command row fits the 80 columns piped help is rendered at, so no wrapped fragment reads as a command name.
+  const lines = global.split('\n');
+  for (const command of COMMANDS)
+    expect(
+      lines.some((line) => line.trimStart().startsWith(`${command.name} `) && line.endsWith(command.summary)),
+      command.name,
+    ).toBe(true);
   const help = await run(['capture', '--help']);
   expect(help.stdout).toContain('ia capture [--json]');
   // Decision release-bump: `ia compile` keeps its 1.x grammar; the alias of decision compile-verb-fate waits for 2.0.
   const compile = await run(['compile', '--help']);
   expect(compile.stdout).toContain('ia compile [--out <file> | --stdout] [--force] [--json]');
-  expect(flat(compile.stdout)).toContain('deprecated: use ia capture');
+  expect(flat(compile.stdout)).toContain('deprecated: use capture');
 });
 
 it("keeps ia compile and ia capture apart: neither writes the other one's file", async () => {
