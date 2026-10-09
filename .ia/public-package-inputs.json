@@ -2360,7 +2360,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "32f514217376800da367dea2654f11a7fe86d8f475052298d30189b03eed5329"
+      "sha256": "a4ff8a9cb92b7dbb976c21a7aad1d710e9a7cc958765dd4202b0514b4f5144b5"
     },
     {
       "path": "CLAUDE.md",
@@ -2412,11 +2412,11 @@
     },
     {
       "path": "apps/cli/README.md",
-      "sha256": "f5e9a216d74e0f42698388c55cc4ae28b338c08d7539eff2389ad3baf1052ce1"
+      "sha256": "9c3caddf30568bf4b1fbbee7f1f246aa8cca6503c8355a2ccd8b94131dd6f550"
     },
     {
       "path": "apps/cli/SPEC.md",
-      "sha256": "36decd67ba7794bad33e0dfe78fd80aebb79fb46e7758e16a9a46e90ac106ca6"
+      "sha256": "a642560569e1822ea3815d58f7547432cde6e4d79b06044067640f6bbc49fe28"
     },
     {
       "path": "apps/cli/assets/vocabulary.json",
@@ -2708,7 +2708,7 @@
     },
     {
       "path": "apps/distribution/references/system-package.md",
-      "sha256": "ceae2ce5515a14e6f314cfd06f6247093a589ac942ded0f44a8576695fb46a5b"
+      "sha256": "91cf137df01856014c36f72f1c7934a6159ded0acca35bac5f4dae8c58931ac5"
     },
     {
       "path": "apps/distribution/src/acquire.ts",
@@ -5784,7 +5784,7 @@
     },
     {
       "path": "packages/compliance/tests/graph.test.ts",
-      "sha256": "99bd8ea809a00aa751ac9bb52b7dab1b6d7afdd0b47f153e8c47517b91f21a74"
+      "sha256": "942199346f06841903f98c19e1652124f69c56e61ec81e746fee0bb10c8a7ffc"
     },
     {
       "path": "packages/compliance/tests/host-plugin-node.test.ts",
@@ -7204,7 +7204,7 @@
     },
     {
       "path": "releases/changesets/1.2.0.json",
-      "sha256": "354d33b0c7d07a27393f16aacc316651828c920e6a8a6f5eed5c96fc4f783855"
+      "sha256": "c8241795c98f7fcf1f789af90dc7614298922fbf5d020d62f8778490366c2a5b"
     },
     {
       "path": "releases/current.json",
@@ -7949,10 +7949,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "7127df639414d1e05ae61bbd545a15e6c8cb9d92",
-    "baseTree": "5ebc36bdaaabd0133dd59ccee2a2ae3e24ed0148",
+    "baseCommit": "a7fc7331e47640bd4e9591067153411429bb9f8c",
+    "baseTree": "5406584cdfd6ce5dfc971c4785d096c99f5f6d4e",
     "dirty": true,
-    "inputDigest": "a2cb9682b1d89dd84ca7c4de905916a3d04edf4bff16d03e2fc555a86b0561c9",
+    "inputDigest": "887625d69ec1f386f5d8575f55e6236a9f3d7b2f0f50b63d76186ec18b00b850",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.2.0",
       ".ia/src/systems/agent-system/package.json": "1.2.0",

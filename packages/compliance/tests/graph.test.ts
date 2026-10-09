@@ -373,6 +373,25 @@ describe('graph schema obligations', () => {
       findings: [],
     });
   });
+  it('leaves the rule available on a record that a refused edge from a counted kind does not name', () => {
+    // The source's refused citation names `target` only; `bystander` is the same kind and nothing cites it.
+    const named = {
+      path: 'named.ia',
+      text: '#! ia 1.0\n@playbook source\n  relationships\n    cites @playbook target\n@playbook target\n@playbook bystander\n',
+      location,
+    };
+    const asserted = compile(parse(named.text, named.path).ast, registry, location, []).records;
+    const consent = new Map(registry.consent);
+    consent.set('governance-system', []);
+    const node = (graph: ReturnType<typeof graphOf>, name: string) =>
+      graph.nodes.get(`governance-system/definition/procedure/${name}`)!;
+    const fromPlaybook: SchemaEdge = { ...rule, direction: 'in', spelling: 'cited-by', must: false };
+    const graph = graphOf(asserted, fromPlaybook, { ...registry, consent }, [named]);
+    expect(graph.edges).toEqual([]);
+    expect(validateGraphSchema(node(graph, 'target'), graph).outcome).toBe('not-evaluated');
+    // Were the pre-check to skip which record the edge names, every playbook would lose the rule.
+    expect(validateGraphSchema(node(graph, 'bystander'), graph)).toMatchObject({ outcome: 'pass', findings: [] });
+  });
   it('resolves a `ref to` field against the admitted graph and only warns when the target is absent', () => {
     const typed = {
       path: 'typed.ia',

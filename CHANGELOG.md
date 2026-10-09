@@ -140,7 +140,7 @@ Packages: `@inventarch/agent-composition-system`, `@inventarch/workspace-runtime
 
 ### Work records state partial supersession and identity ownership
 
-A `@decision` may carry effective-revision; a `@spec` may carry covers and replaced-scope and may be grounded by a decision; a `@task` may carry action, expected-artifact, exit-evidence (ref to observation) and owner-agent (ref to agent) beside its text owner. The work-system example shows a partially superseded spec. A workspace on the 1.2.0 language base, which includes every workspace created with this release, needs ia 1.2.0 or later to read it: 1.1.x refuses the `@spec` rule `may grounded-by decision one` with IA-LANG-PREDICATE-UNKNOWN.
+A `@decision` may carry effective-revision; a `@spec` may carry covers and replaced-scope and may be grounded by a decision; a `@task` may carry action, expected-artifact, exit-evidence (ref to observation) and owner-agent (ref to agent) beside its text owner. The work-system example shows a partially superseded spec. A workspace on the 1.2.0 language base, which includes every workspace created with this release, needs ia 1.2.0 or later to read it. With 1.1.x, `ia validate` refuses the `@spec` rule `may grounded-by decision one` with IA-LANG-PREDICATE-UNKNOWN, but the machine protocol answers without an error and leaves every `@spec` out: `ia records` and `ia search` omit them, and `ia get` refuses one as IA-DB-OUT-OF-SCOPE.
 
 Packages: `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/mcp-door`, `@inventarch/work-system`.
 
@@ -164,7 +164,7 @@ Packages: `@inventarch/authoring-system`.
 
 ### A refused relationship from another record no longer hides a correctly linked record
 
-When admission refuses another record's relationship that points at a record, the record's schema check stays available unless that other record is a target the rule counts. Before, a refused `grounds` relationship from a `@plan` made a correctly grounded `@spec` unavailable, so it left the admitted view and `ia get` refused it as out of scope; a refused inverse spelling such as `superseded-by` did the same. The refused relationship is still an error at its own record.
+When admission refuses another record's relationship that points at a record, the record's schema check stays available unless that other record is a target the rule counts. In 1.1.x, a refused inverse spelling written by another record, such as `superseded-by @spec <name>` on a `@plan`, made that spec unavailable: it left the admitted view and `ia get` refused it as out of scope. Without this fix, the `@spec` rule `may grounded-by decision one` that 1.2.0 adds would have done the same to a correctly grounded spec whenever a `@plan`'s `grounds` relationship to it is refused. The refused relationship is still an error at its own record.
 
 Packages: `@inventarch/compliance`.
 
