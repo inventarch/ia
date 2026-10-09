@@ -735,7 +735,7 @@
     {
       "id": "work-schema-fields",
       "title": "Work records state partial supersession and identity ownership",
-      "summary": "A `@decision` may carry effective-revision; a `@spec` may carry covers and replaced-scope and may be grounded by a decision; a `@task` may carry action, expected-artifact, exit-evidence (ref to observation) and owner-agent (ref to agent) beside its text owner. The work-system example shows a partially superseded spec. A workspace created with this release needs ia 1.2.0 or later to read it: 1.1.x refuses the `@spec` rule `may grounded-by decision one` with IA-LANG-PREDICATE-UNKNOWN.",
+      "summary": "A `@decision` may carry effective-revision; a `@spec` may carry covers and replaced-scope and may be grounded by a decision; a `@task` may carry action, expected-artifact, exit-evidence (ref to observation) and owner-agent (ref to agent) beside its text owner. The work-system example shows a partially superseded spec. A workspace on the 1.2.0 language base, which includes every workspace created with this release, needs ia 1.2.0 or later to read it: 1.1.x refuses the `@spec` rule `may grounded-by decision one` with IA-LANG-PREDICATE-UNKNOWN.",
       "packages": [
         "@inventarch/authoring-system",
         "@inventarch/cli",
@@ -807,7 +807,7 @@
     {
       "id": "native-versions-1-2",
       "title": "The language base and the native system archives move to version 1.2.0",
-      "summary": "The language base `inventarch/language` and the 11 native system archives move from 1.1.0 to 1.2.0, because their records changed since 1.1.1. Without the move, the 1.1.0 identities would have named two different archives: 1.1.x and this release would each install their own bytes as `inventarch/language@1.1.0`, nothing would tell them apart, and a cache that held both refused offline installs with IA-DIST-CONFLICT.",
+      "summary": "The language base `inventarch/language` and the 11 native system archives move from 1.1.0 to 1.2.0, because their records changed since 1.1.1. Without the move, one `id@version` would have named two different archives: 1.1.x and this release would each install their own bytes as `inventarch/language@1.1.0`, and a cache that held both would have refused offline installs with IA-DIST-CONFLICT.",
       "packages": [
         "@inventarch/agent-composition-system",
         "@inventarch/agent-system",

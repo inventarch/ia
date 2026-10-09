@@ -140,7 +140,7 @@ Packages: `@inventarch/agent-composition-system`, `@inventarch/workspace-runtime
 
 ### Work records state partial supersession and identity ownership
 
-A `@decision` may carry effective-revision; a `@spec` may carry covers and replaced-scope and may be grounded by a decision; a `@task` may carry action, expected-artifact, exit-evidence (ref to observation) and owner-agent (ref to agent) beside its text owner. The work-system example shows a partially superseded spec. A workspace created with this release needs ia 1.2.0 or later to read it: 1.1.x refuses the `@spec` rule `may grounded-by decision one` with IA-LANG-PREDICATE-UNKNOWN.
+A `@decision` may carry effective-revision; a `@spec` may carry covers and replaced-scope and may be grounded by a decision; a `@task` may carry action, expected-artifact, exit-evidence (ref to observation) and owner-agent (ref to agent) beside its text owner. The work-system example shows a partially superseded spec. A workspace on the 1.2.0 language base, which includes every workspace created with this release, needs ia 1.2.0 or later to read it: 1.1.x refuses the `@spec` rule `may grounded-by decision one` with IA-LANG-PREDICATE-UNKNOWN.
 
 Packages: `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/mcp-door`, `@inventarch/work-system`.
 
@@ -152,7 +152,7 @@ Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@
 
 ### The language base and the native system archives move to version 1.2.0
 
-The language base `inventarch/language` and the 11 native system archives move from 1.1.0 to 1.2.0, because their records changed since 1.1.1. Without the move, the 1.1.0 identities would have named two different archives: 1.1.x and this release would each install their own bytes as `inventarch/language@1.1.0`, nothing would tell them apart, and a cache that held both refused offline installs with IA-DIST-CONFLICT.
+The language base `inventarch/language` and the 11 native system archives move from 1.1.0 to 1.2.0, because their records changed since 1.1.1. Without the move, one `id@version` would have named two different archives: 1.1.x and this release would each install their own bytes as `inventarch/language@1.1.0`, and a cache that held both would have refused offline installs with IA-DIST-CONFLICT.
 
 Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/compliance-system`, `@inventarch/governance-system`, `@inventarch/hook-authoring-system`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/session-system`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
 
