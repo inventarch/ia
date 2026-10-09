@@ -51,6 +51,15 @@ describe('bundled language base', () => {
     expect(again.bytes.equals(base.bytes)).toBe(true);
     expect(checked()).toEqual([]);
   });
+  it("ships none of this repository's own participant pair, which stays in the unpacked .ia/src/participant.ia", () => {
+    const verified = verifyArchive(base.bytes, base.pin.archive);
+    expect(verified.manifest.files.map((f) => f.path)).not.toContain('.ia/src/participant.ia');
+    expect(
+      [...verified.files.values()].filter((bytes) =>
+        /language-(?:participant|mandate)/.test(Buffer.from(bytes).toString('utf8')),
+      ),
+    ).toEqual([]);
+  });
   it('fails when the bundled engine range rejects the CLI engine', () => {
     const foreign = buildLanguageBase(root, { engine: '^99.0.0' });
     expect(
