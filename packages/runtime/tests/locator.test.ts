@@ -231,6 +231,36 @@ it('slugs plain-text headings as GitHub does and bounds a section by the next he
   expect(markdownSection('- # Listed\n> # Quoted\nSetext\n======\n', 'setext')).toBeUndefined();
 });
 
+// Every heading before the anchor is slugged, so a heading's links are read in time linear in it: the work grows as
+// the input does, never as its square, which the link regular expression this reader replaced did on a run of unclosed
+// brackets or destinations (CodeQL js/polynomial-redos). The sizes are small enough that a quadratic reader finishes in
+// seconds, so a regression fails its growth ratio instead of stalling the suite.
+/** The fastest of `runs` reads of the `target` section of `text`, in milliseconds; the section is always `# target`. */
+function fastest(text: string, runs: number): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (let run = 0; run < runs; run++) {
+    const started = performance.now();
+    expect(markdownSection(text, 'target')).toBe('# target\n');
+    best = Math.min(best, performance.now() - started);
+  }
+  return best;
+}
+it('reads the links of a heading in time linear in its length, however many brackets stay unclosed', () => {
+  const inputs: Readonly<Record<string, (size: number) => string>> = {
+    brackets: (size) => `# ${'[a'.repeat(size / 2)}\n# target\n`,
+    destinations: (size) => `# ${'[](('.repeat(size / 4)}\n# target\n`,
+  };
+  for (const [name, input] of Object.entries(inputs)) {
+    const small = fastest(input(1 << 12), 5),
+      large = fastest(input(1 << 15), 5);
+    // Eight times the input is about eight times the work when it is linear, sixty-four times when it is quadratic; a
+    // read under a millisecond counts as one, so a linear reader's ratio stays near one at these sizes.
+    expect(large / Math.max(small, 1), name).toBeLessThan(32);
+  }
+  // A link keeps its text, an image its alt text, and an unclosed bracket is text.
+  expect(headingAnchor(`${'[a'.repeat(3)}[x](y) and ![alt](src)`)).toBe('aaax-and-alt');
+});
+
 it('reads a record without a source locator as its meaning.says, and the plan exit evidence identity says only that', () => {
   const root = workspace(),
     db = database(root);

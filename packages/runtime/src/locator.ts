@@ -140,6 +140,44 @@ export function fragmentText(node: Node, fragment: string): string | undefined {
 const HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 /**
+ * The first index of `character` in `text` at or after a position, asked for positions that never decrease, as one
+ * scan: a position past the last found is searched from there, and every other answer is the one already found.
+ */
+function scanner(text: string, character: string): (from: number) => number {
+  let searched = 0,
+    found = text.indexOf(character);
+  return (from) => {
+    if (from < searched || (found >= 0 && found < from)) found = text.indexOf(character, (searched = from));
+    return found;
+  };
+}
+/**
+ * `heading` with each inline link or image, `[text](destination)` or `![text](destination)`, replaced by its text:
+ * the text runs to the first `]`, which `(` must follow, and the destination to the first `)` after it. Each `]` and
+ * `)` is found once, by scanners that only move forward, so the time is linear however many brackets stay unclosed.
+ */
+function linkText(heading: string): string {
+  const close = scanner(heading, ']'),
+    paren = scanner(heading, ')'),
+    parts: string[] = [];
+  let kept = 0,
+    open = heading.indexOf('[');
+  while (open >= 0) {
+    const shut = close(open + 1),
+      end = shut < 0 || heading[shut + 1] !== '(' ? -1 : paren(shut + 2);
+    if (end < 0) open = heading.indexOf('[', open + 1);
+    else {
+      // An image's `!` belongs to the link when it follows the previous link.
+      parts.push(heading.slice(kept, open > kept && heading[open - 1] === '!' ? open - 1 : open));
+      parts.push(heading.slice(open + 1, shut));
+      kept = end + 1;
+      open = heading.indexOf('[', kept);
+    }
+  }
+  parts.push(heading.slice(kept));
+  return parts.join('');
+}
+/**
  * The anchor of one plain-text ATX heading, as GitHub's slugger gives it: an inline link keeps its text, letters are
  * lowercased, every character other than a letter, mark, decimal or letter number, connector punctuation, `-` or space
  * is dropped, and each space becomes `-`. Code spans and `*` emphasis come out as GitHub's, because their delimiters
@@ -147,8 +185,7 @@ const FENCE = /^ {0,3}(`{3,}|~{3,})/;
  * and reference links keep their markup here, and such a heading may have another anchor on GitHub.
  */
 export function headingAnchor(heading: string): string {
-  return heading
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+  return linkText(heading)
     .toLowerCase()
     .replace(/[^\p{L}\p{M}\p{Nd}\p{Nl}\p{Pc} -]/gu, '')
     .replaceAll(' ', '-');
