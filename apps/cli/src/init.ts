@@ -31,8 +31,22 @@
  * that step and writes nothing for it — the host plan needs `.ia/release.json`, which only the apply writes. A host
  * step that refuses leaves the workspace initialized: the refusal keeps the service's code, message and location, and
  * its next action names the rerun.
+ *
+ * `--migrate` (milestone position-packet task init-migrate-flag; plan amendments B7, B9 and B11) takes a workspace a
+ * 1.1.0 `ia init` wrote instead: one local system folder, `.ia/src/systems/<name>/`, whose `system.ia` holds exactly the
+ * starter `@system <name>`, registering no word, and `@agent <name>-steward`, and whose `records/workspace.ia` holds
+ * exactly `@workspace <name>` and `@distribution <name>-distribution`. It rewrites it into the three starter records:
+ * each other record file moves from the folder's `records/` to `.ia/src/`, where a record's word, not its folder,
+ * decides its system, so its identity is unchanged; the local system folder goes and the descriptor names no
+ * distribution, unless `--system` keeps the `@system` and its steward and re-roots the `@distribution` at the system.
+ * It plans by default, and plan and apply alike refuse a workspace of any other shape before anything is written. The
+ * three records use fields only the base this CLI bundles declares, so the apply first installs that base where the
+ * workspace has another, as `ia init` installs it; it then captures and re-projects each host whose projection the
+ * workspace owns through `applyHostProjection`, which retires the 1.x steward guard and deletes the owned steward agent
+ * files (`collectMigration`, `applyMigration`).
  */
 import { spawnSync } from 'node:child_process';
+import type { Dirent } from 'node:fs';
 import {
   accessSync,
   constants,
@@ -42,21 +56,27 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  rmdirSync,
   statSync,
   unlinkSync,
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
-import { DISTRIBUTION_ENGINE_VERSION, INSTALL_PATHS } from '@inventarch/db/distribution';
-import type { DistributionLock } from '@inventarch/db/distribution';
+import { decodeReleaseDescriptor, DISTRIBUTION_ENGINE_VERSION, INSTALL_PATHS } from '@inventarch/db/distribution';
+import type { DistributionLock, ReleaseDescriptor } from '@inventarch/db/distribution';
 import { verifyArchive } from '@inventarch/distribution/archive';
+import { assertHostRegistrationIdle } from '@inventarch/distribution/host';
 import { assertHomeOutsideWorkspace } from '@inventarch/distribution/host-home';
 import type { DeclineKind } from '@inventarch/distribution/decisions';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
+import type { ProjectionAction } from '@inventarch/distribution/projection';
 import { resolveReleases } from '@inventarch/distribution/resolve';
 import {
   createFile,
   openWorkspaceSession,
   readInstalledState,
+  readWorkspaceFile,
+  readWorkspaceJson,
+  replace,
   resolveCatalog,
 } from '@inventarch/distribution/services';
 import { parseArguments, UsageError } from './args.js';
@@ -65,15 +85,41 @@ import { findCommand } from './commands.js';
 import type { Context, Result } from './consumer.js';
 import { confirm, iaHomeOf, Interrupted, Refusal, refusalOf, respell } from './consumer.js';
 import { clearDecline, runDecline } from './decline.js';
-import { CONFIRMATION } from './distribute.js';
+import { CONFIRMATION, registeredProjections } from './distribute.js';
 import type { HostApplied } from './host.js';
-import { applyHostSet, collectHost, hostNotes, recoverCommand, rootedNext, STATE, THEN_RERUN } from './host.js';
-import { readReceipt } from './host-projection.js';
+import {
+  applyHostSet,
+  collectHost,
+  GUARD_RETIRED,
+  hostNotes,
+  JOURNALS,
+  projectionRepair,
+  recoverCommand,
+  refusedPath,
+  rootedNext,
+  SETTINGS,
+  STATE,
+  THEN_RERUN,
+} from './host.js';
+import type { HostName } from './host-projection.js';
+import { applyHostProjection, planFiles, planRetirement, readReceipt, renderProjectionFor } from './host-projection.js';
 import { located } from './home-remedy.js';
 import { findProgram, programEnv, programHome } from './program.js';
-import { codeOf } from './session.js';
+import type { Session } from './session.js';
+import { codeOf, openSession } from './session.js';
 import type { Capabilities, Field, SymbolName } from './render.js';
-import { atom, document, entry, fieldRows, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
+import {
+  atom,
+  blockSymbolWidth,
+  document,
+  entry,
+  fieldRows,
+  headerLine,
+  quote,
+  sectionLabel,
+  truncateDigest,
+  words,
+} from './render.js';
 
 export type HostSelection = 'claude' | 'codex' | 'none';
 /** M5.2 §4.1. `recovery-required` is never rendered as a plan: it refuses before anything reasons about the target. */
@@ -477,7 +523,11 @@ export function starterDistribution(name: string): string {
     '',
   ].join('\n');
 }
-/** The authored files in the order the author step writes them, and the records they hold, in file order. */
+/**
+ * The authored files in the order the author step writes them, and the records they hold, in file order. With
+ * `--system` the `@workspace` composes the local system after `systems` (position-and-projection §2 case 2: a
+ * repository that owns vocabulary composes its own system), so the packet renders a pointer line for it.
+ */
 export function starterFiles(
   name: string,
   systems: readonly string[],
@@ -485,7 +535,7 @@ export function starterFiles(
 ): Pick<Starter, 'files' | 'records'> {
   return {
     files: [
-      { path: WORKSPACE_PATH, text: starterRecords(name, systems) },
+      { path: WORKSPACE_PATH, text: starterRecords(name, system ? [...systems, name] : systems) },
       ...(system
         ? [
             { path: systemPath(name), text: starterSystem(name) },
@@ -580,6 +630,10 @@ const MISSING: Readonly<Record<Missing, string>> = {
   'https-remote': 'the checkout has no HTTPS remote',
 };
 
+/** The descriptor's one dependency row: the bundled base, at a caret range of its version, and the systems it carries. */
+const baseDependencies = (base: Base): Descriptor['dependencies'] => [
+  { id: base.pin.id, range: `^${base.pin.version}`, systems: base.systems },
+];
 /**
  * M5.1 §2.3's table. With `--system`, `distribution` stays null until the compiled record is read (§3.1 step 6);
  * without it, `undefined` leaves the key out, because a default starter authors no `@distribution` (plan amendment B7).
@@ -598,7 +652,7 @@ export function starterDescriptor(
     ...(distribution === undefined ? {} : { distribution }),
     engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
     language: ['1.0'],
-    dependencies: [{ id: base.pin.id, range: `^${base.pin.version}`, systems: base.systems }],
+    dependencies: baseDependencies(base),
     assets: [],
     license: 'UNLICENSED',
     description: `The ${name} workspace.`,
@@ -858,39 +912,9 @@ export async function applyInit(view: InitView, options: ApplyOptions): Promise<
   mkdirSync(root, { recursive: true });
   for (const path of view.leftovers) unlinkSync(resolve(root, path));
   const step = (id: StepId): Step => view.steps.find((row) => row.id === id)!;
-  // Step 3: M5.1 §4's three calls, offline, resolved the way `ia install` resolves (distribute.ts collectPlan).
-  if (step('install').status === 'pending') {
-    try {
-      cacheArchive(root, base.bytes, base.pin.archive);
-      const choices = await resolveCatalog({
-        root,
-        entries: [{ path: cachePath(base.pin.archive), withdrawn: false }],
-        offline: true,
-        signal: options.signal,
-      });
-      options.signal?.throwIfAborted();
-      const lock = resolveReleases(
-        [{ id: base.pin.id, range: `^${base.pin.version}` }],
-        choices,
-        DISTRIBUTION_ENGINE_VERSION,
-      ).lock;
-      applyInstallation(planInstallation(root, lock, 'install'), { checkpoint });
-    } catch (error) {
-      if (options.signal?.aborted) throw resume;
-      // collectInit already refuses a lock present at planning time; this is another installer taking it between
-      // planning and apply. The installer's code is kept (§4.1 of the contract); the next action names the recovery
-      // that clears the lock if that installer has since died.
-      if (codeOf(error, '') === 'IA-DIST-INSTALL-BUSY')
-        throw new Refusal(
-          'IA-DIST-INSTALL-BUSY',
-          error instanceof Error ? error.message : String(error),
-          3,
-          { path: root },
-          `If no installer is running, an interrupted one left its lock: run "${recoverCommand('recover', root)}", then apply again.`,
-        );
-      throw error;
-    }
-  }
+  // Step 3: the bundled base, installed as the workspace's one request.
+  if (step('install').status === 'pending')
+    await installBase(root, base, 'install', { signal: options.signal, checkpoint }, resume);
   boundary('install');
   // Step 4, author: create-only, so a starter file already present with these bytes is skipped and nothing is ever
   // rewritten. The ignore file is written only where none exists; one the target already holds is its own.
@@ -900,39 +924,9 @@ export async function applyInit(view: InitView, options: ApplyOptions): Promise<
   if (ignore === 'written') createFile(root, IGNORE_PATH, Buffer.from(IGNORE_TEXT));
   boundary('author');
   // Step 5, admission: the identities are read from the compiled graph, never string-constructed (M5.1 §2.3).
-  const session = openWorkspaceSession({ root });
-  let authored: readonly string[], distribution: string | null;
-  try {
-    const errors = session.admission().findings.filter((finding) => finding.severity === 'error');
-    if (errors.length > 0)
-      throw new Refusal(
-        'IA-CLI-FAILED',
-        `The initialized workspace failed admission with ${errors.length} error findings; first: ${errors[0]!.code}`,
-        3,
-        { path: root },
-        `Run "ia validate --root ${quote(root)}" for the findings.`,
-      );
-    const records = session.reader.records();
-    const compiled = starter.records.map((planned) => {
-      const record = records.find(
-        (node) =>
-          node.discriminator === planned.word && node.name === planned.name && node.source.path === planned.path,
-      );
-      if (record === undefined)
-        throw new Refusal(
-          'IA-CLI-FAILED',
-          `The compiled workspace has no @${planned.word} ${planned.name} in ${planned.path}`,
-          3,
-          { path: root },
-          `Run "ia inspect --path ${planned.path} --root ${quote(root)}" for the records that file admitted.`,
-        );
-      return record;
-    });
-    authored = compiled.map((record) => record.identity);
+  const { compiled } = admitStarter(root, starter.records, 'initialized', '');
+  const authored = compiled.map((record) => record.identity),
     distribution = compiled.find((record) => record.discriminator === 'distribution')?.identity ?? null;
-  } finally {
-    session.close();
-  }
   boundary('admission');
   // Step 6, the completion point (§4.1). A default starter's descriptor names no distribution (plan amendment B7).
   createFile(
@@ -982,15 +976,60 @@ export async function applyInit(view: InitView, options: ApplyOptions): Promise<
   };
 }
 
+/**
+ * M5.1 §4's three calls, offline, resolved the way `ia install` resolves (distribute.ts collectPlan): the bundled base
+ * is cached, resolved from that one archive and installed as the workspace's one request, by `ia init` into a new
+ * workspace and by `ia init --migrate` in place of a 1.x base. A signal during it is `resume`.
+ */
+async function installBase(
+  root: string,
+  base: Base,
+  operation: 'install' | 'update',
+  options: { readonly signal?: AbortSignal | undefined; readonly checkpoint: (name: string) => void },
+  resume: Interrupted,
+): Promise<void> {
+  try {
+    cacheArchive(root, base.bytes, base.pin.archive);
+    const choices = await resolveCatalog({
+      root,
+      entries: [{ path: cachePath(base.pin.archive), withdrawn: false }],
+      offline: true,
+      signal: options.signal,
+    });
+    options.signal?.throwIfAborted();
+    const lock = resolveReleases(
+      [{ id: base.pin.id, range: `^${base.pin.version}` }],
+      choices,
+      DISTRIBUTION_ENGINE_VERSION,
+    ).lock;
+    applyInstallation(planInstallation(root, lock, operation), { checkpoint: options.checkpoint });
+  } catch (error) {
+    if (options.signal?.aborted) throw resume;
+    // collectInit already refuses a lock present at planning time; this is another installer taking it between
+    // planning and apply. The installer's code is kept (§4.1 of the contract); the next action names the recovery
+    // that clears the lock if that installer has since died.
+    if (codeOf(error, '') === 'IA-DIST-INSTALL-BUSY')
+      throw new Refusal(
+        'IA-DIST-INSTALL-BUSY',
+        error instanceof Error ? error.message : String(error),
+        3,
+        { path: root },
+        `If no installer is running, an interrupted one left its lock: run "${recoverCommand('recover', root)}", then apply again.`,
+      );
+    throw error;
+  }
+}
+
+/** The refusal's message for `conflicts`: the one conflict at its path, or every conflict with its reason. */
+const conflictMessage = (conflicts: readonly Conflict[], blocked: string): string =>
+  conflicts.length === 1
+    ? `${conflicts[0]!.reason}: ${conflicts[0]!.path}`
+    : `${conflicts.length} conflicts block ${blocked}: ${conflicts.map((row) => `${row.path} (${row.reason})`).join('; ')}`;
 /** M5.2 §4.1: every conflict is listed; `--apply` refuses at class 3 and writes nothing. */
 function conflictRefusal(view: InitView): Refusal {
-  const message =
-    view.conflicts.length === 1
-      ? `${view.conflicts[0]!.reason}: ${view.conflicts[0]!.path}`
-      : `${view.conflicts.length} conflicts block initialization: ${view.conflicts.map((row) => `${row.path} (${row.reason})`).join('; ')}`;
   return new Refusal(
     'IA-CLI-CONFLICT',
-    message,
+    conflictMessage(view.conflicts, 'initialization'),
     3,
     { path: view.root },
     `Run "${view.invocation}" to review the plan and its conflicts.`,
@@ -1091,7 +1130,7 @@ const starterRows = (view: InitView, caps: Capabilities): readonly string[] => {
             symbol: 'info',
             label: 'Starter records',
             value: words(
-              `@workspace ${starter.name} composing ${starter.systems.length} systems; its participant @agent ${starter.name}; @mandate ${starter.name}-mandate`,
+              `@workspace ${starter.name} composing ${starter.systems.length} systems${starter.system ? ` and @system ${starter.name}` : ''}; its participant @agent ${starter.name}; @mandate ${starter.name}-mandate`,
             ),
           },
           ...(starter.system
@@ -1209,6 +1248,46 @@ export const renderInitSummary = (view: InitView, caps: Capabilities): string =>
     leadingBlank: true,
   });
 
+/**
+ * The report rows `ia init` and `ia init --migrate` share, each from one function so the two verbs word them alike:
+ * the records authored and the ignore file, the capture effect, and the closing next step.
+ */
+const authoredEntry = (applied: Pick<Applied, 'authored' | 'ignore'>, caps: Capabilities): readonly string[] =>
+  entry(
+    [
+      words(`Authored ${applied.authored.length} records:`),
+      ...applied.authored.map((identity) => [atom(identity, null, 0)]),
+      words(
+        applied.ignore === 'written'
+          ? `Wrote ${IGNORE_PATH}, ignoring work/ and distributions/.`
+          : `${IGNORE_PATH} already exists and is left as it is.`,
+      ),
+    ],
+    { depth: 1, symbol: 'success' },
+    caps,
+  );
+const capturedEntry = (capture: CaptureEffect, caps: Capabilities): readonly string[] =>
+  entry(
+    [
+      words(
+        `Captured ${capture.records} records at revision ${truncateDigest(capture.revision, caps.ascii)} to ${CURRENT}.`,
+      ),
+    ],
+    { depth: 1, symbol: 'success' },
+    caps,
+  );
+const closingEntry = (distribution: string | null, caps: Capabilities): readonly string[] =>
+  entry(
+    [
+      words(
+        distribution === null
+          ? 'Run "ia validate" to check the workspace, or "ia position" for the position body an agent starts from.'
+          : 'Run "ia validate" to check the workspace, or "ia pack --descriptor .ia/release.json" to build its release.',
+      ),
+    ],
+    { depth: 0, symbol: 'step' },
+    caps,
+  );
 export function renderApplied(view: InitView, applied: Applied, caps: Capabilities): string {
   return document(
     [
@@ -1224,28 +1303,8 @@ export function renderApplied(view: InitView, applied: Applied, caps: Capabiliti
         caps,
       ),
       // Position-and-projection §3: the records authored, then each effect, reported apart.
-      entry(
-        [
-          words(`Authored ${applied.authored.length} records:`),
-          ...applied.authored.map((identity) => [atom(identity, null, 0)]),
-          words(
-            applied.ignore === 'written'
-              ? `Wrote ${IGNORE_PATH}, ignoring work/ and distributions/.`
-              : `${IGNORE_PATH} already exists and is left as it is.`,
-          ),
-        ],
-        { depth: 1, symbol: 'success' },
-        caps,
-      ),
-      entry(
-        [
-          words(
-            `Captured ${applied.effects.capture.records} records at revision ${truncateDigest(applied.effects.capture.revision, caps.ascii)} to ${CURRENT}.`,
-          ),
-        ],
-        { depth: 1, symbol: 'success' },
-        caps,
-      ),
+      authoredEntry(applied, caps),
+      capturedEntry(applied.effects.capture, caps),
       applied.effects.project === 'skipped'
         ? entry([words('Project skipped: no host was selected.')], { depth: 1, symbol: 'info' }, caps)
         : entry(
@@ -1262,22 +1321,12 @@ export function renderApplied(view: InitView, applied: Applied, caps: Capabiliti
       stepRows(view, () => 'success', caps),
       // Spec §5.3 and §5.4: the notes `ia host` prints after a registration, from the same function.
       ...(applied.host === undefined || view.host === 'none' ? [] : hostNotes(view.host, caps)),
-      entry(
-        [
-          words(
-            applied.distribution === null
-              ? 'Run "ia validate" to check the workspace, or "ia position" for the position body an agent starts from.'
-              : 'Run "ia validate" to check the workspace, or "ia pack --descriptor .ia/release.json" to build its release.',
-          ),
-        ],
-        { depth: 0, symbol: 'step' },
-        caps,
-      ),
+      closingEntry(applied.distribution, caps),
     ],
     { leadingBlank: true },
   );
 }
-const renderDeclined = (view: InitView, caps: Capabilities): string =>
+const renderDeclined = (view: Pick<InitView, 'invocation'>, caps: Capabilities): string =>
   document(
     [
       entry([words('Nothing was applied.')], { depth: 0, symbol: 'info' }, caps),
@@ -1292,6 +1341,7 @@ function invocationOf(context: Context): string {
   const id = args.value('id'),
     host = args.value('host');
   if (id !== undefined) parts.push('--id', quote(id));
+  if (args.flag('migrate')) parts.push('--migrate');
   if (args.flag('system')) parts.push('--system');
   if (host !== undefined && host !== 'none') parts.push('--host', host);
   return parts.join(' ');
@@ -1330,6 +1380,7 @@ async function initialize(context: Context, root: string, id: string | undefined
     located(root, `Set IA_HOME to an absolute directory outside ${root}, then run "${invocationOf(context)}".`, () =>
       assertHomeOutsideWorkspace(iaHome, root),
     );
+  if (args.flag('migrate')) return migrate(context, root);
   const selected = (args.value('host') ?? 'none') as HostSelection;
   const apply = args.flag('apply');
   const existing = statSync(root, { throwIfNoEntry: false }) === undefined ? dirname(root) : root;
@@ -1413,6 +1464,1018 @@ function registerHost(context: Context, selected: 'claude' | 'codex', root: stri
     );
   }
 }
+/** The release whose starter `ia init --migrate` rewrites. */
+export const MIGRATES_FROM = '1.1.0';
+const SYSTEMS = '.ia/src/systems';
+/** The 1.x starter file beside the user's record files: its `@workspace` and the `@distribution` rooted at it. */
+const legacyRecordsPath = (name: string): string => `${systemFolder(name)}/records/workspace.ia`;
+/** One user record file the migration moves out of the local system folder, and the identities it holds. */
+export interface MigrationMove {
+  readonly from: string;
+  readonly to: string;
+  /** Read from the compiled graph: at `from` in a plan, at `to` once applied. */
+  readonly identities: readonly string[];
+}
+/** A 1.x starter file the migration deletes, with the identities it holds, or a folder it leaves empty (`/`, none). */
+export interface MigrationRemoval {
+  readonly path: string;
+  readonly identities: readonly string[];
+}
+/**
+ * What `--apply` refuses: a destination that already exists, a record holding the word and name of a starter record
+ * the migration authors anew, or, with `host`, a registered projection whose planner refuses, with the planner's code.
+ */
+export interface MigrationConflict {
+  readonly path: string;
+  readonly reason: string;
+  readonly host?: HostName;
+  readonly code?: string;
+}
+/** A host whose projection this workspace owns, and what `applyHostProjection` plans for it (B9, B11). */
+export interface MigrationHost {
+  readonly host: HostName;
+  readonly guard: 'retire' | 'none';
+  /**
+   * The file plan for the migrated records' render: every file the adapter renders carries the workspace revision,
+   * which the migration changes, so none of them is `unchanged`.
+   */
+  readonly files: readonly ProjectionAction[];
+}
+/**
+ * The apply's steps in order: the base install, only when the installed base is not the one this CLI bundles, the
+ * file steps, then admission, then the two effects.
+ */
+export type MigrationStepId =
+  | 'install'
+  | 'move'
+  | 'author'
+  | 'remove'
+  | 'descriptor'
+  | 'admission'
+  | 'capture'
+  | 'project';
+export interface MigrationView {
+  readonly root: string;
+  /** The release descriptor's id, unchanged. */
+  readonly id: string;
+  /** The 1.x workspace's name, which is its system folder's, its records' and the new starter's. */
+  readonly name: string;
+  /** `--system`: the `@system` and its steward stay, and the `@distribution` is re-rooted at the system. */
+  readonly system: boolean;
+  /**
+   * The bundled base the three records are written against (M5.1 §3.2), and the base the workspace has installed,
+   * which the install step replaces when it is another archive: a 1.x base declares none of their new fields.
+   */
+  readonly base: { readonly pin: BasePin; readonly installed: { readonly version: string; readonly archive: string } };
+  readonly conflicts: readonly MigrationConflict[];
+  readonly moves: readonly MigrationMove[];
+  /** The files the author step writes, create-only: `.ia/src/workspace.ia`, and with `--system` the distribution. */
+  readonly files: readonly { readonly path: string; readonly text: string }[];
+  /** The starter records the migrated workspace holds, in file order: three, or six with `--system`. */
+  readonly records: readonly StarterRecord[];
+  /** The new `@workspace`'s `composition.systems`: the 1.x one's, the local system only with `--system`. */
+  readonly systems: readonly string[];
+  /** In delete order: the 1.x starter files, then without `--system` the three folders they leave empty. */
+  readonly removes: readonly MigrationRemoval[];
+  readonly ignore: 'create' | 'present';
+  /**
+   * The descriptor's distribution before and after the migration, null after when it is dropped, and its dependency
+   * rows before and after: after, the bundled base's row, as `ia init` writes it, in place of the installed base's, and
+   * every other row as it was.
+   */
+  readonly descriptor: {
+    readonly before: string;
+    readonly after: string | null;
+    readonly dependencies: { readonly before: Descriptor['dependencies']; readonly after: Descriptor['dependencies'] };
+  };
+  /**
+   * The descriptor bytes the descriptor step writes, or null when it keeps them: with `--system`, when its rows are
+   * already the ones it would write, whatever the file's formatting.
+   */
+  readonly rewrite: string | null;
+  readonly hosts: readonly MigrationHost[];
+  readonly steps: readonly MigrationStepId[];
+  /** The command that would apply this plan, rebuilt from what was parsed. */
+  readonly invocation: string;
+}
+export interface MigrationRequest {
+  readonly root: string;
+  readonly system?: boolean | undefined;
+  /** The `@inventarch/cli` package root, whose bundled base the migrated workspace installs. */
+  readonly packageRoot: string;
+  readonly invocation?: string;
+}
+/** One registered host's project effect: the receipt's files, the guard retirement and the 1.x files it deleted. */
+export interface MigratedProjection extends ProjectEffect {
+  readonly guard: 'retired' | 'none';
+  readonly removed: readonly string[];
+}
+export interface Migrated {
+  readonly status: 'migrated';
+  readonly id: string;
+  /** The bundled base: `installed` by this apply, or `present`, already the workspace's. */
+  readonly base: 'installed' | 'present';
+  /** The `@distribution` the descriptor names, read from the compiled graph; null without `--system`. */
+  readonly distribution: string | null;
+  /** The starter records' identities, in file order, as admission compiled them. */
+  readonly authored: readonly string[];
+  /** Each moved file with the identities the compiled graph holds at its new path. */
+  readonly moved: readonly MigrationMove[];
+  /** The plan's removals, as deleted: the 1.x starter files, and without `--system` the folders they leave empty. */
+  readonly removed: readonly string[];
+  readonly ignore: 'written' | 'present';
+  readonly effects: {
+    readonly capture: CaptureEffect;
+    /** One per registered host, in host order; empty when the workspace owns no projection. */
+    readonly project: readonly MigratedProjection[];
+  };
+}
+
+type Compiled = ReturnType<Session['reader']['records']>[number];
+const spelled = (record: Pick<Compiled, 'discriminator' | 'name'>): string => `@${record.discriminator} ${record.name}`;
+/** A descriptor's dependency rows, compared as text: each id, range and the systems it externalizes. */
+const spelledRows = (rows: Descriptor['dependencies']): string =>
+  rows.map((row) => `${row.id} ${row.range} ${row.systems.join(',')}`).join('; ');
+/**
+ * The one refusal for a target `--migrate` does not recognize. Its message names what was found and the shape a 1.1.0
+ * starter has there; its next action names the help for the forms the verb takes.
+ */
+const unshaped = (reason: string, path: string): Refusal =>
+  new Refusal(
+    'IA-CLI-CONFLICT',
+    `The target is not a ${MIGRATES_FROM} starter workspace: ${reason}`,
+    3,
+    { path },
+    'Run "ia init --help" for the forms this verb takes.',
+  );
+const entriesOf = (root: string, path: string): readonly Dirent[] =>
+  readdirSync(resolve(root, path), { withFileTypes: true }).sort((a, b) =>
+    a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+  );
+const directory = (root: string, path: string): boolean =>
+  lstatSync(resolve(root, path), { throwIfNoEntry: false })?.isDirectory() === true;
+/**
+ * The preflight's folder half, read without following a link: `.ia/src/systems/` holds one folder, the local system,
+ * and it holds only `system.ia` and `records/*.ia`, with `records/workspace.ia` among them. Its name and the user's
+ * record files beside the starter's, sorted.
+ */
+function starterFolder(root: string): { readonly name: string; readonly files: readonly string[] } {
+  if (!directory(root, SYSTEMS)) throw unshaped(`${SYSTEMS}/ is absent, so it has no local system`, root);
+  const folders = entriesOf(root, SYSTEMS);
+  if (folders.length !== 1 || !folders[0]!.isDirectory() || !NAME.test(folders[0]!.name))
+    throw unshaped(
+      `${SYSTEMS}/ holds ${folders.length === 0 ? 'nothing' : folders.map((entry) => entry.name).join(', ')}, where a ${MIGRATES_FROM} starter holds one folder, its local system`,
+      SYSTEMS,
+    );
+  const name = folders[0]!.name,
+    folder = systemFolder(name);
+  const foreign = (path: string): Refusal =>
+    unshaped(`${path} is not part of one, whose system folder holds only system.ia and records/*.ia`, path);
+  for (const entry of entriesOf(root, folder))
+    if (!(entry.name === 'system.ia' && entry.isFile()) && !(entry.name === 'records' && entry.isDirectory()))
+      throw foreign(`${folder}/${entry.name}`);
+  if (!existsSync(resolve(root, systemPath(name)))) throw unshaped(`${systemPath(name)} is absent`, folder);
+  if (!directory(root, `${folder}/records`)) throw unshaped(`${legacyRecordsPath(name)} is absent`, folder);
+  const files: string[] = [];
+  for (const entry of entriesOf(root, `${folder}/records`)) {
+    if (!entry.isFile() || !entry.name.endsWith('.ia')) throw foreign(`${folder}/records/${entry.name}`);
+    if (entry.name !== 'workspace.ia') files.push(entry.name);
+  }
+  if (!existsSync(resolve(root, legacyRecordsPath(name))))
+    throw unshaped(`${legacyRecordsPath(name)} is absent`, folder);
+  return { name, files };
+}
+/**
+ * The preflight (plan and `--apply` alike), before anything is written. Unrecognized, it refuses naming
+ * `ia init --help`: no descriptor naming the starter's distribution, a system folder holding anything else, a
+ * `system.ia` or `records/workspace.ia` holding any record but the starter's, a local `@system` that registers words,
+ * or a base to replace in a lock that holds more than that base. A workspace that does not admit is refused naming
+ * `ia validate`, because the migrated one must admit for its effects; so is a pending host journal, naming its
+ * recovery. A destination that already exists, a record that already holds the word and name of a starter record the
+ * migration authors anew, and a registered projection whose guard retirement or file plan the planners refuse, are
+ * listed as conflicts, which the plan reports and `--apply` refuses. The three records use fields only the base this
+ * CLI bundles declares, so the apply installs it first unless the workspace has it installed already, as `ia init`
+ * does. The registered hosts are the ones the install refresh re-projects after an update, as the base install is
+ * (`registeredProjections`): those whose projection state exists, as `ia host` and `ia doctor` read ownership.
+ */
+export function collectMigration(request: MigrationRequest): MigrationView {
+  const { root } = request,
+    system = request.system === true;
+  if (!existsSync(resolve(root, DESCRIPTOR_PATH)))
+    throw unshaped(`${DESCRIPTOR_PATH} is absent, so no initialization completed here`, root);
+  const { name, files: others } = starterFolder(root);
+  let raw: Readonly<Record<string, unknown>>, descriptor: ReleaseDescriptor;
+  try {
+    raw = readWorkspaceJson({ root, path: DESCRIPTOR_PATH }) as Readonly<Record<string, unknown>>;
+    descriptor = decodeReleaseDescriptor(raw);
+  } catch (error) {
+    throw unshaped(
+      `${DESCRIPTOR_PATH} is not a release descriptor (${error instanceof Error ? error.message : String(error)})`,
+      DESCRIPTOR_PATH,
+    );
+  }
+  if (descriptor.distribution === undefined)
+    throw unshaped(
+      `${DESCRIPTOR_PATH} names no distribution, where a ${MIGRATES_FROM} starter's names its own`,
+      DESCRIPTOR_PATH,
+    );
+  const session = openSession(root);
+  let records: readonly Compiled[], admitted: boolean;
+  try {
+    records = session.reader.records();
+    admitted = session.admission().status === 'admitted';
+  } finally {
+    session.close();
+  }
+  if (!admitted)
+    throw new Refusal(
+      'IA-CLI-CONFLICT',
+      'The workspace does not admit; migrating it needs zero error findings',
+      3,
+      { path: root },
+      `Run "ia validate --root ${quote(root)}" and fix the reported errors.`,
+    );
+  const at = (path: string): readonly Compiled[] => records.filter((record) => record.source.path === path);
+  const identities = (path: string): readonly string[] =>
+    at(path)
+      .map((record) => record.identity)
+      .sort();
+  /** The records `path` holds, which must be exactly `expected`. */
+  const holds = (path: string, expected: readonly (readonly [string, string])[]): readonly Compiled[] => {
+    const found = at(path);
+    if (
+      found.length !== expected.length ||
+      !expected.every(([word, named]) => found.some((record) => record.discriminator === word && record.name === named))
+    )
+      throw unshaped(
+        `${path} holds ${found.length === 0 ? 'no record' : found.map(spelled).join(', ')}, where a ${MIGRATES_FROM} starter's holds exactly ${expected.map(([word, named]) => `@${word} ${named}`).join(' and ')}`,
+        path,
+      );
+    return found;
+  };
+  const local = holds(systemPath(name), [
+    ['system', name],
+    ['agent', `${name}-steward`],
+  ]);
+  const starter = holds(legacyRecordsPath(name), [
+    ['workspace', name],
+    ['distribution', `${name}-distribution`],
+  ]);
+  const registered = local
+    .find((record) => record.discriminator === 'system')!
+    .sections.find((section) => section.name === 'discriminators')
+    ?.fields.flatMap((child) => ('key' in child ? [child.key] : []));
+  if (registered !== undefined && registered.length > 0)
+    throw unshaped(
+      `its local @system ${name} registers ${registered.join(', ')}, where a ${MIGRATES_FROM} starter's registers no word`,
+      systemPath(name),
+    );
+  const distribution = starter.find((record) => record.discriminator === 'distribution')!.identity;
+  if (descriptor.distribution !== distribution)
+    throw unshaped(
+      `${DESCRIPTOR_PATH} names ${descriptor.distribution}, where a ${MIGRATES_FROM} starter's names ${distribution}`,
+      DESCRIPTOR_PATH,
+    );
+  // The base the three records need. A 1.x base declares neither `composition.sources` and `composition.steward` nor
+  // the `@mandate`'s `authority`, so another archive than the bundled one is replaced, which only a lock holding that
+  // one base allows: a replacement resolved from the bundled archive alone would drop every other package.
+  const base = readBase(request.packageRoot);
+  const state = readInstalledState({ root });
+  const lock = state.status === 'installed' ? state.lock : undefined;
+  const locked = lock?.packages.find((pkg) => pkg.id === base.pin.id);
+  const bundled = (pkg: { readonly archive: string; readonly manifest: string }): boolean =>
+    pkg.archive === base.pin.archive && pkg.manifest === base.pin.manifest;
+  if (
+    locked === undefined ||
+    (!bundled(locked) &&
+      (lock!.packages.length !== 1 || lock!.requests.length !== 1 || lock!.requests[0]!.id !== base.pin.id))
+  )
+    throw unshaped(
+      `${INSTALL_PATHS.lock} locks ${lock === undefined || lock.packages.length === 0 ? 'nothing' : lock.packages.map((pkg) => `${pkg.id} ${pkg.version}`).join(', ')}, where a ${MIGRATES_FROM} starter's locks only ${base.pin.id}, which the migration replaces with the archive this CLI bundles`,
+      INSTALL_PATHS.lock,
+    );
+  // The new @workspace keeps the 1.x one's composition, less the local system, which only `--system` composes.
+  const field = starter
+    .find((record) => record.discriminator === 'workspace')!
+    .sections.find((section) => section.name === 'composition')
+    ?.fields.find((child) => 'key' in child && child.key === 'systems');
+  const value = field === undefined || !('value' in field) ? undefined : field.value;
+  const kept = (value === undefined ? [] : value.kind === 'list' ? value.items : [value]).flatMap((item) =>
+    item.kind === 'ref' && item.discriminator === 'system' && item.name !== name ? [item.name] : [],
+  );
+  const planned = starterFiles(name, kept, system);
+  const moves = others.map((file): MigrationMove => {
+    const from = `${systemFolder(name)}/records/${file}`;
+    return { from, to: `.ia/src/${file}`, identities: identities(from) };
+  });
+  const removes: readonly MigrationRemoval[] = [
+    { path: legacyRecordsPath(name), identities: identities(legacyRecordsPath(name)) },
+    ...(system
+      ? []
+      : [
+          { path: systemPath(name), identities: identities(systemPath(name)) },
+          ...[`${systemFolder(name)}/records/`, `${systemFolder(name)}/`, `${SYSTEMS}/`].map((path) => ({
+            path,
+            identities: [],
+          })),
+        ]),
+  ];
+  // The preflight's destination half: neither the starter file nor any moved file's destination may exist.
+  const conflicts: MigrationConflict[] = [];
+  const occupied = (path: string): boolean => lstatSync(resolve(root, path), { throwIfNoEntry: false }) !== undefined;
+  if (occupied(WORKSPACE_PATH))
+    conflicts.push({ path: WORKSPACE_PATH, reason: 'Exists where the migration writes the three starter records' });
+  for (const move of moves)
+    if (occupied(move.to)) conflicts.push({ path: move.to, reason: `Exists where the migration moves ${move.from}` });
+  // Its identity half: a word and name compile to one identity wherever they are written, so a record the workspace
+  // keeps with a starter record's word and name would tie with the one the migration authors. A starter record found
+  // at a path the migration deletes is the one it replaces; one at the planned record's own path, `--system`'s
+  // `system.ia`, is kept.
+  const deleted = new Set(removes.map((removal) => removal.path));
+  for (const record of planned.records)
+    for (const found of records)
+      if (
+        found.discriminator === record.word &&
+        found.name === record.name &&
+        found.source.path !== record.path &&
+        !deleted.has(found.source.path)
+      )
+        conflicts.push({
+          path: found.source.path,
+          reason: `Holds @${record.word} ${record.name}, which the migration authors in ${record.path}`,
+        });
+  // Spec §8: a pending host journal refuses the whole verb and names the recovery that clears it, as `ia host` does.
+  const hosts: MigrationHost[] = [],
+    projected = registeredProjections(root, 'update');
+  if (projected.length > 0)
+    try {
+      assertHostRegistrationIdle(root);
+    } catch (error) {
+      const refusal = refusalOf(error),
+        [journal, command] = JOURNALS.find(([path]) => existsSync(resolve(root, path))) ?? JOURNALS[0]!;
+      throw new Refusal(
+        refusal.code,
+        refusal.message,
+        3,
+        { path: journal },
+        `Run "${recoverCommand(command, root)}"${THEN_RERUN}`,
+      );
+    }
+  for (const host of projected)
+    try {
+      const guard = planRetirement(root, host) === null ? 'none' : 'retire';
+      hosts.push({ host, guard, files: migratedFiles(root, host) });
+    } catch (error) {
+      const refusal = refusalOf(error);
+      conflicts.push({
+        path: refusedPath(error) ?? STATE.projection(host),
+        reason: refusal.message,
+        host,
+        code: refusal.code,
+      });
+    }
+  // The descriptor depends on the bundled base, as `ia init` writes it, in place of its row for the installed base, and
+  // keeps every other row; it names no distribution without `--system`. Rows stay sorted by id, as the decoder requires.
+  const dependencies = [
+    ...descriptor.dependencies.filter((row) => row.id !== base.pin.id),
+    ...baseDependencies(base),
+  ].sort((a, b) => (a.id < b.id ? -1 : 1));
+  const text = `${JSON.stringify(
+    Object.fromEntries(
+      Object.entries(raw)
+        .filter(([key]) => system || key !== 'distribution')
+        .map(([key, item]) => [key, key === 'dependencies' ? dependencies : item]),
+    ),
+    null,
+    2,
+  )}\n`;
+  return {
+    root,
+    id: descriptor.id,
+    name,
+    system,
+    base: { pin: base.pin, installed: { version: locked.version, archive: locked.archive } },
+    conflicts,
+    moves,
+    files: planned.files.filter((file) => file.path !== systemPath(name)),
+    records: planned.records,
+    systems: system ? [...kept, name] : kept,
+    removes,
+    ignore: existsSync(resolve(root, IGNORE_PATH)) ? 'present' : 'create',
+    descriptor: {
+      before: distribution,
+      after: system ? distribution : null,
+      dependencies: { before: descriptor.dependencies, after: dependencies },
+    },
+    // Without `--system` the distribution goes, so the descriptor is always rewritten; with it, only a new base row
+    // rewrites it, so one that differs from these bytes in formatting alone, such as its line endings, is left as it is.
+    rewrite: system && spelledRows(descriptor.dependencies) === spelledRows(dependencies) ? null : text,
+    hosts,
+    steps: [
+      ...(bundled(locked) ? [] : ['install' as const]),
+      'move',
+      'author',
+      'remove',
+      'descriptor',
+      'admission',
+      'capture',
+      ...(hosts.length === 0 ? [] : ['project' as const]),
+    ],
+    invocation: request.invocation ?? 'ia init --migrate',
+  };
+}
+/**
+ * A registered host's file plan for the migrated records, before they exist. Every file the adapter renders carries
+ * the workspace revision, which the migration changes, so the apply rewrites each one this render leaves unchanged:
+ * that one is planned with a text that differs from its bytes, as the apply's will, which the planner reads as an
+ * update of an owned file or refuses as one this workspace does not own. Every other action, and every refusal,
+ * depends on the files on disk alone.
+ */
+function migratedFiles(root: string, host: HostName): readonly ProjectionAction[] {
+  const rendered = renderProjectionFor(root, host),
+    { actions } = planFiles(root, host, rendered),
+    unchanged = new Set(actions.filter((row) => row.action === 'unchanged').map((row) => row.path));
+  if (unchanged.size === 0) return actions;
+  return planFiles(root, host, {
+    ...rendered,
+    files: rendered.files.map((file) => (unchanged.has(file.path) ? { ...file, text: `${file.text}\n` } : file)),
+  }).actions;
+}
+
+/**
+ * `--apply`'s refusal of a plan with conflicts, before anything is written. A file in a destination's way, or a record
+ * holding a starter record's word and name, is the migration's own conflict, so it names the plan, which lists each
+ * one; a registered projection the planner refuses alone names that host's plan, which names each file it refuses
+ * with its repair.
+ */
+function migrationRefusal(view: MigrationView): Refusal {
+  const collisions = view.conflicts.filter((row) => row.host === undefined);
+  if (collisions.length === 0) {
+    const first = view.conflicts[0]!;
+    return new Refusal(
+      first.code ?? 'IA-CLI-CONFLICT',
+      first.reason,
+      3,
+      { path: first.path },
+      `Run "ia host ${first.host!} --root ${quote(view.root)}" for its projection plan, which names each file it refuses.`,
+    );
+  }
+  return new Refusal(
+    'IA-CLI-CONFLICT',
+    conflictMessage(view.conflicts, 'the migration'),
+    3,
+    { path: view.root },
+    `Run "${view.invocation}" to review the plan and its conflicts.`,
+  );
+}
+
+export interface MigrationOptions {
+  /** The `@inventarch/cli` package root: its bundled base is read again and must be the one the plan showed. */
+  readonly packageRoot: string;
+  readonly signal?: AbortSignal | undefined;
+  /**
+   * Called with every `applyInstallation` checkpoint name when the base is installed, and with `migrate:<step>` after
+   * each step completes, which is where a failure test cuts.
+   */
+  readonly checkpoint?: ((name: string) => void) | undefined;
+}
+/**
+ * The sentence each refusal after the file steps opens its next action with: the records are in the new shape, and,
+ * once the capture effect has run or failed, whether it was taken, as `ia init`'s say it.
+ */
+const MIGRATED = 'The workspace is migrated.';
+const MIGRATED_CAPTURED = 'The workspace is migrated and captured.';
+const MIGRATED_UNCAPTURED = 'The workspace is migrated but not captured.';
+/**
+ * The admission step `ia init` and `ia init --migrate` share: zero error findings, then each planned starter record as
+ * the compiled graph holds it at its path, never string-constructed (M5.1 §2.3), with every record the graph holds.
+ * `done` opens each refusal's next action with what the command completed before it, if anything.
+ */
+function admitStarter(
+  root: string,
+  planned: readonly StarterRecord[],
+  what: 'initialized' | 'migrated',
+  done: string,
+): { readonly compiled: readonly Compiled[]; readonly records: readonly Compiled[] } {
+  const session = openWorkspaceSession({ root });
+  try {
+    const errors = session.admission().findings.filter((finding) => finding.severity === 'error');
+    if (errors.length > 0)
+      throw new Refusal(
+        'IA-CLI-FAILED',
+        `The ${what} workspace failed admission with ${errors.length} error findings; first: ${errors[0]!.code}`,
+        3,
+        { path: root },
+        `${done}Run "ia validate --root ${quote(root)}" for the findings.`,
+      );
+    const records = session.reader.records();
+    const compiled = planned.map((starter) => {
+      const record = records.find(
+        (node) =>
+          node.discriminator === starter.word && node.name === starter.name && node.source.path === starter.path,
+      );
+      if (record === undefined)
+        throw new Refusal(
+          'IA-CLI-FAILED',
+          `The compiled workspace has no @${starter.word} ${starter.name} in ${starter.path}`,
+          3,
+          { path: root },
+          `${done}Run "ia inspect --path ${starter.path} --root ${quote(root)}" for the records that file admitted.`,
+        );
+      return record;
+    });
+    return { compiled, records };
+  } finally {
+    session.close();
+  }
+}
+
+/**
+ * `ia init --migrate --apply`, in the plan's step order. The bundled base is read again and must be the plan's, and
+ * every byte a move carries is read first, so a file the reader refuses (a link, a hard link, an oversized file)
+ * changes nothing; the signal is observed once more before the first write. When the installed base is another
+ * archive, the bundled one is installed first, as `ia init` installs it, while the records are still 1.x-shaped: the
+ * installer admits them against it before activating it, and a signal there names the rerun of this migration,
+ * which installs the base again only if the bundled one is still not installed. The file steps follow: move each user
+ * record file to `.ia/src/` (written create-only, then its source deleted), author the starter files create-only and
+ * `.ia/.gitignore` where none exists, delete the 1.x starter files (and without `--system` the folders they leave
+ * empty), and rewrite the descriptor without its distribution and with the bundled base's dependency row. A file step
+ * that fails says which writes and deletes it made, the base install included, since nothing is rolled back, and names
+ * `ia validate`, or this migration's rerun when the base install is all it made. Admission then reads the starter
+ * identities and each moved file's, and a migrated workspace that fails it is refused saying neither effect ran. The
+ * two effects follow as `ia init` takes them (design §3): the capture, then each registered host's projection through
+ * `applyHostProjection`, which retires the steward guard before any file changes and deletes the owned 1.x steward
+ * files (B9, B11). Each effect that fails or is interrupted leaves every earlier result in place and names its
+ * own command: `ia capture`, or `ia host <host> --apply` until `ia project` exists. The projections read the live
+ * revision (B8), so they run after a capture that failed too, and every host is attempted before the first refusal is
+ * raised.
+ */
+export async function applyMigration(view: MigrationView, options: MigrationOptions): Promise<Migrated> {
+  if (view.conflicts.length > 0) throw migrationRefusal(view);
+  const { root } = view,
+    checkpoint = options.checkpoint ?? (() => {});
+  const base = readBase(options.packageRoot);
+  if (base.pin.archive !== view.base.pin.archive || base.pin.manifest !== view.base.pin.manifest)
+    throw new Refusal(
+      'IA-CLI-FAILED',
+      'The bundled base package changed while planning',
+      3,
+      { path: resolve(options.packageRoot, PIN_PATH) },
+      DAMAGED,
+    );
+  const carried = view.moves.map((move) => ({ ...move, bytes: readWorkspaceFile({ root, path: move.from }) }));
+  options.signal?.throwIfAborted();
+  // The last point at which the target is byte-identical to its state before the command.
+  const install = view.steps.includes('install');
+  if (install) {
+    const resume = new Interrupted(`Run "${view.invocation} --apply --yes" again to finish migrating.`);
+    await installBase(root, base, 'update', { signal: options.signal, checkpoint }, resume);
+    checkpoint('migrate:install');
+    if (options.signal?.aborted) throw resume;
+  }
+  const done: string[] = install ? [`installed ${base.pin.id} ${base.pin.version}`] : [];
+  let ignore: 'written' | 'present';
+  const removed: string[] = [];
+  try {
+    for (const move of carried) {
+      createFile(root, move.to, move.bytes);
+      done.push(`wrote ${move.to}`);
+      replace(root, move.from, null);
+      done.push(`deleted ${move.from}`);
+    }
+    checkpoint('migrate:move');
+    for (const file of view.files) {
+      createFile(root, file.path, Buffer.from(file.text));
+      done.push(`wrote ${file.path}`);
+    }
+    ignore = existsSync(resolve(root, IGNORE_PATH)) ? 'present' : 'written';
+    if (ignore === 'written') {
+      createFile(root, IGNORE_PATH, Buffer.from(IGNORE_TEXT));
+      done.push(`wrote ${IGNORE_PATH}`);
+    }
+    checkpoint('migrate:author');
+    // A folder the 1.x starter leaves empty is the plan's `<path>/` row; `rmdirSync` refuses one that is not empty.
+    for (const removal of view.removes) {
+      if (removal.path.endsWith('/')) rmdirSync(resolve(root, removal.path));
+      else replace(root, removal.path, null);
+      removed.push(removal.path);
+      done.push(`deleted ${removal.path}`);
+    }
+    checkpoint('migrate:remove');
+    if (view.rewrite !== null) {
+      replace(root, DESCRIPTOR_PATH, Buffer.from(view.rewrite));
+      done.push(`rewrote ${DESCRIPTOR_PATH}`);
+    }
+    checkpoint('migrate:descriptor');
+  } catch (error) {
+    // Nothing is written yet, so the target is byte-identical and the error is refused as it is.
+    if (done.length === 0) throw error;
+    const refusal = refusalOf(error),
+      stopped = `The migration stopped after it ${done.join(', ')}; nothing was rolled back.`;
+    // The base install alone leaves the records 1.1.0-shaped, so this migration, run again, finds it and finishes.
+    throw new Refusal(
+      refusal.code,
+      refusal.message,
+      3,
+      refusal.where ?? { path: refusedPath(error) ?? root },
+      install && done.length === 1
+        ? `${stopped} The records are still the ${MIGRATES_FROM} starter's, so run "${view.invocation} --apply --yes" again to finish migrating.`
+        : `${stopped} Run "ia validate --root ${quote(root)}" for what the workspace admits now.`,
+    );
+  }
+  // Neither effect has run, so the refusal says so before the one command it names.
+  const { compiled, records } = admitStarter(
+    root,
+    view.records,
+    'migrated',
+    view.hosts.length === 0
+      ? `${MIGRATED_UNCAPTURED} `
+      : 'The workspace is migrated but neither captured nor projected. ',
+  );
+  const moved = view.moves.map(
+    (move): MigrationMove => ({
+      ...move,
+      identities: records
+        .filter((record) => record.source.path === move.to)
+        .map((record) => record.identity)
+        .sort(),
+    }),
+  );
+  checkpoint('migrate:admission');
+  // The capture effect, as `ia init` takes it: refused as `ia capture` refuses, with its repair, for this root.
+  const recapture = `ia capture --root ${quote(root)}`;
+  let capture: CaptureEffect | undefined, failed: Refusal | undefined;
+  if (options.signal?.aborted) {
+    if (view.hosts.length === 0) throw new Interrupted(`${MIGRATED} Run "${recapture}" to capture it.`);
+  } else
+    try {
+      const written = collectCapture(root, root);
+      capture = { revision: written.snapshot.revision, records: written.snapshot.counts.records };
+    } catch (error) {
+      failed = refusalOf(captureFailure(error, root, recapture));
+    }
+  if (capture !== undefined) checkpoint('migrate:capture');
+  // The project effect: each registered host, through the one writer of projection files.
+  const captured = capture === undefined ? MIGRATED_UNCAPTURED : MIGRATED_CAPTURED;
+  const projected: MigratedProjection[] = [],
+    refused: Refusal[] = [];
+  for (const { host } of view.hosts) {
+    const finish = `ia host ${host} --root ${quote(root)} --apply`;
+    if (options.signal?.aborted) throw new Interrupted(`${captured} Run "${finish}" to project it.`);
+    try {
+      const applied = applyHostProjection(root, host, renderProjectionFor(root, host));
+      // A rendered apply always writes its receipt (B12).
+      const receipt = applied.receipt!;
+      projected.push({
+        host,
+        files: receipt.files,
+        receipt: STATE.receipt(host),
+        guard: applied.guard,
+        removed: receipt.removed.map((file) => file.path),
+      });
+    } catch (error) {
+      const refusal = refusalOf(error),
+        path = refusedPath(error);
+      refused.push(
+        new Refusal(
+          refusal.code,
+          refusal.message,
+          3,
+          path === null ? refusal.where : { path },
+          `${captured} ${path === null ? `Run "${finish}" to finish projecting it.` : rootedNext(projectionRepair(host, path, `ia host ${host} --apply`, refusal.code), host, root)}`,
+        ),
+      );
+    }
+  }
+  if (projected.length > 0) checkpoint('migrate:project');
+  const first = refused[0];
+  if (first !== undefined)
+    throw new Refusal(
+      first.code,
+      refused.length > 1
+        ? `${first.message}. ${refused.length} registered host projections were not written; this is the first.`
+        : first.message,
+      3,
+      first.where,
+      first.next,
+    );
+  if (failed !== undefined)
+    throw new Refusal(
+      failed.code,
+      failed.message,
+      3,
+      failed.where,
+      `${
+        projected.length === 0
+          ? MIGRATED
+          : `The workspace is migrated and its ${projected.map((row) => row.host).join(' and ')} ${projected.length === 1 ? 'projection is' : 'projections are'} written.`
+      } ${failed.next ?? `Run "${recapture}" to capture it.`}`,
+    );
+  if (capture === undefined) throw new Interrupted(`${MIGRATED} Run "${recapture}" to capture it.`);
+  return {
+    status: 'migrated',
+    id: view.id,
+    base: install ? 'installed' : 'present',
+    distribution: compiled.find((record) => record.discriminator === 'distribution')?.identity ?? null,
+    authored: compiled.map((record) => record.identity),
+    moved,
+    removed,
+    ignore,
+    effects: { capture, project: projected },
+  };
+}
+
+export function migrationEnvelope(view: MigrationView, apply: boolean, applied: Migrated | null = null): unknown {
+  return {
+    version: 1,
+    command: 'init',
+    root: view.root,
+    apply,
+    plan: {
+      migrate: MIGRATES_FROM,
+      id: view.id,
+      name: view.name,
+      system: view.system,
+      base: {
+        id: view.base.pin.id,
+        installed: view.base.installed,
+        bundled: { version: view.base.pin.version, archive: view.base.pin.archive },
+      },
+      conflicts: view.conflicts,
+      steps: view.steps,
+      moves: view.moves,
+      writes: view.files.map((file) => file.path),
+      records: view.records.map((record) => `@${record.word} ${record.name}`),
+      systems: view.systems,
+      removes: view.removes,
+      ignore: { path: IGNORE_PATH, status: view.ignore },
+      descriptor: { path: DESCRIPTOR_PATH, ...view.descriptor },
+      hosts: view.hosts,
+    },
+    ...(applied === null ? {} : { applied }),
+  };
+}
+
+/** One row per file: its path, then what the migration does to it, each row on one content column (§6.4 rule 2). */
+const fileRows = (
+  rows: readonly { readonly symbol: SymbolName; readonly path: string; readonly text: string }[],
+  caps: Capabilities,
+): readonly string[] => {
+  const symbolWidth = blockSymbolWidth(
+    rows.map((row) => row.symbol),
+    caps.ascii,
+  );
+  return rows.flatMap((row) =>
+    entry(
+      [[atom(row.path, 'cyan', 0), ...words(row.text, null, 2)]],
+      { depth: 1, symbol: row.symbol, symbolWidth },
+      caps,
+    ),
+  );
+};
+const migrationBlocks = (view: MigrationView, caps: Capabilities): readonly (readonly string[])[] => {
+  const { name } = view,
+    { pin } = view.base,
+    { dependencies } = view.descriptor;
+  // Only the base's row changes; every other row is kept as it is.
+  const was = dependencies.before.find((row) => row.id === pin.id),
+    now = dependencies.after.find((row) => row.id === pin.id)!;
+  const conflicts: readonly Field[] = view.conflicts.map((row) => ({
+    symbol: 'warning' as const,
+    label: row.path,
+    value: words(row.host === undefined ? row.reason : `the ${row.host} projection: ${row.code} ${row.reason}`),
+  }));
+  const project = view.hosts.map((planned) => ({
+    symbol: 'added' as const,
+    label: `Project ${planned.host}`,
+    value: words(
+      [
+        ...(planned.guard === 'retire' ? [`first retires the steward guard registered in ${SETTINGS}`] : []),
+        ...planned.files.map(
+          (file) => `${file.path} ${file.action === 'foreign' ? 'foreign, left in place' : file.action}`,
+        ),
+      ].join('; '),
+    ),
+  }));
+  return [
+    [
+      sectionLabel('Conflicts', caps),
+      ...(conflicts.length === 0
+        ? entry(
+            [
+              words(
+                "None. No destination exists, no record holds a starter record's word and name, and every registered projection plans.",
+              ),
+            ],
+            { depth: 1, symbol: 'success' },
+            caps,
+          )
+        : fieldRows(conflicts, { depth: 1 }, caps)),
+    ],
+    [
+      sectionLabel('Base', caps),
+      ...fieldRows(
+        [
+          view.steps.includes('install')
+            ? {
+                symbol: 'added',
+                label: 'Install',
+                value: words(
+                  `${pin.id} ${pin.version} from the bundled archive, sha256 ${truncateDigest(pin.archive, caps.ascii)}, in place of the installed ${view.base.installed.version}, sha256 ${truncateDigest(view.base.installed.archive, caps.ascii)}, which may not declare the fields the three records use`,
+                ),
+              }
+            : {
+                symbol: 'info',
+                label: 'Base package',
+                value: words(`${pin.id} ${pin.version} from the bundled archive, already installed`),
+              },
+        ],
+        { depth: 1 },
+        caps,
+      ),
+    ],
+    [
+      sectionLabel('Records', caps),
+      ...fileRows(
+        [
+          ...view.moves.map((move) => ({
+            symbol: 'updated' as const,
+            path: move.from,
+            text: `moves to ${move.to}${move.identities.length === 0 ? '' : `, holding ${move.identities.join(', ')}`}`,
+          })),
+          {
+            symbol: 'added',
+            path: WORKSPACE_PATH,
+            text: `@workspace ${name} composing ${view.systems.length} systems; its participant @agent ${name}; @mandate ${name}-mandate`,
+          },
+          ...(view.system
+            ? [
+                {
+                  symbol: 'added' as const,
+                  path: distributionPath(name),
+                  text: `@distribution ${name}-distribution rooted at @system ${name}, in place of the one rooted at @workspace ${name}`,
+                },
+                { symbol: 'info' as const, path: systemPath(name), text: `kept: @system ${name} and its steward` },
+              ]
+            : []),
+          {
+            symbol: view.ignore === 'create' ? 'added' : 'info',
+            path: IGNORE_PATH,
+            text: view.ignore === 'create' ? 'ignores work/ and distributions/' : 'exists and is left as it is',
+          },
+          ...view.removes.map((removal) => ({
+            symbol: 'removed' as const,
+            path: removal.path,
+            text: removal.path.endsWith('/') ? 'deleted once empty' : `deleted, with ${removal.identities.join(', ')}`,
+          })),
+          {
+            symbol: view.rewrite === null ? 'info' : 'updated',
+            path: DESCRIPTOR_PATH,
+            text: `${
+              view.descriptor.after === null
+                ? `drops distribution ${view.descriptor.before}, so ia pack refuses until one is authored`
+                : `keeps distribution ${view.descriptor.before}`
+            }${
+              spelledRows(dependencies.before) === spelledRows(dependencies.after)
+                ? ''
+                : `; depends on ${now.id} ${now.range}, the bundled base, ${was === undefined ? 'which it did not name' : `in place of ${was.id} ${was.range}`}`
+            }`,
+          },
+        ],
+        caps,
+      ),
+    ],
+    [
+      sectionLabel('Effects', caps),
+      ...fieldRows(
+        [
+          { symbol: 'added', label: 'Capture', value: words(`${CURRENT}, as ia capture writes it`) },
+          ...(project.length === 0
+            ? [
+                {
+                  symbol: 'info' as const,
+                  label: 'Project',
+                  value: words(
+                    view.conflicts.some((row) => row.host !== undefined)
+                      ? 'Not planned: each registered projection conflicts, as listed above'
+                      : 'No host projection is registered',
+                  ),
+                },
+              ]
+            : project),
+        ],
+        { depth: 1 },
+        caps,
+      ),
+    ],
+  ];
+};
+const migrationHeader = (view: MigrationView, caps: Capabilities): readonly string[] =>
+  headerLine('Plan', `init --migrate from ${MIGRATES_FROM}`, [{ text: view.root, column: 50 }], caps);
+export function renderMigration(view: MigrationView, caps: Capabilities): string {
+  const next =
+    view.conflicts.length > 0
+      ? `Resolve the conflicts above, then run "${view.invocation} --apply --yes".`
+      : `Apply with "${view.invocation} --apply --yes".`;
+  return document(
+    [
+      migrationHeader(view, caps),
+      entry([words('This is a preview. Nothing has been written.')], { depth: 1 }, caps),
+      ...migrationBlocks(view, caps),
+      entry([words(next)], { depth: 0, symbol: 'step' }, caps),
+    ],
+    { leadingBlank: true },
+  );
+}
+/** §2.8 rule 3's change summary: the plan's own blocks without the preview note or the footer. */
+const renderMigrationSummary = (view: MigrationView, caps: Capabilities): string =>
+  document([migrationHeader(view, caps), ...migrationBlocks(view, caps)], { leadingBlank: true });
+export function renderMigrated(view: MigrationView, applied: Migrated, caps: Capabilities): string {
+  return document(
+    [
+      headerLine('Init', applied.id, [{ text: view.root, column: 50 }], caps),
+      entry(
+        [
+          words(
+            `Migrated ${applied.id} from the ${MIGRATES_FROM} starter; release descriptor ${DESCRIPTOR_PATH}${applied.distribution === null ? ', which names no distribution' : `, naming ${applied.distribution}`}.`,
+          ),
+          words(
+            applied.base === 'installed'
+              ? `Installed ${view.base.pin.id} ${view.base.pin.version} from the bundled archive.`
+              : `${view.base.pin.id} ${view.base.pin.version} from the bundled archive was already installed.`,
+          ),
+        ],
+        { depth: 1, symbol: 'success' },
+        caps,
+      ),
+      authoredEntry(applied, caps),
+      ...applied.moved.map((move) =>
+        entry(
+          [
+            [atom(move.from, 'cyan', 0), ...words(`moved to ${move.to}`, null, 1)],
+            ...(move.identities.length === 0 ? [] : [words(`It holds ${move.identities.join(', ')}.`)]),
+          ],
+          { depth: 1, symbol: 'success' },
+          caps,
+        ),
+      ),
+      entry(
+        [
+          words(`Deleted ${applied.removed.join(', ')}.`),
+          ...(view.system ? [words(`Kept @system ${view.name} and its steward in ${systemPath(view.name)}.`)] : []),
+        ],
+        { depth: 1, symbol: 'success' },
+        caps,
+      ),
+      capturedEntry(applied.effects.capture, caps),
+      ...(applied.effects.project.length === 0
+        ? [entry([words('Project skipped: no host projection is registered.')], { depth: 1, symbol: 'info' }, caps)]
+        : applied.effects.project.map((projection) =>
+            entry(
+              [
+                words(`Projected the position packet for ${projection.host}:`),
+                ...projection.files.map((file) => [atom(file.path, 'cyan', 0)]),
+                words(`Receipt ${projection.receipt}.`),
+                ...(projection.removed.length === 0
+                  ? []
+                  : [words(`Deleted the 1.x projection files ${projection.removed.join(', ')}.`)]),
+                ...(projection.guard === 'retired' ? [words(GUARD_RETIRED)] : []),
+              ],
+              { depth: 1, symbol: 'success' },
+              caps,
+            ),
+          )),
+      closingEntry(applied.distribution, caps),
+    ],
+    { leadingBlank: true },
+  );
+}
+
+/** `ia init --migrate`: the plan, which reports its conflicts, or once confirmed its apply. */
+async function migrate(context: Context, root: string): Promise<Result> {
+  const { args, caps, json, host } = context;
+  const apply = args.flag('apply');
+  const view = collectMigration({
+    root,
+    system: args.flag('system'),
+    packageRoot: host.packageRoot,
+    invocation: invocationOf(context),
+  });
+  const rendered = (applied: Migrated | null): Result =>
+    json
+      ? { exitCode: 0, stdout: JSON.stringify(migrationEnvelope(view, apply, applied)) + '\n', stderr: '' }
+      : {
+          exitCode: 0,
+          stdout: applied === null ? renderMigration(view, caps) : renderMigrated(view, applied, caps),
+          stderr: '',
+        };
+  if (!apply) return rendered(null);
+  if (view.conflicts.length > 0) throw migrationRefusal(view);
+  if (!args.flag('yes') && !(await confirm(host.interaction, renderMigrationSummary(view, caps), CONFIRMATION)))
+    return { exitCode: 0, stdout: renderDeclined(view, caps), stderr: '' };
+  return rendered(await applyMigration(view, { packageRoot: host.packageRoot, signal: host.signal }));
+}
+
 /**
  * A finished git run's answer, or null when git is not really there: it could not start, or it is the macOS stub
  * `/usr/bin/git`, which only asks for the Xcode Command Line Tools and fails; reading that as "not a Git checkout" would

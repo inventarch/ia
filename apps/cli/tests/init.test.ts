@@ -300,6 +300,7 @@ it('creates a target that did not exist yet, and renders what it applied', async
   const other = target('demo', false),
     system = (await run(['init', other, '--system'])).stdout.replace(/\s+/g, ' ');
   expect(system).toContain('Local system @system demo and its steward; @distribution demo-distribution rooted at it');
+  expect(system).toContain('@workspace demo composing 11 systems and @system demo; its participant @agent demo');
   expect(system).not.toContain('no distribution');
   expect(system).toContain(`Apply with "ia init ${quote(other)} --system --apply --yes".`);
   const local = await run(['init', other, '--system', '--apply', '--yes']);
@@ -357,6 +358,14 @@ it('init --system authors the local system, its steward and a @distribution root
   });
   expect(readFileSync(resolve(root, '.ia/src/systems/demo/records/distribution.ia'), 'utf8')).toContain(
     '  distribution\n    records [@system demo]\n',
+  );
+  // Position-and-projection §2 case 2: a repository that owns vocabulary composes its own system, after the base's,
+  // so the packet renders a pointer line for it.
+  expect(readFileSync(resolve(root, '.ia/src/workspace.ia'), 'utf8')).toContain(
+    `    systems [${[...base.systems, 'demo'].map((system) => `@system ${system}`).join(', ')}]\n`,
+  );
+  expect(renderProjectionFor(root, 'claude').files[0]!.text).toContain(
+    '- `floor/definition/system/demo`: words none; band 100; steward `agent-system/binding/agent/demo-steward`; reach `ia position --seat floor/definition/system/demo`',
   );
   expect(JSON.parse(readFileSync(resolve(root, '.ia/release.json'), 'utf8')).distribution).toBe(
     'workspace-system/definition/distribution/demo-distribution',
@@ -981,9 +990,13 @@ it('makes an edited starter, a foreign system folder, another lock request and a
   const plan = await refusesUnchanged(moved, ['--id', 'local/other', '--system']);
   expect(plan.conflicts.map((row: { path: string }) => row.path)).toEqual(['.ia/src/workspace.ia', '.ia/src']);
   expect(plan.conflicts[1].reason).toContain('.ia/src/systems/demo/');
-  // A default plan over a --system start finds the system folder foreign, so --system cannot be dropped silently.
+  // A default plan over a --system start finds the system folder foreign, and the starter file other bytes, because
+  // the --system @workspace composes its local system, so --system cannot be dropped silently.
   const dropped = await interruptedAfter('author', 'demo', true);
-  expect((await refusesUnchanged(dropped)).conflicts.map((row: { path: string }) => row.path)).toEqual(['.ia/src']);
+  expect((await refusesUnchanged(dropped)).conflicts.map((row: { path: string }) => row.path)).toEqual([
+    '.ia/src/workspace.ia',
+    '.ia/src',
+  ]);
 });
 
 it('lists and removes leftover temporary files, and keeps any other extra file a conflict', async () => {

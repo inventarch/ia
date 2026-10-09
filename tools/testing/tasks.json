@@ -978,6 +978,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/init-migrate.test.ts",
         "tests/init.test.ts"
       ],
       "profile": "installed",

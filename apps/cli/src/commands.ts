@@ -101,6 +101,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     syntax: [
       'ia init [<directory>] [--id <provider/name>] [--system] [--host claude|codex|none]',
       '        [--apply] [--json] [--yes]',
+      'ia init [<directory>] --migrate [--system] [--apply] [--json] [--yes]',
       'ia init [<directory>] --decline today|forever | --forget-decline [--host claude|codex|none] [--json]',
     ],
     grammar: {
@@ -119,6 +120,14 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'system',
           kind: 'boolean',
           summary: 'Also author a local @system, its steward and a @distribution, so ia pack can release it',
+        }),
+        // Milestone position-packet task init-migrate-flag: the workspace's own name, and the hosts it already
+        // registered, are the ones the migration keeps, so neither --id nor --host applies.
+        option({
+          name: 'migrate',
+          kind: 'boolean',
+          conflicts: ['id', 'host', 'decline', 'forget-decline'],
+          summary: 'Rewrite a 1.1.0 starter workspace into the three starter records',
         }),
         // Host registration spec §4 "init --host": with --apply, `ia host <host> --apply` runs after initialization.
         option({

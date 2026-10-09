@@ -49,22 +49,23 @@ ia init . --id local/my-project --host none
 ia init . --id local/my-project --host none --apply --yes
 ```
 
-Choose your own `local/my-project` identity; its final component names the generated system directory. The first command shows the proposed files. The second creates the `.ia/` workspace and installs the bundled language definitions locally, with no registry connection needed during initialization.
+Choose your own `local/my-project` identity; its final component, `my-project`, names your workspace and its records. The first command shows the proposed files. The second creates the `.ia/` workspace, installs the bundled language definitions locally, with no registry connection needed during initialization, and captures the workspace.
 
 Your authoring files start here:
 
 ```text
-.ia/src/systems/my-project/
-├── system.ia             # Your system, its vocabulary dependencies and steward
-└── records/
-    └── workspace.ia      # The workspace and its distribution record
+.ia/
+├── .gitignore            # Keeps work/ and distributions/, which each clone makes for itself, out of version control
+├── release.json          # The release descriptor
+└── src/
+    └── workspace.ia      # The workspace, its participant agent and that agent's mandate
 ```
 
-The starter supports agents, work records and workspace records. To start in a new folder instead, use `ia init my-project --host none --apply --yes` from an existing parent directory.
+The workspace composes the public systems, so your records can use their words: agents, work records, workspace records and the rest. Add your own `.ia` files beside `workspace.ia`, anywhere under `.ia/src/` except `.ia/src/floor/` and `.ia/src/systems/`; a record's word decides which system owns it. To start in a new folder instead, use `ia init my-project --host none --apply --yes` from an existing parent directory. A repository that will publish vocabulary of its own adds `--system`, which also writes a local system and its distribution under `.ia/src/systems/my-project/`. A workspace that IA 1.0 or 1.1 initialized moves to this layout with `ia init . --migrate`, which previews the move, then `ia init . --migrate --apply --yes`, which also installs the bundled language definitions in place of the 1.x ones.
 
 ### 3. Write your first record
 
-Create `.ia/src/systems/my-project/records/decisions.ia` with this content:
+Create `.ia/src/decisions.ia` with this content:
 
 ```ia
 #! ia 1.0
@@ -90,7 +91,7 @@ Run these commands from the initialized project:
 
 ```sh
 ia validate
-ia inspect --path .ia/src/systems/my-project/records/decisions.ia
+ia inspect --path .ia/src/decisions.ia
 ia vocabulary decision --schema
 ```
 
@@ -112,14 +113,14 @@ Try the invalid status from step 4 to see an editor diagnostic, then restore it.
 
 | Capture | Record types | Start here |
 | --- | --- | --- |
-| Project work and decisions | `@plan`, `@milestone`, `@task`, `@decision` | [Work example](examples/public-language/records/work.ia); available in the starter |
-| Agents and their authority | `@agent`, `@mandate` | [Agent](docs/reference/language/vocabulary.md#agent) and [mandate](docs/reference/language/vocabulary.md#mandate) fields; available in the starter |
+| Project work and decisions | `@plan`, `@milestone`, `@task`, `@decision` | [Work example](examples/public-language/records/work.ia) |
+| Agents and their authority | `@agent`, `@mandate` | [Agent](docs/reference/language/vocabulary.md#agent) and [mandate](docs/reference/language/vocabulary.md#mandate) fields; the starter authors one of each |
 | Project rules and procedures | `@principle`, `@law`, `@convention`, `@playbook` | [Governance vocabulary](docs/reference/language/vocabulary.md#convention) |
 | Requirements and checks | `@contract`, `@check`, `@case` | [Quality example](examples/public-language/records/quality.ia) |
 | Agent composition | `@capability`, `@agent-profile`, `@harness` | [Composition example](examples/public-language/records/composition.ia) |
 | Reusable output and learning | `@template`, `@observation`, `@improvement` | [Template fields](docs/reference/language/vocabulary.md#template) · [evidence example](examples/public-language/records/evidence.ia) |
 
-Before using a word from another system, add its owner to the `requires` list in your `system.ia` (for example, `- compliance-system` for `@contract`). The [vocabulary catalogue](docs/reference/language/vocabulary.md) names each owner and schema; `ia vocabulary <word> --schema` exposes the same authoring contract in the terminal. The [language guide](docs/reference/language/README.md) covers syntax, relationships and defining your own vocabulary.
+Every word in this table belongs to a public system your `@workspace` composes, so a record anywhere under `.ia/src/` outside `.ia/src/floor/` and `.ia/src/systems/` can use it with no edit. Only a record inside a `--system` folder, `.ia/src/systems/my-project/`, needs the word's owner in that folder's `system.ia` `requires` list (for example, `- compliance-system` for `@contract`). The [vocabulary catalogue](docs/reference/language/vocabulary.md) names each owner and schema; `ia vocabulary <word> --schema` exposes the same authoring contract in the terminal. The [language guide](docs/reference/language/README.md) covers syntax, relationships and defining your own vocabulary.
 
 ### Connect an agent host
 

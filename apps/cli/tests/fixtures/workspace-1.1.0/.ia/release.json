@@ -1,0 +1,38 @@
+{
+  "formatVersion": 1,
+  "id": "local/demo",
+  "version": "0.1.0",
+  "distribution": "workspace-system/definition/distribution/demo-distribution",
+  "engine": "^0.1.0",
+  "language": [
+    "1.0"
+  ],
+  "dependencies": [
+    {
+      "id": "inventarch/language",
+      "range": "^1.1.0",
+      "systems": [
+        "agent-composition-system",
+        "agent-system",
+        "authoring-system",
+        "compliance-system",
+        "governance-system",
+        "hook-authoring-system",
+        "learning-system",
+        "session-system",
+        "template-system",
+        "work-system",
+        "workspace-system"
+      ]
+    }
+  ],
+  "assets": [],
+  "license": "UNLICENSED",
+  "description": "The demo workspace.",
+  "source": {
+    "repository": null,
+    "commit": null,
+    "recipe": "ustar-v1",
+    "epoch": 0
+  }
+}
