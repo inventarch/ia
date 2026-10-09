@@ -3293,6 +3293,7 @@
       "kind": "vitest",
       "project": ".",
       "files": [
+        "tools/distribution/github-release.test.ts",
         "tools/distribution/npm-release.test.ts",
         "tools/distribution/release-hygiene.test.ts",
         "tools/distribution/release-refusals.test.ts",
