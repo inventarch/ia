@@ -1,12 +1,12 @@
 # 🌳 IA · the InventArch record language and toolchain
 
-[![Release](https://img.shields.io/npm/v/@inventarch/cli?label=release)](https://github.com/inventarch/ia/releases/latest) [![Public quality](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml/badge.svg?branch=main)](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE) [![Node](https://img.shields.io/badge/node-22.x-brightgreen)](package.json) [![pnpm](https://img.shields.io/badge/pnpm-12.9.0-f69220)](package.json) [![Vocabulary](https://img.shields.io/badge/vocabulary-43%20words-blue)](docs/reference/language/vocabulary.md)
+[![Release](https://img.shields.io/npm/v/@inventarch/cli?label=release)](https://github.com/inventarch/ia/releases/latest) [![Public quality](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml/badge.svg?branch=main)](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE) [![Node](https://img.shields.io/badge/node-22.x-brightgreen)](package.json) [![pnpm](https://img.shields.io/badge/pnpm-12.9.0-f69220)](package.json) [![Vocabulary](https://img.shields.io/badge/vocabulary-44%20words-blue)](docs/reference/language/vocabulary.md)
 
 > **IA** is a language and toolchain for keeping decisions, requirements, agent definitions and work plans alongside your code. Author linked records in plain-text `.ia` files; the CLI checks their structure and relationships, and the VS Code extension helps you write and navigate them.
 >
 > This is the **public IA repository**: the language, native schemas, CLI, MCP server, editor integration and worked examples, licensed under Apache-2.0.
 
-Start below with the published [CLI](https://www.npmjs.com/package/@inventarch/cli), then explore the [language guide](docs/reference/language/README.md), [43-word vocabulary](docs/reference/language/vocabulary.md) and [worked examples](examples/public-language/README.md).
+Start below with the published [CLI](https://www.npmjs.com/package/@inventarch/cli), then explore the [language guide](docs/reference/language/README.md), [44-word vocabulary](docs/reference/language/vocabulary.md) and [worked examples](examples/public-language/README.md).
 
 ---
 
@@ -161,7 +161,8 @@ If you are an agent working in this checkout, start here:
 | Package | Role |
 | --- | --- |
 | [`@inventarch/language`](packages/language/SPEC.md) | Parsing, registration, compilation, native kernel generation and formatting |
-| [`@inventarch/graph`](packages/graph/SPEC.md) | Typed graph, identity resolution and queries |
+| [`@inventarch/graph`](packages/graph/SPEC.md) | Typed graph, identity resolution, queries and the canonical digest codec |
+| [`@inventarch/workspace-runtime`](packages/workspace-runtime/SPEC.md) | Workspace capture, captured resources, projections, publication, templates, lifecycle, authoring manifest and the installed implementation digest |
 | [`@inventarch/compliance`](packages/compliance/SPEC.md) | Schema checks, assessments and explicit refusals |
 | [`@inventarch/db`](packages/db/SPEC.md) | Workspace readers, scoped views, cache, preview, adoption and bindings |
 | [`@inventarch/runtime`](packages/runtime/SPEC.md) | Context delivery, machine operations, steward evaluation and editor/authoring interfaces |
@@ -199,13 +200,13 @@ The [language floor](.ia/src/floor/README.md) supplies the kernel. These systems
 
 | Work with | Commands |
 | --- | --- |
-| **Workspace records** | `init`, `validate`, `compile`, `format`, `inspect`, `vocabulary` |
+| **Workspace records** | `init`, `validate`, `capture`, `format`, `inspect`, `read`, `vocabulary`, and the deprecated `compile` |
 | **Distributions and hosts** | `pack`, `install`, `update`, `remove`, `restore`, `doctor`, `host` |
 | **Machine operations** | `scope`, `context`, `select`, `get`, `records`, `resolve`, `search`, `traverse`, `report`, with inputs through `--params` |
 
 Use `ia --help` or `ia <command> --help` for options. `ia doctor` reports observed runtime, workspace and installation state; an unavailable update check remains unknown.
 
-Commands that preview changes require `--apply` to perform them, and `--yes` when applying without a terminal. `compile` writes its output directly, and `format --write` rewrites source formatting. Host registration is an explicit operation.
+Commands that preview changes require `--apply` to perform them, and `--yes` when applying without a terminal. `capture` writes its snapshot under `.ia/work/snapshot/` directly, as the deprecated `compile` writes its artifact under `.ia/work/`, and `format --write` rewrites source formatting. Host registration is an explicit operation.
 
 Native declarations describe structure and intent. Passing schema validation does not establish that a declared test ran or that its evidence is true. The [language guide](docs/reference/language/README.md) explains composition, execution and evaluation outcomes.
 

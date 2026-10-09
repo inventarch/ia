@@ -1,5 +1,10 @@
 /**
- * `ia compile`: docs/specs/consumer-cli-contract/README.md §2.4.
+ * `ia compile`: docs/specs/consumer-cli-contract/README.md §2.4, deprecated in favour of `ia capture`.
+ *
+ * Decision release-bump (operator, 2026-10-07): in 1.x the verb keeps its behaviour exactly — the `ia.compiled.v1`
+ * artifact at .ia/work/compiled.json or `--out <file>` under .ia/work/, `--stdout`, the IA-DIST-LOCAL-MODIFICATION
+ * refusal without `--force` and its exit classes — and adds one deprecation line on stderr naming `ia capture`. The
+ * alias of decision compile-verb-fate, which routes the verb to the capture, waits for 2.0.
  *
  * One deterministic document, `ia.compiled.v1`. Determinism is a requirement on this writer, not a hope: records
  * are sorted by canonical identity, diagnostics by (path, line, code, message), object keys are emitted sorted and
@@ -12,6 +17,7 @@
  * pass, never suppressed and never omitted from --json.
  */
 import { resolve } from 'node:path';
+import { CAPTURE_CURRENT } from '@inventarch/db';
 import {
   createFile,
   json,
@@ -20,13 +26,13 @@ import {
   sha256,
   workOutputPath,
 } from '@inventarch/distribution/services';
+import { findingCounts, orderFindings } from './capture.js';
 import type { Context, Result } from './consumer.js';
-import { Refusal, requireRoot } from './consumer.js';
+import { Refusal, requireRoot, respell } from './consumer.js';
 import { codeOf, openSession } from './session.js';
 import type { Session } from './session.js';
-import { NOT_EVALUATED } from './validate.js';
 import type { Capabilities } from './render.js';
-import { atom, document, entry, headerLine, sectionLabel, truncateDigest, words } from './render.js';
+import { atom, document, entry, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
 
 type Admission = ReturnType<Session['admission']>;
 type Finding = Admission['findings'][number];
@@ -59,15 +65,13 @@ export interface CompileView {
 }
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-/** The ordering the compliance layer already applies, reused rather than reinvented. */
-const orderFindings = (findings: readonly Finding[]): readonly Finding[] =>
-  [...findings].sort(
-    (a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.code, b.code) || compare(a.message, b.message),
-  );
 
 export function buildArtifact(root: string, session: Session): CompileView {
   const admission = session.admission();
-  const records = [...session.reader.records()].sort((a, b) => compare(a.identity, b.identity));
+  // ia.compiled.v1 records predate graph G13, so the artifact and its digest omit the per-record digest.
+  const records = [...session.reader.records()]
+    .sort((a, b) => compare(a.identity, b.identity))
+    .map(({ digest: _digest, ...record }) => record);
   const diagnostics = orderFindings(admission.findings);
   const artifact: CompiledArtifact = {
     formatVersion: 1,
@@ -78,12 +82,7 @@ export function buildArtifact(root: string, session: Session): CompileView {
     revision: admission.revision,
     records,
     diagnostics,
-    counts: {
-      records: records.length,
-      errors: diagnostics.filter((finding) => finding.severity === 'error').length,
-      warnings: diagnostics.filter((finding) => finding.severity === 'warning').length,
-      notEvaluated: diagnostics.filter((finding) => NOT_EVALUATED.has(finding.code)).length,
-    },
+    counts: findingCounts(records.length, diagnostics),
   };
   const text = json(artifact);
   return { artifact, text, digest: sha256(text) };
@@ -169,11 +168,18 @@ export function renderCompile(view: CompileView, path: string, caps: Capabilitie
 }
 
 /**
+ * Decision release-bump (operator, 2026-10-07): `ia compile` keeps its 1.x behaviour and prints this one line on
+ * stderr whenever it runs to a result, in every output mode, `--json` and `--stdout` included, so stdout stays exactly
+ * what 1.x wrote there; a refusal prints only the refusal. The alias of decision compile-verb-fate lands in 2.0.
+ */
+export const DEPRECATION = `Deprecated: ia compile becomes an alias of "ia capture" in 2.0 and is removed in 3.0; run "ia capture" to write the admitted snapshot to ${CAPTURE_CURRENT}.\n`;
+
+/**
  * §2.4: running `ia compile` twice is the ordinary case, so refusing by default is stated rather than discovered.
  * `createFile` raises IA-DIST-LOCAL-MODIFICATION on an existing entry; the code is carried through unchanged and
  * only the next action is added, because a refusal whose remedy is one flag must name that flag.
  */
-function publish(root: string, path: string, content: Buffer, force: boolean): void {
+function publish(root: string, path: string, content: Buffer, force: boolean, overwrite: string): void {
   if (force) {
     replace(root, path, content);
     return;
@@ -187,7 +193,41 @@ function publish(root: string, path: string, content: Buffer, force: boolean): v
       `${path} already exists`,
       3,
       { path },
-      'Pass --force to overwrite it, or choose another --out under .ia/work/.',
+      `Run "${overwrite}" to overwrite it.`,
+    );
+  }
+}
+/** The refused invocation again with `--force`, so the one flag the remedy needs is named in a runnable command. */
+function forced(context: Context): string {
+  const out = context.args.value('out'),
+    root = context.args.value('root');
+  return [
+    'ia compile',
+    ...(out === undefined ? [] : ['--out', quote(out)]),
+    '--force',
+    ...(root === undefined ? [] : ['--root', quote(root)]),
+  ].join(' ');
+}
+/**
+ * The artifact's place, decided before the workspace is read so an unsafe `--out` never costs a compilation. The
+ * distribution's IA-DIST-PATH-UNSAFE is carried through unchanged (§4.1); only its next action is added, the rerun
+ * with the one value the user has to correct.
+ */
+function placement(context: Context, root: string): string {
+  try {
+    return workOutputPath({
+      root,
+      path: context.args.value('out') ?? DEFAULT_OUT,
+      refusal: 'A compiled artifact is written under .ia/work/',
+    });
+  } catch (error) {
+    if (error instanceof Refusal || codeOf(error, '') !== 'IA-DIST-PATH-UNSAFE') throw error;
+    throw new Refusal(
+      'IA-DIST-PATH-UNSAFE',
+      error instanceof Error ? error.message : String(error),
+      3,
+      null,
+      `Run "${respell(context, { options: { out: ['<file>'] } })}" naming a file under .ia/work/.`,
     );
   }
 }
@@ -195,20 +235,13 @@ function publish(root: string, path: string, content: Buffer, force: boolean): v
 export function runCompile(context: Context): Result {
   const { args, caps, json: machine } = context;
   const root = requireRoot(context);
-  // Placement is decided before the workspace is read, so an unsafe --out never costs a compilation.
-  const path = args.flag('stdout')
-    ? null
-    : workOutputPath({
-        root,
-        path: args.value('out') ?? DEFAULT_OUT,
-        refusal: 'A compiled artifact is written under .ia/work/',
-      });
+  const path = args.flag('stdout') ? null : placement(context, root);
   const view = collectCompile(root);
   const exitCode = compileExit(view);
   // §2.4: with --stdout the artifact is the single value on stdout, so nothing else may be written there.
-  if (path === null) return { exitCode, stdout: view.text, stderr: '' };
-  publish(root, path, Buffer.from(view.text, 'utf8'), args.flag('force'));
+  if (path === null) return { exitCode, stdout: view.text, stderr: DEPRECATION };
+  publish(root, path, Buffer.from(view.text, 'utf8'), args.flag('force'), forced(context));
   return machine
-    ? { exitCode, stdout: JSON.stringify(compileEnvelope(view, resolve(root, path))) + '\n', stderr: '' }
-    : { exitCode, stdout: renderCompile(view, path, caps), stderr: '' };
+    ? { exitCode, stdout: JSON.stringify(compileEnvelope(view, resolve(root, path))) + '\n', stderr: DEPRECATION }
+    : { exitCode, stdout: renderCompile(view, path, caps), stderr: DEPRECATION };
 }

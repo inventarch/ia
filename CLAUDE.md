@@ -2,18 +2,18 @@
 
 # IA language
 
-Source revision: 6b9b7ef23da9d695c624641f28c9b0086407568c75a4f0b4b17b525a310df8ee
+Source revision: 4dc4ea7d60c2eed30830596fee1965a0953c5312d533a5d74ccce428dc702f42
 
 Read docs/reference/language/README.md and vocabulary.json for language contracts.
 
-- agent-composition-system: @system agent-composition-system (.ia/src/systems/agent-composition-system/system.ia:3); @agent public-agent-composition-system-steward (.ia/src/systems/agent-composition-system/system.ia:44).
-- agent-system: @system agent-system (.ia/src/systems/agent-system/system.ia:3); @agent public-agent-system-steward (.ia/src/systems/agent-system/system.ia:27).
-- authoring-system: @system authoring-system (.ia/src/systems/authoring-system/system.ia:3); @agent public-authoring-system-steward (.ia/src/systems/authoring-system/system.ia:29).
-- compliance-system: @system compliance-system (.ia/src/systems/compliance-system/system.ia:3); @agent public-compliance-system-steward (.ia/src/systems/compliance-system/system.ia:31).
-- governance-system: @system governance-system (.ia/src/systems/governance-system/system.ia:3); @agent public-governance-system-steward (.ia/src/systems/governance-system/system.ia:37).
-- hook-authoring-system: @system hook-authoring-system (.ia/src/systems/hook-authoring-system/system.ia:3); @agent public-hook-authoring-system-steward (.ia/src/systems/hook-authoring-system/system.ia:26).
-- learning-system: @system learning-system (.ia/src/systems/learning-system/system.ia:3); @agent public-learning-system-steward (.ia/src/systems/learning-system/system.ia:31).
-- session-system: @system session-system (.ia/src/systems/session-system/system.ia:3); @agent public-session-system-steward (.ia/src/systems/session-system/system.ia:25).
-- template-system: @system template-system (.ia/src/systems/template-system/system.ia:3); @agent public-template-system-steward (.ia/src/systems/template-system/system.ia:26).
-- work-system: @system work-system (.ia/src/systems/work-system/system.ia:3); @agent public-work-system-steward (.ia/src/systems/work-system/system.ia:43).
-- workspace-system: @system workspace-system (.ia/src/systems/workspace-system/system.ia:3); @agent public-workspace-system-steward (.ia/src/systems/workspace-system/system.ia:28).
+- agent-composition-system: @system agent-composition-system (.ia/src/systems/agent-composition-system/system.ia:3); @agent public-agent-composition-system-steward (.ia/src/systems/agent-composition-system/system.ia:59).
+- agent-system: @system agent-system (.ia/src/systems/agent-system/system.ia:3); @agent public-agent-system-steward (.ia/src/systems/agent-system/system.ia:33).
+- authoring-system: @system authoring-system (.ia/src/systems/authoring-system/system.ia:3); @agent public-authoring-system-steward (.ia/src/systems/authoring-system/system.ia:35).
+- compliance-system: @system compliance-system (.ia/src/systems/compliance-system/system.ia:3); @agent public-compliance-system-steward (.ia/src/systems/compliance-system/system.ia:40).
+- governance-system: @system governance-system (.ia/src/systems/governance-system/system.ia:3); @agent public-governance-system-steward (.ia/src/systems/governance-system/system.ia:49).
+- hook-authoring-system: @system hook-authoring-system (.ia/src/systems/hook-authoring-system/system.ia:3); @agent public-hook-authoring-system-steward (.ia/src/systems/hook-authoring-system/system.ia:29).
+- learning-system: @system learning-system (.ia/src/systems/learning-system/system.ia:3); @agent public-learning-system-steward (.ia/src/systems/learning-system/system.ia:37).
+- session-system: @system session-system (.ia/src/systems/session-system/system.ia:3); @agent public-session-system-steward (.ia/src/systems/session-system/system.ia:28).
+- template-system: @system template-system (.ia/src/systems/template-system/system.ia:3); @agent public-template-system-steward (.ia/src/systems/template-system/system.ia:29).
+- work-system: @system work-system (.ia/src/systems/work-system/system.ia:3); @agent public-work-system-steward (.ia/src/systems/work-system/system.ia:59).
+- workspace-system: @system workspace-system (.ia/src/systems/workspace-system/system.ia:3); @agent public-workspace-system-steward (.ia/src/systems/workspace-system/system.ia:34).

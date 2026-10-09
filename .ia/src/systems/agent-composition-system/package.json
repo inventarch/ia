@@ -248,6 +248,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
+    "@inventarch/workspace-runtime": "workspace:*",
     "@inventarch/agent-system": "workspace:*",
     "@inventarch/session-system": "workspace:*",
     "@inventarch/authoring-system": "workspace:*",

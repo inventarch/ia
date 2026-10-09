@@ -104,9 +104,11 @@ export function collectUserHost(
       null,
       'Run "ia host claude --user".',
     );
-  const home = hostHome(host.env);
+  // An IA home remedy ends by planning this invocation again; the plan writes nothing.
+  const again = `ia host claude --user${args.flag('remove') ? ' --remove' : ''}`;
+  const home = hostHome(host.env, again);
   // Host plugin distribution spec §3: refuse a home that looks like a workspace now, before apply attempts a write.
-  located(null, homeSrcRemedy(home), () => assertIaHomeUsable(home));
+  located(null, homeSrcRemedy(home, again), () => assertIaHomeUsable(home));
   const channel = detectChannel(host.packageRoot);
   // On macOS and Linux the hook runs under the Node running this command, recorded by its own absolute path (a
   // Homebrew keg's stable opt link), not a version manager's shim; the Windows rendering keeps `node` by name.
@@ -148,11 +150,11 @@ function marketplaceRefusal(error: unknown, view: UserHostView): unknown {
   const next =
     refusal.code === 'IA-DIST-INSTALL-BUSY'
       ? // Two causes share the code: files held open during a rename, and another run holding the lock.
-        `Wait for any other "ia host --user" run to finish and close Claude Code sessions, editors or terminals using ${directory}; if no run is active, delete ${join(directory, '.lock')}; then rerun "${rerun}".`
+        `Wait for any other user-level host registration to finish and close Claude Code sessions, editors or terminals using ${directory}; if no run is active, delete ${join(directory, '.lock')}; then rerun "${rerun}".`
       : refusal.code === 'IA-DIST-RECOVERY-REQUIRED'
         ? `Rerun "${rerun}".`
         : refusal.code === 'IA-DIST-PATH-UNSAFE' && existsSync(join(view.home, 'src'))
-          ? homeSrcRemedy(view.home)
+          ? homeSrcRemedy(view.home, rerun)
           : refusal.code === 'IA-DIST-INPUT-INVALID'
             ? `Check the permissions of ${directory}, then rerun "${rerun}".`
             : refusal.next;
@@ -190,7 +192,7 @@ export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHos
           `${claudeCommand(command)} exited ${result.status ?? 'without a status'}: ${result.output || 'no output'}`,
           3,
           null,
-          `Run "${claudeCommand(command)}" yourself to see why, then rerun "${rerunOf(view.remove)}".`,
+          `Fix what claude reported above, then rerun "${rerunOf(view.remove)}".`,
         );
       ran.push([...command]);
     }

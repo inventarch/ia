@@ -22,6 +22,7 @@ import { resolve, sep } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
 import { cleanup, cli, FORMATTABLE, makeHost, packable, run, scratch, workspace } from './workspace-fixture.js';
 import { dispatch } from '../src/consumer.js';
+import { collectPlan } from '../src/distribute.js';
 import { collectDoctor } from '../src/doctor.js';
 import { quote } from '../src/render.js';
 
@@ -96,7 +97,12 @@ it('does not apply when cancellation arrives with a confirmation answer', async 
     },
     [],
   );
-  expect(result).toEqual({ exitCode: 130, stdout: '', stderr: 'Interrupted.\n' });
+  // Design row 27: the interruption names the invocation to run again, as it was typed.
+  expect(result).toEqual({
+    exitCode: 130,
+    stdout: '',
+    stderr: `Interrupted. Run "ia install ${ID} --root ${quote(root)} --catalog .ia/work/catalog.json --apply" again.\n`,
+  });
   for (const path of [
     '.ia/distributions.lock.json',
     '.ia/distributions/active.json',
@@ -123,9 +129,12 @@ it('packs a reviewable archive, prints its integrity values and refuses to repla
   const again = await run(['pack', '--root', root, '--descriptor', '.ia/work/descriptor.json']);
   expect(again.exitCode).toBe(3);
   expect(again.stderr).toContain('IA-DIST-LOCAL-MODIFICATION');
-  expect(again.stderr).toContain('--force');
+  // Design row 27: the one command is this pack again with --force, every argument it was given included.
+  expect(again.stderr.replace(/\s+/g, ' ')).toContain(
+    `Run "ia pack --descriptor .ia/work/descriptor.json --force --root ${quote(root)}" to overwrite it.`,
+  );
   const forced = await run(['pack', '--root', root, '--descriptor', '.ia/work/descriptor.json', '--force', '--json']);
-  expect(forced.exitCode).toBe(0);
+  expect(forced.exitCode, forced.stdout).toBe(0);
   expect(forced.stdout).not.toMatch(ANSI);
   const result = JSON.parse(forced.stdout) as {
     version: number;
@@ -173,6 +182,7 @@ it('opens a --root reached through a link at its real path for every verb, and s
   ]);
   for (const argv of [
     ['format', '--write'],
+    ['capture'],
     ['compile'],
     ['pack', '--descriptor', descriptor],
     ['pack', '--descriptor', descriptor, '--force'],
@@ -181,6 +191,7 @@ it('opens a --root reached through a link at its real path for every verb, and s
     expect(got.exitCode, `${argv.join(' ')}: ${got.stderr}`).toBe(0);
   }
   expect(readFileSync(formattable, 'utf8')).toBe(formatted);
+  expect(existsSync(resolve(root, '.ia/work/snapshot/current.json'))).toBe(true);
   expect(existsSync(resolve(root, '.ia/work/compiled.json'))).toBe(true);
   expect(readdirSync(resolve(root, '.ia/work/dist'))).toHaveLength(1);
   const env = { IA_HOME: resolve(scratch('linked-doctor-home'), '.ia') };
@@ -442,6 +453,34 @@ it('refuses without a confirmation and without an existing installation', async 
   expect(offlineOnly.exitCode).toBe(3);
 });
 
+it('keeps the 1.x collectPlan request form of @inventarch/cli/internal/distribute, its remedies spelled from the request', async () => {
+  // Decision release-bump: a request without `reruns` (the 1.x PlanRequest) refuses with the service's code, not a
+  // TypeError, and its next action is spelled from the request's own fields.
+  const { root } = await catalogued();
+  const request = {
+    root,
+    operation: 'update' as const,
+    ids: [ID],
+    requestsFile: undefined,
+    catalog: '.ia/work/catalog.json',
+    offline: true,
+    to: '^0.2.0',
+    allowWithdrawn: false,
+    planOut: undefined,
+    invocation: `ia update ${ID}`,
+  };
+  await expect(collectPlan(request)).rejects.toMatchObject({
+    name: 'Refusal',
+    code: 'IA-DIST-INPUT-INVALID',
+    message: 'Update requires an existing installation',
+    exit: 3,
+    next: `Run "ia install ${ID}@^0.2.0 --catalog .ia/work/catalog.json --offline" first.`,
+  });
+  await expect(collectPlan({ ...request, rooted: true })).rejects.toMatchObject({
+    next: `Run "ia install ${ID}@^0.2.0 --catalog .ia/work/catalog.json --offline --root ${quote(root)}" first.`,
+  });
+});
+
 it('separates an unreachable artifact from a refusal by exit class', async () => {
   const root = resolve(scratch('remote'), 'target');
   const digest = 'a'.repeat(64);
@@ -474,8 +513,10 @@ it('separates an unreachable artifact from a refusal by exit class', async () =>
     (await run(['install', `${ID}@^0.1.0`, '--root', root, '--catalog', '.ia/work/catalog.json', '--json'])).stdout,
   );
   expect(machine).toMatchObject({ version: 1, ok: false, code: 'IA-DIST-ARTIFACT-UNAVAILABLE', exit: 4 });
-  // The catalog route's remedy names the catalog it resolves from: --offline alone reads no catalog (registry spec §5.4).
-  expect(machine.next).toContain('re-run with --catalog <file> --offline');
+  // The catalog route's remedy is the retry of this invocation, the catalog it resolves from included (design row 27).
+  expect(machine.next).toBe(
+    `Retry "ia install ${ID}@^0.1.0 --catalog .ia/work/catalog.json --root ${quote(root)}" when the host is reachable.`,
+  );
 
   // Registry spec §6.4: the service maps a transport failure to ARTIFACT-UNAVAILABLE naming the URL, still class 4.
   vi.stubGlobal('fetch', async () => {

@@ -1,13 +1,16 @@
 import type { FileNode, Span } from '../ast.js';
 import type { Diagnostic } from '../diagnostics.js';
 import type {
+  ArtifactSet,
   Band,
   Cardinality,
   Category,
   FieldType,
   Kind,
+  Move,
   PlacementKind,
   Predicate,
+  Primitive,
   Provenance,
   TextForm,
 } from '../taxonomy.js';
@@ -33,7 +36,10 @@ export interface Source {
   readonly location: Location;
 }
 
-/** One `<predicate> <targets> using <sources>` row of a system's consent ledger (spec 4.2). A side is `*` or discriminator keywords. */
+/**
+ * One `<predicate> <targets> using <sources>` row of a system's consent ledger (spec 4.2). A side is `*` or keywords:
+ * discriminators, or `any-adopter` for the words of every system that requires the ledger's system.
+ */
 export interface ConsentRow {
   readonly predicate: Predicate;
   readonly targets: readonly string[] | '*';
@@ -49,6 +55,10 @@ export interface Entry {
   readonly facets: readonly string[];
   /** The `@schema` name the entry points at; resolved by the registry, not here. */
   readonly schema: string;
+  /** Lowering extras (spec 4.2): the artifact set, primitive and move the word's records carry; absent when not declared. */
+  readonly artifactSet?: ArtifactSet;
+  readonly primitive?: Primitive;
+  readonly move?: Move;
   readonly span: Span;
 }
 
@@ -103,6 +113,13 @@ export interface SchemaField {
 
 export interface SchemaEdge {
   readonly predicate: Predicate;
+  /**
+   * The rule's direction relative to the record: `out` counts the record's active edges with the predicate (the active
+   * and present spellings), `in` the edges whose active target is the record (the inverse spelling).
+   */
+  readonly direction: 'out' | 'in';
+  /** The verb as authored: the active predicate, its inverse or the present phrase. */
+  readonly spelling: string;
   /** A closed kind or a discriminator; which one is decided when the edge is checked, not here. */
   readonly target: string;
   readonly must: boolean;
@@ -133,6 +150,10 @@ export interface Registration {
   readonly category: Category;
   readonly facets: readonly string[];
   readonly schema: string;
+  /** The entry's lowering extras, carried unchanged into the catalogue. */
+  readonly artifactSet?: ArtifactSet;
+  readonly primitive?: Primitive;
+  readonly move?: Move;
   readonly band: Band;
 }
 

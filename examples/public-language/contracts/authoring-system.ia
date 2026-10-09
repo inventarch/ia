@@ -14,10 +14,16 @@
       category representation
       facets [authoring-guide]
       schema @schema authoring-guide
+      artifact-set product-definition
+      primitive Memory
+      move Observation
     operation lowers to binding
       category capability
       facets [operation]
       schema @schema operation
+      artifact-set execution
+      primitive Decision
+      move Execution
   edges
     cite * using *
     govern * using *

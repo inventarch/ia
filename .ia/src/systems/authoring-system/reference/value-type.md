@@ -2,9 +2,11 @@
 
 Defines the field types that schemas may require.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: value-type.
+Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: value-type. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
+
+Default file: value-type.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section data: required.

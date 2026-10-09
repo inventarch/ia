@@ -53,7 +53,8 @@ import {
 } from '../src/init.js';
 
 import { GUARD_SCOPE, MACHINE_LOCAL, MCP_APPROVAL, rootedNext } from '../src/host.js';
-import { cleanup, cli, makeHost, repository, run, scratch } from './workspace-fixture.js';
+import { quote } from '../src/render.js';
+import { cleanup, cli, commandsIn, makeHost, nextArgv, repository, run, scratch } from './workspace-fixture.js';
 import type { HostOptions } from './workspace-fixture.js';
 
 afterEach(() => {
@@ -405,6 +406,10 @@ it('admits one plan, milestone, task and decision in a fresh workspace with no e
   const result = json(validated);
   expect(result.status).toBe('admitted');
   expect(result.findings.filter((finding: { severity: string }) => finding.severity === 'error')).toEqual([]);
+  // The example is self-contained: every field reference resolves inside the starter's closure.
+  expect(result.findings.filter((finding: { code: string }) => finding.code === 'IA-COMP-FIELD-REF-MISSING')).toEqual(
+    [],
+  );
   expect(readFileSync(system, 'utf8')).toBe(starter);
   const inspected = await run(['inspect', '--root', root, '--path', '.ia/src/systems/demo/records/work.ia', '--json']);
   expect(inspected.exitCode, inspected.stdout).toBe(0);
@@ -413,16 +418,20 @@ it('admits one plan, milestone, task and decision in a fresh workspace with no e
       .records.map((record: { identity: string }) => record.identity)
       .sort(),
   ).toEqual([
+    'work-system/contract/spec/example-reference-spec',
     'work-system/contract/spec/example-spec',
-    ...['decision', 'milestone', 'plan', 'task'].map((word) => `work-system/definition/${word}/example-${word}`),
+    'work-system/definition/decision/example-decision',
+    'work-system/definition/decision/example-split-decision',
+    ...['milestone', 'plan', 'task'].map((word) => `work-system/definition/${word}/example-${word}`),
   ]);
-  // The selected work example also contains a spec contract. The requirement admits all five;
-  // without it every definition and the spec contract must refuse through the same foreign-discriminator check.
+  // The selected work example also contains two spec contracts, one partially superseding the other. The
+  // requirement admits all seven; without it every definition and both spec contracts must refuse through the same
+  // foreign-discriminator check.
   writeFileSync(system, starter.replace('    - work-system\n', ''));
   const refused = json(await run(['validate', '--root', root, '--json']));
   const errors = refused.findings.filter((finding: { severity: string }) => finding.severity === 'error');
   expect(errors.map((finding: { code: string }) => finding.code)).toEqual(
-    Array(5).fill('IA-COMP-DISCRIMINATOR-FOREIGN'),
+    Array(7).fill('IA-COMP-DISCRIMINATOR-FOREIGN'),
   );
 });
 
@@ -654,7 +663,11 @@ it('leaves the directory byte-identical when the signal arrives before the first
       },
       [],
     );
-    expect(result).toEqual({ exitCode: 130, stdout: '', stderr: 'Interrupted.\n' });
+    expect(result).toEqual({
+      exitCode: 130,
+      stdout: '',
+      stderr: `Interrupted. Run "ia init ${quote(root)} --apply" again.\n`,
+    });
     expect(existsSync(root)).toBe(create);
     expect(tree(root)).toEqual(before);
   }
@@ -689,6 +702,8 @@ it('refuses to initialize a directory holding the IA home, the home itself or a 
     for (const result of [await plan(root, [], { env }), await apply(root, [], { env })]) {
       expect(result.exitCode, `${root} ${result.stdout}`).toBe(3);
       expect(json(result)).toMatchObject({ ok: false, code: 'IA-DIST-PATH-UNSAFE', exit: 3 });
+      // Design row 27: the one command is the plan of this target again, once IA_HOME is moved outside it.
+      expect(commandsIn(json(result).next), root).toEqual([`ia init ${quote(root)}`]);
     }
     expect(tree(parent), root).toEqual(before);
   }
@@ -774,9 +789,8 @@ it('init --host claude --apply stays initialized when the host step refuses, and
     exit: 3,
     where: { path: '.mcp.json' },
   });
-  const quoted = /[ "]/.test(root) ? JSON.stringify(root) : root;
   expect(json(result).next).toBe(
-    `The workspace is initialized. Remove that entry, then run "ia host claude --root ${quoted} --apply".`,
+    `The workspace is initialized. Remove that entry, then run "ia host claude --root ${quote(root)} --apply".`,
   );
   expect(existsSync(resolve(root, '.ia/release.json'))).toBe(true);
   expect(readFileSync(resolve(root, '.mcp.json'), 'utf8')).toBe(teammate);
@@ -795,41 +809,48 @@ it('init --host claude --apply stays initialized when the host step refuses, and
 });
 
 it('init --host claude --apply interrupted after initialization names the rooted rerun and writes nothing host-side', async () => {
-  const root = target(),
-    env = { IA_HOST_HOME: scratch('init-host-home') },
-    release = resolve(root, '.ia/release.json');
-  // runInit exposes no checkpoint through dispatch, so this signal is aborted exactly when the last init write has
-  // landed: it reads the descriptor's existence, which is the moment M5.2 §4.1 calls completion. Only `aborted` and
-  // `throwIfAborted` are read on this path (consumer.ts, init.ts, host.ts).
-  const signal = {
-    get aborted() {
-      return existsSync(release);
-    },
-    get reason() {
-      return new Error('Interrupted');
-    },
-    throwIfAborted() {
-      if (existsSync(release)) throw new Error('Interrupted');
-    },
-  } as unknown as AbortSignal;
-  const result = await dispatch(
-    ['init', root, '--apply', '--yes', '--host', 'claude'],
-    { ...makeHost({ env }), signal },
-    () => {
-      throw new Error('Unexpected machine route');
-    },
-    [],
-  );
-  const quoted = /[ "]/.test(root) ? JSON.stringify(root) : root;
-  expect(result).toEqual({
-    exitCode: 130,
-    stdout: '',
-    stderr: `Interrupted. The workspace is initialized. Run "ia host claude --root ${quoted} --apply" to finish host registration.\n`,
-  });
-  expect(existsSync(release)).toBe(true);
-  expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
-  expect(existsSync(resolve(root, '.claude'))).toBe(false);
-  expect(readdirSync(env.IA_HOST_HOME)).toEqual([]);
+  // Design row 27: the rerun the verb supplies is the interruption's next command, on stderr and in the --json object.
+  for (const machine of [false, true]) {
+    const root = target(),
+      env = { IA_HOST_HOME: scratch('init-host-home') },
+      release = resolve(root, '.ia/release.json');
+    // runInit exposes no checkpoint through dispatch, so this signal is aborted exactly when the last init write has
+    // landed: it reads the descriptor's existence, which is the moment M5.2 §4.1 calls completion. Only `aborted` and
+    // `throwIfAborted` are read on this path (consumer.ts, init.ts, host.ts).
+    const signal = {
+      get aborted() {
+        return existsSync(release);
+      },
+      get reason() {
+        return new Error('Interrupted');
+      },
+      throwIfAborted() {
+        if (existsSync(release)) throw new Error('Interrupted');
+      },
+    } as unknown as AbortSignal;
+    const result = await dispatch(
+      ['init', root, '--apply', '--yes', '--host', 'claude', ...(machine ? ['--json'] : [])],
+      { ...makeHost({ env }), signal },
+      () => {
+        throw new Error('Unexpected machine route');
+      },
+      [],
+    );
+    const next = `The workspace is initialized. Run "ia host claude --root ${quote(root)} --apply" to finish host registration.`;
+    expect(result).toEqual({
+      exitCode: 130,
+      stdout: machine
+        ? `${JSON.stringify({ version: 1, ok: false, code: 'IA-CLI-INTERRUPTED', message: 'Interrupted.', exit: 130, next })}
+`
+        : '',
+      stderr: `Interrupted. ${next}
+`,
+    });
+    expect(existsSync(release)).toBe(true);
+    expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
+    expect(existsSync(resolve(root, '.claude'))).toBe(false);
+    expect(readdirSync(env.IA_HOST_HOME)).toEqual([]);
+  }
 });
 
 it('roots every ia host command a remedy names, and only those', () => {
@@ -845,6 +866,30 @@ it('roots every ia host command a remedy names, and only those', () => {
   expect(rootedNext('Run "ia host claude --root /w --apply".', 'claude', '/w')).toBe(
     'Run "ia host claude --root /w --apply".',
   );
+});
+
+/*
+ * A recovery whose follow-up is "rerun" cannot follow init --host: the init has completed, and running it again refuses
+ * the initialized target. The next action names `ia host`, which names that recovery itself and is what runs again.
+ */
+it('names ia host, which names the recovery, when a pending journal stops the host step of init --host', async () => {
+  const root = target(),
+    env = { IA_HOST_HOME: scratch('init-host-home') };
+  mkdirSync(resolve(root, '.ia/distributions/hosts'), { recursive: true });
+  writeFileSync(resolve(root, '.ia/distributions/hosts/guard-pending.json'), '{}\n');
+  const refused = await apply(root, ['--host', 'claude'], { env });
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  const host = `ia host claude --root ${quote(root)} --apply`;
+  expect(json(refused)).toMatchObject({
+    code: 'IA-DIST-RECOVERY-REQUIRED',
+    next: `The workspace is initialized. Run "${host}" for the recovery it names, then run it again to finish host registration.`,
+  });
+  expect(existsSync(resolve(root, '.ia/release.json'))).toBe(true);
+  const named = await run([...nextArgv(json(refused).next), '--yes', '--json'], { env });
+  expect(json(named)).toMatchObject({
+    code: 'IA-DIST-RECOVERY-REQUIRED',
+    next: `Run "ia-distribution recover-guard --root ${quote(realpathSync(root))}", then rerun.`,
+  });
 });
 
 /** tests/init-kill.ts: a child that runs the apply and calls `process.exit` inside one installer checkpoint. */
@@ -868,7 +913,7 @@ it.each(['store:', 'pending', 'active', 'complete'])(
     const before = tree(root);
     for (const refused of [await plan(root), await apply(root)]) {
       expect(refused.exitCode, name).toBe(3);
-      expect(json(refused).next, name).toContain(`ia-distribution recover --root ${root}`);
+      expect(json(refused).next, name).toContain(`"ia-distribution recover --root ${quote(root)}"`);
       if (!journal)
         expect(json(refused), name).toMatchObject({
           code: 'IA-CLI-RECOVERY-REQUIRED',
@@ -928,7 +973,7 @@ it('refuses before any write when the bundled bytes do not match the pin', async
   expect(refused.exitCode).toBe(3);
   expect(JSON.parse(refused.stdout)).toMatchObject({
     code: 'IA-DIST-ARCHIVE-INVALID',
-    next: 'The ia installation is damaged; reinstall @inventarch/cli.',
+    next: 'The ia installation is damaged; run "ia doctor" for its install channel and reinstall @inventarch/cli through it.',
   });
   writeFileSync(resolve(packageRoot, PIN_PATH), '{}');
   expect(

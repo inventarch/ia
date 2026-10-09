@@ -2,9 +2,11 @@
 
 Defines a directed relationship and its inverse spelling.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: predicate.
+Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: predicate. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
+
+Default file: predicate.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section data: required.

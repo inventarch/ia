@@ -1,0 +1,24 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Retained previous snapshot; staleness and readiness by digest",
+  "summary": "@inventarch/db handles now retain the previous admitted root snapshot beside the current one: the most recent root snapshot whose revision differs from the current revision. Opening or refreshing at an unchanged revision keeps it; only a revision change rotates the current snapshot into previous, and a failed refresh rotates nothing. Handle, ReadHandle and the editor reader add previousRevision; staleness(identity, options), which answers unchanged, changed, new or removed by comparing the identity's current and previous membership digests (every current identity reads new while no previous snapshot is retained); and readiness(identity, digest, options), which answers current, previous or unknown for a digest observed earlier, such as an `@observation`'s subject-revision. Both bind within, root, phase and revision as get does, answer about the record get returns under those options, and refuse an identity outside a scope with IA-DB-OUT-OF-SCOPE. Only root snapshots are retained, so when a narrower root or phase reads an occurrence other than the root one, staleness is undefined and readiness answers only current or unknown; a read through a scope token never reports removed. The Staleness and Readiness types are exported. The pair persists between processes as one capture pair, .ia/work/snapshot/current.json and previous.json, ia-snapshot-1 documents that only a capture writes: writeCapture(root, text), exported with CAPTURE_FORMAT, CAPTURE_DIRECTORY, CAPTURE_CURRENT, CAPTURE_PREVIOUS and the CaptureWrite type, writes the document as current.json, counts its records against the prior capture by digest, renames the prior current.json to previous.json on a revision change, refuses a link, an entry at .ia/work or .ia/work/snapshot that is not a directory, or a non-regular entry at either snapshot path with IA-DB-PATH-UNSAFE before writing anything, and leaves the pair it found when a write fails. Every disk handle, with the cache enabled or not, seeds its previous snapshot from that pair the first time it is asked, never on open or refresh, and never writes it: at the captured revision previous is the capture at previous.json, at another revision the capture at current.json. capturedRevision names the revision of the capture at current.json. A file that is no capture, a link or a non-regular entry is ignored, and a current.json that names the fresh revision with other rows seeds nothing; a capture at another revision cannot be verified and is trusted as written. A refresh rotates the pair in memory without reading the capture pair and reads capturedRevision again when next asked, so a handle that lived through an edit reports it whether or not it was captured, and one that refreshes often holds one pair, and the cache-free editor reader retains nothing. No file under .ia/.iadb holds retention, so the graph cache is unchanged. Workspace revisions, snapshots, the frozen Door operations and ia scope are unchanged, and no frozen route reads the capture pair.",
+  "packages": [
+    "@inventarch/db"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    "CLAUDE.md",
+    "README.md",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "packages/db/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

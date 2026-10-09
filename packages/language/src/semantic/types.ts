@@ -20,6 +20,8 @@ export type EdgeReference =
 export interface CompiledEdge {
   readonly predicate: Predicate;
   readonly direction: 'out' | 'in';
+  /** The verb as the author wrote it: the active predicate, its inverse or the present phrase; `ground` on a generated ground edge. */
+  readonly spelling: string;
   readonly reference: EdgeReference;
   readonly target: string | null;
   readonly fragment?: string;

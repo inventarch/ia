@@ -82,6 +82,9 @@ export function mergeRegistrations(
         category: entry.category,
         facets: entry.facets,
         schema: entry.schema,
+        ...(entry.artifactSet === undefined ? {} : { artifactSet: entry.artifactSet }),
+        ...(entry.primitive === undefined ? {} : { primitive: entry.primitive }),
+        ...(entry.move === undefined ? {} : { move: entry.move }),
         band: system.band,
       };
       const list = candidates.get(entry.keyword);

@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { readInputs } from '@inventarch/db';
-import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
-import { captureResources, resourceOccurrences } from '@inventarch/agent-composition-system/resources';
-import { claudeProseCatalog, codexProseCatalog } from '@inventarch/agent-composition-system/projections';
+import { adoptWorkspace, captureWorkspace, installedImplementationDigest } from '@inventarch/workspace-runtime';
+import { captureResources, resourceOccurrences } from '@inventarch/workspace-runtime/resources';
+import { claudeProseCatalog, codexProseCatalog } from '@inventarch/workspace-runtime/projections';
 import { digest, sha256 } from '../src/files.js';
 import { run } from '../src/command.js';
 

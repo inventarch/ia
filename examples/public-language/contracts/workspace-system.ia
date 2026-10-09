@@ -13,10 +13,16 @@
       category boundary
       facets [workspace]
       schema @schema workspace
+      artifact-set product-definition
+      primitive Attention
+      move Observation
     distribution lowers to definition
       category representation
       facets [distribution]
       schema @schema distribution
+      artifact-set projection
+      primitive Attention
+      move Observation
   edges
     cite * using *
     govern * using *

@@ -2,9 +2,11 @@
 
 Represents a proposed change, review metadata and publication metadata. It does not authorize or apply the proposal.
 
-Owner: learning-system. Identity: learning-system/definition/<facet>/<name>. Facets: improvement.
+Owner: learning-system. Identity: learning-system/definition/<facet>/<name>. Facets: improvement. Artifact set: inquiry. Primitive: Learning. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/learning-system/schemas/improvement.schema.ia.
+
+Default file: improvement.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section proposal: required.

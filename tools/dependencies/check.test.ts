@@ -27,6 +27,44 @@ it('checks inline import types that can enter emitted declaration files', () => 
     ),
   ).toEqual(['@inventarch/runtime', '@inventarch/db']);
 });
+it('treats literal module resolutions as imports, except through a require anchored elsewhere', () => {
+  expect(
+    importedModules(
+      [
+        'const a = import.meta.resolve("@inventarch/graph");',
+        'const b = require.resolve("@inventarch/db");',
+        'const c = createRequire(import.meta.url).resolve("@inventarch/runtime");',
+        'const d = createRequire(import.meta.filename)("@inventarch/language");',
+        'const e = createRequire(database).resolve("@inventarch/compliance");',
+        'const f = resolve("@inventarch/agent-system"); const g = Promise.resolve("@inventarch/session-system");',
+        'const h = import.meta.resolve(name);',
+      ].join('\n'),
+      'x.ts',
+    ),
+  ).toEqual(['@inventarch/graph', '@inventarch/db', '@inventarch/runtime', '@inventarch/language', null]);
+});
+it('refuses a resolved dependency absent from the installed manifest', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-dependencies-'));
+  try {
+    const component = resolve(root, 'packages/graph');
+    mkdirSync(resolve(component, 'src'), { recursive: true });
+    writeFileSync(resolve(component, 'package.json'), JSON.stringify({ name: '@inventarch/graph' }));
+    writeFileSync(
+      resolve(component, 'src/index.ts'),
+      'export const entry = fileURLToPath(import.meta.resolve("@inventarch/language"));',
+    );
+    expect(checkDependencies(root)).toHaveLength(1);
+    expect(checkDependencies(root)[0]).toContain('@inventarch/language is allowed but not declared');
+    writeFileSync(
+      resolve(component, 'package.json'),
+      JSON.stringify({ name: '@inventarch/graph', dependencies: { '@inventarch/language': '*' } }),
+    );
+    expect(checkDependencies(root)).toEqual([]);
+  } finally {
+    if (!root.startsWith(resolve(tmpdir(), 'ia-dependencies-'))) throw new Error('Unexpected temporary cleanup path');
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 it('refuses allowed source dependencies absent from the installed manifest', () => {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-dependencies-'));
   try {
@@ -111,6 +149,8 @@ it('keeps foundation independent from execution and admits only explicitly insta
     moduleProblem({ name, app, path: resolve('fixture') }, resolve('fixture/src/index.ts'), target);
   expect(check('@inventarch/runtime', false, '@inventarch/agent-system')).toBeDefined();
   expect(check('@inventarch/session-system', false, '@inventarch/agent-system')).toBeDefined();
+  expect(check('@inventarch/session-system', false, '@inventarch/graph')).toBeUndefined();
+  expect(check('@inventarch/distribution', true, '@inventarch/session-system')).toBeDefined();
   expect(check('@inventarch/agent-system', false, '@inventarch/agent-composition-system')).toBeDefined();
   expect(check('@inventarch/agent-composition-system', false, '@inventarch/agent-system')).toBeUndefined();
   expect(check('@inventarch/cli', true, '@inventarch/session-system')).toBeDefined();

@@ -2,9 +2,11 @@
 
 Defines a request framing and its retrieval defaults.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: intent-shape.
+Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: intent-shape. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
+
+Default file: intent-shape.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section data: required.

@@ -50,11 +50,11 @@ import {
 import { parseArguments, UsageError } from './args.js';
 import { findCommand } from './commands.js';
 import type { Context, Result } from './consumer.js';
-import { confirm, iaHomeOf, Interrupted, Refusal, refusalOf } from './consumer.js';
+import { confirm, iaHomeOf, Interrupted, Refusal, refusalOf, respell } from './consumer.js';
 import { clearDecline, runDecline } from './decline.js';
 import { CONFIRMATION } from './distribute.js';
 import type { HostApplied } from './host.js';
-import { applyHostSet, collectHost, hostNotes, rootedNext } from './host.js';
+import { applyHostSet, collectHost, hostNotes, recoverCommand, rootedNext, THEN_RERUN } from './host.js';
 import { located } from './home-remedy.js';
 import { findProgram, programEnv, programHome } from './program.js';
 import { codeOf } from './session.js';
@@ -176,7 +176,9 @@ const NAME_LIMIT = 64;
 /** M5.2 §4.3: `createFile`'s temporary name, `<target>.<randomUUID()>.tmp` (apps/distribution/src/files.ts:76). */
 export const LEFTOVER =
   /^(system\.ia|workspace\.ia|release\.json)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
-const DAMAGED = 'The ia installation is damaged; reinstall @inventarch/cli.';
+/** The installation, not the target, is at fault; `ia doctor` names the channel a reinstall goes through. */
+const DAMAGED =
+  'The ia installation is damaged; run "ia doctor" for its install channel and reinstall @inventarch/cli through it.';
 
 /** M5.1 §2.1: the three M4 paths plus the starter system folder and the release descriptor. */
 export function ownedPaths(name: string | null): readonly { readonly path: string; readonly purpose: string }[] {
@@ -189,8 +191,15 @@ export function ownedPaths(name: string | null): readonly { readonly path: strin
   ];
 }
 
-/** §2.1: an existing directory, or a single new segment under an existing directory. Anything else is usage. */
-export function resolveTarget(cwd: string, supplied: string | undefined): string {
+/**
+ * §2.1: an existing directory, or a single new segment under an existing directory. Anything else is usage. `rerun`
+ * spells the refused invocation for another target (design row 27); `runInit` keeps every other argument it was given.
+ */
+export function resolveTarget(
+  cwd: string,
+  supplied: string | undefined,
+  rerun: (target: string) => string = (target) => `ia init ${quote(target)}`,
+): string {
   const target =
     supplied === undefined ? resolve(cwd) : isAbsolute(supplied) ? resolve(supplied) : resolve(cwd, supplied);
   const here = statSync(target, { throwIfNoEntry: false });
@@ -200,7 +209,7 @@ export function resolveTarget(cwd: string, supplied: string | undefined): string
       `${target} is not a directory`,
       2,
       { path: target },
-      'Name an existing directory, or one new directory inside an existing one.',
+      `Run "${rerun('<directory>')}" naming an existing directory, or one new directory inside an existing one.`,
     );
   if (here === undefined) {
     const parent = statSync(dirname(target), { throwIfNoEntry: false });
@@ -210,7 +219,7 @@ export function resolveTarget(cwd: string, supplied: string | undefined): string
         `${dirname(target)} is not an existing directory`,
         2,
         { path: target },
-        'Create the parent directory first, or name one that exists.',
+        `Create ${dirname(target)} first, then run "${rerun(target)}".`,
       );
   }
   // The directory the user chose may be reached through links (macOS /tmp, a linked checkout); it is initialized at
@@ -536,7 +545,7 @@ export function collectInit(request: InitRequest): InitView {
         `An installer holds or left the install lock ${INSTALL_LOCK}`,
         3,
         { path: root },
-        `If no installer is running, run "ia-distribution recover --root ${root}" before initializing this directory.`,
+        `If no installer is running, run "${recoverCommand('recover', root)}" before initializing this directory.`,
       );
     try {
       const state = readInstalledState({ root });
@@ -554,7 +563,7 @@ export function collectInit(request: InitRequest): InitView {
           message,
           3,
           { path: root },
-          `Run "ia-distribution recover --root ${root}" before initializing this directory.`,
+          `Run "${recoverCommand('recover', root)}" before initializing this directory.`,
         );
       // Any other unreadable installation state is a conflict the plan reports, with the reader's own words.
       installation.push({ path: '.ia/distributions/', reason: message });
@@ -710,7 +719,7 @@ export async function applyInit(view: InitView, options: ApplyOptions): Promise<
           error instanceof Error ? error.message : String(error),
           3,
           { path: root },
-          `If no installer is running, an interrupted one left its lock: run "ia-distribution recover --root ${root}", then "${view.invocation} --apply --yes" again.`,
+          `If no installer is running, an interrupted one left its lock: run "${recoverCommand('recover', root)}", then apply again.`,
         );
       throw error;
     }
@@ -735,7 +744,7 @@ export async function applyInit(view: InitView, options: ApplyOptions): Promise<
         `The initialized workspace failed admission with ${errors.length} error findings; first: ${errors[0]!.code}`,
         3,
         { path: root },
-        `Run "ia validate --root ${root}" for the findings.`,
+        `Run "ia validate --root ${quote(root)}" for the findings.`,
       );
     const record = session.reader
       .records()
@@ -751,6 +760,7 @@ export async function applyInit(view: InitView, options: ApplyOptions): Promise<
         `The compiled workspace has no @distribution ${name}-distribution in ${recordsPath(name)}`,
         3,
         { path: root },
+        `Run "ia inspect --path ${recordsPath(name)} --root ${quote(root)}" for the records that file admitted.`,
       );
     distribution = record.identity;
   } finally {
@@ -785,7 +795,7 @@ function conflictRefusal(view: InitView): Refusal {
     message,
     3,
     { path: view.root },
-    `Run "${view.invocation}" without --apply to review the plan and its conflicts.`,
+    `Run "${view.invocation}" to review the plan and its conflicts.`,
   );
 }
 
@@ -1035,12 +1045,25 @@ function invocationOf(context: Context): string {
 }
 
 export async function runInit(context: Context): Promise<Result> {
-  const { args, caps, json, host } = context;
+  const { args, host } = context;
   const id = args.value('id');
   // A malformed identity is usage (§3), decided before the target is read.
   if (id !== undefined && (!PACKAGE_ID.test(id) || id.includes('..')))
     throw new UsageError(`--id must be <provider/name>; got ${id}`);
-  const root = resolveTarget(host.cwd, args.positionals[0]);
+  const root = resolveTarget(host.cwd, args.positionals[0], (target) => respell(context, { positionals: [target] }));
+  try {
+    return await initialize(context, root, id);
+  } catch (error) {
+    // Design row 27: this verb's target is `<directory>`, which `--root` cannot carry, so a service refusal with no
+    // remedy of its own is given the fallback for that directory rather than for the cwd, which may not be it.
+    if (error instanceof Refusal || error instanceof Interrupted || error instanceof UsageError || host.signal?.aborted)
+      throw error;
+    throw refusalOf(error, { command: 'init', root });
+  }
+}
+/** The verb once its target is resolved: a decline, the plan, or its apply. */
+async function initialize(context: Context, root: string, id: string | undefined): Promise<Result> {
+  const { args, caps, json, host } = context;
   // Host plugin distribution spec §7.2: a decline is recorded before anything about the target is written or git is run.
   // It reports the target as typed, resolved to an absolute path; its decision key resolves links itself.
   const decline = args.value('decline') as DeclineKind | undefined;
@@ -1051,7 +1074,7 @@ export async function runInit(context: Context): Promise<Result> {
   // need the home, so `ia init --host none` behaves as before (contract §2.1).
   const iaHome = iaHomeOf(host.env);
   if (iaHome !== undefined)
-    located(root, 'Initialize a different directory, or set IA_HOME to an absolute directory outside it.', () =>
+    located(root, `Set IA_HOME to an absolute directory outside ${root}, then run "${invocationOf(context)}".`, () =>
       assertHomeOutsideWorkspace(iaHome, root),
     );
   const selected = (args.value('host') ?? 'none') as HostSelection;
@@ -1095,12 +1118,15 @@ export async function runInit(context: Context): Promise<Result> {
  * Its next action is `ia host`'s own remedy for that refusal, after a sentence saying initialization completed. Every
  * `ia host` command the remedy names gains `--root <root>`, because `<directory>` may be relative to a cwd that
  * is not the workspace, and `ia host` would otherwise discover a different root or none. A failure `ia host` gives
- * no remedy for falls back to the rerun that finishes registration.
+ * no remedy for falls back to the rerun that finishes registration. A recovery followed by "rerun" would send the user
+ * back to this init, which now refuses as initialized, so it names `ia host` instead, which names that recovery itself.
  */
 function registerHost(context: Context, selected: 'claude' | 'codex', root: string): HostApplied {
-  const finish = `Run "ia host ${selected} --root ${quote(root)} --apply" to finish host registration.`;
+  const host = `ia host ${selected} --root ${quote(root)} --apply`;
+  const finish = `Run "${host}" to finish host registration.`,
+    recover = `Run "${host}" for the recovery it names, then run it again to finish host registration.`;
   const composed = (next: string | null): string =>
-    `The workspace is initialized. ${next === null ? finish : rootedNext(next, selected, root)}`;
+    `The workspace is initialized. ${next === null ? finish : next.endsWith(THEN_RERUN) ? recover : rootedNext(next, selected, root)}`;
   // M5.2 §5: a signal observed after the last init write interrupts a command that has written, so it names the rerun.
   if (context.host.signal?.aborted) throw new Interrupted(composed(null));
   const command = findCommand('host')!;
@@ -1110,7 +1136,14 @@ function registerHost(context: Context, selected: 'claude' | 'codex', root: stri
   } catch (error) {
     if (error instanceof Interrupted) throw new Interrupted(composed(error.next));
     const refusal = refusalOf(error);
-    throw new Refusal(refusal.code, refusal.message, refusal.exit, refusal.where, composed(refusal.next));
+    // A service refusal carries only the generic fallback, so the rerun that finishes registration is named instead.
+    throw new Refusal(
+      refusal.code,
+      refusal.message,
+      refusal.exit,
+      refusal.where,
+      composed(error instanceof Refusal ? refusal.next : null),
+    );
   }
 }
 /**

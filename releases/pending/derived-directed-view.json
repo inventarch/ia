@@ -1,0 +1,28 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Directed view of declared rows and derived inverses",
+  "summary": "@inventarch/graph adds directedView(graph, identity) with its DirectedRow, DirectedEdgeRow and DirectedFieldRow types: every row the graph holds at an identity, read from that identity's side. Each resolved edge assertion is a declared row (kind edge, derived false) on the record that wrote it, in the verb it wrote, and a derived row (kind inverse, derived true) on the other endpoint, spelled for that side from the kernel tables: the active predicate at the source, its inverse such as governed-by at the target. Every edge and inverse row carries predicate, direction, spelling, declaredOn, declaredBy (source or target), counterpart and the declaration's source lines, plus the edge's fragment and condition when it has them; an edge asserted from both ends keeps both declarations. Typed field references appear in both directions as derived field-ref rows carrying direction, field path, counterpart, declaredOn (the holder) and source, with no predicate, spelling or declaredBy. Dangling, ambiguous and consent-refused assertions remain diagnostics and have no rows. Rows are frozen and totally ordered, and the view is computed on read: it adds nothing to loaded graphs, serialize(graph), revisions or per-record digests. The @inventarch/db read handle adds directedView(identity, options): a scope token applies, an identity outside the scope refuses with IA-DB-OUT-OF-SCOPE, and rows whose counterpart is outside it are pruned. ia inspect now lists a record's Edges, Derived inverses and Field references from this view, labels derived rows, names whether the source or the target declared each edge row, and prints an edge row's fragment and condition. Field references follow --edges in every direction, including the default out, and are listed at depth 1 only; at --depth 0 every section says none is listed at that depth. ia inspect --json adds a directed array and keeps its edges and referencedBy keys unchanged. The view is not stored in the database cache, and the frozen Door routes, including traverse, are unchanged. Human ia inspect output prints each edge row in the spelling its record declared, such as cites, where it printed the predicate.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/graph"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    "CLAUDE.md",
+    "README.md",
+    "apps/cli/",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "packages/db/",
+    "packages/graph/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

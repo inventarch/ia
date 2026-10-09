@@ -9,19 +9,15 @@ import {
   type BundleManifest,
   type DistributionLock,
 } from '@inventarch/db/distribution';
-import { verifyCapture, type Capture } from '@inventarch/agent-composition-system';
+import { verifyCapture, type Capture } from '@inventarch/workspace-runtime';
 import {
   AUTHORING_MANIFEST_PATH,
   captureAuthoringManifestBytes,
   type AuthoringManifestByteSource,
-} from '@inventarch/agent-composition-system/authoring-manifest';
-import { resolveAuthoring } from '@inventarch/agent-composition-system/authoring';
-import {
-  RESOURCE_LIMITS,
-  resourceOccurrences,
-  nativeResourcePath,
-} from '@inventarch/agent-composition-system/resources';
-import { digest } from '@inventarch/session-system';
+} from '@inventarch/workspace-runtime/authoring-manifest';
+import { resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
+import { RESOURCE_LIMITS, resourceOccurrences, nativeResourcePath } from '@inventarch/workspace-runtime/resources';
+import { digest } from '@inventarch/graph';
 import { fail, utf8 } from './files.js';
 
 /** Archive evidence is entirely input bytes plus the installed language's explicit immutable floor. */

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EditorWorkspace } from '../src/editor/index.js';
 import { lawId, methodId, methodPath, playbook, put, workspace } from './workspace.js';
@@ -98,6 +100,27 @@ describe('public editor facade', () => {
     expect(() => editor.completionDocumentation(methodPath, item!.citation!, bound)).toThrow('view changed');
     editor.update([{ path: methodPath, text: source, version: 4 }]);
     expect(editor.semanticTokens(methodPath).some((t) => t.type === 'type')).toBe(true);
+    editor.close();
+  });
+  it('completes relationship targets from the schema edge rules written in the spelling direction', () => {
+    const root = workspace(),
+      schemaPath = '.ia/src/systems/governance-system/schemas/playbook.schema.ia';
+    // One predicate, an inbound rule first and two outbound rules: each spelling reads only the rules of its direction.
+    put(
+      root,
+      schemaPath,
+      `${readFileSync(resolve(root, schemaPath), 'utf8').trimEnd()}\n  edges\n    may cited-by convention one-or-more\n    may cites principle one-or-more\n    may cite law one-or-more\n`,
+    );
+    const editor = new EditorWorkspace(root);
+    const offered = (line: string, version: number): readonly string[] => {
+      editor.update([
+        { path: methodPath, text: `#! ia 1.0\n@playbook sample-procedure\n  relationships\n    ${line}`, version },
+      ]);
+      return editor.completions(methodPath, { line: 3, character: 4 + line.length }).map((c) => c.label);
+    };
+    expect(offered('cites @', 1)).toEqual(['@law sample-rule', '@principle sample-principle']);
+    expect(offered('cite @', 2)).toEqual(['@law sample-rule', '@principle sample-principle']);
+    expect(offered('cited-by @', 3)).toEqual(['@convention sample-convention']);
     editor.close();
   });
   it('admits a create-only proposal despite unrelated baseline errors, and rejects loss, aliases and authority changes', () => {

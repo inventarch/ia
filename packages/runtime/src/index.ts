@@ -47,3 +47,16 @@ export {
 } from './publication.js';
 export type { PublicationFile, PreparedPublication, PublicationStatus } from './publication.js';
 export { isEntry } from './entry.js';
+export {
+  MANDATE_CODES,
+  MODES,
+  MODE_MOVES,
+  MOVES,
+  isMode,
+  mandateAuthorityOf,
+  mandateRefusal,
+} from './mandate-modes.js';
+export type { MandateAuthority, MandateCode, MandateRefusal, Mode, Move } from './mandate-modes.js';
+// The markdown and fragment helpers stay on the ./internal/locator subpath; the root names the reader and its terms.
+export { READ_CODES, SOURCE_LOCATORS, parseLocator, readBody } from './locator.js';
+export type { Locator, ReadBody, ReadBodyOptions, ReadCode, ReadRefusal, ReadResult } from './locator.js';

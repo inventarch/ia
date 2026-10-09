@@ -2,9 +2,11 @@
 
 Composes an agent, capabilities, optional mandate/voice/delegates and installed execution contracts.
 
-Owner: agent-composition-system. Identity: agent-composition-system/binding/<facet>/<name>. Facets: agent-profile.
+Owner: agent-composition-system. Identity: agent-composition-system/binding/<facet>/<name>. Facets: agent-profile. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/agent-profile.schema.ia.
+
+Default file: agent-profile.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section composition: required.

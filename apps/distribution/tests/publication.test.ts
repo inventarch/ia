@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ProjectionManifest, ProjectionResult } from '@inventarch/agent-composition-system/projections';
+import type { ProjectionManifest, ProjectionResult } from '@inventarch/workspace-runtime/projections';
 import { checkProjection, publishProjection, recoverProjection, removeProjection } from '../src/publication.js';
 import { digest, sha256 } from '../src/files.js';
 

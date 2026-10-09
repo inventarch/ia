@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./internal/codec": {
+      "types": "./dist/codec.d.ts",
+      "default": "./dist/codec.js"
+    },
     "./internal/coordinate": {
       "types": "./dist/coordinate.d.ts",
       "default": "./dist/coordinate.js"
@@ -89,6 +93,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./internal/codec": {
+        "types": "./dist/codec.d.ts",
+        "default": "./dist/codec.js"
       },
       "./internal/coordinate": {
         "types": "./dist/coordinate.d.ts",

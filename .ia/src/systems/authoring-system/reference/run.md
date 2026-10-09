@@ -2,9 +2,11 @@
 
 Represents a governed run identity, declared phase, status and owner. Declaration does not start execution.
 
-Owner: session-system. Identity: session-system/definition/<facet>/<name>. Facets: run.
+Owner: session-system. Identity: session-system/definition/<facet>/<name>. Facets: run. Artifact set: operational. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/session-system/schemas/run.schema.ia.
+
+Default file: run.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section execution: required.

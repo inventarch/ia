@@ -19,8 +19,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@inventarch/runtime": "workspace:*",
-    "@inventarch/agent-composition-system": "workspace:*"
+    "@inventarch/runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

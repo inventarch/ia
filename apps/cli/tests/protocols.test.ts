@@ -27,6 +27,8 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { withScope } from '@tools/testing/resources.js';
 import { runBounded, spawnOwned } from '@tools/testing/subprocess.js';
 import { LEGACY_OPERATIONS } from '../src/commands.js';
+import { ARTIFACT, DEPRECATION } from '../src/compile.js';
+import { quote } from '../src/render.js';
 import { cleanup, scratch, workspace } from './workspace-fixture.js';
 
 const repository = resolve(import.meta.dirname, '../../..');
@@ -266,7 +268,8 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     ['validate', '--root', root, '--json'],
     ['inspect', '--root', root, '--json'],
     ['format', '--root', root, '--json'],
-    ['compile', '--root', root, '--json'],
+    ['capture', '--root', root, '--json'],
+    ['read', 'agent-system/binding/agent/agent-steward', '--root', root, '--json'],
     ['doctor', '--root', root, '--json'],
     ['install', 'fixture/foundation', '--root', root, '--offline', '--json'],
   ];
@@ -282,11 +285,29 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     expect(got.status, label).not.toBeNull();
     oneJsonLine(got.stdout, label);
     // §4.4 and §6.6: in `--json` mode stderr may carry progress and notes, and no verb in this release emits
-    // either, so the observable is that nothing narrates onto either stream — including a prompt, which cannot
-    // be answered here because stdin is an empty closed pipe and neither stream is a terminal.
+    // either but the deprecated `ia compile` (below), so the observable is that nothing narrates onto either stream —
+    // including a prompt, which cannot be answered here because stdin is an empty closed pipe and neither stream is a
+    // terminal.
     expect(got.stderr, label).toBe('');
     expect([0, 1, 2, 3, 4, 130], label).toContain(got.status);
   }
+  // Decision release-bump: the deprecated 1.x `ia compile` keeps stdout its own one value and puts its one note on stderr.
+  const compiled = await runBounded(process.execPath, [MAIN, 'compile', '--root', root, '--json'], {
+    cwd: empty,
+    env: colourful(),
+    input: '',
+    timeoutMs: 60_000,
+  });
+  expect(compiled.status).toBe(0);
+  expect(Object.keys(oneJsonLine(compiled.stdout, 'compile') as object)).toEqual([
+    'version',
+    'artifact',
+    'revision',
+    'digest',
+    'counts',
+  ]);
+  expect(readFileSync(resolve(root, '.ia/work/compiled.json'), 'utf8')).toContain(ARTIFACT);
+  expect(compiled.stderr).toBe(DEPRECATION);
   // M5.1 §3.2: the bundled base ships in the packed @inventarch/cli's `assets`, so the installed binary initializes offline.
   const initialized = await runBounded(process.execPath, [MAIN, 'init', 'fresh', '--apply', '--yes', '--json'], {
     cwd: empty,
@@ -470,8 +491,10 @@ globalThis.fetch = async () => new Response(new ReadableStream({
         expect(result.stdout).toBe('');
       } else {
         expect(result.messages).toContain('cleaned');
-        expect(oneJsonLine(result.stdout, signal)).toMatchObject({ code: 'IA-CLI-INTERRUPTED', exit: 130 });
-        expect(result.stderr).toBe('Interrupted.\n');
+        // Design row 27: the interruption names the invocation to run again, as it was typed.
+        const next = `Run "ia install fixture/foundation --root ${quote(root)} --catalog .ia/work/catalog.json --apply --yes --json" again.`;
+        expect(oneJsonLine(result.stdout, signal)).toMatchObject({ code: 'IA-CLI-INTERRUPTED', exit: 130, next });
+        expect(result.stderr).toBe(`Interrupted. ${next}\n`);
       }
       for (const path of [
         '.ia/distributions/cache',

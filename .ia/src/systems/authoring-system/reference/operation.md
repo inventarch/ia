@@ -2,9 +2,11 @@
 
 Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations.
 
-Owner: authoring-system. Identity: authoring-system/binding/<facet>/<name>. Facets: operation.
+Owner: authoring-system. Identity: authoring-system/binding/<facet>/<name>. Facets: operation. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/authoring-system/schemas/operation.schema.ia.
+
+Default file: operation.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section execution: required.

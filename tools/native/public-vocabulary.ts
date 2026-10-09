@@ -25,13 +25,14 @@ export const descriptions: Readonly<Record<string, string>> = {
   'value-type': 'Defines the field types that schemas may require.',
   cardinality: 'Defines relationship multiplicity constraints.',
   agent: 'Names a participant and the vocabulary to which its governance applies. It does not grant host permissions.',
-  mandate: 'States bounded authority and conditions for a participant. Host authorization remains independent.',
+  mandate:
+    'States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers.',
   contract:
     'Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence.',
   check: 'Names a check implementation and scope. Declaring an implementation name does not install or execute it.',
   case: 'Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result.',
   workspace:
-    'Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries.',
+    'Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default.',
   distribution: 'Declares root records from which a distributable closure is selected.',
   law: 'Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose.',
   principle: 'Declares a governing rationale in the shared governance shape.',
@@ -73,11 +74,16 @@ export function vocabulary(root: string, read?: (path: string) => string) {
       const schema = corpus.registry.schemas.get(registration.schema);
       if (!schema || !descriptions[registration.keyword])
         throw new Error(`Missing schema or normative description for ${registration.keyword}`);
+      if (!registration.artifactSet || !registration.primitive || !registration.move)
+        throw new Error(`Missing lowering rows (artifact-set, primitive, move) for ${registration.keyword}`);
       return {
         word: registration.keyword,
         owner: registration.system,
         kind: registration.kind,
         category: registration.category,
+        artifactSet: registration.artifactSet,
+        primitive: registration.primitive,
+        move: registration.move,
         facets: registration.facets,
         identity: `${registration.system}/${registration.kind}/<facet>/<name>`,
         description: descriptions[registration.keyword]!,
@@ -95,8 +101,10 @@ export function vocabulary(root: string, read?: (path: string) => string) {
             ...(target ? { target } : {}),
             ...(form ? { form } : {}),
           })),
-          edges: schema.edges.map(({ predicate, target, cardinality, must }) => ({
+          edges: schema.edges.map(({ predicate, direction, spelling, target, cardinality, must }) => ({
             predicate,
+            direction,
+            spelling,
             target,
             cardinality,
             required: must,
@@ -123,6 +131,9 @@ export function vocabulary(root: string, read?: (path: string) => string) {
     words,
   };
 }
+/** A description as one table cell: a pipe would end the cell and `<tool>` would read as an HTML tag, so both are escaped. */
+const descriptionCell = (text: string): string =>
+  text.replaceAll('|', '\\|').replaceAll('<', '\\<').replaceAll('\n', ' ');
 export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string {
   const lines = [
     '# Public vocabulary reference',
@@ -133,12 +144,14 @@ export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string 
     '',
   ];
   for (const word of data.words) {
+    // Only a word with a described field has the Description column; other tables have three columns.
+    const described = word.schema.fields.some((field) => field.description);
     lines.push(
       `## @${word.word}`,
       '',
       word.description,
       '',
-      `Owner: \`${word.owner}\`. Kind: \`${word.kind}\`. Category: \`${word.category}\`. Identity: \`${word.identity}\`.`,
+      `Owner: \`${word.owner}\`. Kind: \`${word.kind}\`. Category: \`${word.category}\`. Artifact set: \`${word.artifactSet}\`. Primitive: \`${word.primitive}\`. Move: \`${word.move}\`. Identity: \`${word.identity}\`.`,
       '',
       `Schema: [${word.schema.name}](../../../${word.schema.path}). ${word.schema.closed ? 'Closed ordinary sections' : 'Open ordinary sections'}; floor-owned cognition/activation rules also apply.`,
       '',
@@ -158,11 +171,13 @@ export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string 
           .join(', ') || 'none'
       }.`,
       '',
-      '| Field | Type | Required |',
-      '|---|---|---|',
+      described ? '| Field | Type | Required | Description |' : '| Field | Type | Required |',
+      described ? '|---|---|---|---|' : '|---|---|---|',
     );
     for (const field of word.schema.fields)
-      lines.push(`| ${field.path} | ${fieldTypeText(field)} | ${field.required ? 'yes' : 'no'} |`);
+      lines.push(
+        `| ${field.path} | ${fieldTypeText(field)} | ${field.required ? 'yes' : 'no'} |${described ? ` ${descriptionCell(field.description ?? '')} |` : ''}`,
+      );
     if (!word.schema.fields.length)
       lines.push('| See the shared schema grammar | structured declarations | per grammar |');
     if (word.schema.edges.length)
@@ -170,7 +185,7 @@ export function vocabularyMarkdown(data: ReturnType<typeof vocabulary>): string 
         '',
         ...word.schema.edges.map(
           (e) =>
-            `Relationship: ${e.predicate} → ${e.target}; ${e.cardinality}; ${e.required ? 'required' : 'optional'}.`,
+            `Relationship: ${e.spelling} ${e.direction === 'out' ? `→ ${e.target}` : `← ${e.target} (inbound ${e.predicate})`}; ${e.cardinality}; ${e.required ? 'required' : 'optional'}.`,
         ),
       );
     if (word.kernelMembers.length)

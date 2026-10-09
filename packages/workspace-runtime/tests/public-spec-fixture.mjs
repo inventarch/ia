@@ -5,20 +5,20 @@ import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { open } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
-import { captureWorkspace } from '@inventarch/agent-composition-system';
+import { captureWorkspace } from '@inventarch/workspace-runtime';
 import {
   captureResources,
   resourceOccurrences,
   resolveResources,
   verifyResources,
-} from '@inventarch/agent-composition-system/resources';
+} from '@inventarch/workspace-runtime/resources';
 import {
   createAuthoringIndex,
   resolveAuthoring,
   prepareAuthoringTarget,
   closeAuthoringView,
   verifyAuthoringIndex,
-} from '@inventarch/agent-composition-system/authoring';
+} from '@inventarch/workspace-runtime/authoring';
 
 const sha = (v) => createHash('sha256').update(v).digest('hex');
 const sign = (v) => {

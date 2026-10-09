@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { repositoryKey } from '@inventarch/distribution/decisions';
 import { afterAll, expect, it, vi } from 'vitest';
+import { quote } from '../src/render.js';
 import { cleanup, run, scratch } from './workspace-fixture.js';
 
 vi.setConfig({ testTimeout: 120_000 });
@@ -72,19 +73,27 @@ it('clears a decline recorded before the target directory existed once init --ap
   expect(applied.exitCode, applied.stdout).toBe(0);
   expect(repositories(home)).toEqual({});
 });
-it('a relative IA_HOME refuses at exit 3', async () => {
-  const result = await run(['init', scratch('decline-relhome'), '--decline', 'today', '--json'], {
+it('a relative IA_HOME refuses at exit 3, naming the decline to run again once it is absolute', async () => {
+  const repo = scratch('decline-relhome');
+  const result = await run(['init', repo, '--decline', 'today', '--json'], {
     env: { IA_HOME: '.ia' },
   });
   expect(result.exitCode, result.stdout).toBe(3);
+  expect(JSON.parse(result.stdout).next).toBe(
+    `Set IA_HOME to an absolute directory, or unset it to use ~/.ia; then run "ia init ${quote(repo)} --decline today".`,
+  );
 });
 it('an invalid decisions file is refused with its own path', async () => {
   const home = resolve(scratch('decline-invalid'), '.ia'),
     env = { IA_HOME: home };
   mkdirSync(resolve(home, 'state'), { recursive: true });
   writeFileSync(resolve(home, 'state/decisions.json'), '{not json', 'utf8');
-  const result = await run(['init', scratch('decline-invalid-target'), '--forget-decline', '--json'], { env });
+  const repo = scratch('decline-invalid-target');
+  const result = await run(['init', repo, '--forget-decline', '--json'], { env });
   expect(result.exitCode, result.stdout).toBe(3);
-  const body = JSON.parse(result.stdout) as { where: { path: string } };
+  const body = JSON.parse(result.stdout) as { where: { path: string }; next: string };
   expect(body.where.path.endsWith('decisions.json')).toBe(true);
+  expect(body.next).toBe(
+    `Fix or delete ${resolve(home, 'state/decisions.json')}, then run "ia init ${quote(repo)} --forget-decline".`,
+  );
 });

@@ -22,16 +22,20 @@ export function located<T>(where: string | null, next: string, run: () => T): T 
     );
   }
 }
-/** §3. A relative IA_HOME is the service's refusal; the remedy is the CLI's. */
-export const hostHome = (env: Readonly<Record<string, string | undefined>>): string =>
+/**
+ * §3. A relative IA_HOME is the service's refusal; the remedy is the CLI's, ending in `rerun`: the refused invocation
+ * again, or by default `ia doctor`, whose IA home row reports the home once it resolves.
+ */
+export const hostHome = (env: Readonly<Record<string, string | undefined>>, rerun = 'ia doctor'): string =>
   located(
     null,
-    'Set IA_HOME to an absolute directory, or unset it to use ~/.ia.',
+    `Set IA_HOME to an absolute directory, or unset it to use ~/.ia; then run "${rerun}".`,
     () => resolveIaHome(env, homedir()).home,
   );
 /**
  * §3: the remedy for an IA home that itself looks like a workspace. Callers run `assertIaHomeUsable` explicitly (not
- * by pattern-matching a refusal's message), so this wording is never guessed at, and every verb words it the same.
+ * by pattern-matching a refusal's message), so this wording is never guessed at, and every verb words it the same,
+ * ending in the one command that runs the refused invocation again (design row 27), or by default `ia doctor`.
  */
-export const homeSrcRemedy = (home: string): string =>
-  `Move ${join(home, 'src')} out of the IA home, or set IA_HOME to another absolute directory.`;
+export const homeSrcRemedy = (home: string, rerun = 'ia doctor'): string =>
+  `Move ${join(home, 'src')} out of the IA home, or set IA_HOME to another absolute directory; then run "${rerun}".`;

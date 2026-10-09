@@ -128,6 +128,29 @@ export function words(text: string, role: Role | null = null, gap = 1): readonly
   }
   return tokens;
 }
+/** A command quoted in prose: a program this CLI names and its arguments, one with a space JSON-quoted (`quote`). */
+const QUOTED_COMMAND = /"(?:ia|ia-distribution|pnpm)(?: (?:"(?:[^"\\]|\\.)*"|[^\s"]+))*"/g;
+/**
+ * §6.4 for prose that quotes a command, such as a refusal's next action (design row 27): the words wrap as `words`
+ * splits them, and each quoted command, with the punctuation touching it, is one `atom`, so a line break never falls
+ * inside the command and it stays copy-pasteable, overrunning the width when it must.
+ */
+export function remedyWords(text: string, role: Role | null = null, gap = 1): readonly Token[] {
+  const tokens: Token[] = [];
+  const lead = (): number => (tokens.length === 0 ? gap : 1);
+  let at = 0;
+  for (const match of text.matchAll(QUOTED_COMMAND)) {
+    if (match.index < at) continue;
+    const start = Math.max(text.lastIndexOf(' ', match.index) + 1, at),
+      space = text.indexOf(' ', match.index + match[0].length),
+      end = space === -1 ? text.length : space;
+    tokens.push(...words(text.slice(at, start), role, lead()));
+    tokens.push(atom(text.slice(start, end), role, lead()));
+    at = end;
+  }
+  tokens.push(...words(text.slice(at), role, lead()));
+  return tokens;
+}
 
 /**
  * §6.4: words wrap at the effective width; a token is never split, so an over-wide identifier overruns its line whole.
@@ -220,6 +243,11 @@ export interface Field {
   readonly symbol?: SymbolName | undefined;
   /** A next action nested under this row, at the row's content column, per rule 3. */
   readonly action?: readonly Token[] | null | undefined;
+  /**
+   * Further prose about this row, on its own lines under it and hanging at the block's value column (two past the
+   * content column when the block drops its value column), so it never starts where labels start.
+   */
+  readonly note?: readonly Token[] | null | undefined;
 }
 /**
  * §6.4 rule 4: one value column per block at `max(len(label)) + 2`, never shared across a blank line, over the one
@@ -257,7 +285,12 @@ export function fieldRows(fields: readonly Field[], options: Placement, caps: Ca
       : value.length === 0
         ? [prefix + field.label]
         : value.map((line, index) => (index === 0 ? prefix + field.label.padEnd(pad) : ' '.repeat(column)) + line);
-    return field.action ? [...rows, ...entry([field.action], { column, symbol: 'step' }, caps)] : rows;
+    const noteColumn = degraded ? column + 2 : column + pad;
+    const notes = field.note
+      ? wrapTokens(field.note, noteColumn, caps).map((line) => ' '.repeat(noteColumn) + line)
+      : [];
+    const noted = [...rows, ...notes];
+    return field.action ? [...noted, ...entry([field.action], { column, symbol: 'step' }, caps)] : noted;
   });
 }
 

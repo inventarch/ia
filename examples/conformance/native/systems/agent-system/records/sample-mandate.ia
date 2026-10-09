@@ -6,3 +6,8 @@
     answers "Sample fixture statement 2."
   governance
     requires "Sample fixture statement 3."
+  authority
+    participant @agent agent-steward
+    moves [Observation, Verification]
+    excluded-words [hook]
+    covers ["docs/**"]

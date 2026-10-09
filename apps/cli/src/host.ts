@@ -14,9 +14,9 @@
  * service's own refusal — its code and message unchanged (contract §4.1) — and is the refusal apply would raise.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { lifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
+import { lifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-profile';
 import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
 import type { GuardPlan } from '@inventarch/distribution/guard-registration';
 import {
@@ -68,7 +68,9 @@ import {
 } from './render.js';
 import { runUserHost } from './user-host.js';
 
-const DAMAGED = 'The ia installation is damaged; reinstall @inventarch/cli so assets/host travels with it.';
+/** The installation, not the workspace, is at fault; `ia doctor` names the channel a reinstall goes through. */
+const DAMAGED =
+  'The ia installation is damaged; run "ia doctor" for its install channel and reinstall @inventarch/cli through it, so assets/host travels with it.';
 
 export type ElementId = 'mcp' | 'hooks' | 'context' | 'projection';
 /**
@@ -177,7 +179,7 @@ export function stateRepair(host: HostName, path: string, rerun: string): string
  */
 export function modifiedRepair(host: HostName, elements: readonly ('mcp' | 'hooks')[]): string {
   const owned = elements.map((element) => (element === 'mcp' ? OWNED_MCP[host] : OWNED_GUARD)).join(' and ');
-  return `Delete ${owned}, then run "ia host ${host} --remove --apply" and "ia host ${host} --apply".`;
+  return `Delete ${owned}, then run "ia host ${host} --remove --apply" and register again.`;
 }
 /** §8: each pending journal names its own recovery on the distribution binary. `ia doctor` reports the same ones. */
 export const JOURNALS: readonly (readonly [string, string])[] = [
@@ -187,6 +189,12 @@ export const JOURNALS: readonly (readonly [string, string])[] = [
 ];
 /** §8: the lock every host sub-transaction holds while it writes (`acquireHostRegistrationLock`). */
 export const HOST_LOCK = `${HOSTS_AREA}/lock.json`;
+/**
+ * The close of a remedy whose follow-up is the refused command itself, run again as typed, so the recovery before it
+ * is the one command named (design row 27). `ia init --host` cannot simply be run again once it has initialized, so it
+ * names `ia host` instead of such a remedy.
+ */
+export const THEN_RERUN = ', then rerun.';
 /** A recovery on the distribution binary, rooted and quoted as every printed root is. */
 export const recoverCommand = (command: string, root: string): string =>
   `ia-distribution ${command} --root ${quote(root)}`;
@@ -196,7 +204,7 @@ export const recoverCommand = (command: string, root: string): string =>
  * which clears a dead holder's lock and refuses a live one. It names no `ia host` command, so `--root` needs no rewrite.
  */
 export const lockNext = (root: string): string =>
-  `Another ia host run holds the host lock, or a killed run left it: run "${recoverCommand('recover-host', root)}" (it clears a dead holder's lock and refuses a live one), then rerun.`;
+  `Another ia host run holds the host lock, or a killed run left it: run "${recoverCommand('recover-host', root)}" (it clears a dead holder's lock and refuses a live one)${THEN_RERUN}`;
 /**
  * The refusal for a held host lock, located at the lock and naming its recovery, or null for any other error. Every
  * mechanism an `ia host` apply or an install's projection refresh runs raises IA-DIST-INSTALL-BUSY only from that
@@ -236,22 +244,25 @@ function requireInitialized(root: string): void {
       'The target is not an initialized workspace: .ia/release.json is absent',
       3,
       { path: root },
-      'Run "ia init" first.',
+      `Run "ia init ${quote(root)}" first.`,
     );
 }
 /** The journal a failed transaction left behind, if any, with the command that recovers it. */
 const pendingJournal = (root: string): readonly [string, string] | undefined =>
   JOURNALS.find(([path]) => existsSync(resolve(root, path)));
-const recoverNext = (root: string, command: string, host: HostName): string =>
-  `Run "${recoverCommand(command, root)}", then rerun "ia host ${host}".`;
+/** Design row 27: the recovery is the one command named; the refused command is simply run again after it. */
+const recoverNext = (root: string, command: string): string => `Run "${recoverCommand(command, root)}"${THEN_RERUN}`;
 /**
- * A next action of this verb made runnable from any cwd: every quoted `ia host <host>` command it names gains
- * `--root <root>`. `ia init --host` uses it, because its `<directory>` may not be the cwd a rerun discovers from.
- * Every command this file prints opens with `"ia host <host>` and none names `--root` itself, so the rewrite reaches
- * each command and nothing else.
+ * A next action of this verb made runnable from any cwd: every quoted `ia host <host>` command it names, and the
+ * `ia validate` a workspace that does not admit names (host-projection.ts), gains `--root <root>`. `ia init --host`
+ * uses it, because its `<directory>` may not be the cwd a rerun discovers from. Every such command opens with
+ * `"ia host <host>` or `"ia validate` and none names `--root` itself, so the rewrite reaches each one and nothing else.
  */
 export const rootedNext = (next: string, host: HostName, root: string): string =>
-  next.replace(new RegExp(`"ia host ${host}(?! --root\\b)`, 'g'), () => `"ia host ${host} --root ${quote(root)}`);
+  next.replace(
+    new RegExp(`"ia (?:host ${host}|validate)(?! --root\\b)`, 'g'),
+    (command) => `${command} --root ${quote(root)}`,
+  );
 /** A next action as printed: with `--root` given, each `ia host <host>` command in it carries the root. */
 export const hostNext = (text: string, host: HostName, root: string, rooted: boolean): string =>
   rooted ? rootedNext(text, host, root) : text;
@@ -266,13 +277,13 @@ export const refusedPath = (error: unknown): string | null =>
 export const projectionRepair = (host: HostName, path: string, rerun: string): string =>
   stateRepair(host, path, rerun) ?? `Move or delete ${path}, then run "${rerun}".`;
 /** §8: a pending journal refuses the whole verb and names the recovery that clears it. */
-function requireIdle(root: string, host: HostName, supplied: string): void {
+function requireIdle(root: string, supplied: string): void {
   try {
     assertHostRegistrationIdle(root);
   } catch (error) {
     const refusal = refusalOf(error);
     const [journal, command] = pendingJournal(root) ?? JOURNALS[0]!;
-    throw new Refusal(refusal.code, refusal.message, 3, { path: journal }, recoverNext(supplied, command, host));
+    throw new Refusal(refusal.code, refusal.message, 3, { path: journal }, recoverNext(supplied, command));
   }
 }
 
@@ -374,14 +385,17 @@ export function collectHost(context: Context): HostView {
   const given = args.positionals[0] ?? '';
   if (hostRow(given) === undefined) throw new UsageError(`ia host takes claude, codex or cursor; got ${given}`);
   const row = workspaceRow(given);
-  if (row === undefined)
+  if (row === undefined) {
+    // Raised before the root is resolved, so the command names the root as it was typed.
+    const typed = args.value('root');
     throw new Refusal(
       'IA-DIST-HOST-UNSUPPORTED',
       `${hostRow(given)!.label} support is planned; nothing was written`,
       3,
       null,
-      'Run "ia host claude" or "ia host codex".',
+      `Run "ia host claude${typed === undefined ? '' : ` --root ${quote(typed)}`}" to plan a supported host; Codex is supported too.`,
     );
+  }
   const name: HostName = row.id;
   const remove = args.flag('remove'),
     selected = args.value('context');
@@ -397,27 +411,31 @@ export function collectHost(context: Context): HostView {
       'The lifecycle context element is not qualified in this release',
       3,
       { path: supplied },
-      `Run "ia host ${name}" without --context.`,
+      `Run "ia host ${name}" to plan the registration without the context element.`,
     );
   // The mechanisms record the real path (files.ts `workspace()`), so the plan works on the same one.
   const root = realpathSync(supplied);
-  const home = hostHome(host.env);
+  // Every IA home remedy ends by planning this invocation again; `runHost` adds `--root` as it does to every next action.
+  const plan = `ia host ${name}${remove ? ' --remove' : ''}`;
+  const home = hostHome(host.env, plan);
   // §3.3: neither may contain the other; the service raises IA-DIST-PATH-UNSAFE.
-  located(supplied, 'Move the workspace, or set IA_HOME to an absolute directory outside it.', () =>
+  located(supplied, `Move the workspace, or set IA_HOME to an absolute directory outside it; then run "${plan}".`, () =>
     assertHomeOutsideWorkspace(home, root),
   );
   // §3: refuse a home that itself looks like a workspace at plan time, before any payload write is attempted.
-  located(null, homeSrcRemedy(home), () => assertIaHomeUsable(home));
+  located(null, homeSrcRemedy(home, plan), () => assertIaHomeUsable(home));
   const { pin: bundled } = bundledPin(host.packageRoot);
-  requireIdle(root, name, supplied);
+  requireIdle(root, supplied);
   // §4: zero error findings. A removal renders nothing, so it checks admission alone.
   let artifacts: readonly Artifact[] = [];
   if (remove) checkAdmitted(root);
   else artifacts = renderProjectionFor(root, name);
   // A host home reached through a symbolic link or junction is refused by the mechanism (IA-DIST-PATH-UNSAFE), because
   // the payload it verifies must be the one the registration names; the remedy is a home with no link in its path.
-  const expected: HostCacheTarget = located(null, 'Set IA_HOME to a directory path with no links, or unset it.', () =>
-    expectedHostCache(hostPayloadPath(home, bundled.release), bundled.release),
+  const expected: HostCacheTarget = located(
+    null,
+    `Set IA_HOME to a directory path with no links, or unset it; then run "${plan}".`,
+    () => expectedHostCache(hostPayloadPath(home, bundled.release), bundled.release),
   );
   const owned = new Set<ElementId>();
   if (existsSync(resolve(root, STATE.mcp(name)))) owned.add('mcp');
@@ -499,7 +517,9 @@ function materialize(view: HostView, packageRoot: string): string {
   // Re-checked explicitly rather than inferred from a caught refusal's message: verifyNaming's own PATH-UNSAFE
   // wrapping ("... at <payload>; delete that directory") also names a path under view.home, so pattern-matching the
   // message would misroute a real corrupt-payload refusal into this remedy.
-  located(null, homeSrcRemedy(view.home), () => assertIaHomeUsable(view.home));
+  located(null, say(view, homeSrcRemedy(view.home, `ia host ${view.host} --apply`)), () =>
+    assertIaHomeUsable(view.home),
+  );
   try {
     return materializeHostPayload({ home: view.home, archive: archive(), pin: bundled }).directory;
   } catch (error) {
@@ -553,7 +573,7 @@ export function applyHostSet(
           refusal.message,
           3,
           { path: journal[0] },
-          say(view, recoverNext(view.root, journal[1], host)),
+          say(view, recoverNext(view.root, journal[1])),
         );
       const busy = lockRefusal(error, view.root);
       if (busy !== null) throw busy;
@@ -758,13 +778,16 @@ export async function runHost(context: Context): Promise<Result> {
   try {
     view = collectHost(context);
   } catch (error) {
-    // Refusals raised before a view exists — the --context gate, a pending journal — name `ia host` commands too.
+    // Refusals raised before a view exists — the --context gate, a pending journal — name `ia host` commands too. A
+    // root that is not a directory is requireRoot's own refusal, whose next action already spells the whole invocation.
     const supplied = args.value('root'),
       name = args.positionals[0];
+    const given = supplied === undefined ? undefined : resolve(host.cwd, supplied);
     if (
       !(error instanceof Refusal) ||
       error.next === null ||
-      supplied === undefined ||
+      given === undefined ||
+      !statSync(given, { throwIfNoEntry: false })?.isDirectory() ||
       (name !== 'claude' && name !== 'codex')
     )
       throw error;
@@ -774,7 +797,7 @@ export async function runHost(context: Context): Promise<Result> {
       error.message,
       error.exit,
       error.where,
-      rootedNext(error.next, name, realpathSync(resolve(host.cwd, supplied))),
+      rootedNext(error.next, name, realpathSync(given)),
       error.at,
     );
   }

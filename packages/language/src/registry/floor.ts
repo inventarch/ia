@@ -5,8 +5,13 @@ export const FLOOR_SYSTEM = 'floor';
 export const TAXONOMY_SYSTEM = 'taxonomy';
 /** Always visible; a `requires` naming one of these resolves without a record. */
 export const BUILTIN_SYSTEMS: readonly string[] = [FLOOR_SYSTEM, TAXONOMY_SYSTEM];
-/** No `@system` may register these (`IA-LANG-KEYWORD-RESERVED`). */
-export const RESERVED_KEYWORDS: readonly string[] = ['system', 'schema'];
+/**
+ * The keyword a consent-row side may name beside `*` and discriminators (spec 4.2): on a system's ledger it matches
+ * the words of every system that requires that system, directly or transitively. It names no record.
+ */
+export const ANY_ADOPTER = 'any-adopter';
+/** No `@system` may register these (`IA-LANG-KEYWORD-RESERVED`): the floor's two words and the consent-row keyword. */
+export const RESERVED_KEYWORDS: readonly string[] = ['system', 'schema', ANY_ADOPTER];
 
 /** Fixed incoming-only schema citation permission; no authored floor declaration owns it. */
 export const FLOOR_CONSENT: readonly ConsentRow[] = Object.freeze([
@@ -31,6 +36,9 @@ export const FLOOR_REGISTRATIONS: readonly Registration[] = [
     category: 'boundary',
     facets: ['system'],
     schema: 'system',
+    artifactSet: 'product-definition',
+    primitive: 'Attention',
+    move: 'Observation',
     band: 10,
   },
   {
@@ -40,6 +48,9 @@ export const FLOOR_REGISTRATIONS: readonly Registration[] = [
     category: 'representation',
     facets: ['head'],
     schema: 'schema',
+    artifactSet: 'contract',
+    primitive: 'Inference',
+    move: 'Verification',
     band: 10,
   },
 ];

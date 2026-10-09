@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync, symlinkSync, utimesSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { DbError, open, readInputs } from '../src/index.js';
@@ -27,6 +27,7 @@ it('verifies an identical cache without rewriting and preserves authored bytes',
     first = open(root),
     path = resolve(root, '.ia/.iadb/graph.json');
   expect(first.cache.state).toBe('written');
+  expect(first.cache.observations).toEqual([]);
   const bytes = readFileSync(path, 'utf8');
   utimesSync(path, new Date(100000), new Date(100000));
   const modified = statSync(path).mtimeMs;
@@ -37,7 +38,10 @@ it('verifies an identical cache without rewriting and preserves authored bytes',
   expect(second.refresh()).toEqual(first.snapshot());
   expect(readFileSync(path, 'utf8')).toBe(bytes);
   expect(readInputs(root)).toEqual(before);
+  // D08a: the retained pair is the capture's, which no handle writes; the cache holds the graph alone.
+  expect(second.previousRevision).toBeUndefined();
   expect(readdirSync(resolve(root, '.ia/.iadb'))).toEqual(['graph.json']);
+  expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
 });
 it.each(['broken JSON', 'forged'])('replaces %s cache bytes even with a matching revision', (corruption) => {
   const root = workspace(),
@@ -86,10 +90,15 @@ it('publishes a new immutable generation after a byte edit without changing reco
 it('preserves the last published state when refresh fails', () => {
   const root = workspace(),
     db = open(root),
-    before = db.snapshot();
+    first = db.revision;
+  put(root, methodPath, readFileSync(resolve(root, methodPath), 'utf8') + '\n# revision-only edit\n');
+  const before = db.refresh();
   put(root, '.ia/src/invalid.ia', new Uint8Array([0xc3, 0x28]));
   expect(() => db.refresh()).toThrow(expect.objectContaining({ code: 'IA-DB-SOURCE-UNAVAILABLE' }));
   expect(db.snapshot()).toEqual(before);
+  // D08: a failed refresh rotates nothing.
+  expect(db.previousRevision).toBe(first);
+  expect(db.staleness(methodId)).toBe('unchanged');
 });
 it('retries unstable scans at most three times and publishes only a stable candidate', () => {
   const root = workspace(false),
@@ -130,6 +139,9 @@ it('closes idempotently and refuses all subsequent reads and refreshes', () => {
     () => db.report,
     () => db.refused,
     () => db.cache,
+    () => db.previousRevision,
+    () => db.staleness(methodId),
+    () => db.readiness(methodId, '0'.repeat(64)),
   ]) {
     expect(read).toThrow(expect.objectContaining({ code: 'IA-DB-CLOSED' }));
   }

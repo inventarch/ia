@@ -1,0 +1,18 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Generic workspace runtime moves to @inventarch/workspace-runtime",
+  "summary": "Workspace capture and adoption, resources, projections, publication, candidates, templates, lifecycle, authoring manifest, installed catalog, sources, local store and adapters are published as @inventarch/workspace-runtime. It declares @inventarch/authoring-system, whose installed bytes its implementation digest pins, and bounds the walk of each pinned package directory (depth 16, 2,000 entries, 8 MiB per code file, 32 MiB per package), refusing a larger tree with IA-CORPUS-DENIED. @inventarch/agent-composition-system keeps the composition compiler and depends on the new package. Its root re-exports of the moved symbols and every moved subpath, including the 18 ./internal/* subpaths that 1.1.0 published, remain as plain aliases that forward to @inventarch/workspace-runtime; they carry no per-symbol deprecation hint and are removed at the next major.",
+  "packages": [
+    "@inventarch/agent-composition-system",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    ".ia/src/systems/agent-composition-system/",
+    "README.md",
+    "packages/workspace-runtime/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

@@ -15,26 +15,19 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathKey, unaliased } from '@inventarch/db';
 import { canonicalDistributionJson, decodeDistributionJson, platformDebris } from '@inventarch/db/distribution';
 
-import { installedImplementationDigest } from '@inventarch/agent-composition-system';
-import { openLocalAuthoringView } from '@inventarch/agent-composition-system/authoring-manifest';
-import {
-  AuthoringError,
-  prepareAuthoringTarget,
-  resolveAuthoring,
-} from '@inventarch/agent-composition-system/authoring';
-import { ResourceError, resourceOccurrences } from '@inventarch/agent-composition-system/resources';
+import { installedImplementationDigest } from '@inventarch/workspace-runtime';
+import { openLocalAuthoringView } from '@inventarch/workspace-runtime/authoring-manifest';
+import { AuthoringError, prepareAuthoringTarget, resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
+import { ResourceError, resourceOccurrences } from '@inventarch/workspace-runtime/resources';
 import {
   LifecycleError,
   verifyLifecycleProfile,
   lifecycleProfile,
   SELECTED_CLAUDE_CODE_VERSION,
-} from '@inventarch/agent-composition-system/lifecycle-profile';
-import { decodeLifecycleEvent } from '@inventarch/agent-composition-system/lifecycle-profile';
-import type { LifecycleEvent, LifecycleProfile } from '@inventarch/agent-composition-system/lifecycle-profile';
-import {
-  prepareLifecycleContext,
-  prepareLifecycleContextSegments,
-} from '@inventarch/agent-composition-system/lifecycle';
+} from '@inventarch/workspace-runtime/lifecycle-profile';
+import { decodeLifecycleEvent } from '@inventarch/workspace-runtime/lifecycle-profile';
+import type { LifecycleEvent, LifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-profile';
+import { prepareLifecycleContext, prepareLifecycleContextSegments } from '@inventarch/workspace-runtime/lifecycle';
 import type {
   LifecycleBudgets,
   LifecycleInputIdentity,
@@ -42,8 +35,8 @@ import type {
   LifecycleView,
   PreparedContext,
   PreparedContextSegments,
-} from '@inventarch/agent-composition-system/lifecycle';
-import type { AuthoringTarget, LifecycleCoordinate } from '@inventarch/agent-composition-system/authoring';
+} from '@inventarch/workspace-runtime/lifecycle';
+import type { AuthoringTarget, LifecycleCoordinate } from '@inventarch/workspace-runtime/authoring';
 import { COORDINATE_DOMAINS, isEntry, prepareCoordinate } from '@inventarch/runtime';
 
 export interface ContextHookBindingInput {

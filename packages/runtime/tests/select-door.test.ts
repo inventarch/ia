@@ -195,6 +195,33 @@ it('preserves named lower-layer errors and guards privileged reports and foreign
     other.close();
   }
 });
+it('answers get and records in their frozen version 1 shape, without the per-record digest or membership', () => {
+  const root = workspace(),
+    door = new Door(root, { cache: false }),
+    db = database(root);
+  try {
+    const { digest, ...record } = db.get(methodId)!;
+    expect(digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(door.request({ operation: 'get', params: { identity: methodId } }))).toBe(
+      JSON.stringify({ ok: true, result: record }),
+    );
+    const snapshot = db.snapshot(),
+      records = door.request({ operation: 'records' });
+    expect(snapshot.membership).toHaveLength(snapshot.records.length);
+    if (!records.ok) throw new Error('Fixture records failed');
+    expect(Object.keys(records.result as object)).toEqual(['revision', 'root', 'records', 'systems']);
+    expect(JSON.stringify(records.result)).toBe(
+      JSON.stringify({
+        revision: snapshot.revision,
+        root: snapshot.root,
+        records: snapshot.records.map(({ digest: _digest, ...node }) => node),
+        systems: snapshot.systems,
+      }),
+    );
+  } finally {
+    door.close();
+  }
+});
 
 /** The keys the Door names when it refuses an unknown one: what it accepts, in its own words. */
 function admittedKeys(door: Door, operation: string, params: Record<string, unknown>): ReadonlySet<string> {

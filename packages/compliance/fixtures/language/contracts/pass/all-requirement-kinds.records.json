@@ -466,6 +466,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -480,6 +481,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -494,6 +496,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -508,6 +511,7 @@
       {
         "predicate": "ground",
         "direction": "out",
+        "spelling": "ground",
         "reference": {
           "kind": "ref",
           "discriminator": "schema",
@@ -1001,6 +1005,7 @@
       {
         "predicate": "govern",
         "direction": "out",
+        "spelling": "governs",
         "reference": {
           "kind": "ref",
           "discriminator": "playbook",

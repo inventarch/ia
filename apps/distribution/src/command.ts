@@ -1,13 +1,13 @@
 import { isAbsolute, relative, resolve } from 'node:path';
-import { captureWorkspace, installedImplementationDigest } from '@inventarch/agent-composition-system';
-import { resourceOccurrences, verifyResources } from '@inventarch/agent-composition-system/resources';
-import { renderCapturedTemplate } from '@inventarch/agent-composition-system/templates';
+import { captureWorkspace, installedImplementationDigest } from '@inventarch/workspace-runtime';
+import { resourceOccurrences, verifyResources } from '@inventarch/workspace-runtime/resources';
+import { renderCapturedTemplate } from '@inventarch/workspace-runtime/templates';
 import {
   claudeProseCatalog,
   codexProseCatalog,
   compileProjection,
   verifyProjectionDescriptor,
-} from '@inventarch/agent-composition-system/projections';
+} from '@inventarch/workspace-runtime/projections';
 import { bytes, fail, portable, utf8, workspace } from './files.js';
 import { formatSource, openWorkspaceSession, writeWorkOutput } from './services.js';
 import { checkProjection, publishProjection, recoverProjection, removeProjection } from './publication.js';
@@ -80,8 +80,9 @@ export function run(argv: readonly string[]): { exitCode: number; result: unknow
     reader = session.reader;
   try {
     if (command === 'validate') {
-      const admission = session.admission();
-      return { exitCode: admission.status === 'refused' ? 1 : 0, result: admission };
+      // The finding set `ia validate --json` reports, from the one service behind both (inert declarations included).
+      const validation = session.validation();
+      return { exitCode: validation.status === 'refused' ? 1 : 0, result: validation };
     }
     const within = session.within();
     if (command === 'render') {

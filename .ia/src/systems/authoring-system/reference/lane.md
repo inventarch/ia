@@ -2,9 +2,11 @@
 
 Defines a retrieval lane associated with record kinds.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: lane.
+Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: lane. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
+
+Default file: lane.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section data: required.

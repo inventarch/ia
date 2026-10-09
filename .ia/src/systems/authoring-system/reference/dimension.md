@@ -2,9 +2,11 @@
 
 Defines a supported record dimension used by conditions and lookup.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: dimension.
+Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: dimension. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
+
+Default file: dimension.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section data: required.

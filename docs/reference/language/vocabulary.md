@@ -2,13 +2,13 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `991105cd85bd193d7bfe94cda8c2725124d1122e794b9153fd307875542c0e56`.
+This catalogue contains 44 words. Source digest: `8810e44b6cfd1256201c12427916b0cf03aaff5690b4b583f9868278f2620c09`.
 
 ## @agent
 
 Names a participant and the vocabulary to which its governance applies. It does not grant host permissions.
 
-Owner: `agent-system`. Kind: `binding`. Category: `capability`. Identity: `agent-system/binding/<facet>/<name>`.
+Owner: `agent-system`. Kind: `binding`. Category: `capability`. Artifact set: `operational`. Primitive: `Attention`. Move: `Delegation`. Identity: `agent-system/binding/<facet>/<name>`.
 
 Schema: [agent](../../../.ia/src/systems/agent-system/schemas/agent.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -28,7 +28,7 @@ Required sections: meaning, governance. Optional sections: relationships.
 
 Composes an agent, capabilities, optional mandate/voice/delegates and installed execution contracts.
 
-Owner: `agent-composition-system`. Kind: `binding`. Category: `capability`. Identity: `agent-composition-system/binding/<facet>/<name>`.
+Owner: `agent-composition-system`. Kind: `binding`. Category: `capability`. Artifact set: `execution`. Primitive: `Decision`. Move: `Execution`. Identity: `agent-composition-system/binding/<facet>/<name>`.
 
 Schema: [agent-profile](../../../.ia/src/systems/agent-composition-system/schemas/agent-profile.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -64,7 +64,7 @@ Required sections: meaning, composition, execution. Optional sections: relations
 
 Defines a closed grouping of artifact genres.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-artifact-set](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -86,7 +86,7 @@ Closed kernel members: `contract`, `decision`, `evidence`, `execution`, `inquiry
 
 Associates a vocabulary owner and schema with an authoring reference and usage guidance.
 
-Owner: `authoring-system`. Kind: `definition`. Category: `representation`. Identity: `authoring-system/definition/<facet>/<name>`.
+Owner: `authoring-system`. Kind: `definition`. Category: `representation`. Artifact set: `product-definition`. Primitive: `Memory`. Move: `Observation`. Identity: `authoring-system/definition/<facet>/<name>`.
 
 Schema: [authoring-guide](../../../.ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -96,23 +96,24 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, reference, guidance, relationships. Optional sections: none.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| reference.owner | id | yes |
-| reference.word | id | yes |
-| reference.schema | ref | yes |
-| reference.document | text | yes |
-| guidance.select-when | text | yes |
-| guidance.avoid-when | text | yes |
-| guidance.consider | text | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| reference.owner | id | yes |  |
+| reference.word | id | yes |  |
+| reference.schema | ref | yes |  |
+| reference.document | text | yes |  |
+| reference.default-file | text | no | The file a new record of this word is authored in, relative to the workspace's authored root. |
+| guidance.select-when | text | yes |  |
+| guidance.avoid-when | text | yes |  |
+| guidance.consider | text | yes |  |
 
 ## @axis
 
 Defines a closed coordinate axis for selection.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-axis](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -135,7 +136,7 @@ Closed kernel members: `artifact-set`, `category`, `kind`, `lane`, `move`, `phas
 
 Groups operations, procedures, templates, checks and included capabilities with declared execution bounds.
 
-Owner: `agent-composition-system`. Kind: `definition`. Category: `capability`. Identity: `agent-composition-system/definition/<facet>/<name>`.
+Owner: `agent-composition-system`. Kind: `definition`. Category: `capability`. Artifact set: `product-definition`. Primitive: `Inference`. Move: `Synthesis`. Identity: `agent-composition-system/definition/<facet>/<name>`.
 
 Schema: [capability](../../../.ia/src/systems/agent-composition-system/schemas/capability.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -173,7 +174,7 @@ Required sections: meaning, execution. Optional sections: composition, relations
 
 Defines relationship multiplicity constraints.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-cardinality](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -195,7 +196,7 @@ Closed kernel members: `one`, `one-or-more`, `optional`.
 
 Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result.
 
-Owner: `compliance-system`. Kind: `definition`. Category: `evidence`. Identity: `compliance-system/definition/<facet>/<name>`.
+Owner: `compliance-system`. Kind: `definition`. Category: `evidence`. Artifact set: `evidence`. Primitive: `Learning`. Move: `Verification`. Identity: `compliance-system/definition/<facet>/<name>`.
 
 Schema: [case](../../../.ia/src/systems/compliance-system/schemas/case.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -222,7 +223,7 @@ Required sections: meaning, scenario, relationships. Optional sections: none.
 
 Defines a closed concept classification used by record shapes and contextual selection.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-category](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -244,7 +245,7 @@ Closed kernel members: `boundary`, `capability`, `decision`, `event`, `evidence`
 
 Names a check implementation and scope. Declaring an implementation name does not install or execute it.
 
-Owner: `compliance-system`. Kind: `check`. Category: `rule`. Identity: `compliance-system/check/<facet>/<name>`.
+Owner: `compliance-system`. Kind: `check`. Category: `rule`. Artifact set: `evidence`. Primitive: `Decision`. Move: `Verification`. Identity: `compliance-system/check/<facet>/<name>`.
 
 Schema: [check](../../../.ia/src/systems/compliance-system/schemas/check.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -254,18 +255,19 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, check. Optional sections: relationships, governance.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| check.runs | id | yes |
-| check.scope | text | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| check.implementation | text | no | The evaluator that runs the check: a built-in or catalog evaluator id, the same value check.runs takes, and equal to it when both are stated. The \<id>@\<version> form of evidence.implementation is not accepted here. |
+| check.runs | id | no |  |
+| check.scope | text | yes |  |
 
 ## @contract
 
 Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence.
 
-Owner: `compliance-system`. Kind: `contract`. Category: `relation`. Identity: `compliance-system/contract/<facet>/<name>`.
+Owner: `compliance-system`. Kind: `contract`. Category: `relation`. Artifact set: `contract`. Primitive: `Memory`. Move: `Verification`. Identity: `compliance-system/contract/<facet>/<name>`.
 
 Schema: [contract](../../../.ia/src/systems/compliance-system/schemas/contract.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -285,7 +287,7 @@ Required sections: meaning, relationships. Optional sections: inputs, outputs, p
 
 Declares a convention in the shared governance shape.
 
-Owner: `governance-system`. Kind: `governance`. Category: `rule`. Identity: `governance-system/governance/<facet>/<name>`.
+Owner: `governance-system`. Kind: `governance`. Category: `rule`. Artifact set: `principle`. Primitive: `Inference`. Move: `Synthesis`. Identity: `governance-system/governance/<facet>/<name>`.
 
 Schema: [convention](../../../.ia/src/systems/governance-system/schemas/convention.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -293,19 +295,22 @@ Facets: `convention`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, governance. Optional sections: relationships.
+Required sections: meaning, governance. Optional sections: relationships, subject.
 
 | Field | Type | Required |
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
 | governance.severity | id | yes |
+| subject.subject-word | id | no |
+| subject.subject-kind | id in [governance, contract, definition, template, check, policy, binding] | no |
+| subject.covers | list of text | no |
 
 ## @decision
 
 Represents a choice that is needed or has been made: the question, options and decider, and once made, the choice and rationale.
 
-Owner: `work-system`. Kind: `definition`. Category: `decision`. Identity: `work-system/definition/<facet>/<name>`.
+Owner: `work-system`. Kind: `definition`. Category: `decision`. Artifact set: `decision`. Primitive: `Decision`. Move: `Synthesis`. Identity: `work-system/definition/<facet>/<name>`.
 
 Schema: [decision](../../../.ia/src/systems/work-system/schemas/decision.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -315,23 +320,24 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, work, decision. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | no |
-| work.title | text | yes |
-| work.status | id in [open, made, superseded, withdrawn] | yes |
-| work.owner | text | no |
-| work.start | text form iso-date | no |
-| work.due | text form iso-date | no |
-| work.ended | text form iso-date | no |
-| work.source | text | no |
-| decision.question | text | yes |
-| decision.options | list of text | no |
-| decision.decider | text | no |
-| decision.choice | text | no |
-| decision.rationale | text | no |
-| decision.constraints | list of text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | no |  |
+| work.title | text | yes |  |
+| work.status | id in [open, made, superseded, withdrawn] | yes |  |
+| work.owner | text | no |  |
+| work.start | text form iso-date | no |  |
+| work.due | text form iso-date | no |  |
+| work.ended | text form iso-date | no |  |
+| work.source | text | no |  |
+| decision.question | text | yes |  |
+| decision.options | list of text | no |  |
+| decision.decider | text | no |  |
+| decision.choice | text | no |  |
+| decision.rationale | text | no |  |
+| decision.constraints | list of text | no |  |
+| decision.effective-revision | text | no | The snapshot revision from which the decision takes effect. |
 
 Relationship: supersede → decision; one; optional.
 
@@ -339,7 +345,7 @@ Relationship: supersede → decision; one; optional.
 
 Defines a supported record dimension used by conditions and lookup.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-dimension](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -363,7 +369,7 @@ Closed kernel members: `artifact-set`, `provenance`, `severity`.
 
 Declares root records from which a distributable closure is selected.
 
-Owner: `workspace-system`. Kind: `definition`. Category: `representation`. Identity: `workspace-system/definition/<facet>/<name>`.
+Owner: `workspace-system`. Kind: `definition`. Category: `representation`. Artifact set: `projection`. Primitive: `Attention`. Move: `Observation`. Identity: `workspace-system/definition/<facet>/<name>`.
 
 Schema: [distribution](../../../.ia/src/systems/workspace-system/schemas/distribution.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -383,7 +389,7 @@ Required sections: meaning, distribution. Optional sections: relationships.
 
 Connects a native target to a host-installed entry or operation descriptor.
 
-Owner: `agent-composition-system`. Kind: `binding`. Category: `relation`. Identity: `agent-composition-system/binding/<facet>/<name>`.
+Owner: `agent-composition-system`. Kind: `binding`. Category: `relation`. Artifact set: `execution`. Primitive: `Decision`. Move: `Execution`. Identity: `agent-composition-system/binding/<facet>/<name>`.
 
 Schema: [execution-binding](../../../.ia/src/systems/agent-composition-system/schemas/execution-binding.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -410,7 +416,7 @@ Required sections: meaning, binding. Optional sections: relationships.
 
 Composes profiles and execution bindings in a workspace under a host contract.
 
-Owner: `agent-composition-system`. Kind: `definition`. Category: `boundary`. Identity: `agent-composition-system/definition/<facet>/<name>`.
+Owner: `agent-composition-system`. Kind: `definition`. Category: `boundary`. Artifact set: `execution`. Primitive: `Decision`. Move: `Execution`. Identity: `agent-composition-system/definition/<facet>/<name>`.
 
 Schema: [harness](../../../.ia/src/systems/agent-composition-system/schemas/harness.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -441,7 +447,7 @@ Required sections: meaning, composition, execution. Optional sections: relations
 
 Represents a host event, tool/path selection and guard message. Registration and executing a guard require a host adapter.
 
-Owner: `hook-authoring-system`. Kind: `binding`. Category: `capability`. Identity: `hook-authoring-system/binding/<facet>/<name>`.
+Owner: `hook-authoring-system`. Kind: `binding`. Category: `capability`. Artifact set: `operational`. Primitive: `Escalation`. Move: `Execution`. Identity: `hook-authoring-system/binding/<facet>/<name>`.
 
 Schema: [hook](../../../.ia/src/systems/hook-authoring-system/schemas/hook.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -464,7 +470,7 @@ Required sections: meaning, hook. Optional sections: relationships.
 
 Represents a proposed change, review metadata and publication metadata. It does not authorize or apply the proposal.
 
-Owner: `learning-system`. Kind: `definition`. Category: `intent`. Identity: `learning-system/definition/<facet>/<name>`.
+Owner: `learning-system`. Kind: `definition`. Category: `intent`. Artifact set: `inquiry`. Primitive: `Learning`. Move: `Synthesis`. Identity: `learning-system/definition/<facet>/<name>`.
 
 Schema: [improvement](../../../.ia/src/systems/learning-system/schemas/improvement.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -502,7 +508,7 @@ Required sections: meaning, proposal, review, publication, relationships. Option
 
 Defines a request framing and its retrieval defaults.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-intent-shape](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -531,7 +537,7 @@ Closed kernel members: `context`, `execution`, `governance`, `learning`, `sequen
 
 Defines a closed semantic role for records; lowering determines the role of each registered word.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-kind](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -555,7 +561,7 @@ Closed kernel members: `binding`, `check`, `contract`, `definition`, `governance
 
 Defines a retrieval lane associated with record kinds.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-lane](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -577,7 +583,7 @@ Closed kernel members: `authority`, `bindings`, `contracts`, `definitions`, `enf
 
 Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose.
 
-Owner: `governance-system`. Kind: `governance`. Category: `rule`. Identity: `governance-system/governance/<facet>/<name>`.
+Owner: `governance-system`. Kind: `governance`. Category: `rule`. Artifact set: `principle`. Primitive: `Inference`. Move: `Verification`. Identity: `governance-system/governance/<facet>/<name>`.
 
 Schema: [law](../../../.ia/src/systems/governance-system/schemas/law.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -585,19 +591,22 @@ Facets: `law`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, governance. Optional sections: relationships.
+Required sections: meaning, governance. Optional sections: relationships, subject.
 
 | Field | Type | Required |
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
 | governance.severity | id | yes |
+| subject.subject-word | id | no |
+| subject.subject-kind | id in [governance, contract, definition, template, check, policy, binding] | no |
+| subject.covers | list of text | no |
 
 ## @mandate
 
-States bounded authority and conditions for a participant. Host authorization remains independent.
+States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers.
 
-Owner: `agent-system`. Kind: `policy`. Category: `rule`. Identity: `agent-system/policy/<facet>/<name>`.
+Owner: `agent-system`. Kind: `policy`. Category: `rule`. Artifact set: `principle`. Primitive: `Escalation`. Move: `Delegation`. Identity: `agent-system/policy/<facet>/<name>`.
 
 Schema: [mandate](../../../.ia/src/systems/agent-system/schemas/mandate.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -605,27 +614,32 @@ Facets: `mandate`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, governance. Optional sections: execution, relationships.
+Required sections: meaning, governance. Optional sections: execution, authority, relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| execution.contract | id | no |
-| execution.limit-steps | number | no |
-| execution.limit-model-calls | number | no |
-| execution.limit-operations | number | no |
-| execution.limit-tokens | number | no |
-| execution.limit-children | number | no |
-| execution.limit-depth | number | no |
-| execution.limit-bytes | number | no |
-| execution.limit-duration-ms | number | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| execution.contract | id | no |  |
+| execution.limit-steps | number | no |  |
+| execution.limit-model-calls | number | no |  |
+| execution.limit-operations | number | no |  |
+| execution.limit-tokens | number | no |  |
+| execution.limit-children | number | no |  |
+| execution.limit-depth | number | no |  |
+| execution.limit-bytes | number | no |  |
+| execution.limit-duration-ms | number | no |  |
+| authority.participant | ref to agent | no | The agent this mandate binds. |
+| authority.moves | list of id in [Observation, Execution, Delegation, Synthesis, Verification] | no |  |
+| authority.scope | list of ref to workspace | no | The workspaces the mandate applies in. |
+| authority.excluded-words | list of id | no | Words the participant may not author under this mandate. |
+| authority.covers | list of text | no | Path selections the mandate claims, matched by the location resolver. |
 
 ## @milestone
 
 Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it.
 
-Owner: `work-system`. Kind: `definition`. Category: `state`. Identity: `work-system/definition/<facet>/<name>`.
+Owner: `work-system`. Kind: `definition`. Category: `state`. Artifact set: `product-definition`. Primitive: `Inference`. Move: `Verification`. Identity: `work-system/definition/<facet>/<name>`.
 
 Schema: [milestone](../../../.ia/src/systems/work-system/schemas/milestone.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -658,7 +672,7 @@ Relationship: supersede → milestone; one; optional.
 
 Defines the closed classification of an agent action or activity.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-move](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -680,7 +694,7 @@ Closed kernel members: `delegation`, `execution`, `observation`, `synthesis`, `v
 
 Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing.
 
-Owner: `learning-system`. Kind: `definition`. Category: `evidence`. Identity: `learning-system/definition/<facet>/<name>`.
+Owner: `learning-system`. Kind: `definition`. Category: `evidence`. Artifact set: `evidence`. Primitive: `Learning`. Move: `Observation`. Identity: `learning-system/definition/<facet>/<name>`.
 
 Schema: [observation](../../../.ia/src/systems/learning-system/schemas/observation.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -690,32 +704,40 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, evidence, interpretation, retention. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| evidence.origin | id | yes |
-| evidence.actor | text | yes |
-| evidence.observed-at | text | yes |
-| evidence.captured-at | text | yes |
-| evidence.workspace | text | yes |
-| evidence.locator | text | yes |
-| evidence.revision | text | yes |
-| evidence.bundle | text | yes |
-| evidence.digest | text | yes |
-| evidence.availability | id | yes |
-| interpretation.applies | text | yes |
-| interpretation.limits | text | yes |
-| interpretation.reason | text | yes |
-| interpretation.basis | id | yes |
-| retention.status | id | yes |
-| retention.explanation | text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| evidence.origin | id | yes |  |
+| evidence.actor | text | yes |  |
+| evidence.observed-at | text | yes |  |
+| evidence.captured-at | text | yes |  |
+| evidence.workspace | text | yes |  |
+| evidence.locator | text | yes |  |
+| evidence.revision | text | yes |  |
+| evidence.bundle | text | yes |  |
+| evidence.digest | text | yes |  |
+| evidence.availability | id | yes |  |
+| evidence.subject | ref | no | The record the evidence is about, as a typed reference; evidence.locator spells the same subject as text. |
+| evidence.subject-revision | text | no | The subject's per-record digest when the evidence was taken; readiness compares it with the subject's current digest. evidence.revision is its free-text form. |
+| evidence.snapshot-revision | text | no | The revision of the snapshot the subject was read from. |
+| evidence.evaluator | text | no | Who produced the evidence, as a ref identity or \<tool>@\<version>; evidence.actor is its free-text form. |
+| evidence.move | id in [Observation, Execution, Delegation, Synthesis, Verification] | no |  |
+| evidence.verdict | id in [success, refusal, inconclusive] | no |  |
+| evidence.implementation | text | no | The \<id>@\<version> of the check implementation that produced the evidence; evidence.origin names only its kind. |
+| evidence.target | text | no | The host id the evidence was produced on; with evidence.implementation it types what evidence.origin names. |
+| interpretation.applies | text | yes |  |
+| interpretation.limits | text | yes |  |
+| interpretation.reason | text | yes |  |
+| interpretation.basis | id | yes |  |
+| retention.status | id | yes |  |
+| retention.explanation | text | no |  |
 
 ## @operation
 
 Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations.
 
-Owner: `authoring-system`. Kind: `binding`. Category: `capability`. Identity: `authoring-system/binding/<facet>/<name>`.
+Owner: `authoring-system`. Kind: `binding`. Category: `capability`. Artifact set: `execution`. Primitive: `Decision`. Move: `Execution`. Identity: `authoring-system/binding/<facet>/<name>`.
 
 Schema: [operation](../../../.ia/src/systems/authoring-system/schemas/operation.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -740,7 +762,7 @@ Required sections: meaning, execution. Optional sections: relationships.
 
 Defines a cognitive phase coordinate: orient, plan, act or learn.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-phase](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -762,7 +784,7 @@ Closed kernel members: `act`, `learn`, `orient`, `plan`.
 
 Defines source authority and reach metadata.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-placement](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -785,7 +807,7 @@ Closed kernel members: `adopted`, `authored`, `floor`, `open`, `runtime`.
 
 Represents an arrangement of milestones toward an intent; it heads the work hierarchy and has no parent. Plans do not nest.
 
-Owner: `work-system`. Kind: `definition`. Category: `process`. Identity: `work-system/definition/<facet>/<name>`.
+Owner: `work-system`. Kind: `definition`. Category: `process`. Artifact set: `product-definition`. Primitive: `Inference`. Move: `Synthesis`. Identity: `work-system/definition/<facet>/<name>`.
 
 Schema: [plan](../../../.ia/src/systems/work-system/schemas/plan.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -813,7 +835,7 @@ Relationship: supersede → plan; one; optional.
 
 Represents a procedure as phase/primitive cells. Cell delivery is generic; the authored method belongs to its author.
 
-Owner: `governance-system`. Kind: `definition`. Category: `process`. Identity: `governance-system/definition/<facet>/<name>`.
+Owner: `governance-system`. Kind: `definition`. Category: `process`. Artifact set: `principle`. Primitive: `Inference`. Move: `Synthesis`. Identity: `governance-system/definition/<facet>/<name>`.
 
 Schema: [playbook](../../../.ia/src/systems/governance-system/schemas/playbook.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -821,18 +843,20 @@ Facets: `procedure`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, cognition. Optional sections: relationships, activation.
+Required sections: meaning, cognition. Optional sections: relationships, activation, subject.
 
 | Field | Type | Required |
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
+| subject.subject-word | id | no |
+| subject.subject-kind | id in [governance, contract, definition, template, check, policy, binding] | no |
 
 ## @predicate
 
 Defines a directed relationship and its inverse spelling.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-predicate](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -856,7 +880,7 @@ Closed kernel members: `cite`, `constrain`, `consume`, `enforce`, `forbid`, `gov
 
 Defines a cognitive primitive coordinate; a cell is selected using its phase and primitive.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-primitive](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -879,7 +903,7 @@ Closed kernel members: `attention`, `decision`, `escalation`, `inference`, `lear
 
 Declares a governing rationale in the shared governance shape.
 
-Owner: `governance-system`. Kind: `governance`. Category: `rule`. Identity: `governance-system/governance/<facet>/<name>`.
+Owner: `governance-system`. Kind: `governance`. Category: `rule`. Artifact set: `principle`. Primitive: `Inference`. Move: `Synthesis`. Identity: `governance-system/governance/<facet>/<name>`.
 
 Schema: [principle](../../../.ia/src/systems/governance-system/schemas/principle.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -887,19 +911,21 @@ Facets: `principle`; the first is the default.
 
 Consumer: language/schema admission; graph resolution; explicitly selected domain consumer for stronger semantics.
 
-Required sections: meaning, governance. Optional sections: relationships.
+Required sections: meaning, governance. Optional sections: relationships, subject.
 
 | Field | Type | Required |
 |---|---|---|
 | meaning.says | text | yes |
 | meaning.answers | text | yes |
 | governance.severity | id | yes |
+| subject.subject-word | id | no |
+| subject.subject-kind | id in [governance, contract, definition, template, check, policy, binding] | no |
 
 ## @run
 
 Represents a governed run identity, declared phase, status and owner. Declaration does not start execution.
 
-Owner: `session-system`. Kind: `definition`. Category: `event`. Identity: `session-system/definition/<facet>/<name>`.
+Owner: `session-system`. Kind: `definition`. Category: `event`. Artifact set: `operational`. Primitive: `Decision`. Move: `Execution`. Identity: `session-system/definition/<facet>/<name>`.
 
 Schema: [run](../../../.ia/src/systems/session-system/schemas/run.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -921,7 +947,7 @@ Required sections: meaning, execution. Optional sections: relationships.
 
 Declares the structural contract for exactly one registered discriminator.
 
-Owner: `floor`. Kind: `contract`. Category: `representation`. Identity: `floor/contract/<facet>/<name>`.
+Owner: `floor`. Kind: `contract`. Category: `representation`. Artifact set: `contract`. Primitive: `Inference`. Move: `Verification`. Identity: `floor/contract/<facet>/<name>`.
 
 Schema: [schema](../../../.ia/src/floor/floor.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -939,7 +965,7 @@ Required sections: sections. Optional sections: fields, edges.
 
 Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality.
 
-Owner: `work-system`. Kind: `contract`. Category: `rule`. Identity: `work-system/contract/<facet>/<name>`.
+Owner: `work-system`. Kind: `contract`. Category: `rule`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `work-system/contract/<facet>/<name>`.
 
 Schema: [spec](../../../.ia/src/systems/work-system/schemas/spec.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -949,25 +975,28 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, work. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | no |
-| work.title | text | yes |
-| work.status | id in [draft, accepted, superseded, withdrawn] | yes |
-| work.owner | text | no |
-| work.start | text form iso-date | no |
-| work.due | text form iso-date | no |
-| work.ended | text form iso-date | no |
-| work.source | text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | no |  |
+| work.title | text | yes |  |
+| work.status | id in [draft, accepted, superseded, withdrawn] | yes |  |
+| work.owner | text | no |  |
+| work.start | text form iso-date | no |  |
+| work.due | text form iso-date | no |  |
+| work.ended | text form iso-date | no |  |
+| work.source | text | no |  |
+| work.covers | list of text | no | Path selections the spec claims, matched by the location resolver. |
+| work.replaced-scope | text | no | What a superseding spec replaces when it does not replace the whole predecessor. |
 
 Relationship: supersede → spec; one; optional.
+Relationship: grounded-by ← decision (inbound ground); one; optional.
 
 ## @system
 
 Registers vocabulary, direct system dependencies, a local steward and consent for relationships.
 
-Owner: `floor`. Kind: `definition`. Category: `boundary`. Identity: `floor/definition/<facet>/<name>`.
+Owner: `floor`. Kind: `definition`. Category: `boundary`. Artifact set: `product-definition`. Primitive: `Attention`. Move: `Observation`. Identity: `floor/definition/<facet>/<name>`.
 
 Schema: [system](../../../.ia/src/floor/floor.schema.ia). Open ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -988,7 +1017,7 @@ Required sections: none. Optional sections: discriminators, requires, edges, rel
 
 Represents one owner's action toward exactly one milestone. Whether it is ready to start is computed by a work evaluator, never stored on the record.
 
-Owner: `work-system`. Kind: `definition`. Category: `process`. Identity: `work-system/definition/<facet>/<name>`.
+Owner: `work-system`. Kind: `definition`. Category: `process`. Artifact set: `execution`. Primitive: `Decision`. Move: `Execution`. Identity: `work-system/definition/<facet>/<name>`.
 
 Schema: [task](../../../.ia/src/systems/work-system/schemas/task.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -998,18 +1027,22 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, work. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | no |
-| work.title | text | yes |
-| work.status | id in [proposed, open, held, closed, dropped, superseded] | yes |
-| work.milestone | ref to milestone | yes |
-| work.owner | text | no |
-| work.start | text form iso-date | no |
-| work.due | text form iso-date | no |
-| work.ended | text form iso-date | no |
-| work.source | text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | no |  |
+| work.title | text | yes |  |
+| work.status | id in [proposed, open, held, closed, dropped, superseded] | yes |  |
+| work.milestone | ref to milestone | yes |  |
+| work.owner | text | no |  |
+| work.start | text form iso-date | no |  |
+| work.due | text form iso-date | no |  |
+| work.ended | text form iso-date | no |  |
+| work.source | text | no |  |
+| work.action | text | no | What the task's owner does to complete it. |
+| work.expected-artifact | text | no | The artifact the task produces, as a path or name. |
+| work.exit-evidence | ref to observation | no | The observation whose success verdict closes the task. |
+| work.owner-agent | ref to agent | no | The agent that owns the task; work.owner stays the free-text owner. |
 
 Relationship: require → task; one-or-more; optional.
 Relationship: require → milestone; one-or-more; optional.
@@ -1020,7 +1053,7 @@ Relationship: supersede → task; one; optional.
 
 Represents bounded rendering inputs and output structure. Rendering does not publish or install output.
 
-Owner: `template-system`. Kind: `template`. Category: `representation`. Identity: `template-system/template/<facet>/<name>`.
+Owner: `template-system`. Kind: `template`. Category: `representation`. Artifact set: `projection`. Primitive: `Decision`. Move: `Execution`. Identity: `template-system/template/<facet>/<name>`.
 
 Schema: [template](../../../.ia/src/systems/template-system/schemas/template.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -1044,7 +1077,7 @@ Required sections: meaning, template. Optional sections: relationships.
 
 Defines the field types that schemas may require.
 
-Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Identity: `taxonomy/definition/<facet>/<name>`.
+Owner: `taxonomy`. Kind: `definition`. Category: `kind`. Artifact set: `contract`. Primitive: `Memory`. Move: `Observation`. Identity: `taxonomy/definition/<facet>/<name>`.
 
 Schema: [kernel-value-type](../../../.ia/src/floor/kernel.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -1066,7 +1099,7 @@ Closed kernel members: `flag`, `id`, `number`, `qname`, `ref`, `text`.
 
 Declares communication attributes separate from authority and procedure.
 
-Owner: `agent-composition-system`. Kind: `definition`. Category: `property`. Identity: `agent-composition-system/definition/<facet>/<name>`.
+Owner: `agent-composition-system`. Kind: `definition`. Category: `property`. Artifact set: `product-definition`. Primitive: `Attention`. Move: `Synthesis`. Identity: `agent-composition-system/definition/<facet>/<name>`.
 
 Schema: [voice](../../../.ia/src/systems/agent-composition-system/schemas/voice.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -1089,9 +1122,9 @@ Required sections: meaning, communication. Optional sections: relationships.
 
 ## @workspace
 
-Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries.
+Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default.
 
-Owner: `workspace-system`. Kind: `definition`. Category: `boundary`. Identity: `workspace-system/definition/<facet>/<name>`.
+Owner: `workspace-system`. Kind: `definition`. Category: `boundary`. Artifact set: `product-definition`. Primitive: `Attention`. Move: `Observation`. Identity: `workspace-system/definition/<facet>/<name>`.
 
 Schema: [workspace](../../../.ia/src/systems/workspace-system/schemas/workspace.schema.ia). Closed ordinary sections; floor-owned cognition/activation rules also apply.
 
@@ -1101,8 +1134,10 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, composition. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| composition.systems | list of ref | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| composition.systems | list of ref | yes |  |
+| composition.sources | list of text | no | A root and the placement it is captured at, spelled \<root> @\<placement> with the placement one of authored, adopted, open, floor or runtime; for example .ia/src @authored. Admission does not check this form; an entry spelled any other way declares no root. |
+| composition.steward | ref to agent | no |  |

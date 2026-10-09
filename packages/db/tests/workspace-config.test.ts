@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, symlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
-import { open, readInputs } from '../src/index.js';
+import { adoptedBindings, open, readInputs, sourceTree } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
 import { put, workspace } from './workspace.js';
 
@@ -128,4 +128,63 @@ it('refuses unknown fields, duplicate bindings, invalid revisions and missing tr
   const directory = workspace(false);
   mkdirSync(resolve(directory, '.ia/workspace.json'), { recursive: true });
   expect(() => readInputs(directory)).toThrow('regular manifest');
+});
+it('refuses with the first faulty binding, its read-time fault included, before a later binding is validated', () => {
+  // The order 1.x discovery refused in, which the frozen Door routes and `ia scope` report: binding 1 is read before
+  // binding 2 is validated, so binding 1's link, pin or missing tree answers before binding 2's syntax fault.
+  const { root, entry } = fixture();
+  symlinkSync(resolve(root, path), resolve(root, 'alias'), process.platform === 'win32' ? 'junction' : 'dir');
+  const cases: readonly (readonly [readonly unknown[], string, string])[] = [
+    [[{ ...entry, path: 'alias' }, entry], 'IA-DB-PATH-UNSAFE', 'Symlink/junction traversal is not admitted'],
+    [
+      [
+        { ...entry, revision: 'f'.repeat(64) },
+        { ...entry, id: 'BAD', path: 'other' },
+      ],
+      'IA-DB-SOURCE-UNAVAILABLE',
+      '.ia/workspace.json: Pinned source revision differs for foundation',
+    ],
+    [
+      [{ ...entry, path: 'missing' }, entry],
+      'IA-DB-SOURCE-UNAVAILABLE',
+      '.ia/workspace.json: Missing source tree for foundation',
+    ],
+  ];
+  for (const [adopted, code, message] of cases) {
+    put(root, '.ia/workspace.json', JSON.stringify({ version: 1, adopted }));
+    expect(() => readInputs(root), message).toThrow(expect.objectContaining({ code }));
+    expect(() => readInputs(root), message).toThrow(message);
+  }
+  // adoptedBindings validates every binding and reads none, so the later syntax fault is the one it reports.
+  put(root, '.ia/workspace.json', JSON.stringify({ version: 1, adopted: [{ ...entry, path: 'missing' }, entry] }));
+  expect(() => adoptedBindings(root)).toThrow('Duplicate source identity or directory');
+});
+it('names each binding with the tree label its sources carry, and refuses a manifest as discovery does', () => {
+  const { root, entry } = fixture();
+  const bindings = adoptedBindings(root),
+    tree = `.ia/adopted/foundation/${entry.revision}`;
+  expect(bindings).toEqual([{ ...entry, tree }]);
+  expect(Object.isFrozen(bindings) && Object.isFrozen(bindings[0])).toBe(true);
+  // The label is the tree D02a reads for each of the mount's sources, and no directory lives under it.
+  const adopted = readInputs(root).sources.filter((s) => s.path.startsWith('.ia/adopted/'));
+  expect(adopted.map((s) => s.path)).toEqual([`${tree}/${source}`]);
+  expect(adopted.map((s) => sourceTree(s.path))).toEqual([tree]);
+  expect(existsSync(resolve(root, '.ia/adopted'))).toBe(false);
+  expect([sourceTree(source), sourceTree('packages/a/.ia/src/x.ia'), sourceTree('README.md')]).toEqual([
+    '',
+    'packages/a',
+    '',
+  ]);
+  // The bound sources are neither read nor verified: a changed source keeps its binding, which discovery refuses.
+  put(root, `${path}/${source}`, '#! ia 1.0\n# changed dependency\n');
+  expect(adoptedBindings(root)).toEqual(bindings);
+  expect(() => readInputs(root)).toThrow('Pinned source revision differs');
+  put(root, '.ia/workspace.json', JSON.stringify({ version: 1, adopted: [{ ...entry, revision: 'not-a-digest' }] }));
+  expect(() => adoptedBindings(root)).toThrow(expect.objectContaining({ code: 'IA-DB-SOURCE-UNAVAILABLE' }));
+  put(root, '.ia/workspace.json', JSON.stringify({ version: 1, adopted: [{ ...entry, path: '../outside' }] }));
+  expect(() => adoptedBindings(root)).toThrow(expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }));
+  expect(adoptedBindings(workspace(false))).toEqual([]);
+  expect(() => adoptedBindings(resolve(root, 'absent'))).toThrow(
+    expect.objectContaining({ code: 'IA-DB-ROOT-INVALID' }),
+  );
 });

@@ -19,6 +19,8 @@ export interface Node extends CompiledRecord {
   readonly band: Band;
   readonly reach: string;
   readonly dimensions: Dimensions;
+  /** G13: `recordDigest` of this occurrence, computed once at load; its source path, lines, placement and provenance are not in it. */
+  readonly digest: string;
 }
 export interface Occurrence {
   readonly key: string;
@@ -39,6 +41,8 @@ export interface Tie {
 export interface EdgeAssertion {
   readonly author: string;
   readonly direction: 'out' | 'in';
+  /** The verb as the author wrote it (`CompiledEdge.spelling`); the edge's `from`/`to` stay normalized to the active direction. */
+  readonly spelling: string;
   readonly reference: EdgeReference;
   readonly source: { readonly path: string; readonly line: number; readonly endLine: number };
 }
@@ -65,6 +69,17 @@ export interface FieldReference {
   readonly to: string;
   readonly field: string;
   readonly reference: Extract<CompiledValue, { kind: 'ref' }>;
+  readonly source: { readonly path: string; readonly line: number; readonly endLine: number };
+}
+/**
+ * One path selection a winner states in a claimant field (G06c): `field` is `authority.covers`, `subject.covers`,
+ * `work.covers` or `hook.paths`, `selection` the text as authored. Derived only, like a FieldReference:
+ * not an Edge, no predicate, never consent-checked.
+ */
+export interface Claim {
+  readonly from: string;
+  readonly field: string;
+  readonly selection: string;
   readonly source: { readonly path: string; readonly line: number; readonly endLine: number };
 }
 export interface CellRef {
@@ -106,6 +121,10 @@ export interface Graph {
   readonly references: readonly FieldReference[];
   /** `references` keyed by target identity, each list in `references` order. */
   readonly referencedBy: ReadonlyMap<string, readonly FieldReference[]>;
+  /** `references` keyed by holder identity, each list in `references` order. */
+  readonly referencesFrom: ReadonlyMap<string, readonly FieldReference[]>;
+  /** G06c: the claimant index, every path selection a winner states in a claimant field, holders by identity. */
+  readonly claims: readonly Claim[];
 }
 export interface CellSelection {
   readonly kind: 'exact' | 'primary';

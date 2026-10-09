@@ -6,16 +6,18 @@
  * recommendation. Its `--json` envelope is deliberately not interchangeable with the frozen `ia get` one.
  */
 import type { HostObservation } from '@inventarch/distribution/services';
-import { openWorkspaceSession, readInstalledState } from '@inventarch/distribution/services';
+import { readInstalledState } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import { pinnedRelease } from './host.js';
 import type { Capabilities, Field, Token } from './render.js';
-import { atom, document, entry, fieldRows, headerLine, sectionLabel, truncateDigest, words } from './render.js';
+import { atom, document, entry, fieldRows, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
+import { identityNext, openSession } from './session.js';
+import type { Session } from './session.js';
 
-type Session = ReturnType<typeof openWorkspaceSession>;
 type Record_ = ReturnType<Session['reader']['records']>[number];
 type Traversal = ReturnType<Session['reader']['traverse']>;
+type ViewRow = ReturnType<Session['reader']['directedView']>[number];
 type Direction = 'in' | 'out' | 'both';
 
 /**
@@ -79,16 +81,78 @@ export function referenceRows(references: ReturnType<Session['reader']['referenc
   }));
 }
 
+/**
+ * One directed-view row as inspect lists it (graph G06b): a row the view of `identity` holds, reached `depth` hops from
+ * the inspected record, with its declaration's portable source line. Distributes over the row kinds, so a field
+ * reference keeps `field` and an edge row its predicate, spelling and declaring side.
+ */
+type Listed<Row> = Row extends unknown
+  ? Omit<Row, 'source'> & {
+      readonly identity: string;
+      readonly depth: number;
+      readonly source: { readonly path: string; readonly line: number };
+    }
+  : never;
+type ListedRow = Listed<ViewRow>;
+type ListedEdge = Exclude<ListedRow, { readonly kind: 'field-ref' }>;
+type ListedField = Extract<ListedRow, { readonly kind: 'field-ref' }>;
+/**
+ * Depth 1 lists the inspected record's own directed view in the asked direction, so it also holds a self-relation,
+ * which the walk never revisits and `edgeRows` therefore omits. Each deeper hop of the walk lists the rows the nearer
+ * record's view holds for that hop, so at every depth a declared row stays apart from the derived inverse of its
+ * counterpart's declaration. The walk records each hop once, and only toward a record first reached at its level, so no
+ * assertion is read from both of its ends and none is listed twice.
+ * Typed field references are direct only: no depth walks past them.
+ */
+export function directedRows(
+  view: (identity: string) => readonly ViewRow[],
+  identity: string,
+  direction: Direction,
+  traversal: Traversal,
+): readonly ListedRow[] {
+  const listed = (row: ViewRow, near: string, depth: number): ListedRow => ({
+    identity: near,
+    depth,
+    ...row,
+    source: { path: portable(row.source.path), line: row.source.line },
+  });
+  const rows = view(identity)
+    .filter((row) => direction === 'both' || row.direction === direction)
+    .map((row) => listed(row, identity, 1));
+  const depths = new Map(traversal.nodes.map((node) => [node.identity, node.depth]));
+  for (const hop of traversal.via)
+    if (hop.from !== identity)
+      for (const row of view(hop.from))
+        if (
+          row.kind !== 'field-ref' &&
+          row.direction === hop.direction &&
+          row.predicate === hop.predicate &&
+          row.counterpart === hop.target
+        )
+          rows.push(listed(row, hop.from, depths.get(hop.target) ?? 1));
+  return rows.sort((a, b) => a.depth - b.depth);
+}
+
 const tally = (values: readonly string[]): readonly (readonly [string, number])[] => {
   const counts = new Map<string, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 };
 
+/** The empty line of a section with no row within the asked depth and direction; at depth 0, where nothing is read, the only one. */
+const NONE_AT_DEPTH = 'None at this depth and direction.';
+/** The empty Field references line, once the view was read, names what was asked: the typed refs this record holds, those naming it, or both. */
+const NO_FIELD_REFERENCE: Readonly<Record<Direction, string>> = {
+  out: 'This record names no record in a typed field.',
+  in: 'No record names this one in a typed field.',
+  both: 'No typed field names this record or is held by it.',
+};
+
 const recordBlocks = (
   record: Record_,
-  edges: readonly EdgeRow[],
-  references: readonly ReferenceRow[] | undefined,
+  directed: readonly ListedRow[],
+  direction: Direction,
+  depth: number,
   caps: Capabilities,
 ): readonly (readonly string[])[] => {
   const sections = record.sections.map((section) => section.name);
@@ -115,45 +179,68 @@ const recordBlocks = (
         caps,
       ),
     ]);
-  blocks.push([
-    sectionLabel('Edges', caps),
-    ...(edges.length === 0
-      ? entry([words('None at this depth and direction.')], { depth: 1 }, caps)
-      : edges.flatMap((edge) => {
-          // from/to already carry the direction; the marker names it so an inverse spelling is not a duplicate.
-          const outward = edge.from === record.identity;
-          return entry(
-            [
-              [
-                atom(edge.predicate, null, 0),
-                atom(outward ? edge.to : edge.from, 'cyan', 2),
-                ...words(`${outward ? 'out' : 'in'}, depth ${edge.depth}`, 'dim', 2),
-              ],
-            ],
-            { depth: 1, symbol: 'info' },
-            caps,
-          );
-        })),
-  ]);
-  if (references !== undefined)
-    blocks.push([
-      sectionLabel('Referenced by', caps),
-      ...(references.length === 0
-        ? entry([words('No record names this one in a typed field.')], { depth: 1 }, caps)
-        : references.flatMap((reference) =>
+  // Declared and derived rows of the walk: the predicate as the row reads it, the counterpart, where it was reached and
+  // which end declared it. A deeper row names the nearer record whose view holds it. The fragment is printed on the
+  // record it addresses, beside the counterpart a declared row references or as `at #fragment` on the record whose
+  // view holds a derived one, and a condition as its `when` terms, so assertions differing only there stay apart.
+  const edgeSection = (label: string, kind: ListedEdge['kind']): readonly string[] => {
+    const listed = directed.filter((row): row is ListedEdge => row.kind === kind);
+    return [
+      sectionLabel(label, caps),
+      ...(listed.length === 0
+        ? entry([words(NONE_AT_DEPTH)], { depth: 1 }, caps)
+        : listed.flatMap((row) =>
             entry(
               [
                 [
-                  atom(reference.field, null, 0),
-                  atom(reference.from, 'cyan', 2),
-                  ...words(`${reference.source.path}:${reference.source.line}`, 'dim', 2),
+                  atom(row.spelling, null, 0),
+                  atom(
+                    row.kind === 'edge' && row.fragment !== undefined
+                      ? `${row.counterpart}#${row.fragment}`
+                      : row.counterpart,
+                    'cyan',
+                    2,
+                  ),
+                  ...words(
+                    [
+                      row.direction,
+                      `depth ${row.depth}${row.identity === record.identity ? '' : ` via ${row.identity}`}`,
+                      ...(row.derived ? ['derived'] : []),
+                      `declared by ${row.declaredBy}`,
+                      ...(row.kind === 'inverse' && row.fragment !== undefined ? [`at #${row.fragment}`] : []),
+                      ...(row.condition === undefined
+                        ? []
+                        : [`when ${row.condition.map((term) => `${term.axis} is ${term.value}`).join(' and ')}`]),
+                    ].join(', '),
+                    'dim',
+                    2,
+                  ),
                 ],
               ],
               { depth: 1, symbol: 'info' },
               caps,
             ),
           )),
-    ]);
+    ];
+  };
+  const fields = directed.filter((row): row is ListedField => row.kind === 'field-ref');
+  blocks.push(edgeSection('Edges', 'edge'), edgeSection('Derived inverses', 'inverse'), [
+    sectionLabel('Field references', caps),
+    ...(fields.length === 0
+      ? entry([words(depth === 0 ? NONE_AT_DEPTH : NO_FIELD_REFERENCE[direction])], { depth: 1 }, caps)
+      : fields.flatMap((row) =>
+          entry(
+            // The field and its counterpart on one line, its direction, label and location on the next, so a long
+            // identity never splits them.
+            [
+              [atom(row.field, null, 0), atom(row.counterpart, 'cyan', 2)],
+              words(`${row.direction}, derived, ${row.source.path}:${row.source.line}`, 'dim'),
+            ],
+            { depth: 1, symbol: 'info' },
+            caps,
+          ),
+        )),
+  ]);
   return blocks;
 };
 
@@ -164,31 +251,18 @@ export function runInspect(context: Context): Result {
   const path = args.value('path');
   const direction = (args.value('edges') ?? 'out') as Direction;
   const depth = args.integer('depth', 1);
+  const supplied = args.value('root'),
+    rooted = supplied === undefined ? '' : ` --root ${quote(supplied)}`;
   if (identity !== undefined && !IDENTITY.test(identity))
     throw new Refusal(
       'IA-CLI-USAGE',
       `Malformed identity ${identity}; a canonical identity is system/kind/facet/name in lowercase`,
       2,
       null,
-      'Run "ia inspect" with no argument for a workspace overview, or "ia vocabulary <word>" for the identity shape of a word.',
+      `Run "ia inspect${rooted}" with no argument for the overview of what the workspace admits.`,
     );
 
-  let session: Session;
-  try {
-    session = openWorkspaceSession({ root });
-  } catch (error) {
-    const code =
-      error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
-        ? error.code
-        : 'IA-DB-ROOT-INVALID';
-    throw new Refusal(
-      code,
-      error instanceof Error ? error.message : String(error),
-      3,
-      { path: root },
-      'Pass --root <path> with an existing workspace.',
-    );
-  }
+  const session: Session = openSession(root);
   try {
     const reader = session.reader;
     const records = reader.records();
@@ -205,31 +279,48 @@ export function runInspect(context: Context): Result {
         `${identity ?? path} is not admitted in this workspace`,
         1,
         identity === undefined ? { path: portable(path!) } : { path: root, identity },
-        'Run "ia validate" to see whether the source was refused, or "ia inspect" for the admitted overview.',
+        identity !== undefined
+          ? identityNext(reader, identity, 'inspect', rooted)
+          : reader.refused.some((record) => portable(record.path) === portable(path!))
+            ? `Run "ia validate${rooted}" to see why admission refused the records of that source.`
+            : `Run "ia inspect${rooted}" for the overview of what the workspace admits.`,
       );
 
     if (selected.length > 0) {
-      const walks = new Map<string, readonly EdgeRow[]>();
-      for (const record of selected)
-        walks.set(
-          record.identity,
-          depth === 0 ? [] : edgeRows(reader.traverse({ start: [record.identity], direction, depth })),
-        );
-      // Inbound typed field references are direct only: they are not edges, so no depth walks past them. They are
-      // reported whenever the inbound side is asked for, and absent from `--edges out` rather than an empty claim.
-      const inbound = direction !== 'out';
-      const references = new Map<string, readonly ReferenceRow[]>();
-      if (inbound)
-        for (const record of selected)
-          references.set(record.identity, depth === 0 ? [] : referenceRows(reader.referencedBy(record.identity)));
+      const walks = new Map<string, Traversal>();
+      const directed = new Map<string, readonly ListedRow[]>();
+      const views = new Map<string, readonly ViewRow[]>();
+      const view = (near: string): readonly ViewRow[] => {
+        let rows = views.get(near);
+        if (rows === undefined) views.set(near, (rows = reader.directedView(near)));
+        return rows;
+      };
+      // At depth 0 nothing is walked or read: the record alone, with no relationship listed.
+      if (depth > 0)
+        for (const record of selected) {
+          const traversal = reader.traverse({ start: [record.identity], direction, depth });
+          walks.set(record.identity, traversal);
+          directed.set(record.identity, directedRows(view, record.identity, direction, traversal));
+        }
       if (json) {
+        // `referencedBy` keeps the inbound typed field references it always listed, direct only and absent from
+        // `--edges out` rather than an empty claim; `directed` carries the same rows labeled, with the rest of the view.
+        const inbound = direction !== 'out';
+        const references = new Map<string, readonly ReferenceRow[]>();
+        if (inbound)
+          for (const record of selected)
+            references.set(record.identity, depth === 0 ? [] : referenceRows(reader.referencedBy(record.identity)));
         const body = {
           version: 1,
           root,
           revision: reader.revision,
           records: selected,
-          edges: selected.flatMap((record) => walks.get(record.identity) ?? []),
+          edges: selected.flatMap((record) => {
+            const walk = walks.get(record.identity);
+            return walk === undefined ? [] : edgeRows(walk);
+          }),
           ...(inbound ? { referencedBy: selected.flatMap((record) => references.get(record.identity) ?? []) } : {}),
+          directed: selected.flatMap((record) => directed.get(record.identity) ?? []),
         };
         return { exitCode: 0, stdout: JSON.stringify(body) + '\n', stderr: '' };
       }
@@ -237,7 +328,7 @@ export function runInspect(context: Context): Result {
         exitCode: 0,
         stdout: document(
           selected.flatMap((record) =>
-            recordBlocks(record, walks.get(record.identity) ?? [], references.get(record.identity), caps),
+            recordBlocks(record, directed.get(record.identity) ?? [], direction, depth, caps),
           ),
           { leadingBlank: true },
         ),

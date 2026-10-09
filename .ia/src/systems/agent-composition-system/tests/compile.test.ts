@@ -2,17 +2,16 @@ import { expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { digest } from '@inventarch/session-system';
+import { EditorSnapshot } from '@inventarch/db/editor';
 import { compileHarness, installed, executionManifest } from '../src/index.js';
 import type { Capture, CompiledHarness } from '../src/index.js';
-import { admitSourceCapture } from '../src/sources.js';
+import { admitSourceCapture } from '@inventarch/workspace-runtime/sources';
 
 import { compilerCapture, compilerCatalog as catalogWithDigest } from './compiler-fixture.js';
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url));
 const captured = compilerCapture(root);
-const implementationDigest = digest(
-  readFileSync(`${root}/.ia/src/systems/agent-composition-system/src/corpus.ts`, 'utf8'),
-);
+const implementationDigest = digest(readFileSync(`${root}/packages/workspace-runtime/src/corpus.ts`, 'utf8'));
 const sampleCatalog = (model: string) => catalogWithDigest(model, implementationDigest);
 const options = () => ({ harness: 'native-sample', entry: 'sample-entry', catalog: sampleCatalog('ide') });
 const name = (n: string) => `agent-composition-system/binding/agent-profile/sample-${n}-profile`;
@@ -109,6 +108,28 @@ it('uses identical semantics for independently serialized local/API captures and
     catalog: JSON.parse(JSON.stringify(sampleCatalog('ide'))),
   });
   expect(result).toEqual({ ok: true, manifest: good() });
+});
+it('pins each component over the admitted record without its per-record digest, as before graph G13', () => {
+  const reader = new EditorSnapshot({
+    root: process.cwd(),
+    sources: captured.sources,
+    folders: captured.folders,
+    floorOrigin: captured.floorOrigin,
+    fingerprint: captured.revision,
+  });
+  try {
+    const pins = good().provenance.components;
+    expect(pins.length).toBeGreaterThan(0);
+    for (const pin of pins) {
+      const node = reader.get(pin.identity)!,
+        { digest: recordDigest, ...record } = node;
+      expect(recordDigest).toMatch(/^[0-9a-f]{64}$/);
+      expect(pin.digest).toBe(digest(record));
+      expect(pin.digest).not.toBe(digest(node));
+    }
+  } finally {
+    reader.close();
+  }
 });
 it('keeps voice modular without changing effects, operations, mandate or bounds', () => {
   const before = good(),
@@ -215,6 +236,24 @@ it('refuses unavailable validators, malformed schemas and required evaluators', 
     '  composition\n    checks [@check instance-schema-check]\n',
   );
   expect(refused(checked, 'IA-COMPOSITION-UNAVAILABLE').field).toBe('check.runs');
+  // An implementation-only check resolves its evaluator the same way (compliance checkRunner precedence) and the
+  // refusal names the field actually read.
+  const implemented = modified(
+    'checks/instance-schema-check.ia',
+    '    runs COMP-SCHEMA',
+    '    implementation COMP-SCHEMA',
+    checked,
+  );
+  expect(refused(implemented, 'IA-COMPOSITION-UNAVAILABLE').field).toBe('check.implementation');
+  // Layered: a check naming both fields with different values is refused at admission (IA-COMP-CHECK-CONFLICT) and
+  // leaves the graph, so the capability's reference to it has no target and the compiler never chooses between them.
+  const conflicting = modified(
+    'checks/instance-schema-check.ia',
+    '    runs COMP-SCHEMA',
+    '    runs COMP-SCHEMA\n    implementation COMP-KERNEL',
+    checked,
+  );
+  expect(refused(conflicting, 'IA-COMPOSITION-REFERENCE')).toMatchObject({ message: 'IA-GRAPH-TARGET-MISSING' });
 });
 it('narrows limits and refuses negative, conditional or unknown limits', () => {
   const tight = modified(

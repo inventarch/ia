@@ -66,6 +66,7 @@
     "@inventarch/graph": "workspace:*",
     "@inventarch/runtime": "workspace:*",
     "@inventarch/session-system": "workspace:*",
+    "@inventarch/workspace-runtime": "workspace:*",
     "@types/node": "catalog:",
     "github-slugger": "2.0.0",
     "mdast-util-from-markdown": "2.0.3",

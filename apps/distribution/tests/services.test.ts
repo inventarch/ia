@@ -349,6 +349,52 @@ it('reports admission through a standalone validation service', () => {
   expect(refusedWorkspace.revision).not.toBe(clean.revision);
 });
 
+it('validates with a warning for each declaration that declares nothing, which admission does not count', () => {
+  // `ia validate`, `ia capture` and `ia-distribution validate` report this one finding set (db D02a, D02b).
+  const root = sourceCopy(),
+    path = '.ia/src/systems/workspace-system/records/language.ia',
+    text = readFileSync(join(root, path), 'utf8');
+  expect(text).toContain('".ia/src @authored"');
+  fixture.put(root, path, text.replace('".ia/src @authored"', '".ia/src @authorded"'));
+  const session = openWorkspaceSession({ root });
+  let validation!: ReturnType<typeof session.validation>;
+  try {
+    const admission = session.admission();
+    validation = session.validation();
+    expect(admission.findings.some((f) => f.code === 'IA-COMP-FIELD-VALUE')).toBe(false);
+    expect(validation.findings.filter((f) => f.code === 'IA-COMP-FIELD-VALUE')).toEqual([
+      expect.objectContaining({
+        severity: 'warning',
+        path,
+        message:
+          'composition.sources value ".ia/src @authorded" names @authorded, which is no placement, so it declares no root',
+      }),
+    ]);
+    expect(validation.findings.filter((f) => f.code !== 'IA-COMP-FIELD-VALUE')).toEqual(admission.findings);
+    expect({ ...validation, findings: [] }).toEqual({ ...admission, findings: [] });
+    // In the report's own order, so a workspace without such a declaration validates exactly as it admits.
+    const order = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+    expect(validation.findings).toEqual(
+      [...validation.findings].sort(
+        (a, b) => order(a.path, b.path) || a.line - b.line || order(a.code, b.code) || order(a.message, b.message),
+      ),
+    );
+  } finally {
+    session.close();
+  }
+  expect(validateWorkspace({ root })).toEqual(validation);
+  expect(validateWorkspace({ root: fixture.root }).findings).toEqual(
+    (() => {
+      const clean = openWorkspaceSession({ root: fixture.root });
+      try {
+        return clean.admission().findings;
+      } finally {
+        clean.close();
+      }
+    })(),
+  );
+});
+
 it('keeps a session verdict consistent with the handle it reports on after a refresh', () => {
   const root = sourceCopy(),
     session = openWorkspaceSession({ root });

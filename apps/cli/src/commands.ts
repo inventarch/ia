@@ -40,7 +40,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all thirteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Applies to all fifteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -135,9 +135,20 @@ export const COMMANDS: readonly CommandSpec[] = [
     ),
   },
   {
+    // Position-and-projection §5: the capture effect. It takes no output option, because a snapshot has one place.
+    name: 'capture',
+    group: 'workspace',
+    summary: 'Admit the workspace and write its current and previous snapshot',
+    syntax: ['ia capture [--json]'],
+    grammar: grammar([]),
+  },
+  {
+    // Decision release-bump (operator, 2026-10-07): the 1.x verb, unchanged, deprecated in favour of `ia capture`;
+    // the alias of decision compile-verb-fate waits for 2.0.
     name: 'compile',
     group: 'workspace',
-    summary: 'Write a deterministic compiled artifact',
+    // Short enough that its global help row fits 80 columns, so no wrapped fragment reads as a command name.
+    summary: 'Write a deterministic compiled artifact (deprecated: use capture)',
     syntax: ['ia compile [--out <file> | --stdout] [--force] [--json]'],
     grammar: grammar([
       option({
@@ -187,7 +198,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'edges',
           kind: 'value',
           values: ['in', 'out', 'both'],
-          summary: 'Edge direction (default out); in and both also list typed field references',
+          summary: 'Edge and typed field reference direction (default out)',
         }),
         option({
           name: 'depth',
@@ -198,6 +209,27 @@ export const COMMANDS: readonly CommandSpec[] = [
         }),
       ],
       positionals('identity', 0, 1),
+    ),
+  },
+  {
+    // Position-and-projection §5 and design row 23: the body reader. A body is never structure, which stays in
+    // `ia inspect`, and never a certification.
+    name: 'read',
+    group: 'workspace',
+    summary: 'Print the body behind a locator, with its digest',
+    syntax: [
+      'ia read <identity>[#<phase>/<Primitive> | #<REQ-ID>] [--include-runtime] [--json]',
+      'ia read <path>:<line> [--include-runtime] [--json]',
+    ],
+    grammar: grammar(
+      [
+        option({
+          name: 'include-runtime',
+          kind: 'boolean',
+          summary: 'Also read a record at runtime placement (band 0)',
+        }),
+      ],
+      positionals('locator', 1, 1),
     ),
   },
   {

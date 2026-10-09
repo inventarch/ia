@@ -73,6 +73,26 @@ it('accepts only complete notes for known packages under unreserved names', () =
     expect(() => validateNote(id, value, names)).toThrow();
 });
 
+it('refuses a bare @name in note prose, which would mention a GitHub account where the notes are published', () => {
+  const prose = (title: string, summary: string) => ({ ...note('minor', [names[0]!], title), summary });
+  for (const [title, summary] of [
+    ['A `@workspace` field', 'Every `@decision`, `@spec` and `@task` record; `@inventarch/graph` is a package.'],
+    [
+      'Scoped packages stay plain',
+      'Moves into @inventarch/graph and @inventarch/workspace-runtime; mail admin@example.com.',
+    ],
+  ])
+    expect(() => validateNote('faster-a', prose(title!, summary!), names)).not.toThrow();
+  for (const [title, summary, bare] of [
+    ['@workspace declares its sources', 'Fine.', '@workspace'],
+    ['A title', 'A @decision may carry a revision.', '@decision'],
+    ['A title', 'Every @decision/@spec record.', '@decision'],
+    ['A title', '@law, `@principle` and @convention.', '@law'],
+    ['A title', 'An @authoring-guide names its file.', '@authoring-guide'],
+  ])
+    expect(() => validateNote('faster-a', prose(title!, summary!), names)).toThrow(`writes ${bare} bare`);
+});
+
 it('claims package directories and repository areas without covering another package', () => {
   const projects = names.map((name) => ({
     directory: 'packages/' + name.slice(12),

@@ -6,6 +6,7 @@
     must have meaning
     must have governance
     may have execution
+    may have authority
     may have relationships
     closed
   fields
@@ -20,3 +21,8 @@
     may have execution.limit-depth as number
     may have execution.limit-bytes as number
     may have execution.limit-duration-ms as number
+    may have authority.participant as ref to agent "The agent this mandate binds."
+    may have authority.moves as list of id in [Observation, Execution, Delegation, Synthesis, Verification]
+    may have authority.scope as list of ref to workspace "The workspaces the mandate applies in."
+    may have authority.excluded-words as list of id "Words the participant may not author under this mandate."
+    may have authority.covers as list of text "Path selections the mandate claims, matched by the location resolver."

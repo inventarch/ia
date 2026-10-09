@@ -25,6 +25,7 @@ const folders = [
   'packages/runtime',
   '.ia/src/systems/session-system',
   '.ia/src/systems/agent-system',
+  'packages/workspace-runtime',
   '.ia/src/systems/agent-composition-system',
 ];
 folders.push('.ia/src/systems/template-system', '.ia/src/systems/authoring-system');
@@ -68,8 +69,8 @@ import { createHash } from 'node:crypto';
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { open } from '@inventarch/db';
-import { adoptWorkspace, captureWorkspace } from '@inventarch/agent-composition-system';
-import { captureResources, resourceOccurrences, resolveResources, verifyResources } from '@inventarch/agent-composition-system/resources';
+import { adoptWorkspace, captureWorkspace } from '@inventarch/workspace-runtime';
+import { captureResources, resourceOccurrences, resolveResources, verifyResources } from '@inventarch/workspace-runtime/resources';
 const foundation = resolve('fixture/foundation'), project = resolve('fixture/project'); mkdirSync(project);
 const adopted = [adoptWorkspace(foundation, 'foundation')], capture = captureWorkspace(project, 'project', { adopted });
 const owner = resourceOccurrences(capture).occurrences.find(o => o.identity.endsWith('/system/agent-system')); assert.ok(owner);

@@ -25,8 +25,30 @@ export function publicLanguageGuide(words) {
   return lines.join('\n');
 }
 
+/**
+ * Packages outside the system folders that ship the public-language guide as LANGUAGE.md. Each is a byte-for-byte copy
+ * of the guide every system folder carries, so `pnpm public:generate` writes it and `generate-public.mjs --check`
+ * reports one that drifts. tools/distribution/language-guide.test.ts checks this list against every package that ships
+ * the guide, by manifest or on disk.
+ */
+export const LANGUAGE_GUIDE_COPIES = [
+  'apps/cli/LANGUAGE.md',
+  'apps/distribution/LANGUAGE.md',
+  'apps/mcp-door/LANGUAGE.md',
+  'apps/steward-hook/LANGUAGE.md',
+  'apps/vscode/LANGUAGE.md',
+  'packages/compliance/LANGUAGE.md',
+  'packages/db/LANGUAGE.md',
+  'packages/graph/LANGUAGE.md',
+  'packages/language/LANGUAGE.md',
+  'packages/runtime/LANGUAGE.md',
+  'packages/service-contracts/LANGUAGE.md',
+  'packages/workspace-runtime/LANGUAGE.md',
+];
+
 export function publicResources({ outputs, text, put, json, manifest }) {
   const words = JSON.parse(text('docs/reference/language/vocabulary.json')).words;
+  const guide = publicLanguageGuide(words);
   const guidesPath = '.ia/src/systems/authoring-system/records/public-guides.ia';
   const records = ['#! ia 1.0', ''],
     files = [],
@@ -49,21 +71,25 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       '',
       word.description,
       '',
-      `Owner: ${word.owner}. Identity: ${word.identity}. Facets: ${word.facets.join(', ')}.`,
+      `Owner: ${word.owner}. Identity: ${word.identity}. Facets: ${word.facets.join(', ')}. Artifact set: ${word.artifactSet}. Primitive: ${word.primitive}. Move: ${word.move}.`,
       '',
       `Canonical schema: ${word.schema.path}.`,
+      '',
+      `Default file: ${word.word}.ia, relative to the workspace's authored root (the sources row at placement authored).`,
       '',
       ...word.schema.sections.map(
         (section) => `Section ${section.name}: ${section.required ? 'required' : 'optional'}.`,
       ),
       '',
       ...word.schema.fields.map(
-        (field) => `- ${field.path}: ${fieldTypeText(field)}; ${field.required ? 'required' : 'optional'}.`,
+        (field) =>
+          `- ${field.path}: ${fieldTypeText(field)}; ${field.required ? 'required' : 'optional'}.${field.description ? ` — ${field.description}` : ''}`,
       ),
       '',
       ...word.schema.edges.map(
         (edge) =>
-          `Relationship ${edge.predicate} to ${edge.target}: ${edge.cardinality}; ${edge.required ? 'required' : 'optional'}.`,
+          // An inbound rule keeps its authored spelling, so `grounded-by decision` never reads as the record grounding it.
+          `Relationship ${edge.direction === 'in' ? `${edge.spelling} from ${edge.target} (inbound ${edge.predicate})` : `${edge.predicate} to ${edge.target}`}: ${edge.cardinality}; ${edge.required ? 'required' : 'optional'}.`,
       ),
       '',
       'A valid declaration establishes structural conformance. Execution, host authority and evidence verification require their respective explicit consumers.',
@@ -81,6 +107,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       `    word ${word.word}`,
       `    schema @schema ${word.schema.name}`,
       `    document "${document}"`,
+      `    default-file "${word.word}.ia"`,
       '  guidance',
       `    select-when ${JSON.stringify(word.description)}`,
       '    avoid-when "The intended record has a different semantic role."',
@@ -100,7 +127,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
   const systems = manifest.systems.map((system) => {
     const base = `.ia/src/systems/${system.name}`,
       path = base + '/system.ia';
-    put(base + '/LANGUAGE.md', publicLanguageGuide(words));
+    put(base + '/LANGUAGE.md', guide);
     for (const file of ['README.md', 'SPEC.md']) {
       if (!outputs.has(base + '/' + file))
         put(
@@ -141,6 +168,8 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       base: null,
     };
   });
+  // Shipped package documentation, not authoring resources: written, never pinned.
+  for (const path of LANGUAGE_GUIDE_COPIES) put(path, guide);
   for (const path of ['.ia/src/floor/README.md', '.ia/src/floor/SPEC.md']) pin(path);
   const taxonomy = {
     source: 'floor',

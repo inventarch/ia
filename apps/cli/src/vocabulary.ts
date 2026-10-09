@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fieldTypeText } from '@inventarch/compliance';
 import type { Context, Result } from './consumer.js';
-import { Refusal } from './consumer.js';
+import { Refusal, respell } from './consumer.js';
 import { nearestTokens } from './commands.js';
 import type { Capabilities, Field, Token } from './render.js';
 import { atom, document, entry, fieldRows, headerLine, sectionLabel, truncateDigest, words } from './render.js';
@@ -31,6 +31,10 @@ interface SchemaField {
 }
 interface SchemaEdge {
   readonly predicate: string;
+  /** The rule's direction relative to the word's records: `out` for the active and present spellings, `in` for the inverse. */
+  readonly direction: 'out' | 'in';
+  /** The verb as the schema spells it; the row's label. */
+  readonly spelling: string;
   readonly target: string;
   readonly cardinality: string;
   readonly required: boolean;
@@ -76,7 +80,7 @@ export function readCatalogue(packageRoot: string): Catalogue {
       `The shipped vocabulary catalogue at ${path} could not be read: ${error instanceof Error ? error.message : String(error)}`,
       3,
       { path },
-      'Reinstall @inventarch/cli; the catalogue ships with the package and is not read from the workspace.',
+      'Run "ia doctor" for this installation\'s install channel and reinstall @inventarch/cli through it; the catalogue ships with the package and is not read from the workspace.',
     );
   }
 }
@@ -168,6 +172,8 @@ const detail = (word: Word, full: boolean, caps: Capabilities): readonly (readon
           word.schema.fields.map((field) => ({
             label: field.path,
             value: [atom(typeText(field), null, 0), ...words(field.required ? 'required' : 'optional', 'dim', 2)],
+            // A field's quoted schema description, when it has one, sits under its row at the value column.
+            note: field.description ? words(field.description, 'dim') : undefined,
           })),
           { depth: 1 },
           caps,
@@ -178,10 +184,14 @@ const detail = (word: Word, full: boolean, caps: Capabilities): readonly (readon
       sectionLabel('Relationships', caps),
       ...fieldRows(
         word.schema.edges.map((edge) => ({
-          label: edge.predicate,
+          label: edge.spelling,
           value: [
             atom(edge.target, 'cyan', 0),
-            ...words(`${edge.cardinality}; ${edge.required ? 'required' : 'optional'}`, 'dim', 2),
+            ...words(
+              `${edge.cardinality}; ${edge.required ? 'required' : 'optional'}${edge.direction === 'in' ? '; inbound' : ''}`,
+              'dim',
+              2,
+            ),
           ],
         })),
         { depth: 1 },
@@ -210,18 +220,21 @@ export function runVocabulary(context: Context): Result {
     wantsExample = args.flag('example');
 
   if (requested !== undefined && !catalogue.words.some((word) => word.word === requested)) {
-    const near = nearestTokens(
+    const [nearest, ...also] = nearestTokens(
       requested,
       catalogue.words.map((word) => word.word),
     );
+    // Design row 27: one command, the nearest word with the rest of the invocation as understood; any other near word
+    // is named, not offered as a command.
+    const others = also.length === 0 ? '' : ` Also near: ${also.map((name) => `@${name}`).join(', ')}.`;
     throw new Refusal(
       'IA-CLI-USAGE',
       `Unknown word @${requested}; the shipped catalogue carries ${catalogue.words.length} words`,
       2,
       null,
-      near.length === 0
+      nearest === undefined
         ? 'Run "ia vocabulary" to list every word.'
-        : `Did you mean ${near.map((name) => `@${name}`).join(', ')}?`,
+        : `Did you mean "${respell(context, { positionals: [nearest] })}"?${others}`,
     );
   }
 

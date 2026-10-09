@@ -1,13 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { load } from '../../packages/graph/src/index.js';
+import { digest, load } from '../../packages/graph/src/index.js';
 import { KERNEL_DIGEST, LANGUAGE_VERSION } from '../../packages/language/src/index.js';
-import { digest } from '../../.ia/src/systems/session-system/src/index.js';
 import { compileHarness } from '../../.ia/src/systems/agent-composition-system/src/compile.js';
 import { installed } from '../../.ia/src/systems/agent-composition-system/src/catalog.js';
 import type { CompositionCatalog } from '../../.ia/src/systems/agent-composition-system/src/catalog.js';
-import type { Capture } from '../../.ia/src/systems/agent-composition-system/src/corpus.js';
+import type { Capture } from '../../packages/workspace-runtime/src/corpus.js';
 import { checkNative } from './check.js';
 import type { NativeInput } from './compile.js';
 import { isEntry } from '../entry/is-entry.mjs';

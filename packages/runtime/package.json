@@ -102,9 +102,17 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./internal/locator": {
+      "types": "./dist/locator.d.ts",
+      "default": "./dist/locator.js"
+    },
     "./internal/machine-protocol": {
       "types": "./dist/machine-protocol.d.ts",
       "default": "./dist/machine-protocol.js"
+    },
+    "./internal/mandate-modes": {
+      "types": "./dist/mandate-modes.d.ts",
+      "default": "./dist/mandate-modes.js"
     },
     "./internal/mentions": {
       "types": "./dist/mentions.d.ts",
@@ -252,9 +260,17 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       },
+      "./internal/locator": {
+        "types": "./dist/locator.d.ts",
+        "default": "./dist/locator.js"
+      },
       "./internal/machine-protocol": {
         "types": "./dist/machine-protocol.d.ts",
         "default": "./dist/machine-protocol.js"
+      },
+      "./internal/mandate-modes": {
+        "types": "./dist/mandate-modes.d.ts",
+        "default": "./dist/mandate-modes.js"
       },
       "./internal/mentions": {
         "types": "./dist/mentions.d.ts",

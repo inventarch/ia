@@ -31,7 +31,7 @@ Spec source locators do not load documents. Resource capture and disclosure requ
 | @kind | taxonomy | Defines a closed semantic role for records; lowering determines the role of each registered word. |
 | @lane | taxonomy | Defines a retrieval lane associated with record kinds. |
 | @law | governance-system | Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose. |
-| @mandate | agent-system | States bounded authority and conditions for a participant. Host authorization remains independent. |
+| @mandate | agent-system | States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers. |
 | @milestone | work-system | Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it. |
 | @move | taxonomy | Defines the closed classification of an agent action or activity. |
 | @observation | learning-system | Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing. |
@@ -51,6 +51,6 @@ Spec source locators do not load documents. Resource capture and disclosure requ
 | @template | template-system | Represents bounded rendering inputs and output structure. Rendering does not publish or install output. |
 | @value-type | taxonomy | Defines the field types that schemas may require. |
 | @voice | agent-composition-system | Declares communication attributes separate from authority and procedure. |
-| @workspace | workspace-system | Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. |
+| @workspace | workspace-system | Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default. |
 
 This guide describes the selected structural vocabulary. Private expert procedures, live provider behavior and unobserved platform qualification are separate from the installed public contract.

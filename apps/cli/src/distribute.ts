@@ -74,7 +74,7 @@ import {
 } from '@inventarch/distribution/services';
 import { UsageError } from './args.js';
 import type { Context, Host, Result } from './consumer.js';
-import { confirm, Refusal, refusalOf, requireRoot } from './consumer.js';
+import { confirm, Refusal, refusalOf, requireRoot, serviceNext } from './consumer.js';
 import type { HostName } from './host-projection.js';
 import { renderProjectionFor } from './host-projection.js';
 import { hostNext, lockRefusal, projectionRepair, refusedPath, STATE } from './host.js';
@@ -176,49 +176,88 @@ export function changeRows(plan: InstallationPlan, previous: DistributionLock | 
  * is reported as a CLI failure at class 4 rather than relabelled with a service code the service never raised.
  *
  * The next action depends on the route the failure arrived on, because the repair does. On the catalog route the
- * archive remedy applies: retry, or name the archive in a local catalog entry and resolve from that catalog offline.
- * On the registry route — the default since registry discovery — a catalog-only remedy is wrong twice over: `--offline`
- * without `--catalog` reads no catalog, and the failure is the registry's. Registry-route failures therefore name the
- * registry sources, whether the failure was an index, `ia-registry.json` ("Registry request …") or an artifact fetched
- * from an HTTPS registry ("Artifact request …"). The other registry failures each have their own remedy: the built-in
- * default that is not available ("The default registry …"), a document over the 4 MiB bound ("Registry document …",
- * a limit a retry cannot fix), and a directory registry that lists a release whose artifact file it lacks. All of
- * these stay class 4: remote or registry content the user cannot fix in the workspace. Two registry refusals are
- * class 3 and carry the remedy §4 and §7 name for them: an unmapped provider, and a request only a licensed release
- * satisfies.
+ * archive remedy applies: retry once the host is reachable. On the registry route — the default since registry
+ * discovery — a catalog remedy is wrong twice over: `--offline` without `--catalog` reads no catalog, and the failure
+ * is the registry's. Registry-route failures therefore name the registry's network access, whether the failure was an
+ * index, `ia-registry.json` ("Registry request …") or an artifact fetched from an HTTPS registry ("Artifact
+ * request …"). The other registry failures each have their own remedy: the built-in default that is not available
+ * ("The default registry …", whose message names every other source), a document over the 4 MiB bound ("Registry
+ * document …", a limit a retry cannot fix, so another registry is chosen at the level that chose this one), and a
+ * directory registry that lists a release whose artifact file it lacks. All of these stay class 4: remote or registry
+ * content the user cannot fix in the workspace. Two registry refusals are class 3 and carry the remedy §4 and §7 name
+ * for them: an unmapped provider, and a request only a licensed release satisfies.
  *
  * Every other refusal passes through with its code and class, located at the file it names when the service located
  * it (`.path`, e.g. `.ia/registries.json`), so §4.3's `where` is null only when there is genuinely no location.
+ *
+ * Design row 27: each remedy names one command, one of this invocation's `Reruns`, so a retry, a repaired registry
+ * map or a deleted cache file is followed by a command the user can run as printed.
  */
 export type Route = 'catalog' | 'registry';
-const RETRY =
-  'Retry when the host is reachable, or add the archive to a local catalog entry {"path":"...","withdrawn":false} and re-run with --catalog <file> --offline.';
-const REGISTRY_RETRY =
-  'Check network access to the registry named above, or pass --registry <url|dir>, map the provider in .ia/registries.json, or use --catalog <file>.';
-const DEFAULT_RETRY =
-  'Pass --registry <url|dir>, map the provider to a registry in .ia/registries.json, or install from a local catalog with --catalog <file>.';
-const OVERSIZE =
-  'The registry named above serves a document over the 4 MiB limit, and retrying will not change that. Choose another registry with --registry <url|dir> or .ia/registries.json, or use --catalog <file>.';
-const INCOMPLETE =
-  'That registry directory is incomplete: it lists a release whose artifact file is missing. Re-add the release with "ia-distribution registry add --registry <dir> --archive <file>", or choose another registry with --registry <url|dir> or .ia/registries.json.';
-/** Registry spec §4's remedy for an unmapped provider; `ia doctor` names the same one. */
+/**
+ * The commands this invocation's remedies name (design row 27), each spelled from its parsed arguments and runnable
+ * as printed. `again` is its plan, without `--apply`, which acquires and verifies once more and applies nothing; it
+ * may still fill the archive cache, and `--plan-out` writes the plan file. `restore` has no preview, so its `again` is
+ * the apply itself.
+ */
+export interface Reruns {
+  readonly again: string;
+  /** `again` without `--offline`, the one rerun that fetches a deleted cache file again; `again` itself when online. */
+  readonly online: string;
+  /** The same command from a local catalog: its source replaced by `--catalog <file>`, which `--registry` excludes. */
+  readonly local: string;
+  /** Which registry spec §4 level chose the registry: `--registry`, `IA_REGISTRY`, or the per-provider map below them. */
+  readonly chosen: 'flag' | 'variable' | 'map';
+  /** The same command with `--registry <url|dir>` in place of the registry the flag named. */
+  readonly another: string;
+  /** `update`'s: the install that has to come first, with the range `--to` named. */
+  readonly install: string;
+  /** `update`'s: the overview that lists the installed generation's direct requests. */
+  readonly inspect: string;
+}
+const RETRY = (reruns: Reruns): string => `Retry "${reruns.again}" when the host is reachable.`;
+const REGISTRY_RETRY = (reruns: Reruns): string =>
+  `Check network access to the registry named above, then retry "${reruns.again}".`;
+const DEFAULT_RETRY = (reruns: Reruns): string =>
+  `Map the provider to a registry in .ia/registries.json, then run "${reruns.again}".`;
+/** A limit a retry cannot fix: another registry is chosen at the level that chose this one, which outranks those below. */
+function oversized(reruns: Reruns): string {
+  const why = 'The registry named above serves a document over the 4 MiB limit, and retrying will not change that.';
+  if (reruns.chosen === 'flag') return `${why} Run "${reruns.another}" naming another registry.`;
+  if (reruns.chosen === 'variable') return `${why} Set IA_REGISTRY to another registry, then run "${reruns.again}".`;
+  return `${why} Map the provider to another registry in .ia/registries.json, then run "${reruns.again}".`;
+}
+/** The message names the directory registry, and the release is re-added to that one. */
+const INCOMPLETE_REGISTRY = /^Registry (.+) has no artifacts\//;
+const INCOMPLETE = (dir: string): string =>
+  `That registry directory is incomplete: it lists a release whose artifact file is missing. Re-add the release with "ia-distribution registry add --registry ${quote(dir)} --archive <file>".`;
+/**
+ * Registry spec §4's remedy for an unmapped provider, as `ia doctor` prints it. The exported 1.x text is unchanged
+ * (decision release-bump); a refusal names `UNMAPPED_NEXT` instead, whose one command is the rerun (design row 27).
+ */
 export const UNMAPPED =
   "Every requested and locked package's provider needs a registry. Map the provider to an HTTPS URL or a workspace directory in .ia/registries.json, or pass --registry <url|dir>.";
-const LICENSED =
-  'This CLI has no licensed acquisition path. Obtain the archive through its licensed channel, then install it from a local catalog with --catalog <file>.';
+const UNMAPPED_NEXT =
+  "Every requested and locked package's provider needs a registry: map the provider to an HTTPS URL or a workspace directory in .ia/registries.json.";
+const LICENSED = (reruns: Reruns): string =>
+  `This CLI has no licensed acquisition path. Obtain the archive through its licensed channel, then install it from a local catalog with "${reruns.local}".`;
 const REMOTE_LIMIT = /^(?:Remote archive|Registry document) /;
 const SERVICE_CODE = /^IA-[A-Z]+-[A-Z-]+$/;
-/** The repair for a cached archive that does not verify: the cache holds copies, and the consumer has no verb that cleans it. */
-const deleteCached = (path: string): string =>
-  `Delete ${path}, then re-run the command; a published archive is fetched again from its registry or catalog.`;
-function unavailable(message: string, route: Route): string {
-  if (message.startsWith('The default registry ')) return DEFAULT_RETRY;
-  if (message.startsWith('Registry document ')) return OVERSIZE;
-  if (message.startsWith('Registry request ')) return REGISTRY_RETRY;
-  if (/^Registry .+ has no artifacts\//.test(message)) return INCOMPLETE;
-  return route === 'registry' ? REGISTRY_RETRY : RETRY;
+/**
+ * The repair for a cached archive that does not verify: the cache holds copies, and the consumer has no verb that
+ * cleans it. An `--offline` rerun reads only the cache, so the rerun is the online one, which fetches the copy again.
+ */
+const deleteCached = (path: string, reruns: Reruns): string =>
+  `Delete ${path}, then rerun "${reruns.online}"; a published archive is fetched again from its registry or catalog.`;
+function unavailable(message: string, route: Route, reruns: Reruns): string {
+  if (message.startsWith('The default registry ')) return DEFAULT_RETRY(reruns);
+  if (message.startsWith('Registry document ')) return oversized(reruns);
+  if (message.startsWith('Registry request ')) return REGISTRY_RETRY(reruns);
+  const incomplete = INCOMPLETE_REGISTRY.exec(message);
+  if (incomplete !== null) return INCOMPLETE(incomplete[1]!);
+  return route === 'registry' ? REGISTRY_RETRY(reruns) : RETRY(reruns);
 }
-async function acquiring<T>(run: () => Promise<T>, where: string | null, route: Route): Promise<T> {
+async function acquiring<T>(run: () => Promise<T>, where: string | null, route: Route, reruns: Reruns): Promise<T> {
   try {
     return await run();
   } catch (error) {
@@ -237,7 +276,7 @@ async function acquiring<T>(run: () => Promise<T>, where: string | null, route: 
         message,
         4,
         at,
-        cachedFile !== null ? deleteCached(cachedFile) : unavailable(message, route),
+        cachedFile !== null ? deleteCached(cachedFile, reruns) : unavailable(message, route, reruns),
       );
     if (code === '')
       throw new Refusal(
@@ -245,13 +284,21 @@ async function acquiring<T>(run: () => Promise<T>, where: string | null, route: 
         `Artifact transport failed: ${message}`,
         4,
         at,
-        route === 'registry' ? REGISTRY_RETRY : RETRY,
+        route === 'registry' ? REGISTRY_RETRY(reruns) : RETRY(reruns),
       );
-    if (code === 'IA-DIST-REGISTRY-UNMAPPED') throw new Refusal(code, message, 3, at, UNMAPPED);
-    if (code === 'IA-DIST-LICENSE-REQUIRED') throw new Refusal(code, message, 3, at, LICENSED);
-    // A service refusal the service located keeps its code and class 3, and gains its location (§4.3).
+    if (code === 'IA-DIST-REGISTRY-UNMAPPED')
+      throw new Refusal(code, message, 3, at, `${UNMAPPED_NEXT} Then run "${reruns.again}".`);
+    if (code === 'IA-DIST-LICENSE-REQUIRED') throw new Refusal(code, message, 3, at, LICENSED(reruns));
+    // A service refusal the service located keeps its code and class 3, and gains its location (§4.3) and the
+    // rerun after the file it names is repaired.
     if (!(error instanceof Refusal) && own !== null)
-      throw new Refusal(code, message, 3, at, cachedFile !== null ? deleteCached(cachedFile) : null);
+      throw new Refusal(
+        code,
+        message,
+        3,
+        at,
+        cachedFile !== null ? deleteCached(cachedFile, reruns) : `Fix ${own}, then rerun "${reruns.again}".`,
+      );
     throw error;
   }
 }
@@ -259,24 +306,24 @@ async function acquiring<T>(run: () => Promise<T>, where: string | null, route: 
  * Registry spec §5.4: `--offline` without `--catalog` resolves from the workspace cache, reaching only the ids this
  * command can need — its requests, the lock's packages and their dependencies — so an unrelated stale duplicate in
  * the cache never reaches resolution. A cached file that cannot be read is located, and its repair is to delete it:
- * the cache holds copies, and the consumer has no verb that cleans it. A cache over its bound names the directory
- * and the two online sources.
+ * the cache holds copies, and the consumer has no verb that cleans it. A cache over its bound names the directory to
+ * prune before the rerun.
  */
-function cached(root: string, reach: readonly string[]): readonly ReleaseCandidate<BundleMetadata>[] {
+function cached(root: string, reach: readonly string[], reruns: Reruns): readonly ReleaseCandidate<BundleMetadata>[] {
   try {
     return cachedCandidates({ root, reach });
   } catch (error) {
     const refusal = refusalOf(error),
       path = refusedPath(error);
     if (path !== null && path.startsWith(`${ARCHIVE_CACHE}/`))
-      throw new Refusal(refusal.code, refusal.message, 3, { path }, deleteCached(path));
+      throw new Refusal(refusal.code, refusal.message, 3, { path }, deleteCached(path, reruns));
     if (refusal.code === 'IA-DIST-LIMIT-EXCEEDED')
       throw new Refusal(
         refusal.code,
         refusal.message,
         3,
         null,
-        `Remove archives this workspace no longer needs from ${ARCHIVE_CACHE}/, or resolve online with --registry <url|dir> or --catalog <file> instead of --offline.`,
+        `Remove archives this workspace no longer needs from ${ARCHIVE_CACHE}/, then rerun "${reruns.again}".`,
       );
     throw error;
   }
@@ -302,7 +349,13 @@ function registrySources(choices: Iterable<RegistryChoice>): readonly RegistrySo
  * reaching for rather than the file that listed it. The acquisition is the installer's own and the resolution that
  * follows reads the same bytes back from the cache it filled; nothing here decides what a catalog entry means.
  */
-async function warm(root: string, entries: unknown, offline: boolean, signal?: AbortSignal): Promise<void> {
+async function warm(
+  root: string,
+  entries: unknown,
+  offline: boolean,
+  reruns: Reruns,
+  signal?: AbortSignal,
+): Promise<void> {
   signal?.throwIfAborted();
   if (offline || !Array.isArray(entries)) return;
   for (const row of entries as readonly { readonly url?: unknown; readonly digest?: unknown }[]) {
@@ -310,7 +363,7 @@ async function warm(root: string, entries: unknown, offline: boolean, signal?: A
       continue;
     const url = row.url,
       digest = row.digest;
-    await acquiring(() => acquireArtifact({ root, url, digest, signal }), url, 'catalog');
+    await acquiring(() => acquireArtifact({ root, url, digest, signal }), url, 'catalog', reruns);
   }
 }
 
@@ -326,6 +379,11 @@ export interface PlanRequest {
   readonly allowWithdrawn: boolean;
   readonly planOut: string | undefined;
   readonly invocation: string;
+  /**
+   * The commands this request's remedies name. Optional, so a 1.x request keeps its form (decision release-bump): when
+   * absent they are spelled from the request itself (`requestReruns`).
+   */
+  readonly reruns?: Reruns;
   /** Whether the invocation named `--root`; commands printed for a registered projection then carry it. */
   readonly rooted?: boolean;
   /** The registered projections, when the caller already found them; otherwise they are found here. */
@@ -344,6 +402,11 @@ function chooserOf(request: PlanRequest): (id: string) => RegistryChoice {
       'IA-CLI-FAILED',
       `ia ${request.operation} resolves from registries but was given no registry chooser`,
       3,
+      null,
+      serviceNext('IA-CLI-FAILED', {
+        command: request.operation,
+        root: request.rooted === true ? request.root : undefined,
+      }),
     );
   return request.choose;
 }
@@ -363,14 +426,19 @@ export function mergeRequests(previous: DistributionLock | undefined, ids: reado
  * `update <id>` names one direct request. `--to` repins its range; without `--to` the request keeps its range and
  * only the preference changes (registry spec §6.2). Either way an id that is not a direct request is refused.
  */
-function repin(previous: DistributionLock | undefined, id: string, to: string | undefined): readonly Dependency[] {
+function repin(
+  previous: DistributionLock | undefined,
+  id: string,
+  to: string | undefined,
+  reruns: Reruns,
+): readonly Dependency[] {
   if (previous === undefined)
     throw new Refusal(
       'IA-DIST-INPUT-INVALID',
       'Update requires an existing installation',
       3,
       null,
-      'Run "ia install <id>[@<range>]" first, or "ia doctor" for the installed state.',
+      `Run "${reruns.install}" first.`,
     );
   if (!previous.requests.some((request) => request.id === id))
     throw new Refusal(
@@ -378,7 +446,7 @@ function repin(previous: DistributionLock | undefined, id: string, to: string | 
       `${id} is not a direct request of this installation`,
       3,
       null,
-      'Run "ia inspect" for the installed generation and name one of its direct requests.',
+      `Run "${reruns.inspect}" for the installed generation and name one of its direct requests.`,
     );
   return to === undefined
     ? previous.requests
@@ -448,7 +516,12 @@ function refreshed(view: PlanView, host: HostName): Refusal | null {
     const refusal = refusalOf(error),
       path = refusedPath(error),
       rerun = `ia host ${host} --apply`;
-    const next = path !== null ? projectionRepair(host, path, rerun) : (refusal.next ?? `Run "${rerun}" to finish.`);
+    const next =
+      path !== null
+        ? projectionRepair(host, path, rerun)
+        : error instanceof Refusal && refusal.next !== null
+          ? refusal.next
+          : `Run "${rerun}" to finish.`;
     return new Refusal(
       refusal.code,
       refusal.message,
@@ -476,9 +549,65 @@ function installedLock(root: string, operation: Operation): DistributionLock | u
   }
 }
 
+/**
+ * The `Reruns` of a request that supplies none (a 1.x caller of this published function), spelled from its own fields
+ * as `rerunsOf` spells them from the parsed arguments: `--root` when the request says it was named, the registry
+ * chosen by the per-provider map, since the request carries no `--registry` value.
+ */
+function requestReruns(request: PlanRequest): Reruns {
+  const { operation, to, root } = request;
+  const apply = operation === 'restore' ? ' --apply --yes' : '';
+  const spell = (
+    named: Operation,
+    variant: { readonly ids?: readonly string[]; readonly source?: readonly string[]; readonly online?: boolean } = {},
+  ): string => {
+    const parts = [`ia ${named}`, ...(variant.ids ?? request.ids).map(quote)];
+    if (named === 'update' && to !== undefined) parts.push('--to', quote(to));
+    if (request.requestsFile !== undefined) parts.push('--requests', quote(request.requestsFile));
+    if (variant.source !== undefined) parts.push(...variant.source);
+    else if (request.catalog !== undefined) parts.push('--catalog', quote(request.catalog));
+    if (request.planOut !== undefined) parts.push('--plan-out', quote(request.planOut));
+    if (variant.source === undefined && variant.online !== true && request.offline) parts.push('--offline');
+    if (request.allowWithdrawn) parts.push('--allow-withdrawn');
+    if (request.rooted === true) parts.push('--root', quote(root));
+    return parts.join(' ');
+  };
+  return {
+    again: `${spell(operation)}${apply}`,
+    online: `${spell(operation, { online: true })}${apply}`,
+    local: `${spell(operation, { source: ['--catalog', '<file>'] })}${apply}`,
+    chosen: 'map',
+    another: `${spell(operation, { source: ['--registry', '<url|dir>'] })}${apply}`,
+    install: spell('install', { ids: request.ids.map((id) => (to === undefined ? id : `${id}@${to}`)) }),
+    inspect: `ia inspect${request.rooted === true ? ` --root ${quote(root)}` : ''}`,
+  };
+}
+
 export async function collectPlan(request: PlanRequest): Promise<PlanView> {
   request.signal?.throwIfAborted();
   const { root, operation } = request;
+  const reruns = request.reruns ?? requestReruns(request);
+  /**
+   * A file the invocation named (`--catalog`, `--requests`), read as the service reads it; one that is not there names
+   * the rerun with that one value to correct, the service's code and message carried through unchanged (§4.1).
+   */
+  const supplied = (path: string, option: 'catalog' | 'requests'): unknown => {
+    try {
+      return readWorkspaceJson({ root, path });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (codeOf(error, '') !== 'IA-DIST-INPUT-INVALID' || !message.endsWith(`Missing input ${path}`)) throw error;
+      const rerun =
+        option === 'catalog' ? reruns.local : reruns.again.replace(`--requests ${quote(path)}`, '--requests <file>');
+      throw new Refusal(
+        'IA-DIST-INPUT-INVALID',
+        message,
+        3,
+        null,
+        `Run "${rerun}" naming an existing ${option === 'catalog' ? 'catalog' : 'requests'} file.`,
+      );
+    }
+  };
   const previous = installedLock(root, operation);
   let plan: InstallationPlan;
   let withdrawn: readonly string[] = [];
@@ -504,6 +633,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         },
         null,
         'registry',
+        reruns,
       );
       plan = restored.plan;
       withdrawn = restored.withdrawn;
@@ -513,8 +643,8 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         lock.packages.filter((pkg) => !unpublished.has(pkg.id)).map((pkg) => choose(pkg.id)),
       );
     } else {
-      const entries = request.offline ? undefined : readWorkspaceJson({ root, path: request.catalog! });
-      await warm(root, entries, request.offline, request.signal);
+      const entries = request.offline ? undefined : supplied(request.catalog!, 'catalog');
+      await warm(root, entries, request.offline, reruns, request.signal);
       const restored = await acquiring(
         () =>
           planRestore({
@@ -528,6 +658,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
           }),
         request.catalog ?? null,
         'catalog',
+        reruns,
       );
       plan = restored.plan;
       withdrawn = restored.withdrawn;
@@ -542,24 +673,26 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     const updated = operation === 'update' ? request.ids[0]! : undefined;
     const requests =
       updated !== undefined
-        ? repin(previous, updated, request.to)
+        ? repin(previous, updated, request.to, reruns)
         : request.requestsFile === undefined
           ? mergeRequests(previous, request.ids)
-          : decodeDistributionRequests(readWorkspaceJson({ root, path: request.requestsFile }));
+          : decodeDistributionRequests(supplied(request.requestsFile, 'requests'));
     let choices: readonly ReleaseCandidate<BundleMetadata>[];
     if (request.catalog !== undefined) {
-      const entries = readWorkspaceJson({ root, path: request.catalog });
-      await warm(root, entries, request.offline, request.signal);
+      const entries = supplied(request.catalog, 'catalog');
+      await warm(root, entries, request.offline, reruns, request.signal);
       choices = await acquiring(
         () => resolveCatalog({ root, entries, offline: request.offline, signal: request.signal }),
         request.catalog,
         'catalog',
+        reruns,
       );
     } else if (request.offline) {
-      choices = cached(root, [
-        ...requests.map((dependency) => dependency.id),
-        ...(previous?.packages ?? []).map((pkg) => pkg.id),
-      ]);
+      choices = cached(
+        root,
+        [...requests.map((dependency) => dependency.id), ...(previous?.packages ?? []).map((pkg) => pkg.id)],
+        reruns,
+      );
     } else {
       // Registry spec §5: metadata selection, then only the selected archives are fetched and verified. Only the ids the
       // command names are looked up (§5.1): update's id; install's positionals; for a --requests file, the ids whose
@@ -591,6 +724,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
           }),
         null,
         'registry',
+        reruns,
       );
       choices = resolution.candidates;
       registries = registrySources(resolution.sources.values());
@@ -869,18 +1003,52 @@ export const renderDeclined = (view: PlanView, caps: Capabilities): string =>
     { leadingBlank: true },
   );
 
-/** The invocation is rebuilt from the parsed arguments, so the printed command is the one that was understood. */
-function invocationOf(context: Context, operation: Operation): string {
+/**
+ * The invocation is rebuilt from the parsed arguments, so the printed command is the one that was understood. A
+ * remedy's variant names another operation over its own ids, replaces the source (`--registry`, `--catalog`,
+ * `--offline`) with the one the remedy asks for, or keeps the source online without `--offline`.
+ */
+function invocationOf(
+  context: Context,
+  operation: Operation,
+  variant: { readonly ids?: readonly string[]; readonly source?: readonly string[]; readonly online?: boolean } = {},
+): string {
   const { args } = context;
-  const parts = [`ia ${operation}`, ...args.positionals.map(quote)];
-  for (const name of ['to', 'requests', 'registry', 'catalog', 'plan-out'] as const) {
-    const value = args.value(name);
-    if (value !== undefined) parts.push(`--${name}`, quote(value));
-  }
-  for (const name of ['offline', 'allow-withdrawn'] as const) if (args.flag(name)) parts.push(`--${name}`);
-  const root = args.value('root');
-  if (root !== undefined) parts.push('--root', quote(root));
+  const parts = [`ia ${operation}`, ...(variant.ids ?? args.positionals).map(quote)];
+  const value = (name: string): void => {
+    const given = args.value(name);
+    if (given !== undefined) parts.push(`--${name}`, quote(given));
+  };
+  if (operation === 'update') value('to');
+  value('requests');
+  if (variant.source === undefined) {
+    value('registry');
+    value('catalog');
+  } else parts.push(...variant.source);
+  value('plan-out');
+  if (variant.source === undefined && variant.online !== true && args.flag('offline')) parts.push('--offline');
+  if (args.flag('allow-withdrawn')) parts.push('--allow-withdrawn');
+  value('root');
   return parts.join(' ');
+}
+/** Design row 27: the commands this invocation's remedies name, spelled once from what the parser understood. */
+function rerunsOf(context: Context, operation: Operation): Reruns {
+  const { args, host } = context;
+  // `restore` has no preview: its rerun is the apply, confirmed, as every printed apply is.
+  const apply = operation === 'restore' ? ' --apply --yes' : '';
+  const to = args.value('to'),
+    root = args.value('root');
+  return {
+    again: `${invocationOf(context, operation)}${apply}`,
+    online: `${invocationOf(context, operation, { online: true })}${apply}`,
+    local: `${invocationOf(context, operation, { source: ['--catalog', '<file>'] })}${apply}`,
+    chosen: args.value('registry') !== undefined ? 'flag' : host.env['IA_REGISTRY'] ? 'variable' : 'map',
+    another: `${invocationOf(context, operation, { source: ['--registry', '<url|dir>'] })}${apply}`,
+    install: invocationOf(context, 'install', {
+      ids: args.positionals.map((id) => (to === undefined ? id : `${id}@${to}`)),
+    }),
+    inspect: `ia inspect${root === undefined ? '' : ` --root ${quote(root)}`}`,
+  };
 }
 
 /**
@@ -932,6 +1100,7 @@ export function runDistribute(operation: Operation): (context: Context) => Promi
       allowWithdrawn: args.flag('allow-withdrawn'),
       planOut: args.value('plan-out'),
       invocation: invocationOf(context, operation),
+      reruns: rerunsOf(context, operation),
       rooted,
       refresh,
       choose,

@@ -35,6 +35,7 @@ const registry = built.registry;
 const binding: CompiledEdge = {
   predicate: 'implement',
   direction: 'out',
+  spelling: 'implement',
   reference: { kind: 'ref', discriminator: 'contract', name: 'signature', fragment: 'REQ-A-1' },
   target: null,
   fragment: 'REQ-A-1',

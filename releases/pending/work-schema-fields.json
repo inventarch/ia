@@ -1,0 +1,29 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Work records state partial supersession and identity ownership",
+  "summary": "A `@decision` may carry effective-revision; a `@spec` may carry covers and replaced-scope and may be grounded by a decision; a `@task` may carry action, expected-artifact, exit-evidence (ref to observation) and owner-agent (ref to agent) beside its text owner. The work-system example shows a partially superseded spec.",
+  "packages": [
+    "@inventarch/authoring-system",
+    "@inventarch/cli",
+    "@inventarch/mcp-door",
+    "@inventarch/work-system"
+  ],
+  "paths": [
+    ".claude/",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    ".ia/src/systems/authoring-system/",
+    ".ia/src/systems/work-system/",
+    "CLAUDE.md",
+    "apps/cli/",
+    "apps/mcp-door/",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "package.json",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

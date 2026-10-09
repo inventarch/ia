@@ -2,9 +2,11 @@
 
 Represents a host event, tool/path selection and guard message. Registration and executing a guard require a host adapter.
 
-Owner: hook-authoring-system. Identity: hook-authoring-system/binding/<facet>/<name>. Facets: hook.
+Owner: hook-authoring-system. Identity: hook-authoring-system/binding/<facet>/<name>. Facets: hook. Artifact set: operational. Primitive: Escalation. Move: Execution.
 
 Canonical schema: .ia/src/systems/hook-authoring-system/schemas/hook.schema.ia.
+
+Default file: hook.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section hook: required.

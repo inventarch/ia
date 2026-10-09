@@ -6,7 +6,7 @@ import { qualifyPublicSpec } from './public-spec-fixture.mjs';
 
 it('qualifies public spec shapes and explicit document bodies with stale, digest and disclosure refusals', () => {
   const result = qualifyPublicSpec(
-    resolve(import.meta.dirname, '../../../../..'),
+    resolve(import.meta.dirname, '../../..'),
     mkdtempSync(join(tmpdir(), 'ia-public-spec-')),
   );
   expect(result.passed).toBe(true);

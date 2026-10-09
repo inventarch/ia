@@ -1,49 +1,34 @@
-import { createHash } from 'node:crypto';
-import type { Json } from './types.js';
+import { CodecError, canonical as canonicalData, copy as copyData, digest as digestData } from '@inventarch/graph';
 
-export class SessionError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
+export { CodecError };
+/**
+ * The session refusal. The canonical codec itself lives in @inventarch/graph (`canonical`, `digest`, `copy` and
+ * `CodecError`); this package re-exports graph's `CodecError` class itself and wraps the three functions so their
+ * refusals are `SessionError`, which extends it. Every caller that matches on `SessionError` keeps working,
+ * `instanceof CodecError` holds across both packages, and the codes are the ones the graph codec throws.
+ */
+export class SessionError extends CodecError {
+  constructor(code: string, message: string) {
+    super(code, message);
     this.name = 'SessionError';
   }
 }
 export function requireValue(condition: unknown, code: string, message: string): asserts condition {
   if (!condition) throw new SessionError(code, message);
 }
-export function canonical(value: unknown): string {
-  const visit = (item: unknown, depth: number): Json => {
-    requireValue(depth <= 64, 'IA-SESSION-LIMIT-EXCEEDED', 'Structured data nesting exceeds 64');
-    if (item === null || typeof item === 'string' || typeof item === 'boolean') return item;
-    if (typeof item === 'number' && Number.isFinite(item)) return item;
-    if (Array.isArray(item)) return item.map((v: unknown) => visit(v, depth + 1));
-    if (
-      typeof item === 'object' &&
-      item !== null &&
-      [Object.prototype, null].includes(Object.getPrototypeOf(item) as object | null)
-    ) {
-      const out: Record<string, Json> = Object.create(null) as Record<string, Json>;
-      for (const key of Object.keys(item).sort()) {
-        requireValue(
-          !['__proto__', 'prototype', 'constructor'].includes(key),
-          'IA-SESSION-INPUT-INVALID',
-          'Unsafe object key',
-        );
-        out[key] = visit((item as Record<string, unknown>)[key], depth + 1);
-      }
-      return out;
-    }
-    throw new SessionError('IA-SESSION-INPUT-INVALID', 'Expected finite JSON data');
-  };
-  return JSON.stringify(visit(value, 0));
-}
-export function digest(value: unknown): string {
-  return createHash('sha256').update(canonical(value)).digest('hex');
-}
+const asSession = <T>(run: () => T): T => {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof CodecError && !(error instanceof SessionError))
+      throw new SessionError(error.code, error.message);
+    throw error;
+  }
+};
+export const canonical = (value: unknown): string => asSession(() => canonicalData(value));
+export const digest = (value: unknown): string => asSession(() => digestData(value));
 export function copy<T>(value: T): T {
-  return JSON.parse(canonical(value)) as T;
+  return asSession(() => copyData(value));
 }
 export function identifier(value: string): string {
   requireValue(

@@ -38,5 +38,5 @@
     supersede task using task
     supersede decision using decision
     supersede spec using spec
-    ground plan, milestone, task using decision
+    ground plan, milestone, task, spec using decision
 

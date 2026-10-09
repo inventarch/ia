@@ -1,14 +1,15 @@
 import { createHash } from 'node:crypto';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { systemMember } from '@inventarch/db';
+import type { Node } from '@inventarch/graph';
 import type { CompiledRecord, CompiledValue } from '@inventarch/language';
 import { context } from '@inventarch/runtime';
 import { canonical, copy, digest } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
 import { MAX_MODEL_REQUEST_BYTES } from '@inventarch/agent-system';
 import type { OutcomeKind } from '@inventarch/agent-system';
-import { verifyCapture } from './corpus.js';
-import type { Capture } from './corpus.js';
+import { verifyCapture } from '@inventarch/workspace-runtime/corpus';
+import type { Capture } from '@inventarch/workspace-runtime/corpus';
 import type {
   CatalogGroup,
   CompositionCatalog,
@@ -95,13 +96,15 @@ class Compiler {
     if (this.components.has(node.identity)) return;
     if (this.components.size >= 2000)
       fail('IA-COMPOSITION-UNAVAILABLE', 'Executable closure exceeds 2,000 components', node);
+    // A component pin digests the admitted record as it did before graph G13 added the per-record digest.
+    const { digest: _recordDigest, ...record } = node as Node;
     this.components.set(node.identity, {
       identity: node.identity,
       owner: node.system,
       physicalOwner: systemMember(node.source.path)?.name ?? null,
       schema: node.schema,
       source: { ...node.source, digest: this.source(node.source.path) },
-      digest: digest(node),
+      digest: digest(record),
     });
     const registry = this.reader.inspect().graph.registry;
     const schema = registry.schemas.get(registry.registrations.get(node.discriminator)?.schema ?? node.name);
@@ -432,8 +435,10 @@ class Compiler {
         'execution.procedure-profile',
       );
     const checks = this.refs(node, 'composition', 'checks', 'check').map((check) => {
-      const id = field(check, 'check', 'runs');
-      this.use('evaluators', id, check, 'check.runs');
+      // The evaluator a check names: check.implementation when present, else check.runs (compliance checkRunner).
+      const key = value(check, 'check', 'implementation') === undefined ? 'runs' : 'implementation';
+      const id = field(check, 'check', key);
+      this.use('evaluators', id, check, `check.${key}`);
       return id;
     });
     const result: CompiledCapability = {

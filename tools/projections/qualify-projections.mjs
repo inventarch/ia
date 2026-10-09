@@ -26,6 +26,7 @@ const folders = [
   'packages/runtime',
   '.ia/src/systems/session-system',
   '.ia/src/systems/agent-system',
+  'packages/workspace-runtime',
   '.ia/src/systems/agent-composition-system',
 ];
 folders.push('.ia/src/systems/template-system', '.ia/src/systems/authoring-system');

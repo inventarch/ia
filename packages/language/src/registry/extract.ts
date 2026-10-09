@@ -1,10 +1,23 @@
 import type { ChildNode, FieldNode, FileNode, RecordNode, Span } from '../ast.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
-import { CATEGORIES, KINDS, PREDICATES, isCategory, isKind, isPredicate } from '../taxonomy.js';
+import {
+  ARTIFACT_SETS,
+  CATEGORIES,
+  KINDS,
+  MOVES,
+  PREDICATES,
+  PRIMITIVES,
+  isArtifactSet,
+  isCategory,
+  isKind,
+  isMove,
+  isPredicate,
+  isPrimitive,
+} from '../taxonomy.js';
 import type { Band, Category } from '../taxonomy.js';
-import { fieldOf, restAfter, spelledAs, stringOf } from './fields.js';
-import { RESERVED_KEYWORDS } from './floor.js';
+import { fieldOf, fieldsOf, restAfter, spelledAs, stringOf } from './fields.js';
+import { ANY_ADOPTER, RESERVED_KEYWORDS } from './floor.js';
 import { conditionsIn, recordsIn } from './records.js';
 import type { ConsentRow, Entry, RequiredSystem, Steward, SystemDeclaration } from './types.js';
 
@@ -211,7 +224,11 @@ function entryOf(
     ok = false;
   }
   if (RESERVED_KEYWORDS.includes(keyword) || RETIRED_KEYWORDS.includes(keyword)) {
-    const reason = RETIRED_KEYWORDS.includes(keyword) ? 'retired by language section 8.4' : 'reserved by the floor';
+    const reason = RETIRED_KEYWORDS.includes(keyword)
+      ? 'retired by language section 8.4'
+      : keyword === ANY_ADOPTER
+        ? 'reserved for consent rows'
+        : 'reserved by the floor';
     diagnostics.push(
       diag(
         'IA-LANG-KEYWORD-RESERVED',
@@ -235,8 +252,17 @@ function entryOf(
     ok = false;
   }
   const element = `discriminator '${keyword}'`;
+  // Every entry row is written once: a second row for the same key is a fault on the second, and neither value wins.
+  const once = (key: string): FieldNode | undefined => {
+    const [row, second] = fieldsOf(field.children, [key]);
+    if (second !== undefined) {
+      incomplete(element, second.span.line, `states ${key} twice`);
+      ok = false;
+    }
+    return row;
+  };
   let category: Category | undefined;
-  const categoryField = fieldOf(field.children, ['category']);
+  const categoryField = once('category');
   if (categoryField === undefined) {
     incomplete(element, line, 'needs `category <category>`');
     ok = false;
@@ -260,7 +286,7 @@ function entryOf(
     }
   }
   const facets: string[] = [];
-  const facetsField = fieldOf(field.children, ['facets']);
+  const facetsField = once('facets');
   if (facetsField === undefined || facetsField.value.kind !== 'list' || facetsField.value.items.length === 0) {
     incomplete(element, line, 'needs `facets [<facet>, ...]` with at least one facet');
     ok = false;
@@ -273,7 +299,7 @@ function entryOf(
       }
     }
   }
-  const schemaField = fieldOf(field.children, ['schema']);
+  const schemaField = once('schema');
   const schema =
     schemaField !== undefined &&
     schemaField.value.kind === 'ref' &&
@@ -285,11 +311,58 @@ function entryOf(
     incomplete(element, line, 'needs `schema @schema <name>`');
     ok = false;
   }
-  if (!ok || lowered === undefined || category === undefined || schema === undefined) return undefined;
-  return { keyword, kind: lowered, category, facets, schema, span: field.span };
+  const lowering = loweringOf(element, incomplete, once);
+  if (!ok || lowered === undefined || category === undefined || schema === undefined || lowering === undefined)
+    return undefined;
+  return { keyword, kind: lowered, category, facets, schema, ...lowering, span: field.span };
 }
 
-/** `<predicate> <targets> using <sources>`: each side is `*` or comma-separated keywords; one `using`; no when clause. */
+/**
+ * The optional lowering extras of an entry: `artifact-set <set>`, `primitive <primitive>` and `move <move>`, each a
+ * bare closed kernel value (spec 4.2), written at most once. Absent rows leave the registration without them; a present
+ * row whose value is outside the kernel, or a second row for the same key, refuses the entry like any other incomplete
+ * row.
+ */
+function loweringOf(
+  element: string,
+  incomplete: Incomplete,
+  once: (key: string) => FieldNode | undefined,
+): Pick<Entry, 'artifactSet' | 'primitive' | 'move'> | undefined {
+  let ok = true;
+  const value = <T extends string>(
+    key: string,
+    admits: (x: string) => x is T,
+    admitted: readonly string[],
+  ): T | undefined => {
+    // `once` refuses a second row for the key at the second row, as for every entry row; the first is still checked.
+    const row = once(key);
+    if (row === undefined) return undefined;
+    if (row.value.kind !== 'scalar') {
+      incomplete(element, row.span.line, `names its ${key} as a bare word`);
+      ok = false;
+      return undefined;
+    }
+    const named = row.assertive === true ? row.value.text : restAfter(row, [key]).join(' ');
+    if (admits(named)) return named;
+    incomplete(element, row.span.line, `names a ${key} outside the kernel; admitted: ${admitted.join(', ')}`);
+    ok = false;
+    return undefined;
+  };
+  const artifactSet = value('artifact-set', isArtifactSet, ARTIFACT_SETS);
+  const primitive = value('primitive', isPrimitive, PRIMITIVES);
+  const move = value('move', isMove, MOVES);
+  if (!ok) return undefined;
+  return {
+    ...(artifactSet === undefined ? {} : { artifactSet }),
+    ...(primitive === undefined ? {} : { primitive }),
+    ...(move === undefined ? {} : { move }),
+  };
+}
+
+/**
+ * `<predicate> <targets> using <sources>`: each side is `*` or comma-separated keywords (discriminators, or the reserved
+ * `any-adopter`, which spells like one and is admitted here although no system may register it); one `using`; no when clause.
+ */
 function consentRowOf(
   field: FieldNode,
   path: string,
@@ -339,7 +412,7 @@ function consentRowOf(
   return { predicate, targets, sources, span: field.span };
 }
 
-/** A wildcard alone, or comma-separated keywords with optional whitespace around each comma. */
+/** A wildcard alone, or comma-separated keywords with optional whitespace around each comma; `any-adopter` passes as a keyword. */
 function sideOf(words: readonly string[]): readonly string[] | '*' | undefined {
   const side = words.join(' ');
   if (side === '*') return '*';

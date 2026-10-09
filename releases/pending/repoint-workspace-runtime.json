@@ -1,0 +1,17 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Distribution and steward-hook consume @inventarch/workspace-runtime",
+  "summary": "@inventarch/distribution and @inventarch/steward-hook import the generic workspace runtime from @inventarch/workspace-runtime and no longer depend on @inventarch/agent-composition-system. The installed implementation identity they pin now hashes @inventarch/workspace-runtime under its own name instead of @inventarch/agent-composition-system, so a retained context-hook binding refuses with \"Installed hook implementation changed\" until the lifecycle hook is registered again, and a projection published before the upgrade no longer checks as current until its descriptor is re-pinned to the new implementation digest and it is published again; behaviour is otherwise unchanged.",
+  "packages": [
+    "@inventarch/distribution",
+    "@inventarch/steward-hook"
+  ],
+  "paths": [
+    ".ia/authoring.resources.json",
+    "apps/distribution/",
+    "apps/steward-hook/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

@@ -4,8 +4,10 @@ import type { CompiledRecord, FrozenRegistry, SchemaEdge } from '@inventarch/lan
 import { load } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
 import {
+  checkRunner,
   graphLookup,
   validateCheck,
+  validateSchema,
   validateConsent,
   validateCoverage,
   validateFragments,
@@ -64,6 +66,66 @@ describe('full native graph checks', () => {
       validateCheck({ ...check, sections: [...check.sections, ...check.sections.filter((s) => s.name === 'check')] })
         .findings,
     ).toHaveLength(1);
+  });
+  it('reads check.implementation before check.runs, refuses their conflict and still refuses unknown ids', () => {
+    const check = [...native.nodes.values()].find((n) => n.discriminator === 'check')!;
+    // Rewrite the `check` section's fields by key: null removes a field, a string sets or adds a scalar.
+    const withCheck = (fields: Record<string, string | null>): Node => ({
+      ...check,
+      sections: check.sections.map((s) =>
+        s.name !== 'check'
+          ? s
+          : {
+              ...s,
+              fields: [
+                ...s.fields.filter((f) => !('key' in f) || !(f.key in fields)),
+                ...Object.entries(fields).flatMap(([key, text]) =>
+                  text === null ? [] : [{ key, value: { kind: 'scalar' as const, text }, span: s.span }],
+                ),
+              ],
+            },
+      ),
+    });
+    expect(checkRunner(check)).toBe('COMP-SCHEMA');
+    // runs only: unchanged.
+    expect(validateCheck(check).outcome).toBe('pass');
+    // implementation only, a built-in id: admitted, and the shared reader resolves it.
+    const implemented = withCheck({ runs: null, implementation: 'COMP-SCHEMA' });
+    expect(checkRunner(implemented)).toBe('COMP-SCHEMA');
+    expect(validateCheck(implemented)).toMatchObject({ outcome: 'pass', findings: [] });
+    // implementation only, a non-built-in id without a catalog: refused exactly as an unknown runs id.
+    const unknown = validateCheck(withCheck({ runs: null, implementation: 'acme-strict-typing' }));
+    expect(unknown.findings.map((f) => f.code)).toEqual(['IA-COMP-CHECK-UNKNOWN']);
+    expect(unknown.findings[0]!.message).toContain("Unknown or missing check.implementation 'acme-strict-typing'");
+    // both present and different: one stable conflict finding, whichever value would have been implemented.
+    const conflict = validateCheck(withCheck({ implementation: 'COMP-PARSE' }));
+    expect(conflict.findings.map((f) => [f.code, f.severity])).toEqual([['IA-COMP-CHECK-CONFLICT', 'error']]);
+    expect(conflict.findings[0]!.message).toContain("check.implementation 'COMP-PARSE' and check.runs 'COMP-SCHEMA'");
+    // both present and equal: admitted.
+    expect(validateCheck(withCheck({ implementation: 'COMP-SCHEMA' })).outcome).toBe('pass');
+    // neither present: the existing unknown finding names both fields.
+    const missing = validateCheck(withCheck({ runs: null }));
+    expect(missing.findings.map((f) => f.code)).toEqual(['IA-COMP-CHECK-UNKNOWN']);
+    expect(missing.findings[0]!.message).toContain("Unknown or missing check.implementation or check.runs ''");
+  });
+  it('admits an implementation-only check against the schema now that check.runs is optional', () => {
+    const source = {
+      path: 'implementation-only.ia',
+      text: '#! ia 1.0\n@check implementation-only\n  meaning\n    says "A check that names its implementation."\n    answers "Which check names an implementation and no runs id?"\n  check\n    implementation COMP-SCHEMA\n    scope "fixture"\n',
+      location: {
+        placement: { kind: 'authored' as const, band: 100 as const, reach: '' },
+        provenance: 'workspace' as const,
+      },
+    };
+    const compiled = compile(parse(source.text, source.path).ast, registry, source.location, records);
+    expect(compiled.diagnostics).toEqual([]);
+    const record = compiled.records[0]!;
+    expect(validateSchema(record, registry, records)).toMatchObject({ outcome: 'pass', findings: [] });
+    const graph = load([...records, record], registry, { ...options, sources: [...inputs, source] });
+    const node = graph.nodes.get(record.identity)!;
+    expect(validateGraphSchema(node, graph)).toMatchObject({ outcome: 'pass', findings: [] });
+    expect(validateCheck(node).outcome).toBe('pass');
+    expect(checkRunner(node)).toBe('COMP-SCHEMA');
   });
   it('refuses malformed caller selector products using the closed domains', () => {
     const base = native.nodes.get(methodId)!;
@@ -150,6 +212,7 @@ describe('fragments and structural coverage', () => {
     const edge = {
       predicate: 'cite' as const,
       direction: 'in' as const,
+      spelling: 'cited-by',
       reference: { kind: 'ref' as const, discriminator: 'playbook', name: method.name, fragment: 'orient/Memory' },
       target: null,
       fragment: 'orient/Memory',
@@ -187,16 +250,18 @@ describe('graph schema obligations', () => {
   const compiled = compile(parse(source.text, source.path).ast, registry, location, []).records;
   const rule: SchemaEdge = {
     predicate: 'cite',
+    direction: 'out',
+    spelling: 'cite',
     target: 'playbook',
     must: true,
     cardinality: 'one',
     span: { line: 1, endLine: 1 },
   };
-  function graphOf(changed = compiled, changedRule = rule, vocabulary = registry) {
+  function graphOf(changed = compiled, changedRule = rule, vocabulary = registry, sources = [source]) {
     const schemas = new Map(vocabulary.schemas),
       original = schemas.get('playbook')!;
     schemas.set('playbook', { ...original, sections: [], fields: [], closed: false, edges: [changedRule] });
-    return load(changed, { ...vocabulary, schemas }, { ...options, sources: [source] });
+    return load(changed, { ...vocabulary, schemas }, { ...options, sources });
   }
   const subject = (graph: ReturnType<typeof graphOf>) =>
     graph.nodes.get('governance-system/definition/procedure/source')!;
@@ -217,6 +282,36 @@ describe('graph schema obligations', () => {
     expect(validateGraphSchema(subject(conditional), conditional).outcome).toBe('not-evaluated');
     const absent = graphOf(compiled.map((r) => ({ ...r, edges: [] })));
     expect(validateGraphSchema(subject(absent), absent).findings.map((f) => f.code)).toEqual([
+      'IA-COMP-EDGE-CARDINALITY',
+    ]);
+  });
+  it('counts an inbound rule against the edges whose active target is the record, whoever asserted them', () => {
+    // `may cited-by playbook one` on the target: the source's `cites` and the target's own `cited-by` are one edge.
+    const inbound: SchemaEdge = { ...rule, direction: 'in', spelling: 'cited-by', must: false };
+    const target = (graph: ReturnType<typeof graphOf>) =>
+      graph.nodes.get('governance-system/definition/procedure/target')!;
+    const graph = graphOf(compiled, inbound);
+    expect(validateGraphSchema(target(graph), graph)).toMatchObject({ outcome: 'pass', findings: [] });
+    // The source has no inbound citation: `may` admits absence, `must` does not.
+    expect(validateGraphSchema(subject(graph), graph).outcome).toBe('pass');
+    const required = graphOf(compiled, { ...inbound, must: true });
+    const refused = validateGraphSchema(subject(required), required);
+    expect(refused.findings.map((f) => f.code)).toEqual(['IA-COMP-EDGE-CARDINALITY']);
+    expect(refused.findings[0]!.message).toContain('cited-by playbook requires must one');
+    // A second citing record exceeds `one`; the outbound rule on the source is untouched by the inbound one.
+    const extra = {
+      path: 'third.ia',
+      text: '#! ia 1.0\n@playbook third\n  relationships\n    cites @playbook target\n',
+      location,
+    };
+    const third = compile(parse(extra.text, extra.path).ast, registry, location, []).records;
+    const crowded = graphOf([...compiled, ...third], inbound, registry, [source, extra]);
+    expect(validateGraphSchema(target(crowded), crowded).findings.map((f) => f.code)).toEqual([
+      'IA-COMP-EDGE-CARDINALITY',
+    ]);
+    const outbound = graphOf([...compiled, ...third], rule, registry, [source, extra]);
+    expect(validateGraphSchema(subject(outbound), outbound).outcome).toBe('pass');
+    expect(validateGraphSchema(target(outbound), outbound).findings.map((f) => f.code)).toEqual([
       'IA-COMP-EDGE-CARDINALITY',
     ]);
   });

@@ -1,13 +1,14 @@
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { captureWorkspace, compileHarness } from '@inventarch/agent-composition-system';
-import * as resources from '@inventarch/agent-composition-system/resources';
+import { compileHarness } from '@inventarch/agent-composition-system';
+import { captureWorkspace } from '@inventarch/workspace-runtime';
+import * as resources from '@inventarch/workspace-runtime/resources';
 import {
   createInstalledSourcePolicy,
   createSourcePolicy,
   homeSourceCapture,
-} from '@inventarch/agent-composition-system/sources';
+} from '@inventarch/workspace-runtime/sources';
 import { readInputs } from '@inventarch/db';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { exampleCatalog } from '../../../tools/native/public-language.js';

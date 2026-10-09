@@ -2,9 +2,11 @@
 
 Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it.
 
-Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: milestone.
+Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: milestone. Artifact set: product-definition. Primitive: Inference. Move: Verification.
 
 Canonical schema: .ia/src/systems/work-system/schemas/milestone.schema.ia.
+
+Default file: milestone.ia, relative to the workspace's authored root (the sources row at placement authored).
 
 Section meaning: required.
 Section work: required.

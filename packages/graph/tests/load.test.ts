@@ -151,6 +151,11 @@ describe('active endpoints, dangling references and consent', () => {
     expect(graph.diagnostics).toEqual([]);
     expect(graph.edges).toHaveLength(1);
     expect(graph.edges[0]!.assertions).toHaveLength(2);
+    // Each assertion keeps the verb its author wrote; the edge's endpoints stay normalized to the active direction.
+    expect(graph.edges[0]!.assertions.map((x) => [x.author, x.direction, x.spelling])).toEqual([
+      [a.records[0]!.identity, 'out', 'cites'],
+      [b.records[0]!.identity, 'in', 'cited-by'],
+    ]);
     expect(graph.out.get(a.records[0]!.identity)?.get('cite')).toHaveLength(1);
     expect(graph.in.get(b.records[0]!.identity)?.get('cite')).toHaveLength(1);
   });
@@ -307,12 +312,22 @@ describe('typed field references (G06a)', () => {
     expect([...native.referencedBy.values()].reduce((n, list) => n + list.length, 0)).toBe(native.references.length);
   });
 
+  it('keys the same references by holder in referencesFrom, each list in references order', () => {
+    expect(native.referencesFrom.size).toBeGreaterThan(0);
+    for (const identity of native.nodes.keys())
+      expect(native.referencesFrom.get(identity) ?? []).toEqual(native.references.filter((r) => r.from === identity));
+    expect([...native.referencesFrom.values()].every((list) => list.length > 0)).toBe(true);
+    expect([...native.referencesFrom.values()].reduce((n, list) => n + list.length, 0)).toBe(native.references.length);
+  });
+
   it('is deterministic, snapshotted and leaves the revision to its sources', () => {
     const reversed = load([...records].reverse(), registry, { ...options, sources: [...inputs].reverse() });
     expect(stableSerialize(reversed.references)).toBe(stableSerialize(native.references));
     expect(stableSerialize(reversed.referencedBy)).toBe(stableSerialize(native.referencedBy));
+    expect(stableSerialize(reversed.referencesFrom)).toBe(stableSerialize(native.referencesFrom));
     expect(reversed.revision).toBe(native.revision);
     expect(() => (native.references as unknown[]).pop()).toThrow();
     expect(() => (native.referencedBy as Map<string, unknown>).clear()).toThrow();
+    expect(() => (native.referencesFrom as Map<string, unknown>).clear()).toThrow();
   });
 });

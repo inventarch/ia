@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../../src/parser/index.js';
 import { extractSchemas, fieldTypeText } from '../../src/registry/schemas.js';
+import { VERB_PHRASES } from '../../src/semantic/vocabulary.js';
 
 const extract = (source: string) => {
   const parsed = parse(source, 'sch.ia');
@@ -53,9 +54,9 @@ describe('extractSchemas', () => {
       ['lifecycle', 'state', 'id', false, undefined],
       ['meaning', 'tags', 'list of id', false, undefined],
     ]);
-    expect(s.edges.map((e) => [e.predicate, e.target, e.must, e.cardinality])).toEqual([
-      ['cite', 'governance', true, 'one-or-more'],
-      ['use', 'playbook', false, 'optional'],
+    expect(s.edges.map((e) => [e.predicate, e.direction, e.spelling, e.target, e.must, e.cardinality])).toEqual([
+      ['cite', 'out', 'cite', 'governance', true, 'one-or-more'],
+      ['use', 'out', 'use', 'playbook', false, 'optional'],
     ]);
   });
 
@@ -87,7 +88,7 @@ describe('extractSchemas', () => {
 
   it('refuses malformed edges and reports the refused names', () => {
     const head = '#! ia 1.0\n@schema s\n  lowers to definition\n  sections\n    closed\n  edges\n';
-    expect(codes(`${head}    must cites governance one\n`)).toEqual([['IA-LANG-PREDICATE-UNKNOWN', 7]]);
+    expect(codes(`${head}    must citing governance one\n`)).toEqual([['IA-LANG-PREDICATE-UNKNOWN', 7]]);
     expect(codes(`${head}    must cite governance many\n`)).toEqual([['IA-LANG-SCHEMA-MALFORMED', 7]]);
     expect(codes(`${head}    cite governance one\n`)).toEqual([['IA-LANG-SCHEMA-MALFORMED', 7]]);
     const r = extract(`${head}    must cite governance many\n`);
@@ -288,6 +289,76 @@ describe('extractSchemas', () => {
     },
   );
 
+  describe('verb spellings', () => {
+    const rule = (row: string) => {
+      const result = extract(`${BASE}  edges\n    ${row}\n`);
+      expect(result.diagnostics).toEqual([]);
+      return result.schemas[0]?.edges[0];
+    };
+    it('reads the active, inverse and present spellings with their direction and the spelling as authored', () => {
+      expect(rule('may govern law optional')).toMatchObject({
+        predicate: 'govern',
+        direction: 'out',
+        spelling: 'govern',
+      });
+      expect(rule('may governed-by law one')).toMatchObject({
+        predicate: 'govern',
+        direction: 'in',
+        spelling: 'governed-by',
+        target: 'law',
+        must: false,
+        cardinality: 'one',
+      });
+      expect(rule('must governs law one-or-more')).toMatchObject({
+        predicate: 'govern',
+        direction: 'out',
+        spelling: 'governs',
+        must: true,
+        cardinality: 'one-or-more',
+      });
+      expect(rule('may run-after task one')).toMatchObject({
+        predicate: 'run-before',
+        direction: 'in',
+        spelling: 'run-after',
+      });
+    });
+    it('reads a present phrase of several words as one verb', () => {
+      expect(rule('may grants access to agent optional')).toMatchObject({
+        predicate: 'grant-access-to',
+        direction: 'out',
+        spelling: 'grants access to',
+        target: 'agent',
+        cardinality: 'optional',
+      });
+      expect(rule('must records lineage from run one')).toMatchObject({
+        predicate: 'record-lineage-from',
+        spelling: 'records lineage from',
+        target: 'run',
+      });
+    });
+    it('refuses a second rule in the same direction whatever its spelling, and keeps opposite directions apart', () => {
+      expect(codes(`${BASE}  edges\n    may govern law optional\n    may governs law one\n`)).toEqual([
+        ['IA-LANG-SCHEMA-MALFORMED', 8],
+      ]);
+      const both = extract(`${BASE}  edges\n    may govern law optional\n    may governed-by law optional\n`);
+      expect(both.diagnostics).toEqual([]);
+      expect(both.schemas[0]?.edges.map((e) => [e.predicate, e.direction, e.spelling])).toEqual([
+        ['govern', 'out', 'govern'],
+        ['govern', 'in', 'governed-by'],
+      ]);
+    });
+    it('names the whole verb text when no spelling admits it and lists every accepted spelling', () => {
+      const result = extract(`${BASE}  edges\n    may records lineage law one\n`);
+      expect(result.diagnostics.map((d) => [d.code, d.line])).toEqual([['IA-LANG-PREDICATE-UNKNOWN', 7]]);
+      expect(result.diagnostics[0]?.message).toContain(
+        `'records lineage' is not a predicate spelling; admitted: ${VERB_PHRASES.join(', ')}`,
+      );
+      expect(result.diagnostics[0]?.message).toContain('governed-by');
+      expect(result.diagnostics[0]?.message).toContain('records lineage from');
+      expect([...result.refused]).toEqual(['s']);
+    });
+  });
+
   it.each([
     [BASE.replace('  sections', '  when phase is act\n  sections'), 4],
     [BASE.replace('lowers to definition', 'lowers to definition when phase is act'), 3],
@@ -333,7 +404,7 @@ describe('extractSchemas', () => {
 
   it('reports independent dialect faults and refuses only the broken schema', () => {
     const result = extract(
-      `${BASE.replace('definition', 'widget')}  fields\n    must have relationships.cites as ref\n  edges\n    may cites law one\n${BASE.replace('#! ia 1.0\n', '').replace('@schema S', '@schema Good')}`,
+      `${BASE.replace('definition', 'widget')}  fields\n    must have relationships.cites as ref\n  edges\n    may citing law one\n${BASE.replace('#! ia 1.0\n', '').replace('@schema S', '@schema Good')}`,
     );
     expect(result.diagnostics.map((d) => [d.code, d.line])).toEqual([
       ['IA-LANG-KIND-UNKNOWN', 3],

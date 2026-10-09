@@ -70,6 +70,8 @@ export function runRefusalFixtures(
     validateSystems(changed, vocabulary, pool).flatMap((a) => a.findings);
   const rule = {
     predicate: 'cite' as const,
+    direction: 'out' as const,
+    spelling: 'cite',
     target: 'playbook',
     must: true,
     cardinality: 'one' as const,
@@ -98,6 +100,7 @@ export function runRefusalFixtures(
   const edge = {
     predicate: 'cite' as const,
     direction: 'out' as const,
+    spelling: 'cite',
     reference: { kind: 'ref' as const, discriminator: 'playbook', name: 'missing' },
     target: null,
     span: agent.source,
@@ -359,6 +362,24 @@ export function runRefusalFixtures(
       () => validateSelectors({ ...method, selectors: [[{ axis: 'phase', value: 'unknown' }]] }).findings,
     ],
     ['IA-COMP-CHECK-UNKNOWN', () => validateCheck({ ...check, sections: [] }).findings],
+    [
+      'IA-COMP-CHECK-CONFLICT',
+      () =>
+        validateCheck({
+          ...check,
+          sections: check.sections.map((s) =>
+            s.name !== 'check'
+              ? s
+              : {
+                  ...s,
+                  fields: [
+                    ...s.fields,
+                    { key: 'implementation', value: { kind: 'string', text: 'fixture-other-evaluator' }, span: s.span },
+                  ],
+                },
+          ),
+        }).findings,
+    ],
     ['IA-COMP-VARIANT-AMBIGUOUS', () => validateVariants(ambiguous).findings],
     [
       'IA-COMP-ADOPTION-FAILED',
