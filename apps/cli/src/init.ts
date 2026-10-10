@@ -477,11 +477,15 @@ const writable = (path: string): boolean => {
  * damaged, because nothing the user did to the target can cause it.
  */
 /** M5.1 §2.3's normalization: lowercase, every run outside `[a-z0-9-]` becomes `-`, no leading or trailing `-`. */
-export const normalizeName = (directory: string): string =>
-  directory
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+export const normalizeName = (directory: string): string => {
+  const normalized = directory.toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+  let start = 0,
+    end = normalized.length;
+  // Scan each edge once: an unanchored trailing-hyphen regex retries at every internal hyphen.
+  while (start < end && normalized[start] === '-') start++;
+  while (end > start && normalized[end - 1] === '-') end--;
+  return normalized.slice(start, end);
+};
 
 /** M5.1 §2.3: valid only if the name, the full id and the public-system rule all hold. Nothing is invented. */
 export function starterIdentity(

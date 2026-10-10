@@ -47,6 +47,7 @@ import {
   gitAnswer,
   gitIn,
   INSTALL_LOCK,
+  normalizeName,
   PIN_PATH,
   readBase,
   readProvenance,
@@ -562,6 +563,50 @@ it('sources provenance from an HTTPS remote and HEAD, and says which fact was mi
   const packed = await run(['pack', '--root', root, '--descriptor', '.ia/release.json', '--json']);
   expect(packed.exitCode, packed.stderr).toBe(0);
   expect(json(packed).manifest.source).toEqual({ repository, commit, recipe: 'ustar-v1', epoch });
+});
+
+it('normalizes name edges without collapsing internal hyphens or changing Unicode normalization', () => {
+  for (const [input, expected] of [
+    ['', ''],
+    ['---', ''],
+    ['--My Project!--', 'my-project'],
+    ['a--b', 'a--b'],
+    ['a - _ b', 'a---b'],
+    ['\u0130 / \u03a9 / B', 'i-b'],
+    ['A💡B', 'a-b'],
+    ['  A___B...C  ', 'a-b-c'],
+  ] as const) {
+    expect(normalizeName(input), input).toBe(expected);
+  }
+});
+
+it('normalizes adversarial internal hyphen runs within a bounded subprocess', async () => {
+  // An internal run followed by a letter makes the old suffix regex retry at every hyphen.
+  // Keep the deadline outside that process so a regression cannot block the test runner.
+  const source = new URL('../src/init.ts', import.meta.url).href;
+  const child = await runBounded(
+    process.execPath,
+    [
+      '--conditions=development',
+      '--import',
+      'tsx',
+      '--input-type=module',
+      '--eval',
+      `import assert from 'node:assert/strict';
+       import { normalizeName } from ${JSON.stringify(source)};
+       const hyphens = '-'.repeat(1_000_000);
+       const internal = 'a' + hyphens + 'b';
+       assert.equal(normalizeName(internal), internal);
+       assert.equal(normalizeName(hyphens + 'A' + hyphens), 'a');
+       assert.equal(normalizeName(hyphens), '');
+       assert.equal(normalizeName('a' + '_'.repeat(1_000_000) + 'b'), 'a-b');
+       console.log('normalized');`,
+    ],
+    { cwd: repository, timeoutMs: 10_000 },
+  );
+  expect(child.timedOut, child.stderr).toBe(false);
+  expect(child.status, child.stderr).toBe(0);
+  expect(child.stdout.trim()).toBe('normalized');
 });
 
 it('normalizes the directory name into the id, asks for --id when it cannot, and never invents one', async () => {
