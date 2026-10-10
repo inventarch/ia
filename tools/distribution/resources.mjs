@@ -46,6 +46,9 @@ export const LANGUAGE_GUIDE_COPIES = [
   'packages/workspace-runtime/LANGUAGE.md',
 ];
 
+/** Prose a word reference prints as is: `<facet>` or `<tool>@<version>` would read as an HTML tag, so `<` is escaped. */
+const referenceText = (text) => text.replaceAll('<', '\\<');
+
 export function publicResources({ outputs, text, put, json, manifest }) {
   const words = JSON.parse(text('docs/reference/language/vocabulary.json')).words;
   const guide = publicLanguageGuide(words);
@@ -71,7 +74,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       '',
       word.description,
       '',
-      `Owner: ${word.owner}. Identity: ${word.identity}. Facets: ${word.facets.join(', ')}. Artifact set: ${word.artifactSet}. Primitive: ${word.primitive}. Move: ${word.move}.`,
+      `Owner: ${word.owner}. Identity: ${referenceText(word.identity)}. Facets: ${word.facets.join(', ')}. Artifact set: ${word.artifactSet}. Primitive: ${word.primitive}. Move: ${word.move}.`,
       '',
       `Canonical schema: ${word.schema.path}.`,
       '',
@@ -83,7 +86,7 @@ export function publicResources({ outputs, text, put, json, manifest }) {
       '',
       ...word.schema.fields.map(
         (field) =>
-          `- ${field.path}: ${fieldTypeText(field)}; ${field.required ? 'required' : 'optional'}.${field.description ? ` — ${field.description}` : ''}`,
+          `- ${field.path}: ${fieldTypeText(field)}; ${field.required ? 'required' : 'optional'}.${field.description ? ` — ${referenceText(field.description)}` : ''}`,
       ),
       '',
       ...word.schema.edges.map(

@@ -2,7 +2,7 @@
 
 Connects a native target to a host-installed entry or operation descriptor.
 
-Owner: agent-composition-system. Identity: agent-composition-system/binding/<facet>/<name>. Facets: execution-binding. Artifact set: execution. Primitive: Decision. Move: Execution.
+Owner: agent-composition-system. Identity: agent-composition-system/binding/\<facet>/\<name>. Facets: execution-binding. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/execution-binding.schema.ia.
 

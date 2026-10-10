@@ -21,7 +21,7 @@
       "native": {
         "system": "agent-composition-system",
         "id": "inventarch/agent-composition-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-agent-composition-system"
       }
     },
@@ -32,7 +32,7 @@
       "native": {
         "system": "agent-system",
         "id": "inventarch/agent-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-agent-system"
       }
     },
@@ -43,7 +43,7 @@
       "native": {
         "system": "authoring-system",
         "id": "inventarch/authoring-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-authoring-system"
       }
     },
@@ -54,7 +54,7 @@
       "native": {
         "system": "compliance-system",
         "id": "inventarch/compliance-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-compliance-system"
       }
     },
@@ -65,7 +65,7 @@
       "native": {
         "system": "governance-system",
         "id": "inventarch/governance-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-governance-system"
       }
     },
@@ -76,7 +76,7 @@
       "native": {
         "system": "hook-authoring-system",
         "id": "inventarch/hook-authoring-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-hook-authoring-system"
       }
     },
@@ -87,7 +87,7 @@
       "native": {
         "system": "learning-system",
         "id": "inventarch/learning-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-learning-system"
       }
     },
@@ -98,7 +98,7 @@
       "native": {
         "system": "session-system",
         "id": "inventarch/session-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-session-system"
       }
     },
@@ -109,7 +109,7 @@
       "native": {
         "system": "template-system",
         "id": "inventarch/template-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-template-system"
       }
     },
@@ -120,7 +120,7 @@
       "native": {
         "system": "work-system",
         "id": "inventarch/work-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-work-system"
       }
     },
@@ -131,7 +131,7 @@
       "native": {
         "system": "workspace-system",
         "id": "inventarch/workspace-system",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "distribution": "workspace-system/definition/distribution/package-workspace-system"
       }
     }

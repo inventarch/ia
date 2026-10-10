@@ -2,7 +2,7 @@
 
 Represents bounded rendering inputs and output structure. Rendering does not publish or install output.
 
-Owner: template-system. Identity: template-system/template/<facet>/<name>. Facets: template. Artifact set: projection. Primitive: Decision. Move: Execution.
+Owner: template-system. Identity: template-system/template/\<facet>/\<name>. Facets: template. Artifact set: projection. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/template-system/schemas/template.schema.ia.
 

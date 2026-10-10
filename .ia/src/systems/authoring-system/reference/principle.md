@@ -2,7 +2,7 @@
 
 Declares a governing rationale in the shared governance shape.
 
-Owner: governance-system. Identity: governance-system/governance/<facet>/<name>. Facets: principle. Artifact set: principle. Primitive: Inference. Move: Synthesis.
+Owner: governance-system. Identity: governance-system/governance/\<facet>/\<name>. Facets: principle. Artifact set: principle. Primitive: Inference. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/governance-system/schemas/principle.schema.ia.
 

@@ -1036,47 +1036,47 @@
     },
     {
       "path": ".claude/agents/public-agent-composition-system-steward.md",
-      "sha256": "3f213c8326e02c39d2b4408d70362cc330795ff593aec1fbc429c80406b7e420"
+      "sha256": "f96e8a788937e9ef94147351e9422203c8624ebaba492a0ad4dae711fcd2c211"
     },
     {
       "path": ".claude/agents/public-agent-system-steward.md",
-      "sha256": "1fc813235f7a015f193f61077b254231c45f394db27ca543f0f4407a96e43a68"
+      "sha256": "d0332378a0c7679c19ac6a6581ec252a314cd2ab7f34f558acfe3605c2590018"
     },
     {
       "path": ".claude/agents/public-authoring-system-steward.md",
-      "sha256": "313f0a805727369f770ad0cbb32d71df7c12a6bf0cb7cb98072c5df2cc1fc9ee"
+      "sha256": "daf6b346fdd72c7aa2762d60accfa75c696ad6b9ac94b8a00b30cc795c472761"
     },
     {
       "path": ".claude/agents/public-compliance-system-steward.md",
-      "sha256": "c440c45335b0ebb9292fe10638167437753cb3989712131c2b77256317cd5e4b"
+      "sha256": "a14e30b045f10f6cccb4ad6eb15b535ecb5cb6fcdd3cad1fbb615cf55e4716a4"
     },
     {
       "path": ".claude/agents/public-governance-system-steward.md",
-      "sha256": "6d74d7cdbe779793728414d7b7e302976cb8db5dcc1ccfee5abaa538671cb875"
+      "sha256": "a9b66586f01c3757cc5c1444996f9536769bc67bc72ce713fb03f57135af7496"
     },
     {
       "path": ".claude/agents/public-hook-authoring-system-steward.md",
-      "sha256": "7d48c4244fdcb2fa76831ba6388f03b8b0d76fed6eee2187e6034e5be203e267"
+      "sha256": "c90499a4639a80c62f5dd9d3ce362a52641401dbd1fa04656d2699011a8caad5"
     },
     {
       "path": ".claude/agents/public-learning-system-steward.md",
-      "sha256": "762b5493f6d2d4faed3ae29d984b0b180b622d0a19ba454e94d8f651c8f6619f"
+      "sha256": "ba7a1de83a415c25d836be1b6933f9b927388687e79599ac1b2accd1e7e8f255"
     },
     {
       "path": ".claude/agents/public-session-system-steward.md",
-      "sha256": "ae8dbdfa5cc17fed956e025a56ae96574426232f7a6b4455a2259fdf7bdee50e"
+      "sha256": "ef89951413824482a28c98fcb6dea3ed896343d5e1efc5011f2e3cb2b19c3442"
     },
     {
       "path": ".claude/agents/public-template-system-steward.md",
-      "sha256": "58f086f84922136494f09613c81ca04cdac6532eef6ff15fbe2318037b54c32e"
+      "sha256": "ebfeb987f50520c9d7814ad903a2f2811e0bd1673ea23cea5ae4011866a434d1"
     },
     {
       "path": ".claude/agents/public-work-system-steward.md",
-      "sha256": "38a44a1ace615b32bf255479f8ba729c601d31ed71fb37ff251f3716829ffc21"
+      "sha256": "98b593700b05865d752f7aa54ed330f264b493a20221b4a06a7459eb218a5bbc"
     },
     {
       "path": ".claude/agents/public-workspace-system-steward.md",
-      "sha256": "4869ddbfd4a5442103aed5028b275b4ec4215282810c6363df0e9dbaad108d4e"
+      "sha256": "9a7e42e7b81a58fbc09dc6a29b82c2e49be642e6b7a7d84ce0e12f5fc82109d0"
     },
     {
       "path": ".claude/skills/ia-authoring/SKILL.md",
@@ -1164,7 +1164,7 @@
     },
     {
       "path": ".ia/authoring.resources.json",
-      "sha256": "0a341b15c62ada3c120d21ff165666945762116c7381515081e69ee0e15e05b1"
+      "sha256": "5b72d6a3abddc0b5f0ce32ab4e1902d585a1f85eab21bceea2416f44ab40d40e"
     },
     {
       "path": ".ia/src/floor/README.md",
@@ -1496,7 +1496,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/system.ia",
-      "sha256": "10b41865ec52d2048a3f1c568d536d629377b0f59376c9d0227f52e92e852a86"
+      "sha256": "341cfd8f4f4b81ff40bd6b0c38f74b9129de64c9cf7c6ffd6aa185c457e58468"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/compatibility.test.ts",
@@ -1644,7 +1644,7 @@
     },
     {
       "path": ".ia/src/systems/agent-system/system.ia",
-      "sha256": "1c1983225f43a8bb43cee818a8c48491c24fb766d96488d1ae57ce44cbc90d45"
+      "sha256": "272b4e4610181797afd5b15bf0ea4fb17009b9e87cf5c64cb81581bbbbb93204"
     },
     {
       "path": ".ia/src/systems/agent-system/tests/contracts.test.ts",
@@ -1724,179 +1724,179 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/agent-profile.md",
-      "sha256": "e60060704f9ba300065d5b171413a35767e9fa5550122732676a037e306379c1"
+      "sha256": "91c74b3fab01864f7d74daf7ace2d09e72d10234a09c5b357672f90cc8ca0a48"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/agent.md",
-      "sha256": "a81564700d567c00ed1de1012c7525a575425c82b66e0f0d44deaa51cb94dda3"
+      "sha256": "2d4b69c5c910e14a17fa70f925a22ba574720b468ad5f95f74a86e49c023d244"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/artifact-set.md",
-      "sha256": "7f78bf0797c4200d848bb01f80bf51158d5eacfabd1c08234c714894d3d6cd76"
+      "sha256": "b4608c4863d70f6c7f5d09d01d67d19f8e6962fe9c09e9bab788092922c462f1"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/authoring-guide.md",
-      "sha256": "e740c6f09039a421cf1c5fd4ca1c1b1e50adcc3aba40b9d73fb2e5b35e4012c9"
+      "sha256": "0e9a1221b05ca788d3a3300c0092bc6864e06ea5fc96a05cd366fe622ebb605f"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/axis.md",
-      "sha256": "8f27295b2a00f929e46716f57afb575f618da0e5ee0ea846dbaaa92ae15ff389"
+      "sha256": "523c4d826c541c5a300e8965bc10b6b46f4cc62a10e1ab7dd50080d7dfbdab29"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/capability.md",
-      "sha256": "1e38c59fa9d5d27f7e48f61b22e8ee15c51872d7a990f170892db5591dd801b0"
+      "sha256": "c71de6238120a8151baaa0314b10af741f99c6c1ebeed355307d7e6f9dce0e42"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/cardinality.md",
-      "sha256": "03ea1183b5a99d63ab71ea70937b9b6101933ef895d0fb3a8171fa82c26cbcaf"
+      "sha256": "c8a06c62f524e873d7aa38ab9e69b0ecb0043acde8841478593b0c18164a82ec"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/case.md",
-      "sha256": "ed891e7112b5a9e2f275bd41c80f7980b2a0cd953ecc0def076ac943b2de3ff3"
+      "sha256": "e9a34d73deaee86ce2a700db5669dd8f72b9abd3e411331f8edc35e7514989c0"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/category.md",
-      "sha256": "b88cf4779ebcd4d0e7253a588fdd48fbc02d176ad691642aae6c005f5b45f291"
+      "sha256": "defe850428b443f36599a87dc2e667fe7e4b2bde4754a6f54886e31094931b7f"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/check.md",
-      "sha256": "17d7a99c7bf5b07e7d70e89c9947c32786379317a525135309a3a8abe1d5be04"
+      "sha256": "1ea6dbe2bcc1dd1e241e6858cb46d8e58710cd067076d4824f87baf66837d126"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/contract.md",
-      "sha256": "7b93346c2608e63df62ef063d07f1a388f02e63130943a56eb6fea884414c81e"
+      "sha256": "7f1789e2cba5031a5b5b9ff32860f74287853f0be0811768a102b8a452219d90"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/convention.md",
-      "sha256": "6505563030565c3b3bc48f97340d7f6c5ea28cd81cb9ca3b0fe81398a58b1fba"
+      "sha256": "75a83801a14ff75b8465261be212897aef6309bd8f0151dbe08e7711a12067ad"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/decision.md",
-      "sha256": "8f82edfa7b3928290340b4e1917f8f674d5ee00e925090996b7d86f35adaf0ef"
+      "sha256": "28d108ce7f63de12a760eae4367734546147dd6bfe1e16ea94b21d0da8e016f7"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/dimension.md",
-      "sha256": "307b02638e13aa954092d6a5044803e881e7237d2a723c8a5860e30e7cfbe4d1"
+      "sha256": "d416b517e8c958ab583af1ec673e956032c276bc5ad5c5e55665ccf0ad30af56"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/distribution.md",
-      "sha256": "4e09d08f6791236e0c70d3272081a9ecdebe62c4c54dfb8955104dc185edd670"
+      "sha256": "6fe78f2a481cd55ff5437abff359ae6d0c387871d840fc30c1192dac3bdd6831"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/execution-binding.md",
-      "sha256": "da94115a5606f174a6d6de913c2ce9fc2172d4073bfe08a7066a0587a5b613cc"
+      "sha256": "5675cdc50d4112802470e9c921c530df7dfc137d89e2bf0e33ac3374e6fe748b"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/harness.md",
-      "sha256": "4b94eef5e9706e499b9615febb59ed29fc3a42f6926585d715792c204a66ed17"
+      "sha256": "ca9e621216bf8dc39ec33800a702aaf484144888865688a9e99002c91e37030e"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/hook.md",
-      "sha256": "202481a2b210a952d56c8617b66621910beb56a70f6c025fd36938e58f8b8b7b"
+      "sha256": "57e3e1cbf2669c70db0fb01bf710999f7c05ead8f21c3784569beb4080fdafc3"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/improvement.md",
-      "sha256": "aa120fa42bae0d958c46e19ecf088a83bb4ff1e7fa8899e4bfc77ee05bd1e363"
+      "sha256": "2670b26ed4668636f24b5162f4c50aedb2e95b1629ee0b44bb6ff8c1fc34390a"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/intent-shape.md",
-      "sha256": "4cfcefea74b12dbfac71c7a48d22020553584fca9ee5600b81322330cd215514"
+      "sha256": "f973aa1805737428c73211668ab00f4352532b15ad0cdee0e5fe74ec59dcc9e6"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/kind.md",
-      "sha256": "faea93fd825ebb58edf0b3a84fa4e3d18c7407965041f955bfb3a7718fb00643"
+      "sha256": "632facbe5faa99da0f962df3ad1b09f7e9f48d54c680d03786e261f553401e64"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/lane.md",
-      "sha256": "841f19ebf2192395a663a2f19989acd642757606ba308e7c449d53f44dbf016d"
+      "sha256": "c3cbb73a6ef9fee565ec8a3561afe7b9676c18b4f0f8c9dbd019979a5bd49b64"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/law.md",
-      "sha256": "2cdec735847c2c7fb5008d81a39dac1a854c835d5f8ccd5a482d5e2e7dae9b43"
+      "sha256": "5d64d1bd1f58097a2a5ba6b9a17efe3565db56076763e888da787ae030045c39"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/mandate.md",
-      "sha256": "17d881a3ee38788bbf613e6ab770a1edd809bdb5ddf0d1c475495e73700207a9"
+      "sha256": "53083477806449be59cfeee1e5c101891cd4b44a6199a3f65d1a61d6cac2cdb0"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/milestone.md",
-      "sha256": "81c41c6223b61a19e4e5382d3d875100a6bea8a7fced7b2c77b87b246eeb581a"
+      "sha256": "fa69299b7c0215d42d5dcf3acc9f4873fa4e78ec3c1f6471d474e992deec49dc"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/move.md",
-      "sha256": "69e6688bd24161dc0f45fc4e3fae22da57a9745eb7ac2dfcf6e27d258be96e86"
+      "sha256": "0fdc547222f6341249e84e296b6fb543590ed6907fa2bd316e41db6b23e24bb3"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/observation.md",
-      "sha256": "16e15fab1c16cf28645bdbb91170c2fc5ddfce09f52e5469ac1df488dfb220fe"
+      "sha256": "224865a394ac8f33bba3fe9d345ae1d69b5f08c3b3a64eb166725820693ad465"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/operation.md",
-      "sha256": "c7910b80a20a1f2505a0ae18e3e4ae397b43fd2faeb1dac21e0d2cec073ebbfa"
+      "sha256": "1e782670ec8e3bc2556a79ff0b62fde036fbe81a071acf42f30118550a2575b3"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/phase.md",
-      "sha256": "23ea93532a6817a03c1e1e5cb3bd4e7809ed4c57b6a106ba72c5d993138a6e6f"
+      "sha256": "d644786c7dfec7b1bfc148ff0e713a96fb5f5b1e30dfff45fc0c6a834e8d2850"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/placement.md",
-      "sha256": "c225d7e00be7adae27e68ab78760556e6adb04cca2ded349eedd77f727e66107"
+      "sha256": "a2f4b600fa0768d190b3ead505a0751ec39e483a59dbd55e3286f385f6b0215c"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/plan.md",
-      "sha256": "abe91b84a033d6a573f037cddc6654a5d672b2d309dcf3870446aa06b7030b0c"
+      "sha256": "5f1b6b49b24974705e66080a7bdfcab25065c4b0c0b5054957fcf3ab22254fac"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/playbook.md",
-      "sha256": "10cb4c3352661e5e5bf8a713172e5a33dde800ac6f7d3fcdfb549b80aa06e1fe"
+      "sha256": "aadad0e7671a66ebe4de976005337000d7ad3b08a30ae3e9069dca4b88978006"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/predicate.md",
-      "sha256": "db96c22ec8998ba4a94eaeca256f6c064888c5964ca5b28d4165d36c4d994af1"
+      "sha256": "443c1e76ac1d0df77d30b6ef8626c43050ca8c9762c1796bf438bfd468c2ba31"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/primitive.md",
-      "sha256": "4383e696d2dfd0cd90df4cb5753fa4b78d03496d2bfc2ab15e5d5e045606103b"
+      "sha256": "5985d7e91379bb7763e5b75cc9a9469fbc72c0ffbd5c2ed8bdfeb5227ece0e17"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/principle.md",
-      "sha256": "7f58c7c81f7cca0b18dfcc34baaa9d8fbbacb141e81b7f044379ab6353129866"
+      "sha256": "896657c23aeb54b0402eb07822dbf0383c8c6fc8c3c2211a1cbac0a86af3bf3c"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/run.md",
-      "sha256": "6979545203d2c8633e134337b27333e6caf9311c1a6c02bdf25175dd41cb70f6"
+      "sha256": "2efcb31c090b9a6a83e15f6c6236cfb98e4845cc514acd9c25ca7b0e86c4efbb"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/schema.md",
-      "sha256": "bc4c9dfbe550628d8f40ddc72591bb66ffaca5e918e7c3243e1e34a0d6d27afb"
+      "sha256": "80ddc80138f2760c38ef8b27233d29eadc1c3a88991afae1a99a31cb61acc5d6"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/spec.md",
-      "sha256": "fde20eac13549be409169da626853439590b9f8fec561d30f835831909e253f1"
+      "sha256": "b4ddb632cbe94e5a42493e45c7e9205daf0af6dcf06f1ef00a19f7abae524bd9"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/system.md",
-      "sha256": "58e2b549fd708e5814b69167e318c45a5263850cfc353b441d3e9c0c6917e562"
+      "sha256": "aa0e8506a4a171acc1aa8f8cec1a67b458f5db61b6a95e48de4686b8b123037f"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/task.md",
-      "sha256": "d480dfa3c37adb6e3678cfacc702a8f8cc9613c2306492b8286f092f32ccdcc6"
+      "sha256": "0c25a9a59d203d8feda0435159e2c4bddcd5371ac8a1c76478c283ebdf560c9b"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/template.md",
-      "sha256": "2a37c7a236bdaa7de342cb71b60feee3bb42bc2df7d76e6b6d43df4c106e9059"
+      "sha256": "1835398b30dbd017953e0b78ab96117087ff72047ae733ed0d929e0c3cd7f55d"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/value-type.md",
-      "sha256": "8b3eb52dfa2a813cbe5015b3a0ac68ca3427f943e09c33fb2ca91492715fc136"
+      "sha256": "f16d37df69948bee42a4c7a4385eb84ed88160bf365976738cf0c70881d9c0e1"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/voice.md",
-      "sha256": "95f75068d845860b75ee49b157b1b7885c4c7c2c2dbfcffc3f1fce99d06a5326"
+      "sha256": "360b3c1341d71ee833335dc9d28d07cffa72da17e7f0326bd0cd84cdaa83ec25"
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/workspace.md",
-      "sha256": "9e0aacb3d5ee4a735b648751cd590ad2bbc694f659df26e30372353a98fe8b6c"
+      "sha256": "c202d955cb831dea670d6cf09a0c6d2074f5fc32c8b2170d899d8e1f92666275"
     },
     {
       "path": ".ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia",
@@ -1912,7 +1912,7 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/system.ia",
-      "sha256": "588a774abe76bc90687836c06ae777d4af33e40fca551e9d93d177c84fc370c8"
+      "sha256": "6b3adfd5f22578651ecdb079363ac86b5a59f19080b6d74f394356acdab59568"
     },
     {
       "path": ".ia/src/systems/authoring-system/tests/drafts.test.ts",
@@ -1968,7 +1968,7 @@
     },
     {
       "path": ".ia/src/systems/compliance-system/system.ia",
-      "sha256": "3858f6221be493d65b8b19c9cde9a97e51dca54cfeee475e52cb06d0a49f4294"
+      "sha256": "caee73ac925a9beacf62eb4aa53c23440d7335bcda936353a24cbc02ebbaf5f5"
     },
     {
       "path": ".ia/src/systems/governance-system/LANGUAGE.md",
@@ -2012,7 +2012,7 @@
     },
     {
       "path": ".ia/src/systems/governance-system/system.ia",
-      "sha256": "9dfabc89d51e5ab0ea4e30677bc7a9bac609e6a11f9154b13deca6e0690de597"
+      "sha256": "88727f106ed2079de5caa7bb2bb6c2febf9935d7a99390d58f7085efaf4cea0a"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md",
@@ -2044,7 +2044,7 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/system.ia",
-      "sha256": "de684e62e3c3523ac79687c318212eb85b79bacde4ad07213acc8eb77c36fc89"
+      "sha256": "b36eb182c9a5906c8e01a1426bfffa0dcb121189871af185f80b1d578e3be9d5"
     },
     {
       "path": ".ia/src/systems/learning-system/LANGUAGE.md",
@@ -2084,7 +2084,7 @@
     },
     {
       "path": ".ia/src/systems/learning-system/system.ia",
-      "sha256": "e76e3564c02e09d132962fb7904c6c2f598c66d5448684adfa24a5f76acf96f8"
+      "sha256": "f726ab622a27003d73ef99868a3835d8a91c941996ffd61934f2ec9720df9592"
     },
     {
       "path": ".ia/src/systems/session-system/LANGUAGE.md",
@@ -2144,7 +2144,7 @@
     },
     {
       "path": ".ia/src/systems/session-system/system.ia",
-      "sha256": "8db6986288d0b148acd2e105bc7d13021c91eee19a93c4fc9fdd3f1f15338ff8"
+      "sha256": "f9e4b842a4fe23cd5af4d6dec843adfdf2c43f4aa5e954557bfe2661c6e69584"
     },
     {
       "path": ".ia/src/systems/session-system/tests/contracts.test.ts",
@@ -2228,7 +2228,7 @@
     },
     {
       "path": ".ia/src/systems/template-system/system.ia",
-      "sha256": "67f2bbcdaaca2e9c5596cae482453745fad24459946b854b0c2dacd0b405ceec"
+      "sha256": "1f2be75b6066ebd67c1685f8a1a30aba87cb811c909a115942dc80ae2dac1cef"
     },
     {
       "path": ".ia/src/systems/template-system/tests/structured.test.ts",
@@ -2300,7 +2300,7 @@
     },
     {
       "path": ".ia/src/systems/work-system/system.ia",
-      "sha256": "336c508acfddb5c8018468a88583d3d4b55121fc2fcf7920e928ff4ed33ad8de"
+      "sha256": "87132d37a96669a08bdda6a8f4a7e6af39add710e84454de16f7b90c82ea0691"
     },
     {
       "path": ".ia/src/systems/workspace-system/LANGUAGE.md",
@@ -2356,15 +2356,15 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/system.ia",
-      "sha256": "fd8e43a4ea3664b4ae72d4028b060284610525071849aaab424ff4769c8878bd"
+      "sha256": "4e63ff64fbd51ffde629b99492062bccd38376a0f1a8d6d31f8591a44389255a"
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "8304522f9eb0b2dfd503246417aee4a979474d362aa3d79681095a962dc9c0c0"
+      "sha256": "a4ff8a9cb92b7dbb976c21a7aad1d710e9a7cc958765dd4202b0514b4f5144b5"
     },
     {
       "path": "CLAUDE.md",
-      "sha256": "4b5b5ae3b6b3d4eddad13ba50c2df5b113d3fcc470277642063be6ff96a92fe8"
+      "sha256": "1d3b87171bc37c40459caa4712606ed0321bd81116867e543f6b4faf1aa81269"
     },
     {
       "path": "CODE_OF_CONDUCT.md",
@@ -2412,15 +2412,15 @@
     },
     {
       "path": "apps/cli/README.md",
-      "sha256": "770fec5a5ce52e1ab13959c2c3b95b00ea480c2834dfcc8119e5b269ab02f337"
+      "sha256": "9c3caddf30568bf4b1fbbee7f1f246aa8cca6503c8355a2ccd8b94131dd6f550"
     },
     {
       "path": "apps/cli/SPEC.md",
-      "sha256": "36decd67ba7794bad33e0dfe78fd80aebb79fb46e7758e16a9a46e90ac106ca6"
+      "sha256": "a642560569e1822ea3815d58f7547432cde6e4d79b06044067640f6bbc49fe28"
     },
     {
       "path": "apps/cli/assets/vocabulary.json",
-      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a"
+      "sha256": "e36fd09457652d43463ff37aaf15f4ef2bf3177f3733837d3172eef10c72048c"
     },
     {
       "path": "apps/cli/package.json",
@@ -2708,7 +2708,7 @@
     },
     {
       "path": "apps/distribution/references/system-package.md",
-      "sha256": "ceae2ce5515a14e6f314cfd06f6247093a589ac942ded0f44a8576695fb46a5b"
+      "sha256": "91cf137df01856014c36f72f1c7934a6159ded0acca35bac5f4dae8c58931ac5"
     },
     {
       "path": "apps/distribution/src/acquire.ts",
@@ -3084,7 +3084,7 @@
     },
     {
       "path": "apps/mcp-door/assets/vocabulary.json",
-      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a"
+      "sha256": "e36fd09457652d43463ff37aaf15f4ef2bf3177f3733837d3172eef10c72048c"
     },
     {
       "path": "apps/mcp-door/package.json",
@@ -3404,11 +3404,11 @@
     },
     {
       "path": "docs/reference/language/vocabulary.json",
-      "sha256": "b9254126ee377d5e6cfca07f2f481cc105d37713f257cc13c8e9270040cf8a6a"
+      "sha256": "e36fd09457652d43463ff37aaf15f4ef2bf3177f3733837d3172eef10c72048c"
     },
     {
       "path": "docs/reference/language/vocabulary.md",
-      "sha256": "99cf8976abcb3248534702ce4fd6c2bd5c135014e515097085174cc5341ac005"
+      "sha256": "fe906e55cdd8391ef1adca667c45c65f8ed07b1488969d1e7b94e4480ffea66a"
     },
     {
       "path": "examples/conformance/SPEC.md",
@@ -3892,47 +3892,47 @@
     },
     {
       "path": "examples/public-language/contracts/agent-composition-system.ia",
-      "sha256": "10b41865ec52d2048a3f1c568d536d629377b0f59376c9d0227f52e92e852a86"
+      "sha256": "341cfd8f4f4b81ff40bd6b0c38f74b9129de64c9cf7c6ffd6aa185c457e58468"
     },
     {
       "path": "examples/public-language/contracts/agent-system.ia",
-      "sha256": "1c1983225f43a8bb43cee818a8c48491c24fb766d96488d1ae57ce44cbc90d45"
+      "sha256": "272b4e4610181797afd5b15bf0ea4fb17009b9e87cf5c64cb81581bbbbb93204"
     },
     {
       "path": "examples/public-language/contracts/authoring-system.ia",
-      "sha256": "588a774abe76bc90687836c06ae777d4af33e40fca551e9d93d177c84fc370c8"
+      "sha256": "6b3adfd5f22578651ecdb079363ac86b5a59f19080b6d74f394356acdab59568"
     },
     {
       "path": "examples/public-language/contracts/compliance-system.ia",
-      "sha256": "3858f6221be493d65b8b19c9cde9a97e51dca54cfeee475e52cb06d0a49f4294"
+      "sha256": "caee73ac925a9beacf62eb4aa53c23440d7335bcda936353a24cbc02ebbaf5f5"
     },
     {
       "path": "examples/public-language/contracts/governance-system.ia",
-      "sha256": "9dfabc89d51e5ab0ea4e30677bc7a9bac609e6a11f9154b13deca6e0690de597"
+      "sha256": "88727f106ed2079de5caa7bb2bb6c2febf9935d7a99390d58f7085efaf4cea0a"
     },
     {
       "path": "examples/public-language/contracts/hook-authoring-system.ia",
-      "sha256": "de684e62e3c3523ac79687c318212eb85b79bacde4ad07213acc8eb77c36fc89"
+      "sha256": "b36eb182c9a5906c8e01a1426bfffa0dcb121189871af185f80b1d578e3be9d5"
     },
     {
       "path": "examples/public-language/contracts/learning-system.ia",
-      "sha256": "e76e3564c02e09d132962fb7904c6c2f598c66d5448684adfa24a5f76acf96f8"
+      "sha256": "f726ab622a27003d73ef99868a3835d8a91c941996ffd61934f2ec9720df9592"
     },
     {
       "path": "examples/public-language/contracts/session-system.ia",
-      "sha256": "8db6986288d0b148acd2e105bc7d13021c91eee19a93c4fc9fdd3f1f15338ff8"
+      "sha256": "f9e4b842a4fe23cd5af4d6dec843adfdf2c43f4aa5e954557bfe2661c6e69584"
     },
     {
       "path": "examples/public-language/contracts/template-system.ia",
-      "sha256": "67f2bbcdaaca2e9c5596cae482453745fad24459946b854b0c2dacd0b405ceec"
+      "sha256": "1f2be75b6066ebd67c1685f8a1a30aba87cb811c909a115942dc80ae2dac1cef"
     },
     {
       "path": "examples/public-language/contracts/work-system.ia",
-      "sha256": "336c508acfddb5c8018468a88583d3d4b55121fc2fcf7920e928ff4ed33ad8de"
+      "sha256": "87132d37a96669a08bdda6a8f4a7e6af39add710e84454de16f7b90c82ea0691"
     },
     {
       "path": "examples/public-language/contracts/workspace-system.ia",
-      "sha256": "fd8e43a4ea3664b4ae72d4028b060284610525071849aaab424ff4769c8878bd"
+      "sha256": "4e63ff64fbd51ffde629b99492062bccd38376a0f1a8d6d31f8591a44389255a"
     },
     {
       "path": "examples/public-language/manifest.json",
@@ -3964,7 +3964,7 @@
     },
     {
       "path": "examples/public-language/versions.json",
-      "sha256": "3f7539dadf0a44d87babddbab3cdf1a90f6584bdeae02cbf7dafab4749fe581b"
+      "sha256": "3d8e41ebc7c0ab90aa3ff979228dcd3882225c763ed8183410a040ed49e646b3"
     },
     {
       "path": "nx.json",
@@ -5708,7 +5708,7 @@
     },
     {
       "path": "packages/compliance/src/graph-checks.ts",
-      "sha256": "2d66e13b90424b53f71d88648dfd533c2a75c98538f64b69c524c74569c6c6e9"
+      "sha256": "cb58e32ca74fefcb5b8e1c128b5cac262c08ba54ed702de9a25f99a73db4fe2a"
     },
     {
       "path": "packages/compliance/src/host-plugin.ts",
@@ -5784,7 +5784,7 @@
     },
     {
       "path": "packages/compliance/tests/graph.test.ts",
-      "sha256": "8c9b1a5e2fb2e268da2aa6928f8fc1989ba85f3e0ab081607764e3cb7cb926db"
+      "sha256": "942199346f06841903f98c19e1652124f69c56e61ec81e746fee0bb10c8a7ffc"
     },
     {
       "path": "packages/compliance/tests/host-plugin-node.test.ts",
@@ -7204,7 +7204,7 @@
     },
     {
       "path": "releases/changesets/1.2.0.json",
-      "sha256": "cf00682ff8603a49638d91d56ee4c1803394ea35ab1103b16cb96061684d882d"
+      "sha256": "c8241795c98f7fcf1f789af90dc7614298922fbf5d020d62f8778490366c2a5b"
     },
     {
       "path": "releases/current.json",
@@ -7312,7 +7312,7 @@
     },
     {
       "path": "tools/distribution/language-guide.test.ts",
-      "sha256": "413aa45f1105317d2423c3eefab8d0f15b300efdf451548311fdf2bd63576622"
+      "sha256": "85eeecb2d22985372199235a8df3742eb8bba2fe5a78f85bab75d5e6ec4e9242"
     },
     {
       "path": "tools/distribution/npm-consumer.mjs",
@@ -7416,11 +7416,11 @@
     },
     {
       "path": "tools/distribution/resources.mjs",
-      "sha256": "f1135615e9974e87781452d9bb98f9b80df2627e609ba2d072a3f1272e5b4c4b"
+      "sha256": "a9dcf4bc09ebdad554e3482cc1b0c0471f16bd9fc4b2a3793caa2478ed264a61"
     },
     {
       "path": "tools/distribution/system-package-policy.json",
-      "sha256": "3bceb16ed2e2545c0a9a330691723244d8f221187e7a7fe8d72a5b35091c4185"
+      "sha256": "a0b109b595b261a45d34955f28ab599aba183e27bb0baea32f2669c9e38764e7"
     },
     {
       "path": "tools/docs/MARKDOWN.md",
@@ -7949,10 +7949,10 @@
   ],
   "publicRefresh": {
     "format": "ia.public-input-refresh.v1",
-    "baseCommit": "ab4b679189e2695073c52de5b62527037535e16e",
-    "baseTree": "6876b6673b6bd17eafaf5789fe4717585a98277a",
+    "baseCommit": "a7fc7331e47640bd4e9591067153411429bb9f8c",
+    "baseTree": "5406584cdfd6ce5dfc971c4785d096c99f5f6d4e",
     "dirty": true,
-    "inputDigest": "f755c7a8b4f96d6bfb3b4e61a831561dd89196d3a23bd3f5e01e06a22d678e30",
+    "inputDigest": "887625d69ec1f386f5d8575f55e6236a9f3d7b2f0f50b63d76186ec18b00b850",
     "npm": {
       ".ia/src/systems/agent-composition-system/package.json": "1.2.0",
       ".ia/src/systems/agent-system/package.json": "1.2.0",

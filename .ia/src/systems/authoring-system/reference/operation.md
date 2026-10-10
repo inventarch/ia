@@ -2,7 +2,7 @@
 
 Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations.
 
-Owner: authoring-system. Identity: authoring-system/binding/<facet>/<name>. Facets: operation. Artifact set: execution. Primitive: Decision. Move: Execution.
+Owner: authoring-system. Identity: authoring-system/binding/\<facet>/\<name>. Facets: operation. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/authoring-system/schemas/operation.schema.ia.
 
