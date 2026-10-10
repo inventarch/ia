@@ -55,6 +55,7 @@ import {
   applyMigrationFiles,
   finishMigrationJournal,
   completeMigrationProjection,
+  reopenMigrationProjection,
 } from './migration-journal.js';
 import { spawnSync } from 'node:child_process';
 import type { Dirent } from 'node:fs';
@@ -2244,16 +2245,22 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
         prior.packetDigest === rendered.receipt.packetDigest &&
         prior.revision === rendered.receipt.revision &&
         prior.bodyDigest === rendered.receipt.bodyDigest &&
-        prior.guard === (view.hosts.find((row) => row.host === host)!.guard === 'retire' ? 'retired' : 'none') &&
+        prior.guard ===
+          (journal.view.hosts.find((row) => row.host === host)!.guard === 'retire' ? 'retired' : 'none') &&
         JSON.stringify(prior.removed) === JSON.stringify(journal.removals[host]) &&
         prior.adapter === rendered.receipt.adapter &&
-        JSON.stringify(prior.files) === JSON.stringify(rendered.receipt.files) &&
+        JSON.stringify(prior.files.map((file) => file.path)) ===
+          JSON.stringify(rendered.receipt.files.map((file) => file.path)) &&
         prior.files.every((file) => sha256(readWorkspaceFile({ root, path: file.path })) === file.sha256) &&
         prior.removed.every((file) => !existsSync(resolve(root, file.path))) &&
         planRetirement(root, host) === null &&
-        planFiles(root, host, rendered).actions.every(
-          (action) => action.action === 'unchanged' || action.action === 'foreign',
-        );
+        planFiles(root, host, {
+          ...rendered,
+          files: prior.files.map((file) => ({
+            path: file.path,
+            text: readWorkspaceFile({ root, path: file.path }).toString('utf8'),
+          })),
+        }).actions.every((action) => action.action === 'unchanged' || action.action === 'foreign');
       if (journal.completed[host] !== undefined && !completed)
         throw new Refusal(
           'IA-CLI-CONFLICT',
@@ -2262,7 +2269,12 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
           { path: STATE.receipt(host) },
           `Restore the projected files to their receipt digests, then run "${resume}".`,
         );
-      const applied = completed ? { receipt: prior!, guard: prior!.guard } : applyHostProjection(root, host, rendered);
+      const refresh = completed && JSON.stringify(prior!.files) !== JSON.stringify(rendered.receipt.files);
+      if (refresh) reopenMigrationProjection(journal, host);
+      const applied =
+        completed && !refresh
+          ? { receipt: prior!, guard: prior!.guard }
+          : applyHostProjection(root, host, rendered, undefined, refresh ? prior! : undefined);
       // Receipt publication is itself recoverable before the journal completion marker advances.
       checkpoint(`migrate:project:${host}:receipt`);
       completeMigrationProjection(journal, host);

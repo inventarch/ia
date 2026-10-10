@@ -16,6 +16,7 @@ import {
   lstatSync,
   mkdirSync,
   readdirSync,
+  rmdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -36,7 +37,7 @@ import { readInstalledState, resolveCatalog } from '@inventarch/distribution/ser
 import { dispatch, Interrupted } from '../src/consumer.js';
 import type { Result } from '../src/consumer.js';
 import { GUARD_RETIRED } from '../src/host.js';
-import { renderProjectionFor } from '../src/host-projection.js';
+import { applyHostProjection, planFiles, renderProjectionFor } from '../src/host-projection.js';
 import {
   applyMigration,
   collectMigration,
@@ -1392,6 +1393,105 @@ it('keeps completed migration projection receipts through every projection and f
     const finished = await apply(root);
     expect(finished.exitCode, finished.stdout).toBe(0);
     expect(read(root, RECEIPT), cut).toBe(receipt);
+    expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(false);
+  }
+});
+
+it('migrates an already absent owned steward without inventing deletion evidence', async () => {
+  const { root, env } = await legacyWorkspace();
+  await registered(root, env);
+  rmSync(resolve(root, STEWARD));
+  const planned = collectMigration({ root, packageRoot: cli });
+  expect(planned.conflicts).toEqual([]);
+  expect(planned.hosts[0]!.files).toContainEqual(expect.objectContaining({ path: STEWARD, action: 'remove' }));
+  const finished = await apply(root);
+  expect(finished.exitCode, finished.stdout).toBe(0);
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'retired', removed: [] });
+  expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(false);
+});
+
+it('carries prior interrupted projection provenance into migration and its printed retry', async () => {
+  const { root, env } = await legacyWorkspace();
+  await registered(root, env);
+  const expected = { path: STEWARD, sha256: sha256(Buffer.from(read(root, STEWARD))) };
+  expect(() =>
+    applyHostProjection(root, 'claude', renderProjectionFor(root, 'claude'), (stage) => {
+      if (stage === 'complete') throw new Error('projection interrupted before receipt');
+    }),
+  ).toThrow('projection interrupted');
+  expect(existsSync(resolve(root, STEWARD))).toBe(false);
+  expect(existsSync(resolve(root, RECEIPT))).toBe(false);
+  let next = '';
+  try {
+    await applyMigration(collectMigration({ root, packageRoot: cli }), {
+      packageRoot: cli,
+      checkpoint: (stage) => {
+        if (stage === 'migrate:complete') throw new Error('migration interrupted');
+      },
+    });
+  } catch (error) {
+    next = (error as { next: string }).next;
+  }
+  expect(next).toContain('--migrate --apply --yes');
+  const receipt = read(root, RECEIPT);
+  expect(JSON.parse(receipt)).toMatchObject({ guard: 'retired', removed: [expected] });
+  const finished = await run([...nextArgv(next), '--json']);
+  expect(finished.exitCode, finished.stdout).toBe(0);
+  expect(read(root, RECEIPT)).toBe(receipt);
+  expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(false);
+});
+
+it('refreshes completed migration host notes after capture repair while preserving evidence and refusing edits', async () => {
+  for (const mode of ['clean', 'edit', 'interrupted-refresh']) {
+    const edit = mode === 'edit';
+    const { root, env } = await legacyWorkspace();
+    await registered(root, env);
+    expect((await host(root, env, 'codex', '--apply', '--yes')).exitCode).toBe(0);
+    const capturePath = resolve(root, '.ia/work/snapshot/current.json');
+    rmSync(capturePath, { force: true });
+    mkdirSync(capturePath, { recursive: true });
+    const failed = await apply(root);
+    expect(failed.exitCode, failed.stdout).toBe(3);
+    const original = JSON.parse(read(root, RECEIPT));
+    expect(original).toMatchObject({ guard: 'retired', removed: [{ path: STEWARD, sha256: expect.any(String) }] });
+    rmdirSync(capturePath);
+    const projectedPath = original.files[0].path;
+    const originalText = read(root, projectedPath);
+    if (edit) put(root, projectedPath, `${originalText}user edit\n`);
+    const retry = () => run([...nextArgv(json(failed).next), '--json']);
+    if (edit) {
+      const refused = await retry();
+      expect(refused.exitCode, refused.stdout).toBe(3);
+      expect(read(root, projectedPath)).toBe(`${originalText}user edit\n`);
+      expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(true);
+      put(root, projectedPath, originalText);
+    }
+    if (mode === 'interrupted-refresh') {
+      seams.failAt = 'complete';
+      try {
+        const interrupted = await retry();
+        expect(interrupted.exitCode, interrupted.stdout).toBe(3);
+        expect(json(interrupted).next).toContain('--migrate --apply --yes');
+        expect(existsSync(resolve(root, RECEIPT))).toBe(false);
+      } finally {
+        seams.failAt = undefined;
+      }
+    }
+    const finished = await retry();
+    expect(finished.exitCode, finished.stdout).toBe(0);
+    const receipt = JSON.parse(read(root, RECEIPT));
+    expect(receipt.guard).toBe(original.guard);
+    expect(receipt.removed).toEqual(original.removed);
+    for (const selected of ['claude', 'codex'] as const) {
+      const rendered = renderProjectionFor(root, selected);
+      expect(
+        planFiles(root, selected, rendered).actions.every(
+          (action) => action.action === 'unchanged' || action.action === 'foreign',
+        ),
+      ).toBe(true);
+      const current = JSON.parse(read(root, `.ia/distributions/hosts/${selected}-receipt.json`));
+      expect(current.files).toEqual(rendered.receipt.files);
+    }
     expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(false);
   }
 });

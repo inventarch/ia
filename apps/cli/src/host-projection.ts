@@ -215,6 +215,50 @@ function readPending(root: string, host: HostName): PendingReceipt | null {
   return body;
 }
 
+/** Verified deletion provenance shared by projection apply and a migration's durable effect plan. */
+export function projectionEvidence(
+  root: string,
+  host: HostName,
+  actions: readonly { readonly action: string; readonly path: string }[],
+  retirement: boolean,
+  previous?: PacketReceipt,
+): PendingReceipt {
+  if (
+    previous !== undefined &&
+    (JSON.stringify(readReceipt(root, host)) !== JSON.stringify(previous) ||
+      !previous.files.every((file) => sha256(readWorkspaceFile({ root, path: file.path })) === file.sha256) ||
+      !previous.removed.every((file) => !existsSync(resolve(root, file.path))))
+  )
+    throw new DistributionError(
+      'IA-DIST-LOCAL-MODIFICATION',
+      'Completed projection differs from its receipt',
+      STATE.receipt(host),
+    );
+  const removed = actions.flatMap((action) =>
+    action.action === 'remove' && existsSync(resolve(root, action.path))
+      ? [{ path: action.path, sha256: sha256(readWorkspaceFile({ root, path: action.path })) }]
+      : [],
+  );
+  const pending = readPending(root, host);
+  const prior =
+    pending ?? (previous === undefined ? null : { guard: previous.guard === 'retired', removed: previous.removed });
+  for (const file of removed) {
+    const recorded = prior?.removed.find((row) => row.path === file.path);
+    if (recorded !== undefined && recorded.sha256 !== file.sha256)
+      throw new DistributionError(
+        'IA-DIST-LOCAL-MODIFICATION',
+        'Pending removal evidence differs from the current owned bytes',
+        file.path,
+      );
+  }
+  return {
+    format: 'ia.packet-receipt-pending.v1',
+    host,
+    guard: prior?.guard === true || retirement,
+    removed: [...new Map([...(prior?.removed ?? []), ...removed].map((file) => [file.path, file])).values()],
+  };
+}
+
 /** What `applyHostProjection` did. */
 export interface HostProjectionApplied {
   /** `projected` after a render; after a removal `projection-removed`, or `absent` when it removed no file. */
@@ -237,24 +281,20 @@ export interface HostProjectionApplied {
  * written last, under the host lock, with the legacy files deleted (`removed`), the foreign files left in place, the
  * retirement, this CLI's id@version and the time; a removal leaves it deleted. `checkpoint` runs after the retirement
  * (`guard`), at each of `applyProjection`'s own stages and after the receipt (`receipt`), which is where an
- * interruption test cuts.
+ * interruption test cuts. A migration may supply its verified previous receipt to refresh host notes while retaining
+ * that operation's retirement and deletion evidence; ordinary applies omit it and keep last-apply semantics.
  */
 export function applyHostProjection(
   root: string,
   host: HostName,
   rendered: HostOutput | null,
   checkpoint: (stage: string) => void = () => {},
+  previous?: PacketReceipt,
 ): HostProjectionApplied {
   // A pending host journal refuses every host write, as it refuses the plan (§8).
   assertHostRegistrationIdle(root);
   const retirement = planRetirement(root, host),
     plan = planFiles(root, host, rendered);
-  // Each owned file a removal deletes, with the digest of the bytes it deletes: the planner accepted exactly those.
-  const removed = plan.actions.flatMap((action) =>
-    action.action === 'remove' && existsSync(resolve(root, action.path))
-      ? [{ path: action.path, sha256: sha256(readWorkspaceFile({ root, path: action.path })) }]
-      : [],
-  );
   const writeEvidence = (path: string, value: unknown | null): void => {
     const unlock = acquireHostRegistrationLock(root);
     try {
@@ -263,22 +303,7 @@ export function applyHostProjection(
       unlock();
     }
   };
-  const prior = readPending(root, host);
-  for (const file of removed) {
-    const recorded = prior?.removed.find((row) => row.path === file.path);
-    if (recorded !== undefined && recorded.sha256 !== file.sha256)
-      throw new DistributionError(
-        'IA-DIST-LOCAL-MODIFICATION',
-        'Pending removal evidence differs from the current owned bytes',
-        file.path,
-      );
-  }
-  const evidence: PendingReceipt = {
-    format: 'ia.packet-receipt-pending.v1',
-    host,
-    guard: prior?.guard === true || retirement !== null,
-    removed: [...new Map([...(prior?.removed ?? []), ...removed].map((file) => [file.path, file])).values()],
-  };
+  const evidence = projectionEvidence(root, host, plan.actions, retirement !== null, previous);
   // Evidence precedes retirement and every deletion; it survives failure and the projection state's collapse.
   writeEvidence(pendingPath(host), { ...evidence, digest: sha256(json(evidence)) });
   checkpoint('evidence');

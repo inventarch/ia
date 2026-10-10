@@ -9,6 +9,7 @@ import {
   replace,
 } from '@inventarch/distribution/services';
 import { Refusal } from './consumer.js';
+import { projectionEvidence } from './host-projection.js';
 import { quote } from './render.js';
 import type { BasePin, MigrationView } from './init.js';
 
@@ -179,7 +180,14 @@ export function readMigrationJournal(root: string, system: boolean, pin: BasePin
   check(journal);
   return journal;
 }
-export function beginMigrationJournal(view: MigrationView, ignore: string): MigrationJournal {
+export function beginMigrationJournal(input: MigrationView, ignore: string): MigrationJournal {
+  const evidence = input.hosts.map((row) =>
+    projectionEvidence(input.root, row.host, row.files, row.guard === 'retire'),
+  );
+  const view: MigrationView = {
+    ...input,
+    hosts: input.hosts.map((row, index) => ({ ...row, guard: evidence[index]!.guard ? 'retire' : 'none' })),
+  };
   const operations: Operation[] = [];
   const add = (path: string, after: State, step: string): void => {
     operations.push({ path, before: state(view.root, path), after, step });
@@ -204,11 +212,13 @@ export function beginMigrationJournal(view: MigrationView, ignore: string): Migr
     }),
   );
   const removals = Object.fromEntries(
-    view.hosts.map(({ host, files }) => [
+    view.hosts.map(({ host, files }, index) => [
       host,
-      files
-        .filter((row) => row.action === 'remove')
-        .map((row) => ({ path: row.path, sha256: sha256(readWorkspaceFile({ root: view.root, path: row.path })) })),
+      evidence[index]!.removed.filter(
+        (file) =>
+          files.some((row) => row.path === file.path && row.action === 'remove') ||
+          state(view.root, file.path) === null,
+      ),
     ]),
   );
   const journal: MigrationJournal = {
@@ -260,5 +270,11 @@ export function completeMigrationProjection(journal: MigrationJournal, host: str
   journal.completed[host] = sha256(
     readWorkspaceFile({ root: journal.view.root, path: `.ia/distributions/hosts/${host}-receipt.json` }),
   );
+  replace(journal.view.root, MIGRATION_JOURNAL, Buffer.from(JSON.stringify(journal)));
+}
+
+/** A verified completed effect needs fresh host notes; its next receipt has not committed yet. */
+export function reopenMigrationProjection(journal: MigrationJournal, host: string): void {
+  delete journal.completed[host];
   replace(journal.view.root, MIGRATION_JOURNAL, Buffer.from(JSON.stringify(journal)));
 }
