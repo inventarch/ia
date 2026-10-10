@@ -2128,7 +2128,8 @@ function admitStarter(
 export async function applyMigration(view: MigrationView, options: MigrationOptions): Promise<Migrated> {
   if (view.conflicts.length > 0) throw migrationRefusal(view);
   const { root } = view;
-  const resume = `${view.invocation} --apply --yes`;
+  // Rebuild from the verified operation options so the retry is rooted even when the original target was relative.
+  const resume = `ia init ${quote(root)} --migrate${view.system ? ' --system' : ''} --apply --yes`;
   const checkpoint = (name: string): void => {
     try {
       options.checkpoint?.(name);
@@ -2177,10 +2178,10 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
     install &&
     readInstalledState({ root }).lock?.packages.find((row) => row.id === base.pin.id)?.archive !== base.pin.archive
   ) {
-    const resume = new Interrupted(`Run "${view.invocation} --apply --yes" again to finish migrating.`);
-    await installBase(root, base, 'update', { signal: options.signal, checkpoint }, resume);
+    const interrupted = new Interrupted(`Run "${resume}" again to finish migrating.`);
+    await installBase(root, base, 'update', { signal: options.signal, checkpoint }, interrupted);
     checkpoint('migrate:install');
-    if (options.signal?.aborted) throw resume;
+    if (options.signal?.aborted) throw interrupted;
   }
   const ignore = view.ignore === 'create' ? 'written' : 'present';
   const removed = view.removes.map((row) => row.path);
@@ -2193,7 +2194,7 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
       refusal.message,
       3,
       refusal.where ?? { path: root },
-      `The migration is recorded in .ia/migration.json; nothing was rolled back. Repair the reported filesystem problem, then run "${view.invocation} --apply --yes" again to finish migrating.`,
+      `The migration is recorded in .ia/migration.json; nothing was rolled back. Repair the reported filesystem problem, then run "${resume}" again to finish migrating.`,
     );
   }
   // Neither effect has run, so the refusal says so before the one command it names.
@@ -2296,7 +2297,7 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
           refusal.message,
           3,
           path === null ? refusal.where : { path },
-          `${captured} ${JOURNALS.some(([journal]) => existsSync(resolve(root, journal))) ? `Run "${recoverCommand(JOURNALS.find(([journal]) => existsSync(resolve(root, journal)))![1], root)}", then run "${resume}" to finish migrating.` : path === null ? `Repair the reported filesystem problem, then run "${resume}" to finish migrating.` : projectionRepair(host, path, resume, refusal.code)}`,
+          `${captured} ${JOURNALS.some(([journal]) => existsSync(resolve(root, journal))) ? `Run "${recoverCommand(JOURNALS.find(([journal]) => existsSync(resolve(root, journal)))![1], root)}" first, then rerun this migration with the same target and options to finish.` : path === null ? `Repair the reported filesystem problem, then run "${resume}" to finish migrating.` : projectionRepair(host, path, resume, refusal.code)}`,
         ),
       );
     }
