@@ -20,6 +20,7 @@ import { packetCatalog } from '../../apps/cli/src/commands.js';
 import { applyGuardRegistration, planGuardRegistration } from '../../apps/distribution/src/guard-registration.js';
 import type { GuardPlan } from '../../apps/distribution/src/guard-registration.js';
 import { HOST_REGISTRATION } from '../../apps/distribution/src/host.js';
+import { LEGACY_STEWARDS } from './legacy-stewards.js';
 
 /**
  * This repository's committed projection (decision packet-tracking-policy; milestone position-packet task
@@ -79,6 +80,10 @@ function owned(bytes: Buffer, path: string): boolean {
     (skillPaths.includes(path) && createHash('sha256').update(bytes).digest('hex') === BOOTSTRAP_HASH)
   );
 }
+/** Only an exact known repository steward at its original path is safe to delete. */
+function staleSteward(bytes: Buffer, path: string): boolean {
+  return LEGACY_STEWARDS[path]?.includes(createHash('sha256').update(bytes).digest('hex')) ?? false;
+}
 /**
  * B11: the removal of a steward-guard registration this checkout owns, or null when it owns none. This repository has
  * no `.ia/release.json`, so `ia host` refuses here and only a hand-made or 1.x registration can exist; it is retired
@@ -108,13 +113,13 @@ export function publishArtifacts(root: string, artifacts: readonly HostFile[], w
     artifacts.some((a) => a.path !== 'CLAUDE.md' && !skillPaths.includes(a.path))
   )
     throw new Error(`Invalid projection output set; ${SHOW_RENDERER} that emitted it`);
-  // B9: no steward file is rendered, so every one a renderer marked is stale.
+  // No steward file is rendered. Only a proven M4 file is stale; a marker alone is no deletion authority.
   const stale: string[] = [],
     agents = safe(root, '.claude/agents');
   if (existsSync(agents))
     for (const entry of readdirSync(agents, { withFileTypes: true })) {
       const path = `.claude/agents/${entry.name}`;
-      if (entry.isFile() && owned(readFileSync(safe(root, path)), path)) stale.push(path);
+      if (entry.isFile() && staleSteward(readFileSync(safe(root, path)), path)) stale.push(path);
     }
   stale.sort();
   // Preflight the complete set before publishing any file.
@@ -133,7 +138,7 @@ export function publishArtifacts(root: string, artifacts: readonly HostFile[], w
     if (guard !== null) applyGuardRegistration(guard);
     for (const path of stale) {
       const target = safe(root, path);
-      if (existsSync(target) && !owned(readFileSync(target), path))
+      if (existsSync(target) && !staleSteward(readFileSync(target), path))
         throw new Error(`Projection changed before publication: ${path}; ${GENERATE} again`);
       if (existsSync(target)) unlinkSync(target);
     }

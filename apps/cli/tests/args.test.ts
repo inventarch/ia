@@ -160,6 +160,11 @@ it('tags the agent commands for the packet catalog in table order, each naming o
     expect(row.refuses, row.command).not.toContain('\n');
   }
   expect(catalogDefects(rows)).toEqual([]);
+  // An initialized target needs its position, not another init plan whose apply refuses again.
+  expect(rows.find((row) => row.command === 'ia init')).toMatchObject({
+    refuses: 'a target already initialized; --apply writes nothing',
+    next: 'ia position --root <directory>',
+  });
   // A row whose next names a command the table does not hold fails here, as `ia preview` would until it exists.
   expect(catalogDefects([...rows, { ...rows[0]!, next: 'ia preview plan' }])).toEqual([
     'ia init: ia preview plan names no command of COMMANDS',

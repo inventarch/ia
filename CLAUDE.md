@@ -76,7 +76,7 @@
 
 | command | mode | move | refuses | next |
 | --- | --- | --- | --- | --- |
-| `ia init` | effect | Execution | a target already initialized, or holding files that conflict with the plan; --apply writes nothing | `ia init` |
+| `ia init` | effect | Execution | a target already initialized; --apply writes nothing | `ia position --root <directory>` |
 | `ia validate` | validate | Verification | no .ia/src directory at the root or in any parent | `ia init` |
 | `ia capture` | effect | Execution | a root whose .ia/src declares no `@workspace`; nothing is written | `ia init` |
 | `ia read` | read | Observation | a locator no admitted record answers | `ia inspect` |
@@ -90,4 +90,4 @@
 - state intent to the CLI as shape + optional phase + optional seat + optional word; the CLI never receives free text
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 
-ia-generated ccbf3b7c11ee155f1eaf97958d91962f395f9bba7822ce1e3615e30b1c34dde4 baff518110105eca21fbeecaf55af6b3fe8147fdd5696ba22bebefb5c2b57bfd ia-claude
+ia-generated ccbf3b7c11ee155f1eaf97958d91962f395f9bba7822ce1e3615e30b1c34dde4 166f8056be7ca32135b7ce77f8e53f88271233b6d6fa0c8fa15f1f98d09c5d31 ia-claude

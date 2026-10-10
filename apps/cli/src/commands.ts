@@ -95,8 +95,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     catalog: {
       mode: 'effect',
       move: 'Execution',
-      refuses: 'a target already initialized, or holding files that conflict with the plan; --apply writes nothing',
-      next: 'ia init',
+      refuses: 'a target already initialized; --apply writes nothing',
+      next: 'ia position --root <directory>',
     },
     syntax: [
       'ia init [<directory>] [--id <provider/name>] [--system] [--host claude|codex|none]',
