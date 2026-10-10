@@ -1,3 +1,7 @@
+import { readBase, PIN_PATH, PACKAGE_ID, DAMAGED } from './bundled-base.js';
+import type { Base, BasePin } from './bundled-base.js';
+export { readBase, PIN_PATH, baseArchivePath, PACKAGE_ID } from './bundled-base.js';
+export type { Base, BasePin } from './bundled-base.js';
 /**
  * `ia init`: docs/specs/consumer-cli-contract/README.md §2.1, implementing
  * docs/specs/workspace-initialization-apply/README.md (M5.2) to reach the end state
@@ -45,6 +49,13 @@
  * workspace owns through `applyHostProjection`, which retires the 1.x steward guard and deletes the owned steward agent
  * files (`collectMigration`, `applyMigration`).
  */
+import {
+  readMigrationJournal,
+  beginMigrationJournal,
+  applyMigrationFiles,
+  finishMigrationJournal,
+  completeMigrationProjection,
+} from './migration-journal.js';
 import { spawnSync } from 'node:child_process';
 import type { Dirent } from 'node:fs';
 import {
@@ -56,14 +67,17 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
-  rmdirSync,
   statSync,
   unlinkSync,
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
-import { decodeReleaseDescriptor, DISTRIBUTION_ENGINE_VERSION, INSTALL_PATHS } from '@inventarch/db/distribution';
+import {
+  decodeReleaseDescriptor,
+  DISTRIBUTION_ENGINE_VERSION,
+  INSTALL_PATHS,
+  sha256,
+} from '@inventarch/db/distribution';
 import type { DistributionLock, ReleaseDescriptor } from '@inventarch/db/distribution';
-import { verifyArchive } from '@inventarch/distribution/archive';
 import { assertHostRegistrationIdle } from '@inventarch/distribution/host';
 import { assertHomeOutsideWorkspace } from '@inventarch/distribution/host-home';
 import type { DeclineKind } from '@inventarch/distribution/decisions';
@@ -76,7 +90,6 @@ import {
   readInstalledState,
   readWorkspaceFile,
   readWorkspaceJson,
-  replace,
   resolveCatalog,
 } from '@inventarch/distribution/services';
 import { parseArguments, UsageError } from './args.js';
@@ -147,18 +160,6 @@ export interface StarterRecord {
   readonly path: string;
 }
 /** M5.1 §3.2: the pin is the only authority for the bundled bytes. */
-export interface BasePin {
-  readonly id: string;
-  readonly version: string;
-  readonly archive: string;
-  readonly manifest: string;
-}
-export interface Base {
-  readonly pin: BasePin;
-  readonly bytes: Buffer;
-  /** The systems the bundled manifest carries, sorted, which the starter composes and the descriptor externalizes. */
-  readonly systems: readonly string[];
-}
 /** M5.1 §2.3's provenance, and which fact was missing when it is the unpublished local form. */
 export type Missing = 'git' | 'checkout' | 'commit' | 'https-remote';
 export interface Source {
@@ -265,8 +266,6 @@ export interface Applied {
  * Relative to the `@inventarch/cli` package root, as `assets/vocabulary.json` is (vocabulary.ts CATALOGUE_PATH). The base
  * package's id is read from this pin and appears nowhere in this source: M5.1 §3.2 makes the pin the only authority.
  */
-export const PIN_PATH = 'assets/base.json';
-export const baseArchivePath = (digest: string): string => `assets/base/${digest}.ia.tgz`;
 export const DESCRIPTOR_PATH = '.ia/release.json';
 export const STARTER_VERSION = '0.1.0';
 /** The installer's lock, `acquire()` at apps/distribution/src/install.ts:70; `INSTALL_PATHS` does not name it. */
@@ -280,16 +279,87 @@ export const WORKSPACE_PATH = '.ia/src/workspace.ia';
 /** Create-only: the local working state each clone makes for itself, never the authored records or the lock. */
 export const IGNORE_PATH = '.ia/.gitignore';
 export const IGNORE_TEXT = 'work/\ndistributions/\n';
+export function migrationIgnoreText(root: string): string {
+  const result = gitIn(root, process.env)(['ls-files', '-z', '--', '.ia/distributions']);
+  return result === null || result.status === null || (result.status === 0 && result.stdout.length > 0)
+    ? 'work/\n'
+    : IGNORE_TEXT;
+}
+function migrationGitConflict(root: string): MigrationConflict | null {
+  const git = gitIn(root, process.env);
+  const tracked = git(['ls-files', '-z', '--', '.ia/distributions']);
+  if (tracked === null || tracked.status === null || tracked.status !== 0) {
+    for (let at = root; ; at = dirname(at)) {
+      if (existsSync(resolve(at, '.git')))
+        return {
+          path: '.ia/distributions',
+          reason: 'Git tracking could not be verified; make Git available before migrating this checkout',
+        };
+      if (dirname(at) === at) break;
+    }
+    return null;
+  }
+  if (tracked.status !== 0 || tracked.stdout.length === 0) return null;
+  const probes = [
+    '.ia/distributions.lock.json',
+    '.ia/distributions/active.json',
+    '.ia/distributions/generations/ia-migration-probe/lock.json',
+    '.ia/distributions/store/ia-migration-probe/.ia/src/probe.ia',
+  ];
+  const attributes = git(['check-attr', '-z', 'text', 'eol', 'filter', 'working-tree-encoding', '--', ...probes]);
+  const conversion = git(['config', '--get', 'core.autocrlf']);
+  if (attributes?.status !== 0 || conversion === null)
+    return {
+      path: '.gitattributes',
+      reason:
+        'Git byte-conversion rules could not be verified for tracked installation payload; repair Git before migrating',
+    };
+  const fields = attributes.stdout.split('\0');
+  const settings = new Map<string, Record<string, string>>();
+  for (let index = 0; index + 2 < fields.length; index += 3) {
+    const values = settings.get(fields[index]!) ?? {};
+    values[fields[index + 1]!] = fields[index + 2]!;
+    settings.set(fields[index]!, values);
+  }
+  const transforms = [...settings.values()].some(
+    (values) =>
+      (values['filter'] !== 'unspecified' && values['filter'] !== 'unset') ||
+      (values['working-tree-encoding'] !== 'unspecified' && values['working-tree-encoding'] !== 'unset') ||
+      (values['text'] !== 'unset' &&
+        (values['text'] !== 'unspecified' ||
+          values['eol'] !== 'unspecified' ||
+          ['true', 'input'].includes(conversion.stdout.trim()))),
+  );
+  if (settings.size !== probes.length || transforms)
+    return {
+      path: '.gitattributes',
+      reason:
+        'Git may rewrite tracked immutable installation bytes; add .ia/distributions/** -text and .ia/distributions.lock.json -text to .gitattributes and remove any filters or encoding conversion for those paths before migrating',
+    };
+  const ignored = git([
+    'check-ignore',
+    '-v',
+    '--no-index',
+    ...probes,
+    '.ia/distributions/store/ia-migration-probe/LICENSE',
+    '.ia/distributions/store/ia-migration-probe/distribution.json',
+  ]);
+  if (ignored?.status === 1) return null;
+  return {
+    path: '.ia/distributions',
+    reason:
+      ignored?.status === 0
+        ? `Tracked installation payload would be hidden by an existing Git ignore rule: ${ignored.stdout.trim()}; adjust that rule to include new distribution generations before migrating`
+        : 'Git ignore rules could not be verified for tracked installation payload; repair Git before migrating',
+  };
+}
 /** `packages/db/src/distribution/codec.ts` packageId and identifier: the id rule and the system-name ceiling. */
-export const PACKAGE_ID = /^[a-z][a-z0-9.-]*\/[a-z][a-z0-9-]*$/;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const NAME_LIMIT = 64;
 /** M5.2 §4.3: `createFile`'s temporary name, `<target>.<randomUUID()>.tmp` (apps/distribution/src/files.ts:76). */
 export const LEFTOVER =
   /^(system\.ia|workspace\.ia|distribution\.ia|release\.json|\.gitignore)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
 /** The installation, not the target, is at fault; `ia doctor` names the channel a reinstall goes through. */
-const DAMAGED =
-  'The ia installation is damaged; run "ia doctor" for its install channel and reinstall @inventarch/cli through it.';
 
 /** M5.1 §2.1's paths: the authored source, the ignore file, the descriptor, the install state and the capture. */
 export function ownedPaths(
@@ -358,59 +428,6 @@ const writable = (path: string): boolean => {
  * has no digest to verify against and is the CLI's own failure. Either way the next action says the installation is
  * damaged, because nothing the user did to the target can cause it.
  */
-export function readBase(packageRoot: string): Base {
-  const pinPath = resolve(packageRoot, PIN_PATH);
-  let pin: BasePin;
-  try {
-    const value = JSON.parse(readFileSync(pinPath, 'utf8')) as Record<string, unknown>;
-    const keys = Object.keys(value).sort().join(',');
-    if (
-      keys !== 'archive,id,manifest,version' ||
-      !Object.values(value).every((item) => typeof item === 'string') ||
-      !PACKAGE_ID.test(String(value['id']))
-    )
-      throw new Error('unexpected fields');
-    if (!/^[a-f0-9]{64}$/.test(String(value['archive'])) || !/^[a-f0-9]{64}$/.test(String(value['manifest'])))
-      throw new Error('malformed digest');
-    pin = value as unknown as BasePin;
-  } catch (error) {
-    throw new Refusal(
-      'IA-CLI-FAILED',
-      `The bundled base package pin cannot be read: ${error instanceof Error ? error.message : String(error)}`,
-      3,
-      { path: pinPath },
-      DAMAGED,
-    );
-  }
-  const archivePath = resolve(packageRoot, baseArchivePath(pin.archive));
-  const bytes = existsSync(archivePath) ? readFileSync(archivePath) : Buffer.alloc(0);
-  try {
-    const verified = verifyArchive(bytes, pin.archive);
-    if (
-      verified.manifestDigest !== pin.manifest ||
-      verified.manifest.id !== pin.id ||
-      verified.manifest.version !== pin.version
-    )
-      throw new Refusal(
-        'IA-CLI-FAILED',
-        'The bundled base archive does not carry the pinned manifest',
-        3,
-        { path: archivePath },
-        DAMAGED,
-      );
-    return { pin, bytes, systems: verified.manifest.systems.map((system) => system.name) };
-  } catch (error) {
-    if (error instanceof Refusal) throw error;
-    throw new Refusal(
-      codeOf(error, 'IA-CLI-FAILED'),
-      error instanceof Error ? error.message : String(error),
-      3,
-      { path: archivePath },
-      DAMAGED,
-    );
-  }
-}
-
 /** M5.1 §2.3's normalization: lowercase, every run outside `[a-z0-9-]` becomes `-`, no leading or trailing `-`. */
 export const normalizeName = (directory: string): string =>
   directory
@@ -1026,13 +1043,18 @@ const conflictMessage = (conflicts: readonly Conflict[], blocked: string): strin
     ? `${conflicts[0]!.reason}: ${conflicts[0]!.path}`
     : `${conflicts.length} conflicts block ${blocked}: ${conflicts.map((row) => `${row.path} (${row.reason})`).join('; ')}`;
 /** M5.2 §4.1: every conflict is listed; `--apply` refuses at class 3 and writes nothing. */
+function initializedNext(view: InitView): string | null {
+  if (!view.conflicts.some((row) => row.path === DESCRIPTOR_PATH && row.reason === 'The target is already initialized'))
+    return null;
+  return `${existsSync(resolve(view.root, WORKSPACE_PATH)) || existsSync(resolve(view.root, SYSTEMS)) ? '' : 'Restore the authored .ia/src/workspace.ia from source control first. '}Run "ia position --root ${quote(view.root)}" to inspect this initialized workspace.`;
+}
 function conflictRefusal(view: InitView): Refusal {
   return new Refusal(
     'IA-CLI-CONFLICT',
     conflictMessage(view.conflicts, 'initialization'),
     3,
     { path: view.root },
-    `Run "${view.invocation}" to review the plan and its conflicts.`,
+    initializedNext(view) ?? `Run "${view.invocation}" to review the plan and its conflicts.`,
   );
 }
 
@@ -1045,6 +1067,7 @@ export function initEnvelope(view: InitView, apply: boolean, applied: Applied | 
     apply,
     plan: {
       state: view.state,
+      ...(initializedNext(view) === null ? {} : { next: initializedNext(view) }),
       owns: view.owns.map((row) => row.path),
       conflicts: view.conflicts.map((row) => ({ path: row.path, reason: row.reason })),
       leftovers: view.leftovers.map((path) => ({ path, reason: 'leftover temporary file' })),
@@ -1230,7 +1253,7 @@ const planBlocks = (view: InitView, caps: Capabilities): readonly (readonly stri
 export function renderInit(view: InitView, caps: Capabilities): string {
   const next =
     view.state === 'conflict'
-      ? `Resolve the conflicts above, then run "${view.invocation} --apply --yes".`
+      ? (initializedNext(view) ?? `Resolve the conflicts above, then run "${view.invocation} --apply --yes".`)
       : `Apply with "${view.invocation} --apply --yes".${view.state === 'resumable' ? ' Completed steps are skipped.' : ''}`;
   return document(
     [
@@ -1252,14 +1275,18 @@ export const renderInitSummary = (view: InitView, caps: Capabilities): string =>
  * The report rows `ia init` and `ia init --migrate` share, each from one function so the two verbs word them alike:
  * the records authored and the ignore file, the capture effect, and the closing next step.
  */
-const authoredEntry = (applied: Pick<Applied, 'authored' | 'ignore'>, caps: Capabilities): readonly string[] =>
+const authoredEntry = (
+  applied: Pick<Applied, 'authored' | 'ignore'>,
+  caps: Capabilities,
+  ignored = 'work/ and distributions/',
+): readonly string[] =>
   entry(
     [
       words(`Authored ${applied.authored.length} records:`),
       ...applied.authored.map((identity) => [atom(identity, null, 0)]),
       words(
         applied.ignore === 'written'
-          ? `Wrote ${IGNORE_PATH}, ignoring work/ and distributions/.`
+          ? `Wrote ${IGNORE_PATH}, ignoring ${ignored}.`
           : `${IGNORE_PATH} already exists and is left as it is.`,
       ),
     ],
@@ -1663,6 +1690,18 @@ export function collectMigration(request: MigrationRequest): MigrationView {
     system = request.system === true;
   if (!existsSync(resolve(root, DESCRIPTOR_PATH)))
     throw unshaped(`${DESCRIPTOR_PATH} is absent, so no initialization completed here`, root);
+  const recovery = readMigrationJournal(root, system, readBase(request.packageRoot).pin);
+  if (recovery !== null) {
+    const installed = readInstalledState({ root }).lock?.packages.find((row) => row.id === recovery.view.base.pin.id);
+    return {
+      ...recovery.view,
+      steps:
+        installed?.archive === recovery.view.base.pin.archive
+          ? recovery.view.steps.filter((step) => step !== 'install')
+          : recovery.view.steps,
+      invocation: request.invocation ?? recovery.view.invocation,
+    };
+  }
   const { name, files: others } = starterFolder(root);
   let raw: Readonly<Record<string, unknown>>, descriptor: ReleaseDescriptor;
   try {
@@ -1781,7 +1820,26 @@ export function collectMigration(request: MigrationRequest): MigrationView {
         ]),
   ];
   // The preflight's destination half: neither the starter file nor any moved file's destination may exist.
-  const conflicts: MigrationConflict[] = [];
+  const gitConflict = migrationGitConflict(root);
+  const conflicts: MigrationConflict[] = gitConflict === null ? [] : [gitConflict];
+  const legacyText = readWorkspaceFile({ root, path: legacyRecordsPath(name) })
+    .toString('utf8')
+    .replace(/\r\n/g, '\n');
+  const stockWorkspace = starterRecords(name, kept)
+    .split(`\n@agent ${name}\n`)[0]!
+    .replace('    sources [".ia/src @authored"]\n', '')
+    .replace(`    steward @agent ${name}\n`, '');
+  const stockDistribution = starterDistribution(name)
+    .replace('#! ia 1.0\n\n', '')
+    .replace(`The release root of the ${name} system.`, `The release root of the ${name} workspace.`)
+    .replace(`records [@system ${name}]`, `records [@workspace ${name}]`);
+  const normalizeSystems = (text: string): string => text.replace(/^    systems \[[^\n]*\]$/m, '    systems []');
+  if (normalizeSystems(legacyText) !== normalizeSystems(stockWorkspace + '\n' + stockDistribution))
+    conflicts.push({
+      path: legacyRecordsPath(name),
+      reason:
+        'Authored workspace or distribution text differs from the 1.1.0 starter; preserve these edits in an explicit migration before removing this file',
+    });
   const occupied = (path: string): boolean => lstatSync(resolve(root, path), { throwIfNoEntry: false }) !== undefined;
   if (occupied(WORKSPACE_PATH))
     conflicts.push({ path: WORKSPACE_PATH, reason: 'Exists where the migration writes the three starter records' });
@@ -1805,6 +1863,25 @@ export function collectMigration(request: MigrationRequest): MigrationView {
           reason: `Holds @${record.word} ${record.name}, which the migration authors in ${record.path}`,
         });
   // Spec §8: a pending host journal refuses the whole verb and names the recovery that clears it, as `ia host` does.
+  if (!system) {
+    const removedRecords = [...local, ...starter.filter((record) => record.discriminator === 'distribution')];
+    const references = (value: unknown, word: string, name: string, identity: string): boolean => {
+      if (value === null || typeof value !== 'object') return false;
+      if (Array.isArray(value)) return value.some((child) => references(child, word, name, identity));
+      const item = value as Record<string, unknown>;
+      if (item['kind'] === 'ref' && item['discriminator'] === word && item['name'] === name) return true;
+      if (item['kind'] === 'identity' && item['identity'] === identity) return true;
+      return Object.values(item).some((child) => references(child, word, name, identity));
+    };
+    for (const record of records)
+      if (!deleted.has(record.source.path))
+        for (const removed of removedRecords)
+          if (references(record, removed.discriminator, removed.name, removed.identity))
+            conflicts.push({
+              path: record.source.path,
+              reason: `${spelled(record)} references ${removed.identity}, which the migration deletes; use --system to retain it`,
+            });
+  }
   const hosts: MigrationHost[] = [],
     projected = registeredProjections(root, 'update');
   if (projected.length > 0)
@@ -1881,7 +1958,7 @@ export function collectMigration(request: MigrationRequest): MigrationView {
       'capture',
       ...(hosts.length === 0 ? [] : ['project' as const]),
     ],
-    invocation: request.invocation ?? 'ia init --migrate',
+    invocation: request.invocation ?? `ia init ${quote(root)} --migrate${system ? ' --system' : ''}`,
   };
 }
 /**
@@ -1991,29 +2068,29 @@ function admitStarter(
 }
 
 /**
- * `ia init --migrate --apply`, in the plan's step order. The bundled base is read again and must be the plan's, and
- * every byte a move carries is read first, so a file the reader refuses (a link, a hard link, an oversized file)
- * changes nothing; the signal is observed once more before the first write. When the installed base is another
- * archive, the bundled one is installed first, as `ia init` installs it, while the records are still 1.x-shaped: the
- * installer admits them against it before activating it, and a signal there names the rerun of this migration,
- * which installs the base again only if the bundled one is still not installed. The file steps follow: move each user
- * record file to `.ia/src/` (written create-only, then its source deleted), author the starter files create-only and
- * `.ia/.gitignore` where none exists, delete the 1.x starter files (and without `--system` the folders they leave
- * empty), and rewrite the descriptor without its distribution and with the bundled base's dependency row. A file step
- * that fails says which writes and deletes it made, the base install included, since nothing is rolled back, and names
- * `ia validate`, or this migration's rerun when the base install is all it made. Admission then reads the starter
- * identities and each moved file's, and a migrated workspace that fails it is refused saying neither effect ran. The
- * two effects follow as `ia init` takes them (design §3): the capture, then each registered host's projection through
- * `applyHostProjection`, which retires the steward guard before any file changes and deletes the owned 1.x steward
- * files (B9, B11). Each effect that fails or is interrupted leaves every earlier result in place and names its
- * own command: `ia capture`, or `ia host <host> --apply`, the registered host's command that `ia doctor` names too. The projections read the live
- * revision (B8), so they run after a capture that failed too, and every host is attempted before the first refusal is
- * raised.
+ * Apply the exact migration plan through a durable operation journal. File mutations are resumed only from their
+ * recorded before/after digests. Capture and each host projection follow admission; a completed host receipt is
+ * verified and retained on resume, including the window before its journal completion marker was published.
+ * Every interrupted effect names the same migration command, after a pending host transaction is recovered.
  */
 export async function applyMigration(view: MigrationView, options: MigrationOptions): Promise<Migrated> {
   if (view.conflicts.length > 0) throw migrationRefusal(view);
-  const { root } = view,
-    checkpoint = options.checkpoint ?? (() => {});
+  const { root } = view;
+  const resume = `${view.invocation} --apply --yes`;
+  const checkpoint = (name: string): void => {
+    try {
+      options.checkpoint?.(name);
+    } catch (error) {
+      const refusal = refusalOf(error);
+      throw new Refusal(
+        refusal.code,
+        refusal.message,
+        3,
+        refusal.where,
+        `The migration is recorded in .ia/migration.json. Run "${resume}" again to finish migrating.`,
+      );
+    }
+  };
   const base = readBase(options.packageRoot);
   if (base.pin.archive !== view.base.pin.archive || base.pin.manifest !== view.base.pin.manifest)
     throw new Refusal(
@@ -2023,64 +2100,48 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
       { path: resolve(options.packageRoot, PIN_PATH) },
       DAMAGED,
     );
-  const carried = view.moves.map((move) => ({ ...move, bytes: readWorkspaceFile({ root, path: move.from }) }));
   options.signal?.throwIfAborted();
-  // The last point at which the target is byte-identical to its state before the command.
+  const existingJournal = readMigrationJournal(root, view.system, base.pin);
+  if (existingJournal === null) {
+    const fresh = collectMigration({
+      root,
+      system: view.system,
+      packageRoot: options.packageRoot,
+      invocation: view.invocation,
+    });
+    if (fresh.conflicts.length > 0) throw migrationRefusal(fresh);
+    if (JSON.stringify(fresh) !== JSON.stringify(view))
+      throw new Refusal(
+        'IA-CLI-CONFLICT',
+        'The migration inputs changed after planning',
+        3,
+        { path: root },
+        `Run "${view.invocation}" again to review the current plan.`,
+      );
+  }
+  const journal = existingJournal ?? beginMigrationJournal(view, migrationIgnoreText(root));
   const install = view.steps.includes('install');
-  if (install) {
+  if (
+    install &&
+    readInstalledState({ root }).lock?.packages.find((row) => row.id === base.pin.id)?.archive !== base.pin.archive
+  ) {
     const resume = new Interrupted(`Run "${view.invocation} --apply --yes" again to finish migrating.`);
     await installBase(root, base, 'update', { signal: options.signal, checkpoint }, resume);
     checkpoint('migrate:install');
     if (options.signal?.aborted) throw resume;
   }
-  const done: string[] = install ? [`installed ${base.pin.id} ${base.pin.version}`] : [];
-  let ignore: 'written' | 'present';
-  const removed: string[] = [];
+  const ignore = view.ignore === 'create' ? 'written' : 'present';
+  const removed = view.removes.map((row) => row.path);
   try {
-    for (const move of carried) {
-      createFile(root, move.to, move.bytes);
-      done.push(`wrote ${move.to}`);
-      replace(root, move.from, null);
-      done.push(`deleted ${move.from}`);
-    }
-    checkpoint('migrate:move');
-    for (const file of view.files) {
-      createFile(root, file.path, Buffer.from(file.text));
-      done.push(`wrote ${file.path}`);
-    }
-    ignore = existsSync(resolve(root, IGNORE_PATH)) ? 'present' : 'written';
-    if (ignore === 'written') {
-      createFile(root, IGNORE_PATH, Buffer.from(IGNORE_TEXT));
-      done.push(`wrote ${IGNORE_PATH}`);
-    }
-    checkpoint('migrate:author');
-    // A folder the 1.x starter leaves empty is the plan's `<path>/` row; `rmdirSync` refuses one that is not empty.
-    for (const removal of view.removes) {
-      if (removal.path.endsWith('/')) rmdirSync(resolve(root, removal.path));
-      else replace(root, removal.path, null);
-      removed.push(removal.path);
-      done.push(`deleted ${removal.path}`);
-    }
-    checkpoint('migrate:remove');
-    if (view.rewrite !== null) {
-      replace(root, DESCRIPTOR_PATH, Buffer.from(view.rewrite));
-      done.push(`rewrote ${DESCRIPTOR_PATH}`);
-    }
-    checkpoint('migrate:descriptor');
+    applyMigrationFiles(journal, checkpoint, options.signal);
   } catch (error) {
-    // Nothing is written yet, so the target is byte-identical and the error is refused as it is.
-    if (done.length === 0) throw error;
-    const refusal = refusalOf(error),
-      stopped = `The migration stopped after it ${done.join(', ')}; nothing was rolled back.`;
-    // The base install alone leaves the records 1.1.0-shaped, so this migration, run again, finds it and finishes.
+    const refusal = refusalOf(error);
     throw new Refusal(
       refusal.code,
       refusal.message,
       3,
-      refusal.where ?? { path: refusedPath(error) ?? root },
-      install && done.length === 1
-        ? `${stopped} The records are still the ${MIGRATES_FROM} starter's, so run "${view.invocation} --apply --yes" again to finish migrating.`
-        : `${stopped} Run "ia validate --root ${quote(root)}" for what the workspace admits now.`,
+      refusal.where ?? { path: root },
+      `The migration is recorded in .ia/migration.json; nothing was rolled back. Repair the reported filesystem problem, then run "${view.invocation} --apply --yes" again to finish migrating.`,
     );
   }
   // Neither effect has run, so the refusal says so before the one command it names.
@@ -2106,7 +2167,7 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
   const recapture = `ia capture --root ${quote(root)}`;
   let capture: CaptureEffect | undefined, failed: Refusal | undefined;
   if (options.signal?.aborted) {
-    if (view.hosts.length === 0) throw new Interrupted(`${MIGRATED} Run "${recapture}" to capture it.`);
+    if (view.hosts.length === 0) throw new Interrupted(`${MIGRATED} Run "${resume}" to finish migrating.`);
   } else
     try {
       const written = collectCapture(root, root);
@@ -2120,11 +2181,40 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
   const projected: MigratedProjection[] = [],
     refused: Refusal[] = [];
   for (const { host } of view.hosts) {
-    const finish = `ia host ${host} --root ${quote(root)} --apply`;
-    if (options.signal?.aborted) throw new Interrupted(`${captured} Run "${finish}" to project it.`);
+    const finish = resume;
+    if (options.signal?.aborted) throw new Interrupted(`${captured} Run "${finish}" to finish migrating.`);
     try {
-      const applied = applyHostProjection(root, host, renderProjectionFor(root, host));
-      // A rendered apply always writes its receipt (B12).
+      const rendered = renderProjectionFor(root, host);
+      const prior = readReceipt(root, host);
+      const priorDigest = prior === null ? null : sha256(readWorkspaceFile({ root, path: STATE.receipt(host) }));
+      const completed =
+        prior !== null &&
+        priorDigest !== journal.receiptsBefore[host] &&
+        prior.packetDigest === rendered.receipt.packetDigest &&
+        prior.revision === rendered.receipt.revision &&
+        prior.bodyDigest === rendered.receipt.bodyDigest &&
+        prior.guard === (view.hosts.find((row) => row.host === host)!.guard === 'retire' ? 'retired' : 'none') &&
+        JSON.stringify(prior.removed) === JSON.stringify(journal.removals[host]) &&
+        prior.adapter === rendered.receipt.adapter &&
+        JSON.stringify(prior.files) === JSON.stringify(rendered.receipt.files) &&
+        prior.files.every((file) => sha256(readWorkspaceFile({ root, path: file.path })) === file.sha256) &&
+        prior.removed.every((file) => !existsSync(resolve(root, file.path))) &&
+        planRetirement(root, host) === null &&
+        planFiles(root, host, rendered).actions.every(
+          (action) => action.action === 'unchanged' || action.action === 'foreign',
+        );
+      if (journal.completed[host] !== undefined && !completed)
+        throw new Refusal(
+          'IA-CLI-CONFLICT',
+          'Completed migration projection differs from its receipt',
+          3,
+          { path: STATE.receipt(host) },
+          `Restore the projected files to their receipt digests, then run "${resume}".`,
+        );
+      const applied = completed ? { receipt: prior!, guard: prior!.guard } : applyHostProjection(root, host, rendered);
+      // Receipt publication is itself recoverable before the journal completion marker advances.
+      checkpoint(`migrate:project:${host}:receipt`);
+      completeMigrationProjection(journal, host);
       const receipt = applied.receipt!;
       projected.push({
         host,
@@ -2133,6 +2223,7 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
         guard: applied.guard,
         removed: receipt.removed.map((file) => file.path),
       });
+      checkpoint(`migrate:project:${host}`);
     } catch (error) {
       const refusal = refusalOf(error),
         path = refusedPath(error);
@@ -2142,7 +2233,7 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
           refusal.message,
           3,
           path === null ? refusal.where : { path },
-          `${captured} ${path === null ? `Run "${finish}" to finish projecting it.` : rootedNext(projectionRepair(host, path, `ia host ${host} --apply`, refusal.code), host, root)}`,
+          `${captured} ${JOURNALS.some(([journal]) => existsSync(resolve(root, journal))) ? `Run "${recoverCommand(JOURNALS.find(([journal]) => existsSync(resolve(root, journal)))![1], root)}", then run "${resume}" to finish migrating.` : path === null ? `Repair the reported filesystem problem, then run "${resume}" to finish migrating.` : projectionRepair(host, path, resume, refusal.code)}`,
         ),
       );
     }
@@ -2169,9 +2260,11 @@ export async function applyMigration(view: MigrationView, options: MigrationOpti
         projected.length === 0
           ? MIGRATED
           : `The workspace is migrated and its ${projected.map((row) => row.host).join(' and ')} ${projected.length === 1 ? 'projection is' : 'projections are'} written.`
-      } ${failed.next ?? `Run "${recapture}" to capture it.`}`,
+      } ${failed.next?.replace(`"${recapture}"`, `"${resume}"`) ?? `Run "${resume}" to finish migrating.`}`,
     );
-  if (capture === undefined) throw new Interrupted(`${MIGRATED} Run "${recapture}" to capture it.`);
+  if (capture === undefined) throw new Interrupted(`${MIGRATED} Run "${resume}" to finish migrating.`);
+  checkpoint('migrate:complete');
+  finishMigrationJournal(root);
   return {
     status: 'migrated',
     id: view.id,
@@ -2321,7 +2414,12 @@ const migrationBlocks = (view: MigrationView, caps: Capabilities): readonly (rea
           {
             symbol: view.ignore === 'create' ? 'added' : 'info',
             path: IGNORE_PATH,
-            text: view.ignore === 'create' ? 'ignores work/ and distributions/' : 'exists and is left as it is',
+            text:
+              view.ignore === 'create'
+                ? migrationIgnoreText(view.root) === IGNORE_TEXT
+                  ? 'ignores work/ and distributions/'
+                  : 'ignores work/; tracked distributions remain visible to Git'
+                : 'exists and is left as it is',
           },
           ...view.removes.map((removal) => ({
             symbol: 'removed' as const,
@@ -2408,7 +2506,13 @@ export function renderMigrated(view: MigrationView, applied: Migrated, caps: Cap
         { depth: 1, symbol: 'success' },
         caps,
       ),
-      authoredEntry(applied, caps),
+      authoredEntry(
+        applied,
+        caps,
+        readFileSync(resolve(view.root, IGNORE_PATH), 'utf8').includes('distributions/')
+          ? 'work/ and distributions/'
+          : 'work/',
+      ),
       ...applied.moved.map((move) =>
         entry(
           [

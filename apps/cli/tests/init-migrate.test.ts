@@ -8,6 +8,7 @@
  * away and lays the fixture over it. The collision fixture adds an `.ia/src/notes.ia` of the user's own. A 1.x base,
  * which declares none of the fields the three starter records use, is the bundled one without them (`legacyBase`).
  */
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   cpSync,
@@ -486,8 +487,8 @@ it('says the base install was all it made when the first record write fails, nam
     packageRoot: cli,
     checkpoint: appear,
   });
-  const next = `The migration stopped after it installed ${base.pin.id} ${base.pin.version}; nothing was rolled back. The records are still the 1.1.0 starter's, so run "${invocation} --apply --yes" again to finish migrating.`;
-  await expect(failed).rejects.toMatchObject({ code: 'IA-DIST-LOCAL-MODIFICATION', next });
+  const next = `The migration is recorded in .ia/migration.json; nothing was rolled back. Repair the reported filesystem problem, then run "${invocation} --apply --yes" again to finish migrating.`;
+  await expect(failed).rejects.toMatchObject({ code: 'IA-CLI-CONFLICT', next });
   expect(locksBase(readInstalledState({ root }).lock, base.pin)).toBe(true);
   expect(read(root, NOTES)).toBe(fixture(NOTES));
   expect(existsSync(resolve(root, '.ia/src/workspace.ia'))).toBe(false);
@@ -637,7 +638,7 @@ it('leaves the migration and its capture in place when a projection apply fails,
   expect(failed.exitCode, failed.stdout).toBe(3);
   expect(json(failed)).toMatchObject({
     message: 'file write failed',
-    next: `The workspace is migrated and captured. Run "ia host claude --root ${quote(root)} --apply" to finish projecting it.`,
+    next: `The workspace is migrated and captured. Repair the reported filesystem problem, then run "ia init ${quote(root)} --migrate --apply --yes" to finish migrating.`,
   });
   // Every earlier result stays (design §3); the guard was retired before the first projection file changed (B11).
   expect(existsSync(resolve(root, '.ia/src/notes.ia'))).toBe(true);
@@ -646,7 +647,7 @@ it('leaves the migration and its capture in place when a projection apply fails,
   expect(guardGroups(root)).toBe(0);
   expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
   // The one command named, run as written with the answer it asks for, finishes the projection.
-  const finished = await run([...nextArgv(json(failed).next), '--yes', '--json'], { env });
+  const finished = await run([...nextArgv(json(failed).next), '--json'], { env });
   expect(finished.exitCode, finished.stdout).toBe(0);
   expect(existsSync(resolve(root, STEWARD))).toBe(false);
   expect(JSON.parse(read(root, RECEIPT)).removed).toEqual([{ path: STEWARD, sha256: expect.any(String) }]);
@@ -892,6 +893,18 @@ it('refuses a workspace that is not 1.1.0-shaped before anything is written, nam
     `${FOLDER}/records/more is not part of one, whose system folder holds only system.ia and records/*.ia`,
     `${FOLDER}/records/more`,
   );
+  const nonIa = await legacyWorkspace();
+  put(nonIa.root, `${FOLDER}/records/notes.md`, 'notes\n');
+  await refuses(
+    nonIa.root,
+    `${FOLDER}/records/notes.md is not part of one, whose system folder holds only system.ia and records/*.ia`,
+    `${FOLDER}/records/notes.md`,
+  );
+  for (const missing of [LOCAL, `${FOLDER}/records`, LEGACY]) {
+    const workspace = await legacyWorkspace();
+    rmSync(resolve(workspace.root, missing), { recursive: true });
+    await refuses(workspace.root, `${missing === LOCAL ? LOCAL : LEGACY} is absent`, FOLDER);
+  }
   // A second system folder.
   const second = await legacyWorkspace();
   mkdirSync(resolve(second.root, '.ia/src/systems/other'));
@@ -1048,7 +1061,7 @@ it('stops at the capture boundary on a signal once migrated, naming ia capture, 
   });
   await expect(interrupted).rejects.toBeInstanceOf(Interrupted);
   await expect(interrupted).rejects.toMatchObject({
-    next: `The workspace is migrated. Run "ia capture --root ${quote(root)}" to capture it.`,
+    next: `The workspace is migrated. Run "ia init ${quote(root)} --migrate --apply --yes" to finish migrating.`,
   });
   expect(read(root, '.ia/src/workspace.ia')).toBe(starterRecords('demo', base.systems));
   expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
@@ -1063,7 +1076,7 @@ it('leaves the migration in place when its capture fails, with the location and 
   writeFileSync(resolve(root, '.ia/work'), 'not a directory\n');
   const refused = await apply(root);
   expect(refused.exitCode, refused.stdout).toBe(3);
-  const repair = `Replace or remove the path named above, so .ia/work/snapshot is a plain directory holding plain files, then run "ia capture --root ${quote(root)}".`;
+  const repair = `Replace or remove the path named above, so .ia/work/snapshot is a plain directory holding plain files, then run "ia init ${quote(root)} --migrate --apply --yes".`;
   expect(json(refused)).toMatchObject({
     code: 'IA-DB-PATH-UNSAFE',
     where: { path: '.ia/work' },
@@ -1089,7 +1102,7 @@ it('says which writes and deletes a file step made when a later one fails, since
     }),
   ).rejects.toMatchObject({
     message: 'disk full',
-    next: `The migration stopped after it wrote .ia/src/notes.ia, deleted ${NOTES}, wrote .ia/src/workspace.ia, wrote .ia/.gitignore; nothing was rolled back. Run "ia validate --root ${quote(root)}" for what the workspace admits now.`,
+    next: expect.stringContaining(`ia init ${quote(root)} --migrate --apply --yes`),
   });
   expect(existsSync(resolve(root, LOCAL))).toBe(true);
   expect(existsSync(resolve(root, '.ia/src/workspace.ia'))).toBe(true);
@@ -1132,4 +1145,232 @@ it('takes --migrate with --system only, and documents it in the verb help', asyn
   expect(help.stdout.replace(/\s+/g, ' ')).toContain(
     'Rewrite a 1.1.0 starter workspace into the three starter records',
   );
+});
+
+it('refuses every authored starter edit before plan or apply writes, including --system distribution customization', async () => {
+  for (const edit of [
+    (text: string) => text.replace('The demo workspace and the public systems it composes.', 'Our billing platform.'),
+    (text: string) => text.replace('Which systems does this workspace compose?', 'Who owns billing?'),
+    (text: string) => text.replace('@workspace demo', '# authored comment\n@workspace demo'),
+    (text: string) =>
+      text.replace('\n@distribution', '\n  relationships\n    cite @decision api-response-format\n\n@distribution'),
+    (text: string) =>
+      text.replace('records [@workspace demo]', 'records [@workspace demo, @decision api-response-format]'),
+    (text: string) => text.replace('The release root of the demo workspace.', 'Our custom release.'),
+  ]) {
+    for (const system of [[], ['--system']]) {
+      const { root } = await legacyWorkspace();
+      put(root, LEGACY, edit(fixture(LEGACY)));
+      const before = tree(root);
+      const planned = json(await migrate(root, system));
+      expect(planned.plan.conflicts).toContainEqual({
+        path: LEGACY,
+        reason: expect.stringContaining('Authored workspace or distribution text'),
+      });
+      expect((await apply(root, system)).exitCode).toBe(3);
+      expect(tree(root)).toEqual(before);
+    }
+  }
+});
+
+it('resumes exact journal-owned states after every individual mutation and refuses edited destinations', async () => {
+  const first = await legacyWorkspace();
+  const checkpoints: string[] = [];
+  await applyMigration(collectMigration({ root: first.root, packageRoot: cli }), {
+    packageRoot: cli,
+    checkpoint: (name) => {
+      if (name.startsWith('migrate:mutation:')) checkpoints.push(name);
+    },
+  });
+  expect(checkpoints.length).toBeGreaterThan(8);
+  for (const cut of checkpoints) {
+    const { root } = await legacyWorkspace();
+    await expect(
+      applyMigration(collectMigration({ root, packageRoot: cli }), {
+        packageRoot: cli,
+        checkpoint: (name) => {
+          if (name === cut) throw new Error('process stopped before cursor write');
+        },
+      }),
+    ).rejects.toThrow('process stopped');
+    const before = tree(root);
+    expect((await migrate(root)).exitCode).toBe(0);
+    expect(tree(root)).toEqual(before);
+    expect((await apply(root)).exitCode).toBe(0);
+    expect((await run(['validate', '--root', root, '--json'])).exitCode).toBe(0);
+    expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(false);
+  }
+  const { root } = await legacyWorkspace();
+  await expect(
+    applyMigration(collectMigration({ root, packageRoot: cli }), {
+      packageRoot: cli,
+      checkpoint: (name) => {
+        if (name === 'migrate:move') throw new Error('stop');
+      },
+    }),
+  ).rejects.toThrow();
+  put(root, '.ia/src/notes.ia', '# changed destination\n');
+  const changed = tree(root);
+  expect((await apply(root)).exitCode).toBe(3);
+  expect(tree(root)).toEqual(changed);
+});
+
+it('preflights kept field and relationship references to deleted identities and --system retains them', async () => {
+  const { root } = await legacyWorkspace();
+  put(
+    root,
+    '.ia/src/profile.ia',
+    `#! ia 1.0
+
+@agent-profile custom-profile
+  meaning
+    says "A retained profile."
+    answers "Who acts?"
+  composition
+    agent @agent demo-steward
+    capabilities []
+  execution
+    role reader
+    outcomes custom-outcomes
+    mandate-contract custom-contract
+  relationships
+    cite @distribution demo-distribution
+`,
+  );
+  const admitted = await run(['validate', '--root', root, '--json']);
+  expect(admitted.exitCode, admitted.stdout).toBe(0);
+  const before = tree(root);
+  const result = await migrate(root);
+  expect(result.exitCode, result.stdout).toBe(0);
+  const planned = json(result);
+  expect(planned.plan.conflicts).toEqual(
+    expect.arrayContaining([
+      { path: '.ia/src/profile.ia', reason: expect.stringContaining('agent-system/binding/agent/demo-steward') },
+      { path: '.ia/src/profile.ia', reason: expect.stringContaining(DISTRIBUTION) },
+    ]),
+  );
+  expect((await apply(root)).exitCode).toBe(3);
+  expect(tree(root)).toEqual(before);
+  expect((await apply(root, ['--system'])).exitCode).toBe(0);
+  expect((await run(['validate', '--root', root, '--json'])).exitCode).toBe(0);
+});
+
+it('keeps tracked generations committable and refuses existing ignore rules that hide new payload', async () => {
+  const { root } = await onLegacyBase();
+  const git = (...args: string[]): string =>
+    execFileSync('git', ['-C', root, '-c', 'core.fsmonitor=false', ...args], { encoding: 'utf8', windowsHide: true });
+  git('init', '-q');
+  put(root, '.gitattributes', '.ia/** -text\n');
+  git('add', '-A');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-qm', 'legacy');
+  const peer = resolve(scratch('migration-peer'), 'peer');
+  execFileSync('git', ['clone', '-q', root, peer], { windowsHide: true });
+  const baseline = await run(['position', '--root', peer, '--json']);
+  expect(baseline.exitCode, baseline.stdout).toBe(0);
+  for (const rule of ['distributions/', 'distributions/store/', 'distributions/generations/']) {
+    put(root, '.ia/.gitignore', `work/\n${rule}\n`);
+    const before = tree(root);
+    const conflict = json(await migrate(root));
+    expect(conflict.plan.conflicts).toContainEqual({
+      path: '.ia/distributions',
+      reason: expect.stringContaining('Git ignore rule'),
+    });
+    expect((await apply(root)).exitCode).toBe(3);
+    expect(tree(root)).toEqual(before);
+  }
+  rmSync(resolve(root, '.ia/.gitignore'));
+  expect((await apply(root)).exitCode).toBe(0);
+  expect(read(root, '.ia/.gitignore')).toBe('work/\n');
+  git('add', '-A');
+  const clone = resolve(scratch('migration-clone'), 'clone');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-qm', 'migrated');
+  execFileSync('git', ['clone', '-q', root, clone], { windowsHide: true });
+  execFileSync('git', ['-C', peer, 'pull', '--ff-only', '-q'], { windowsHide: true });
+  const pulled = await run(['position', '--root', peer, '--json']);
+  expect(pulled.exitCode, pulled.stdout).toBe(0);
+  const positioned = await run(['position', '--root', clone, '--json']);
+  expect(positioned.exitCode, positioned.stdout).toBe(0);
+});
+
+it('resumes files with spaces and Unicode and every effect boundary using the printed command', async () => {
+  for (const cut of ['migrate:admission', 'migrate:capture', 'migrate:complete']) {
+    const { root } = await legacyWorkspace();
+    const extra = `${FOLDER}/records/notes espace-é.ia`;
+    put(root, extra, fixture(NOTES).replace('api-response-format', 'second-decision'));
+    let next = '';
+    try {
+      await applyMigration(collectMigration({ root, packageRoot: cli }), {
+        packageRoot: cli,
+        checkpoint: (name) => {
+          if (name === cut) throw new Error('cut');
+        },
+      });
+    } catch (error) {
+      next = (error as { next: string }).next;
+    }
+    expect(next).toContain('--migrate --apply --yes');
+    expect((await run([...nextArgv(next), '--json'])).exitCode).toBe(0);
+    expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(false);
+    expect(existsSync(resolve(root, '.ia/src/notes espace-é.ia'))).toBe(true);
+  }
+});
+
+it('recovers real process termination between each filesystem mutation and journal cursor publication', async () => {
+  const reference = await legacyWorkspace();
+  let count = 0;
+  await applyMigration(collectMigration({ root: reference.root, packageRoot: cli }), {
+    packageRoot: cli,
+    checkpoint: (name) => {
+      if (name.startsWith('migrate:mutation:')) count++;
+    },
+  });
+  for (const cut of [
+    ...Array.from({ length: count }, (_, index) => `migrate:mutation:${index}`),
+    'migrate:capture',
+    'migrate:complete',
+  ]) {
+    const { root } = await legacyWorkspace();
+    const child = spawnSync(
+      process.execPath,
+      ['--conditions=development', '--import', 'tsx', 'tests/init-migrate-kill.ts', root, cut],
+      { cwd: cli, windowsHide: true, timeout: 60_000, encoding: 'utf8' },
+    );
+    expect(child.error, child.stderr).toBeUndefined();
+    expect(child.status, child.stderr).not.toBe(0);
+    const reached = JSON.parse(child.stdout.trim());
+    expect(reached.pid).toBe(child.pid);
+    expect(reached.checkpoint === cut || reached.checkpoint.startsWith(`${cut}:`)).toBe(true);
+    expect(() => process.kill(child.pid, 0)).toThrow();
+    expect(existsSync(resolve(root, '.ia/migration.json')), cut).toBe(true);
+    const finished = await apply(root);
+    expect(finished.exitCode, `${cut}: ${finished.stdout}`).toBe(0);
+    expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(false);
+    expect((await run(['position', '--root', root, '--json'])).exitCode).toBe(0);
+  }
+}, 180_000);
+
+it('keeps completed migration projection receipts through every projection and final journal boundary', async () => {
+  for (const cut of [
+    'migrate:project:claude:receipt',
+    'migrate:project:claude',
+    'migrate:project',
+    'migrate:complete',
+  ]) {
+    const { root, env } = await legacyWorkspace();
+    await registered(root, env);
+    await expect(
+      applyMigration(collectMigration({ root, packageRoot: cli }), {
+        packageRoot: cli,
+        checkpoint: (name) => {
+          if (name === cut) throw new Error('cut after projection');
+        },
+      }),
+    ).rejects.toThrow('cut after projection');
+    const receipt = read(root, RECEIPT);
+    expect(JSON.parse(receipt).guard).toBe('retired');
+    const finished = await apply(root);
+    expect(finished.exitCode, finished.stdout).toBe(0);
+    expect(read(root, RECEIPT), cut).toBe(receipt);
+    expect(existsSync(resolve(root, '.ia/migration.json'))).toBe(false);
+  }
 });

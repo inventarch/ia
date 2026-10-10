@@ -23,6 +23,7 @@
  * would write through db D08b's `planCapture` (the counts, the rotation and the changed, new and removed identities)
  * and writes nothing, so the retained previous snapshot that readiness compares against is not spent.
  */
+import { existsSync } from 'node:fs';
 import { isAbsolute, posix, relative, resolve } from 'node:path';
 import {
   CAPTURE_CURRENT,
@@ -213,7 +214,9 @@ function captureRefusal(root: string, given: string | undefined, admitted: Admit
     { path: root },
     errors
       ? `Run "${validate}" for the findings that may keep its @workspace from being read.`
-      : `Run "ia init ${quote(root)}" to see what a new workspace there would contain.`,
+      : existsSync(resolve(root, '.ia/release.json'))
+        ? `Restore the authored @workspace source under .ia/src from source control, then run "ia position --root ${quote(root)}" to inspect this initialized workspace.`
+        : `Run "ia init ${quote(root)}" to see what a new workspace there would contain.`,
   );
 }
 /** Admits the workspace at `root` and builds the snapshot to write, unless one of §5's two refusals answers first. */

@@ -1500,3 +1500,69 @@ it('reads the macOS git stub that asks for the Command Line Tools as git being u
   chmodSync(stubGit, 0o755);
   expect(readProvenance(gitIn(bin, { PATH: bin }))).toMatchObject({ missing: 'git' });
 });
+
+it('restores a clone with an empty installation cache from the exact bundled base online and offline', async () => {
+  for (const host of ['none', 'claude', 'codex']) {
+    const root = target();
+    expect((await run(['init', root, '--apply', '--yes', '--host', host, '--json'])).exitCode).toBe(0);
+    for (const offline of [false, true]) {
+      rmSync(resolve(root, '.ia/distributions'), { recursive: true, force: true });
+      const restored = await run([
+        'restore',
+        '--root',
+        root,
+        '--apply',
+        '--yes',
+        '--json',
+        ...(offline ? ['--offline'] : []),
+      ]);
+      expect(restored.exitCode, restored.stdout).toBe(0);
+      expect((await run(['position', '--root', root, '--json'])).exitCode).toBe(0);
+    }
+  }
+}, 180_000);
+
+it('gives initialized targets a position next action in plan and refusal', async () => {
+  const root = target();
+  expect((await apply(root)).exitCode).toBe(0);
+  const planned = json(await plan(root));
+  expect(planned.plan.next).toContain(`ia position --root ${quote(realpathSync(root))}`);
+  expect(json(await apply(root)).next).toContain(`ia position --root ${quote(realpathSync(root))}`);
+  rmSync(resolve(root, '.ia/src/workspace.ia'));
+  expect(json(await apply(root)).next).toContain(
+    'Restore the authored .ia/src/workspace.ia from source control first.',
+  );
+});
+
+it('refuses corrupt bundled or cached bytes and locked manifest/version mismatch without restore writes', async () => {
+  for (const kind of ['bundle', 'cache', 'manifest', 'version']) {
+    const root = target();
+    expect((await apply(root)).exitCode).toBe(0);
+    rmSync(resolve(root, '.ia/distributions'), { recursive: true });
+    let packageRoot = cli;
+    if (kind === 'bundle') {
+      packageRoot = scratch('damaged-bundle');
+      cpSync(resolve(cli, 'assets'), resolve(packageRoot, 'assets'), { recursive: true });
+      writeFileSync(resolve(packageRoot, `assets/base/${pin.archive}.ia.tgz`), 'corrupt');
+    } else if (kind === 'cache') {
+      mkdirSync(resolve(root, '.ia/distributions/cache'), { recursive: true });
+      writeFileSync(resolve(root, `.ia/distributions/cache/${pin.archive}.ia.tgz`), 'corrupt');
+    } else {
+      const path = resolve(root, '.ia/distributions.lock.json');
+      const lock = JSON.parse(readFileSync(path, 'utf8'));
+      lock.packages[0][kind] = kind === 'manifest' ? 'f'.repeat(64) : '1.1.99';
+      writeFileSync(path, JSON.stringify(lock));
+    }
+    const before = tree(root);
+    const refused = await dispatch(
+      ['restore', '--root', root, '--offline', '--apply', '--yes', '--json'],
+      { ...makeHost(), packageRoot },
+      () => {
+        throw new Error('Unexpected machine route');
+      },
+      [],
+    );
+    expect(refused.exitCode, refused.stdout).toBe(3);
+    expect(tree(root), kind).toEqual(before);
+  }
+}, 180_000);

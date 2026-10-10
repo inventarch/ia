@@ -39,6 +39,9 @@
  * with the service's code, message and file, and its next action opens "The installation is applied." before the
  * repair, so a script sees the failure and a reader sees what did happen. `ia doctor` reports the drift until then.
  */
+import { readBase } from './bundled-base.js';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   canonicalDistributionJson,
   decodeDistributionRequests,
@@ -46,7 +49,7 @@ import {
   INSTALL_PATHS,
 } from '@inventarch/db/distribution';
 import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
-import { ARCHIVE_CACHE, applyInstallation, planInstallation } from '@inventarch/distribution/install';
+import { ARCHIVE_CACHE, applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import type { InstallationPlan } from '@inventarch/distribution/install';
 import type { ProjectionDrift } from '@inventarch/distribution/projection';
 import { legacyProjectionActions, observeProjection } from '@inventarch/distribution/projection';
@@ -394,6 +397,7 @@ async function warm(
 }
 
 export interface PlanRequest {
+  readonly packageRoot?: string;
   readonly signal?: AbortSignal | undefined;
   readonly root: string;
   readonly operation: Operation;
@@ -622,6 +626,21 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
   if (operation === 'restore') {
     // One lock is read, and the withdrawal check and the plan both use that same object (registry spec §6.3).
     const lock = readWorkspaceLock({ root });
+    if (request.packageRoot !== undefined) {
+      const base = readBase(request.packageRoot);
+      const locked = lock.packages.find((row) => row.id === base.pin.id);
+      if (locked?.archive === base.pin.archive) {
+        if (locked.manifest !== base.pin.manifest || locked.version !== base.pin.version)
+          throw new Refusal(
+            'IA-DIST-INPUT-INVALID',
+            'The locked bundled base manifest or version differs from its verified archive',
+            3,
+            { path: INSTALL_PATHS.lock },
+            `Restore the exact portable lock from source control, then run "${reruns.again}".`,
+          );
+        cacheArchive(root, base.bytes, base.pin.archive);
+      }
+    }
     if (request.catalog === undefined && !request.offline) {
       const choose = chooserOf(request);
       const restored = await acquiring(
@@ -1127,6 +1146,7 @@ export function runDistribute(operation: Operation): (context: Context) => Promi
     const refresh = registeredProjections(root, operation);
     if (args.flag('apply')) requireProjectionsClean(root, refresh, rooted);
     const planned = await collectPlan({
+      packageRoot: host.packageRoot,
       signal: host.signal,
       root,
       operation,
