@@ -172,7 +172,7 @@ it('detects each conflict condition against a workspace that already exists', as
   const pending = await run(['init', root]);
   expect(pending.exitCode).toBe(3);
   expect(pending.stderr).toContain('IA-DB-SOURCE-UNAVAILABLE');
-  expect(pending.stderr).toContain('ia-distribution recover');
+  expect(pending.stderr).toContain('ia recover');
 });
 
 it('checks formatting by default, rewrites only with --write, and refuses a path outside the root', async () => {
@@ -454,7 +454,7 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
   const interrupted = await run(['doctor', '--root', root], { env });
   expect(interrupted.exitCode).toBe(1);
   expect(interrupted.stdout).toContain('.ia/distributions/pending.json exists');
-  expect(interrupted.stdout).toContain('ia-distribution recover --root');
+  expect(interrupted.stdout).toContain('ia recover installation --root');
   expect(interrupted.stdout).toContain('Not checked; installation recovery is required first');
   const failed = JSON.parse((await run(['doctor', '--root', root, '--json'], { env })).stdout) as {
     checks: { id: string; status: string }[];

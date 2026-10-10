@@ -38,7 +38,7 @@ export const deadPid = (): number =>
   spawnSync(process.execPath, ['-e', ''], { env: { ...process.env, NODE_OPTIONS: '' } }).pid!;
 export const HOST_LOCK = '.ia/distributions/hosts/lock.json';
 export const lockNext = (root: string): string =>
-  `Another ia host run holds the host lock, or a killed run left it: run "ia-distribution recover-host --root ${quote(root)}" (it clears a dead holder's lock and refuses a live one), then rerun.`;
+  `Another ia host run holds the host lock, or a killed run left it: run "ia recover host --root ${quote(root)}" (it clears a dead holder's lock and refuses a live one), then rerun.`;
 
 export type Row = { id: string; status: string; detail: string; remedy: string | null };
 export const doctor = async (root: string, env: Record<string, string>) => {

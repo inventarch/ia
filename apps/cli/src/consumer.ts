@@ -29,7 +29,7 @@ import { runCompile } from './compile.js';
 import { runDistribute } from './distribute.js';
 import { runDoctor } from './doctor.js';
 import { runFormat } from './format.js';
-import { runHost } from './host.js';
+import { runHost, runRecovery } from './host.js';
 import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
 import { runNext } from './next.js';
@@ -466,7 +466,7 @@ const wantsHelp = (argv: readonly string[]): boolean => {
 };
 
 type Handler = (context: Context) => Result | Promise<Result>;
-/** The eighteen verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
+/** The consumer verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
 const HANDLERS: Readonly<Record<string, Handler>> = {
   init: runInit,
   vocabulary: runVocabulary,
@@ -484,6 +484,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   update: runDistribute('update'),
   remove: runDistribute('remove'),
   restore: runDistribute('restore'),
+  recover: runRecovery,
   doctor: runDoctor,
   host: runHost,
 };

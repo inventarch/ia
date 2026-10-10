@@ -14,8 +14,8 @@
  * required (B8). A plan with a conflict is a successful report naming the file, as `ia host`'s is (§4); only `--apply`
  * refuses it, before anything is asked or written, naming the plan to run once the file is out of the way. The `ia
  * project`, `ia validate` and `ia init` commands a next action names carry the root as the invocation typed it; the
- * `ia-distribution` recovery a pending host journal or a held host lock names carries the resolved root, because
- * `ia-distribution` takes only an absolute `--root`, and a workspace whose sources cannot be opened names the resolved
+ * `ia recover` command a pending host journal or a held host lock names carries the resolved root, because
+ * its distribution mechanism takes only an absolute root, and a workspace whose sources cannot be opened names the resolved
  * root, as for every workspace verb (`openSession`).
  */
 import { workspaceRow } from '@inventarch/distribution/hosts';
@@ -103,7 +103,7 @@ export function collectProject(context: Context): ProjectView {
     );
   const root = requireRoot(context);
   requireInitialized(root, given ?? root);
-  // The journal's recovery names the resolved root: `ia-distribution` takes only an absolute one.
+  // The journal's recovery names the resolved root: the distribution mechanism takes only an absolute one.
   requireIdle(root, root);
   const rendered = renderProjectionFor(root, host);
   return {

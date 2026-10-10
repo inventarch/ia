@@ -413,7 +413,7 @@ it('refuses a pending host journal in the plan and the apply, and a held host lo
     expect(JSON.parse(refused.stdout)).toMatchObject({
       code: 'IA-DIST-RECOVERY-REQUIRED',
       where: { path: journal },
-      next: `Run "ia-distribution recover-host --root ${quote(realpathSync(root))}", then rerun.`,
+      next: `Run "ia recover host --root ${quote(realpathSync(root))}", then rerun.`,
     });
   }
   expect(existsSync(resolve(root, RECEIPT))).toBe(false);

@@ -552,7 +552,7 @@ it('names the pending journal recovery, not a projection file, when a journal bl
     ok: false,
     code: 'IA-DIST-RECOVERY-REQUIRED',
     where: { path: journal },
-    next: `Run "ia-distribution recover-guard --root ${quote(root)}", then rerun.`,
+    next: `Run "ia recover guard --root ${quote(root)}", then rerun.`,
   });
   // Nothing was acquired or written.
   expect(readFileSync(resolve(root, LOCK)).equals(lock)).toBe(true);
@@ -649,12 +649,12 @@ it('prioritizes a real interrupted guard journal over raw filesystem errors and 
   expect(refusal.where.path).toBe('.ia/distributions/hosts/guard-pending.json');
   expect(refusal.next).not.toContain('delete');
   const command = refusal.next.match(/Run "([^"]+)"/)[1];
-  expect(command).toBe(`ia-distribution recover-guard --root ${root}`);
-  const recovered = await runBounded(
-    process.execPath,
-    [resolve(cli, '../distribution/dist/cli.js'), ...command.split(' ').slice(1)],
-    { cwd: root, env: { ...process.env, ...env, NODE_OPTIONS: '' }, timeoutMs: 30_000 },
-  );
+  expect(command).toBe(`ia recover guard --root ${root}`);
+  const recovered = await runBounded(process.execPath, [resolve(cli, 'dist/main.js'), ...command.split(' ').slice(1)], {
+    cwd: root,
+    env: { ...process.env, ...env, NODE_OPTIONS: '' },
+    timeoutMs: 30_000,
+  });
   expect(recovered.status, String(recovered.stderr)).toBe(0);
   expect(read(root, '.claude/settings.local.json')).toBe(before);
   expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);

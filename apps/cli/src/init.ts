@@ -801,7 +801,7 @@ export function collectInit(request: InitRequest): InitView {
     const installation: Conflict[] = [];
     // M5.2 §4.1: a held or abandoned install lock is recovery-required too. A process killed inside
     // applyInstallation skips the `finally` that releases it (apps/distribution/src/install.ts:67-97), before
-    // `pending` exists and after it is removed. `ia-distribution recover` clears a dead holder's lock and refuses a
+    // `pending` exists and after it is removed. `ia recover installation` clears a dead holder's lock and refuses a
     // live one (`acquire(root, true)`, install.ts:71), so it is the remedy whether or not a journal exists; the
     // journal case keeps the reader's own refusal below.
     if (!existsSync(resolve(root, INSTALL_PATHS.pending)) && existsSync(resolve(root, INSTALL_LOCK)))

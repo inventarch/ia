@@ -3,13 +3,16 @@
  * Shared setup lives in host-fixture.ts; every case owns a fresh workspace and IA home.
  * See docs/specs/host-registration/README.md §§4–10.
  */
-import { existsSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { rootedNext } from '../src/host.js';
 import { quote } from '../src/render.js';
 import { put, read, initialized, host, deadPid, HOST_LOCK, lockNext, doctor, row, RECEIPT } from './host-fixture.js';
 import { afterAll, expect, it, vi } from 'vitest';
-import { cleanup } from './workspace-fixture.js';
+import { cleanup, cli, nextArgv, run, scratch } from './workspace-fixture.js';
+import { runBounded } from '@tools/testing/subprocess.js';
+import { applyGuardRegistration, planGuardRegistration } from '@inventarch/distribution/guard-registration';
+import { legacyRegistration, STEWARD, LEGACY_FILES } from './host-fixture.js';
 
 vi.setConfig({ testTimeout: 180_000 });
 afterAll(cleanup);
@@ -94,7 +97,7 @@ it('names the rerun after a failure past the first element, the lock recovery, o
     code: 'IA-DIST-RECOVERY-REQUIRED',
     where: { path: '.ia/distributions/hosts/guard-pending.json' },
   });
-  expect(pending.next).toBe(`Run "ia-distribution recover-guard --root ${quote(other.root)}", then rerun.`);
+  expect(pending.next).toBe(`Run "ia recover guard --root ${quote(other.root)}", then rerun.`);
 });
 
 it('names recover-host for a leftover host lock in apply, removal and doctor, and the named recovery converges', async () => {
@@ -116,7 +119,7 @@ it('names recover-host for a leftover host lock in apply, removal and doctor, an
   expect(row(held.checks, 'host-lock')).toMatchObject({
     status: 'warn',
     detail: expect.stringContaining(`${HOST_LOCK} is held by another ia host run or was left by a killed one`),
-    remedy: `ia-distribution recover-host --root ${quote(root)}`,
+    remedy: `ia recover host --root ${quote(root)}`,
   });
   // A held lock is a warning, not a failure: a live run holds it too.
   expect(held.exitCode).toBe(0);
@@ -152,7 +155,7 @@ it('reports each pending host journal as a failure naming its own recovery', asy
     expect(row(report.checks, `host-journal:${path}`)).toMatchObject({
       status: 'fail',
       detail: `${path} exists; an ia host transaction was interrupted`,
-      remedy: `ia-distribution ${command} --root ${quote(root)}`,
+      remedy: `ia recover ${command.replace('recover-', '')} --root ${quote(root)}`,
     });
     // ia host names the same recovery.
     expect(JSON.parse((await host(root, env, 'claude')).stdout)).toMatchObject({
@@ -227,4 +230,71 @@ it('converges byte for byte after an interruption at each apply and removal boun
     expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode, cut).toBe(0);
     expect(snapshot(), cut).toEqual(reference);
   }
+});
+
+it('routes explicit-root recovery modes without admission, validates usage, and preserves live-owner refusal', async () => {
+  const root = resolve(scratch('recovery'), 'space root');
+  mkdirSync(root);
+  const help = await run(['recover', '--help']);
+  expect(help.exitCode).toBe(0);
+  expect(help.stdout).toContain('installation|host|guard|lifecycle');
+  expect(help.stdout).not.toContain('nearest ancestor');
+  for (const args of [
+    [],
+    ['bogus', '--root', root],
+    ['host', 'guard', '--root', root],
+    ['host', '--root', root, '--apply'],
+  ])
+    expect((await run(['recover', ...args, '--json'])).exitCode).toBe(2);
+  for (const kind of [undefined, 'installation', 'host', 'guard', 'lifecycle']) {
+    const result = await run(['recover', ...(kind === undefined ? [] : [kind]), '--root', root, '--json']);
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      recovery: kind ?? 'installation',
+      result: { status: 'current' },
+    });
+  }
+  put(root, HOST_LOCK, JSON.stringify({ pid: process.pid }));
+  const args = ['recover', 'guard', '--root', root];
+  const refused = await run([...args, '--json']);
+  const text = await run(args);
+  expect(refused.exitCode).toBe(3);
+  expect(text.exitCode).toBe(3);
+  expect(JSON.parse(refused.stdout)).toMatchObject({
+    code: 'IA-DIST-INSTALL-BUSY',
+    message: expect.stringContaining('still running'),
+  });
+  expect(text.stderr.replace(/\s+/g, ' ')).toContain(JSON.parse(refused.stdout).next);
+  expect(existsSync(resolve(root, HOST_LOCK))).toBe(true);
+});
+
+it('replays the printed guard remedy through the emitted ia entry and finishes the original apply', async () => {
+  const workspace = await initialized();
+  const root = resolve(scratch('recovery-spaces'), 'demo workspace');
+  renameSync(workspace.root, root);
+  const { env } = workspace;
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  legacyRegistration(root, env);
+  const settings = read(root, '.claude/settings.local.json');
+  expect(() =>
+    applyGuardRegistration(planGuardRegistration(root, { remove: 'workspace' }), (stage) => {
+      if (stage === 'pending') throw new Error('interrupted');
+    }),
+  ).toThrow('interrupted');
+  const failed = await host(root, env, 'claude', '--apply', '--yes');
+  expect(failed.exitCode).toBe(3);
+  const next = JSON.parse(failed.stdout).next;
+  expect(next).toContain(`ia recover guard --root ${quote(root)}`);
+  const recovered = await runBounded(process.execPath, [resolve(cli, 'dist/main.js'), ...nextArgv(next)], {
+    cwd: scratch('recovery-cwd'),
+    env: { ...process.env, ...env, NODE_OPTIONS: '' },
+    timeoutMs: 30_000,
+  });
+  expect(recovered.status, String(recovered.stderr)).toBe(0);
+  expect(existsSync(resolve(root, '.ia/distributions/hosts/guard-pending.json'))).toBe(false);
+  expect(read(root, '.claude/settings.local.json')).toBe(settings);
+  expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'retired', removed: [{ path: STEWARD }] });
 });

@@ -832,7 +832,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
           title: 'Generation',
           status: 'unknown',
           detail: `Not checked; ${observed}`,
-          remedy: `ia-distribution recover --root ${root}`,
+          remedy: recoverCommand('recover', root),
         });
       }
       // Registry spec §4: after the generation row, the registry each provider in the workspace's lock routes to. An
@@ -846,7 +846,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
       title: 'Pending state',
       status: pending ? 'fail' : 'ok',
       detail: pending ? `${INSTALL_PATHS.pending} exists; an apply was interrupted` : 'No interrupted transaction',
-      remedy: pending ? `ia-distribution recover --root ${root}` : null,
+      remedy: pending ? recoverCommand('recover', root) : null,
     });
     const held = existsSync(resolve(root, INSTALL_LOCK));
     checks.push({
@@ -855,7 +855,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
       title: 'Install lock',
       status: held ? 'warn' : 'info',
       detail: held ? `${INSTALL_LOCK} is held by another installer or was left behind` : 'Not held',
-      remedy: held ? `ia-distribution recover --root ${root}` : null,
+      remedy: held ? recoverCommand('recover', root) : null,
     });
     const cache = resolve(root, CACHE);
     const archives = directory(cache) ? readdirSync(cache).filter((name) => ARCHIVE.test(name)).length : 0;

@@ -727,7 +727,7 @@ async function interruptAndResume(name: string): Promise<void> {
     const before = tree(root),
       refused = await plan(root);
     expect(refused.exitCode, name).toBe(3);
-    expect(json(refused).next, name).toContain('ia-distribution recover');
+    expect(json(refused).next, name).toContain('ia recover');
     expect(tree(root), name).toEqual(before);
     recoverInstallation(root);
   }
@@ -1330,9 +1330,9 @@ it('roots every ia host command a remedy names, and only those', () => {
   expect(rootedNext(next, 'claude', 'C:/work/my demo')).toBe(
     'Delete the ia-workspace entry, then run "ia host claude --root "C:/work/my demo" --remove --apply" and "ia host claude --root "C:/work/my demo" --apply".',
   );
-  const recover = 'Run "ia-distribution recover-host --root /w", then rerun "ia host codex".';
+  const recover = 'Run "ia recover host --root /w", then rerun "ia host codex".';
   expect(rootedNext(recover, 'codex', '/w')).toBe(
-    'Run "ia-distribution recover-host --root /w", then rerun "ia host codex --root /w".',
+    'Run "ia recover host --root /w", then rerun "ia host codex --root /w".',
   );
   expect(rootedNext('Run "ia host claude --root /w --apply".', 'claude', '/w')).toBe(
     'Run "ia host claude --root /w --apply".',
@@ -1359,7 +1359,7 @@ it('names ia host, which names the recovery, when a pending journal stops the ho
   const named = await run([...nextArgv(json(refused).next), '--yes', '--json'], { env });
   expect(json(named)).toMatchObject({
     code: 'IA-DIST-RECOVERY-REQUIRED',
-    next: `Run "ia-distribution recover-guard --root ${quote(realpathSync(root))}", then rerun.`,
+    next: `Run "ia recover guard --root ${quote(realpathSync(root))}", then rerun.`,
   });
 });
 
@@ -1384,7 +1384,7 @@ it.each(['store:', 'pending', 'active', 'complete'])(
     const before = tree(root);
     for (const refused of [await plan(root), await apply(root)]) {
       expect(refused.exitCode, name).toBe(3);
-      expect(json(refused).next, name).toContain(`"ia-distribution recover --root ${quote(root)}"`);
+      expect(json(refused).next, name).toContain(`"ia recover installation --root ${quote(root)}"`);
       if (!journal)
         expect(json(refused), name).toMatchObject({
           code: 'IA-CLI-RECOVERY-REQUIRED',

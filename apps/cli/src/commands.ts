@@ -57,7 +57,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all eighteen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Shared consumer options; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -586,6 +586,20 @@ export const COMMANDS: readonly CommandSpec[] = [
       option({ name: 'allow-withdrawn', kind: 'boolean', summary: 'Accept a withdrawn release' }),
       option({ name: 'apply', kind: 'boolean', required: true, summary: 'Required; restore has no preview yet' }),
     ]),
+  },
+  {
+    name: 'recover',
+    group: 'distribution',
+    summary: 'Recover an interrupted installation or host transaction',
+    syntax: ['ia recover [installation|host|guard|lifecycle] --root <directory> [--json]'],
+    grammar: {
+      options: COMMON_OPTIONS.map((entry) =>
+        entry.name === 'root'
+          ? { ...entry, required: true, summary: 'Required existing directory whose transaction is to be recovered' }
+          : entry,
+      ),
+      positionals: positionals('recovery', 0, 1),
+    },
   },
   {
     name: 'doctor',

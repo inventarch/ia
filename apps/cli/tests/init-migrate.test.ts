@@ -702,7 +702,7 @@ it('refuses a pending host journal once, located at the journal and naming its r
     expect(json(refused)).toMatchObject({
       code: 'IA-DIST-RECOVERY-REQUIRED',
       where: { path: '.ia/distributions/hosts/pending.json' },
-      next: `Run "ia-distribution recover-host --root ${quote(root)}", then rerun.`,
+      next: `Run "ia recover host --root ${quote(root)}", then rerun.`,
     });
   }
   expect(tree(root)).toEqual(before);

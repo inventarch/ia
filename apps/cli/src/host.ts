@@ -26,6 +26,9 @@ import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { lifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-profile';
 import type { HostCacheTarget, HostPlan } from '@inventarch/distribution/host';
 import { hostRow, WORKSPACE_HOSTS, workspaceRow } from '@inventarch/distribution/hosts';
+import { recoverInstallation } from '@inventarch/distribution/install';
+import { recoverGuardRegistration } from '@inventarch/distribution/guard-registration';
+import { recoverLifecycleRegistration } from '@inventarch/distribution/lifecycle-registration';
 import {
   applyHost,
   assertHostRegistrationIdle,
@@ -33,6 +36,7 @@ import {
   HOST_REGISTRATION,
   planHost,
   planHostFor,
+  recoverHost,
 } from '@inventarch/distribution/host';
 import {
   assertHomeOutsideWorkspace,
@@ -212,9 +216,42 @@ export const HOST_LOCK = `${HOSTS_AREA}/lock.json`;
  * names `ia host` instead of such a remedy.
  */
 export const THEN_RERUN = ', then rerun.';
-/** A recovery on the distribution binary, rooted and quoted as every printed root is. */
+/** An installed CLI recovery, delegating the named distribution mechanism with an explicit root. */
 export const recoverCommand = (command: string, root: string): string =>
-  `ia-distribution ${command} --root ${quote(root)}`;
+  `ia recover ${command === 'recover' ? 'installation' : command.replace(/^recover-/, '')} --root ${quote(root)}`;
+/** Recovery needs an existing explicit root, including one whose initialization was interrupted. */
+export function runRecovery(context: Context): Result {
+  const mechanisms = {
+    installation: recoverInstallation,
+    host: recoverHost,
+    guard: recoverGuardRegistration,
+    lifecycle: recoverLifecycleRegistration,
+  };
+  const selected = context.args.positionals[0] ?? 'installation';
+  if (!Object.hasOwn(mechanisms, selected))
+    throw new UsageError('Recovery must be installation, host, guard or lifecycle');
+  const root = requireRoot(context);
+  try {
+    const result = mechanisms[selected as keyof typeof mechanisms](root);
+    return {
+      exitCode: 0,
+      stdout: context.json
+        ? JSON.stringify({ version: 1, ok: true, recovery: selected, root, result }) + '\n'
+        : `${selected} recovery: ${result.status}.\n`,
+      stderr: '',
+    };
+  } catch (error) {
+    const refusal = refusalOf(error);
+    throw new Refusal(
+      refusal.code,
+      refusal.message,
+      3,
+      refusedPath(error) === null ? refusal.where : { path: refusedPath(error)! },
+      `Preserve the recovery state, resolve the reported conflict or wait for its running owner to finish, then run "ia recover ${selected} --root ${quote(root)}".`,
+    );
+  }
+}
+
 /**
  * §8 "or refuses naming a recovery": a held host lock is another run or a killed one, and nothing here can tell
  * which, so the next action names the recovery that decides it — `recoverHost` takes the lock in recovery mode,
