@@ -116,7 +116,25 @@ const skill = (target: PacketTarget, revision: string): string =>
 const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
 
 /** `text` on one line: a line break and the blanks around it become one space, so each entry is one line. */
-const inline = (text: string): string => text.replace(/[ \t]*(?:\r\n|\r|\n)\s*/g, ' ');
+function inline(text: string): string {
+  const parts: string[] = [];
+  let start = 0;
+  for (let index = 0; index < text.length; ) {
+    if (text[index] !== '\r' && text[index] !== '\n') {
+      index++;
+      continue;
+    }
+    // Only spaces and tabs before a break are removed; afterward, all JavaScript whitespace is removed.
+    // Revisit this run once instead of restarting an unanchored match at every blank when no break follows.
+    let end = index;
+    while (end > start && (text[end - 1] === ' ' || text[end - 1] === '\t')) end--;
+    parts.push(text.slice(start, end), ' ');
+    do index++;
+    while (index < text.length && /\s/.test(text[index]!));
+    start = index;
+  }
+  return parts.length === 0 ? text : parts.join('') + text.slice(start);
+}
 /** `text` as one code span: its fence one backtick longer than the longest run inside, padded where one touches it. */
 function code(text: string): string {
   const one = inline(text),

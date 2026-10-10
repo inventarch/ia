@@ -485,6 +485,70 @@ it("prints the host note's key as ia position prints it, and pads a code span a 
   ]);
 });
 
+it('folds line breaks with their original whitespace boundaries in prose, code spans and table cells', () => {
+  const cases: readonly (readonly [string, string])[] = [
+    ['a \t b', 'a \t b'],
+    [' \t a\t ', ' \t a\t '],
+    ['a\nb', 'a b'],
+    ['a\rb', 'a b'],
+    ['a\r\nb', 'a b'],
+    [' \t\r\n \tb', ' b'],
+    ['a \t\n', 'a '],
+    ['a \t\r \t\n\u00a0b', 'a b'],
+    ['a\v \t\n\fb', 'a\v b'],
+    ['a\u00a0 \t\n\uFEFFb', 'a\u00a0 b'],
+    ['a\n \t\r\nb', 'a b'],
+    ['a\u2028b\u2029c', 'a\u2028b\u2029c'],
+    ['a\n\u0085b', 'a \u0085b'],
+    ...Array.from(
+      '\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff',
+      (space): readonly [string, string] => [`a\t\r\n${space}b`, 'a b'],
+    ),
+  ];
+  for (const [input, expected] of cases) {
+    const packet: PositionPacket = {
+      ...HAND,
+      participants: [{ identity: participant, says: input }],
+      mandates: [{ ...HAND.mandates[1]!, covers: [input] }],
+      commands: [{ ...HAND.commands[0]!, refuses: input }],
+    };
+    for (const host of HOSTS)
+      for (const target of TARGETS) {
+        const { files, receipt } = renderHost(host, packet, digest(packet), NOTE, target),
+          text = files[0]!.text;
+        expect(items(text, 'Participants'), JSON.stringify(input)).toEqual([`- \`${participant}\`: ${expected}`]);
+        expect(items(text, 'Mandates')[0], JSON.stringify(input)).toContain(`covers \`${expected}\``);
+        expect(text, JSON.stringify(input)).toContain(
+          `| \`ia next\` | read | Observation | ${expected} | \`ia next --seat <plan>\` |`,
+        );
+        expect(receipt.entries).toBe(entryCount(packet));
+        expect(packet.participants[0]!.says).toBe(input);
+      }
+  }
+});
+
+it('folds adversarial tab runs in linear time without changing their bytes when no line break follows', () => {
+  const fastest = (size: number): number => {
+    const says = `before${'\t'.repeat(size)}after`,
+      packet: PositionPacket = { ...HAND, participants: [{ identity: participant, says }] },
+      packetDigest = digest(packet);
+    let best = Number.POSITIVE_INFINITY;
+    for (let run = 0; run < 3; run++) {
+      const start = performance.now(),
+        rendered = renderHost('claude', packet, packetDigest, NOTE, 'repository');
+      best = Math.min(best, performance.now() - start);
+      expect(items(rendered.files[0]!.text, 'Participants')).toEqual([`- \`${participant}\`: ${says}`]);
+    }
+    return best;
+  };
+  fastest(128); // Warm the renderer before comparing input growth, not an absolute machine-dependent deadline.
+  const small = fastest(1 << 12),
+    large = fastest(1 << 15);
+  // Eight times the text is about eight times the work; the old unanchored regex grows sixty-fourfold.
+  // Sub-millisecond runs count as one, as in locator's adversarial reader tests.
+  expect(large / Math.max(small, 1)).toBeLessThan(32);
+});
+
 it("returns a receipt whose file digests are the SHA-256 of each file's UTF-8 text, the applying fields left open", () => {
   const { files, receipt } = renderHost('claude', HAND, digest(HAND), NOTE, 'repository');
   // The participant's `says` is not ASCII, so its UTF-8 bytes are what the digest covers.
