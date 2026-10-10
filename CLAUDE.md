@@ -78,7 +78,7 @@
 | --- | --- | --- | --- | --- |
 | `ia init` | effect | Execution | a target already initialized; --apply writes nothing | `ia position --root <directory>` |
 | `ia validate` | validate | Verification | no .ia/src directory at the root or in any parent | `ia init` |
-| `ia capture` | effect | Execution | a root whose .ia/src declares no `@workspace`; nothing is written | `ia init` |
+| `ia capture` | effect | Execution | an uninitialized root with no authored `@workspace` and no source errors; nothing is written | `ia init <directory>` |
 | `ia read` | read | Observation | a locator no admitted record answers | `ia inspect` |
 | `ia position` | read | Observation | a seat the workspace does not admit, or a path outside it | `ia position` |
 | `ia next` | read | Observation | no --seat while the workspace authors several `@plan` records, which the message lists | `ia next --seat <plan>` |
@@ -90,4 +90,4 @@
 - state intent to the CLI as shape + optional phase + optional seat + optional word; the CLI never receives free text
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 
-ia-generated ccbf3b7c11ee155f1eaf97958d91962f395f9bba7822ce1e3615e30b1c34dde4 166f8056be7ca32135b7ce77f8e53f88271233b6d6fa0c8fa15f1f98d09c5d31 ia-claude
+ia-generated ccbf3b7c11ee155f1eaf97958d91962f395f9bba7822ce1e3615e30b1c34dde4 59eec87983bb898b36d07aa0d4d254fb770528df270ed978c0a8516b7b0b84b7 ia-claude

@@ -186,12 +186,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'capture',
     group: 'workspace',
     summary: 'Admit the workspace and write its current and previous snapshot',
-    // captureRefusal (capture.ts): the root is not a workspace to capture.
+    // captureRefusal (capture.ts): this row names the uninitialized, error-free branch only.
+    // An initialized root with missing authored source instead restores that source, then inspects its position.
     catalog: {
       mode: 'effect',
       move: 'Execution',
-      refuses: 'a root whose .ia/src declares no @workspace; nothing is written',
-      next: 'ia init',
+      refuses: 'an uninitialized root with no authored @workspace and no source errors; nothing is written',
+      next: 'ia init <directory>',
     },
     syntax: ['ia capture [--preview] [--json]'],
     // Decision capture-preview-placement: capture writes by default, so its preview is a flag (plan amendment B8).

@@ -140,6 +140,9 @@ it('renders this repository as its position packet: CLAUDE.md and both skills, n
   expect(rows).toContain(
     '| `ia project` | effect | Execution | a file without the generated marker at a path it writes, which its plan names; --apply writes nothing | `ia project <host>` |',
   );
+  expect(rows).toContain(
+    '| `ia capture` | effect | Execution | an uninitialized root with no authored `@workspace` and no source errors; nothing is written | `ia init <directory>` |',
+  );
   // GitHub renders the committed file: every IA word in it is a code span, never a mention.
   expect(claude).toContain('`@workspace`');
   expect(bare(claude)).toEqual([]);

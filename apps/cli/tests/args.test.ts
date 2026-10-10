@@ -165,6 +165,12 @@ it('tags the agent commands for the packet catalog in table order, each naming o
     refuses: 'a target already initialized; --apply writes nothing',
     next: 'ia position --root <directory>',
   });
+  // One next command per row: capture's init remedy belongs only to the uninitialized, error-free case.
+  // An initialized missing-source refusal repairs authored source before position instead (init tests pin both modes).
+  expect(rows.find((row) => row.command === 'ia capture')).toMatchObject({
+    refuses: 'an uninitialized root with no authored @workspace and no source errors; nothing is written',
+    next: 'ia init <directory>',
+  });
   // A row whose next names a command the table does not hold fails here, as `ia preview` would until it exists.
   expect(catalogDefects([...rows, { ...rows[0]!, next: 'ia preview plan' }])).toEqual([
     'ia init: ia preview plan names no command of COMMANDS',
