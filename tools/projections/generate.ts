@@ -17,8 +17,13 @@ import { renderPacket } from '../../packages/runtime/src/packet.js';
 import { PACKET_MARKER, renderHost } from '../../packages/runtime/src/packet-host.js';
 import type { HostFile } from '../../packages/runtime/src/packet-host.js';
 import { packetCatalog } from '../../apps/cli/src/commands.js';
-import { applyGuardRegistration, planGuardRegistration } from '../../apps/distribution/src/guard-registration.js';
+import {
+  applyGuardRegistration,
+  assertRetirableGuard,
+  planGuardRegistration,
+} from '../../apps/distribution/src/guard-registration.js';
 import type { GuardPlan } from '../../apps/distribution/src/guard-registration.js';
+import { DistributionError } from '../../apps/distribution/src/files.js';
 import { HOST_REGISTRATION } from '../../apps/distribution/src/host.js';
 import { LEGACY_STEWARDS } from './legacy-stewards.js';
 
@@ -90,12 +95,21 @@ function staleSteward(bytes: Buffer, path: string): boolean {
  * through apps/distribution's guard registration, as `applyHostProjection` retires a consumer's.
  */
 function retirement(root: string): GuardPlan | null {
-  if (!existsSync(safe(root, GUARD_STATE))) return null;
   try {
+    // A group can outlive its state or live in committed settings. Never remove its stewards first.
+    assertRetirableGuard(root);
+    if (!existsSync(safe(root, GUARD_STATE))) return null;
     return planGuardRegistration(root, { remove: HOST_REGISTRATION });
   } catch (error) {
+    const unmatched =
+      error instanceof DistributionError &&
+      error.code === 'IA-DIST-LOCAL-MODIFICATION' &&
+      (error.path === GUARD_SETTINGS || error.path === '.claude/settings.json');
+    const repair = unmatched
+      ? `remove only the unmatched IA guard group in ${error.path}`
+      : `delete ${GUARD_STATE} and the IA guard group in ${GUARD_SETTINGS}`;
     throw new Error(
-      `The steward guard registration cannot be retired: ${error instanceof Error ? error.message : String(error)}; delete ${GUARD_STATE} and the IA guard group in ${GUARD_SETTINGS}, then ${GENERATE}`,
+      `The steward guard registration cannot be retired: ${error instanceof Error ? error.message : String(error)}; ${repair}, then ${GENERATE}`,
     );
   }
 }

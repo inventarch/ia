@@ -327,12 +327,53 @@ it('refuses a guard registration it cannot retire, naming the repair, before cha
   put(base, GUARD_SETTINGS, JSON.stringify(changed, null, 2) + '\n');
   for (const write of [false, true])
     expect(() => publishArtifacts(base, [{ path: 'CLAUDE.md', text: PACKET_MARKER }], write)).toThrow(
-      `; delete ${GUARD_STATE} and the IA guard group in ${GUARD_SETTINGS}, then run "pnpm projections:generate"`,
+      `; remove only the unmatched IA guard group in ${GUARD_SETTINGS}, then run "pnpm projections:generate"`,
     );
   expect(existsSync(resolve(base, agent))).toBe(true);
   expect(existsSync(resolve(base, GUARD_STATE))).toBe(true);
   expect(existsSync(resolve(base, 'CLAUDE.md'))).toBe(false);
 });
+it.each([
+  [GUARD_SETTINGS, false],
+  ['.claude/settings.json', false],
+  ['.claude/settings.json', true],
+] as const)(
+  'refuses an unmatched guard in %s (owned state: %s) before deleting stewards',
+  (settingsPath, ownedState) => {
+    const base = temp(),
+      permissions = '{\n  "permissions": {"allow": ["Read"]},\n  "hooks": {"PreToolUse": []}\n}\n',
+      files = [{ path: 'CLAUDE.md', text: `${PACKET_MARKER}\n` }];
+    put(base, LEGACY_AGENT, LEGACY_TEXT);
+    const guarded = registerGuard(base, permissions);
+    if (!ownedState) rmSync(resolve(base, GUARD_STATE));
+    if (settingsPath !== GUARD_SETTINGS) {
+      put(base, settingsPath, guarded);
+      if (!ownedState) put(base, GUARD_SETTINGS, permissions);
+    }
+    const beforeLocal = read(base, GUARD_SETTINGS),
+      beforeState = ownedState ? read(base, GUARD_STATE) : null;
+    for (const write of [false, true]) {
+      expect(() => publishArtifacts(base, files, write)).toThrow(
+        `; remove only the unmatched IA guard group in ${settingsPath}, then run "pnpm projections:generate"`,
+      );
+      expect(read(base, settingsPath)).toBe(guarded);
+      expect(read(base, GUARD_SETTINGS)).toBe(beforeLocal);
+      expect(ownedState ? read(base, GUARD_STATE) : null).toBe(beforeState);
+      expect(read(base, LEGACY_AGENT)).toBe(LEGACY_TEXT);
+      expect(existsSync(resolve(base, 'CLAUDE.md'))).toBe(false);
+    }
+    // Follow the exact manual repair: remove only the unmatched group, preserving every other setting.
+    put(base, settingsPath, permissions);
+    expect(publishArtifacts(base, files, true)).toEqual([
+      ...(ownedState ? [GUARD_SETTINGS] : []),
+      LEGACY_AGENT,
+      'CLAUDE.md',
+    ]);
+    expect(read(base, settingsPath)).toBe(permissions);
+    expect(existsSync(resolve(base, GUARD_STATE))).toBe(false);
+    expect(existsSync(resolve(base, LEGACY_AGENT))).toBe(false);
+  },
+);
 it('refuses generating a partial corpus with admission errors, naming the command that prints them', () => {
   expect(() => generateProjections(resolve(root, 'packages/compliance/fixtures/loop'), false)).toThrow(
     'Native corpus has errors; projections refused; run "pnpm native:check" for the findings',
