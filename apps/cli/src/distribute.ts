@@ -40,8 +40,6 @@
  * repair, so a script sees the failure and a reader sees what did happen. `ia doctor` reports the drift until then.
  */
 import { readBase } from './bundled-base.js';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   canonicalDistributionJson,
   decodeDistributionRequests,
