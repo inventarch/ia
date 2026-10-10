@@ -260,7 +260,7 @@ it("names ia host's own repair for a 1.x guard group changed by hand, and that r
   const settings = JSON.parse(read(root, SETTINGS));
   settings.hooks.PreToolUse[0].timeout = 99;
   put(root, SETTINGS, JSON.stringify(settings, null, 2) + '\n');
-  const repair = `Delete the IA guard group in ${SETTINGS}, then run "ia host claude --apply".`;
+  const repair = `Delete only the IA guard group in ${SETTINGS}, then run "ia host claude --apply".`;
   // ia host refuses the retirement with this repair, and doctor names the same one.
   expect(JSON.parse((await host(root, env, 'claude', '--apply', '--yes')).stdout)).toMatchObject({
     ok: false,
@@ -519,4 +519,31 @@ it('names --root in every ia host next action only when the invocation gave it, 
   expect(JSON.parse(gated.stdout).next).toBe(
     `Run "ia host claude --root ${quote(root)}" to plan the registration without the context element.`,
   );
+});
+
+it('reports real hand edits without a receipt and the repair converges', async () => {
+  const { root, env } = await initialized();
+  legacyRegistration(root, env);
+  const path = '.claude/rules/ia-workspace.md';
+  put(root, path, read(root, path) + 'my edit\n');
+  const report = await doctor(root, env);
+  expect(report.exitCode).toBe(1);
+  const checks = report.checks;
+  expect(checks).toContainEqual(
+    expect.objectContaining({
+      id: `projection-claude:${path}`,
+      status: 'fail',
+      detail: expect.stringContaining('move or delete'),
+    }),
+  );
+  expect(checks).toContainEqual(
+    expect.objectContaining({
+      id: 'projection-claude',
+      status: 'unknown',
+      detail: expect.not.stringContaining('the remedy writes one'),
+    }),
+  );
+  rmSync(resolve(root, path));
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect((await doctor(root, env)).exitCode).toBe(0);
 });

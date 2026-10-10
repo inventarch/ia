@@ -98,7 +98,7 @@ export function guardGroup(launcher: string, root: string, platform: NodeJS.Plat
  * recorded Node executable is kept as written. Exported for `host-observe.ts`, which reuses this real validator rather than a weaker local
  * copy so observation can never drift from what `planGuardRegistration`/`applyGuardRegistration` themselves accept.
  */
-export function saved(content: string | null, root: string, id: string): State | null {
+export function saved(content: string | null, root: string, id: string, removal = false): State | null {
   if (content === null) return null;
   const value = plain(decodeDistributionJson(content)),
     row = object(value, [
@@ -124,7 +124,9 @@ export function saved(content: string | null, root: string, id: string): State |
     fail('INPUT-INVALID', 'Invalid owned guard hook group');
   const handler = object(group['hooks'][0], ['type', 'command', 'args', 'timeout']),
     launcher = join(row['cache'], 'scripts/ia.mjs'),
-    node = guardNode(handler, launcher, root);
+    recorded = Array.isArray(handler['args']) ? handler['args'].at(-1) : null,
+    fixedRoot = removal && typeof recorded === 'string' && isAbsolute(recorded) ? recorded : root,
+    node = guardNode(handler, launcher, fixedRoot);
   if (
     handler['type'] !== 'command' ||
     typeof node !== 'string' ||
@@ -134,6 +136,44 @@ export function saved(content: string | null, root: string, id: string): State |
     fail('INPUT-INVALID', 'Owned guard command differs from its fixed root');
   keptPaths(row['existing'], containers);
   return row as unknown as State;
+}
+/** Released direct and POSIX wrappers both contain this fixed launcher/verb/root argv sequence. */
+function referencesGuard(value: unknown): boolean {
+  if (value === null || typeof value !== 'object' || !('hooks' in value) || !Array.isArray(value.hooks)) return false;
+  return value.hooks.some((handler: unknown) => {
+    if (handler === null || typeof handler !== 'object' || !('args' in handler) || !Array.isArray(handler.args))
+      return false;
+    return handler.args.some(
+      (arg: unknown, index: number, args: unknown[]) =>
+        typeof arg === 'string' &&
+        /[/\\]scripts[/\\]ia\.mjs$/.test(arg) &&
+        args[index + 1] === 'guard' &&
+        args[index + 2] === '--root',
+    );
+  });
+}
+/** Refuse an unowned guard before retiring the agents it depends on. Never alter unrelated hooks. */
+export function assertRetirableGuard(root: string): void {
+  const state = locate(statePath(HOST_REGISTRATION), () =>
+    saved(read(root, statePath(HOST_REGISTRATION)), root, HOST_REGISTRATION, true),
+  );
+  for (const path of [configPath, projectPath])
+    locate(path, () => {
+      const text = read(root, path);
+      if (text === null) return;
+      const config = plain(decodeDistributionJson(text));
+      const hooks = config['hooks'] === undefined ? {} : plain(config['hooks']);
+      const rows = hooks['PreToolUse'] ?? [];
+      if (!Array.isArray(rows)) fail('INPUT-INVALID', 'Expected PreToolUse hook array');
+      for (const row of rows) {
+        if (!referencesGuard(row)) continue;
+        if (path === configPath && state !== null && json(row) === json(state.group)) continue;
+        fail(
+          'LOCAL-MODIFICATION',
+          'An IA guard group has no matching ownership state; remove only that guard group before retiring steward files',
+        );
+      }
+    });
 }
 export function planGuardRegistration(rootInput: string, request: GuardRequest): GuardPlan {
   const root = workspace(rootInput);
@@ -165,7 +205,7 @@ function planGuardWith(root: string, cache: HostCacheTarget | null, removeId: st
       config: read(root, configPath),
       state: locate(statePath(id), () => read(root, statePath(id))),
     },
-    prior = locate(statePath(id), () => saved(before.state, root, id));
+    prior = locate(statePath(id), () => saved(before.state, root, id, cache === null));
   if (!cache && !prior) fail('INPUT-INVALID', 'Guard registration is not owned');
   const config = before.config === null ? {} : plain(decodeDistributionJson(before.config)),
     hooks = config['hooks'] === undefined ? {} : plain(config['hooks']);
@@ -183,11 +223,7 @@ function planGuardWith(root: string, cache: HostCacheTarget | null, removeId: st
     ? rows.map((row, at) => (json(row) === json(prior.group) ? at : -1)).filter((at) => at >= 0)
     : [];
   // A removal whose owned group the user already deleted — no group names this root's guard — removes only the ownership state; a changed or duplicated group still refuses.
-  const gone =
-    !cache &&
-    prior !== null &&
-    matching.length === 0 &&
-    !rows.some((row) => json(row).includes(JSON.stringify(['guard', '--root', root]).slice(1, -1)));
+  const gone = !cache && prior !== null && matching.length === 0 && !rows.some(referencesGuard);
   if (prior && !gone && matching.length !== 1)
     fail('LOCAL-MODIFICATION', 'Owned guard hook group changed or was duplicated');
   const group = cache ? guardGroup(cache.launcher, root) : null,
@@ -293,7 +329,7 @@ export function recoverGuardRegistration(rootInput: string): { status: 'guard-re
         if (!(v === null || (typeof v === 'string' && Buffer.byteLength(v) <= 1024 * 1024)))
           fail('INPUT-INVALID', 'Invalid guard recovery bytes');
       const result = data as unknown as Side;
-      saved(result.state, root, id);
+      saved(result.state, root, id, plain(row['after'])['state'] === null);
       if (result.config !== null) plain(decodeDistributionJson(result.config));
       return result;
     };

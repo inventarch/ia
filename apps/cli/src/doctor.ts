@@ -72,7 +72,7 @@ import { discoverRoot, iaHomeOf } from './consumer.js';
 import { UNMAPPED } from './distribute.js';
 import { userRows } from './doctor-user.js';
 import type { HostName } from './host-projection.js';
-import { readReceipt, renderProjectionFor } from './host-projection.js';
+import { planRetirement, readReceipt, renderProjectionFor } from './host-projection.js';
 import {
   HOST_LOCK,
   HOSTS_AREA,
@@ -81,10 +81,10 @@ import {
   modifiedRepair,
   pinnedRelease,
   projectedHosts,
+  projectionFailure,
   projectionRepair,
   projectionRerun,
   recoverCommand,
-  refusedPath,
   rootedNext,
   SETTINGS,
   STATE,
@@ -495,8 +495,9 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
     apply = commands.apply(host, rerun);
   // A file the mechanism cannot read: the ownership state, a managed file, or the receipt, located at that file.
   const unreadable = (error: unknown, fallback: string): Check => {
-    const path = refusedPath(error) ?? fallback,
-      repair = projectionRepair(host, path, rerun, codeOf(error, ''));
+    const failure = projectionFailure(error, root, host, rerun);
+    const path = failure.where?.path ?? fallback,
+      repair = failure.next ?? projectionRepair(host, path, rerun, codeOf(error, ''));
     const detail = commands.prose(host, `${path} cannot be read (${codeOf(error, 'an unexpected error')}). ${repair}`);
     return installation(
       path === STATE.projection(host) ? `projection-${host}` : `projection-${host}:${path}`,
@@ -506,8 +507,10 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
       apply,
     );
   };
+  let observedDrift: ReturnType<typeof observeProjection>;
   try {
-    observeProjection({ root, host, artifacts: null, marker: PACKET_MARKER });
+    planRetirement(root, host);
+    observedDrift = observeProjection({ root, host, artifacts: null, marker: PACKET_MARKER });
   } catch (error) {
     return [unreadable(error, STATE.projection(host))];
   }
@@ -517,16 +520,27 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
   } catch (error) {
     return [unreadable(error, STATE.receipt(host))];
   }
-  if (receipt === null)
+  if (receipt === null) {
+    const changed = observedDrift.filter((row) => row.drift === 'changed');
     return [
+      ...changed.map(({ path }) =>
+        installation(
+          `projection-${host}:${path}`,
+          title,
+          'fail',
+          `${path} changed since the projection apply wrote it; move or delete it, then run the remedy`,
+          apply,
+        ),
+      ),
       installation(
         `projection-${host}`,
         title,
         'unknown',
-        `No receipt at ${STATE.receipt(host)}: this projection was written before receipts, or its receipt was deleted; the remedy writes one`,
+        `No receipt at ${STATE.receipt(host)}: this projection was written before receipts, or its receipt was deleted${changed.length ? '; repair the changed files before writing a receipt' : '; the remedy writes one'}`,
         apply,
       ),
     ];
+  }
   for (const file of receipt.files) {
     const id = `projection-${host}:${file.path}`;
     let digest: string | null;

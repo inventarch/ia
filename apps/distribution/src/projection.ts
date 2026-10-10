@@ -1,4 +1,4 @@
-import { readdirSync, type Dirent } from 'node:fs';
+import { lstatSync, readdirSync, type Dirent } from 'node:fs';
 import { decodeDistributionJson } from '@inventarch/db/distribution';
 import {
   bytes,
@@ -125,9 +125,19 @@ function owned(root: string, host: Host): Record<string, Accepted> {
   }
   return result;
 }
+/** A linked legacy directory is foreign. Inspect its entry, never its target. */
+function linkedAgents(root: string, host: Host): boolean {
+  if (host !== 'claude') return false;
+  try {
+    return lstatSync(contained(root, '.claude') + '/agents').isSymbolicLink();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+}
 /** The regular files at legacy steward paths, `.claude/agents/<name>.md`; claude only. */
 function agentEntries(root: string, host: Host): string[] {
-  if (host !== 'claude') return [];
+  if (host !== 'claude' || linkedAgents(root, host)) return [];
   let entries: Dirent[];
   try {
     entries = readdirSync(contained(root, '.claude/agents'), { withFileTypes: true });
@@ -153,6 +163,7 @@ function agentActions(
 ): ProjectionAction[] {
   const listed = Object.keys(files).filter((path) => legacyAgent(host, path)),
     actions: ProjectionAction[] = [];
+  if (linkedAgents(root, host)) return listed.length ? listed.map((path) => ({ path, action: 'foreign' })) : [];
   for (const path of new Set([...listed, ...agentEntries(root, host)])) {
     const value = files[path];
     if (value === undefined) {
@@ -168,6 +179,16 @@ function agentActions(
     });
   }
   return actions;
+}
+/** Deletion/foreign preview independent of the live files an install re-renders afterwards. */
+export function legacyProjectionActions(rootInput: string, host: Host, marker: string): ProjectionAction[] {
+  const root = workspace(rootInput);
+  return agentActions(
+    root,
+    host,
+    locate(statePath(host), () => owned(root, host)),
+    marker,
+  ).sort((a, b) => (a.path < b.path ? -1 : 1));
 }
 /** Spec §6.3: a marked `.claude/agents/*.md` file neither rendered nor owned is reported, never touched. Claude only. */
 function orphanStewardFiles(root: string, host: Host, exclude: ReadonlySet<string>, marker: string): string[] {
@@ -315,6 +336,7 @@ export function observeProjection(input: {
     drift: ProjectionDrift[] = [];
   for (const [path, value] of Object.entries(files))
     locate(path, () => {
+      if (legacyAgent(host, path) && linkedAgents(root, host)) return;
       const existing = read(root, path);
       // B9: a listed legacy steward file already gone, or unmarked (foreign), is no drift; the next apply drops it.
       if (legacyAgent(host, path) && (existing === null || !marked(existing, input.marker))) return;

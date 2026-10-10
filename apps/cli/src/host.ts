@@ -22,7 +22,7 @@
  */
 import { createHash } from 'node:crypto';
 import { existsSync, realpathSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { lifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-profile';
 import type { HostCacheTarget, HostPlan } from '@inventarch/distribution/host';
 import { hostRow, WORKSPACE_HOSTS, workspaceRow } from '@inventarch/distribution/hosts';
@@ -290,7 +290,13 @@ export const hostNext = (text: string, host: HostName, root: string, rooted: boo
   rooted ? rootedNext(text, host, root) : text;
 /** The file a mechanism located its refusal at (`locate` in @inventarch/distribution's files.ts), or null. */
 export const refusedPath = (error: unknown): string | null =>
-  error !== null && typeof error === 'object' && 'path' in error && typeof error.path === 'string' ? error.path : null;
+  /^IA-/.test(codeOf(error, '')) &&
+  error !== null &&
+  typeof error === 'object' &&
+  'path' in error &&
+  typeof error.path === 'string'
+    ? error.path
+    : null;
 /**
  * §6.3: the repair for a projection refusal with `code` located at `path`. The ownership state has its own repair; a
  * guard group the retirement (B11) refuses as changed is deleted by hand, after which the retirement removes the
@@ -298,12 +304,57 @@ export const refusedPath = (error: unknown): string | null =>
  * moved or deleted first. `ia host`, `ia doctor` and the install refresh all name it this way.
  */
 export const projectionRepair = (host: HostName, path: string, rerun: string, code?: string): string =>
-  stateRepair(host, path, rerun) ??
-  (path !== SETTINGS
-    ? `Move or delete ${path}, then run "${rerun}".`
-    : code === undefined || code === 'IA-DIST-LOCAL-MODIFICATION'
-      ? `Delete ${OWNED_GUARD}, then run "${rerun}".`
-      : `Fix ${path}, then run "${rerun}".`);
+  code === 'IA-CLI-FAILED'
+    ? `Make ${path} writable and release any file lock, then run "${rerun}".`
+    : (stateRepair(host, path, rerun) ??
+      (![SETTINGS, '.claude/settings.json'].includes(path)
+        ? `Move or delete ${path}, then run "${rerun}".`
+        : code === undefined || code === 'IA-DIST-LOCAL-MODIFICATION'
+          ? `Delete only the IA guard group in ${path}, then run "${rerun}".`
+          : `Fix ${path}, then run "${rerun}".`));
+/** A journal owns recovery; raw operating-system errors never authorize deleting settings or ownership. */
+export function projectionFailure(error: unknown, root: string, host: HostName, rerun: string): Refusal {
+  const refusal = refusalOf(error),
+    journal = pendingJournal(root);
+  if (journal !== undefined)
+    return new Refusal(refusal.code, refusal.message, 3, { path: journal[0] }, recoverNext(root, journal[1]));
+  const busy = lockRefusal(error, root);
+  if (busy !== null) return busy;
+  const located = refusedPath(error);
+  if (located !== null) {
+    const path = isAbsolute(located) ? relative(root, located).replaceAll('\\', '/') : located;
+    return new Refusal(
+      refusal.code,
+      refusal.message,
+      3,
+      { path },
+      rootedNext(projectionRepair(host, path, rerun, refusal.code), host, root),
+    );
+  }
+  const system = error as NodeJS.ErrnoException | null;
+  if (system && ['EACCES', 'EPERM', 'EBUSY', 'EROFS', 'EISDIR', 'ENOTDIR'].includes(system.code ?? '')) {
+    const path =
+      typeof system.path === 'string' ? (system.path.endsWith('.tmp') ? dirname(system.path) : system.path) : root;
+    return new Refusal(
+      refusal.code,
+      refusal.message,
+      3,
+      { path },
+      rootedNext(`Make ${path} writable and release any file lock, then run "${rerun}".`, host, root),
+    );
+  }
+  return new Refusal(
+    refusal.code,
+    refusal.message,
+    3,
+    refusal.where,
+    rootedNext(
+      error instanceof Refusal && refusal.next !== null ? refusal.next : `Run "${rerun}" to finish.`,
+      host,
+      root,
+    ),
+  );
+}
 /**
  * Host registration spec §4: the hosts whose projection this workspace owns, by their projection state's presence, as
  * `ia host`, `ia doctor` and the install refresh decide it, a projection `ia project` wrote without a registration
@@ -332,7 +383,11 @@ export function requireIdle(root: string, supplied: string): void {
 /** A mechanism's refusal as an element conflict: the service's code and message, located at its file. */
 function conflictOf(error: unknown, path: string): Conflict {
   const refusal = refusalOf(error);
-  return { code: refusal.code, path: refusedPath(error) ?? path, reason: refusal.message };
+  const raw = error as NodeJS.ErrnoException | null;
+  const at =
+    refusedPath(error) ??
+    (typeof raw?.path === 'string' ? (raw.path.endsWith('.tmp') ? dirname(raw.path) : raw.path) : path);
+  return { code: refusal.code, path: at, reason: refusal.message };
 }
 const pin = (text: string | null): string | null =>
   text === null ? null : createHash('sha256').update(text).digest('hex');
@@ -632,6 +687,7 @@ export function applyHostSet(
     try {
       applied = run();
     } catch (error) {
+      if (id === 'projection') throw projectionFailure(error, root, host, rerun);
       const refusal = refusalOf(error),
         journal = pendingJournal(root);
       if (journal !== undefined)

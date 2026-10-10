@@ -13,12 +13,16 @@
  * `@inventarch/distribution/projection`, which deletes the owned 1.x steward files and leaves foreign ones (B9), and
  * writes the receipt beside the projection state (B12).
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { accessSync, closeSync, constants, existsSync, lstatSync, openSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderHost, renderPacket, PACKET_MARKER } from '@inventarch/runtime';
 import type { HostFile, HostOutput, PacketReceipt } from '@inventarch/runtime';
 import type { GuardPlan } from '@inventarch/distribution/guard-registration';
-import { applyGuardRegistration, planGuardRegistration } from '@inventarch/distribution/guard-registration';
+import {
+  applyGuardRegistration,
+  assertRetirableGuard,
+  planGuardRegistration,
+} from '@inventarch/distribution/guard-registration';
 import {
   acquireHostRegistrationLock,
   assertHostRegistrationIdle,
@@ -106,8 +110,9 @@ export const ownsGuard = (root: string, host: HostName): boolean =>
  * settings that do not parse — except a pending host journal, which is the journal's.
  */
 export function planRetirement(root: string, host: HostName): GuardPlan | null {
-  if (!ownsGuard(root, host)) return null;
   try {
+    if (host === 'claude') assertRetirableGuard(root);
+    if (!ownsGuard(root, host)) return null;
     return planGuardRegistration(root, { remove: HOST_REGISTRATION });
   } catch (error) {
     const code = codeOf(error, '');
@@ -122,8 +127,93 @@ export function planRetirement(root: string, host: HostName): GuardPlan | null {
   }
 }
 /** The file plan `applyHostProjection` applies for `rendered`, or the removal of the owned set for null. */
-export const planFiles = (root: string, host: HostName, rendered: HostOutput | null): ProjectionPlan =>
-  planProjection({ root, host, artifacts: rendered?.files ?? [], marker: PACKET_MARKER });
+export const planFiles = (root: string, host: HostName, rendered: HostOutput | null): ProjectionPlan => {
+  preflightReceipt(root, host);
+  return planProjection({ root, host, artifacts: rendered?.files ?? [], marker: PACKET_MARKER });
+};
+/** Check every destination ancestor without creating anything or following a link. */
+export function preflightReceipt(root: string, host: HostName): void {
+  for (const path of [STATE.receipt(host), pendingPath(host)]) {
+    const parts = path.split('/');
+    for (let i = 1; i <= parts.length; i++) {
+      const relative = parts.slice(0, i).join('/'),
+        absolute = resolve(root, relative);
+      let stat: ReturnType<typeof lstatSync>;
+      try {
+        stat = lstatSync(absolute);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') break;
+        throw error;
+      }
+      if (stat.isSymbolicLink() || (i < parts.length ? !stat.isDirectory() : !stat.isFile() || stat.nlink !== 1))
+        throw new DistributionError(
+          'IA-DIST-PATH-UNSAFE',
+          'Expected an unaliased receipt file and directory ancestors',
+          relative,
+        );
+      accessSync(absolute, constants.W_OK);
+      // Opening without truncation detects a Windows sharing lock before retirement, without changing bytes.
+      if (i === parts.length) closeSync(openSync(absolute, 'r+'));
+    }
+  }
+  readPending(root, host);
+}
+
+const pendingPath = (host: HostName): string => `.ia/distributions/hosts/${host}-receipt-pending.json`;
+interface PendingReceipt {
+  readonly format: 'ia.packet-receipt-pending.v1';
+  readonly host: HostName;
+  readonly guard: boolean;
+  readonly receipt?: string;
+  readonly removed: readonly { readonly path: string; readonly sha256: string }[];
+}
+function readPending(root: string, host: HostName): PendingReceipt | null {
+  const path = pendingPath(host);
+  if (!existsSync(resolve(root, path))) return null;
+  let value: PendingReceipt & { digest?: string };
+  try {
+    value = readWorkspaceJson({ root, path }) as typeof value;
+  } catch (error) {
+    throw new DistributionError(
+      codeOf(error, 'IA-CLI-FAILED'),
+      error instanceof Error ? error.message : String(error),
+      path,
+    );
+  }
+  const { digest, ...body } = value ?? {};
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    value.format !== 'ia.packet-receipt-pending.v1' ||
+    value.host !== host ||
+    typeof value.guard !== 'boolean' ||
+    !digests(value.removed) ||
+    value.removed.some(
+      (file) =>
+        !/^\.claude\/agents\/[a-z][a-z0-9-]*\.md$/.test(file.path) &&
+        ![
+          '.claude/rules/ia-workspace.md',
+          '.claude/skills/ia-authoring/SKILL.md',
+          'AGENTS.md',
+          '.agents/skills/ia-authoring/SKILL.md',
+        ].includes(file.path),
+    ) ||
+    (value.receipt !== undefined && !HEX.test(value.receipt)) ||
+    Object.keys(body).sort().join(',') !==
+      (value.receipt === undefined ? 'format,guard,host,removed' : 'format,guard,host,receipt,removed') ||
+    digest !== sha256(json(body))
+  )
+    throw new DistributionError('IA-DIST-INPUT-INVALID', 'Invalid pending projection receipt evidence', path);
+  // The receipt committed but a kill left the pending cleanup undone: that was a successful last apply.
+  if (
+    value.receipt !== undefined &&
+    existsSync(resolve(root, STATE.receipt(host))) &&
+    sha256(readWorkspaceFile({ root, path: STATE.receipt(host) })) === value.receipt
+  )
+    return null;
+  return body;
+}
 
 /** What `applyHostProjection` did. */
 export interface HostProjectionApplied {
@@ -159,38 +249,62 @@ export function applyHostProjection(
   assertHostRegistrationIdle(root);
   const retirement = planRetirement(root, host),
     plan = planFiles(root, host, rendered);
-  if (retirement !== null) applyGuardRegistration(retirement);
-  checkpoint('guard');
   // Each owned file a removal deletes, with the digest of the bytes it deletes: the planner accepted exactly those.
   const removed = plan.actions.flatMap((action) =>
     action.action === 'remove' && existsSync(resolve(root, action.path))
       ? [{ path: action.path, sha256: sha256(readWorkspaceFile({ root, path: action.path })) }]
       : [],
   );
-  const writeReceipt = (value: PacketReceipt | null): void => {
+  const writeEvidence = (path: string, value: unknown | null): void => {
     const unlock = acquireHostRegistrationLock(root);
     try {
-      replace(root, STATE.receipt(host), value === null ? null : Buffer.from(json(value)));
+      replace(root, path, value === null ? null : Buffer.from(json(value)));
     } finally {
       unlock();
     }
   };
+  const prior = readPending(root, host);
+  for (const file of removed) {
+    const recorded = prior?.removed.find((row) => row.path === file.path);
+    if (recorded !== undefined && recorded.sha256 !== file.sha256)
+      throw new DistributionError(
+        'IA-DIST-LOCAL-MODIFICATION',
+        'Pending removal evidence differs from the current owned bytes',
+        file.path,
+      );
+  }
+  const evidence: PendingReceipt = {
+    format: 'ia.packet-receipt-pending.v1',
+    host,
+    guard: prior?.guard === true || retirement !== null,
+    removed: [...new Map([...(prior?.removed ?? []), ...removed].map((file) => [file.path, file])).values()],
+  };
+  // Evidence precedes retirement and every deletion; it survives failure and the projection state's collapse.
+  writeEvidence(pendingPath(host), { ...evidence, digest: sha256(json(evidence)) });
+  checkpoint('evidence');
+  if (retirement !== null) applyGuardRegistration(retirement);
+  checkpoint('guard');
   // The last apply's receipt goes before any projection file changes (B12).
-  writeReceipt(null);
+  writeEvidence(STATE.receipt(host), null);
   const result = applyProjection(plan, checkpoint),
-    guard = retirement === null ? 'none' : 'retired';
+    guard = evidence.guard ? 'retired' : 'none';
   const receipt: PacketReceipt | null =
     rendered === null
       ? null
       : {
           ...rendered.receipt,
           cli: CLI,
-          removed,
+          removed: evidence.removed.filter((file) => !existsSync(resolve(root, file.path))),
           foreign: plan.actions.filter((action) => action.action === 'foreign').map((action) => action.path),
           guard,
           writtenAt: new Date().toISOString(),
         };
-  writeReceipt(receipt);
+  if (receipt !== null) {
+    const completed = { ...evidence, receipt: sha256(json(receipt)) };
+    writeEvidence(pendingPath(host), { ...completed, digest: sha256(json(completed)) });
+  }
+  writeEvidence(STATE.receipt(host), receipt);
+  writeEvidence(pendingPath(host), null);
   checkpoint('receipt');
   return {
     status: rendered !== null ? 'projected' : result.removed > 0 ? 'projection-removed' : 'absent',

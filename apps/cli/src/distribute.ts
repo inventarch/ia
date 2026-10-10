@@ -39,8 +39,6 @@
  * with the service's code, message and file, and its next action opens "The installation is applied." before the
  * repair, so a script sees the failure and a reader sees what did happen. `ia doctor` reports the drift until then.
  */
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   canonicalDistributionJson,
   decodeDistributionRequests,
@@ -51,7 +49,7 @@ import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
 import { ARCHIVE_CACHE, applyInstallation, planInstallation } from '@inventarch/distribution/install';
 import type { InstallationPlan } from '@inventarch/distribution/install';
 import type { ProjectionDrift } from '@inventarch/distribution/projection';
-import { observeProjection } from '@inventarch/distribution/projection';
+import { legacyProjectionActions, observeProjection } from '@inventarch/distribution/projection';
 import { PACKET_MARKER } from '@inventarch/runtime';
 import {
   registryChooser,
@@ -78,20 +76,22 @@ import { UsageError } from './args.js';
 import type { Context, Host, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf, requireRoot, serviceNext } from './consumer.js';
 import type { HostName } from './host-projection.js';
-import { applyHostProjection, ownsGuard, planRetirement, renderProjectionFor } from './host-projection.js';
+import {
+  applyHostProjection,
+  ownsGuard,
+  planRetirement,
+  preflightReceipt,
+  renderProjectionFor,
+} from './host-projection.js';
 import {
   GUARD_SCOPE,
   hostNext,
-  JOURNALS,
-  lockRefusal,
   projectedHosts,
+  projectionFailure,
   projectionRepair,
   projectionRerun,
-  recoverCommand,
   refusedPath,
   SETTINGS,
-  STATE,
-  THEN_RERUN,
 } from './host.js';
 import { codeOf } from './session.js';
 import type { Capabilities, SymbolName } from './render.js';
@@ -151,6 +151,10 @@ export interface PlanView {
   readonly planOut: string | null;
   /** Hosts whose projection this workspace owns; `applyPlan` refreshes each after the install commits. */
   readonly refresh: readonly HostName[];
+  readonly projectionFiles: readonly {
+    readonly host: HostName;
+    readonly files: readonly { readonly path: string; readonly action: string }[];
+  }[];
   /**
    * The refreshed hosts that own a steward-guard registration an earlier release made, which their refresh retires
    * before any projection file changes (B11); a plan lists the retirement.
@@ -500,30 +504,10 @@ export function requireProjectionsClean(root: string, hosts: readonly HostName[]
     let drifts: readonly ProjectionDrift[];
     try {
       planRetirement(root, host);
+      preflightReceipt(root, host);
       drifts = observeProjection({ root, host, artifacts: null, marker: PACKET_MARKER });
     } catch (error) {
-      const refusal = refusalOf(error),
-        // A pending host journal refuses the retirement's plan: its recovery, not a projection file, is the repair.
-        journal =
-          refusal.code === 'IA-DIST-RECOVERY-REQUIRED'
-            ? JOURNALS.find(([path]) => existsSync(resolve(root, path)))
-            : undefined;
-      if (journal !== undefined)
-        throw new Refusal(
-          refusal.code,
-          refusal.message,
-          3,
-          { path: journal[0] },
-          `Run "${recoverCommand(journal[1], root)}"${THEN_RERUN}`,
-        );
-      const path = refusedPath(error) ?? STATE.projection(host);
-      throw new Refusal(
-        refusal.code,
-        refusal.message,
-        3,
-        { path },
-        hostNext(projectionRepair(host, path, rerun, refusal.code), host, root, rooted),
-      );
+      throw projectionFailure(error, root, host, rerun);
     }
     const changed = drifts.find((drift) => drift.drift === 'changed');
     if (changed !== undefined)
@@ -550,24 +534,7 @@ function refreshed(view: PlanView, host: HostName): Refusal | 'retired' | 'none'
   try {
     return applyHostProjection(view.root, host, renderProjectionFor(view.root, host)).guard;
   } catch (error) {
-    const busy = lockRefusal(error, view.root);
-    if (busy !== null) return busy;
-    const refusal = refusalOf(error),
-      path = refusedPath(error),
-      rerun = projectionRerun(view.root, host);
-    const next =
-      path !== null
-        ? projectionRepair(host, path, rerun, refusal.code)
-        : error instanceof Refusal && refusal.next !== null
-          ? refusal.next
-          : `Run "${rerun}" to finish.`;
-    return new Refusal(
-      refusal.code,
-      refusal.message,
-      3,
-      path === null ? refusal.where : { path },
-      hostNext(next, host, view.root, view.rooted),
-    );
+    return projectionFailure(error, view.root, host, projectionRerun(view.root, host));
   }
 }
 
@@ -803,6 +770,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     invocation: request.invocation,
     planOut,
     refresh,
+    projectionFiles: refresh.map((host) => ({ host, files: legacyProjectionActions(root, host, PACKET_MARKER) })),
     retire: refresh.filter((host) => ownsGuard(root, host)),
     retired: [],
     rooted: request.rooted ?? false,
@@ -850,7 +818,7 @@ export function planEnvelope(view: PlanView): unknown {
     ...(view.applied === null ? {} : { applied: view.applied }),
     // Host registration spec §4: the registered projections an apply refreshes, those whose refresh retires the
     // steward guard first (B11), and after an apply those whose refresh retired it.
-    ...(view.refresh.length === 0 ? {} : { refresh: view.refresh }),
+    ...(view.refresh.length === 0 ? {} : { refresh: view.refresh, projectionFiles: view.projectionFiles }),
     ...(view.retire.length === 0 ? {} : { retire: view.retire }),
     ...(view.retired.length === 0 ? {} : { retired: view.retired }),
     ...(view.registries.length === 0 ? {} : { registries: view.registries }),
@@ -969,6 +937,15 @@ const projectionsBlocks = (view: PlanView, caps: Capabilities): readonly (readon
           ],
           { depth: 1, symbol: 'info' },
           caps,
+        ),
+        ...view.projectionFiles.flatMap(({ host, files }) =>
+          files.map(({ path, action }) =>
+            entry(
+              [words(`${host}: ${path}  ${action}${action === 'foreign' ? ' (left in place)' : ''}`)],
+              { depth: 1, symbol: action === 'remove' ? 'removed' : 'info' },
+              caps,
+            ),
+          ),
         ),
         ...(view.retire.length === 0 ? [] : [entry([words(GUARD_SCOPE)], { depth: 1, symbol: 'info' }, caps)]),
       ];

@@ -4,12 +4,13 @@
  * See docs/specs/host-registration/README.md §§4–10.
  */
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { json } from '@inventarch/distribution/services';
-import { rootedNext } from '../src/host.js';
+import { runBounded } from '@tools/testing/subprocess.js';
+import { projectionFailure, rootedNext } from '../src/host.js';
 import { quote } from '../src/render.js';
-import { DESCRIPTOR, packable, run, scratch } from './workspace-fixture.js';
+import { cli, DESCRIPTOR, packable, run, scratch } from './workspace-fixture.js';
 import {
   put,
   read,
@@ -36,7 +37,7 @@ afterAll(cleanup);
  * A seam on apps/distribution's applyProjection, which writes and deletes every projection file, so a test can fail
  * the first file change of an install's projection refresh at its `pending` stage. Every call passes through.
  */
-const seams = vi.hoisted(() => ({ failAt: undefined as string | undefined }));
+const seams = vi.hoisted(() => ({ failAt: undefined as string | undefined, failGuard: false }));
 vi.mock('@inventarch/distribution/projection', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@inventarch/distribution/projection')>();
   return {
@@ -45,6 +46,21 @@ vi.mock('@inventarch/distribution/projection', async (importOriginal) => {
       actual.applyProjection(plan, (name) => {
         if (name === seams.failAt) throw new Error('file write failed');
         checkpoint?.(name);
+      }),
+  };
+});
+
+vi.mock('@inventarch/distribution/guard-registration', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@inventarch/distribution/guard-registration')>();
+  return {
+    ...actual,
+    applyGuardRegistration: (plan: Parameters<typeof actual.applyGuardRegistration>[0]) =>
+      actual.applyGuardRegistration(plan, (stage) => {
+        if (seams.failGuard && stage === 'pending')
+          throw Object.assign(new Error('settings locked'), {
+            code: 'EPERM',
+            path: resolve((plan as { root: string }).root, '.claude/settings.local.json'),
+          });
       }),
   };
 });
@@ -258,7 +274,7 @@ it('retires the guard before the refresh changes any projection file: a failing 
   // The named rerun converges: nothing is left to retire, and the steward file goes now.
   expect((await run(['project', 'claude', '--root', root, '--apply', '--yes', '--json'], { env })).exitCode).toBe(0);
   expect(existsSync(resolve(root, STEWARD))).toBe(false);
-  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'none', removed: [{ path: STEWARD }] });
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'retired', removed: [{ path: STEWARD }] });
 });
 
 it('names the retirement in the human report of an install that retired the steward guard', async () => {
@@ -286,7 +302,7 @@ it('refuses an install before touching the lock when the guard the refresh would
     where: { path: '.claude/settings.local.json' },
     // No MCP registration in the fixture: the rerun is the projection's own apply (`projectionRerun`).
     next: rootedNext(
-      'Delete the IA guard group in .claude/settings.local.json, then run "ia project claude --apply".',
+      'Delete only the IA guard group in .claude/settings.local.json, then run "ia project claude --apply".',
       'claude',
       root,
     ),
@@ -542,4 +558,125 @@ it('names the pending journal recovery, not a projection file, when a journal bl
   expect(readFileSync(resolve(root, LOCK)).equals(lock)).toBe(true);
   expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
   expect(guardGroups(root)).toBe(1);
+});
+
+it.each(['install', 'update'])(
+  'retires a proven old-root guard through %s after a workspace move',
+  async (operation) => {
+    const { root, env, install } = await offered();
+    if (operation === 'update') expect((await install('--apply', '--yes')).exitCode).toBe(0);
+    legacyRegistration(root, env);
+    const moved = scratch('moved-upgrade');
+    rmSync(moved, { recursive: true });
+    renameSync(root, moved);
+    const result = await run(
+      [
+        operation,
+        ...(operation === 'install' ? ['--requests', REQUESTS] : ['fixture/foundation', '--to', '^0.1.0']),
+        '--catalog',
+        CATALOG,
+        '--root',
+        moved,
+        '--apply',
+        '--yes',
+        '--json',
+      ],
+      { env },
+    );
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(guardGroups(moved)).toBe(0);
+    expect(JSON.parse(read(moved, RECEIPT))).toMatchObject({ guard: 'retired', removed: [{ path: STEWARD }] });
+  },
+);
+
+it.each(['install', 'update', 'remove'])(
+  'discloses removed and foreign agent files in %s previews',
+  async (operation) => {
+    const { root, env, install } = await offered();
+    if (operation !== 'install') expect((await install('--apply', '--yes')).exitCode).toBe(0);
+    if (operation === 'remove')
+      expect(
+        (await run(['install', 'fixture/extra', '--catalog', CATALOG, '--root', root, '--apply', '--yes'], { env }))
+          .exitCode,
+      ).toBe(0);
+    const preview = (...extra: string[]) =>
+      operation === 'install'
+        ? install(...extra)
+        : run(
+            [
+              operation,
+              operation === 'remove' ? 'fixture/extra' : 'fixture/foundation',
+              ...(operation === 'update' ? ['--catalog', CATALOG] : []),
+              '--root',
+              root,
+              ...extra,
+            ],
+            { env },
+          );
+    legacyRegistration(root, env);
+    put(root, '.claude/agents/mine.md', 'mine\n');
+    const result = await preview('--json');
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout).projectionFiles).toEqual([
+      {
+        host: 'claude',
+        files: [
+          { path: STEWARD, action: 'remove' },
+          { path: '.claude/agents/mine.md', action: 'foreign' },
+        ],
+      },
+    ]);
+    const text = flat((await preview()).stdout);
+    expect(text).toContain(`${STEWARD} remove`);
+    expect(text).toContain('.claude/agents/mine.md foreign (left in place)');
+    expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+  },
+);
+
+it('prioritizes a real interrupted guard journal over raw filesystem errors and replays its printed recovery', async () => {
+  const { root, env, install } = await offered();
+  legacyRegistration(root, env);
+  const before = read(root, '.claude/settings.local.json');
+  seams.failGuard = true;
+  let failure: Awaited<ReturnType<typeof install>>;
+  try {
+    failure = await install('--apply', '--yes', '--json');
+  } finally {
+    seams.failGuard = false;
+  }
+  expect(failure.exitCode, failure.stdout).toBe(3);
+  const refusal = JSON.parse(failure.stdout);
+  expect(refusal.where.path).toBe('.ia/distributions/hosts/guard-pending.json');
+  expect(refusal.next).not.toContain('delete');
+  const command = refusal.next.match(/Run "([^"]+)"/)[1];
+  expect(command).toBe(`ia-distribution recover-guard --root ${root}`);
+  const recovered = await runBounded(
+    process.execPath,
+    [resolve(cli, '../distribution/dist/cli.js'), ...command.split(' ').slice(1)],
+    { cwd: root, env: { ...process.env, ...env, NODE_OPTIONS: '' }, timeoutMs: 30_000 },
+  );
+  expect(recovered.status, String(recovered.stderr)).toBe(0);
+  expect(read(root, '.claude/settings.local.json')).toBe(before);
+  expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+  expect((await install('--apply', '--yes', '--json')).exitCode).toBe(0);
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'retired', removed: [{ path: STEWARD }] });
+});
+
+it('raw filesystem paths only request writable/lock repair and name the parent of a failed temporary file', () => {
+  const root = scratch('fs-repair');
+  for (const path of [
+    resolve(root, '.claude/settings.local.json'),
+    resolve(root, '.claude/rules/ia-workspace.md.random.tmp'),
+  ]) {
+    const failure = projectionFailure(
+      Object.assign(new Error('locked'), { code: 'EPERM', path }),
+      root,
+      'claude',
+      'ia host claude --apply',
+    );
+    expect(failure.next).toContain('Make ');
+    expect(failure.next).toContain('writable and release any file lock');
+    expect(failure.next).not.toContain('delete');
+    expect(failure.next).not.toContain('.tmp');
+  }
 });

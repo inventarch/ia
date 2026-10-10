@@ -21,7 +21,7 @@
 import { workspaceRow } from '@inventarch/distribution/hosts';
 import type { PacketReceipt } from '@inventarch/runtime';
 import type { Context, Result } from './consumer.js';
-import { confirm, Refusal, refusalOf, requireRoot } from './consumer.js';
+import { confirm, Refusal, requireRoot } from './consumer.js';
 import type { HostName } from './host-projection.js';
 import { applyHostProjection, renderProjectionFor } from './host-projection.js';
 import type { Conflict, Element } from './host.js';
@@ -29,12 +29,10 @@ import {
   GUARD_RETIRE,
   GUARD_RETIRED,
   GUARD_SCOPE,
-  lockRefusal,
-  pendingJournal,
   projectionElement,
+  projectionFailure,
   projectionFileRows,
   projectionRepair,
-  recoverNext,
   replanProjection,
   requireIdle,
   requireInitialized,
@@ -124,14 +122,7 @@ export function collectProject(context: Context): ProjectView {
  * apply again, which converges whatever it found written (`applyHostProjection`).
  */
 function applyFailure(error: unknown, view: ProjectView): Refusal {
-  const refusal = refusalOf(error),
-    journal = pendingJournal(view.root);
-  if (journal !== undefined)
-    return new Refusal(refusal.code, refusal.message, 3, { path: journal[0] }, recoverNext(view.root, journal[1]));
-  return (
-    lockRefusal(error, view.root) ??
-    new Refusal(refusal.code, refusal.message, 3, refusal.where, `Run "${view.invocation} --apply" to finish.`)
-  );
+  return projectionFailure(error, view.root, view.host, `${view.invocation} --apply`);
 }
 /**
  * The apply: the packet rendered again and re-planned through `ia host`'s projection element, so a file that changed

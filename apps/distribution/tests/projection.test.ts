@@ -1,4 +1,13 @@
-import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -465,4 +474,24 @@ it('locates each observation failure at the file it concerns', () => {
   ])
     expect(where(run)).toMatchObject({ code: 'IA-DIST-PATH-UNSAFE', path: STEWARD });
   expect(read(linked, STEWARD)).toBe(steward(HOST_MARK));
+});
+
+it('never traverses a linked legacy agents directory, with or without recorded legacy ownership', () => {
+  const root = temp(),
+    outside = temp();
+  legacy(root, { [STEWARD]: `${HOST_MARK}\nowned\n` });
+  const original = read(root, STEWARD);
+  rmSync(resolve(root, '.claude/agents'), { recursive: true });
+  put(outside, 'demo-steward.md', original);
+  symlinkSync(outside, resolve(root, '.claude/agents'), process.platform === 'win32' ? 'junction' : 'dir');
+  const plan = planProjection({ root, host: 'claude', artifacts: artifacts(), marker: MARK });
+  expect(plan.actions).toContainEqual({ path: STEWARD, action: 'foreign' });
+  expect(observeProjection({ root, host: 'claude', artifacts: null, marker: MARK })).toEqual([]);
+  applyProjection(plan);
+  expect(read(outside, 'demo-steward.md')).toBe(original);
+  expect(
+    planProjection({ root, host: 'claude', artifacts: artifacts(), marker: MARK }).actions.every(
+      (a) => a.action === 'unchanged',
+    ),
+  ).toBe(true);
 });

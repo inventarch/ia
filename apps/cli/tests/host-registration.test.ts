@@ -646,7 +646,7 @@ it('retires the guard before any projection file changes: a failing file write l
   const rerun = await host(root, env, 'claude', '--apply', '--yes');
   expect(rerun.exitCode, rerun.stdout).toBe(0);
   expect(existsSync(resolve(root, STEWARD))).toBe(false);
-  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'none', removed: [{ path: STEWARD }] });
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'retired', removed: [{ path: STEWARD }] });
 });
 
 it('plans an update for a projection whose files are current when its receipt is missing or a guard is left to retire', async () => {
@@ -705,7 +705,7 @@ it('refuses a retirement it cannot plan at the settings file, naming the repair 
     code: 'IA-DIST-LOCAL-MODIFICATION',
     where: { path: '.claude/settings.local.json' },
     next: rootedNext(
-      'Delete the IA guard group in .claude/settings.local.json, then run "ia host claude --apply".',
+      'Delete only the IA guard group in .claude/settings.local.json, then run "ia host claude --apply".',
       'claude',
       root,
     ),
@@ -720,4 +720,101 @@ it('refuses a retirement it cannot plan at the settings file, naming the repair 
   expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
   expect(existsSync(resolve(root, GUARD_STATE))).toBe(true);
   expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
+});
+
+it.each(['.claude/settings.local.json', '.claude/settings.json'])(
+  'refuses an orphan guard in %s before deleting agents and follows the exact repair',
+  async (settings) => {
+    const { root, env } = await initialized();
+    legacyRegistration(root, env);
+    const old = JSON.parse(read(root, '.claude/settings.local.json'));
+    const unrelated = { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo safe' }] };
+    old.hooks.PreToolUse.push(unrelated);
+    put(root, settings, JSON.stringify(old, null, 2) + '\n');
+    if (settings !== '.claude/settings.local.json') rmSync(resolve(root, '.claude/settings.local.json'));
+    rmSync(resolve(root, GUARD_STATE));
+    const failed = await host(root, env, 'claude', '--apply', '--yes');
+    expect(failed.exitCode, failed.stdout).toBe(3);
+    const refusal = JSON.parse(failed.stdout);
+    expect(refusal.where).toMatchObject({ path: settings });
+    expect(refusal.next).toBe(
+      rootedNext(`Delete only the IA guard group in ${settings}, then run "ia host claude --apply".`, 'claude', root),
+    );
+    expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+    old.hooks.PreToolUse = [unrelated];
+    put(root, settings, JSON.stringify(old, null, 2) + '\n');
+    const repaired = read(root, settings);
+    const command = refusal.next.match(/"([^"]+)"/)[1];
+    expect((await run(command.split(' ').slice(1).concat('--yes', '--json'), { env })).exitCode).toBe(0);
+    expect(read(root, settings)).toBe(repaired);
+    expect(existsSync(resolve(root, STEWARD))).toBe(false);
+  },
+);
+
+it('rejects an unusable receipt destination before retiring the guard or changing a projection', async () => {
+  const { root, env } = await initialized();
+  legacyRegistration(root, env);
+  mkdirSync(resolve(root, RECEIPT));
+  const failed = await host(root, env, 'claude', '--apply', '--yes');
+  expect(failed.exitCode, failed.stdout).toBe(3);
+  expect(JSON.parse(failed.stdout)).toMatchObject({
+    where: { path: RECEIPT },
+    next: rootedNext(`Delete ${RECEIPT}, then run "ia host claude --apply".`, 'claude', root),
+  });
+  expect(guardGroups(root)).toBe(1);
+  expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+  rmSync(resolve(root, RECEIPT), { recursive: true });
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+});
+
+it.each([STEWARD, '.claude/rules/ia-workspace.md', 'complete'])(
+  'retains interrupted upgrade evidence after %s until the successful receipt',
+  async (stage) => {
+    const { root, env } = await initialized();
+    legacyRegistration(root, env);
+    seams.failAt = stage;
+    try {
+      expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(3);
+    } finally {
+      seams.failAt = undefined;
+    }
+    expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+    expect(JSON.parse(read(root, RECEIPT))).toMatchObject({
+      guard: 'retired',
+      removed: [{ path: STEWARD, sha256: sha(LEGACY_FILES[STEWARD]!) }],
+    });
+    expect(existsSync(resolve(root, '.ia/distributions/hosts/claude-receipt-pending.json'))).toBe(false);
+    expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+    expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'none', removed: [] });
+  },
+);
+
+it('distinguishes an interrupted intent from completed receipt publication and validates pending evidence before mutation', async () => {
+  const { root, env } = await initialized();
+  legacyRegistration(root, env);
+  const { applyHostProjection, renderProjectionFor } = await import('../src/host-projection.js');
+  const { json } = await import('@inventarch/distribution/services');
+  const pendingPath = '.ia/distributions/hosts/claude-receipt-pending.json';
+  expect(() =>
+    applyHostProjection(root, 'claude', renderProjectionFor(root, 'claude'), (stage) => {
+      if (stage === 'evidence') throw new Error('before retirement');
+    }),
+  ).toThrow('before retirement');
+  expect(guardGroups(root)).toBe(1);
+  expect(read(root, STEWARD)).toBe(LEGACY_FILES[STEWARD]);
+  const pending = JSON.parse(read(root, pendingPath));
+  put(root, pendingPath, json({ ...pending, digest: '0'.repeat(64) }));
+  const refused = await host(root, env, 'claude', '--apply', '--yes');
+  expect(refused.exitCode, refused.stdout).toBe(3);
+  expect(JSON.parse(refused.stdout).where.path).toBe(pendingPath);
+  expect(guardGroups(root)).toBe(1);
+  put(root, pendingPath, json(pending));
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'retired', removed: [{ path: STEWARD }] });
+  const { digest: _digest, ...body } = pending;
+  const committed = { ...body, receipt: sha(read(root, RECEIPT)) };
+  // A kill after final receipt publication and before the pending cleanup must not repeat last-success effects.
+  put(root, pendingPath, json({ ...committed, digest: sha(json(committed)) }));
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect(JSON.parse(read(root, RECEIPT))).toMatchObject({ guard: 'none', removed: [] });
 });
