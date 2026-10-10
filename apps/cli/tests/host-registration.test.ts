@@ -6,6 +6,8 @@
 import { createHash } from 'node:crypto';
 import {
   existsSync,
+  fstatSync,
+  renameSync,
   linkSync,
   mkdirSync,
   readdirSync,
@@ -47,7 +49,23 @@ afterAll(cleanup);
  * A seam on apps/distribution's applyProjection, which writes and deletes every projection file, so a test can fail
  * the first file change of a real `ia host` apply at its `pending` stage. Every call passes through.
  */
-const seams = vi.hoisted(() => ({ failAt: undefined as string | undefined }));
+const seams = vi.hoisted(() => ({
+  failAt: undefined as string | undefined,
+  afterOpen: undefined as ((path: unknown, fd: number) => void) | undefined,
+  beforeOpen: undefined as ((path: unknown) => void) | undefined,
+}));
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    openSync: (...args: Parameters<typeof actual.openSync>) => {
+      seams.beforeOpen?.(args[0]);
+      const fd = actual.openSync(...args);
+      seams.afterOpen?.(args[0], fd);
+      return fd;
+    },
+  };
+});
 vi.mock('@inventarch/distribution/projection', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@inventarch/distribution/projection')>();
   return {
@@ -750,6 +768,85 @@ it.each(['.claude/settings.local.json', '.claude/settings.json'])(
     expect(existsSync(resolve(root, STEWARD))).toBe(false);
   },
 );
+
+it.each(['replacement', 'hardlink', 'ancestor'])(
+  'rejects receipt %s races against the opened handle without changing bytes',
+  async (kind) => {
+    const { preflightReceipt } = await import('../src/host-projection.js');
+    const root = scratch('receipt-race'),
+      target = resolve(root, RECEIPT);
+    put(root, RECEIPT, 'receipt before');
+    let opened: number | undefined;
+    seams.beforeOpen = (path) => {
+      if (path === target && kind === 'ancestor') {
+        renameSync(dirname(target), `${dirname(target)}-before`);
+        put(root, RECEIPT, 'replacement receipt');
+      }
+    };
+    seams.afterOpen = (path, fd) => {
+      if (path !== target || opened !== undefined) return;
+      opened = fd;
+      if (kind === 'hardlink') linkSync(target, resolve(root, 'second-name'));
+      else if (kind === 'replacement') {
+        renameSync(target, `${target}.before`);
+        put(root, RECEIPT, 'replacement receipt');
+      }
+    };
+    try {
+      expect(() => preflightReceipt(root, 'claude')).toThrow('Expected an unaliased receipt');
+    } finally {
+      seams.afterOpen = undefined;
+      seams.beforeOpen = undefined;
+    }
+    expect(opened).toBeTypeOf('number');
+    expect(() => fstatSync(opened!)).toThrow(); // Every refusal closes the descriptor.
+    expect(read(root, RECEIPT)).toBe(kind === 'hardlink' ? 'receipt before' : 'replacement receipt');
+    expect(
+      readFileSync(
+        kind === 'ancestor'
+          ? `${dirname(target)}-before/claude-receipt.json`
+          : kind === 'replacement'
+            ? `${target}.before`
+            : resolve(root, 'second-name'),
+        'utf8',
+      ),
+    ).toBe('receipt before');
+  },
+);
+
+it('refuses a replaced receipt ancestor even when the destination does not yet exist', async () => {
+  const { preflightReceipt } = await import('../src/host-projection.js');
+  const root = scratch('receipt-missing-race'),
+    target = resolve(root, RECEIPT);
+  mkdirSync(dirname(target), { recursive: true });
+  seams.beforeOpen = (path) => {
+    if (path !== target) return;
+    renameSync(dirname(target), `${dirname(target)}-before`);
+    symlinkSync(`${dirname(target)}-before`, dirname(target), 'junction');
+  };
+  try {
+    expect(() => preflightReceipt(root, 'claude')).toThrow('Expected an unaliased receipt');
+  } finally {
+    seams.beforeOpen = undefined;
+  }
+  expect(existsSync(target)).toBe(false);
+});
+
+it('preflights receipt files without truncation and refuses static hardlinks and linked ancestors', async () => {
+  const { preflightReceipt } = await import('../src/host-projection.js');
+  const root = scratch('receipt-links'),
+    target = resolve(root, RECEIPT);
+  put(root, RECEIPT, 'unchanged receipt');
+  preflightReceipt(root, 'claude');
+  expect(read(root, RECEIPT)).toBe('unchanged receipt');
+  linkSync(target, `${target}.alias`);
+  expect(() => preflightReceipt(root, 'claude')).toThrow('Expected an unaliased receipt');
+  rmSync(`${target}.alias`);
+  renameSync(dirname(target), `${dirname(target)}-real`);
+  symlinkSync(`${dirname(target)}-real`, dirname(target), 'junction');
+  expect(() => preflightReceipt(root, 'claude')).toThrow('Expected an unaliased receipt');
+  expect(read(root, RECEIPT)).toBe('unchanged receipt');
+});
 
 it('rejects an unusable receipt destination before retiring the guard or changing a projection', async () => {
   const { root, env } = await initialized();

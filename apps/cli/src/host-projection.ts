@@ -13,7 +13,17 @@
  * `@inventarch/distribution/projection`, which deletes the owned 1.x steward files and leaves foreign ones (B9), and
  * writes the receipt beside the projection state (B12).
  */
-import { accessSync, closeSync, constants, existsSync, lstatSync, openSync, readFileSync } from 'node:fs';
+import {
+  accessSync,
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  type Stats,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import { renderHost, renderPacket, PACKET_MARKER } from '@inventarch/runtime';
 import type { HostFile, HostOutput, PacketReceipt } from '@inventarch/runtime';
@@ -131,29 +141,80 @@ export const planFiles = (root: string, host: HostName, rendered: HostOutput | n
   preflightReceipt(root, host);
   return planProjection({ root, host, artifacts: rendered?.files ?? [], marker: PACKET_MARKER });
 };
-/** Check every destination ancestor without creating anything or following a link. */
+/** Check every destination ancestor and the opened destination without changing bytes. */
 export function preflightReceipt(root: string, host: HostName): void {
   for (const path of [STATE.receipt(host), pendingPath(host)]) {
-    const parts = path.split('/');
-    for (let i = 1; i <= parts.length; i++) {
+    const parts = path.split('/'),
+      ancestors: { stat: Stats }[] = [];
+    const unsafe = (relative = path): DistributionError =>
+      new DistributionError(
+        'IA-DIST-PATH-UNSAFE',
+        'Expected an unaliased receipt file and directory ancestors',
+        relative,
+      );
+    for (let i = 1; i < parts.length; i++) {
       const relative = parts.slice(0, i).join('/'),
         absolute = resolve(root, relative);
-      let stat: ReturnType<typeof lstatSync>;
+      let stat: Stats;
       try {
         stat = lstatSync(absolute);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') break;
         throw error;
       }
-      if (stat.isSymbolicLink() || (i < parts.length ? !stat.isDirectory() : !stat.isFile() || stat.nlink !== 1))
-        throw new DistributionError(
-          'IA-DIST-PATH-UNSAFE',
-          'Expected an unaliased receipt file and directory ancestors',
-          relative,
-        );
+      if (stat.isSymbolicLink() || !stat.isDirectory()) throw unsafe(relative);
+      ancestors.push({ stat });
       accessSync(absolute, constants.W_OK);
-      // Opening without truncation detects a Windows sharing lock before retirement, without changing bytes.
-      if (i === parts.length) closeSync(openSync(absolute, 'r+'));
+    }
+    const checkAncestors = (): void => {
+      for (let i = 1; i < parts.length; i++) {
+        const relative = parts.slice(0, i).join('/'),
+          current = lstatSync(resolve(root, relative), { throwIfNoEntry: false }),
+          before = ancestors[i - 1]?.stat;
+        if (!current) {
+          if (before) throw unsafe(relative);
+          break;
+        }
+        if (
+          !current.isDirectory() ||
+          current.isSymbolicLink() ||
+          (before && (current.dev !== before.dev || current.ino !== before.ino))
+        )
+          throw unsafe(relative);
+      }
+    };
+    const absolute = resolve(root, path);
+    let fd: number;
+    try {
+      // No pathname precheck: validate the handle actually opened. O_NOFOLLOW protects the leaf where supported;
+      // the identity checks below also cover Windows and ancestor replacement. No creation or truncation occurs.
+      fd = openSync(absolute, constants.O_RDWR | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+    } catch (error) {
+      // A bad kind may itself prevent opening (directories on Windows, or a dangling link). Preserve its path remedy.
+      const named = lstatSync(absolute, { throwIfNoEntry: false });
+      if (named && (!named.isFile() || named.isSymbolicLink() || named.nlink !== 1)) throw unsafe();
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT' && !named) {
+        checkAncestors();
+        continue;
+      }
+      throw error;
+    }
+    try {
+      const opened = fstatSync(fd),
+        named = lstatSync(absolute);
+      if (
+        !opened.isFile() ||
+        opened.nlink !== 1 ||
+        !named.isFile() ||
+        named.isSymbolicLink() ||
+        named.nlink !== 1 ||
+        opened.dev !== named.dev ||
+        opened.ino !== named.ino
+      )
+        throw unsafe();
+      checkAncestors();
+    } finally {
+      closeSync(fd);
     }
   }
   readPending(root, host);

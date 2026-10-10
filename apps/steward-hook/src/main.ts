@@ -1,5 +1,6 @@
 import {
   closeSync,
+  constants,
   fstatSync,
   lstatSync,
   openSync,
@@ -96,17 +97,50 @@ const LEGACY_MARKERS: readonly string[] = [
  * that carries a legacy marker line. A missing file, or one no renderer wrote, is not.
  */
 function legacySteward(target: string): boolean {
-  let stat: Stats;
+  let fd: number;
   try {
-    stat = lstatSync(target);
+    // Open first: a pathname stat cannot authorize a later pathname read. Do not follow a leaf link, or block on a FIFO.
+    fd = openSync(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
     throw error;
   }
-  if (!stat.isFile() || stat.size > 1024 * 1024) return false;
-  const lines = readFileSync(target, 'utf8').split(/\r?\n/);
-  return LEGACY_MARKERS.some((marker) => lines.includes(marker));
+  try {
+    const stat = fstatSync(fd),
+      limit = 1024 * 1024;
+    if (!stat.isFile() || stat.size > limit) return false;
+    const same = (value: Stats): boolean =>
+      value.isFile() &&
+      value.dev === stat.dev &&
+      value.ino === stat.ino &&
+      value.nlink === stat.nlink &&
+      value.size === stat.size &&
+      value.mtimeMs === stat.mtimeMs &&
+      value.ctimeMs === stat.ctimeMs;
+    if (!same(lstatSync(target)) || !unaliased(target, physical(target)))
+      throw new Error('Legacy steward changed while opening');
+    const content = Buffer.alloc(limit + 1);
+    let size = 0;
+    for (;;) {
+      const count = readSync(fd, content, size, content.length - size, null);
+      size += count;
+      if (count === 0 || size === content.length) break;
+    }
+    if (
+      size > limit ||
+      size !== stat.size ||
+      !same(fstatSync(fd)) ||
+      !same(lstatSync(target)) ||
+      !unaliased(target, physical(target))
+    )
+      throw new Error('Legacy steward changed while reading');
+    const lines = content.subarray(0, size).toString('utf8').split(/\r?\n/);
+    return LEGACY_MARKERS.some((marker) => lines.includes(marker));
+  } finally {
+    closeSync(fd);
+  }
 }
+
 /**
  * `ownership` is undefined in a legacy workspace (no projection state) and is read only when a candidate path needs it;
  * `steward` says whether the edited file, at a legacy-mode agent path, is still a 1.x steward file.
