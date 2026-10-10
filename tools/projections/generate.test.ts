@@ -44,6 +44,21 @@ const LEGACY_AGENT = '.claude/agents/public-governance-system-steward.md',
     '\r\n',
     '\n',
   );
+// Exact governance blobs from each independently verified M4 base, each checkout form tested separately.
+const LEGACY_VARIANTS = (
+  [
+    ['e83a5dd', LEGACY_TEXT],
+    [
+      '48458e9',
+      readFileSync(resolve(import.meta.dirname, 'fixtures/m4-restacked-governance-steward.txt'), 'utf8').replaceAll(
+        '\r\n',
+        '\n',
+      ),
+    ],
+  ] as const
+).flatMap(([version, text]) =>
+  ['LF', 'CRLF'].map((ending) => ({ version, ending, text: ending === 'LF' ? text : text.replaceAll('\n', '\r\n') })),
+);
 function temp(): string {
   const path = mkdtempSync(resolve(tmpdir(), 'ia-projection-tests-'));
   temporary.push(path);
@@ -222,35 +237,43 @@ it('preflights unmanaged files before writing and refuses arbitrary outputs, ste
     publishArtifacts(base, [{ path: '.agents/skills/ia-authoring/SKILL.md', text: PACKET_MARKER }], true),
   ).toThrow('aliased');
 });
-it.each(['LF', 'CRLF'])('deletes only an exact M4 steward at its original path (%s)', (ending) => {
-  const base = temp(),
-    files = [{ path: 'CLAUDE.md', text: `${PACKET_MARKER}\n` }],
-    legacy = ending === 'LF' ? LEGACY_TEXT : LEGACY_TEXT.replaceAll('\n', '\r\n');
-  put(base, LEGACY_AGENT, legacy);
-  const foreign = {
-    '.claude/agents/mine.md': 'my own agent\n',
-    '.claude/agents/my-reviewer.md': LEGACY_TEXT.replace('name: public-governance-system-steward', 'name: my-reviewer'),
-    '.claude/agents/copied-steward.md': LEGACY_TEXT,
-    '.claude/agents/notes.txt': `Scratch notes\n${REPO_MARK}\n${PACKET_MARKER}\nkeep me\n`,
-    '.claude/agents/new-packet.md': `${PACKET_MARKER}\nkeep me\n`,
-    '.claude/agents/quoted-marker.md': `A personal note quoting the legacy marker:\n${HOST_MARK}\nkeep me\n`,
-    '.claude/agents/older-steward.md': `---\nname: older-steward\n---\n\n${REPO_MARK}\n`,
-  };
-  for (const [path, content] of Object.entries(foreign)) put(base, path, content);
-  expect(publishArtifacts(base, files, false)).toEqual([LEGACY_AGENT, 'CLAUDE.md']);
-  expect(read(base, LEGACY_AGENT)).toBe(legacy);
-  expect(publishArtifacts(base, files, true)).toEqual([LEGACY_AGENT, 'CLAUDE.md']);
-  expect(existsSync(resolve(base, LEGACY_AGENT))).toBe(false);
-  for (const [path, content] of Object.entries(foreign)) expect(read(base, path), path).toBe(content);
-  expect(publishArtifacts(base, files, false)).toEqual([]);
-});
-it.each([
-  ['appended personal notes', LEGACY_TEXT + '\nPersonal notes: keep these.\n'],
-  ['new packet marker', LEGACY_TEXT.replace(REPO_MARK, PACKET_MARKER)],
-  ['quoted legacy marker', 'Personal notes\n' + LEGACY_TEXT],
-  ['edited source revision', LEGACY_TEXT.replace('Source revision:', 'Previous revision:')],
-  ['mixed line endings', LEGACY_TEXT.replace('\n', '\r\n')],
-])('preserves a known steward path with %s', (_case, content) => {
+it.each(LEGACY_VARIANTS)(
+  'deletes only an exact M4 steward at its original path ($version $ending)',
+  ({ text: legacy }) => {
+    const base = temp(),
+      files = [{ path: 'CLAUDE.md', text: `${PACKET_MARKER}\n` }];
+    put(base, LEGACY_AGENT, legacy);
+    const foreign = {
+      '.claude/agents/mine.md': 'my own agent\n',
+      '.claude/agents/my-reviewer.md': legacy.replace('name: public-governance-system-steward', 'name: my-reviewer'),
+      '.claude/agents/copied-steward.md': legacy,
+      '.claude/agents/notes.txt': `Scratch notes\n${REPO_MARK}\n${PACKET_MARKER}\nkeep me\n`,
+      '.claude/agents/new-packet.md': `${PACKET_MARKER}\nkeep me\n`,
+      '.claude/agents/quoted-marker.md': `A personal note quoting the legacy marker:\n${HOST_MARK}\nkeep me\n`,
+      '.claude/agents/older-steward.md': `---\nname: older-steward\n---\n\n${REPO_MARK}\n`,
+    };
+    for (const [path, content] of Object.entries(foreign)) put(base, path, content);
+    expect(publishArtifacts(base, files, false)).toEqual([LEGACY_AGENT, 'CLAUDE.md']);
+    expect(read(base, LEGACY_AGENT)).toBe(legacy);
+    expect(publishArtifacts(base, files, true)).toEqual([LEGACY_AGENT, 'CLAUDE.md']);
+    expect(existsSync(resolve(base, LEGACY_AGENT))).toBe(false);
+    for (const [path, content] of Object.entries(foreign)) expect(read(base, path), path).toBe(content);
+    expect(publishArtifacts(base, files, false)).toEqual([]);
+  },
+);
+it.each(
+  LEGACY_VARIANTS.flatMap(({ version, ending, text }) =>
+    (
+      [
+        ['appended personal notes', text + '\nPersonal notes: keep these.\n'],
+        ['new packet marker', text.replace(REPO_MARK, PACKET_MARKER)],
+        ['quoted legacy marker', 'Personal notes\n' + text],
+        ['edited source revision', text.replace(/Source revision: [a-f0-9]{64}/, `Source revision: ${'0'.repeat(64)}`)],
+        ['mixed line endings', ending === 'LF' ? text.replace('\n', '\r\n') : text.replace('\r\n', '\n')],
+      ] as const
+    ).map(([label, content]) => ({ label: `${version} ${ending} ${label}`, content })),
+  ),
+)('preserves a known steward path with $label', ({ content }) => {
   const base = temp();
   put(base, LEGACY_AGENT, content);
   expect(publishArtifacts(base, [], false)).toEqual([]);
