@@ -1267,6 +1267,27 @@ it('keeps tracked generations committable and refuses existing ignore rules that
   execFileSync('git', ['clone', '-q', root, peer], { windowsHide: true });
   const baseline = await run(['position', '--root', peer, '--json']);
   expect(baseline.exitCode, baseline.stdout).toBe(0);
+  for (const rule of ['schemas/', '*.schema.ia', 'inputs.json']) {
+    put(root, '.gitignore', `${rule}\n`);
+    const before = tree(root);
+    const conflict = json(await migrate(root));
+    expect(conflict.plan.conflicts).toContainEqual({
+      path: '.ia/distributions',
+      reason: expect.stringContaining('Git ignore rule'),
+    });
+    expect((await apply(root)).exitCode).toBe(3);
+    expect(tree(root)).toEqual(before);
+  }
+  rmSync(resolve(root, '.gitignore'));
+  put(root, '.gitattributes', '.ia/** -text\n*.schema.ia text eol=crlf\n');
+  const converted = tree(root);
+  expect(json(await migrate(root)).plan.conflicts).toContainEqual({
+    path: '.gitattributes',
+    reason: expect.stringContaining('Git may rewrite tracked immutable installation bytes'),
+  });
+  expect((await apply(root)).exitCode).toBe(3);
+  expect(tree(root)).toEqual(converted);
+  put(root, '.gitattributes', '.ia/** -text\n');
   for (const rule of ['distributions/', 'distributions/store/', 'distributions/generations/']) {
     put(root, '.ia/.gitignore', `work/\n${rule}\n`);
     const before = tree(root);

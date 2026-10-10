@@ -73,11 +73,16 @@ import {
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import {
   decodeReleaseDescriptor,
+  deriveGenerationInputs,
+  generationDigest,
+  installationWorkspace,
+  readExpandedBundle,
   DISTRIBUTION_ENGINE_VERSION,
   INSTALL_PATHS,
   sha256,
 } from '@inventarch/db/distribution';
 import type { DistributionLock, ReleaseDescriptor } from '@inventarch/db/distribution';
+import { verifyArchive } from '@inventarch/distribution/archive';
 import { assertHostRegistrationIdle } from '@inventarch/distribution/host';
 import { assertHomeOutsideWorkspace } from '@inventarch/distribution/host-home';
 import type { DeclineKind } from '@inventarch/distribution/decisions';
@@ -285,7 +290,40 @@ export function migrationIgnoreText(root: string): string {
     ? 'work/\n'
     : IGNORE_TEXT;
 }
-function migrationGitConflict(root: string): MigrationConflict | null {
+/** Enumerate the exact store and generation inventory the installer will make active, without caching or writing. */
+function migrationPayloadPaths(root: string, base: Base, current: DistributionLock): readonly string[] {
+  const replacing = current.packages.find((pkg) => pkg.id === base.pin.id)!.archive !== base.pin.archive;
+  const resolved = replacing
+    ? resolveReleases(
+        [{ id: base.pin.id, range: `^${base.pin.version}` }],
+        [
+          {
+            release: verifyArchive(base.bytes, base.pin.archive),
+            location: `sha256:${base.pin.archive}`,
+            withdrawn: false,
+          },
+        ],
+        DISTRIBUTION_ENGINE_VERSION,
+      )
+    : null;
+  const lock = resolved?.lock ?? current;
+  const releases = resolved?.releases ?? new Map(lock.packages.map((pkg) => [pkg.id, readExpandedBundle(root, pkg)]));
+  const inputs = deriveGenerationInputs(lock, releases);
+  const workspace = installationWorkspace(lock, inputs, releases);
+  const generation = `${INSTALL_PATHS.generations}/${generationDigest(lock, inputs, workspace)}`;
+  return [
+    INSTALL_PATHS.lock,
+    INSTALL_PATHS.active,
+    `${generation}/lock.json`,
+    `${generation}/inputs.json`,
+    ...(workspace === null ? [] : [`${generation}/workspace.ia`]),
+    ...lock.packages.flatMap((pkg) => [
+      `${INSTALL_PATHS.store}/${pkg.archive}/distribution.json`,
+      ...releases.get(pkg.id)!.manifest.files.map((file) => `${INSTALL_PATHS.store}/${pkg.archive}/${file.path}`),
+    ]),
+  ];
+}
+function migrationGitConflict(root: string, base: Base, lock: DistributionLock): MigrationConflict | null {
   const git = gitIn(root, process.env);
   const tracked = git(['ls-files', '-z', '--', '.ia/distributions']);
   if (tracked === null || tracked.status === null || tracked.status !== 0) {
@@ -300,13 +338,20 @@ function migrationGitConflict(root: string): MigrationConflict | null {
     return null;
   }
   if (tracked.status !== 0 || tracked.stdout.length === 0) return null;
-  const probes = [
-    '.ia/distributions.lock.json',
-    '.ia/distributions/active.json',
-    '.ia/distributions/generations/ia-migration-probe/lock.json',
-    '.ia/distributions/store/ia-migration-probe/.ia/src/probe.ia',
-  ];
-  const attributes = git(['check-attr', '-z', 'text', 'eol', 'filter', 'working-tree-encoding', '--', ...probes]);
+  const probes = migrationPayloadPaths(root, base, lock);
+  // NUL-delimited bounded batches preserve exact paths and avoid Windows argument/output limits.
+  const query = (args: readonly string[]): ReturnType<Git> => {
+    let stdout = '',
+      status = 1;
+    for (let at = 0; at < probes.length; at += 128) {
+      const result = git(args, probes.slice(at, at + 128).join('\0') + '\0');
+      if (result === null || result.status === null || result.status > 1) return result;
+      stdout += result.stdout;
+      if (result.status === 0) status = 0;
+    }
+    return { status, stdout };
+  };
+  const attributes = query(['check-attr', '-z', '--stdin', 'text', 'eol', 'filter', 'working-tree-encoding']);
   const conversion = git(['config', '--get', 'core.autocrlf']);
   if (attributes?.status !== 0 || conversion === null)
     return {
@@ -336,21 +381,23 @@ function migrationGitConflict(root: string): MigrationConflict | null {
       reason:
         'Git may rewrite tracked immutable installation bytes; add .ia/distributions/** -text and .ia/distributions.lock.json -text to .gitattributes and remove any filters or encoding conversion for those paths before migrating',
     };
-  const ignored = git([
-    'check-ignore',
-    '-v',
-    '--no-index',
-    ...probes,
-    '.ia/distributions/store/ia-migration-probe/LICENSE',
-    '.ia/distributions/store/ia-migration-probe/distribution.json',
-  ]);
+  const ignored = query(['check-ignore', '-v', '-z', '--no-index', '--stdin']);
   if (ignored?.status === 1) return null;
+  if (ignored?.status === 0) {
+    const fields = ignored.stdout.split('\0');
+    for (let at = 0; at + 3 < fields.length; at += 4) {
+      const [source, line, pattern, path] = fields.slice(at, at + 4);
+      if (pattern!.startsWith('!')) continue;
+      return {
+        path: '.ia/distributions',
+        reason: `Tracked installation payload ${path} would be hidden by an existing Git ignore rule: ${source}:${line}:${pattern}; adjust that rule to include this required file before migrating`,
+      };
+    }
+    return null;
+  }
   return {
     path: '.ia/distributions',
-    reason:
-      ignored?.status === 0
-        ? `Tracked installation payload would be hidden by an existing Git ignore rule: ${ignored.stdout.trim()}; adjust that rule to include new distribution generations before migrating`
-        : 'Git ignore rules could not be verified for tracked installation payload; repair Git before migrating',
+    reason: 'Git ignore rules could not be verified for tracked installation payload; repair Git before migrating',
   };
 }
 /** `packages/db/src/distribution/codec.ts` packageId and identifier: the id rule and the system-name ceiling. */
@@ -575,7 +622,10 @@ export function starterFiles(
   };
 }
 
-export type Git = (args: readonly string[]) => { readonly status: number | null; readonly stdout: string } | null;
+export type Git = (
+  args: readonly string[],
+  input?: string,
+) => { readonly status: number | null; readonly stdout: string } | null;
 /**
  * Git as a child process, with the host's environment rather than this process's, so the probe is a function of the
  * same explicit host every verb receives. `core.fsmonitor` is disabled because it is the configured command a
@@ -585,13 +635,14 @@ export type Git = (args: readonly string[]) => { readonly status: number | null;
  */
 export const gitIn =
   (cwd: string, env: Readonly<Record<string, string | undefined>>): Git =>
-  (args) => {
+  (args, input) => {
     const git = findProgram('git', env);
     if (git === null) return null;
     const result = spawnSync(git, ['-C', cwd, '-c', 'core.fsmonitor=false', ...args], {
       cwd: programHome(),
       env: programEnv(env),
       encoding: 'utf8',
+      input,
       timeout: 10_000,
       windowsHide: true,
     });
@@ -1820,7 +1871,7 @@ export function collectMigration(request: MigrationRequest): MigrationView {
         ]),
   ];
   // The preflight's destination half: neither the starter file nor any moved file's destination may exist.
-  const gitConflict = migrationGitConflict(root);
+  const gitConflict = migrationGitConflict(root, base, lock!);
   const conflicts: MigrationConflict[] = gitConflict === null ? [] : [gitConflict];
   const legacyText = readWorkspaceFile({ root, path: legacyRecordsPath(name) })
     .toString('utf8')
