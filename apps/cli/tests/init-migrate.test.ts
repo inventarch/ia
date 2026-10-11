@@ -1216,7 +1216,11 @@ it('resumes exact journal-owned states after every individual mutation and refus
   expect(tree(root)).toEqual(changed);
 });
 
-it('preflights kept field and relationship references to deleted identities and --system retains them', async () => {
+it.each([
+  ['demo-steward', 'demo-distribution'],
+  ['Demo-Steward', 'Demo-Distribution'],
+  ['DEMO-STEWARD', 'DEMO-DISTRIBUTION'],
+])('preflights kept references to deleted identities with spelling %s / %s', async (agent, distribution) => {
   const { root } = await legacyWorkspace();
   put(
     root,
@@ -1228,14 +1232,14 @@ it('preflights kept field and relationship references to deleted identities and 
     says "A retained profile."
     answers "Who acts?"
   composition
-    agent @agent demo-steward
+    agent @agent ${agent}
     capabilities []
   execution
     role reader
     outcomes custom-outcomes
     mandate-contract custom-contract
   relationships
-    cite @distribution demo-distribution
+    cite @distribution ${distribution}
 `,
   );
   const admitted = await run(['validate', '--root', root, '--json']);

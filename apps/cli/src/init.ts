@@ -1925,7 +1925,14 @@ export function collectMigration(request: MigrationRequest): MigrationView {
       if (value === null || typeof value !== 'object') return false;
       if (Array.isArray(value)) return value.some((child) => references(child, word, name, identity));
       const item = value as Record<string, unknown>;
-      if (item['kind'] === 'ref' && item['discriminator'] === word && item['name'] === name) return true;
+      // The language preserves authored reference spelling but resolves names case-insensitively.
+      if (
+        item['kind'] === 'ref' &&
+        item['discriminator'] === word &&
+        typeof item['name'] === 'string' &&
+        item['name'].toLowerCase() === name.toLowerCase()
+      )
+        return true;
       if (item['kind'] === 'identity' && item['identity'] === identity) return true;
       return Object.values(item).some((child) => references(child, word, name, identity));
     };
