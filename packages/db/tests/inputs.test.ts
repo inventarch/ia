@@ -1,5 +1,12 @@
 import {
   cpSync,
+  closeSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readSync,
+  renameSync,
+  appendFileSync,
   existsSync,
   linkSync,
   mkdirSync,
@@ -12,7 +19,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { KERNEL_SOURCES, buildRegistry, compile, parse } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import {
@@ -26,6 +33,18 @@ import {
   unaliased,
   within,
 } from '../src/index.js';
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    openSync: vi.fn(actual.openSync),
+    fstatSync: vi.fn(actual.fstatSync),
+    lstatSync: vi.fn(actual.lstatSync),
+    readSync: vi.fn(actual.readSync),
+    closeSync: vi.fn(actual.closeSync),
+  };
+});
 
 const temporary: string[] = [];
 const workspace = () => {
@@ -91,6 +110,12 @@ it('refuses package source aliases, invalid UTF-8 and bounded file overflow', ()
   expect(() => readInputs(root, { authoredRoots: ['alias'] })).toThrow(/Symlink|alias/);
 });
 afterEach(() => {
+  vi.restoreAllMocks();
+  vi.mocked(openSync).mockReset();
+  vi.mocked(fstatSync).mockReset();
+  vi.mocked(lstatSync).mockReset();
+  vi.mocked(readSync).mockReset();
+  vi.mocked(closeSync).mockClear();
   for (const path of temporary.splice(0)) {
     const subpath = relative(resolve(tmpdir()), resolve(path));
     if (isAbsolute(subpath) || !subpath.startsWith('ia-db-inputs-') || subpath.includes('..'))
@@ -432,4 +457,89 @@ it('reads a systems folder spelled in another case as the systems folder where t
   expect(paths).toEqual([
     folds ? '.ia/src/systems/demo-system/records/a.ia' : '.ia/src/Systems/demo-system/records/a.ia',
   ]);
+});
+
+it.each(['replace', 'hardlink', 'parent'] as const)(
+  'refuses a %s race after opening a workspace document before reading bytes',
+  async (change) => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = workspace(),
+      file = resolve(root, 'docs/body.md');
+    put(root, 'docs/body.md', 'body');
+    let opened: number | undefined;
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      const fd = actual.openSync(...args);
+      if (String(args[0]) === file) {
+        opened = fd;
+        if (change === 'hardlink') linkSync(file, resolve(root, 'alias.md'));
+        else if (change === 'replace') {
+          renameSync(file, resolve(root, 'original.md'));
+          put(root, 'docs/body.md', 'other');
+        } else {
+          // Windows permits renaming an open file but not its containing directory. Move the file aside first,
+          // replace the now-empty parent, then restore the same inode: only the directory identity differs.
+          renameSync(file, resolve(root, 'held.md'));
+          renameSync(resolve(root, 'docs'), resolve(root, 'original-docs'));
+          mkdirSync(resolve(root, 'docs'));
+          renameSync(resolve(root, 'held.md'), file);
+        }
+      }
+      return fd;
+    });
+    vi.mocked(readSync).mockClear();
+    vi.mocked(closeSync).mockClear();
+    expect(() => readWorkspaceBytes(root, 'docs/body.md', 16)).toThrow(
+      expect.objectContaining({
+        code: change === 'hardlink' ? 'IA-DB-PATH-UNSAFE' : 'IA-DB-SOURCE-CHANGED',
+        path: 'docs/body.md',
+      }),
+    );
+    expect(opened).toBeTypeOf('number');
+    expect(readSync).not.toHaveBeenCalled();
+    expect(closeSync).toHaveBeenCalledWith(opened);
+  },
+);
+it('bounds a growing workspace document and refuses bytes modified during reading', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(),
+    file = resolve(root, 'docs/body.md');
+  put(root, 'docs/body.md', 'body');
+  let read = 0,
+    calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    read += count;
+    if (++calls === 1) appendFileSync(file, 'x'.repeat(1_000_000));
+    return count;
+  });
+  expect(() => readWorkspaceBytes(root, 'docs/body.md', 16)).toThrow(
+    expect.objectContaining({ code: 'IA-DB-SOURCE-CHANGED', path: 'docs/body.md' }),
+  );
+  expect(read).toBeLessThanOrEqual(5);
+});
+
+it('keeps full-width file identities when two inode numbers round to the same JavaScript number', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(),
+    file = resolve(root, 'docs/body.md');
+  put(root, 'docs/body.md', 'body');
+  const openedId = 2n ** 54n,
+    replacementId = openedId + 1n;
+  expect(Number(openedId)).toBe(Number(replacementId));
+  vi.mocked(fstatSync).mockImplementation((...args: Parameters<typeof fstatSync>) => {
+    const stat = actual.fstatSync(...args);
+    return Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? openedId : Number(openedId) });
+  });
+  vi.mocked(lstatSync).mockImplementation((...args: Parameters<typeof lstatSync>) => {
+    const stat = actual.lstatSync(...args);
+    if (stat === undefined) return undefined;
+    return String(args[0]) === file
+      ? Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? replacementId : Number(replacementId) })
+      : stat;
+  });
+  vi.mocked(readSync).mockClear();
+  expect(() => readWorkspaceBytes(root, 'docs/body.md', 16)).toThrow(
+    expect.objectContaining({ code: 'IA-DB-SOURCE-CHANGED', path: 'docs/body.md' }),
+  );
+  expect(readSync).not.toHaveBeenCalled();
 });
