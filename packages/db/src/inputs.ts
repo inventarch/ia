@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   closeSync,
+  constants,
   existsSync,
   fstatSync,
   lstatSync,
@@ -114,30 +115,69 @@ export function readWorkspaceBytes(root: string, path: string, limit: number): U
         throw new DbError(error.code, `Symlink/junction traversal is not admitted: ${relative}`, relative);
       throw error;
     }
-    const stat = lstatSync(file);
-    if (!stat.isFile() || stat.nlink !== 1)
-      throw new DbError('IA-DB-PATH-UNSAFE', `Expected an unaliased regular file: ${relative}`, relative);
-    if (stat.size > limit)
-      throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `File exceeds ${limit} bytes: ${relative}`, relative);
-    // Bound allocation and reading even if a concurrent writer grows the file, as package source capture does.
-    const fd = openSync(file, 'r'),
-      buffer = Buffer.alloc(stat.size + 1);
-    let length = 0;
+    const unsafe = () => new DbError('IA-DB-PATH-UNSAFE', `Expected an unaliased regular file: ${relative}`, relative);
+    const changed = () => new DbError('IA-DB-SOURCE-CHANGED', `File changed during read: ${relative}`, relative);
+    // Keep each containing directory's identity, not just the spelling of the file name.
+    const parents = [canonical];
+    for (const segment of relative.split('/').slice(0, -1)) parents.push(join(parents.at(-1)!, segment));
+    const directories = parents.map((path) => ({ path, stat: lstatSync(path) }));
+    if (directories.some(({ stat }) => stat.isSymbolicLink()))
+      throw new DbError('IA-DB-PATH-UNSAFE', `Symlink/junction traversal is not admitted: ${relative}`, relative);
+    if (directories.some(({ stat }) => !stat.isDirectory()))
+      throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `Missing file ${relative}`, relative);
+    let fd: number;
+    try {
+      // Open before deciding the file's type, link count, size or allocation. NOFOLLOW rejects a final symlink;
+      // NONBLOCK avoids waiting on a FIFO substituted during opening. Unsupported platform flags are zero.
+      fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+    } catch (error) {
+      // Windows may refuse opening a directory. Preserve the same public refusal as an opened non-file.
+      const named = lstatSync(file);
+      if (!named.isFile() || named.nlink !== 1) throw unsafe();
+      throw error;
+    }
     try {
       const opened = fstatSync(fd);
-      if (!opened.isFile() || opened.dev !== stat.dev || opened.ino !== stat.ino)
-        throw new DbError('IA-DB-SOURCE-CHANGED', `File replaced during read: ${relative}`, relative);
+      if (!opened.isFile() || opened.nlink !== 1) throw unsafe();
+      if (opened.size > limit)
+        throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `File exceeds ${limit} bytes: ${relative}`, relative);
+      const assertNamed = () => {
+        try {
+          const named = lstatSync(file);
+          if (!named.isFile() || named.nlink !== 1 || named.dev !== opened.dev || named.ino !== opened.ino)
+            throw changed();
+          for (const { path, stat } of directories) {
+            const now = lstatSync(path);
+            if (!now.isDirectory() || now.isSymbolicLink() || now.dev !== stat.dev || now.ino !== stat.ino)
+              throw changed();
+          }
+        } catch {
+          throw changed();
+        }
+      };
+      assertNamed();
+      // Bound both allocation and reading to the opened file's size plus one, even if a concurrent writer grows it.
+      const buffer = Buffer.alloc(opened.size + 1);
+      let length = 0;
       while (length < buffer.length) {
         const count = readSync(fd, buffer, length, buffer.length - length, null);
         if (!count) break;
         length += count;
       }
+      const after = fstatSync(fd);
+      if (
+        length !== opened.size ||
+        after.size !== opened.size ||
+        after.nlink !== 1 ||
+        after.mtimeMs !== opened.mtimeMs ||
+        after.ctimeMs !== opened.ctimeMs
+      )
+        throw changed();
+      assertNamed();
+      return buffer.subarray(0, length);
     } finally {
       closeSync(fd);
     }
-    if (length !== stat.size)
-      throw new DbError('IA-DB-SOURCE-CHANGED', `File changed during read: ${relative}`, relative);
-    return buffer.subarray(0, length);
   } catch (error) {
     if (error instanceof DbError) throw error;
     // A path through a file is missing too: ENOENT on Windows, ENOTDIR on POSIX. Only the error code is kept, as a
