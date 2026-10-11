@@ -55,6 +55,13 @@ const LEGACY_VARIANTS = (
         '\n',
       ),
     ],
+    [
+      '8294c3c',
+      readFileSync(resolve(import.meta.dirname, 'fixtures/m4-120-governance-steward.txt'), 'utf8').replaceAll(
+        '\r\n',
+        '\n',
+      ),
+    ],
   ] as const
 ).flatMap(([version, text]) =>
   ['LF', 'CRLF'].map((ending) => ({ version, ending, text: ending === 'LF' ? text : text.replaceAll('\n', '\r\n') })),
