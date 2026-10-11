@@ -1,12 +1,17 @@
 /**
  * The machine protocol's one description (docs/specs/command-discoverability/README.md §2). For each Door operation:
  * its purpose, parameter schema, result, refusals with a next action, and an example that returns `ok: true` on
- * packages/compliance/fixtures/loop. `ia <operation> --help`, the MCP door's tools/list and
- * docs/reference/cli/machine-protocol.md are projections of this table. It describes the frozen wire format and changes none
- * of it: the Door validates every request itself, and tests/select-door.test.ts and apps/cli/tests/cli.test.ts hold this
- * table to what the Door admits and refuses.
+ * packages/compliance/fixtures/loop, or for `next`, as that fixture authors no @plan, on the delivery fixture
+ * packages/runtime/tests/fixtures/delivery/base laid over the conformance corpus. `ia <operation> --help` (the version
+ * 1 operations, which are the CLI's machine routes), the MCP door's tools/list and docs/reference/cli/machine-protocol.md
+ * are projections of this table. It describes the frozen wire format and changes none of it: the Door validates every
+ * request itself, and tests/select-door.test.ts, tests/door-read.test.ts, tests/next.test.ts,
+ * tests/door-position.test.ts and apps/cli/tests/cli.test.ts hold this table to what the Door admits and refuses. A
+ * later version only appends operations (`since`), so the version 1 rows stay byte-identical to 1.1.0's
+ * (tests/golden/machine-protocol-v1.json).
  */
 import { COORDINATE_DOMAINS } from './coordinate.js';
+import { SCOPE_KEY_CAPS } from './scope-key.js';
 import { freeze } from './types.js';
 
 export type JsonSchema = Readonly<Record<string, unknown>>;
@@ -26,6 +31,11 @@ export interface ProtocolOperation {
   readonly example: Readonly<Record<string, unknown>>;
   /** The MCP tool that serves it, or null where `differences` says why it is CLI-only. */
   readonly mcp: string | null;
+  /**
+   * The protocol version that added the operation, absent on the version 1 operations, whose rows are unchanged. The
+   * CLI's machine routes are the version 1 operations; a later one is served by the Door and the MCP door.
+   */
+  readonly since?: number;
 }
 export interface ProtocolDifference {
   readonly topic: string;
@@ -175,13 +185,16 @@ const EXAMPLE_IDENTITY = 'governance-system/definition/procedure/sample-procedur
 
 /** Frozen deeply, so a projection that shares its schema objects (the MCP tools) cannot change it. */
 export const MACHINE_PROTOCOL: MachineProtocol = freeze({
-  version: 1,
+  version: 2,
   flow: [
     'scope issues a token that bounds later reads by phase or identities, and by root only where sources declare a reach. It is optional: without within, a call reads the initial boundary.',
     'context delivers the cited procedure cells and governance that apply to a coordinate; select chooses exactly one binding among candidates, or refuses.',
     'get, records, resolve, search and traverse read admitted records inside the scope; pass within to stay inside a narrowed one.',
     'A token lives as long as the process that issued it: one CLI invocation, or the MCP server process. A CLI invocation performs one operation, so its reads always cover the initial boundary; narrowing takes scope, then within, in one MCP session.',
     "report is privileged inspection of the whole workspace's admission, served by the CLI only.",
+    'Version 2 adds read: the body behind one locator inside the scope, with its digest. The Door and the MCP door serve it; on the CLI the consumer verb ia read returns the same body and digest, and the machine routes stay the version 1 operations.',
+    "Version 2 also adds next: one plan's delivery view inside the scope, its tasks in prerequisite order with their verdicts, computed per call and never stored. The Door and the MCP door serve it, and on the CLI the consumer verb ia next prints the same view. Its refusals carry next, the one command to run, and the plans or the cycle they name.",
+    'Version 2 also adds position: body(K), what a scope key (seat, shape, phase, depth, budget, word) loads inside the scope, with its digest and a host note beside it. The body is a pure function of the key and the admitted revision, so one key reads one body and digest wherever the workspace is, and nothing text-driven runs. The Door and the MCP door serve it, and the machine routes stay the version 1 operations. A refusal of the key carries next, the one command to run.',
   ],
   operations: [
     {
@@ -383,6 +396,156 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       ],
       example: {},
       mcp: null,
+    },
+    {
+      name: 'read',
+      summary: 'Read the body behind one locator inside the scope, with its digest.',
+      description:
+        "Read the body behind one locator inside the scope: a cell's or requirement's text for a fragment, else the document the record's source locator names (the section under its markdown anchor), else the record's own body. digest is the SHA-256 of the body's UTF-8 bytes; a read certifies nothing. A locator outside the scope is refused without naming what lies outside it.",
+      params: object(
+        {
+          within: read.within,
+          locator: text(
+            '<identity>, <identity>#<phase>/<Primitive>, <identity>#<REQ-ID> or <path>:<line>, the path relative to the workspace root.',
+          ),
+          includeRuntime: {
+            type: 'boolean',
+            description: 'Read a record at runtime placement (band 0), which is refused otherwise; default false.',
+          },
+        },
+        ['locator'],
+      ),
+      result:
+        "The body: {locator, identity, kind, path?, digest, body, certified: false}. kind is record for a record's own body or a fragment's text, and document for the file its source locator names, at the workspace-relative path.",
+      refusals: [
+        REQUEST_INVALID,
+        SCOPE_UNAVAILABLE,
+        {
+          code: 'IA-RUNTIME-READ-UNADMITTED',
+          when: "No admitted record inside the scope answers the locator. In a scope narrower than the whole workspace the refusal names no path, line, identity or refused record; on the whole workspace's scope it says what the workspace's sources hold there, a record admission refused with its path, line and reason.",
+          next: 'Read a locator that records or search returns in this scope, or widen the scope.',
+        },
+        {
+          code: 'IA-RUNTIME-READ-FRAGMENT',
+          when: 'The record has no cell at the phase/Primitive address, or no requirement with the id.',
+          next: 'Read a cell address or requirement id that get returns for the record, or the record without a fragment.',
+        },
+        {
+          code: 'IA-RUNTIME-READ-UNREACHABLE',
+          when: "The document the record's source locator names cannot be read: a URL, a path outside the workspace or the record's tree, an adopted mount bound to no directory, a nonportable path, a missing, linked or oversized file, bytes that are not UTF-8, or an anchor no markdown heading has.",
+          next: "Restore the file the refusal's path names, or correct the record's source locator, which get shows with its source line.",
+        },
+        {
+          code: 'IA-RUNTIME-READ-PLACEMENT',
+          when: 'The record is at runtime placement (band 0) and includeRuntime is not true.',
+          next: 'Pass includeRuntime: true to read it.',
+        },
+      ],
+      example: { locator: `${EXAMPLE_IDENTITY}#act/Decision` },
+      mcp: 'ia_read',
+      since: 2,
+    },
+    {
+      name: 'next',
+      summary: "Read one plan's delivery view inside the scope: its tasks in order, each with a verdict.",
+      description:
+        "Read one plan's delivery view inside the scope, computed per call and never stored: its milestones and tasks in one prerequisites-first order, each task with a basis line per requirement (its own and its milestone's), one verdict (exit evidence recorded, no declared blocker, or blocked), its work.status as self-declared, which is never a basis, and five state lines; then review items and the next task. Exit evidence is a success @observation on the task whose subject-revision is its current digest. What the scope does not read is never counted as met, and a relation row that carries a condition counts only where it holds at the coordinate the scope binds, as graph traversal decides it: a term that coordinate leaves undecided, such as a phase where none is bound or a severity the stating record's own does not decide, leaves the row conditional, its basis unknown, never met.",
+      params: object({
+        within: read.within,
+        seat: text(
+          "A @plan, @milestone or @task identity; the view is that plan's, or the plan of that milestone or task. Omitted, the only admitted @plan at authored placement (band 100).",
+        ),
+      }),
+      result:
+        'The view: {format: ia.delivery-view.v1, revision, plan, milestones, tasks, review, next, summary}. Each task is {identity, milestone, status, prerequisites, verdict, line, evidence?, states}; next is the command for the first task with no declared blocker, or null when every task has exit evidence or every other one is blocked, which summary says.',
+      refusals: [
+        REQUEST_INVALID,
+        SCOPE_UNAVAILABLE,
+        {
+          code: 'IA-RUNTIME-NEXT-SEAT',
+          when: 'seat is not an admitted record in the scope, or is not a @plan, @milestone or @task.',
+          next: "Run the command the refusal's next names: the view without a seat for a seat no admitted record answers (ia next, the first authored plan's, or ia next --help when none is authored), or the position of a record of another word.",
+        },
+        {
+          code: 'IA-RUNTIME-NEXT-NO-PLAN',
+          when: 'seat belongs to no admitted @plan, or no seat is given and no @plan is authored at band 100.',
+          next: "Author a @plan, @milestone records that name it in work.plan and @task records that name those in work.milestone; the refusal's next names the help that says so.",
+        },
+        {
+          code: 'IA-RUNTIME-NEXT-AMBIGUOUS',
+          when: 'No seat is given and several @plan records are authored at band 100; the refusal lists them in plans.',
+          next: "Pass one of plans as seat, as the refusal's next does with the first.",
+        },
+        {
+          code: 'IA-RUNTIME-NEXT-CYCLE',
+          when: "The plan's require rows form a cycle among its tasks, milestones or both, so no order exists; the refusal lists the cycle's declared rows in cycle.",
+          next: "Remove one of the require rows in cycle; the refusal's next names the position of its first task, or else its first milestone.",
+        },
+      ],
+      example: {},
+      mcp: 'ia_next',
+      since: 2,
+    },
+    {
+      name: 'position',
+      summary: 'Read body(K), what a scope key loads inside the scope, with its digest and host note.',
+      description:
+        "Read the position a scope key K = (seat, shape, phase, depth, budget, word) names inside the scope: body(K), the seat, the records the key loads in the shape's order, the blocking governance reserved outside the budget, pointers and their tallies, the rules and playbooks that apply by word with their tallies and the playbook cells they deliver, the mandates that govern the seat, the frontier one hop past it, what is unknown and the keys that widen it; its digest; and the host note beside it. A key naming no part is K0 (the repository's @workspace, context, orient, depth 0, budget 0); one naming any part takes context, the anchor phase of its shape's primitive, depth 1 and budget 16 for the rest. A relation row with a condition is followed only where the condition holds at the key's coordinate. The body is a pure function of the key and the admitted records the scope reads: it names no root path, token, time or capture, nothing text-driven runs, and no record body enters it, only the cells delivered; read fetches a body. A refusal of the key carries next, the one command to run.",
+      params: object({
+        within: read.within,
+        seat: {
+          anyOf: [
+            { type: 'string' },
+            object(
+              { path: text('Workspace-relative, or an absolute path inside the workspace root.') },
+              ['path'],
+              'A location.',
+            ),
+          ],
+          description:
+            "S: an identity the scope admits, or {path} for a location inside the workspace. Omitted, the repository's own @workspace.",
+        },
+        shape: {
+          type: 'string',
+          enum: COORDINATE_DOMAINS.shape,
+          description: 'H, the intent shape; omitted, context.',
+        },
+        phase: {
+          type: 'string',
+          enum: COORDINATE_DOMAINS.phase,
+          description: "P; omitted, the anchor phase of the shape's primitive.",
+        },
+        depth: {
+          type: 'integer',
+          minimum: 0,
+          maximum: SCOPE_KEY_CAPS.depth,
+          description:
+            "d, the rows a body hops along the shape's predicate focus; omitted, 1, or 0 when no part is named (K0).",
+        },
+        budget: {
+          type: 'integer',
+          minimum: 0,
+          maximum: SCOPE_KEY_CAPS.budget,
+          description:
+            'n, the entries loaded beyond the seat, blocking governance reserved outside it; omitted, 16, or 0 when no part is named (K0).',
+        },
+        word: text(
+          'w, a word the closure registers: only records of it load, are pointers or are tallied as pointers or frontier; the reserved rules, the rules and playbooks that apply by word with their tallies and cells, and the mandates are listed whatever their word. Omitted, none.',
+        ),
+      }),
+      result:
+        "The position: {body, digest, hostNote}. body is body(K) in the format ia.position-body.v1, its key the one resolved and its revision that of the view the scope reads; digest is the SHA-256 of the body's canonical JSON text; hostNote is {revision, capturedRevision?, previousRevision?, freshness, key}, host state never digested, freshness current, stale or no-capture against the last capture and key the key as completed.",
+      refusals: [
+        {
+          code: 'IA-RUNTIME-REQUEST-INVALID',
+          when: 'A parameter is unknown or within is not a string, or the key breaks a bound: a shape or phase outside its closed set, a depth outside 0..2 or a budget outside 0..64, a seat that is neither an identity nor {path}, one the scope does not admit or at runtime placement, a path outside the workspace, or a word the closure does not register.',
+          next: "Run the command a refusal of the key names as next: the part's closed set or cap, ia vocabulary for a word, or the position without the seat. Otherwise match the parameters to this operation's schema.",
+        },
+        SCOPE_UNAVAILABLE,
+      ],
+      example: { seat: EXAMPLE_IDENTITY, shape: 'governance' },
+      mcp: 'ia_position',
+      since: 2,
     },
   ],
   differences: [

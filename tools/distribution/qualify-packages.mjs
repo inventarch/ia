@@ -4,6 +4,7 @@ import { packPublicPackages, COMPATIBILITY } from '../release/public-pack.mjs';
 import { scanPackedPublicContent } from '../release/scan-packed.mjs';
 import assert from 'node:assert/strict';
 import { executableExports, systemVerificationProgram } from './installed-consumer.mjs';
+import { qualifyInstalledViews } from './installed-views.mjs';
 import { execFileSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -49,6 +50,7 @@ const packageManager = (args, cwd = root) => {
   return run(invocation.args, cwd, process.env, invocation.command);
 };
 const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
+
 const releasedVersion = json(resolve(root, 'apps/cli/package.json')).version,
   supportedNode = json(resolve(root, 'package.json')).engines.node;
 try {
@@ -196,6 +198,7 @@ try {
   invoke(['validate', '--root', workspace, '--json']);
   for (const host of ['claude', 'codex']) invoke(['host', host, '--root', workspace, '--apply', '--yes', '--json']);
   invoke(['validate', '--root', workspace, '--json']);
+  const installedViews = qualifyInstalledViews(cli, cliConsumer, env, workspace);
   assert.match(
     run([resolve(consumer, 'node_modules/@inventarch/distribution/dist/cli.js'), '--help'], consumer, env),
     /ia-distribution/,
@@ -220,7 +223,7 @@ try {
       version: releasedVersion,
       node: process.version,
       platform: process.platform,
-      installedCli: ['init', 'validate', 'host claude', 'host codex'],
+      installedCli: ['init', 'validate', 'host claude', 'host codex', ...installedViews],
       vsix: true,
     }),
   );

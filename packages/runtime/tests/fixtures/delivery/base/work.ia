@@ -1,0 +1,128 @@
+#! ia 1.0
+
+@workspace delivery
+  meaning
+    says "The delivery fixture: one plan in two milestones, captured from the workspace's own sources."
+    answers "Which systems and sources does the delivery fixture compose?"
+  composition
+    systems [@system work-system, @system learning-system, @system agent-system, @system workspace-system]
+    sources [".ia/src @authored"]
+
+@agent fixture-owner
+  meaning
+    says "Owns the delivery fixture's tasks."
+    answers "Who owns the fixture tasks?"
+  governance
+    applies [task]
+
+@plan release
+  meaning
+    says "Release the fixture module: lay its foundation, then build it."
+  work
+    title "Fixture release"
+    status open
+
+@milestone foundation
+  meaning
+    says "The fixture module's schema, guide and examples exist."
+  work
+    title "Foundation"
+    status open
+    plan @plan release
+    exit "The schema, the guide and the examples are written."
+
+@milestone build
+  meaning
+    says "The fixture module is packaged and its release notes are written."
+  work
+    title "Build"
+    status open
+    plan @plan release
+    exit "The package and its release notes exist."
+  relationships
+    requires @milestone foundation
+
+@task schema
+  meaning
+    says "Write the fixture schema."
+  work
+    title "Schema"
+    status closed
+    milestone @milestone foundation
+    owner "fixture owner"
+    exit-evidence @observation schema-checked
+
+@task guide
+  meaning
+    says "Write the fixture guide in the format the guide-format decision chose."
+  work
+    title "Guide"
+    status open
+    milestone @milestone foundation
+    owner "fixture owner"
+  relationships
+    requires @decision guide-format
+
+@task examples
+  meaning
+    says "Write examples against the schema."
+  work
+    title "Examples"
+    status closed
+    milestone @milestone foundation
+    owner "fixture owner"
+    owner-agent @agent fixture-owner
+  relationships
+    requires @task schema
+
+@task package
+  meaning
+    says "Package the fixture module."
+  work
+    title "Package"
+    status open
+    milestone @milestone build
+
+@task release-notes
+  meaning
+    says "Write the release notes once the guide exists and the channel is chosen."
+  work
+    title "Release notes"
+    status proposed
+    milestone @milestone build
+  relationships
+    requires @task guide
+    requires @decision release-channel
+
+@decision guide-format
+  meaning
+    says "The guide needs one format before it is written."
+  work
+    title "Guide format"
+    status made
+  decision
+    question "Is the fixture guide generated or written by hand?"
+    options ["generated", "written by hand"]
+    choice "written by hand"
+    effective-revision "0000000000000000000000000000000000000000000000000000000000000001"
+  relationships
+    grounds @task guide
+
+@decision release-channel
+  meaning
+    says "The release notes name one channel."
+  work
+    title "Release channel"
+    status open
+  decision
+    question "Which channel does the fixture release go out on?"
+    options ["stable", "preview"]
+  relationships
+    grounds @task release-notes
+
+@spec module-contract
+  meaning
+    says "The fixture module's contract."
+  work
+    title "Fixture module contract"
+    status accepted

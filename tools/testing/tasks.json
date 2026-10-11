@@ -47,6 +47,7 @@
   "inputProfiles": {
     "owner-source": "The owning package sources, tests and its workspace dependency closure, plus shared execution configuration and runtime identity.",
     "workspace-records": "owner-source plus the authored .ia record tree, schemas, guides and native fixture inventories these tasks read through filesystem discovery.",
+    "installed-cli": "workspace-records plus every app, package and distribution source and the native generators, because the task runs the built CLI through its path, which no import edge names, so its own hash must cover what the CLI is built from.",
     "tooling": "The tools tree, root TypeScript and Vitest configuration, and the repository manifests and lockfile.",
     "repository-inventory": "Every tracked and nonignored file, because these checks assert over repository membership itself.",
     "emitted": "Built package outputs, packed archive bytes, the native corpus and the host scripts an independent installed consumer executes.",
@@ -1042,6 +1043,8 @@
         "tests/distribution-verbs.test.ts",
         "tests/equivalence.test.ts",
         "tests/host-projection.test.ts",
+        "tests/next.test.ts",
+        "tests/position.test.ts",
         "tests/read.test.ts",
         "tests/refusal-next.test.ts",
         "tests/workspace-verbs.test.ts"
@@ -1834,16 +1837,23 @@
       "kind": "vitest",
       "project": "packages/runtime",
       "files": [
+        "tests/applies.test.ts",
         "tests/authoring.test.ts",
         "tests/composition.test.ts",
         "tests/context.test.ts",
         "tests/coordinate.test.ts",
+        "tests/door-position.test.ts",
+        "tests/door-read.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
         "tests/locator.test.ts",
         "tests/loop.test.ts",
         "tests/mandate-modes.test.ts",
+        "tests/next.test.ts",
+        "tests/position.test.ts",
         "tests/publication.test.ts",
+        "tests/purity.test.ts",
+        "tests/scope-key.test.ts",
         "tests/select-door.test.ts",
         "tests/steward.test.ts"
       ],
@@ -1951,6 +1961,14 @@
         {
           "case": "tests/publication.test.ts > qualified local NTFS publication refuses non-ntfs volume qualification without creating output or caching failure",
           "reason": "Exercises the Windows PowerShell volume probe after Windows root qualification; Linux and macOS refuse the unsupported platform before reaching the probe.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/scope-key.test.ts > reads a Windows absolute path as the file system compares it",
+          "reason": "Drive letters, their case and backslash separators are Windows path semantics; Linux and macOS cover absolute seat paths inside and outside the root, the root itself included, through the case that reads an absolute path inside the root.",
           "platforms": [
             "linux",
             "macos"
@@ -2418,6 +2436,38 @@
       ],
       "outputs": [
         "artifacts/tests/tools-test-distribution"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:test-installed-views",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/distribution/installed-views.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "installed-cli",
+      "dependsOn": [
+        "language-base:generate",
+        "distribution:build",
+        "cli:build",
+        "mcp-door:build",
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "artifacts/tests/tools-test-installed-views"
       ],
       "cache": true,
       "workerLimit": 1,

@@ -4,6 +4,29 @@ export { classify, scoreShapes, defaultClassifier } from './classify.js';
 export type { Classifier, Shape } from './classify.js';
 export { prepareCoordinate, COORDINATE_DOMAINS } from './coordinate.js';
 export type { PreparedCoordinate, CoordinateOptions, AxisSource } from './coordinate.js';
+export { K0, SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey, rootRelative } from './scope-key.js';
+export type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
+export { position, positionBody } from './position.js';
+export type {
+  AppliesByWord,
+  Freshness,
+  FrontierTally,
+  HostNote,
+  LoadedEntry,
+  LoadedPlace,
+  LoadedRecord,
+  PointerTally,
+  PositionBody,
+  PositionCell,
+  PositionCounts,
+  PositionOutput,
+  PositionPointer,
+  PositionRecord,
+  PositionUnknown,
+  PositionVia,
+  PositionWidening,
+  SubjectMatch,
+} from './position.js';
 export { context, DEFAULT_TOKENIZER } from './context.js';
 export type {
   ContextRequest,
@@ -60,3 +83,18 @@ export type { MandateAuthority, MandateCode, MandateRefusal, Mode, Move } from '
 // The markdown and fragment helpers stay on the ./internal/locator subpath; the root names the reader and its terms.
 export { READ_CODES, SOURCE_LOCATORS, parseLocator, readBody } from './locator.js';
 export type { Locator, ReadBody, ReadBodyOptions, ReadCode, ReadRefusal, ReadResult } from './locator.js';
+export { NEXT_CODES, deliveryView } from './next.js';
+export type {
+  CycleRow,
+  DeliveryMilestone,
+  DeliveryResult,
+  DeliveryTask,
+  DeliveryView,
+  ExitEvidence,
+  NextCode,
+  NextRefusal,
+  Prerequisite,
+  ReviewItem,
+  StateDimension,
+  StateLine,
+} from './next.js';

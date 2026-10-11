@@ -5,7 +5,7 @@ import { expect, it } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
 import { readInputs } from '@inventarch/db';
 import type { Location } from '@inventarch/language';
-import { READ_CODES, RUNTIME_CODES, SOURCE_LOCATORS, parseLocator, readBody } from '../src/index.js';
+import { Door, READ_CODES, RUNTIME_CODES, SOURCE_LOCATORS, parseLocator, readBody } from '../src/index.js';
 import type { ReadBodyOptions, ReadResult } from '../src/index.js';
 import { headingAnchor, markdownSection } from '../src/locator.js';
 import { database, methodId, playbook, put, workspace } from './workspace.js';
@@ -231,10 +231,11 @@ it('slugs plain-text headings as GitHub does and bounds a section by the next he
   expect(markdownSection('- # Listed\n> # Quoted\nSetext\n======\n', 'setext')).toBeUndefined();
 });
 
-// Every heading before the anchor is slugged, so a heading's links are read in time linear in it: the work grows as
-// the input does, never as its square, which the link regular expression this reader replaced did on a run of unclosed
-// brackets or destinations (CodeQL js/polynomial-redos). The sizes are small enough that a quadratic reader finishes in
-// seconds, so a regression fails its growth ratio instead of stalling the suite.
+// A document may be 4 MiB and is read on the long-lived MCP door, so whatever lies before the anchor is read in time
+// linear in it: the work grows as the input does, never as its square, which the regular expressions these readers
+// replaced did on a long run of spaces or of unclosed brackets in a heading, and the per-marker reread did on one line
+// of nested list markers or on blank lines inside deeply nested items. The sizes are small enough that a quadratic
+// reader finishes in seconds, so a regression fails its growth ratio instead of stalling the suite.
 /** The fastest of `runs` reads of the `target` section of `text`, in milliseconds; the section is always `# target`. */
 function fastest(text: string, runs: number): number {
   let best = Number.POSITIVE_INFINITY;
@@ -245,8 +246,9 @@ function fastest(text: string, runs: number): number {
   }
   return best;
 }
-it('reads the links of a heading in time linear in its length, however many brackets stay unclosed', () => {
+it('reads a heading line and its links in time linear in their length, however long a run of spaces or brackets', () => {
   const inputs: Readonly<Record<string, (size: number) => string>> = {
+    spaces: (size) => `# a${' '.repeat(size)}b #\n# target\n`,
     brackets: (size) => `# ${'[a'.repeat(size / 2)}\n# target\n`,
     destinations: (size) => `# ${'[](('.repeat(size / 4)}\n# target\n`,
   };
@@ -257,8 +259,138 @@ it('reads the links of a heading in time linear in its length, however many brac
     // read under a millisecond counts as one, so a linear reader's ratio stays near one at these sizes.
     expect(large / Math.max(small, 1), name).toBeLessThan(32);
   }
-  // A link keeps its text, an image its alt text, and an unclosed bracket is text.
+  // The text between the opening run and a closing run a space or tab precedes is the heading, its links their text.
+  expect(markdownSection(`# a${' '.repeat(40)}b \t## \t\nBody.\n`, `a${'-'.repeat(40)}b`)).toBe(
+    `# a${' '.repeat(40)}b \t## \t\nBody.\n`,
+  );
   expect(headingAnchor(`${'[a'.repeat(3)}[x](y) and ![alt](src)`)).toBe('aaax-and-alt');
+});
+
+it('reads nested list and quote markers on one line, and the lines nested items continue, in linear time', () => {
+  const inputs: Readonly<Record<string, (size: number) => string>> = {
+    'list markers': (size) => `${'- '.repeat(size / 2)}x\n`,
+    'star markers': (size) => `${'* '.repeat(size / 2)}x\n`,
+    'ordered markers': (size) => `${'1. '.repeat(size / 3)}x\n`,
+    'quoted list markers': (size) => `${'> - '.repeat(size / 4)}x\n`,
+    // Each blank line continues every open item, and a line of spaces must not be reread once per item.
+    'blank lines in nested items': (size) => `${'- '.repeat(size / 4)}x\n${'\n'.repeat(size / 2)}`,
+    'spaces in nested items': (size) => `${'- '.repeat(size / 4)}x\n${' '.repeat(size / 2)}x\n`,
+  };
+  for (const [name, input] of Object.entries(inputs)) {
+    const small = fastest(`${input(1 << 12)}# target\n`, 3),
+      large = fastest(`${input(1 << 16)}# target\n`, 3);
+    // Sixteen times the input is about sixteen times the work when it is linear, 256 times when it is quadratic.
+    expect(large / Math.max(small, 1), name).toBeLessThan(64);
+  }
+  // The items still close where they did: a blank line ends an empty item and every quote, and a heading at the left
+  // margin ends every container, so a top-level heading after them is read and one inside them is not.
+  expect(markdownSection(`${'- '.repeat(8)}x\n\n\n# target\n`, 'target')).toBe('# target\n');
+  expect(markdownSection(`${'> - '.repeat(4)}x\n> \n>   # inner\n# target\n`, 'inner')).toBeUndefined();
+  expect(markdownSection('- a\n  - b\n\n\n    # deep\n# target\n', 'deep')).toBeUndefined();
+  expect(markdownSection(`- a\n\n  # inner\n\n  more\n# target\n`, 'inner')).toBeUndefined();
+  expect(markdownSection(`- \n\n  # outer\n`, 'outer')).toBe('  # outer\n');
+});
+
+it.each([
+  '- Item\n\n  ## Overview\n\n  Nested body.\n',
+  '1. Item\n\n   ## Overview\n\n   Nested body.\n',
+  '- Item\nlazy continuation\n\n  ## Overview\n\n  Nested body.\n',
+  '- Item\n  - Child\n\n  ## Overview\n\n  Nested body.\n',
+  '-\n  ## Overview\n\n  Nested body.\n',
+])('excludes list continuation headings from anchors and duplicate numbering: %j', (listed) => {
+  const first = '## Overview\n\nFirst top-level body.\n\n',
+    second = '## Overview\n\nSecond top-level body.\n',
+    document = `${listed}\n${first}${second}`;
+  expect(markdownSection(listed, 'overview')).toBeUndefined();
+  expect(markdownSection(document, 'overview')).toBe(first);
+  expect(markdownSection(document, 'overview-1')).toBe(second);
+  expect(markdownSection(document, 'overview-2')).toBeUndefined();
+});
+
+it('keeps same-level and higher-level list headings inside their enclosing top-level section byte for byte', () => {
+  const section = '\uFEFF## Main\r\n\r\n- Item\r\n\r\n  ## Same\r\n\r\n  # Higher\r\n\r\nOutside prose.\r\n\r\n',
+    next = '  ## Next\r\nLast body.';
+  expect(markdownSection(section + next, 'main')).toBe(section);
+  expect(markdownSection(section + next, 'next')).toBe(next);
+  expect(markdownSection(section + next, 'same')).toBeUndefined();
+  expect(markdownSection(section + next, 'higher')).toBeUndefined();
+});
+
+it.each([
+  '-\n\n',
+  '- Item\n\nOutside paragraph.\n\n',
+  '-   Item\n\n',
+  '-\tItem\n\n',
+  'Paragraph.\n2. Item\n\n',
+  'Paragraph.\n-\n\n',
+  '***\n\n',
+  '* * *\n\n',
+  '- Item\n---\n\n',
+  '- Item\n> Quote outside the list.\n\n',
+])('recognizes top-level indented headings after an ended or non-list block: %j', (before) => {
+  const section = '   # Target\n\nBody.\n';
+  expect(markdownSection(before + section, 'target')).toBe(section);
+});
+
+it.each(['```inline code```', '```lang`info', '   ````lang`info', '```lang\\`info'])(
+  'does not treat a backtick in fence info as a fence opener: %j',
+  (inline) => {
+    const section = `# Main\n\n${inline}\n\n`,
+      next = '# Next\n\nOther body.\n';
+    expect(markdownSection(section + next, 'main')).toBe(section);
+    expect(markdownSection(section + next, 'next')).toBe(next);
+  },
+);
+
+it('keeps valid fences scoped to their list or quote and ignores marker-looking fenced contents', () => {
+  const document = [
+    '- ```md',
+    '  # Listed code',
+    '  ```',
+    '',
+    '  # Listed heading',
+    '',
+    '# Main',
+    '',
+    '~~~lang`info',
+    '- An apparent list inside code',
+    '# Fenced heading',
+    '~~~',
+    '',
+    '> ```',
+    '> # Quoted code',
+    '# Next',
+    '',
+    '- Item',
+    '  ```',
+    '  # Unterminated listed code',
+    '# Last',
+    'Body.',
+    '',
+  ].join('\n');
+  expect(markdownSection(document, 'main')).toBe(
+    document.slice(document.indexOf('# Main'), document.indexOf('# Next')),
+  );
+  expect(markdownSection(document, 'next')).toBe(
+    document.slice(document.indexOf('# Next'), document.indexOf('# Last')),
+  );
+  expect(markdownSection(document, 'last')).toBe('# Last\nBody.\n');
+  for (const anchor of ['listed-code', 'listed-heading', 'fenced-heading', 'quoted-code', 'unterminated-listed-code'])
+    expect(markdownSection(document, anchor), anchor).toBeUndefined();
+});
+
+it.each([0, 1, 2, 3])('preserves supported top-level ATX indentation of %i spaces', (indent) => {
+  const section = `${' '.repeat(indent)}# Title\nBody.\n`;
+  expect(markdownSection(section + '# Next\n', 'title')).toBe(section);
+});
+
+it('starts a new list after an unmatched container instead of lazily continuing its paragraph', () => {
+  const section = '  # Target\nBody.\n';
+  for (const before of ['- Item\n2. Item\n', '- > Item\n2. Item\n', '> Item\n2. Item\n'])
+    expect(markdownSection(before + section, 'target'), before).toBe(section);
+  const fenced = '# Main\n\n+ Item\n10) Item\n   ```\n# Stop\n';
+  expect(markdownSection(fenced, 'main')).toBe(fenced);
+  expect(markdownSection(fenced, 'stop')).toBeUndefined();
 });
 
 it('reads a record without a source locator as its meaning.says, and the plan exit evidence identity says only that', () => {
@@ -288,6 +420,66 @@ it('reads a record without a source locator as its meaning.says, and the plan ex
   expect(body(readBody(db, `${CONTRACT}#REQ-FOUNDATION-REFUSE`, { read }))).toMatchObject({
     kind: 'record',
     body: 'Missing required fields or foreign vocabulary receives a named refusal and is not reported as conforming.',
+  });
+});
+
+it('reads an admitted custom word named constructor without treating inherited properties as source locators', () => {
+  const root = workspace(),
+    systemPath = '.ia/src/systems/agent-system/system.ia',
+    schemaPath = '.ia/src/systems/agent-system/schemas/agent.schema.ia',
+    stewardPath = '.ia/src/systems/agent-system/steward.ia',
+    identity = 'agent-system/binding/agent/custom-reader',
+    text = 'The custom word reads its own body.';
+  put(
+    root,
+    systemPath,
+    readFileSync(resolve(root, systemPath), 'utf8').replace(
+      '  edges\n',
+      '    constructor lowers to binding\n      category capability\n      facets [agent]\n      schema @schema constructor\n  edges\n',
+    ),
+  );
+  put(
+    root,
+    '.ia/src/systems/agent-system/schemas/constructor.schema.ia',
+    readFileSync(resolve(root, schemaPath), 'utf8').replace('@schema agent', '@schema constructor'),
+  );
+  put(
+    root,
+    stewardPath,
+    readFileSync(resolve(root, stewardPath), 'utf8').replace(
+      'applies [agent, mandate]',
+      'applies [agent, mandate, constructor]',
+    ),
+  );
+  put(
+    root,
+    '.ia/src/systems/agent-system/records/custom-reader.ia',
+    `#! ia 1.0\n@constructor custom-reader\n  meaning\n    says "${text}"\n    answers "What is read?"\n  governance\n    applies []\n`,
+  );
+  const db = database(root);
+  expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+  expect(db.get(identity)?.discriminator).toBe('constructor');
+  const gate = new Door(root, { cache: false });
+  try {
+    expect(gate.request({ operation: 'read', params: { locator: identity } })).toMatchObject({
+      ok: true,
+      result: { identity, kind: 'record', body: text, digest: sha256(text), certified: false },
+    });
+  } finally {
+    gate.close();
+  }
+  expect(
+    body(
+      readBody(db, identity, {
+        read: () => {
+          throw new Error('No document should be read');
+        },
+      }),
+    ),
+  ).toMatchObject({
+    kind: 'record',
+    body: text,
+    digest: sha256(text),
   });
 });
 
@@ -344,6 +536,15 @@ it('reads the record whose source span holds a line, the innermost one, and refu
       code: 'IA-RUNTIME-READ-UNADMITTED',
       message: `No admitted record spans ${path}:3; ${why}`,
       path,
+      line: 3,
+    });
+  // The workspace root itself, `.` or any spelling of it, is a directory: no source, so no record spans a line of it.
+  for (const spelled of ['.', './', 'src/..'])
+    expect(readBody(db, `${spelled}:3`, options), spelled).toEqual({
+      ok: false,
+      code: 'IA-RUNTIME-READ-UNADMITTED',
+      message: `No admitted record spans ${spelled}:3; ${spelled} is the workspace root, a directory and no source`,
+      path: '',
       line: 3,
     });
 });

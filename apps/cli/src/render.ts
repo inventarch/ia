@@ -339,6 +339,24 @@ export function document(blocks: readonly (readonly string[])[], options: Docume
  * rebuilt from parsed arguments is the one a reader can paste back.
  */
 export const quote = (value: string): string => (/[ "]/.test(value) ? JSON.stringify(value) : value);
+/**
+ * Scalar terminal controls (C0, DEL and C1) in source-derived text, escaped as `\uXXXX` before layout and colour, so an
+ * authored string cannot move the cursor, clear the screen or forge colour; generated newlines and SGR remain
+ * presentation-owned.
+ */
+export const terminalText = (text: string): string =>
+  text.replace(
+    /[\u0000-\u001f\u007f-\u009f]/g,
+    (control) => `\\u${control.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+/** `value` with every string in it, at any depth, escaped as `terminalText` escapes one, for a renderer to lay out. */
+export function terminalSafe<T>(value: T): T {
+  if (typeof value === 'string') return terminalText(value) as T;
+  if (Array.isArray(value)) return value.map(terminalSafe) as T;
+  if (value !== null && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, terminalSafe(child)])) as T;
+  return value;
+}
 
 /** §6.4: a command is unbreakable prose. The caller chooses the `\` break so every line stays runnable. */
 export function commandFacts(

@@ -1,0 +1,88 @@
+{
+  "format": "ia.position-body.v1",
+  "revision": "<revision>",
+  "key": {
+    "seat": "governance-system/governance/law/sample-rule",
+    "shape": "governance",
+    "phase": "plan",
+    "depth": 1,
+    "budget": 16
+  },
+  "seat": {
+    "kind": "record",
+    "identity": "governance-system/governance/law/sample-rule"
+  },
+  "loaded": [
+    {
+      "identity": "governance-system/governance/law/sample-rule",
+      "word": "law",
+      "kind": "governance",
+      "lane": "authority",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "digest": "7604efa496f163523e6d97015185f1970c15e3c3071be6729ac5d64b5bdd8ffd"
+    }
+  ],
+  "rules": [],
+  "pointers": [
+    {
+      "identity": "governance-system/definition/procedure/sample-procedure",
+      "word": "playbook",
+      "kind": "definition",
+      "lane": "definitions",
+      "system": "governance-system",
+      "steward": "agent-system/binding/agent/governance-steward",
+      "band": 100,
+      "hop": 0,
+      "via": {
+        "by": "row",
+        "from": "governance-system/governance/law/sample-rule",
+        "predicate": "cite",
+        "spelling": "cited-by",
+        "declaredBy": "source"
+      }
+    }
+  ],
+  "pointerTallies": [],
+  "appliesByWord": [],
+  "appliesByWordTallies": [],
+  "cells": [],
+  "mandates": [],
+  "frontier": [],
+  "unknowns": [
+    {
+      "kind": "sources",
+      "subject": "workspace-system/definition/workspace/foundation-workspace",
+      "message": "workspace declares no sources: workspace-system/definition/workspace/foundation-workspace has no capture members, and its closure is the floor, the adopted records and every record no workspace declares a root for"
+    }
+  ],
+  "counts": {
+    "composition": 0,
+    "seeds": 1,
+    "loaded": 1,
+    "rules": 0,
+    "pointers": 1,
+    "appliesByWord": 0,
+    "frontier": 0,
+    "truncatedLoaded": 0,
+    "truncatedPointers": 0,
+    "truncatedAppliesByWord": 0
+  },
+  "widening": {
+    "deeper": {
+      "seat": "governance-system/governance/law/sample-rule",
+      "shape": "governance",
+      "phase": "plan",
+      "depth": 2,
+      "budget": 16
+    },
+    "reseat": {
+      "shape": "governance",
+      "phase": "plan",
+      "depth": 1,
+      "budget": 16
+    }
+  }
+}

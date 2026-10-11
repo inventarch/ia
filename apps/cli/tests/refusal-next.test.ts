@@ -19,6 +19,7 @@ import { quote, resolveCapabilities } from '../src/render.js';
 import {
   cleanup,
   commandsIn,
+  delivery,
   FIXTURE,
   FORMATTABLE,
   makeHost,
@@ -476,8 +477,17 @@ function invocations(): readonly {
     snapshotLinked = workspace(),
     refused = workspace({ foreign: true }),
     linked = workspace(),
-    undecodable = workspace();
+    undecodable = workspace(),
+    plans = delivery('plans'),
+    cycle = delivery('cycle'),
+    planRefused = delivery();
   mkdirSync(resolve(bare, '.ia/src'), { recursive: true });
+  // A delivery plan whose status is outside its closed set: a source holds it and admission refuses it.
+  const work = resolve(planRefused, '.ia/src/work.ia');
+  writeFileSync(
+    work,
+    readFileSync(work, 'utf8').replace(/(@plan release\r?\n(?:.*\r?\n)*? {4}status )open/, '$1bogus'),
+  );
   // A floor source that no longer parses: a capture refuses rather than drop its records.
   const floor = resolve(floorBroken, '.ia/src/floor/artifact-set.ia');
   writeFileSync(floor, `${readFileSync(floor, 'utf8')}\n@@@ not a record header\n`);
@@ -542,6 +552,75 @@ function invocations(): readonly {
       argv: ['read', 'agent-system/binding/agent/agent-steward#REQ-ABSENT', '--root', FIXTURE],
       command: `ia inspect agent-system/binding/agent/agent-steward --root ${root}`,
     },
+    // A delivery refusal names the position of a record of another word, as the runtime does; the view again once a
+    // plan is authored, for a seat the workspace does not admit near no admitted @plan, @milestone or @task in a
+    // workspace that authors no plan, as for no seat; the validation for a plan admission refused; the first of several
+    // authored plans; and the sequence position of the cycle's first task.
+    { code: 'IA-CLI-USAGE', argv: ['next', 'stray', '--root', FIXTURE], command: 'ia next --help' },
+    {
+      code: 'IA-RUNTIME-NEXT-SEAT',
+      argv: ['next', '--seat', 'governance-system/governance/law/sample-rule', '--root', FIXTURE],
+      command: `ia position --seat governance-system/governance/law/sample-rule --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-NEXT-SEAT',
+      argv: ['next', '--seat', 'work-system/definition/task/absent', '--root', FIXTURE],
+      command: `ia next --root ${root}`,
+    },
+    { code: 'IA-RUNTIME-NEXT-NO-PLAN', argv: ['next', '--root', FIXTURE], command: `ia next --root ${root}` },
+    {
+      code: 'IA-RUNTIME-NEXT-NO-PLAN',
+      argv: ['next', '--root', planRefused],
+      command: `ia validate --root ${quote(planRefused)}`,
+    },
+    {
+      code: 'IA-RUNTIME-NEXT-AMBIGUOUS',
+      argv: ['next', '--root', plans],
+      command: `ia next --seat work-system/definition/plan/research --root ${quote(plans)}`,
+    },
+    {
+      code: 'IA-RUNTIME-NEXT-CYCLE',
+      argv: ['next', '--root', cycle],
+      command: `ia position --seat work-system/definition/task/alpha --shape sequence --root ${quote(cycle)}`,
+    },
+    // A key refusal names the same call with the closed set or the cap in place of the part, the vocabulary for a word
+    // the closure does not register, and K0 for a seat the workspace does not answer.
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--shape', 'bogus', '--word', 'law', '--root', FIXTURE],
+      command: `ia position --shape <context|governance|execution|sequence|learning> --word law --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--phase', 'later', '--root', FIXTURE],
+      command: `ia position --phase <orient|plan|act|learn> --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--depth', '3', '--shape', 'governance', '--root', FIXTURE],
+      command: `ia position --shape governance --depth 2 --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--budget', '65', '--root', FIXTURE],
+      command: `ia position --budget 64 --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--word', 'nope', '--root', FIXTURE],
+      command: 'ia vocabulary',
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--seat', 'governance-system/governance/law/absent', '--root', FIXTURE],
+      command: `ia position --root ${root}`,
+    },
+    {
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      argv: ['position', '--seat', '../outside.md', '--root', FIXTURE],
+      command: `ia position --root ${root}`,
+    },
+    { code: 'IA-CLI-USAGE', argv: ['position', 'stray', '--root', FIXTURE], command: 'ia position --help' },
     {
       code: 'IA-CLI-USAGE',
       argv: ['vocabulary', 'playbok', '--schema'],
@@ -607,6 +686,7 @@ function invocations(): readonly {
     { code: 'IA-DB-PATH-UNSAFE', argv: ['inspect', '--root', linked], command: `ia validate --root ${unreadable}` },
     { code: 'IA-DB-PATH-UNSAFE', argv: ['capture', '--root', linked], command: `ia validate --root ${unreadable}` },
     { code: 'IA-DB-PATH-UNSAFE', argv: ['compile', '--root', linked], command: `ia validate --root ${unreadable}` },
+    { code: 'IA-DB-PATH-UNSAFE', argv: ['position', '--root', linked], command: `ia validate --root ${unreadable}` },
     {
       code: 'IA-DB-PATH-UNSAFE',
       argv: ['host', 'claude', '--apply', '--yes', '--root', linked],

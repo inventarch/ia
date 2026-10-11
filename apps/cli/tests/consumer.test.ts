@@ -670,7 +670,12 @@ it('spells a catalogue field type through the language renderer the vocabulary v
   expect(fieldTypeText({ type: 'text', form: 'iso-date' })).toBe('text form iso-date');
 });
 
-// spec-0012 DRF-03: the routing table and the protocol description name the same operations, in the same order.
-it('routes exactly the operations the machine protocol table describes', () => {
-  expect(MACHINE_PROTOCOL.operations.map((operation) => operation.name)).toEqual([...LEGACY_OPERATIONS]);
+// spec-0012 DRF-03: the routing table and the protocol description name the same operations, in the same order. The
+// routes are the version 1 rows; a row a later version appends (`since`) is a Door and MCP operation (plan amendment A2).
+it('routes exactly the version 1 operations the machine protocol table describes', () => {
+  expect(
+    MACHINE_PROTOCOL.operations.filter((operation) => operation.since === undefined).map((operation) => operation.name),
+  ).toEqual([...LEGACY_OPERATIONS]);
+  for (const operation of MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined))
+    expect(LEGACY_OPERATIONS as readonly string[], operation.name).not.toContain(operation.name);
 });

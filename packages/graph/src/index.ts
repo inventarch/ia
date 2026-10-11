@@ -24,7 +24,7 @@ export type {
   Shadow,
   Tie,
 } from './types.js';
-export { cell, conditionHolds, effectiveSeverity, selectors, variants } from './queries.js';
+export { cell, conditionHolds, effectiveSeverity, laneOf, selectors, variants } from './queries.js';
 export type { SelectorMatch, VariantSelection } from './queries.js';
 export { CLAIM_FIELDS, claimants, isSelection, selects } from './claims.js';
 export type { ClaimMatch, Claimant } from './claims.js';

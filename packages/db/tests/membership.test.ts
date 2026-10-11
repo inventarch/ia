@@ -298,3 +298,42 @@ it('keeps adopted records at their system seat; an adopted workspace speaks only
     editor.close();
   }
 });
+
+it('lists the roots the capture declares, longest first, pruned with the workspace that declares them (D02c)', () => {
+  const root = workspace();
+  const none = open(root, { cache: false });
+  try {
+    // No @workspace declares sources, so the capture declares no root.
+    expect(none.roots()).toEqual([]);
+  } finally {
+    none.close();
+  }
+  declare(root, [
+    '.ia/src @authored',
+    '.ia/src/systems/governance-system @authored',
+    '.ia/src/systems/agent-system @adopted',
+    'no placement',
+  ]);
+  const db = open(root, { cache: false });
+  try {
+    const roots = db.roots();
+    // The entries that declare a root, longest first; the one that declares nothing is no root.
+    expect(roots).toEqual([
+      { root: '.ia/src/systems/governance-system', placement: 'authored', workspace: workspaceId },
+      { root: '.ia/src/systems/agent-system', placement: 'adopted', workspace: workspaceId },
+      { root: '.ia/src', placement: 'authored', workspace: workspaceId },
+    ]);
+    expect(Object.isFrozen(roots) && roots.every(Object.isFrozen)).toBe(true);
+    // Copies: a caller cannot re-root what the seat rule reads.
+    expect(db.roots()).not.toBe(roots);
+    expect(db.roots({ within: db.resolveScope().token })).toEqual(roots);
+    // A scope that does not admit the declaring workspace prunes its roots, and its rows keep the roots they had.
+    const narrowed = db.resolveScope({ identities: [methodId] });
+    expect(db.roots({ within: narrowed.token })).toEqual([]);
+    expect(db.snapshot({ within: narrowed.token }).membership).toEqual([row(db.snapshot(), methodId)]);
+    expect(row(db.snapshot(), methodId).root).toBe('.ia/src/systems/governance-system');
+    expect(db.roots({ within: db.resolveScope({ identities: [workspaceId] }).token })).toEqual(roots);
+  } finally {
+    db.close();
+  }
+});

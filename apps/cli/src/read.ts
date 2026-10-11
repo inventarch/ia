@@ -12,15 +12,15 @@
  * The workspace opens as every read verb opens it, without the db cache, so a read writes nothing. The document of an
  * adopted record is read from the directory `.ia/workspace.json` binds its mount to.
  */
-import { isAbsolute, relative, sep } from 'node:path';
+import { isAbsolute } from 'node:path';
 import { adoptedBindings } from '@inventarch/db';
 import { readWorkspaceFile } from '@inventarch/distribution/services';
-import { parseLocator, readBody } from '@inventarch/runtime';
-import type { ReadBody, ReadRefusal } from '@inventarch/runtime';
+import { parseLocator, readBody, rootRelative } from '@inventarch/runtime';
+import type { ReadBody, ReadBodyOptions, ReadRefusal } from '@inventarch/runtime';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot } from './consumer.js';
 import type { Capabilities } from './render.js';
-import { atom, document, entry, headerLine, quote, truncateDigest, words } from './render.js';
+import { atom, document, entry, headerLine, quote, terminalText, truncateDigest, words } from './render.js';
 import { identityNext, openSession } from './session.js';
 import type { Session } from './session.js';
 
@@ -40,17 +40,21 @@ export function readEnvelope(body: ReadBody): unknown {
   };
 }
 
-/** What was read, its digest and the not-certified line, then the body exactly as read. */
+/**
+ * What was read, its digest and the not-certified line, then the body exactly as read. The header's identity, locator
+ * and path are escaped by `terminalText`; the body is the source's own bytes, terminal controls included, and `--json`
+ * is the form that escapes them (apps/cli/SPEC.md, `read`).
+ */
 export function renderRead(body: ReadBody, caps: Capabilities): string {
   const header = document(
     [
       // The identity alone is often wider than the effective width, so nothing shares its header line.
-      headerLine('Read', body.identity, [], caps),
+      headerLine('Read', terminalText(body.identity), [], caps),
       entry(
         [
           body.path === undefined
-            ? words(body.locator === body.identity ? 'record' : `record, ${body.locator}`)
-            : [atom('document', null, 0), atom(body.path, 'cyan', 2)],
+            ? words(body.locator === body.identity ? 'record' : `record, ${terminalText(body.locator)}`)
+            : [atom('document', null, 0), atom(terminalText(body.path), 'cyan', 2)],
           [
             atom(`sha256 ${truncateDigest(body.digest, caps.ascii)}`, null, 0),
             ...words(`${Buffer.byteLength(body.body)} bytes`, 'dim', 2),
@@ -125,16 +129,28 @@ export function readRefusal(
 
 /**
  * A `<path>:<line>` locator's path is relative to the workspace root, as every source path the toolchain names is; an
- * absolute path inside the root, which an editor hands over, is read as the root-relative path it names. Any other
- * locator is read as given.
+ * absolute path inside the root, which an editor hands over, is read as the root-relative path it names, by the rule
+ * `--seat` reads a location with (runtime `rootRelative`), and the root itself as `.`, the workspace root. Any other
+ * locator, an absolute path outside the root among them, is read as given.
  */
 function workspaceLocator(locator: string, root: string): string {
   const parsed = parseLocator(locator);
   if (parsed?.form !== 'line' || !isAbsolute(parsed.path)) return locator;
-  const local = relative(root, parsed.path);
-  return local === '' || local.startsWith('..') || isAbsolute(local)
-    ? locator
-    : `${local.split(sep).join('/')}:${parsed.line}`;
+  const local = rootRelative(root, parsed.path);
+  return local === undefined ? locator : `${local === '' ? '.' : local}:${parsed.line}`;
+}
+
+/**
+ * What `ia read` hands the runtime: the workspace file reader the capture already uses, and the directory
+ * `.ia/workspace.json` binds each adopted mount to. The runtime Door reads through db `readWorkspaceBytes` and the same
+ * bindings, and tests/read.test.ts holds the two to the same bodies, digests and refusals.
+ */
+export function readOptions(root: string, reader: Session['reader'], includeRuntime: boolean): ReadBodyOptions {
+  return {
+    read: (path) => readWorkspaceFile({ root, path }),
+    mounts: new Map(adoptedBindings(reader.root).map((binding) => [binding.tree, binding.path])),
+    includeRuntime,
+  };
 }
 
 export function runRead(context: Context): Result {
@@ -154,11 +170,7 @@ export function runRead(context: Context): Result {
   const session = openSession(root);
   let got: ReturnType<typeof readBody>;
   try {
-    got = readBody(session.reader, target, {
-      read: (path) => readWorkspaceFile({ root, path }),
-      mounts: new Map(adoptedBindings(session.reader.root).map((binding) => [binding.tree, binding.path])),
-      includeRuntime: args.flag('include-runtime'),
-    });
+    got = readBody(session.reader, target, readOptions(root, session.reader, args.flag('include-runtime')));
     // Refused while the workspace is open, so an identity no source holds is answered from what it admits.
     if (!got.ok) throw readRefusal(got, context, root, session.reader);
   } finally {

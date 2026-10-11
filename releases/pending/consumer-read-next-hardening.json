@@ -1,0 +1,24 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Harden body reads and terminal delivery reports",
+  "summary": "The runtime body reader looks up source-locator fields only among declared table entries, so an admitted custom word named constructor reads its own body instead of failing on an inherited JavaScript property. Markdown body reads ignore headings inside list and quote containers, keep fences within their containers and reject invalid backtick fence openers, preserving top-level section boundaries and exact source bytes, and read a document in time linear in its length, up to a logarithmic factor in how deeply its containers nest: each ATX heading and its inline links in time linear in the line, each list or quote marker a line opens or continues in time linear in the marker, and a blank line inside nested list items without walking them, so a long run of spaces, unclosed brackets or nested list markers, or blank lines inside deeply nested items, before an anchor no longer stalls a read, on the Door's read and the MCP ia_read included. The human ia next and ia position reports escape terminal control characters in source-derived text before layout and styling, and ia read escapes them in its header while printing the body as read; JSON and Door values remain unchanged. Clean installed-package qualification, and the tools suite against the built CLI, now exercise capture idempotence, read bodies and digests, next dependency ordering and self-declared status, read-only effects, refusal paths and the retained 1.x compile artifact contract.",
+  "packages": ["@inventarch/runtime", "@inventarch/cli"],
+  "paths": [
+    "apps/cli/src/next.ts",
+    "apps/cli/src/position.ts",
+    "apps/cli/src/read.ts",
+    "apps/cli/src/render.ts",
+    "apps/cli/tests/next.test.ts",
+    "apps/cli/tests/position.test.ts",
+    "nx.json",
+    "packages/runtime/src/locator.ts",
+    "packages/runtime/tests/locator.test.ts",
+    "tools/distribution/SPEC.md",
+    "tools/distribution/installed-views.d.mts",
+    "tools/distribution/installed-views.mjs",
+    "tools/distribution/installed-views.test.ts",
+    "tools/distribution/qualify-packages.mjs",
+    "tools/testing/tasks.json"
+  ]
+}

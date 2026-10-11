@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { KINDS } from '@inventarch/language';
 import { expect, it } from 'vitest';
 import { Door, MACHINE_PROTOCOL, context, select } from '../src/index.js';
 import type { ContextRequest, Scope } from '../src/index.js';
+import { envelopeBytes } from '../src/context.js';
+import type { Node } from '@inventarch/graph';
 import { database, methodId, playbook, put, workspace } from './workspace.js';
 
 it('refuses equal leading choices and resolves a stronger applicable selector without ordering bias', () => {
@@ -195,15 +199,18 @@ it('preserves named lower-layer errors and guards privileged reports and foreign
     other.close();
   }
 });
-it('answers get and records in their frozen version 1 shape, without the per-record digest or membership', () => {
+it('preserves the published 1.2.0 get and records shape, including spelling but without digest or membership', () => {
   const root = workspace(),
     door = new Door(root, { cache: false }),
     db = database(root);
   try {
-    const { digest, ...record } = db.get(methodId)!;
+    // 1.2.0 shipped authored spelling; only the per-record digest is omitted from machine records.
+    const versionOne = ({ digest: _digest, ...node }: Node) => node;
+    const { digest } = db.get(methodId)!;
     expect(digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(db.get(methodId)!.edges.map((edge) => edge.spelling)).toEqual(['cites', 'uses']);
     expect(JSON.stringify(door.request({ operation: 'get', params: { identity: methodId } }))).toBe(
-      JSON.stringify({ ok: true, result: record }),
+      JSON.stringify({ ok: true, result: versionOne(db.get(methodId)!) }),
     );
     const snapshot = db.snapshot(),
       records = door.request({ operation: 'records' });
@@ -214,7 +221,7 @@ it('answers get and records in their frozen version 1 shape, without the per-rec
       JSON.stringify({
         revision: snapshot.revision,
         root: snapshot.root,
-        records: snapshot.records.map(({ digest: _digest, ...node }) => node),
+        records: snapshot.records.map(versionOne),
         systems: snapshot.systems,
       }),
     );
@@ -276,11 +283,39 @@ it('describes exactly the operations and parameters the Door admits', () => {
   } finally {
     door.close();
   }
+  // A door serving version 1, as the CLI's machine routes do (plan amendment A2), names exactly the version 1 rows, and
+  // refuses a later version's operation before reading its parameters, with the bytes of 1.1.0's unknown operation.
+  const routes = new Door(workspace(), { cache: false, allowReport: true, protocol: 1 });
+  try {
+    const unknown = routes.request({ operation: 'unlisted' });
+    expect(unknown.ok ? [] : /admitted: (.*)$/.exec(unknown.message)?.[1]?.split(', ')).toEqual(
+      MACHINE_PROTOCOL.operations
+        .filter((operation) => operation.since === undefined)
+        .map((operation) => operation.name),
+    );
+    for (const operation of MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined))
+      expect(
+        routes.request({ operation: operation.name, params: { ...operation.example, unlisted: 1 } }),
+        operation.name,
+      ).toEqual({
+        ok: false,
+        code: 'IA-RUNTIME-REQUEST-INVALID',
+        message: `IA-RUNTIME-REQUEST-INVALID: Unknown operation '${operation.name}'; admitted: scope, context, select, get, records, resolve, search, traverse, report`,
+      });
+  } finally {
+    routes.close();
+  }
+  for (const protocol of [0, 1.5, MACHINE_PROTOCOL.version + 1])
+    expect(() => new Door(workspace(), { cache: false, protocol }), String(protocol)).toThrow(TypeError);
 }, 30_000);
 
-/** spec-0012 VER-01: the parameter digest each description version carries. */
+/**
+ * spec-0012 VER-01: the parameter digest each description version carries, over the operations that version describes:
+ * version 1's nine, frozen, and every later version's over its own rows and the rows before it.
+ */
 const PARAMS_DIGESTS: Readonly<Record<number, string>> = {
   1: 'b92e71f8d59eadd34034974eb77cdc868ccd33b34a6c3c73fe2b2999707f7206',
+  2: '09cfa22896d7f1738bc0aa339991fe24a6b87e1c8a902dbb56b96c24fb8412c0',
 };
 it("bumps the protocol description version whenever an operation's parameters change", () => {
   const strip = (value: unknown): unknown =>
@@ -293,11 +328,141 @@ it("bumps the protocol description version whenever an operation's parameters ch
               .map(([key, child]) => [key, strip(child)]),
           )
         : value;
-  const digest = createHash('sha256')
-    .update(JSON.stringify(MACHINE_PROTOCOL.operations.map((operation) => [operation.name, strip(operation.params)])))
-    .digest('hex');
+  const digest = (version: number): string =>
+    createHash('sha256')
+      .update(
+        JSON.stringify(
+          MACHINE_PROTOCOL.operations
+            .filter((operation) => (operation.since ?? 1) <= version)
+            .map((operation) => [operation.name, strip(operation.params)]),
+        ),
+      )
+      .digest('hex');
   // Rewording a description keeps the digest; a changed key, type or closed set changes it and needs a new version.
-  expect(digest, "An operation's params changed: bump MACHINE_PROTOCOL.version and pin its digest here").toBe(
-    PARAMS_DIGESTS[MACHINE_PROTOCOL.version],
+  expect(digest(1), 'A version 1 operation changed its params, which the frozen version 1 rows never do').toBe(
+    PARAMS_DIGESTS[1],
   );
+  expect(
+    digest(MACHINE_PROTOCOL.version),
+    "An operation's params changed: bump MACHINE_PROTOCOL.version and pin its digest here",
+  ).toBe(PARAMS_DIGESTS[MACHINE_PROTOCOL.version]);
+  expect(Math.max(...Object.keys(PARAMS_DIGESTS).map(Number))).toBe(MACHINE_PROTOCOL.version);
+});
+
+// The operator's additive constraint (plan amendment A2): a later version appends rows, so the nine version 1 rows keep
+// the bytes 1.1.0 exported. The golden holds the rows as tag v1.1.0 exports them: it was written from a build whose
+// src/machine-protocol.ts was the tag's, unchanged, and whose dist/machine-protocol.js was the published 1.1.0 file's.
+it('keeps the nine version 1 rows byte-identical to 1.1.0 and marks each later row with its version', () => {
+  const golden = readFileSync(resolve(import.meta.dirname, 'golden/machine-protocol-v1.json'), 'utf8'),
+    rows = MACHINE_PROTOCOL.operations;
+  expect(JSON.stringify(rows.slice(0, 9), null, 2) + '\n').toBe(golden);
+  // No version 1 row carries the key, not even undefined, which JSON would not show.
+  expect(rows.slice(0, 9).every((operation) => !('since' in operation))).toBe(true);
+  const since = rows.slice(9).map((operation) => operation.since!);
+  expect(since.length).toBeGreaterThan(0);
+  expect(
+    since.every(
+      (version, index) => version >= 2 && version <= MACHINE_PROTOCOL.version && version >= (since[index - 1] ?? 2),
+    ),
+  ).toBe(true);
+  expect(since.at(-1)).toBe(MACHINE_PROTOCOL.version);
+});
+
+// Existing routes retain the published 1.2.0 responses at protocol 1 and 2, including authored edge spelling.
+// golden/machine-protocol-v1-wire.json is captured from the npm-published @inventarch/cli@1.2.0 runtime and checked
+// against that CLI's machine routes over this corpus. Scope tokens and revisions are normalized. Examples and context
+// pin key paths; deterministic edge, record, resolution and refusal cases pin full answers. Context scores depend on
+// the bundled base. Never regenerate this baseline from the implementation under test.
+const V1_WIRE = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, 'golden/machine-protocol-v1-wire.json'), 'utf8'),
+) as {
+  readonly examples: Readonly<Record<string, readonly string[]>>;
+  readonly answers: readonly { readonly operation: string; readonly params: object; readonly answer: unknown }[];
+  readonly shapes: readonly {
+    readonly operation: string;
+    readonly params: object;
+    readonly paths: readonly string[];
+  }[];
+};
+const keyPaths = (value: unknown, at = '', into = new Set<string>()): Set<string> => {
+  if (Array.isArray(value)) for (const item of value) keyPaths(item, `${at}[]`, into);
+  else if (value !== null && typeof value === 'object')
+    for (const [key, child] of Object.entries(value)) {
+      into.add(`${at}.${key}`);
+      keyPaths(child, `${at}.${key}`, into);
+    }
+  return into;
+};
+/** A door answer as the golden spells it: one JSON line, the scope token and the revision normalised. */
+const wire = (response: unknown): string =>
+  JSON.stringify(response)
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<token>')
+    .replace(/"revision":"[0-9a-f]{64}"/g, '"revision":"<revision>"');
+/** A version 1 answer still omits the per-record digest. */
+const withoutRecordDigest = (answer: string, label: string): void => {
+  const keys = [...keyPaths(JSON.parse(answer))].map((path) => path.slice(path.lastIndexOf('.') + 1));
+  expect(
+    keys.filter((key) => key === 'digest'),
+    label,
+  ).toEqual([]);
+};
+/** A context answer's envelope estimate is the one its own published shape gives (R12), its token and revision as read. */
+const estimatedAsAnswered = (response: unknown, label: string): void => {
+  const packet = (response as { result: Parameters<typeof envelopeBytes>[0] }).result;
+  expect(packet.limits.envelopeBytes, label).toBe(envelopeBytes(packet));
+};
+it('answers the nine version 1 examples with the key paths 1.2.0 answers them with, at protocol 1 and 2 alike', () => {
+  const root = workspace(),
+    doors = [1, 2].map((protocol) => new Door(root, { cache: false, allowReport: true, protocol }));
+  try {
+    const rows = MACHINE_PROTOCOL.operations.filter((operation) => operation.since === undefined);
+    expect(Object.keys(V1_WIRE.examples)).toEqual(rows.map((row) => row.name));
+    for (const row of rows) {
+      const responses = doors.map((door) => door.request({ operation: row.name, params: row.example })),
+        [one, two] = responses.map(wire);
+      expect(two, row.name).toBe(one);
+      expect([...keyPaths(JSON.parse(one!))].sort(), row.name).toEqual(V1_WIRE.examples[row.name]);
+      withoutRecordDigest(one!, row.name);
+      if (row.name === 'context') for (const response of responses) estimatedAsAnswered(response, row.name);
+    }
+  } finally {
+    for (const door of doors) door.close();
+  }
+});
+it('answers gated and dangling edges and each refusal as 1.2.0 does, byte for byte, at protocol 1 and 2 alike', () => {
+  const root = workspace(),
+    rule = resolve(root, '.ia/src/systems/governance-system/records/sample-rule.ia'),
+    enforced = '    enforced-by @check instance-schema-check when phase is act and severity is blocking\n';
+  const text = readFileSync(rule, 'utf8');
+  expect(text).toContain(enforced);
+  put(
+    root,
+    '.ia/src/systems/governance-system/records/sample-rule.ia',
+    text.replace(enforced, `${enforced}    enforced-by @check absent-check\n`),
+  );
+  const doors = [1, 2].map((protocol) => new Door(root, { cache: false, allowReport: true, protocol }));
+  try {
+    for (const { operation, params, answer } of V1_WIRE.answers) {
+      const label = `${operation} ${JSON.stringify(params)}`;
+      for (const door of doors) expect(wire(door.request({ operation, params })), label).toBe(JSON.stringify(answer));
+    }
+    // The traversals gate the conditional row at plan and follow it at act, and name the dangling check at both.
+    const [gated, followed] = V1_WIRE.answers
+      .slice(0, 2)
+      .map(({ answer }) => (answer as { result: { gated: unknown[]; edges: unknown[]; dangling: unknown[] } }).result);
+    expect([gated!.gated.length, gated!.dangling.length, followed!.edges.length, followed!.dangling.length]).toEqual([
+      1, 1, 1, 1,
+    ]);
+    for (const { operation, params, paths } of V1_WIRE.shapes) {
+      const label = `${operation} ${JSON.stringify(params)}`,
+        responses = doors.map((door) => door.request({ operation, params })),
+        [one, two] = responses.map(wire);
+      expect(two, label).toBe(one);
+      expect([...keyPaths(JSON.parse(one!))].sort(), label).toEqual(paths);
+      withoutRecordDigest(one!, label);
+      for (const response of responses) estimatedAsAnswered(response, label);
+    }
+  } finally {
+    for (const door of doors) door.close();
+  }
 });

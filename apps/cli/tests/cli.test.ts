@@ -6,9 +6,16 @@ import { expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { installSignals, readLine, runCli } from '../src/main.js';
+import { describeOperation, renderOperationHelp, renderOperationSchema } from '../src/operation-help.js';
 
 const root = resolve(import.meta.dirname, '../../..'),
   fixture = resolve(root, 'packages/compliance/fixtures/loop');
+/**
+ * Plan amendment A2: the machine routes are the version 1 rows, described at version 1. A row a later protocol version
+ * appends (`since`) is a Door and MCP operation, held to the Door by packages/runtime/tests/door-read.test.ts and
+ * packages/runtime/tests/next.test.ts.
+ */
+const ROUTES = MACHINE_PROTOCOL.operations.filter((operation) => operation.since === undefined);
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
 function run(args: readonly string[], input?: string) {
   return runBounded(process.execPath, [resolve(root, 'apps/cli/dist/main.js'), ...args], {
@@ -116,7 +123,7 @@ it('answers a manifest with two faulty bindings with the first one, as 1.1 did, 
       code: 'IA-DB-SOURCE-UNAVAILABLE',
       message: 'IA-DB-SOURCE-UNAVAILABLE: .ia/workspace.json: Missing source tree for lib',
     })}\n`;
-    for (const operation of MACHINE_PROTOCOL.operations.map((row) => row.name))
+    for (const operation of ROUTES.map((row) => row.name))
       expect(runCli([operation, '--root', workspace, '--params', '{}']), operation).toEqual({
         exitCode: 1,
         stdout: expected,
@@ -124,6 +131,45 @@ it('answers a manifest with two faulty bindings with the first one, as 1.1 did, 
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
+});
+// Plan amendment A2: runCli, which `@inventarch/cli/internal/main` and the host launcher's `door` mode call without the
+// consumer dispatch, serves the version 1 operations only. A later version's operation is the unknown operation 1.1.0
+// refused, byte for byte, after the workspace opens and the parameters parse as they did, and it has no help or schema.
+it('refuses a later protocol version operation on the machine route exactly as 1.1.0 refused it', () => {
+  const unknown = (operation: string) => ({
+    exitCode: 2,
+    stdout: `${JSON.stringify({
+      ok: false,
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      message: `IA-RUNTIME-REQUEST-INVALID: Unknown operation '${operation}'; admitted: scope, context, select, get, records, resolve, search, traverse, report`,
+    })}\n`,
+  });
+  const later = MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined);
+  expect(later.map((row) => row.name)).toEqual(expect.arrayContaining(['read', 'next']));
+  for (const operation of later) {
+    expect(runCli([operation.name, '--root', fixture, '--params', JSON.stringify(operation.example)])).toEqual(
+      unknown(operation.name),
+    );
+    expect(runCli([operation.name, '--root', fixture]), operation.name).toEqual(unknown(operation.name));
+    for (const flag of ['--help', '--schema'])
+      expect(runCli([operation.name, flag]), `${operation.name} ${flag}`).toEqual({
+        exitCode: 2,
+        stdout: `${JSON.stringify({ ok: false, code: 'IA-CLI-USAGE', message: `Unknown, duplicate or incomplete option: ${flag}` })}\n`,
+      });
+  }
+  expect(runCli(['bogus', '--root', fixture])).toEqual(unknown('bogus'));
+  expect(runCli(['read', '--root', resolve(fixture, 'absent')])).toMatchObject({
+    exitCode: 1,
+    stdout: expect.stringMatching(/^\{"ok":false,"code":"IA-DB-ROOT-INVALID",/),
+  });
+  expect(runCli(['read', '--root', fixture, '--params', '[]'])).toEqual({
+    exitCode: 2,
+    stdout: `${JSON.stringify({
+      ok: false,
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      message: 'IA-RUNTIME-REQUEST-INVALID: params must be an object',
+    })}\n`,
+  });
 });
 
 it('unwinds a pending stdin read on the first signal and forces exit only on the second', async () => {
@@ -204,7 +250,7 @@ const TRIGGERS: Readonly<Record<string, Readonly<Record<string, Record<string, u
 it('holds the machine protocol table to the loop fixture', () => {
   const door = new Door(fixture, { cache: false, allowReport: true });
   try {
-    for (const operation of MACHINE_PROTOCOL.operations) {
+    for (const operation of ROUTES) {
       expect(
         door.request({ operation: operation.name, params: operation.example }).ok,
         `${operation.name} example`,
@@ -256,13 +302,14 @@ it('answers operation help on the machine route without opening a workspace', as
       input: '',
       timeoutMs: SUBPROCESS,
     });
-  for (const operation of MACHINE_PROTOCOL.operations) {
+  for (const operation of ROUTES) {
     const got = await help([operation.name, '--help']);
     expect(got.status, operation.name).toBe(0);
     expect(got.stderr, operation.name).toBe('');
     expect(got.stdout, operation.name).not.toMatch(/[\u001b\u009b]/);
     expect(got.stdout).toContain(`ia ${operation.name}`);
     expect(got.stdout).toContain(JSON.stringify(operation.example));
+    expect(got.stdout, operation.name).toContain('Machine protocol v1: ');
     for (const refusal of operation.refusals)
       expect(got.stdout, `${operation.name} ${refusal.code}`).toContain(refusal.code);
     // CLI-02: 80 columns; only the example command, one unbreakable token, may run past them.
@@ -283,14 +330,25 @@ it('answers operation help on the machine route without opening a workspace', as
 });
 // spec-0012 CLI-05: the operation's description as one JSON line, the object the MCP schema also comes from.
 it('prints one operation description as one JSON line for --schema', async () => {
-  for (const operation of MACHINE_PROTOCOL.operations) {
+  for (const operation of ROUTES) {
     const got = await run([operation.name, '--schema']);
     expect(got.status, operation.name).toBe(0);
     expect(got.stderr).toBe('');
     expect(got.stdout.endsWith('\n') && !got.stdout.slice(0, -1).includes('\n')).toBe(true);
-    expect(JSON.parse(got.stdout)).toEqual({ version: MACHINE_PROTOCOL.version, ...operation });
+    // The version the route describes, 1, whatever version the table is at.
+    expect(JSON.parse(got.stdout)).toEqual({ version: 1, ...operation });
   }
   expect((await run(['context', '--params', '--schema'])).status).toBe(2);
+  // A later version's operation is no machine route, so no route help or schema describes it.
+  for (const operation of MACHINE_PROTOCOL.operations.filter((row) => row.since !== undefined)) {
+    expect(describeOperation(operation.name), operation.name).toBeUndefined();
+    // The published renderers, handed such a row, describe it at the version that added it, never at version 1.
+    expect(JSON.parse(renderOperationSchema(operation)), operation.name).toEqual({
+      version: operation.since,
+      ...operation,
+    });
+    expect(renderOperationHelp(operation), operation.name).toContain(`Machine protocol v${operation.since}: `);
+  }
 });
 // spec-0012 CLI-01: help is decided before `--params -` would read stdin, so a stdin that throws is never touched.
 it('answers operation help without reading stdin', () => {
@@ -310,7 +368,7 @@ it('answers operation help without reading stdin', () => {
 // spec-0012 CLI-05: when help and schema tokens are both given, the first one in an option position decides.
 it('lets the first help or schema token decide', () => {
   expect(JSON.parse(runCli(['get', '--schema', 'x', '--help']).stdout)).toMatchObject({
-    version: MACHINE_PROTOCOL.version,
+    version: 1,
     name: 'get',
   });
   expect(runCli(['get', '--help', 'x', '--schema']).stdout).toContain('ia get  Read one admitted record');

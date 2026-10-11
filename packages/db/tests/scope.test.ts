@@ -111,6 +111,8 @@ it('checks unknown, foreign and closed tokens on every scoped read', () => {
       () => db.referencedBy(methodId, { within }),
       () => db.directedView(methodId, { within }),
       () => db.resolveSeat(methodPath, { within }),
+      () => db.words({ within }),
+      () => db.roots({ within }),
       () => db.resolve({ kind: 'identity', identity: methodId }, { within }),
       () => db.search('fixture', { within }),
       () => db.traverse({ start: [methodId], within }),
@@ -239,4 +241,65 @@ it('refuses child vocabulary changes while allowing independent authority to sco
   expect(db.records({ within: inside.token }).some((r) => r.discriminator === 'widget')).toBe(true);
   const child = db.resolveScope({ within: inside.token, root: 'team/child', revision: inside.revision });
   expect(db.records({ within: child.token }).some((r) => r.discriminator === 'widget')).toBe(true);
+  // D09a: the word is registered only in the view whose registry admits the extension.
+  expect(db.words({ within: parent.token })).not.toContain('widget');
+  expect(db.words({ within: inside.token })).toEqual([...db.words(), 'widget'].sort());
+  expect(db.words({ within: child.token })).toEqual(db.words({ within: inside.token }));
 }, 30_000);
+it('lists the words the view registers for its admitted systems, the same for every scope of it', () => {
+  const root = workspace(),
+    prefix = '.ia/src/systems/extension';
+  put(
+    root,
+    `${prefix}/system.ia`,
+    '#! ia 1.0\n@system extension\n  provider "fixture"\n  version "1.0.0"\n  steward @agent extension-steward\n  requires\n    - agent-system\n  discriminators\n    widget lowers to definition\n      category thing\n      facets [widget]\n      schema @schema widget\n  edges\n    cite * using *\n',
+  );
+  put(root, `${prefix}/schemas/widget.ia`, '#! ia 1.0\n@schema widget\n  lowers to definition\n  sections\n    open\n');
+  const db = open(root, { cache: false });
+  try {
+    const words = db.words();
+    // Admission blocks the extension, whose steward is missing, and its word with it.
+    expect(db.snapshot().systems).not.toContain('extension');
+    expect(words).not.toContain('widget');
+    // The floor's two words, the taxonomy's and each admitted system's, sorted and frozen.
+    expect(words).toEqual(expect.arrayContaining(['schema', 'system', 'kind', 'phase', 'law', 'workspace', 'mandate']));
+    expect(words).toEqual([...words].sort());
+    expect(new Set(words).size).toBe(words.length);
+    expect(Object.isFrozen(words)).toBe(true);
+    for (const scope of [db.resolveScope(), db.resolveScope({ identities: [] }), db.resolveScope({ phase: 'act' })])
+      expect(db.words({ within: scope.token })).toEqual(words);
+    put(
+      root,
+      `${prefix}/steward.ia`,
+      '#! ia 1.0\n@agent extension-steward\n  meaning\n    says "Own extension"\n    answers "Who owns widget?"\n  governance\n    applies [widget]\n',
+    );
+    db.refresh();
+    expect(db.snapshot().systems).toContain('extension');
+    expect(db.words()).toEqual([...words, 'widget'].sort());
+    // A second system registering the same keyword at the same band blocks it, and admission blocks both systems.
+    const other = '.ia/src/systems/other';
+    put(
+      root,
+      `${other}/system.ia`,
+      '#! ia 1.0\n@system other\n  provider "fixture"\n  version "1.0.0"\n  steward @agent other-steward\n  requires\n    - agent-system\n  discriminators\n    widget lowers to definition\n      category thing\n      facets [widget]\n      schema @schema widget\n  edges\n    cite * using *\n',
+    );
+    put(
+      root,
+      `${other}/schemas/widget.ia`,
+      '#! ia 1.0\n@schema widget\n  lowers to definition\n  sections\n    open\n',
+    );
+    put(
+      root,
+      `${other}/steward.ia`,
+      '#! ia 1.0\n@agent other-steward\n  meaning\n    says "Own other"\n    answers "Who owns widget?"\n  governance\n    applies [widget]\n',
+    );
+    db.refresh();
+    expect(db.report.findings.map((finding) => finding.code)).toContain('IA-LANG-DISCRIMINATOR-CONFLICT');
+    expect(db.snapshot().systems).not.toContain('extension');
+    expect(db.snapshot().systems).not.toContain('other');
+    expect(db.words()).toEqual(words);
+  } finally {
+    db.close();
+  }
+  expect(() => db.words()).toThrow(code('CLOSED'));
+});

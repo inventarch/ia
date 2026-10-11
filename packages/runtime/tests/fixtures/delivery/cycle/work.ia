@@ -1,0 +1,56 @@
+#! ia 1.0
+
+@plan loop
+  meaning
+    says "A plan whose task requirements form a cycle, so no order exists."
+  work
+    title "Loop"
+    status open
+
+@milestone ring
+  meaning
+    says "Every task of the cycle."
+  work
+    title "Ring"
+    status open
+    plan @plan loop
+    exit "Never reached: alpha, beta and gamma each wait on another."
+
+@task alpha
+  meaning
+    says "Waits on beta."
+  work
+    title "Alpha"
+    status open
+    milestone @milestone ring
+  relationships
+    requires @task beta
+
+@task beta
+  meaning
+    says "Waits on gamma, which declares that row in the inverse spelling."
+  work
+    title "Beta"
+    status open
+    milestone @milestone ring
+
+@task gamma
+  meaning
+    says "Waits on alpha, and states that beta waits on it."
+  work
+    title "Gamma"
+    status open
+    milestone @milestone ring
+  relationships
+    requires @task alpha
+    required-by @task beta
+
+@task delta
+  meaning
+    says "Waits on alpha without being part of the cycle."
+  work
+    title "Delta"
+    status open
+    milestone @milestone ring
+  relationships
+    requires @task alpha

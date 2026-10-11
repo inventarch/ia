@@ -118,6 +118,14 @@
       "types": "./dist/mentions.d.ts",
       "default": "./dist/mentions.js"
     },
+    "./internal/next": {
+      "types": "./dist/next.d.ts",
+      "default": "./dist/next.js"
+    },
+    "./internal/position": {
+      "types": "./dist/position.d.ts",
+      "default": "./dist/position.js"
+    },
     "./internal/publication": {
       "types": "./dist/publication.d.ts",
       "default": "./dist/publication.js"
@@ -125,6 +133,10 @@
     "./internal/render": {
       "types": "./dist/render.d.ts",
       "default": "./dist/render.js"
+    },
+    "./internal/scope-key": {
+      "types": "./dist/scope-key.d.ts",
+      "default": "./dist/scope-key.js"
     },
     "./internal/select": {
       "types": "./dist/select.d.ts",
@@ -276,6 +288,14 @@
         "types": "./dist/mentions.d.ts",
         "default": "./dist/mentions.js"
       },
+      "./internal/next": {
+        "types": "./dist/next.d.ts",
+        "default": "./dist/next.js"
+      },
+      "./internal/position": {
+        "types": "./dist/position.d.ts",
+        "default": "./dist/position.js"
+      },
       "./internal/publication": {
         "types": "./dist/publication.d.ts",
         "default": "./dist/publication.js"
@@ -283,6 +303,10 @@
       "./internal/render": {
         "types": "./dist/render.d.ts",
         "default": "./dist/render.js"
+      },
+      "./internal/scope-key": {
+        "types": "./dist/scope-key.d.ts",
+        "default": "./dist/scope-key.js"
       },
       "./internal/select": {
         "types": "./dist/select.d.ts",

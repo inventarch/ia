@@ -1,4 +1,5 @@
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, vi } from 'vitest';
@@ -16,6 +17,7 @@ export const methodPath = '.ia/src/systems/governance-system/records/sample-proc
 export const methodId = 'governance-system/definition/procedure/sample-procedure';
 export const lawPath = '.ia/src/systems/governance-system/records/sample-rule.ia';
 export const lawId = 'governance-system/governance/law/sample-rule';
+export const workspacePath = '.ia/src/systems/workspace-system/records/foundation-workspace.ia';
 export function workspace(
   source: string | null = resolve(import.meta.dirname, '../../../examples/conformance/native'),
 ): string {
@@ -33,10 +35,43 @@ export function put(root: string, path: string, text: string): void {
   mkdirSync(resolve(target, '..'), { recursive: true });
   writeFileSync(target, text);
 }
+/** The foundation workspace declaring `sources`, so the records under them are its capture members. */
+export function declare(root: string, sources: readonly string[]): void {
+  const text = readFileSync(resolve(root, workspacePath), 'utf8');
+  put(
+    root,
+    workspacePath,
+    text.replace(
+      '  relationships\n',
+      `    sources [${sources.map((s) => JSON.stringify(s)).join(', ')}]\n  relationships\n`,
+    ),
+  );
+}
 export function database(root: string, options: OpenOptions = {}): Handle {
   const db = open(root, { cache: false, ...options });
   handles.push(db);
   return db;
+}
+/** Every file under `root`, by path, hashed with its bytes, to show a read wrote nothing. */
+export function tree(root: string): string {
+  const hash = createHash('sha256');
+  const walk = (directory: string, prefix: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const path = `${prefix}${entry.name}`;
+      if (entry.isDirectory()) walk(resolve(directory, entry.name), `${path}/`);
+      else
+        hash
+          .update(`${path}\0`)
+          .update(readFileSync(resolve(directory, entry.name)))
+          .update('\0');
+    }
+  };
+  walk(root, '');
+  return hash.digest('hex');
+}
+/** A fixture @law of `severity`, `more` appended as further sections. */
+export function law(name: string, severity: string, more = ''): string {
+  return `#! ia 1.0\n@law ${name}\n  meaning\n    says "Fixture law ${name}."\n    answers "What does ${name} require?"\n  governance\n    severity ${severity}\n${more}`;
 }
 export function playbook(
   name: string,

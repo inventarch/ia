@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Preserve published machine responses when adding delivery operations",
+  "summary": "The existing get, records, traverse and context machine operations retain the authored edge spelling shipped in 1.2.0 at both protocol versions. Version 1 records continue to omit per-record digest and snapshots continue to omit membership. Context envelope estimates describe the returned packet. A published 1.2.0 regression baseline protects these responses while protocol version 2 adds read, next and position.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/mcp-door",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/runtime/"
+  ]
+}
