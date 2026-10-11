@@ -2,7 +2,7 @@
 
 Defines a directed relationship and its inverse spelling.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: predicate. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: predicate. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

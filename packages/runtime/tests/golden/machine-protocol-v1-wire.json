@@ -46,6 +46,7 @@
       ".result.followed[].assertions[].source.endLine",
       ".result.followed[].assertions[].source.line",
       ".result.followed[].assertions[].source.path",
+      ".result.followed[].assertions[].spelling",
       ".result.followed[].author",
       ".result.followed[].conditionSubject",
       ".result.followed[].fragment",
@@ -151,6 +152,7 @@
       ".result.edges[].span",
       ".result.edges[].span.endLine",
       ".result.edges[].span.line",
+      ".result.edges[].spelling",
       ".result.edges[].target",
       ".result.facet",
       ".result.head",
@@ -232,6 +234,7 @@
       ".result.records[].edges[].span",
       ".result.records[].edges[].span.endLine",
       ".result.records[].edges[].span.line",
+      ".result.records[].edges[].spelling",
       ".result.records[].edges[].target",
       ".result.records[].facet",
       ".result.records[].head",
@@ -357,6 +360,7 @@
       ".result.edges[].assertions[].source.endLine",
       ".result.edges[].assertions[].source.line",
       ".result.edges[].assertions[].source.path",
+      ".result.edges[].assertions[].spelling",
       ".result.edges[].author",
       ".result.edges[].conditionSubject",
       ".result.edges[].from",
@@ -464,6 +468,7 @@
                 {
                   "author": "governance-system/governance/law/sample-rule",
                   "direction": "in",
+                  "spelling": "enforced-by",
                   "reference": {
                     "kind": "ref",
                     "discriminator": "check",
@@ -499,6 +504,7 @@
                 {
                   "author": "governance-system/governance/law/sample-rule",
                   "direction": "in",
+                  "spelling": "enforced-by",
                   "reference": {
                     "kind": "ref",
                     "discriminator": "check",
@@ -583,6 +589,7 @@
                 {
                   "author": "governance-system/governance/law/sample-rule",
                   "direction": "in",
+                  "spelling": "enforced-by",
                   "reference": {
                     "kind": "ref",
                     "discriminator": "check",
@@ -619,6 +626,7 @@
                 {
                   "author": "governance-system/governance/law/sample-rule",
                   "direction": "in",
+                  "spelling": "enforced-by",
                   "reference": {
                     "kind": "ref",
                     "discriminator": "check",
@@ -791,6 +799,7 @@
             {
               "predicate": "enforce",
               "direction": "in",
+              "spelling": "enforced-by",
               "reference": {
                 "kind": "ref",
                 "discriminator": "check",
@@ -815,6 +824,7 @@
             {
               "predicate": "enforce",
               "direction": "in",
+              "spelling": "enforced-by",
               "reference": {
                 "kind": "ref",
                 "discriminator": "check",
@@ -1066,6 +1076,7 @@
         ".result.dangling[].assertions[].source.endLine",
         ".result.dangling[].assertions[].source.line",
         ".result.dangling[].assertions[].source.path",
+        ".result.dangling[].assertions[].spelling",
         ".result.dangling[].author",
         ".result.dangling[].conditionSubject",
         ".result.dangling[].from",
@@ -1092,6 +1103,7 @@
         ".result.gated[].assertions[].source.endLine",
         ".result.gated[].assertions[].source.line",
         ".result.gated[].assertions[].source.path",
+        ".result.gated[].assertions[].spelling",
         ".result.gated[].author",
         ".result.gated[].condition",
         ".result.gated[].conditionSubject",
@@ -1198,6 +1210,7 @@
         ".result.dangling[].assertions[].source.endLine",
         ".result.dangling[].assertions[].source.line",
         ".result.dangling[].assertions[].source.path",
+        ".result.dangling[].assertions[].spelling",
         ".result.dangling[].author",
         ".result.dangling[].conditionSubject",
         ".result.dangling[].from",
@@ -1223,6 +1236,7 @@
         ".result.followed[].assertions[].source.endLine",
         ".result.followed[].assertions[].source.line",
         ".result.followed[].assertions[].source.path",
+        ".result.followed[].assertions[].spelling",
         ".result.followed[].author",
         ".result.followed[].condition",
         ".result.followed[].conditionSubject",

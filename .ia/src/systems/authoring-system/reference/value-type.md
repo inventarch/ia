@@ -2,7 +2,7 @@
 
 Defines the field types that schemas may require.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: value-type. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: value-type. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

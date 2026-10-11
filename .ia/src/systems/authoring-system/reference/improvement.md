@@ -2,7 +2,7 @@
 
 Represents a proposed change, review metadata and publication metadata. It does not authorize or apply the proposal.
 
-Owner: learning-system. Identity: learning-system/definition/<facet>/<name>. Facets: improvement. Artifact set: inquiry. Primitive: Learning. Move: Synthesis.
+Owner: learning-system. Identity: learning-system/definition/\<facet>/\<name>. Facets: improvement. Artifact set: inquiry. Primitive: Learning. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/learning-system/schemas/improvement.schema.ia.
 

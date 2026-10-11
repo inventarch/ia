@@ -2,7 +2,7 @@
 
 Defines source authority and reach metadata.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: placement. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: placement. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

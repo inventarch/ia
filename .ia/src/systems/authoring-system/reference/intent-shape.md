@@ -2,7 +2,7 @@
 
 Defines a request framing and its retrieval defaults.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: intent-shape. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: intent-shape. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

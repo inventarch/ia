@@ -2,7 +2,7 @@
 
 Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality.
 
-Owner: work-system. Identity: work-system/contract/<facet>/<name>. Facets: spec. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: work-system. Identity: work-system/contract/\<facet>/\<name>. Facets: spec. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/systems/work-system/schemas/spec.schema.ia.
 

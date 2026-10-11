@@ -2,7 +2,7 @@
 
 Represents an arrangement of milestones toward an intent; it heads the work hierarchy and has no parent. Plans do not nest.
 
-Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: plan. Artifact set: product-definition. Primitive: Inference. Move: Synthesis.
+Owner: work-system. Identity: work-system/definition/\<facet>/\<name>. Facets: plan. Artifact set: product-definition. Primitive: Inference. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/work-system/schemas/plan.schema.ia.
 

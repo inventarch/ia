@@ -2,7 +2,7 @@
 
 Registers vocabulary, direct system dependencies, a local steward and consent for relationships.
 
-Owner: floor. Identity: floor/definition/<facet>/<name>. Facets: system. Artifact set: product-definition. Primitive: Attention. Move: Observation.
+Owner: floor. Identity: floor/definition/\<facet>/\<name>. Facets: system. Artifact set: product-definition. Primitive: Attention. Move: Observation.
 
 Canonical schema: .ia/src/floor/floor.schema.ia.
 
