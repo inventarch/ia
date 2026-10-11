@@ -59,7 +59,7 @@
     "npm:verify-registry": "node tools/distribution/npm-release.mjs verify-registry"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14",
+    "@biomejs/biome": "2.5.15",
     "@inventarch/agent-composition-system": "workspace:*",
     "@inventarch/authoring-system": "workspace:*",
     "@inventarch/db": "workspace:*",
@@ -69,15 +69,15 @@
     "@inventarch/workspace-runtime": "workspace:*",
     "@types/node": "catalog:",
     "github-slugger": "2.0.0",
-    "mdast-util-from-markdown": "2.0.3",
+    "mdast-util-from-markdown": "2.1.0",
     "mdast-util-gfm": "3.1.0",
     "micromark-extension-gfm": "3.0.0",
-    "nx": "23.2.1",
+    "nx": "23.3.0",
     "parse5": "8.0.1",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "yaml": "2.9.0"
+    "yaml": "2.9.1"
   },
   "license": "Apache-2.0"
 }
