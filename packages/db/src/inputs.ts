@@ -118,9 +118,10 @@ export function readWorkspaceBytes(root: string, path: string, limit: number): U
     const unsafe = () => new DbError('IA-DB-PATH-UNSAFE', `Expected an unaliased regular file: ${relative}`, relative);
     const changed = () => new DbError('IA-DB-SOURCE-CHANGED', `File changed during read: ${relative}`, relative);
     // Keep each containing directory's identity, not just the spelling of the file name.
+    // Inode numbers can exceed Number.MAX_SAFE_INTEGER on Windows; retain their full width throughout.
     const parents = [canonical];
     for (const segment of relative.split('/').slice(0, -1)) parents.push(join(parents.at(-1)!, segment));
-    const directories = parents.map((path) => ({ path, stat: lstatSync(path) }));
+    const directories = parents.map((path) => ({ path, stat: lstatSync(path, { bigint: true }) }));
     if (directories.some(({ stat }) => stat.isSymbolicLink()))
       throw new DbError('IA-DB-PATH-UNSAFE', `Symlink/junction traversal is not admitted: ${relative}`, relative);
     if (directories.some(({ stat }) => !stat.isDirectory()))
@@ -132,22 +133,22 @@ export function readWorkspaceBytes(root: string, path: string, limit: number): U
       fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
     } catch (error) {
       // Windows may refuse opening a directory. Preserve the same public refusal as an opened non-file.
-      const named = lstatSync(file);
-      if (!named.isFile() || named.nlink !== 1) throw unsafe();
+      const named = lstatSync(file, { bigint: true });
+      if (!named.isFile() || named.nlink !== 1n) throw unsafe();
       throw error;
     }
     try {
-      const opened = fstatSync(fd);
-      if (!opened.isFile() || opened.nlink !== 1) throw unsafe();
-      if (opened.size > limit)
+      const opened = fstatSync(fd, { bigint: true });
+      if (!opened.isFile() || opened.nlink !== 1n) throw unsafe();
+      if (opened.size > BigInt(limit))
         throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `File exceeds ${limit} bytes: ${relative}`, relative);
       const assertNamed = () => {
         try {
-          const named = lstatSync(file);
-          if (!named.isFile() || named.nlink !== 1 || named.dev !== opened.dev || named.ino !== opened.ino)
+          const named = lstatSync(file, { bigint: true });
+          if (!named.isFile() || named.nlink !== 1n || named.dev !== opened.dev || named.ino !== opened.ino)
             throw changed();
           for (const { path, stat } of directories) {
-            const now = lstatSync(path);
+            const now = lstatSync(path, { bigint: true });
             if (!now.isDirectory() || now.isSymbolicLink() || now.dev !== stat.dev || now.ino !== stat.ino)
               throw changed();
           }
@@ -157,20 +158,20 @@ export function readWorkspaceBytes(root: string, path: string, limit: number): U
       };
       assertNamed();
       // Bound both allocation and reading to the opened file's size plus one, even if a concurrent writer grows it.
-      const buffer = Buffer.alloc(opened.size + 1);
+      const buffer = Buffer.alloc(Number(opened.size) + 1);
       let length = 0;
       while (length < buffer.length) {
         const count = readSync(fd, buffer, length, buffer.length - length, null);
         if (!count) break;
         length += count;
       }
-      const after = fstatSync(fd);
+      const after = fstatSync(fd, { bigint: true });
       if (
-        length !== opened.size ||
+        BigInt(length) !== opened.size ||
         after.size !== opened.size ||
-        after.nlink !== 1 ||
-        after.mtimeMs !== opened.mtimeMs ||
-        after.ctimeMs !== opened.ctimeMs
+        after.nlink !== 1n ||
+        after.mtimeNs !== opened.mtimeNs ||
+        after.ctimeNs !== opened.ctimeNs
       )
         throw changed();
       assertNamed();

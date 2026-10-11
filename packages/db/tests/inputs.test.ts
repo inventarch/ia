@@ -1,6 +1,8 @@
 import {
   cpSync,
   closeSync,
+  fstatSync,
+  lstatSync,
   openSync,
   readSync,
   renameSync,
@@ -37,6 +39,8 @@ vi.mock('node:fs', async (importOriginal) => {
   return {
     ...actual,
     openSync: vi.fn(actual.openSync),
+    fstatSync: vi.fn(actual.fstatSync),
+    lstatSync: vi.fn(actual.lstatSync),
     readSync: vi.fn(actual.readSync),
     closeSync: vi.fn(actual.closeSync),
   };
@@ -108,6 +112,8 @@ it('refuses package source aliases, invalid UTF-8 and bounded file overflow', ()
 afterEach(() => {
   vi.restoreAllMocks();
   vi.mocked(openSync).mockReset();
+  vi.mocked(fstatSync).mockReset();
+  vi.mocked(lstatSync).mockReset();
   vi.mocked(readSync).mockReset();
   vi.mocked(closeSync).mockClear();
   for (const path of temporary.splice(0)) {
@@ -510,4 +516,30 @@ it('bounds a growing workspace document and refuses bytes modified during readin
     expect.objectContaining({ code: 'IA-DB-SOURCE-CHANGED', path: 'docs/body.md' }),
   );
   expect(read).toBeLessThanOrEqual(5);
+});
+
+it('keeps full-width file identities when two inode numbers round to the same JavaScript number', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(),
+    file = resolve(root, 'docs/body.md');
+  put(root, 'docs/body.md', 'body');
+  const openedId = 2n ** 54n,
+    replacementId = openedId + 1n;
+  expect(Number(openedId)).toBe(Number(replacementId));
+  vi.mocked(fstatSync).mockImplementation((...args: Parameters<typeof fstatSync>) => {
+    const stat = actual.fstatSync(...args);
+    return Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? openedId : Number(openedId) });
+  });
+  vi.mocked(lstatSync).mockImplementation((...args: Parameters<typeof lstatSync>) => {
+    const stat = actual.lstatSync(...args);
+    if (stat === undefined) return undefined;
+    return String(args[0]) === file
+      ? Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? replacementId : Number(replacementId) })
+      : stat;
+  });
+  vi.mocked(readSync).mockClear();
+  expect(() => readWorkspaceBytes(root, 'docs/body.md', 16)).toThrow(
+    expect.objectContaining({ code: 'IA-DB-SOURCE-CHANGED', path: 'docs/body.md' }),
+  );
+  expect(readSync).not.toHaveBeenCalled();
 });
