@@ -199,21 +199,18 @@ it('preserves named lower-layer errors and guards privileged reports and foreign
     other.close();
   }
 });
-it('answers get and records in their frozen version 1 shape, without the per-record digest, the spelling or membership', () => {
+it('preserves the published 1.2.0 get and records shape, including spelling but without digest or membership', () => {
   const root = workspace(),
     door = new Door(root, { cache: false }),
     db = database(root);
   try {
-    // An edge answers without the spelling its author wrote, which 1.1.0's edges did not carry, each key in its place.
-    const unspelled = ({ digest: _digest, ...node }: Node) => ({
-      ...node,
-      edges: node.edges.map(({ spelling: _spelling, ...edge }) => edge),
-    });
+    // 1.2.0 shipped authored spelling; only the per-record digest is omitted from machine records.
+    const versionOne = ({ digest: _digest, ...node }: Node) => node;
     const { digest } = db.get(methodId)!;
     expect(digest).toMatch(/^[0-9a-f]{64}$/);
     expect(db.get(methodId)!.edges.map((edge) => edge.spelling)).toEqual(['cites', 'uses']);
     expect(JSON.stringify(door.request({ operation: 'get', params: { identity: methodId } }))).toBe(
-      JSON.stringify({ ok: true, result: unspelled(db.get(methodId)!) }),
+      JSON.stringify({ ok: true, result: versionOne(db.get(methodId)!) }),
     );
     const snapshot = db.snapshot(),
       records = door.request({ operation: 'records' });
@@ -224,7 +221,7 @@ it('answers get and records in their frozen version 1 shape, without the per-rec
       JSON.stringify({
         revision: snapshot.revision,
         root: snapshot.root,
-        records: snapshot.records.map(unspelled),
+        records: snapshot.records.map(versionOne),
         systems: snapshot.systems,
       }),
     );
@@ -371,18 +368,11 @@ it('keeps the nine version 1 rows byte-identical to 1.1.0 and marks each later r
   expect(since.at(-1)).toBe(MACHINE_PROTOCOL.version);
 });
 
-// The owner's frozen surface: the nine version 1 routes answer with 1.1.0's wire output, whatever the protocol version
-// a door serves. golden/machine-protocol-v1-wire.json holds what the published @inventarch/cli@1.1.0 answers over this
-// corpus through its `ia <operation> --params` routes, the scope token and revision normalised: `examples`, the JSON key
-// paths of each row's example answer; `answers`, the whole answer to requests whose answer this corpus fixes byte for
-// byte (sample-rule also enforced by a check no record answers, so a traversal gates a row and names a dangling edge,
-// and a refusal of each of eight kinds: out of scope, an unknown parameter, a traversal depth, a coordinate value, an
-// incomplete coordinate, no candidate, a missing target and a token the door did not issue); and `shapes`, the key
-// paths of context answers that gate a row and name a dangling edge, whose scores rest on the base records each
-// version bundles. So a key the language or graph adds to a record, an
-// edge or an assertion, such as G13's `digest` or G06's authored `spelling`, cannot reach a version 1 answer unseen,
-// in the edges it follows, gates or leaves dangling alike. The golden was written from the published 1.1.0 CLI, after
-// checking the built CLI answered the same, and is never regenerated from this code.
+// Existing routes retain the published 1.2.0 responses at protocol 1 and 2, including authored edge spelling.
+// golden/machine-protocol-v1-wire.json is captured from the npm-published @inventarch/cli@1.2.0 runtime and checked
+// against that CLI's machine routes over this corpus. Scope tokens and revisions are normalized. Examples and context
+// pin key paths; deterministic edge, record, resolution and refusal cases pin full answers. Context scores depend on
+// the bundled base. Never regenerate this baseline from the implementation under test.
 const V1_WIRE = JSON.parse(
   readFileSync(resolve(import.meta.dirname, 'golden/machine-protocol-v1-wire.json'), 'utf8'),
 ) as {
@@ -408,20 +398,20 @@ const wire = (response: unknown): string =>
   JSON.stringify(response)
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<token>')
     .replace(/"revision":"[0-9a-f]{64}"/g, '"revision":"<revision>"');
-/** A version 1 answer carries neither a per-record digest nor an authored spelling, at any depth. */
-const unspelledEverywhere = (answer: string, label: string): void => {
+/** A version 1 answer still omits the per-record digest. */
+const withoutRecordDigest = (answer: string, label: string): void => {
   const keys = [...keyPaths(JSON.parse(answer))].map((path) => path.slice(path.lastIndexOf('.') + 1));
   expect(
-    keys.filter((key) => key === 'digest' || key === 'spelling'),
+    keys.filter((key) => key === 'digest'),
     label,
   ).toEqual([]);
 };
-/** A context answer's envelope estimate is the one its own unspelled shape gives (R12), its token and revision as read. */
+/** A context answer's envelope estimate is the one its own published shape gives (R12), its token and revision as read. */
 const estimatedAsAnswered = (response: unknown, label: string): void => {
   const packet = (response as { result: Parameters<typeof envelopeBytes>[0] }).result;
   expect(packet.limits.envelopeBytes, label).toBe(envelopeBytes(packet));
 };
-it('answers the nine version 1 examples with the key paths 1.1.0 answers them with, at protocol 1 and 2 alike', () => {
+it('answers the nine version 1 examples with the key paths 1.2.0 answers them with, at protocol 1 and 2 alike', () => {
   const root = workspace(),
     doors = [1, 2].map((protocol) => new Door(root, { cache: false, allowReport: true, protocol }));
   try {
@@ -432,14 +422,14 @@ it('answers the nine version 1 examples with the key paths 1.1.0 answers them wi
         [one, two] = responses.map(wire);
       expect(two, row.name).toBe(one);
       expect([...keyPaths(JSON.parse(one!))].sort(), row.name).toEqual(V1_WIRE.examples[row.name]);
-      unspelledEverywhere(one!, row.name);
+      withoutRecordDigest(one!, row.name);
       if (row.name === 'context') for (const response of responses) estimatedAsAnswered(response, row.name);
     }
   } finally {
     for (const door of doors) door.close();
   }
 });
-it('answers gated and dangling edges and each refusal as 1.1.0 does, byte for byte, at protocol 1 and 2 alike', () => {
+it('answers gated and dangling edges and each refusal as 1.2.0 does, byte for byte, at protocol 1 and 2 alike', () => {
   const root = workspace(),
     rule = resolve(root, '.ia/src/systems/governance-system/records/sample-rule.ia'),
     enforced = '    enforced-by @check instance-schema-check when phase is act and severity is blocking\n';
@@ -469,7 +459,7 @@ it('answers gated and dangling edges and each refusal as 1.1.0 does, byte for by
         [one, two] = responses.map(wire);
       expect(two, label).toBe(one);
       expect([...keyPaths(JSON.parse(one!))].sort(), label).toEqual(paths);
-      unspelledEverywhere(one!, label);
+      withoutRecordDigest(one!, label);
       for (const response of responses) estimatedAsAnswered(response, label);
     }
   } finally {

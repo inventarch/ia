@@ -1,11 +1,11 @@
 import { KINDS } from '@inventarch/language';
 import type { ConditionAxis, EdgeReference, Kind, Phase } from '@inventarch/language';
 import { GraphUsageError, validateCoordinate } from '@inventarch/graph';
-import type { Edge, Node, Traversal } from '@inventarch/graph';
+import type { Node } from '@inventarch/graph';
 import { DbError, adoptedBindings, open, readWorkspaceBytes } from '@inventarch/db';
 import type { Handle, OpenOptions, ReadOptions, Scope, ScopeRequest } from '@inventarch/db';
 import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
-import { context, envelopeBytes } from './context.js';
+import { context } from './context.js';
 import { RuntimeError } from './errors.js';
 import { readBody } from './locator.js';
 import { MACHINE_PROTOCOL } from './machine-protocol.js';
@@ -14,7 +14,7 @@ import { position } from './position.js';
 import type { ScopeKey } from './scope-key.js';
 import { select } from './select.js';
 import { freeze } from './types.js';
-import type { Budget, ContextRequest, Packet, Refusal } from './types.js';
+import type { Budget, ContextRequest, Refusal } from './types.js';
 
 export interface DoorOptions extends OpenOptions {
   readonly boundary?: Omit<ScopeRequest, 'within'>;
@@ -87,32 +87,10 @@ const POSITION = ['within', 'seat', 'shape', 'phase', 'depth', 'budget', 'word']
 /** The bound on one document `read` returns: the CLI's workspace file reader's, so the two readers agree. */
 const READ_LIMIT = DISTRIBUTION_LIMITS.metadata;
 /**
- * MACHINE_PROTOCOL version 1 is frozen at the wire output 1.1.0 gave: get and records answer a record without graph
- * G13's per-record digest, and get, records, traverse and context an edge or an edge assertion without the spelling its
- * author wrote (language CompiledEdge and graph EdgeAssertion `spelling`), neither of which 1.1.0 carried. Each key keeps
- * its place, so a version 1 answer reads byte for byte as 1.1.0's over the same records; the version 2 operations, the
- * runtime functions and `ia inspect` keep both.
+ * Version 1 records omit the per-record digest, as the published 1.2.0 Door does. Authored edge spelling shipped in
+ * 1.2.0 and remains on get, records, traverse and context at every protocol version. New operations are additive.
  */
-const unspelled = <T extends { readonly spelling: string }>({ spelling: _spelling, ...rest }: T): Omit<T, 'spelling'> =>
-  rest;
-const versionOne = ({ digest: _digest, ...record }: Node) => ({ ...record, edges: record.edges.map(unspelled) });
-const edgeOne = (edge: Edge) => ({ ...edge, assertions: edge.assertions.map(unspelled) });
-const traversalOne = (walk: Traversal) => ({
-  ...walk,
-  edges: walk.edges.map(edgeOne),
-  gated: walk.gated.map(edgeOne),
-  dangling: walk.dangling.map(edgeOne),
-});
-/** A version 1 `context` packet: its edges in 1.1.0's shape, and the envelope estimate of that shape. */
-function packetOne(packet: Packet) {
-  const one = {
-    ...packet,
-    followed: packet.followed.map(edgeOne),
-    gated: packet.gated.map(edgeOne),
-    dangling: packet.dangling.map(edgeOne),
-  };
-  return { ...one, limits: { ...one.limits, envelopeBytes: envelopeBytes(one) } };
-}
+const versionOne = ({ digest: _digest, ...record }: Node): Omit<Node, 'digest'> => record;
 export class Door {
   #handle: Handle;
   #initial: Scope;
@@ -222,7 +200,7 @@ export class Door {
           });
           if (!got.ok) return got;
           this.#tokens.add(got.packet.scope.token);
-          result = packetOne(got.packet);
+          result = got.packet;
           break;
         }
         case 'select': {
@@ -270,25 +248,23 @@ export class Door {
             !['out', 'in', 'both'].includes(string(params['direction'], 'direction'))
           )
             invalid('direction must be out, in or both');
-          result = traversalOne(
-            this.#handle.traverse({
-              ...this.#bindings(params),
-              start: strings(params['start'], 'start'),
-              ...(params['follow'] === undefined ? {} : { follow: strings(params['follow'], 'follow') }),
-              ...(params['direction'] === undefined ? {} : { direction: params['direction'] as 'out' | 'in' | 'both' }),
-              ...(params['depth'] === undefined ? {} : { depth: params['depth'] as number }),
-              ...(params['coordinate'] === undefined
+          result = this.#handle.traverse({
+            ...this.#bindings(params),
+            start: strings(params['start'], 'start'),
+            ...(params['follow'] === undefined ? {} : { follow: strings(params['follow'], 'follow') }),
+            ...(params['direction'] === undefined ? {} : { direction: params['direction'] as 'out' | 'in' | 'both' }),
+            ...(params['depth'] === undefined ? {} : { depth: params['depth'] as number }),
+            ...(params['coordinate'] === undefined
+              ? {}
+              : { coordinate: validateCoordinate(object(params['coordinate'], 'coordinate')) }),
+            filter: {
+              ...(filter['kind'] === undefined ? {} : { kind: filter['kind'] as Kind }),
+              ...(filter['discriminator'] === undefined
                 ? {}
-                : { coordinate: validateCoordinate(object(params['coordinate'], 'coordinate')) }),
-              filter: {
-                ...(filter['kind'] === undefined ? {} : { kind: filter['kind'] as Kind }),
-                ...(filter['discriminator'] === undefined
-                  ? {}
-                  : { discriminator: string(filter['discriminator'], 'discriminator') }),
-                ...(filter['system'] === undefined ? {} : { system: string(filter['system'], 'system') }),
-              },
-            }),
-          );
+                : { discriminator: string(filter['discriminator'], 'discriminator') }),
+              ...(filter['system'] === undefined ? {} : { system: string(filter['system'], 'system') }),
+            },
+          });
           break;
         }
         case 'report':
