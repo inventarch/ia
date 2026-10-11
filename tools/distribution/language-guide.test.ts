@@ -49,3 +49,18 @@ it('reports a drifted package copy as a difference', () => {
   expect(publicOutputs(root, read).stale.map(([path]) => path)).toContain(drifted);
   expect(publicOutputs(root).stale.map(([path]) => path)).not.toContain(drifted);
 });
+
+it('escapes angle-bracket placeholders in every generated word reference', () => {
+  // `<tool>@<version>` outside a code span is an HTML tag to a Markdown renderer, which drops it from the page.
+  const references = [...publicOutputs(root).generated].filter(([path]) =>
+    path.startsWith('.ia/src/systems/authoring-system/reference/'),
+  );
+  expect(references).toHaveLength(44);
+  for (const [path, bytes] of references)
+    expect(
+      String(bytes)
+        .replace(/`[^`\n]*`/g, '')
+        .match(/(?<!\\)<[A-Za-z]/g),
+      path,
+    ).toBeNull();
+});

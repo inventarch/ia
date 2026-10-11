@@ -2,7 +2,7 @@
 
 Defines a supported record dimension used by conditions and lookup.
 
-Owner: taxonomy. Identity: taxonomy/definition/<facet>/<name>. Facets: dimension. Artifact set: contract. Primitive: Memory. Move: Observation.
+Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: dimension. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
 

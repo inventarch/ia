@@ -324,6 +324,74 @@ describe('graph schema obligations', () => {
     expect(validateGraphSchema(subject(graph), graph).outcome).toBe('not-evaluated');
     expect(validateGraphSchema(subject(graph), graph).findings).toEqual([]);
   });
+  it("leaves an inbound rule available when a refused edge comes from a record outside the rule's target", () => {
+    // Only the source asserts the citation, and its system refuses it. The target asserts nothing itself.
+    const oneWay = {
+      path: 'one-way.ia',
+      text: '#! ia 1.0\n@playbook source\n  relationships\n    cites @playbook target\n@playbook target\n',
+      location,
+    };
+    const asserted = compile(parse(oneWay.text, oneWay.path).ast, registry, location, []).records;
+    const consent = new Map(registry.consent);
+    consent.set('governance-system', []);
+    const refusing = { ...registry, consent };
+    const target = (graph: ReturnType<typeof graphOf>) =>
+      graph.nodes.get('governance-system/definition/procedure/target')!;
+    // A rule that only a citing law can satisfy: the playbook's refused citation can neither meet nor breach it.
+    const fromLaw: SchemaEdge = { ...rule, direction: 'in', spelling: 'cited-by', target: 'law', must: false };
+    const graph = graphOf(asserted, fromLaw, refusing, [oneWay]);
+    expect(graph.edges).toEqual([]);
+    expect(validateConsent(graph).outcome).toBe('fail');
+    expect(validateGraphSchema(target(graph), graph)).toMatchObject({ outcome: 'pass', findings: [] });
+    // When the refused citation comes from the kind the rule names, admission still owns the fault: unavailable.
+    const fromPlaybook = graphOf(asserted, { ...fromLaw, target: 'playbook' }, refusing, [oneWay]);
+    expect(validateGraphSchema(target(fromPlaybook), fromPlaybook)).toMatchObject({
+      outcome: 'not-evaluated',
+      findings: [],
+    });
+  });
+  it("leaves an outbound rule available when another record's refused inverse spelling names the record", () => {
+    // `other` writes `cited-by @playbook target`: the active edge runs from the target, but the target did not assert it.
+    const inverse = {
+      path: 'inverse.ia',
+      text: '#! ia 1.0\n@playbook other\n  relationships\n    cited-by @playbook target\n@playbook target\n',
+      location,
+    };
+    const asserted = compile(parse(inverse.text, inverse.path).ast, registry, location, []).records;
+    const consent = new Map(registry.consent);
+    consent.set('governance-system', []);
+    const refusing = { ...registry, consent };
+    const target = (graph: ReturnType<typeof graphOf>) =>
+      graph.nodes.get('governance-system/definition/procedure/target')!;
+    const toLaw: SchemaEdge = { ...rule, target: 'law', must: false };
+    const graph = graphOf(asserted, toLaw, refusing, [inverse]);
+    expect(graph.edges).toEqual([]);
+    expect(validateGraphSchema(target(graph), graph)).toMatchObject({ outcome: 'pass', findings: [] });
+    const toPlaybook = graphOf(asserted, { ...toLaw, target: 'playbook' }, refusing, [inverse]);
+    expect(validateGraphSchema(target(toPlaybook), toPlaybook)).toMatchObject({
+      outcome: 'not-evaluated',
+      findings: [],
+    });
+  });
+  it('leaves the rule available on a record that a refused edge from a counted kind does not name', () => {
+    // The source's refused citation names `target` only; `bystander` is the same kind and nothing cites it.
+    const named = {
+      path: 'named.ia',
+      text: '#! ia 1.0\n@playbook source\n  relationships\n    cites @playbook target\n@playbook target\n@playbook bystander\n',
+      location,
+    };
+    const asserted = compile(parse(named.text, named.path).ast, registry, location, []).records;
+    const consent = new Map(registry.consent);
+    consent.set('governance-system', []);
+    const node = (graph: ReturnType<typeof graphOf>, name: string) =>
+      graph.nodes.get(`governance-system/definition/procedure/${name}`)!;
+    const fromPlaybook: SchemaEdge = { ...rule, direction: 'in', spelling: 'cited-by', must: false };
+    const graph = graphOf(asserted, fromPlaybook, { ...registry, consent }, [named]);
+    expect(graph.edges).toEqual([]);
+    expect(validateGraphSchema(node(graph, 'target'), graph).outcome).toBe('not-evaluated');
+    // Were the pre-check to skip which record the edge names, every playbook would lose the rule.
+    expect(validateGraphSchema(node(graph, 'bystander'), graph)).toMatchObject({ outcome: 'pass', findings: [] });
+  });
   it('resolves a `ref to` field against the admitted graph and only warns when the target is absent', () => {
     const typed = {
       path: 'typed.ia',

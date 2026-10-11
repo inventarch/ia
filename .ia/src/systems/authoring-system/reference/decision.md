@@ -2,7 +2,7 @@
 
 Represents a choice that is needed or has been made: the question, options and decider, and once made, the choice and rationale.
 
-Owner: work-system. Identity: work-system/definition/<facet>/<name>. Facets: decision. Artifact set: decision. Primitive: Decision. Move: Synthesis.
+Owner: work-system. Identity: work-system/definition/\<facet>/\<name>. Facets: decision. Artifact set: decision. Primitive: Decision. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/work-system/schemas/decision.schema.ia.
 

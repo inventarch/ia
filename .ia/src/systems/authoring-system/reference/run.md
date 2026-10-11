@@ -2,7 +2,7 @@
 
 Represents a governed run identity, declared phase, status and owner. Declaration does not start execution.
 
-Owner: session-system. Identity: session-system/definition/<facet>/<name>. Facets: run. Artifact set: operational. Primitive: Decision. Move: Execution.
+Owner: session-system. Identity: session-system/definition/\<facet>/\<name>. Facets: run. Artifact set: operational. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/session-system/schemas/run.schema.ia.
 
