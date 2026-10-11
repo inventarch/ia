@@ -375,28 +375,32 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
 }
 /** Descriptor-bounded read; configuration changes during ownership detection refuse. */
 function sourceGuardSettings(path: string): string | undefined {
-  let before: BigIntStats;
+  let fd: number;
   try {
-    before = lstatSync(path, { bigint: true });
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    if (
+      (error as NodeJS.ErrnoException).code === 'ENOENT' &&
+      lstatSync(path, { bigint: true, throwIfNoEntry: false }) === undefined
+    )
+      return undefined;
     throw error;
   }
   const limit = 1024 * 1024;
-  if (!before.isFile() || before.nlink !== 1n || before.size > BigInt(limit) || !unaliased(path, physical(path)))
-    throw new Error('Unsafe source guard registration');
-  const fd = openSync(path, 'r');
   try {
-    const opened = fstatSync(fd, { bigint: true }),
-      same = (value: BigIntStats): boolean =>
-        value.isFile() &&
-        value.nlink === 1n &&
-        value.dev === before.dev &&
-        value.ino === before.ino &&
-        value.size === before.size &&
-        value.mtimeNs === before.mtimeNs &&
-        value.ctimeNs === before.ctimeNs;
-    if (!same(opened)) throw new Error('Source guard registration changed before read');
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile() || opened.nlink !== 1n || opened.size > BigInt(limit))
+      throw new Error('Unsafe source guard registration');
+    const same = (value: BigIntStats): boolean =>
+      value.isFile() &&
+      value.nlink === 1n &&
+      value.dev === opened.dev &&
+      value.ino === opened.ino &&
+      value.size === opened.size &&
+      value.mtimeNs === opened.mtimeNs &&
+      value.ctimeNs === opened.ctimeNs;
+    if (!same(lstatSync(path, { bigint: true })) || !unaliased(path, physical(path)))
+      throw new Error('Source guard registration changed before read');
     const content = Buffer.alloc(limit + 1);
     let size = 0;
     while (size <= limit) {
@@ -406,6 +410,7 @@ function sourceGuardSettings(path: string): string | undefined {
     }
     if (
       size > limit ||
+      BigInt(size) !== opened.size ||
       !same(fstatSync(fd, { bigint: true })) ||
       !same(lstatSync(path, { bigint: true })) ||
       !unaliased(path, physical(path))

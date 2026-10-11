@@ -350,6 +350,46 @@ it.each(['replacement', 'growth', 'hardlink-write'])(
   },
 );
 
+it.each(['replacement', 'growth', 'hardlink'] as const)(
+  'fails closed if source guard settings change by %s during their handle read',
+  (kind) => {
+    const root = workspace(),
+      path = '.claude/settings.json',
+      target = resolve(root, path);
+    mkdirSync(resolve(root, '.claude/hooks'), { recursive: true });
+    writeFileSync(resolve(root, '.claude/hooks/steward-write.mjs'), '// Fixture launcher.\n');
+    writeFileSync(target, '{}');
+    let opened: number | undefined,
+      requested = 0,
+      changed = false;
+    fileSeam.afterOpen = (name, fd) => {
+      if (name !== target || opened !== undefined) return;
+      opened = fd;
+      if (kind === 'replacement') {
+        renameSync(target, `${target}.before`);
+        writeFileSync(target, '{"permissions":{}}');
+      } else if (kind === 'hardlink') linkSync(target, `${target}.alias`);
+    };
+    fileSeam.beforeRead = (fd, length) => {
+      if (fd !== opened) return;
+      requested += length;
+      if (kind !== 'growth' || changed) return;
+      changed = true;
+      writeFileSync(target, ' '.repeat(2 * 1024 * 1024));
+    };
+    expect(code(root, path)).toBe('IA-HOOK-PATH-UNSAFE');
+    expect(opened).toBeTypeOf('number');
+    expect(() => fstatSync(opened!)).toThrow();
+    if (kind === 'growth') {
+      expect(changed).toBe(true);
+      expect(requested).toBeLessThanOrEqual(2 * (1024 * 1024 + 1));
+    } else {
+      expect(requested).toBe(0);
+      expect(readFileSync(`${target}.${kind === 'replacement' ? 'before' : 'alias'}`, 'utf8')).toBe('{}');
+    }
+  },
+);
+
 it.each(['legacy steward', 'source guard settings'] as const)(
   'refuses %s identities that collide as JavaScript numbers before reading',
   async (kind) => {
