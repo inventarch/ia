@@ -1,6 +1,6 @@
 {
   "name": "@inventarch/governance-system",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "type": "module",
   "exports": {
     "./native.ia.tgz": "./dist/native.ia.tgz",
