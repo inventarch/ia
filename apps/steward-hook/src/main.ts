@@ -8,6 +8,7 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  type BigIntStats,
   type Stats,
 } from 'node:fs';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
@@ -106,18 +107,18 @@ function legacySteward(target: string): boolean {
     throw error;
   }
   try {
-    const stat = fstatSync(fd),
+    const stat = fstatSync(fd, { bigint: true }),
       limit = 1024 * 1024;
-    if (!stat.isFile() || stat.size > limit) return false;
-    const same = (value: Stats): boolean =>
+    if (!stat.isFile() || stat.size > BigInt(limit)) return false;
+    const same = (value: BigIntStats): boolean =>
       value.isFile() &&
       value.dev === stat.dev &&
       value.ino === stat.ino &&
       value.nlink === stat.nlink &&
       value.size === stat.size &&
-      value.mtimeMs === stat.mtimeMs &&
-      value.ctimeMs === stat.ctimeMs;
-    if (!same(lstatSync(target)) || !unaliased(target, physical(target)))
+      value.mtimeNs === stat.mtimeNs &&
+      value.ctimeNs === stat.ctimeNs;
+    if (!same(lstatSync(target, { bigint: true })) || !unaliased(target, physical(target)))
       throw new Error('Legacy steward changed while opening');
     const content = Buffer.alloc(limit + 1);
     let size = 0;
@@ -128,9 +129,9 @@ function legacySteward(target: string): boolean {
     }
     if (
       size > limit ||
-      size !== stat.size ||
-      !same(fstatSync(fd)) ||
-      !same(lstatSync(target)) ||
+      BigInt(size) !== stat.size ||
+      !same(fstatSync(fd, { bigint: true })) ||
+      !same(lstatSync(target, { bigint: true })) ||
       !unaliased(target, physical(target))
     )
       throw new Error('Legacy steward changed while reading');
@@ -374,27 +375,27 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
 }
 /** Descriptor-bounded read; configuration changes during ownership detection refuse. */
 function sourceGuardSettings(path: string): string | undefined {
-  let before: Stats;
+  let before: BigIntStats;
   try {
-    before = lstatSync(path);
+    before = lstatSync(path, { bigint: true });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw error;
   }
   const limit = 1024 * 1024;
-  if (!before.isFile() || before.nlink !== 1 || before.size > limit || !unaliased(path, physical(path)))
+  if (!before.isFile() || before.nlink !== 1n || before.size > BigInt(limit) || !unaliased(path, physical(path)))
     throw new Error('Unsafe source guard registration');
   const fd = openSync(path, 'r');
   try {
-    const opened = fstatSync(fd),
-      same = (value: Stats): boolean =>
+    const opened = fstatSync(fd, { bigint: true }),
+      same = (value: BigIntStats): boolean =>
         value.isFile() &&
-        value.nlink === 1 &&
+        value.nlink === 1n &&
         value.dev === before.dev &&
         value.ino === before.ino &&
         value.size === before.size &&
-        value.mtimeMs === before.mtimeMs &&
-        value.ctimeMs === before.ctimeMs;
+        value.mtimeNs === before.mtimeNs &&
+        value.ctimeNs === before.ctimeNs;
     if (!same(opened)) throw new Error('Source guard registration changed before read');
     const content = Buffer.alloc(limit + 1);
     let size = 0;
@@ -403,7 +404,12 @@ function sourceGuardSettings(path: string): string | undefined {
       if (read === 0) break;
       size += read;
     }
-    if (size > limit || !same(fstatSync(fd)) || !same(lstatSync(path)) || !unaliased(path, physical(path)))
+    if (
+      size > limit ||
+      !same(fstatSync(fd, { bigint: true })) ||
+      !same(lstatSync(path, { bigint: true })) ||
+      !unaliased(path, physical(path))
+    )
       throw new Error('Source guard registration changed while reading');
     return new TextDecoder('utf-8', { fatal: true }).decode(content.subarray(0, size));
   } finally {

@@ -22,7 +22,7 @@ import {
   lstatSync,
   openSync,
   readFileSync,
-  type Stats,
+  type BigIntStats,
 } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderHost, renderPacket, PACKET_MARKER } from '@inventarch/runtime';
@@ -145,7 +145,7 @@ export const planFiles = (root: string, host: HostName, rendered: HostOutput | n
 export function preflightReceipt(root: string, host: HostName): void {
   for (const path of [STATE.receipt(host), pendingPath(host)]) {
     const parts = path.split('/'),
-      ancestors: { stat: Stats }[] = [];
+      ancestors: { stat: BigIntStats }[] = [];
     const unsafe = (relative = path): DistributionError =>
       new DistributionError(
         'IA-DIST-PATH-UNSAFE',
@@ -155,9 +155,9 @@ export function preflightReceipt(root: string, host: HostName): void {
     for (let i = 1; i < parts.length; i++) {
       const relative = parts.slice(0, i).join('/'),
         absolute = resolve(root, relative);
-      let stat: Stats;
+      let stat: BigIntStats;
       try {
-        stat = lstatSync(absolute);
+        stat = lstatSync(absolute, { bigint: true });
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') break;
         throw error;
@@ -169,7 +169,7 @@ export function preflightReceipt(root: string, host: HostName): void {
     const checkAncestors = (): void => {
       for (let i = 1; i < parts.length; i++) {
         const relative = parts.slice(0, i).join('/'),
-          current = lstatSync(resolve(root, relative), { throwIfNoEntry: false }),
+          current = lstatSync(resolve(root, relative), { bigint: true, throwIfNoEntry: false }),
           before = ancestors[i - 1]?.stat;
         if (!current) {
           if (before) throw unsafe(relative);
@@ -191,8 +191,8 @@ export function preflightReceipt(root: string, host: HostName): void {
       fd = openSync(absolute, constants.O_RDWR | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
     } catch (error) {
       // A bad kind may itself prevent opening (directories on Windows, or a dangling link). Preserve its path remedy.
-      const named = lstatSync(absolute, { throwIfNoEntry: false });
-      if (named && (!named.isFile() || named.isSymbolicLink() || named.nlink !== 1)) throw unsafe();
+      const named = lstatSync(absolute, { bigint: true, throwIfNoEntry: false });
+      if (named && (!named.isFile() || named.isSymbolicLink() || named.nlink !== 1n)) throw unsafe();
       if ((error as NodeJS.ErrnoException).code === 'ENOENT' && !named) {
         checkAncestors();
         continue;
@@ -200,14 +200,15 @@ export function preflightReceipt(root: string, host: HostName): void {
       throw error;
     }
     try {
-      const opened = fstatSync(fd),
-        named = lstatSync(absolute);
+      // Windows file IDs can exceed Number.MAX_SAFE_INTEGER; retain every bit when comparing identities.
+      const opened = fstatSync(fd, { bigint: true }),
+        named = lstatSync(absolute, { bigint: true });
       if (
         !opened.isFile() ||
-        opened.nlink !== 1 ||
+        opened.nlink !== 1n ||
         !named.isFile() ||
         named.isSymbolicLink() ||
-        named.nlink !== 1 ||
+        named.nlink !== 1n ||
         opened.dev !== named.dev ||
         opened.ino !== named.ino
       )

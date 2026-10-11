@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Preserve full file identities in host and steward checks",
+  "summary": "Receipt preflight and the steward guard's legacy-agent and source-settings readers retain full-width file and directory identities. Distinct Windows file IDs that exceed JavaScript's safe integer range now refuse replacement instead of comparing equal after rounding. Reads remain bounded, handle closure is preserved, and timestamp comparisons retain nanosecond precision.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/steward-hook"
+  ],
+  "paths": [
+    "apps/cli/",
+    "apps/steward-hook/"
+  ]
+}

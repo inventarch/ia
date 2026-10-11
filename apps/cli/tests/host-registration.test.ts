@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import {
   existsSync,
   fstatSync,
+  lstatSync,
   renameSync,
   linkSync,
   mkdirSync,
@@ -58,6 +59,8 @@ vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return {
     ...actual,
+    fstatSync: vi.fn(actual.fstatSync),
+    lstatSync: vi.fn(actual.lstatSync),
     openSync: (...args: Parameters<typeof actual.openSync>) => {
       seams.beforeOpen?.(args[0]);
       const fd = actual.openSync(...args);
@@ -811,6 +814,47 @@ it.each(['replacement', 'hardlink', 'ancestor'])(
         'utf8',
       ),
     ).toBe('receipt before');
+  },
+);
+
+it.each(['leaf', 'ancestor'] as const)(
+  'refuses receipt %s identities that collide as JavaScript numbers',
+  async (kind) => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const { preflightReceipt } = await import('../src/host-projection.js');
+    const root = scratch('receipt-identity'),
+      target = resolve(root, RECEIPT),
+      identityPath = kind === 'leaf' ? target : dirname(target),
+      beforeId = 2n ** 54n,
+      afterId = beforeId + 1n;
+    expect(Number(beforeId)).toBe(Number(afterId));
+    put(root, RECEIPT, 'unchanged receipt');
+    let opened: number | undefined;
+    seams.afterOpen = (path, fd) => {
+      if (path === target) opened = fd;
+    };
+    vi.mocked(fstatSync).mockImplementation((...args: Parameters<typeof fstatSync>) => {
+      const stat = actual.fstatSync(...args);
+      return kind === 'leaf' && args[0] === opened
+        ? Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? beforeId : Number(beforeId) })
+        : stat;
+    });
+    vi.mocked(lstatSync).mockImplementation((...args: Parameters<typeof lstatSync>) => {
+      const stat = actual.lstatSync(...args);
+      if (stat === undefined || String(args[0]) !== identityPath) return stat;
+      const ino = opened === undefined ? beforeId : afterId;
+      return Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? ino : Number(ino) });
+    });
+    try {
+      expect(() => preflightReceipt(root, 'claude')).toThrow('Expected an unaliased receipt');
+      expect(opened).toBeTypeOf('number');
+      expect(() => actual.fstatSync(opened!)).toThrow();
+      expect(read(root, RECEIPT)).toBe('unchanged receipt');
+    } finally {
+      seams.afterOpen = undefined;
+      vi.mocked(fstatSync).mockImplementation(actual.fstatSync);
+      vi.mocked(lstatSync).mockImplementation(actual.lstatSync);
+    }
   },
 );
 

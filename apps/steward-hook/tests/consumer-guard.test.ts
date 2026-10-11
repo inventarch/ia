@@ -6,6 +6,7 @@
 import {
   cpSync,
   fstatSync,
+  lstatSync,
   linkSync,
   readFileSync,
   renameSync,
@@ -28,6 +29,8 @@ vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return {
     ...actual,
+    fstatSync: vi.fn(actual.fstatSync),
+    lstatSync: vi.fn(actual.lstatSync),
     openSync: (...args: Parameters<typeof actual.openSync>) => {
       const fd = actual.openSync(...args);
       fileSeam.afterOpen?.(args[0], fd);
@@ -343,6 +346,53 @@ it.each(['replacement', 'growth', 'hardlink-write'])(
     } else {
       expect(changed).toBe(true);
       expect(requested).toBeLessThanOrEqual(2 * (1024 * 1024 + 1));
+    }
+  },
+);
+
+it.each(['legacy steward', 'source guard settings'] as const)(
+  'refuses %s identities that collide as JavaScript numbers before reading',
+  async (kind) => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = workspace(),
+      path = kind === 'legacy steward' ? '.claude/agents/personal.md' : '.claude/settings.json',
+      target = resolve(root, path),
+      openedId = 2n ** 54n,
+      namedId = openedId + 1n;
+    expect(Number(openedId)).toBe(Number(namedId));
+    mkdirSync(resolve(root, '.claude/agents'), { recursive: true });
+    writeFileSync(target, kind === 'legacy steward' ? 'personal agent' : '{}');
+    if (kind === 'source guard settings') {
+      mkdirSync(resolve(root, '.claude/hooks'));
+      writeFileSync(resolve(root, '.claude/hooks/steward-write.mjs'), '// Fixture launcher.\n');
+    }
+    let opened: number | undefined,
+      reads = 0;
+    fileSeam.afterOpen = (name, fd) => {
+      if (name === target) opened = fd;
+    };
+    fileSeam.beforeRead = (fd) => {
+      if (fd === opened) reads++;
+    };
+    vi.mocked(fstatSync).mockImplementation((...args: Parameters<typeof fstatSync>) => {
+      const stat = actual.fstatSync(...args);
+      return args[0] === opened
+        ? Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? openedId : Number(openedId) })
+        : stat;
+    });
+    vi.mocked(lstatSync).mockImplementation((...args: Parameters<typeof lstatSync>) => {
+      const stat = actual.lstatSync(...args);
+      if (stat === undefined || String(args[0]) !== target) return stat;
+      return Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? namedId : Number(namedId) });
+    });
+    try {
+      expect(code(root, path)).toBe('IA-HOOK-PATH-UNSAFE');
+      expect(opened).toBeTypeOf('number');
+      expect(reads).toBe(0);
+      expect(() => actual.fstatSync(opened!)).toThrow();
+    } finally {
+      vi.mocked(fstatSync).mockImplementation(actual.fstatSync);
+      vi.mocked(lstatSync).mockImplementation(actual.lstatSync);
     }
   },
 );
