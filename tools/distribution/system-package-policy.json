@@ -17,7 +17,7 @@
     {
       "owner": ".ia/src/systems/agent-composition-system",
       "kind": "compiled",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "agent-composition-system",
         "id": "inventarch/agent-composition-system",
@@ -28,7 +28,7 @@
     {
       "owner": ".ia/src/systems/agent-system",
       "kind": "compiled",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "agent-system",
         "id": "inventarch/agent-system",
@@ -39,7 +39,7 @@
     {
       "owner": ".ia/src/systems/authoring-system",
       "kind": "compiled",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "authoring-system",
         "id": "inventarch/authoring-system",
@@ -50,7 +50,7 @@
     {
       "owner": ".ia/src/systems/compliance-system",
       "kind": "native-only",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "compliance-system",
         "id": "inventarch/compliance-system",
@@ -61,7 +61,7 @@
     {
       "owner": ".ia/src/systems/governance-system",
       "kind": "native-only",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "governance-system",
         "id": "inventarch/governance-system",
@@ -72,7 +72,7 @@
     {
       "owner": ".ia/src/systems/hook-authoring-system",
       "kind": "native-only",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "hook-authoring-system",
         "id": "inventarch/hook-authoring-system",
@@ -83,7 +83,7 @@
     {
       "owner": ".ia/src/systems/learning-system",
       "kind": "native-only",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "learning-system",
         "id": "inventarch/learning-system",
@@ -94,7 +94,7 @@
     {
       "owner": ".ia/src/systems/session-system",
       "kind": "compiled",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "session-system",
         "id": "inventarch/session-system",
@@ -105,7 +105,7 @@
     {
       "owner": ".ia/src/systems/template-system",
       "kind": "compiled",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "template-system",
         "id": "inventarch/template-system",
@@ -116,7 +116,7 @@
     {
       "owner": ".ia/src/systems/work-system",
       "kind": "native-only",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "work-system",
         "id": "inventarch/work-system",
@@ -127,7 +127,7 @@
     {
       "owner": ".ia/src/systems/workspace-system",
       "kind": "native-only",
-      "npmVersion": "1.2.0",
+      "npmVersion": "2.0.0",
       "native": {
         "system": "workspace-system",
         "id": "inventarch/workspace-system",

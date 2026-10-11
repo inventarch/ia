@@ -1,0 +1,1714 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "2.0.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "3e81760e353d7fc30ff9aed4daffcb4634ab77a8",
+    "version": "1.2.0"
+  },
+  "bump": "major",
+  "summary": "Coordinated 2.0.0 release of the 22 public npm packages: positionBody adds the applies-by-word section, playbook cells and mandates, and reserves blocking rules by word; position returns body(K) with its digest and host note, and runtime-band records stay out of the body; ia capture --preview reports what a capture would write without writing; @inventarch/db exports planCapture; Harden body reads and terminal delivery reports; The Door serves read and position inside its scope, as MACHINE_PROTOCOL version 2; The runtime renders the position packet for the claude and codex hosts, with a receipt; Preserve full file identities in host and steward checks; deliveryView reads one plan's delivery view through a scope token and writes nothing; the Door serves it as next, the MCP door as ia_next and the CLI as ia next; ia position prints the position body for a scope key; the key's word no longer filters the reserved rules; ia project plans or applies the position packet's files for one host and writes their receipt; ia doctor shows a projection with no drift; ia init --migrate rewrites a 1.1.0 starter workspace into the three starter records, installing the bundled language base where it has a 1.x one, then captures it and re-projects its registered hosts; ia init authors a `@workspace`, its participant `@agent` and that `@mandate`, then reports capture and project apart; the local system and its distribution move behind --system; Guide initialized workspaces back to their authored workspace record; Refuse migration that would strand mixed-case references; The runtime renders the host-neutral position packet and counts its entries; Preserve published machine responses when adding delivery operations; Check projection files through opened handles; Host projections render the position packet; the per-system steward renderers and the steward guard registration are retired; Scope key type, defaults, caps and K0 with a derived primitive; positionBody assembles the position body of a resolved scope key; Validate document reads through the opened file handle.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/agent-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "ia init authors a `@workspace`, its participant `@agent` and that `@mandate`, then reports capture and project apart; the local system and its distribution move behind --system."
+    },
+    "@inventarch/cli": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "ia capture --preview reports what a capture would write without writing; @inventarch/db exports planCapture. Harden body reads and terminal delivery reports. The Door serves read and position inside its scope, as MACHINE_PROTOCOL version 2. Preserve full file identities in host and steward checks. deliveryView reads one plan's delivery view through a scope token and writes nothing; the Door serves it as next, the MCP door as ia_next and the CLI as ia next. ia position prints the position body for a scope key; the key's word no longer filters the reserved rules. ia project plans or applies the position packet's files for one host and writes their receipt; ia doctor shows a projection with no drift. ia init --migrate rewrites a 1.1.0 starter workspace into the three starter records, installing the bundled language base where it has a 1.x one, then captures it and re-projects its registered hosts. ia init authors a `@workspace`, its participant `@agent` and that `@mandate`, then reports capture and project apart; the local system and its distribution move behind --system. Guide initialized workspaces back to their authored workspace record. Refuse migration that would strand mixed-case references. The runtime renders the host-neutral position packet and counts its entries. Preserve published machine responses when adding delivery operations. Check projection files through opened handles. Host projections render the position packet; the per-system steward renderers and the steward guard registration are retired."
+    },
+    "@inventarch/compliance": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "Host projections render the position packet; the per-system steward renderers and the steward guard registration are retired."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/db": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "ia capture --preview reports what a capture would write without writing; @inventarch/db exports planCapture. The Door serves read and position inside its scope, as MACHINE_PROTOCOL version 2. ia init authors a `@workspace`, its participant `@agent` and that `@mandate`, then reports capture and project apart; the local system and its distribution move behind --system. Scope key type, defaults, caps and K0 with a derived primitive. positionBody assembles the position body of a resolved scope key. Validate document reads through the opened file handle."
+    },
+    "@inventarch/distribution": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "ia init authors a `@workspace`, its participant `@agent` and that `@mandate`, then reports capture and project apart; the local system and its distribution move behind --system. Host projections render the position packet; the per-system steward renderers and the steward guard registration are retired."
+    },
+    "@inventarch/governance-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/graph": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "positionBody assembles the position body of a resolved scope key."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/language": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/learning-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "The Door serves read and position inside its scope, as MACHINE_PROTOCOL version 2. deliveryView reads one plan's delivery view through a scope token and writes nothing; the Door serves it as next, the MCP door as ia_next and the CLI as ia next. Preserve published machine responses when adding delivery operations. Validate document reads through the opened file handle."
+    },
+    "@inventarch/runtime": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "positionBody adds the applies-by-word section, playbook cells and mandates, and reserves blocking rules by word. position returns body(K) with its digest and host note, and runtime-band records stay out of the body. Harden body reads and terminal delivery reports. The Door serves read and position inside its scope, as MACHINE_PROTOCOL version 2. The runtime renders the position packet for the claude and codex hosts, with a receipt. deliveryView reads one plan's delivery view through a scope token and writes nothing; the Door serves it as next, the MCP door as ia_next and the CLI as ia next. ia position prints the position body for a scope key; the key's word no longer filters the reserved rules. The runtime renders the host-neutral position packet and counts its entries. Preserve published machine responses when adding delivery operations. Host projections render the position packet; the per-system steward renderers and the steward guard registration are retired. Scope key type, defaults, caps and K0 with a derived primitive. positionBody assembles the position body of a resolved scope key. Validate document reads through the opened file handle."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/session-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "1.2.0",
+      "kind": "changed",
+      "summary": "Preserve full file identities in host and steward checks. Check projection files through opened handles. Host projections render the position packet; the per-system steward renderers and the steward guard registration are retired."
+    },
+    "@inventarch/template-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/work-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "1.2.0",
+      "kind": "cohort",
+      "summary": "No package changes; version aligned with the coordinated cohort."
+    }
+  },
+  "changes": [
+    {
+      "id": "applies-by-word-and-cells",
+      "title": "positionBody adds the applies-by-word section, playbook cells and mandates, and reserves blocking rules by word",
+      "summary": "@inventarch/runtime's positionBody, and so position, adds four sections to the ia.position-body.v1 body, whose format name is unchanged: appliesByWord, appliesByWordTallies, cells and mandates, after pointerTallies; counts gains appliesByWord and truncatedAppliesByWord. The AppliesByWord, PositionCell and SubjectMatch types are exported from the package root and @inventarch/runtime/internal/position, and PositionVia gains a subject variant, {by: 'subject', label: 'field match, not a row', matches}. appliesByWord lists the `@law`, `@convention`, `@principle` and `@playbook` records of the seat's closure whose unconditionally stated subject.subject-word is the word, or subject.subject-kind the kind, of a loaded record, the seat included, or of a blocking candidate reserved in rules, which the body delivers in full as it does a loaded record; nothing applies by word to a rule that rules holds by word alone. That is a field match: it follows no row and claims no relation. Each record is listed once, at hop 0, with every field that matches and the first loaded or reserved record answering it, and with its re-seat key {seat, shape, phase, depth: 1, budget: 16}, ranked by band descending then identity; the first 48 are listed and the rest tallied per word and owner system. An entry may also be loaded or a pointer. rules now also holds every blocking `@law`, `@convention` or `@principle` other than the seat that applies by word to a candidate, whichever candidates the budget truncates or the word leaves out, so a blocking rule is delivered at budget 0 and under any word whether it applies by claim, by row or by word, and no entry of rules is in appliesByWord, pointers or the frontier. cells gives, for the first four playbooks in appliesByWord, the cell at the key's phase and the shape's primitive as {playbook, address, text}, address being <identity>#<phase>/<Primitive> and text what ia read reads at that address; a playbook without one gives {playbook, missing, nearest?, message}, nearest being the closest phase with a cell of that primitive in the cycle orient, plan, act, learn, a tie going to the phase that order lists first. Besides deciding a conditional relation row, which seeding-engine follows only where it holds, the phase changes only the cells and the keys spelled with it. mandates lists the `@mandate` records of the closure that claim a location seat or whose authority.scope names the seat's workspace, each once and at hop 0, a mandate that does both keeping its claim, by band descending then identity. A word set on the key filters none of the four sections: they list rules, playbooks and mandates of every word, an applies-by-word match naming the first answering record of what loads under the word; and no record at runtime placement enters them. Limits: a cell's condition is not evaluated, so every cell at the address is delivered; no mandate is matched by its participant; and an `@agent` record's governance.applies is not read.",
+      "packages": [
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "body-purity-and-host-note",
+      "title": "position returns body(K) with its digest and host note, and runtime-band records stay out of the body",
+      "summary": "@inventarch/runtime exports position(handle, within, partial?) from the package root and @inventarch/runtime/internal/position, with the PositionOutput, HostNote and Freshness types. It completes the partial key with normalizeScopeKey, resolves it with resolveScopeKey through the scope token within, assembles the body with positionBody and returns the frozen {body, digest, hostNote}. digest is the @inventarch/graph codec digest of the body. hostNote is undigested host state, {revision, capturedRevision?, previousRevision?, freshness, key}: revision is the handle's revision; capturedRevision is the revision of the capture ia capture last wrote and previousRevision that of the previous snapshot the handle retains, each omitted when there is none; freshness is current when the capture is at revision, stale when it is at another and no-capture when there is none; and key is the key normalizeScopeKey completed, a location seat as the caller spelled it. The key's parts stay closed, so a text, token or within part is refused as an unknown part (IA-RUNTIME-REQUEST-INVALID) and nothing text-driven runs. One key over two copies of a workspace at different roots gives byte-equal bodies and equal digests, and neither a context call with any text nor a written capture changes them. A position needs no capture: freshness is reported, never refused. positionBody now leaves records at runtime placement (band 0) out of the body: none is composition, a seed, a hop, loaded, a rule, a pointer, a tally or frontier, no row or claim of one ranks or reaches another record, none is the record a location is declared at, so a location whose declarer and claimants are all at runtime placement names the seat unknown, and a seat at runtime placement, K0's included, is refused with IA-RUNTIME-REQUEST-INVALID; a key whose seat the token does not admit (one resolved through another token) is refused with IA-RUNTIME-REQUEST-INVALID too. Limits: the body's revision and the handle's revision still hash every source, runtime-placed ones included, so a runtime-band source appearing moves the revision, and with it the digest and, against a capture taken before, the freshness; admission's findings still resolve references against every placement, so a runtime-band record that an authored loaded record's edge or field reference names (an observation a task's work.exit-evidence names, say) takes that reference's missing-target or missing-field-reference finding out of the body's unknowns, and the body then names that relation neither as a pointer nor as an unknown; a runtime-band `@workspace` or `@system` can still move the database's seat and root decisions the closure is built from, a location's resolved seat then naming no unknown; installed state and the CLI and adapter identities are not reported; and the nine version 1 routes and ia scope are unchanged.",
+      "packages": [
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "capture-preview",
+      "title": "ia capture --preview reports what a capture would write without writing; @inventarch/db exports planCapture",
+      "summary": "ia capture --preview [--json] admits the workspace and refuses exactly as ia capture does (a floor or seed input that fails to parse, a root whose .ia/src declares no `@workspace`, and the IA-DB-PATH-UNSAFE snapshot path checks, whose repair names ia capture --preview again), then reports what the capture would write and writes nothing: it creates no .ia/work directory, and .ia/work/snapshot/current.json and previous.json keep their bytes and modification times, so the retained previous snapshot is not rotated away. The human report says it is a preview and that nothing has been written, prints the capture's counts (changed, unchanged, new and removed against the prior capture), the snapshot's digest and size and the rotation the capture would make, lists every changed, new and removed identity in full under Changed, New and Removed headings, each sorted and printed with any terminal control character as visible escape text (a removed identity is read from the current.json on disk; --json carries each as it is), and ends by naming ia capture with --root as given, or ia validate when admission has errors. It exits as the capture would: 1 when admission has errors, else 0. With --json it prints the capture's result with preview: true after version and identities {changed, new, removed} after rotated; snapshot, digest, previous and rotated describe what the capture would write. A system error a preview meets reading the snapshot pair is not reported as a path to make writable. ia capture without --preview writes and reports exactly as before, with no new key, and ia capture --help lists --preview. @inventarch/db exports planCapture(root, text) and the CapturePlan type from its root: the checks and reads writeCapture(root, text) makes before its first write, with the same TypeError and IA-DB-PATH-UNSAFE refusals, returning the result writeCapture would return plus identities {changed, added, removed}, the identities its counts count, each sorted by code unit; it creates no directory and writes nothing. writeCapture plans through the same code, and its result and writes are unchanged. Limits: a preview reads the sources and the snapshot pair as they are when it runs, so a capture after a later edit reports what it then finds; workspace revisions, the frozen Door routes, MACHINE_PROTOCOL and ia scope are unchanged.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/participant.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "nx.json",
+        "package.json",
+        "packages/db/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "consumer-read-next-hardening",
+      "title": "Harden body reads and terminal delivery reports",
+      "summary": "The runtime body reader looks up source-locator fields only among declared table entries, so an admitted custom word named constructor reads its own body instead of failing on an inherited JavaScript property. Markdown body reads ignore headings inside list and quote containers, keep fences within their containers and reject invalid backtick fence openers, preserving top-level section boundaries and exact source bytes, and read a document in time linear in its length, up to a logarithmic factor in how deeply its containers nest: each ATX heading and its inline links in time linear in the line, each list or quote marker a line opens or continues in time linear in the marker, and a blank line inside nested list items without walking them, so a long run of spaces, unclosed brackets or nested list markers, or blank lines inside deeply nested items, before an anchor no longer stalls a read, on the Door's read and the MCP ia_read included. The human ia next and ia position reports escape terminal control characters in source-derived text before layout and styling, and ia read escapes them in its header while printing the body as read; JSON and Door values remain unchanged. Clean installed-package qualification, and the tools suite against the built CLI, now exercise capture idempotence, read bodies and digests, next dependency ordering and self-declared status, read-only effects, refusal paths and the retained 1.x compile artifact contract.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "apps/cli/src/next.ts",
+        "apps/cli/src/position.ts",
+        "apps/cli/src/read.ts",
+        "apps/cli/src/render.ts",
+        "apps/cli/tests/next.test.ts",
+        "apps/cli/tests/position.test.ts",
+        "nx.json",
+        "packages/runtime/src/locator.ts",
+        "packages/runtime/tests/locator.test.ts",
+        "tools/distribution/SPEC.md",
+        "tools/distribution/installed-views.d.mts",
+        "tools/distribution/installed-views.mjs",
+        "tools/distribution/installed-views.test.ts",
+        "tools/distribution/qualify-packages.mjs",
+        "tools/testing/tasks.json"
+      ]
+    },
+    {
+      "id": "door-position-operation",
+      "title": "The Door serves read and position inside its scope, as MACHINE_PROTOCOL version 2",
+      "summary": "@inventarch/runtime: the Door accepts two new operations, read and position. read takes params {within?, locator, includeRuntime?} and answers {ok: true, result} with the ReadBody readBody returns ({locator, identity, kind, path?, digest, body, certified: false}) or that function's read refusal. It always reads through a scope token, the initial boundary when within is omitted. Through a token narrower than the whole workspace, one bound to a root below the workspace root, a phase or identities, or issued under such a token (the scope operation issues one when it is given any of them, and a door opened with a boundary that sets one starts with one), a locator that no admitted record in the scope answers, whether its record is outside the scope, refused by admission or absent, is one plain IA-RUNTIME-READ-UNADMITTED, 'The locator is not in this scope', which names no path, line, identity or refused record. Through a whole-workspace token, one that @inventarch/db isCompleteScope proves complete (the initial token of a door opened without a boundary, as the MCP door's is, or with one that sets none of them, and a token the scope operation issues from such a token without setting any), a miss is refused as readBody refuses it without a token: a record admission refused is named with its path, line and reason, an identity no source holds is not in this workspace's sources, and a line says what the workspace's sources hold in its file. The door reads documents through the new DoorOptions.read, by default @inventarch/db readWorkspaceBytes over its root bounded at 4 MiB, and names a document it cannot read by its workspace-relative path, never by the server's root: a root that can no longer be opened, as when the workspace moves while the door serves, is refused IA-RUNTIME-READ-UNREACHABLE, as every failure of the reader is, its message carrying the default reader's IA-DB-ROOT-INVALID, 'The workspace can no longer be opened to read <path>', which names the document alone. It binds adopted mounts once, when it opens, from .ia/workspace.json, unless it was opened with explicit adopted captures, which name no directory. ReadBodyOptions gains an optional within: given a scope token, readBody reads get and records in that scope and refuses every miss in a narrower scope with that plain refusal, and every miss in a whole-workspace one as it refuses it without a token. ReadRefusal gains an optional reason, admission's reason, on the refusal of an identity whose record admission refused, read without within or through a whole-workspace token; without within readBody is otherwise unchanged. position takes params {within?, seat?, shape?, phase?, depth?, budget?, word?} and answers {ok: true, result} with the {body, digest, hostNote} that position returns for that partial key through the door's scope token, byte for byte: no params is K0, and the other parts take normalizeScopeKey's defaults. Request text, a token or any other parameter is refused as an unknown parameter, so nothing text-driven runs. A refusal of the key is {ok: false, code: IA-RUNTIME-REQUEST-INVALID, message, next}, next naming one command: ia position --shape <context|governance|execution|sequence|learning> or ia position --phase <orient|plan|act|learn> for a part outside its closed set, ia position --depth 2 or ia position --budget 64 for a part outside its cap, ia vocabulary for a word that is no string or that the closure does not register, ia position for a seat of another form, a seat the scope does not admit or a path outside the workspace, and for a seat at runtime placement ia position, or ia inspect when that seat is the one K0 takes, the repository's own `@workspace`, whether the key names it or not. RuntimeError gains an optional next, which normalizeScopeKey and resolveScopeKey now set on each key refusal they throw, so position throws it too; the code and message of every refusal are unchanged. The new DoorOptions.protocol is the MACHINE_PROTOCOL version a door serves, by default the current one: a door at version 1 refuses read and position as the unknown operation 1.1.0 refused, byte for byte, and a value that is not an integer from 1 to the current version is a TypeError. A version 1 operation's refusal, and every refusal the Door raises itself, keep 1.1.0's {ok, code, message}. MACHINE_PROTOCOL is version 2: ProtocolOperation gains an optional since, absent on the nine version 1 rows, whose JSON is byte-identical to 1.1.0's; the read row is appended with since: 2 and mcp: ia_read, and the position row, after next, with since: 2 and mcp: ia_position, each with one flow line. Code that expects MACHINE_PROTOCOL.version to be 1, reads every row as a CLI machine route, or pins the version 2 rows or their parameters should filter the rows by since or take the new rows. A version 2 door's unknown-operation refusal lists read, next and position, in that order, after the version 1 operations it admits. @inventarch/db exports readWorkspaceBytes(root, path, limit), which returns one workspace file's exact bytes and refuses a path that escapes the workspace, is not portable by the rule the distribution workspace file reader applies (NFC, at most 1024 code units, no backslash, control character or any of <>:\"|?*, no segment that ends in a dot or a space or names a reserved device) or passes a link or junction, and a hard-linked or nonregular file (IA-DB-PATH-UNSAFE), a missing or unreadable file or one of more than limit bytes (IA-DB-SOURCE-UNAVAILABLE), and a file replaced or resized during the read (IA-DB-SOURCE-CHANGED); each refusal names the file by its canonical path alone. @inventarch/mcp-door serves ia_read and ia_position, whose inputSchemas are the read and position rows' params, so with ia_next it serves twelve tools. @inventarch/cli: runCli, the machine route that @inventarch/cli/internal/main exports and the host launcher's door mode calls, opens its door at protocol version 1, so read and position there are refused with exactly 1.1.0's bytes; in @inventarch/cli/internal/operation-help, describeOperation describes only the version 1 rows, and renderOperationSchema and renderOperationHelp label a version 1 row's description version 1, as 1.1.0 did, whatever the table's version, and a later row, should a caller hand them one, the version its since names. Limits: the CLI's machine routes stay the nine version 1 operations, so ia scope in every form, the other routes, their help and their --schema output are unchanged, and ia read stays the consumer verb, which returns the Door's body and digest and refuses a document the Door refuses with the same code, though its own reader names a link by its absolute local path; ia position, the consumer verb of the same output, runs the ia position commands its refusals name.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "host-adapters-claude-codex",
+      "title": "The runtime renders the position packet for the claude and codex hosts, with a receipt",
+      "summary": "@inventarch/runtime exports renderHost(host, packet, digest, hostNote, target) and PACKET_MARKER from the package root and the new @inventarch/runtime/internal/packet-host subpath, with the PacketHost ('claude' | 'codex'), PacketTarget ('repository' | 'consumer'), HostFile, PacketReceipt and HostOutput types. renderHost renders one position packet, with the digest and host note renderPacket returned, as the host's files and returns the frozen HostOutput {files, receipt}; it reads no workspace and writes, deletes or plans no file. No host gets an agent file. claude renders .claude/rules/ia-workspace.md and .claude/skills/ia-authoring/SKILL.md for a consumer workspace, and CLAUDE.md, .claude/skills/ia-authoring/SKILL.md and .agents/skills/ia-authoring/SKILL.md for the repository target; codex renders AGENTS.md and .agents/skills/ia-authoring/SKILL.md for either. Every file carries the marker `<!-- Generated by ia project; edit the cited native records. -->`, first in the entry file and after each SKILL.md's YAML frontmatter, and each ia-authoring skill keeps the authoring guidance previously rendered by compliance for that target, its marker line aside. The entry file holds the packet's sections in the packet's field order (seat, participants, mandates, system pointer lines, captured-record tallies, intent table, phase table, command catalog, SPEC lines), plain Markdown with one entry per list item or table row, so it renders entryCount(packet) entries, byte-identical for both hosts; then the line `ia-generated <revision> <packet digest> <adapter>`, where the adapter is ia-claude or ia-codex and names the package version (`ia-claude@<version>`) only in the consumer target, so a committed repository file does not change when a release bumps the version; then, in the consumer target only, a 'Host note (not part of the packet)' section with the freshness, installed state and key. The receipt, format ia.packet-receipt.v1, holds host, adapter (id@version in either target), revision, packetDigest, bodyDigest, entries, files (each rendered file's path and the SHA-256 of its UTF-8 text), removed, foreign, guard, hostNote, participants and mandates (the packet's `@agent` and `@mandate` identities), slug, cli and writtenAt. An unknown host or target, or a digest that is not the packet's, is refused with IA-RUNTIME-REQUEST-INVALID. The CLI's ia host, ia project, initialization with a host and installation refresh use this adapter to write consumer files and receipts; the repository projection generator writes the repository files. These replace the retired compliance renderers described in the replace-renderers note. Limits: renderHost itself leaves removed and foreign empty, guard 'none', cli null and writtenAt null for its applying caller to set; CLI-written receipts carry the CLI's id@version. Receipts carry no source digests or per-command consumer versions, and the host note's installed state stays unknown.",
+      "packages": [
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/participant.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "nx.json",
+        "package.json",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "host-file-identity-precision",
+      "title": "Preserve full file identities in host and steward checks",
+      "summary": "Receipt preflight and the steward guard's legacy-agent and source-settings readers retain full-width file and directory identities. Distinct Windows file IDs that exceed JavaScript's safe integer range now refuse replacement instead of comparing equal after rounding. The source-settings reader validates the opened read-only handle before reading, refuses linked or replaced files and bounds reads through that same handle. Handle closure is preserved, and timestamp comparisons retain nanosecond precision.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/steward-hook"
+      ],
+      "paths": [
+        "apps/cli/",
+        "apps/steward-hook/"
+      ]
+    },
+    {
+      "id": "ia-next-verb",
+      "title": "deliveryView reads one plan's delivery view through a scope token and writes nothing; the Door serves it as next, the MCP door as ia_next and the CLI as ia next",
+      "summary": "@inventarch/runtime exports deliveryView(handle, within, seat?) and NEXT_CODES from the package root and the new @inventarch/runtime/internal/next subpath, with the CycleRow, DeliveryMilestone, DeliveryResult, DeliveryTask, DeliveryView, ExitEvidence, NextCode, NextRefusal, Prerequisite, ReviewItem, StateDimension and StateLine types. deliveryView reads through the scope token within and writes nothing; only a whole-workspace token (db isCompleteScope) also reads the handle's refused records and the report's COMP-PARSE findings. The plan is the one a `@plan`, `@milestone` or `@task` seat belongs to or, without a seat, the only admitted `@plan` at band 100. It returns {ok: true, view}, the view being {format: ia.delivery-view.v1, revision, plan, milestones, tasks, review, next, summary}, or one refusal {ok: false, code, message, next, plans?, cycle?} whose next names one command: IA-RUNTIME-NEXT-SEAT (a seat the scope does not admit names the view without a seat that runs: ia next while the scope admits one `@plan` at band 100, ia next --seat <the first> while it admits several, ia next --help while it admits none; a record that is no plan, milestone or task names ia position --seat <seat>), IA-RUNTIME-NEXT-NO-PLAN (names ia next --help), IA-RUNTIME-NEXT-AMBIGUOUS (several plans at band 100, listed in plans; names ia next --seat <the first>) and IA-RUNTIME-NEXT-CYCLE (require rows that form a cycle among tasks, milestones or both, listed in cycle as declared rows; names ia position --seat <its first task, else its first milestone> --shape sequence). Tasks come in one prerequisites-first order (Kahn's algorithm, ties by milestone then task): a task follows the tasks and milestones it requires and those its milestone requires. Each task carries a basis line per effective prerequisite (a required `@decision` has a choice or not; a required `@task` has exit evidence or not; a required `@milestone` has exit evidence of its own, or for every one of its tasks, or not; a requirement no admitted record answers blocks, and so, as unknown, does one the task or its milestone declares whose answer the scope does not read), inherited lines marked (via <milestone>); one verdict line, exit evidence recorded (<observation>, evaluator <evaluator>[, self-attributed | , self-attribution unknown]), no declared blocker or blocked (<basis>; ...); its work.status, printed as self-declared and never a basis; and five state lines: intent, definition, realizable, realized and worked. Exit evidence is an `@observation` with verdict success whose evidence.subject names the record, or which the record's work.exit-evidence names, and whose evidence.subject-revision reads current under the db handle's readiness; ExitEvidence.attribution is self when evidence.evaluator equals the identity the task's work.owner-agent names, unknown when the scope answers no owner-agent the task states or the observation records no evaluator for a task that names one, else other. A relation row that carries a condition, such as requires or grounds with when phase is act, counts only where the condition holds at the coordinate the scope token binds (its phase, or none), decided as graph traversal decides it: the record that states the row decides its provenance and artifact-set terms, and a severity term only where its own severity decides it at every coordinate (graph effectiveSeverity takes the stronger of the record's severity and the coordinate's), while a term on an axis the scope binds no value for, the phase on the whole-workspace scope ia next reads and the severity on every scope, leaves the row undecided. A row whose condition fails is no row; an undecided row is conditional with an unknown basis and never satisfied: a conditional requirement orders nothing and blocks with the basis <word> <target>: conditional on <terms>, which the scope binds no <axes> to decide (unknown), and an intent an undecided grounding or supersession could change is unknown, while one that reads the same at every coordinate the scope could still bind, as when a decision that only may ground the task has no choice while another grounds it with no condition and is accepted, reads as it does everywhere (decision conditional-relations-in-delivery). No milestone is satisfied through its tasks, and the summary does not say that every task has exit evidence, while a task may go unread: on a narrowed scope, or on a whole-workspace scope while admission refuses a `@task` or a whole file. Review items name two or more live decisions grounding one record of the plan (one that another of them supersedes is not live, unless the two supersede each other in a cycle, which the item names), two accepted specs one of which supersedes the other with no replaced-scope, and, on a whole-workspace scope, each `@plan`, `@milestone` or `@task` admission refused and each file a language error refuses whole. next is ia position --seat <task> --shape sequence for the first task in order with no declared blocker, so tasks with exit evidence are skipped; it is null when every task has exit evidence or every other task is blocked, and summary says which. Limits: intent reads accepted or superseded only from a live grounding `@decision` that states a choice and an effective-revision; an intent an undecided row could change is read again at no more than 256 coordinates the scope could still bind, past which it stays unknown; realizable and realized read not applicable for a task; worked reads stale only against the previous retained snapshot, and unknown rather than unobserved on a narrowed scope; a refused `@task` is never a listed task, as its milestone cannot be read, and only a whole-workspace scope names it as a review item; a requirement declared only on a record outside the scope is not read; and other refused records, such as a `@decision` or an `@observation`, are read as absent and not reported. The Door serves the view as a new MACHINE_PROTOCOL version 2 operation, next, with params {within?, seat?}: it answers {ok: true, result} with the DeliveryView deliveryView returns through the door's scope token, the initial boundary when within is omitted, or with that function's refusal unchanged, next, plans and cycle included. A version 2 operation's refusal may so carry more than {ok, code, message}, while a version 1 operation's refusal, and every refusal the Door raises itself (an unknown or mistyped parameter, a token it did not issue, an unknown operation), keep 1.1.0's shape. A door serving protocol version 1, as the CLI's machine routes do, refuses next as the unknown operation 1.1.0 refused, byte for byte, and a version 2 door's unknown-operation refusal lists read, then next, after the version 1 operations it admits. MACHINE_PROTOCOL stays version 2 and appends the next row, with since: 2 and mcp: ia_next, after read, plus one flow line; the nine version 1 rows are unchanged, and code that pins the version 2 rows or their parameters must take the new row. On a whole-workspace token the view's admission review items name the `@plan`, `@milestone` and `@task` records admission refused, with path, line and reason, so ia_next discloses them on the MCP door's whole-workspace initial scope. @inventarch/mcp-door serves an eleventh tool, ia_next, whose inputSchema is the next row's params. @inventarch/cli adds the consumer verb ia next [--seat <plan|milestone|task>] [--json]. It prints the plan and its summary, its milestones, its tasks in order, each with its verdict line, its status marked self-declared, one requires line per prerequisite and its five state lines, then the review items and the command for the next task with no declared blocker, with --root as given; with --json it prints one line {version: 1, ok: true, view}, view being the Door's result. It opens the workspace without the db cache and writes nothing. Its refusals keep the runtime's codes and messages at exit 1, and each names one command with --root as given: for a seat the workspace does not admit, ia validate when admission refused that record, else ia next --seat <the nearest admitted plan, milestone or task> when one is near, else ia next when the workspace authors one plan at band 100, ia next --seat <the first> when it authors several, and with none what a missing plan names; ia position --seat <seat> for a record that is no plan, milestone or task, as the runtime names it; for a missing plan, ia validate when admission refused the plan a source holds, or with a seat the milestone or plan on the seat's way to its plan, else the records to author, then ia next again; ia next --seat <the first plan listed> for several; and for a cycle ia position --seat <record> --shape sequence at the record the runtime names, the cycle's first task by milestone then task, else the first milestone a row requires. ia next is not a machine route: LEGACY_OPERATIONS, the usage line, ia <operation> --help and --schema and every ia scope form are unchanged. The view's next is printed as the view gives it, with --root as given. RUNTIME_CODES gains the four IA-RUNTIME-NEXT codes, so code that switches exhaustively over RuntimeCode must handle them. @inventarch/runtime/internal/render adds statedText(record, field), which the body reader now shares; readBody is unchanged.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/mcp-door/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "ia-position-verb",
+      "title": "ia position prints the position body for a scope key; the key's word no longer filters the reserved rules",
+      "summary": "@inventarch/cli adds the consumer verb ia position [--seat <id|path>] [--shape <H>] [--phase <P>] [--depth <d>] [--budget <n>] [--word <w>] [--json], which prints the runtime's position for the scope key its flags name, read through the whole-workspace scope: no flag is K0, the repository's `@workspace` at shape context, phase orient, depth 0 and budget 0, and a key naming any part takes normalizeScopeKey's defaults for the rest. A --seat that spells a canonical identity is that record; any other is a location, workspace-relative or absolute inside the root, and ./ makes a path spelled as an identity a location. Human output prints the seat and the body's revision, the key used, the capture's freshness (current, stale or no-capture, stale naming ia capture with --root as given), the body's digest and counts, then the loaded records, the pointers and their tallies, the rules and playbooks that apply by word with their tallies, the playbook cells, the rules reserved outside the budget, the mandates, the frontier and the unknowns, and last the two widening keys as ia position commands with --root as given: one hop deeper (absent at depth 2) and the re-seat template --seat <identity> at depth 1 and budget 16. With --json it prints one line {version: 1, ok: true, body, digest, hostNote}, the Door's position result byte for byte. It opens the workspace without the db cache, needs no capture and writes nothing. Its refusals keep the runtime's code, IA-RUNTIME-REQUEST-INVALID, and message, and each names one command, with --root as given where that command takes one: a shape or phase outside its closed set, or a depth or budget outside its cap, is refused at exit 2 before the workspace is read, naming the same call with the closed set or the cap in that part's place; a word the closure does not register (exit 1) names ia vocabulary, which takes no --root; and a seat the workspace does not admit or a path outside it (exit 1) names ia position. ia position is a consumer verb, not a machine route: LEGACY_OPERATIONS, the usage line, ia <operation> --help and --schema and ia scope in every form are unchanged. ia next now names ia position --seat <seat> for a seat that is no plan, milestone or task, and ia position --seat <record> --shape sequence for a require cycle, at the record the runtime names, where it named ia inspect and ia next. ia read reads the path of an absolute <path>:<line> locator by the rule --seat reads a path with: an in-root name that only begins with .., such as ..cache, reads as the relative path it names, and the root itself as ., so such a locator is refused as its relative spelling is rather than as a path outside the root; a locator that resolved before reads as before. @inventarch/runtime: positionBody no longer filters by the key's word the blocking rules reserved in rules, the appliesByWord section with its tallies, the cells or the mandates. rules is taken from the candidates without the word, so a blocking rule that claims a location or applies by its subject-word is reserved under any word, and appliesByWord lists rules and playbooks of every word that apply to what loads under the word or to a reserved rule; the word still restricts loaded, pointers, pointerTallies and frontier. The word parameter of the position row in MACHINE_PROTOCOL version 2, which the MCP ia_position tool carries as its inputSchema description, says the same. The seat refusals positionBody throws now carry next, ia position, or ia inspect for a seat at runtime placement that is the repository's own `@workspace`, which the Door named before; the Door's answers are unchanged. The package root and @inventarch/runtime/internal/scope-key export rootRelative(root, path), the absolute-path rule a location seat and ia read share. readBody refuses a line locator at the workspace root itself, such as .:3, as a directory and no source, where its message ended with an empty path. Limits: no seat at runtime placement reaches ia position, since the workspace session the CLI opens places no source at runtime, and the host note reports no installed state and no CLI id@version.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "ia-project-verb",
+      "title": "ia project plans or applies the position packet's files for one host and writes their receipt; ia doctor shows a projection with no drift",
+      "summary": "New verb ia project <claude|codex> [--apply] [--json] [--yes]. It plans by default and writes nothing, the IA home included: the position packet's entry count and digest, the file plan (create, update, unchanged, remove for a marked 1.x steward agent file the projection state lists, foreign for any other .claude/agents file, which is left in place) and whether the apply first retires a steward guard an earlier release registered (guard retire). --apply writes through the same writer as ia host --apply: .claude/rules/ia-workspace.md and .claude/skills/ia-authoring/SKILL.md for claude, AGENTS.md and .agents/skills/ia-authoring/SKILL.md for codex, no agent file for any host; it retires such a guard before any file changes, deletes the listed 1.x steward files and writes .ia/distributions/hosts/<host>-receipt.json, then prints the receipt's files with their SHA-256, the files removed, the foreign files and the retirement. It registers no MCP server and no hook, and needs no capture: the packet reads the live revision. With --json it prints {version: 1, command: 'project', root, host, apply, plan: {entries, packetDigest, files, guard, conflict}, applied?}, applied being the receipt written. A file without the generated marker at a path the adapter writes, an owned file or guard group changed by hand, or an unreadable ownership state is a successful plan that names the file in plan.conflict, with files empty and guard null, and --apply refuses it with that code (IA-DIST-LOCAL-MODIFICATION for an unmarked file, exit 3) before it asks anything or writes, naming the repair and then ia project <host>. An unknown host is IA-CLI-USAGE (exit 2) naming ia project claude, and a root without .ia/release.json is IA-CLI-CONFLICT naming ia init of that root; the ia project, ia validate and ia init commands a next action names carry the root as given, while a pending host journal, or a host lock held at apply, names its installed ia recover command with the resolved absolute root, as ia host does, and a workspace whose sources cannot be opened names the resolved root, as every workspace verb does. project is the seventh row of the packet's command catalog (effect, Execution), so a fresh init's packet has 37 entries and ia --help lists the verb. ia doctor adds one ok projection row when the files the receipt lists are as written and the records render the packet it names, and reads a projection ia project wrote without a host registration the same way, after the registered hosts' rows (after the Host row when none is registered), its remedies naming ia project <host> --apply; ia install, update and remove name that same apply when they refuse such a projection, and doctor --host briefs such a host as not registered rather than stale; a changed file's detail now says it changed since the projection apply wrote it. @inventarch/cli/internal/host exports projectionElement, replanProjection, projectionFileRows, GUARD_RETIRE, requireInitialized (with an optional root for the ia init it names), requireIdle, pendingJournal, recoverNext, projectedHosts and projectionRerun, and rootedNext also adds --root to a quoted ia project <host> command; @inventarch/cli/internal/commands adds the project row to COMMANDS. ia host plans, applies and prints as before. Limits: there is no --preview flag, because the plan is the default as for ia host; the plan prints neither the packet nor a diff of the files; cursor has no packet adapter; the steward guard stays retired; installed state stays unknown; the nine machine routes, MACHINE_PROTOCOL versions 1 and 2, every ia scope form, body(K) and ia.position-body.v1 are unchanged.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        ".agents/",
+        ".claude/",
+        ".github/",
+        ".gitignore",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/participant.ia",
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "nx.json",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "init-migrate-flag",
+      "title": "ia init --migrate rewrites a 1.1.0 starter workspace into the three starter records, installing the bundled language base where it has a 1.x one, then captures it and re-projects its registered hosts",
+      "summary": "ia init --migrate [--system] [--apply] [--json] [--yes] (new) takes a workspace a 1.1.0 ia init created (1.0 and 1.1 write the same starter): one folder in .ia/src/systems/, its local system <name>, holding only system.ia, with exactly `@system <name>`, which registers no word, and `@agent <name>-steward`, and records/*.ia, of which records/workspace.ia holds exactly `@workspace <name>` and `@distribution <name>-distribution`, the distribution .ia/release.json names. The three starter records use fields only the language base this CLI bundles declares (composition.sources, composition.steward and the `@mandate`'s authority section), so where the installed inventarch/language is another archive, as in every workspace a published 1.x CLI initialized, the migration installs the bundled one in its place, offline as ia init installs it, which needs a lock holding that one base alone. It plans by default and writes nothing, and plan and apply run one preflight first. Customized workspace or distribution starter meaning, answers, comments, relationships or distribution declarations are refused before writes instead of silently replaced; edits to the workspace composition.systems list remain supported. Kept records that refer to a steward, system or distribution a plain migration would remove are conflicts, with --system as the preservation path. Any other shape (a nested folder, another file, another record in system.ia or records/workspace.ia, a local `@system` that registers words, a second system folder, a descriptor naming no distribution or another one, a base to replace in a lock that holds other packages) is refused as IA-CLI-CONFLICT (exit 3) naming ia init --help; a workspace that does not admit is refused as IA-CLI-CONFLICT naming ia validate --root <root>; and, with a host projection registered, a pending host journal is refused with its own code, located at the journal, naming its installed ia recover command with the explicit root, then the rerun. A destination that already exists (.ia/src/workspace.ia, or .ia/src/<file>.ia for a moved file), a record the workspace keeps that already holds `@agent <name>` or `@mandate <name>-mandate`, which would tie with the new records, and a registered projection whose guard retirement or file plan the planners refuse, such as a file without a marker at a target path, are listed as conflicts by the plan (exit 0), and --apply refuses them with nothing written: a collision as IA-CLI-CONFLICT naming ia init <directory> --migrate, a projection conflict alone with the planner's code, located at its file, naming ia host <host> --root <root>. The plan lists the base install, every move, write and delete, the folders the migration leaves empty included, and each registered host's guard retirement and file actions, planned for the migrated records, whose new revision every rendered file carries, so none is reported unchanged. --apply records its owned paths and exact before/after content digests in .ia/migration.json before mutation, then installs the bundled base where the plan says so while the records are still 1.1.0-shaped. A retry verifies those recorded bytes, recognizes its own partly completed operations and resumes them; an unexpected edit is a conflict, not permission to overwrite foreign work. It then moves every other records/<file>.ia byte for byte to .ia/src/<file>.ia, where each record keeps its identity because a record's word, not its folder, decides its system; writes .ia/src/workspace.ia with the three records ia init writes, keeping the 1.1.0 `@workspace` name and composition.systems and adding composition.sources and composition.steward; writes .ia/.gitignore where none exists, retaining work/ but omitting distributions/ when the installation payload is already tracked by Git so its replacement stays visible to commits; an existing ignore file is preserved; deletes records/workspace.ia, system.ia and the three folders they leave empty; and rewrites .ia/release.json without distribution and with the bundled base's dependency row in place of the installed base's, keeping every other row. For tracked installations, preflight checks every required store, generation, active-pointer and portable-lock path against effective Git ignore and byte-conversion rules. A hidden required file or text/eol/filter/encoding conversion refuses before writes, naming the offending ignore rule or the .gitattributes repair. Git configuration, the index, existing ignores and attributes remain unchanged. With --system it keeps system.ia as it is, writes records/distribution.ia rooted at [`@system <name>`] as ia init --system does, composes the local system and keeps the descriptor's distribution, so ia pack still builds, leaving the descriptor byte for byte, whatever its formatting, when its base row is already the bundled base's. It then captures the workspace and re-projects each host whose projection state exists through the projection apply ia host uses, which retires the 1.1.0 steward guard, deletes the owned steward agent files and writes the receipt ia doctor reads. The journal remains until files, admission, capture and registered-host projections complete. Nothing is rolled back: a file failure names repair of the reported filesystem problem and the same ia init <directory> --migrate [--system] --apply --yes command to finish; failures or interruptions after capture or projection also retain the journal and name that migration resume command. A pending host journal first names its matching ia recover command with the explicit root, then directs the user to rerun the migration with the same target and options. A migrated workspace that fails admission names ia validate --root <root>, saying neither effect ran, and the journal retains its recovery state. With --json the plan holds migrate (1.1.0), id, name, system, base ({id, installed, bundled}), conflicts, steps, moves, writes, records, systems, removes (the empty folders as <path>/ rows with no identities), ignore, descriptor ({path, before, after, dependencies}) and hosts, and applied is {status: migrated, id, base (installed or present), distribution, authored, moved, removed, ignore, effects: {capture, project: [{host, files, receipt, guard, removed}]}}. --id, --host and the decline options beside --migrate are usage (exit 2). @inventarch/cli/internal/init adds collectMigration (taking the package root whose base it installs), applyMigration (async), migrationEnvelope, renderMigration, renderMigrated and MIGRATES_FROM with their types. For a fresh clone with an empty cache, ia restore can seed the CLI's verified bundled language archive only when its id, version, archive digest and manifest digest exactly match the lock, with or without --offline; an exact unpublished bundled pin needs no registry lookup. A different locked archive keeps the existing restore path. Limits: only the 1.1.0 starter shape is recognized, so a workspace that grew past it in any of the refused ways above is migrated by hand, as is one whose 1.x base shares its lock with another installed package; another package installed beside the bundled base is kept, and the descriptor's other dependency rows are always kept; a 1.x record the bundled base does not admit stops the base install before any record file is written; projection conflicts found before migration name ia host <host> to inspect the registered host's plan; once migration has begun, interruption and effect repairs resume the same ia init <directory> --migrate [--system] --apply --yes command after any required host-journal recovery; the steward guard stays retired; workspace revisions of unchanged sources, the nine machine routes, MACHINE_PROTOCOL versions 1 and 2, every ia scope form, body(K) and ia.position-body.v1 are unchanged.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        ".agents/",
+        ".claude/",
+        ".github/",
+        ".gitignore",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/participant.ia",
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "nx.json",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "init-three-records",
+      "title": "ia init authors a `@workspace`, its participant `@agent` and that `@mandate`, then reports capture and project apart; the local system and its distribution move behind --system",
+      "summary": "Breaking: ia init writes a different starter and reports more. Without --system it authors exactly three records in .ia/src/workspace.ia, at placement authored and with only the fields their schemas declare: `@workspace <name>` (composition.systems naming every system the bundled base installs, composition.sources `\".ia/src @authored\"`, composition.steward the participant), the participant `@agent <name>` (\"The IDE agent operating in the <name> workspace, any vendor.\", governance.applies []) and `@mandate <name>-mandate` (governance.requires \"Claim no host permission or execution from this mandate.\", authority.participant the agent, authority.moves Observation, Verification, Synthesis, Delegation and Execution, authority.scope the workspace). Record names are the workspace name, never prefixed with the package id. It writes no local `@system` and no `@distribution`, so .ia/release.json names no distribution, and it writes .ia/.gitignore holding work/ and distributions/ only where none exists; an existing one is left as it is and reported, never a conflict. ia init --system (new) also writes .ia/src/systems/<name>/system.ia (the 1.x local `@system <name>` and its `@agent <name>-steward`) and .ia/src/systems/<name>/records/distribution.ia (`@distribution <name>-distribution` whose distribution.records is `[@system <name>]`), and the descriptor names that distribution, so ia pack releases the system folder; its `@workspace` composes that local system too, its composition.systems ending with `@system <name>`, so the position packet renders a pointer line for it. The apply runs install, author (create-only), admission (zero error findings, each starter record compiled at its path) and descriptor, the completion point, then two effects reported apart: capture, the ia capture write of .ia/work/snapshot/current.json, so a workspace has a snapshot from init on, and, only with --host, project, the ia host <host> --apply path, whose projection applyHostProjection writes. An effect after the descriptor that fails or is interrupted leaves every earlier result in place and says so: a capture that fails is refused as ia capture refuses it, with its code, location and repair, then ia capture --root <root>. With --host the project effect still runs after a capture that failed, because the packet reads the live revision rather than the capture, and that refusal then says the projection is written; an interruption before the capture, or a host step that refuses, names ia host <host> --root <root> --apply (or ia host's own remedy, rooted) and says whether the capture was taken. An interruption before the descriptor names the rerun of ia init, which skips completed steps. With --json the plan steps are install, author, admission, descriptor, capture and, with --host, project (1.x: install, system, records, descriptor); plan.owns adds .ia/.gitignore and .ia/work/snapshot/ and lists the system folder only with --system; plan.starter adds system, records (each `@<word> <name>`) and ignore ({path, status}, create or present), and its descriptor omits distribution without --system; applied.distribution is null without --system, and applied adds authored (the starter identities in file order, three or six), ignore (written or present) and effects {capture: {revision, records}, project: {host, files, receipt} or \"skipped\"}, files being the receipt's files with their SHA-256 and receipt its path. The human report lists the authored identities, the ignore file, the capture and the projected files and receipt, or says project was skipped. ia pack refuses a release descriptor, as @inventarch/db decodes it, that names no distribution as IA-CLI-CONFLICT (exit 3), located at the descriptor, before the packer reads anything else, naming ia vocabulary distribution; a file that is no release descriptor is left to the packer's own refusal. @inventarch/cli/internal/init: StepId is install, author, admission, descriptor, capture, project; Step.path became paths; Starter adds system and records, InitView adds present and ignore, Applied adds authored, ignore and effects and its distribution may be null, Descriptor.distribution is optional; starterRecords returns the three records; starterDescriptor without a distribution argument omits the key (1.x: null); ApplyOptions adds project, the --host effect applyInit runs after the capture, and Projected is new; ownedPaths takes --system; new: starterDistribution, starterFiles, StarterRecord, CaptureEffect, ProjectEffect, WORKSPACE_PATH, IGNORE_PATH and IGNORE_TEXT; LEFTOVER also matches distribution.ia and .gitignore. @inventarch/db: decodeReleaseDescriptor accepts a descriptor without distribution and ReleaseDescriptor.distribution is optional; a present one must still be a native distribution identity, never null; BundleManifest still requires it, and its decoded keys and canonical bytes are unchanged. @inventarch/distribution: packing a descriptor that names no distribution refuses as IA-DIST-CLOSURE-INVALID. @inventarch/authoring-system: validateDraft and formatDraft (validate-ia, format-ia, and ia format through them) also take a .ia file of the repository's own .ia/src outside every system folder and outside .ia/src/floor/, both compared case-folded where the volume folds case, under a root an admitted `@workspace` declares at the authored placement, such as .ia/src/workspace.ia or this repository's .ia/src/participant.ia; every other target, a file that is not .ia, a path outside every such root and floor, installed and adopted files included, is still refused as IA-EXEC-OUTPUT-UNSAFE, now with a message naming both kinds of target. Limits: a workspace an earlier ia init made is changed only by ia init --migrate (its own note), the steward guard stays retired, and installed state stays unknown; workspace revisions of unchanged sources, the nine machine routes, MACHINE_PROTOCOL versions 1 and 2, every ia scope form, body(K) and ia.position-body.v1 are unchanged.",
+      "packages": [
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        ".agents/",
+        ".claude/",
+        ".github/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/participant.ia",
+        ".ia/src/systems/authoring-system/",
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "nx.json",
+        "package.json",
+        "packages/db/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "initialized-workspace-recovery",
+      "title": "Guide initialized workspaces back to their authored workspace record",
+      "summary": "When capture cannot find a `@workspace` but the root already has its release descriptor, its refusal now asks the user to restore the authored workspace source from source control and run ia position. A root whose sources have errors still names ia validate; a root without a descriptor still names ia init. Recovery of interrupted host and installation transactions is exposed through ia recover with an explicit --root; directory registry repair still names ia-distribution. Fresh initialization ignore rules and capture preview are described in their separate notes.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/"
+      ]
+    },
+    {
+      "id": "migration-reference-case",
+      "title": "Refuse migration that would strand mixed-case references",
+      "summary": "Plain workspace migration checks retained field and relationship references using the language's case-insensitive name resolution. References such as `@agent Demo-Steward` or `@distribution Demo-Distribution` now refuse deletion just like their lowercase spellings, before any workspace writes. The printed --system remedy preserves the referenced identities.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/"
+      ]
+    },
+    {
+      "id": "packet-type-and-renderer",
+      "title": "The runtime renders the host-neutral position packet and counts its entries",
+      "summary": "@inventarch/runtime exports renderPacket(handle, within, catalog) and entryCount(packet) from the package root and the new @inventarch/runtime/internal/packet subpath, with the PositionPacket, PacketCatalogRow, PacketSeat, PacketParticipant, PacketMandate, PacketSystem, PacketTally, PacketIntent, PacketPhase, PacketProvenance, PacketHostNote and PacketOutput types; the root's Packet type is still the context packet. renderPacket calls position once, at K0, through the scope token within, reads everything else through the same token, so a narrowed token leaves out what it does not admit, and returns the frozen {packet, digest, hostNote}. The packet, format ia.position-packet.v1, holds: revision; body, the digest of body(K0); seat, the repository's `@workspace` with its identity, its composition.sources as authored, the count of its composition.systems references and its composition.steward, plus participants 'none (no authored `@mandate` names an `@agent`)' when no participant is rendered; mandates, the band-100 mandates body(K0) lists whose authority.participant resolves to a band-100 `@agent`, by identity, each with its participant and scope, and with its moves, excluded words and covers as authored when it states them (a declared empty moves list renders as an empty list); participants, those agents once each with their meaning.says, by identity (no participant is no refusal); systems, one line per composition.systems reference, by identity, with the words the `@system` record's discriminators rows register, its band, its head.steward and the command ia position --seat <identity>, or unresolved in place of the words and steward for a reference no admitted record in the scope answers; tallies, per word, the band-100 records captured under the seat's own declared roots, none while it declares none; intents, the five shapes in table order with category, primitive, anchor phase, kind, lane and predicate focus, priming order and the registered words each seeds; phases, the four phases with the primitives anchored at each and what --phase changes; commands, the catalog rows passed in, in their order, each copied as {command, mode, move, refuses, next}; lines, the design's three SPEC lines with ia position in place of ia scope; and provenance, {revision, slug}, the slug being the workspace's name, absent when no `@workspace` is declared at the repository root. digest is graph's codec digest of the packet. The host note is position's note plus installed 'unknown (no join checked here)' and is never digested. The packet names no absolute path, scope token, time, capture state or CLI version, and no record at runtime placement is part of it, so copies at two roots give byte-equal packets and digests, and writing a capture changes only the host note. entryCount(packet) is participants + mandates + 1 + systems + tallies + 5 + 4 + commands + 1 + 3; the host note is no entry. The refusals are position's; no admitted record is refused. @inventarch/cli/internal/commands adds the CatalogTag type, an optional catalog {mode, move, refuses, next} on CommandSpec, set on init, validate, capture, read, position, next and project, and packetCatalog(commands?), which maps the seven tagged rows to PacketCatalogRow values in table order. The CLI exposes ia project in its help and uses renderHost (@inventarch/runtime/internal/packet-host) to write packet files through ia host, ia project, initialization with a host and installation refresh; the repository generator also writes its packet files. The runtime renderers themselves perform no file writes. Limits: the packet reads the live admitted revision, not a capture; installed state is always unknown; position, body(K) and ia.position-body.v1, MACHINE_PROTOCOL and the Door are unchanged.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "nx.json",
+        "package.json",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "preserve-120-machine-responses",
+      "title": "Preserve published machine responses when adding delivery operations",
+      "summary": "The existing get, records, traverse and context machine operations retain the authored edge spelling shipped in 1.2.0 at both protocol versions. Version 1 records continue to omit per-record digest and snapshots continue to omit membership. Context envelope estimates describe the returned packet. A published 1.2.0 regression baseline protects these responses while protocol version 2 adds read, next and position.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "packages/runtime/"
+      ]
+    },
+    {
+      "id": "projection-handle-safety",
+      "title": "Check projection files through opened handles",
+      "summary": "Receipt preflight checks the opened destination and current path identity before guard retirement, retaining nontruncating Windows lock detection. Legacy steward marker recognition reads from one bounded file handle and refuses replacement or changes during the read, preserving stable legacy ownership decisions.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/steward-hook"
+      ],
+      "paths": [
+        "apps/cli/",
+        "apps/steward-hook/"
+      ]
+    },
+    {
+      "id": "replace-renderers",
+      "title": "Host projections render the position packet; the per-system steward renderers and the steward guard registration are retired",
+      "summary": "Breaking. @inventarch/compliance removes its projection role: renderHostArtifacts, renderWorkspaceProjection, admittedStewards, invalidAssessment, composeSteward, PROJECTION_MARKER, WORKSPACE_PROJECTION_MARKER, REQUIRE_STEWARD_PROFILES, STEWARD_HOST_TABLE and LEGACY_STEWARD_TOOLS, the HostArtifact, HostArtifacts, ProjectionMembership, RenderOptions, AdmittedSteward, Admission, WorkspaceProjectionInput and StewardComposition types, and the subpaths @inventarch/compliance/internal/projections, /internal/steward-profile and /internal/workspace-projection (exports and publish twins); the refusal code IA-COMP-PROJECTION-INVALID leaves COMP_CODES and CompCode. cite, fieldText, governanceClauses and text stay on @inventarch/compliance/internal/record-text. The position packet replaces them. ia host (and the install, update and remove refresh) renders the workspace's packet with the runtime's claude or codex adapter for the consumer target: .claude/rules/ia-workspace.md and .claude/skills/ia-authoring/SKILL.md for Claude, AGENTS.md and .agents/skills/ia-authoring/SKILL.md for Codex, each with the marker `<!-- Generated by ia project; edit the cited native records. -->`, and no .claude/agents/*.md file for any system. Before guard retirement or projection writes, the plan checks receipt and pending-evidence destinations, their directory ancestors, entry kinds and writability; a blocked directory or link is located at the actual path to repair. Each apply deletes the previous receipt before any projection file changes and last writes the receipt .ia/distributions/hosts/<host>-receipt.json (ia.packet-receipt.v1: the adapter's receipt plus cli, the CLI's id@version, removed, foreign, guard and writtenAt); ia host --remove deletes it. Digest-validated .ia/distributions/hosts/<host>-receipt-pending.json evidence preserves actual guard retirement and legacy file deletion hashes across an interrupted apply, so its successful retry records those effects in the receipt. Successful receipt publication consumes this evidence; a recorded final receipt digest recognizes a completed write if cleanup was interrupted. A later ordinary successful apply still reports only its own last-apply effects. ia doctor's projection rows now read it: a listed file missing (warn) or changed (fail), the receipt's packet digest against a fresh render (outdated, warn), and one info row listing removed and foreign files, which are not checked; a projection without a receipt, a 1.x one or an interrupted apply included, retains an unknown receipt row, while observed changed files also receive a failure row naming the file and its repair. The receipt-writing ia host <host> --apply remedy is offered when the projection has no blocking conflict; ia host plans the projection as an update. Upgrade path: both 1.x markers are owned and a 1.x projection state stays valid, so the next apply replaces the 1.x rules, AGENTS.md and skill files in place and deletes each .claude/agents/<name>.md file the state lists and that still carries its marker, listing it in the receipt's removed; an unmarked or unlisted agent file is never deleted and is listed foreign. A listed steward file edited by hand refuses as any owned file does. A linked .claude/agents directory is never traversed; recorded agent paths beneath it are foreign and left intact. Steward guard: ia host plans no hooks element and registers no guard any more (elements mcp, context, projection); with no steward subagents left a registered guard would deny every edit under .ia/src/systems/<name>/. Every projection apply, ia host --apply and --remove --apply and the install refresh, first retires a guard an earlier release registered (its group in .claude/settings.local.json and claude-guard-workspace.json, through @inventarch/distribution's guard-registration removal) before any projection file changes: the plan's projection element shows guard 'retire', the applied element guard 'retired', the human report says so, and an install, update or remove plan lists the hosts whose refresh retires one as retire, says so in the summary an apply confirms, and lists them as retired after the apply. An IA guard group in either .claude/settings.local.json or .claude/settings.json without matching local ownership refuses at that actual file before any steward changes, even when the ownership state is absent. The repair removes only the unmatched group and keeps unrelated hooks and settings. Retirement accepts an exact recorded owned group whose root is the workspace's old location; registration and execution keep their strict root checks. Install, update and remove previews expose each host's remove and foreign projection actions in text and projectionFiles JSON rows. A pending host journal takes priority in failure guidance and names its installed ia recover host|guard|lifecycle command before retry; installation recovery uses ia recover installation. The ia recover bridge requires --root and delegates the existing mechanisms, so CLI-only installations need no separately exposed ia-distribution executable; a raw filesystem error names the actual writable-directory or file-lock repair instead of deleting an unrelated settings or temporary file. The repository generator also checks orphan guard groups and deletes only exact M4 steward bytes at their original paths; personal copies, edited files and unproven historical outputs remain untouched. The guard stays retired until generation-hook-governance re-keys it to `@mandate` scope, so system folders are unprotected meanwhile; the ia guard entry and @inventarch/steward-hook remain. @inventarch/cli/internal/host-projection exports applyHostProjection, ownsGuard, planRetirement, planFiles, preflightReceipt, readReceipt and HostProjectionApplied, and renderProjectionFor returns the adapter's {files, receipt}; @inventarch/cli/internal/host drops the hooks ElementId and adds AppliedElement, GUARD_RETIRED and STATE.receipt, with new GUARD_SCOPE and MACHINE_LOCAL texts; @inventarch/cli/internal/distribute exports PlanView with retire, retired and projectionFiles. @inventarch/distribution/guard-registration exports assertRetirableGuard for this preflight. @inventarch/distribution's projection planner writes only PROJECTION_PATHS (a .claude/agents path is refused as outside the allowlist), owns the two 1.x markers besides the caller's, accepts a listed agent path in a state for removal only, and names the ProjectionAction 'unowned' as 'foreign'. @inventarch/steward-hook protects a 1.x steward file only until it is removed: while the projection state lists it, or, with no state, while it carries a 1.x marker; any other agent file is the user's, and the receipt is protected with .ia/distributions/. @inventarch/runtime's PacketReceipt gains cli (left null by renderHost) and slug, the packet's provenance slug or null, and renderHost now prints each bare IA word token in free text, such as `@workspace`, as a code span and keeps an authored code span as written, so no rendered file shows a GitHub mention unless its author wrote the token touching a backtick; the packet, its digest and the entry count are unchanged. Limits: the receipt carries no source digests or per-command consumer versions; installed state stays unknown; workspace-runtime's distribution product projection is unchanged; the nine machine routes, MACHINE_PROTOCOL versions 1 and 2, every ia scope form, body(K) and ia.position-body.v1 are unchanged.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/distribution",
+        "@inventarch/runtime",
+        "@inventarch/steward-hook"
+      ],
+      "paths": [
+        ".agents/",
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        ".ia/src/participant.ia",
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/steward-hook/",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "nx.json",
+        "package.json",
+        "packages/compliance/",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "scope-key-type-and-caps",
+      "title": "Scope key type, defaults, caps and K0 with a derived primitive",
+      "summary": "@inventarch/runtime exports the scope key K = (seat, shape, phase, depth, budget, word) as the ScopeKey type, its caps as SCOPE_KEY_CAPS ({depth: 2, budget: 64}) and K0, the frozen key with no seat, shape context, phase orient, depth 0, budget 0 and no word. normalizeScopeKey(partial) completes a partial key with the defaults of the position design: a partial that names no part (a part whose value is undefined is not named) returns K0; otherwise shape defaults to context, phase to the anchor phase of the shape's primitive (context orient, governance plan, execution act, sequence plan, learning learn), depth to 1 and budget to 16, and the seat and the word stay absent unless named. It reads nothing, so it checks the key's form and leaves the word and the seat to resolveScopeKey. resolveScopeKey(handle, within, key) checks a complete key against a scoped read and returns a frozen {key, seat, resolution, coordinate}: the shape must be one of the five shapes, the phase one of the four phases, depth an integer in 0..2, budget an integer in 0..64 and the word, when given, one the read's view registers; any other part, a primitive included, is refused. Every key refusal of either function is IA-RUNTIME-REQUEST-INVALID naming the closed set or bound, and the parts, closed sets, caps and seat form are checked before any read, so a key malformed in them is refused whatever the token; a forged, stale or closed token keeps its database code (IA-DB-SCOPE-UNAVAILABLE, IA-DB-STALE or IA-DB-CLOSED). The resolved seat is a ResolvedSeat {kind, identity, path, unknown}: kind workspace when the key names no seat, its identity the `@workspace` the database seats the repository root at; record when the key names an identity, which must be an admitted record in the scope; location when the key names {path}, its path the canonical workspace-relative path, with no identity. A path may be workspace-relative or absolute inside the handle's root; an absolute one reads as the path from the root that Node's path.relative gives (on Windows without case and with either separator), and the root itself, however it is spelled, as the location '' that . also names. A path outside the root, one that escapes it through a .. segment and an absolute path on another drive are refused, while an in-root name that only begins with .., such as ..cache, is accepted in either spelling. The returned key carries a location as that canonical relative path, never the root. For a workspace or location seat, resolution is the database's resolveSeat result: the record declared there, the rule that declares it and the path's claimants. A seat inside the workspace that no record in the scope is declared at is not refused: the seat names unknown undeclared (a workspace seat then has no identity), so K0 stays computable when the repository's own `@workspace` is undecided. The coordinate declares the key's shape and phase and derives category and primitive from the shape's SHAPE_ROWS row, so a key with only a shape and a phase is complete. The new @inventarch/runtime/internal/scope-key subpath carries the module, and @inventarch/runtime/internal/coordinate adds scopeCoordinate. The @inventarch/db readers (Handle, ReadHandle and the editor reader) add words(options): the frozen, sorted words the read view's registry registers for its admitted systems, the floor's two included. Options bind as get binds them, every scope of a view reads the same words, the capture pair is never read and the registry stays private. Limits: positionBody assembles the body a resolved key gives, and position adds its digest and host note; no Door operation or CLI command takes a key, and prepareCoordinate, context, select, the nine version 1 Door routes and ia scope are unchanged, so a context or select request without a declared primitive is still refused as coordinate-incomplete.",
+      "packages": [
+        "@inventarch/db",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "seeding-engine",
+      "title": "positionBody assembles the position body of a resolved scope key",
+      "summary": "@inventarch/runtime exports positionBody(handle, within, resolved) from the package root and the new @inventarch/runtime/internal/position subpath, with the PositionBody, LoadedEntry, LoadedPlace, LoadedRecord, PositionRecord, PositionPointer, PositionVia, PointerTally, FrontierTally, PositionUnknown, PositionCounts and PositionWidening types. Given a key that resolveScopeKey resolved through the scope token within, it returns body(K), {format: ia.position-body.v1, revision, key, seat, loaded, rules, pointers, pointerTallies, frontier, unknowns, counts, widening}, reading only through that token and writing nothing; a missing token is IA-RUNTIME-REQUEST-INVALID. The composition at cost 0 is the seat's field references both ways, a `@workspace` seat's capture members, a `@system` seat's word members, and a location's declared-at record and claimants. The seeds are the seat and the composition records in the shape's kind or lane focus; hops follow directed-view edge rows (never field references) whose predicate is in the shape's focus, in either direction, up to depth, and a row that carries a condition is followed only where the condition holds at the key's coordinate (its shape and phase with the derived category and primitive), read as graph traversal reads it for that coordinate, the condition's severity, provenance and artifact-set terms from the record that states the row; a row that does not hold is no hop, primes no record and names no pointer or frontier record, so the phase can change what loads (decision conditional-relations-in-delivery). The conformance corpus's law `enforced-by @check instance-schema-check when phase is act and severity is blocking` reaches the check at act only. The seat's workspace is the seat when it is a `@workspace`, else the first of the repository's own `@workspace` and the workspace whose declared root holds the seat record whose closure holds that record, so a floor or adopted record, an installed `@system` included, is seated in the repository's workspace with the records the repository authors, even when the installed or adopted `@workspace` that ships it declares the root it sits in. A workspace's closure is the floor and adopted records plus the members of its declared roots or, while it declares no sources, every record whose root no workspace declares, which unknowns names (workspace declares no sources); when neither workspace's closure holds the seat record, no workspace holds the seat, the closure is that fallback and unknowns names it (no `@workspace` holds the seat). A record in another workspace's declared root is never entered and is a pointer naming that workspace. Blocking governance among the candidates other than the seat is reserved in rules before the budget cuts loaded, so it is delivered at budget 0. loaded is the seat (a location, or a workspace seat no record declares, as {path}) and then the first budget records in the design's total order: governance by prime, band descending, hop, severity and identity, every other shape by band descending, hop, lane and identity. Pointers are the 9-tuple (identity, word, kind, lane, owner system, steward, band, hop, via): the first 48 are listed and the rest tallied per word and owner system; the frontier one hop past loaded is tallied per owner system and kind; a steward is the head.steward of the owner system's `@system` record. With word set, only records of that word load (the seat loads whatever its word), are pointers or are counted in the pointer tallies and the frontier, and a record of another word a hop reaches is followed as a waypoint only; the blocking governance reserved in rules is taken from the candidates without the word, so rules under a word is the body's without it and a word never hides a blocking rule. unknowns name the seat's own unknown, a location nothing claims (on a narrowed scope, that no record in it claims the location), missing sources and, on a whole-workspace scope only, the unresolved-reference and unconsented-row findings on loaded records; a narrowed scope says it reads none. widening gives the key at depth + 1 (absent at depth 2) and the re-seat template {shape, phase, depth 1, budget 16}. The body carries no root path, token, time, capture state or record body. Limits: no Door operation, MACHINE_PROTOCOL row, MCP tool or CLI verb serves the body, so the nine version 1 routes and ia scope are unchanged. @inventarch/graph exports laneOf(record), the lane a record's kind gives it (an authority-facet contract reads authority), which the lane index now uses, unchanged. The @inventarch/db readers add roots(options): the roots the `@workspace` records declare in sources, as frozen {root, placement, workspace} copies, longest first, a root whose declaring workspace the read does not admit pruned; DeclaredRoot is exported as a type.",
+      "packages": [
+        "@inventarch/db",
+        "@inventarch/graph",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        ".claude/",
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/taxonomy.system.ia",
+        "CLAUDE.md",
+        "README.md",
+        "apps/vscode/LANGUAGE.md",
+        "distributions/",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/db/",
+        "packages/graph/",
+        "packages/runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "workspace-read-handle-safety",
+      "title": "Validate document reads through the opened file handle",
+      "summary": "The bounded workspace document reader used by the Door read operation now checks file type, link count and size through the opened read-only handle. It verifies that the named file and containing directories still identify the same objects before returning bytes, and refuses replacement, new hard links or modification during reading. Allocation and reads remain bounded; public refusal paths remain workspace-relative. File and directory identities retain their full 64-bit precision, so distinct Windows file IDs cannot compare equal through JavaScript number rounding.",
+      "packages": [
+        "@inventarch/db",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime"
+      ],
+      "paths": [
+        "packages/db/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Packages without their own changes move to 2.0.0 with the cohort; their contents are unchanged.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/compliance-system",
+        "@inventarch/governance-system",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-runtime",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/package.json",
+        ".ia/src/systems/agent-system/package.json",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        "packages/language/package.json",
+        ".ia/src/systems/learning-system/package.json",
+        "packages/service-contracts/package.json",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/work-system/package.json",
+        "packages/workspace-runtime/package.json",
+        ".ia/src/systems/workspace-system/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".agents/skills/ia-authoring/SKILL.md",
+      "sha256": "15ff897302085d7e7c003838c0e95cb8593932650df8aa19744bbf8b02ec0353",
+      "change": "ia-project-verb"
+    },
+    {
+      "path": ".claude/agents/public-agent-composition-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-agent-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-authoring-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-compliance-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-governance-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-hook-authoring-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-learning-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-session-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-template-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-work-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/agents/public-workspace-system-steward.md",
+      "sha256": null,
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".claude/skills/ia-authoring/SKILL.md",
+      "sha256": "15ff897302085d7e7c003838c0e95cb8593932650df8aa19744bbf8b02ec0353",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".github/workflows/platform-quality.yml",
+      "sha256": "2518c6f9cba20c374637a3ae0f5021a003498b6dd7ede82b84780af1ee95e4de",
+      "change": "ia-project-verb"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "f7847e41df83358622b948a282d73be4888f3cb631c9e4da179312ccfb5649b4",
+      "change": "ia-project-verb"
+    },
+    {
+      "path": ".ia/authoring.resources.json",
+      "sha256": "308c6cd1594d5e8a1a6c88ca7a538c9e3aa4136f3289972a2dfbfe2a01061922",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": ".ia/src/participant.ia",
+      "sha256": "40c78c162011f175eeb293d1678d7d3c61a41f617e7bcc70eff451c94a5b6507",
+      "change": "capture-preview"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "8e508f34952c727b7ff3d07dc9c5ff70d37e91270f178b5198b82fc228ce1106",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "2e242e9d14058616409bff18c4cd205bd8c93984c63b5a4ba034257ca53bf83f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/SPEC.md",
+      "sha256": "7c5176aeef1c78930154a8fb4685a33ae2204507ab088a2cbf946e034f1d6ec3",
+      "change": "init-three-records"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "d3b59647d6fe34ce504cdf078c526e8f00657a517f2fd45094be59e9e7309a32",
+      "cohortOnly": true,
+      "change": "init-three-records"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/src/index.ts",
+      "sha256": "b30ee27a54c8b494bb03cce3a1c7fe948e117aed13d97d3be81a4f7a0e9bd516",
+      "change": "init-three-records"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/tests/drafts.test.ts",
+      "sha256": "d059b93bb96a112b64029968d2c6009cbfcd0498a483fda4becc3bfbe6456e3f",
+      "change": "init-three-records"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "caa6e0f9b52827cc0f59f96121ecb970db9d9f54a46b61af66ce9520bf5dca07",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "6cc5389bdffcc06c407861085dffdf492feac5708bfe48b60f226905027567da",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "893b346aadc6b30cfcc8c779b8e562805a077e3d48a15a8f1c4b3b16b56a02d2",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "a4b199876486306de6a86ed78593e8d4d0474fb9cd1d191bdefee38fddf7e10e",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "d12e85d23442059638c6731ebcb465c70c8a2b9c23c48c67fe6ce4f4960642d3",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "28b4a9b13c26d3c591dbe2daa1716f48272944dc506795fb1b5bee6e11f11e1c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "1343ba23af597f4b1bdce3eebda61765be533f097f36d712efb32d13490697f1",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "f8cd2273e11c2abd2a2b56c01afd23a7389327aa461af4ef182fb5bee96e9064",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "db7f61112f719b4d23394a5f962aab8e36bea144cd1d74b10fe43647290aa595",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "b48bcbb23b9b9bddeec8ca9ed0aaab7449804e58fa7c4f2afae1c389420e6254",
+      "change": "ia-project-verb"
+    },
+    {
+      "path": "README.md",
+      "sha256": "2329b21752818145d6eca8b292971ba893d6b13d705f36ff086637b89284f99b",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "apps/cli/README.md",
+      "sha256": "e591d999e713a9c45f6b970e63857d1d12e03f844ca5f6114b5a722a4c3471be",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "7279ab157a0a9548e1c85ea2149f49b17523ac5ba6264d4709d2a10ecb551bbc",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "8f3349ce3771f91074c8cf1eccea5c9f5e7a0f6e718f883b78813973ff7bd0fa",
+      "cohortOnly": true,
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/bundled-base.ts",
+      "sha256": "72d7fecd09ad027514b2ffc77425a8ba1c47e9e166b05982f6871bc7ed681e7a",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/capture.ts",
+      "sha256": "355fb7810c5ae43098b346e0eb18962f3377539ab84265d9da557b77afbfa2fa",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/commands.ts",
+      "sha256": "77897270c573e18346490f12981416de31c49cae7c9431e481c3f2bfdfc5c467",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/consumer.ts",
+      "sha256": "cfd75b3d391956af614bdbab9314e62fa25de9bd7442911bd73d97bc95984914",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/distribute.ts",
+      "sha256": "775e45833f9d0da2a2f6eb6b6b1233f65d9cca4503d9794c48f4743b7a200777",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/doctor.ts",
+      "sha256": "44ae13fd0ea7ec2320a977c2b11c27414d47a8da642b357511aea91b1c9df940",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/format.ts",
+      "sha256": "939ef8bbace2ffd54322dac9596dd24ee2a74fa07363b1939391d19bb83614fc",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/host-projection.ts",
+      "sha256": "dccc1e7cb68ceb3177d43ba16cf372ad3aa9b4dbc4004dccf5b1de9764e64531",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/host.ts",
+      "sha256": "eaebd946f1929747e94e4aaa877662bf0a2de6dda3ba660f36fd2e1ffd12e2b7",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/init.ts",
+      "sha256": "c3c1b39976fb57e81dc4edf342c7fe53d40f4d441ba00b114fbc392cac1ef36b",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/main.ts",
+      "sha256": "646ade9d747788442efb081759e09f614570f50d4b04fc29c5de0c76b0b55671",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/migration-journal.ts",
+      "sha256": "925c35dab534dc89536d507b533f9607a949d0c2686ab9e74853d0a83732683e",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/next.ts",
+      "sha256": "9e171a85290d8c77d55583b1f0dfbcad31916e7a35f9258a51e394a6394e4c15",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "apps/cli/src/operation-help.ts",
+      "sha256": "f28eff001bc0f13c73c6ba0f7e2500ae6e4b7a101b38c5138f543d8a8937e0c1",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/pack.ts",
+      "sha256": "3cc06d60571671149a09fcaaed49777b968f81b57928e8093b328cdb444f2db8",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/position.ts",
+      "sha256": "185caa36dc98b5b9de672314b2ae93cb34e4a136677b32af0fc047cd3480735e",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "apps/cli/src/project.ts",
+      "sha256": "cf82f3695679533c43ab2724f4109ed92afa016f8703352ec5e9d3e3103e6ac2",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/src/read.ts",
+      "sha256": "757a310556f1dd3ddb6d0d1e3caa9465aadbbffd3646fc1fbe9b642f451865aa",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "apps/cli/src/render.ts",
+      "sha256": "4f95225d1d443f6bbea3407d4bd25b9d079ac84ea30c7098366673c734c1463f",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "apps/cli/src/session.ts",
+      "sha256": "983af129fb851f3850de411ca8e00d3e19d763ee346eea968487ce93b105631e",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/args.test.ts",
+      "sha256": "e29618c4e4eacb632249aa10d121167ff541ee5426f9f799e4e445556afe8442",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/capture.test.ts",
+      "sha256": "ed4392e4511743a029f159a2dddc115cebdf3beec1c8128736260b5362d9a10d",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/cli.test.ts",
+      "sha256": "85c66ed0823d441c5bf07c0c2133fa1dc8645a28f10edff826bd207a66497201",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/consumer.test.ts",
+      "sha256": "2e0f7214103315670ab06c67ea70d61468c3787f06b54b819ebc9b40def60abf",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/decline.test.ts",
+      "sha256": "4973fc13f2a0f29142a1fd1b434d9ed0e99c1987b2ee951d1f41041ab121a27a",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/workspace-1.1.0-collision/.ia/src/notes.ia",
+      "sha256": "fa4f7cb250eb8a8a293639e83f283448d0a23d46542a326156d86750c81d7cc2",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/workspace-1.1.0/.ia/release.json",
+      "sha256": "703cf2c7054720ec665016f1abf2be15e928dc1642d06df2d86d7f05612b7b4f",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/workspace-1.1.0/.ia/src/systems/demo/records/notes.ia",
+      "sha256": "9f31869e4d29861aec86a68e783463623ec0b1b9f6a02eac8b4ec3f1b6ce87bc",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/workspace-1.1.0/.ia/src/systems/demo/records/workspace.ia",
+      "sha256": "9d776502e96deba7d5219d0694507fd4ec4f973983c29e6e8a008f3798c2f209",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/workspace-1.1.0/.ia/src/systems/demo/system.ia",
+      "sha256": "4fbe6d1228fc205c425b9af5862fa9d01ca3d3f87e4196b5cbed354087405dad",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/host-doctor.test.ts",
+      "sha256": "90d47606f626edf96bb5f0441fa384327cd044d7882e892ab19ea34b4af9bbf9",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/host-fixture.ts",
+      "sha256": "bc3380a17eadb67653e23920ce68aab2a311f7a52956434d6f7ace2a5e1a6d03",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/host-install.test.ts",
+      "sha256": "1f478b0081d2fae5ebf163b000dd7df2f1b40e49ccf4816efa8d9090ea6a3398",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/host-projection.test.ts",
+      "sha256": "82a266f1b30700c975c55c480dc638a8a77cbf119a7e1db5c85427251d3ea8ff",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/host-recovery.test.ts",
+      "sha256": "e00b5fe2ee26587456351db3efb98b06a10f9b33520699f586ada0007d85936e",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/host-registration.test.ts",
+      "sha256": "2abaee4496a27f83c7042e33a97911150876d6535ab9b4ae7cbf45fe38345084",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/init-migrate-kill.ts",
+      "sha256": "f4241c5bf730ebad66861d86126fd35ead2b7f6fe0546c2f025bd36a19d8b8c8",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/init-migrate.test.ts",
+      "sha256": "25f695f0d65999a381216f92af0bd168febb34e212abb4d4e76f97f58acd420b",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/init.test.ts",
+      "sha256": "37d8b959eb7888acbf4e2cbfcbee8feb608534531708ad289ea956da17814b13",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/next.test.ts",
+      "sha256": "96c5138108154733ed1078b8662fbed79f03ecc2796bd01f44868609be962170",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "apps/cli/tests/position.test.ts",
+      "sha256": "04cd4c5fc98e24132e3ea619790518b9d82affbd4dd4173a0c3bb743b4016bf4",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "apps/cli/tests/project.test.ts",
+      "sha256": "a4e53d0f3e2af8e2af35b0c3057356025d672af43f0e7a53848909fa562a7c5f",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/protocols.test.ts",
+      "sha256": "f0abaf8f1a0c1723aae7d8db8fb3671351b20add0926eff8e7128e48ad7ced97",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/read.test.ts",
+      "sha256": "392510bb36792c0705fecd556daa3570421849d28574cf684e59b2eb20020180",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/refusal-next.test.ts",
+      "sha256": "eccf72e0c15a2eb97681c68337fa0c62f96e68888a2f4bb1d92a9952a9d669c0",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/registry.test.ts",
+      "sha256": "277e557d89da6cc27d837dea3f5593cf3cadc8ed51dc1d80a5c23ae9450ac53d",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/workspace-fixture.ts",
+      "sha256": "37262674d1b56748fb01d3602bf5aea79021e0f01dc7fc65e39f432f0dcdba43",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/cli/tests/workspace-verbs.test.ts",
+      "sha256": "9a7a0f433593815349cefc5683ce0a7e9f83f05bde38bee59cc3a0b9312c8963",
+      "change": "capture-preview"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "690833e3431be4dc00edef54cdc81076e585b42d6bbe460cc5feb101dbe8a1ef",
+      "change": "init-three-records"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "30da9be70269422b9872f12a396d218f1a697cac4dd7b0c56075398cfb385198",
+      "cohortOnly": true,
+      "change": "init-three-records"
+    },
+    {
+      "path": "apps/distribution/src/guard-registration.ts",
+      "sha256": "329ef49ec2c8b6215eb8ed5ad6229145a158fc83c4190325e6c5ff534c07c319",
+      "change": "init-three-records"
+    },
+    {
+      "path": "apps/distribution/src/projection.ts",
+      "sha256": "e4318eaa52ddd691f2e1448a5e8951974e84126273a58d4bbd166192b0e27f31",
+      "change": "init-three-records"
+    },
+    {
+      "path": "apps/distribution/src/snapshot.ts",
+      "sha256": "ae705f7896c9f8c9f312113243bf34fa5fa3361d320127a82c33c87d05c808e2",
+      "change": "init-three-records"
+    },
+    {
+      "path": "apps/distribution/tests/guard-registration.test.ts",
+      "sha256": "c0914425d5afdfa167d4982b49a8f1acb307952c3a7787c325390e17b417ad50",
+      "change": "init-three-records"
+    },
+    {
+      "path": "apps/distribution/tests/projection.test.ts",
+      "sha256": "310b840fced67fb5fcfb701a7a712f09efa741aaa7343b7937f059fe832e0e0b",
+      "change": "init-three-records"
+    },
+    {
+      "path": "apps/distribution/tests/snapshot.test.ts",
+      "sha256": "eabde89a6f1b1dc7763fd95d6514e1380c187b22003ad980fef726061a372211",
+      "change": "init-three-records"
+    },
+    {
+      "path": "apps/mcp-door/README.md",
+      "sha256": "c73210ac5faa4c5470ec89c088bf75f2339b2555ba6922761179210123eae455",
+      "change": "door-position-operation"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "5572baee7380c6f2d0b818d2b0e1fdb14e55a16a1cd8efaf6c82e566b3f174f2",
+      "cohortOnly": true,
+      "change": "door-position-operation"
+    },
+    {
+      "path": "apps/mcp-door/src/tools.ts",
+      "sha256": "bf00c90de8ff26c5fd9058fb47f684b70cf0a9867bb01d5ef5fb64b232225781",
+      "change": "door-position-operation"
+    },
+    {
+      "path": "apps/mcp-door/tests/protocol.test.ts",
+      "sha256": "046419082df9675fc1ca71de169ff621b9281ee387fed13f8774e256e84613aa",
+      "change": "door-position-operation"
+    },
+    {
+      "path": "apps/mcp-door/tests/stdio.test.ts",
+      "sha256": "1a2ed0d0bf992527072aa480f09ace53e7397f7dec3e275596bb371cabdba91a",
+      "change": "door-position-operation"
+    },
+    {
+      "path": "apps/steward-hook/SPEC.md",
+      "sha256": "abd474ca57f83e7c843a814f3c48c6fe36c1a71776d12f668f9b3bc8f354267b",
+      "change": "host-file-identity-precision"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "f6a846e0a58315935a4e53a35c343794abbacd21d3788de845b9b5e7b3a80ae7",
+      "cohortOnly": true,
+      "change": "host-file-identity-precision"
+    },
+    {
+      "path": "apps/steward-hook/src/main.ts",
+      "sha256": "3d9228a5476ad0b3642a4e4df166ffd75176d8fd744bff37f6deeba462edeb35",
+      "change": "host-file-identity-precision"
+    },
+    {
+      "path": "apps/steward-hook/tests/consumer-guard.test.ts",
+      "sha256": "c030355fc5346906b715f84d7ff155012f7ff2f171976f1f74ee03ec6bda3cbc",
+      "change": "host-file-identity-precision"
+    },
+    {
+      "path": "apps/steward-hook/tests/hook.test.ts",
+      "sha256": "5c6fb8b8aa4247c3d8624888da550490daba04de0b55acf7bd0e801ecf18acea",
+      "change": "host-file-identity-precision"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "de1bf5f8eddf5ad8573fb62a21bf120095ae5a1dffb322b67d0479cff39b865c",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "095dc2b575c7bb94a0e79219ff148f1354db51177a5a952aba253f0de79d9ed5",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/README.md",
+      "sha256": "171d6a81100315257e4acaf94c46ef896cab236198e752fe2da711a777149eb5",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "nx.json",
+      "sha256": "f83e00a6c38003eed2d70093202630eff808b2393e72913e3222f9269426dde6",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/compliance/SPEC.md",
+      "sha256": "0262d523ea0aa8a6b77e781f74e70694047b175e9a3a5782a49b4eecbeaf1750",
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/fixtures/refusals.ts",
+      "sha256": "f574f5ef28415fc3812d40537a807955239cd42871346401b17c0e28447408a1",
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "44063ce9e344048a5df74b76dd30bfe84298a8a8980544ddd74bddc40c92cef5",
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/src/index.ts",
+      "sha256": "b3b2e0348318ea44b8a07ffc09eb5de8d00b9b275a1619683606d662eed00c41",
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/src/projections.ts",
+      "sha256": null,
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/src/steward-profile.ts",
+      "sha256": null,
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/src/types.ts",
+      "sha256": "7f4f63d70717e122be20a137774d23cae61cb7305b1eb94ab867e316e74b5fe7",
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/src/workspace-projection.ts",
+      "sha256": null,
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/tests/host-projection-fixture.ts",
+      "sha256": null,
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/compliance/tests/workspace-projection.test.ts",
+      "sha256": null,
+      "change": "replace-renderers"
+    },
+    {
+      "path": "packages/db/README.md",
+      "sha256": "0c50d5a9409f4b4f1cfd6596733c6705945f4906e35d4abe8fd850db7b2804a4",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/SPEC.md",
+      "sha256": "4dd032ddee6ca67391e726f41829cd48eeb2f60908851f71258e39ce945c7fa1",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "75eea62dcf537c23c43ff569e34496bf081c434e92173f5059570be118e2afdc",
+      "cohortOnly": true,
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/src/distribution/contracts.ts",
+      "sha256": "7adc7ab1e61941a8546d855143722ff518e09d121e1b10f232341559e53f6e34",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/src/handle.ts",
+      "sha256": "38c4388800fb08e7590eb7ae241a94dee739c4f847dbec78a4443533a74acf2f",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/src/index.ts",
+      "sha256": "b55e0e776dfd6be3891cefd9811b00ddfd6d393743e7952844a1adc969c15c7c",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/src/inputs.ts",
+      "sha256": "3eb46596d806c9cc60a7d949c9066929ecad99e54a452d381f3c692cffaab843",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/src/retention.ts",
+      "sha256": "fdffb6f0226f2bb8c779522c7efb07c2071235784b6baa90947b052f39d7ff78",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/tests/distribution-contracts.test.ts",
+      "sha256": "18ea473e87c474fce991e04f584aef6b6d62450933472df012ed033492d7620e",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/tests/inputs.test.ts",
+      "sha256": "7d3edd5bf0945d0174cc1f93e79a8b0768ea15b357c589ca063e962a13428b52",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/tests/membership.test.ts",
+      "sha256": "c9b0684d7e90d5ffe0f345895de5b72236763bda945914c946f9bd714ea0b333",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/tests/retention.test.ts",
+      "sha256": "12a1ffd882f18427bac16d699adad532881cf946c3afd0bb23a712ef9d353180",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/db/tests/scope.test.ts",
+      "sha256": "ed3c06d9dddf9140db46e0dee2e3678d434434f1a46971817ca0521db48358ad",
+      "change": "capture-preview"
+    },
+    {
+      "path": "packages/graph/README.md",
+      "sha256": "3c713042069d9fceaaa3a01d2fe5740b68603185c2eb8e311590a28468981a27",
+      "change": "seeding-engine"
+    },
+    {
+      "path": "packages/graph/SPEC.md",
+      "sha256": "45afbffcc1310a60a60048448aaee7d27e56e9f18196b7a159c5112df1771114",
+      "change": "seeding-engine"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "7d748d30f2e9175df8a67a1b9216f7cca4f98d6fa0e90787e8a84ba726508052",
+      "cohortOnly": true,
+      "change": "seeding-engine"
+    },
+    {
+      "path": "packages/graph/src/index.ts",
+      "sha256": "f66ad236e560d5d46840410a55b14bfd2310d223f7b2888628246aac03d0e539",
+      "change": "seeding-engine"
+    },
+    {
+      "path": "packages/graph/src/load.ts",
+      "sha256": "fbface3388d70ac3ac949a90d7073419739f94f21cbc451db29ac558836b4dd9",
+      "change": "seeding-engine"
+    },
+    {
+      "path": "packages/graph/src/queries.ts",
+      "sha256": "e1f388e6be9fea2c81c9f5982af0b79cd07a2ffe11c486de0be6401ef8c838a2",
+      "change": "seeding-engine"
+    },
+    {
+      "path": "packages/graph/tests/queries.test.ts",
+      "sha256": "7d4d068398f7b8dddb49f7b8915ca5bb5def486f9230d18355153a6ce69f5ca6",
+      "change": "seeding-engine"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "9a2530d03a7416e3ad8a767d38dec3a855bb26a9d74d5dd9d4ef86b18541f939",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/README.md",
+      "sha256": "c209ad8a27f9d8e1bd61b1b55d29c567f1362b24bcf67109befac1791b8b8161",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/SPEC.md",
+      "sha256": "eea53cfd538f80e4b4b02bbde5c8e90660c204cdc78cb8e6ccf82e2605050092",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "e154120a3fc19c3407336360d6bbae4f4e1379932f11381657ba06d3b4d874a4",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/context.ts",
+      "sha256": "1b91beaca9318adbbe2b0a02224ad9a7d1bad324ae82a1a4c1ae7b16ecd020cb",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/coordinate.ts",
+      "sha256": "6d183b5271906761464ef51c2b0fce6acb2800182bc3340741b2a2e250f0f145",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/door.ts",
+      "sha256": "9651f8bd19badc663cb520f2f7a19e19175d966aeda164f7e9c2c936d73839c0",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/errors.ts",
+      "sha256": "91a06635368d72a95edb46611afd06b65e8eb4678d4f95f3e6aa69b274f39ba4",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/index.ts",
+      "sha256": "59669caa17384c6a55616a3bc3454f31bef5198a536eebbc577d1d372e0d1890",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/locator.ts",
+      "sha256": "12100b41bfc6b2440c6d3c2bc625a4c988b56a94f1d48b237ba65751d99db7f2",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "packages/runtime/src/machine-protocol.ts",
+      "sha256": "4fe2f94d806989a91c081686ab605a5166dbb1447110084ba997b4647e35361e",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/next.ts",
+      "sha256": "6b68b6cbb151eb9b0f5268c1c0844c829e9e820de18258ac1740728bd690a10f",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/packet-host.ts",
+      "sha256": "049189ce7f99115820a6fe6421b7d0573906272656389fe5c1745b5debb30587",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/packet.ts",
+      "sha256": "25477c423d13d20584efc0e12b3a5eb899a2a65063aaf53099968b05e96e2a9a",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/position.ts",
+      "sha256": "71ac19c2a59504134ee6bd0a84ef5c664136a0485dd2a33fe6351051d25dbd83",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/render.ts",
+      "sha256": "ff4c547877e041eecc9643eaf0a8e05b80b9c1dc92075f5295cda13705ce7514",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/src/scope-key.ts",
+      "sha256": "a6b12bd3e5b5c7b776b7a34b3b69819ce0739f98fd7be6c54276cfff58a02859",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/applies.test.ts",
+      "sha256": "b2492a52efaeced37b2fe0350e30cabc8983549b729633f15990c4bbb25572d2",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/door-position.test.ts",
+      "sha256": "7770918eb5e5422173d32c2bbcce09e94f7db77c285d7e11d3742334b42f52cd",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/door-read.test.ts",
+      "sha256": "93f461aabbde99c3319728cfd34bf1e5da99598e9fa27978fc5755f5984dc7b5",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/fixtures/delivery/base/evidence.ia",
+      "sha256": "e2a7ea1c075357b8a580a019fa6ecaa86694d00e21a61be369fb7484b63bf371",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/fixtures/delivery/base/work.ia",
+      "sha256": "e7b2c1d129ece8564f590a923e9367b668e182de1ad48a9976969579d6ed6676",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/fixtures/delivery/cycle/work.ia",
+      "sha256": "acb1fc59f3a8b8922357ccf773a302e4ac95ea55f8a7e69acbfae9db038d6e39",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/fixtures/delivery/plans/work.ia",
+      "sha256": "21de46849c306efff9c4b9b4d07e73c2cc048475e9fad0c9acc1a753509fdae3",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/fixtures/packet/workspace.ia",
+      "sha256": "85b0aadb007bf3cc7cd7efda310491ef7d6a15956cb5a1898fb1e6b803e9d7e7",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/governance-at-law-act.json",
+      "sha256": "522b8c207ca997f3de784e0f6759393df6d3e51512bbc14ee7622254bc2e6f01",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/governance-at-law.json",
+      "sha256": "ea952b92588a2cb5e29cde489e0b2f931d47d4a2cc399d5c70c029f972abba05",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/k0.json",
+      "sha256": "b99d922d65da3f5748c2dd233d08b6ea3f33b50b7a255d88c6cc51617c9ba528",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/machine-protocol-v1-wire.json",
+      "sha256": "3e8faab4e69981306bad2cc96b314dc9db68b7052e7378e230d013e15dcfcadb",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/machine-protocol-v1.json",
+      "sha256": "86f411e4437533800e85bb2e88968057cdc37c25c6810d6d046fa69192f39a39",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/packet-fresh-init.json",
+      "sha256": "d4f63d8d5477139b77317a99ec32046f68ef6ce754ab33e7bda579df6adbac9c",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/sequence-depth-2.json",
+      "sha256": "300eaeb781dd9290370739a658314f8d2f36152a502da409ca58c4eac102d275",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/word-law.json",
+      "sha256": "b36742f6231387c25a595160cc14a699f0e5fa9271928d98939501cd83605e47",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/golden/write.mjs",
+      "sha256": "1bb9d06380571e6f654c727306c33243dedbbfabc022f2439ed5249477b46a58",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/locator.test.ts",
+      "sha256": "3e63b5f7ca7636924e6385a72dfce74b0fea9034ca147e30f22bc27483c50941",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "packages/runtime/tests/next.test.ts",
+      "sha256": "0ece06ebb07caead170eed92b399df1abad9d893955654893a29e6b95446702d",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/packet-host.test.ts",
+      "sha256": "8fe8dfc4a9e57c87ae3c5a32b16909c576f8d8ef1761e127c59ddb919c313162",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/packet.test.ts",
+      "sha256": "305e5a2cde961c153c0ec715642c7f486336753ba007206e2e651c964c8ae9f8",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/position.test.ts",
+      "sha256": "f5eae067f4e2079518a6ba5b6ee13d39ceb6a53659856b517dcb355deebe8d23",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/purity.test.ts",
+      "sha256": "445371d6c6885b28fe32804dc108cfe488492c8e999c6e6c87dd83095da609c7",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/scope-key.test.ts",
+      "sha256": "83b3fc34659f100b7a0ae72e8964d9e1d778be682717558a9b0fabb8574907f3",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/select-door.test.ts",
+      "sha256": "bbb6851b96325e27be941425801771c20273ceb73940e05266054059a2c3a4c1",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/runtime/tests/workspace.ts",
+      "sha256": "135401e682022cc520eb06358135b374de97f69fbfd64efd4abf0dc25d505939",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "39f5e9f7968c7b8394d1570daa28211dbb11bec242f2d01459268d2f2f150cd1",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "2fcc19641c7558eff14efa2a1fc67ee789389bb543e3dfbe25f32920d4389045",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "025abacce3c0491ed4370d2bec54515712dc43c39e0e9d531a299eeacedd991a",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/compliance/check.test.ts",
+      "sha256": "7acbca0d7045d1d532907bdf02662b1935276e5b230d7cec9bd507b7181aab13",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/compliance/check.ts",
+      "sha256": "6b2956481d587f53ba395cb230f1f1cc61aa11ae9b4d5fdcb0d11ac116306e28",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/compliance/runtime-fixtures.ts",
+      "sha256": "26d3d5dbbb00507986f55eacdf75518dc74073f461fb369f0dad59f0b5f911af",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/distribution/SPEC.md",
+      "sha256": "97aaaf08513f2d71cf59e72b033482e41da3ee4ce9841c7d6d2207c5b179d3b0",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "tools/distribution/installed-views.d.mts",
+      "sha256": "e7aecb1ed7d32a079d9a510bb3b8bcfea904018d3d1ab0373dfeb60888559349",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "tools/distribution/installed-views.mjs",
+      "sha256": "0a9cf857647a027be536d8170ccbbcd92d43cf62b020e469032d686a4d15acfc",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "tools/distribution/installed-views.test.ts",
+      "sha256": "4d4bf4276856150351eee92456d5a0cdebf2fe6992a75259d899148989d4313e",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "tools/distribution/qualify-packages.mjs",
+      "sha256": "31f08b02e62c3f8f52f3fb6256a4061fa923a4ee76b1cc1e4225ebc4627718fe",
+      "change": "consumer-read-next-hardening"
+    },
+    {
+      "path": "tools/distribution/qualify-public.mjs",
+      "sha256": "a1407a224afae9508afb7609bb50a73a8aed3fae106f388c6858fc4a1a6af43e",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "3c0d8fa292bde9c60629669f69cd5922f0d68a446979778225c81eeb7ab7683b",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/native/check.test.ts",
+      "sha256": "cddded14b6f52ff6ee1904a3e6032ebc43e92fd4caba5f5389216b0b04e2309a",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/native/language-base.test.ts",
+      "sha256": "c485ab439362e7e4138580dc80f587074f6303afcc88d06982447a0f86ba4d9b",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/projections/SPEC.md",
+      "sha256": "65b7f2a47692b051155756371bdef8f936d55f1055375508609f9f1054a48f58",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/projections/fixtures/m4-120-governance-steward.txt",
+      "sha256": "a9b66586f01c3757cc5c1444996f9536769bc67bc72ce713fb03f57135af7496",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/projections/fixtures/m4-governance-steward.txt",
+      "sha256": "4d3da33315916941999f0ae86cb609454293ca250e4833377b833c5b069cb2ab",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/projections/fixtures/m4-restacked-governance-steward.txt",
+      "sha256": "6d74d7cdbe779793728414d7b7e302976cb8db5dcc1ccfee5abaa538671cb875",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/projections/generate.test.ts",
+      "sha256": "a62e0d446d468bbe0d21c6ea3fa0243790835f95f3f02c01a32fb76742e98a42",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/projections/generate.ts",
+      "sha256": "376fa9e3970933a5e602818afcaabfe0eb6ca1cac56a9571bd504fcdc296a533",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/projections/legacy-stewards.ts",
+      "sha256": "cfa8323d7d4ac365f1b2155433e727b73f165f104371635a147f56be0829b481",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/projections/membership.test.ts",
+      "sha256": "74e3d25fc0c627f701a92ca48073afa6b566f8b4ed6958def9eb251aa7c215d3",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/testing/SPEC.md",
+      "sha256": "aed70d865107fa9a2dc34c69650bee15431b7a8ca97ea1646c914402dd15970d",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/testing/cache.test.ts",
+      "sha256": "1e9bf9b7fabeb8019598a90b097512712d44ca72984338c28e08603f6119913c",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/testing/inventory.test.ts",
+      "sha256": "03aa9d4e71c33f2aad92bb022b328b18fbdde11c3cda0245bea3fd53faf9342b",
+      "change": "applies-by-word-and-cells"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "76b0c28f65b57ed3395dcff1f985df37c28af78ebfe5a0a4355a7b02a299cc4d",
+      "change": "consumer-read-next-hardening"
+    }
+  ]
+}
