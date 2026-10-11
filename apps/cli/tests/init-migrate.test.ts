@@ -133,8 +133,9 @@ function layOver(root: string, overlays: readonly string[]): void {
   for (const path of ['.ia/src/workspace.ia', '.ia/.gitignore', '.ia/release.json', '.ia/work'])
     rmSync(resolve(root, path), { recursive: true });
   for (const overlay of [FIXTURE, ...overlays]) cpSync(overlay, root, { recursive: true });
-  // The 1.1.0 descriptor depends on the base this CLI bundles, as a 1.1.0 initialization's did.
-  expect(JSON.parse(read(root, '.ia/release.json')).dependencies).toEqual(installed.dependencies);
+  // The installed base is current, while the historical descriptor still names the 1.1.0 base.
+  expect(installed.dependencies).toEqual(BUNDLED_DEPENDENCIES);
+  expect(JSON.parse(read(root, '.ia/release.json')).dependencies).toEqual(LEGACY_DEPENDENCIES);
 }
 /** A 1.1.0 workspace over the bundled base installed as host-fixture.ts installs it. */
 async function legacyWorkspace(...overlays: string[]): Promise<{ root: string; env: { IA_HOST_HOME: string } }> {
@@ -165,17 +166,19 @@ async function identitiesIn(root: string, path: string): Promise<readonly string
     .sort();
 }
 const fixture = (path: string): string => readFileSync(resolve(FIXTURE, path), 'utf8');
-/** The 1.1.0 descriptor without its distribution, as the migration writes it. */
+const LEGACY_DEPENDENCIES = JSON.parse(fixture('.ia/release.json')).dependencies;
+const BUNDLED_DEPENDENCIES = [{ id: base.pin.id, range: `^${base.pin.version}`, systems: base.systems }];
+/** The 1.1.0 descriptor without its distribution and depending on the bundled base, as the migration writes it. */
 const undistributed = (): string =>
   `${JSON.stringify(
     Object.fromEntries(
-      Object.entries(JSON.parse(fixture('.ia/release.json'))).filter(([key]) => key !== 'distribution'),
+      Object.entries({ ...JSON.parse(fixture('.ia/release.json')), dependencies: BUNDLED_DEPENDENCIES }).filter(
+        ([key]) => key !== 'distribution',
+      ),
     ),
     null,
     2,
   )}\n`;
-/** The descriptor's dependency rows: the bundled base, which the fixture's descriptor already names. */
-const DEPENDENCIES = JSON.parse(fixture('.ia/release.json')).dependencies;
 /** A file's SHA-256, as a receipt lists it. */
 const digest = (root: string, path: string): string =>
   createHash('sha256')
@@ -284,7 +287,7 @@ it('migrates the 1.1.0 fixture into the three starter records, moving its user r
       path: '.ia/release.json',
       before: DISTRIBUTION,
       after: null,
-      dependencies: { before: DEPENDENCIES, after: DEPENDENCIES },
+      dependencies: { before: LEGACY_DEPENDENCIES, after: BUNDLED_DEPENDENCIES },
     },
     hosts: [],
   });
@@ -322,7 +325,7 @@ it('migrates the 1.1.0 fixture into the three starter records, moving its user r
   expect(readdirSync(resolve(root, '.ia/src')).sort()).toEqual(['notes.ia', 'workspace.ia']);
   expect(read(root, '.ia/src/workspace.ia')).toBe(starterRecords('demo', base.systems));
   expect(read(root, '.ia/.gitignore')).toBe('work/\ndistributions/\n');
-  // The descriptor is the 1.1.0 one without its distribution.
+  // The descriptor is the 1.1.0 one without its distribution and with the bundled base dependency.
   expect(read(root, '.ia/release.json')).toBe(undistributed());
   // `ia validate` is clean with no local @system: none is admitted, and the starter's steward is gone with it.
   const validated = await run(['validate', '--root', root, '--json']);
@@ -380,7 +383,7 @@ it('installs the bundled base in place of a 1.x one, which declares none of the 
     conflicts: [],
     steps: ['install', 'move', 'author', 'remove', 'descriptor', 'admission', 'capture'],
     descriptor: {
-      dependencies: { before: [{ ...DEPENDENCIES[0], range: '^1.0.0' }], after: DEPENDENCIES },
+      dependencies: { before: [{ ...LEGACY_DEPENDENCIES[0], range: '^1.0.0' }], after: BUNDLED_DEPENDENCIES },
     },
   });
   const human = (await run(['init', root, '--migrate'])).stdout.replace(/\s+/g, ' ');
@@ -410,24 +413,32 @@ it('installs the bundled base in place of a 1.x one, which declares none of the 
 it("keeps the descriptor's other dependency rows, replacing only the base's, and with --system leaves rows it keeps byte for byte", async () => {
   const ACME = { id: 'acme/app', range: '^1.0.0', systems: ['acme-system'] };
   /** The descriptor with another dependency row before the base's, in `eol` line endings: the bytes written. */
-  const beside = (root: string, eol = '\n'): string => {
+  const beside = (root: string, eol = '\n', dependencies?: typeof BUNDLED_DEPENDENCIES): string => {
     const descriptor = JSON.parse(read(root, '.ia/release.json'));
-    const text = `${JSON.stringify({ ...descriptor, dependencies: [ACME, ...descriptor.dependencies] }, null, 2)}\n`;
+    const text = `${JSON.stringify({ ...descriptor, dependencies: [ACME, ...(dependencies ?? descriptor.dependencies)] }, null, 2)}\n`;
     writeFileSync(resolve(root, '.ia/release.json'), text.replaceAll('\n', eol));
     return text.replaceAll('\n', eol);
   };
-  /** `text` as the migration rewrites it without `--system`: the same keys and rows, less the distribution. */
+  /** `text` without its distribution, preserving the other dependency and replacing the base's row. */
   const dropped = (text: string): string =>
-    `${JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(text)).filter(([key]) => key !== 'distribution')), null, 2)}\n`;
-  // Over the bundled base its row is already the one the migration writes, so only the distribution goes.
+    `${JSON.stringify(
+      Object.fromEntries(
+        Object.entries({ ...JSON.parse(text), dependencies: [ACME, ...BUNDLED_DEPENDENCIES] }).filter(
+          ([key]) => key !== 'distribution',
+        ),
+      ),
+      null,
+      2,
+    )}\n`;
+  // Even over the bundled base, the historical descriptor's base dependency is updated.
   const { root } = await legacyWorkspace(),
     written = beside(root);
   expect(json(await migrate(root)).plan.descriptor.dependencies).toEqual({
-    before: [ACME, ...DEPENDENCIES],
-    after: [ACME, ...DEPENDENCIES],
+    before: [ACME, ...LEGACY_DEPENDENCIES],
+    after: [ACME, ...BUNDLED_DEPENDENCIES],
   });
-  expect((await run(['init', root, '--migrate'])).stdout.replace(/\s+/g, ' ')).not.toContain(
-    'the bundled base, in place of',
+  expect((await run(['init', root, '--migrate'])).stdout.replace(/\s+/g, ' ')).toContain(
+    `; depends on ${base.pin.id} ^${base.pin.version}, the bundled base, in place of ${base.pin.id} ^1.1.0`,
   );
   expect((await apply(root)).exitCode).toBe(0);
   expect(read(root, '.ia/release.json')).toBe(dropped(written));
@@ -435,19 +446,19 @@ it("keeps the descriptor's other dependency rows, replacing only the base's, and
   const legacy = await onLegacyBase();
   beside(legacy.root);
   expect(json(await migrate(legacy.root)).plan.descriptor.dependencies).toEqual({
-    before: [ACME, { ...DEPENDENCIES[0], range: '^1.0.0' }],
-    after: [ACME, ...DEPENDENCIES],
+    before: [ACME, { ...LEGACY_DEPENDENCIES[0], range: '^1.0.0' }],
+    after: [ACME, ...BUNDLED_DEPENDENCIES],
   });
   expect((await run(['init', legacy.root, '--migrate'])).stdout.replace(/\s+/g, ' ')).toContain(
     `; depends on ${base.pin.id} ^${base.pin.version}, the bundled base, in place of ${base.pin.id} ^1.0.0`,
   );
   const replaced = await apply(legacy.root);
   expect(replaced.exitCode, replaced.stdout).toBe(0);
-  expect(JSON.parse(read(legacy.root, '.ia/release.json')).dependencies).toEqual([ACME, ...DEPENDENCIES]);
+  expect(JSON.parse(read(legacy.root, '.ia/release.json')).dependencies).toEqual([ACME, ...BUNDLED_DEPENDENCIES]);
   // With --system a descriptor whose rows the migration keeps is left as it is, CRLF line endings included, as a
   // Windows checkout may hold it.
   const crlf = await legacyWorkspace(),
-    bytes = beside(crlf.root, '\r\n');
+    bytes = beside(crlf.root, '\r\n', BUNDLED_DEPENDENCIES);
   const kept = await apply(crlf.root, ['--system']);
   expect(kept.exitCode, kept.stdout).toBe(0);
   expect(read(crlf.root, '.ia/release.json')).toBe(bytes);
@@ -675,7 +686,7 @@ it('refuses a projection file without a marker at a target path before anything 
   );
   const refused = await apply(root, [], env);
   expect(refused.exitCode).toBe(3);
-  // `ia project` does not exist yet, so the host plan of `ia host` is the one that names each file it refuses.
+  // The refusal points to the host plan, which names each file it refuses.
   expect(json(refused)).toMatchObject({
     code: 'IA-DIST-LOCAL-MODIFICATION',
     message: conflict.reason,
@@ -785,7 +796,11 @@ it('--migrate --system keeps a packable system: the @system and its steward stay
     writes: ['.ia/src/workspace.ia', `${FOLDER}/records/distribution.ia`],
     systems: [...base.systems, 'demo'],
     removes: [{ path: LEGACY, identities: [DISTRIBUTION, 'workspace-system/definition/workspace/demo'] }],
-    descriptor: { before: DISTRIBUTION, after: DISTRIBUTION },
+    descriptor: {
+      before: DISTRIBUTION,
+      after: DISTRIBUTION,
+      dependencies: { before: LEGACY_DEPENDENCIES, after: BUNDLED_DEPENDENCIES },
+    },
   });
   expect(json(applied).applied).toMatchObject({
     distribution: DISTRIBUTION,
@@ -794,12 +809,14 @@ it('--migrate --system keeps a packable system: the @system and its steward stay
     removed: [LEGACY],
   });
   // The system file is kept as it was; the distribution is the one `ia init --system` writes, rooted at the system;
-  // the @workspace composes the system; the descriptor is unchanged.
+  // the @workspace composes the system; the descriptor keeps its distribution and updates the base dependency.
   expect(read(root, LOCAL)).toBe(fixture(LOCAL));
   expect(read(root, `${FOLDER}/records/distribution.ia`)).toBe(starterDistribution('demo'));
   expect(readdirSync(resolve(root, `${FOLDER}/records`))).toEqual(['distribution.ia']);
   expect(read(root, '.ia/src/workspace.ia')).toBe(starterRecords('demo', [...base.systems, 'demo']));
-  expect(read(root, '.ia/release.json')).toBe(fixture('.ia/release.json'));
+  expect(read(root, '.ia/release.json')).toBe(
+    `${JSON.stringify({ ...JSON.parse(fixture('.ia/release.json')), dependencies: BUNDLED_DEPENDENCIES }, null, 2)}\n`,
+  );
   expect((await run(['validate', '--root', root, '--json'])).exitCode).toBe(0);
   // `ia pack` builds: the archive holds the system folder alone and externalizes the base.
   const packed = await run(['pack', '--root', root, '--descriptor', '.ia/release.json', '--json']);
@@ -1434,6 +1451,7 @@ it('carries prior interrupted projection provenance into migration and its print
       },
     });
   } catch (error) {
+    expect(error).toMatchObject({ message: 'migration interrupted' });
     next = (error as { next: string }).next;
   }
   expect(next).toContain('--migrate --apply --yes');
