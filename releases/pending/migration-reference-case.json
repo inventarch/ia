@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Refuse migration that would strand mixed-case references",
+  "summary": "Plain workspace migration checks retained field and relationship references using the language's case-insensitive name resolution. References such as `@agent Demo-Steward` or `@distribution Demo-Distribution` now refuse deletion just like their lowercase spellings, before any workspace writes. The printed --system remedy preserves the referenced identities.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/"
+  ]
+}

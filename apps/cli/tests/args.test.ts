@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
+import type { PacketCatalogRow } from '@inventarch/runtime';
 import { none, parseArguments, positionals, UsageError } from '../src/args.js';
 import type { Grammar, OptionSpec } from '../src/args.js';
-import { COMMANDS, findCommand, nearestTokens } from '../src/commands.js';
+import { COMMANDS, commandNames, findCommand, nearestTokens, packetCatalog } from '../src/commands.js';
 
 const option = (spec: OptionSpec): OptionSpec => spec;
 const OPTIONS: readonly OptionSpec[] = [
@@ -125,4 +126,71 @@ it('suggests only genuinely near tokens and refuses to guess at an unrelated wor
     ),
   ).toEqual([]);
   expect(nearestTokens('instal', ['install', 'inspect'])).toEqual(['install']);
+});
+
+/** What keeps a catalog row from rendering (plan amendment B5): its command, or the next command it names, is no verb. */
+const catalogDefects = (rows: readonly PacketCatalogRow[]): readonly string[] =>
+  rows.flatMap((row) =>
+    [row.command, row.next].flatMap((line) => {
+      const verb = /^ia ([a-z-]+)/.exec(line)?.[1];
+      return verb !== undefined && commandNames.includes(verb)
+        ? []
+        : [`${row.command}: ${line} names no command of COMMANDS`];
+    }),
+  );
+
+it('tags the agent commands for the packet catalog in table order, each naming one next command of the table', () => {
+  const rows = packetCatalog();
+  // Plan amendment B5's table: each command's mode and the move design item 13 maps it to (CatalogTag holds a row's
+  // move to its mode at typecheck; this pins which mode each command is).
+  expect(rows.map((row) => [row.command, row.mode, row.move])).toEqual([
+    ['ia init', 'effect', 'Execution'],
+    ['ia validate', 'validate', 'Verification'],
+    ['ia capture', 'effect', 'Execution'],
+    ['ia read', 'read', 'Observation'],
+    ['ia position', 'read', 'Observation'],
+    ['ia next', 'read', 'Observation'],
+    // Task ia-project-verb: the seventh row, C = 7 (plan amendment B1).
+    ['ia project', 'effect', 'Execution'],
+  ]);
+  // Each row carries the catalog's five fields only, and its refusal is one line.
+  for (const row of rows) {
+    expect(Object.keys(row).sort(), row.command).toEqual(['command', 'mode', 'move', 'next', 'refuses']);
+    expect(row.refuses.trim(), row.command).not.toBe('');
+    expect(row.refuses, row.command).not.toContain('\n');
+  }
+  expect(catalogDefects(rows)).toEqual([]);
+  // An initialized target needs its position, not another init plan whose apply refuses again.
+  expect(rows.find((row) => row.command === 'ia init')).toMatchObject({
+    refuses: 'a target already initialized; --apply writes nothing',
+    next: 'ia position --root <directory>',
+  });
+  // One next command per row: capture's init remedy belongs only to the uninitialized, error-free case.
+  // An initialized missing-source refusal repairs authored source before position instead (init tests pin both modes).
+  expect(rows.find((row) => row.command === 'ia capture')).toMatchObject({
+    refuses: 'an uninitialized root with no authored @workspace and no source errors; nothing is written',
+    next: 'ia init <directory>',
+  });
+  // A row whose next names a command the table does not hold fails here, as `ia preview` would until it exists.
+  expect(catalogDefects([...rows, { ...rows[0]!, next: 'ia preview plan' }])).toEqual([
+    'ia init: ia preview plan names no command of COMMANDS',
+  ]);
+  // The builder reads the rows it is given; a row without `catalog` is no catalog row.
+  expect(packetCatalog(COMMANDS.filter((command) => command.name !== 'next')).map((row) => row.command)).not.toContain(
+    'ia next',
+  );
+  expect(COMMANDS.filter((command) => command.catalog === undefined).map((command) => command.name)).toEqual([
+    'compile',
+    'format',
+    'inspect',
+    'vocabulary',
+    'pack',
+    'install',
+    'update',
+    'remove',
+    'restore',
+    'recover',
+    'doctor',
+    'host',
+  ]);
 });

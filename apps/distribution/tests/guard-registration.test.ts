@@ -449,3 +449,17 @@ it("records a Homebrew keg's Node by its stable opt link while that link reaches
   expect(nodeCommand(older)).toBe(older);
   expect(nodeCommand(join(prefix, 'bin', 'node'))).toBe(join(prefix, 'bin', 'node'));
 });
+
+it('removes an exact recorded old-root guard after a workspace move, while registration remains strict', () => {
+  const root = temp(),
+    moved = temp(),
+    cache = cacheV2();
+  put(root, settings, json({ permissions: { allow: ['Bash(ls)'] } }));
+  applyGuardRegistration(planGuardRegistration(root, { cache }));
+  cpSync(root, moved, { recursive: true });
+  expect(() => planGuardRegistration(moved, { cache })).toThrow('Owned guard command differs from its fixed root');
+  const removal = planGuardRegistration(moved, { remove: 'workspace' });
+  applyGuardRegistration(removal);
+  expect(JSON.parse(readFileSync(resolve(moved, settings), 'utf8'))).toEqual({ permissions: { allow: ['Bash(ls)'] } });
+  expect(existsSync(resolve(moved, '.ia/distributions/hosts/claude-guard-workspace.json'))).toBe(false);
+});

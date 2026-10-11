@@ -941,7 +941,7 @@ const expectUnreadGeneration = (stdout: string, root: string): void =>
     title: 'Generation',
     status: 'unknown',
     detail: 'Not checked; IA-DB-SOURCE-UNAVAILABLE',
-    remedy: `ia-distribution recover --root ${realpathSync(root)}`,
+    remedy: `ia recover installation --root ${realpathSync(root)}`,
   });
 
 it('doctor reports each provider of a fresh clone that carries only the portable lock', async () => {

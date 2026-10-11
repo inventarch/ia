@@ -1,0 +1,30 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "ia project plans or applies the position packet's files for one host and writes their receipt; ia doctor shows a projection with no drift",
+  "summary": "New verb ia project <claude|codex> [--apply] [--json] [--yes]. It plans by default and writes nothing, the IA home included: the position packet's entry count and digest, the file plan (create, update, unchanged, remove for a marked 1.x steward agent file the projection state lists, foreign for any other .claude/agents file, which is left in place) and whether the apply first retires a steward guard an earlier release registered (guard retire). --apply writes through the same writer as ia host --apply: .claude/rules/ia-workspace.md and .claude/skills/ia-authoring/SKILL.md for claude, AGENTS.md and .agents/skills/ia-authoring/SKILL.md for codex, no agent file for any host; it retires such a guard before any file changes, deletes the listed 1.x steward files and writes .ia/distributions/hosts/<host>-receipt.json, then prints the receipt's files with their SHA-256, the files removed, the foreign files and the retirement. It registers no MCP server and no hook, and needs no capture: the packet reads the live revision. With --json it prints {version: 1, command: 'project', root, host, apply, plan: {entries, packetDigest, files, guard, conflict}, applied?}, applied being the receipt written. A file without the generated marker at a path the adapter writes, an owned file or guard group changed by hand, or an unreadable ownership state is a successful plan that names the file in plan.conflict, with files empty and guard null, and --apply refuses it with that code (IA-DIST-LOCAL-MODIFICATION for an unmarked file, exit 3) before it asks anything or writes, naming the repair and then ia project <host>. An unknown host is IA-CLI-USAGE (exit 2) naming ia project claude, and a root without .ia/release.json is IA-CLI-CONFLICT naming ia init of that root; the ia project, ia validate and ia init commands a next action names carry the root as given, while a pending host journal, or a host lock held at apply, names its installed ia recover command with the resolved absolute root, as ia host does, and a workspace whose sources cannot be opened names the resolved root, as every workspace verb does. project is the seventh row of the packet's command catalog (effect, Execution), so a fresh init's packet has 37 entries and ia --help lists the verb. ia doctor adds one ok projection row when the files the receipt lists are as written and the records render the packet it names, and reads a projection ia project wrote without a host registration the same way, after the registered hosts' rows (after the Host row when none is registered), its remedies naming ia project <host> --apply; ia install, update and remove name that same apply when they refuse such a projection, and doctor --host briefs such a host as not registered rather than stale; a changed file's detail now says it changed since the projection apply wrote it. @inventarch/cli/internal/host exports projectionElement, replanProjection, projectionFileRows, GUARD_RETIRE, requireInitialized (with an optional root for the ia init it names), requireIdle, pendingJournal, recoverNext, projectedHosts and projectionRerun, and rootedNext also adds --root to a quoted ia project <host> command; @inventarch/cli/internal/commands adds the project row to COMMANDS. ia host plans, applies and prints as before. Limits: there is no --preview flag, because the plan is the default as for ia host; the plan prints neither the packet nor a diff of the files; cursor has no packet adapter; the steward guard stays retired; installed state stays unknown; the nine machine routes, MACHINE_PROTOCOL versions 1 and 2, every ia scope form, body(K) and ia.position-body.v1 are unchanged.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    ".agents/",
+    ".claude/",
+    ".github/",
+    ".gitignore",
+    ".ia/authoring.resources.json",
+    ".ia/src/floor/taxonomy.system.ia",
+    ".ia/src/participant.ia",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "README.md",
+    "apps/cli/",
+    "apps/vscode/LANGUAGE.md",
+    "distributions/",
+    "docs/",
+    "examples/",
+    "nx.json",
+    "package.json",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

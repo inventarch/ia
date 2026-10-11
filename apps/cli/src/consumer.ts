@@ -29,12 +29,13 @@ import { runCompile } from './compile.js';
 import { runDistribute } from './distribute.js';
 import { runDoctor } from './doctor.js';
 import { runFormat } from './format.js';
-import { runHost } from './host.js';
+import { runHost, runRecovery } from './host.js';
 import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
 import { runNext } from './next.js';
 import { runPack } from './pack.js';
 import { runPosition } from './position.js';
+import { runProject } from './project.js';
 import { runRead } from './read.js';
 import { runValidate } from './validate.js';
 import { runVocabulary } from './vocabulary.js';
@@ -465,7 +466,7 @@ const wantsHelp = (argv: readonly string[]): boolean => {
 };
 
 type Handler = (context: Context) => Result | Promise<Result>;
-/** The seventeen verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
+/** The consumer verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
 const HANDLERS: Readonly<Record<string, Handler>> = {
   init: runInit,
   vocabulary: runVocabulary,
@@ -477,11 +478,13 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   read: runRead,
   position: runPosition,
   next: runNext,
+  project: runProject,
   pack: runPack,
   install: runDistribute('install'),
   update: runDistribute('update'),
   remove: runDistribute('remove'),
   restore: runDistribute('restore'),
+  recover: runRecovery,
   doctor: runDoctor,
   host: runHost,
 };

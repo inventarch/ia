@@ -7,6 +7,7 @@ import {
   CAPTURE_FORMAT,
   CAPTURE_PREVIOUS,
   open,
+  planCapture,
   writeCapture,
 } from '../src/index.js';
 import type { Snapshot } from '../src/index.js';
@@ -430,6 +431,128 @@ it('writes the pair as D08 rotates it, counts by digest, and replaces nothing it
   expect(() => writeCapture(root, r1)).toThrow(expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE' }));
   expect(at(CAPTURE_CURRENT).toString('utf8')).toBe(r2);
   expect(readdirSync(resolve(root, CAPTURE_DIRECTORY)).sort()).toEqual(['current.json', 'previous.json']);
+});
+
+it('plans what writeCapture writes, with the identities it counts, and creates and writes nothing', () => {
+  const root = workspace(),
+    text = readFileSync(resolve(root, methodPath), 'utf8'),
+    otherPath = '.ia/src/systems/governance-system/records/another-procedure.ia',
+    otherId = methodId.replace('sample-procedure', 'another-procedure');
+  const snapshot = () => {
+    const db = open(root, { cache: false });
+    try {
+      return captureOf(db);
+    } finally {
+      db.close();
+    }
+  };
+  /** The pair's bytes, mtimes and directory listing, so a plan is shown to leave them exactly as they were. */
+  const pair = () => {
+    const directory = resolve(root, CAPTURE_DIRECTORY);
+    return existsSync(directory)
+      ? readdirSync(directory)
+          .sort()
+          .map((name) => [name, readFileSync(join(directory, name)), statSync(join(directory, name)).mtimeMs])
+      : null;
+  };
+  /** planCapture with every rename failing, so a plan that renamed anything would throw. */
+  const plan = (capture: string) => {
+    const before = pair();
+    hooks.rename = () => {
+      throw new Error('a plan renames nothing');
+    };
+    try {
+      return planCapture(root, capture);
+    } finally {
+      hooks.rename = undefined;
+      expect(pair()).toEqual(before);
+    }
+  };
+  /** The plan is the write's result with the identities its counts count, as writeCapture then writes it. */
+  const agree = (capture: string) => {
+    const { identities, ...result } = plan(capture);
+    expect(writeCapture(root, capture)).toEqual(result);
+    return identities;
+  };
+  const r1 = snapshot(),
+    all = (JSON.parse(r1) as { membership: { identity: string }[] }).membership.map((row) => row.identity);
+  expect(() => plan('{"format":"ia.compiled.v1"}')).toThrow(TypeError);
+  // Never captured: no prior, every identity new and sorted, and no .ia/work directory is created.
+  expect(plan(r1)).toEqual({
+    prior: null,
+    ignored: null,
+    previous: null,
+    rotated: false,
+    changed: 0,
+    unchanged: 0,
+    added: all.length,
+    removed: 0,
+    identities: { changed: [], added: [...all].sort(), removed: [] },
+  });
+  expect(existsSync(resolve(root, '.ia/work'))).toBe(false);
+  expect(agree(r1).added).toHaveLength(all.length);
+  // One edit: exactly that identity is changed, and the plan rotates as the write then does.
+  edit(root, text);
+  const r2 = snapshot();
+  expect(plan(r2)).toMatchObject({ prior: JSON.parse(r1).revision, previous: JSON.parse(r1).revision, rotated: true });
+  expect(agree(r2)).toEqual({ changed: [methodId], added: [], removed: [] });
+  // With both files present a plan leaves both as they were, bytes and mtimes.
+  put(root, methodPath, text.replace('Sample fixture statement 3.', 'Edited twice.'));
+  expect(plan(snapshot()).identities).toEqual({ changed: [methodId], added: [], removed: [] });
+  expect(readFileSync(resolve(root, CAPTURE_PREVIOUS), 'utf8')).toBe(r1);
+  // An added record is new, and once captured, deleting it is removed.
+  put(root, otherPath, text.replace('sample-procedure', 'another-procedure'));
+  expect(agree(snapshot())).toEqual({ changed: [methodId], added: [otherId], removed: [] });
+  rmSync(resolve(root, otherPath));
+  expect(agree(snapshot())).toEqual({ changed: [], added: [], removed: [otherId] });
+  // At an unchanged revision nothing rotates and nothing is named.
+  expect(agree(snapshot())).toEqual({ changed: [], added: [], removed: [] });
+  // The checks are the write's: an entry that is not a directory refuses before anything is read.
+  rmSync(resolve(root, '.ia/work'), { recursive: true, force: true });
+  put(root, '.ia/work', 'a file where .ia/work belongs');
+  expect(() => plan(r1)).toThrow(
+    expect.objectContaining({ code: 'IA-DB-PATH-UNSAFE', message: 'IA-DB-PATH-UNSAFE: .ia/work is not a directory' }),
+  );
+});
+
+it('sorts each identity list of a plan by code unit, whatever order either document holds its rows in', () => {
+  const root = workspace();
+  /** An `ia-snapshot-1` document whose membership rows are in the order given, each with its digest. */
+  const document = (revision: string, rows: readonly (readonly [string, string])[]) =>
+    `${JSON.stringify({
+      format: CAPTURE_FORMAT,
+      revision: revision.repeat(64),
+      membership: rows.map(([identity, digest]) => ({ identity, root: '', band: 100, digest: digest.repeat(64) })),
+    })}\n`;
+  writeCapture(
+    root,
+    document('a', [
+      ['z/changed', 'a'],
+      ['a/changed', 'a'],
+      ['y/gone', 'a'],
+      ['B/gone', 'a'],
+      ['m/kept', 'a'],
+    ]),
+  );
+  // Code-unit order puts an upper-case letter before every lower-case one, which a locale comparison would not.
+  expect(
+    planCapture(
+      root,
+      document('b', [
+        ['z/changed', 'b'],
+        ['c/new', 'a'],
+        ['m/kept', 'a'],
+        ['Z/new', 'a'],
+        ['a/changed', 'b'],
+      ]),
+    ),
+  ).toMatchObject({
+    changed: 2,
+    unchanged: 1,
+    added: 2,
+    removed: 2,
+    identities: { changed: ['a/changed', 'z/changed'], added: ['Z/new', 'c/new'], removed: ['B/gone', 'y/gone'] },
+  });
 });
 
 it('leaves the pair it found when a write fails, at whichever step it fails', () => {

@@ -598,6 +598,9 @@ it(
     await probe('.ia/src/floor/kind.ia', readers);
     await probe('.ia/src/floor/cache-probe.ia', readers);
     await probe('packages/compliance/fixtures/language/format/pass/token-spacing.ia', ['language:test']);
+    // The runtime's host adapter tests compare the repository target's skills with these committed files.
+    await probe('.claude/skills/ia-authoring/SKILL.md', ['runtime:test']);
+    await probe('.agents/skills/ia-authoring/SKILL.md', ['runtime:test']);
   },
   20 * 60_000,
 );

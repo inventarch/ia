@@ -1,3 +1,4 @@
+import { pathKey } from '@inventarch/db';
 import type { DraftPreview, ReadHandle } from '@inventarch/db';
 import { format } from '@inventarch/language';
 import { portableDraftPath } from '@inventarch/runtime';
@@ -68,6 +69,44 @@ function scope(context: DraftContext): ReturnType<ReadHandle['records']> {
     return fail('IA-EXEC-SCOPE-UNAVAILABLE', 'Draft admission requires the current complete disclosed workspace scope');
   }
 }
+/** A record file in the folder of an admitted system that the workspace authors, never its declaration or schemas. */
+function instanceTarget(records: ReturnType<ReadHandle['records']>, path: string): boolean {
+  const target = /^\.ia\/src\/systems\/([a-z][a-z0-9-]*)\/(.+\.ia)$/.exec(path);
+  return (
+    target !== null &&
+    target[2] !== 'system.ia' &&
+    !target[2]!.startsWith('schemas/') &&
+    records.some(
+      (r) =>
+        r.discriminator === 'system' &&
+        r.name === target[1] &&
+        r.source.path === `.ia/src/systems/${target[1]}/system.ia`,
+    )
+  );
+}
+/**
+ * An IA file of the repository's own source outside every system folder, under a root an admitted `@workspace`
+ * declares at the authored placement (`composition.sources`, as db membership reads it; db D02c), such as the three
+ * records a default `ia init` writes to `.ia/src/workspace.ia`. A system folder keeps the instance rule above, and the
+ * floor, an installed package and an adopted mount are never drafted: none of their paths is a repository-relative one
+ * under `.ia/src/` outside `.ia/src/floor/`. The floor and system-folder prefixes are compared on db's `pathKey`, as
+ * the preview compares them, so a spelling that differs only in case reaches neither.
+ */
+function rootTarget(context: DraftContext, path: string): boolean {
+  const key = pathKey(path);
+  if (
+    !path.startsWith('.ia/src/') ||
+    !path.endsWith('.ia') ||
+    key.startsWith('.ia/src/floor/') ||
+    key.startsWith('.ia/src/systems/')
+  )
+    return false;
+  return context.reader
+    .roots()
+    .some(
+      (declared) => declared.placement === 'authored' && (declared.root === '' || path.startsWith(`${declared.root}/`)),
+    );
+}
 function execute(context: DraftContext, input: unknown, formatting: boolean): DraftResult {
   const records = scope(context);
   if (
@@ -93,21 +132,10 @@ function execute(context: DraftContext, input: unknown, formatting: boolean): Dr
   } catch {
     return fail('IA-EXEC-OUTPUT-UNSAFE', 'Unsafe draft target');
   }
-  const target = /^\.ia\/src\/systems\/([a-z][a-z0-9-]*)\/(.+\.ia)$/.exec(path);
-  if (
-    !target ||
-    target[2] === 'system.ia' ||
-    target[2]!.startsWith('schemas/') ||
-    !records.some(
-      (r) =>
-        r.discriminator === 'system' &&
-        r.name === target[1] &&
-        r.source.path === `.ia/src/systems/${target[1]}/system.ia`,
-    )
-  )
+  if (!instanceTarget(records, path) && !rootTarget(context, path))
     fail(
       'IA-EXEC-OUTPUT-UNSAFE',
-      'Draft target requires an admitted authored system instance, excluding declaration and schemas',
+      'Draft target requires an admitted authored system instance, excluding declaration and schemas, or a file under an authored root',
     );
   const baseErrors = context.reader.report.findings.filter((f) => f.severity === 'error');
   if (baseErrors.length) diagnose('Base workspace has admission errors', baseErrors);

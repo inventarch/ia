@@ -8,11 +8,16 @@
  * The digests are the integrity output: they are what a consumer checks an acquired artifact against. The archive
  * name is its own digest, so re-packing unchanged sources on the same zlib build targets a path that already exists — refused by
  * default with a next action naming --force, exactly as §2.4 refuses a compiled artifact.
+ *
+ * A release descriptor may name no `@distribution` (plan amendment B7): a default `ia init` authors none, because an
+ * application repository releases nothing. Such a descriptor has nothing to pack, so it is refused before the packer
+ * reads anything else, naming the word's schema.
  */
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import { DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
-import { packToDirectory, readWorkspaceFile, replace } from '@inventarch/distribution/services';
+import { decodeReleaseDescriptor, DISTRIBUTION_LIMITS } from '@inventarch/db/distribution';
+import type { ReleaseDescriptor } from '@inventarch/db/distribution';
+import { packToDirectory, readWorkspaceFile, readWorkspaceJson, replace } from '@inventarch/distribution/services';
 import type { PackedArchive } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot, respell } from './consumer.js';
@@ -145,6 +150,28 @@ export function collectPack(
   }
 }
 
+/**
+ * Plan amendment B7: a release descriptor, as db decodes it, that names no `distribution` has nothing to release. A file
+ * that cannot be read or is no release descriptor is left to the packer, whose own refusal names it, so only this one
+ * case is the CLI's to classify. Decoding is pure, so the refusal still comes before the packer reads anything else.
+ */
+function requireDistribution(root: string, descriptor: string): void {
+  let decoded: ReleaseDescriptor;
+  try {
+    decoded = decodeReleaseDescriptor(readWorkspaceJson({ root, path: descriptor }));
+  } catch {
+    return;
+  }
+  if (decoded.distribution !== undefined) return;
+  throw new Refusal(
+    'IA-CLI-CONFLICT',
+    `The release descriptor ${descriptor} names no distribution, so this workspace has nothing to pack`,
+    3,
+    { path: descriptor },
+    'Run "ia vocabulary distribution" for the record a release needs: a @distribution in a system folder whose identity the descriptor names as distribution.',
+  );
+}
+
 /** The existing-archive refusal is the service's own code; only the next action naming --force is the CLI's. */
 function attempt(run: () => PackedArchive, overwrite: string): PackedArchive {
   try {
@@ -176,6 +203,7 @@ export function runPack(context: Context): Result {
   const { args, caps, json } = context;
   const root = requireRoot(context),
     descriptor = args.value('descriptor')!;
+  requireDistribution(root, descriptor);
   let view: PackView;
   try {
     view = collectPack(

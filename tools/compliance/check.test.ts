@@ -16,7 +16,8 @@ it('discovers the actual conformance tree without stray entries', () => {
 it('executes native graph, all language fixtures, all refusal-code boundaries and kernel generation', () => {
   const { report, fixtures, boundaries, qualification } = checkCompliance(root);
   expect(fixtures).toBe(179);
-  expect(boundaries).toBe(114);
+  // IA-COMP-PROJECTION-INVALID retired with the projection renderers (milestone position-packet task replace-renderers).
+  expect(boundaries).toBe(113);
   expect(qualification).toEqual({
     platform: process.platform,
     deferredPlatformCodes:

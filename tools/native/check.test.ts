@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { validateSystems } from '../../packages/compliance/src/index.js';
-import { checkNative } from './check.js';
+import { open } from '../../packages/db/src/index.js';
+import { position } from '../../packages/runtime/src/index.js';
+import { checkNative, nativeOutcome, readNative } from './check.js';
 import { compileNative } from './compile.js';
 import type { NativeInput } from './compile.js';
 import { observeFoundationAuthoring } from './fixture-authoring.js';
@@ -278,5 +280,61 @@ describe('native system closure', () => {
     expect(
       sameRequirement.records.some((r) => r.source.path === original.path || r.source.path === duplicate.path),
     ).toBe(false);
+  });
+});
+
+// Plan task self-host-participant-records (amendment B6): this repository's participant pair is authored in a file
+// outside every system folder that the bundled base does not pack, so it admits here and ships to no consumer.
+describe("this repository's participant pair", () => {
+  const participantFile = '.ia/src/participant.ia',
+    participant = 'agent-system/binding/agent/language-participant',
+    mandate = 'agent-system/policy/mandate/language-mandate',
+    language = 'workspace-system/definition/workspace/language-workspace';
+  const own = readNative(root),
+    corpus = checkNative(own.inputs, own.folders);
+  it('admits from the unpacked participant file as the one band-100 @mandate under .ia/src, minting no word', () => {
+    // The bar of `pnpm native:check`, which tolerates warnings elsewhere in the repository; the pair itself has none.
+    const outcome = nativeOutcome(corpus);
+    expect(outcome.ok).toBe(true);
+    expect(outcome.findings.filter((f) => f.path === participantFile)).toEqual([]);
+    expect(corpus.records.filter((r) => r.source.path === participantFile).map((r) => r.identity)).toEqual([
+      participant,
+      mandate,
+    ]);
+    expect(
+      corpus.records.filter((r) => r.discriminator === 'mandate').map((r) => [r.identity, r.placement.band]),
+    ).toEqual([[mandate, 100]]);
+    // Outside every system folder the file joins no system's assessment and registers nothing.
+    const without = compileNative(own.inputs.filter((input) => input.path !== participantFile));
+    expect([...corpus.registry.registrations.keys()]).toEqual([...without.registry.registrations.keys()]);
+  });
+  it('claims every path under .ia/src and is the mandate of K0, as ia position reads them', () => {
+    const db = open(root, { cache: false });
+    try {
+      expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+      expect(
+        db
+          .records()
+          .filter((r) => r.discriminator === 'mandate')
+          .map((r) => r.identity),
+      ).toEqual([mandate]);
+      const within = db.resolveScope().token;
+      // `covers [".ia/src/"]`: the trailing `/` selects the subtree (graph G06c), so a system folder's file is claimed.
+      expect(
+        position(db, within, { seat: { path: '.ia/src/systems/work-system/system.ia' } }).body.mandates.map((m) => [
+          m.identity,
+          m.band,
+          m.via,
+        ]),
+      ).toEqual([[mandate, 100, { by: 'claim', matches: [{ field: 'authority.covers', selection: '.ia/src/' }] }]]);
+      expect(db.resolveSeat('README.md').claimants.map((c) => c.identity)).not.toContain(mandate);
+      const k0 = position(db, within).body;
+      expect(k0.seat).toEqual({ kind: 'workspace', identity: language });
+      expect(k0.mandates.map((m) => [m.identity, m.band, m.via])).toEqual([
+        [mandate, 100, { by: 'field', from: language, field: 'authority.scope', direction: 'in' }],
+      ]);
+    } finally {
+      db.close();
+    }
   });
 });

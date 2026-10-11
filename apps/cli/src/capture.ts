@@ -18,15 +18,38 @@
  * and a floor or seed input (the floor, an installed or an adopted source) that fails to parse. Every other finding there
  * (unresolved references, colliding identities, unconsented rows, a keyword two systems register) stays a finding, as it
  * does in a source the workspace authors.
+ *
+ * `--preview` (decision capture-preview-placement) admits and refuses as a capture does, then reports what the capture
+ * would write through db D08b's `planCapture` (the counts, the rotation and the changed, new and removed identities)
+ * and writes nothing, so the retained previous snapshot that readiness compares against is not spent.
  */
+import { existsSync } from 'node:fs';
 import { isAbsolute, posix, relative, resolve } from 'node:path';
-import { CAPTURE_CURRENT, CAPTURE_DIRECTORY, CAPTURE_FORMAT, CAPTURE_PREVIOUS, writeCapture } from '@inventarch/db';
-import type { CaptureWrite, MembershipRow, Snapshot } from '@inventarch/db';
+import {
+  CAPTURE_CURRENT,
+  CAPTURE_DIRECTORY,
+  CAPTURE_FORMAT,
+  CAPTURE_PREVIOUS,
+  planCapture,
+  writeCapture,
+} from '@inventarch/db';
+import type { CapturePlan, CaptureWrite, MembershipRow, Snapshot } from '@inventarch/db';
 import { json, LANGUAGE_IDENTITY, sha256 } from '@inventarch/distribution/services';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot, respell } from './consumer.js';
 import type { Capabilities, Token } from './render.js';
-import { atom, document, entry, headerLine, quote, sectionLabel, truncateDigest, words } from './render.js';
+import {
+  atom,
+  commandFacts,
+  document,
+  entry,
+  headerLine,
+  quote,
+  sectionLabel,
+  terminalText,
+  truncateDigest,
+  words,
+} from './render.js';
 import { codeOf, openSession } from './session.js';
 import type { Session } from './session.js';
 import { NOT_EVALUATED } from './validate.js';
@@ -64,6 +87,15 @@ export interface CaptureView extends CaptureWrite {
   /** The exact bytes written to `current.json`, so the file and the reported digest cannot disagree. */
   readonly text: string;
   readonly digest: string;
+}
+/**
+ * A capture previewed: the document a capture would write and db D08b's plan of it (`CapturePlan`), the identities its
+ * counts count included. `text` and `digest` are the bytes the capture would write; nothing is written.
+ */
+export interface CapturePreview extends CaptureView, CapturePlan {
+  readonly preview: true;
+  /** The capture that writes what this preview reports, with `--root` as given. */
+  readonly capture: string;
 }
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -182,28 +214,51 @@ function captureRefusal(root: string, given: string | undefined, admitted: Admit
     { path: root },
     errors
       ? `Run "${validate}" for the findings that may keep its @workspace from being read.`
-      : `Run "ia init ${quote(root)}" to see what a new workspace there would contain.`,
+      : existsSync(resolve(root, '.ia/release.json'))
+        ? `Restore the authored @workspace source under .ia/src from source control, then run "ia position --root ${quote(root)}" to inspect this initialized workspace.`
+        : `Run "ia init ${quote(root)}" to see what a new workspace there would contain.`,
   );
+}
+/** Admits the workspace at `root` and builds the snapshot to write, unless one of §5's two refusals answers first. */
+function capturable(root: string, given: string | undefined): Omit<Admitted, 'declared'> {
+  const admitted = admit(root);
+  const refused = captureRefusal(root, given, admitted);
+  if (refused !== null) throw refused;
+  const { declared: _declared, ...built } = admitted;
+  return built;
 }
 /**
  * Admits the workspace at `root` and writes its snapshot pair through db D08a, unless one of §5's two refusals answers
  * first. `given` is the `--root` the invocation typed, which the `ia validate` a refusal names carries.
  */
 export function collectCapture(root: string, given?: string): CaptureView {
-  const admitted = admit(root);
-  const refused = captureRefusal(root, given, admitted);
-  if (refused !== null) throw refused;
-  const { declared: _declared, ...built } = admitted;
+  const built = capturable(root, given);
   return { root, ...built, ...writeCapture(root, built.text) };
+}
+/**
+ * `ia capture --preview`: admits and refuses exactly as `collectCapture` does, then plans the write through db D08b's
+ * `planCapture` instead of making it, so nothing is created or written and the pair stays as it was.
+ */
+export function previewCapture(root: string, given?: string): CapturePreview {
+  const built = capturable(root, given);
+  return {
+    root,
+    ...built,
+    ...planCapture(root, built.text),
+    preview: true,
+    capture: `ia capture${given === undefined ? '' : ` --root ${quote(given)}`}`,
+  };
 }
 
 /** As `ia compile` does: the snapshot is written even when admission has errors; the exit class carries the verdict. */
 export const captureExit = (view: CaptureView): 0 | 1 => (view.snapshot.counts.errors === 0 ? 0 : 1);
 
-export function captureEnvelope(view: CaptureView): unknown {
+/** A preview adds `preview: true` and the identities its counts count; a capture's keys are the 1.x ones. */
+export function captureEnvelope(view: CaptureView | CapturePreview): unknown {
   const { counts, revision } = view.snapshot;
   return {
     version: 1,
+    ...('preview' in view ? { preview: true } : {}),
     snapshot: resolve(view.root, CURRENT),
     format: SNAPSHOT_FORMAT,
     revision,
@@ -217,6 +272,15 @@ export function captureEnvelope(view: CaptureView): unknown {
     ignored: view.ignored,
     previous: view.previous === null ? null : { path: resolve(view.root, PREVIOUS), revision: view.previous },
     rotated: view.rotated,
+    ...('preview' in view
+      ? {
+          identities: {
+            changed: view.identities.changed,
+            new: view.identities.added,
+            removed: view.identities.removed,
+          },
+        }
+      : {}),
     admission: {
       status: view.status,
       errors: counts.errors,
@@ -226,11 +290,16 @@ export function captureEnvelope(view: CaptureView): unknown {
   };
 }
 
-export function renderCapture(view: CaptureView, caps: Capabilities): string {
+/**
+ * A capture's report, or a preview's: the same counts and snapshot rows. A preview says it wrote nothing, states the
+ * rotation as the one the capture would make, and names every changed, new and removed identity, each list sorted.
+ */
+export function renderCapture(view: CaptureView | CapturePreview, caps: Capabilities): string {
   const { counts, revision } = view.snapshot;
+  const preview = 'preview' in view ? view : null;
   const digest = (value: string): string => truncateDigest(value, caps.ascii);
   const effect: (readonly Token[])[] = [
-    words(`Captured ${counts.records} records.`),
+    words(`${preview === null ? 'Captured' : 'Would capture'} ${counts.records} records.`),
     words(
       view.prior === null
         ? `No prior capture to compare with${view.ignored === null ? '' : ` (the existing current.json ${view.ignored})`}, so every record is new.`
@@ -239,11 +308,13 @@ export function renderCapture(view: CaptureView, caps: Capabilities): string {
   ];
   const previous: (readonly Token[])[] =
     view.previous === null
-      ? [words('No earlier capture at another revision is retained.', 'dim')]
+      ? [words(`No earlier capture at another revision ${preview === null ? 'is' : 'would be'} retained.`, 'dim')]
       : [
           [atom(PREVIOUS, 'cyan', 0)],
           words(
-            `revision ${digest(view.previous)}, ${view.rotated ? 'moved from current.json because the revision changed' : 'kept because the revision did not change'}`,
+            preview === null
+              ? `revision ${digest(view.previous)}, ${view.rotated ? 'moved from current.json because the revision changed' : 'kept because the revision did not change'}`
+              : `revision ${digest(view.previous)}, ${view.rotated ? 'would move from current.json because the revision changed' : 'would be kept because the revision did not change'}`,
             'dim',
           ),
         ];
@@ -253,14 +324,63 @@ export function renderCapture(view: CaptureView, caps: Capabilities): string {
   if (counts.notEvaluated > 0)
     admission.push(
       words(
-        `${counts.notEvaluated} checks had no evaluator, so the snapshot records a not-evaluated result rather than a pass.`,
+        `${counts.notEvaluated} checks had no evaluator, so the snapshot ${preview === null ? 'records' : 'would record'} a not-evaluated result rather than a pass.`,
       ),
     );
+  // A preview names every identity its counts count, which the counts already bound. A removed one is read from the
+  // current.json on disk, which only its shape is checked against, so each is escaped as source-derived text is.
+  const identities: (readonly string[])[] =
+    preview === null
+      ? []
+      : (
+          [
+            ['Changed', 'updated', preview.identities.changed],
+            ['New', 'added', preview.identities.added],
+            ['Removed', 'removed', preview.identities.removed],
+          ] as const
+        ).map(([label, symbol, named]) =>
+          named.length === 0
+            ? []
+            : [
+                sectionLabel(label, caps),
+                ...named.flatMap((identity) =>
+                  entry([[atom(terminalText(identity), null, 0)]], { depth: 1, symbol }, caps),
+                ),
+              ],
+        );
+  const footer: readonly (readonly Token[])[] =
+    preview === null
+      ? [
+          words(
+            counts.errors > 0
+              ? 'The snapshot records these findings. Run "ia validate" for their locations, fix them, then capture again.'
+              : 'Identical sources on one language version capture identically, so a capture after no edit reports 0 changed.',
+          ),
+        ]
+      : counts.errors > 0
+        ? [
+            words(
+              'The snapshot would record these findings. Run "ia validate" for their locations, fix them, then capture.',
+            ),
+          ]
+        : commandFacts('Write this snapshot with "', preview.capture, '".', 3, caps);
   return document(
     [
-      headerLine('Capture', SNAPSHOT_FORMAT, [{ text: `revision ${digest(revision)}`, column: 50 }], caps),
-      // The write succeeded either way; an admission error marks what it holds.
-      entry(effect, { depth: 1, symbol: counts.errors === 0 ? 'success' : 'warning' }, caps),
+      preview === null
+        ? headerLine('Capture', SNAPSHOT_FORMAT, [{ text: `revision ${digest(revision)}`, column: 50 }], caps)
+        : headerLine(
+            'Plan',
+            `capture ${SNAPSHOT_FORMAT}`,
+            [{ text: `revision ${digest(revision)}`, column: 50 }],
+            caps,
+          ),
+      ...(preview === null ? [] : [entry([words('This is a preview. Nothing has been written.')], { depth: 1 }, caps)]),
+      // The write succeeded either way; an admission error marks what it holds. A preview wrote nothing to mark.
+      entry(
+        effect,
+        { depth: 1, symbol: preview !== null ? 'info' : counts.errors === 0 ? 'success' : 'warning' },
+        caps,
+      ),
       [
         sectionLabel('Snapshot', caps),
         ...entry(
@@ -276,21 +396,12 @@ export function renderCapture(view: CaptureView, caps: Capabilities): string {
         ),
         ...entry(previous, { depth: 1, symbol: 'info' }, caps),
       ],
+      ...identities,
       [
         sectionLabel('Admission', caps),
         ...entry(admission, { depth: 1, symbol: counts.errors === 0 ? 'success' : 'error' }, caps),
       ],
-      entry(
-        [
-          words(
-            counts.errors > 0
-              ? 'The snapshot records these findings. Run "ia validate" for their locations, fix them, then capture again.'
-              : 'Identical sources on one language version capture identically, so a capture after no edit reports 0 changed.',
-          ),
-        ],
-        { depth: 0, symbol: 'step' },
-        caps,
-      ),
+      entry(footer, { depth: 0, symbol: 'step' }, caps),
     ],
     { leadingBlank: true },
   );
@@ -336,39 +447,46 @@ export function writeRepair(root: string, error: unknown, platform: NodeJS.Platf
   return { path: local.replace(/\.[0-9a-f-]{36}\.tmp$/, ''), kind: 'file' };
 }
 
+/**
+ * A capture's failure as this verb refuses it, each repair followed by `rerun`. A refusal from opening the workspace, or
+ * one of the capture's own, already names its own repair and is returned as it is. A snapshot path the db does not
+ * write through is located and named, and so is a file or directory the system would not let a capture write, which a
+ * preview (`writes` false) never writes. Any other failure is returned as it is. `ia init`'s capture effect refuses
+ * through this too, so it locates and repairs what `ia capture` would.
+ */
+export function captureFailure(error: unknown, root: string, rerun: string, writes = true): unknown {
+  if (error instanceof Refusal) return error;
+  const code = codeOf(error, '');
+  if (code === 'IA-DB-PATH-UNSAFE')
+    return new Refusal(
+      code,
+      error instanceof Error ? error.message : String(error),
+      3,
+      { path: property(error, 'path') ?? SNAPSHOT_DIRECTORY },
+      `Replace or remove the path named above, so ${SNAPSHOT_DIRECTORY} is a plain directory holding plain files, then run "${rerun}".`,
+    );
+  if (!writes || !WRITE_REPAIRABLE.has(code)) return error;
+  const repair = writeRepair(root, error);
+  return new Refusal(
+    'IA-CLI-FAILED',
+    error instanceof Error ? error.message : String(error),
+    3,
+    { path: repair.path },
+    repair.kind === 'file'
+      ? `Make ${repair.path} writable, or close what holds it open, then run "${rerun}"; the snapshot pair is as it was.`
+      : `Make the directory ${repair.path} writable, then run "${rerun}"; the snapshot pair is as it was.`,
+  );
+}
+
 export function runCapture(context: Context): Result {
   const { caps, json: machine } = context;
-  const root = requireRoot(context);
-  let view: CaptureView;
+  const root = requireRoot(context),
+    preview = context.args.flag('preview');
+  let view: CaptureView | CapturePreview;
   try {
-    view = collectCapture(root, context.args.value('root'));
+    view = (preview ? previewCapture : collectCapture)(root, context.args.value('root'));
   } catch (error) {
-    // A refusal from opening the workspace, or one of the capture's own, already names its own repair. A snapshot path
-    // the db does not write through is this verb's to name, and so is a file or directory the system would not let it
-    // write.
-    if (error instanceof Refusal) throw error;
-    const code = codeOf(error, '');
-    if (code === 'IA-DB-PATH-UNSAFE')
-      throw new Refusal(
-        code,
-        error instanceof Error ? error.message : String(error),
-        3,
-        { path: property(error, 'path') ?? SNAPSHOT_DIRECTORY },
-        `Replace or remove the path named above, so ${SNAPSHOT_DIRECTORY} is a plain directory holding plain files, then run "${respell(context)}".`,
-      );
-    if (WRITE_REPAIRABLE.has(code)) {
-      const repair = writeRepair(root, error);
-      throw new Refusal(
-        'IA-CLI-FAILED',
-        error instanceof Error ? error.message : String(error),
-        3,
-        { path: repair.path },
-        repair.kind === 'file'
-          ? `Make ${repair.path} writable, or close what holds it open, then run "${respell(context)}"; the snapshot pair is as it was.`
-          : `Make the directory ${repair.path} writable, then run "${respell(context)}"; the snapshot pair is as it was.`,
-      );
-    }
-    throw error;
+    throw captureFailure(error, root, respell(context), !preview);
   }
   const exitCode = captureExit(view);
   return machine

@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Check projection files through opened handles",
+  "summary": "Receipt preflight checks the opened destination and current path identity before guard retirement, retaining nontruncating Windows lock detection. Legacy steward marker recognition reads from one bounded file handle and refuses replacement or changes during the read, preserving stable legacy ownership decisions.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/steward-hook"
+  ],
+  "paths": [
+    "apps/cli/",
+    "apps/steward-hook/"
+  ]
+}

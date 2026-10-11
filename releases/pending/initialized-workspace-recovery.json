@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Guide initialized workspaces back to their authored workspace record",
+  "summary": "When capture cannot find a `@workspace` but the root already has its release descriptor, its refusal now asks the user to restore the authored workspace source from source control and run ia position. A root whose sources have errors still names ia validate; a root without a descriptor still names ia init. Recovery of interrupted host and installation transactions is exposed through ia recover with an explicit --root; directory registry repair still names ia-distribution. Fresh initialization ignore rules and capture preview are described in their separate notes.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/"
+  ]
+}

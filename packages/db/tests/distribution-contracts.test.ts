@@ -105,6 +105,26 @@ it('round-trips frozen closed release metadata with stable canonical bytes', () 
   expect(satisfies('1.3.0-rc.1', '^1.0.0')).toBe(false);
   expect(satisfies('1.3.0-rc.1', '>=1.3.0-rc.0 <1.3.0')).toBe(true);
 });
+it('decodes a release descriptor that names no distribution, and a bundle manifest only with one', () => {
+  // Position-packet plan amendment B7: a default `ia init` authors no @distribution, so its descriptor omits the key.
+  const { distribution: _distribution, ...unnamed } = { ...common, dependencies: [], assets: [] };
+  const descriptor = decodeReleaseDescriptor(unnamed);
+  expect(Object.hasOwn(descriptor, 'distribution')).toBe(false);
+  expect(descriptor.distribution).toBeUndefined();
+  expect(Object.isFrozen(descriptor)).toBe(true);
+  expect(decodeReleaseDescriptor(canonicalDistributionJson(descriptor))).toEqual(descriptor);
+  expect(canonicalDistributionJson(descriptor)).not.toContain('distribution');
+  // The key is optional, never nullable or loose: present, it must still be a native distribution identity.
+  for (const distribution of [null, '', 'workspace-system/binding/workspace/foundation-workspace'])
+    expect(() => decodeReleaseDescriptor({ ...unnamed, distribution })).toThrow();
+  expect(decodeReleaseDescriptor({ ...unnamed, distribution: common.distribution }).distribution).toBe(
+    common.distribution,
+  );
+  const { distribution: _manifestDistribution, ...anonymous } = manifest;
+  expect(() => decodeBundleManifest(anonymous)).toThrow('Unknown, missing or accessor field');
+  // The manifest keeps its key order, so its canonical bytes are unchanged.
+  expect(Object.keys(decodeBundleManifest(manifest))).toEqual(Object.keys(manifest));
+});
 it('accepts unpublished local provenance only as a null repository and commit pair', () => {
   const source = { repository: null, commit: null, recipe: 'ustar-v1', epoch: 0 };
   const descriptor = decodeReleaseDescriptor({ ...common, source, dependencies: [], assets: [] });

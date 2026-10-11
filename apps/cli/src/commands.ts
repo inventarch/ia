@@ -4,6 +4,7 @@
  * One row per verb, carrying its help text and its whole argument grammar. §1.2's order is a property of this
  * table and of the dispatcher that reads it; nothing else in the binary enumerates a verb or a flag name.
  */
+import type { MODE_MOVES, Mode, PacketCatalogRow } from '@inventarch/runtime';
 import type { Grammar, OptionSpec, PositionalSpec } from './args.js';
 import { none, positionals } from './args.js';
 
@@ -24,6 +25,16 @@ export const LEGACY_OPERATIONS = [
 export const RESERVED_TOKEN = 'agent';
 
 export type Group = 'workspace' | 'distribution';
+/**
+ * A command's catalog row without its command: its move is the one MODE_MOVES maps its mode to (design item 13), so a
+ * row whose move is not its mode's fails to typecheck.
+ */
+export type CatalogTag = {
+  readonly [M in Mode]: Omit<PacketCatalogRow, 'command' | 'mode' | 'move'> & {
+    readonly mode: M;
+    readonly move: (typeof MODE_MOVES)[M];
+  };
+}[Mode];
 export interface CommandSpec {
   readonly name: string;
   readonly group: Group;
@@ -31,6 +42,12 @@ export interface CommandSpec {
   /** The syntax lines `ia <command> --help` prints, verbatim from §2. */
   readonly syntax: readonly string[];
   readonly grammar: Grammar;
+  /**
+   * Plan amendment B5 (decision cli-commands-as-operations): an agent command of position-and-projection §5 renders as
+   * one row of the position packet's command catalog. `refuses` summarises the command's main refusal and `next` is
+   * the one command that refusal names, both as the command's own code builds them.
+   */
+  readonly catalog?: CatalogTag;
 }
 
 const option = (spec: OptionSpec): OptionSpec => spec;
@@ -40,7 +57,7 @@ export const ROOT: OptionSpec = option({
   placeholder: '<path>',
   summary: 'Workspace root (default: nearest ancestor with .ia/src)',
 });
-/** §2.0. Applies to all seventeen verbs; §2.1 refuses `--root` for `init` alone, with its own reason. */
+/** §2.0. Shared consumer options; §2.1 refuses `--root` for `init` alone, with its own reason. */
 export const COMMON_OPTIONS: readonly OptionSpec[] = [
   ROOT,
   option({ name: 'json', kind: 'boolean', summary: 'One JSON value on stdout; no color, progress or prompts' }),
@@ -74,8 +91,17 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'init',
     group: 'workspace',
     summary: 'Plan or create a new workspace',
+    // conflictRefusal (init.ts): the plan, which lists every conflict.
+    catalog: {
+      mode: 'effect',
+      move: 'Execution',
+      refuses: 'a target already initialized; --apply writes nothing',
+      next: 'ia position --root <directory>',
+    },
     syntax: [
-      'ia init [<directory>] [--id <provider/name>] [--host claude|codex|none] [--apply] [--json] [--yes]',
+      'ia init [<directory>] [--id <provider/name>] [--system] [--host claude|codex|none]',
+      '        [--apply] [--json] [--yes]',
+      'ia init [<directory>] --migrate [--system] [--apply] [--json] [--yes]',
       'ia init [<directory>] --decline today|forever | --forget-decline [--host claude|codex|none] [--json]',
     ],
     grammar: {
@@ -88,6 +114,20 @@ export const COMMANDS: readonly CommandSpec[] = [
           kind: 'value',
           placeholder: '<provider/name>',
           summary: 'Package id (default: local/<directory name>)',
+        }),
+        // Decision local-system-at-init (plan amendment B7): a repository that will own vocabulary opts in.
+        option({
+          name: 'system',
+          kind: 'boolean',
+          summary: 'Also author a local @system, its steward and a @distribution, so ia pack can release it',
+        }),
+        // Milestone position-packet task init-migrate-flag: the workspace's own name, and the hosts it already
+        // registered, are the ones the migration keeps, so neither --id nor --host applies.
+        option({
+          name: 'migrate',
+          kind: 'boolean',
+          conflicts: ['id', 'host', 'decline', 'forget-decline'],
+          summary: 'Rewrite a 1.1.0 starter workspace into the three starter records',
         }),
         // Host registration spec §4 "init --host": with --apply, `ia host <host> --apply` runs after initialization.
         option({
@@ -102,13 +142,13 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'decline',
           kind: 'value',
           values: ['today', 'forever'],
-          conflicts: ['apply', 'id', 'forget-decline'],
+          conflicts: ['apply', 'id', 'system', 'forget-decline'],
           summary: 'Record that this repository should not be initialized',
         }),
         option({
           name: 'forget-decline',
           kind: 'boolean',
-          conflicts: ['apply', 'id', 'decline', 'host'],
+          conflicts: ['apply', 'id', 'system', 'decline', 'host'],
           summary: 'Remove a recorded decline for this repository',
         }),
       ],
@@ -119,6 +159,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'validate',
     group: 'workspace',
     summary: 'Check records against the language and declared contracts',
+    // requireRoot (consumer.ts): findings are a verdict, not a refusal; a root to validate is the one refusal.
+    catalog: {
+      mode: 'validate',
+      move: 'Verification',
+      refuses: 'no .ia/src directory at the root or in any parent',
+      next: 'ia init',
+    },
     syntax: ['ia validate [<path>...] [--severity error|warning] [--max-findings <n>] [--json]'],
     grammar: grammar(
       [
@@ -139,8 +186,19 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'capture',
     group: 'workspace',
     summary: 'Admit the workspace and write its current and previous snapshot',
-    syntax: ['ia capture [--json]'],
-    grammar: grammar([]),
+    // captureRefusal (capture.ts): this row names the uninitialized, error-free branch only.
+    // An initialized root with missing authored source instead restores that source, then inspects its position.
+    catalog: {
+      mode: 'effect',
+      move: 'Execution',
+      refuses: 'an uninitialized root with no authored @workspace and no source errors; nothing is written',
+      next: 'ia init <directory>',
+    },
+    syntax: ['ia capture [--preview] [--json]'],
+    // Decision capture-preview-placement: capture writes by default, so its preview is a flag (plan amendment B8).
+    grammar: grammar([
+      option({ name: 'preview', kind: 'boolean', summary: 'Report what the capture would write; write nothing' }),
+    ]),
   },
   {
     // Decision release-bump (operator, 2026-10-07): the 1.x verb, unchanged, deprecated in favour of `ia capture`;
@@ -217,6 +275,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'read',
     group: 'workspace',
     summary: 'Print the body behind a locator, with its digest',
+    // readNext (read.ts): IA-RUNTIME-READ-UNADMITTED names the overview of what the workspace admits.
+    catalog: { mode: 'read', move: 'Observation', refuses: 'a locator no admitted record answers', next: 'ia inspect' },
     syntax: [
       'ia read <identity>[#<phase>/<Primitive> | #<REQ-ID>] [--include-runtime] [--json]',
       'ia read <path>:<line> [--include-runtime] [--json]',
@@ -241,6 +301,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'position',
     group: 'workspace',
     summary: 'Show the position body for a scope key and its host note',
+    // positionNext (position.ts): the position of the repository's workspace, K0.
+    catalog: {
+      mode: 'read',
+      move: 'Observation',
+      refuses: 'a seat the workspace does not admit, or a path outside it',
+      next: 'ia position',
+    },
     syntax: [
       'ia position [--seat <id|path>] [--shape <H>] [--phase <P>] [--depth <d>]',
       '            [--budget <n>] [--word <w>] [--json]',
@@ -293,6 +360,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     name: 'next',
     group: 'workspace',
     summary: "Show a plan's tasks in delivery order with verdict and basis",
+    // nextAfter (next.ts): IA-RUNTIME-NEXT-AMBIGUOUS names the first plan the message lists as the seat.
+    catalog: {
+      mode: 'read',
+      move: 'Observation',
+      refuses: 'no --seat while the workspace authors several @plan records, which the message lists',
+      next: 'ia next --seat <plan>',
+    },
     syntax: ['ia next [--seat <plan|milestone|task>] [--json]'],
     grammar: grammar([
       option({
@@ -304,6 +378,26 @@ export const COMMANDS: readonly CommandSpec[] = [
           'A @plan, @milestone or @task identity (default: the only @plan authored, with @milestone records that name it in work.plan and @task records that name those in work.milestone)',
       }),
     ]),
+  },
+  {
+    // Position-and-projection §5's project effect and design items 11 and 12 (plan amendments B8, B11 and B12): the
+    // workspace projection alone, the plan and apply of `ia host`'s projection element. The host is a positional the
+    // handler checks against the packet's two adapters, so any other host is still usage (exit 2).
+    name: 'project',
+    group: 'workspace',
+    summary: "Plan or apply the position packet's files for one host",
+    // conflictRefusal (project.ts): the plan names the file in the way, and the apply refuses it.
+    catalog: {
+      mode: 'effect',
+      move: 'Execution',
+      refuses: 'a file without the generated marker at a path it writes, which its plan names; --apply writes nothing',
+      next: 'ia project <host>',
+    },
+    syntax: ['ia project <claude|codex> [--apply] [--json] [--yes]'],
+    grammar: grammar(
+      [option({ name: 'apply', kind: 'boolean', summary: 'Apply the plan rather than previewing it' })],
+      positionals('host', 1, 1),
+    ),
   },
   {
     name: 'vocabulary',
@@ -494,6 +588,20 @@ export const COMMANDS: readonly CommandSpec[] = [
     ]),
   },
   {
+    name: 'recover',
+    group: 'distribution',
+    summary: 'Recover an interrupted installation or host transaction',
+    syntax: ['ia recover [installation|host|guard|lifecycle] --root <directory> [--json]'],
+    grammar: {
+      options: COMMON_OPTIONS.map((entry) =>
+        entry.name === 'root'
+          ? { ...entry, required: true, summary: 'Required existing directory whose transaction is to be recovered' }
+          : entry,
+      ),
+      positionals: positionals('recovery', 0, 1),
+    },
+  },
+  {
     name: 'doctor',
     group: 'distribution',
     summary: 'Report runtime, workspace and installation state',
@@ -562,6 +670,14 @@ export const CORE_TOKENS: ReadonlySet<string> = new Set<string>([
 export const EXTENSION_TOKEN = /^[a-z][a-z0-9-]{0,31}$/;
 
 export const commandNames: readonly string[] = COMMANDS.map((command) => command.name);
+/**
+ * Plan amendment B5: the position packet's command catalog, the rows tagged `catalog`, in table order, which the CLI
+ * passes to the runtime's `renderPacket` as data (B2: nothing imports this app module).
+ */
+export const packetCatalog = (commands: readonly CommandSpec[] = COMMANDS): readonly PacketCatalogRow[] =>
+  commands.flatMap((command) =>
+    command.catalog === undefined ? [] : [{ command: `ia ${command.name}`, ...command.catalog }],
+  );
 export const findCommand = (token: string): CommandSpec | undefined =>
   COMMANDS.find((command) => command.name === token);
 

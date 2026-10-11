@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { open, readInputs } from '@inventarch/db';
+import { open, pathKey, readInputs } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { DraftError, formatDraft, validateDraft } from '../src/index.js';
@@ -12,6 +13,7 @@ function context() {
   readers.push(reader);
   return { reader, within: reader.resolveScope().token, revision: reader.revision };
 }
+const isError = (finding: { readonly severity: string }): boolean => finding.severity === 'error';
 const path = '.ia/src/systems/agent-system/records/public-draft.ia';
 const text =
   '#! ia 1.0\n@agent public-draft\n  meaning\n    says    "An original bounded draft."\n    answers "Who reviews?"\n  governance\n    applies []\n';
@@ -55,6 +57,9 @@ it('refuses narrowed, phase-specific, foreign, stale and closed scopes before co
 it('refuses declarations, schemas, unknown owners and unsafe paths before preview', () => {
   const ctx = context(),
     preview = vi.spyOn(Object.getPrototypeOf(ctx.reader), 'preview');
+  // Where the volume folds case (db's pathKey), a floor or system-folder path spelled in another case is the same
+  // path, so the authored-root rule refuses it as it refuses the lowercase one.
+  const folded = pathKey('.ia/src/Floor/x.ia') === '.ia/src/floor/x.ia';
   for (const target of [
     '../escape.ia',
     '.ia/src/floor/schema.ia',
@@ -62,11 +67,73 @@ it('refuses declarations, schemas, unknown owners and unsafe paths before previe
     '.ia/src/systems/agent-system/schemas/evil.ia',
     '.ia/src/systems/absent/records/new.ia',
     '.ia/distributions/store/pin/file.ia',
+    // Under the authored root, but no IA file: only an IA source is drafted.
+    '.ia/src/participant.md',
+    '.ia/src/notes/probe.txt',
+    '.ia/src/probe',
+    '.ia/src/systems/agent-system/records/notes.txt',
+    ...(folded
+      ? ['.ia/src/Floor/x.ia', '.ia/src/Systems/agent-system/schemas/evil.ia', '.ia/src/Systems/absent/records/new.ia']
+      : []),
   ])
-    expect(() => formatDraft(ctx, { path: target, text })).toThrow(
+    for (const draft of [formatDraft, validateDraft])
+      expect(() => draft(ctx, { path: target, text }), target).toThrow(
+        expect.objectContaining({ name: 'DraftError', code: 'IA-EXEC-OUTPUT-UNSAFE' }),
+      );
+  expect(preview).not.toHaveBeenCalled();
+});
+it('drafts a file under an authored root outside every system folder, and no file outside one', () => {
+  // This repository's participant pair is authored in .ia/src/participant.ia, under the `.ia/src @authored` root its
+  // language workspace declares (db D02c), as a default `ia init` authors its three records in .ia/src/workspace.ia.
+  const ctx = context(),
+    participant = '.ia/src/participant.ia',
+    authored = readFileSync(resolve(root, participant), 'utf8');
+  expect(formatDraft(ctx, { path: participant, text: authored }).artifacts).toEqual([
+    { path: participant, text: authored },
+  ]);
+  expect(
+    formatDraft(ctx, { path: participant, text: authored.replace('    says "The IDE', '    says    "The IDE') })
+      .artifacts,
+  ).toEqual([{ path: participant, text: authored }]);
+  expect(validateDraft(ctx, { path: participant, text: authored }).evidence.findings.filter(isError)).toEqual([]);
+  // Outside the source tree, in the floor, in an adopted mount, or in the systems directory but no system's folder.
+  for (const target of [
+    'participant.ia',
+    'docs/participant.ia',
+    '.ia/src/floor/participant.ia',
+    '.ia/adopted/fixture/rev/.ia/src/participant.ia',
+    '.ia/src/systems/participant.ia',
+  ])
+    expect(() => formatDraft(ctx, { path: target, text: authored })).toThrow(
       expect.objectContaining({ code: 'IA-EXEC-OUTPUT-UNSAFE' }),
     );
-  expect(preview).not.toHaveBeenCalled();
+  // A root the workspace does not declare at the authored placement takes no draft: one that does not contain the
+  // file, and the same root declared at another placement. The whole repository, declared as the root, takes it.
+  const language = '.ia/src/systems/workspace-system/records/language.ia',
+    declared = readFileSync(resolve(root, language), 'utf8');
+  // Each declared root is read back first, so a refusal is the rule's and never an entry db declined to read.
+  const drafted = (spelled: string, declaredRoot: string, placement: string) => {
+    const edited = declared.replace('sources [".ia/src @authored"]', `sources ["${spelled} @${placement}"]`);
+    expect(edited).not.toBe(declared);
+    const reader = new EditorSnapshot(readInputs(root), [{ path: language, text: edited, version: 1 }]);
+    try {
+      expect(reader.roots().map((row) => [row.root, row.placement])).toEqual([[declaredRoot, placement]]);
+      return formatDraft(
+        { reader, within: reader.resolveScope().token, revision: reader.revision },
+        { path: participant, text: authored },
+      ).artifacts;
+    } finally {
+      reader.close();
+    }
+  };
+  for (const [spelled, placement] of [
+    ['.ia/src/systems', 'authored'],
+    ['.ia/src', 'adopted'],
+  ] as const)
+    expect(() => drafted(spelled, spelled, placement), `${spelled} @${placement}`).toThrow(
+      expect.objectContaining({ code: 'IA-EXEC-OUTPUT-UNSAFE' }),
+    );
+  expect(drafted('.', '', 'authored')).toEqual([{ path: participant, text: authored }]);
 });
 it('refuses malformed, forged and oversized arguments without emitting a draft', () => {
   const ctx = context();

@@ -276,6 +276,7 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     ['position', '--root', root, '--json'],
     ['position', '--shape', 'governance', '--phase', 'act', '--word', 'law', '--root', delivered, '--json'],
     ['position', '--depth', '3', '--root', root, '--json'],
+    ['project', 'claude', '--root', root, '--json'],
     ['doctor', '--root', root, '--json'],
     ['install', 'fixture/foundation', '--root', root, '--offline', '--json'],
   ];

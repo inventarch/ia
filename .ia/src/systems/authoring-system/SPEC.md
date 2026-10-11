@@ -1,3 +1,5 @@
 # @inventarch/authoring-system
 
 Public language mechanism. The [language reference](LANGUAGE.md) defines vocabulary and evaluation limits. Package exports describe the installed API. Curated agent methods and hosted services are supplied independently.
+
+The draft operations `validateDraft` and `formatDraft` (`validate-ia` and `format-ia`, and `ia format` through them) take a target that is a record file in the folder of an admitted system the workspace authors, never its `system.ia` or a file under its `schemas/`, or, since 2026-10-09 (milestone position-packet task init-three-records), a `.ia` file of the repository's own `.ia/src` outside every system folder and outside `.ia/src/floor/`, both compared as the database compares paths (case-folded where the volume folds case), under a root an admitted `@workspace` declares at the authored placement in `composition.sources` (the database's declared roots), such as the three records a default `ia init` writes to `.ia/src/workspace.ia`. Any other target, a file that is not `.ia`, a path outside every such root, a floor, installed or adopted file included, is refused as `IA-EXEC-OUTPUT-UNSAFE` before any preview.

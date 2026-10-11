@@ -1,0 +1,18 @@
+#! ia 1.0
+
+@system demo
+  provider "local"
+  version "0.1.0"
+  describes "The authored records of the demo workspace."
+  steward @agent demo-steward
+  requires
+    - agent-system
+    - work-system
+    - workspace-system
+
+@agent demo-steward
+  meaning
+    says "Owns the demo system and its records."
+    answers "Who owns this system?"
+  governance
+    applies []

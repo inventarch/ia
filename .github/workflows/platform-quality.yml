@@ -288,8 +288,18 @@ jobs:
             if (target.status !== "ok") process.exit(1);
             if (process.config.variables.node_shared_zlib !== true) { console.log("This Node bundles its own zlib instead of linking the system one"); process.exit(1); }
           ' "$scratch/doctor.json"
-          "$node_bin" "$cli" init "$scratch/demo" --apply --yes
+          # Position-and-projection §3: three authored records, then the capture and project effects, reported apart.
+          "$node_bin" "$cli" init "$scratch/demo" --apply --yes --json > "$scratch/init.json"
+          "$node_bin" -e '
+            const { applied } = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            console.log(`Authored ${applied.authored.join(", ")}; captured ${applied.effects.capture.records} records; project ${applied.effects.project}`);
+            if (applied.authored.length !== 3 || applied.distribution !== null || applied.effects.project !== "skipped") process.exit(1);
+          ' "$scratch/init.json"
           "$node_bin" "$cli" host claude --root "$scratch/demo" --apply --yes
+          # The projection is the position packet, with its receipt: no per-system agent file.
+          test -f "$scratch/demo/.claude/rules/ia-workspace.md"
+          test -f "$scratch/demo/.ia/distributions/hosts/claude-receipt.json"
+          test ! -e "$scratch/demo/.claude/agents"
           "$node_bin" "$cli" validate --root "$scratch/demo"
 
   qualify:

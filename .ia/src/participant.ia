@@ -1,0 +1,20 @@
+#! ia 1.0
+
+@agent language-participant
+  meaning
+    says "The IDE agent operating in the language workspace, any vendor."
+    answers "Which participant acts in the public language workspace?"
+  governance
+    applies []
+
+@mandate language-mandate
+  meaning
+    says "The bounded authority of the language participant in the public language workspace."
+    answers "Which moves may the language participant make, and over which paths?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent language-participant
+    moves [Observation, Verification, Synthesis]
+    scope [@workspace language-workspace]
+    covers [".ia/src/"]

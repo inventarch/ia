@@ -26,19 +26,20 @@
  * the lock and never chooses a registry.
  *
  * Registered host projections (docs/specs/host-registration/README.md §4, "install, update, remove"):
- * a workspace that owns a projection for a host — its `<host>-projection.json` state exists — lists installed
- * distributions in it, so a change to the installed set changes the projection. `--apply` refuses before anything is
- * acquired or written when an owned projection file was edited by hand, because the refresh would refuse it, and
- * re-renders each registered projection after the install commits. MCP and hook entries do not depend on the
- * installed set and are not touched. `restore` reinstalls the locked generation, whose admitted systems are
+ * a workspace that owns a projection for a host — its `<host>-projection.json` state exists — renders the position
+ * packet of its admitted records, so a change to the installed set changes the projection. `--apply` refuses before
+ * anything is acquired or written when an owned projection file was edited by hand, or when the steward guard the
+ * refresh would retire (B11) cannot be removed, because the refresh would refuse either, and re-renders each
+ * registered projection after the install commits through `applyHostProjection`, the one writer of projection files,
+ * which retires such a guard before any projection file changes and writes the receipt; the plan, and so the question
+ * an apply asks, names each refresh that retires one (`retire`). MCP entries do not depend on the installed set and are
+ * not touched. `restore` reinstalls the locked generation, whose admitted systems are
  * unchanged, so it neither checks nor refreshes. A refresh that fails after the install committed cannot undo the
  * install, and it is not hidden either: like `ia init --host` after initialization, the command refuses at class 3
  * with the service's code, message and file, and its next action opens "The installation is applied." before the
  * repair, so a script sees the failure and a reader sees what did happen. `ia doctor` reports the drift until then.
  */
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { WORKSPACE_PROJECTION_MARKER } from '@inventarch/compliance';
+import { readBase } from './bundled-base.js';
 import {
   canonicalDistributionJson,
   decodeDistributionRequests,
@@ -46,10 +47,11 @@ import {
   INSTALL_PATHS,
 } from '@inventarch/db/distribution';
 import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
-import { ARCHIVE_CACHE, applyInstallation, planInstallation } from '@inventarch/distribution/install';
+import { ARCHIVE_CACHE, applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import type { InstallationPlan } from '@inventarch/distribution/install';
 import type { ProjectionDrift } from '@inventarch/distribution/projection';
-import { applyProjection, observeProjection, planProjection } from '@inventarch/distribution/projection';
+import { legacyProjectionActions, observeProjection } from '@inventarch/distribution/projection';
+import { PACKET_MARKER } from '@inventarch/runtime';
 import {
   registryChooser,
   registryLocation,
@@ -59,7 +61,6 @@ import {
 } from '@inventarch/distribution/registry';
 import type { RegistryChoice, RegistryLevel } from '@inventarch/distribution/registry';
 import { resolveReleases } from '@inventarch/distribution/resolve';
-import { WORKSPACE_HOSTS } from '@inventarch/distribution/hosts';
 import type { BundleMetadata, ReleaseCandidate } from '@inventarch/distribution/services';
 import {
   acquireArtifact,
@@ -76,8 +77,23 @@ import { UsageError } from './args.js';
 import type { Context, Host, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf, requireRoot, serviceNext } from './consumer.js';
 import type { HostName } from './host-projection.js';
-import { renderProjectionFor } from './host-projection.js';
-import { hostNext, lockRefusal, projectionRepair, refusedPath, STATE } from './host.js';
+import {
+  applyHostProjection,
+  ownsGuard,
+  planRetirement,
+  preflightReceipt,
+  renderProjectionFor,
+} from './host-projection.js';
+import {
+  GUARD_SCOPE,
+  hostNext,
+  projectedHosts,
+  projectionFailure,
+  projectionRepair,
+  projectionRerun,
+  refusedPath,
+  SETTINGS,
+} from './host.js';
 import { codeOf } from './session.js';
 import type { Capabilities, SymbolName } from './render.js';
 import {
@@ -136,6 +152,17 @@ export interface PlanView {
   readonly planOut: string | null;
   /** Hosts whose projection this workspace owns; `applyPlan` refreshes each after the install commits. */
   readonly refresh: readonly HostName[];
+  readonly projectionFiles: readonly {
+    readonly host: HostName;
+    readonly files: readonly { readonly path: string; readonly action: string }[];
+  }[];
+  /**
+   * The refreshed hosts that own a steward-guard registration an earlier release made, which their refresh retires
+   * before any projection file changes (B11); a plan lists the retirement.
+   */
+  readonly retire: readonly HostName[];
+  /** After an apply, the refreshed hosts whose refresh retired that registration; empty before an apply. */
+  readonly retired: readonly HostName[];
   /** Whether `--root` was given, so every `ia host` command printed carries it (`rootedNext`). */
   readonly rooted: boolean;
 }
@@ -368,6 +395,7 @@ async function warm(
 }
 
 export interface PlanRequest {
+  readonly packageRoot?: string;
   readonly signal?: AbortSignal | undefined;
   readonly root: string;
   readonly operation: Operation;
@@ -454,36 +482,34 @@ function repin(
 }
 
 /**
- * Host registration spec §4: the hosts whose projection this workspace owns. Ownership is the state file's presence,
- * as `ia host` and `ia doctor` decide it. `restore` changes no admitted system, so it has none to refresh.
+ * Host registration spec §4: the hosts whose projection this workspace owns (`projectedHosts`), a projection `ia
+ * project` wrote without a registration included. `restore` changes no admitted system, so it has none to refresh.
  */
 export const registeredProjections = (root: string, operation: Operation): readonly HostName[] =>
-  operation === 'restore' ? [] : WORKSPACE_HOSTS.filter((host) => existsSync(resolve(root, STATE.projection(host))));
+  operation === 'restore' ? [] : projectedHosts(root);
 
 /**
  * Host registration spec §4: `--apply` refuses before any install write when a registered projection would refuse.
  * A hand edit to an owned file is the refusal the refresh would raise (§6.3), so it is found here, before
- * acquisition, the saved plan or the lock is touched; the remedy is the one `ia host` and `ia doctor` name for it.
+ * acquisition, the saved plan or the lock is touched; the remedy is the one `ia doctor` names for it, its rerun
+ * `projectionRerun`'s: `ia host <host> --apply` for a registered host, `ia project <host> --apply` for a projection
+ * `ia project` wrote without a registration (task ia-project-verb).
  * Missing, outdated and unowned files do not block: the refresh rewrites the first two and never touches the third.
  * A file the mechanism cannot read — an unreadable ownership state, an aliased or oversized managed file — would
- * refuse the refresh too, so it is refused here, located at that file, with the repair `ia host` names for it.
+ * refuse the refresh too, so it is refused here, located at that file, with the repair `ia host` names for it. So is
+ * a steward-guard registration the refresh's retirement (B11) would refuse: an unreadable guard state, or a guard
+ * group changed by hand; a pending host journal that refuses the retirement's plan names its own recovery.
  */
 export function requireProjectionsClean(root: string, hosts: readonly HostName[], rooted: boolean): void {
   for (const host of hosts) {
-    const rerun = `ia host ${host} --apply`;
+    const rerun = projectionRerun(root, host);
     let drifts: readonly ProjectionDrift[];
     try {
-      drifts = observeProjection({ root, host, artifacts: null, marker: WORKSPACE_PROJECTION_MARKER });
+      planRetirement(root, host);
+      preflightReceipt(root, host);
+      drifts = observeProjection({ root, host, artifacts: null, marker: PACKET_MARKER });
     } catch (error) {
-      const refusal = refusalOf(error),
-        path = refusedPath(error) ?? STATE.projection(host);
-      throw new Refusal(
-        refusal.code,
-        refusal.message,
-        3,
-        { path },
-        hostNext(projectionRepair(host, path, rerun), host, root, rooted),
-      );
+      throw projectionFailure(error, root, host, rerun);
     }
     const changed = drifts.find((drift) => drift.drift === 'changed');
     if (changed !== undefined)
@@ -498,37 +524,19 @@ export function requireProjectionsClean(root: string, hosts: readonly HostName[]
 }
 
 /**
- * Host registration spec §4: after the install committed, a registered projection is re-rendered from the records and
- * the new lock and applied through the projection mechanism, which re-checks every file itself. A refusal comes back
- * rather than being thrown, so every registered host is attempted before the command refuses. A file the mechanism
+ * Host registration spec §4: after the install committed, a registered projection is re-rendered from the records of
+ * the new generation and applied through `applyHostProjection`, which retires an owned steward guard first (B11),
+ * re-checks every file itself and writes the receipt (B12); the retirement comes back as `retired`. A refusal comes
+ * back rather than being thrown, so every registered host is attempted before the command refuses. A file the mechanism
  * located gets `ia host`'s repair for it; a held host lock names the recovery that clears a dead holder's; a CLI
- * refusal (the workspace no longer admits, the renderer refused) keeps its own next action; anything else names the
- * rerun.
+ * refusal (the workspace no longer admits) keeps its own next action; anything else names the rerun, which is
+ * `projectionRerun`'s, as `ia doctor` names it.
  */
-function refreshed(view: PlanView, host: HostName): Refusal | null {
+function refreshed(view: PlanView, host: HostName): Refusal | 'retired' | 'none' {
   try {
-    const artifacts = renderProjectionFor(view.root, host);
-    applyProjection(planProjection({ root: view.root, host, artifacts, marker: WORKSPACE_PROJECTION_MARKER }));
-    return null;
+    return applyHostProjection(view.root, host, renderProjectionFor(view.root, host)).guard;
   } catch (error) {
-    const busy = lockRefusal(error, view.root);
-    if (busy !== null) return busy;
-    const refusal = refusalOf(error),
-      path = refusedPath(error),
-      rerun = `ia host ${host} --apply`;
-    const next =
-      path !== null
-        ? projectionRepair(host, path, rerun)
-        : error instanceof Refusal && refusal.next !== null
-          ? refusal.next
-          : `Run "${rerun}" to finish.`;
-    return new Refusal(
-      refusal.code,
-      refusal.message,
-      3,
-      path === null ? refusal.where : { path },
-      hostNext(next, host, view.root, view.rooted),
-    );
+    return projectionFailure(error, view.root, host, projectionRerun(view.root, host));
   }
 }
 
@@ -616,6 +624,21 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
   if (operation === 'restore') {
     // One lock is read, and the withdrawal check and the plan both use that same object (registry spec §6.3).
     const lock = readWorkspaceLock({ root });
+    if (request.packageRoot !== undefined) {
+      const base = readBase(request.packageRoot);
+      const locked = lock.packages.find((row) => row.id === base.pin.id);
+      if (locked?.archive === base.pin.archive) {
+        if (locked.manifest !== base.pin.manifest || locked.version !== base.pin.version)
+          throw new Refusal(
+            'IA-DIST-INPUT-INVALID',
+            'The locked bundled base manifest or version differs from its verified archive',
+            3,
+            { path: INSTALL_PATHS.lock },
+            `Restore the exact portable lock from source control, then run "${reruns.again}".`,
+          );
+        cacheArchive(root, base.bytes, base.pin.archive);
+      }
+    }
     if (request.catalog === undefined && !request.offline) {
       const choose = chooserOf(request);
       const restored = await acquiring(
@@ -752,6 +775,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
           content: () => Buffer.from(canonicalDistributionJson(plan)),
           refusal: 'A saved plan is written to a new file under .ia/work/',
         });
+  const refresh = request.refresh ?? registeredProjections(root, operation);
   return {
     operation,
     root,
@@ -762,7 +786,10 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     registries,
     invocation: request.invocation,
     planOut,
-    refresh: request.refresh ?? registeredProjections(root, operation),
+    refresh,
+    projectionFiles: refresh.map((host) => ({ host, files: legacyProjectionActions(root, host, PACKET_MARKER) })),
+    retire: refresh.filter((host) => ownsGuard(root, host)),
+    retired: [],
     rooted: request.rooted ?? false,
   };
 }
@@ -775,21 +802,21 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
  * refused refresh is class 3 naming the first refusal, and the count when more than one host refused (file comment).
  */
 export function applyPlan(view: PlanView): PlanView {
-  const applied: PlanView = { ...view, applied: applyInstallation(view.plan) as Applied };
-  const refused = view.refresh
-    .map((host) => refreshed(applied, host))
-    .filter((refusal): refusal is Refusal => refusal !== null);
+  const installed: PlanView = { ...view, applied: applyInstallation(view.plan) as Applied };
+  const results = view.refresh.map((host) => [host, refreshed(installed, host)] as const),
+    refused = results.flatMap(([, result]) => (result instanceof Refusal ? [result] : []));
   const [first] = refused;
   if (first !== undefined) {
     const count =
       refused.length > 1 ? ` ${refused.length} registered host projections were not refreshed; this is the first.` : '';
     throw new Refusal(first.code, first.message, 3, first.where, `The installation is applied.${count} ${first.next}`);
   }
-  return applied;
+  return { ...installed, retired: results.flatMap(([host, result]) => (result === 'retired' ? [host] : [])) };
 }
 
 /**
- * The `--json` envelope (§2.8): `{version: 1, command, plan, applied?, refresh?, registries?, withdrawn?, planOut?}`.
+ * The `--json` envelope (§2.8): `{version: 1, command, plan, applied?, refresh?, retire?, retired?, registries?,
+ * withdrawn?, planOut?}`.
  *
  * - `plan` is the planner's own value, unchanged.
  * - `registries` (registry spec §6.1) is present only when registries were the source: one `{provider, base, level}`
@@ -806,8 +833,11 @@ export function planEnvelope(view: PlanView): unknown {
     plan: view.plan,
     // `applied` is applyInstallation's return, its `host: 'pending'` literal included (§2.8).
     ...(view.applied === null ? {} : { applied: view.applied }),
-    // Host registration spec §4: the registered projections an apply refreshes.
-    ...(view.refresh.length === 0 ? {} : { refresh: view.refresh }),
+    // Host registration spec §4: the registered projections an apply refreshes, those whose refresh retires the
+    // steward guard first (B11), and after an apply those whose refresh retired it.
+    ...(view.refresh.length === 0 ? {} : { refresh: view.refresh, projectionFiles: view.projectionFiles }),
+    ...(view.retire.length === 0 ? {} : { retire: view.retire }),
+    ...(view.retired.length === 0 ? {} : { retired: view.retired }),
     ...(view.registries.length === 0 ? {} : { registries: view.registries }),
     ...(view.withdrawn.length === 0 ? {} : { withdrawn: view.withdrawn }),
     ...(view.planOut === null ? {} : { planOut: view.planOut }),
@@ -904,16 +934,37 @@ const wouldWriteBlocks = (view: PlanView, caps: Capabilities): readonly (readonl
   ];
 };
 
-/** Host registration spec §4: the plan says which registered projections the apply re-renders. */
+/**
+ * Host registration spec §4: the plan says which registered projections the apply re-renders, and which of those
+ * refreshes first retire the steward guard an earlier release registered (B11), with what that leaves unguarded.
+ */
 const projectionsBlocks = (view: PlanView, caps: Capabilities): readonly (readonly string[])[] =>
   view.refresh.length === 0
     ? []
     : [
         entry(
-          [words(`Registered host projections (${view.refresh.join(', ')}) are refreshed after apply.`)],
+          [
+            words(
+              `Registered host projections (${view.refresh.join(', ')}) are refreshed after apply${
+                view.retire.length === 0
+                  ? ''
+                  : `; the refresh first retires the steward guard registered in ${SETTINGS} (${view.retire.join(', ')})`
+              }.`,
+            ),
+          ],
           { depth: 1, symbol: 'info' },
           caps,
         ),
+        ...view.projectionFiles.flatMap(({ host, files }) =>
+          files.map(({ path, action }) =>
+            entry(
+              [words(`${host}: ${path}  ${action}${action === 'foreign' ? ' (left in place)' : ''}`)],
+              { depth: 1, symbol: action === 'remove' ? 'removed' : 'info' },
+              caps,
+            ),
+          ),
+        ),
+        ...(view.retire.length === 0 ? [] : [entry([words(GUARD_SCOPE)], { depth: 1, symbol: 'info' }, caps)]),
       ];
 /**
  * What an applied plan says about hosts. `applied.host` is applyInstallation's literal and is never presented as
@@ -923,7 +974,11 @@ const projectionsBlocks = (view: PlanView, caps: Capabilities): readonly (readon
 const hostLine = (view: PlanView): string =>
   view.refresh.length === 0
     ? 'Host state is not reported by the installer; run "ia doctor" for it.'
-    : `Registered host projections (${view.refresh.join(', ')}) were refreshed; run "ia doctor" for host state.`;
+    : `Registered host projections (${view.refresh.join(', ')}) were refreshed${
+        view.retired.length === 0
+          ? ''
+          : `, and the steward guard an earlier release registered was retired first (${view.retired.join(', ')})`
+      }; run "ia doctor" for host state.`;
 
 export function renderPlan(view: PlanView, caps: Capabilities): string {
   const blocks: (readonly string[])[] = [
@@ -1089,6 +1144,7 @@ export function runDistribute(operation: Operation): (context: Context) => Promi
     const refresh = registeredProjections(root, operation);
     if (args.flag('apply')) requireProjectionsClean(root, refresh, rooted);
     const planned = await collectPlan({
+      packageRoot: host.packageRoot,
       signal: host.signal,
       root,
       operation,

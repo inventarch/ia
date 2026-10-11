@@ -1,0 +1,15 @@
+#! ia 1.0
+
+@workspace demo
+  meaning
+    says "The demo workspace and the public systems it composes."
+    answers "Which systems does this workspace compose?"
+  composition
+    systems [@system agent-composition-system, @system agent-system, @system authoring-system, @system compliance-system, @system governance-system, @system hook-authoring-system, @system learning-system, @system session-system, @system template-system, @system work-system, @system workspace-system]
+
+@distribution demo-distribution
+  meaning
+    says "The release root of the demo workspace."
+    answers "Which records does this release ship?"
+  distribution
+    records [@workspace demo]

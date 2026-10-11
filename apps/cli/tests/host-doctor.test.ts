@@ -3,13 +3,28 @@
  * Shared setup lives in host-fixture.ts; every case owns a fresh workspace and IA home.
  * See docs/specs/host-registration/README.md §§4–10.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { json } from '@inventarch/distribution/services';
-import { rootedNext } from '../src/host.js';
+import { applyHostProjection, renderProjectionFor } from '../src/host-projection.js';
+import { rootedNext, SETTINGS } from '../src/host.js';
 import { quote } from '../src/render.js';
 import { run, scratch } from './workspace-fixture.js';
-import { put, read, initialized, host, human, doctor, row, rootedApply } from './host-fixture.js';
+import {
+  put,
+  read,
+  initialized,
+  host,
+  human,
+  doctor,
+  row,
+  rootedApply,
+  legacyGuard,
+  legacyRegistration,
+  noDrift,
+  RECEIPT,
+  STEWARD,
+} from './host-fixture.js';
 import { afterAll, expect, it, vi } from 'vitest';
 import { cleanup } from './workspace-fixture.js';
 import type { Row } from './host-fixture.js';
@@ -44,13 +59,13 @@ it('doctor reports registered, then stale after a simulated upgrade, and project
   expect(row(registered.checks, 'host-claude')).toMatchObject({
     status: 'ok',
     remedy: null,
-    detail: expect.stringContaining('registered (mcp, hooks, projection); written; not observed answering; cache '),
+    detail: expect.stringContaining('registered (mcp, projection); written; not observed answering; cache '),
   });
   expect(row(registered.checks, 'host')).toBeUndefined();
   expect(row(registered.checks, 'host-payload')!.detail).toBe(
     `Release ${release.slice(0, 12)}, present in ${resolve(env.IA_HOST_HOME, 'hosts')}`,
   );
-  expect(registered.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([]);
+  expect(registered.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([noDrift()]);
   // §3.3: an unfinished `.stage-*` materialization is never listed as a payload; another release's directory is.
   mkdirSync(resolve(env.IA_HOST_HOME, 'hosts', '.stage-interrupted'));
   mkdirSync(resolve(env.IA_HOST_HOME, 'hosts', 'a'.repeat(64)));
@@ -91,7 +106,8 @@ it('doctor reports registered, then stale after a simulated upgrade, and project
   );
   writeFileSync(launcher, original);
 
-  // A hand edit to a projected file is `changed`, which apply refuses; the row names the same repair `ia host` does.
+  // B12: drift is read from the receipt. A hand edit to a file it lists is `changed`, which apply refuses; the row
+  // names the same repair `ia host` does.
   put(root, '.claude/rules/ia-workspace.md', read(root, '.claude/rules/ia-workspace.md') + 'edit\n');
   const drifted = await doctor(root, env);
   expect(drifted.exitCode).toBe(1);
@@ -116,16 +132,16 @@ it('doctor reports registered, then stale after a simulated upgrade, and project
   // Doctor never writes: a clean report leaves every managed file as the apply left it.
   const managed = [
     '.mcp.json',
-    '.claude/settings.local.json',
     '.claude/rules/ia-workspace.md',
     '.ia/distributions/hosts/claude-workspace.json',
+    RECEIPT,
   ];
   const before = managed.map((path) => read(root, path));
   expect((await doctor(root, env)).exitCode).toBe(0);
   expect(managed.map((path) => read(root, path))).toEqual(before);
 });
 
-it('reports a newly authored local system as outdated and missing projection files, and the rerun clears both (§10 item 6)', async () => {
+it('reports a newly authored local system as an outdated packet, and the rerun clears it (§10 item 6)', async () => {
   const { root, env } = await initialized();
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
   // The starter's own declaration shape under a new name and steward, as a user authoring a second system writes it.
@@ -137,30 +153,129 @@ it('reports a newly authored local system as outdated and missing projection fil
     status: 'ok',
     detail: expect.stringContaining(', 0 errors,'),
   });
-  // Every projected file embeds the source revision, so each existing one is outdated; the new steward's is missing.
-  const drifted = authored.checks.filter((check) => check.id.startsWith('projection-claude:'));
-  expect(drifted).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        id: 'projection-claude:.claude/rules/ia-workspace.md',
-        status: 'warn',
-        detail: expect.stringContaining('outdated'),
-      }),
-      expect.objectContaining({
-        id: 'projection-claude:.claude/agents/extra-steward.md',
-        status: 'warn',
-        detail: expect.stringContaining('missing'),
-      }),
-    ]),
-  );
-  expect(drifted.every((check) => check.status === 'warn' && /\b(outdated|missing)\b/.test(check.detail))).toBe(true);
+  // The packet carries the revision, so the receipt's packet digest is no longer the current render's; no steward
+  // agent is missing, because none is rendered (design §4), and the files the receipt lists are as it wrote them.
+  const drifted = authored.checks.filter((check) => check.id.startsWith('projection-claude'));
+  expect(drifted).toEqual([
+    expect.objectContaining({
+      id: 'projection-claude-packet',
+      status: 'warn',
+      detail: expect.stringContaining('outdated: the current records render packet '),
+      remedy: rootedApply(root),
+    }),
+  ]);
   expect(authored.exitCode).toBe(0);
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
-  expect(read(root, '.claude/rules/ia-workspace.md')).toContain('extra-steward');
-  expect(existsSync(resolve(root, '.claude/agents/extra-steward.md'))).toBe(true);
+  expect(existsSync(resolve(root, '.claude/agents'))).toBe(false);
   const cleared = await doctor(root, env);
   expect(cleared.exitCode).toBe(0);
-  expect(cleared.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([]);
+  expect(cleared.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([noDrift()]);
+});
+
+it('reports an upgraded 1.x projection as unknown until a receipt exists, then lists what its apply removed', async () => {
+  const { root, env } = await initialized();
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  // A 1.x registration wrote no receipt.
+  legacyRegistration(root, env);
+  rmSync(resolve(root, RECEIPT));
+  const legacy = await doctor(root, env);
+  expect(row(legacy.checks, 'projection-claude')).toEqual({
+    id: 'projection-claude',
+    title: 'Projection claude',
+    status: 'unknown',
+    detail: `No receipt at ${RECEIPT}: this projection was written before receipts, or its receipt was deleted; the remedy writes one`,
+    remedy: rootedApply(root),
+  });
+  expect(legacy.checks.filter((check) => check.id.startsWith('projection-claude:'))).toEqual([]);
+  // The remedy, followed literally, writes the receipt; its removed and foreign files are listed and not checked.
+  put(root, '.claude/agents/x.md', 'my own agent\n');
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  rmSync(resolve(root, '.claude/agents/x.md'));
+  const upgraded = await doctor(root, env);
+  expect(upgraded.exitCode).toBe(0);
+  expect(upgraded.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([
+    noDrift(),
+    expect.objectContaining({
+      id: 'projection-claude-receipt',
+      status: 'info',
+      detail: `The last apply removed ${STEWARD}; foreign, left in place: .claude/agents/x.md; listed, not checked`,
+      remedy: null,
+    }),
+  ]);
+  // A receipt that cannot be read, is not exact UTF-8, or parses without the fields doctor checks is a fail row naming
+  // its repair, never an exception.
+  const written = JSON.parse(read(root, RECEIPT));
+  const broken = [
+    'garbage\n',
+    // `ÿ` as its one Latin-1 byte, 0xFF: every other byte of the receipt is ASCII.
+    Buffer.from(json({ ...written, cli: '@inventarch/cli@ÿ' }), 'latin1'),
+    '{}\n',
+    json({ ...written, host: 'codex' }),
+    json({ ...written, packetDigest: 'not a digest' }),
+    json({ ...written, files: [{ path: '.claude/rules/ia-workspace.md' }] }),
+    json({ ...written, removed: null }),
+    json({ ...written, foreign: [1] }),
+  ];
+  for (const [index, bytes] of broken.entries()) {
+    writeFileSync(resolve(root, RECEIPT), bytes);
+    const report = await doctor(root, env);
+    expect(report.exitCode, `receipt ${index}`).toBe(1);
+    expect(row(report.checks, `projection-claude:${RECEIPT}`), `receipt ${index}`).toMatchObject({
+      status: 'fail',
+      detail: expect.stringContaining(`Delete ${RECEIPT}, then run "${rootedApply(root)}".`),
+      remedy: rootedApply(root),
+    });
+  }
+});
+
+it('reports an interrupted projection apply as unknown, never as a hand edit, and its rerun converges', async () => {
+  const { root, env } = await initialized();
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  const { starterSystem } = await import('../src/init.js');
+  put(root, '.ia/src/systems/extra/system.ia', starterSystem('extra'));
+  // The apply stops after rewriting the rules file: its state accepts both hashes, and the last receipt is gone.
+  const real = realpathSync(root);
+  expect(() =>
+    applyHostProjection(real, 'claude', renderProjectionFor(real, 'claude'), (stage) => {
+      if (stage === '.claude/rules/ia-workspace.md') throw new Error('interrupted');
+    }),
+  ).toThrow('interrupted');
+  expect(existsSync(resolve(root, RECEIPT))).toBe(false);
+  const interrupted = await doctor(root, env);
+  expect(interrupted.exitCode).toBe(0);
+  expect(interrupted.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([
+    expect.objectContaining({ id: 'projection-claude', status: 'unknown', remedy: rootedApply(root) }),
+  ]);
+  // The remedy, followed literally, converges with nothing moved.
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  const converged = await doctor(root, env);
+  expect(converged.exitCode).toBe(0);
+  expect(converged.checks.filter((check) => check.id.startsWith('projection-claude'))).toEqual([noDrift()]);
+});
+
+it("names ia host's own repair for a 1.x guard group changed by hand, and that repair converges", async () => {
+  const { root, env } = await initialized();
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  legacyGuard(root, env);
+  const settings = JSON.parse(read(root, SETTINGS));
+  settings.hooks.PreToolUse[0].timeout = 99;
+  put(root, SETTINGS, JSON.stringify(settings, null, 2) + '\n');
+  const repair = `Delete only the IA guard group in ${SETTINGS}, then run "ia host claude --apply".`;
+  // ia host refuses the retirement with this repair, and doctor names the same one.
+  expect(JSON.parse((await host(root, env, 'claude', '--apply', '--yes')).stdout)).toMatchObject({
+    ok: false,
+    where: { path: SETTINGS },
+    next: rootedNext(repair, 'claude', root),
+  });
+  const stale = row((await doctor(root, env)).checks, 'host-claude')!;
+  expect(stale).toMatchObject({ status: 'fail', remedy: rootedApply(root) });
+  expect(stale.detail).toContain(`${SETTINGS} does not hold the IA guard group an earlier ia host wrote`);
+  expect(stale.detail).toContain(rootedNext(repair, 'claude', root));
+  // Followed literally: with the group deleted, the remedy retires the ownership state alone.
+  delete settings.hooks;
+  put(root, SETTINGS, JSON.stringify(settings, null, 2) + '\n');
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect((await doctor(root, env)).exitCode).toBe(0);
 });
 
 it('names the unreadable ownership file and a repair that converges, in ia host and doctor alike', async () => {
@@ -205,10 +320,8 @@ it('names the unreadable ownership file and a repair that converges, in ia host 
   expect(row((await doctor(root, env)).checks, 'host-claude')!.detail).toContain(
     rootedNext(guardRepair, 'claude', root),
   );
+  // ia host registers no guard group (B11), so deleting the state file is the whole repair here.
   rmSync(resolve(root, guard));
-  const settings = JSON.parse(read(root, '.claude/settings.local.json'));
-  settings.hooks.PreToolUse = [];
-  put(root, '.claude/settings.local.json', JSON.stringify(settings, null, 2) + '\n');
   expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
   expect((await doctor(root, env)).exitCode).toBe(0);
 
@@ -406,4 +519,31 @@ it('names --root in every ia host next action only when the invocation gave it, 
   expect(JSON.parse(gated.stdout).next).toBe(
     `Run "ia host claude --root ${quote(root)}" to plan the registration without the context element.`,
   );
+});
+
+it('reports real hand edits without a receipt and the repair converges', async () => {
+  const { root, env } = await initialized();
+  legacyRegistration(root, env);
+  const path = '.claude/rules/ia-workspace.md';
+  put(root, path, read(root, path) + 'my edit\n');
+  const report = await doctor(root, env);
+  expect(report.exitCode).toBe(1);
+  const checks = report.checks;
+  expect(checks).toContainEqual(
+    expect.objectContaining({
+      id: `projection-claude:${path}`,
+      status: 'fail',
+      detail: expect.stringContaining('move or delete'),
+    }),
+  );
+  expect(checks).toContainEqual(
+    expect.objectContaining({
+      id: 'projection-claude',
+      status: 'unknown',
+      detail: expect.not.stringContaining('the remedy writes one'),
+    }),
+  );
+  rmSync(resolve(root, path));
+  expect((await host(root, env, 'claude', '--apply', '--yes')).exitCode).toBe(0);
+  expect((await doctor(root, env)).exitCode).toBe(0);
 });

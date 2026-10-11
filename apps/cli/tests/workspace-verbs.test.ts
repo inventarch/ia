@@ -5,7 +5,7 @@
  * Every verb is exercised in its human and `--json` form and in each exit class its §2 section declares, because
  * the exit class is the part a script depends on and the part a renderer change cannot be trusted to preserve.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { applyHost, planHost } from '@inventarch/distribution/host';
@@ -22,7 +22,7 @@ import {
 } from '../src/compile.js';
 import { collectDoctor } from '../src/doctor.js';
 import { resolveCapabilities } from '../src/render.js';
-import { cleanup, cli, delivery, FORMATTABLE, run, scratch, workspace } from './workspace-fixture.js';
+import { cleanup, cli, delivery, FORMATTABLE, repository, run, scratch, workspace } from './workspace-fixture.js';
 
 const ANSI = /\u001b\[/;
 afterAll(cleanup);
@@ -55,6 +55,7 @@ it('plans a workspace without creating one and plans the selected host without w
       starter: {
         id: string;
         paths: string[];
+        records: string[];
         descriptor: { id: string; dependencies: { id: string; range: string }[] };
         base: { id: string; version: string; archive: string };
       };
@@ -63,31 +64,46 @@ it('plans a workspace without creating one and plans the selected host without w
   };
   expect(machine).toMatchObject({ version: 1, command: 'init', root: empty, apply: false });
   expect(machine.plan.state).toBe('fresh');
-  expect(machine.plan.owns).toHaveLength(5);
-  expect(machine.plan.owns).toContain('.ia/src/');
-  expect(machine.plan.owns).toContain('.ia/release.json');
+  expect(machine.plan.owns).toEqual([
+    '.ia/src/',
+    '.ia/.gitignore',
+    '.ia/release.json',
+    '.ia/distributions.lock.json',
+    '.ia/distributions/',
+    '.ia/work/snapshot/',
+  ]);
   expect(machine.plan.conflicts).toEqual([]);
   expect(machine.plan.steps.map((step) => `${step.id}:${step.status}`)).toEqual([
     'install:pending',
-    'system:pending',
-    'records:pending',
+    'author:pending',
+    'admission:pending',
     'descriptor:pending',
+    'capture:pending',
   ]);
   // M5.1 §7 item 4: the starter object carries the authored paths, the descriptor values and the base pin.
   const name = machine.plan.starter.id.slice('local/'.length);
   expect(machine.plan.starter.id).toMatch(/^local\/ia-cli-init-[a-z0-9-]+$/);
-  expect(machine.plan.starter.paths).toEqual([
+  expect(machine.plan.starter.paths).toEqual(['.ia/src/workspace.ia', '.ia/release.json']);
+  expect(machine.plan.starter.records).toEqual([`@workspace ${name}`, `@agent ${name}`, `@mandate ${name}-mandate`]);
+  expect(machine.plan.starter.descriptor.id).toBe(machine.plan.starter.id);
+  expect(machine.plan.starter.descriptor).not.toHaveProperty('distribution');
+  // --system adds the local system's folder and its two files, and a descriptor whose distribution apply reads.
+  const system = JSON.parse((await run(['init', '--system', '--json'], { cwd: empty })).stdout) as typeof machine;
+  expect(system.plan.owns).toContain(`.ia/src/systems/${name}/`);
+  expect(system.plan.starter.paths).toEqual([
+    '.ia/src/workspace.ia',
     `.ia/src/systems/${name}/system.ia`,
-    `.ia/src/systems/${name}/records/workspace.ia`,
+    `.ia/src/systems/${name}/records/distribution.ia`,
     '.ia/release.json',
   ]);
-  expect(machine.plan.starter.descriptor.id).toBe(machine.plan.starter.id);
+  expect(system.plan.starter.descriptor).toMatchObject({ distribution: null });
   const pin = JSON.parse(readFileSync(resolve(cli, 'assets/base.json'), 'utf8')) as { id: string };
   expect(machine.plan.starter.descriptor.dependencies.map((row) => row.id)).toEqual([pin.id]);
   expect(machine.plan.starter.base).toMatchObject({ id: pin.id, archive: expect.stringMatching(/^[a-f0-9]{64}$/) });
   expect(machine.plan.host).toEqual({ selected: 'none', status: 'none' });
   // The rendered "Starter records" row shows the contents rather than the plan task that specified them.
-  expect(plan.stdout).toContain(`@system ${name} and its steward`);
+  expect(plan.stdout.replace(/\s+/g, ' ')).toContain(`its participant @agent ${name}; @mandate ${name}-mandate`);
+  expect(plan.stdout).not.toContain('@system');
   expect(plan.stdout).not.toContain('M5.1');
   expect(JSON.parse((await run(['init', '--host', 'claude', '--json'], { cwd: empty })).stdout).plan.host).toEqual({
     selected: 'claude',
@@ -156,7 +172,7 @@ it('detects each conflict condition against a workspace that already exists', as
   const pending = await run(['init', root]);
   expect(pending.exitCode).toBe(3);
   expect(pending.stderr).toContain('IA-DB-SOURCE-UNAVAILABLE');
-  expect(pending.stderr).toContain('ia-distribution recover');
+  expect(pending.stderr).toContain('ia recover');
 });
 
 it('checks formatting by default, rewrites only with --write, and refuses a path outside the root', async () => {
@@ -198,6 +214,37 @@ it('checks formatting by default, rewrites only with --write, and refuses a path
   expect(closure.exitCode).toBe(3);
   expect(closure.stderr).toContain('IA-DIST-CLOSURE-INCOMPLETE');
 });
+
+it("formats this repository's participant records, authored under its root outside every system folder", async () => {
+  // Plan task self-host-participant-records put them in .ia/src/participant.ia, which the formatter refused until the
+  // authoring-system draft target took a file under an authored root the workspace declares (`.ia/src @authored`).
+  const participant = '.ia/src/participant.ia',
+    before = readFileSync(resolve(repository, participant));
+  for (const mode of [[], ['--check']]) {
+    const checked = await run(['format', participant, ...mode, '--root', repository, '--json']);
+    expect(checked.exitCode, checked.stdout).toBe(0);
+    expect(JSON.parse(checked.stdout)).toMatchObject({
+      mode: 'check',
+      changed: 0,
+      files: [{ path: participant, status: 'unchanged' }],
+    });
+  }
+  // A copy that differs is reported, and --write rewrites it to the committed bytes.
+  const root = scratch('format-participant');
+  // The native sources only: a system package's own build output and dependency links are no records.
+  cpSync(resolve(repository, '.ia/src'), resolve(root, '.ia/src'), {
+    recursive: true,
+    filter: (source) => !/[\\/](?:node_modules|dist)(?:[\\/]|$)/.test(source),
+  });
+  writeFileSync(
+    resolve(root, participant),
+    before.toString('utf8').replace('    says "The IDE', '    says   "The IDE'),
+  );
+  expect((await run(['format', participant, '--check', '--root', root])).exitCode).toBe(1);
+  expect((await run(['format', participant, '--write', '--root', root])).exitCode).toBe(0);
+  expect(readFileSync(resolve(root, participant))).toEqual(before);
+  expect(readFileSync(resolve(repository, participant))).toEqual(before);
+}, 120_000);
 
 it('compiles a deterministic artifact, refuses to overwrite it, and never rolls not-evaluated into a pass', async () => {
   // Decision release-bump: in 1.x `ia compile` keeps this behaviour and adds one stderr line naming `ia capture`.
@@ -407,7 +454,7 @@ it('diagnoses runtime, workspace and installation state in five buckets without 
   const interrupted = await run(['doctor', '--root', root], { env });
   expect(interrupted.exitCode).toBe(1);
   expect(interrupted.stdout).toContain('.ia/distributions/pending.json exists');
-  expect(interrupted.stdout).toContain('ia-distribution recover --root');
+  expect(interrupted.stdout).toContain('ia recover installation --root');
   expect(interrupted.stdout).toContain('Not checked; installation recovery is required first');
   const failed = JSON.parse((await run(['doctor', '--root', root, '--json'], { env })).stdout) as {
     checks: { id: string; status: string }[];
@@ -508,6 +555,10 @@ it("keeps every new verb's --json stdout one parseable value with no ANSI, in su
       argv: ['position', '--seat', 'governance-system/governance/law/absent', '--root', root, '--json'],
       refusal: true,
     },
+    { argv: ['project', 'claude', '--root', 'applied', '--json'], refusal: false },
+    { argv: ['project', 'codex', '--root', 'applied', '--apply', '--yes', '--json'], refusal: false },
+    { argv: ['project', 'emacs', '--root', 'applied', '--json'], refusal: true },
+    { argv: ['project', 'claude', '--root', root, '--json'], refusal: true },
     { argv: ['doctor', '--json'], refusal: false },
     { argv: ['pack', '--root', root, '--descriptor', '.ia/work/absent.json', '--json'], refusal: true },
     { argv: ['install', 'a/b', '--root', root, '--offline', '--json'], refusal: true },

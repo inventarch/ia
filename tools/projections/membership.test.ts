@@ -5,9 +5,11 @@ import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { stableSerialize } from '../../packages/graph/src/index.js';
 import { open, readInputs } from '../../packages/db/src/index.js';
-import { renderHostArtifacts } from '../../packages/compliance/src/index.js';
-import { generateProjections, projectionMembership } from './generate.js';
+import { generateProjections, renderProjections } from './generate.js';
 
+// The repository projection over a pinned adopted tree (milestone position-packet task replace-renderers): the packet
+// renders what the database admits, whatever its mount, and neither promotes a local contribution nor touches the
+// adopted source.
 const root = resolve(import.meta.dirname, '../..'),
   temporary: string[] = [];
 function fixture(): string {
@@ -59,96 +61,39 @@ it('projects a real pinned adopted tree without promoting local methods or chang
   const db = open(base, { cache: false });
   try {
     expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
-    const records = db.records(),
-      result = renderHostArtifacts(records, db.revision, projectionMembership(records, db.revision));
-    expect(result.assessment.outcome).toBe('pass');
-    expect(result.artifacts).toHaveLength(14);
-    const expert = result.artifacts.find((a) => a.path === '.claude/agents/public-governance-system-steward.md')!;
-    expect(expert.text).toMatch(
-      /\.ia\/adopted\/foundation\/[a-f0-9]{64}\/\.ia\/src\/systems\/governance-system\/system\.ia/,
-    );
-    expect(expert.text).toContain('Adopted source paths are immutable references');
-    const skill = result.artifacts.find((a) => a.path === '.agents/skills/ia-authoring/SKILL.md')!;
-    expect(skill.text).toContain('canonical schema');
-    expect(skill.text).not.toContain('Read .ia/adopted/');
-    expect(skill.text).not.toContain('Edit the native method');
-    expect(expert.text).not.toContain('PROJECT-METHOD-SENTINEL');
-    expect(expert.text).not.toContain(path);
-    expect(renderHostArtifacts(records, db.revision).assessment.outcome).toBe('fail');
-    expect(generateProjections(base, false)).toHaveLength(14);
-    expect(existsSync(resolve(base, '.claude'))).toBe(false);
-    expect(existsSync(resolve(base, '.ia/adopted'))).toBe(false);
-    expect(existsSync(resolve(base, '.ia/src/systems/governance-system/system.ia'))).toBe(false);
-    expect(readFileSync(source)).toEqual(before);
   } finally {
     db.close();
   }
+  const files = renderProjections(base);
+  expect(files.map((file) => file.path)).toEqual([
+    'CLAUDE.md',
+    '.claude/skills/ia-authoring/SKILL.md',
+    '.agents/skills/ia-authoring/SKILL.md',
+  ]);
+  const claude = files[0]!.text;
+  // No record body is part of the packet (design §4: K0 has n = 0), and no adopted or local source path is printed.
+  expect(claude).not.toContain('PROJECT-METHOD-SENTINEL');
+  expect(claude).not.toContain(path);
+  expect(claude).not.toContain('.ia/adopted/');
+  expect(claude).not.toContain('vendor/foundation');
+  const skill = files[2]!.text;
+  expect(skill).toContain('canonical schema');
+  expect(skill).not.toContain('Read .ia/adopted/');
+  // A check plans the three files and writes none of them, nor anything under the adopted mount.
+  expect(generateProjections(base, false)).toHaveLength(3);
+  expect(existsSync(resolve(base, '.claude'))).toBe(false);
+  expect(existsSync(resolve(base, 'CLAUDE.md'))).toBe(false);
+  expect(existsSync(resolve(base, '.ia/adopted'))).toBe(false);
+  expect(existsSync(resolve(base, '.ia/src/systems/governance-system/system.ia'))).toBe(false);
+  expect(readFileSync(source)).toEqual(before);
 });
 
-it('refuses stale, duplicate, aliased, omitted or wrong-root membership before returning artifacts', () => {
-  const db = open(fixture(), { cache: false });
-  try {
-    const records = db.records(),
-      membership = projectionMembership(records, db.revision),
-      first = membership.members[0]!;
-    const changes = [
-      { ...membership, revision: 'stale' },
-      { ...membership, members: [...membership.members, first] },
-      { ...membership, members: membership.members.slice(1) },
-      { ...membership, members: [{ ...first, path: first.path.toUpperCase() }, ...membership.members.slice(1)] },
-      { ...membership, members: [{ ...first, root: '../' + first.root }, ...membership.members.slice(1)] },
-      {
-        ...membership,
-        members: membership.members.map((m) =>
-          m.path.endsWith('/system.ia') ? { ...m, system: 'different-system' } : m,
-        ),
-      },
-    ];
-    for (const changed of changes) {
-      const result = renderHostArtifacts(records, db.revision, changed);
-      expect(result.artifacts).toEqual([]);
-      expect(result.assessment.findings).toHaveLength(1);
-      expect(result.assessment.findings[0]!.code).toBe('IA-COMP-PROJECTION-INVALID');
-    }
-  } finally {
-    db.close();
-  }
-});
-
-it('refuses a scope-excluded steward and tied or same-name foreign occurrences', () => {
-  const db = open(fixture(), { cache: false });
-  try {
-    const records = db.records(),
-      steward = records.find((r) => r.name === 'public-governance-system-steward')!;
-    const scope = db.resolveScope({
-      identities: records.filter((r) => r.identity !== steward.identity).map((r) => r.identity),
-    });
-    const scoped = db.records({ within: scope.token });
-    const pools = [
-      scoped,
-      [...records, steward],
-      records.map((r) =>
-        r === steward
-          ? { ...r, source: { ...r.source, path: r.source.path.replace('/governance-system/', '/agent-system/') } }
-          : r,
-      ),
-      [
-        ...records,
-        {
-          ...steward,
-          identity: steward.identity + '-duplicate',
-          source: { ...steward.source, line: steward.source.line + 1 },
-        },
-      ],
-    ];
-    for (const pool of pools) {
-      const result = renderHostArtifacts(pool, db.revision, projectionMembership(pool, db.revision));
-      expect(result.assessment.outcome).toBe('fail');
-      expect(result.artifacts).toEqual([]);
-    }
-  } finally {
-    db.close();
-  }
+it('renders byte-equal files for the same adopted tree at two roots, naming neither', () => {
+  const [first, second] = [fixture(), fixture()].map((base) => ({ base, files: renderProjections(base) }));
+  expect(JSON.stringify(second!.files)).toBe(JSON.stringify(first!.files));
+  for (const { base, files } of [first!, second!])
+    for (const file of files)
+      for (const spelling of [base, base.replaceAll('\\', '/')]) expect(file.text).not.toContain(spelling);
 });
 
 it('refuses changed immutable source bytes before generation', () => {
@@ -157,16 +102,4 @@ it('refuses changed immutable source bytes before generation', () => {
   writeFileSync(path, readFileSync(path, 'utf8') + '\n# Changed after pinning\n');
   expect(() => generateProjections(base, false)).toThrow('Pinned source revision differs');
   expect(existsSync(resolve(base, '.claude'))).toBe(false);
-});
-
-it('keeps authored-only artifact bytes identical across the compatibility and observed-membership APIs', () => {
-  const db = open(root, { cache: false });
-  try {
-    const records = db.records();
-    expect(renderHostArtifacts(records, db.revision, projectionMembership(records, db.revision))).toEqual(
-      renderHostArtifacts(records, db.revision),
-    );
-  } finally {
-    db.close();
-  }
 });

@@ -290,6 +290,9 @@ function preparePack(
 ): { readonly bytes: Buffer; readonly sourceFingerprint: string } {
   const before = verifyDistributionSnapshot(input),
     descriptor = decodeReleaseDescriptor(descriptorInput);
+  // A descriptor may name no distribution (db's release descriptor, plan amendment B7): it releases nothing.
+  if (descriptor.distribution === undefined)
+    fail('CLOSURE-INVALID', 'Release descriptor names no distribution; there is nothing to pack');
   if (!(assetInput instanceof Map) || assetInput.size !== descriptor.assets.length)
     fail('INPUT-INVALID', 'Assets differ from exact descriptor inventory');
   const assets = new Map<string, Buffer>();

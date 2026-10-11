@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@decision release-cadence
+  meaning
+    says "Choose how often the project releases."
+  work
+    title "Release cadence"
+    status made
+  decision
+    question "How often does the project release?"
+    options ["Monthly", "On demand"]
+    choice "On demand"
+    rationale "Releases follow finished work."

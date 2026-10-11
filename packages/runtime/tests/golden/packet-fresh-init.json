@@ -1,0 +1,460 @@
+{
+  "format": "ia.position-packet.v1",
+  "revision": "<revision>",
+  "body": "<body digest>",
+  "seat": {
+    "identity": "workspace-system/definition/workspace/demo",
+    "sources": [
+      ".ia/src @authored"
+    ],
+    "systems": 11,
+    "steward": "agent-system/binding/agent/demo"
+  },
+  "participants": [
+    {
+      "identity": "agent-system/binding/agent/demo",
+      "says": "The IDE agent operating in the demo workspace, any vendor."
+    }
+  ],
+  "mandates": [
+    {
+      "identity": "agent-system/policy/mandate/demo-mandate",
+      "participant": "agent-system/binding/agent/demo",
+      "moves": [
+        "Observation",
+        "Verification",
+        "Synthesis",
+        "Delegation",
+        "Execution"
+      ],
+      "scope": [
+        "workspace-system/definition/workspace/demo"
+      ]
+    }
+  ],
+  "systems": [
+    {
+      "identity": "floor/definition/system/agent-composition-system",
+      "words": [
+        "agent-profile",
+        "capability",
+        "execution-binding",
+        "harness",
+        "voice"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/agent-composition-steward",
+      "reach": "ia position --seat floor/definition/system/agent-composition-system"
+    },
+    {
+      "identity": "floor/definition/system/agent-system",
+      "words": [
+        "agent",
+        "mandate"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/agent-steward",
+      "reach": "ia position --seat floor/definition/system/agent-system"
+    },
+    {
+      "identity": "floor/definition/system/authoring-system",
+      "words": [
+        "authoring-guide",
+        "operation"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/authoring-steward",
+      "reach": "ia position --seat floor/definition/system/authoring-system"
+    },
+    {
+      "identity": "floor/definition/system/compliance-system",
+      "words": [
+        "case",
+        "check",
+        "contract"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/compliance-steward",
+      "reach": "ia position --seat floor/definition/system/compliance-system"
+    },
+    {
+      "identity": "floor/definition/system/governance-system",
+      "words": [
+        "convention",
+        "law",
+        "playbook",
+        "principle"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/governance-steward",
+      "reach": "ia position --seat floor/definition/system/governance-system"
+    },
+    {
+      "identity": "floor/definition/system/hook-authoring-system",
+      "words": [
+        "hook"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/hook-authoring-steward",
+      "reach": "ia position --seat floor/definition/system/hook-authoring-system"
+    },
+    {
+      "identity": "floor/definition/system/learning-system",
+      "words": [
+        "improvement",
+        "observation"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/learning-steward",
+      "reach": "ia position --seat floor/definition/system/learning-system"
+    },
+    {
+      "identity": "floor/definition/system/session-system",
+      "words": [
+        "run"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/session-steward",
+      "reach": "ia position --seat floor/definition/system/session-system"
+    },
+    {
+      "identity": "floor/definition/system/template-system",
+      "words": [
+        "template"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/template-steward",
+      "reach": "ia position --seat floor/definition/system/template-system"
+    },
+    {
+      "identity": "floor/definition/system/work-system",
+      "words": [
+        "decision",
+        "milestone",
+        "plan",
+        "spec",
+        "task"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/work-steward",
+      "reach": "ia position --seat floor/definition/system/work-system"
+    },
+    {
+      "identity": "floor/definition/system/workspace-system",
+      "words": [
+        "distribution",
+        "workspace"
+      ],
+      "band": 90,
+      "steward": "agent-system/binding/agent/workspace-steward",
+      "reach": "ia position --seat floor/definition/system/workspace-system"
+    }
+  ],
+  "tallies": [
+    {
+      "word": "agent",
+      "count": 1
+    },
+    {
+      "word": "mandate",
+      "count": 1
+    },
+    {
+      "word": "workspace",
+      "count": 1
+    }
+  ],
+  "intents": [
+    {
+      "shape": "context",
+      "category": "relation",
+      "primitive": "Attention",
+      "phase": "orient",
+      "kinds": [
+        "definition",
+        "contract"
+      ],
+      "lanes": [
+        "definitions",
+        "contracts"
+      ],
+      "predicates": [
+        "cite",
+        "ground",
+        "require"
+      ],
+      "priming": [],
+      "words": [
+        "artifact-set",
+        "authoring-guide",
+        "axis",
+        "capability",
+        "cardinality",
+        "case",
+        "category",
+        "contract",
+        "decision",
+        "dimension",
+        "distribution",
+        "harness",
+        "improvement",
+        "intent-shape",
+        "kind",
+        "lane",
+        "milestone",
+        "move",
+        "observation",
+        "phase",
+        "placement",
+        "plan",
+        "playbook",
+        "predicate",
+        "primitive",
+        "run",
+        "schema",
+        "spec",
+        "system",
+        "task",
+        "value-type",
+        "voice",
+        "workspace"
+      ]
+    },
+    {
+      "shape": "governance",
+      "category": "rule",
+      "primitive": "Inference",
+      "phase": "plan",
+      "kinds": [
+        "governance",
+        "policy",
+        "check"
+      ],
+      "lanes": [
+        "authority",
+        "enforcement"
+      ],
+      "predicates": [
+        "govern",
+        "constrain",
+        "forbid",
+        "enforce"
+      ],
+      "priming": [
+        "govern",
+        "constrain",
+        "forbid",
+        "enforce",
+        "implement"
+      ],
+      "words": [
+        "check",
+        "convention",
+        "law",
+        "mandate",
+        "principle"
+      ]
+    },
+    {
+      "shape": "execution",
+      "category": "capability",
+      "primitive": "Decision",
+      "phase": "act",
+      "kinds": [
+        "binding",
+        "template"
+      ],
+      "lanes": [
+        "bindings",
+        "templates"
+      ],
+      "predicates": [
+        "implement",
+        "trigger",
+        "route",
+        "consume"
+      ],
+      "priming": [],
+      "words": [
+        "agent",
+        "agent-profile",
+        "execution-binding",
+        "hook",
+        "operation",
+        "template"
+      ]
+    },
+    {
+      "shape": "sequence",
+      "category": "process",
+      "primitive": "Inference",
+      "phase": "plan",
+      "kinds": [
+        "contract",
+        "binding"
+      ],
+      "lanes": [
+        "contracts",
+        "bindings"
+      ],
+      "predicates": [
+        "run-before",
+        "require",
+        "supersede"
+      ],
+      "priming": [],
+      "words": [
+        "agent",
+        "agent-profile",
+        "contract",
+        "execution-binding",
+        "hook",
+        "operation",
+        "schema",
+        "spec"
+      ]
+    },
+    {
+      "shape": "learning",
+      "category": "evidence",
+      "primitive": "Learning",
+      "phase": "learn",
+      "kinds": [
+        "definition"
+      ],
+      "lanes": [
+        "definitions"
+      ],
+      "predicates": [
+        "record-lineage-from",
+        "produce",
+        "cite"
+      ],
+      "priming": [],
+      "words": [
+        "artifact-set",
+        "authoring-guide",
+        "axis",
+        "capability",
+        "cardinality",
+        "case",
+        "category",
+        "decision",
+        "dimension",
+        "distribution",
+        "harness",
+        "improvement",
+        "intent-shape",
+        "kind",
+        "lane",
+        "milestone",
+        "move",
+        "observation",
+        "phase",
+        "placement",
+        "plan",
+        "playbook",
+        "predicate",
+        "primitive",
+        "run",
+        "system",
+        "task",
+        "value-type",
+        "voice",
+        "workspace"
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase": "orient",
+      "primitives": [
+        "Memory",
+        "Attention"
+      ],
+      "changes": "--phase selects the playbook cell delivered and decides conditional relation rows (decision conditional-relations-in-delivery)"
+    },
+    {
+      "phase": "plan",
+      "primitives": [
+        "Inference"
+      ],
+      "changes": "--phase selects the playbook cell delivered and decides conditional relation rows (decision conditional-relations-in-delivery)"
+    },
+    {
+      "phase": "act",
+      "primitives": [
+        "Decision",
+        "Escalation"
+      ],
+      "changes": "--phase selects the playbook cell delivered and decides conditional relation rows (decision conditional-relations-in-delivery)"
+    },
+    {
+      "phase": "learn",
+      "primitives": [
+        "Learning"
+      ],
+      "changes": "--phase selects the playbook cell delivered and decides conditional relation rows (decision conditional-relations-in-delivery)"
+    }
+  ],
+  "commands": [
+    {
+      "command": "ia init",
+      "mode": "effect",
+      "move": "Execution",
+      "refuses": "a target already initialized",
+      "next": "ia init"
+    },
+    {
+      "command": "ia validate",
+      "mode": "validate",
+      "move": "Verification",
+      "refuses": "no .ia/src",
+      "next": "ia init"
+    },
+    {
+      "command": "ia capture",
+      "mode": "effect",
+      "move": "Execution",
+      "refuses": "no @workspace",
+      "next": "ia init"
+    },
+    {
+      "command": "ia read",
+      "mode": "read",
+      "move": "Observation",
+      "refuses": "an unadmitted locator",
+      "next": "ia inspect"
+    },
+    {
+      "command": "ia position",
+      "mode": "read",
+      "move": "Observation",
+      "refuses": "an unadmitted seat",
+      "next": "ia position"
+    },
+    {
+      "command": "ia next",
+      "mode": "read",
+      "move": "Observation",
+      "refuses": "several plans",
+      "next": "ia next --seat <plan>"
+    },
+    {
+      "command": "ia project",
+      "mode": "effect",
+      "move": "Execution",
+      "refuses": "an unmarked file",
+      "next": "ia project <host>"
+    }
+  ],
+  "lines": [
+    "run ia position; if it refuses, run the command it names",
+    "state intent to the CLI as shape + optional phase + optional seat + optional word; the CLI never receives free text",
+    "when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation"
+  ],
+  "provenance": {
+    "revision": "<revision>",
+    "slug": "demo"
+  }
+}

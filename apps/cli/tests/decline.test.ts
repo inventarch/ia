@@ -43,6 +43,15 @@ it('refuses --forget-decline with --host as usage', async () => {
   const result = await run(['init', scratch('forget-host'), '--forget-decline', '--host', 'claude']);
   expect(result.exitCode, result.stdout + result.stderr).toBe(2);
 });
+it('refuses --decline and --forget-decline with --system as usage', async () => {
+  for (const argv of [
+    ['--decline', 'today', '--system'],
+    ['--forget-decline', '--system'],
+  ]) {
+    const result = await run(['init', scratch('decline-system'), ...argv]);
+    expect(result.exitCode, result.stdout + result.stderr).toBe(2);
+  }
+});
 it('--forget-decline with nothing recorded reports it and exits 0', async () => {
   const result = await run(['init', scratch('forget-nothing'), '--forget-decline']);
   expect(result.exitCode, result.stdout).toBe(0);
@@ -59,6 +68,20 @@ it('clears a decline when initialization is applied', async () => {
   expect(Object.keys(repositories(home))).toHaveLength(1);
   const applied = await run(['init', repo, '--apply', '--yes', '--json'], { env });
   expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(repositories(home)).toEqual({});
+});
+it('clears a decline once the workspace is initialized, even when its capture then fails', async () => {
+  const repo = resolve(scratch('decline-capture'), 'demo'),
+    home = resolve(scratch('decline-home4'), '.ia'),
+    env = { IA_HOME: home };
+  // A file where the snapshot directory goes, so the capture after the completion point refuses.
+  mkdirSync(resolve(repo, '.ia'), { recursive: true });
+  writeFileSync(resolve(repo, '.ia/work'), 'not a directory\n');
+  expect((await run(['init', repo, '--decline', 'today', '--json'], { env })).exitCode).toBe(0);
+  expect(Object.keys(repositories(home))).toHaveLength(1);
+  const applied = await run(['init', repo, '--apply', '--yes', '--json'], { env });
+  expect(applied.exitCode, applied.stdout).toBe(3);
+  expect(existsSync(resolve(repo, '.ia/release.json'))).toBe(true);
   expect(repositories(home)).toEqual({});
 });
 it('clears a decline recorded before the target directory existed once init --apply creates it', async () => {

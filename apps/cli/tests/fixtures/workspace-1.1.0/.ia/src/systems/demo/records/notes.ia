@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@decision api-response-format
+  meaning
+    says "Choose a response format for the public API."
+  work
+    title "API response format"
+    status made
+  decision
+    question "Which response format will clients consume?"
+    options ["JSON", "XML"]
+    choice "JSON"
+    rationale "Our clients already use JSON."
