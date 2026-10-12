@@ -213,11 +213,12 @@ function validateFields(record: CompiledRecord, schema: SchemaDeclaration, add: 
 }
 
 /**
- * C05's one exception (lane D, operator ruling 2026-10-12): agent-system's `@mandate` states `authority.moves` as
- * `list of id`, and the agent-system design reads a stated move list as one or more kernel moves, while the dialect has
- * no non-empty list constraint. So a stated empty `authority.moves` is IA-COMP-FIELD-VALUE at the field, each occurrence
- * on its own; an absent one stays valid and restricts no move. Keyed to the word, as COMP-CHECK is to `check` and
- * COMP-COVERAGE to `contract`.
+ * C05's one exception (lane D, operator ruling 2026-10-12): a record whose word is `mandate` (agent-system registers
+ * it, as the runtime's mandate resolver reads it) and whose schema declares `authority.moves`, as agent-system's does
+ * (`list of id`), states its moves as one or more kernel moves in the agent-system design, while the dialect has no
+ * non-empty list constraint. So a stated empty `authority.moves` is IA-COMP-FIELD-VALUE at the field, each occurrence on
+ * its own; an absent one stays valid and restricts no move. Keyed to another system's word as COMP-STEWARD keys the
+ * steward to agent-system's `agent` (`systems.ts`, `validateSystems`; review D-N7).
  */
 function validateMandateMoves(record: CompiledRecord, rule: SchemaField, field: CompiledField, add: Add): void {
   if (record.discriminator !== 'mandate' || rule.section !== 'authority' || rule.key !== 'moves') return;
