@@ -3,7 +3,7 @@ import { MOVES as KERNEL_MOVES } from '@inventarch/language';
 import type { ReadHandle } from '@inventarch/db';
 import { reaches, selects } from '@inventarch/graph';
 import { RUNTIME_CODES, RuntimeError } from './errors.js';
-import type { RuntimeCode } from './errors.js';
+import type { RuntimeCode, RuntimeWhere } from './errors.js';
 import { freeze } from './types.js';
 
 /**
@@ -66,9 +66,15 @@ export interface MandateRefusal {
   readonly next: string;
 }
 
-const invalid = (message: string): never => {
-  throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', message);
+const invalid = (message: string, where?: RuntimeWhere): never => {
+  throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', message, undefined, where);
 };
+/** Where a compiled record is authored, for a refusal of its authority (RuntimeError `where`). */
+const sourceOf = (record: CompiledRecord): RuntimeWhere => ({
+  path: record.source.path,
+  line: record.source.line,
+  identity: record.identity,
+});
 /** Every value authored under `authority.<key>`: a repeated list key contributes each of its lists' items. */
 function authorityValues(record: CompiledRecord, key: string): readonly CompiledValue[] {
   const fields = record.sections
@@ -77,21 +83,24 @@ function authorityValues(record: CompiledRecord, key: string): readonly Compiled
     .filter((child): child is CompiledField => 'key' in child && child.key === key);
   for (const field of fields)
     if (field.when !== undefined || field.fields !== undefined || field.value.kind === 'block')
-      invalid(`${record.identity}: authority.${key} must be an unconditional inline value`);
+      invalid(`${record.identity}: authority.${key} must be an unconditional inline value`, sourceOf(record));
   return fields.flatMap((field) => (field.value.kind === 'list' ? field.value.items : [field.value]));
 }
 function texts(record: CompiledRecord, key: string): readonly string[] {
   return authorityValues(record, key).map((value) =>
     value.kind === 'scalar' || value.kind === 'string' || value.kind === 'prose'
       ? value.text
-      : invalid(`${record.identity}: authority.${key} holds a value that is not text`),
+      : invalid(`${record.identity}: authority.${key} holds a value that is not text`, sourceOf(record)),
   );
 }
 function names(record: CompiledRecord, key: string, discriminator: string): readonly string[] {
   return authorityValues(record, key).map((value) =>
     value.kind === 'ref' && value.discriminator === discriminator && value.fragment === undefined
       ? value.name
-      : invalid(`${record.identity}: authority.${key} holds a value that is not a @${discriminator} reference`),
+      : invalid(
+          `${record.identity}: authority.${key} holds a value that is not a @${discriminator} reference`,
+          sourceOf(record),
+        ),
   );
 }
 function isMove(value: string): value is Move {
@@ -137,17 +146,22 @@ function coversOf(record: CompiledRecord): readonly string[] {
 
 /** Read the authority a compiled `@mandate` declares; a non-mandate or a malformed field is IA-RUNTIME-REQUEST-INVALID. */
 export function mandateAuthorityOf(record: CompiledRecord): MandateAuthority {
-  if (record.discriminator !== 'mandate') invalid(`${record.identity} is not a @mandate`);
+  if (record.discriminator !== 'mandate') invalid(`${record.identity} is not a @mandate`, sourceOf(record));
   const participants = names(record, 'participant', 'agent');
-  if (participants.length > 1) invalid(`${record.identity}: authority.participant names more than one agent`);
+  if (participants.length > 1)
+    invalid(`${record.identity}: authority.participant names more than one agent`, sourceOf(record));
   const present = (key: string) => authorityValues(record, key).length > 0;
   const moves = texts(record, 'moves').map((move) =>
-    isMove(move) ? move : invalid(`${record.identity}: authority.moves names ${move}, not a kernel move`),
+    isMove(move)
+      ? move
+      : invalid(`${record.identity}: authority.moves names ${move}, not a kernel move`, sourceOf(record)),
   );
   // Presence is judged by the key: a declared but empty list names no move, which the design's one-or-more refuses
-  // rather than reading as a lockout of every mode or as an absent restriction.
+  // rather than reading as a lockout of every mode or as an absent restriction. Admission refuses such a list since lane
+  // D (compliance C05), so a record a reader admitted never reaches this; it stays as defence in depth.
   const hasMoves = states(record, 'authority', 'moves');
-  if (hasMoves && moves.length === 0) invalid(`${record.identity}: authority.moves must name at least one kernel move`);
+  if (hasMoves && moves.length === 0)
+    invalid(`${record.identity}: authority.moves must name at least one kernel move`, sourceOf(record));
   return Object.freeze({
     identity: record.identity,
     ...(participants.length === 1 ? { participant: participants[0]! } : {}),
@@ -194,10 +208,108 @@ export function mandateRefusal(
 /**
  * Mandate resolution (plan amendment C1; operator decision OD1): one answer to "which `@mandate` governs this actor
  * here" for the CLI's refusal profile and the edit guard. Every read goes through the scope token `within` and none
- * needs a clean scope: a workspace with admission errors resolves the records admission admitted. Only authored
- * mandates (band 100) govern, only those of the workspace's closure as position reads it (plan amendment A8), and a
- * record at runtime placement is never read.
+ * needs a clean scope: a workspace with admission errors resolves the records admission admitted, except that an
+ * authored `@mandate` that failed admission fails every resolver closed (`refusedMandates`; lane D, operator ruling
+ * 2026-10-12). Only authored mandates (band 100) govern, only those of the workspace's closure as position reads it
+ * (plan amendment A8), and a record at runtime placement is never read.
  */
+
+/** Lane D, D1: one authored `@mandate` that failed admission, and the admission finding that refused it. */
+export interface RefusedMandate {
+  /**
+   * Its canonical identity, when db compiled the record or spec 3.1 names its parsed header; absent for a header only
+   * the source text shows.
+   */
+  readonly identity?: string;
+  readonly path: string;
+  /** Its header line. */
+  readonly line: number;
+  /** The code and message of the admission finding that refused it, or of the one that refused its file. */
+  readonly code: string;
+  readonly message: string;
+}
+type Finding = ReadHandle['report']['findings'][number];
+/**
+ * The admission finding that accounts for one occurrence admission did not admit, by its structured fields alone: an
+ * error naming its identity, else one within its lines (an identity tie's, a field's, a language error inside it),
+ * else a warning so (an obligation left not-evaluated, which refuses too), else the first error of its file (a file
+ * refused whole for an error elsewhere in it), else the report's first error (a refused system join); with none at all,
+ * IA-COMP-NOT-EVALUATED.
+ */
+function admissionFinding(
+  findings: readonly Finding[],
+  entry: ReadHandle['unadmitted'][number],
+): Pick<Finding, 'code' | 'message'> {
+  const at = findings.filter((finding) => finding.path === entry.path);
+  const naming = (finding: Finding): boolean =>
+    (entry.identity !== undefined && finding.identity === entry.identity) ||
+    (finding.line >= entry.line && finding.line <= entry.endLine);
+  const errors = (list: readonly Finding[]) => list.filter((finding) => finding.severity === 'error');
+  return (
+    errors(at).find((finding) => entry.identity !== undefined && finding.identity === entry.identity) ??
+    errors(at).find(naming) ??
+    at.find(naming) ??
+    errors(at)[0] ??
+    errors(findings)[0] ?? {
+      code: 'IA-COMP-NOT-EVALUATED',
+      message: `${entry.path}:${entry.line}: ${entry.identity ?? `@${entry.word}`}: admission did not admit it, and no finding says why`,
+    }
+  );
+}
+/**
+ * Lane D, D1: every `@mandate` of the workspace's own authored sources (band 100) that failed admission, frozen, by path
+ * then line, each with the admission finding that refused it (db `unadmitted`): (a) one admission refused, `refused`
+ * naming it; (b) both occurrences of a mandate identity that ties at band 100; (c) one a file refused whole declares, by
+ * a language error or a duplicate requirement id, as db's own parse of the file reads its headers, or as its captured
+ * text shows a header the parse could not read. A record is a mandate when its word is `mandate` or its identity's facet
+ * is. The band is the one db reads from the source's placement, as capture membership and governingMandates read it, so
+ * a mandate refused inside an installed base (band 90) never counts: it never governs.
+ *
+ * It reads db's root view, not a scope: a record admission refused belongs to no scope, and its scope, covers and
+ * participant cannot be trusted, so what it fails closed (D2) it fails closed workspace-wide.
+ */
+export function refusedMandates(reader: ReadHandle): readonly RefusedMandate[] {
+  const findings = reader.report.findings;
+  return freeze(
+    reader.unadmitted
+      .filter(
+        (entry) => entry.band === 100 && (entry.word === 'mandate' || entry.identity?.split('/')[2] === 'mandate'),
+      )
+      .map((entry): RefusedMandate => {
+        const { code, message } = admissionFinding(findings, entry);
+        return {
+          ...(entry.identity === undefined ? {} : { identity: entry.identity }),
+          path: entry.path,
+          line: entry.line,
+          code,
+          message,
+        };
+      }),
+  );
+}
+/**
+ * Lane D, D2: IA-RUNTIME-REQUEST-INVALID when any authored `@mandate` failed admission, naming the first, its location
+ * on the error as `where`. Every public resolver that reads a reader (governingMandates, seatedWorkspace and
+ * defaultActor) calls it first, so the CLI's profile and the edit guard fail closed rather than read a workspace whose
+ * restrictions a broken record may have lifted.
+ */
+function failClosed(reader: ReadHandle): void {
+  const refused = refusedMandates(reader);
+  if (refused.length === 0) return;
+  const [first] = refused as [RefusedMandate],
+    who =
+      first.identity === undefined
+        ? `the @mandate at ${first.path}:${first.line}`
+        : `${first.identity} (${first.path}:${first.line})`,
+    more =
+      refused.length === 1
+        ? ''
+        : ` (${refused.length - 1} more @mandate record${refused.length === 2 ? '' : 's'} failed admission)`;
+  invalid(
+    `${who} failed admission: ${first.code} ${first.message}${more}; while a @mandate fails admission every mandate-gated decision fails closed across the workspace, since its scope, covers and participant cannot be trusted`,
+    { path: first.path, line: first.line, ...(first.identity === undefined ? {} : { identity: first.identity }) },
+  );
+}
 
 /** Where governingMandates resolves, `workspace` and `path`, and for whom, `actor`. */
 export interface GoverningOptions {
@@ -301,12 +413,17 @@ const order = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 /** Design §11's one next command for a mandate refusal, `ia scope` read as `ia position` (decision scope-verb-dispatch). */
 const governance = (seat: string): string => `ia position --seat ${seat} --shape governance`;
 
-/** The records the scope token admits, runtime placement left out, and the reads of them that go through it. */
+/**
+ * The records the scope token admits, runtime placement left out, and the reads of them that go through it; first,
+ * IA-RUNTIME-REQUEST-INVALID when an authored `@mandate` failed admission (`failClosed`, lane D).
+ */
 function admitted(reader: ReadHandle, within: string) {
   if (typeof within !== 'string' || within.length === 0) invalid('Runtime reads require an explicit scope token');
+  // An unknown or stale token keeps its database code: the scope is read before the workspace is judged.
   const read = { within },
-    snapshot = reader.snapshot(read),
-    nodes = new Map(
+    snapshot = reader.snapshot(read);
+  failClosed(reader);
+  const nodes = new Map(
       snapshot.records.filter((node) => node.placement.kind !== 'runtime').map((node) => [node.identity, node]),
     ),
     rootOf = new Map(snapshot.membership.map((row) => [row.identity, row.root])),

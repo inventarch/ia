@@ -1,6 +1,7 @@
 import type { ReadHandle } from '@inventarch/db';
 import { selects } from '@inventarch/graph';
 import { RuntimeError } from './errors.js';
+import type { RuntimeWhere } from './errors.js';
 import { defaultActor, governingMandates, profileRefusal, seatedWorkspace } from './mandate-modes.js';
 import type { GoverningMandate, ProfileVerdict } from './mandate-modes.js';
 import type { HostHookDeclaration } from './packet-host.js';
@@ -48,6 +49,11 @@ export interface MandateGuardRequest {
   readonly agentType?: unknown;
   /** A key applied to a selection and a path before they are matched: db `pathKey`, folding case on win32 and darwin. */
   readonly fold?: (text: string) => string;
+  /**
+   * The workspace root the registration names, so that a next command that cannot find the root itself carries it:
+   * `ia report`, the version 1 machine route, opens its `--root` or the working directory, never an ancestor.
+   */
+  readonly root?: string;
 }
 export interface MandateGuardDecision {
   readonly allowed: boolean;
@@ -60,6 +66,11 @@ export interface MandateGuardDecision {
   readonly actor?: string;
   /** The one next command a refusal names. */
   readonly next?: string;
+  /**
+   * Present when an IA-HOOK-MANDATE-UNAVAILABLE refusal concerns one `@mandate`: where it is authored, as the resolver
+   * located it (RuntimeError `where`).
+   */
+  readonly where?: RuntimeWhere;
 }
 
 const LIMIT = 512;
@@ -121,7 +132,12 @@ function acting(
     : { agent: fallback.actor, as: `the main session acts as ${fallback.actor}` };
 }
 
-/** Decide one edit (see the module comment). A mandate whose authority cannot be read refuses as IA-HOOK-MANDATE-UNAVAILABLE. */
+/**
+ * Decide one edit (see the module comment). A mandate whose authority cannot be read refuses a selected edit as
+ * IA-HOOK-MANDATE-UNAVAILABLE, naming its governance position; so, while any authored `@mandate` fails admission (lane
+ * D), does every selected edit, whoever acts, naming the mandate's `path:line` and `ia report` (`root` spelled when the
+ * request carries it). An edit the hook does not select is still allowed.
+ */
 export function evaluateMandateGuard(
   reader: ReadHandle,
   within: string,
@@ -192,12 +208,31 @@ export function evaluateMandateGuard(
     });
   } catch (error) {
     if (!(error instanceof RuntimeError)) throw error;
+    // An admitted mandate whose authority the resolver cannot read is shown by its governance position. Anything else,
+    // an authored mandate that failed admission among it (lane D, D4), by the admission report: `ia validate` and every
+    // other mandate-gated command refuse in that state, and a position cannot seat at a record admission refused.
+    const where = error.where,
+      next =
+        where?.identity !== undefined && admittedMandate(reader, within, where.identity)
+          ? governance(where.identity)
+          : request.root === undefined
+            ? 'ia report'
+            : `ia report --root ${JSON.stringify(request.root)}`;
     return freeze({
       allowed: false,
       selected: true,
       code: 'IA-HOOK-MANDATE-UNAVAILABLE',
-      message: `${hook.message} (${hook.identity}: the mandates that govern this edit cannot be read: ${error.message}) Next: ia validate`,
-      next: 'ia validate',
+      message: `${hook.message} (${hook.identity}: the mandates that govern this edit cannot be read: ${error.message}) Next: ${next}`,
+      next,
+      ...(where === undefined ? {} : { where }),
     });
+  }
+}
+/** Whether `identity` is an admitted `@mandate` of the scope; a read that refuses is no admission. */
+function admittedMandate(reader: ReadHandle, within: string, identity: string): boolean {
+  try {
+    return reader.get(identity, { within })?.discriminator === 'mandate';
+  } catch {
+    return false;
   }
 }

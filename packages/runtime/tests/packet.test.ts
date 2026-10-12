@@ -248,14 +248,18 @@ it('renders two participants named by three mandates by identity, each agent onc
   expect(entryCount(packet)).toBe(formula(db, CATALOG.length));
 });
 
-it('renders an admitted mandate as authored, never refusing it: a declared empty move list, fragment references', () => {
+it('renders an admitted mandate as authored, never refusing it: fragment references; a refused one is not rendered', () => {
   const text = readFileSync(fixture, 'utf8');
+  // A declared empty move list fails admission (compliance C05; lane D): the position still runs and, as for any record
+  // admission refused, renders no mandate for it, so the packet never refuses (the CLI's gated commands do).
+  const refused = database(
+      freshInit(text.replace('moves [Observation, Verification, Synthesis, Delegation, Execution]', 'moves []')),
+    ),
+    seat = refused.resolveScope().token;
+  expect(errors(refused).map((finding) => finding.code)).toEqual(['IA-COMP-FIELD-VALUE']);
+  expect(position(refused, seat).body.mandates).toEqual([]);
+  expect(renderPacket(refused, seat, CATALOG).packet.mandates).toEqual([]);
   for (const [name, records, fields] of [
-    [
-      'moves []',
-      text.replace('moves [Observation, Verification, Synthesis, Delegation, Execution]', 'moves []'),
-      { moves: [] },
-    ],
     [
       'fragments',
       text

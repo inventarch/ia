@@ -1,9 +1,19 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { Handle } from '@inventarch/db';
 import type { Location } from '@inventarch/language';
-import { MODES, defaultActor, governingMandates, position, profileRefusal, renderPacket } from '../src/index.js';
+import {
+  MODES,
+  RuntimeError,
+  defaultActor,
+  governingMandates,
+  position,
+  profileRefusal,
+  refusedMandates,
+  renderPacket,
+  seatedWorkspace,
+} from '../src/index.js';
 import type { GoverningMandate, GoverningOptions, Mode } from '../src/index.js';
 import { database, freshInit, packetFixture, put, workspace } from './workspace.js';
 
@@ -888,16 +898,34 @@ it('reads only through its scope token, never at runtime placement, and refuses 
   expect(() => defaultActor(authored, within, 'workspace-system/definition/workspace/absent')).toThrow(
     'IA-RUNTIME-REQUEST-INVALID',
   );
-  // A governing mandate whose authority mandateAuthorityOf refuses is refused; one that does not govern is never read.
+  // A governing admitted mandate whose authority mandateAuthorityOf refuses (a child under `authority.moves`, which
+  // admission admits) is refused, located as data; one that does not govern is never read.
   const malformed = database(
     freshInit(
-      `${records}${agent('zed')}${authorized('zed-mandate', ['participant @agent zed', 'moves []', 'covers ["src/"]'])}`,
+      `${records}${agent('zed')}${authorized('zed-mandate', ['participant @agent zed', 'moves [Observation]', '  note x', 'covers ["src/"]'])}`,
     ),
   );
   expect(errors(malformed)).toEqual([]);
   expect(identities(malformed, { actor: participant, workspace: demo })).toEqual([mandate('demo-mandate')]);
   expect(() => governingMandates(malformed, token(malformed), { path: 'src/index.ts' })).toThrow(
-    'authority.moves must name at least one kernel move',
+    expect.objectContaining({
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      message: `IA-RUNTIME-REQUEST-INVALID: ${mandate('zed-mandate')}: authority.moves must be an unconditional inline value`,
+      where: { path: '.ia/src/workspace.ia', line: 37, identity: mandate('zed-mandate') },
+    }),
+  );
+  // A stated `moves []` fails admission now (compliance C05), so it is never read: every resolver fails closed instead.
+  const emptied = database(
+    freshInit(
+      `${records}${agent('zed')}${authorized('zed-mandate', ['participant @agent zed', 'moves []', 'covers ["src/"]'])}`,
+    ),
+  );
+  expect(errors(emptied).map((finding) => [finding.code, finding.line])).toEqual([['IA-COMP-FIELD-VALUE', 45]]);
+  expect(() => governingMandates(emptied, token(emptied), { actor: participant, workspace: demo })).toThrow(
+    expect.objectContaining({
+      code: 'IA-RUNTIME-REQUEST-INVALID',
+      where: { path: '.ia/src/workspace.ia', line: 37, identity: mandate('zed-mandate') },
+    }),
   );
 });
 
@@ -962,4 +990,157 @@ it('names the consumers the code has: the CLI mandate profile and the edit guard
     expect(text, where).toContain('evaluateMandateGuard');
     expect(text, where).toContain('no Door operation does');
   }
+});
+
+describe('a @mandate that fails admission (lane D, D1 and D2)', () => {
+  /** The fresh init with its mandate's moves replaced by an unknown move and an excluded word added: the probe. */
+  const probe = records.replace(ALL_MOVES, 'moves [Bogus]\n    excluded-words [task]');
+  /** A fixture file holding `body` after the pragma, so its first record's header is on line 3. */
+  const file = (body: string): string => `#! ia 1.0\n${body}`;
+  const refusal = (run: () => unknown): RuntimeError => {
+    try {
+      run();
+    } catch (error) {
+      if (error instanceof RuntimeError) return error;
+      throw error;
+    }
+    throw new Error('expected a RuntimeError');
+  };
+
+  it('(a) finds a refused authored mandate, with its admission code and message, frozen', () => {
+    const db = database(freshInit(probe));
+    expect(db.get(mandate('demo-mandate'))).toBeUndefined();
+    const refused = refusedMandates(db);
+    expect(refused).toEqual([
+      {
+        identity: mandate('demo-mandate'),
+        path: '.ia/src/workspace.ia',
+        line: 19,
+        code: 'IA-COMP-FIELD-VALUE',
+        message: expect.stringContaining(`'authority.moves' admits one of`),
+      },
+    ]);
+    expect(Object.isFrozen(refused)).toBe(true);
+    expect(Object.isFrozen(refused[0])).toBe(true);
+  });
+
+  it('(b) finds both occurrences of an authored mandate identity that ties', () => {
+    const root = freshInit();
+    const twin = authorized('twin', ['participant @agent demo', 'moves [Observation]', 'scope [@workspace demo]']);
+    put(root, '.ia/src/twin-a.ia', file(twin));
+    put(root, '.ia/src/twin-b.ia', file(twin));
+    const db = database(root);
+    expect(refusedMandates(db)).toEqual(
+      ['.ia/src/twin-a.ia', '.ia/src/twin-b.ia'].map((path) => ({
+        identity: mandate('twin'),
+        path,
+        line: 3,
+        code: 'IA-GRAPH-IDENTITY-TIE',
+        message: expect.stringContaining(`${mandate('twin')} ties at band 100`),
+      })),
+    );
+  });
+
+  it('(c) finds a mandate in a file refused whole: a language error, a duplicate requirement id, an unreadable header', () => {
+    const root = freshInit();
+    put(
+      root,
+      '.ia/src/broken.ia',
+      file(
+        `${authorized('broken', ['participant @agent demo', 'moves [Observation]'])}${agent('loose')}   misindented here\n`,
+      ),
+    );
+    put(
+      root,
+      '.ia/src/duplicate.ia',
+      file(
+        `${authorized('dup', ['participant @agent demo', 'moves [Observation]'])}\n@contract clash\n  version "0.1.0"\n  meaning\n    says "x"\n    answers "y"\n  relationships\n    governs @check instance-schema-check\n  inputs\n    REQ-FOUNDATION-INPUT "Declared by the installed foundation contract too."\n`,
+      ),
+    );
+    put(root, '.ia/src/header.ia', file('\n@mandate Bad_Name!\n  meaning\n    says "x"\n'));
+    const db = database(root);
+    expect(refusedMandates(db)).toEqual([
+      {
+        identity: mandate('broken'),
+        path: '.ia/src/broken.ia',
+        line: 3,
+        code: 'IA-LANG-INDENT-STEP',
+        message: expect.stringContaining('indentation of 3'),
+      },
+      {
+        identity: mandate('dup'),
+        path: '.ia/src/duplicate.ia',
+        line: 3,
+        code: 'IA-LANG-REQUIREMENT-DUPLICATE',
+        message: expect.stringContaining('REQ-FOUNDATION-INPUT'),
+      },
+      {
+        path: '.ia/src/header.ia',
+        line: 3,
+        code: 'IA-LANG-HEADER-MALFORMED',
+        message: expect.stringContaining('Bad_Name!'),
+      },
+    ]);
+  });
+
+  it('finds none for a parse error in a file that declares no mandate, or a mandate refused in the installed base', () => {
+    const root = freshInit(records, {
+      '.ia/src/systems/agent-system/records/sample-mandate.ia': readFileSync(
+        resolve(repository, 'examples/conformance/native/systems/agent-system/records/sample-mandate.ia'),
+        'utf8',
+      ).replace('moves [Observation, Verification]', 'moves [Bogus]'),
+      '.ia/src/broken-mandate.ia': file(`${authorized('installed-broken', ['moves [Observation]'])}   misindented\n`),
+    });
+    put(root, '.ia/src/plain.ia', file('\n@agent plain\n  meaning\n    says "x\n'));
+    const db = database(root);
+    // Admission refuses all three: the installed sample-mandate, the installed file and the authored one.
+    expect(db.refused.map((record) => [record.identity, record.reason])).toContainEqual([
+      mandate('sample-mandate'),
+      'IA-COMP-FIELD-VALUE',
+    ]);
+    expect(errors(db).map((finding) => finding.path)).toEqual(
+      expect.arrayContaining(['.ia/src/plain.ia', expect.stringMatching(/broken-mandate\.ia$/)]),
+    );
+    expect(refusedMandates(db)).toEqual([]);
+    // So nothing fails closed: the authored mandate governs as before.
+    expect(identities(db, { actor: participant, workspace: demo })).toEqual([mandate('demo-mandate')]);
+  });
+
+  it('fails every resolver closed, whatever the scope, with the first refused mandate located as data (D2)', () => {
+    const root = freshInit(probe);
+    put(root, '.ia/src/twin-a.ia', file(authorized('twin', ['moves [Observation]'])));
+    put(root, '.ia/src/twin-b.ia', file(authorized('twin', ['moves [Observation]'])));
+    const db = database(root),
+      within = token(db),
+      narrowed = db.resolveScope({ identities: [demo, participant] }).token;
+    expect(refusedMandates(db).map((entry) => entry.path)).toEqual([
+      '.ia/src/twin-a.ia',
+      '.ia/src/twin-b.ia',
+      '.ia/src/workspace.ia',
+    ]);
+    for (const [name, run] of [
+      ['governingMandates', () => governingMandates(db, within, { actor: participant, workspace: demo })],
+      ['governingMandates narrowed', () => governingMandates(db, narrowed)],
+      ['governingMandates by path', () => governingMandates(db, within, { path: 'docs/guide.md' })],
+      ['defaultActor', () => defaultActor(db, within, demo)],
+      ['defaultActor narrowed', () => defaultActor(db, narrowed, demo)],
+      ['seatedWorkspace', () => seatedWorkspace(db, within, 'docs/guide.md')],
+    ] as const) {
+      const error = refusal(run);
+      expect(error.code, name).toBe('IA-RUNTIME-REQUEST-INVALID');
+      expect(error.where, name).toEqual({ path: '.ia/src/twin-a.ia', line: 3, identity: mandate('twin') });
+      expect(Object.isFrozen(error.where), name).toBe(true);
+      expect(error.message, name).toContain(
+        `${mandate('twin')} (.ia/src/twin-a.ia:3) failed admission: IA-GRAPH-IDENTITY-TIE`,
+      );
+      expect(error.message, name).toContain('2 more @mandate records failed admission');
+    }
+    // One with no identity known is located by its path and line alone.
+    const header = freshInit();
+    put(header, '.ia/src/header.ia', file('\n@mandate Bad_Name!\n  meaning\n    says "x"\n'));
+    const unnamed = database(header);
+    const error = refusal(() => governingMandates(unnamed, token(unnamed)));
+    expect(error.where).toEqual({ path: '.ia/src/header.ia', line: 3 });
+    expect(error.message).toContain('the @mandate at .ia/src/header.ia:3 failed admission: IA-LANG-HEADER-MALFORMED');
+  });
 });

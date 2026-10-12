@@ -1,5 +1,5 @@
 export { RUNTIME_CODES, RUNTIME_ESCALATIONS, RuntimeError } from './errors.js';
-export type { RuntimeCode } from './errors.js';
+export type { RuntimeCode, RuntimeWhere } from './errors.js';
 export { classify, scoreShapes, defaultClassifier } from './classify.js';
 export type { Classifier, Shape } from './classify.js';
 export { prepareCoordinate, COORDINATE_DOMAINS } from './coordinate.js';
@@ -119,6 +119,7 @@ export {
   mandateAuthorityOf,
   mandateRefusal,
   profileRefusal,
+  refusedMandates,
   seatedWorkspace,
 } from './mandate-modes.js';
 export type {
@@ -132,6 +133,7 @@ export type {
   Move,
   ProfileMandate,
   ProfileVerdict,
+  RefusedMandate,
 } from './mandate-modes.js';
 // The markdown and fragment helpers stay on the ./internal/locator subpath; the root names the reader and its terms.
 export { READ_CODES, SOURCE_LOCATORS, parseLocator, readBody } from './locator.js';

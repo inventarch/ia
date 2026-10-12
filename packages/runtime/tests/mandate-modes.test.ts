@@ -93,11 +93,17 @@ it('reads the authority section of the compiled conformance mandate and refuses 
   expect(mandateRefusal(stewardship, 're-seat', ['hook'])).toBeUndefined();
   const agent = records.find((r) => r.discriminator === 'agent' && r.name === 'agent-steward')!;
   expect(() => mandateAuthorityOf(agent)).toThrow('IA-RUNTIME-REQUEST-INVALID');
-  // An authored `moves []` admits structurally (the schema narrows items, not their count); the reader refuses it.
+  // Admission refuses an authored `moves []` (compliance C05; lane D); the reader still refuses one it is handed, as
+  // defence in depth, locating it as data.
   const emptied = JSON.parse(JSON.stringify(mandate)) as CompiledRecord;
   const movesField = emptied.sections
     .find((section) => section.name === 'authority')!
     .fields.find((field) => 'key' in field && field.key === 'moves')!;
   (movesField as unknown as { value: { items: unknown[] } }).value.items = [];
-  expect(() => mandateAuthorityOf(emptied)).toThrow('authority.moves must name at least one kernel move');
+  expect(() => mandateAuthorityOf(emptied)).toThrow(
+    expect.objectContaining({
+      message: `IA-RUNTIME-REQUEST-INVALID: ${mandate.identity}: authority.moves must name at least one kernel move`,
+      where: { path: mandate.source.path, line: mandate.source.line, identity: mandate.identity },
+    }),
+  );
 });
