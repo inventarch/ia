@@ -316,9 +316,9 @@ function project(value: Receipt, path: string, graph: Graph): string | undefined
     if (mutation['runId'] === rootId && type === 'outcome.accept') {
       const outcome = row(mutation['outcome']);
       verdict =
-        outcome['kind'] === 'refusal' || mutation['terminal'] === 'failed'
+        ['refusal', 'failure'].includes(String(outcome['kind'])) || mutation['terminal'] === 'failed'
           ? 'refusal'
-          : mutation['terminal'] === 'completed'
+          : mutation['terminal'] === 'completed' && outcome['kind'] !== 'blocked'
             ? 'success'
             : 'inconclusive';
       reason = `Journal event outcome.accept records ${text(outcome['kind'], 64)} with terminal ${String(mutation['terminal'])}.`;

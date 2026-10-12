@@ -170,6 +170,29 @@ it('coexists with exactly reproduced validation evidence and cannot make planted
   expect(records.some((node) => node.name === 'planted')).toBe(false);
 });
 
+it('keeps a completed failure or blocked outcome from becoming success evidence', () => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, { type: 'outcome.accept', runId: 'root', terminal: 'completed', outcome: { kind: 'failure' } });
+  append(input.events, { type: 'outcome.accept', runId: 'root', terminal: 'completed', outcome: { kind: 'blocked' } });
+  writeRunnerEvidence(root, input);
+  const verdicts = runtime(root)
+    .filter((node) => node.discriminator === 'observation')
+    .map(
+      (node) =>
+        node.sections
+          .find((section) => section.name === 'evidence')!
+          .fields.filter((field) => 'key' in field)
+          .find((field) => field.key === 'verdict')!.value,
+    );
+  expect(verdicts).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ text: 'refusal' }),
+      expect.objectContaining({ text: 'inconclusive' }),
+    ]),
+  );
+});
+
 it('rejects tampering, duplicate JSON fields, unknown receipt fields and injected authority records', () => {
   const root = workspace(),
     input = journal(root),
