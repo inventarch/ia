@@ -35,6 +35,7 @@ export const LANGUAGE_GUIDE_COPIES = [
   'apps/cli/LANGUAGE.md',
   'apps/distribution/LANGUAGE.md',
   'apps/mcp-door/LANGUAGE.md',
+  'apps/runner/LANGUAGE.md',
   'apps/steward-hook/LANGUAGE.md',
   'apps/vscode/LANGUAGE.md',
   'packages/compliance/LANGUAGE.md',

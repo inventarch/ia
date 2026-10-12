@@ -3436,8 +3436,7 @@
         "tools/distribution/release-hygiene.test.ts",
         "tools/distribution/release-refusals.test.ts",
         "tools/distribution/release-setup.test.ts",
-        "tools/distribution/release-versioning.test.ts",
-        "tools/release/public-content.test.ts"
+        "tools/distribution/release-versioning.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
@@ -3569,6 +3568,32 @@
         "node --conditions=development --import tsx tools/release/native-version.ts --check"
       ],
       "reason": "Published Git tag availability and native archive digests must be checked fresh for each qualification."
+    },
+    {
+      "id": "tools:test-public-release",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/release/public-content.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-public-release"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
     },
     {
       "id": "tools:test-native-release",
