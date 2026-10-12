@@ -60,11 +60,13 @@ export interface UnadmittedFinding {
  *   Unicode format characters (a no-break space, a form feed, a zero-width space, a byte-order mark) and is no header
  *   the parse read is one, wherever it stands, inside a parsed record too, with the name token after it and no
  *   identity; on a line no parsed record spans, each `@<word>` token anywhere on it is one, with no name, so a file
- *   whose parse reads no record (no or another pragma) lists every word it mentions; and a line holding one of the
- *   file's errors that no parsed record spans and the first reading names no header on is one with no word, a record
- *   db cannot identify. The readings err towards listing: a non-header line so spelled in a file already refused is
- *   listed under its word, an error line that declares nothing with no word. An error inside a parsed record's lines
- *   is that record's alone.
+ *   whose parse reads no record (no or another pragma) lists every word it mentions; and a line the first reading
+ *   names no header on is one with no word, a record db cannot identify, when it holds one of the file's errors and no
+ *   parsed record spans it, when an at sign opens it wherever it stands, or, in a file refused at its pragma, when it
+ *   stands at column 0 and is neither blank nor a comment (`refusedWhole`; review D2-R2 and its recheck F1, F2). The
+ *   readings err towards listing: a non-header line so spelled in a file already refused is listed under its word, an
+ *   error or at-sign line that declares nothing with no word. An error inside a parsed record's lines, on a line no at
+ *   sign opens, is that record's alone.
  */
 export interface UnadmittedRecord {
   /**
@@ -141,14 +143,26 @@ const HEADER = /^[\s\p{Cf}]*@([A-Za-z][A-Za-z0-9-]*)(?=[\s\p{Cf}]|$)(?:[\s\p{Cf}
 const TOKEN = /@([A-Za-z][A-Za-z0-9-]*)/g;
 /** A line of whitespace and Unicode format characters alone, which declares nothing. */
 const BLANK = /^[\s\p{Cf}]*$/u;
+/** A comment line, `#` first after any whitespace or format characters (the pragma line among them): it declares nothing. */
+const COMMENT = /^[\s\p{Cf}]*#/u;
+/**
+ * A line that opens, after any whitespace or format characters, with an at sign: `@`, the full-width U+FF20 or the small
+ * U+FE6B (review D2 recheck F1).
+ */
+const AT = /^[\s\p{Cf}]*[@\uFF20\uFE6B]/u;
+/** A line at column 0, which no whitespace opens. */
+const TOP = /^\S/u;
+/** The codes of a file refused at its pragma, past which its parse reports nothing (review D2 recheck F1). */
+const PRAGMA = new Set(['IA-LANG-PRAGMA-MISSING', 'IA-LANG-VERSION-UNSUPPORTED']);
 /**
  * The occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested ones
  * included, with the identity its compile gives that header's record or, for one its compile refused, the identity spec
  * 3.1 gives it (`identityOf` over its word's registration), then every other line of `text` that opens with a header,
- * under its word and name, every `@<word>` token on a line no parsed record spans, under its word, and every line of an
- * error (for one at a blank line, the first non-blank line from there) that neither a parsed record spans nor a header
- * reading names, under no word (review D2-R2). Each carries the error inside its lines, else `errors[0]`, the file's
- * first error.
+ * under its word and name, every `@<word>` token on a line no parsed record spans, under its word, and, under no word,
+ * every line no header reading names that may declare a record db cannot identify (review D2-R2 and its recheck F1, F2):
+ * an error's (for one at a blank or comment line, the first line from there that is neither) that no parsed record
+ * spans, one an at sign opens, and in a file refused at its pragma one at column 0 that is neither blank nor a comment.
+ * Each carries the error inside its lines, else `errors[0]`, the file's first error.
  */
 function refusedWhole(
   source: Source,
@@ -217,16 +231,28 @@ function refusedWhole(
       ? []
       : [...spelled.matchAll(TOKEN)].map((token) => occurrence(token[1]!, undefined, line, line));
   });
-  // Review D2-R2: an error at a line no parsed record spans and no header reading names leaves a record db cannot
-  // identify, of any word, so it is listed with none; an error inside an identified record is that record's. An error
-  // at a blank line, or past the text, as a missing pragma in an empty file is, is taken at the first non-blank line from
-  // there, and at none in an empty file, which declares nothing.
+  // Review D2-R2: a line no header reading names that may declare a record db cannot identify, of any word, is listed
+  // with none. (1) An error at a line no parsed record spans; an error inside an identified record is that record's.
+  // An error at a blank or comment line, or past the text, as a missing pragma in an empty or comment-only file is, is
+  // taken at the first line from there that is neither (review D2 recheck F2), and at none when there is none. (2) A
+  // line opening with an at sign, wherever it stands, inside a parsed record's lines too (F1 b). (3) In a file refused at
+  // its pragma, whose parse reports nothing past it, every top-level line that is neither blank nor a comment (F1 a).
+  const declares = (spelled: string): boolean => !BLANK.test(spelled) && !COMMENT.test(spelled);
   const declaring = (line: number): number | undefined => {
-    for (let at = Math.max(line, 1); at <= lines.length; at++) if (!BLANK.test(lines[at - 1]!)) return at;
+    for (let at = Math.max(line, 1); at <= lines.length; at++) if (declares(lines[at - 1]!)) return at;
     return undefined;
   };
-  const unknown = [...new Set(errors.map((error) => declaring(error.line)))]
-    .filter((line): line is number => line !== undefined && !spanned(line) && !named.has(line))
+  const atPragma = errors.some((error) => PRAGMA.has(error.code));
+  const suspect = new Set<number>();
+  for (const error of errors) {
+    const line = declaring(error.line);
+    if (line !== undefined && !spanned(line)) suspect.add(line);
+  }
+  lines.forEach((spelled, index) => {
+    if (AT.test(spelled) || (atPragma && TOP.test(spelled) && declares(spelled))) suspect.add(index + 1);
+  });
+  const unknown = [...suspect]
+    .filter((line) => !named.has(line))
     .map((line) => occurrence(undefined, undefined, line, line));
   return [...parsed, ...unread, ...unknown];
 }

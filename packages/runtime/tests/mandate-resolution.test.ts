@@ -1406,8 +1406,31 @@ describe('a file refused whole whose records db cannot all identify (review D2-R
   for (const [name, text, line] of [
     ['a space after the at sign', `#! ia 1.0\n\n@ mandate spaced\n${body}`, 3],
     ['a full-width at sign', `#! ia 1.0\n\n${String.fromCharCode(0xff20)}mandate wide\n${body}`, 3],
-    ['UTF-16LE without a byte-order mark', Buffer.from(`#! ia 1.0\n\n@mandate sixteen\n${body}`, 'utf16le'), 1],
+    // Its first line reads as a comment; the next opens with a NUL at column 0 of a file refused at its pragma.
+    ['UTF-16LE without a byte-order mark', Buffer.from(`#! ia 1.0\n\n@mandate sixteen\n${body}`, 'utf16le'), 2],
     ['a stray top-level line beside an identified record', `#! ia 1.0\n${agent('strayhost')}\ngarbage line here\n`, 10],
+    // Review D2 recheck F1 (a): a file refused at its pragma reports nothing past it.
+    [
+      'a spaced header after a named first header, with no pragma',
+      `@agent other\n${body}\n@ mandate extra\n${body}`,
+      5,
+    ],
+    [
+      'a joined at sign after a named first header, with no pragma',
+      `@agent other\n${body}\n@${String.fromCharCode(0x200d)}mandate extra\n${body}`,
+      5,
+    ],
+    // F1 (b): a line opening with an at sign that no reading names counts wherever it stands.
+    [
+      'a spaced header indented inside a parsed record',
+      `#! ia 1.0\n\n@agent other\n${body}  @ mandate extra\n    meaning\n`,
+      6,
+    ],
+    [
+      'a full-width header inside a prose value left open',
+      `#! ia 1.0\n\n@agent other\n  meaning\n    says """\n\n${String.fromCharCode(0xff20)}mandate extra\n${body}`,
+      7,
+    ],
   ] as const)
     it(`fails closed for ${name}, which may be a mandate`, () => {
       const root = freshInit();
@@ -1434,6 +1457,20 @@ describe('a file refused whole whose records db cannot all identify (review D2-R
     expect(db.unadmitted.map((entry) => [entry.word, entry.line])).toEqual([['agent', 3]]);
     expect(refusedMandates(db)).toEqual([]);
     expect(identities(db, { actor: participant, workspace: demo })).toEqual([mandate('demo-mandate')]);
+  });
+  it('does not fail closed for a file of comments alone, with no pragma, but does for a malformed header after one (review D2 recheck F2)', () => {
+    const root = freshInit();
+    put(root, '.ia/src/notes.ia', '# notes for later\n');
+    const db = database(root);
+    expect(db.report.findings.some((finding) => finding.path === '.ia/src/notes.ia')).toBe(true);
+    expect(refusedMandates(db)).toEqual([]);
+    expect(identities(db, { actor: participant, workspace: demo })).toEqual([mandate('demo-mandate')]);
+    put(root, '.ia/src/notes.ia', '# notes for later\n@ mandate extra\n');
+    const again = database(root);
+    expect(refusedMandates(again).map((entry) => [entry.line, entry.unidentified])).toEqual([[2, true]]);
+    expect(() => identities(again, { actor: participant, workspace: demo })).toThrow(
+      expect.objectContaining({ admission: 'refused' }),
+    );
   });
   it('does not fail closed for an empty file, which declares nothing', () => {
     const root = freshInit();

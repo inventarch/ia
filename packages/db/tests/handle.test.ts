@@ -264,19 +264,19 @@ it('lists every record occurrence the root view does not admit, with its band an
   // The parse reads a CR-only file as one line (no pragma there); the text, split at every terminator, reads its header,
   // and the reference on a line no parsed record spans is listed under its word alone.
   expect(at('.ia/src/cr.ia').map((entry) => [entry.word, entry.name, entry.line, entry.finding.code])).toEqual([
-    // Its first line is no pragma and no header: a line no identified record accounts for (review D2-R2).
-    [undefined, undefined, 1, 'IA-LANG-PRAGMA-MISSING'],
+    // Its first line, the pragma's text, is a comment to the text's reading, which declares nothing (review D2 recheck F2).
     ['mandate', 'cr', 3, 'IA-LANG-PRAGMA-MISSING'],
     ['agent', undefined, 10, 'IA-LANG-PRAGMA-MISSING'],
   ]);
   // A token found past the start of a line names no record: only its word is known.
   expect(at('.ia/src/anywhere.ia')).toEqual([
-    // The unsupported pragma's line, which no identified record accounts for, is an occurrence of no known word.
+    // The pragma line reads as a comment, so the unsupported pragma's error is taken at the first line past it, which no
+    // identified record accounts for: an occurrence of no known word (review D2-R2 and its recheck F1, F2).
     {
       band: 100,
       path: '.ia/src/anywhere.ia',
-      line: 1,
-      endLine: 1,
+      line: 3,
+      endLine: 3,
       finding: expect.objectContaining({ code: 'IA-LANG-VERSION-UNSUPPORTED', line: 1 }),
     },
     {
@@ -386,7 +386,9 @@ it('lists an occurrence of no known word for every error line of a file refused 
         path,
       ).toBe(true);
     }
-    expect(unknown('.ia/src/utf16.ia')).toEqual([[1, 1, undefined, undefined]]);
+    // Its first line reads as a comment (`#` and NUL bytes); every later line opens with a NUL at column 0 of a file
+    // refused at its pragma (review D2 recheck F1, F2).
+    expect(unknown('.ia/src/utf16.ia').map(([line]) => line)).toEqual([2, 3, 4, 5, 6]);
     expect(at('.ia/src/utf16.ia')[0]!.finding.code).toBe('IA-LANG-PRAGMA-MISSING');
     expect(at('.ia/src/stray.ia').map((entry) => [entry.word, entry.line])).toEqual([
       ['agent', 3],
@@ -402,6 +404,54 @@ it('lists an occurrence of no known word for every error line of a file refused 
     expect(at('.ia/src/headed.ia').map((entry) => [entry.word, entry.name, entry.line])).toEqual([
       ['agent', 'headed', 3],
     ]);
+  } finally {
+    db.close();
+  }
+});
+it('lists a record of no word for every unnamed line opening with an at sign, and every unnamed top-level line of a file refused at its pragma, but none for comments (review D2 recheck F1, F2)', () => {
+  const root = workspace();
+  const wide = String.fromCharCode(0xff20),
+    joiner = String.fromCharCode(0x200d),
+    agentText = '@agent other\n  meaning\n    says "x"\n',
+    body = '  meaning\n    says "x"\n';
+  // F1 (a): a file refused at its pragma reports nothing past it, so every top-level line no header reading names is
+  // one, as is every line opening with an at sign: after a named first header, a spaced, full-width or joined at sign.
+  put(root, '.ia/src/np-space.ia', `${agentText}\n@ mandate extra\n${body}`);
+  put(root, '.ia/src/np-wide.ia', `${agentText}\n${wide}mandate extra\n${body}`);
+  put(root, '.ia/src/np-joined.ia', `${agentText}\n@${joiner}mandate extra\n${body}`);
+  put(root, '.ia/src/np-blank.ia', `\n\n${agentText}\n@ mandate extra\n${body}`);
+  put(root, '.ia/src/np-version.ia', `#! ia 9.9\n\n${agentText}\n@ mandate extra\n${body}`);
+  put(root, '.ia/src/np-garbage.ia', `${agentText}garbage\n`);
+  put(root, '.ia/src/np-clean.ia', agentText);
+  // F1 (b): a line opening with an at sign that no reading names is one wherever it stands: indented inside a parsed
+  // record, behind a tab, or inside a prose value left open.
+  put(root, '.ia/src/in-indented.ia', `#! ia 1.0\n\n${agentText}  @ mandate extra\n    meaning\n`);
+  put(root, '.ia/src/in-tab.ia', `#! ia 1.0\n\n${agentText}\t@ mandate extra\n`);
+  put(
+    root,
+    '.ia/src/in-prose.ia',
+    `#! ia 1.0\n\n@agent other\n  meaning\n    says """\n\n${wide}mandate extra\n${body}`,
+  );
+  // F2: a comment declares nothing, so a file of comments alone lists nothing, but a malformed header after one does.
+  put(root, '.ia/src/comments.ia', '# notes for later\n');
+  put(root, '.ia/src/comments-header.ia', '# notes for later\n@ mandate extra\n');
+  const db = open(root, { cache: false }),
+    lines = (path: string) =>
+      db.unadmitted.filter((entry) => entry.path === path && entry.word === undefined).map((entry) => entry.line);
+  try {
+    for (const path of ['np-space', 'np-wide', 'np-joined']) expect(lines(`.ia/src/${path}.ia`), path).toEqual([5]);
+    expect(lines('.ia/src/np-blank.ia')).toEqual([7]);
+    expect(lines('.ia/src/np-version.ia')).toEqual([7]);
+    expect(lines('.ia/src/np-garbage.ia')).toEqual([4]);
+    expect(lines('.ia/src/np-clean.ia')).toEqual([]);
+    expect(db.unadmitted.filter((entry) => entry.path === '.ia/src/np-clean.ia').map((entry) => entry.word)).toEqual([
+      'agent',
+    ]);
+    expect(lines('.ia/src/in-indented.ia')).toEqual([6]);
+    expect(lines('.ia/src/in-tab.ia')).toEqual([6]);
+    expect(lines('.ia/src/in-prose.ia')).toEqual([7]);
+    expect(db.unadmitted.filter((entry) => entry.path === '.ia/src/comments.ia')).toEqual([]);
+    expect(lines('.ia/src/comments-header.ia')).toEqual([2]);
   } finally {
     db.close();
   }
