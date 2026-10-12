@@ -555,3 +555,63 @@ describe('graph schema obligations', () => {
     expect(validateIdentity(graph).outcome).toBe('fail');
   });
 });
+
+describe("agent-system's mandate moves (lane D, D5)", () => {
+  /** A probe `@mandate` of the native agent-system, `authority` its authority lines. */
+  const AUTHORED = {
+    placement: { kind: 'authored' as const, band: 100 as const, reach: '' },
+    provenance: 'workspace' as const,
+  };
+  const probe = (authority: readonly string[]): { readonly record: CompiledRecord; readonly text: string } => {
+    const text = `#! ia 1.0\n@mandate probe\n  meaning\n    says "Probe mandate."\n    answers "What may it do?"\n  governance\n    requires "Nothing."\n  authority\n    participant @agent agent-steward\n${authority.map((line) => `    ${line}\n`).join('')}`;
+    const parsed = parse(text, 'probe.ia');
+    expect(parsed.diagnostics).toEqual([]);
+    const result = compile(parsed.ast, registry, AUTHORED, records);
+    expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    return { record: result.records[0]!, text };
+  };
+  /** The schema findings of `record` alone (bootstrap) and in the native graph (db admission). */
+  const findings = ({ record, text }: ReturnType<typeof probe>) => {
+    const graph = load([...records, record], registry, {
+      ...options,
+      sources: [...inputs, { path: 'probe.ia', text, location: AUTHORED }],
+    });
+    return {
+      schema: validateSchema(record, registry, records).findings,
+      graph: validateGraphSchema(graph.nodes.get(record.identity)!, graph).findings,
+    };
+  };
+  it('refuses a stated empty authority.moves at the field, in bootstrap and graph validation alike', () => {
+    const { schema, graph } = findings(probe(['moves []', 'excluded-words [hook]']));
+    for (const [where, list] of [
+      ['validateSchema', schema],
+      ['validateGraphSchema', graph],
+    ] as const)
+      expect(list, where).toEqual([
+        {
+          code: 'IA-COMP-FIELD-VALUE',
+          severity: 'error',
+          path: 'probe.ia',
+          line: 10,
+          endLine: 10,
+          identity: 'agent-system/policy/mandate/probe',
+          message:
+            "probe.ia:10: agent-system/policy/mandate/probe: 'authority.moves' must name at least one kernel move when stated; an absent authority.moves restricts no move",
+        },
+      ]);
+    // Each stated empty list is refused, whatever another occurrence of the list key names.
+    expect(findings(probe(['moves []', 'moves [Observation]'])).graph.map((finding) => finding.code)).toEqual([
+      'IA-COMP-FIELD-VALUE',
+    ]);
+  });
+  it('admits an absent authority.moves and one that names a move', () => {
+    for (const authority of [['excluded-words [hook]'], ['moves [Observation]'], ['moves [Observation, Execution]']]) {
+      const { schema, graph } = findings(probe(authority));
+      expect(schema, authority.join(' ')).toEqual([]);
+      expect(graph, authority.join(' ')).toEqual([]);
+    }
+  });
+  it('leaves an empty list of another word, or of another mandate field, as valid as C05 says', () => {
+    expect(findings(probe(['moves [Observation]', 'excluded-words []', 'covers []'])).graph).toEqual([]);
+  });
+});

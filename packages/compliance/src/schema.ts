@@ -204,9 +204,29 @@ function validateFields(record: CompiledRecord, schema: SchemaDeclaration, add: 
           field.span,
           `'${rule.section}.${rule.key}' requires ${rule.type}; found ${field.value.kind}`,
         );
-      else validateNarrowing(field, rule, add, exists);
+      else {
+        validateNarrowing(field, rule, add, exists);
+        validateMandateMoves(record, rule, field, add);
+      }
     }
   }
+}
+
+/**
+ * C05's one exception (lane D, operator ruling 2026-10-12): agent-system's `@mandate` states `authority.moves` as
+ * `list of id`, and the agent-system design reads a stated move list as one or more kernel moves, while the dialect has
+ * no non-empty list constraint. So a stated empty `authority.moves` is IA-COMP-FIELD-VALUE at the field, each occurrence
+ * on its own; an absent one stays valid and restricts no move. Keyed to the word, as COMP-CHECK is to `check` and
+ * COMP-COVERAGE to `contract`.
+ */
+function validateMandateMoves(record: CompiledRecord, rule: SchemaField, field: CompiledField, add: Add): void {
+  if (record.discriminator !== 'mandate' || rule.section !== 'authority' || rule.key !== 'moves') return;
+  if (field.value.kind === 'list' && field.value.items.length === 0)
+    add(
+      'IA-COMP-FIELD-VALUE',
+      field.span,
+      "'authority.moves' must name at least one kernel move when stated; an absent authority.moves restricts no move",
+    );
 }
 
 /**

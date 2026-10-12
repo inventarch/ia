@@ -38,7 +38,8 @@ export function runRefusalFixtures(
     method = records.find((r) => r.name === 'sample-procedure')!;
   const law = records.find((r) => r.discriminator === 'law')!,
     contract = records.find((r) => r.name === 'foundation-authoring-contract')!,
-    check = records.find((r) => r.discriminator === 'check')!;
+    check = records.find((r) => r.discriminator === 'check')!,
+    mandate = records.find((r) => r.discriminator === 'mandate' && r.name === 'sample-mandate')!;
   const ambiguous: Node = {
     ...law,
     variants: [
@@ -104,7 +105,22 @@ export function runRefusalFixtures(
     target: null,
     span: agent.source,
   };
-  const examples: readonly [Finding['code'], () => readonly Finding[]][] = [
+  /** Lane D, D5: the sample mandate with its stated move list emptied, which admission refuses (compliance C05). */
+  const unmoved: CompiledRecord = {
+    ...mandate,
+    sections: mandate.sections.map((s) =>
+      s.name !== 'authority'
+        ? s
+        : {
+            ...s,
+            fields: s.fields.map((f) =>
+              'key' in f && f.key === 'moves' ? { ...f, value: { kind: 'list' as const, items: [] } } : f,
+            ),
+          },
+    ),
+  };
+  /** One boundary per code, and a labelled second one where a code has a second refusal to show. */
+  const examples: readonly (readonly [Finding['code'], () => readonly Finding[], string?])[] = [
     [
       'IA-GRAPH-IDENTITY-TIE',
       () => rebuild([...records, { ...method, source: { ...method.source, line: 1000 } }]).diagnostics,
@@ -258,6 +274,7 @@ export function runRefusalFixtures(
           narrowed({ type: 'ref', target: 'playbook' }),
         ),
     ],
+    ['IA-COMP-FIELD-VALUE', () => schemaFindings(unmoved), 'mandate-moves-empty'],
     ['IA-COMP-FIELD-FORM', () => schemaFindings(agent, narrowed({ type: 'text', form: 'iso-date' }))],
     ['IA-COMP-EDGE-CARDINALITY', () => schemaFindings(agent, { ...registry, schemas })],
     ['IA-COMP-EDGE-UNRESOLVED', () => schemaFindings({ ...agent, edges: [edge] }, { ...registry, schemas })],
@@ -411,7 +428,7 @@ export function runRefusalFixtures(
     ],
   ];
   return Object.freeze(
-    examples.map(([code, run]): FixtureResult => {
+    examples.map(([code, run, label]): FixtureResult => {
       let observed: readonly Finding[];
       let unexpected = false;
       try {
@@ -445,7 +462,7 @@ export function runRefusalFixtures(
               },
             ];
       return Object.freeze({
-        assessment: assess('COMP-FIXTURES', `boundary/${code}`, findings),
+        assessment: assess('COMP-FIXTURES', `boundary/${code}${label === undefined ? '' : `/${label}`}`, findings),
         observedCodes: Object.freeze([...new Set(observed.map((d) => d.code))].sort()),
       });
     }),
