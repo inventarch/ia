@@ -51,6 +51,14 @@ export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
   '@inventarch/workspace-system': [],
 };
 const HOSTS: Readonly<Record<string, readonly string[]>> = {
+  '@inventarch/runner': [
+    '@inventarch/agent-system',
+    '@inventarch/session-system',
+    '@inventarch/agent-composition-system',
+    '@inventarch/workspace-runtime',
+    '@inventarch/runtime',
+    '@inventarch/db',
+  ],
   '@inventarch/mcp-door': ['@inventarch/runtime', '@inventarch/service-contracts'],
   '@inventarch/distribution': [
     '@inventarch/language',

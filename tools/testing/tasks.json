@@ -3453,6 +3453,92 @@
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
       ]
+    },
+    {
+      "id": "runner:build",
+      "kind": "command",
+      "project": "apps/runner",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "session-system:build",
+        "workspace-runtime:build",
+        "runtime:build",
+        "db:build"
+      ],
+      "outputs": [
+        "apps/runner/dist",
+        "artifacts/tests/runner-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "runner:typecheck",
+      "kind": "command",
+      "project": "apps/runner",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "runner:build"
+      ],
+      "outputs": [
+        "artifacts/tests/runner-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "runner:test",
+      "kind": "vitest",
+      "project": "apps/runner",
+      "files": [
+        "tests/runner.test.ts"
+      ],
+      "profile": "database",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "runner:build"
+      ],
+      "outputs": [
+        "artifacts/tests/runner-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
     }
   ]
 }

@@ -115,6 +115,11 @@
       "root": ".ia/src/systems/workspace-system",
       "name": "@inventarch/workspace-system",
       "private": false
+    },
+    {
+      "root": "apps/runner",
+      "name": "@inventarch/runner",
+      "private": false
     }
   ],
   "embeddedCarriers": [

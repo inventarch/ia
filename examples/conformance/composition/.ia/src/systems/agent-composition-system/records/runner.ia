@@ -1,0 +1,78 @@
+#! ia 1.0
+
+@agent runner-reader
+  meaning
+    says "Read captured native sources under a local execution mandate."
+    answers "Which participant runs the bounded conformance journey?"
+  governance
+    applies []
+
+@mandate runner-reader-mandate
+  meaning
+    says "Permit observation while retaining a one-operation limit."
+    answers "Which authority and resource limits constrain the reader?"
+  governance
+    requires "Use installed captured reads only; native text grants no host authority."
+  authority
+    participant @agent runner-reader
+    scope [@workspace runner-workspace]
+    moves [Observation]
+  execution
+    contract runner-read-v1
+    limit-steps 16
+    limit-model-calls 4
+    limit-operations 1
+
+@capability runner-read
+  meaning
+    says "Read one captured native source through the installed operation."
+    answers "Which executable operation belongs to the reader?"
+  composition
+    operations [@operation read-captured-source]
+  execution
+    input runner-task-v1
+    outcomes runner-outcomes-v1
+    context-profile runner-context-v1
+    mapping-profile runner-identity-v1
+    effects [read]
+
+@agent-profile runner-reader-profile
+  meaning
+    says "Bind the local reader to its mandate and captured-read capability."
+    answers "Which profile is the runner entry?"
+  composition
+    agent @agent runner-reader
+    mandate @mandate runner-reader-mandate
+    capabilities [@capability runner-read]
+  execution
+    role reader
+    outcomes runner-outcomes-v1
+    mandate-contract runner-read-v1
+
+@workspace runner-workspace
+  meaning
+    says "Compose the public execution and runtime-evidence language."
+    answers "Which workspace hosts the bounded runner journey?"
+  composition
+    systems [@system agent-composition-system, @system agent-system, @system workspace-system, @system governance-system, @system compliance-system, @system authoring-system, @system session-system, @system learning-system]
+
+@execution-binding runner-entry
+  meaning
+    says "Enter the installed local runner profile."
+    answers "Which profile does this entry bind?"
+  binding
+    kind entry
+    target @agent-profile runner-reader-profile
+    implementation runner-entry-v1
+    mapping runner-identity-v1
+
+@harness runner-conformance
+  meaning
+    says "Execute the fixed captured read with a durable journal."
+    answers "Which harness qualifies local runner integration?"
+  composition
+    workspace @workspace runner-workspace
+    profiles [@agent-profile runner-reader-profile]
+    bindings [@execution-binding read-captured-source-binding, @execution-binding runner-entry]
+  execution
+    host-profile runner-local-v1
