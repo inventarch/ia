@@ -1436,3 +1436,68 @@ describe('a file refused whole whose records db cannot all identify (review D2-R
     expect(identities(db, { actor: participant, workspace: demo })).toEqual([mandate('demo-mandate')]);
   });
 });
+
+describe('D9 through a tie and a file refused whole (review D2-N1)', () => {
+  const dependencyOf = (root: string) => {
+    const db = database(root);
+    return { db, dependencies: refusedDependencies(db) };
+  };
+  it('fails closed when the participant @agent ties at band 100', () => {
+    const root = freshInit(records);
+    put(root, '.ia/src/twin-agent.ia', `#! ia 1.0\n${agent('demo')}`);
+    const { db, dependencies } = dependencyOf(root);
+    expect(db.unadmitted.filter((entry) => entry.finding.code === 'IA-GRAPH-IDENTITY-TIE').length).toBe(2);
+    expect(dependencies.map((entry) => [entry.dependent, entry.field, entry.code])).toEqual(
+      expect.arrayContaining([
+        [mandate('demo-mandate'), 'authority.participant', 'IA-GRAPH-IDENTITY-TIE'],
+        [demo, 'composition.steward', 'IA-GRAPH-IDENTITY-TIE'],
+      ]),
+    );
+    expect(() => defaultActor(db, token(db), demo)).toThrow(expect.objectContaining({ admission: 'refused' }));
+  });
+  it('fails closed when the scoped @workspace ties at band 100', () => {
+    const root = freshInit(records);
+    put(
+      root,
+      '.ia/src/twin-workspace.ia',
+      '#! ia 1.0\n\n@workspace demo\n  meaning\n    says "A twin."\n    answers "Which?"\n',
+    );
+    const { db, dependencies } = dependencyOf(root);
+    expect(dependencies.map((entry) => [entry.dependent, entry.field, entry.path, entry.code])).toEqual(
+      expect.arrayContaining([
+        [mandate('demo-mandate'), 'authority.scope', '.ia/src/twin-workspace.ia', 'IA-GRAPH-IDENTITY-TIE'],
+        [mandate('demo-mandate'), 'authority.scope', '.ia/src/workspace.ia', 'IA-GRAPH-IDENTITY-TIE'],
+      ]),
+    );
+    expect(() => governingMandates(db, token(db))).toThrow(expect.objectContaining({ admission: 'refused' }));
+  });
+  it('fails closed when the participant @agent is a header only the text of a file refused whole shows', () => {
+    // The participant ghostly is authored only as an indented header the parse refuses: no identity, its name known.
+    const root = freshInit(
+      `${records}${authorized('ghost-mandate', ['participant @agent ghostly', 'moves [Observation]', 'covers ["ghost/"]'])}`,
+    );
+    put(root, '.ia/src/ghostly.ia', '#! ia 1.0\n\n  @agent ghostly\n');
+    const { db, dependencies } = dependencyOf(root);
+    expect(refusedMandates(db)).toEqual([]);
+    expect(dependencies).toEqual([
+      {
+        dependent: mandate('ghost-mandate'),
+        field: 'authority.participant',
+        reference: '@agent ghostly',
+        path: '.ia/src/ghostly.ia',
+        line: 3,
+        code: 'IA-LANG-TOPLEVEL-UNEXPECTED',
+        message: expect.any(String),
+      },
+    ]);
+    const error = (() => {
+      try {
+        governingMandates(db, token(db), { path: 'ghost/x.md' });
+      } catch (caught) {
+        return caught as RuntimeError;
+      }
+      throw new Error('expected a refusal');
+    })();
+    expect(error.where).toEqual({ path: '.ia/src/ghostly.ia', line: 3 });
+  });
+});
