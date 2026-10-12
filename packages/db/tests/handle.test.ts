@@ -1,6 +1,8 @@
-import { existsSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
+import { stableSerialize } from '@inventarch/graph';
 import { DbError, open, readInputs } from '../src/index.js';
 import { stableState } from '../src/handle.js';
 import { methodId, methodPath, put, workspace } from './workspace.js';
@@ -127,7 +129,11 @@ it('retries unstable scans at most three times and publishes only a stable candi
 /** A fixture `@mandate` of the native agent-system, its header on line 3 of a file that opens with the pragma. */
 const mandateSource = (name: string, moves = 'moves [Observation]', before = ''): string =>
   `#! ia 1.0\n\n@mandate ${name}\n  meaning\n    says "Fixture mandate ${name}."\n    answers "What may it do?"\n  governance\n    requires "Nothing."\n  authority\n    participant @agent agent-steward\n    ${moves}\n${before}`;
-it('lists every record occurrence the root view does not admit, at the band of its placement (lane D, D1)', () => {
+/** An entry's own admission finding, by code, path and line. */
+const finding = (entry: {
+  readonly finding: { readonly code: string; readonly path: string; readonly line: number };
+}) => [entry.finding.code, entry.finding.path, entry.finding.line];
+it('lists every record occurrence the root view does not admit, with its band and own admission finding (lane D, D1)', () => {
   const root = workspace();
   // (a) refused by schema admission, so `refused` names it too.
   put(root, '.ia/src/refused.ia', mandateSource('bogus', 'moves [Bogus]'));
@@ -147,7 +153,17 @@ it('lists every record occurrence the root view does not admit, at the band of i
   // (c) a header the parse cannot read at all: the captured text still shows it.
   put(root, '.ia/src/header.ia', '#! ia 1.0\n\n@mandate Bad_Name!\n  meaning\n    says "x"\n');
   // (c) no pragma, so the parse reads no record: a header after a byte-order mark is still seen.
-  put(root, '.ia/src/bom.ia', '\uFEFF@mandate bommed\n  meaning\n    says "x"\n');
+  put(root, '.ia/src/bom.ia', '\ufeff@mandate bommed\n  meaning\n    says "x"\n');
+  // (c) review D-R3: a header behind a no-break space, a form feed or a zero-width space, and one in a CR-only file.
+  for (const [name, lead] of [
+    ['nbsp', '\u00a0'],
+    ['formfeed', '\f'],
+    ['zwsp', '\u200b'],
+  ] as const)
+    put(root, `.ia/src/${name}.ia`, `#! ia 1.0\n\n${lead}@mandate ${name}\n  meaning\n    says "x"\n`);
+  put(root, '.ia/src/cr.ia', `${mandateSource('cr')}   misindented\n`.replaceAll('\n', '\r'));
+  // (c) a file whose parse reads no record at all: a `@mandate` token anywhere on one of its lines is seen.
+  put(root, '.ia/src/anywhere.ia', '#! ia 9.9\n\nnot a header @mandate hidden\n');
   // (c) a file refused whole for a requirement id another file declares too.
   put(
     root,
@@ -158,13 +174,14 @@ it('lists every record occurrence the root view does not admit, at the band of i
       '\n@contract clash\n  version "0.1.0"\n  meaning\n    says "x"\n    answers "y"\n  relationships\n    governs @check instance-schema-check\n  inputs\n    REQ-FOUNDATION-INPUT "Clashes with the foundation contract."\n',
     ),
   );
-  // A parse error in a file that declares no mandate is listed under the word it does declare.
-  put(root, '.ia/src/plain.ia', '#! ia 1.0\n\n@agent plain\n  meaning\n    says "x\n');
+  // A parse error in a file that declares no mandate is listed under the word it does declare, and a reference inside
+  // a record its parse reads is no header.
+  put(root, '.ia/src/plain.ia', '#! ia 1.0\n\n@agent plain\n  meaning\n    answers "x @agent named"\n    says "x\n');
   const db = open(root, { cache: false }),
     unadmitted = db.unadmitted,
     at = (path: string) => unadmitted.filter((entry) => entry.path === path);
   expect(Object.isFrozen(unadmitted)).toBe(true);
-  expect(unadmitted.every((entry) => Object.isFrozen(entry))).toBe(true);
+  expect(unadmitted.every((entry) => Object.isFrozen(entry) && Object.isFrozen(entry.finding))).toBe(true);
   expect(db.get('agent-system/policy/mandate/bogus')).toBeUndefined();
   expect(at('.ia/src/refused.ia')).toEqual([
     {
@@ -175,13 +192,22 @@ it('lists every record occurrence the root view does not admit, at the band of i
       path: '.ia/src/refused.ia',
       line: 3,
       endLine: 11,
-      cause: 'refused',
+      finding: {
+        code: 'IA-COMP-FIELD-VALUE',
+        path: '.ia/src/refused.ia',
+        line: 11,
+        message: expect.stringContaining("'authority.moves' admits one of"),
+      },
     },
   ]);
-  // Every `refused` occurrence is listed, and only those are listed as refused.
-  expect(
-    unadmitted.filter((entry) => entry.cause === 'refused').map(({ identity, path, line }) => [identity, path, line]),
-  ).toEqual(db.refused.map(({ identity, path, line }) => [identity, path, line]));
+  // Every `refused` occurrence is listed.
+  for (const record of db.refused)
+    expect(
+      unadmitted.some(
+        (entry) => entry.identity === record.identity && entry.path === record.path && entry.line === record.line,
+      ),
+      record.identity,
+    ).toBe(true);
   for (const path of ['.ia/src/tie-a.ia', '.ia/src/tie-b.ia'])
     expect(at(path)).toEqual([
       {
@@ -192,39 +218,77 @@ it('lists every record occurrence the root view does not admit, at the band of i
         path,
         line: 3,
         endLine: 11,
-        cause: 'tied',
+        finding: {
+          code: 'IA-GRAPH-IDENTITY-TIE',
+          path,
+          line: 3,
+          message: expect.stringContaining('agent-system/policy/mandate/tied ties at band 100'),
+        },
       },
     ]);
-  expect(at('.ia/src/whole.ia')).toEqual([
-    expect.objectContaining({
-      identity: 'agent-system/policy/mandate/whole',
-      word: 'mandate',
-      band: 100,
-      line: 3,
-      cause: 'source',
-    }),
-    expect.objectContaining({
-      identity: 'agent-system/binding/agent/loose',
-      word: 'agent',
-      name: 'loose',
-      band: 100,
-      line: 13,
-      cause: 'source',
-    }),
+  // A record of a file refused whole carries the error inside its lines, else the file's first error.
+  expect(
+    at('.ia/src/whole.ia').map((entry) => [entry.identity, entry.word, entry.name, entry.line, ...finding(entry)]),
+  ).toEqual([
+    ['agent-system/policy/mandate/whole', 'mandate', 'whole', 3, 'IA-LANG-INDENT-STEP', '.ia/src/whole.ia', 18],
+    ['agent-system/binding/agent/loose', 'agent', 'loose', 13, 'IA-LANG-INDENT-STEP', '.ia/src/whole.ia', 18],
   ]);
   expect(at('.ia/src/bom.ia')).toEqual([
-    { word: 'mandate', name: 'bommed', band: 100, path: '.ia/src/bom.ia', line: 1, endLine: 1, cause: 'source' },
+    {
+      word: 'mandate',
+      name: 'bommed',
+      band: 100,
+      path: '.ia/src/bom.ia',
+      line: 1,
+      endLine: 1,
+      finding: expect.objectContaining({ code: 'IA-LANG-PRAGMA-MISSING', path: '.ia/src/bom.ia', line: 1 }),
+    },
   ]);
   expect(at('.ia/src/header.ia')).toEqual([
     // The text names the record as spelled, lowercased, though the parse refuses the spelling.
-    { word: 'mandate', name: 'bad_name!', band: 100, path: '.ia/src/header.ia', line: 3, endLine: 3, cause: 'source' },
+    {
+      word: 'mandate',
+      name: 'bad_name!',
+      band: 100,
+      path: '.ia/src/header.ia',
+      line: 3,
+      endLine: 3,
+      finding: expect.objectContaining({ code: 'IA-LANG-HEADER-MALFORMED', line: 3 }),
+    },
+  ]);
+  for (const name of ['nbsp', 'formfeed', 'zwsp'])
+    expect(
+      at(`.ia/src/${name}.ia`).map((entry) => [entry.word, entry.name, entry.band, entry.line]),
+      name,
+    ).toEqual([['mandate', name, 100, 3]]);
+  // The parse reads a CR-only file as one line (no pragma there); the text, split at every terminator, reads its header,
+  // and the reference on a line no parsed record spans is listed under its word alone.
+  expect(at('.ia/src/cr.ia').map((entry) => [entry.word, entry.name, entry.line, entry.finding.code])).toEqual([
+    ['mandate', 'cr', 3, 'IA-LANG-PRAGMA-MISSING'],
+    ['agent', undefined, 10, 'IA-LANG-PRAGMA-MISSING'],
+  ]);
+  // A token found past the start of a line names no record: only its word is known.
+  expect(at('.ia/src/anywhere.ia')).toEqual([
+    {
+      word: 'mandate',
+      band: 100,
+      path: '.ia/src/anywhere.ia',
+      line: 3,
+      endLine: 3,
+      finding: expect.objectContaining({ code: 'IA-LANG-VERSION-UNSUPPORTED', line: 1 }),
+    },
   ]);
   expect(at('.ia/src/duplicate.ia')).toEqual([
-    expect.objectContaining({ identity: 'agent-system/policy/mandate/dup', word: 'mandate', line: 3, cause: 'source' }),
+    expect.objectContaining({
+      identity: 'agent-system/policy/mandate/dup',
+      word: 'mandate',
+      line: 3,
+      finding: expect.objectContaining({ code: 'IA-LANG-REQUIREMENT-DUPLICATE', path: '.ia/src/duplicate.ia' }),
+    }),
     expect.objectContaining({
       identity: 'compliance-system/contract/signature/clash',
       word: 'contract',
-      cause: 'source',
+      finding: expect.objectContaining({ code: 'IA-LANG-REQUIREMENT-DUPLICATE', path: '.ia/src/duplicate.ia' }),
     }),
   ]);
   // That file compiles cleanly: only the requirement id it shares with the foundation contract refuses it.
@@ -235,17 +299,47 @@ it('lists every record occurrence the root view does not admit, at the band of i
   ).toEqual(['IA-LANG-REQUIREMENT-DUPLICATE']);
   expect(at('.ia/src/plain.ia')).toEqual([
     // Its compile refuses the record, so spec 3.1 names the header's identity.
-    expect.objectContaining({
+    {
       identity: 'agent-system/binding/agent/plain',
       word: 'agent',
+      name: 'plain',
       band: 100,
+      path: '.ia/src/plain.ia',
       line: 3,
-      cause: 'source',
-    }),
+      endLine: expect.any(Number),
+      finding: expect.objectContaining({ code: 'IA-LANG-STRING-UNTERMINATED', line: 6 }),
+    },
   ]);
   // The floor and every admitted record stay out of the list.
   expect(unadmitted.some((entry) => entry.identity === methodId)).toBe(false);
   db.close();
+});
+it('lists a record an adopted base refuses at that base band, 90 (lane D, D15)', () => {
+  const root = workspace(false),
+    vendor = 'vendor/foundation';
+  cpSync(resolve(import.meta.dirname, '../../../examples/conformance/native'), resolve(root, vendor, '.ia/src'), {
+    recursive: true,
+  });
+  put(resolve(root, vendor), '.ia/src/vendored.ia', mandateSource('vendored', 'moves [Bogus]'));
+  const pinned = readInputs(resolve(root, vendor), { adopted: [] })
+    .sources.filter((s) => !s.path.startsWith('.ia/src/floor/'))
+    .map(({ path, text }) => ({ path, text }));
+  const revision = createHash('sha256').update(stableSerialize(pinned)).digest('hex');
+  put(
+    root,
+    '.ia/workspace.json',
+    JSON.stringify({ version: 1, adopted: [{ id: 'foundation', path: vendor, revision }] }),
+  );
+  put(root, '.ia/src/authored.ia', mandateSource('authored', 'moves [Bogus]'));
+  const db = open(root, { cache: false });
+  try {
+    expect(db.unadmitted.map((entry) => [entry.identity, entry.band, entry.finding.code])).toEqual([
+      ['agent-system/policy/mandate/vendored', 90, 'IA-COMP-FIELD-VALUE'],
+      ['agent-system/policy/mandate/authored', 100, 'IA-COMP-FIELD-VALUE'],
+    ]);
+  } finally {
+    db.close();
+  }
 });
 it('closes idempotently and refuses all subsequent reads and refreshes', () => {
   const db = open(workspace(false), { cache: false });

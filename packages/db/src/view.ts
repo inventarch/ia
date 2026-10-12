@@ -36,20 +36,32 @@ export interface RefusedRecord {
   readonly line: number;
   readonly reason: string;
 }
+/** The admission finding that refused an unadmitted occurrence: one diagnostic db already holds for it. */
+export interface UnadmittedFinding {
+  readonly code: string;
+  readonly path: string;
+  readonly line: number;
+  readonly message: string;
+}
 /**
  * One record occurrence of a view's sources that the view does not admit (lane D, D1), with the band of the placement
- * its source was read at, which is where capture membership and every band test read a record's band from:
- * - `refused`: an occurrence `refused` names (a compliance exclusion, a schema failure, a refused system join or a refused
- *   enclosing record);
- * - `tied`: an occurrence of an identity that another occurrence ties at the same band (IA-GRAPH-IDENTITY-TIE), so
- *   neither is admitted;
- * - `source`: a record its file declares when the file is refused whole, by a language error or by a requirement id
- *   another occurrence declares too, before any graph is built. Each header the view's own parse of the file reads is
- *   one, with the identity the compile of the file gives the record or, where the compile refused it, the identity spec
- *   3.1 gives its header under its word's registration; each line of the captured text that opens
- *   with `@<word>` (indentation aside) and is no header the parse read is one too, with no identity, so a header the
- *   parse could not read (no or another pragma, a malformed name, an indented header) is still seen. That reading errs
- *   towards listing: a non-header line spelled so in a file already refused is listed under its word.
+ * its source was read at, which is where capture membership and every band test read a record's band from, and its own
+ * admission finding:
+ * - an occurrence `refused` names (a compliance exclusion, a schema failure, a refused system join or a refused
+ *   enclosing record), with the finding that excluded it: the assessment's or system check's own, the enclosing
+ *   record's, or for a refused system join the finding that blocked its system;
+ * - an occurrence of an identity that another occurrence ties at the same band, with its IA-GRAPH-IDENTITY-TIE;
+ * - a record a file declares when the file is refused whole, by a language error or by a requirement id another
+ *   occurrence declares too, before any graph is built, with the error inside its lines, else the file's first error,
+ *   which refused the file. Each header the view's own parse of the file reads is one, with the identity the compile of
+ *   the file gives the record or, where the compile refused it, the identity spec 3.1 gives its header under its word's
+ *   registration. The file's captured text, split at every line terminator (CRLF, CR or LF), adds two readings the parse
+ *   cannot give (review finding D-R3): a line that opens with `@<word>` after any whitespace or Unicode format
+ *   characters (a no-break space, a form feed, a zero-width space, a byte-order mark) and is no header the parse read
+ *   is one, with the name token after it and no identity; and on a line no parsed record spans, each `@<word>` token
+ *   anywhere on it is one, with no name, so a file whose parse reads no record (no or another pragma) lists every word
+ *   it mentions. Both readings err towards listing: a non-header line so spelled in a file already refused is listed
+ *   under its word.
  */
 export interface UnadmittedRecord {
   /**
@@ -61,7 +73,7 @@ export interface UnadmittedRecord {
   readonly word: string;
   /**
    * The record's name as its header spells it, lowercased (lane D, D9: what a typed reference to it is matched by); absent
-   * for a header that spells none.
+   * for a header that spells none and for a token read past the start of a line.
    */
   readonly name?: string;
   readonly band: Band;
@@ -69,7 +81,8 @@ export interface UnadmittedRecord {
   /** The header line. */
   readonly line: number;
   readonly endLine: number;
-  readonly cause: 'refused' | 'tied' | 'source';
+  /** The admission finding that refused it (review finding D-N5). */
+  readonly finding: UnadmittedFinding;
 }
 /** Internal view; public reads project allowed nodes, never this candidate registry. */
 export interface View {
@@ -105,22 +118,34 @@ interface Context {
 export const occurrenceKey = (record: CompiledRecord): string =>
   JSON.stringify([record.identity, record.source.path, record.source.line]);
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/** A diagnostic as an unadmitted occurrence carries it. */
+const findingOf = (diagnostic: {
+  readonly code: string;
+  readonly path: string;
+  readonly line: number;
+  readonly message: string;
+}): UnadmittedFinding =>
+  Object.freeze({ code: diagnostic.code, path: diagnostic.path, line: diagnostic.line, message: diagnostic.message });
 /**
- * A line that opens with `@<word>`, a byte-order mark and indentation aside, and the name token after it when one is
- * there: the header syntax, read from text the parse could not read.
+ * A line that opens with `@<word>` after any whitespace or Unicode format characters, and the name token after it when
+ * one is there: the header syntax, read from text the parse could not read (review finding D-R3).
  */
-const HEADER = /^\uFEFF?[ \t]*@([A-Za-z][A-Za-z0-9-]*)(?=[ \t\r]|$)(?:[ \t]+([^ \t\r]+))?/;
+const HEADER = /^[\s\p{Cf}]*@([A-Za-z][A-Za-z0-9-]*)(?=[\s\p{Cf}]|$)(?:[\s\p{Cf}]+([^\s\p{Cf}]+))?/u;
+/** An `@<word>` token anywhere on a line. */
+const TOKEN = /@([A-Za-z][A-Za-z0-9-]*)/g;
 /**
- * The `source` occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested
- * ones included, with the identity its compile gives that header's record or, for one its compile refused, the identity
- * spec 3.1 gives it (`identityOf` over its word's registration), then every other line of `text` that opens with a
- * header, under its word.
+ * The occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested ones
+ * included, with the identity its compile gives that header's record or, for one its compile refused, the identity spec
+ * 3.1 gives it (`identityOf` over its word's registration), then every other line of `text` that opens with a header,
+ * under its word and name, and every `@<word>` token on a line no parsed record spans, under its word. Each carries the
+ * error inside its lines, else `errors[0]`, the file's first error.
  */
 function refusedWhole(
   source: Source,
   text: string,
   compiled: readonly CompiledRecord[],
   registry: FrozenRegistry,
+  errors: readonly Diagnostic[],
 ): readonly UnadmittedRecord[] {
   const path = source.ast.path,
     band = source.location.placement.band,
@@ -135,6 +160,17 @@ function refusedWhole(
   const identities = new Map(
     compiled.filter((record) => record.source.path === path).map((record) => [record.source.line, record.identity]),
   );
+  const finding = (line: number, endLine: number): UnadmittedFinding =>
+    findingOf(errors.find((error) => error.line >= line && error.line <= endLine) ?? errors[0]!);
+  const occurrence = (word: string, name: string | undefined, line: number, endLine: number): UnadmittedRecord => ({
+    word: word.toLowerCase(),
+    ...(name === undefined || name === '' ? {} : { name: name.toLowerCase() }),
+    band,
+    path,
+    line,
+    endLine,
+    finding: finding(line, endLine),
+  });
   const parsed = nodes.map((node): UnadmittedRecord => {
     const registration = registry.registrations.get(node.discriminator);
     const identity =
@@ -142,31 +178,19 @@ function refusedWhole(
       (registration === undefined ? undefined : identityOf(node, registration, path).identity?.identity);
     return {
       ...(identity === undefined ? {} : { identity }),
-      word: node.discriminator.toLowerCase(),
-      ...(node.name === '' ? {} : { name: node.name.toLowerCase() }),
-      band,
-      path,
-      line: node.span.line,
-      endLine: node.span.endLine,
-      cause: 'source',
+      ...occurrence(node.discriminator, node.name, node.span.line, node.span.endLine),
     };
   });
-  const read = new Set(nodes.map((node) => node.span.line));
-  const unread = text.split('\n').flatMap((spelled, index): UnadmittedRecord[] => {
-    const [, word, name] = HEADER.exec(spelled) ?? [];
-    return word === undefined || read.has(index + 1)
+  const headers = new Set(nodes.map((node) => node.span.line)),
+    spans = [...nodes.map((node) => node.span), ...(source.ast.syntaxRecordSpans ?? [])];
+  const spanned = (line: number): boolean => spans.some((span) => line >= span.line && line <= span.endLine);
+  const unread = text.split(/\r\n|\r|\n/).flatMap((spelled, index): UnadmittedRecord[] => {
+    const line = index + 1,
+      header = HEADER.exec(spelled);
+    if (header !== null) return headers.has(line) ? [] : [occurrence(header[1]!, header[2], line, line)];
+    return spanned(line)
       ? []
-      : [
-          {
-            word: word.toLowerCase(),
-            ...(name === undefined ? {} : { name: name.toLowerCase() }),
-            band,
-            path,
-            line: index + 1,
-            endLine: index + 1,
-            cause: 'source',
-          },
-        ];
+      : [...spelled.matchAll(TOKEN)].map((token) => occurrence(token[1]!, undefined, line, line));
   });
   return [...parsed, ...unread];
 }
@@ -344,10 +368,25 @@ function views(
         .filter((s) => context.errorPaths.has(s.path) || duplicatePaths.has(s.path))
         .map((s) => s.name),
     );
+    /** Every error diagnostic of a source file, in line order: what refuses a file whole. */
+    const fileErrors = (path: string): readonly Diagnostic[] =>
+      [...context.diagnostics, ...duplicates.diagnostics]
+        .filter((d) => d.severity === 'error' && d.path === path)
+        .sort((a, b) => a.line - b.line || compare(a.code, b.code));
+    /** Review D-N5: the finding that blocked each blocked system, the first one recorded, which its records carry. */
+    const blockedBy = new Map<string, UnadmittedFinding>();
+    for (const system of registry.systems.values()) {
+      const error = blocked.has(system.name) ? fileErrors(system.path)[0] : undefined;
+      if (error !== undefined) blockedBy.set(system.name, findingOf(error));
+    }
+    const block = (name: string, finding: UnadmittedFinding | undefined): void => {
+      blocked.add(name);
+      if (finding !== undefined && !blockedBy.has(name)) blockedBy.set(name, finding);
+    };
     const blockedFolders = new Set<string>(),
       excluded = new Map<string, RefusedRecord>(),
-      /** The occurrence behind each `excluded` entry, by the same key: its band and span are what `unadmitted` lists. */
-      excludedRecords = new Map<string, CompiledRecord>(),
+      /** The occurrence behind each `excluded` entry, by the same key, and the finding that excluded it. */
+      excludedRecords = new Map<string, { readonly record: CompiledRecord; readonly finding: UnadmittedFinding }>(),
       observations: Assessment[] = [];
     const folders: SystemFolder[] = input.folders.flatMap((name) => {
       let sources = context.sources.filter((s) => systemMember(s.ast.path)?.name === name);
@@ -378,11 +417,13 @@ function views(
       let changed = true;
       while (changed) {
         changed = false;
-        for (const system of registry.systems.values())
-          if (!blocked.has(system.name) && system.requires.some((r) => blocked.has(r.name))) {
-            blocked.add(system.name);
+        for (const system of registry.systems.values()) {
+          const requirement = system.requires.find((r) => blocked.has(r.name));
+          if (!blocked.has(system.name) && requirement !== undefined) {
+            block(system.name, blockedBy.get(requirement.name));
             changed = true;
           }
+        }
       }
       for (const folder of folders)
         if (
@@ -392,14 +433,43 @@ function views(
         )
           blockedFolders.add(folder.path);
     };
-    const exclude = (record: CompiledRecord, reason: string): void => {
+    /**
+     * The finding that blocked a record's system join: its system's, a system it declares, or one of its blocked folder.
+     * Every block records the finding that caused it (a file error, a system check, a dependency's), so one is found;
+     * the unreachable remainder falls back to its system file's first error, then to any error admission recorded.
+     */
+    const joinFinding = (record: CompiledRecord): UnadmittedFinding => {
+      const folder = systemMember(record.source.path)?.name;
+      const found =
+        blockedBy.get(record.system) ??
+        (record.discriminator === 'system' ? blockedBy.get(record.name) : undefined) ??
+        [...blocked]
+          .filter((name) => {
+            const path = folders.find((f) => f.name === folder)?.path;
+            return name === folder || (path !== undefined && registry.systems.get(name)?.path.startsWith(path + '/'));
+          })
+          .map((name) => blockedBy.get(name))
+          .find((finding) => finding !== undefined);
+      if (found !== undefined) return found;
+      const error =
+        fileErrors(registry.systems.get(record.system)?.path ?? record.source.path)[0] ??
+        [...sourceDiagnostics, ...observations.flatMap((o) => o.findings)].find((d) => d.severity === 'error');
+      return error === undefined
+        ? findingOf({
+            code: 'IA-COMP-SYSTEM-MALFORMED',
+            ...record.source,
+            message: `${record.identity}: system join refused`,
+          })
+        : findingOf(error);
+    };
+    const exclude = (record: CompiledRecord, reason: string, finding: UnadmittedFinding): void => {
       excluded.set(occurrenceKey(record), {
         identity: record.identity,
         path: record.source.path,
         line: record.source.line,
         reason,
       });
-      excludedRecords.set(occurrenceKey(record), record);
+      if (!excludedRecords.has(occurrenceKey(record))) excludedRecords.set(occurrenceKey(record), { record, finding });
     };
     const remaining = (): readonly CompiledRecord[] => {
       blockDependents();
@@ -409,19 +479,20 @@ function views(
           (record.discriminator === 'system' && blocked.has(record.name)) ||
           [...blockedFolders].some((path) => systemMember(record.source.path)?.name === path.split('/').at(-1))
         )
-          exclude(record, 'system join refused');
+          exclude(record, 'system join refused', joinFinding(record));
       let changed = true;
       while (changed) {
         changed = false;
-        for (const record of candidates)
-          if (
-            !excluded.has(occurrenceKey(record)) &&
-            record.parent !== undefined &&
-            [...excluded.values()].some((r) => r.path === record.source.path && r.identity === record.parent)
-          ) {
-            exclude(record, 'enclosing record refused');
+        for (const record of candidates) {
+          if (excluded.has(occurrenceKey(record)) || record.parent === undefined) continue;
+          const enclosing = [...excludedRecords.values()].find(
+            (entry) => entry.record.source.path === record.source.path && entry.record.identity === record.parent,
+          );
+          if (enclosing !== undefined) {
+            exclude(record, 'enclosing record refused', enclosing.finding);
             changed = true;
           }
+        }
       }
       return candidates.filter((r) => !excluded.has(occurrenceKey(r)));
     };
@@ -447,16 +518,16 @@ function views(
             const folder = folders.find((f) => f.path === assessment.scope);
             if (folder !== undefined) {
               blockedFolders.add(folder.path);
-              blocked.add(folder.name);
+              block(folder.name, findingOf(finding));
               for (const system of registry.systems.values())
-                if (system.path.startsWith(folder.path + '/')) blocked.add(system.name);
+                if (system.path.startsWith(folder.path + '/')) block(system.name, findingOf(finding));
             }
           } else {
             const record = nodes.find((r) => r.source.path === finding.path && r.source.line === finding.line);
-            if (record !== undefined) exclude(record, finding.code);
+            if (record !== undefined) exclude(record, finding.code, findingOf(finding));
             if (finding.code === 'IA-COMP-SCHEMA-MULTIPLE' && record !== undefined)
               for (const registration of registry.registrations.values())
-                if (registration.schema === record.name) blocked.add(registration.system);
+                if (registration.schema === record.name) block(registration.system, findingOf(finding));
           }
         }
       }
@@ -474,7 +545,21 @@ function views(
         for (const assessment of assessments)
           if (assessment.outcome !== 'pass') {
             observations.push(assessment);
-            exclude(node, assessment.findings[0]?.code ?? `${assessment.check} unavailable`);
+            // The record's own finding is the assessment's first error, else its first finding; an assessment left
+            // not-evaluated with none (compliance `assess` with `unavailable`) is IA-COMP-NOT-EVALUATED, as it reads.
+            const [first] = assessment.findings,
+              own = assessment.findings.find((f) => f.severity === 'error') ?? first;
+            exclude(
+              node,
+              first?.code ?? `${assessment.check} unavailable`,
+              findingOf(
+                own ?? {
+                  code: 'IA-COMP-NOT-EVALUATED',
+                  ...node.source,
+                  message: `${node.identity}: ${assessment.check} unavailable`,
+                },
+              ),
+            );
           }
       }
       for (const occurrence of graph.occurrences)
@@ -486,7 +571,19 @@ function views(
               d.line <= occurrence.node.source.endLine,
           );
           observations.push({ check: 'COMP-SCHEMA', scope: occurrence.node.identity, outcome: 'fail', findings });
-          exclude(occurrence.node, 'invalid graph dimensions');
+          // Graph refuses an occurrence for the dimension diagnostics of its own head, so the first is in its lines.
+          const [first] = findings;
+          exclude(
+            occurrence.node,
+            'invalid graph dimensions',
+            findingOf(
+              first ?? {
+                code: 'IA-GRAPH-DIMENSION-UNKNOWN',
+                ...occurrence.node.source,
+                message: 'invalid graph dimensions',
+              },
+            ),
+          );
         }
       if (before === excluded.size + blocked.size + blockedFolders.size) break;
     }
@@ -502,7 +599,7 @@ function views(
       admission: observations,
       ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
     });
-    const occurrence = (record: CompiledRecord, cause: UnadmittedRecord['cause']): UnadmittedRecord => ({
+    const occurrence = (record: CompiledRecord, finding: UnadmittedFinding): UnadmittedRecord => ({
       identity: record.identity,
       word: record.discriminator,
       name: record.name,
@@ -510,14 +607,23 @@ function views(
       path: record.source.path,
       line: record.source.line,
       endLine: record.source.endLine,
-      cause,
+      finding,
     });
+    /** An occurrence's own IA-GRAPH-IDENTITY-TIE, which graph reports at each tied occurrence's header. */
+    const tie = (node: CompiledRecord): UnadmittedFinding =>
+      findingOf(
+        graph.diagnostics.find(
+          (d) => d.code === 'IA-GRAPH-IDENTITY-TIE' && d.path === node.source.path && d.line === node.source.line,
+        ) ?? { code: 'IA-GRAPH-IDENTITY-TIE', ...node.source, message: `${node.identity} ties` },
+      );
     const unadmitted: readonly UnadmittedRecord[] = [
-      ...[...excludedRecords.values()].map((record) => occurrence(record, 'refused')),
-      ...graph.occurrences.filter((o) => o.status === 'tied').map((o) => occurrence(o.node, 'tied')),
+      ...[...excludedRecords.values()].map(({ record, finding }) => occurrence(record, finding)),
+      ...graph.occurrences.filter((o) => o.status === 'tied').map((o) => occurrence(o.node, tie(o.node))),
       ...context.sources
         .filter((s) => context.errorPaths.has(s.ast.path) || duplicatePaths.has(s.ast.path))
-        .flatMap((s) => refusedWhole(s, texts.get(s.ast.path) ?? '', context.compiled, registry)),
+        .flatMap((s) =>
+          refusedWhole(s, texts.get(s.ast.path) ?? '', context.compiled, registry, fileErrors(s.ast.path)),
+        ),
     ];
     return Object.freeze({
       graph,
