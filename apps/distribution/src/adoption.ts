@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
-import { closeSync, openSync, unlinkSync } from 'node:fs';
+import { closeSync, lstatSync, openSync, readdirSync, unlinkSync } from 'node:fs';
 import { adoptedBindings, open, readInputs } from '@inventarch/db';
 import type { AdoptedSource } from '@inventarch/db';
 import { parse } from '@inventarch/language';
 import { packageId } from '@inventarch/db/distribution';
 import { bytes, contained, createFile, fail, replace, workspace } from './files.js';
 import { workspaceFiles, workspaceRevision } from './registry-collections.js';
-import type { WorkspaceRelease } from './registry-collections.js';
+import type { WorkspaceFile, WorkspaceRelease } from './registry-collections.js';
 
 export interface AdoptionPlan {
   readonly root: string;
@@ -24,6 +24,48 @@ export function adoptionId(id: string): string {
   return `registry-${createHash('sha256').update(id).digest('hex').slice(0, 40)}`;
 }
 const MANIFEST = '.ia/workspace.json';
+/** Validate the destination itself: unpublished mount bytes are outside the workspace input fingerprint. */
+function verifyAdoptionTree(root: string, tree: string, files: readonly WorkspaceFile[], complete: boolean): void {
+  const expected = new Map(files.map((file) => [file.path, Buffer.from(file.text)]));
+  const directories = new Set<string>();
+  for (const path of expected.keys()) {
+    const parts = path.split('/');
+    for (let end = 1; end < parts.length; end++) directories.add(parts.slice(0, end).join('/'));
+  }
+  const base = contained(root, tree),
+    stat = lstatSync(base, { throwIfNoEntry: false });
+  if (!stat) {
+    if (complete) fail('LOCAL-MODIFICATION', `Adoption tree disappeared: ${tree}`);
+    return;
+  }
+  if (!stat.isDirectory()) fail('LOCAL-MODIFICATION', `Adoption tree is not a directory: ${tree}`);
+  const found = new Set<string>();
+  const visit = (directory: string): void => {
+    const path = directory ? `${tree}/${directory}` : tree;
+    for (const entry of readdirSync(contained(root, path), { withFileTypes: true })) {
+      const relative = directory ? `${directory}/${entry.name}` : entry.name;
+      const child = `${tree}/${relative}`;
+      if (entry.isDirectory() && directories.has(relative)) visit(relative);
+      else {
+        const content = expected.get(relative);
+        if (!entry.isFile() || !content) fail('LOCAL-MODIFICATION', `Unlisted adoption entry: ${child}`);
+        if (!bytes(root, child, 1024 * 1024)?.equals(content))
+          fail('LOCAL-MODIFICATION', `Adopted file differs: ${child}`);
+        found.add(relative);
+      }
+    }
+  };
+  visit('');
+  if (complete) {
+    if (found.size !== expected.size) fail('LOCAL-MODIFICATION', `Adoption tree is incomplete: ${tree}`);
+    // Use the same physical discovery as workspace bindings, including its directory exclusions and path spelling.
+    const native = readInputs(base, { adopted: [], candidateInstallation: null })
+      .sources.filter((source) => !source.path.startsWith('.ia/src/floor/'))
+      .map(({ path, text }) => ({ path, text }));
+    if (workspaceRevision(native) !== workspaceRevision(files))
+      fail('INTEGRITY-MISMATCH', `Adoption tree does not capture the selected native source bytes: ${tree}`);
+  }
+}
 export function planAdoption(
   directory: string,
   id: string,
@@ -37,6 +79,7 @@ export function planAdoption(
   const bindings = adoptedBindings(root),
     bindingId = adoptionId(id),
     tree = `.ia/open/${bindingId}/${release.revision}`;
+  verifyAdoptionTree(root, tree, files, false);
   const existing = bindings.find((binding) => binding.id === bindingId);
   if (existing && (existing.revision !== release.revision || existing.placement !== 'open'))
     fail(
@@ -131,6 +174,7 @@ export function applyAdoption(plan: AdoptionPlan): void {
       (bytes(plan.root, MANIFEST, 65536)?.toString('utf8') ?? null) !== plan.manifest
     )
       fail('CONFLICT', 'Workspace changed after adoption was planned');
+    verifyAdoptionTree(plan.root, plan.tree, plan.release.files, false);
     for (const file of plan.release.files) {
       const path = `${plan.tree}/${file.path}`,
         content = Buffer.from(file.text),
@@ -143,6 +187,7 @@ export function applyAdoption(plan: AdoptionPlan): void {
       (bytes(plan.root, MANIFEST, 65536)?.toString('utf8') ?? null) !== plan.manifest
     )
       fail('CONFLICT', 'Workspace changed while adoption files were written');
+    verifyAdoptionTree(plan.root, plan.tree, plan.release.files, true);
     if (plan.authored) {
       if (bytes(plan.root, plan.authored.path, 1024 * 1024)?.toString('utf8') !== plan.authored.before)
         fail('CONFLICT', 'Workspace declaration changed after adoption was planned');

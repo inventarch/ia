@@ -62,7 +62,8 @@ export function workspaceFiles(value: unknown): readonly WorkspaceFile[] {
       const path = row['path'],
         text = row['text'];
       portable(path);
-      const native = path.startsWith('.ia/src/') && !path.startsWith('.ia/src/floor/') && path.endsWith('.ia');
+      const native =
+        path.startsWith('.ia/src/') && !path.toLowerCase().startsWith('.ia/src/floor/') && path.endsWith('.ia');
       const document = !path.startsWith('.') && /\.(?:md|txt)$/.test(path);
       if ((!native && !document) || seen.has(path.toLowerCase()) || Buffer.from(text).toString('utf8') !== text)
         fail('INPUT-INVALID', 'Workspace files must be distinct native sources or portable text documentation');
@@ -71,6 +72,14 @@ export function workspaceFiles(value: unknown): readonly WorkspaceFile[] {
       if (bytes > 1024 * 1024 || (size += bytes) > 3 * 1024 * 1024)
         fail('LIMIT-EXCEEDED', 'Workspace source content exceeds its byte limit');
       if (native) {
+        // These directory names are excluded at every depth by the physical DB source reader.
+        if (
+          path
+            .split('/')
+            .slice(2, -1)
+            .some((part) => ['node_modules', 'dist', '.git'].includes(part.toLowerCase()))
+        )
+          fail('INPUT-INVALID', `Native source directory is excluded from capture: ${path}`);
         const parsed = parse(text, path);
         if (parsed.diagnostics.length) fail('INPUT-INVALID', `Workspace source does not parse: ${path}`);
         const inspect = (records: typeof parsed.ast.records): void => {

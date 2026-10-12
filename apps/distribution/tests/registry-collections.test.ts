@@ -8,7 +8,7 @@ import { openRegistry, registryBudget } from '../src/registry-source.js';
 import { planAdoption, applyAdoption } from '../src/adoption.js';
 import * as fileOperations from '../src/files.js';
 import { snapshotFixture } from './snapshot-fixture.js';
-import { adoptedBindings } from '@inventarch/db';
+import { adoptedBindings, readInputs } from '@inventarch/db';
 
 const roots: string[] = [];
 const temporary = () => {
@@ -164,3 +164,118 @@ it('hashes native source order canonically and does not incorporate documentatio
   expect(workspaceRevision([last, first])).toBe(workspaceRevision([first, last]));
   expect(workspaceRevision([first, { path: 'README.md', text: 'Documentation' }])).toBe(workspaceRevision([first]));
 });
+
+function adoptionFixture() {
+  const fixture = snapshotFixture(),
+    root = fixture.target();
+  const sources = fixture.input.sources
+    .filter((source) => !source.path.startsWith('.ia/src/floor/'))
+    .map(({ path, text }) => ({ path, text }));
+  for (const source of sources) fixture.put(root, `vendor/public/${source.path}`, source.text);
+  fixture.put(
+    root,
+    '.ia/workspace.json',
+    JSON.stringify({
+      version: 1,
+      adopted: [{ id: 'public', path: 'vendor/public', revision: workspaceRevision(sources) }],
+    }),
+  );
+  fixture.put(
+    root,
+    '.ia/src/workspace.ia',
+    '#! ia 1.0\n@workspace fixture\n  meaning\n    says "An adoption fixture"\n    answers "Which workspace?"\n  composition\n    systems []\n    sources [".ia/src @authored"]\n',
+  );
+  return { ...fixture, root };
+}
+
+it.each(['.ia/src/unlisted.ia', 'notes.md', 'unlisted/owner.txt'])(
+  'refuses an unlisted destination entry %s without publishing or deleting owner bytes',
+  (extra) => {
+    const fixture = adoptionFixture();
+    try {
+      const release = workspace.releases[0]!;
+      const plan = planAdoption(fixture.root, workspace.id, release);
+      const declaration = readFileSync(join(fixture.root, plan.authored!.path));
+      const manifest = readFileSync(join(fixture.root, '.ia/workspace.json'));
+      const owner = `${plan.tree}/${extra}`;
+      fixture.put(fixture.root, owner, '#! ia 1.0\n# owner bytes\n');
+      const before = readInputs(fixture.root).fingerprint;
+      expect(() => planAdoption(fixture.root, workspace.id, release)).toThrow(/Unlisted adoption entry/);
+      expect(() => applyAdoption(plan)).toThrow(/Unlisted adoption entry/);
+      expect(readInputs(fixture.root).fingerprint).toBe(before);
+      expect(readFileSync(join(fixture.root, plan.authored!.path))).toEqual(declaration);
+      expect(readFileSync(join(fixture.root, '.ia/workspace.json'))).toEqual(manifest);
+      expect(readFileSync(join(fixture.root, owner), 'utf8')).toBe('#! ia 1.0\n# owner bytes\n');
+      expect(adoptedBindings(fixture.root)).toHaveLength(1);
+      expect(existsSync(join(fixture.root, plan.tree, '.ia/src/work.ia'))).toBe(false);
+      expect(existsSync(join(fixture.root, '.ia/adoption.lock'))).toBe(false);
+    } finally {
+      fixture.close();
+    }
+  },
+);
+
+it.each(['unlisted', 'modified'])('rechecks %s destination bytes written during apply before publishing', (kind) => {
+  const fixture = adoptionFixture();
+  try {
+    const plan = planAdoption(fixture.root, workspace.id, workspace.releases[0]!);
+    const declaration = readFileSync(join(fixture.root, plan.authored!.path));
+    const manifest = readFileSync(join(fixture.root, '.ia/workspace.json'));
+    const target = `${plan.tree}/.ia/src/${kind === 'unlisted' ? 'unlisted' : 'work'}.ia`;
+    const create = fileOperations.createFile;
+    const injected = vi.spyOn(fileOperations, 'createFile').mockImplementation((root, path, content, mode) => {
+      create(root, path, content, mode);
+      fixture.put(root, target, '#! ia 1.0\n# concurrent owner bytes\n');
+    });
+    try {
+      expect(() => applyAdoption(plan)).toThrow(/Unlisted adoption entry|Adopted file differs/);
+    } finally {
+      injected.mockRestore();
+    }
+    expect(readFileSync(join(fixture.root, target), 'utf8')).toBe('#! ia 1.0\n# concurrent owner bytes\n');
+    expect(readFileSync(join(fixture.root, plan.authored!.path))).toEqual(declaration);
+    expect(readFileSync(join(fixture.root, '.ia/workspace.json'))).toEqual(manifest);
+    expect(adoptedBindings(fixture.root)).toHaveLength(1);
+    expect(() => readInputs(fixture.root)).not.toThrow();
+    expect(existsSync(join(fixture.root, '.ia/adoption.lock'))).toBe(false);
+  } finally {
+    fixture.close();
+  }
+});
+
+it('resumes an exact partial tree and retries a complete pin with readable native membership', () => {
+  const fixture = adoptionFixture();
+  try {
+    const selected = [files[0]!, { path: 'docs/README.md', text: 'Selected documentation' }];
+    const release = { ...workspace.releases[0]!, files: selected, revision: workspaceRevision(selected) };
+    const plan = planAdoption(fixture.root, workspace.id, release);
+    fixture.put(fixture.root, `${plan.tree}/${selected[0]!.path}`, selected[0]!.text);
+    applyAdoption(plan);
+    const first = readInputs(fixture.root);
+    expect(first.sources.find((source) => source.path === `${plan.tree}/${selected[0]!.path}`)?.text).toBe(
+      selected[0]!.text,
+    );
+    expect(readFileSync(join(fixture.root, plan.tree, 'docs/README.md'), 'utf8')).toBe(selected[1]!.text);
+    applyAdoption(planAdoption(fixture.root, workspace.id, release));
+    expect(readInputs(fixture.root).fingerprint).toBe(first.fingerprint);
+  } finally {
+    fixture.close();
+  }
+});
+
+it.each(['dist', 'nested/DiSt', 'node_modules', 'nested/NODE_MODULES', '.git', 'nested/.GiT', 'FLOOR'])(
+  'rejects registry native paths hidden from physical capture: %s',
+  (directory) => {
+    const selected = [{ path: `.ia/src/${directory}/reference.ia`, text: '#! ia 1.0\n' }];
+    expect(() =>
+      decodeCollectionIndex(
+        JSON.stringify({
+          ...workspace,
+          releases: [{ ...workspace.releases[0]!, files: selected, revision: workspaceRevision(selected) }],
+        }),
+        'workspace',
+        workspace.id,
+      ),
+    ).toThrow(/excluded from capture|native sources/);
+  },
+);
