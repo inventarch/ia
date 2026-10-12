@@ -104,7 +104,7 @@ const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
  * A line that opens with `@<word>`, a byte-order mark and indentation aside: the header syntax, read from text the parse
  * could not read.
  */
-const HEADER = /^﻿?[ \t]*@([A-Za-z][A-Za-z0-9-]*)(?=[ \t\r]|$)/;
+const HEADER = /^\uFEFF?[ \t]*@([A-Za-z][A-Za-z0-9-]*)(?=[ \t\r]|$)/;
 /**
  * The `source` occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested
  * ones included, with the identity its compile gives that header's record or, for one its compile refused, the identity

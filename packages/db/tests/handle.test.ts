@@ -146,6 +146,8 @@ it('lists every record occurrence the root view does not admit, at the band of i
   );
   // (c) a header the parse cannot read at all: the captured text still shows it.
   put(root, '.ia/src/header.ia', '#! ia 1.0\n\n@mandate Bad_Name!\n  meaning\n    says "x"\n');
+  // (c) no pragma, so the parse reads no record: a header after a byte-order mark is still seen.
+  put(root, '.ia/src/bom.ia', '\uFEFF@mandate bommed\n  meaning\n    says "x"\n');
   // (c) a file refused whole for a requirement id another file declares too.
   put(
     root,
@@ -206,6 +208,9 @@ it('lists every record occurrence the root view does not admit, at the band of i
       line: 13,
       cause: 'source',
     }),
+  ]);
+  expect(at('.ia/src/bom.ia')).toEqual([
+    { word: 'mandate', band: 100, path: '.ia/src/bom.ia', line: 1, endLine: 1, cause: 'source' },
   ]);
   expect(at('.ia/src/header.ia')).toEqual([
     { word: 'mandate', band: 100, path: '.ia/src/header.ia', line: 3, endLine: 3, cause: 'source' },
