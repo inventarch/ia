@@ -17,6 +17,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -25,7 +26,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { open, readInputs } from '@inventarch/db';
-import { Door, HOOK_CODES } from '@inventarch/runtime';
+import { Door, HOOK_CODES, admissionReport } from '@inventarch/runtime';
 import { digestValue } from '@inventarch/runtime/authoring';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { evaluateHook, evaluateMandateHook, printable, runHook, streamed } from '../src/main.js';
@@ -33,6 +34,31 @@ import type { HookOutput } from '../src/main.js';
 
 // Every decision opens the disk-backed workspace.
 vi.setConfig({ testTimeout: 60_000 });
+/**
+ * Review D-R4: a seam over runtime's openDatabase, so a test can make the records unreadable after the database opens
+ * (its scope cannot be resolved), which the guard reports as records that cannot be read. Off, it is openDatabase.
+ */
+const breaking = vi.hoisted(() => ({ scope: false }));
+vi.mock('@inventarch/runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@inventarch/runtime')>();
+  return {
+    ...actual,
+    openDatabase: (...args: Parameters<typeof actual.openDatabase>) => {
+      const db = actual.openDatabase(...args);
+      if (!breaking.scope) return db;
+      return new Proxy(db, {
+        get: (target, key) => {
+          if (key === 'resolveScope')
+            return () => {
+              throw new Error('the scope cannot be resolved');
+            };
+          const value: unknown = Reflect.get(target, key, target);
+          return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+        },
+      });
+    },
+  };
+});
 
 const repository = resolve(import.meta.dirname, '../../..'),
   NATIVE = resolve(repository, 'examples/conformance/native'),
@@ -212,11 +238,15 @@ it('refuses the main session with no default actor or an ambiguous one wherever 
  * rather than copied under `.ia/src`: its agents are then installed `@agent` records, and only the fixture's sources,
  * with `overlay` applied, are authored.
  */
-function installedBase(overlay: Readonly<Record<string, string>> = {}): string {
+function installedBase(
+  overlay: Readonly<Record<string, string>> = {},
+  vendored: Readonly<Record<string, string>> = {},
+): string {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-mandate-guard-')),
     vendor = 'vendor/foundation';
   roots.push(root);
   cpSync(NATIVE, resolve(root, vendor, '.ia/src'), { recursive: true });
+  for (const [path, text] of Object.entries(vendored)) put(resolve(root, vendor), path, text);
   const pinned = readInputs(resolve(root, vendor), { adopted: [] })
     .sources.filter((source) => !source.path.startsWith('.ia/src/floor/'))
     .map(({ path, text }) => ({ path, text }));
@@ -433,9 +463,11 @@ it('refuses malformed input, unsafe paths and an unreadable declaration or manda
   expect(refused(check(stop, 'src/app.ts'))).toBe('IA-HOOK-DECLARATION-UNAVAILABLE');
   const empty = workspace({ '.ia/src/hooks.ia': hooks(['["docs/**", "restricted/**"]', '[]']) });
   expect(reason(check(empty, 'docs/guide.md'))).toContain('selects no path');
-  // A governing mandate whose authority cannot be read refuses the edit it governs, and only that edit.
-  const malformed = workspace({ '.ia/src/hooks.ia': hooks(['moves [Synthesis]', 'moves []']) });
+  // An admitted governing mandate whose authority the resolver cannot read (a child under authority.moves, which
+  // admission admits) refuses the edit it governs, naming its governance position, and only that edit.
+  const malformed = workspace({ '.ia/src/hooks.ia': hooks(['moves [Synthesis]', 'moves [Synthesis]\n      note x']) });
   expect(refused(check(malformed, 'docs/guide.md'))).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+  expect(reason(check(malformed, 'docs/guide.md'))).toContain(`Next: ${governance('docs-mandate')}`);
   expect(check(malformed, 'src/app.ts')).toEqual({});
 });
 
@@ -591,7 +623,7 @@ it('denies every selected edit while an authored @mandate fails admission, namin
       'moves [Bogus]\n    excluded-words [task]',
     ]),
   });
-  const report = `Next: ia report --root ${JSON.stringify(root)}`,
+  const report = `Next: ${admissionReport(root).command}`,
     lift = `"ia host claude --root ${JSON.stringify(root)} --remove --apply --yes"`;
   for (const [path, extra] of [
     ['docs/guide.md', {}],
@@ -614,7 +646,21 @@ it('denies every selected edit while an authored @mandate fails admission, namin
   // Paths the hook does not select are still not decided, broken mandate or not (C10).
   expect(check(root, 'src/app.ts')).toEqual({});
   expect(check(root, 'notes/todo.md', reviewer, 'Edit')).toEqual({});
-  // A mandate in a file admission refuses whole fails closed alike; one refused in the installed base never would.
+  // One refused in an installed base never governs, so it fails nothing closed (review D-N6).
+  const installed = installedBase(
+    {},
+    {
+      '.ia/src/vendored.ia': `#! ia 1.0\n${authorized('vendored', ['participant @agent agent-steward', 'moves [Bogus]'])}`,
+    },
+  );
+  const vendoredDb = open(installed, { cache: false });
+  try {
+    expect(vendoredDb.unadmitted.map((entry) => [entry.identity, entry.band])).toEqual([[mandate('vendored'), 90]]);
+  } finally {
+    vendoredDb.close();
+  }
+  expect(check(installed, 'docs/guide.md')).toEqual({});
+  // A mandate in a file admission refuses whole fails closed alike.
   const whole = workspace({
     '.ia/src/broken.ia': `#! ia 1.0\n${authorized('broken', ['participant @agent demo', 'moves [Observation]'])}   misindented\n`,
   });
@@ -640,7 +686,7 @@ it('denies every selected edit while a record an admitted @mandate depends on fa
   const hooksWithNotes = hooks(['"restricted/**"]', '"restricted/**", "notes/**"]']);
   const ops = `#! ia 1.0\n${authorized('ops-mandate', ['participant @agent ops', 'moves [Observation, Verification, Synthesis, Delegation, Execution]', 'scope [@workspace demo]'])}\n@agent ops\n  meaning\n    says "A second participant."\n    answers "Who is ops?"\n  governance\n    applies []\n`;
   const broken = (text: string, after: string): string => edited(text, [[after, `${after}  bogus\n    note x\n`]]);
-  const report = (root: string): string => `Next: ia report --root ${JSON.stringify(root)}`;
+  const report = (root: string): string => `Next: ${admissionReport(root).command}`;
   // Before: the observing default actor is refused under notes/.
   const intact = workspace({
     '.ia/src/workspace.ia': OBSERVING,
@@ -669,9 +715,13 @@ it('denies every selected edit while a record an admitted @mandate depends on fa
     expect(reason(denied), path).toContain(report(agent));
   }
   expect(check(agent, 'src/app.ts')).toEqual({});
-  // A registration whose hook is not admitted names the admission report too, since ia validate refuses there.
-  const absent = reason(check(agent, 'notes/x.md', {}, 'Write', 'hook-authoring-system/binding/hook/absent'));
-  expect(absent).toContain(`"ia report --root ${JSON.stringify(agent)}"`);
+  // A registration whose hook is not admitted fails closed at the dependency too, naming the admission report, since
+  // ia validate refuses there (review D-N1).
+  const absentHook = check(agent, 'notes/x.md', {}, 'Write', 'hook-authoring-system/binding/hook/absent');
+  expect(code(absentHook)).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+  const absent = reason(absentHook)!;
+  expect(absent).toContain('agent-system/binding/agent/demo (.ia/src/workspace.ia:12) failed admission');
+  expect(absent).toContain(`"${admissionReport(agent).command}"`);
   expect(absent).not.toContain('ia validate');
   // The workspace demo-mandate is scoped to fails admission: the mandate would govern nowhere.
   const scoped = workspace({
@@ -709,6 +759,91 @@ it('decides as before beside an unrelated refused @agent or a never-authored par
   expect(code(denied)).toBe('IA-HOOK-NOT-MANDATED');
   expect(reason(denied)).toContain(`${mandate('demo-mandate')} allows Observation; author needs Synthesis`);
   expect(check(root, 'docs/guide.md')).toEqual({});
+});
+
+it('never prints a shell-active character of the root in the admission report it names (review D-R1, D-N2)', () => {
+  const safe = `caf${String.fromCharCode(0xe9)}`;
+  for (const name of ['amp&er', 'par(en', 'dol$lar', 'back`tick', 'sp ace', safe]) {
+    const parent = mkdtempSync(resolve(tmpdir(), 'ia-mandate-guard-'));
+    roots.push(parent);
+    // Staged under an ASCII name and renamed: Node's cpSync spells a non-ASCII destination wrongly on win32.
+    const staging = resolve(parent, 'staging'),
+      root = resolve(parent, name);
+    cpSync(NATIVE, resolve(staging, '.ia/src'), { recursive: true });
+    cpSync(FIXTURE, resolve(staging, '.ia/src'), { recursive: true });
+    renameSync(staging, root);
+    put(
+      root,
+      '.ia/src/workspace.ia',
+      starter(['moves [Observation, Verification, Synthesis, Delegation, Execution]', 'moves [Bogus]']),
+    );
+    const denied = check(root, 'docs/guide.md');
+    expect(code(denied), name).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+    const { command, fromRoot } = admissionReport(root);
+    if (name !== safe) expect(fromRoot, name).toBe(true);
+    if (!fromRoot) expect(command, name).toBe(`ia report --root ${root.replaceAll('\\', '/')}`);
+    expect(reason(denied), name).toContain(`Next: ${command}${fromRoot ? ', run from the workspace root' : ''}`);
+    expect(reason(denied), name).not.toContain('ia report --root "');
+    // The printed next runs: the version 1 report route, at the printed root, or from the workspace root it opens.
+    const door = new Door(fromRoot ? root : command.slice('ia report --root '.length), {
+      cache: false,
+      allowReport: true,
+      protocol: 1,
+    });
+    try {
+      const shown = door.request({ operation: 'report', params: {} });
+      expect(shown.ok && (shown.result as { findings: unknown[] }).findings, name).toContainEqual(
+        expect.objectContaining({ code: 'IA-COMP-FIELD-VALUE', path: '.ia/src/workspace.ia', line: 27 }),
+      );
+    } finally {
+      door.close();
+    }
+  }
+});
+
+it('names the admission report, not a position, for a refused authored mandate shadowing an admitted installed one (review D-R2)', () => {
+  const root = installedBase({
+    '.ia/src/shadow.ia': `#! ia 1.0\n${authorized('sample-mandate', ['participant @agent demo', 'moves [Bogus]'])}`,
+  });
+  const db = open(root, { cache: false });
+  try {
+    expect(db.records().find((record) => record.identity === mandate('sample-mandate'))?.band).toBe(90);
+  } finally {
+    db.close();
+  }
+  const denied = check(root, 'docs/guide.md');
+  expect(code(denied)).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+  expect(reason(denied)).toContain(
+    `${mandate('sample-mandate')} (.ia/src/shadow.ia:3) failed admission: IA-COMP-FIELD-VALUE`,
+  );
+  expect(reason(denied)).toContain(`Next: ${admissionReport(root).command}`);
+  expect(reason(denied)).not.toContain(`Next: ${governance('sample-mandate')}`);
+});
+
+it('names what runs when the records cannot be read: the report while a mandate is refused, else ia validate (review D-R4)', () => {
+  const refused = workspace({
+    '.ia/src/workspace.ia': starter([
+      'moves [Observation, Verification, Synthesis, Delegation, Execution]',
+      'moves [Bogus]',
+    ]),
+  });
+  const stray = workspace({
+    '.ia/src/stray.ia':
+      '#! ia 1.0\n\n@agent stray\n  meaning\n    says "x"\n    answers "y"\n  governance\n    applies []\n  bogus\n    note x\n',
+  });
+  breaking.scope = true;
+  try {
+    const mandateCase = check(refused, 'docs/guide.md');
+    expect(code(mandateCase)).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+    expect(reason(mandateCase)).toContain("The workspace's records cannot be read: the scope cannot be resolved");
+    expect(reason(mandateCase)).toContain(`"${admissionReport(refused).command}"`);
+    expect(reason(mandateCase)).not.toContain('ia validate');
+    const plain = reason(check(stray, 'docs/guide.md'));
+    expect(plain).toContain("The workspace's records cannot be read: the scope cannot be resolved");
+    expect(plain).toContain(`"ia validate --root ${JSON.stringify(stray)}"`);
+  } finally {
+    breaking.scope = false;
+  }
 });
 
 it('keeps naming the governance position for an admitted mandate whose authority the resolver cannot read', () => {
@@ -757,9 +892,11 @@ it('names only the removal when the hook record is gone and the workspace does n
   const root = workspace({ '.ia/src/hooks.ia': hooks(['@hook note-edits', '@hook note-edits\n  bogus\nzzz']) });
   ownership(root, [[HOOK, ['docs/**', '.ia/src/**']]]);
   const refused = check(root, '.ia/src/hooks.ia', {}, 'Edit');
-  expect(code(refused)).toBe('IA-HOOK-DECLARATION-UNAVAILABLE');
+  // Review D-N1: the hook shares its refused file with the two mandates, so the edit fails closed at the first of them.
+  expect(code(refused)).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+  expect(reason(refused)).toContain(`${mandate('docs-mandate')} (.ia/src/hooks.ia:15) failed admission`);
   expect(reason(refused)).toContain(`"ia host claude --root ${JSON.stringify(root)} --remove --apply --yes"`);
-  expect(reason(refused)).toContain(`"ia report --root ${JSON.stringify(root)}"`);
+  expect(reason(refused)).toContain(`"${admissionReport(root).command}"`);
   expect(reason(refused)).not.toContain('ia validate');
   expect(reason(refused)).not.toContain(`"ia host claude --root ${JSON.stringify(root)} --apply --yes"`);
   expect(check(root, 'src/app.ts', {}, 'Edit')).toEqual({});
