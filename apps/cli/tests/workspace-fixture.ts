@@ -145,18 +145,29 @@ function refusalNext(result: Result): string | null {
 }
 
 /**
- * The version 1 machine routes run as the binary runs them (`runCli`), so a next action naming one, such as the
- * `ia report --root <root>` a refused `@mandate`'s refusal names (lane D), runs here as it would from a shell. stdin is
- * never read: a route given `--params -` reads an empty object.
+ * The version 1 machine routes run as the binary runs them (`runCli`), from the invocation's cwd, so a next action naming
+ * one, such as the `ia report --root <root>` a refused `@mandate`'s refusal names (lane D), runs here as it would from
+ * a shell there: a relative `--root` is read against that cwd, and without one the route opens the cwd. stdin is never
+ * read: a route given `--params -` reads an empty object.
  */
-const legacy = (argv: readonly string[]) => runCli(argv, () => '{}');
+const legacyFrom =
+  (cwd: string) =>
+  (argv: readonly string[]): ReturnType<typeof runCli> => {
+    const at = argv.indexOf('--root');
+    const rooted =
+      at === -1
+        ? [...argv, '--root', cwd]
+        : argv.map((token, index) => (index === at + 1 ? resolve(cwd, token) : token));
+    return runCli(rooted, () => '{}');
+  };
 const extensions: readonly Extension[] = [];
 /**
  * One in-process invocation. Every refusal any suite provokes is held to design row 27 here, so a next action a verb
  * computes at run time is checked wherever a test reaches it, not only where a test asserts its text.
  */
 export async function run(argv: readonly string[], options: HostOptions = {}): Promise<Result> {
-  const result = await dispatch(argv, makeHost(options), legacy, extensions);
+  const host = makeHost(options),
+    result = await dispatch(argv, host, legacyFrom(host.cwd), extensions);
   const next = refusalNext(result),
     defect = next === null ? null : nextDefect(next);
   if (defect !== null)

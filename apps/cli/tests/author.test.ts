@@ -18,10 +18,11 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { open } from '@inventarch/db';
+import { open, readInputs } from '@inventarch/db';
+import { digestValue } from '@inventarch/runtime/authoring';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Result } from '../src/consumer.js';
-import { cleanup, cli, nextArgv, run, scratch } from './workspace-fixture.js';
+import { cleanup, cli, commandsIn, nextArgv, repository, run, scratch } from './workspace-fixture.js';
 
 vi.setConfig({ testTimeout: 240_000, hookTimeout: 240_000 });
 afterAll(cleanup);
@@ -1199,5 +1200,88 @@ describe('a @mandate that fails admission (lane D, operator ruling 2026-10-12)',
     const validated = await ia(root, ['validate']);
     expect(validated.exitCode).toBe(1);
     expect(body(validated)).toMatchObject({ status: 'refused' });
+  });
+  it('names an admission report that runs from the cwd alone, printing no character of the root (review D-R1, D-N2, D-N6)', async () => {
+    for (const name of ['amp&er', 'par(en', 'dol$lar', 'back`tick', 'sp ace', `caf${String.fromCharCode(0xe9)}`]) {
+      // Staged under an ASCII name and renamed: Node's cpSync spells a non-ASCII destination wrongly on win32.
+      const parent = scratch('author-roots'),
+        staging = resolve(parent, 'staging'),
+        root = resolve(parent, name);
+      cpSync(base, staging, { recursive: true });
+      probe(staging);
+      mkdirSync(resolve(staging, 'docs'), { recursive: true });
+      renameSync(staging, root);
+      // Without --root the workspace is found from the cwd, and the report is named relative to it, `.` or `..`.
+      for (const [cwd, relative] of [
+        [root, '.'],
+        [resolve(root, 'docs'), '..'],
+      ] as const)
+        for (const argv of [['preview', 'task'], ['validate']]) {
+          const label = `${name} ${argv[0]} from ${relative}`;
+          const refusal = body(await run([...argv, '--json'], { cwd, env: HOMES }));
+          expect(refusal, label).toMatchObject({
+            code: 'IA-RUNTIME-REQUEST-INVALID',
+            where: { path: '.ia/src/workspace.ia', line: 19, identity: mandate('demo-mandate') },
+          });
+          expect(commandsIn(refusal.next!), label).toEqual([`ia report --root ${relative}`]);
+          const followed = await run(nextArgv(refusal.next!), { cwd, env: HOMES });
+          expect(followed.exitCode, label).toBe(1);
+          expect(followed.stderr, label).toBe('');
+          expect(
+            (JSON.parse(followed.stdout) as { result: { findings: Record<string, unknown>[] } }).result.findings,
+            label,
+          ).toContainEqual(
+            expect.objectContaining({ code: 'IA-COMP-FIELD-VALUE', path: '.ia/src/workspace.ia', line: 27 }),
+          );
+        }
+      // With --root, the invocation's own value is repeated as every next command repeats it (review C2-R8), and runs.
+      const given = body(await run(['validate', '--root', root, '--json'], { env: HOMES }));
+      expect(nextArgv(given.next!), name).toEqual(['report', '--root', root]);
+      expect((await run(nextArgv(given.next!), { env: HOMES })).exitCode, name).toBe(1);
+    }
+  });
+  it('names the admission report and a hand edit for a refused authored mandate shadowing an admitted installed one (review D-R2)', async () => {
+    // The installed sample-mandate is admitted at band 90; an authored override of it fails admission.
+    const root = resolve(scratch('author-shadow'), 'shadow'),
+      vendor = 'vendor/foundation';
+    cpSync(resolve(repository, 'examples/conformance/native'), resolve(root, vendor, '.ia/src'), { recursive: true });
+    const pinned = readInputs(resolve(root, vendor), { adopted: [] })
+      .sources.filter((source) => !source.path.startsWith('.ia/src/floor/'))
+      .map(({ path, text }) => ({ path, text }));
+    mkdirSync(resolve(root, '.ia/src'), { recursive: true });
+    writeFileSync(
+      resolve(root, '.ia/workspace.json'),
+      JSON.stringify({ version: 1, adopted: [{ id: 'foundation', path: vendor, revision: digestValue(pinned) }] }),
+    );
+    writeFileSync(
+      resolve(root, '.ia/src/workspace.ia'),
+      readFileSync(resolve(repository, 'packages/runtime/tests/fixtures/packet/workspace.ia'), 'utf8'),
+    );
+    writeFileSync(
+      resolve(root, '.ia/src/override.ia'),
+      readFileSync(
+        resolve(repository, 'examples/conformance/native/systems/agent-system/records/sample-mandate.ia'),
+        'utf8',
+      ).replace('moves [Observation, Verification]', 'moves [Bogus]'),
+    );
+    const db = open(root, { cache: false });
+    try {
+      expect(db.get(mandate('sample-mandate'))?.band).toBe(90);
+    } finally {
+      db.close();
+    }
+    for (const argv of [['validate'], ['preview', 'task']]) {
+      const refusal = await refused(root, argv, 'IA-RUNTIME-REQUEST-INVALID');
+      expect(refusal['where'], argv[0]).toEqual({
+        path: '.ia/src/override.ia',
+        line: 3,
+        identity: mandate('sample-mandate'),
+      });
+      expect(refusal['message'], argv[0]).toContain('correct it by hand in .ia/src/override.ia');
+      expect(nextArgv(refusal['next'] as string), argv[0]).toEqual(['report', '--root', root]);
+      const report = await run(nextArgv(refusal['next'] as string), { env: HOMES });
+      expect(report.stdout, argv[0]).toContain('override.ia');
+      expect(report.stdout, argv[0]).toContain('Bogus');
+    }
   });
 });

@@ -25,7 +25,16 @@
  */
 import type { ReadHandle } from '@inventarch/db';
 import { pathKey } from '@inventarch/db';
-import { defaultActor, governingMandates, MODE_MOVES, profileRefusal, RuntimeError } from '@inventarch/runtime';
+import { realpathSync } from 'node:fs';
+import { relative } from 'node:path';
+import {
+  defaultActor,
+  governingMandates,
+  isAdmissionRefusal,
+  MODE_MOVES,
+  profileRefusal,
+  RuntimeError,
+} from '@inventarch/runtime';
 import type { GoverningMandate, Mode, ProfileVerdict } from '@inventarch/runtime';
 import type { Context } from './consumer.js';
 import { findCommand } from './commands.js';
@@ -88,7 +97,7 @@ export interface ProfileRequest {
   /** A scope token of the whole workspace; it need not be clean. */
   readonly within: string;
   /** The invocation, so a next command carries what it supplied (design row 27). */
-  readonly context: Pick<Context, 'command' | 'args' | 'gate'>;
+  readonly context: Pick<Context, 'command' | 'args' | 'gate'> & { readonly host?: Pick<Context['host'], 'cwd'> };
   readonly mode: Mode;
   /** The words the command authors or previews: excluded words apply to them. */
   readonly words?: readonly string[];
@@ -119,45 +128,43 @@ function namedAgent(reader: ReadHandle, within: string, spelled: string): string
 }
 /** The seat a runtime mandate refusal's next command (`ia position --seat <seat> --shape governance`) names. */
 const seatOf = (next: string): string | undefined => /--seat (\S+)/.exec(next)?.[1];
-/** Whether `identity` is an admitted `@mandate` of the scope; a read that refuses is no admission. */
-function admittedMandate(reader: ReadHandle, within: string, identity: string): boolean {
-  try {
-    return reader.get(identity, { within })?.discriminator === 'mandate';
-  } catch {
-    return false;
-  }
-}
 
 /**
  * A mandate the runtime cannot read refuses the command rather than failing it (IA-RUNTIME-REQUEST-INVALID, exit 1),
- * located where the runtime located it (`RuntimeError.where`; no message is parsed for it):
- * - An authored `@mandate` that failed admission (lane D, operator ruling 2026-10-12): every gated command fails closed,
- *   workspace-wide, since the record's scope, covers and participant cannot be trusted. No in-tool repair exists, as
- *   `ia preview` and `ia author` cannot target a record admission refused, so the message says a hand edit corrects it.
- *   The next command is the admission report, the version 1 machine route `ia report`, which no mandate gates and whose
- *   findings show the refused mandate's: `ia validate` is gated, and a position cannot seat at a record admission
- *   refused. It always carries `--root`, the invocation's or else the root the session opened, because that route opens
- *   its `--root` or the working directory, never an ancestor.
+ * classified by its cause, which the runtime marks (`isAdmissionRefusal`; review D-R2), and located where the runtime
+ * located it (`RuntimeError.where`); no message is parsed for either:
+ * - A record a mandate resolution reads failed admission (lane D, operator ruling 2026-10-12): an authored `@mandate`,
+ *   or the `@agent` or `@workspace` an admitted one depends on. Every gated command fails closed, workspace-wide. No
+ *   in-tool repair exists, as `ia preview` and `ia author` cannot target a record admission refused, so the message says
+ *   a hand edit corrects it. The next command is the admission report, the version 1 machine route `ia report`, which no
+ *   mandate gates and whose findings show the refused record's: `ia validate` is gated, and a position cannot seat at a
+ *   refused record (or would seat at an admitted one of another band that shares its identity). The route opens its
+ *   `--root` or the working directory, never an ancestor, so the command carries the invocation's `--root` as every next
+ *   command does (review C2-R8), or else `reportRoot`'s, inert by construction (review D-R1).
  * - An admitted mandate whose authority the resolver cannot read (a child under one of its `authority` fields, which
  *   admission admits): its governance position, never gated, shows that authority.
  */
 function unreadable(
   error: RuntimeError,
   reader: ReadHandle,
-  within: string,
   workspace: string | undefined,
   rooted: string,
+  cwd?: string,
 ) {
   const message = error.message.replace(/^IA-RUNTIME-[A-Z-]+: /, ''),
     where = error.where;
-  if (where !== undefined && (where.identity === undefined || !admittedMandate(reader, within, where.identity))) {
-    const root = rooted === '' ? ` --root ${quote(printedRoot(reader.root))}` : rooted;
+  if (isAdmissionRefusal(error)) {
+    const root = rooted === '' ? reportRoot(reader.root, cwd) : rooted;
+    const run =
+      root === undefined
+        ? `Run "ia report" from the workspace root for the admission findings`
+        : `Run "ia report${root}" for the admission findings`;
     return new Refusal(
       error.code,
-      `The mandate profile cannot be read: ${message}; correct it by hand in ${where.path}, since ia preview and ia author cannot target a record admission refused`,
+      `The mandate profile cannot be read: ${message}; correct it by hand${where === undefined ? '' : ` in ${where.path}`}, since ia preview and ia author cannot target a record admission refused`,
       1,
-      where,
-      `Run "ia report${root}" for the admission findings, the refused @mandate's among them; correct its source by hand, then run this command again.`,
+      where ?? null,
+      `${run}, the refused record's among them; correct its source by hand, then run this command again.`,
     );
   }
   const seat = where?.identity ?? workspace;
@@ -172,10 +179,23 @@ function unreadable(
   );
 }
 /**
- * A root the session opened, as a printed command spells it: with forward slashes on win32, where both separators work,
- * so it is not a token `inertNext` withholds for its backslashes.
+ * Review D-R1: ` --root <root>` for the workspace an invocation without `--root` found from its working directory, spelled
+ * relative to that directory, so it is inert by construction: `.` or `..` segments only. Undefined where no such spelling
+ * exists (the cwd is unknown, or reaches the root only through another spelling of a path), and the command is then run
+ * from the workspace root without a path printed.
  */
-const printedRoot = (root: string): string => (process.platform === 'win32' ? root.replaceAll('\\', '/') : root);
+function reportRoot(root: string, cwd: string | undefined): string | undefined {
+  if (cwd === undefined) return undefined;
+  let from = cwd;
+  try {
+    from = realpathSync.native(cwd);
+  } catch {
+    // An unreadable cwd is compared as given.
+  }
+  const spelled = relative(from, root).replaceAll('\\', '/');
+  if (spelled === '') return ' --root .';
+  return /^\.\.(?:\/\.\.)*$/.test(spelled) ? ` --root ${spelled}` : undefined;
+}
 
 /** An `ia author` form's `--digest`: the target file's sha256 as 64 lowercase hex digits. */
 export const DIGEST = /^[0-9a-f]{64}$/;
@@ -322,7 +342,7 @@ export function requireProfile(request: ProfileRequest): Profile {
     });
   } catch (error) {
     if (error instanceof RuntimeError && error.code === 'IA-RUNTIME-REQUEST-INVALID')
-      throw unreadable(error, reader, within, workspace, rooted);
+      throw unreadable(error, reader, workspace, rooted, context.host?.cwd);
     throw error;
   }
 }
