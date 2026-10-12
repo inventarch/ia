@@ -245,10 +245,12 @@ const pause = (ms: number): void => {
  * Review finding D2-N3: rename the staged `temporary` over `path`, true once it is in place. On win32 a replacing rename
  * fails (EPERM, EACCES or EBUSY) while any other handle holds the target, as a concurrent validate does while it reads the
  * evidence it found, or while a concurrent writer's rename is in flight; there the writer retries, backing off from 10 to
- * 100 milliseconds, for up to two seconds. Between attempts it reads the target: one that now holds exactly these bytes
- * was published by a concurrent writer of the same revision (the writer is exact, so every writer of one revision writes
- * the same bytes), and there is nothing left to write, so the answer is false and the caller discards its copy. Any
- * other platform, any other error, or a target still held at the end is the error itself.
+ * 100 milliseconds, for up to two seconds. Between attempts it reads the target, and stops early only when it already
+ * holds exactly these bytes, byte for byte: then a concurrent writer of the same revision put them there and there is
+ * nothing left to write, so the answer is false and the caller discards its copy. That is rare: writers that each
+ * record an observation for the first time stamp their own times, so their bytes differ, and the retry then runs until
+ * its own rename lands, the last rename leaving one whole file. Any other platform, any other error, or a target still
+ * held at the end is the error itself.
  */
 function publish(root: string, temporary: string, path: string, bytes: Buffer): boolean {
   const deadline = Date.now() + HELD_MS;
