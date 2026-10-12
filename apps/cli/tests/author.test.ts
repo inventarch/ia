@@ -1241,16 +1241,19 @@ describe('a @mandate that fails admission (lane D, operator ruling 2026-10-12)',
     }
     // Review D2-R1: a cwd reached through a link inside the workspace keeps the link's spelling, and the CLI and db read
     // a relative --root lexically against it, so the next names a root that resolves there to the workspace: a junction
-    // (a directory symlink off win32) to a deeper folder, and a pnpm-style one under node_modules.
+    // (a directory symlink off win32) to a deeper folder, and a pnpm-style one under node_modules; and (review D2 recheck
+    // F5) one above the root, a link to the workspace itself that the cwd is spelled through.
     const linked = workspace(probe);
     mkdirSync(resolve(linked, 'a/b/c'), { recursive: true });
     mkdirSync(resolve(linked, 'packages/pkg'), { recursive: true });
     mkdirSync(resolve(linked, 'node_modules'), { recursive: true });
+    mkdirSync(resolve(linked, 'docs/deep'), { recursive: true });
     const kind = process.platform === 'win32' ? 'junction' : 'dir';
     let links = true;
     try {
       symlinkSync(resolve(linked, 'a/b/c'), resolve(linked, 'j'), kind);
       symlinkSync(resolve(linked, 'packages/pkg'), resolve(linked, 'node_modules/pkg'), kind);
+      symlinkSync(linked, resolve(linked, '../jroot'), kind);
     } catch {
       links = false;
     }
@@ -1258,6 +1261,7 @@ describe('a @mandate that fails admission (lane D, operator ruling 2026-10-12)',
       for (const [via, relative] of [
         ['j', '..'],
         ['node_modules/pkg', '../..'],
+        ['../jroot/docs/deep', '../..'],
       ] as const)
         for (const argv of [['preview', 'task'], ['validate']]) {
           const cwd = resolve(linked, via),
