@@ -4,9 +4,24 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": { "ia-runner": "./dist/main.js" },
-  "exports": { ".": { "development": "./src/index.ts", "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist", "README.md", "SPEC.md", "LICENSE", "NOTICE", "LANGUAGE.md"],
+  "bin": {
+    "ia-runner": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE",
+    "LANGUAGE.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
@@ -20,9 +35,28 @@
     "@inventarch/runtime": "workspace:*",
     "@inventarch/db": "workspace:*"
   },
-  "devDependencies": { "@types/node": "catalog:", "typescript": "catalog:", "vitest": "catalog:" },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
   "license": "Apache-2.0",
-  "engines": { "node": ">=22.22.0 <23" },
-  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org", "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } } },
-  "repository": { "type": "git", "url": "git+https://github.com/inventarch/ia.git", "directory": "apps/runner" }
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inventarch/ia.git",
+    "directory": "apps/runner"
+  }
 }

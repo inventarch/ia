@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { adoptWorkspace } from '@inventarch/workspace-runtime';
 import { INSTALLED_READ } from '@inventarch/agent-composition-system';
+import { open } from '@inventarch/db';
 import type { ModelAction, ModelRequest } from '@inventarch/agent-system';
 import { replay } from '@inventarch/session-system';
 import { openRunner, runnerCatalog } from '../src/index.js';
@@ -52,6 +53,15 @@ it('opens, steps, executes the installed read, journals position per model step 
   actions.push(read(runner), done);
   const started = await runner.start('Read the conformance source', 'conformance-read');
   expect(started.runs['root']?.agent).toContain('/agent/runner-reader');
+  const opened = open(options.root, { ...options.inputs, evidence: true, cache: false });
+  const authoredRevision = opened.authoredRevision;
+  expect(
+    opened
+      .records()
+      .filter((row) => row.band === 0)
+      .map((row) => row.discriminator),
+  ).toEqual(['run']);
+  opened.close();
   const finished = await runner.run();
   expect(finished.runs['root']?.status).toBe('completed');
   expect(finished.budget.operations).toBe(1);
@@ -65,6 +75,13 @@ it('opens, steps, executes the installed read, journals position per model step 
   const journal = await runner.store.journal(finished.id);
   expect(replay(journal.events)).toEqual(finished);
   expect(JSON.stringify(journal)).toContain('"key"');
+  const evidence = open(options.root, { ...options.inputs, evidence: true, cache: false });
+  expect(evidence.report.findings.filter((item) => item.severity === 'error')).toEqual([]);
+  expect(evidence.authoredRevision).toBe(authoredRevision);
+  const runtime = evidence.records().filter((row) => row.band === 0);
+  expect(runtime.filter((row) => row.discriminator === 'run')).toHaveLength(1);
+  expect(runtime.filter((row) => row.discriminator === 'observation')).toHaveLength(2);
+  evidence.close();
   await runner.close();
   const resumed = openRunner(options);
   cleanups.push(() => resumed.close());
@@ -83,6 +100,13 @@ it('refuses an operation beyond the mandate count before a second dispatch', asy
   expect(state.budget.operations).toBe(1);
   expect(state.runs['root']?.status).toBe('waiting');
   expect(JSON.stringify(state.runs['root']?.wait)).toMatch(/limit/i);
+  const evidence = open(options.root, { ...options.inputs, evidence: true, cache: false });
+  expect(
+    evidence
+      .records()
+      .some((row) => row.discriminator === 'observation' && JSON.stringify(row.sections).includes('refusal')),
+  ).toBe(true);
+  evidence.close();
 });
 
 it('journals a stable mandate refusal and next command without dispatching', async () => {
@@ -236,4 +260,19 @@ it('requires current host permission for navigation as well as operation dispatc
   expect(state.limits.operations).toBe(1);
   allowed = false;
   await expect(runner.request('records', {})).rejects.toMatchObject({ code: 'IA-RUNNER-AUTHORITY' });
+});
+
+it('preserves the durable run when evidence publication fails and retries projection on resume', async () => {
+  const options = fixture(),
+    runner = openRunner(options);
+  cleanups.push(() => runner.close());
+  const obstacle = resolve(options.root, '.ia/work/runner-evidence');
+  writeFileSync(obstacle, 'A regular file prevents the evidence directory.');
+  await expect(runner.start('Retain durable state across evidence failure', 'evidence-recovery')).rejects.toThrow();
+  expect((await runner.store.read('evidence-recovery')).runs['root']?.status).toBe('created');
+  rmSync(obstacle);
+  await runner.resume('evidence-recovery');
+  const evidence = open(options.root, { ...options.inputs, evidence: true, cache: false });
+  expect(evidence.records().filter((row) => row.band === 0 && row.discriminator === 'run')).toHaveLength(1);
+  evidence.close();
 });

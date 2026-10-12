@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { open } from '@inventarch/db';
+import { open, writeRunnerEvidence } from '@inventarch/db';
 import type { InputOptions } from '@inventarch/db';
 import { Engine } from '@inventarch/agent-system';
 import type { EngineHost, Grant, ModelAdapter, ModelResponse, Profile } from '@inventarch/agent-system';
@@ -35,12 +35,6 @@ export interface RunnerOptions {
   principal?: string;
   authorize?: EngineHost['authorize'];
   evaluate?: EngineHost['evaluate'];
-  /** Called only after replayed durable state is available. */
-  evidence?: (
-    state: Session,
-    events: Awaited<ReturnType<ReturnType<typeof sqliteStore>['journal']>>['events'],
-    authoredRevision: string,
-  ) => Promise<void>;
 }
 const boundedKeys = {
   steps: 'steps',
@@ -322,7 +316,10 @@ export function openRunner(options: RunnerOptions) {
     });
     let active: string | undefined;
     const persist = async (state: Session) => {
-      await options.evidence?.(state, (await store.journal(state.id)).events, reader.authoredRevision);
+      writeRunnerEvidence(root, {
+        authoredRevision: reader.authoredRevision,
+        events: (await store.journal(state.id)).events,
+      });
       return state;
     };
     const step = async () => {
