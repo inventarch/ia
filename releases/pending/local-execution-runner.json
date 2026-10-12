@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "minor",
   "title": "Run native profiles with bounded local execution and durable journals",
-  "summary": "Add @inventarch/runner with compiled harness execution, a fixed installed captured-source read, cumulative path mandate limits, per-turn Door position delivery, SQLite replay and deferred local model responses. Context requires current and retained source, read-effect and Observation authority; source bodies use the journaled installed operation. Native declarations cannot select executable modules or grant host authority. Runtime journal evidence stays separate from authored sources. This prepares local execution artifacts and does not publish a release.",
+  "summary": "Add @inventarch/runner with compiled harness execution, a fixed installed captured-source read, cumulative path mandate limits, per-turn Door position delivery, SQLite replay and deferred local model responses. Context requires current and retained source, read-effect and Observation authority; source bodies use the journaled installed operation. CLI response input is limited to an unchanged regular file with a fixed 64 KiB read bound. Native declarations cannot select executable modules or grant host authority. Runtime journal evidence stays separate from authored sources. This prepares local execution artifacts and does not publish a release.",
   "packages": ["@inventarch/runner"],
   "paths": ["apps/runner/", "examples/conformance/composition/", "tools/dependencies/", "tools/testing/", "tools/distribution/", ".ia/public-package-inputs.json", "pnpm-lock.yaml"]
 }

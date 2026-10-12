@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isEntry } from '@inventarch/runtime/entry';
 import { canonical } from '@inventarch/session-system';
 import type { ModelResponse } from '@inventarch/agent-system';
 import { openRunner } from './open.js';
 import { RunnerError } from './errors.js';
+import { readResponseFile } from './response.js';
 
 const help = `ia-runner run --profile <agent-profile> --root <workspace> [--task <text>] [--id <run-id>]
 ia-runner step --profile <agent-profile> --root <workspace> --id <run-id>
@@ -58,9 +58,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       else {
         if (!values['attempt'] || !values['response'])
           throw new RunnerError('IA-RUNNER-ARGUMENT', 'submit requires --attempt and --response', 'ia-runner --help');
-        const content = readFileSync(resolve(values['response']));
-        if (content.byteLength > 65536) throw new RunnerError('IA-RUNNER-ARGUMENT', 'Response file exceeds 64 KiB');
-        state = await runner.submit(values['attempt'], JSON.parse(content.toString('utf8')) as ModelResponse);
+        const content = readResponseFile(resolve(values['response']));
+        state = await runner.submit(values['attempt'], JSON.parse(content) as ModelResponse);
       }
     }
     const pending = Object.values(state.attempts).filter(
