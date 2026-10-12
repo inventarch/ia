@@ -119,6 +119,7 @@ export {
   mandateAuthorityOf,
   mandateRefusal,
   profileRefusal,
+  refusedDependencies,
   refusedMandates,
   seatedWorkspace,
 } from './mandate-modes.js';
@@ -133,6 +134,7 @@ export type {
   Move,
   ProfileMandate,
   ProfileVerdict,
+  RefusedDependency,
   RefusedMandate,
 } from './mandate-modes.js';
 // The markdown and fragment helpers stay on the ./internal/locator subpath; the root names the reader and its terms.

@@ -10,6 +10,7 @@ import {
   governingMandates,
   position,
   profileRefusal,
+  refusedDependencies,
   refusedMandates,
   renderPacket,
   seatedWorkspace,
@@ -1142,5 +1143,155 @@ describe('a @mandate that fails admission (lane D, D1 and D2)', () => {
     const error = refusal(() => governingMandates(unnamed, token(unnamed)));
     expect(error.where).toEqual({ path: '.ia/src/header.ia', line: 3 });
     expect(error.message).toContain('the @mandate at .ia/src/header.ia:3 failed admission: IA-LANG-HEADER-MALFORMED');
+  });
+});
+
+describe('a record an admitted @mandate depends on that fails admission (lane D, D9)', () => {
+  /** `@agent demo` with an undeclared section, so admission refuses it at its header, line 12 of the fixture. */
+  const brokenAgent = (text: string): string =>
+    text.replace('  governance\n    applies []\n', '  governance\n    applies []\n  bogus\n    note x\n');
+  /** `@workspace demo` with an undeclared section, so admission refuses it at its header, line 3. */
+  const brokenWorkspace = (text: string): string => text.replace(STEWARD, `${STEWARD}  bogus\n    note x\n`);
+  const thrown = (run: () => unknown): RuntimeError => {
+    try {
+      run();
+    } catch (error) {
+      if (error instanceof RuntimeError) return error;
+      throw error;
+    }
+    throw new Error('expected a RuntimeError');
+  };
+  /** Every resolver that reads a handle, each failing closed at `where` with a message naming `dependency`. */
+  function failsClosed(db: Handle, where: Record<string, unknown>, dependency: string): void {
+    const within = token(db);
+    for (const [name, run] of [
+      ['governingMandates', () => governingMandates(db, within, { actor: participant })],
+      ['governingMandates by path', () => governingMandates(db, within, { path: 'docs/guide.md' })],
+      ['defaultActor', () => defaultActor(db, within, demo)],
+      ['seatedWorkspace', () => seatedWorkspace(db, within, 'docs/guide.md')],
+    ] as const) {
+      const error = thrown(run);
+      expect(error.code, name).toBe('IA-RUNTIME-REQUEST-INVALID');
+      expect(error.where, name).toEqual(where);
+      expect(error.message, name).toContain(dependency);
+    }
+  }
+
+  it("fails closed when a mandate's authority.participant names an @agent that failed admission", () => {
+    // Without a steward, so only the mandate depends on the agent.
+    const db = database(freshInit(brokenAgent(records.replace(STEWARD, ''))));
+    expect(errors(db).map((finding) => [finding.code, finding.line])).toEqual([['IA-COMP-SECTION-UNKNOWN', 17]]);
+    expect(refusedMandates(db)).toEqual([]);
+    const dependencies = refusedDependencies(db);
+    expect(dependencies).toEqual([
+      {
+        dependent: mandate('demo-mandate'),
+        field: 'authority.participant',
+        reference: '@agent demo',
+        identity: participant,
+        path: '.ia/src/workspace.ia',
+        line: 11,
+        code: 'IA-COMP-SECTION-UNKNOWN',
+        message: expect.stringContaining("does not admit section 'bogus'"),
+      },
+    ]);
+    expect(Object.isFrozen(dependencies)).toBe(true);
+    expect(Object.isFrozen(dependencies[0])).toBe(true);
+    failsClosed(
+      db,
+      { path: '.ia/src/workspace.ia', line: 11, identity: participant },
+      `${mandate('demo-mandate')} depends on @agent demo through authority.participant, and ${participant} (.ia/src/workspace.ia:11) failed admission: IA-COMP-SECTION-UNKNOWN`,
+    );
+  });
+
+  it("fails closed when a mandate's authority.scope names a @workspace that failed admission", () => {
+    const db = database(freshInit(brokenWorkspace(records)));
+    expect(errors(db).map((finding) => [finding.code, finding.line])).toEqual([['IA-COMP-SECTION-UNKNOWN', 11]]);
+    expect(refusedDependencies(db)).toEqual([
+      expect.objectContaining({
+        dependent: mandate('demo-mandate'),
+        field: 'authority.scope',
+        reference: '@workspace demo',
+        identity: demo,
+        path: '.ia/src/workspace.ia',
+        line: 3,
+      }),
+    ]);
+    failsClosed(
+      db,
+      { path: '.ia/src/workspace.ia', line: 3, identity: demo },
+      `${mandate('demo-mandate')} depends on @workspace demo through authority.scope`,
+    );
+  });
+
+  it("fails closed when a workspace's composition.steward names an @agent that failed admission, and no mandate does", () => {
+    // The steward is named by no mandate: the one mandate binds ops, which would become the default actor.
+    const db = database(
+      freshInit(brokenAgent(records.replace('participant @agent demo', 'participant @agent ops')) + agent('ops')),
+    );
+    expect(refusedDependencies(db)).toEqual([
+      expect.objectContaining({
+        dependent: demo,
+        field: 'composition.steward',
+        reference: '@agent demo',
+        identity: participant,
+        line: 12,
+      }),
+    ]);
+    failsClosed(
+      db,
+      { path: '.ia/src/workspace.ia', line: 12, identity: participant },
+      `${demo} depends on @agent demo through composition.steward`,
+    );
+  });
+
+  it('names both dependencies when the agent is the steward and the participant, and a refused mandate before them', () => {
+    const db = database(freshInit(brokenAgent(records)));
+    expect(refusedDependencies(db).map((entry) => [entry.dependent, entry.field])).toEqual([
+      [mandate('demo-mandate'), 'authority.participant'],
+      [demo, 'composition.steward'],
+    ]);
+    expect(thrown(() => defaultActor(db, token(db), demo)).message).toContain(
+      '(1 more record a @mandate depends on failed admission)',
+    );
+    // A refused mandate is named first, the dependencies counted after it.
+    const text = `${brokenAgent(records)}${authorized('refused', ['moves []'])}`,
+      both = database(freshInit(text));
+    const error = thrown(() => governingMandates(both, token(both)));
+    expect(error.where).toEqual({
+      path: '.ia/src/workspace.ia',
+      line: text.split('\n').indexOf('@mandate refused') + 1,
+      identity: mandate('refused'),
+    });
+    expect(error.message).toContain('and 2 records a @mandate depends on failed admission');
+  });
+
+  it('does not fail closed for an unrelated refused @agent, a never-authored reference, or a refused installed @agent', () => {
+    const stray = agent('stray').replace('    applies []\n', '    applies []\n  bogus\n    note x\n');
+    const ghost = authorized('ghost-mandate', ['participant @agent ghost', 'moves [Observation]', 'covers ["ghost/"]']);
+    const installed = authorized('installed-mandate', [
+      'participant @agent vendored',
+      'moves [Observation]',
+      'covers ["installed/"]',
+    ]);
+    const root = freshInit(`${records}${stray}${ghost}${installed}`, {
+      // An @agent of the installed base with an undeclared section: band 90, refused.
+      '.ia/src/vendored.ia': `#! ia 1.0\n${agent('vendored').replace('    applies []\n', '    applies []\n  bogus\n    note x\n')}`,
+    });
+    const db = database(root);
+    // The stray agent and the installed steward are refused; no admitted mandate depends on a band-100 refused record.
+    expect(db.unadmitted.map((entry) => [entry.identity, entry.band])).toEqual(
+      expect.arrayContaining([
+        ['agent-system/binding/agent/stray', 100],
+        ['agent-system/binding/agent/vendored', 90],
+      ]),
+    );
+    expect(refusedMandates(db)).toEqual([]);
+    expect(refusedDependencies(db)).toEqual([]);
+    // The never-authored participant stays as authored, as before.
+    expect(governingMandates(db, token(db), { path: 'ghost/x.md' })).toEqual([
+      expect.objectContaining({ identity: mandate('ghost-mandate'), participant: '@agent ghost' }),
+    ]);
+    expect(defaultActor(db, token(db), demo).actor).toBe(participant);
   });
 });

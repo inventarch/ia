@@ -288,26 +288,128 @@ export function refusedMandates(reader: ReadHandle): readonly RefusedMandate[] {
   );
 }
 /**
- * Lane D, D2: IA-RUNTIME-REQUEST-INVALID when any authored `@mandate` failed admission, naming the first, its location
- * on the error as `where`. Every public resolver that reads a reader (governingMandates, seatedWorkspace and
- * defaultActor) calls it first, so the CLI's profile and the edit guard fail closed rather than read a workspace whose
- * restrictions a broken record may have lifted.
+ * Lane D, D9: one admitted authored record a `@mandate` resolution reads whose typed reference names an authored record
+ * that failed admission: a `@mandate` whose `authority.participant` names a refused `@agent` (whom it binds) or whose
+ * `authority.scope` names a refused `@workspace` (where it governs), or a `@workspace` whose `composition.steward`
+ * names a refused `@agent` (the default actor every mandate there judges).
+ */
+export interface RefusedDependency {
+  /** The admitted authored record whose field names the refused one, a `@mandate` or a `@workspace`, by identity. */
+  readonly dependent: string;
+  readonly field: 'authority.participant' | 'authority.scope' | 'composition.steward';
+  /** The reference as authored, `@agent <name>` or `@workspace <name>`. */
+  readonly reference: string;
+  /** The refused record's identity, when db names one. */
+  readonly identity?: string;
+  /** Where the refused record is authored: its path and header line. */
+  readonly path: string;
+  readonly line: number;
+  /** The code and message of the admission finding that refused it. */
+  readonly code: string;
+  readonly message: string;
+}
+/** The references D9 follows: the holder's word, the field, and the word the field's references name. */
+const DEPENDENCIES = [
+  { holder: 'mandate', section: 'authority', key: 'participant', word: 'agent' },
+  { holder: 'mandate', section: 'authority', key: 'scope', word: 'workspace' },
+  { holder: 'workspace', section: 'composition', key: 'steward', word: 'agent' },
+] as const;
+/** The names, as authored, of the `@<word>` references `record` states at `section.key`, list items one by one. */
+function referenced(record: CompiledRecord, section: string, key: string, word: string): readonly string[] {
+  return record.sections
+    .filter((candidate) => candidate.name === section)
+    .flatMap((candidate) => candidate.fields)
+    .flatMap((child) =>
+      'key' in child && child.key === key
+        ? (child.value.kind === 'list' ? child.value.items : [child.value]).flatMap((value) =>
+            value.kind === 'ref' && value.discriminator === word ? [value.name] : [],
+          )
+        : [],
+    );
+}
+/**
+ * Lane D, D9: every admitted authored (band 100) record whose resolution a refused authored record would change, frozen,
+ * by dependent identity, field, path and line: a `@mandate` whose `authority.participant` or `authority.scope`, or a
+ * `@workspace` whose `composition.steward`, names, as authored, an authored `@agent` or `@workspace` that failed
+ * admission (db `unadmitted`, band 100), matched by word and name, lowercased, so a tie, a schema refusal and a file
+ * refused whole all count. Admission drops the refused record, so that reference resolves to nothing, or to a record of
+ * another band, and the mandate silently binds no one, governs nowhere, or judges another default actor; the D8 probes
+ * showed each lifting a restriction. A reference no authored record answers at all, or one to a record refused in an
+ * installed base (band 90), is no dependency: it keeps today's reading. Neither is a refused `@agent` or `@workspace` no
+ * admitted mandate or workspace names. Like refusedMandates it reads db's root view, not a scope.
+ */
+export function refusedDependencies(reader: ReadHandle): readonly RefusedDependency[] {
+  const refused = reader.unadmitted.filter(
+    (entry) => entry.band === 100 && (entry.word === 'agent' || entry.word === 'workspace'),
+  );
+  if (refused.length === 0) return freeze([]);
+  const findings = reader.report.findings,
+    found = new Map<string, RefusedDependency>();
+  for (const node of reader.records())
+    for (const { holder, section, key, word } of DEPENDENCIES) {
+      if (node.band !== 100 || node.discriminator !== holder) continue;
+      for (const name of referenced(node, section, key, word))
+        for (const entry of refused) {
+          if (entry.word !== word || (entry.name ?? entry.identity?.split('/')[3]) !== name.toLowerCase()) continue;
+          const field = `${section}.${key}` as RefusedDependency['field'],
+            { code, message } = admissionFinding(findings, entry);
+          found.set(JSON.stringify([node.identity, field, entry.path, entry.line]), {
+            dependent: node.identity,
+            field,
+            reference: `@${word} ${name}`,
+            ...(entry.identity === undefined ? {} : { identity: entry.identity }),
+            path: entry.path,
+            line: entry.line,
+            code,
+            message,
+          });
+        }
+    }
+  return freeze(
+    [...found.values()].sort(
+      (a, b) => order(a.dependent, b.dependent) || order(a.field, b.field) || order(a.path, b.path) || a.line - b.line,
+    ),
+  );
+}
+/**
+ * Lane D, D2 and D9: IA-RUNTIME-REQUEST-INVALID when any authored `@mandate` failed admission, or any record a mandate
+ * resolution depends on did (`refusedDependencies`), naming the first refused mandate, else the first dependency, its
+ * refused record located on the error as `where`. Every public resolver that reads a reader (governingMandates,
+ * seatedWorkspace and defaultActor) calls it first, so the CLI's profile and the edit guard fail closed rather than read
+ * a workspace whose restrictions a broken record may have lifted.
  */
 function failClosed(reader: ReadHandle): void {
-  const refused = refusedMandates(reader);
-  if (refused.length === 0) return;
-  const [first] = refused as [RefusedMandate],
-    who =
-      first.identity === undefined
-        ? `the @mandate at ${first.path}:${first.line}`
-        : `${first.identity} (${first.path}:${first.line})`,
-    more =
-      refused.length === 1
-        ? ''
-        : ` (${refused.length - 1} more @mandate record${refused.length === 2 ? '' : 's'} failed admission)`;
+  const refused = refusedMandates(reader),
+    dependencies = refusedDependencies(reader);
+  if (refused.length === 0 && dependencies.length === 0) return;
+  const records = (count: number): string => `${count} record${count === 1 ? '' : 's'} a @mandate depends on`;
+  const where = (entry: RefusedMandate | RefusedDependency): RuntimeWhere => ({
+    path: entry.path,
+    line: entry.line,
+    ...(entry.identity === undefined ? {} : { identity: entry.identity }),
+  });
+  if (refused.length > 0) {
+    const [first] = refused as [RefusedMandate],
+      who =
+        first.identity === undefined
+          ? `the @mandate at ${first.path}:${first.line}`
+          : `${first.identity} (${first.path}:${first.line})`,
+      more =
+        refused.length === 1
+          ? ''
+          : ` (${refused.length - 1} more @mandate record${refused.length === 2 ? '' : 's'} failed admission)`,
+      also = dependencies.length === 0 ? '' : `, and ${records(dependencies.length)} failed admission`;
+    invalid(
+      `${who} failed admission: ${first.code} ${first.message}${more}${also}; while a @mandate fails admission every mandate-gated decision fails closed across the workspace, since its scope, covers and participant cannot be trusted`,
+      where(first),
+    );
+  }
+  const [first] = dependencies as [RefusedDependency],
+    rest = dependencies.length - 1,
+    more = rest === 0 ? '' : ` (${rest} more record${rest === 1 ? '' : 's'} a @mandate depends on failed admission)`;
   invalid(
-    `${who} failed admission: ${first.code} ${first.message}${more}; while a @mandate fails admission every mandate-gated decision fails closed across the workspace, since its scope, covers and participant cannot be trusted`,
-    { path: first.path, line: first.line, ...(first.identity === undefined ? {} : { identity: first.identity }) },
+    `${first.dependent} depends on ${first.reference} through ${first.field}, and ${first.identity ?? first.reference} (${first.path}:${first.line}) failed admission: ${first.code} ${first.message}${more}; while a record a @mandate depends on fails admission every mandate-gated decision fails closed across the workspace, since whom the mandate binds, where it governs or who acts by default cannot be trusted`,
+    where(first),
   );
 }
 
