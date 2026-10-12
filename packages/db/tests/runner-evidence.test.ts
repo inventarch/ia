@@ -29,16 +29,16 @@ function using<T>(root: string, evidence: boolean, read: (db: Handle) => T): T {
     db.close();
   }
 }
-function append(events: Event[], mutation: Record<string, unknown>): void {
+function append(events: Event[], mutation: Record<string, unknown>, commandId?: string): void {
   const body = {
     version: 1,
-    id: `event-${events.length + 1}`,
+    id: commandId ?? `event-${events.length + 1}`,
     sequence: events.length + 1,
     sessionId,
     actor: 'local-runner',
     at: '2026-10-12T00:00:00.000Z',
     cause: null,
-    mutation,
+    mutation: structuredClone(mutation),
     previous: events.at(-1)?.hash ?? '',
   };
   events.push({ ...body, hash: digest(body) });
@@ -69,6 +69,48 @@ function journal(root: string): { authoredRevision: string; events: Event[] } {
   return { authoredRevision: using(root, false, (db) => db.authoredRevision), events };
 }
 const runtime = (root: string) => using(root, true, (db) => db.records().filter((node) => node.band === 0));
+
+it('admits contiguous atomic command consequences with the same command id', () => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, {
+    type: 'attempt.prepare',
+    attempt: { id: 'model', kind: 'model', runId: 'root', target: 'local-model' },
+  });
+  append(input.events, { type: 'attempt.abandon', attemptId: 'model' }, 'stop-command');
+  append(
+    input.events,
+    { type: 'run.wait', runId: 'root', wait: { reason: 'runner-authority-refusal' } },
+    'stop-command',
+  );
+  expect(writeRunnerEvidence(root, input)).toMatchObject({ sequence: 4, written: true });
+  expect(
+    runtime(root)
+      .map((record) => record.discriminator)
+      .sort(),
+  ).toEqual(['observation', 'run']);
+});
+
+it.each(['noncontiguous', 'attribution', 'unbounded'])('rejects %s reuse of an atomic command id', (variant) => {
+  const root = workspace(),
+    input = journal(root);
+  const wait = { type: 'run.wait', runId: 'root', wait: { reason: 'runner-authority-refusal' } };
+  append(input.events, wait, 'stop-command');
+  if (variant === 'noncontiguous') append(input.events, wait, 'different-command');
+  for (let n = 0; n < (variant === 'unbounded' ? 32 : 1); n++) append(input.events, wait, 'stop-command');
+  if (variant === 'attribution') {
+    const { hash: _hash, ...body } = input.events.pop()!;
+    body['actor'] = 'different-actor';
+    input.events.push({ ...body, hash: digest(body) });
+  }
+  expect(() => writeRunnerEvidence(root, input)).toThrow(
+    variant === 'noncontiguous'
+      ? 'noncontiguous command'
+      : variant === 'attribution'
+        ? 'attribution changed'
+        : 'command event limit',
+  );
+});
 
 it('admits generated run and operation/outcome/limit observations without moving authored admission or revision', () => {
   const root = workspace(),

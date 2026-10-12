@@ -136,7 +136,9 @@ function receipt(value: unknown): Receipt {
   const events = object['events'];
   if (!Array.isArray(events) || events.length === 0 || events.length > EVENTS) fail('journal event limit');
   let previous = '',
-    sessionId = '';
+    sessionId = '',
+    commandId = '',
+    commandEvents = 0;
   const ids = new Set<string>();
   for (let index = 0; index < events.length; index++) {
     const event = row(events[index]),
@@ -144,9 +146,19 @@ function receipt(value: unknown): Receipt {
     exact(event, ['version', 'id', 'sequence', 'sessionId', 'actor', 'at', 'cause', 'mutation', 'previous', 'hash']);
     const type = text(mutation['type'], 64),
       id = identifier(event['id']);
-    if (!TYPES.has(type) || event['version'] !== (type === 'session.renew' ? 2 : 1) || ids.has(id))
-      fail('unknown event type/version or duplicate event id');
-    ids.add(id);
+    if (!TYPES.has(type) || event['version'] !== (type === 'session.renew' ? 2 : 1)) fail('unknown event type/version');
+    // SessionStore uses the command ID for every event in one atomic command (at most 32).
+    if (id !== commandId) {
+      if (ids.has(id)) fail('noncontiguous command id reuse');
+      ids.add(id);
+      commandId = id;
+      commandEvents = 0;
+    } else {
+      const preceding = row(events[index - 1]);
+      if (event['actor'] !== preceding['actor'] || event['cause'] !== preceding['cause'])
+        fail('atomic command attribution changed');
+    }
+    if (++commandEvents > 32) fail('atomic command event limit');
     const currentSession = identifier(event['sessionId']),
       at = text(event['at'], 24);
     text(event['actor']);

@@ -332,6 +332,69 @@ it('rechecks disclosure permission after preparing context and before model tran
   expect(JSON.stringify(refused.runs['root']?.outcome)).toContain('IA-RUNNER-AUTHORITY');
 });
 
+it('journals source revocation after context preparation and preserves refusal across resume', async () => {
+  const options = fixture(),
+    seen: ModelRequest[] = [];
+  const policy = hostPolicy(() => ({}));
+  const runner = openRunner({
+    ...options,
+    model: scripted([done], seen),
+    authorize: async (principal, manifest, state) => {
+      const grant = await policy(principal, manifest, state);
+      if (state?.budget.modelCalls) grant.sources = [];
+      return grant;
+    },
+  });
+  cleanups.push(() => runner.close());
+  await runner.start('Withdraw source before transport', 'source-revoked');
+  const refused = await runner.run();
+  expect(seen).toHaveLength(0);
+  expect(refused.budget.modelCalls).toBe(1);
+  expect(refused.budget.reservedTokens).toBe(0);
+  const attempts = Object.values(refused.attempts);
+  expect(attempts).toHaveLength(1);
+  expect(attempts[0]).toMatchObject({ kind: 'model', status: 'observed', error: 'not-dispatched', effect: 'none' });
+  expect(refused.runs['root']?.wait).toMatchObject({
+    reason: 'runner-authority-refusal',
+    objectIds: [attempts[0]!.id],
+    continuation: 'stop',
+    details: { code: 'IA-ENGINE-AUTHORITY-DENIED', next: expect.stringContaining('ia position') },
+  });
+  const journal = await runner.store.journal(refused.id);
+  expect(journal.events.some((event) => event.mutation.type === 'attempt.dispatch')).toBe(false);
+  expect(journal.events.some((event) => event.mutation.type === 'attempt.abandon')).toBe(true);
+  expect(replay(journal.events)).toEqual(refused);
+  const db = open(options.root, { ...options.inputs, evidence: true, cache: false });
+  expect(
+    db
+      .records()
+      .some((record) => record.discriminator === 'observation' && JSON.stringify(record.sections).includes('refusal')),
+  ).toBe(true);
+  db.close();
+  await runner.close();
+  const resumed = openRunner({ ...options, model: scripted([done], seen) });
+  cleanups.push(() => resumed.close());
+  expect(await resumed.resume(refused.id)).toEqual(refused);
+  expect(await resumed.run()).toEqual(refused);
+  expect(seen).toHaveLength(0);
+});
+
+it('propagates unexpected host authorization errors without converting them into policy refusals', async () => {
+  const options = fixture(),
+    policy = hostPolicy(() => ({}));
+  const runner = openRunner({
+    ...options,
+    authorize: async (principal, manifest, state) => {
+      if (state) throw new Error('Unexpected local authorization failure');
+      return policy(principal, manifest, state);
+    },
+  });
+  cleanups.push(() => runner.close());
+  await runner.start('Preserve unexpected errors', 'unexpected-host-error');
+  await expect(runner.run()).rejects.toThrow('Unexpected local authorization failure');
+  expect((await runner.store.read('unexpected-host-error')).runs['root']?.wait).toBeNull();
+});
+
 it.each(['operations', 'model-calls', 'steps', 'tokens', 'bytes'])(
   'applies a path-only zero %s mandate before read dispatch',
   async (limit) => {
@@ -375,6 +438,14 @@ it('retains cumulative path operation counts after reopening a run', async () =>
   const refused = await resumed.run();
   expect(refused.budget.operations).toBe(1);
   expect(refused.runs['root']?.wait).toMatchObject({ details: { code: 'IA-RUNNER-MANDATE-LIMIT' } });
+  expect(await resumed.run()).toEqual(refused);
+  expect(await resumed.step()).toEqual(refused);
+  await resumed.close();
+  const stopped = openRunner(options);
+  cleanups.push(() => stopped.close());
+  expect(await stopped.resume(refused.id)).toEqual(refused);
+  expect(await stopped.run()).toEqual(refused);
+  expect(await stopped.step()).toEqual(refused);
 });
 
 it('reserves the installed body output bound within a nonzero path byte budget', async () => {

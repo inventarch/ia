@@ -13,7 +13,7 @@ import {
 import type { CompositionCatalog } from '@inventarch/agent-composition-system';
 import { captureWorkspace } from '@inventarch/workspace-runtime';
 import { canonical, copy, digest, SessionError, terminal } from '@inventarch/session-system';
-import type { Json, Limits, Session } from '@inventarch/session-system';
+import type { Json, Limits, Mutation, Session } from '@inventarch/session-system';
 import { sqliteStore } from '@inventarch/session-system/sqlite';
 import { governingMandates, mandateAuthorityOf, profileRefusal, requireMandatesAdmitted } from '@inventarch/runtime';
 import type { Mode, ProfileMandate, ScopeKey } from '@inventarch/runtime';
@@ -420,6 +420,7 @@ export function openRunner(options: RunnerOptions) {
               : 'plan';
       try {
         if (
+          before.runs[before.rootId]!.status === 'running' &&
           pending &&
           typeof pending === 'object' &&
           !Array.isArray(pending) &&
@@ -434,37 +435,45 @@ export function openRunner(options: RunnerOptions) {
       } catch (error) {
         if (
           !(error instanceof RunnerError) &&
-          (!(error instanceof SessionError) || error.code !== 'IA-ENGINE-LIMIT-EXCEEDED')
+          (!(error instanceof SessionError) ||
+            !['IA-ENGINE-LIMIT-EXCEEDED', 'IA-ENGINE-AUTHORITY-DENIED'].includes(error.code))
         )
           throw error;
-        // Engine refuses before an over-budget dispatch. Persist that refusal without resetting its accounting.
+        // Preserve exact expected refusals. Unexpected Engine/host/storage errors still propagate.
         const owner = await store.acquire(active);
         try {
           const latest = await store.read(active);
+          const prepared = Object.values(latest.attempts).filter(
+            (attempt) => attempt.runId === latest.rootId && attempt.status === 'prepared',
+          );
+          // Retain preparation and settle only proven undispatched attempts; never rewrite dispatched effects.
+          const mutations: Mutation[] = prepared.map((attempt) => ({ type: 'attempt.abandon', attemptId: attempt.id }));
+          mutations.push({
+            type: 'run.wait',
+            runId: latest.rootId,
+            wait: {
+              id: randomUUID(),
+              reason: error.code.includes('LIMIT') ? 'runner-limit-refusal' : 'runner-authority-refusal',
+              objectIds: prepared.map((attempt) => attempt.id),
+              continuation: 'stop',
+              details: {
+                code: error.code,
+                message: error.message,
+                next:
+                  error instanceof RunnerError
+                    ? error.next
+                    : `ia position --seat ${compiled.profiles[compiled.entry.profile]!.mandate ?? manifest.workspace} --shape governance`,
+              },
+            },
+          });
           await store.command(
             {
               id: randomUUID(),
               sessionId: active,
               actor: principal,
               expected: latest.sequence,
-              mutation: {
-                type: 'run.wait',
-                runId: latest.rootId,
-                wait: {
-                  id: randomUUID(),
-                  reason: error.code.includes('LIMIT') ? 'runner-limit-refusal' : 'runner-authority-refusal',
-                  objectIds: [],
-                  continuation: 'stop',
-                  details: {
-                    code: error.code,
-                    message: error.message,
-                    next:
-                      error instanceof RunnerError
-                        ? error.next
-                        : `ia position --seat ${compiled.profiles[compiled.entry.profile]!.mandate ?? manifest.workspace} --shape governance`,
-                  },
-                },
-              },
+              mutation: mutations[0]!,
+              following: mutations.slice(1),
             },
             owner,
           );
