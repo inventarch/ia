@@ -2,6 +2,7 @@ import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { dispatch } from '../src/consumer.js';
 import type { Extension, Host, Result } from '../src/consumer.js';
+import { runCli } from '../src/main.js';
 import { scratch } from './scratch-fixture.js';
 export { cleanup, scratch } from './scratch-fixture.js';
 
@@ -143,7 +144,12 @@ function refusalNext(result: Result): string | null {
   return result.stderr.replace(/\s+/g, ' ').split('→ ')[1]?.trim() ?? null;
 }
 
-const legacy = () => ({ exitCode: 2, stdout: '' });
+/**
+ * The version 1 machine routes run as the binary runs them (`runCli`), so a next action naming one, such as the
+ * `ia report --root <root>` a refused `@mandate`'s refusal names (lane D), runs here as it would from a shell. stdin is
+ * never read: a route given `--params -` reads an empty object.
+ */
+const legacy = (argv: readonly string[]) => runCli(argv, () => '{}');
 const extensions: readonly Extension[] = [];
 /**
  * One in-process invocation. Every refusal any suite provokes is held to design row 27 here, so a next action a verb

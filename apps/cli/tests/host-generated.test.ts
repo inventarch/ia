@@ -618,12 +618,21 @@ it('restores editing with the removal the guard names when a broken record keeps
   edit(root, '.ia/src/hooks.ia', ['@hook note-edits', '@hook note-edits\n  bogus-section\nzzz']);
   const refused = await guarded(root, group, '.ia/src/hooks.ia', {}, 'Edit');
   expect(codeOf(refused)).toBe('IA-HOOK-DECLARATION-UNAVAILABLE');
-  // Re-registering would refuse here, so it is not named; ia validate, which shows why, is.
+  // Re-registering would refuse here, so it is not named. hooks.ia holds docs-mandate and reviewer-docs too, which
+  // admission refuses with it, so `ia validate`, mandate-gated, refuses at them (lane D): the admission report, which
+  // shows why, is named instead, and runs.
   expect(refused).not.toContain(`"ia host claude --root ${JSON.stringify(root)} --apply --yes"`);
-  expect(refused).toContain(`"ia validate --root ${JSON.stringify(root)}"`);
+  expect(refused).not.toContain('ia validate');
+  expect(refused).toContain(`"ia report --root ${JSON.stringify(root)}"`);
   const validated = await run(['validate', '--root', root, '--json']);
-  expect(validated.exitCode).not.toBe(0);
-  expect(validated.stdout).toContain('hooks.ia');
+  expect(validated.exitCode).toBe(1);
+  expect(JSON.parse(validated.stdout)).toMatchObject({
+    code: 'IA-RUNTIME-REQUEST-INVALID',
+    where: { path: '.ia/src/hooks.ia' },
+  });
+  const report = await run(['report', '--root', root]);
+  expect(report.stderr).toBe('');
+  expect(report.stdout).toContain('hooks.ia');
   expect(await lifted(root, env, refused)).toBe(0);
 
   // The lift a main-session refusal names works whatever the records say: an ambiguous default actor and a source error.

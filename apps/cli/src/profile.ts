@@ -13,7 +13,9 @@
  * Every refusal names one next command that runs in the state that caused it: the command again with an `--actor` whose
  * mandates allow it, or the governance position of the mandate or workspace concerned. `ia position` is never gated,
  * so a position is always a command that runs. With no governing mandate nothing is restricted and the profile carries
- * the runtime's notice instead.
+ * the runtime's notice instead. While an authored `@mandate` fails admission (lane D), every gated command refuses at
+ * that record, workspace-wide, and names the admission report (`ia report --root <root>`, a machine route no mandate
+ * gates): a position cannot seat at a record admission refused.
  *
  * Read (`ia read`, `ia next`), validate (`ia validate`, `ia preview`), author (`ia author`) and effect (`ia capture`, its
  * `ia compile` alias, `ia project`) are gated; `ia position` is not, and neither is a command outside those modes. A gated
@@ -117,11 +119,27 @@ function namedAgent(reader: ReadHandle, within: string, spelled: string): string
 }
 /** The seat a runtime mandate refusal's next command (`ia position --seat <seat> --shape governance`) names. */
 const seatOf = (next: string): string | undefined => /--seat (\S+)/.exec(next)?.[1];
+/** Whether `identity` is an admitted `@mandate` of the scope; a read that refuses is no admission. */
+function admittedMandate(reader: ReadHandle, within: string, identity: string): boolean {
+  try {
+    return reader.get(identity, { within })?.discriminator === 'mandate';
+  } catch {
+    return false;
+  }
+}
 
 /**
- * A governing mandate whose authority the runtime cannot read (IA-RUNTIME-REQUEST-INVALID, such as `authority.moves []`,
- * which admission accepts) refuses the command rather than failing it: the governance position of that mandate shows it
- * and is never gated.
+ * A mandate the runtime cannot read refuses the command rather than failing it (IA-RUNTIME-REQUEST-INVALID, exit 1),
+ * located where the runtime located it (`RuntimeError.where`; no message is parsed for it):
+ * - An authored `@mandate` that failed admission (lane D, operator ruling 2026-10-12): every gated command fails closed,
+ *   workspace-wide, since the record's scope, covers and participant cannot be trusted. No in-tool repair exists, as
+ *   `ia preview` and `ia author` cannot target a record admission refused, so the message says a hand edit corrects it.
+ *   The next command is the admission report, the version 1 machine route `ia report`, which no mandate gates and whose
+ *   findings show the refused mandate's: `ia validate` is gated, and a position cannot seat at a record admission
+ *   refused. It always carries `--root`, the invocation's or else the root the session opened, because that route opens
+ *   its `--root` or the working directory, never an ancestor.
+ * - An admitted mandate whose authority the resolver cannot read (a child under one of its `authority` fields, which
+ *   admission admits): its governance position, never gated, shows that authority.
  */
 function unreadable(
   error: RuntimeError,
@@ -130,19 +148,34 @@ function unreadable(
   workspace: string | undefined,
   rooted: string,
 ) {
-  const message = error.message.replace(/^IA-RUNTIME-[A-Z-]+: /, '');
-  const named = /^([a-z][a-z0-9-]*\/[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*\/[a-z0-9][a-z0-9-]*): /.exec(message)?.[1];
-  const seat = named !== undefined && reader.get(named, { within })?.discriminator === 'mandate' ? named : workspace;
+  const message = error.message.replace(/^IA-RUNTIME-[A-Z-]+: /, ''),
+    where = error.where;
+  if (where !== undefined && (where.identity === undefined || !admittedMandate(reader, within, where.identity))) {
+    const root = rooted === '' ? ` --root ${quote(printedRoot(reader.root))}` : rooted;
+    return new Refusal(
+      error.code,
+      `The mandate profile cannot be read: ${message}; correct it by hand in ${where.path}, since ia preview and ia author cannot target a record admission refused`,
+      1,
+      where,
+      `Run "ia report${root}" for the admission findings, the refused @mandate's among them; correct its source by hand, then run this command again.`,
+    );
+  }
+  const seat = where?.identity ?? workspace;
   return new Refusal(
     error.code,
     `The mandate profile cannot be read: ${message}`,
     1,
-    seat === undefined ? null : { identity: seat },
+    where ?? (seat === undefined ? null : { identity: seat }),
     seat === undefined
       ? `Run "ia position${rooted}" for the repository's position and the mandates it reads.`
       : `Run "ia position --seat ${seat} --shape governance${rooted}" to see the mandate authority the profile cannot read; correct it, then run this command again.`,
   );
 }
+/**
+ * A root the session opened, as a printed command spells it: with forward slashes on win32, where both separators work,
+ * so it is not a token `inertNext` withholds for its backslashes.
+ */
+const printedRoot = (root: string): string => (process.platform === 'win32' ? root.replaceAll('\\', '/') : root);
 
 /** An `ia author` form's `--digest`: the target file's sha256 as 64 lowercase hex digits. */
 export const DIGEST = /^[0-9a-f]{64}$/;

@@ -983,24 +983,152 @@ describe('the mandate profile on every gated mode', () => {
     expect((await ia(root, ['validate'])).exitCode).toBe(0);
     expect(body(await ia(root, ['preview', 'task']))).toMatchObject({ profile: { actor: participant, by: 'steward' } });
   });
-  it('refuses every gated mode, rather than failing, under a mandate whose authority the resolver cannot read', async () => {
+  it('refuses every gated mode, rather than failing, under an admitted mandate whose authority the resolver cannot read', async () => {
+    // A child under `authority.moves`: admission admits the record, the resolver refuses the field.
     const root = workspace((at) =>
       writeFileSync(
-        resolve(at, '.ia/src/empty.ia'),
-        `#! ia 1.0\n${MANDATE('empty-mandate', ['participant @agent demo', 'moves []', 'scope [@workspace demo]'])}`,
+        resolve(at, '.ia/src/unreadable.ia'),
+        `#! ia 1.0\n${MANDATE('unreadable-mandate', ['participant @agent demo', 'moves [Observation]', '  note x', 'scope [@workspace demo]'])}`,
       ),
     );
     for (const argv of [['read', participant], ['validate'], ['next'], ['capture'], ['project', 'claude']]) {
       const refusal = await refused(root, argv, 'IA-RUNTIME-REQUEST-INVALID');
+      expect(refusal['where'], argv.join(' ')).toEqual({
+        path: '.ia/src/unreadable.ia',
+        line: 3,
+        identity: mandate('unreadable-mandate'),
+      });
+      // Its governance position runs, as the seat is admitted, and shows the authority the profile cannot read.
       expect(nextArgv(refusal['next'] as string), argv.join(' ')).toEqual([
         'position',
         '--seat',
-        mandate('empty-mandate'),
+        mandate('unreadable-mandate'),
         '--shape',
         'governance',
         '--root',
         root,
       ]);
     }
+  });
+});
+
+describe('a @mandate that fails admission (lane D, operator ruling 2026-10-12)', () => {
+  /** The probe: demo-mandate states an unknown move and excludes task, so admission refuses it. */
+  const probe = (at: string): void => {
+    moves(at, 'Bogus');
+    rewrite(at, '.ia/src/workspace.ia', (text) =>
+      text.replace('moves [Bogus]', 'moves [Bogus]\n    excluded-words [task]'),
+    );
+  };
+  /** A refusal of a mandate that failed admission: located at it, naming the admission report, which runs and shows it. */
+  async function failedClosed(
+    root: string,
+    argv: readonly string[],
+    where: { readonly path: string; readonly line: number; readonly identity: string },
+    code: string,
+  ): Promise<Record<string, unknown>> {
+    const refusal = await refused(root, argv, 'IA-RUNTIME-REQUEST-INVALID');
+    const label = argv.join(' ');
+    expect(refusal['exit'], label).toBe(1);
+    expect(refusal['where'], label).toEqual(where);
+    expect(refusal['message'], label).toContain(
+      `${where.identity} (${where.path}:${where.line}) failed admission: ${code}`,
+    );
+    expect(refusal['message'], label).toContain('correct it by hand');
+    expect(refusal['message'], label).toContain('ia preview and ia author cannot target a record admission refused');
+    expect(nextArgv(refusal['next'] as string), label).toEqual(['report', '--root', root]);
+    return refusal;
+  }
+  it('refuses every gated mode at the refused mandate, naming an admission report that runs and shows it', async () => {
+    const root = workspace(probe);
+    const fake = 'a'.repeat(64),
+      where = { path: '.ia/src/workspace.ia', line: 19, identity: mandate('demo-mandate') };
+    for (const argv of [
+      ['read', participant],
+      ['next'],
+      ['validate'],
+      ['preview', 'task'],
+      ['author', '--set', '@milestone m1', 'work.owner=x', '--digest', fake],
+      ['capture'],
+      ['capture', '--preview'],
+      ['compile'],
+      ['project', 'claude'],
+      ['host', 'claude', '--apply', '--yes'],
+    ])
+      await failedClosed(root, argv, where, 'IA-COMP-FIELD-VALUE');
+    // The report the refusals name runs for the same actor in the same state, writes nothing, and shows the finding.
+    const report = await run(['report', '--root', root], { env: HOMES });
+    expect(report.exitCode).toBe(1);
+    expect(report.stderr).toBe('');
+    const shown = JSON.parse(report.stdout) as { ok: boolean; result: { findings: Record<string, unknown>[] } };
+    expect(shown.ok).toBe(true);
+    expect(shown.result.findings).toContainEqual(
+      expect.objectContaining({ code: 'IA-COMP-FIELD-VALUE', path: '.ia/src/workspace.ia', line: 27 }),
+    );
+    // Position is never gated, and a removal still restores editing.
+    expect((await ia(root, ['position'])).exitCode).toBe(0);
+    expect((await ia(root, ['position', '--seat', demo, '--shape', 'governance'])).exitCode).toBe(0);
+    const removal = await ia(root, ['host', 'claude', '--remove', '--apply', '--yes']);
+    expect(removal.exitCode, removal.stdout).toBe(0);
+  });
+  it('restores editing with ia host claude --remove --apply while a refused mandate is present', async () => {
+    const root = workspace();
+    const applied = await ia(root, ['host', 'claude', '--apply', '--yes']);
+    expect(applied.exitCode, applied.stdout).toBe(0);
+    expect(existsSync(resolve(root, '.ia/distributions/hosts/claude-hooks-workspace.json'))).toBe(true);
+    probe(root);
+    await failedClosed(
+      root,
+      ['host', 'claude', '--apply', '--yes'],
+      { path: '.ia/src/workspace.ia', line: 19, identity: mandate('demo-mandate') },
+      'IA-COMP-FIELD-VALUE',
+    );
+    const removed = await ia(root, ['host', 'claude', '--remove', '--apply', '--yes']);
+    expect(removed.exitCode, removed.stdout).toBe(0);
+    expect(existsSync(resolve(root, '.ia/distributions/hosts/claude-hooks-workspace.json'))).toBe(false);
+  });
+  it('refuses a stated empty move list through admission, with the same shape', async () => {
+    const root = workspace((at) =>
+      writeFileSync(
+        resolve(at, '.ia/src/empty.ia'),
+        `#! ia 1.0\n${MANDATE('empty-mandate', ['participant @agent demo', 'moves []', 'scope [@workspace demo]'])}`,
+      ),
+    );
+    for (const argv of [
+      ['read', participant],
+      ['validate'],
+      ['next'],
+      ['preview', 'task'],
+      ['capture'],
+      ['project', 'claude'],
+    ]) {
+      const refusal = await failedClosed(
+        root,
+        argv,
+        { path: '.ia/src/empty.ia', line: 3, identity: mandate('empty-mandate') },
+        'IA-COMP-FIELD-VALUE',
+      );
+      expect(refusal['message'], argv.join(' ')).toContain(
+        "'authority.moves' must name at least one kernel move when stated",
+      );
+    }
+    expect((await ia(root, ['position'])).exitCode).toBe(0);
+  });
+  it('fails closed for a mandate in a file refused whole, and names it with no identity when only its text shows it', async () => {
+    const root = workspace((at) =>
+      writeFileSync(resolve(at, '.ia/src/header.ia'), '#! ia 1.0\n\n@mandate Bad_Name!\n  meaning\n    says "x"\n'),
+    );
+    const refusal = await refused(root, ['preview', 'task'], 'IA-RUNTIME-REQUEST-INVALID');
+    expect(refusal['where']).toEqual({ path: '.ia/src/header.ia', line: 3, identity: null });
+    expect(refusal['message']).toContain(
+      'the @mandate at .ia/src/header.ia:3 failed admission: IA-LANG-HEADER-MALFORMED',
+    );
+    expect(nextArgv(refusal['next'] as string)).toEqual(['report', '--root', root]);
+    // A parse error in a file that declares no mandate fails nothing closed: the preview runs.
+    const plain = workspace((at) =>
+      writeFileSync(resolve(at, '.ia/src/plain.ia'), '#! ia 1.0\n\n@agent plain\n  meaning\n    says "x\n'),
+    );
+    const previewed = await ia(plain, ['preview', 'task']);
+    expect(previewed.exitCode, previewed.stdout).toBe(0);
   });
 });

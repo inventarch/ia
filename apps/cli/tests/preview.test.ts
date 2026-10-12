@@ -590,29 +590,68 @@ describe('the mandate profile', () => {
     }
   });
   it('refuses, rather than fails, under a mandate whose authority the resolver cannot read', async () => {
+    // A child under `authority.moves`: admission admits the record, the runtime's mandate reader refuses the field.
+    const root = workspace((at) =>
+      writeFileSync(
+        resolve(at, '.ia/src/unreadable.ia'),
+        `#! ia 1.0\n${MANDATE('unreadable-mandate', ['participant @agent demo', 'moves [Observation]', '  note x', 'scope [@workspace demo]'])}`,
+      ),
+    );
+    const db = open(root, { cache: false });
+    expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+    db.close();
+    const refusal = await refused(root, ['task'], 'IA-RUNTIME-REQUEST-INVALID');
+    expect(refusal['message']).toBe(
+      `The mandate profile cannot be read: ${mandate('unreadable-mandate')}: authority.moves must be an unconditional inline value`,
+    );
+    expect(refusal['where']).toEqual({
+      path: '.ia/src/unreadable.ia',
+      line: 3,
+      identity: mandate('unreadable-mandate'),
+    });
+    expect(nextArgv(refusal['next'] as string)).toEqual([
+      'position',
+      '--seat',
+      mandate('unreadable-mandate'),
+      '--shape',
+      'governance',
+      '--root',
+      root,
+    ]);
+  });
+  it('refuses at a mandate admission refused, a stated empty move list among them, naming the admission report (lane D)', async () => {
     const root = workspace((at) =>
       writeFileSync(
         resolve(at, '.ia/src/empty.ia'),
         `#! ia 1.0\n${MANDATE('empty-mandate', ['participant @agent demo', 'moves []', 'scope [@workspace demo]'])}`,
       ),
     );
-    // Admission accepts `moves []`; the runtime's mandate reader does not (`ia validate` is gated now, so db is asked).
+    // Admission refuses `moves []` (compliance C05), so the mandate governs nothing it states: every preview fails closed.
     const db = open(root, { cache: false });
-    expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
-    db.close();
-    const refusal = await refused(root, ['task'], 'IA-RUNTIME-REQUEST-INVALID');
-    expect(refusal['message']).toBe(
-      `The mandate profile cannot be read: ${mandate('empty-mandate')}: authority.moves must name at least one kernel move`,
+    expect(db.report.findings.filter((finding) => finding.severity === 'error').map((finding) => finding.code)).toEqual(
+      ['IA-COMP-FIELD-VALUE'],
     );
-    expect(nextArgv(refusal['next'] as string)).toEqual([
-      'position',
-      '--seat',
-      mandate('empty-mandate'),
-      '--shape',
-      'governance',
-      '--root',
-      root,
-    ]);
+    db.close();
+    for (const form of [['task'], ['milestone', 'm3', 'meaning.says=x'], ['--set', '@milestone m1', 'work.owner=x']]) {
+      const refusal = await refused(root, form, 'IA-RUNTIME-REQUEST-INVALID');
+      expect(refusal['where'], form.join(' ')).toEqual({
+        path: '.ia/src/empty.ia',
+        line: 3,
+        identity: mandate('empty-mandate'),
+      });
+      expect(refusal['message'], form.join(' ')).toContain(
+        `${mandate('empty-mandate')} (.ia/src/empty.ia:3) failed admission: IA-COMP-FIELD-VALUE`,
+      );
+      expect(nextArgv(refusal['next'] as string), form.join(' ')).toEqual(['report', '--root', root]);
+    }
+    // From a clean workspace, a candidate that would leave a refused mandate is a verdict, not clean, as it was.
+    const clean = workspace();
+    const candidate = await preview(clean, ['--set', '@mandate reviewer-docs', 'authority.moves=[]']);
+    expect(candidate.exitCode, candidate.stdout).toBe(1);
+    expect(body(candidate)).toMatchObject({ identity: mandate('reviewer-docs'), admitted: false, clean: false });
+    expect(body(candidate)['findings']).toContainEqual(
+      expect.objectContaining({ code: 'IA-COMP-FIELD-VALUE', identity: mandate('reviewer-docs') }),
+    );
   });
   it('restricts nothing where no mandate governs, and says so', async () => {
     const root = workspace((at) =>

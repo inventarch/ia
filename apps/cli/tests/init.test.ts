@@ -670,7 +670,16 @@ it('keeps the verified starter shape and its minimum refusals', async () => {
       edited = edit(text);
     expect(edited).not.toBe(text);
     writeFileSync(resolve(root, path), edited);
-    const result = json(await run(['validate', '--root', root, '--json']));
+    let result = json(await run(['validate', '--root', root, '--json']));
+    // Lane D: a starter @mandate that fails admission fails `ia validate` closed, at the mandate; the admission report
+    // its refusal names, which runs in that state, lists the findings.
+    if (result.ok === false) {
+      expect(result).toMatchObject({
+        code: 'IA-RUNTIME-REQUEST-INVALID',
+        where: { path: '.ia/src/workspace.ia', identity: 'agent-system/policy/mandate/demo-mandate' },
+      });
+      result = json(await run(nextArgv(result.next))).result;
+    }
     return result.findings
       .filter((finding: { severity: string }) => finding.severity === 'error')
       .map((finding: { code: string }) => finding.code);
