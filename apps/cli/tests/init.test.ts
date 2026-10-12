@@ -671,13 +671,14 @@ it('keeps the verified starter shape and its minimum refusals', async () => {
     expect(edited).not.toBe(text);
     writeFileSync(resolve(root, path), edited);
     let result = json(await run(['validate', '--root', root, '--json']));
-    // Lane D: a starter @mandate that fails admission fails `ia validate` closed, at the mandate; the admission report
-    // its refusal names, which runs in that state, lists the findings.
+    // Lane D: a starter @mandate that fails admission, or the starter @agent its mandate and workspace name (D9), fails
+    // `ia validate` closed at that record; the admission report its refusal names, which runs in that state, lists the
+    // findings.
     if (result.ok === false) {
-      expect(result).toMatchObject({
-        code: 'IA-RUNTIME-REQUEST-INVALID',
-        where: { path: '.ia/src/workspace.ia', identity: 'agent-system/policy/mandate/demo-mandate' },
-      });
+      expect(result).toMatchObject({ code: 'IA-RUNTIME-REQUEST-INVALID', where: { path: '.ia/src/workspace.ia' } });
+      expect(['agent-system/policy/mandate/demo-mandate', 'agent-system/binding/agent/demo']).toContain(
+        result.where.identity,
+      );
       result = json(await run(nextArgv(result.next))).result;
     }
     return result.findings

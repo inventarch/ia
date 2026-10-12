@@ -1131,4 +1131,73 @@ describe('a @mandate that fails admission (lane D, operator ruling 2026-10-12)',
     const previewed = await ia(plain, ['preview', 'task']);
     expect(previewed.exitCode, previewed.stdout).toBe(0);
   });
+  it('fails closed when a record an admitted mandate depends on fails admission: the D8 probes (D9)', async () => {
+    const OPS = `#! ia 1.0\n${AGENT('ops')}${MANDATE('ops-mandate', ['participant @agent ops', 'moves [Observation, Verification, Synthesis, Delegation, Execution]', 'scope [@workspace demo]'])}`;
+    /** An undeclared section after `anchor` in workspace.ia, so admission refuses the record holding it. */
+    const broken = (at: string, anchor: string): void =>
+      rewrite(at, '.ia/src/workspace.ia', (text) => text.replace(anchor, `${anchor}  bogus\n    note x\n`));
+    // Before: demo-mandate observes only, so the steward's preview and validate refuse its move.
+    const intact = workspace((at) => {
+      moves(at, 'Observation');
+      writeFileSync(resolve(at, '.ia/src/ops.ia'), OPS);
+    });
+    expect(body(await ia(intact, ['preview', 'task']))).toMatchObject({ code: 'IA-RUNTIME-MANDATE-MOVE' });
+    // The steward participant's @agent fails admission: the default actor would switch to ops, which may make every move.
+    const agent = workspace((at) => {
+      moves(at, 'Observation');
+      writeFileSync(resolve(at, '.ia/src/ops.ia'), OPS);
+      broken(at, '    applies []\n');
+    });
+    for (const argv of [['preview', 'task'], ['validate']]) {
+      const refusal = await failedClosed(
+        agent,
+        argv,
+        { path: '.ia/src/workspace.ia', line: 12, identity: participant },
+        'IA-COMP-SECTION-UNKNOWN',
+      );
+      expect(refusal['message'], argv.join(' ')).toContain('depends on @agent demo through');
+    }
+    // The workspace demo-mandate is scoped to fails admission: the mandate would govern nowhere.
+    const scoped = workspace((at) => {
+      moves(at, 'Observation');
+      broken(at, '    steward @agent demo\n');
+    });
+    for (const argv of [['preview', 'task'], ['validate']]) {
+      const refusal = await failedClosed(
+        scoped,
+        argv,
+        { path: '.ia/src/workspace.ia', line: 3, identity: demo },
+        'IA-COMP-SECTION-UNKNOWN',
+      );
+      expect(refusal['message'], argv.join(' ')).toContain(
+        `${mandate('demo-mandate')} depends on @workspace demo through authority.scope`,
+      );
+    }
+    expect((await ia(scoped, ['position'])).exitCode).toBe(0);
+  });
+  it('runs beside an unrelated refused @agent and a never-authored participant reference (D9)', async () => {
+    const root = workspace((at) => {
+      writeFileSync(
+        resolve(at, '.ia/src/stray.ia'),
+        `#! ia 1.0\n${AGENT('stray').replace('    applies []\n', '    applies []\n  bogus\n    note x\n')}`,
+      );
+      writeFileSync(
+        resolve(at, '.ia/src/ghost.ia'),
+        `#! ia 1.0\n${MANDATE('ghost-mandate', ['participant @agent ghost', 'moves [Observation]', 'covers ["ghost/"]'])}`,
+      );
+    });
+    const db = open(root, { cache: false });
+    try {
+      expect(db.refused.map((record) => record.identity)).toContain('agent-system/binding/agent/stray');
+    } finally {
+      db.close();
+    }
+    const previewed = await ia(root, ['preview', 'task']);
+    expect(previewed.exitCode, previewed.stdout).toBe(0);
+    expect(body(previewed)).toMatchObject({ profile: { actor: participant, by: 'steward' } });
+    // ia validate runs too and reports the stray agent's admission error, as before.
+    const validated = await ia(root, ['validate']);
+    expect(validated.exitCode).toBe(1);
+    expect(body(validated)).toMatchObject({ status: 'refused' });
+  });
 });
