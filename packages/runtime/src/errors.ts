@@ -30,11 +30,17 @@ export class RuntimeError extends Error {
    * read, or one that failed admission): a caller locates it from this, never from the message. Absent otherwise.
    */
   declare readonly where?: RuntimeWhere;
+  /**
+   * Present on the refusal a mandate resolver raises while an authored record it reads failed admission (lane D, runtime
+   * R23): the cause a caller branches on (review D-R2), never read from `where` or the message.
+   */
+  declare readonly admission?: 'refused';
   constructor(
     readonly code: RuntimeCode,
     message: string,
     next?: string,
     where?: RuntimeWhere,
+    admission?: 'refused',
   ) {
     super(`${code}: ${message}`);
     this.name = 'RuntimeError';
@@ -45,5 +51,6 @@ export class RuntimeError extends Error {
         line: where.line,
         ...(where.identity === undefined ? {} : { identity: where.identity }),
       });
+    if (admission !== undefined) this.admission = admission;
   }
 }

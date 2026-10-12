@@ -248,7 +248,7 @@ it('renders two participants named by three mandates by identity, each agent onc
   expect(entryCount(packet)).toBe(formula(db, CATALOG.length));
 });
 
-it('renders an admitted mandate as authored, never refusing it: fragment references; a refused one is not rendered', () => {
+it('renders an admitted mandate as authored, never refusing it: one the reader refuses, fragment references; a refused one is not rendered', () => {
   const text = readFileSync(fixture, 'utf8');
   // A declared empty move list fails admission (compliance C05; lane D): the position still runs and, as for any record
   // admission refused, renders no mandate for it, so the packet never refuses (the CLI's gated commands do).
@@ -260,6 +260,15 @@ it('renders an admitted mandate as authored, never refusing it: fragment referen
   expect(position(refused, seat).body.mandates).toEqual([]);
   expect(renderPacket(refused, seat, CATALOG).packet.mandates).toEqual([]);
   for (const [name, records, fields] of [
+    // An admitted mandate the runtime's reader refuses (a child under authority.moves) still renders as authored.
+    [
+      'child under moves',
+      text.replace(
+        'moves [Observation, Verification, Synthesis, Delegation, Execution]',
+        'moves [Observation]\n      note x',
+      ),
+      { moves: ['Observation'] },
+    ],
     [
       'fragments',
       text

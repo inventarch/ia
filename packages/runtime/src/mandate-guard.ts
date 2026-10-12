@@ -2,7 +2,13 @@ import type { ReadHandle } from '@inventarch/db';
 import { selects } from '@inventarch/graph';
 import { RuntimeError } from './errors.js';
 import type { RuntimeWhere } from './errors.js';
-import { defaultActor, governingMandates, profileRefusal, seatedWorkspace } from './mandate-modes.js';
+import {
+  defaultActor,
+  governingMandates,
+  isAdmissionRefusal,
+  profileRefusal,
+  seatedWorkspace,
+} from './mandate-modes.js';
 import type { GoverningMandate, ProfileVerdict } from './mandate-modes.js';
 import type { HostHookDeclaration } from './packet-host.js';
 import type { HookCode } from './steward.js';
@@ -208,31 +214,36 @@ export function evaluateMandateGuard(
     });
   } catch (error) {
     if (!(error instanceof RuntimeError)) throw error;
-    // An admitted mandate whose authority the resolver cannot read is shown by its governance position. Anything else,
-    // an authored mandate that failed admission among it (lane D, D4), by the admission report: `ia validate` and every
-    // other mandate-gated command refuse in that state, and a position cannot seat at a record admission refused.
+    // Review D-R2: by its cause. A refused record a mandate resolution reads is shown by the admission report, not a
+    // position, which cannot seat at a refused record (or would seat at an admitted one of another band sharing its
+    // identity); `ia validate` and every other mandate-gated command refuse in that state. An admitted mandate whose
+    // authority the resolver cannot read is shown by its governance position.
     const where = error.where,
-      next =
-        where?.identity !== undefined && admittedMandate(reader, within, where.identity)
-          ? governance(where.identity)
-          : request.root === undefined
-            ? 'ia report'
-            : `ia report --root ${JSON.stringify(request.root)}`;
+      report = admissionReport(request.root),
+      next = !isAdmissionRefusal(error) && where?.identity !== undefined ? governance(where.identity) : report.command,
+      spelled = next === report.command && report.fromRoot ? `${next}, run from the workspace root` : next;
     return freeze({
       allowed: false,
       selected: true,
       code: 'IA-HOOK-MANDATE-UNAVAILABLE',
-      message: `${hook.message} (${hook.identity}: the mandates that govern this edit cannot be read: ${error.message}) Next: ${next}`,
+      message: `${hook.message} (${hook.identity}: the mandates that govern this edit cannot be read: ${error.message}) Next: ${spelled}`,
       next,
       ...(where === undefined ? {} : { where }),
     });
   }
 }
-/** Whether `identity` is an admitted `@mandate` of the scope; a read that refuses is no admission. */
-function admittedMandate(reader: ReadHandle, within: string, identity: string): boolean {
-  try {
-    return reader.get(identity, { within })?.discriminator === 'mandate';
-  } catch {
-    return false;
-  }
+/** Characters a printed root may hold and stay inert unquoted in sh, PowerShell and cmd: letters, digits, `._-/:`. */
+const INERT_ROOT = /^[\p{L}\p{N}._\-/:]+$/u;
+/**
+ * Lane D, review findings D-R1 and D-N2: the admission report command (`ia report`, the version 1 machine route no
+ * mandate gates) for a workspace root, spelled so no shell reads anything in it. `root` is printed, with forward slashes
+ * on win32, only when every character is inert unquoted (`INERT_ROOT`); otherwise no path is printed and `fromRoot` says
+ * the command is run from the workspace root, where `ia report` opens the working directory. A root is never wrapped in
+ * double quotes, where `$` and backticks stay live.
+ */
+export function admissionReport(root?: string): { readonly command: string; readonly fromRoot: boolean } {
+  const spelled = root === undefined ? undefined : process.platform === 'win32' ? root.replaceAll('\\', '/') : root;
+  return spelled !== undefined && INERT_ROOT.test(spelled)
+    ? freeze({ command: `ia report --root ${spelled}`, fromRoot: false })
+    : freeze({ command: 'ia report', fromRoot: true });
 }

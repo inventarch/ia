@@ -224,67 +224,38 @@ export interface RefusedMandate {
   readonly path: string;
   /** Its header line. */
   readonly line: number;
-  /** The code and message of the admission finding that refused it, or of the one that refused its file. */
+  /** The code and message of its own admission finding, as db records it (`UnadmittedRecord.finding`). */
   readonly code: string;
   readonly message: string;
 }
-type Finding = ReadHandle['report']['findings'][number];
-/**
- * The admission finding that accounts for one occurrence admission did not admit, by its structured fields alone: an
- * error naming its identity, else one within its lines (an identity tie's, a field's, a language error inside it),
- * else a warning so (an obligation left not-evaluated, which refuses too), else the first error of its file (a file
- * refused whole for an error elsewhere in it), else the report's first error (a refused system join); with none at all,
- * IA-COMP-NOT-EVALUATED.
- */
-function admissionFinding(
-  findings: readonly Finding[],
-  entry: ReadHandle['unadmitted'][number],
-): Pick<Finding, 'code' | 'message'> {
-  const at = findings.filter((finding) => finding.path === entry.path);
-  const naming = (finding: Finding): boolean =>
-    (entry.identity !== undefined && finding.identity === entry.identity) ||
-    (finding.line >= entry.line && finding.line <= entry.endLine);
-  const errors = (list: readonly Finding[]) => list.filter((finding) => finding.severity === 'error');
-  return (
-    errors(at).find((finding) => entry.identity !== undefined && finding.identity === entry.identity) ??
-    errors(at).find(naming) ??
-    at.find(naming) ??
-    errors(at)[0] ??
-    errors(findings)[0] ?? {
-      code: 'IA-COMP-NOT-EVALUATED',
-      message: `${entry.path}:${entry.line}: ${entry.identity ?? `@${entry.word}`}: admission did not admit it, and no finding says why`,
-    }
-  );
-}
 /**
  * Lane D, D1: every `@mandate` of the workspace's own authored sources (band 100) that failed admission, frozen, by path
- * then line, each with the admission finding that refused it (db `unadmitted`): (a) one admission refused, `refused`
- * naming it; (b) both occurrences of a mandate identity that ties at band 100; (c) one a file refused whole declares, by
- * a language error or a duplicate requirement id, as db's own parse of the file reads its headers, or as its captured
- * text shows a header the parse could not read. A record is a mandate when its word is `mandate` or its identity's facet
- * is. The band is the one db reads from the source's placement, as capture membership and governingMandates read it, so
- * a mandate refused inside an installed base (band 90) never counts: it never governs.
+ * then line, each with its own admission finding as db records it (db `unadmitted`): (a) one admission refused,
+ * `refused` naming it; (b) both occurrences of a mandate identity that ties at band 100; (c) one a file refused whole
+ * declares, by a language error or a duplicate requirement id, as db's own parse of the file reads its headers, or as
+ * its captured text shows a header the parse could not read, or a `@mandate` token on a line no parsed record spans. A
+ * record is a mandate when its word is `mandate` or its identity's facet is. The band is the one db reads from the
+ * source's placement, as capture membership and governingMandates read it, so a mandate refused inside an installed base
+ * (band 90) never counts: it never governs.
  *
  * It reads db's root view, not a scope: a record admission refused belongs to no scope, and its scope, covers and
  * participant cannot be trusted, so what it fails closed (D2) it fails closed workspace-wide.
  */
 export function refusedMandates(reader: ReadHandle): readonly RefusedMandate[] {
-  const findings = reader.report.findings;
   return freeze(
     reader.unadmitted
       .filter(
         (entry) => entry.band === 100 && (entry.word === 'mandate' || entry.identity?.split('/')[2] === 'mandate'),
       )
-      .map((entry): RefusedMandate => {
-        const { code, message } = admissionFinding(findings, entry);
-        return {
+      .map(
+        (entry): RefusedMandate => ({
           ...(entry.identity === undefined ? {} : { identity: entry.identity }),
           path: entry.path,
           line: entry.line,
-          code,
-          message,
-        };
-      }),
+          code: entry.finding.code,
+          message: entry.finding.message,
+        }),
+      ),
   );
 }
 /**
@@ -304,7 +275,7 @@ export interface RefusedDependency {
   /** Where the refused record is authored: its path and header line. */
   readonly path: string;
   readonly line: number;
-  /** The code and message of the admission finding that refused it. */
+  /** The code and message of the refused record's own admission finding. */
   readonly code: string;
   readonly message: string;
 }
@@ -343,16 +314,14 @@ export function refusedDependencies(reader: ReadHandle): readonly RefusedDepende
     (entry) => entry.band === 100 && (entry.word === 'agent' || entry.word === 'workspace'),
   );
   if (refused.length === 0) return freeze([]);
-  const findings = reader.report.findings,
-    found = new Map<string, RefusedDependency>();
+  const found = new Map<string, RefusedDependency>();
   for (const node of reader.records())
     for (const { holder, section, key, word } of DEPENDENCIES) {
       if (node.band !== 100 || node.discriminator !== holder) continue;
       for (const name of referenced(node, section, key, word))
         for (const entry of refused) {
           if (entry.word !== word || (entry.name ?? entry.identity?.split('/')[3]) !== name.toLowerCase()) continue;
-          const field = `${section}.${key}` as RefusedDependency['field'],
-            { code, message } = admissionFinding(findings, entry);
+          const field = `${section}.${key}` as RefusedDependency['field'];
           found.set(JSON.stringify([node.identity, field, entry.path, entry.line]), {
             dependent: node.identity,
             field,
@@ -360,8 +329,8 @@ export function refusedDependencies(reader: ReadHandle): readonly RefusedDepende
             ...(entry.identity === undefined ? {} : { identity: entry.identity }),
             path: entry.path,
             line: entry.line,
-            code,
-            message,
+            code: entry.finding.code,
+            message: entry.finding.message,
           });
         }
     }
@@ -372,17 +341,40 @@ export function refusedDependencies(reader: ReadHandle): readonly RefusedDepende
   );
 }
 /**
- * Lane D, D2 and D9: IA-RUNTIME-REQUEST-INVALID when any authored `@mandate` failed admission, or any record a mandate
- * resolution depends on did (`refusedDependencies`), naming the first refused mandate, else the first dependency, its
- * refused record located on the error as `where`. Every public resolver that reads a reader (governingMandates,
- * seatedWorkspace and defaultActor) calls it first, so the CLI's profile and the edit guard fail closed rather than read
- * a workspace whose restrictions a broken record may have lifted.
+ * Review D-R2: whether `error` is the refusal `requireMandatesAdmitted` raises, an authored record a mandate resolution
+ * reads having failed admission, so a caller names the admission report and a hand edit, not a governance position
+ * (which, for a refused record that shares its identity with an admitted one of another band, would show that one).
  */
-function failClosed(reader: ReadHandle): void {
+export function isAdmissionRefusal(error: unknown): error is RuntimeError & { readonly admission: 'refused' } {
+  return error instanceof RuntimeError && error.admission === 'refused';
+}
+/**
+ * Lane D, D2 and D9: IA-RUNTIME-REQUEST-INVALID, marked `admission: 'refused'` (`isAdmissionRefusal`), when any
+ * authored `@mandate` failed admission, or any record a mandate resolution depends on did (`refusedDependencies`). The
+ * decision reads db's root view, whatever `within` binds; what the error discloses does not (review D-N4, db PT5): through
+ * a whole-workspace token (`isCompleteScope`) it names the first refused mandate, else the first dependency, the refused
+ * record located on the error as `where`, with its admission code and message; through a narrowed token it names no
+ * path, record or finding and carries no `where`. Every public resolver that reads a handle (governingMandates,
+ * seatedWorkspace and defaultActor) calls it first, after reading its token, so the CLI's profile and the edit guard fail
+ * closed rather than read a workspace whose restrictions a broken record may have lifted. An unknown or stale token keeps
+ * its database code.
+ */
+export function requireMandatesAdmitted(reader: ReadHandle, within: string): void {
+  if (typeof within !== 'string' || within.length === 0) invalid('Runtime reads require an explicit scope token');
+  reader.snapshot({ within });
   const refused = refusedMandates(reader),
     dependencies = refusedDependencies(reader);
   if (refused.length === 0 && dependencies.length === 0) return;
-  const records = (count: number): string => `${count} record${count === 1 ? '' : 's'} a @mandate depends on`;
+  const fail = (message: string, where?: RuntimeWhere): never => {
+    throw new RuntimeError('IA-RUNTIME-REQUEST-INVALID', message, undefined, where, 'refused');
+  };
+  const closed =
+    'every mandate-gated decision fails closed across the workspace, since whom a mandate binds, where it governs or who acts by default cannot be trusted';
+  if (!reader.isCompleteScope(within))
+    fail(
+      `an authored @mandate, or a record a mandate resolution reads, failed admission; ${closed}; read it through a whole-workspace scope`,
+    );
+  const records = (count: number): string => `${count} record${count === 1 ? '' : 's'} a mandate resolution reads`;
   const where = (entry: RefusedMandate | RefusedDependency): RuntimeWhere => ({
     path: entry.path,
     line: entry.line,
@@ -399,16 +391,14 @@ function failClosed(reader: ReadHandle): void {
           ? ''
           : ` (${refused.length - 1} more @mandate record${refused.length === 2 ? '' : 's'} failed admission)`,
       also = dependencies.length === 0 ? '' : `, and ${records(dependencies.length)} failed admission`;
-    invalid(
-      `${who} failed admission: ${first.code} ${first.message}${more}${also}; while a @mandate fails admission every mandate-gated decision fails closed across the workspace, since its scope, covers and participant cannot be trusted`,
-      where(first),
-    );
+    fail(`${who} failed admission: ${first.code} ${first.message}${more}${also}; ${closed}`, where(first));
   }
   const [first] = dependencies as [RefusedDependency],
     rest = dependencies.length - 1,
-    more = rest === 0 ? '' : ` (${rest} more record${rest === 1 ? '' : 's'} a @mandate depends on failed admission)`;
-  invalid(
-    `${first.dependent} depends on ${first.reference} through ${first.field}, and ${first.identity ?? first.reference} (${first.path}:${first.line}) failed admission: ${first.code} ${first.message}${more}; while a record a @mandate depends on fails admission every mandate-gated decision fails closed across the workspace, since whom the mandate binds, where it governs or who acts by default cannot be trusted`,
+    more =
+      rest === 0 ? '' : ` (${rest} more record${rest === 1 ? '' : 's'} a mandate resolution reads failed admission)`;
+  fail(
+    `${first.dependent} depends on ${first.reference} through ${first.field}, and ${first.identity ?? first.reference} (${first.path}:${first.line}) failed admission: ${first.code} ${first.message}${more}; ${closed}`,
     where(first),
   );
 }
@@ -524,7 +514,7 @@ function admitted(reader: ReadHandle, within: string) {
   // An unknown or stale token keeps its database code: the scope is read before the workspace is judged.
   const read = { within },
     snapshot = reader.snapshot(read);
-  failClosed(reader);
+  requireMandatesAdmitted(reader, within);
   const nodes = new Map(
       snapshot.records.filter((node) => node.placement.kind !== 'runtime').map((node) => [node.identity, node]),
     ),

@@ -5,13 +5,16 @@ import type { Handle } from '@inventarch/db';
 import type { Location } from '@inventarch/language';
 import {
   MODES,
+  admissionReport,
   RuntimeError,
+  isAdmissionRefusal,
   defaultActor,
   governingMandates,
   position,
   profileRefusal,
   refusedDependencies,
   refusedMandates,
+  requireMandatesAdmitted,
   renderPacket,
   seatedWorkspace,
 } from '../src/index.js';
@@ -1121,14 +1124,16 @@ describe('a @mandate that fails admission (lane D, D1 and D2)', () => {
     ]);
     for (const [name, run] of [
       ['governingMandates', () => governingMandates(db, within, { actor: participant, workspace: demo })],
-      ['governingMandates narrowed', () => governingMandates(db, narrowed)],
       ['governingMandates by path', () => governingMandates(db, within, { path: 'docs/guide.md' })],
       ['defaultActor', () => defaultActor(db, within, demo)],
-      ['defaultActor narrowed', () => defaultActor(db, narrowed, demo)],
       ['seatedWorkspace', () => seatedWorkspace(db, within, 'docs/guide.md')],
+      ['requireMandatesAdmitted', () => requireMandatesAdmitted(db, within)],
     ] as const) {
       const error = refusal(run);
       expect(error.code, name).toBe('IA-RUNTIME-REQUEST-INVALID');
+      // Review D-R2: the cause is marked on the error, which callers branch on.
+      expect(error.admission, name).toBe('refused');
+      expect(isAdmissionRefusal(error), name).toBe(true);
       expect(error.where, name).toEqual({ path: '.ia/src/twin-a.ia', line: 3, identity: mandate('twin') });
       expect(Object.isFrozen(error.where), name).toBe(true);
       expect(error.message, name).toContain(
@@ -1136,6 +1141,30 @@ describe('a @mandate that fails admission (lane D, D1 and D2)', () => {
       );
       expect(error.message, name).toContain('2 more @mandate records failed admission');
     }
+    // Review D-N4: a narrowed token fails closed just the same, but names no path, record or finding and carries no where.
+    for (const [name, run] of [
+      ['governingMandates narrowed', () => governingMandates(db, narrowed)],
+      ['defaultActor narrowed', () => defaultActor(db, narrowed, demo)],
+      ['seatedWorkspace narrowed', () => seatedWorkspace(db, narrowed, 'docs/guide.md')],
+    ] as const) {
+      const error = refusal(run);
+      expect(error.code, name).toBe('IA-RUNTIME-REQUEST-INVALID');
+      expect(isAdmissionRefusal(error), name).toBe(true);
+      expect(error.where, name).toBeUndefined();
+      expect(error.message, name).toBe(
+        'IA-RUNTIME-REQUEST-INVALID: an authored @mandate, or a record a mandate resolution reads, failed admission; every mandate-gated decision fails closed across the workspace, since whom a mandate binds, where it governs or who acts by default cannot be trusted; read it through a whole-workspace scope',
+      );
+      for (const secret of ['twin', '.ia/src', 'IA-GRAPH', 'IA-COMP'])
+        expect(error.message, name).not.toContain(secret);
+    }
+    // An unknown token keeps its database code.
+    expect(() => requireMandatesAdmitted(db, 'forged')).toThrow(
+      expect.objectContaining({ code: 'IA-DB-SCOPE-UNAVAILABLE' }),
+    );
+    // A refusal of an admitted mandate's authority is not one.
+    expect(
+      isAdmissionRefusal(new RuntimeError('IA-RUNTIME-REQUEST-INVALID', 'x', undefined, { path: 'a', line: 1 })),
+    ).toBe(false);
     // One with no identity known is located by its path and line alone.
     const header = freshInit();
     put(header, '.ia/src/header.ia', file('\n@mandate Bad_Name!\n  meaning\n    says "x"\n'));
@@ -1252,7 +1281,7 @@ describe('a record an admitted @mandate depends on that fails admission (lane D,
       [demo, 'composition.steward'],
     ]);
     expect(thrown(() => defaultActor(db, token(db), demo)).message).toContain(
-      '(1 more record a @mandate depends on failed admission)',
+      '(1 more record a mandate resolution reads failed admission)',
     );
     // A refused mandate is named first, the dependencies counted after it.
     const text = `${brokenAgent(records)}${authorized('refused', ['moves []'])}`,
@@ -1263,7 +1292,7 @@ describe('a record an admitted @mandate depends on that fails admission (lane D,
       line: text.split('\n').indexOf('@mandate refused') + 1,
       identity: mandate('refused'),
     });
-    expect(error.message).toContain('and 2 records a @mandate depends on failed admission');
+    expect(error.message).toContain('and 2 records a mandate resolution reads failed admission');
   });
 
   it('does not fail closed for an unrelated refused @agent, a never-authored reference, or a refused installed @agent', () => {
@@ -1294,4 +1323,71 @@ describe('a record an admitted @mandate depends on that fails admission (lane D,
     ]);
     expect(defaultActor(db, token(db), demo).actor).toBe(participant);
   });
+});
+
+describe('the mandate facet and the shadowing override (review D-N6, D-R2)', () => {
+  it('reads a record as a mandate by its identity facet as well as its word', () => {
+    const entry = (word: string, identity: string) => ({
+      identity,
+      word,
+      name: 'x',
+      band: 100 as const,
+      path: '.ia/src/x.ia',
+      line: 3,
+      endLine: 3,
+      finding: { code: 'IA-COMP-FIELD-VALUE', path: '.ia/src/x.ia', line: 3, message: 'm' },
+    });
+    const stub = {
+      unadmitted: [entry('grant', 'local/policy/mandate/x'), entry('grant', 'local/policy/grant/y')],
+    } as unknown as Handle;
+    expect(refusedMandates(stub).map((refused) => refused.identity)).toEqual(['local/policy/mandate/x']);
+  });
+  it('fails closed, marked by its cause, for a refused authored mandate sharing its identity with an admitted installed one', () => {
+    // The installed sample-mandate is admitted at band 90; an authored override of it fails admission.
+    const root = freshInit();
+    put(
+      root,
+      '.ia/src/shadow.ia',
+      '#! ia 1.0\n\n@mandate sample-mandate\n  meaning\n    says "Shadow."\n    answers "What?"\n  governance\n    requires "Nothing."\n  authority\n    participant @agent demo\n    moves [Bogus]\n',
+    );
+    const db = database(root),
+      within = token(db);
+    expect(db.get(mandate('sample-mandate'), { within })?.band).toBe(90);
+    let caught: unknown;
+    try {
+      governingMandates(db, within, {});
+    } catch (error) {
+      caught = error;
+    }
+    expect(isAdmissionRefusal(caught)).toBe(true);
+    expect((caught as RuntimeError).where).toEqual({
+      path: '.ia/src/shadow.ia',
+      line: 3,
+      identity: mandate('sample-mandate'),
+    });
+  });
+});
+
+it('spells the admission report root only when every character is inert unquoted (review D-R1, D-N2)', () => {
+  const slash = (path: string) => (process.platform === 'win32' ? path.replaceAll('/', '\\') : path);
+  expect(admissionReport(slash('/work/ws-1/a.b_c'))).toEqual({
+    command: 'ia report --root /work/ws-1/a.b_c',
+    fromRoot: false,
+  });
+  expect(admissionReport(slash('/work/caf\u00e9'))).toEqual({
+    command: 'ia report --root /work/caf\u00e9',
+    fromRoot: false,
+  });
+  for (const unsafe of [
+    '/work/a&b',
+    '/work/a(b',
+    '/work/a$b',
+    '/work/a`b',
+    '/work/a b',
+    '/work/a"b',
+    "/work/a'b",
+    '/work/~a',
+  ])
+    expect(admissionReport(slash(unsafe)), unsafe).toEqual({ command: 'ia report', fromRoot: true });
+  expect(admissionReport(undefined)).toEqual({ command: 'ia report', fromRoot: true });
 });
