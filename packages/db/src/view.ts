@@ -139,13 +139,16 @@ const findingOf = (diagnostic: {
 const HEADER = /^[\s\p{Cf}]*@([A-Za-z][A-Za-z0-9-]*)(?=[\s\p{Cf}]|$)(?:[\s\p{Cf}]+([^\s\p{Cf}]+))?/u;
 /** An `@<word>` token anywhere on a line. */
 const TOKEN = /@([A-Za-z][A-Za-z0-9-]*)/g;
+/** A line of whitespace and Unicode format characters alone, which declares nothing. */
+const BLANK = /^[\s\p{Cf}]*$/u;
 /**
  * The occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested ones
  * included, with the identity its compile gives that header's record or, for one its compile refused, the identity spec
  * 3.1 gives it (`identityOf` over its word's registration), then every other line of `text` that opens with a header,
  * under its word and name, every `@<word>` token on a line no parsed record spans, under its word, and every line of an
- * error that neither a parsed record spans nor a header reading names, under no word (review D2-R2). Each carries the
- * error inside its lines, else `errors[0]`, the file's first error.
+ * error (for one at a blank line, the first non-blank line from there) that neither a parsed record spans nor a header
+ * reading names, under no word (review D2-R2). Each carries the error inside its lines, else `errors[0]`, the file's
+ * first error.
  */
 function refusedWhole(
   source: Source,
@@ -201,8 +204,9 @@ function refusedWhole(
       ...(source.ast.syntaxRecordSpans ?? []).filter((span) => headers.has(span.line)),
     ];
   const spanned = (line: number): boolean => spans.some((span) => line >= span.line && line <= span.endLine);
-  const named = new Set<number>();
-  const unread = text.split(/\r\n|\r|\n/).flatMap((spelled, index): UnadmittedRecord[] => {
+  const lines = text.split(/\r\n|\r|\n/),
+    named = new Set<number>();
+  const unread = lines.flatMap((spelled, index): UnadmittedRecord[] => {
     const line = index + 1,
       header = HEADER.exec(spelled);
     if (header !== null) {
@@ -214,9 +218,15 @@ function refusedWhole(
       : [...spelled.matchAll(TOKEN)].map((token) => occurrence(token[1]!, undefined, line, line));
   });
   // Review D2-R2: an error at a line no parsed record spans and no header reading names leaves a record db cannot
-  // identify, of any word, so it is listed with none; an error inside an identified record is that record's.
-  const unknown = [...new Set(errors.map((error) => error.line))]
-    .filter((line) => !spanned(line) && !named.has(line))
+  // identify, of any word, so it is listed with none; an error inside an identified record is that record's. An error
+  // at a blank line, or past the text, as a missing pragma in an empty file is, is taken at the first non-blank line from
+  // there, and at none in an empty file, which declares nothing.
+  const declaring = (line: number): number | undefined => {
+    for (let at = Math.max(line, 1); at <= lines.length; at++) if (!BLANK.test(lines[at - 1]!)) return at;
+    return undefined;
+  };
+  const unknown = [...new Set(errors.map((error) => declaring(error.line)))]
+    .filter((line): line is number => line !== undefined && !spanned(line) && !named.has(line))
     .map((line) => occurrence(undefined, undefined, line, line));
   return [...parsed, ...unread, ...unknown];
 }

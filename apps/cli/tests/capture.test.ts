@@ -553,11 +553,25 @@ it('refuses a floor input that fails to parse, keeping both snapshot files, and 
   const repaired = await capture(root);
   expect(repaired).toMatchObject({ changed: 0, rotated: false, prior: snapshotAt(root).revision });
   expect(bytesAt(root, PREVIOUS)).toEqual(previous);
-  // A source the workspace authors that fails to parse is a finding the snapshot records, never a refusal.
-  writeFileSync(resolve(root, PRINCIPLE), `${readFileSync(resolve(root, PRINCIPLE), 'utf8')}\n@@@ not a record\n`);
+  // A source the workspace authors that fails to parse inside a record db identifies is a finding the snapshot records,
+  // never a refusal.
+  const principle = readFileSync(resolve(root, PRINCIPLE), 'utf8');
+  writeFileSync(resolve(root, PRINCIPLE), `${principle}   misindented\n`);
   const recorded = await capture(root, 1);
   expect(recorded.admission.errors).toBeGreaterThan(0);
   expect(recorded.rotated).toBe(true);
+  // Review D2-R2: a stray line there is a record db cannot identify, possibly a @mandate, so capture, mandate-gated,
+  // fails closed at it, leaving the snapshot as it was.
+  writeFileSync(resolve(root, PRINCIPLE), `${principle}\n@@@ not a record\n`);
+  const [held, before] = [bytesAt(root, CURRENT), bytesAt(root, PREVIOUS)];
+  const closed = await run(['capture', '--root', root, '--json']);
+  expect(closed.exitCode, closed.stdout).toBe(1);
+  expect(JSON.parse(closed.stdout)).toMatchObject({
+    code: 'IA-RUNTIME-REQUEST-INVALID',
+    where: { path: PRINCIPLE },
+  });
+  expect(JSON.parse(closed.stdout).message).toContain('possibly a @mandate');
+  expect([bytesAt(root, CURRENT), bytesAt(root, PREVIOUS)]).toEqual([held, before]);
 });
 
 /** A workspace at `<scratch>/workspace` whose own sources are the native conformance corpus, which declares a @workspace. */

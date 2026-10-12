@@ -1435,6 +1435,38 @@ describe('a file refused whole whose records db cannot all identify (review D2-R
     expect(refusedMandates(db)).toEqual([]);
     expect(identities(db, { actor: participant, workspace: demo })).toEqual([mandate('demo-mandate')]);
   });
+  it('does not fail closed for an empty file, which declares nothing', () => {
+    const root = freshInit();
+    put(root, '.ia/src/empty.ia', '');
+    const db = database(root);
+    expect(db.report.findings.some((finding) => finding.path === '.ia/src/empty.ia')).toBe(true);
+    expect(refusedMandates(db)).toEqual([]);
+    expect(identities(db, { actor: participant, workspace: demo })).toEqual([mandate('demo-mandate')]);
+  });
+  it('names a mandate db identifies before a record it cannot, and counts the rest by kind', () => {
+    const root = freshInit();
+    put(root, '.ia/src/extra.ia', `#! ia 1.0\n${agent('strayhost')}\ngarbage line here\n`);
+    put(root, '.ia/src/zz-broken.ia', `#! ia 1.0\n${authorized('broken', ['moves [Bogus]'])}`);
+    const db = database(root);
+    expect(refusedMandates(db).map((entry) => [entry.path, entry.line, entry.unidentified ?? false])).toEqual([
+      ['.ia/src/extra.ia', 10, true],
+      ['.ia/src/zz-broken.ia', 3, false],
+    ]);
+    const error = thrownBy(() => governingMandates(db, token(db), { actor: participant, workspace: demo }));
+    expect(isAdmissionRefusal(error)).toBe(true);
+    expect(error.where).toEqual({ path: '.ia/src/zz-broken.ia', line: 3, identity: mandate('broken') });
+    expect(error.message).toContain(`${mandate('broken')} (.ia/src/zz-broken.ia:3) failed admission`);
+    expect(error.message).toContain('(1 unidentified record failed admission)');
+    // A second unidentified record, and no identified mandate: the first is named, the other counted.
+    put(root, '.ia/src/zz-broken.ia', `#! ia 1.0\n\n@ mandate spaced\n${body}`);
+    const again = database(root);
+    const second = thrownBy(() => governingMandates(again, token(again), { actor: participant, workspace: demo }));
+    expect(second.where).toEqual({ path: '.ia/src/extra.ia', line: 10 });
+    expect(second.message).toContain('an unidentified record at .ia/src/extra.ia:10, possibly a @mandate, failed');
+    const counted = /\((\d+) more unidentified records? failed admission\)/.exec(second.message);
+    expect(Number(counted?.[1])).toBe(refusedMandates(again).length - 1);
+    expect(second.message).not.toContain('@mandate record');
+  });
 });
 
 describe('D9 through a tie and a file refused whole (review D2-N1)', () => {

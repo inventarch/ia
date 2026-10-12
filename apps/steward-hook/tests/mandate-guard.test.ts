@@ -900,18 +900,27 @@ it('names only the removal when the hook record is gone and the workspace does n
   expect(reason(refused)).not.toContain('ia validate');
   expect(reason(refused)).not.toContain(`"ia host claude --root ${JSON.stringify(root)} --apply --yes"`);
   expect(check(root, 'src/app.ts', {}, 'Edit')).toEqual({});
-  // A broken hook record in a file with no mandate (the two moved to a file of their own) still names `ia validate`,
-  // which runs there.
+  // A hook record broken inside its own lines, in a file with no mandate (the two moved to a file of their own), still
+  // names `ia validate`, which runs there.
   const from = HOOKS.indexOf('\n@mandate docs-mandate'),
     to = HOOKS.indexOf('\n@execution-binding notes-hook');
-  const plain = workspace({
-    '.ia/src/hooks.ia': edited(HOOKS.slice(0, from) + HOOKS.slice(to), [
-      ['@hook note-edits', '@hook note-edits\n  bogus\nzzz'],
-    ]),
-    '.ia/src/mandates.ia': `#! ia 1.0\n${HOOKS.slice(from, to)}`,
-  });
-  ownership(plain, [[HOOK, ['docs/**', '.ia/src/**']]]);
-  const named = reason(check(plain, '.ia/src/hooks.ia', {}, 'Edit'));
+  const plainly = (broken: string): string => {
+    const at = workspace({
+      '.ia/src/hooks.ia': edited(HOOKS.slice(0, from) + HOOKS.slice(to), [['@hook note-edits', broken]]),
+      '.ia/src/mandates.ia': `#! ia 1.0\n${HOOKS.slice(from, to)}`,
+    });
+    ownership(at, [[HOOK, ['docs/**', '.ia/src/**']]]);
+    return at;
+  };
+  const plain = plainly('@hook note-edits\n  bogus\n   misindented'),
+    named = reason(check(plain, '.ia/src/hooks.ia', {}, 'Edit'));
   expect(named).toContain(`"ia validate --root ${JSON.stringify(plain)}"`);
   expect(named).not.toContain('ia report');
+  // Review D2-R2: a stray top-level line there is a record db cannot identify, possibly a mandate, so the edit fails
+  // closed at it and names the admission report.
+  const stray = plainly('@hook note-edits\n  bogus\nzzz'),
+    closed = reason(check(stray, '.ia/src/hooks.ia', {}, 'Edit'));
+  expect(closed).toContain('an unidentified record at .ia/src/hooks.ia:5, possibly a @mandate, failed admission');
+  expect(closed).toContain(`"${admissionReport(stray).command}"`);
+  expect(closed).not.toContain('ia validate');
 });

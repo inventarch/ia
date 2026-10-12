@@ -362,7 +362,8 @@ export function isAdmissionRefusal(error: unknown): error is RuntimeError & { re
  * Lane D, D2 and D9: IA-RUNTIME-REQUEST-INVALID, marked `admission: 'refused'` (`isAdmissionRefusal`), when any
  * authored `@mandate` failed admission, or any record a mandate resolution depends on did (`refusedDependencies`). The
  * decision reads db's root view, whatever `within` binds; what the error discloses does not (review D-N4, db PT5): through
- * a whole-workspace token (`isCompleteScope`) it names the first refused mandate, else the first dependency, the refused
+ * a whole-workspace token (`isCompleteScope`) it names the first refused mandate db identifies, else the first record
+ * db cannot identify (`unidentified`, review D2-R2), else the first dependency, the refused
  * record located on the error as `where`, with its admission code and message; through a narrowed token it names no
  * path, record or finding and carries no `where`. Every public resolver that reads a handle (governingMandates,
  * seatedWorkspace and defaultActor) calls it first, after reading its token, so the CLI's profile and the edit guard fail
@@ -391,17 +392,26 @@ export function requireMandatesAdmitted(reader: ReadHandle, within: string): voi
     ...(entry.identity === undefined ? {} : { identity: entry.identity }),
   });
   if (refused.length > 0) {
-    const [first] = refused as [RefusedMandate],
-      who =
-        first.unidentified === true
-          ? `an unidentified record at ${first.path}:${first.line}, possibly a @mandate,`
-          : first.identity === undefined
-            ? `the @mandate at ${first.path}:${first.line}`
-            : `${first.identity} (${first.path}:${first.line})`,
-      more =
-        refused.length === 1
-          ? ''
-          : ` (${refused.length - 1} more ${refused.slice(1).some((entry) => entry.unidentified === true) ? 'possible ' : ''}@mandate record${refused.length === 2 ? '' : 's'} failed admission)`,
+    // Review D2-R2: a mandate db identifies is named first, a record it cannot identify only when there is none; the
+    // rest are counted by kind.
+    const identified = refused.filter((entry) => entry.unidentified !== true),
+      first = identified[0] ?? (refused[0] as RefusedMandate),
+      unknown = first.unidentified === true,
+      count = (n: number, kind: string): readonly string[] =>
+        n === 0 ? [] : [`${n} ${kind} record${n === 1 ? '' : 's'}`],
+      counted = [
+        ...count(identified.length - (unknown ? 0 : 1), 'more @mandate'),
+        ...count(
+          refused.length - identified.length - (unknown ? 1 : 0),
+          unknown ? 'more unidentified' : 'unidentified',
+        ),
+      ],
+      who = unknown
+        ? `an unidentified record at ${first.path}:${first.line}, possibly a @mandate,`
+        : first.identity === undefined
+          ? `the @mandate at ${first.path}:${first.line}`
+          : `${first.identity} (${first.path}:${first.line})`,
+      more = counted.length === 0 ? '' : ` (${counted.join(' and ')} failed admission)`,
       also = dependencies.length === 0 ? '' : `, and ${records(dependencies.length)} failed admission`;
     fail(`${who} failed admission: ${first.code} ${first.message}${more}${also}; ${closed}`, where(first));
   }

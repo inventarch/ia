@@ -367,6 +367,11 @@ it('lists an occurrence of no known word for every error line of a file refused 
   );
   // An error inside an identified record is that record's: no occurrence of no known word.
   put(root, '.ia/src/inside.ia', '#! ia 1.0\n\n@agent inside\n  meaning\n    says "x\n');
+  // An empty file declares nothing, so its missing pragma lists nothing; an error at a blank line is taken at the first
+  // non-blank line from there, here a header no reading names, and at a header the reading names lists only that.
+  put(root, '.ia/src/empty.ia', '');
+  put(root, '.ia/src/late.ia', `\n\n@ mandate late\n${body}`);
+  put(root, '.ia/src/headed.ia', `\n\n@agent headed\n`);
   const db = open(root, { cache: false }),
     at = (path: string) => db.unadmitted.filter((entry) => entry.path === path),
     unknown = (path: string) =>
@@ -389,6 +394,13 @@ it('lists an occurrence of no known word for every error line of a file refused 
     ]);
     expect(at('.ia/src/inside.ia').map((entry) => [entry.word, entry.identity, entry.line])).toEqual([
       ['agent', 'agent-system/binding/agent/inside', 3],
+    ]);
+    expect(db.report.findings.filter((finding) => finding.path === '.ia/src/empty.ia').length).toBeGreaterThan(0);
+    expect(at('.ia/src/empty.ia')).toEqual([]);
+    expect(unknown('.ia/src/late.ia')).toEqual([[3, 1, undefined, undefined]]);
+    expect(at('.ia/src/late.ia')[0]!.finding.code).toBe('IA-LANG-PRAGMA-MISSING');
+    expect(at('.ia/src/headed.ia').map((entry) => [entry.word, entry.name, entry.line])).toEqual([
+      ['agent', 'headed', 3],
     ]);
   } finally {
     db.close();

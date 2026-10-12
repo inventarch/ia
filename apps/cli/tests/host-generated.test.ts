@@ -648,10 +648,16 @@ it('restores editing with the removal the guard names when a broken record keeps
   // effect (review C2-R7), so the registration names its actor; the guarded edits below are judged as before.
   await apply(second.root, second.env, '--actor', 'agent-system/binding/agent/demo');
   const ambiguous = hookGroups(second.root).get(HOOK);
-  put(second.root, '.ia/src/broken.ia', '#! ia 1.0\n\n@playbook broken\n  meaning\n    says "x"\nzzz not ia\n');
+  // The source error is inside a record db identifies: a stray top-level line would be a record it cannot identify,
+  // possibly a @mandate, which fails the edit closed at it instead (review D2-R2), and the lift works then too.
+  put(second.root, '.ia/src/broken.ia', '#! ia 1.0\n\n@playbook broken\n  meaning\n    says "x"\n   not ia\n');
   const lift = await guarded(second.root, ambiguous, 'docs/guide.md');
   expect(codeOf(lift)).toBe('IA-HOOK-IDENTITY-UNAVAILABLE');
-  expect(await lifted(second.root, second.env, lift)).toBe(0);
+  put(second.root, '.ia/src/broken.ia', '#! ia 1.0\n\n@playbook broken\n  meaning\n    says "x"\nzzz not ia\n');
+  const closed = await guarded(second.root, ambiguous, 'docs/guide.md');
+  expect(codeOf(closed)).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+  expect(closed).toContain('an unidentified record at .ia/src/broken.ia:6, possibly a @mandate, failed admission');
+  expect(await lifted(second.root, second.env, closed)).toBe(0);
 });
 
 it('refuses no more than the last registered selection when the records cannot open, and the removal it names works (H-R8)', async () => {
