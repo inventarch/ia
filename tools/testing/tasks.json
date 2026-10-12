@@ -3543,6 +3543,57 @@
       "covers": [
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
       ]
+    },
+    {
+      "id": "native:release-check",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm native:release:check",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/native-release-check"
+      ],
+      "cache": false,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "node --conditions=development --import tsx tools/release/native-version.ts --check"
+      ],
+      "reason": "Published Git tag availability and native archive digests must be checked fresh for each qualification."
+    },
+    {
+      "id": "tools:test-native-release",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/release/native-version.test.ts"
+      ],
+      "profile": "corpus",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-native-release"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
     }
   ]
 }

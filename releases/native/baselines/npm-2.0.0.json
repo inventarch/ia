@@ -1,0 +1,243 @@
+{
+  "format": "ia.native-published-baseline.v1",
+  "source": {
+    "repository": "https://github.com/inventarch/ia",
+    "tag": "v2.0.0",
+    "commit": "53885910dc2b22809fddb46c31091660930ade48"
+  },
+  "archives": [
+    {
+      "id": "inventarch/agent-composition-system",
+      "version": "1.2.0",
+      "archive": "982a2138e49f600a05afc1c5ee7a666da6d55f34efd0e08ec9f42127aeaa7cb5",
+      "manifest": "226de099ee361751876ae459c5e8d09324c31fef5ec95cb8365918f2b5d722ac",
+      "dependencies": [
+        "inventarch/agent-system",
+        "inventarch/authoring-system",
+        "inventarch/compliance-system",
+        "inventarch/governance-system",
+        "inventarch/template-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/agent-composition-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/agent-composition-system/-/agent-composition-system-2.0.0.tgz",
+        "integrity": "sha512-a9REoz00Il7oY+1t/6qvkA3QPVSlWVzw2pzhkIlIJ3cyveh0mY1YT+t7g7q2tU8DFJFzekDuVIRu4iw1L/Da7A==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/agent-system",
+      "version": "1.2.0",
+      "archive": "da12e66b2f969901f73d6314f3e3454ff761ee9c39759d3afb6c83773217ba5a",
+      "manifest": "7085267661748ab09c310bc332e39e7753c4b9dfe19c3ae64831031c6fd8b429",
+      "dependencies": [
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/agent-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/agent-system/-/agent-system-2.0.0.tgz",
+        "integrity": "sha512-hK97/HIExC54aDY7CCRJjQK9AS4SHaEHvPknuxRbv+m4uFkQ2PT6aM6ErAewUTIMP2bIqUDyiSAgyJpBnlz62A==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/authoring-system",
+      "version": "1.2.0",
+      "archive": "268db3c543281587223b0b29e2e3d9896987719c085343a07ad0ee4bcc1096d6",
+      "manifest": "997f8972858aee8c0484a0268eefc2262e176f02a03e98478e13a9b65635519c",
+      "dependencies": [
+        "inventarch/agent-composition-system",
+        "inventarch/agent-system",
+        "inventarch/compliance-system",
+        "inventarch/governance-system",
+        "inventarch/hook-authoring-system",
+        "inventarch/learning-system",
+        "inventarch/session-system",
+        "inventarch/template-system",
+        "inventarch/work-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/authoring-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/authoring-system/-/authoring-system-2.0.0.tgz",
+        "integrity": "sha512-aqq7grTyNmtA3y0LOfWzyHUEwdA6GZXV7KmdI20Na+Wsfpxj+GdqWvx+Rms6BPKJ4FH2qEhAgIqKQY8vatVq5Q==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/compliance-system",
+      "version": "1.2.0",
+      "archive": "3724341e0e23cc283f00adebb6cc8f58ed7cba40bd73c6b5a54c14fe23107548",
+      "manifest": "ed3caf351c882ed6a7069043adf8c14f5f2b128f464fd30520ac1590b1627f84",
+      "dependencies": [
+        "inventarch/agent-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/compliance-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/compliance-system/-/compliance-system-2.0.0.tgz",
+        "integrity": "sha512-3SOG2ZPnEVeAdjeMjq9npNqD2QRC2Prro2Zbqi6B/wf6VmLqryGFroCYNLqBD5gTs3psvBeBS+U2llQwiLPsQA==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/governance-system",
+      "version": "1.2.0",
+      "archive": "fefbce1625edac91d5ba2d0748952ce57ba2c05c2a6a90df55b5a7aec8a55ec9",
+      "manifest": "dca1e0af649d48b2c18548f2fcdc60938489e444e7fbfef9c808039e0d3abc2c",
+      "dependencies": [
+        "inventarch/agent-system",
+        "inventarch/compliance-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/governance-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/governance-system/-/governance-system-2.0.0.tgz",
+        "integrity": "sha512-ID1RZK+TIRCFNAMZnRhLAPPVww3a6IkSz6Ri//CsVm1y3KQjLTpOy+YSi8g7OfY7xnLG7+l3r2wRlG1YkCWNsA==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/hook-authoring-system",
+      "version": "1.2.0",
+      "archive": "50f904f9dddab1b716ecd5f05ad6dcd4c3ac0b538ab775a2e22f962b9d322901",
+      "manifest": "8ba8c610798c814434fbeeeb5e4727c8a743019046ea676c5063d5c0b4972b08",
+      "dependencies": [
+        "inventarch/agent-system",
+        "inventarch/authoring-system",
+        "inventarch/compliance-system",
+        "inventarch/governance-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/hook-authoring-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/hook-authoring-system/-/hook-authoring-system-2.0.0.tgz",
+        "integrity": "sha512-IK/QQoq25V7ufbi1eo1jbrDMvJ2DmYIwuxLGpSMio38XS3bDlcnXg1O2aWKC8GBjqB4LPJ10+VDi5Vuar3iimg==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/language",
+      "version": "1.2.0",
+      "archive": "0305ca741b1dfec97ff35fbeb36d4a66a0c9c0614b730fe14fcdac0f1565e28a",
+      "manifest": "201945ba363e049fadc4171e016161d36b74eaaa1c76bb68b78cf99e592e804c",
+      "dependencies": [],
+      "npm": {
+        "name": "@inventarch/cli",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/cli/-/cli-2.0.0.tgz",
+        "integrity": "sha512-VEJDl9OOvh9gYLUwQ+g6kGl4F4VnVZERgN4KnpM4VT5xdBoPiSAtl5SgkZv4I1Jak+hVl7L8E9REW9JuOCoN6g==",
+        "nativePath": "assets/base/0305ca741b1dfec97ff35fbeb36d4a66a0c9c0614b730fe14fcdac0f1565e28a.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/learning-system",
+      "version": "1.2.0",
+      "archive": "b302802c895d168afec800578d5013224a74d47d96583cf6e17d0915a19481ea",
+      "manifest": "70a7c3ffec43913a1db7943521738eb867cbe3b7010124ee3605f3418697aa31",
+      "dependencies": [
+        "inventarch/agent-system",
+        "inventarch/authoring-system",
+        "inventarch/compliance-system",
+        "inventarch/governance-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/learning-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/learning-system/-/learning-system-2.0.0.tgz",
+        "integrity": "sha512-UbQcl+OYFC5yPn/XK0dVI0Yvx//Fl0fMYQAId+SX0oNJRAPCXXAjQTzIdEJUPwrLOlkTSAY6uw1GxeU5UeS2TQ==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/session-system",
+      "version": "1.2.0",
+      "archive": "b85738e0b6d8e30a0cf7982298c3c48d2e4951fc89f87e0c0a93e240c4fe41ae",
+      "manifest": "52de9cc368656936b8e1d3ec5ded2e9ea8078981d073cd726761e2c93f88632c",
+      "dependencies": [
+        "inventarch/agent-system",
+        "inventarch/governance-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/session-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/session-system/-/session-system-2.0.0.tgz",
+        "integrity": "sha512-Xkom1t83yH+thu3hqfWRHkDy/E0C+rl1VpWDV+zU0F8vgFTcHkXNKiZHCpExuFGaiZlQJnM99vw4rqFFYqgBCg==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/template-system",
+      "version": "1.2.0",
+      "archive": "a22fd2c23367ba04b3cb1dcafde91b9d6ae0324164f673f5760d5fc9786fd011",
+      "manifest": "da1bd4aeadfbd0d4736b6abc6afe138f1c0d7ae9c31d3a83a22a2c4e92a64f41",
+      "dependencies": [
+        "inventarch/agent-system",
+        "inventarch/authoring-system",
+        "inventarch/compliance-system",
+        "inventarch/governance-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/template-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/template-system/-/template-system-2.0.0.tgz",
+        "integrity": "sha512-QwhYnoDUGMzGk8LH/NNE1j26Nm48PGagV3rIExjo2DhQA4nIT9umA/ZbQ5YV8cfDm/tY33qssGV6zwpq1ELxFw==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/work-system",
+      "version": "1.2.0",
+      "archive": "8957e4e521cae9eb4a983d80ef788099a04cf48276ddad0aa90cacb557fe703a",
+      "manifest": "71317e8929d5d4a39ad072ddf42eb08e61a19be9cfc80173e26f95f26f3f17e1",
+      "dependencies": [
+        "inventarch/agent-system",
+        "inventarch/compliance-system",
+        "inventarch/governance-system",
+        "inventarch/workspace-system"
+      ],
+      "npm": {
+        "name": "@inventarch/work-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/work-system/-/work-system-2.0.0.tgz",
+        "integrity": "sha512-l6iUHn861ExkuYzUJ6tE3Hsu+pUlDQCjJJ/lohkxFXmNGUZT6hKE7yEyzApyWgdRIylsxTFzyvP4e4EcuUanlQ==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    },
+    {
+      "id": "inventarch/workspace-system",
+      "version": "1.2.0",
+      "archive": "5427f67480b450e19df936eb6464bb5c1a1882d511bb038b3fd4cca830726c9c",
+      "manifest": "ca42e8bbb7b2432c39b8aad741ace8e6dbf1dde4e09d4de94fc2800191f86acf",
+      "dependencies": [
+        "inventarch/agent-composition-system",
+        "inventarch/agent-system",
+        "inventarch/authoring-system",
+        "inventarch/compliance-system",
+        "inventarch/governance-system",
+        "inventarch/hook-authoring-system",
+        "inventarch/learning-system",
+        "inventarch/session-system",
+        "inventarch/template-system",
+        "inventarch/work-system"
+      ],
+      "npm": {
+        "name": "@inventarch/workspace-system",
+        "version": "2.0.0",
+        "url": "https://registry.npmjs.org/@inventarch/workspace-system/-/workspace-system-2.0.0.tgz",
+        "integrity": "sha512-N9ic/maSgkblUo9v8khqXweDKx3CPw2ZSv2GQqwXpZPfEHFrZgcV7Fo/Vl1kLo27xSD6KOaFb12wEtKO3tLURQ==",
+        "nativePath": "dist/native.ia.tgz"
+      }
+    }
+  ]
+}

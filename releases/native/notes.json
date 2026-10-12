@@ -1,0 +1,70 @@
+{
+  "format": "ia.native-release-notes.v1",
+  "baseline": {
+    "tag": "v2.0.0",
+    "commit": "53885910dc2b22809fddb46c31091660930ade48"
+  },
+  "alignment": "2.1.0",
+  "changes": [
+    {
+      "id": "inventarch/agent-composition-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/agent-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/authoring-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/compliance-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/governance-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/hook-authoring-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/language",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/learning-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/session-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/template-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/work-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    },
+    {
+      "id": "inventarch/workspace-system",
+      "bump": "major",
+      "summary": "Apply the one-time native 2.1 alignment and preserve exact content and dependency version identity for subsequent independent native releases."
+    }
+  ]
+}
