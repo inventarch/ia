@@ -1239,6 +1239,41 @@ describe('a @mandate that fails admission (lane D, operator ruling 2026-10-12)',
       expect(nextArgv(given.next!), name).toEqual(['report', '--root', root]);
       expect((await run(nextArgv(given.next!), { env: HOMES })).exitCode, name).toBe(1);
     }
+    // Review D2-R1: a cwd reached through a link inside the workspace keeps the link's spelling, and the CLI and db read
+    // a relative --root lexically against it, so the next names a root that resolves there to the workspace: a junction
+    // (a directory symlink off win32) to a deeper folder, and a pnpm-style one under node_modules.
+    const linked = workspace(probe);
+    mkdirSync(resolve(linked, 'a/b/c'), { recursive: true });
+    mkdirSync(resolve(linked, 'packages/pkg'), { recursive: true });
+    mkdirSync(resolve(linked, 'node_modules'), { recursive: true });
+    const kind = process.platform === 'win32' ? 'junction' : 'dir';
+    let links = true;
+    try {
+      symlinkSync(resolve(linked, 'a/b/c'), resolve(linked, 'j'), kind);
+      symlinkSync(resolve(linked, 'packages/pkg'), resolve(linked, 'node_modules/pkg'), kind);
+    } catch {
+      links = false;
+    }
+    if (links)
+      for (const [via, relative] of [
+        ['j', '..'],
+        ['node_modules/pkg', '../..'],
+      ] as const)
+        for (const argv of [['preview', 'task'], ['validate']]) {
+          const cwd = resolve(linked, via),
+            label = `${argv[0]} from ${via}`;
+          const refusal = body(await run([...argv, '--json'], { cwd, env: HOMES }));
+          expect(refusal, label).toMatchObject({ code: 'IA-RUNTIME-REQUEST-INVALID' });
+          expect(commandsIn(refusal.next!), label).toEqual([`ia report --root ${relative}`]);
+          const followed = await run(nextArgv(refusal.next!), { cwd, env: HOMES });
+          expect(followed.exitCode, label).toBe(1);
+          expect(
+            (JSON.parse(followed.stdout) as { result: { findings: Record<string, unknown>[] } }).result.findings,
+            label,
+          ).toContainEqual(
+            expect.objectContaining({ code: 'IA-COMP-FIELD-VALUE', path: '.ia/src/workspace.ia', line: 27 }),
+          );
+        }
   });
   it('names the admission report and a hand edit for a refused authored mandate shadowing an admitted installed one (review D-R2)', async () => {
     // The installed sample-mandate is admitted at band 90; an authored override of it fails admission.

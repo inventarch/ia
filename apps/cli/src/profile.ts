@@ -26,7 +26,7 @@
 import type { ReadHandle } from '@inventarch/db';
 import { pathKey } from '@inventarch/db';
 import { realpathSync } from 'node:fs';
-import { relative } from 'node:path';
+import { relative, resolve } from 'node:path';
 import {
   defaultActor,
   governingMandates,
@@ -179,22 +179,34 @@ function unreadable(
   );
 }
 /**
- * Review D-R1: ` --root <root>` for the workspace an invocation without `--root` found from its working directory, spelled
- * relative to that directory, so it is inert by construction: `.` or `..` segments only. Undefined where no such spelling
- * exists (the cwd is unknown, or reaches the root only through another spelling of a path), and the command is then run
- * from the workspace root without a path printed.
+ * Review D-R1 and D2-R1: ` --root <root>` for the workspace an invocation without `--root` found from its working
+ * directory, spelled relative to that directory so it is inert by construction (`.` or `..` segments only), and printed
+ * only when it resolves there to this very root as the route resolves it: lexically against the working directory as
+ * given (which on win32 keeps a junction's spelling), then the real path (db `workspaceRoot`). The lexical candidate is
+ * tried first, then the one relative to the working directory's own real path; neither resolving there, or the cwd
+ * unknown, there is none, and the command is run from the workspace root with no path printed.
  */
 function reportRoot(root: string, cwd: string | undefined): string | undefined {
   if (cwd === undefined) return undefined;
-  let from = cwd;
+  const real = (path: string): string | undefined => {
+    try {
+      return realpathSync(path);
+    } catch {
+      return undefined;
+    }
+  };
+  const target = real(root) ?? root;
+  const candidates = [relative(cwd, root)];
   try {
-    from = realpathSync.native(cwd);
+    candidates.push(relative(realpathSync.native(cwd), root));
   } catch {
-    // An unreadable cwd is compared as given.
+    // An unreadable cwd offers its lexical candidate alone.
   }
-  const spelled = relative(from, root).replaceAll('\\', '/');
-  if (spelled === '') return ' --root .';
-  return /^\.\.(?:\/\.\.)*$/.test(spelled) ? ` --root ${spelled}` : undefined;
+  for (const candidate of candidates) {
+    const spelled = candidate.replaceAll('\\', '/') || '.';
+    if (/^(?:\.|\.\.(?:\/\.\.)*)$/.test(spelled) && real(resolve(cwd, spelled)) === target) return ` --root ${spelled}`;
+  }
+  return undefined;
 }
 
 /** An `ia author` form's `--digest`: the target file's sha256 as 64 lowercase hex digits. */
