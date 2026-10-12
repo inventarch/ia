@@ -36,7 +36,7 @@
       "genre": "spec",
       "title": "Distribution registry",
       "status": "implemented",
-      "sourceDigest": "ce8da7f013546b63f6416bbbc7e5d299127fc92556499ff89d4bb16b205cf6bb"
+      "sourceDigest": "01c8e2757024112ec15087017d837ab010caee7447ce2462310f1258a4542da6"
     },
     {
       "id": "spec-workspace-initialization-apply",

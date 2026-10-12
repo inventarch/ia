@@ -13,7 +13,7 @@ const base = buildLanguageBase(root);
 const checked = (overrides: Partial<Parameters<typeof languageBaseFindings>[0]> = {}) =>
   languageBaseFindings({ ...base, languageVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION, ...overrides });
 
-// docs/specs/workspace-initialization-apply/README.md §2 and §8 item 8.
+// docs/specs/workspace-initialization-apply/README.md §2 “Base artifact” and §8 “Acceptance evidence”.
 describe('bundled language base', () => {
   it('selects native versions independently of npm and refuses an absent or malformed version policy', () => {
     const temporary = mkdtempSync(resolve(tmpdir(), 'ia-language-version-'));
@@ -45,7 +45,7 @@ describe('bundled language base', () => {
     expect(verified.manifest.source).toEqual({ repository: null, commit: null, recipe: 'ustar-v1', epoch: 0 });
     expect(verified.manifest.roots).toEqual(['workspace-system/definition/workspace/language-workspace']);
     expect(verified.manifest.systems).toHaveLength(11);
-    // On one zlib build, two builds of one revision are the same bytes and the same pin (§2.2).
+    // On one zlib build, two builds of one revision are the same bytes and the same pin (the “Base artifact” contract).
     const again = buildLanguageBase(root);
     expect(again.pin).toEqual(base.pin);
     expect(again.bytes.equals(base.bytes)).toBe(true);

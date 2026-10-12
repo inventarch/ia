@@ -1,5 +1,5 @@
 /**
- * `ia host <host> --user`: docs/specs/host-plugin-distribution/README.md §6.3 (amended, item 5) and §7.1.
+ * `ia host <host> --user`: docs/specs/host-plugin-distribution/README.md §6.3 “Apply” and §7.1 “Registration”.
  *
  * Every case sets IA_HOME to a scratch directory and IA_CLAUDE to tests/fake-claude.mjs, so no test writes the real
  * IA home or runs the real `claude`, which would change the user's Claude configuration.
@@ -61,7 +61,7 @@ it('plans without writing, then materializes and registers through claude', asyn
   const again = JSON.parse((await run(['host', 'claude', '--user', '--json'], { env })).stdout);
   expect(again.plan.installed).toEqual({ version: planned.plan.plugin.version });
 });
-it('registers with the same two idempotent commands when already installed (spec §2.3)', async () => {
+it('registers with the same two idempotent commands when already installed (registration contract)', async () => {
   const { env } = setup(INSTALLED);
   const planned = JSON.parse((await run(['host', 'claude', '--user', '--json'], { env })).stdout);
   expect(planned.plan.commands).toEqual(registration(env.IA_HOME));
@@ -299,7 +299,7 @@ it('refuses planned and partial hosts, and --root or --context with --user', asy
   expect((await run(['host', 'claude', '--user', '--context', 'x'], { env })).exitCode).toBe(2);
   expect(existsSync(env.IA_HOME)).toBe(false);
 });
-it('refuses usage and unsupported hosts before running claude at all, the --version probe included (contract §3)', async () => {
+it('refuses usage and unsupported hosts before running claude at all, the --version probe included (consumer exit classes)', async () => {
   const { env } = setup();
   const recorded = resolve(scratch('user-host-calls'), 'calls.log');
   writeFileSync(recorded, '');
@@ -325,7 +325,7 @@ it('refuses an IA home that looks like a workspace at plan time', async () => {
     next: `Move ${resolve(env.IA_HOME, 'src')} out of the IA home, or set IA_HOME to another absolute directory; then run "ia host claude --user".`,
   });
 });
-it('removes only what claude lists, then the directory (uninstall and remove exit 1 when absent, spec §2.3)', async () => {
+it('removes only what claude lists, then the directory (uninstall and remove exit 1 when absent, registration contract)', async () => {
   const { log, env } = setup();
   expect((await run(['host', 'claude', '--user', '--apply', '--yes'], { env })).exitCode).toBe(0);
   writeFileSync(log, '');

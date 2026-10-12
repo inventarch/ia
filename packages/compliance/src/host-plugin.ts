@@ -1,5 +1,5 @@
 /**
- * docs/specs/host-plugin-distribution/README.md §6.1 (amended: rendered at apply time). A pure function:
+ * docs/specs/host-plugin-distribution/README.md §6.1 “Rendering”. A pure function:
  * the same input always yields the same files, so the caller's digest of the output identifies the plugin.
  */
 import { posix } from 'node:path';
@@ -12,9 +12,9 @@ export interface ClaudePluginInput {
   readonly version: string;
   readonly cliVersion: string;
   readonly channel: 'checkout' | 'npm' | 'unknown';
-  /** Absolute path of the CLI entry that rendered this plugin; the hook runs it first (§8.1, amended). */
+  /** Absolute path of the CLI entry that rendered this plugin; the hook runs it first (§8 “Session hook”). */
   readonly entry: string;
-  /** §5's update instruction, which the hook repeats when `ia` cannot be found. */
+  /** The update instruction (§11 “Updates and evidence”), which the hook repeats when `ia` cannot be found. */
   readonly install: string;
   /**
    * The absolute path of the Node executable that runs the hook on macOS and Linux: the Node running `ia host claude

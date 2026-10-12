@@ -35,3 +35,5 @@ Offline resolution uses cached archives and reaches only requested/locked ids an
 Install/update plan before mutation and recheck at apply. Update without `--to` keeps the request range while dropping that package's preferred pin, selecting the newest permitted release. Online restore checks withdrawals before reacquiring locked bytes. Remove reads the lock without choosing a provider. Projection refresh follows the admitted installed set; its failure reports any completed installation.
 
 Provider extensions, kit indexing and workspace adoption retain this transport boundary and must state their own source placement and projection behavior. [Registry tests](../../../apps/cli/tests/registry.test.ts) cover consumers; provider implementation tests cover metadata and transport refusals.
+
+The [registry collections contract](../../../apps/distribution/references/registry-collections.md) defines kit and workspace indexes, source-only workspace adoption, trust refusals, projection refresh and rollback for these extensions.

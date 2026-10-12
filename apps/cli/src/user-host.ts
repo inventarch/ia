@@ -1,10 +1,10 @@
 /**
- * `ia host <host> --user`: docs/specs/host-plugin-distribution/README.md §6.3 (amended, item 5) and §7.1.
+ * `ia host <host> --user`: docs/specs/host-plugin-distribution/README.md §6.3 “Apply” and §7.1 “Registration”.
  *
  * Needs no workspace. Plans by default and writes nothing while planning; `--apply` renders the plugin, swaps it into
  * the IA home's marketplace directory, then runs Claude's own `claude plugin …` commands. Without `claude` it
  * materializes and prints the commands. It never reads or edits Claude's settings files. A service refusal keeps its
- * code and message (contract §4.1) and gains the next action the CLI can supply, as `ia host` does.
+ * code and message (consumer CLI contract §4 “Refusals”) and gains the next action the CLI can supply, as `ia host` does.
  */
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -47,7 +47,7 @@ export interface UserHostView {
 }
 
 /**
- * §6.2 (amended): the digest is of the files rendered with a placeholder version, so it changes whenever the renderer's
+ * §6.2 “Identity”: the digest is of the files rendered with a placeholder version, so it changes whenever the renderer's
  * output does, including when the recorded Node changes. `node` is the Node that runs the hook.
  */
 export function buildClaudePlugin(input: {
@@ -82,7 +82,7 @@ export const claudeCommand = (command: readonly string[]): string => ['claude', 
 /**
  * §7.1's plan. It reads the IA home and asks `claude` what it lists; it writes nothing. `claude` is first run (the
  * availability probe) only after every usage check and refusal has passed, so a class-2 invocation does no work
- * (contract §3). The runner is returned so apply reuses it instead of probing again.
+ * (consumer CLI contract §3 “Exit classes and protocol boundaries”). The runner is returned so apply reuses it instead of probing again.
  */
 export function collectUserHost(
   context: Context,
@@ -90,12 +90,12 @@ export function collectUserHost(
 ): { readonly view: UserHostView; readonly runner: ClaudeRunner } {
   const { args, host } = context;
   const name = args.positionals[0] ?? '';
-  // §4: the adapter table decides. Unknown is usage, and so is --root (§7.1); both precede every read.
+  // The host adapter table decides. Unknown is usage, and so is --root (§7.1); both precede every read.
   const row = hostRow(name);
   if (row === undefined) throw new UsageError(`ia host takes claude, codex or cursor; got ${name}`);
   if (args.value('root') !== undefined)
     throw new UsageError('--root does not apply with --user; the user-level entry point belongs to no workspace');
-  // §4: a row without a user-level entry point — Codex (partial) and Cursor (planned) — refuses naming the host.
+  // A host adapter row without a user-level entry point refuses naming the host.
   if (row.user === 'none')
     throw new Refusal(
       'IA-DIST-HOST-UNSUPPORTED',
@@ -130,7 +130,7 @@ export function collectUserHost(
     plugin: { version: plugin.version, cli: host.version, channel: channel.kind },
     installed: installed === null ? null : { version: installed.version },
     claude: runner.available,
-    // §2.3: registration is idempotent and needs no observation; removal asks claude what exists.
+    // §7.1: registration is idempotent and needs no observation; removal asks claude what exists.
     commands: remove ? removalCommands(observeClaude(runner)) : registrationCommands(marketplace),
     files: plugin.files,
   };
@@ -178,7 +178,7 @@ export interface UserHostApplied {
  * §6.3: materialize, then register through `claude`; removal runs `claude` first and deletes the directory last, so a
  * failed uninstall leaves the marketplace Claude still points at. A failing command refuses naming itself and the
  * rerun, and the commands before it have run. A rerun converges: registration repeats two idempotent commands, and
- * removal asks claude again what is left (§2.3).
+ * removal asks claude again what is left (the “Registration” contract).
  */
 export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHostApplied {
   if (!view.remove) marketplaceStep(view, () => materializeMarketplace(view.home, view.files));
@@ -236,7 +236,7 @@ const unavailable = (view: UserHostView, applied: boolean): string =>
   applied
     ? 'claude could not be run: run the claude commands above by hand.'
     : `claude could not be run: apply ${view.remove ? 'deletes the directory' : 'writes the plugin'}, and the claude commands above must then be run by hand.`;
-/** The content column of a depth-1 step (§6.4 rule 2), so a wrapped command breaks within the width. */
+/** The content column of a depth-1 step (consumer CLI contract §6 “Terminal rendering”), so a wrapped command breaks within the width. */
 const STEP_COLUMN = (caps: Capabilities): number => indentOf(1) + blockSymbolWidth(['step'], caps.ascii) + 2;
 const summary = (view: UserHostView, context: Context, applied = false): readonly (readonly string[])[] => {
   const { caps } = context;
@@ -299,7 +299,7 @@ export async function runUserHost(context: Context): Promise<Result> {
       ? { exitCode: 0, stdout: JSON.stringify(envelope(view, applied)) + '\n', stderr: '' }
       : { exitCode: 0, stdout: render(view, applied, context), stderr: '' };
   if (!args.flag('apply')) return done(null);
-  // §2.8 rule 3. Parsing has already refused every --apply whose question cannot be asked or answered.
+  // Consumer CLI contract §2.8–2.11 “Distribution changes”. Parsing has already refused every --apply whose question cannot be asked or answered.
   if (
     !args.flag('yes') &&
     !(await confirm(

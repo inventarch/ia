@@ -1,5 +1,5 @@
 /**
- * The consumer command table: docs/specs/consumer-cli-contract/README.md §1.2 step 5 and §2.
+ * The consumer command table: docs/specs/consumer-cli-contract/README.md §1.2 “Dispatch and discovery” and §2 “Commands and arguments”.
  *
  * One row per verb, carrying its help text and its whole argument grammar. §1.2's order is a property of this
  * table and of the dispatcher that reads it; nothing else in the binary enumerates a verb or a flag name.
@@ -8,7 +8,7 @@ import type { MODE_MOVES, Mode, PacketCatalogRow } from '@inventarch/runtime';
 import type { Grammar, OptionSpec, PositionalSpec } from './args.js';
 import { none, positionals } from './args.js';
 
-/** §1.2 step 4. The frozen machine routes, in the order `packages/runtime/src/door.ts:103` admits them. */
+/** The frozen machine routes admitted by `packages/runtime/src/door.ts`; see the contract’s “Exit classes and protocol boundaries”. */
 export const LEGACY_OPERATIONS = [
   'scope',
   'context',
@@ -21,7 +21,7 @@ export const LEGACY_OPERATIONS = [
   'report',
 ] as const;
 
-/** §1.2 step 6. Reserved so a later milestone can take the name without a rename; see §1.5. */
+/** Reserved so a later command can take the name without a rename; see “Dispatch and discovery”. */
 export const RESERVED_TOKEN = 'agent';
 
 export type Group = 'workspace' | 'distribution';
@@ -39,7 +39,7 @@ export interface CommandSpec {
   readonly name: string;
   readonly group: Group;
   readonly summary: string;
-  /** The syntax lines `ia <command> --help` prints, verbatim from §2. */
+  /** The syntax lines `ia <command> --help` prints; see §2 “Commands and arguments”. */
   readonly syntax: readonly string[];
   readonly grammar: Grammar;
   /**
@@ -70,7 +70,7 @@ export const COMMON_OPTIONS: readonly OptionSpec[] = [
 ];
 
 /**
- * Registry spec §4 level 1: one registry for every id in the command, whatever its provider. It replaces discovery's
+ * Registry spec §4 “Selection and doctor”: one registry for every id in the command, whatever its provider. It replaces discovery's
  * per-provider choice, so it cannot stand beside the two sources that replace discovery outright.
  */
 const REGISTRY: OptionSpec = option({
@@ -149,7 +149,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           placeholder: '<id>[@version]',
           summary: 'Mount a source-only registry workspace at band 50',
         }),
-        // M5.1 §2.3: the package id, when the directory name does not normalize to the one wanted.
+        // Workspace initialization §2 “Inputs”: the package id, when the directory name does not normalize to the one wanted.
         option({
           name: 'id',
           kind: 'value',
@@ -638,7 +638,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     ],
     grammar: grammar(
       [
-        // Registry spec §6.2: without --to the request keeps its range and the newest release in it wins.
+        // Registry spec §6 “Consumer operations”: without --to the request keeps its range and the newest release in it wins.
         option({
           name: 'to',
           kind: 'value',
@@ -735,8 +735,8 @@ export const COMMANDS: readonly CommandSpec[] = [
   },
   {
     // docs/specs/host-registration/README.md §4. The host is a positional the handler checks against the
-    // host adapter table (host plugin distribution spec §4), because a positional has no closed value set here; a host
-    // outside the table is still usage (exit 2). `--user` is that spec's §7.1 user-level entry point.
+    // host adapter table (apps/distribution/src/hosts.ts), because a positional has no closed value set here; a host
+    // outside the table is still usage (exit 2). `--user` is the host plugin distribution contract’s §7.1 user-level entry point.
     name: 'host',
     group: 'distribution',
     summary: "Plan or apply this workspace's host registration",
@@ -774,7 +774,7 @@ export const COMMANDS: readonly CommandSpec[] = [
 ];
 
 /**
- * §1.6: L ∪ C ∪ R and the step 1–2 tokens — every token an extension may never take. The core wins: `dispatch`
+ * “Dispatch and discovery”: legacy, consumer, reserved and entry tokens — every token an extension may never take. The core wins: `dispatch`
  * routes such a token to its core route even when an extension claims it.
  */
 export const CORE_TOKENS: ReadonlySet<string> = new Set<string>([
@@ -785,7 +785,7 @@ export const CORE_TOKENS: ReadonlySet<string> = new Set<string>([
   '-h',
   '--version',
 ]);
-/** §1.6: the shape of an extension token. */
+/** “Dispatch and discovery”: the shape of an extension token. */
 export const EXTENSION_TOKEN = /^[a-z][a-z0-9-]{0,31}$/;
 
 export const commandNames: readonly string[] = COMMANDS.map((command) => command.name);
@@ -801,7 +801,7 @@ export const findCommand = (token: string): CommandSpec | undefined =>
   COMMANDS.find((command) => command.name === token);
 
 /**
- * §1.2 step 7's nearest match. Ordinary Levenshtein distance over the tokens the dispatcher admits, capped so a
+ * “Dispatch and discovery”: suggest a nearest match. Ordinary Levenshtein distance over the tokens the dispatcher admits, capped so a
  * wholly unrelated word gets no suggestion rather than a misleading one.
  */
 export function nearestTokens(token: string, admitted: readonly string[], limit = 3): readonly string[] {

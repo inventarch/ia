@@ -1,23 +1,16 @@
 import { packageManagerCommand } from '../../../tools/entry/package-manager.mjs';
 /**
- * M4.5's first obligation: the three protocols that coexist without normalization
- * (docs/specs/consumer-cli-contract/README.md §3), pinned against the built binaries.
+ * Built-entrypoint qualification for the consumer, machine query and distribution protocols.
+ * docs/specs/consumer-cli-contract/README.md §3 “Exit classes and protocol boundaries”, §4 “Refusals”,
+ * §5 “JSON” and §6 “Terminal rendering” describe the maintained public contract.
  *
- * docs/specs/consumer-cli-contract/README.md §3 "The legacy rule" and §4.4 say what each protocol owes.
- * These cases pin the properties a consumer change is most likely to break silently: colour or a banner leaking
- * onto a machine route, a prompt appearing where no question can be answered, and `ia-distribution` acquiring an
- * exit code 2 it has never had. Absence is proved adversarially — the environment asks for colour in every way
- * the renderer understands and the route must still emit none.
+ * These cases pin the properties a consumer change can break silently: colour or a banner leaking onto a machine
+ * route, a prompt appearing where no question can be answered, and `ia-distribution` acquiring consumer exit classes.
+ * The environment requests colour in every way the renderer understands; machine routes must still emit none.
  *
- * The third route §3 names is the private namespace, which has its own contract and its own test file; the public
- * tree rewrites the row out of the dispatch table, so its protocol case cannot live in a file that also runs there.
- * apps/cli/PRIVATE-NAMESPACE.md P02 and P06 name both. This file is emitted into the public candidate verbatim, so
- * it may not name that namespace either: tools/release/export.mjs scans every emitted apps/cli file for it.
- *
- * The last two cases are M4's "installed-binary tests" exit criterion for the consumer protocol itself: §5's
- * `--json` invariant, §6.7's colour resolution and §5's closed-stdout rule, all observed as process bytes rather
- * than as returned strings. What a renderer prints is tests/render.test.ts's; what §7 prints is
- * tools/docs/cli-examples.ts's. Nothing here asserts a column, a symbol placement or a spacing.
+ * Installed binaries establish JSON stdout, terminal capability handling, closed-stream handling and cancellation
+ * as process bytes. tests/render.test.ts owns renderer layout; tools/docs/cli-examples.ts owns captured examples.
+ * These cases do not assert columns, symbol placement or spacing.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
@@ -133,17 +126,17 @@ beforeAll(async () => {
     true,
   );
   expect(existsSync(resolve(installedRoot, 'node_modules/@inventarch/cli/assets/vocabulary.json'))).toBe(true);
-  // M5.1 §3.2: the generated, gitignored base pin travels in the packed `assets` directory like the catalogue.
+  // Workspace initialization §3 “Bundled language”: the generated, gitignored base pin travels in the packed `assets` directory like the catalogue.
   expect(existsSync(resolve(installedRoot, 'node_modules/@inventarch/cli/assets/base.json'))).toBe(true);
 }, 120_000);
 /** Every escape introducer, not only CSI: a banner or spinner could open with ESC, CSI, OSC or ST. */
 const ESCAPE = /[\u001b\u009b\u009c\u009d]/;
 /**
- * NO_COLOR unset and every colour request the renderer resolves (§6.7) turned on. A machine route must emit no
+ * NO_COLOR unset and every colour request the renderer resolves (“Terminal rendering”) turned on. A machine route must emit no
  * colour regardless, so this environment is the one that makes a leak observable rather than hiding it.
  */
 const colourful = (): NodeJS.ProcessEnv => ({ ...plain(), FORCE_COLOR: '1', TERM: 'xterm-256color' });
-/** Neither asking for colour nor forbidding it, so §6.7 falls through to rule 5: a pipe is not a terminal. */
+/** Neither asking for colour nor forbidding it, so terminal detection applies: a pipe is not a terminal. */
 const plain = (): NodeJS.ProcessEnv => {
   const env: NodeJS.ProcessEnv = { ...process.env, NODE_OPTIONS: '', NODE_PATH: '' };
   for (const name of ['NO_COLOR', 'FORCE_COLOR', 'IA_ASCII', 'IA_DEBUG']) delete env[name];
@@ -174,7 +167,7 @@ it('keeps the nine machine routes one undecorated JSON line under C03 exit class
   for (const operation of LEGACY_OPERATIONS) {
     const got = await legacy([operation, '--root', FIXTURE, '--params', '{}']);
     expect(got.status, operation).not.toBeNull();
-    // §4.4: this route puts refusals on stdout, so an empty stderr is the whole of the stream contract.
+    // “Exit classes and protocol boundaries”: this route puts refusals on stdout, so an empty stderr is the whole of the stream contract.
     expect(got.stderr, operation).toBe('');
     const value = oneJsonLine(got.stdout, operation) as { ok: boolean; code?: string; result?: { outcome?: string } };
     expect([0, 1, 2], operation).toContain(got.status);
@@ -204,7 +197,7 @@ it('keeps the nine machine routes one undecorated JSON line under C03 exit class
 });
 
 it('keeps ia-distribution on stdout at 0, stderr at 1, and out of exit class 2 entirely', async () => {
-  // §1.4: success is one JSON line on stdout with nothing on stderr.
+  // The distribution protocol: success is one JSON line on stdout with nothing on stderr.
   for (const args of [
     ['doctor', '--root', FIXTURE],
     ['list', '--root', FIXTURE],
@@ -291,7 +284,7 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
     });
     expect(got.status, label).not.toBeNull();
     oneJsonLine(got.stdout, label);
-    // §4.4 and §6.6: in `--json` mode stderr may carry progress and notes, and no verb in this release emits
+    // “JSON” and “Terminal rendering”: in `--json` mode stderr may carry progress and notes, and no verb in this release emits
     // either but the deprecated `ia compile` (below), so the observable is that nothing narrates onto either stream —
     // including a prompt, which cannot be answered here because stdin is an empty closed pipe and neither stream is a
     // terminal.
@@ -315,7 +308,7 @@ it('keeps consumer --json one parseable value with no colour, no prompt and no n
   expect(existsSync(resolve(root, '.ia/work/snapshot/current.json'))).toBe(true);
   expect(existsSync(resolve(root, '.ia/work/compiled.json'))).toBe(false);
   expect(compiled.stderr).toBe(DEPRECATION);
-  // M5.1 §3.2: the bundled base ships in the packed @inventarch/cli's `assets`, so the installed binary initializes offline.
+  // Workspace initialization §3 “Bundled language”: the bundled base ships in the packed @inventarch/cli's `assets`, so the installed binary initializes offline.
   const initialized = await runBounded(process.execPath, [MAIN, 'init', 'fresh', '--apply', '--yes', '--json'], {
     cwd: empty,
     env: colourful(),
@@ -345,7 +338,7 @@ it('resolves colour and symbols from the environment the installed process actua
   const run = (argv: readonly string[], env: NodeJS.ProcessEnv = plain()) =>
     runBounded(process.execPath, [MAIN, ...argv], { cwd: installedRoot, env, input: '', timeoutMs: 30_000 });
   const validate = ['validate', '--root', FIXTURE];
-  // §6.7 rules 4 and 5: an explicit --color, or FORCE_COLOR, turns colour on even though stdout is a pipe; with
+  // “Terminal rendering”: an explicit --color, or FORCE_COLOR, turns colour on even though stdout is a pipe; with
   // neither, a pipe is colourless. The positive halves are what make the suppressions below meaningful.
   expect((await run([...validate, '--color'])).stdout).toMatch(ESCAPE);
   expect((await run(validate, colourful())).stdout).toMatch(ESCAPE);
@@ -355,10 +348,10 @@ it('resolves colour and symbols from the environment the installed process actua
     expect((await run([...validate, '--color'], { ...colourful(), NO_COLOR: value })).stdout, value).not.toMatch(
       ESCAPE,
     );
-  // Rule 2 outranks rule 4, and rule 3 makes `--json` colourless whatever the environment asked for.
+  // --no-color overrides FORCE_COLOR, and --json is colourless whatever the environment asked for.
   expect((await run([...validate, '--no-color'], colourful())).stdout).not.toMatch(ESCAPE);
   expect((await run([...validate, '--json', '--color'], colourful())).stdout).not.toMatch(ESCAPE);
-  // §6.3: --ascii and IA_ASCII select the ASCII set, independently of colour, the verdict and the exit class.
+  // “Terminal rendering”: --ascii and IA_ASCII select the ASCII set, independently of colour, the verdict and the exit class.
   const unicode = await run(validate),
     ascii = await run([...validate, '--ascii']),
     environment = await run(validate, { ...plain(), IA_ASCII: '1' });

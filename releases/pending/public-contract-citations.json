@@ -1,0 +1,22 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Repair public contract citations",
+  "summary": "Implementation and qualification comments now cite maintained public contract sections, and registry documentation links the collection and adoption contract. Runtime behavior is unchanged.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/compliance"
+  ],
+  "paths": [
+    "apps/cli/src/commands.ts",
+    "apps/cli/src/user-host.ts",
+    "apps/cli/src/validate.ts",
+    "apps/cli/tests/protocols.test.ts",
+    "apps/cli/tests/user-host.test.ts",
+    "docs/specs/registry/README.md",
+    "packages/compliance/src/host-plugin.ts",
+    "tools/native/language-base.test.ts",
+    "tools/native/language-base.ts",
+    "docs/catalog.json"
+  ]
+}

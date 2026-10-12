@@ -2,16 +2,16 @@
  * The bundled `inventarch/language` base package: docs/specs/workspace-initialization-apply/README.md
  * §2, producing what docs/specs/workspace-initialization/README.md §3 ships.
  *
- * Packs the language-only source set `languagePackageInputs` returns — floor, the ten contracts and schemas, and
- * `records/language.ia`, never the public examples (M5.1 §3.1) — with the same `distributionSnapshot` and
+ * Packs the language-only source set `languagePackageInputs` returns — floor, the manifest-selected contracts and schemas, and
+ * `records/language.ia`, never the public examples (workspace initialization §3 “Bundled language”) — with the same `distributionSnapshot` and
  * `packSnapshot` calls `public-language.test.ts` exercises. `--write` emits the archive bytes at
  * `apps/cli/assets/base/<archive digest>.ia.tgz` and the pin `{ id, version, archive, manifest }` at
  * `apps/cli/assets/base.json`, after removing every other file under `assets/base/` so exactly one archive ships.
- * Both are gitignored build output: the root `build` runs this before `pnpm -r build`, and the public export
- * carries this file so `release:pack-public` regenerates the archive from public sources (§2.2).
+ * Both are gitignored build output: the root `build` runs this before `pnpm -r build`. Public release
+ * preparation regenerates the archive from public sources (apply contract §2 “Base artifact”).
  *
  * Packing is deterministic for fixed inputs (`ustar-v1`, epoch 0), so two builds of one revision on one zlib build
- * produce the same bytes and the same pin. §2.3's build-time checks are `languageBaseFindings`; the generator refuses to write while
+ * produce the same bytes and the same pin. The “Base artifact” build-time checks are `languageBaseFindings`; the generator refuses to write while
  * any of them fails, so a CLI whose engine the bundled range rejects never ships.
  */
 import { createHash } from 'node:crypto';
@@ -25,7 +25,7 @@ import { languagePackageInputs } from './public-language.js';
 import { isEntry } from '../entry/is-entry.mjs';
 
 export const BASE_ID = 'inventarch/language';
-/** The pin and the one archive it names, relative to the `@inventarch/cli` package root (M5.1 §3.2). */
+/** The pin and the one archive it names, relative to the `@inventarch/cli` package root (workspace initialization §3 “Bundled language”). */
 export const PIN_PATH = 'assets/base.json';
 export const ARCHIVE_DIRECTORY = 'assets/base';
 export const archivePath = (digest: string): string => `${ARCHIVE_DIRECTORY}/${digest}.ia.tgz`;
@@ -41,7 +41,7 @@ export interface LanguageBase {
   readonly bytes: Buffer;
 }
 
-/** §2.1's descriptor. `version` and `engine` are parameters only so §2.3's refusals can be exercised. */
+/** The base artifact descriptor. `version` and `engine` are parameters so compatibility refusals can be exercised. */
 export function languageBaseDescriptor(version: string, engine = `^${DISTRIBUTION_ENGINE_VERSION}`) {
   return {
     formatVersion: 1,
@@ -55,9 +55,9 @@ export function languageBaseDescriptor(version: string, engine = `^${DISTRIBUTIO
       { path: 'LICENSE', role: 'license' },
       { path: 'NOTICE', role: 'license' },
     ],
-    // M5.1 §3.3 and §6.1: unpublished local provenance until the public repository exists.
+    // Local archive builds retain neutral provenance; the release receipt binds the reviewed public source.
     source: { repository: null, commit: null, recipe: 'ustar-v1', epoch: 0 },
-    // Operator decision #162, 2026-10-01; final release review remains M7.3.
+    // The public package license; publication approval remains a separate release boundary.
     license: 'Apache-2.0',
     description: 'Public IA language vocabulary',
   };
@@ -99,7 +99,7 @@ export function buildLanguageBase(
 }
 
 /**
- * §2.3 and M5.1 §3.3, as findings rather than a throw so each disagreement is named on its own. The archive is
+ * Base artifact compatibility checks, as findings rather than a throw so each disagreement is named on its own. The archive is
  * re-verified from its bytes, so the pin is compared with what the archive actually is, not with what the packer
  * said it produced.
  */
