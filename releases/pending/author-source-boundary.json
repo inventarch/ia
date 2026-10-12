@@ -1,0 +1,8 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "major",
+  "title": "Reserve administrative authoring and report missing source-protection declarations",
+  "summary": "Breaking: ia author now refuses workspace, agent, mandate, system, schema, agent-profile and hook mutations for every actor, including an ungoverned one. The boundary covers new records, field edits and relationship edits and prevents indirect changes to participant rights, admission, workspace closure and host edit guards; it also refuses benign edits to these words. Existing profile, ownership and binding-mandate refusals keep precedence, previews remain read-only, and owner source edits followed by validation remain the administrative path. ia doctor reports a read-only source-protection warning when restrictive authored mandates have no supported full-tree .ia/src hook declaration for all edit tools. Declaration evidence is not host enforcement; no hook path is widened, no starter is written, and the current guard still checks Synthesis rather than word exclusions on file bytes. No stored-data migration is required. These are cooperative CLI boundaries, not authentication or filesystem isolation.",
+  "packages": ["@inventarch/cli"],
+  "paths": ["apps/cli/"]
+}

@@ -211,11 +211,20 @@ function reportRoot(root: string, cwd: string | undefined): string | undefined {
 
 /** An `ia author` form's `--digest`: the target file's sha256 as 64 lowercase hex digits. */
 export const DIGEST = /^[0-9a-f]{64}$/;
-/** Whether an `ia author` form's `--digest` can be checked: 64 lowercase hex digits, or absent for a starter system. */
+/** Authority-bearing words whose mutations require an administrative source edit for every declared actor. */
+export const ADMINISTRATIVE_WORDS: readonly string[] = Object.freeze([
+  'workspace',
+  'agent',
+  'mandate',
+  'system',
+  'schema',
+  'agent-profile',
+  'hook',
+]);
+/** Whether an `ia author` form's `--digest` can be checked: 64 lowercase hex digits. */
 function usableDigest(args: Context['args']): boolean {
   const digest = args.value('digest');
-  if (digest !== undefined) return DIGEST.test(digest);
-  return !args.flag('relate') && !args.flag('set') && args.positionals[0] === 'system';
+  return digest !== undefined && DIGEST.test(digest);
 }
 /** The profile `request.mode` meets for its actor, or the refusal it gives (exit 1, IA-RUNTIME-MANDATE-*). */
 export function requireProfile(request: ProfileRequest): Profile {
@@ -239,11 +248,14 @@ export function requireProfile(request: ProfileRequest): Profile {
     return { mandates, verdict: profileRefusal(mandates, mode, words) };
   };
   /**
-   * Review C3-R2: an `ia author` form without a usable `--digest` (absent, unless it writes a starter system, or not 64
+   * Review C3-R2: an `ia author` form without a usable `--digest` (absent, or not 64
    * lowercase hex digits) would refuse again when named as it is, so an actor choice names its preview, which prints the
    * digest: the actor must be allowed that preview too.
    */
   const previewFirst = context.command.name === 'author' && !usableDigest(context.args);
+  const administrative = mode === 'author' && words.some((word) => ADMINISTRATIVE_WORDS.includes(word));
+  const administrativeNext = (): string =>
+    `Run "ia position${workspace === undefined ? '' : ` --seat ${workspace} --shape governance`}${rooted}" to inspect the workspace's authority; an owner must change administrative records in source and validate them.`;
   const allows = (actor: string | undefined): boolean =>
     judge(actor).verdict.refusal === undefined &&
     (!previewFirst || profileRefusal(governing(actor, request.path), 'validate', words).refusal === undefined);
@@ -254,6 +266,7 @@ export function requireProfile(request: ProfileRequest): Profile {
       : respell(context, { options: { actor } });
   /** The next command after an open or refused actor choice: this one as the first participant allowed to run it. */
   const choose = (participants: readonly string[]): string => {
+    if (administrative) return administrativeNext();
     const allowed = participants.find(allows);
     if (allowed !== undefined)
       return previewFirst
@@ -269,6 +282,7 @@ export function requireProfile(request: ProfileRequest): Profile {
    * is open, the first participant allowed (`choose`).
    */
   const mistyped = (participants: readonly string[]): string => {
+    if (administrative) return administrativeNext();
     const fallback = workspace === undefined ? undefined : defaultActor(reader, within, workspace);
     if (fallback?.actor !== undefined)
       return allows(fallback.actor)

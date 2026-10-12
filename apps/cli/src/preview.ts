@@ -39,7 +39,7 @@ import { UsageError } from './args.js';
 import { findCommand, nearestTokens } from './commands.js';
 import type { Context, Result } from './consumer.js';
 import { Refusal, requireRoot, respell } from './consumer.js';
-import { repositoryWorkspace, requireProfile } from './profile.js';
+import { ADMINISTRATIVE_WORDS, repositoryWorkspace, requireProfile } from './profile.js';
 import type { Profile } from './profile.js';
 import type { Capabilities, Token } from './render.js';
 import {
@@ -885,7 +885,22 @@ export function candidateOf(
   request: Exclude<PreviewRequest, { mode: 'word' }>,
   mode: EditMode,
 ): Candidate {
-  return request.mode === 'record' ? previewRecord(run, request, mode) : previewEdit(run, request, mode);
+  const candidate = request.mode === 'record' ? previewRecord(run, request, mode) : previewEdit(run, request, mode);
+  if (mode === 'author') {
+    // Administrative records can change the actor, its governing closure, admission, or the edit guard itself.
+    // Freeze these words for every actor, including an ungoverned one: --actor is a declaration, not authentication.
+    // Comparing only the current actor's moves misses a newly created participant and future path selections.
+    const word = candidate.reference.slice(1).split(' ')[0]!;
+    if (ADMINISTRATIVE_WORDS.includes(word))
+      throw new Refusal(
+        'IA-CLI-EDIT-AUTHORITY',
+        `ia author does not create or change @${word} records: this administrative word can change participant rights, admission or source protection; nothing was written`,
+        1,
+        { path: candidate.target.path, identity: candidate.view.identity },
+        `Run "ia position${run.rooted}" to inspect the workspace's authority. An owner must make this administrative change in source and validate it; naming an actor does not authorize it.`,
+      );
+  }
+  return candidate;
 }
 /** The invocation a preview or an author form runs through: one editor snapshot of the workspace at `root`. */
 export function invocationOf(context: Context, root: string, editor: Editor): Invocation {

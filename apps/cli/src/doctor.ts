@@ -93,6 +93,7 @@ import type { Context, Result } from './consumer.js';
 import { discoverRoot, iaHomeOf } from './consumer.js';
 import { UNMAPPED } from './distribute.js';
 import { userRows } from './doctor-user.js';
+import { sourceProtectionCheck } from './doctor-authority.js';
 import type { HostName } from './host-projection.js';
 import { HOOK_KEPT, planRetirement, readReceipt, renderProjectionFor } from './host-projection.js';
 import {
@@ -1133,6 +1134,17 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
       });
     }
   }
+
+  if (usable && !pending) checks.push(sourceProtectionCheck(root));
+  else
+    checks.push(
+      unchecked(
+        'source-protection',
+        'Workspace',
+        'Source protection',
+        pending ? 'installation recovery is required first' : 'no workspace',
+      ),
+    );
 
   if (!usable) {
     for (const [id, title] of [

@@ -2,13 +2,12 @@
  * `ia author`: the writing half of record authoring (milestone generation-binding plan amendments C19 and C20, lane C
  * round 3), in the author mode, whose move is Synthesis.
  *
- * Every form of `ia preview` that changes a record has an author form with the same arguments and `--digest <sha256>`,
+ * Every form of `ia preview` that changes a non-administrative record has an author form with `--digest <sha256>`,
  * the target file's sha256 the preview printed: `ia author <word> <name> [<field>=<value>...] [--at <path>]`,
  * `ia author --relate <owned> <spelling> <target>` and `ia author --set <owned> <section.key>=<value>` (or `+=`). Each
  * compiles exactly the candidate the preview showed, against one editor snapshot of the workspace, judged for the
- * author mode, and writes it only when the file is still the one the digest names and the candidate is clean. `ia author
- * system <name>` writes init's starter system to `.ia/src/systems/<name>/system.ia`, a file that must not exist yet; its
- * `--digest`, when given, is the empty file's.
+ * author mode, and writes it only when the file is still the one the digest names and the candidate is clean.
+ * Administrative words, including the system starter, are refused by candidateOf before any write.
  *
  * The record written carries one attribution comment above it, `# authored-by @agent <participant> under @mandate <name>
  * at <authored revision>`: the acting participant, the governing mandate that grants it Synthesis, and the authored
@@ -41,7 +40,6 @@ import {
   errorBlock,
   fieldRows,
   headerLine,
-  quote,
   sectionLabel,
   terminalText,
   truncateDigest,
@@ -165,20 +163,6 @@ function write(run: Invocation, candidate: Candidate, text: string, again: strin
   return sha256(bytes);
 }
 
-/**
- * The command after `ia author system`: the workspace composing the new system, with its file's current digest. A named
- * actor is added by `judgedNext`, as the participant the profile resolved, never as spelled (review C2-N13).
- */
-function composeNext(run: Invocation, name: string): string {
-  const workspace = run.roots.workspace;
-  if (workspace === undefined) return `Run "ia validate${run.rooted}" to confirm the workspace admits the new system.`;
-  const node = run.snapshot.records({ within: run.within }).find((record) => record.identity === workspace)!;
-  const source = run.snapshot.sources.find((candidate) => candidate.path === node.source.path)!;
-  return `Run "ia author --set ${workspace} ${quote(`composition.systems+=@system ${name}`)} --digest ${sha256(
-    Buffer.from(source.text, 'utf8'),
-  )}${run.rooted}" so the workspace composes it.`;
-}
-
 export function authorEnvelope(view: AuthorView): unknown {
   const count = (severity: string) => view.findings.filter((finding) => finding.severity === severity).length;
   return {
@@ -272,8 +256,7 @@ export function runAuthor(context: Context): Result {
     throw new UsageError(
       `ia author writes a new record, one relationship row or one field; it needs <name>, --relate or --set after ${request.word}`,
     );
-  const system = request.mode === 'record' && request.word === 'system',
-    digest = args.value('digest');
+  const digest = args.value('digest');
   const root = requireRoot(context);
   const editor = openEditor(root);
   let view: AuthorView;
@@ -293,7 +276,7 @@ export function runAuthor(context: Context): Result {
         null,
         `Run "${again}" for the candidate and the digest to pass.`,
       );
-    if (digest === undefined && !system)
+    if (digest === undefined)
       throw new Refusal(
         'IA-CLI-USAGE',
         'ia author requires --digest <sha256>, the target file digest ia preview prints for the same form',
@@ -357,9 +340,7 @@ export function runAuthor(context: Context): Result {
       profile: preview.profile,
       // Review C2-N11: the next command is judged by the profile that allowed the author, as a refusal's would be.
       next: judgedNext(
-        system
-          ? composeNext(run, (request as { readonly name: string }).name)
-          : `Run "ia validate${run.rooted}" to confirm the workspace admits what was written.`,
+        `Run "ia validate${run.rooted}" to confirm the workspace admits what was written.`,
         context.gate,
       ),
     };

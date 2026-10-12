@@ -269,7 +269,7 @@ describe('ia author', () => {
     const { before, after } = await authored(root, ['--set', '@milestone m1', 'work.owner=Tom']);
     expect(onlyChanged(before, after)).toEqual([milestone('m1')]);
   });
-  it('writes a starter system, whose next command composes it into the workspace', async () => {
+  it('previews a starter system but reserves its authority-bearing records for an owner source edit', async () => {
     const root = workspace();
     const guidance = body(await ia(root, ['preview', 'system']));
     expect(guidance).toMatchObject({ word: 'system', system: 'floor', template: '.ia/src/systems/<name>/system.ia' });
@@ -280,29 +280,127 @@ describe('ia author', () => {
       'head.describes',
     ]);
     expect(body(await ia(root, ['preview', 'schema']))).toMatchObject({ word: 'schema', system: 'floor' });
-    const before = digests(root);
-    const result = await ia(root, ['author', 'system', 'notes']);
+    const result = await unchanged(root, ['preview', 'system', 'notes']);
     expect(result.exitCode, result.stdout).toBe(0);
     const view = body(result);
     expect(view).toMatchObject({
-      created: true,
+      exists: false,
       path: '.ia/src/systems/notes/system.ia',
       identity: 'floor/definition/system/notes',
     });
-    expect(onlyChanged(before, digests(root))).toEqual([
-      'agent-system/binding/agent/notes-steward',
-      'floor/definition/system/notes',
-    ]);
-    const next = nextArgv(view['next'] as string);
-    expect(next.slice(0, 4)).toEqual(['author', '--set', demo, 'composition.systems+=@system notes']);
-    const composed = await run([...next, '--json']);
-    expect(composed.exitCode, composed.stdout).toBe(0);
-    expect(readFileSync(resolve(root, '.ia/src/workspace.ia'), 'utf8')).toContain(
-      '@system workspace-system, @system notes]',
+    await refused(root, ['author', 'system', 'notes'], 'IA-CLI-EDIT-AUTHORITY');
+  });
+});
+
+describe('administrative authority is not writable through ia author', () => {
+  it('blocks indirect escalation without authored exclusions and does not accept another actor as approval', async () => {
+    const root = workspace((at) => {
+      moves(at, 'Observation, Verification, Synthesis');
+      writeFileSync(
+        resolve(at, '.ia/src/ops.ia'),
+        `#! ia 1.0\n${AGENT('ops')}${MANDATE('ops-mandate', ['participant @agent ops', 'scope [@workspace demo]'])}`,
+      );
+    });
+    for (const form of [
+      ['--set', '@workspace demo', 'composition.sources=[".ia/src/work.ia @authored"]'],
+      ['--set', '@workspace demo', 'composition.steward=@agent ops'],
+      ['--set', '@workspace demo', 'composition.systems=[@system work-system]'],
+      ['agent', 'free', 'meaning.says=Unbound.', 'meaning.answers=Who?', 'governance.applies=[]'],
+      ['mandate', 'open', 'meaning.says=Open.', 'meaning.answers=Who?', 'authority.moves=[Execution]'],
+      ['--set', '@mandate ops-mandate', 'authority.scope=[]'],
+      ['--set', '@mandate ops-mandate', 'authority.covers=["**"]'],
+      ['--set', '@mandate ops-mandate', 'authority.excluded-words=[]'],
+      ['--set', '@agent ops', 'meaning.says=Changed.'],
+      ['--relate', '@workspace demo', 'cites', '@agent ops'],
+      ['system', 'free-system'],
+    ]) {
+      const refusedEdit = await refused(root, ['author', ...form, '--digest', EMPTY], 'IA-CLI-EDIT-AUTHORITY');
+      expect(refusedEdit['next']).toContain('An owner must make this administrative change in source');
+      expect(refusedEdit['next']).toContain('naming an actor does not authorize it');
+    }
+    await refused(
+      root,
+      [
+        'author',
+        '--set',
+        '@workspace demo',
+        'composition.steward=@agent ops',
+        '--actor',
+        '@agent ops',
+        '--digest',
+        EMPTY,
+      ],
+      'IA-CLI-EDIT-AUTHORITY',
     );
-    expect((await ia(root, ['validate'])).exitCode).toBe(0);
-    // The file now exists, so a second one refuses.
-    await refused(root, ['author', 'system', 'notes'], 'IA-CLI-EDIT-INVALID');
+    // Normal work records remain writable under the same restricted actor.
+    await authored(root, ['--set', '@milestone m1', 'work.owner=Tom']);
+  });
+  it('freezes host actor mappings and guard declarations, including changes made without any mandate', async () => {
+    const root = workspace((at) => {
+      rmSync(resolve(at, '.ia/src/hooks.ia'));
+      rewrite(at, '.ia/src/workspace.ia', (text) => text.slice(0, text.indexOf('@mandate demo-mandate')));
+      writeFileSync(
+        resolve(at, '.ia/src/protection.ia'),
+        `#! ia 1.0\n\n@hook protect\n  meaning\n    says "Protect records."\n    answers "What is selected?"\n  hook\n    event PreToolUse\n    tools [Write, Edit, MultiEdit]\n    paths [".ia/src/**"]\n    message "Review the mandate."\n\n@agent-profile worker\n  meaning\n    says "Worker."\n    answers "Who works?"\n  composition\n    agent @agent demo\n    capabilities []\n  execution\n    role author\n    outcomes test-v1\n    mandate-contract test-v1\n`,
+      );
+    });
+    for (const form of [
+      ['--set', '@hook protect', 'hook.paths=["docs/**"]'],
+      ['--set', '@hook protect', 'hook.tools=[Write]'],
+      ['--set', '@agent-profile worker', 'composition.agent=@agent demo'],
+      ['--set', '@workspace demo', 'composition.sources=[]'],
+    ])
+      await refused(root, ['author', ...form, '--digest', EMPTY], 'IA-CLI-EDIT-AUTHORITY');
+  });
+});
+
+describe('doctor makes source protection declarations visible', () => {
+  const hook = (paths: string, tools = '[Write, Edit, MultiEdit]', event = 'PreToolUse') =>
+    `#! ia 1.0\n\n@hook protect\n  meaning\n    says "Protect records."\n    answers "What is selected?"\n  hook\n    event ${event}\n    tools ${tools}\n    paths ["${paths}"]\n    message "Review the mandate."\n`;
+  async function protection(root: string) {
+    const result = await unchanged(root, ['doctor']);
+    return (body(result)['checks'] as { id: string; status: string; detail: string; remedy: string | null }[]).find(
+      (check) => check.id === 'source-protection',
+    )!;
+  }
+  it('warns without a selecting hook and does not treat narrow or unsupported hooks as protection', async () => {
+    const root = workspace((at) => moves(at, 'Observation, Verification, Synthesis'));
+    expect(await protection(root)).toMatchObject({ status: 'warn', remedy: expect.stringContaining('--root') });
+    for (const declaration of [
+      hook('docs/**'),
+      hook('.ia/src/*'),
+      hook('.ia/src/**', '[Write]'),
+      hook('.ia/src/**', '[Write, Edit, MultiEdit]', 'PostToolUse'),
+    ]) {
+      writeFileSync(resolve(root, '.ia/src/protect.ia'), declaration);
+      expect(await protection(root)).toMatchObject({ status: 'warn' });
+    }
+    writeFileSync(resolve(root, '.ia/src/protect.ia'), hook('.ia/src/**'));
+    expect(await protection(root)).toMatchObject({
+      status: 'info',
+      detail: expect.stringContaining('not host registration or enforcement'),
+    });
+  });
+  it('distinguishes unrestricted, excluded-word, execution-limit and invalid mandate states', async () => {
+    const root = workspace((at) => rmSync(resolve(at, '.ia/src/hooks.ia')));
+    expect(await protection(root)).toMatchObject({
+      status: 'info',
+      detail: expect.stringContaining('No authored mandate'),
+    });
+    const path = resolve(root, '.ia/src/workspace.ia'),
+      original = readFileSync(path, 'utf8');
+    writeFileSync(
+      path,
+      original.replace('    scope [@workspace demo]', '    scope [@workspace demo]\n    excluded-words [task]'),
+    );
+    expect(await protection(root)).toMatchObject({ status: 'warn' });
+    writeFileSync(path, `${original}\n  execution\n    limit-operations 0\n`);
+    expect(await protection(root)).toMatchObject({ status: 'warn' });
+    writeFileSync(
+      path,
+      original.replace('moves [Observation, Verification, Synthesis, Delegation, Execution]', 'moves [Bogus]'),
+    );
+    expect(await protection(root)).toMatchObject({ status: 'unknown', detail: expect.stringContaining('IA-RUNTIME-') });
   });
 });
 
@@ -405,11 +503,13 @@ describe('the next command after an author (review C2-N11, C2-N13)', () => {
   });
   it('carries a named actor as the participant it resolved, not as spelled', async () => {
     const root = workspace();
-    const written = await ia(root, ['author', 'system', 'notes', '--actor', '@agent demo']);
+    const form = ['--set', '@milestone m1', 'work.owner=Tom'];
+    const digest = await previewed(root, form);
+    const written = await ia(root, ['author', ...form, '--digest', digest, '--actor', '@agent demo']);
     expect(written.exitCode, written.stdout).toBe(0);
     const next = nextArgv(body(written).next!),
       at = next.indexOf('--actor');
-    expect(next.slice(0, 4)).toEqual(['author', '--set', demo, 'composition.systems+=@system notes']);
+    expect(next[0]).toBe('validate');
     expect(next.slice(at, at + 2)).toEqual(['--actor', participant]);
     expect(body(written).next).not.toContain('@agent demo');
   });
@@ -585,7 +685,7 @@ describe('ia author refusals, each writing nothing', () => {
     await refused(excluded, ['author', ...form, '--digest', digest], 'IA-RUNTIME-MANDATE-WORD');
     await refused(excluded, ['author', 'system', 'notes'], 'IA-RUNTIME-MANDATE-WORD');
   });
-  it('refuses a change to a @mandate that binds the acting participant, and allows one for another (review C2-R6)', async () => {
+  it('retains the binding-mandate guard and refuses authoring another participant mandate too', async () => {
     const root = workspace((at) => writeFileSync(resolve(at, '.ia/src/ops.ia'), `#! ia 1.0\n${AGENT('ops')}`));
     const draft = (name: string, authority: readonly string[]) => [
       'mandate',
@@ -619,14 +719,23 @@ describe('ia author refusals, each writing nothing', () => {
         .digest('hex');
       await refused(root, ['author', ...form, '--digest', digest], 'IA-CLI-EDIT-MANDATE');
     }
-    // A mandate for another participant is written, and so is a change to it that keeps it another's.
+    // Another participant's mandate can be previewed but must be changed administratively in source.
     const other = draft('ops-mandate', [
       'authority.participant=@agent ops',
       'authority.moves=[Observation]',
       'authority.scope=[@workspace demo]',
     ]);
-    expect((await authored(root, other)).view['identity']).toBe(mandate('ops-mandate'));
-    await authored(root, ['--set', '@mandate ops-mandate', 'authority.moves=[Observation, Verification]']);
+    const otherDigest = await previewed(root, other);
+    await refused(root, ['author', ...other, '--digest', otherDigest], 'IA-CLI-EDIT-AUTHORITY');
+    writeFileSync(
+      resolve(root, '.ia/src/ops-mandate.ia'),
+      `#! ia 1.0\n${MANDATE('ops-mandate', ['participant @agent ops', 'moves [Observation]', 'scope [@workspace demo]'])}`,
+    );
+    await refused(
+      root,
+      ['author', '--set', '@mandate ops-mandate', 'authority.moves=[Observation, Verification]', '--digest', EMPTY],
+      'IA-CLI-EDIT-AUTHORITY',
+    );
     // Handing it to demo would bind the actor, so that is refused.
     await refused(
       root,
@@ -954,7 +1063,7 @@ describe('the mandate profile on every gated mode', () => {
     );
     expect(nextArgv(seat['next'] as string)).toContain('--actor');
   });
-  it('lets an ambiguous workspace name its steward with --actor and the preview digest, then run without one', async () => {
+  it('previews an ambiguous workspace steward choice but requires an administrative source edit to apply it', async () => {
     const root = workspace((at) => {
       rewrite(at, '.ia/src/workspace.ia', (text) => text.replace('    steward @agent demo\n', ''));
       writeFileSync(
@@ -976,9 +1085,13 @@ describe('the mandate profile on every gated mode', () => {
       root,
     ]);
     const digest = await previewed(root, [...form, '--actor', participant]);
-    // The author without --actor refuses the same way, and its next command is the author naming demo, which writes.
+    // No actor choice can authorize an administrative write, so the remedy must remain a read.
     const author = await refused(root, ['author', ...form, '--digest', digest], 'IA-RUNTIME-MANDATE-ACTOR');
-    expect(nextArgv(author['next'] as string)).toContain('--actor');
+    expect(nextArgv(author['next'] as string)[0]).toBe('position');
+    await refused(root, ['author', ...form, '--digest', digest, '--actor', participant], 'IA-CLI-EDIT-AUTHORITY');
+    rewrite(root, '.ia/src/workspace.ia', (text) =>
+      text.replace('  composition\n', '  composition\n    steward @agent demo\n'),
+    );
     expect(readFileSync(resolve(root, '.ia/src/workspace.ia'), 'utf8')).toContain('    steward @agent demo\n');
     // The workspace names its steward now, so commands resolve the default actor again.
     expect((await ia(root, ['validate'])).exitCode).toBe(0);
