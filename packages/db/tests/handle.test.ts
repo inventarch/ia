@@ -170,6 +170,7 @@ it('lists every record occurrence the root view does not admit, at the band of i
     {
       identity: 'agent-system/policy/mandate/bogus',
       word: 'mandate',
+      name: 'bogus',
       band: 100,
       path: '.ia/src/refused.ia',
       line: 3,
@@ -186,6 +187,7 @@ it('lists every record occurrence the root view does not admit, at the band of i
       {
         identity: 'agent-system/policy/mandate/tied',
         word: 'mandate',
+        name: 'tied',
         band: 100,
         path,
         line: 3,
@@ -204,16 +206,18 @@ it('lists every record occurrence the root view does not admit, at the band of i
     expect.objectContaining({
       identity: 'agent-system/binding/agent/loose',
       word: 'agent',
+      name: 'loose',
       band: 100,
       line: 13,
       cause: 'source',
     }),
   ]);
   expect(at('.ia/src/bom.ia')).toEqual([
-    { word: 'mandate', band: 100, path: '.ia/src/bom.ia', line: 1, endLine: 1, cause: 'source' },
+    { word: 'mandate', name: 'bommed', band: 100, path: '.ia/src/bom.ia', line: 1, endLine: 1, cause: 'source' },
   ]);
   expect(at('.ia/src/header.ia')).toEqual([
-    { word: 'mandate', band: 100, path: '.ia/src/header.ia', line: 3, endLine: 3, cause: 'source' },
+    // The text names the record as spelled, lowercased, though the parse refuses the spelling.
+    { word: 'mandate', name: 'bad_name!', band: 100, path: '.ia/src/header.ia', line: 3, endLine: 3, cause: 'source' },
   ]);
   expect(at('.ia/src/duplicate.ia')).toEqual([
     expect.objectContaining({ identity: 'agent-system/policy/mandate/dup', word: 'mandate', line: 3, cause: 'source' }),

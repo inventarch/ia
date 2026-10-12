@@ -59,6 +59,11 @@ export interface UnadmittedRecord {
   readonly identity?: string;
   /** The word the header names, lowercased. */
   readonly word: string;
+  /**
+   * The record's name as its header spells it, lowercased (lane D, D9: what a typed reference to it is matched by); absent
+   * for a header that spells none.
+   */
+  readonly name?: string;
   readonly band: Band;
   readonly path: string;
   /** The header line. */
@@ -101,10 +106,10 @@ export const occurrenceKey = (record: CompiledRecord): string =>
   JSON.stringify([record.identity, record.source.path, record.source.line]);
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 /**
- * A line that opens with `@<word>`, a byte-order mark and indentation aside: the header syntax, read from text the parse
- * could not read.
+ * A line that opens with `@<word>`, a byte-order mark and indentation aside, and the name token after it when one is
+ * there: the header syntax, read from text the parse could not read.
  */
-const HEADER = /^\uFEFF?[ \t]*@([A-Za-z][A-Za-z0-9-]*)(?=[ \t\r]|$)/;
+const HEADER = /^\uFEFF?[ \t]*@([A-Za-z][A-Za-z0-9-]*)(?=[ \t\r]|$)(?:[ \t]+([^ \t\r]+))?/;
 /**
  * The `source` occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested
  * ones included, with the identity its compile gives that header's record or, for one its compile refused, the identity
@@ -138,6 +143,7 @@ function refusedWhole(
     return {
       ...(identity === undefined ? {} : { identity }),
       word: node.discriminator.toLowerCase(),
+      ...(node.name === '' ? {} : { name: node.name.toLowerCase() }),
       band,
       path,
       line: node.span.line,
@@ -147,10 +153,20 @@ function refusedWhole(
   });
   const read = new Set(nodes.map((node) => node.span.line));
   const unread = text.split('\n').flatMap((spelled, index): UnadmittedRecord[] => {
-    const word = HEADER.exec(spelled)?.[1];
+    const [, word, name] = HEADER.exec(spelled) ?? [];
     return word === undefined || read.has(index + 1)
       ? []
-      : [{ word: word.toLowerCase(), band, path, line: index + 1, endLine: index + 1, cause: 'source' }];
+      : [
+          {
+            word: word.toLowerCase(),
+            ...(name === undefined ? {} : { name: name.toLowerCase() }),
+            band,
+            path,
+            line: index + 1,
+            endLine: index + 1,
+            cause: 'source',
+          },
+        ];
   });
   return [...parsed, ...unread];
 }
@@ -489,6 +505,7 @@ function views(
     const occurrence = (record: CompiledRecord, cause: UnadmittedRecord['cause']): UnadmittedRecord => ({
       identity: record.identity,
       word: record.discriminator,
+      name: record.name,
       band: record.placement.band,
       path: record.source.path,
       line: record.source.line,
