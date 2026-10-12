@@ -1,3 +1,4 @@
+import { compiledSystemFolders } from '../native/public-systems.mjs';
 import '../temp/physical-temp.mjs';
 import { packageManagerCommand } from '../entry/package-manager.mjs';
 import assert from 'node:assert/strict';
@@ -24,12 +25,9 @@ const folders = [
   'packages/compliance',
   'packages/db',
   'packages/runtime',
-  '.ia/src/systems/session-system',
-  '.ia/src/systems/agent-system',
   'packages/workspace-runtime',
-  '.ia/src/systems/agent-composition-system',
+  ...compiledSystemFolders(root),
 ];
-folders.push('.ia/src/systems/template-system', '.ia/src/systems/authoring-system');
 if (process.argv.length !== 2)
   throw new Error('Public projection qualification accepts no optional private or live-host modes');
 try {

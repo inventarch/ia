@@ -54,29 +54,6 @@ function extract(archive: Buffer): string {
   }
   return out;
 }
-/** The public CLI has no private entry. Its refusal tests use an inert reviewed-capability manifest;
- * the private producer still tests its actual manifest unchanged, including any boundary drift. */
-function developmentManifest() {
-  const original = JSON.parse(readFileSync(join(repository, 'apps/cli/package.json'), 'utf8'));
-  if (original.exports['./development'] !== undefined) return original;
-  return {
-    ...original,
-    exports: {
-      ...original.exports,
-      './development': {
-        types: './dist/inventarch-development/index.d.ts',
-        default: './dist/inventarch-development/index.js',
-      },
-    },
-    peerDependencies: { '@inventarch/monorepo-kit-host': '0.1.0' },
-    peerDependenciesMeta: { '@inventarch/monorepo-kit-host': { optional: true } },
-    dependencies: {
-      ...original.dependencies,
-      '@inventarch/architecture-system': 'workspace:*',
-      '@inventarch/code-quality-system': 'workspace:*',
-    },
-  };
-}
 it('produces a deterministic v2 payload that verifies after extraction', async () => {
   const first = await generateHostPayload({ repository, write: false }),
     second = await generateHostPayload({ repository, write: false });
@@ -373,44 +350,27 @@ it("runs the real launcher from the extracted payload regardless of the caller's
   expect(JSON.parse(door.stdout)).toMatchObject({ ok: true });
 });
 
-it('projects only the reviewed private development capability without mutating its source manifest', () => {
-  const original = developmentManifest();
-  const before = JSON.stringify(original),
-    projected = staticCliManifest(original);
-  expect(JSON.stringify(original)).toBe(before);
-  expect(projected['exports']).not.toHaveProperty('./development');
-  expect(projected).not.toHaveProperty('peerDependencies');
-  expect(projected['bin']).toEqual(original.bin);
-  expect(projected['dependencies']).not.toHaveProperty('@inventarch/architecture-system');
-  expect(projected['dependencies']).not.toHaveProperty('@inventarch/code-quality-system');
+it('refuses omitted capabilities instead of transforming a staging manifest', () => {
+  const original = JSON.parse(readFileSync(join(repository, 'apps/cli/package.json'), 'utf8'));
+  expect(staticCliManifest(original)).toEqual(original);
+  expect(() =>
+    staticCliManifest({ ...original, exports: { './development': './dist/inventarch-development/index.js' } }),
+  ).toThrow(/omitted capability/);
+  for (const code of [
+    "import '@inventarch/architecture-system'",
+    "require('@inventarch/code-quality-system')",
+    "import('./inventarch-development/index.js')",
+  ])
+    expect(() => assertStaticPayloadCode('dist/retained.js', Buffer.from(code))).toThrow(/omitted/);
+  expect(() => assertStaticPayloadCode('dist/retained.js', Buffer.from("import '@inventarch/runtime'"))).not.toThrow();
 });
-it('projects the private CLI name (tools/release/private.mjs renames apps/cli) the same way', () => {
-  const original = { ...developmentManifest(), name: '@inventarch/inventarch-cli' };
-  const projected = staticCliManifest(original);
-  expect(projected['exports']).not.toHaveProperty('./development');
-  expect(projected).not.toHaveProperty('peerDependencies');
-  expect(projected).not.toHaveProperty('peerDependenciesMeta');
-  expect(projected['dependencies']).not.toHaveProperty('@inventarch/architecture-system');
-  expect(projected['dependencies']).not.toHaveProperty('@inventarch/code-quality-system');
-  const unreviewed = structuredClone(original);
-  unreviewed.peerDependencies.other = '1';
-  expect(() => staticCliManifest(unreviewed)).toThrow(/Unreviewed/);
-});
-it("excludes the private CLI's own embedded payload, so a repeat write does not grow it", async () => {
-  // A private candidate as tools/release/private.mjs stages it: apps/cli renamed, its built files and embedded payload copied.
-  const candidate = realpathSync(mkdtempSync(join(tmpdir(), 'ia-host-payload-private-'))),
+it('excludes the public CLI embedded payload so repeated materialization keeps the same bytes', async () => {
+  const candidate = realpathSync(mkdtempSync(join(tmpdir(), 'ia-host-payload-repeat-'))),
     cli = join(candidate, 'apps/cli');
   made.push(candidate);
   mkdirSync(cli, { recursive: true });
-  for (const entry of ['dist', 'assets', 'LICENSE', 'README.md', 'SPEC.md'])
+  for (const entry of ['dist', 'assets', 'LICENSE', 'README.md', 'SPEC.md', 'package.json'])
     cpSync(join(repository, 'apps/cli', entry), join(cli, entry), { recursive: true });
-  const manifest = JSON.parse(readFileSync(join(repository, 'apps/cli/package.json'), 'utf8'));
-  writeFileSync(
-    join(cli, 'package.json'),
-    JSON.stringify({ ...manifest, name: '@inventarch/inventarch-cli' }, null, 2) + '\n',
-  );
-  // Exercise the hoisted layout explicitly: the staged CLI has no package-local dependency fallback.
-  // Directory junctions need no privilege on Windows and may cross drives.
   symlinkSync(join(repository, 'node_modules'), join(candidate, 'node_modules'), 'junction');
   mkdirSync(join(cli, 'node_modules'));
   for (const app of ['distribution', 'mcp-door', 'steward-hook'])
@@ -418,59 +378,10 @@ it("excludes the private CLI's own embedded payload, so a repeat write does not 
   const first = await generateHostPayload({ repository: candidate, write: true }),
     second = await generateHostPayload({ repository: candidate, write: true });
   expect(second.pin).toEqual(first.pin);
-  // The candidate's installed dependencies hold the composition package, so it ships the read handler (C24).
-  expect(first.catalog.operations).toEqual([
-    expect.objectContaining({ id: 'captured-source-read-v1', status: 'available', module: HANDLER }),
-  ]);
+  expect(second.archive.equals(first.archive)).toBe(true);
   expect(present(extract(first.archive), first.pin.release).operations[0]).toMatchObject({ status: 'available' });
   const { files } = await collectPayload(candidate);
-  expect([...files.keys()].some((path) => /@ia\/inventarch-cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
-});
-it('refuses unreviewed manifest peers, entries, dependency coupling and retained aliases', () => {
-  const original = developmentManifest();
-  const mutations = [
-    (m: typeof original) => {
-      m.peerDependencies.other = '1';
-    },
-    (m: typeof original) => {
-      m.exports['./development'].default = './dist/other.js';
-    },
-    (m: typeof original) => {
-      m.exports['./development'].extra = './dist/other.js';
-    },
-    (m: typeof original) => {
-      m.dependencies['@inventarch/architecture-system'] = '1.0.0';
-    },
-    (m: typeof original) => {
-      m.optionalDependencies = { other: '1' };
-    },
-    (m: typeof original) => {
-      m.exports['./review'] = './dist/inventarch-development/index.js';
-    },
-    (m: typeof original) => {
-      m.bin.review = './dist/inventarch-development/index.js';
-    },
-    (m: typeof original) => {
-      m.main = './assets/development-native.json';
-    },
-  ];
-  for (const mutate of mutations) {
-    const candidate = structuredClone(original);
-    mutate(candidate);
-    expect(() => staticCliManifest(candidate)).toThrow();
-  }
-  const generic = { name: 'other', peerDependencies: { other: '1' } };
-  expect(staticCliManifest(generic)).toEqual(generic);
-});
-it('refuses retained executable coupling to omitted owners', () => {
-  for (const code of [
-    "import '@inventarch/architecture-system'",
-    "require('@inventarch/code-quality-system')",
-    "import('./inventarch-development/index.js')",
-    "import '@inventarch/monorepo-kit-host'",
-  ])
-    expect(() => assertStaticPayloadCode('dist/retained.js', Buffer.from(code))).toThrow(/omitted/);
-  expect(() => assertStaticPayloadCode('dist/retained.js', Buffer.from("import '@inventarch/runtime'"))).not.toThrow();
+  expect([...files.keys()].some((path) => /@inventarch\/cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
 });
 it('keeps the catalog producer-only: no host app imports the composition package the payload ships', () => {
   for (const file of ['apps/distribution/src/implementations.ts', 'apps/cli/src/doctor.ts', 'apps/cli/src/host.ts'])

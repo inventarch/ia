@@ -335,7 +335,7 @@ it('refuses changed source recipes and input provenance before qualification', (
   inQualifiedCohort((directory, archives) => {
     for (const mutate of [
       (row: any) => {
-        row.sourceRevision = '0'.repeat(40);
+        row.source.commit = '0'.repeat(40);
       },
       (row: any) => {
         row.recipe.publicCommit = '0'.repeat(40);
@@ -344,7 +344,10 @@ it('refuses changed source recipes and input provenance before qualification', (
         row.recipe.files = [];
       },
       (row: any) => {
-        row.recipe.extraction.sourceInputsSha256 = '0'.repeat(64);
+        row.membership.sha256 = '0'.repeat(64);
+      },
+      (row: any) => {
+        row.recipe.extraction = { unreviewed: true };
       },
       (row: any) => {
         row.recipe.pnpm = '99.0.0';
@@ -396,14 +399,26 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
     const path = 'apps/vscode/package.json';
     put('package.json', { name: '@inventarch/workspace' });
     put(path, extension);
-    const files = ['package.json', path].map((path) => ({ path, sha256: sha(readFileSync(resolve(directory, path))) }));
+    const membershipPath = 'tools/distribution/public-content-policy.json';
+    put(membershipPath, {
+      format: 'ia.public-content-policy.v1',
+      packageNames: [{ root: 'apps/vscode', name: extension.name, private: true }],
+    });
+    const files = ['package.json', path, membershipPath]
+      .sort()
+      .map((path) => ({ path, sha256: sha(readFileSync(resolve(directory, path))) }));
     const original = {
-      format: 'ia.public-package-inputs.v1',
-      sourceRevision: 'a'.repeat(40),
-      provenance: { sourceTree: 'b'.repeat(40) },
-      baselineOverlay: { versions: { npm: { [path]: extension.version } } },
-      packageIdentities: { [path]: { name: extension.name, private: true } },
+      format: 'ia.public-package-inputs.v2',
+      source: {
+        repository: 'https://github.com/inventarch/ia',
+        commit: 'a'.repeat(40),
+        tree: 'b'.repeat(40),
+        dirty: false,
+      },
+      membership: { path: membershipPath, sha256: sha(readFileSync(resolve(directory, membershipPath))) },
+      npm: { [path]: extension.version },
       files,
+      inputDigest: sha(JSON.stringify(files)),
     };
     put(PUBLIC_INPUTS, original);
     await git(directory, 'add', '.');
@@ -415,14 +430,12 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
     const current = publicPackageInputs(directory, { sealed: false });
     expect(readFileSync(resolve(directory, PUBLIC_INPUTS), 'utf8')).toBe(JSON.stringify(original));
     const refreshed = refreshPublicPackageInputs(directory);
-    expect({ ...current.receipt.publicRefresh, dirty: true }).toEqual({
-      ...refreshed.receipt.publicRefresh,
-      dirty: true,
-    });
+    expect(current.receipt.source).toEqual(refreshed.receipt.source);
     expect(current.receipt.files).toEqual(refreshed.receipt.files);
-    expect(refreshed.receipt.provenance).toEqual(original.provenance);
-    expect(refreshed.receipt.sourceRevision).toBe(original.sourceRevision);
-    expect(refreshed.receipt.publicRefresh?.npm).toEqual({ [path]: '1.2.0' });
+    expect(refreshed.receipt.source.repository).toBe(original.source.repository);
+    expect(refreshed.receipt).not.toHaveProperty('sourceRevision');
+    expect(refreshed.receipt).not.toHaveProperty('baselineOverlay');
+    expect(refreshed.receipt.npm).toEqual({ [path]: '1.2.0' });
     expect(publicPackageInputs(directory).sha256).toBe(refreshed.sha256);
     for (const changed of [
       { name: 'other-extension' },
@@ -436,4 +449,24 @@ it('refreshes the pinned private VS Code extension without accepting identity ch
       expect(() => publicPackageInputs(directory, { sealed: false })).toThrow(/public package identity/i);
       expect(readFileSync(resolve(directory, PUBLIC_INPUTS))).toEqual(refreshed.bytes);
     }
+    put(path, extension);
+    put('apps/runner/package.json', { name: '@inventarch/runner', version: extension.version });
+    await git(directory, 'add', '.');
+    expect(() => refreshPublicPackageInputs(directory)).toThrow(/membership requires a reviewed/);
+    put(membershipPath, {
+      format: 'ia.public-content-policy.v1',
+      packageNames: [
+        { root: 'apps/vscode', name: extension.name, private: true },
+        { root: 'apps/runner', name: '@inventarch/runner', private: false },
+      ],
+    });
+    // Migration does not copy any obsolete metadata, even when the previous receipt carries it.
+    put(PUBLIC_INPUTS, { format: 'ia.public-package-inputs.v1', sourceRevision: 'obsolete', recipe: { old: true } });
+    const migrated = refreshPublicPackageInputs(directory);
+    expect(migrated.receipt.format).toBe('ia.public-package-inputs.v2');
+    expect(migrated.receipt.npm['apps/runner/package.json']).toBe(extension.version);
+    expect(migrated.receipt).not.toHaveProperty('recipe');
+    expect(publicPackageInputs(directory).sha256).toBe(migrated.sha256);
+    put(PUBLIC_INPUTS, { ...migrated.receipt, source: { ...migrated.receipt.source, extra: 'unreviewed' } });
+    expect(() => publicPackageInputs(directory)).toThrow(/Invalid public package input descriptor/);
   }));

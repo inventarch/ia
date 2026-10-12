@@ -3,95 +3,118 @@
   "packageNames": [
     {
       "root": "packages/service-contracts",
-      "name": "@inventarch/service-contracts"
+      "name": "@inventarch/service-contracts",
+      "private": false
     },
     {
       "root": "packages/language",
-      "name": "@inventarch/language"
+      "name": "@inventarch/language",
+      "private": false
     },
     {
       "root": "packages/graph",
-      "name": "@inventarch/graph"
+      "name": "@inventarch/graph",
+      "private": false
     },
     {
       "root": "packages/compliance",
-      "name": "@inventarch/compliance"
+      "name": "@inventarch/compliance",
+      "private": false
     },
     {
       "root": "packages/db",
-      "name": "@inventarch/db"
+      "name": "@inventarch/db",
+      "private": false
     },
     {
       "root": "packages/runtime",
-      "name": "@inventarch/runtime"
+      "name": "@inventarch/runtime",
+      "private": false
     },
     {
       "root": "packages/workspace-runtime",
-      "name": "@inventarch/workspace-runtime"
+      "name": "@inventarch/workspace-runtime",
+      "private": false
     },
     {
       "root": ".ia/src/systems/agent-system",
-      "name": "@inventarch/agent-system"
+      "name": "@inventarch/agent-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/session-system",
-      "name": "@inventarch/session-system"
+      "name": "@inventarch/session-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/authoring-system",
-      "name": "@inventarch/authoring-system"
+      "name": "@inventarch/authoring-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/template-system",
-      "name": "@inventarch/template-system"
+      "name": "@inventarch/template-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/agent-composition-system",
-      "name": "@inventarch/agent-composition-system"
+      "name": "@inventarch/agent-composition-system",
+      "private": false
     },
     {
       "root": "apps/cli",
-      "name": "@inventarch/cli"
+      "name": "@inventarch/cli",
+      "private": false
     },
     {
       "root": "apps/mcp-door",
-      "name": "@inventarch/mcp-door"
+      "name": "@inventarch/mcp-door",
+      "private": false
     },
     {
       "root": "apps/distribution",
-      "name": "@inventarch/distribution"
+      "name": "@inventarch/distribution",
+      "private": false
     },
     {
       "root": "apps/steward-hook",
-      "name": "@inventarch/steward-hook"
+      "name": "@inventarch/steward-hook",
+      "private": false
     },
     {
       "root": "apps/vscode",
-      "name": "inventarch-ia"
+      "name": "inventarch-ia",
+      "private": true
     },
     {
       "root": ".ia/src/systems/compliance-system",
-      "name": "@inventarch/compliance-system"
+      "name": "@inventarch/compliance-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/governance-system",
-      "name": "@inventarch/governance-system"
+      "name": "@inventarch/governance-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/hook-authoring-system",
-      "name": "@inventarch/hook-authoring-system"
+      "name": "@inventarch/hook-authoring-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/learning-system",
-      "name": "@inventarch/learning-system"
+      "name": "@inventarch/learning-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/work-system",
-      "name": "@inventarch/work-system"
+      "name": "@inventarch/work-system",
+      "private": false
     },
     {
       "root": ".ia/src/systems/workspace-system",
-      "name": "@inventarch/workspace-system"
+      "name": "@inventarch/workspace-system",
+      "private": false
     }
   ],
   "embeddedCarriers": [
@@ -1078,18 +1101,6 @@
       "rule": "email",
       "valueSha256": "2883c892d6129c772e39c16eb0e66099c38568879c43f88ed4fab8e3534a5c41",
       "normalizedSha256": "2883c892d6129c772e39c16eb0e66099c38568879c43f88ed4fab8e3534a5c41"
-    },
-    {
-      "path": "tools/systems/teaching-links.ts",
-      "rule": "private-repository",
-      "valueSha256": "984829df06ccc82272b0a0635c99eeb8cba48e0931677076a567f8c81b048915",
-      "normalizedSha256": "984829df06ccc82272b0a0635c99eeb8cba48e0931677076a567f8c81b048915"
-    },
-    {
-      "path": "tools/systems/authoring-manifest.test.ts",
-      "rule": "private-repository",
-      "valueSha256": "984829df06ccc82272b0a0635c99eeb8cba48e0931677076a567f8c81b048915",
-      "normalizedSha256": "984829df06ccc82272b0a0635c99eeb8cba48e0931677076a567f8c81b048915"
     }
   ]
 }

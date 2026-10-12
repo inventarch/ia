@@ -1,5 +1,5 @@
 /**
- * OS09 descriptor producer (docs/specs/domain-and-app-descriptors/README.md): bounded, versioned, pure
+ * OS09 descriptor producer (packages/db/src/descriptors/SPEC.md): bounded, versioned, pure
  * codecs and compilers for domain-model, storage-binding and app-composition resources. No I/O, DDL or code
  * execution; compilation joins resources only to their native envelope and a host-built trusted registry.
  */

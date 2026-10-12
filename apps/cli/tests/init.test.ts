@@ -711,7 +711,7 @@ it('keeps the verified starter shape and its minimum refusals', async () => {
 });
 
 it('admits one plan, milestone, task and decision in a fresh workspace with no edit to the starter (WS-A05)', async () => {
-  // docs/specs/work-system/README.md §9.4 WS-A05: the neutral public example records are admitted as written. In a
+  // .ia/src/systems/work-system/LANGUAGE.md, WS-A05: the neutral public example records are admitted as written. In a
   // default workspace they sit beside the starter records, outside every system folder, where a record's word decides
   // its system; in a --system workspace's folder the local system requires work-system, without which each is
   // IA-COMP-DISCRIMINATOR-FOREIGN.

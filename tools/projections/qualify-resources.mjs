@@ -1,3 +1,4 @@
+import { compiledSystemFolders } from '../native/public-systems.mjs';
 // Build first. This qualification installs emitted packages in a disposable consumer.
 import '../temp/physical-temp.mjs';
 import { packageManagerCommand } from '../entry/package-manager.mjs';
@@ -23,12 +24,9 @@ const folders = [
   'packages/compliance',
   'packages/db',
   'packages/runtime',
-  '.ia/src/systems/session-system',
-  '.ia/src/systems/agent-system',
   'packages/workspace-runtime',
-  '.ia/src/systems/agent-composition-system',
+  ...compiledSystemFolders(root),
 ];
-folders.push('.ia/src/systems/template-system', '.ia/src/systems/authoring-system');
 try {
   const archives = resolve(temporary, 'archives');
   mkdirSync(archives);

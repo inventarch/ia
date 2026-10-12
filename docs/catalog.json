@@ -1,5 +1,60 @@
 {
   "format": "ia-documentation-catalog/1",
   "repository": "inventarch/ia",
-  "documents": []
+  "documents": [
+    {
+      "id": "spec-consumer-cli-contract",
+      "path": "docs/specs/consumer-cli-contract/README.md",
+      "profile": "lifecycle",
+      "genre": "spec",
+      "title": "Consumer CLI contract",
+      "status": "implemented",
+      "sourceDigest": "6dd3922f60905b2bdeae7d51e21af40e7c75b8217ea3c074da5cf13ee9fe529b"
+    },
+    {
+      "id": "spec-host-plugin-distribution",
+      "path": "docs/specs/host-plugin-distribution/README.md",
+      "profile": "lifecycle",
+      "genre": "spec",
+      "title": "Host plugin distribution",
+      "status": "implemented",
+      "sourceDigest": "e15500ef9ee932ca0d7118e53ba50d746dc3b711e285af8278e686ae9056e1e1"
+    },
+    {
+      "id": "spec-host-registration",
+      "path": "docs/specs/host-registration/README.md",
+      "profile": "lifecycle",
+      "genre": "spec",
+      "title": "Host registration",
+      "status": "implemented",
+      "sourceDigest": "980a64a5a31513d076ab2464dcb9eb347635268b4a00b67ddffcee877a08fc5d"
+    },
+    {
+      "id": "spec-registry",
+      "path": "docs/specs/registry/README.md",
+      "profile": "lifecycle",
+      "genre": "spec",
+      "title": "Distribution registry",
+      "status": "implemented",
+      "sourceDigest": "ce8da7f013546b63f6416bbbc7e5d299127fc92556499ff89d4bb16b205cf6bb"
+    },
+    {
+      "id": "spec-workspace-initialization-apply",
+      "path": "docs/specs/workspace-initialization-apply/README.md",
+      "profile": "lifecycle",
+      "genre": "spec",
+      "title": "Workspace initialization apply",
+      "status": "implemented",
+      "sourceDigest": "da57c3f34a139604a95cb066d65e3e1d2ef7f032bceeca498a3e7e8da8bb1222"
+    },
+    {
+      "id": "spec-workspace-initialization",
+      "path": "docs/specs/workspace-initialization/README.md",
+      "profile": "lifecycle",
+      "genre": "spec",
+      "title": "Workspace initialization",
+      "status": "implemented",
+      "sourceDigest": "4a061c09e7c2fed7eb860ac62a8b56c4ac8138df40712f15633eef0a1b4f928c"
+    }
+  ]
 }

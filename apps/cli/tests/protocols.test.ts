@@ -1,7 +1,7 @@
 import { packageManagerCommand } from '../../../tools/entry/package-manager.mjs';
 /**
  * M4.5's first obligation: the three protocols that coexist without normalization
- * (docs/reports/open-source-v1/2026-09-30/decisions.md:65), pinned against the built binaries.
+ * (docs/specs/consumer-cli-contract/README.md §3), pinned against the built binaries.
  *
  * docs/specs/consumer-cli-contract/README.md §3 "The legacy rule" and §4.4 say what each protocol owes.
  * These cases pin the properties a consumer change is most likely to break silently: colour or a banner leaking

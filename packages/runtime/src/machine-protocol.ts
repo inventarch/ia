@@ -1,5 +1,5 @@
 /**
- * The machine protocol's one description (docs/specs/command-discoverability/README.md §2). For each Door operation:
+ * The machine protocol's one description (docs/specs/consumer-cli-contract/README.md §1.2). For each Door operation:
  * its purpose, parameter schema, result, refusals with a next action, and an example that returns `ok: true` on
  * packages/compliance/fixtures/loop, or for `next`, as that fixture authors no @plan, on the delivery fixture
  * packages/runtime/tests/fixtures/delivery/base laid over the conformance corpus. `ia <operation> --help` (the version

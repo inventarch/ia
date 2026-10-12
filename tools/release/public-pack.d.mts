@@ -3,22 +3,15 @@ export interface PublicFilePin {
   sha256: string;
 }
 export interface PublicPackageInputs {
-  format: 'ia.public-package-inputs.v1';
-  sourceRevision: string;
-  baselineOverlay: unknown;
-  provenance: unknown;
+  format: 'ia.public-package-inputs.v2';
+  source: { repository: 'https://github.com/inventarch/ia'; commit: string; tree: string; dirty: boolean };
+  membership: { path: string; sha256: string };
+  inputDigest: string;
+  npm: Record<string, string>;
   files: PublicFilePin[];
-  packageIdentities?: Record<string, { name: string; private: boolean }>;
-  publicRefresh?: {
-    format: 'ia.public-input-refresh.v1';
-    baseCommit: string;
-    baseTree: string;
-    dirty: boolean;
-    inputDigest: string;
-    npm: Record<string, string>;
-  };
 }
 export declare const PUBLIC_INPUTS: string;
+export declare const PUBLIC_MEMBERSHIP: string;
 export declare const PUBLIC_SYSTEM_POLICY: string;
 export declare const COMPATIBILITY: string;
 export declare function publicPackageInputs(

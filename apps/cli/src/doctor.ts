@@ -28,7 +28,7 @@
  * with the catalog of the payload that host's registration names. Both only read; no handler is imported or run.
  *
  * The support row compares an observed platform and version against the declaration at
- * docs/reports/open-source-v1/2026-09-30/decisions.md:13. It says "matches the declared target", never "qualified", because
+ * docs/specs/host-registration/README.md §7. It says "matches the declared target", never "qualified", because
  * that declaration says the minimum must be validated before being advertised. A platform outside it is `warn`,
  * never `fail`, and the word "unsupported" is not used about it.
  *

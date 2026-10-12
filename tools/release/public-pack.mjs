@@ -9,6 +9,7 @@ import { packManifest } from './pack-manifest.mjs';
 import { isEntry } from '../entry/is-entry.mjs';
 
 export const PUBLIC_INPUTS = '.ia/public-package-inputs.json';
+export const PUBLIC_MEMBERSHIP = 'tools/distribution/public-content-policy.json';
 export const PUBLIC_SYSTEM_POLICY = 'tools/distribution/system-package-policy.json';
 export const COMPATIBILITY = 'system-compatibility.json';
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -18,23 +19,26 @@ function inputDescriptor(root) {
   const bytes = readFileSync(child(root, PUBLIC_INPUTS)),
     receipt = JSON.parse(bytes);
   if (
-    receipt.format !== 'ia.public-package-inputs.v1' ||
-    !/^[a-f0-9]{40}$/.test(receipt.sourceRevision) ||
+    receipt.format !== 'ia.public-package-inputs.v2' ||
+    receipt.source?.repository !== 'https://github.com/inventarch/ia' ||
+    !/^[a-f0-9]{40}$/.test(receipt.source?.commit) ||
+    !/^[a-f0-9]{40}$/.test(receipt.source?.tree) ||
+    typeof receipt.source?.dirty !== 'boolean' ||
+    Object.keys(receipt.source).sort().join(',') !== 'commit,dirty,repository,tree' ||
+    receipt.membership?.path !== PUBLIC_MEMBERSHIP ||
+    !/^[a-f0-9]{64}$/.test(receipt.membership?.sha256) ||
+    Object.keys(receipt.membership).sort().join(',') !== 'path,sha256' ||
     !Array.isArray(receipt.files) ||
     !receipt.files.length ||
     new Set(receipt.files.map((row) => row.path)).size !== receipt.files.length ||
-    receipt.files.some((row) => row.path === PUBLIC_INPUTS || !/^[a-f0-9]{64}$/.test(row.sha256))
+    receipt.files.some((row) => row.path === PUBLIC_INPUTS || !/^[a-f0-9]{64}$/.test(row.sha256)) ||
+    Object.keys(receipt).sort().join(',') !== 'files,format,inputDigest,membership,npm,source' ||
+    receipt.inputDigest !== sha(JSON.stringify(receipt.files)) ||
+    !receipt.npm ||
+    typeof receipt.npm !== 'object' ||
+    Array.isArray(receipt.npm)
   )
     throw new Error('Invalid public package input descriptor');
-  if (
-    receipt.publicRefresh &&
-    (receipt.publicRefresh.format !== 'ia.public-input-refresh.v1' ||
-      !/^[a-f0-9]{40}$/.test(receipt.publicRefresh.baseCommit) ||
-      !/^[a-f0-9]{40}$/.test(receipt.publicRefresh.baseTree) ||
-      typeof receipt.publicRefresh.dirty !== 'boolean' ||
-      receipt.publicRefresh.inputDigest !== sha(JSON.stringify(receipt.files)))
-  )
-    throw new Error('Invalid public input refresh');
   return { receipt, sha256: sha(bytes), bytes };
 }
 const trackedInputs = (root) =>
@@ -68,7 +72,18 @@ export function publicPackageInputs(root, { sealed = true } = {}) {
   for (const row of source.receipt.files)
     if (sha(readFileSync(child(root, row.path))) !== row.sha256)
       throw new Error('Changed public package input: ' + row.path + '; review and run pnpm npm:inputs');
-  // A fresh extraction has no Git index yet. Once indexed, new tracked files must never be silently omitted.
+  if (
+    JSON.stringify(
+      validateMembership(
+        root,
+        source.receipt.files.map((row) => row.path),
+      ),
+    ) !== JSON.stringify(source.receipt.npm)
+  )
+    throw new Error('Changed public package versions; review and run pnpm npm:inputs');
+  if (source.receipt.membership.sha256 !== sha(readFileSync(child(root, PUBLIC_MEMBERSHIP))))
+    throw new Error('Changed public package membership policy; review and run pnpm npm:inputs');
+  // New tracked files must never be silently omitted.
   const tracked = trackedInputs(root);
   if (
     (tracked.length || hasCommit(root)) &&
@@ -77,40 +92,44 @@ export function publicPackageInputs(root, { sealed = true } = {}) {
     throw new Error('Changed tracked public input selection; review and run pnpm npm:inputs');
   return source;
 }
-/** Explicitly seal reviewed tracked public inputs; preserve the original extraction provenance. */
+/** Explicitly seal reviewed tracked public inputs and their public repository provenance. */
 export function refreshPublicPackageInputs(root) {
   const current = currentPublicPackageInputs(root);
   writeFileSync(child(resolve(root), PUBLIC_INPUTS), current.bytes);
   return current;
 }
 /** The descriptor a refresh would write for this checkout, without writing it. */
-function currentPublicPackageInputs(root) {
-  root = resolve(root);
-  const previous = inputDescriptor(root);
-  if (json(child(root, 'package.json')).name !== '@inventarch/workspace')
-    throw new Error('Input refresh requires an emitted public workspace');
-  if (resolve(git(root, 'rev-parse', '--show-toplevel')) !== root)
-    throw new Error('Input refresh requires the public repository root');
-  const tracked = trackedInputs(root);
-  if (!tracked.length || new Set(tracked).size !== tracked.length)
-    throw new Error('Invalid tracked public input selection');
-  const files = tracked.map((path) => ({ path, sha256: sha(readFileSync(child(root, path))) }));
-  const packagePaths = tracked.filter((path) => /^(packages|apps|\.ia\/src\/systems)\/[^/]+\/package.json$/.test(path));
-  const selected = Object.keys(previous.receipt.baselineOverlay.versions.npm).sort();
-  const identities = previous.receipt.packageIdentities;
-  if (!identities || JSON.stringify(Object.keys(identities).sort()) !== JSON.stringify(selected))
-    throw new Error(
-      'Public input refresh requires extraction package identity pins; re-extract with the current recipe',
-    );
+function validateMembership(root, tracked) {
+  const policy = json(child(root, PUBLIC_MEMBERSHIP));
+  const rows = policy.packageNames;
+  if (
+    policy.format !== 'ia.public-content-policy.v1' ||
+    !Array.isArray(rows) ||
+    !rows.length ||
+    rows.some(
+      (row) =>
+        !/^(packages|apps|\.ia\/src\/systems)\/[^/]+$/.test(row.root) ||
+        typeof row.private !== 'boolean' ||
+        typeof row.name !== 'string',
+    ) ||
+    new Set(rows.map((row) => row.root)).size !== rows.length ||
+    new Set(rows.map((row) => row.name)).size !== rows.length
+  )
+    throw new Error('Invalid public package membership policy');
+  const packagePaths = tracked
+    .filter((path) => /^(packages|apps|\.ia\/src\/systems)\/[^/]+\/package.json$/.test(path))
+    .sort();
+  const selected = rows.map((row) => row.root + '/package.json').sort();
   if (JSON.stringify(packagePaths) !== JSON.stringify(selected))
-    throw new Error('Public package membership requires a reviewed extraction policy');
+    throw new Error('Public package membership requires a reviewed public content policy');
   const npm = Object.fromEntries(
     packagePaths.map((path) => {
       const manifest = json(child(root, path));
-      if (manifest.name !== identities[path].name || Boolean(manifest.private) !== identities[path].private)
-        throw new Error('Public package identity requires a reviewed extraction policy: ' + path);
+      const identity = rows.find((row) => row.root + '/package.json' === path);
       if (
-        (!manifest.name?.startsWith('@inventarch/') &&
+        manifest.name !== identity.name ||
+        Boolean(manifest.private) !== identity.private ||
+        (!manifest.name.startsWith('@inventarch/') &&
           !(
             path === 'apps/vscode/package.json' &&
             manifest.name === 'inventarch-ia' &&
@@ -123,22 +142,37 @@ function currentPublicPackageInputs(root) {
       return [path, manifest.version];
     }),
   );
+  return npm;
+}
+function currentPublicPackageInputs(root) {
+  root = resolve(root);
+  const previous = readFileSync(child(root, PUBLIC_INPUTS));
+  if (json(child(root, 'package.json')).name !== '@inventarch/workspace')
+    throw new Error('Input refresh requires the public workspace');
+  if (resolve(git(root, 'rev-parse', '--show-toplevel')) !== root)
+    throw new Error('Input refresh requires the public repository root');
+  const tracked = trackedInputs(root);
+  if (!tracked.length || new Set(tracked).size !== tracked.length)
+    throw new Error('Invalid tracked public input selection');
+  const files = tracked.map((path) => ({ path, sha256: sha(readFileSync(child(root, path))) }));
+  const npm = validateMembership(root, tracked);
   const receipt = {
-    ...previous.receipt,
-    files,
-    publicRefresh: {
-      format: 'ia.public-input-refresh.v1',
-      baseCommit: git(root, 'rev-parse', 'HEAD'),
-      baseTree: git(root, 'rev-parse', 'HEAD^{tree}'),
+    format: 'ia.public-package-inputs.v2',
+    source: {
+      repository: 'https://github.com/inventarch/ia',
+      commit: git(root, 'rev-parse', 'HEAD'),
+      tree: git(root, 'rev-parse', 'HEAD^{tree}'),
       dirty: git(root, 'status', '--porcelain') !== '',
-      inputDigest: sha(JSON.stringify(files)),
-      npm,
     },
+    membership: { path: PUBLIC_MEMBERSHIP, sha256: sha(readFileSync(child(root, PUBLIC_MEMBERSHIP))) },
+    npm,
+    files,
+    inputDigest: sha(JSON.stringify(files)),
   };
   if (
     JSON.stringify(trackedInputs(root)) !== JSON.stringify(tracked) ||
     files.some((row) => sha(readFileSync(child(root, row.path))) !== row.sha256) ||
-    !readFileSync(child(root, PUBLIC_INPUTS)).equals(previous.bytes)
+    !readFileSync(child(root, PUBLIC_INPUTS)).equals(previous)
   )
     throw new Error('Public inputs changed during refresh');
   const bytes = Buffer.from(JSON.stringify(receipt, null, 2) + '\n');
@@ -185,7 +219,7 @@ export function packPublicPackages(root, target, pnpm = process.env.npm_execpath
     const versions = new Map(projects.map((row) => [row.manifest.name, row.manifest.version]));
     const packages = projects.filter((row) => !row.manifest.private);
     if (
-      projects.length !== Object.keys(source.receipt.baselineOverlay.versions.npm).length ||
+      projects.length !== Object.keys(source.receipt.npm).length ||
       packages.some((row) => !row.manifest.name.startsWith('@inventarch/')) ||
       versions.size !== projects.length
     )
@@ -227,10 +261,10 @@ export function packPublicPackages(root, target, pnpm = process.env.npm_execpath
       });
     }
     const compatibility = {
-      format: 'ia.system-package-compatibility.v1',
-      sourceRevision: source.receipt.sourceRevision,
+      format: 'ia.system-package-compatibility.v2',
+      source: source.receipt.source,
       sourceManifestSha256: source.sha256,
-      baselineOverlay: source.receipt.baselineOverlay,
+      membership: source.receipt.membership,
       recipe: {
         publicCommit: git(root, 'rev-parse', 'HEAD'),
         publicDirty: git(root, 'status', '--porcelain') !== '',
@@ -240,7 +274,6 @@ export function packPublicPackages(root, target, pnpm = process.env.npm_execpath
         files: source.receipt.files.filter(
           (row) => row.path.startsWith('tools/release/') || row.path === PUBLIC_SYSTEM_POLICY,
         ),
-        extraction: source.receipt.provenance,
       },
       packages: systemPackages.map((row) => {
         const archive = packed.find((entry) => entry.name === row.binding.package.name);
@@ -262,10 +295,7 @@ export function packPublicPackages(root, target, pnpm = process.env.npm_execpath
       if (!readFileSync(child(root, PUBLIC_INPUTS)).equals(source.bytes))
         throw new Error('Public input descriptor changed while packing');
       publicPackageInputs(root);
-    } else if (
-      publicPackageInputs(root, { sealed: false }).receipt.publicRefresh.inputDigest !==
-      source.receipt.publicRefresh.inputDigest
-    )
+    } else if (publicPackageInputs(root, { sealed: false }).receipt.inputDigest !== source.receipt.inputDigest)
       throw new Error('Public inputs changed while packing');
     return { packed, compatibility, compatibilitySha256: sha(compatibilityBytes) };
   } finally {
@@ -286,8 +316,11 @@ export function verifyPublicCompatibility(root, directory, expectedSha256, { inp
   const compatibility = JSON.parse(bytes),
     policy = json(child(root, PUBLIC_SYSTEM_POLICY));
   if (
-    compatibility.format !== 'ia.system-package-compatibility.v1' ||
-    compatibility.sourceRevision !== source.receipt.sourceRevision ||
+    compatibility.format !== 'ia.system-package-compatibility.v2' ||
+    Object.keys(compatibility).sort().join(',') !== 'format,membership,packages,recipe,source,sourceManifestSha256' ||
+    !compatibility.recipe ||
+    Object.keys(compatibility.recipe).sort().join(',') !== 'files,lockSha256,node,pnpm,publicCommit,publicDirty' ||
+    JSON.stringify(compatibility.source) !== JSON.stringify(source.receipt.source) ||
     compatibility.sourceManifestSha256 !== source.sha256 ||
     compatibility.recipe?.publicCommit !== git(root, 'rev-parse', 'HEAD') ||
     compatibility.recipe?.lockSha256 !== sha(readFileSync(child(root, 'pnpm-lock.yaml')))
@@ -300,9 +333,8 @@ export function verifyPublicCompatibility(root, directory, expectedSha256, { inp
     (row) => row.path.startsWith('tools/release/') || row.path === PUBLIC_SYSTEM_POLICY,
   );
   if (
-    JSON.stringify(compatibility.baselineOverlay) !== JSON.stringify(source.receipt.baselineOverlay) ||
+    JSON.stringify(compatibility.membership) !== JSON.stringify(source.receipt.membership) ||
     JSON.stringify(compatibility.recipe.files) !== JSON.stringify(recipeFiles) ||
-    JSON.stringify(compatibility.recipe.extraction) !== JSON.stringify(source.receipt.provenance) ||
     typeof compatibility.recipe.publicDirty !== 'boolean' ||
     !/^v\d+\.\d+\.\d+$/.test(compatibility.recipe.node) ||
     'pnpm@' + compatibility.recipe.pnpm !== json(child(root, 'package.json')).packageManager
@@ -344,7 +376,8 @@ if (isEntry(process.argv[1], import.meta.url)) {
       {
         files: refreshed.receipt.files.length,
         sha256: refreshed.sha256,
-        publicRefresh: refreshed.receipt.publicRefresh,
+        source: refreshed.receipt.source,
+        inputDigest: refreshed.receipt.inputDigest,
       },
       null,
       2,

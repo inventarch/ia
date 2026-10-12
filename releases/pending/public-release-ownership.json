@@ -1,0 +1,24 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Maintain public implementation and release contracts",
+  "summary": "Package source citations now resolve to maintained public specifications. Release preparation uses a public repository input seal and reviewed package membership, with independent native and npm versions; local qualification does not establish registry publication or host activation.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/runtime",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    "apps/cli/src/doctor.ts",
+    "apps/cli/src/operation-help.ts",
+    "apps/cli/tests/init.test.ts",
+    "apps/cli/tests/protocols.test.ts",
+    "packages/db/src/descriptors/index.ts",
+    "packages/db/tests/descriptors.test.ts",
+    "packages/runtime/src/machine-protocol.ts",
+    "packages/workspace-runtime/tests/projections.test.ts",
+    "docs/",
+    "tools/"
+  ]
+}

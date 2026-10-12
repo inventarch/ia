@@ -1426,9 +1426,9 @@ describe('Codex projections through the shared compiler', () => {
   });
 });
 
-// HOST-01 (private source history): the existing emitted Claude/Codex workspace and plugin products for the public synthetic
-// fixture, compiled with the canonical descriptor of tools/projections/fixtures/compile-prose.mjs. Exact output hashes
-// are revision-bound evidence in docs/reports/host-projection-baseline, never pinned here.
+// HOST-01: emitted Claude/Codex workspace and plugin products for the public synthetic fixture, compiled with the
+// canonical descriptor of tools/projections/fixtures/compile-prose.mjs. The projection contract is apps/distribution/SPEC.md;
+// exact output hashes are computed from this fixture run, never pinned to an earlier receipt.
 describe('HOST-01 emitted projection baseline', () => {
   const DESCRIPTION = 'Review fictional notes with source evidence.',
     INVENTORY = metadataDigest({ fixture: 'original-public-prose' });

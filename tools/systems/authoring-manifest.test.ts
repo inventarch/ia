@@ -24,96 +24,21 @@ it('refuses a guide dependency omitted from the installed resource closure', () 
     teachingLinkFindings(root, [guide, { path: '.ia/src/systems/example/SPEC.md', text: '# Support\n' }], new Set()),
   ).toEqual([]);
 });
-it('treats private-source links as pinned historical citations that cannot replace shipped instruction', () => {
-  const root = mkdtempSync(resolve(tmpdir(), 'ia-authoring-manifest-'));
-  temporary.push(root);
-  const commit = 'a'.repeat(40),
-    source = (repo: string, revision: string, path: string) => `https://github.com/${repo}/blob/${revision}/${path}`;
-  const spec = { path: '.ia/src/systems/example/SPEC.md', text: '# Support\n' };
-  const guide = (href: string) => ({
-    path: '.ia/src/systems/example/README.md',
-    text: `# Guide\n\n[Cited](${href})\n\n## Source citations\n\nNeeds private access.\n`,
-  });
-  expect(
-    teachingLinkFindings(root, [guide(source('crowncodes/ia', commit, 'docs/specs/design.md')), spec], new Set()),
-  ).toEqual([]);
-  expect(
-    teachingLinkFindings(
-      root,
-      [guide(source('inventarch/api', commit, '.ia/src/systems/example/SPEC.md')), spec],
-      new Set(),
-    ),
-  ).toEqual([]);
-  expect(
-    teachingLinkFindings(root, [guide(source('crowncodes/ia', 'main', 'docs/specs/design.md'))], new Set()).join('\n'),
-  ).toContain('pinned to a full commit');
-  expect(
-    teachingLinkFindings(root, [guide(source('inventarch/api', 'f104b1a', 'README.md'))], new Set()).join('\n'),
-  ).toContain('pinned to a full commit');
-  expect(
-    teachingLinkFindings(root, [guide(source('crowncodes/ia', 'A'.repeat(40), 'docs/specs/design.md'))], new Set()),
-  ).toEqual([]);
-  for (const href of [
-    'http://github.com/crowncodes/ia/blob/main/README.md',
-    'https://www.github.com/crowncodes/ia/raw/main/README.md',
-    'https://raw.githubusercontent.com/crowncodes/ia/main/README.md',
-    'https://github.com/crowncodes/ia-apps/issues/7',
-    'https://github.com/inventarch/api',
-  ]) {
-    expect(teachingLinkFindings(root, [guide(href)], new Set()).join('\n'), href).toContain('pinned to a full commit');
-  }
-  expect(
-    teachingLinkFindings(root, [guide('https://github.com/crowncodes/iana/blob/main/README.md')], new Set()),
-  ).toEqual([]);
-  expect(teachingLinkFindings(root, [guide(`https://github.com/crowncodes/ia/tree/${commit}`)], new Set())).toEqual([]);
-  expect(
-    teachingLinkFindings(
-      root,
-      [
-        {
-          path: '.ia/src/systems/example/README.md',
-          text: '# Guide\n\nSee <https://github.com/crowncodes/ia/blob/main/README.md>.\n',
-        },
-      ],
-      new Set(),
-    ).join('\n'),
-  ).toContain('pinned to a full commit');
-  for (const href of [
-    `${source('crowncodes/ia', commit, spec.path)}#section`,
-    `${source('crowncodes/ia', commit, spec.path)}?plain=1`,
-    source('crowncodes/ia', commit, '.ia/src/systems/example/SPEC%2Emd'),
-    `https://github.com/crowncodes/ia/tree/${commit}/.ia/src/systems/example/`,
-    `https://raw.githubusercontent.com/crowncodes/ia/${commit}/${spec.path}`,
-  ]) {
-    expect(teachingLinkFindings(root, [guide(href), spec], new Set()).join('\n'), href).toContain('link it relatively');
-  }
-  expect(
-    teachingLinkClasses([
-      guide(source('crowncodes/ia', commit, 'docs/x.md')),
-      guide('SPEC.md'),
-      guide('https://example.com/'),
-      guide('#local'),
-    ]),
-  ).toEqual({ required: 1, historical: 1 });
-});
-it('requires an access statement beside historical citations and an existing section behind each required anchor', () => {
+it('checks installed teaching anchors and treats external references as external', () => {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-authoring-manifest-'));
   temporary.push(root);
   mkdirSync(resolve(root, '.ia/src/systems/example'), { recursive: true });
   writeFileSync(resolve(root, '.ia/src/systems/example/SPEC.md'), '# Support\n\n## Case convention\n');
   const spec = { path: '.ia/src/systems/example/SPEC.md', text: '# Support\n\n## Case convention\n' };
-  const cited = `[History](https://github.com/crowncodes/ia/blob/${'a'.repeat(40)}/docs/specs/design.md)`;
-  const guide = (text: string) => ({ path: '.ia/src/systems/example/README.md', text: `# Guide\n\n${text}\n` });
-  expect(teachingLinkFindings(root, [guide(cited), spec], new Set()).join('\n')).toContain(
-    '"Source citations" section',
-  );
-  expect(
-    teachingLinkFindings(root, [guide(`${cited}\n\n## Source citations\n\nNeeds private access.`), spec], new Set()),
-  ).toEqual([]);
+  const guide = (text: string) => ({ path: '.ia/src/systems/example/README.md', text });
   expect(teachingLinkFindings(root, [guide('[Rule](SPEC.md#case-convention)'), spec], new Set())).toEqual([]);
   expect(teachingLinkFindings(root, [guide('[Rule](SPEC.md#removed-section)'), spec], new Set()).join('\n')).toContain(
     'section missing from its installed teaching target',
   );
+  expect(teachingLinkFindings(root, [guide('[External](https://example.com/spec)'), spec], new Set())).toEqual([]);
+  expect(
+    teachingLinkClasses([guide('[Rule](SPEC.md) [External](https://example.com/spec) [Anchor](#section)')]),
+  ).toEqual({ required: 1, external: 1 });
 });
 const temp = (): string => {
   const path = mkdtempSync(resolve(tmpdir(), 'ia-authoring-manifest-'));

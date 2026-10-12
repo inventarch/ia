@@ -51,10 +51,8 @@ const released = (value) =>
             .filter(([key]) => key !== 'development')
             .map(([key, entry]) => [key, released(entry)]),
         );
-/** The CLI under its public name and its private-staging name (tools/release/private.mjs), as in tools/dependencies/check.ts. */
-const CLI = new Set(['@inventarch/cli', '@inventarch/inventarch-cli']);
-// Package spellings are projected with the manifest namespace. Regex literals containing an escaped scope
-// do not undergo that projection; keep these exact omitted-owner names as ordinary string literals.
+/** The public CLI is the only launcher root; retired staging aliases are not accepted. */
+const CLI = new Set(['@inventarch/cli']);
 const OMITTED_PACKAGES = [
   '@inventarch/architecture-system',
   '@inventarch/code-quality-system',
@@ -62,36 +60,10 @@ const OMITTED_PACKAGES = [
 ];
 const omittedTarget = (text) =>
   /inventarch-development|development-native/.test(text) || OMITTED_PACKAGES.some((name) => text.includes(name));
-/** The offline launcher does not expose the separately qualified private development host. */
+/** Public manifests must already express the complete public payload; the packer does not rewrite capability authority. */
 export function staticCliManifest(input) {
   const metadata = structuredClone(input);
-  if (!CLI.has(metadata.name) || metadata.exports?.['./development'] === undefined) return metadata;
-  const entry = metadata.exports['./development'];
-  const peer = '@inventarch/monorepo-kit-host';
-  if (
-    JSON.stringify(Object.keys(entry).sort()) !== '["default","types"]' ||
-    entry.default !== './dist/inventarch-development/index.js' ||
-    entry.types !== './dist/inventarch-development/index.d.ts' ||
-    JSON.stringify(metadata.peerDependencies) !== JSON.stringify({ [peer]: '0.1.0' }) ||
-    JSON.stringify(metadata.peerDependenciesMeta) !== JSON.stringify({ [peer]: { optional: true } }) ||
-    Object.keys(metadata.optionalDependencies ?? {}).length ||
-    metadata.dependencies?.['@inventarch/architecture-system'] !== 'workspace:*' ||
-    metadata.dependencies?.['@inventarch/code-quality-system'] !== 'workspace:*'
-  )
-    throw Error('Unreviewed private development payload boundary');
-  delete metadata.exports['./development'];
-  delete metadata.peerDependencies;
-  delete metadata.peerDependenciesMeta;
-  delete metadata.devDependencies?.[peer];
-  delete metadata.dependencies['@inventarch/architecture-system'];
-  delete metadata.dependencies['@inventarch/code-quality-system'];
-  const targets = JSON.stringify({
-    exports: metadata.exports,
-    main: metadata.main,
-    bin: metadata.bin,
-    imports: metadata.imports,
-  });
-  if (omittedTarget(targets)) throw Error('Retained manifest target reaches the omitted development capability');
+  if (omittedTarget(JSON.stringify(metadata))) throw Error('Public payload manifest reaches an omitted capability');
   return metadata;
 }
 /** Conservative coupling check; the ordinary dependency gate separately rejects nonliteral runtime imports. */

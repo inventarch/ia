@@ -114,7 +114,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
       ' bytes; ' +
       links.required +
       ' required local links; ' +
-      links.historical +
-      ' pinned historical citations.\n',
+      links.external +
+      ' external references.\n',
   );
 }

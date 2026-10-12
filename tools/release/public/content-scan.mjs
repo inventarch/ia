@@ -61,6 +61,7 @@ export function projectContentPolicy(policy, outputs) {
     .filter((row) => !selected || selected.has(row.root + '/package.json'))
     .map((row) => ({
       root: row.root,
+      private: Boolean(row.private),
       name: row.name.replace(policy.namespace?.source ?? '@inventarch/', policy.namespace?.public ?? '@inventarch/'),
     }));
   const dependencies = new Set();
@@ -108,7 +109,8 @@ export function validateContentPolicy(policy) {
     if (
       !safePath(row.root) ||
       !/^(?:@inventarch\/)?[a-z][a-z0-9-]*$/.test(row.name) ||
-      Object.keys(row).some((key) => !['root', 'name'].includes(key))
+      typeof row.private !== 'boolean' ||
+      Object.keys(row).some((key) => !['root', 'name', 'private'].includes(key))
     )
       fail('invalid public package owner');
   for (const row of policy.embeddedCarriers)
@@ -122,7 +124,7 @@ export function validateContentPolicy(policy) {
     const key = row.path + ':' + row.rule + ':' + row.valueSha256;
     if (
       !safePath(row.path) ||
-      !['client-name', 'email', 'local-path', 'private-repository'].includes(row.rule) ||
+      !['client-name', 'email', 'local-path'].includes(row.rule) ||
       !digest(row.valueSha256) ||
       !digest(row.normalizedSha256) ||
       keys.has(key) ||
@@ -199,7 +201,6 @@ export function contentFindings(outputs, policy) {
       carriers.push({ path: row.owner + '/' + selected.archive + '.tgz', memberPrefix: row.memberPrefix });
   }
   const rules = [
-    ['private-repository', /crowncodes\/ia(?![\w-])/gi],
     ['email', /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi],
     ['local-path', /(?:\b[A-Z]:[\\/]+|\/(?:Users|home)\/)[^\s"'`<>]+/gi],
   ];

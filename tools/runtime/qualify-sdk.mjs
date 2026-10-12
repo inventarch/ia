@@ -1,3 +1,6 @@
+import { publicPackageInputs } from '../release/public-pack.mjs';
+import { verifyRelease } from '../distribution/npm-release.mjs';
+import { publicSystemNames } from '../native/public-systems.mjs';
 import { packageManagerCommand } from '../entry/package-manager.mjs';
 // Consume packaging-owner-selected artifacts. No build or publication.
 import assert from 'node:assert/strict';
@@ -11,35 +14,31 @@ assert(
   'Usage: node tools/runtime/qualify-sdk.mjs <public-tree> <archives> <new-output> <pnpm-launcher> <offline-store>',
 );
 const [candidate, archives, output, pnpm, store] = args.map((value) => resolve(value));
-const receipt = JSON.parse(readFileSync(resolve(candidate, '.git/ia-extraction.json'), 'utf8'));
-assert(receipt.sourceRevision, 'Require a public extraction receipt');
+const inputs = publicPackageInputs(candidate);
+const receipt = inputs.receipt;
 const packages = [
   'language',
   'graph',
   'compliance',
   'db',
   'runtime',
-  'session-system',
-  'agent-system',
-  'authoring-system',
-  'template-system',
   'workspace-runtime',
-  'agent-composition-system',
-  'compliance-system',
-  'governance-system',
-  'hook-authoring-system',
-  'learning-system',
-  'work-system',
-  'workspace-system',
+  ...publicSystemNames(candidate),
 ];
-const inventory = JSON.parse(readFileSync(resolve(archives, 'public-artifacts.json'), 'utf8')),
-  dependencies = {},
+const version = JSON.parse(readFileSync(resolve(candidate, 'releases/current.json'), 'utf8')).version;
+const release = verifyRelease(candidate, archives, version);
+const inventory = {
+  artifacts: release.packages.map((row) => ({
+    ...row,
+    path: row.filename,
+    sha256: createHash('sha256')
+      .update(readFileSync(resolve(archives, row.filename)))
+      .digest('hex'),
+  })),
+};
+const dependencies = {},
   pins = [];
-assert.equal(inventory.sourceRevision, receipt.sourceRevision, 'Artifact source revision mismatch');
-assert.deepEqual(inventory.source, receipt, 'Artifact extraction receipt mismatch');
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
-for (const file of receipt.files)
-  assert.equal(digest(readFileSync(resolve(candidate, file.path))), file.sha256, `Changed candidate ${file.path}`);
 for (const name of packages) {
   const matches = inventory.artifacts.filter((file) => file.name === `@inventarch/${name}`);
   assert.equal(matches.length, 1, `Select exactly one @inventarch/${name} archive`);
@@ -165,7 +164,7 @@ writeFileSync(
   resolve(output, 'qualification.json'),
   JSON.stringify(
     {
-      extraction: receipt,
+      publicInputs: { sha256: inputs.sha256, source: receipt.source },
       archives: pins,
       nativeFiles,
       node: process.version,

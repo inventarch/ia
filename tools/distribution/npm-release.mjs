@@ -25,7 +25,7 @@ const integrity = (bytes) => `sha512-${createHash('sha512').update(bytes).digest
 
 export function releaseVersions(root, inputs = publicPackageInputs(root)) {
   const { receipt } = inputs;
-  return receipt.publicRefresh?.npm ?? receipt.baselineOverlay.versions.npm;
+  return receipt.npm;
 }
 
 export function validatePackages(projects, version, versions) {

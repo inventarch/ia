@@ -2,12 +2,7 @@
 
 ## Supported versions
 
-| Version | Supported |
-| --- | --- |
-| 1.1.x | Yes, once 1.1.0 is published |
-| 1.0.x | Until 1.1.0 is published |
-
-Security fixes go to the latest release line. The release tooling publishes only forward and only to the `latest` tag, so once 1.1.0 is published a fix ships as a 1.1.x release, not as a 1.0.x one. There are no earlier public releases.
+Security fixes target the latest published release line of `@inventarch/cli` and its coordinated package cohort. See the [release policy](releases/current.json) and [published releases](https://github.com/inventarch/ia/releases). A prepared local candidate does not change the supported published line. The release tooling publishes forward to the `latest` tag; it does not maintain older release lines in parallel.
 
 ## Reporting a vulnerability
 
@@ -30,4 +25,4 @@ We acknowledge reports in the advisory thread and keep you informed there as we 
 
 This policy covers the code and records published in this repository and the artifacts attached to its releases. Hosted InventArch services and the private marketplace are not part of this repository; problems in them are reported to their own operators, not here.
 
-Running `ia host claude`, `ia host codex` or `ia host cursor` writes files into your workspace and user profile, and registers hooks and an MCP server with that host. Review the plan the command prints before applying it. A report about what the host set is permitted to do is in scope.
+Running `ia host claude`, `ia host codex` writes files into your workspace and user profile, and registers hooks and an MCP server with that host. Review the plan the command prints before applying it. A report about what the host set is permitted to do is in scope.

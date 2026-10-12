@@ -23,7 +23,7 @@ import type {
   DescriptorResult,
 } from '../src/descriptors/index.js';
 
-// OS09 (docs/specs/domain-and-app-descriptors/README.md) pure producer: DESC-Q02, DESC-Q03, DESC-Q08.
+// OS09 (packages/db/src/descriptors/SPEC.md) pure producer: DESC-Q02, DESC-Q03, DESC-Q08.
 const repository = resolve(import.meta.dirname, '../../..');
 const fixtures = resolve(import.meta.dirname, '../fixtures/descriptors');
 const read = (path: string): string => readFileSync(resolve(fixtures, path), 'utf8');

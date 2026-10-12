@@ -1,5 +1,5 @@
 /**
- * `ia <operation> --help` (docs/specs/command-discoverability/README.md CLI-01..02): one operation's help, rendered
+ * `ia <operation> --help` (docs/specs/consumer-cli-contract/README.md §1.2): one operation's help, rendered
  * from the machine protocol table that the MCP door and the reference page also read, so the three cannot drift. The
  * machine route stays uncoloured whatever the environment asks for (SPEC.md C10), so the capabilities are fixed here.
  */

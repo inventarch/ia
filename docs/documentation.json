@@ -1,7 +1,38 @@
 {
   "format": "ia-documentation-policy/1",
   "repository": "inventarch/ia",
-  "expected": [],
+  "expected": [
+    {
+      "id": "spec-consumer-cli-contract",
+      "path": "docs/specs/consumer-cli-contract/README.md",
+      "profile": "lifecycle"
+    },
+    {
+      "id": "spec-host-plugin-distribution",
+      "path": "docs/specs/host-plugin-distribution/README.md",
+      "profile": "lifecycle"
+    },
+    {
+      "id": "spec-host-registration",
+      "path": "docs/specs/host-registration/README.md",
+      "profile": "lifecycle"
+    },
+    {
+      "id": "spec-registry",
+      "path": "docs/specs/registry/README.md",
+      "profile": "lifecycle"
+    },
+    {
+      "id": "spec-workspace-initialization",
+      "path": "docs/specs/workspace-initialization/README.md",
+      "profile": "lifecycle"
+    },
+    {
+      "id": "spec-workspace-initialization-apply",
+      "path": "docs/specs/workspace-initialization-apply/README.md",
+      "profile": "lifecycle"
+    }
+  ],
   "legacyMetadata": [],
-  "policy": "Public export contains explicitly selected normative references, no private lifecycle documents."
+  "policy": "Public repository contracts and maintained implementation specifications."
 }

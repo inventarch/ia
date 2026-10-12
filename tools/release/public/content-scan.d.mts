@@ -1,12 +1,12 @@
 export interface PublicContentPolicy {
   format: 'ia.public-content-policy.v1';
-  packageNames: { root: string; name: string }[];
+  packageNames: { root: string; name: string; private: boolean }[];
   embeddedCarriers: { owner: string; memberPrefix: string }[];
   exceptions: { path: string; rule: string; valueSha256: string; normalizedSha256: string }[];
 }
 export type ContentOutputs = ReadonlyMap<string, { bytes: string | Uint8Array }>;
 export interface SourceContentPolicy {
-  packageNames: { root: string; name: string }[];
+  packageNames: { root: string; name: string; private?: boolean }[];
   leakExceptions: { path: string; rule: string; value: string }[];
   embeddedCarriers?: { owner: string; memberPrefix: string }[];
   namespace?: { source: string; public: string };

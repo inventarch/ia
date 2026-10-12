@@ -1,1033 +1,39 @@
 {
-  "format": "ia.public-package-inputs.v1",
-  "packageIdentities": {
-    ".ia/src/systems/agent-composition-system/package.json": {
-      "name": "@inventarch/agent-composition-system",
-      "private": false
-    },
-    ".ia/src/systems/agent-system/package.json": {
-      "name": "@inventarch/agent-system",
-      "private": false
-    },
-    ".ia/src/systems/authoring-system/package.json": {
-      "name": "@inventarch/authoring-system",
-      "private": false
-    },
-    ".ia/src/systems/compliance-system/package.json": {
-      "name": "@inventarch/compliance-system",
-      "private": false
-    },
-    ".ia/src/systems/governance-system/package.json": {
-      "name": "@inventarch/governance-system",
-      "private": false
-    },
-    ".ia/src/systems/hook-authoring-system/package.json": {
-      "name": "@inventarch/hook-authoring-system",
-      "private": false
-    },
-    ".ia/src/systems/learning-system/package.json": {
-      "name": "@inventarch/learning-system",
-      "private": false
-    },
-    ".ia/src/systems/session-system/package.json": {
-      "name": "@inventarch/session-system",
-      "private": false
-    },
-    ".ia/src/systems/template-system/package.json": {
-      "name": "@inventarch/template-system",
-      "private": false
-    },
-    ".ia/src/systems/work-system/package.json": {
-      "name": "@inventarch/work-system",
-      "private": false
-    },
-    ".ia/src/systems/workspace-system/package.json": {
-      "name": "@inventarch/workspace-system",
-      "private": false
-    },
-    "apps/cli/package.json": {
-      "name": "@inventarch/cli",
-      "private": false
-    },
-    "apps/distribution/package.json": {
-      "name": "@inventarch/distribution",
-      "private": false
-    },
-    "apps/mcp-door/package.json": {
-      "name": "@inventarch/mcp-door",
-      "private": false
-    },
-    "apps/steward-hook/package.json": {
-      "name": "@inventarch/steward-hook",
-      "private": false
-    },
-    "apps/vscode/package.json": {
-      "name": "inventarch-ia",
-      "private": true
-    },
-    "packages/compliance/package.json": {
-      "name": "@inventarch/compliance",
-      "private": false
-    },
-    "packages/db/package.json": {
-      "name": "@inventarch/db",
-      "private": false
-    },
-    "packages/graph/package.json": {
-      "name": "@inventarch/graph",
-      "private": false
-    },
-    "packages/language/package.json": {
-      "name": "@inventarch/language",
-      "private": false
-    },
-    "packages/runtime/package.json": {
-      "name": "@inventarch/runtime",
-      "private": false
-    },
-    "packages/service-contracts/package.json": {
-      "name": "@inventarch/service-contracts",
-      "private": false
-    },
-    "packages/workspace-runtime/package.json": {
-      "name": "@inventarch/workspace-runtime",
-      "private": false
-    }
+  "format": "ia.public-package-inputs.v2",
+  "source": {
+    "repository": "https://github.com/inventarch/ia",
+    "commit": "25999b5b6dbff30b39aebd46b8c10c980a725ffd",
+    "tree": "56d2b260dda397252b0d2c750e0f9e89753d57f0",
+    "dirty": true
   },
-  "sourceRevision": "4ce033e9a2134332c1dd3a93d2e1faea37c41f54",
-  "baselineOverlay": {
-    "format": "ia.public-baseline-overlay.v1",
-    "baseline": {
-      "repository": "inventarch/ia",
-      "commit": "007b268f9f0b747ff34b012bce17c5f5bcb15d9f"
-    },
-    "scriptAdaptations": [
-      {
-        "name": "public:qualify",
-        "before": "node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs",
-        "after": "node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs && pnpm packages:qualify",
-        "reason": "Preserve baseline installed-artifact qualification; default package qualifier uses a fresh temporary destination."
-      }
-    ],
-    "sharedFiles": [
-      {
-        "path": "SPEC.md",
-        "input": "tools/release/public/baseline-shared/SPEC.md.in",
-        "sha256": "c5867542ab36b6eb082b13ba45adf9846e724425ccc35ecccbad1f5fcd10e4a0",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": null
-      },
-      {
-        "path": "apps/vscode/README.md",
-        "input": "tools/release/public/baseline-shared/apps/vscode/README.md.in",
-        "sha256": "fc699ac2959d06ccfddb7f0cd477ca01e928d4bec2a7d1f62ed94f631a9f9b6a",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": null
-      },
-      {
-        "path": "distributions/product-structure/.ia/src/systems/product-system/SPEC.md",
-        "input": "tools/release/public/baseline-shared/distributions/product-structure/.ia/src/systems/product-system/SPEC.md.in",
-        "sha256": "9ee7558dd97caf163cb5becbf7c8e176f83efaa939129c2376e5f057e39ac28b",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "distributions/product-structure/.ia/src/systems/product-system/SPEC.md"
-      },
-      {
-        "path": "distributions/product-structure/README.md",
-        "input": "tools/release/public/baseline-shared/distributions/product-structure/README.md.in",
-        "sha256": "26d68f18ef980dc158f2edc8da947d85b91fea202ce5c52672f1df4424c57a41",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "distributions/product-structure/README.md"
-      },
-      {
-        "path": "distributions/product-structure/SPEC.md",
-        "input": "tools/release/public/baseline-shared/distributions/product-structure/SPEC.md.in",
-        "sha256": "31a35aa6dc45b01c9e8bb84146c3f7961ef0ea2305275946195d5cc07719360f",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "distributions/product-structure/SPEC.md"
-      },
-      {
-        "path": "docs/reference/language/SPEC.md",
-        "input": "tools/release/public/baseline-shared/docs/reference/language/SPEC.md.in",
-        "sha256": "36f4294d2cad439092d87591a71b88030be00955358eca0f6c9b38fb6fbade22",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "docs/reference/language/SPEC.md"
-      },
-      {
-        "path": "examples/public-language/README.md",
-        "input": "tools/release/public/baseline-shared/examples/public-language/README.md.in",
-        "sha256": "58668bf9456c55e9b509d6650f51c8452b052e83e8c097bdf0cb654975a5cdad",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "examples/public-language/README.md"
-      },
-      {
-        "path": "examples/public-language/SPEC.md",
-        "input": "tools/release/public/baseline-shared/examples/public-language/SPEC.md.in",
-        "sha256": "5f419a7654d63f382a9427a6dfa34514f9b12a70db6fd770d25c146ce9d0c6c0",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "examples/public-language/SPEC.md"
-      },
-      {
-        "path": "tools/distribution/SPEC.md",
-        "input": "tools/release/public/baseline-shared/tools/distribution/SPEC.md.in",
-        "sha256": "6f491d20562aa9dbb4bf2546084949e11afcd2ec72e8024d62da8f0ed2d6457c",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": null
-      },
-      {
-        "path": "tools/docs/MARKDOWN.md",
-        "input": "tools/release/public/baseline-shared/tools/docs/MARKDOWN.md.in",
-        "sha256": "42c1ccf7d5ac4eb88fbc71e238a486670083aecaf6d33931700d69a6cbd9cf6c",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "tools/docs/MARKDOWN.md"
-      },
-      {
-        "path": "tools/review/README.md",
-        "input": "tools/release/public/baseline-shared/tools/review/README.md.in",
-        "sha256": "24f32bb2ab4169013d56625a38221ccfd7272b09373cdfc0904c5741473285e0",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "tools/review/README.md"
-      },
-      {
-        "path": "tools/review/SPEC.md",
-        "input": "tools/release/public/baseline-shared/tools/review/SPEC.md.in",
-        "sha256": "26d40e642da6a3f78db7d0d3d1804e6dc95b0b2d3cddd1c40975351098dc76ea",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve the full public 1.0 baseline contract/onboarding text; successor versions and explicit qualifications are adapted by the reviewed shared overlay.",
-        "source": "tools/review/SPEC.md"
-      },
-      {
-        "path": "tools/dependencies/SPEC.md",
-        "input": "tools/release/public/baseline-shared/tools/dependencies/SPEC.md.in",
-        "sha256": "9aad4c8c22a124d594bde022c5ad6a730a3cd76cfc10849409e45d908ef8f85d",
-        "disposition": "restore-public-doc",
-        "reason": "Restore the public baseline literal-only dependency scanner contract; private exact-byte loader attribution remains source-only.",
-        "source": "tools/dependencies/SPEC.md"
-      },
-      {
-        "path": "README.md",
-        "input": "tools/release/public/baseline-shared/README.md.in",
-        "sha256": "343c9de144b0b25d653cef7f2791e44812d3b101dc098939f3de144ffeb6df7d",
-        "source": "tools/release/public/README.public.md.in",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve reviewed public documentation and security/support policy from the official baseline. Preparing a local successor does not change published support commitments."
-      },
-      {
-        "path": "CONTRIBUTING.md",
-        "input": "tools/release/public/baseline-shared/CONTRIBUTING.md.in",
-        "sha256": "9bb1dba4a7252cd97b35fb5aacdef4a9db371a0051fbe7fb515448f06928810d",
-        "source": "tools/release/public/CONTRIBUTING.public.md.in",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve reviewed public documentation and security/support policy from the official baseline. Preparing a local successor does not change published support commitments."
-      },
-      {
-        "path": "SECURITY.md",
-        "input": "tools/release/public/baseline-shared/SECURITY.md.in",
-        "sha256": "ac6aa5dfe24068ca0b94f884cefa2865846a081db619d6dbb29df958a252e50a",
-        "source": "tools/release/public/SECURITY.public.md.in",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve reviewed public documentation and security/support policy from the official baseline. Preparing a local successor does not change published support commitments."
-      },
-      {
-        "path": "CODE_OF_CONDUCT.md",
-        "input": "tools/release/public/baseline-shared/CODE_OF_CONDUCT.md.in",
-        "sha256": "8c2ea6d80563cc73a5038861ad65db47b149c5ffbaf124c553771eb9dcd5c5f3",
-        "source": "tools/release/public/CODE_OF_CONDUCT.public.md.in",
-        "disposition": "restore-public-doc",
-        "reason": "Preserve reviewed public documentation and security/support policy from the official baseline. Preparing a local successor does not change published support commitments."
-      }
-    ],
-    "files": [
-      {
-        "path": ".github/CODEOWNERS",
-        "sha256": "db68e63f424d73c51b439bb7d436df4079275533cdaa4dd6898e6753f930a2e8",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
-        "sha256": "6d5477810de621372298bc2d78916bdb05e2d77ff47749b76d487f0c8106055e",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/ISSUE_TEMPLATE/config.yml",
-        "sha256": "0653b8fcfd1b682ec37fd836d4a5959a146e1b1325804c6b06005899e5c4b5d4",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/ISSUE_TEMPLATE/documentation.yml",
-        "sha256": "d0e576cbda95935dacdaaaa8e758fe562812ce2f6a10441589e46ce604ebdf69",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/ISSUE_TEMPLATE/feature_request.yml",
-        "sha256": "9a2a42f25c1ce96f68be2ed0d9608b1c412dd388d675683d8b6b5b1756b981c7",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/PULL_REQUEST_TEMPLATE.md",
-        "sha256": "6f3bbc592e83ba91795804256573010160f702def89a87dc199f16cadc6ea478",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/dependabot.yml",
-        "sha256": "ddffb13e1e9e4dcecb6eefe2b8bf9305defc42df741f31d4ba8b6db82023da32",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/rulesets/main.json",
-        "sha256": "a761dbae10b35625818a616e03e618f1a484cbbd838b2337fe9c13271b7bebaf",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/rulesets/tags.json",
-        "sha256": "8e2117d46acd62ca3cd52466aa8c38ad7b255c2da66b8bd9f7a707107814dc9d",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": ".github/workflows/npm-publish.yml",
-        "sha256": "9c62fb223443fd2111eb3e0aae640a6e71370332ca44fb65b9f2dda8fd64bc71",
-        "disposition": "preserve",
-        "reason": "Preserve public repository governance and manually gated npm workflow; no repository settings or workflow dispatch is performed."
-      },
-      {
-        "path": "SUPPORT.md",
-        "sha256": "0b28b5527701af0ddb5b36cd6344a5bba56c3fbf74834a318a80c6656e1e88d5",
-        "disposition": "preserve",
-        "reason": "Preserve public support guidance."
-      },
-      {
-        "path": "apps/cli/tests/host.test.ts",
-        "sha256": "665af6d101cfc8bd4e4393a68e9de88afdcdba89eceb13486cd6f8b53274f0f1",
-        "disposition": "superseded",
-        "reason": "The recovered host-registration, host-recovery, host-doctor and host-install suites supersede this monolithic test. Preserve its historical bytes in the recipe only."
-      },
-      {
-        "path": "tools/distribution/NPM-PUBLISHING.md",
-        "sha256": "e94ecf0d77578e12900745a07f921416c355355f6547fbd90ef9f2a5e237b87f",
-        "disposition": "preserve",
-        "reason": "Preserve public npm qualification and gated publication helpers. No command is dispatched by composition."
-      },
-      {
-        "path": "tools/distribution/npm-consumer.mjs",
-        "sha256": "0e5b308525e30cca4ca4fcc1ac833590735d12e7cdf96439f8e48d3a97ba76e4",
-        "disposition": "preserve",
-        "reason": "Preserve public npm qualification and gated publication helpers. No command is dispatched by composition."
-      },
-      {
-        "path": "tools/distribution/npm-release.d.mts",
-        "sha256": "8802267b613dbd668e8c1e58e37ba0e9df77ecfcc60a2a373a460823963cb74e",
-        "disposition": "preserve",
-        "reason": "Preserve public npm qualification and gated publication helpers. No command is dispatched by composition. The maintained adaptation qualifies compiled/native system bundles and binds the npm manifest to their exact compatibility receipt."
-      },
-      {
-        "path": "tools/distribution/npm-release.mjs",
-        "sha256": "90ad3167424860fd6b6ef8e69ca4fcaeb4412a0240af5c92435bfca4161bcbea",
-        "disposition": "preserve",
-        "reason": "Preserve public npm qualification and gated publication helpers. No command is dispatched by composition. The maintained adaptation qualifies compiled/native system bundles and binds the npm manifest to their exact compatibility receipt."
-      },
-      {
-        "path": "tools/distribution/npm-release.test.ts",
-        "sha256": "9302808a3707fcdca5ea4605bedcc0822eca44f73ba64f21c11ef504ffd9ad97",
-        "disposition": "preserve",
-        "reason": "Preserve release safety assertions; parameterize checkout version while retaining stable-version and exact-byte publication refusals. The maintained adaptation qualifies compiled/native system bundles and binds the npm manifest to their exact compatibility receipt."
-      },
-      {
-        "path": "tools/distribution/qualify-packages.mjs",
-        "sha256": "ea7f33d47bda38669e50406d22d15f3c049ddf0c9e91bf72aec83baebc1050fa",
-        "disposition": "preserve",
-        "reason": "Preserve public npm qualification and gated publication helpers. No command is dispatched by composition. The maintained adaptation qualifies compiled/native system bundles and binds the npm manifest to their exact compatibility receipt."
-      }
-    ],
-    "versions": {
-      "format": "ia.public-successor-versions.v1",
-      "purpose": "Ratified public 1.1 candidate. Independent version identities do not authorize publication.",
-      "baseline": "007b268f9f0b747ff34b012bce17c5f5bcb15d9f",
-      "npm": {
-        ".ia/src/systems/agent-composition-system/package.json": "1.1.0",
-        ".ia/src/systems/agent-system/package.json": "1.1.0",
-        ".ia/src/systems/authoring-system/package.json": "1.1.0",
-        ".ia/src/systems/compliance-system/package.json": "1.0.0",
-        ".ia/src/systems/governance-system/package.json": "1.0.0",
-        ".ia/src/systems/hook-authoring-system/package.json": "1.0.0",
-        ".ia/src/systems/learning-system/package.json": "1.0.0",
-        ".ia/src/systems/session-system/package.json": "1.1.0",
-        ".ia/src/systems/template-system/package.json": "1.1.0",
-        ".ia/src/systems/work-system/package.json": "1.0.0",
-        ".ia/src/systems/workspace-system/package.json": "1.0.0",
-        "apps/cli/package.json": "1.1.0",
-        "apps/distribution/package.json": "1.1.0",
-        "apps/mcp-door/package.json": "1.1.0",
-        "apps/steward-hook/package.json": "1.1.0",
-        "apps/vscode/package.json": "1.1.0",
-        "packages/compliance/package.json": "1.1.0",
-        "packages/db/package.json": "1.1.0",
-        "packages/graph/package.json": "1.1.0",
-        "packages/language/package.json": "1.1.0",
-        "packages/runtime/package.json": "1.1.0",
-        "packages/service-contracts/package.json": "1.1.0",
-        "packages/workspace-runtime/package.json": "1.1.0"
-      },
-      "language": "1.1.0",
-      "systems": {
-        "agent-system": "1.1.0",
-        "compliance-system": "1.1.0",
-        "workspace-system": "1.1.0",
-        "governance-system": "1.1.0",
-        "session-system": "1.1.0",
-        "authoring-system": "1.1.0",
-        "agent-composition-system": "1.1.0",
-        "template-system": "1.1.0",
-        "hook-authoring-system": "1.1.0",
-        "learning-system": "1.1.0",
-        "work-system": "1.1.0"
-      },
-      "additions": {
-        ".ia/src/systems/compliance-system/package.json": {
-          "name": "@inventarch/compliance-system",
-          "version": "1.0.0",
-          "kind": "native-only",
-          "reason": "New independently versioned native-only package; no published npm predecessor or compiled implementation is claimed."
-        },
-        ".ia/src/systems/governance-system/package.json": {
-          "name": "@inventarch/governance-system",
-          "version": "1.0.0",
-          "kind": "native-only",
-          "reason": "New independently versioned native-only package; no published npm predecessor or compiled implementation is claimed."
-        },
-        ".ia/src/systems/hook-authoring-system/package.json": {
-          "name": "@inventarch/hook-authoring-system",
-          "version": "1.0.0",
-          "kind": "native-only",
-          "reason": "New independently versioned native-only package; no published npm predecessor or compiled implementation is claimed."
-        },
-        ".ia/src/systems/learning-system/package.json": {
-          "name": "@inventarch/learning-system",
-          "version": "1.0.0",
-          "kind": "native-only",
-          "reason": "New independently versioned native-only package; no published npm predecessor or compiled implementation is claimed."
-        },
-        ".ia/src/systems/work-system/package.json": {
-          "name": "@inventarch/work-system",
-          "version": "1.0.0",
-          "kind": "native-only",
-          "reason": "New independently versioned native-only package; no published npm predecessor or compiled implementation is claimed."
-        },
-        ".ia/src/systems/workspace-system/package.json": {
-          "name": "@inventarch/workspace-system",
-          "version": "1.0.0",
-          "kind": "native-only",
-          "reason": "New independently versioned native-only package; no published npm predecessor or compiled implementation is claimed."
-        }
-      }
-    },
-    "changes": [
-      {
-        "path": ".ia/src/systems/agent-composition-system/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/agent-system/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/authoring-system/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/compliance-system/package.json",
-        "kind": "npm",
-        "baseline": null,
-        "source": "1.0.0",
-        "version": "1.0.0"
-      },
-      {
-        "path": ".ia/src/systems/governance-system/package.json",
-        "kind": "npm",
-        "baseline": null,
-        "source": "1.0.0",
-        "version": "1.0.0"
-      },
-      {
-        "path": ".ia/src/systems/hook-authoring-system/package.json",
-        "kind": "npm",
-        "baseline": null,
-        "source": "1.0.0",
-        "version": "1.0.0"
-      },
-      {
-        "path": ".ia/src/systems/learning-system/package.json",
-        "kind": "npm",
-        "baseline": null,
-        "source": "1.0.0",
-        "version": "1.0.0"
-      },
-      {
-        "path": ".ia/src/systems/session-system/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/template-system/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/work-system/package.json",
-        "kind": "npm",
-        "baseline": null,
-        "source": "1.0.0",
-        "version": "1.0.0"
-      },
-      {
-        "path": ".ia/src/systems/workspace-system/package.json",
-        "kind": "npm",
-        "baseline": null,
-        "source": "1.0.0",
-        "version": "1.0.0"
-      },
-      {
-        "path": "apps/cli/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "apps/distribution/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "apps/mcp-door/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "apps/steward-hook/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "apps/vscode/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.5",
-        "version": "1.1.0"
-      },
-      {
-        "path": "packages/compliance/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "packages/db/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "packages/graph/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "packages/language/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "packages/runtime/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "packages/service-contracts/package.json",
-        "kind": "npm",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/agent-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/agent-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/compliance-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/compliance-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/workspace-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/workspace-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/governance-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/governance-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/session-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/session-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/authoring-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/authoring-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/agent-composition-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/agent-composition-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/template-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/template-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/hook-authoring-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/hook-authoring-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/learning-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/learning-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.1.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": "examples/public-language/contracts/work-system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.2.0",
-        "version": "1.1.0"
-      },
-      {
-        "path": ".ia/src/systems/work-system/system.ia",
-        "kind": "native-system",
-        "baseline": "1.0.0",
-        "source": "0.2.0",
-        "version": "1.1.0"
-      }
-    ],
-    "versionPolicy": {
-      "path": "tools/release/public/successor-versions.json",
-      "sha256": "4399ca77d0979aad545a63734acb3b59739b1eb3e080ac106685abeb254388c0"
-    }
+  "membership": {
+    "path": "tools/distribution/public-content-policy.json",
+    "sha256": "c49dbdb1922bb30682df16aebe455e411a2de410b13f7928bd5ca535ab7ccda4"
   },
-  "provenance": {
-    "sourceTree": "2f86834cdb7ba43106202a16d9f94f026558ae52",
-    "sourceDirty": false,
-    "sourceInputsSha256": "2169d6c542c4abbb37e9102786d0c3182fcc726fb85ebf222c68ac11840fd1f4",
-    "recipe": [
-      {
-        "path": "tools/release/export.mjs",
-        "sha256": "63af42586017249ed6e86d09aa898ffecdba5382e6c005a9932f8525f79f1652"
-      },
-      {
-        "path": "tools/release/public/baseline-overlay.mjs",
-        "sha256": "aef078753df6b4911a1ce15655067278600395a6dc98922ac59adeae0cfbfbad"
-      },
-      {
-        "path": "tools/release/public/dependencies.mjs",
-        "sha256": "67143a1539fab0dc7996c8b7daa35c1cf9c611ea29b934cb9c485a61b4b218f1"
-      },
-      {
-        "path": "tools/release/public/fixtures.mjs",
-        "sha256": "47a3fe5ee32d977d39e7d9cf1bdf1fdea9dd7ba296b3bbfd2e3b9e8e2ea06ac7"
-      },
-      {
-        "path": "tools/release/public/composition-fixture.mjs",
-        "sha256": "019407a30549249c58eb2311ca9c75f57f984ac685315185e9784ae2fe7b8881"
-      },
-      {
-        "path": "tools/release/public/resources.mjs",
-        "sha256": "f9f868342f260edf4c720c2cb2620a23bda242ab103f353516e4cbb77c20d3c1"
-      },
-      {
-        "path": "tools/release/public/generate-public.mjs",
-        "sha256": "fd37194e04d181fce8f3d2e7abdb9577aa13f73db2829df4873511aa044a5afa"
-      },
-      {
-        "path": "tools/release/shared/paths.mjs",
-        "sha256": "ae2bdb40804d71bf5438fee69bb6076855175c28ddc4aed2e0f36f1f9b5bf4e4"
-      },
-      {
-        "path": "tools/release/shared/candidate.mjs",
-        "sha256": "812516af210a64fc551a0d715deff5d17c6eb841ad6dd644615b10b789fa039b"
-      },
-      {
-        "path": "tools/release/shared/receipt.mjs",
-        "sha256": "a09fc09295161326c8d469353a0dcce663557d7c8c8ea39d4aa21cf04a4f7e13"
-      },
-      {
-        "path": "tools/release/shared/transforms.mjs",
-        "sha256": "38d68e3fffadaab86f878f83887a0739de793e101bc5217af3ad4663c9e8f9f0"
-      },
-      {
-        "path": "tools/release/shared/tasks.mjs",
-        "sha256": "2f2402b166a774f1025ea71e4902722042b7673eebf0bb20b77a6ff1c65ffbc6"
-      },
-      {
-        "path": "tools/release/shared/task-migration.json",
-        "sha256": "ed0f9e401d27e2598afe796021a54092decaf0dbd6076e02288b9275b0cad75a"
-      },
-      {
-        "path": "tools/release/public/biome.public.json",
-        "sha256": "5d9f04814badb69cdec97db2ea464d03998137efd463b9fbb17cc8ae2fca18a8"
-      },
-      {
-        "path": "tools/release/public/editor-extension.template",
-        "sha256": "11fecebf3cb2427ce227d848e60c3ea78b9ed0fab3404c29fad0549479f74ef3"
-      },
-      {
-        "path": "tools/release/public/projections-body.template",
-        "sha256": "89d410941448232f5d18a9474aea3154225c4fd3d1c6f0fd51c39ab8cc497130"
-      },
-      {
-        "path": "tools/release/public/baseline-overlay.json",
-        "sha256": "dfe3a82dda838f249b10e6dcb433a050a793202ddbfd282ea08d69107a41bc3d"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/CODEOWNERS.in",
-        "sha256": "db68e63f424d73c51b439bb7d436df4079275533cdaa4dd6898e6753f930a2e8"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/ISSUE_TEMPLATE/bug_report.yml.in",
-        "sha256": "6d5477810de621372298bc2d78916bdb05e2d77ff47749b76d487f0c8106055e"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/ISSUE_TEMPLATE/config.yml.in",
-        "sha256": "0653b8fcfd1b682ec37fd836d4a5959a146e1b1325804c6b06005899e5c4b5d4"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/ISSUE_TEMPLATE/documentation.yml.in",
-        "sha256": "d0e576cbda95935dacdaaaa8e758fe562812ce2f6a10441589e46ce604ebdf69"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/ISSUE_TEMPLATE/feature_request.yml.in",
-        "sha256": "9a2a42f25c1ce96f68be2ed0d9608b1c412dd388d675683d8b6b5b1756b981c7"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/PULL_REQUEST_TEMPLATE.md.in",
-        "sha256": "6f3bbc592e83ba91795804256573010160f702def89a87dc199f16cadc6ea478"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/dependabot.yml.in",
-        "sha256": "ddffb13e1e9e4dcecb6eefe2b8bf9305defc42df741f31d4ba8b6db82023da32"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/rulesets/main.json.in",
-        "sha256": "a761dbae10b35625818a616e03e618f1a484cbbd838b2337fe9c13271b7bebaf"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/rulesets/tags.json.in",
-        "sha256": "8e2117d46acd62ca3cd52466aa8c38ad7b255c2da66b8bd9f7a707107814dc9d"
-      },
-      {
-        "path": "tools/release/public/baseline/.github/workflows/npm-publish.yml.in",
-        "sha256": "9c62fb223443fd2111eb3e0aae640a6e71370332ca44fb65b9f2dda8fd64bc71"
-      },
-      {
-        "path": "tools/release/public/baseline/SUPPORT.md.in",
-        "sha256": "0b28b5527701af0ddb5b36cd6344a5bba56c3fbf74834a318a80c6656e1e88d5"
-      },
-      {
-        "path": "tools/release/public/baseline/apps/cli/tests/host.test.ts.in",
-        "sha256": "665af6d101cfc8bd4e4393a68e9de88afdcdba89eceb13486cd6f8b53274f0f1"
-      },
-      {
-        "path": "tools/release/public/baseline/tools/distribution/NPM-PUBLISHING.md.in",
-        "sha256": "e94ecf0d77578e12900745a07f921416c355355f6547fbd90ef9f2a5e237b87f"
-      },
-      {
-        "path": "tools/release/public/baseline/tools/distribution/npm-consumer.mjs.in",
-        "sha256": "0e5b308525e30cca4ca4fcc1ac833590735d12e7cdf96439f8e48d3a97ba76e4"
-      },
-      {
-        "path": "tools/release/public/baseline/tools/distribution/npm-release.d.mts.in",
-        "sha256": "8802267b613dbd668e8c1e58e37ba0e9df77ecfcc60a2a373a460823963cb74e"
-      },
-      {
-        "path": "tools/release/public/baseline/tools/distribution/npm-release.mjs.in",
-        "sha256": "90ad3167424860fd6b6ef8e69ca4fcaeb4412a0240af5c92435bfca4161bcbea"
-      },
-      {
-        "path": "tools/release/public/baseline/tools/distribution/npm-release.test.ts.in",
-        "sha256": "9302808a3707fcdca5ea4605bedcc0822eca44f73ba64f21c11ef504ffd9ad97"
-      },
-      {
-        "path": "tools/release/public/baseline/tools/distribution/qualify-packages.mjs.in",
-        "sha256": "ea7f33d47bda38669e50406d22d15f3c049ddf0c9e91bf72aec83baebc1050fa"
-      },
-      {
-        "path": "tools/release/public/npm-release.d.mts.in",
-        "sha256": "d81dbf55b5608f6d2d0090be7cf3b910b5bd350bf6df690385f5d3ee50e4818f"
-      },
-      {
-        "path": "tools/release/public/npm-release.mjs.in",
-        "sha256": "e55fbeb02d528a15bf797958dcfa4fa92b77cc22d23b3c8a53e08949b04faca9"
-      },
-      {
-        "path": "tools/release/public/npm-release.test.ts.in",
-        "sha256": "e6f355b7e96b48018bbd13695a4a7044d757d106a2a108d2a7efbf3ac6da782f"
-      },
-      {
-        "path": "tools/release/public/qualify-packages.mjs.in",
-        "sha256": "9c8fe542484ff9bda96ef19174e00f98b0b1ecc3d43432cce590f412ca7f4462"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/SPEC.md.in",
-        "sha256": "c5867542ab36b6eb082b13ba45adf9846e724425ccc35ecccbad1f5fcd10e4a0"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/apps/vscode/README.md.in",
-        "sha256": "fc699ac2959d06ccfddb7f0cd477ca01e928d4bec2a7d1f62ed94f631a9f9b6a"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/distributions/product-structure/.ia/src/systems/product-system/SPEC.md.in",
-        "sha256": "9ee7558dd97caf163cb5becbf7c8e176f83efaa939129c2376e5f057e39ac28b"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/distributions/product-structure/README.md.in",
-        "sha256": "26d68f18ef980dc158f2edc8da947d85b91fea202ce5c52672f1df4424c57a41"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/distributions/product-structure/SPEC.md.in",
-        "sha256": "31a35aa6dc45b01c9e8bb84146c3f7961ef0ea2305275946195d5cc07719360f"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/docs/reference/language/SPEC.md.in",
-        "sha256": "36f4294d2cad439092d87591a71b88030be00955358eca0f6c9b38fb6fbade22"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/examples/public-language/README.md.in",
-        "sha256": "58668bf9456c55e9b509d6650f51c8452b052e83e8c097bdf0cb654975a5cdad"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/examples/public-language/SPEC.md.in",
-        "sha256": "5f419a7654d63f382a9427a6dfa34514f9b12a70db6fd770d25c146ce9d0c6c0"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/tools/distribution/SPEC.md.in",
-        "sha256": "6f491d20562aa9dbb4bf2546084949e11afcd2ec72e8024d62da8f0ed2d6457c"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/tools/docs/MARKDOWN.md.in",
-        "sha256": "42c1ccf7d5ac4eb88fbc71e238a486670083aecaf6d33931700d69a6cbd9cf6c"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/tools/review/README.md.in",
-        "sha256": "24f32bb2ab4169013d56625a38221ccfd7272b09373cdfc0904c5741473285e0"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/tools/review/SPEC.md.in",
-        "sha256": "26d40e642da6a3f78db7d0d3d1804e6dc95b0b2d3cddd1c40975351098dc76ea"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/tools/dependencies/SPEC.md.in",
-        "sha256": "9aad4c8c22a124d594bde022c5ad6a730a3cd76cfc10849409e45d908ef8f85d"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/README.md.in",
-        "sha256": "343c9de144b0b25d653cef7f2791e44812d3b101dc098939f3de144ffeb6df7d"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/CONTRIBUTING.md.in",
-        "sha256": "9bb1dba4a7252cd97b35fb5aacdef4a9db371a0051fbe7fb515448f06928810d"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/SECURITY.md.in",
-        "sha256": "ac6aa5dfe24068ca0b94f884cefa2865846a081db619d6dbb29df958a252e50a"
-      },
-      {
-        "path": "tools/release/public/baseline-shared/CODE_OF_CONDUCT.md.in",
-        "sha256": "8c2ea6d80563cc73a5038861ad65db47b149c5ffbaf124c553771eb9dcd5c5f3"
-      },
-      {
-        "path": "tools/release/public/successor-versions.json",
-        "sha256": "4399ca77d0979aad545a63734acb3b59739b1eb3e080ac106685abeb254388c0"
-      },
-      {
-        "path": "tools/release/public/qualify-public.mjs",
-        "sha256": "c6bd2a20d12ad831f3572fcd790aeb75063502991975056d4f1b8ae9a0c6433d"
-      },
-      {
-        "path": "tools/release/public/disposition.mjs",
-        "sha256": "088fd73cca7542a81edf30a3075f06d224549751fad610c10aa24d610a94f6f1"
-      },
-      {
-        "path": "tools/release/public/disposition.json",
-        "sha256": "f692f72a07bae9b8c91e95519f20208ddda1bc517856581fffd0a157955dc4e0"
-      },
-      {
-        "path": "tools/release/public/check-built.mjs",
-        "sha256": "7a165137550d0ce514316ed784b4f41a50324e317c1186b98fc22e064a9a62e8"
-      },
-      {
-        "path": "tools/release/public/content-scan.mjs",
-        "sha256": "5da215f7e45b3a93c905855d3ec0a20cee782cb209b41f2f4566c5dca488285f"
-      },
-      {
-        "path": "tools/release/public/public-lock.yaml",
-        "sha256": "7907c237684a2a97fade41331f7dfab7344447df4d20a58952d3dd0cb6d5ec70"
-      },
-      {
-        "path": "tools/release/public/public-workflow.yml",
-        "sha256": "28e26743e18a97ed14a138e815d00b63cd10f3bf5e884991c17a26dab93dfba8"
-      },
-      {
-        "path": "tools/release/public/public-schedule.json",
-        "sha256": "933f797c1eb462400fbab60e1e0fea8c249595c041de652365e3a03219996f86"
-      },
-      {
-        "path": "tools/release/packed-content.mjs",
-        "sha256": "221594a7dc22747533b7eb3ff297657a9a1b71e7c0763cc71b5b7993ba7e5141"
-      },
-      {
-        "path": "tools/release/scan-packed.mjs",
-        "sha256": "f28f1dfa3d8ee13d3f3a599023518fe342b95ab144ead6f8ce5a6db5c78ea91c"
-      }
-    ]
+  "npm": {
+    ".ia/src/systems/agent-composition-system/package.json": "2.0.0",
+    ".ia/src/systems/agent-system/package.json": "2.0.0",
+    ".ia/src/systems/authoring-system/package.json": "2.0.0",
+    ".ia/src/systems/compliance-system/package.json": "2.0.0",
+    ".ia/src/systems/governance-system/package.json": "2.0.0",
+    ".ia/src/systems/hook-authoring-system/package.json": "2.0.0",
+    ".ia/src/systems/learning-system/package.json": "2.0.0",
+    ".ia/src/systems/session-system/package.json": "2.0.0",
+    ".ia/src/systems/template-system/package.json": "2.0.0",
+    ".ia/src/systems/work-system/package.json": "2.0.0",
+    ".ia/src/systems/workspace-system/package.json": "2.0.0",
+    "apps/cli/package.json": "2.0.0",
+    "apps/distribution/package.json": "2.0.0",
+    "apps/mcp-door/package.json": "2.0.0",
+    "apps/steward-hook/package.json": "2.0.0",
+    "apps/vscode/package.json": "2.0.0",
+    "packages/compliance/package.json": "2.0.0",
+    "packages/db/package.json": "2.0.0",
+    "packages/graph/package.json": "2.0.0",
+    "packages/language/package.json": "2.0.0",
+    "packages/runtime/package.json": "2.0.0",
+    "packages/service-contracts/package.json": "2.0.0",
+    "packages/workspace-runtime/package.json": "2.0.0"
   },
   "files": [
     {
@@ -1044,7 +50,7 @@
     },
     {
       "path": ".github/CODEOWNERS",
-      "sha256": "db68e63f424d73c51b439bb7d436df4079275533cdaa4dd6898e6753f930a2e8"
+      "sha256": "666009f6af3d9cf4cdf77a6d02e30e83e6b084267e8f16b433d1530750ba6259"
     },
     {
       "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
@@ -2376,7 +1382,7 @@
     },
     {
       "path": "SECURITY.md",
-      "sha256": "c7566398375b68cac2690c6e81a0d7bff5e9dfae6b06faa6a0285862e3c23656"
+      "sha256": "9b7e8b679a2d3dad00ccaa393e779046579319b1d55ae0170057fdafc301405a"
     },
     {
       "path": "SPEC.md",
@@ -2404,7 +1410,7 @@
     },
     {
       "path": "apps/cli/SPEC.md",
-      "sha256": "e7238a0db065ad39f11f81c4d1e4c0d929eee11299eca3233c0582ab6b762e70"
+      "sha256": "e596fd876fee8a63cd2fb1372c4a90b263cec8f5a3f1b9a0267f0df993f23849"
     },
     {
       "path": "apps/cli/assets/vocabulary.json",
@@ -2468,7 +1474,7 @@
     },
     {
       "path": "apps/cli/src/doctor.ts",
-      "sha256": "2677319037301d7498ca22db7aedda7336d410a276ae00595d1c4b5efa7e2a95"
+      "sha256": "05ac00942de6f59c4fb819077481dabf0e60f5687d1b65654c5e554a3dea53a2"
     },
     {
       "path": "apps/cli/src/format.ts",
@@ -2508,7 +1514,7 @@
     },
     {
       "path": "apps/cli/src/operation-help.ts",
-      "sha256": "f28eff001bc0f13c73c6ba0f7e2500ae6e4b7a101b38c5138f543d8a8937e0c1"
+      "sha256": "8bbbab9beeb6b40268147ae84ca09b48ae7da483a51056346839636ae5b9613e"
     },
     {
       "path": "apps/cli/src/pack.ts",
@@ -2524,7 +1530,7 @@
     },
     {
       "path": "apps/cli/src/profile.ts",
-      "sha256": "bfb22a8c0e8b57640fc70d314e01da36d2bf2d34936b4d610ace6227cfad86b7"
+      "sha256": "3a392e6a23a63b3149ff1f8b094971155cddff93ba9ee059843ba1797308aac7"
     },
     {
       "path": "apps/cli/src/program.ts",
@@ -2564,7 +1570,7 @@
     },
     {
       "path": "apps/cli/tests/author.test.ts",
-      "sha256": "e4acb59c474782fa3ef424a16c29d2660ef4f3e982e0ed1f4f788bcbedfadbaa"
+      "sha256": "9d91fd363548cf9f0eb5827ea93a27d01c9ab92192d7e5f159fc9c0b4af9d626"
     },
     {
       "path": "apps/cli/tests/bindings.test.ts",
@@ -2576,7 +1582,7 @@
     },
     {
       "path": "apps/cli/tests/capture.test.ts",
-      "sha256": "e397cef59fa62679ee02fa25e55effa5a82db8c52d54eb23c73769f687aefac6"
+      "sha256": "f896d39a8bfcf03771ed4706c857414846477388c3e3440bdef5d574954ab13c"
     },
     {
       "path": "apps/cli/tests/channel.test.ts",
@@ -2664,7 +1670,7 @@
     },
     {
       "path": "apps/cli/tests/host-generated.test.ts",
-      "sha256": "a441341e8f9d98a1fdcb853d473c6989ce974be54c914a9a2167ba855694191f"
+      "sha256": "9cf6cb809eb93fa6b17349a791186ca8be46dae2b0f3a894b782dc5da80210ed"
     },
     {
       "path": "apps/cli/tests/host-install.test.ts",
@@ -2696,7 +1702,7 @@
     },
     {
       "path": "apps/cli/tests/init.test.ts",
-      "sha256": "d8481b2fe0e295edaec78088126aae729cbb7df225f2000c0e137ca316b98f0c"
+      "sha256": "67e75771ffd950707463a7b834a6ca6e2bdd27aebaeef867701711016769ac4a"
     },
     {
       "path": "apps/cli/tests/next.test.ts",
@@ -2708,7 +1714,7 @@
     },
     {
       "path": "apps/cli/tests/preview.test.ts",
-      "sha256": "361c51ef6eb0b613e06ab8986931b90cc6b16b7d2a876150309b23493a5fab4d"
+      "sha256": "ddc36cdc3ebe3dea7d9c2164555440eb06e2137aa1f7d825352fe960c812066c"
     },
     {
       "path": "apps/cli/tests/program.test.ts",
@@ -2720,7 +1726,7 @@
     },
     {
       "path": "apps/cli/tests/protocols.test.ts",
-      "sha256": "4b8ff5e60fbeea3527a35051118ab88cedc241ff73f76c2d893622efb47ef52d"
+      "sha256": "8f6827d6454aa48b2402d807eb163855564f0c186608544befea48aae06b5729"
     },
     {
       "path": "apps/cli/tests/read.test.ts",
@@ -2764,7 +1770,7 @@
     },
     {
       "path": "apps/cli/tests/workspace-fixture.ts",
-      "sha256": "37262674d1b56748fb01d3602bf5aea79021e0f01dc7fc65e39f432f0dcdba43"
+      "sha256": "eba45dad2644069a2183648b4ef66cb2cf502a0eeddce5939ccb326f60bbb57f"
     },
     {
       "path": "apps/cli/tests/workspace-verbs.test.ts",
@@ -3260,7 +2266,7 @@
     },
     {
       "path": "apps/steward-hook/SPEC.md",
-      "sha256": "9edea12bac1d0ab7aefbd48c41f5db294f98640e791fc5d7308056e04818094a"
+      "sha256": "24a6d9afac616fe60e442cdccea9daaaaae0c44fdff0019c06aa02854788a9fa"
     },
     {
       "path": "apps/steward-hook/package.json",
@@ -3272,7 +2278,7 @@
     },
     {
       "path": "apps/steward-hook/src/main.ts",
-      "sha256": "e56a2c27091859e4b3562c3d2411101f3b1ee2673da2cdd2caca02db73378106"
+      "sha256": "dd3e74b743f88f78426436eee64a456ef57214b4e50bb16524f4920c4353d782"
     },
     {
       "path": "apps/steward-hook/tests/consumer-guard.test.ts",
@@ -3304,7 +2310,7 @@
     },
     {
       "path": "apps/steward-hook/tests/mandate-guard.test.ts",
-      "sha256": "86ec0eee78187431af8473e6b39f8d94af5abc005c79199e4b69ee979d43dcc2"
+      "sha256": "66a716cc4252f2a3a6a0162e576fde813032ac1b607a4572ed02df0b29d69a32"
     },
     {
       "path": "apps/steward-hook/tsconfig.json",
@@ -3504,11 +2510,11 @@
     },
     {
       "path": "docs/catalog.json",
-      "sha256": "b637bb492fad72b3798d5bde7e09589bd598c9df16a331533677695b45f672fe"
+      "sha256": "71f26e7532c7bd5dcfac2be9e906bf428e7d11dd5bd253f66d1b54b89694747b"
     },
     {
       "path": "docs/documentation.json",
-      "sha256": "d23f2e8a66e995d477f95b2930a1e95768afb60886920e73f255166c7082123b"
+      "sha256": "31bcca75aea0038868b09a452b71dbbda61f71dca119a892cc7c5b8c98428644"
     },
     {
       "path": "docs/reference/architecture/README.md",
@@ -3529,6 +2535,34 @@
     {
       "path": "docs/reference/language/vocabulary.md",
       "sha256": "29e1a782bb2b5caea51990972e1f8f0c2e6a60844e43d2797fa724a0dbc64bc8"
+    },
+    {
+      "path": "docs/specs/README.md",
+      "sha256": "6f9591ce0efe6b09ccdc525d44c8e7428200b18620e2f4f7e799af8c652a67b1"
+    },
+    {
+      "path": "docs/specs/consumer-cli-contract/README.md",
+      "sha256": "6dd3922f60905b2bdeae7d51e21af40e7c75b8217ea3c074da5cf13ee9fe529b"
+    },
+    {
+      "path": "docs/specs/host-plugin-distribution/README.md",
+      "sha256": "e15500ef9ee932ca0d7118e53ba50d746dc3b711e285af8278e686ae9056e1e1"
+    },
+    {
+      "path": "docs/specs/host-registration/README.md",
+      "sha256": "980a64a5a31513d076ab2464dcb9eb347635268b4a00b67ddffcee877a08fc5d"
+    },
+    {
+      "path": "docs/specs/registry/README.md",
+      "sha256": "ce8da7f013546b63f6416bbbc7e5d299127fc92556499ff89d4bb16b205cf6bb"
+    },
+    {
+      "path": "docs/specs/workspace-initialization-apply/README.md",
+      "sha256": "da57c3f34a139604a95cb066d65e3e1d2ef7f032bceeca498a3e7e8da8bb1222"
+    },
+    {
+      "path": "docs/specs/workspace-initialization/README.md",
+      "sha256": "4a061c09e7c2fed7eb860ac62a8b56c4ac8138df40712f15633eef0a1b4f928c"
     },
     {
       "path": "examples/conformance/SPEC.md",
@@ -4120,7 +3154,7 @@
     },
     {
       "path": "packages/compliance/SPEC.md",
-      "sha256": "92248cb04f8f680eeba1a224c679c5b0bfe26c21dc1b1e3509afc3ba5991dd87"
+      "sha256": "3eda48801f3a431e25ea69d01cd717d3f15f5e4bbdae7612d55dc9d494ac687b"
     },
     {
       "path": "packages/compliance/fixtures/language/cases/fail/duplicate-given.diagnostics.json",
@@ -5808,7 +4842,7 @@
     },
     {
       "path": "packages/compliance/fixtures/refusals.ts",
-      "sha256": "f574f5ef28415fc3812d40537a807955239cd42871346401b17c0e28447408a1"
+      "sha256": "9ea8e85497ad7935b0165f939d119e97bacb546623cd0089ae44aad3f9d0839c"
     },
     {
       "path": "packages/compliance/package.json",
@@ -5864,7 +4898,7 @@
     },
     {
       "path": "packages/compliance/src/schema.ts",
-      "sha256": "0b889398392ad045667b469306453c71045b377fd90d375bc73bd6471dd77aad"
+      "sha256": "c9d255d71cebadd81d4d7ff69a68cd3f2837042ca674b838626a1239db6add87"
     },
     {
       "path": "packages/compliance/src/shape.ts",
@@ -5900,7 +4934,7 @@
     },
     {
       "path": "packages/compliance/tests/graph.test.ts",
-      "sha256": "bc9800fcc8568bb2bfdd37d9636f55a0c0b81d4f061f521f37f7e832e7da44b0"
+      "sha256": "2c4020af5e04f210c93223e767c0bcde4733d19e8c3e7fbf2b39cf8e20c6bd22"
     },
     {
       "path": "packages/compliance/tests/host-plugin-node.test.ts",
@@ -5956,7 +4990,7 @@
     },
     {
       "path": "packages/db/SPEC.md",
-      "sha256": "7a3ac93c27613f112f21123039630f4f056bbaf077ee3626c715b0bb78552879"
+      "sha256": "2ffcf19fafd81f9f636ac5f0959421ac4d00f7e0ae633e6498f5382860677401"
     },
     {
       "path": "packages/db/fixtures/descriptors/consumer.mjs",
@@ -6076,7 +5110,7 @@
     },
     {
       "path": "packages/db/src/descriptors/index.ts",
-      "sha256": "fb27f3cd2356b48da8b5bc672f5eeccba9c53f545ab5627a62a9e75c2ea46abc"
+      "sha256": "55d8431ce1722a876a98a41abe287e0c0c73277dbf30b61728998721e9f538ee"
     },
     {
       "path": "packages/db/src/descriptors/registry.ts",
@@ -6124,15 +5158,15 @@
     },
     {
       "path": "packages/db/src/evidence.ts",
-      "sha256": "a74fad8ebaaacc615194d1cd7dea4ff60456aea844d8d74b6b159bc030570f9b"
+      "sha256": "06883527ed55a900879cd99422113d5d3155bad636fec3849e6c008417f5cf27"
     },
     {
       "path": "packages/db/src/handle.ts",
-      "sha256": "2fb5a429fc944d2ec3739577046560da86d881ced8d5dbd216c6be3e957dde95"
+      "sha256": "681c03d863a01b2e964ae2d5c8ce3a1e10eb90413c8ab37121b3803e229cfa1b"
     },
     {
       "path": "packages/db/src/index.ts",
-      "sha256": "b7fca6fd7f28ae31c06e783231c8a1bb50bf294b2c523cca4890b9e4f68a9a96"
+      "sha256": "6a24fa9bb2b39f3621240d50f9691d0f2e385eb0761d8494f423d0ba6c702d20"
     },
     {
       "path": "packages/db/src/inputs.ts",
@@ -6164,7 +5198,7 @@
     },
     {
       "path": "packages/db/src/view.ts",
-      "sha256": "ab572b9ea576686e3b55d0ce147f35bd5e2812a947b5ffa03ce85bf066742fa1"
+      "sha256": "b807fcb453b75d1e0f53f7474c15f3c8d6a6b0a678fea0902dede5eb5a9f653c"
     },
     {
       "path": "packages/db/tests/acceptance.test.ts",
@@ -6172,7 +5206,7 @@
     },
     {
       "path": "packages/db/tests/check-evidence.test.ts",
-      "sha256": "f519ae45ae31a0a7bfb6b2e7e800b9e151caab58f57495a792f511a59bfe6dd0"
+      "sha256": "4e7704938cb2ef3985e3eb6305b8aacef975cf4e2d1d4ff847da7aed9549fdda"
     },
     {
       "path": "packages/db/tests/complete-scope.test.ts",
@@ -6180,7 +5214,7 @@
     },
     {
       "path": "packages/db/tests/descriptors.test.ts",
-      "sha256": "80b19f6c7b5d2f4ad54a4d2e9518aaa2d16671976c48d9f388da59d008fd2eff"
+      "sha256": "c22e5d199b9809140e9a10cc6c3a902a41394b74941c8188fc31f4d574d2d685"
     },
     {
       "path": "packages/db/tests/distribution-contracts.test.ts",
@@ -6192,7 +5226,7 @@
     },
     {
       "path": "packages/db/tests/handle.test.ts",
-      "sha256": "aba3fc87838c8d20307d48f74e4373be5b3803eb33ba1f27bd992421565e1ae3"
+      "sha256": "a7f1f21b6cef371bf7b61a9f30ccc276519371887d06ce7dbfdc4cfc3eb41fcd"
     },
     {
       "path": "packages/db/tests/inputs.test.ts",
@@ -6792,7 +5826,7 @@
     },
     {
       "path": "packages/runtime/SPEC.md",
-      "sha256": "516b42c2aab1bfd61d60629e4d83a65eb341eaf3fc4395a323df2a3ad057b331"
+      "sha256": "ff330e0a6f174d7fde11b1267f201eecca0c60cc5fbab86506a3a639da9dc5d3"
     },
     {
       "path": "packages/runtime/package.json",
@@ -6864,11 +5898,11 @@
     },
     {
       "path": "packages/runtime/src/errors.ts",
-      "sha256": "64ca5de4d7c52debdfeee90f1700968e670107bc83f94c8b6e8ea3839f9c7922"
+      "sha256": "07f30e7c7013034db43aaa08d7d2fe49578da1fe3b83269309372e3038a5adae"
     },
     {
       "path": "packages/runtime/src/index.ts",
-      "sha256": "51bd44f15c55488036a471f9e87c99ab937d188545efe214187e588de80a3ccc"
+      "sha256": "478f1584bf29928b2368d9be3bf74bf52c89cf9a6269569464cc7a7b8b3508a3"
     },
     {
       "path": "packages/runtime/src/locator.ts",
@@ -6876,15 +5910,15 @@
     },
     {
       "path": "packages/runtime/src/machine-protocol.ts",
-      "sha256": "4fe2f94d806989a91c081686ab605a5166dbb1447110084ba997b4647e35361e"
+      "sha256": "3d8296b52c2e243c605c6b7f9ce800f95e5c4343804ba7123cfd3eb510dcc3e0"
     },
     {
       "path": "packages/runtime/src/mandate-guard.ts",
-      "sha256": "97ab8c687ce8c99498fa000e31c281c0399ee130ad349a6eae8a8e025931b4f3"
+      "sha256": "6dfbed7a9e68d400764d227ee728039ace021bc9401982aa98147bd5d5f44f6d"
     },
     {
       "path": "packages/runtime/src/mandate-modes.ts",
-      "sha256": "3a9947d86318d3ebcb09a52177b8f216e6c86b6b16b56521acc20f98dd9e44a4"
+      "sha256": "6e5f55a9567d261e135589fe63a33b78fe9a64e4ceb9cf27a4b9ec949c3ef319"
     },
     {
       "path": "packages/runtime/src/mentions.ts",
@@ -7032,11 +6066,11 @@
     },
     {
       "path": "packages/runtime/tests/mandate-modes.test.ts",
-      "sha256": "3d35ed67c69f3b4807f16247b3f404f8679973b5c256aec9ec763a4994ef7c6c"
+      "sha256": "b11ed832c5f6a0cebd5e6f63baffe528d7a63d8eb46cb6ff493301deccee4777"
     },
     {
       "path": "packages/runtime/tests/mandate-resolution.test.ts",
-      "sha256": "824f851cad6b6a1258018ed04a75fcf0a27a1d3e30cf49fb627bb5125420ec5f"
+      "sha256": "c8a912546ccd389cdb9a89ca7a5ee8c009282452d21b39effd4a75ec7eed6ed1"
     },
     {
       "path": "packages/runtime/tests/next.test.ts",
@@ -7048,7 +6082,7 @@
     },
     {
       "path": "packages/runtime/tests/packet.test.ts",
-      "sha256": "619167fbc7ee9e12e3806e0d8b13f04942ecd06340b80f9138fdf3a090898530"
+      "sha256": "1ce3676d478bbc9dc8e86032dbd845735d4688e90d30ffae2a8e1ad240cf5f43"
     },
     {
       "path": "packages/runtime/tests/position.test.ts",
@@ -7404,7 +6438,7 @@
     },
     {
       "path": "packages/workspace-runtime/tests/generate-agent-profile.test.ts",
-      "sha256": "30fa05b5aeff4e338c0949d608c7e113842b94b737e38c5e75422be02ef3626b"
+      "sha256": "bbfe7e049ac38693bf9e27d94c42a3c5222710d9283586e2d45863cc59fd226c"
     },
     {
       "path": "packages/workspace-runtime/tests/generate-playbook.test.ts",
@@ -7436,7 +6470,7 @@
     },
     {
       "path": "packages/workspace-runtime/tests/projections.test.ts",
-      "sha256": "e3f467801b13ab80a15bc81331deda20888495e582c353caf761e5d07f41a441"
+      "sha256": "6b86b563e2584191cc03b327c34b76f6c7de97d528e600c6e935dff3de745c34"
     },
     {
       "path": "packages/workspace-runtime/tests/public-spec-fixture.d.mts",
@@ -7540,7 +6574,7 @@
     },
     {
       "path": "releases/pending/cli-mandate-profile.json",
-      "sha256": "39ed2d64044c21239df5f24b3ad5821e74f6c46d5faed2d6be72575163d3012d"
+      "sha256": "a97d1b737dde1d4b220dcf3c44ef72229488403989c81368d4df4e1dd9c35a26"
     },
     {
       "path": "releases/pending/cli-preview.json",
@@ -7560,7 +6594,7 @@
     },
     {
       "path": "releases/pending/generation-hook-governance.json",
-      "sha256": "eb8befb285c7bc32929eb5a14345641e1a94a8944b13e2fe263804e38fd095cd"
+      "sha256": "6e605f6f5c4cfd2323091149798164f52d922f5158f6fa51e964ac525ad06398"
     },
     {
       "path": "releases/pending/generation-host-apply.json",
@@ -7587,12 +6621,20 @@
       "sha256": "5a815b607713ed1e93157c2b2b698b496b0f12dce84d30923f1f5be9fbd37990"
     },
     {
+      "path": "releases/pending/mandate-admission.json",
+      "sha256": "8f159e967010afe33736392836f936956bd53af272d3e605157867e7414be28d"
+    },
+    {
       "path": "releases/pending/mandate-resolution.json",
-      "sha256": "5ca8fb38ab14f748557f383f3f3226c1578b8f1de29c2afb2f2ce19e780d1c12"
+      "sha256": "9dab011d0a15a253346930e579c8eae8ec9afd3b8e32639f9730efb5b2755a88"
     },
     {
       "path": "releases/pending/public-architecture-boundaries.json",
       "sha256": "17763b2c1d05cc7f60acf994fe7728f6acd6638d6d6657085165846c1a741970"
+    },
+    {
+      "path": "releases/pending/public-release-ownership.json",
+      "sha256": "5a947b25fc009849a150e9aa9c245eef2ffe86ec47f2d00225aa59883e87cb5c"
     },
     {
       "path": "releases/pending/qualify-separated-public-examples.json",
@@ -7616,11 +6658,11 @@
     },
     {
       "path": "tools/compliance/check.test.ts",
-      "sha256": "c180641e959e4f7e9ff3b9445aa1559b84bc06878ebe4dde12be4b3f8f6be1e7"
+      "sha256": "58dc6e096ba30ce30477657aa2d730d10541dbc7492de113f81672ef47594c58"
     },
     {
       "path": "tools/compliance/check.ts",
-      "sha256": "60293a76057fe4a9a3dca8987b96d932da0b32cd09af2936fd16feafe57f05e9"
+      "sha256": "4dab52c8f95d20a8f6717d96fdc3f20ca3ffff81cdb67661bf0fe98768aee211"
     },
     {
       "path": "tools/compliance/evidence-fixtures.ts",
@@ -7636,7 +6678,7 @@
     },
     {
       "path": "tools/compliance/hook-fixtures.ts",
-      "sha256": "c9c29651244d7ae4d52d3dd55db7995e22a685811bf03c8e4b286c94949ceb44"
+      "sha256": "86eb2463f6c6b79a375c1c98fc1d2711c0b8defb16f1a119208a3ee6e4408a50"
     },
     {
       "path": "tools/compliance/publication-fixtures.test.ts",
@@ -7696,11 +6738,11 @@
     },
     {
       "path": "tools/distribution/host-payload.mjs",
-      "sha256": "cc73db91e72496b8af0fea37f65d7527f0f14f9e398095e5ed2cb0b9ca2d88c8"
+      "sha256": "c3f07926f6001b40dd15ffa476a4cb4abfa1515201dbd00aff06279376fb2314"
     },
     {
       "path": "tools/distribution/host-payload.test.ts",
-      "sha256": "8b7eb349b4d67207bb497089d5850a14c2e229a0fcd50f69aaaf477131fc46eb"
+      "sha256": "799488255ef2faeed8ff77aad2170f7864ae696d53e96269a72cd3fd64d7af7a"
     },
     {
       "path": "tools/distribution/installed-consumer.d.mts",
@@ -7740,15 +6782,15 @@
     },
     {
       "path": "tools/distribution/npm-release.mjs",
-      "sha256": "031f42e80a72eab94bb88b62b3e59bc70e2659eae7b7ab6df1a14540e7e78393"
+      "sha256": "5572b7a777cd89c823c28c2dc3d95941d16b32af8284bd776e96d5d40a6cd774"
     },
     {
       "path": "tools/distribution/npm-release.test.ts",
-      "sha256": "3b84f4c3504d33c539eed19c441d1f1fa13de0a1720fa90177a5f4b72c39a7b2"
+      "sha256": "99b911abdf6f7560b04e67e42bcf0f8550213c303ac2b695d8b555bee30fe6ff"
     },
     {
       "path": "tools/distribution/public-content-policy.json",
-      "sha256": "3465be804388cb2bb9bb213d96e738b281fb0f4d1a370d92516299dbd99175cd"
+      "sha256": "c49dbdb1922bb30682df16aebe455e411a2de410b13f7928bd5ca535ab7ccda4"
     },
     {
       "path": "tools/distribution/qualify-packages.mjs",
@@ -7768,7 +6810,7 @@
     },
     {
       "path": "tools/distribution/release-fixtures.ts",
-      "sha256": "4499a2c87ac03f77aa2167efce5405a8dc92d7bf743d4b535f61ce9e05094833"
+      "sha256": "7e538cc98ab2306f6a77633a07295dc551a9fe46f16e15f660a65e7c2e2bf08a"
     },
     {
       "path": "tools/distribution/release-graph.d.mts",
@@ -7983,6 +7025,18 @@
       "sha256": "b75266b46bfcbfe0a23c35059edbf3db49149d42ffebda6dd509b2d6ca48857d"
     },
     {
+      "path": "tools/native/public-systems.d.mts",
+      "sha256": "89f8d989dbb69b1646419e13cd425de769adbf8ce30c07d9f8a93518410639b3"
+    },
+    {
+      "path": "tools/native/public-systems.mjs",
+      "sha256": "b81ff8103d4d7ffa89a44ae5f799711ba43a131dfa21e0450bd9f3cd95b387ec"
+    },
+    {
+      "path": "tools/native/public-systems.test.ts",
+      "sha256": "daa4250ded55ee19498882729da8701e877512ec58bb47ed2fcb35918ae9019c"
+    },
+    {
       "path": "tools/native/public-vocabulary.ts",
       "sha256": "deb85d119c31cbc295d9dac8aae63f9e12be14444b79721101f6561aa6e7b6cb"
     },
@@ -8084,15 +7138,15 @@
     },
     {
       "path": "tools/projections/qualify-projections.mjs",
-      "sha256": "29ccd9d776d87f4460c2ed4fe698505048a9b5a3ce33ec5d97fe3243c2dbfd1d"
+      "sha256": "1b42d8bee391f13fb6f99c40c93fb2da68babc525def78f4538a58ecf71be391"
     },
     {
       "path": "tools/projections/qualify-resources.mjs",
-      "sha256": "c8c347b2a672a5758761303d4c03af75846af97e3b6b7406158e77912424a69f"
+      "sha256": "a653d48d50f5c2169f96e38e036aefcc4137138db3cc39b8a9ef82b077879d46"
     },
     {
       "path": "tools/release/SPEC.md",
-      "sha256": "528bc3d3d43e49bfcc52c8ba9736bdaa612963b2d9146bdf261cc53835289faf"
+      "sha256": "34d46600ad75c96926b835d2a118d29af33a841dff244f78c08fb738b6c8b686"
     },
     {
       "path": "tools/release/pack-manifest.mjs",
@@ -8115,20 +7169,24 @@
       "sha256": "bad2e4c942361e378e7ee2ad9ebf7daa27e796b1030783e6e392843fab6435c4"
     },
     {
+      "path": "tools/release/public-content.test.ts",
+      "sha256": "ee0eb46d04bf04d2426b7c9bc3b4cdc286ee63425fe17d44d1578bbec45ff097"
+    },
+    {
       "path": "tools/release/public-pack.d.mts",
-      "sha256": "3701313cd5ad0392541cb85d85d4b16d51d0e04602c9c49a32a1c14fe85c52cb"
+      "sha256": "ae7fece87be0886c9b0e96f00c5c286bc7b7d26182c48607a2661a0661af98a2"
     },
     {
       "path": "tools/release/public-pack.mjs",
-      "sha256": "910d509714028a181d22a9cffee976de230d94c2dbc9e340c00dedaeaffc68c9"
+      "sha256": "c8a89ecb1d8bff68fdece0110b5f26f45b568f5339e9e84746b1f63b9b2a00dc"
     },
     {
       "path": "tools/release/public/content-scan.d.mts",
-      "sha256": "7aa17f0a4a732ce97230d2ed380538c3f49c2e93629f2741705ef889a0ca110e"
+      "sha256": "e9a849a3a3bd2204058dd5ef62a6a64eca315695a81ae48c29a09909cd76ae6d"
     },
     {
       "path": "tools/release/public/content-scan.mjs",
-      "sha256": "27433a9add8138459c28f5930a4bd5a530e3ef4cdf563644086024805df72f2d"
+      "sha256": "e6999492969db26ec32cc7f5c946fe04ec9af8f1b0aab96f42332b64ec70e141"
     },
     {
       "path": "tools/release/scan-packed.d.mts",
@@ -8152,7 +7210,7 @@
     },
     {
       "path": "tools/release/system-packages.ts",
-      "sha256": "a491dda2f78227d8a12b0a68c276a3406047153f601e95f0de6a0faf8cf07cfc"
+      "sha256": "da4898250484aec64e67b6b5fc5fc5b55bc260ada7a0fd30918d3a399a412d7d"
     },
     {
       "path": "tools/release/system-partitions.ts",
@@ -8180,11 +7238,11 @@
     },
     {
       "path": "tools/runtime/SPEC.md",
-      "sha256": "cd8dc3447ad1ad645c901d7689e3b46530bc114766777ef7d8c046003f5591fc"
+      "sha256": "f8bc65df968b36b721fa94f4c5999d57704c7b64a243ef80cc1749c441c46e54"
     },
     {
       "path": "tools/runtime/qualify-sdk.mjs",
-      "sha256": "e2d81388cb7b5701ae21f3d6e9c05f25e2a8613702701ed8c39f5e0bda0d056b"
+      "sha256": "ade2cf300b44b93cb264cab06bd1cd1fca6d72a59d1e8074758881f39306e621"
     },
     {
       "path": "tools/systems/SPEC.md",
@@ -8196,7 +7254,7 @@
     },
     {
       "path": "tools/systems/authoring-manifest.test.ts",
-      "sha256": "f5217a8cfaaa62255dd4c55f137eb30827124d0d2938d9bc515b465c778503b2"
+      "sha256": "962dcc80ae7f381bfdf4c24a67c3888b8473846e84eec4b504be17d2759b0c80"
     },
     {
       "path": "tools/systems/execute.test.ts",
@@ -8268,7 +7326,7 @@
     },
     {
       "path": "tools/systems/generate-authoring.ts",
-      "sha256": "8f9daf1e2366e65951ca7d78d9da9f9c8238ad06d992b6f77f5ece78dcae92d1"
+      "sha256": "77a18d49726d6927068e393d1f042be968ddf78373f154ed9a020a1049a42a27"
     },
     {
       "path": "tools/systems/publish.ts",
@@ -8292,7 +7350,7 @@
     },
     {
       "path": "tools/systems/teaching-links.ts",
-      "sha256": "7cd8086ee8e630c0056b46304273a6d7c883dc659362e38e2d60ecca75df4b29"
+      "sha256": "7e97721a1f82878dd1cb7e08c8f33dfdd04795a925eb4e9a80579663a12351ee"
     },
     {
       "path": "tools/systems/types.ts",
@@ -8403,36 +7461,5 @@
       "sha256": "291a1735a1bdf4a85d3baafef644f0bffe0d9bfbada49d63c648311ff4429ed1"
     }
   ],
-  "publicRefresh": {
-    "format": "ia.public-input-refresh.v1",
-    "baseCommit": "d00d398833eaa5b318ad7e8b7c7695478d5feb19",
-    "baseTree": "d624b1d71675a1aa69f170163c53d5a3840ba02b",
-    "dirty": true,
-    "inputDigest": "daa208413e1715e8e0ead4e1880428fc5242d20909e10ee46895aaab2b63a50e",
-    "npm": {
-      ".ia/src/systems/agent-composition-system/package.json": "2.0.0",
-      ".ia/src/systems/agent-system/package.json": "2.0.0",
-      ".ia/src/systems/authoring-system/package.json": "2.0.0",
-      ".ia/src/systems/compliance-system/package.json": "2.0.0",
-      ".ia/src/systems/governance-system/package.json": "2.0.0",
-      ".ia/src/systems/hook-authoring-system/package.json": "2.0.0",
-      ".ia/src/systems/learning-system/package.json": "2.0.0",
-      ".ia/src/systems/session-system/package.json": "2.0.0",
-      ".ia/src/systems/template-system/package.json": "2.0.0",
-      ".ia/src/systems/work-system/package.json": "2.0.0",
-      ".ia/src/systems/workspace-system/package.json": "2.0.0",
-      "apps/cli/package.json": "2.0.0",
-      "apps/distribution/package.json": "2.0.0",
-      "apps/mcp-door/package.json": "2.0.0",
-      "apps/steward-hook/package.json": "2.0.0",
-      "apps/vscode/package.json": "2.0.0",
-      "packages/compliance/package.json": "2.0.0",
-      "packages/db/package.json": "2.0.0",
-      "packages/graph/package.json": "2.0.0",
-      "packages/language/package.json": "2.0.0",
-      "packages/runtime/package.json": "2.0.0",
-      "packages/service-contracts/package.json": "2.0.0",
-      "packages/workspace-runtime/package.json": "2.0.0"
-    }
-  }
+  "inputDigest": "f5451e2c2125b360abc7d9c077fdb29d96947139fdb771fdfc7edb73050f76be"
 }

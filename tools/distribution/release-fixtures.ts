@@ -223,10 +223,10 @@ export function compatibilityFixture(directory: string) {
     JSON.parse(readFileSync(resolve(checkout, owner, 'package.json'), 'utf8')),
   );
   const compatibility = {
-    format: 'ia.system-package-compatibility.v1',
-    sourceRevision: source.receipt.sourceRevision,
+    format: 'ia.system-package-compatibility.v2',
+    source: source.receipt.source,
     sourceManifestSha256: source.sha256,
-    baselineOverlay: source.receipt.baselineOverlay,
+    membership: source.receipt.membership,
     recipe: {
       publicCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout, encoding: 'utf8' }).trim(),
       publicDirty: false,
@@ -236,7 +236,6 @@ export function compatibilityFixture(directory: string) {
       files: source.receipt.files.filter(
         (row) => row.path.startsWith('tools/release/') || row.path === PUBLIC_SYSTEM_POLICY,
       ),
-      extraction: source.receipt.provenance,
     },
     packages: manifests.map((manifest) => ({
       package: { name: manifest.name, version: manifest.version },
