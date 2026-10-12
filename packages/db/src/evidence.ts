@@ -234,6 +234,37 @@ export function readEvidence(root: string, path: string): string | null {
     throw error;
   }
 }
+/** The errors a win32 replacing rename returns while another handle holds the target (review finding D2-N3). */
+const HELD = new Set(['EPERM', 'EACCES', 'EBUSY']);
+/** How long the writer waits for a held target, in all; a reader holds the file for the moment one read takes. */
+const HELD_MS = 2000;
+const pause = (ms: number): void => {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+};
+/**
+ * Review finding D2-N3: rename the staged `temporary` over `path`, true once it is in place. On win32 a replacing rename
+ * fails (EPERM, EACCES or EBUSY) while any other handle holds the target, as a concurrent validate does while it reads the
+ * evidence it found, or while a concurrent writer's rename is in flight; there the writer retries, backing off from 10 to
+ * 100 milliseconds, for up to two seconds. Between attempts it reads the target: one that now holds exactly these bytes
+ * was published by a concurrent writer of the same revision (the writer is exact, so every writer of one revision writes
+ * the same bytes), and there is nothing left to write, so the answer is false and the caller discards its copy. Any
+ * other platform, any other error, or a target still held at the end is the error itself.
+ */
+function publish(root: string, temporary: string, path: string, bytes: Buffer): boolean {
+  const deadline = Date.now() + HELD_MS;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      renameSync(safePath(root, temporary), safePath(root, path));
+      return true;
+    } catch (error) {
+      if (process.platform !== 'win32' || !HELD.has((error as NodeJS.ErrnoException).code ?? '')) throw error;
+      const current = readEvidence(root, path);
+      if (current !== null && Buffer.from(current, 'utf8').equals(bytes)) return false;
+      if (Date.now() >= deadline) throw error;
+      pause(Math.min(10 * 2 ** attempt, 100));
+    }
+  }
+}
 /** The errors a prune skips rather than refuse for (review finding B3-R1): a file it may not or cannot remove. */
 const SKIPPED = new Set(['EPERM', 'EACCES', 'EBUSY', 'ENOENT', 'EROFS']);
 
@@ -244,7 +275,9 @@ const SKIPPED = new Set(['EPERM', 'EACCES', 'EBUSY', 'ENOENT', 'EROFS']);
  * IA-DB-PATH-UNSAFE, and a file it cannot write fails with the filesystem's code, before anything is pruned. With nothing
  * to record (null, or a file that already holds exactly `text`) it never refuses, whatever stands at those paths (B3-N6).
  * The bytes are staged in the evidence directory, flushed, and renamed into place, so a reader sees the whole old file or
- * the whole new one. Pruning is best effort and comes last: only regular files named `<64 hex>.ia`, never temporary
+ * the whole new one; on win32, where a rename over a file another handle holds fails, the rename waits for it a bounded
+ * time, and stops once a concurrent writer of the same revision has put exactly these bytes there (`publish`). Pruning
+ * is best effort and comes last: only regular files named `<64 hex>.ia`, never temporary
  * files or anything else; a file it may not remove is skipped; and with `pruneBefore` a file modified at or after that
  * time, which a validation of a newer revision may have written meanwhile, is kept (B3-N2); a current file left
  * unchanged is touched, so it counts as modified now (B4-RC3).
@@ -269,10 +302,11 @@ export function writeEvidence(
     directories(root);
     let temporary: string | undefined = staged(root, path, bytes);
     try {
-      renameSync(safePath(root, temporary), safePath(root, path));
-      temporary = undefined;
-      syncDirectory(dirname(safePath(root, path)));
-      written = true;
+      if (publish(root, temporary, path, bytes)) {
+        temporary = undefined;
+        syncDirectory(dirname(safePath(root, path)));
+        written = true;
+      }
     } finally {
       discard(root, temporary);
     }

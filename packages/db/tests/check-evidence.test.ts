@@ -1,6 +1,7 @@
 // D14 and D15 (milestone generation-binding; plan amendments C14, C15, C21 and C22): every `@check` bound at validate
 // against the verdicts its scope selects or the host's evaluator catalog, and the runtime evidence a validate effect
 // records for the bound checks that passed or failed. Binding and discovery only read; `writeEvidence` is the writer.
+import { spawn } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -736,4 +737,28 @@ it('touches an unchanged current file, so a validation of an older revision that
   expect(statSync(current).mtimeMs).toBeGreaterThanOrEqual(olderOpened);
   expect(writeEvidence(root, '9'.repeat(64), null, { pruneBefore: olderOpened }).pruned).toEqual([]);
   expect(readFileSync(current, 'utf8')).toBe(text);
+});
+
+it('replaces the evidence file while another process holds it open, as a concurrent validate reading it does (review D2-N3)', async () => {
+  // On win32 a replacing rename fails (EPERM) while any other handle holds the target: a concurrent validate reading the
+  // evidence it found. The writer retries until the reader lets go, so one whole file, the writer's bytes, results.
+  const root = workspace(false),
+    revision = 'b'.repeat(64),
+    path = resolve(root, EVIDENCE_DIRECTORY, `${revision}.ia`);
+  expect(writeEvidence(root, revision, '#! ia 1.0\n# first\n').written).toBe(true);
+  const holder = spawn(
+    process.execPath,
+    [
+      '-e',
+      `const fs = require('node:fs'); const fd = fs.openSync(${JSON.stringify(path)}, 'r'); process.stdout.write('open'); setTimeout(() => fs.closeSync(fd), 400);`,
+    ],
+    { stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true },
+  );
+  const closed = new Promise((done) => holder.on('close', done));
+  await new Promise((ready) => holder.stdout.once('data', ready));
+  const write = writeEvidence(root, revision, '#! ia 1.0\n# second\n');
+  await closed;
+  expect(write).toEqual({ path: `${EVIDENCE_DIRECTORY}/${revision}.ia`, written: true, pruned: [] });
+  expect(readFileSync(path, 'utf8')).toBe('#! ia 1.0\n# second\n');
+  expect(readdirSync(resolve(root, EVIDENCE_DIRECTORY))).toEqual([`${revision}.ia`]);
 });
