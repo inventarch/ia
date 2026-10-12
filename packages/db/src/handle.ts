@@ -33,7 +33,7 @@ import { seatOf } from './seat.js';
 import type { SeatResolution } from './seat.js';
 import { occurrenceKey, viewBuilder } from './view.js';
 import type { ViewOptions } from './view.js';
-import type { RefusedRecord, View } from './view.js';
+import type { RefusedRecord, UnadmittedRecord, View } from './view.js';
 import { previewInputs } from './preview.js';
 import type { DraftChange, DraftPreview } from './preview.js';
 
@@ -325,6 +325,17 @@ export class Reader {
   get refused(): readonly RefusedRecord[] {
     this.#assertOpen();
     return this.#state.rootView.refused;
+  }
+  /**
+   * Lane D, D1: every record occurrence of the root view's sources that it does not admit, at the band of its source's
+   * placement (`UnadmittedRecord`): those `refused` names, those an identity tie drops, and those of a file refused whole
+   * by a language error or a duplicate requirement id, which `refused` cannot name because no graph ever held them. Like
+   * `refused` and `report` it reads the root view, whatever scope a read binds: an occurrence that is not admitted is in
+   * no scope. Nothing is read from disk for it: the view's own parse, compile and captured text decide it.
+   */
+  get unadmitted(): readonly UnadmittedRecord[] {
+    this.#assertOpen();
+    return this.#state.rootView.unadmitted;
   }
   get cache(): CacheStatus {
     this.#assertOpen();

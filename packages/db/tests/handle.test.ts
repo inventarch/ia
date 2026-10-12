@@ -16,6 +16,7 @@ it('opens the native corpus through immutable public read products', () => {
   expect(db.traverse({ start: [methodId], depth: 0 }).nodes).toEqual([{ identity: methodId, depth: 0 }]);
   expect(db.report.revision).toBe(db.revision);
   expect(db.refused).toEqual([]);
+  expect(db.unadmitted).toEqual([]);
   expect(() => (snapshot.records as unknown[]).pop()).toThrow();
   expect(() => {
     (db.get(methodId)! as { name: string }).name = 'changed';
@@ -123,6 +124,120 @@ it('retries unstable scans at most three times and publishes only a stable candi
   ).toThrow('three consecutive');
   expect(calls).toBe(3);
 });
+/** A fixture `@mandate` of the native agent-system, its header on line 3 of a file that opens with the pragma. */
+const mandateSource = (name: string, moves = 'moves [Observation]', before = ''): string =>
+  `#! ia 1.0\n\n@mandate ${name}\n  meaning\n    says "Fixture mandate ${name}."\n    answers "What may it do?"\n  governance\n    requires "Nothing."\n  authority\n    participant @agent agent-steward\n    ${moves}\n${before}`;
+it('lists every record occurrence the root view does not admit, at the band of its placement (lane D, D1)', () => {
+  const root = workspace();
+  // (a) refused by schema admission, so `refused` names it too.
+  put(root, '.ia/src/refused.ia', mandateSource('bogus', 'moves [Bogus]'));
+  // (b) one identity at one band twice: both occurrences tie and neither is admitted.
+  put(root, '.ia/src/tie-a.ia', mandateSource('tied'));
+  put(root, '.ia/src/tie-b.ia', mandateSource('tied'));
+  // (c) a file refused whole by a language error elsewhere in it: the parse still reads both headers.
+  put(
+    root,
+    '.ia/src/whole.ia',
+    mandateSource(
+      'whole',
+      'moves [Observation]',
+      '\n@agent loose\n  meaning\n    says "x"\n  governance\n    applies []\n   misindented here\n',
+    ),
+  );
+  // (c) a header the parse cannot read at all: the captured text still shows it.
+  put(root, '.ia/src/header.ia', '#! ia 1.0\n\n@mandate Bad_Name!\n  meaning\n    says "x"\n');
+  // (c) a file refused whole for a requirement id another file declares too.
+  put(
+    root,
+    '.ia/src/duplicate.ia',
+    mandateSource(
+      'dup',
+      'moves [Observation]',
+      '\n@contract clash\n  version "0.1.0"\n  meaning\n    says "x"\n    answers "y"\n  relationships\n    governs @check instance-schema-check\n  inputs\n    REQ-FOUNDATION-INPUT "Clashes with the foundation contract."\n',
+    ),
+  );
+  // A parse error in a file that declares no mandate is listed under the word it does declare.
+  put(root, '.ia/src/plain.ia', '#! ia 1.0\n\n@agent plain\n  meaning\n    says "x\n');
+  const db = open(root, { cache: false }),
+    unadmitted = db.unadmitted,
+    at = (path: string) => unadmitted.filter((entry) => entry.path === path);
+  expect(Object.isFrozen(unadmitted)).toBe(true);
+  expect(unadmitted.every((entry) => Object.isFrozen(entry))).toBe(true);
+  expect(db.get('agent-system/policy/mandate/bogus')).toBeUndefined();
+  expect(at('.ia/src/refused.ia')).toEqual([
+    {
+      identity: 'agent-system/policy/mandate/bogus',
+      word: 'mandate',
+      band: 100,
+      path: '.ia/src/refused.ia',
+      line: 3,
+      endLine: 11,
+      cause: 'refused',
+    },
+  ]);
+  // Every `refused` occurrence is listed, and only those are listed as refused.
+  expect(
+    unadmitted.filter((entry) => entry.cause === 'refused').map(({ identity, path, line }) => [identity, path, line]),
+  ).toEqual(db.refused.map(({ identity, path, line }) => [identity, path, line]));
+  for (const path of ['.ia/src/tie-a.ia', '.ia/src/tie-b.ia'])
+    expect(at(path)).toEqual([
+      {
+        identity: 'agent-system/policy/mandate/tied',
+        word: 'mandate',
+        band: 100,
+        path,
+        line: 3,
+        endLine: 11,
+        cause: 'tied',
+      },
+    ]);
+  expect(at('.ia/src/whole.ia')).toEqual([
+    expect.objectContaining({
+      identity: 'agent-system/policy/mandate/whole',
+      word: 'mandate',
+      band: 100,
+      line: 3,
+      cause: 'source',
+    }),
+    expect.objectContaining({
+      identity: 'agent-system/binding/agent/loose',
+      word: 'agent',
+      band: 100,
+      line: 13,
+      cause: 'source',
+    }),
+  ]);
+  expect(at('.ia/src/header.ia')).toEqual([
+    { word: 'mandate', band: 100, path: '.ia/src/header.ia', line: 3, endLine: 3, cause: 'source' },
+  ]);
+  expect(at('.ia/src/duplicate.ia')).toEqual([
+    expect.objectContaining({ identity: 'agent-system/policy/mandate/dup', word: 'mandate', line: 3, cause: 'source' }),
+    expect.objectContaining({
+      identity: 'compliance-system/contract/signature/clash',
+      word: 'contract',
+      cause: 'source',
+    }),
+  ]);
+  // That file compiles cleanly: only the requirement id it shares with the foundation contract refuses it.
+  expect(
+    db.report.findings
+      .filter((finding) => finding.path === '.ia/src/duplicate.ia' && finding.severity === 'error')
+      .map((finding) => finding.code),
+  ).toEqual(['IA-LANG-REQUIREMENT-DUPLICATE']);
+  expect(at('.ia/src/plain.ia')).toEqual([
+    // Its compile refuses the record, so spec 3.1 names the header's identity.
+    expect.objectContaining({
+      identity: 'agent-system/binding/agent/plain',
+      word: 'agent',
+      band: 100,
+      line: 3,
+      cause: 'source',
+    }),
+  ]);
+  // The floor and every admitted record stay out of the list.
+  expect(unadmitted.some((entry) => entry.identity === methodId)).toBe(false);
+  db.close();
+});
 it('closes idempotently and refuses all subsequent reads and refreshes', () => {
   const db = open(workspace(false), { cache: false });
   db.close();
@@ -138,6 +253,7 @@ it('closes idempotently and refuses all subsequent reads and refreshes', () => {
     () => db.revision,
     () => db.report,
     () => db.refused,
+    () => db.unadmitted,
     () => db.cache,
     () => db.previousRevision,
     () => db.staleness(methodId),

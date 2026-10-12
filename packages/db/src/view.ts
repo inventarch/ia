@@ -3,10 +3,11 @@ import {
   LANGUAGE_VERSION,
   buildRegistry,
   compile,
+  identityOf,
   parse,
   requirementCollisions,
 } from '@inventarch/language';
-import type { CompiledRecord, Diagnostic, FrozenRegistry, Phase, Source } from '@inventarch/language';
+import type { Band, CompiledRecord, Diagnostic, FrozenRegistry, Phase, RecordNode, Source } from '@inventarch/language';
 import { authoredRevisionOf, canonicalRoot, load, reaches, stableSerialize } from '@inventarch/graph';
 import type { Graph, RevisionSource } from '@inventarch/graph';
 import {
@@ -35,6 +36,36 @@ export interface RefusedRecord {
   readonly line: number;
   readonly reason: string;
 }
+/**
+ * One record occurrence of a view's sources that the view does not admit (lane D, D1), with the band of the placement
+ * its source was read at, which is where capture membership and every band test read a record's band from:
+ * - `refused`: an occurrence `refused` names (a compliance exclusion, a schema failure, a refused system join or a refused
+ *   enclosing record);
+ * - `tied`: an occurrence of an identity that another occurrence ties at the same band (IA-GRAPH-IDENTITY-TIE), so
+ *   neither is admitted;
+ * - `source`: a record its file declares when the file is refused whole, by a language error or by a requirement id
+ *   another occurrence declares too, before any graph is built. Each header the view's own parse of the file reads is
+ *   one, with the identity the compile of the file gives the record or, where the compile refused it, the identity spec
+ *   3.1 gives its header under its word's registration; each line of the captured text that opens
+ *   with `@<word>` (indentation aside) and is no header the parse read is one too, with no identity, so a header the
+ *   parse could not read (no or another pragma, a malformed name, an indented header) is still seen. That reading errs
+ *   towards listing: a non-header line spelled so in a file already refused is listed under its word.
+ */
+export interface UnadmittedRecord {
+  /**
+   * The canonical identity, when the view compiled the record or spec 3.1 names its parsed header; absent for a header
+   * only the source text shows, or whose word no admitted system registers.
+   */
+  readonly identity?: string;
+  /** The word the header names, lowercased. */
+  readonly word: string;
+  readonly band: Band;
+  readonly path: string;
+  /** The header line. */
+  readonly line: number;
+  readonly endLine: number;
+  readonly cause: 'refused' | 'tied' | 'source';
+}
 /** Internal view; public reads project allowed nodes, never this candidate registry. */
 export interface View {
   readonly graph: Graph;
@@ -45,6 +76,8 @@ export interface View {
   readonly authoredRevision: string;
   readonly report: Report;
   readonly refused: readonly RefusedRecord[];
+  /** Every record occurrence of the view's sources it does not admit, `refused` among them, by path then line. */
+  readonly unadmitted: readonly UnadmittedRecord[];
   readonly admittedSystems: readonly string[];
   readonly blockedSystems: readonly string[];
   readonly boundary: readonly string[];
@@ -59,12 +92,68 @@ interface Context {
   readonly sources: readonly Source[];
   readonly registry: FrozenRegistry;
   readonly records: readonly CompiledRecord[];
+  /** Every record the compile read, those of a file with a language error included (`records` leaves them out). */
+  readonly compiled: readonly CompiledRecord[];
   readonly diagnostics: readonly Diagnostic[];
   readonly errorPaths: ReadonlySet<string>;
 }
 export const occurrenceKey = (record: CompiledRecord): string =>
   JSON.stringify([record.identity, record.source.path, record.source.line]);
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/**
+ * A line that opens with `@<word>`, a byte-order mark and indentation aside: the header syntax, read from text the parse
+ * could not read.
+ */
+const HEADER = /^﻿?[ \t]*@([A-Za-z][A-Za-z0-9-]*)(?=[ \t\r]|$)/;
+/**
+ * The `source` occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested
+ * ones included, with the identity its compile gives that header's record or, for one its compile refused, the identity
+ * spec 3.1 gives it (`identityOf` over its word's registration), then every other line of `text` that opens with a
+ * header, under its word.
+ */
+function refusedWhole(
+  source: Source,
+  text: string,
+  compiled: readonly CompiledRecord[],
+  registry: FrozenRegistry,
+): readonly UnadmittedRecord[] {
+  const path = source.ast.path,
+    band = source.location.placement.band,
+    nodes: RecordNode[] = [];
+  const walk = (records: readonly RecordNode[]): void => {
+    for (const record of records) {
+      nodes.push(record);
+      walk(record.nested);
+    }
+  };
+  walk(source.ast.records);
+  const identities = new Map(
+    compiled.filter((record) => record.source.path === path).map((record) => [record.source.line, record.identity]),
+  );
+  const parsed = nodes.map((node): UnadmittedRecord => {
+    const registration = registry.registrations.get(node.discriminator);
+    const identity =
+      identities.get(node.span.line) ??
+      (registration === undefined ? undefined : identityOf(node, registration, path).identity?.identity);
+    return {
+      ...(identity === undefined ? {} : { identity }),
+      word: node.discriminator.toLowerCase(),
+      band,
+      path,
+      line: node.span.line,
+      endLine: node.span.endLine,
+      cause: 'source',
+    };
+  });
+  const read = new Set(nodes.map((node) => node.span.line));
+  const unread = text.split('\n').flatMap((spelled, index): UnadmittedRecord[] => {
+    const word = HEADER.exec(spelled)?.[1];
+    return word === undefined || read.has(index + 1)
+      ? []
+      : [{ word: word.toLowerCase(), band, path, line: index + 1, endLine: index + 1, cause: 'source' }];
+  });
+  return [...parsed, ...unread];
+}
 function diagnosticsOf(values: readonly Diagnostic[]): readonly Diagnostic[] {
   return [...new Map(values.map((d) => [stableSerialize(d), d])).values()].sort(
     (a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.code, b.code),
@@ -175,6 +264,8 @@ function views(
 ): (location?: string, phase?: Phase) => View {
   const inputSources = evidence === undefined ? input.sources : [...input.sources, evidence];
   const parsed = inputSources.map((s) => ({ ...parse(s.text, s.path), location: s.location }));
+  /** The captured text of each source by path, which `source` occurrences read their unparsed headers from. */
+  const texts = new Map(inputSources.map((s) => [s.path, s.text]));
   const contexts = new Map<string, Context>();
   const analyze = (location: string): Context => {
     const known = contexts.get(location);
@@ -184,10 +275,12 @@ function views(
       results = sources.map((s) => compile(s.ast, registered.registry, s.location, []));
     const diagnostics = diagnosticsOf([...registered.diagnostics, ...results.flatMap((r) => r.diagnostics)]);
     const errorPaths = new Set(diagnostics.filter((d) => d.severity === 'error').map((d) => d.path));
+    const compiled = results.flatMap((r) => r.records);
     const context = {
       sources,
       registry: registered.registry,
-      records: results.flatMap((r) => r.records).filter((r) => !errorPaths.has(r.source.path)),
+      records: compiled.filter((r) => !errorPaths.has(r.source.path)),
+      compiled,
       diagnostics,
       errorPaths,
     };
@@ -237,6 +330,8 @@ function views(
     );
     const blockedFolders = new Set<string>(),
       excluded = new Map<string, RefusedRecord>(),
+      /** The occurrence behind each `excluded` entry, by the same key: its band and span are what `unadmitted` lists. */
+      excludedRecords = new Map<string, CompiledRecord>(),
       observations: Assessment[] = [];
     const folders: SystemFolder[] = input.folders.flatMap((name) => {
       let sources = context.sources.filter((s) => systemMember(s.ast.path)?.name === name);
@@ -288,6 +383,7 @@ function views(
         line: record.source.line,
         reason,
       });
+      excludedRecords.set(occurrenceKey(record), record);
     };
     const remaining = (): readonly CompiledRecord[] => {
       blockDependents();
@@ -390,6 +486,22 @@ function views(
       admission: observations,
       ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
     });
+    const occurrence = (record: CompiledRecord, cause: UnadmittedRecord['cause']): UnadmittedRecord => ({
+      identity: record.identity,
+      word: record.discriminator,
+      band: record.placement.band,
+      path: record.source.path,
+      line: record.source.line,
+      endLine: record.source.endLine,
+      cause,
+    });
+    const unadmitted: readonly UnadmittedRecord[] = [
+      ...[...excludedRecords.values()].map((record) => occurrence(record, 'refused')),
+      ...graph.occurrences.filter((o) => o.status === 'tied').map((o) => occurrence(o.node, 'tied')),
+      ...context.sources
+        .filter((s) => context.errorPaths.has(s.ast.path) || duplicatePaths.has(s.ast.path))
+        .flatMap((s) => refusedWhole(s, texts.get(s.ast.path) ?? '', context.compiled, registry)),
+    ];
     return Object.freeze({
       graph,
       // Over the inputs and registry the graph's revision hashes, so the two differ only by runtime-placed sources.
@@ -398,6 +510,11 @@ function views(
       boundary,
       refused: Object.freeze(
         [...excluded.values()].sort((a, b) => compare(a.path, b.path) || a.line - b.line).map((r) => Object.freeze(r)),
+      ),
+      unadmitted: Object.freeze(
+        [...unadmitted]
+          .sort((a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.word, b.word))
+          .map((entry) => Object.freeze(entry)),
       ),
       admittedSystems: Object.freeze(registry.order.filter((name) => !blocked.has(name))),
       blockedSystems: Object.freeze([...blocked].sort(compare)),

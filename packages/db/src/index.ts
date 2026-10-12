@@ -27,7 +27,7 @@ export {
 export type { CapturePlan, CaptureWrite, Readiness, Staleness } from './retention.js';
 export type { SeatResolution } from './seat.js';
 export type { CacheStatus, CacheObservation } from './cache.js';
-export type { RefusedRecord } from './view.js';
+export type { RefusedRecord, UnadmittedRecord } from './view.js';
 export type { DraftChange, DraftPreview } from './preview.js';
 export { EVIDENCE_DIRECTORY, EVIDENCE_FILE } from './inputs.js';
 export { bindChecks, checkVerdicts, WHOLE_WORKSPACE_SCOPE } from './checks.js';
