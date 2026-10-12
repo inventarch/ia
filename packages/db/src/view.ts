@@ -55,13 +55,16 @@ export interface UnadmittedFinding {
  *   occurrence declares too, before any graph is built, with the error inside its lines, else the file's first error,
  *   which refused the file. Each header the view's own parse of the file reads is one, with the identity the compile of
  *   the file gives the record or, where the compile refused it, the identity spec 3.1 gives its header under its word's
- *   registration. The file's captured text, split at every line terminator (CRLF, CR or LF), adds two readings the parse
- *   cannot give (review finding D-R3): a line that opens with `@<word>` after any whitespace or Unicode format
- *   characters (a no-break space, a form feed, a zero-width space, a byte-order mark) and is no header the parse read
- *   is one, with the name token after it and no identity; and on a line no parsed record spans, each `@<word>` token
- *   anywhere on it is one, with no name, so a file whose parse reads no record (no or another pragma) lists every word
- *   it mentions. Both readings err towards listing: a non-header line so spelled in a file already refused is listed
- *   under its word.
+ *   registration. The file's captured text, split at every line terminator (CRLF, CR or LF), adds three readings the
+ *   parse cannot give (review findings D-R3, D2-R2 and D2-N2): a line that opens with `@<word>` after any whitespace or
+ *   Unicode format characters (a no-break space, a form feed, a zero-width space, a byte-order mark) and is no header
+ *   the parse read is one, wherever it stands, inside a parsed record too, with the name token after it and no
+ *   identity; on a line no parsed record spans, each `@<word>` token anywhere on it is one, with no name, so a file
+ *   whose parse reads no record (no or another pragma) lists every word it mentions; and a line holding one of the
+ *   file's errors that no parsed record spans and the first reading names no header on is one with no word, a record
+ *   db cannot identify. The readings err towards listing: a non-header line so spelled in a file already refused is
+ *   listed under its word, an error line that declares nothing with no word. An error inside a parsed record's lines
+ *   is that record's alone.
  */
 export interface UnadmittedRecord {
   /**
@@ -69,8 +72,11 @@ export interface UnadmittedRecord {
    * only the source text shows, or whose word no admitted system registers.
    */
   readonly identity?: string;
-  /** The word the header names, lowercased. */
-  readonly word: string;
+  /**
+   * The word the header names, lowercased; absent for an error line of a file refused whole that no record db can
+   * identify accounts for (review D2-R2), which may declare a record of any word.
+   */
+  readonly word?: string;
   /**
    * The record's name as its header spells it, lowercased (lane D, D9: what a typed reference to it is matched by); absent
    * for a header that spells none and for a token read past the start of a line.
@@ -137,7 +143,8 @@ const TOKEN = /@([A-Za-z][A-Za-z0-9-]*)/g;
  * The occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested ones
  * included, with the identity its compile gives that header's record or, for one its compile refused, the identity spec
  * 3.1 gives it (`identityOf` over its word's registration), then every other line of `text` that opens with a header,
- * under its word and name, and every `@<word>` token on a line no parsed record spans, under its word. Each carries the
+ * under its word and name, every `@<word>` token on a line no parsed record spans, under its word, and every line of an
+ * error that neither a parsed record spans nor a header reading names, under no word (review D2-R2). Each carries the
  * error inside its lines, else `errors[0]`, the file's first error.
  */
 function refusedWhole(
@@ -162,8 +169,13 @@ function refusedWhole(
   );
   const finding = (line: number, endLine: number): UnadmittedFinding =>
     findingOf(errors.find((error) => error.line >= line && error.line <= endLine) ?? errors[0]!);
-  const occurrence = (word: string, name: string | undefined, line: number, endLine: number): UnadmittedRecord => ({
-    word: word.toLowerCase(),
+  const occurrence = (
+    word: string | undefined,
+    name: string | undefined,
+    line: number,
+    endLine: number,
+  ): UnadmittedRecord => ({
+    ...(word === undefined ? {} : { word: word.toLowerCase() }),
     ...(name === undefined || name === '' ? {} : { name: name.toLowerCase() }),
     band,
     path,
@@ -182,17 +194,31 @@ function refusedWhole(
     };
   });
   const headers = new Set(nodes.map((node) => node.span.line)),
-    spans = [...nodes.map((node) => node.span), ...(source.ast.syntaxRecordSpans ?? [])];
+    // A record's lines are those of a header the parse read, to the end of its structure (its syntax span, refused
+    // trailing lines included); the span of a header the parse refused identifies no record, so it spans nothing.
+    spans = [
+      ...nodes.map((node) => node.span),
+      ...(source.ast.syntaxRecordSpans ?? []).filter((span) => headers.has(span.line)),
+    ];
   const spanned = (line: number): boolean => spans.some((span) => line >= span.line && line <= span.endLine);
+  const named = new Set<number>();
   const unread = text.split(/\r\n|\r|\n/).flatMap((spelled, index): UnadmittedRecord[] => {
     const line = index + 1,
       header = HEADER.exec(spelled);
-    if (header !== null) return headers.has(line) ? [] : [occurrence(header[1]!, header[2], line, line)];
+    if (header !== null) {
+      named.add(line);
+      return headers.has(line) ? [] : [occurrence(header[1]!, header[2], line, line)];
+    }
     return spanned(line)
       ? []
       : [...spelled.matchAll(TOKEN)].map((token) => occurrence(token[1]!, undefined, line, line));
   });
-  return [...parsed, ...unread];
+  // Review D2-R2: an error at a line no parsed record spans and no header reading names leaves a record db cannot
+  // identify, of any word, so it is listed with none; an error inside an identified record is that record's.
+  const unknown = [...new Set(errors.map((error) => error.line))]
+    .filter((line) => !spanned(line) && !named.has(line))
+    .map((line) => occurrence(undefined, undefined, line, line));
+  return [...parsed, ...unread, ...unknown];
 }
 function diagnosticsOf(values: readonly Diagnostic[]): readonly Diagnostic[] {
   return [...new Map(values.map((d) => [stableSerialize(d), d])).values()].sort(
@@ -636,7 +662,7 @@ function views(
       ),
       unadmitted: Object.freeze(
         [...unadmitted]
-          .sort((a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.word, b.word))
+          .sort((a, b) => compare(a.path, b.path) || a.line - b.line || compare(a.word ?? '', b.word ?? ''))
           .map((entry) => Object.freeze(entry)),
       ),
       admittedSystems: Object.freeze(registry.order.filter((name) => !blocked.has(name))),

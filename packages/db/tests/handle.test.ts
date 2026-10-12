@@ -264,11 +264,21 @@ it('lists every record occurrence the root view does not admit, with its band an
   // The parse reads a CR-only file as one line (no pragma there); the text, split at every terminator, reads its header,
   // and the reference on a line no parsed record spans is listed under its word alone.
   expect(at('.ia/src/cr.ia').map((entry) => [entry.word, entry.name, entry.line, entry.finding.code])).toEqual([
+    // Its first line is no pragma and no header: a line no identified record accounts for (review D2-R2).
+    [undefined, undefined, 1, 'IA-LANG-PRAGMA-MISSING'],
     ['mandate', 'cr', 3, 'IA-LANG-PRAGMA-MISSING'],
     ['agent', undefined, 10, 'IA-LANG-PRAGMA-MISSING'],
   ]);
   // A token found past the start of a line names no record: only its word is known.
   expect(at('.ia/src/anywhere.ia')).toEqual([
+    // The unsupported pragma's line, which no identified record accounts for, is an occurrence of no known word.
+    {
+      band: 100,
+      path: '.ia/src/anywhere.ia',
+      line: 1,
+      endLine: 1,
+      finding: expect.objectContaining({ code: 'IA-LANG-VERSION-UNSUPPORTED', line: 1 }),
+    },
     {
       word: 'mandate',
       band: 100,
@@ -336,6 +346,49 @@ it('lists a record an adopted base refuses at that base band, 90 (lane D, D15)',
     expect(db.unadmitted.map((entry) => [entry.identity, entry.band, entry.finding.code])).toEqual([
       ['agent-system/policy/mandate/vendored', 90, 'IA-COMP-FIELD-VALUE'],
       ['agent-system/policy/mandate/authored', 100, 'IA-COMP-FIELD-VALUE'],
+    ]);
+  } finally {
+    db.close();
+  }
+});
+it('lists an occurrence of no known word for every error line of a file refused whole that no identified record accounts for (review D2-R2)', () => {
+  const root = workspace();
+  const body = '  meaning\n    says "x"\n';
+  // A header no reading can name: a space after the at sign, a full-width at sign.
+  put(root, '.ia/src/space.ia', `#! ia 1.0\n\n@ mandate spaced\n${body}`);
+  put(root, '.ia/src/fullwidth.ia', `#! ia 1.0\n\n${String.fromCharCode(0xff20)}mandate wide\n${body}`);
+  // Text in another encoding: UTF-16LE without a byte-order mark decodes, NUL bytes and all, to no pragma.
+  put(root, '.ia/src/utf16.ia', Buffer.from(`#! ia 1.0\n\n@mandate sixteen\n${body}`, 'utf16le'));
+  // A stray top-level line beside an identified record.
+  put(
+    root,
+    '.ia/src/stray.ia',
+    '#! ia 1.0\n\n@agent strayhost\n  meaning\n    says "x"\n    answers "y"\n  governance\n    applies []\n\ngarbage line here\n',
+  );
+  // An error inside an identified record is that record's: no occurrence of no known word.
+  put(root, '.ia/src/inside.ia', '#! ia 1.0\n\n@agent inside\n  meaning\n    says "x\n');
+  const db = open(root, { cache: false }),
+    at = (path: string) => db.unadmitted.filter((entry) => entry.path === path),
+    unknown = (path: string) =>
+      at(path)
+        .filter((entry) => entry.word === undefined)
+        .map((entry) => [entry.line, entry.finding.line, entry.name, entry.identity]);
+  try {
+    for (const path of ['.ia/src/space.ia', '.ia/src/fullwidth.ia']) {
+      expect(unknown(path)[0], path).toEqual([3, 3, undefined, undefined]);
+      expect(
+        at(path).every((entry) => entry.word === undefined),
+        path,
+      ).toBe(true);
+    }
+    expect(unknown('.ia/src/utf16.ia')).toEqual([[1, 1, undefined, undefined]]);
+    expect(at('.ia/src/utf16.ia')[0]!.finding.code).toBe('IA-LANG-PRAGMA-MISSING');
+    expect(at('.ia/src/stray.ia').map((entry) => [entry.word, entry.line])).toEqual([
+      ['agent', 3],
+      [undefined, 10],
+    ]);
+    expect(at('.ia/src/inside.ia').map((entry) => [entry.word, entry.identity, entry.line])).toEqual([
+      ['agent', 'agent-system/binding/agent/inside', 3],
     ]);
   } finally {
     db.close();

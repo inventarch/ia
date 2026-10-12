@@ -227,14 +227,21 @@ export interface RefusedMandate {
   /** The code and message of its own admission finding, as db records it (`UnadmittedRecord.finding`). */
   readonly code: string;
   readonly message: string;
+  /**
+   * Present when db cannot tell what the line declares (an error line of a file refused whole that no identified record
+   * accounts for; review D2-R2): it may be a mandate, so it counts as one.
+   */
+  readonly unidentified?: true;
 }
 /**
  * Lane D, D1: every `@mandate` of the workspace's own authored sources (band 100) that failed admission, frozen, by path
  * then line, each with its own admission finding as db records it (db `unadmitted`): (a) one admission refused,
  * `refused` naming it; (b) both occurrences of a mandate identity that ties at band 100; (c) one a file refused whole
  * declares, by a language error or a duplicate requirement id, as db's own parse of the file reads its headers, or as
- * its captured text shows a header the parse could not read, or a `@mandate` token on a line no parsed record spans. A
- * record is a mandate when its word is `mandate` or its identity's facet is. The band is the one db reads from the
+ * its captured text shows a header the parse could not read, or a `@mandate` token on a line no parsed record spans; and
+ * (d) review D2-R2: every record db cannot identify, an error line of a file refused whole that no parsed record spans
+ * and no header reading names, which may be a mandate, so it counts as one, marked `unidentified`. A record is a
+ * mandate when its word is `mandate` or its identity's facet is, or when db names no word. The band is the one db reads from the
  * source's placement, as capture membership and governingMandates read it, so a mandate refused inside an installed base
  * (band 90) never counts: it never governs.
  *
@@ -245,7 +252,9 @@ export function refusedMandates(reader: ReadHandle): readonly RefusedMandate[] {
   return freeze(
     reader.unadmitted
       .filter(
-        (entry) => entry.band === 100 && (entry.word === 'mandate' || entry.identity?.split('/')[2] === 'mandate'),
+        (entry) =>
+          entry.band === 100 &&
+          (entry.word === undefined || entry.word === 'mandate' || entry.identity?.split('/')[2] === 'mandate'),
       )
       .map(
         (entry): RefusedMandate => ({
@@ -254,6 +263,7 @@ export function refusedMandates(reader: ReadHandle): readonly RefusedMandate[] {
           line: entry.line,
           code: entry.finding.code,
           message: entry.finding.message,
+          ...(entry.word === undefined ? { unidentified: true as const } : {}),
         }),
       ),
   );
@@ -383,13 +393,15 @@ export function requireMandatesAdmitted(reader: ReadHandle, within: string): voi
   if (refused.length > 0) {
     const [first] = refused as [RefusedMandate],
       who =
-        first.identity === undefined
-          ? `the @mandate at ${first.path}:${first.line}`
-          : `${first.identity} (${first.path}:${first.line})`,
+        first.unidentified === true
+          ? `an unidentified record at ${first.path}:${first.line}, possibly a @mandate,`
+          : first.identity === undefined
+            ? `the @mandate at ${first.path}:${first.line}`
+            : `${first.identity} (${first.path}:${first.line})`,
       more =
         refused.length === 1
           ? ''
-          : ` (${refused.length - 1} more @mandate record${refused.length === 2 ? '' : 's'} failed admission)`,
+          : ` (${refused.length - 1} more ${refused.slice(1).some((entry) => entry.unidentified === true) ? 'possible ' : ''}@mandate record${refused.length === 2 ? '' : 's'} failed admission)`,
       also = dependencies.length === 0 ? '' : `, and ${records(dependencies.length)} failed admission`;
     fail(`${who} failed admission: ${first.code} ${first.message}${more}${also}; ${closed}`, where(first));
   }

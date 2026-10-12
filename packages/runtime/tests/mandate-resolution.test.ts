@@ -1391,3 +1391,48 @@ it('spells the admission report root only when every character is inert unquoted
     expect(admissionReport(slash(unsafe)), unsafe).toEqual({ command: 'ia report', fromRoot: true });
   expect(admissionReport(undefined)).toEqual({ command: 'ia report', fromRoot: true });
 });
+
+describe('a file refused whole whose records db cannot all identify (review D2-R2)', () => {
+  const body = '  meaning\n    says "x"\n';
+  const thrownBy = (run: () => unknown): RuntimeError => {
+    try {
+      run();
+    } catch (error) {
+      if (error instanceof RuntimeError) return error;
+      throw error;
+    }
+    throw new Error('expected a RuntimeError');
+  };
+  for (const [name, text, line] of [
+    ['a space after the at sign', `#! ia 1.0\n\n@ mandate spaced\n${body}`, 3],
+    ['a full-width at sign', `#! ia 1.0\n\n${String.fromCharCode(0xff20)}mandate wide\n${body}`, 3],
+    ['UTF-16LE without a byte-order mark', Buffer.from(`#! ia 1.0\n\n@mandate sixteen\n${body}`, 'utf16le'), 1],
+    ['a stray top-level line beside an identified record', `#! ia 1.0\n${agent('strayhost')}\ngarbage line here\n`, 10],
+  ] as const)
+    it(`fails closed for ${name}, which may be a mandate`, () => {
+      const root = freshInit();
+      put(root, '.ia/src/extra.ia', text as string);
+      const db = database(root);
+      expect(refusedMandates(db)[0]).toEqual({
+        path: '.ia/src/extra.ia',
+        line,
+        code: expect.stringMatching(/^IA-LANG-/),
+        message: expect.any(String),
+        unidentified: true,
+      });
+      const error = thrownBy(() => governingMandates(db, token(db), { actor: participant, workspace: demo }));
+      expect(isAdmissionRefusal(error)).toBe(true);
+      expect(error.where).toEqual({ path: '.ia/src/extra.ia', line });
+      expect(error.message).toContain(
+        `an unidentified record at .ia/src/extra.ia:${line}, possibly a @mandate, failed admission`,
+      );
+    });
+  it('does not fail closed for an error inside an identified record that is no mandate', () => {
+    const root = freshInit();
+    put(root, '.ia/src/extra.ia', '#! ia 1.0\n\n@agent inside\n  meaning\n    says "x\n');
+    const db = database(root);
+    expect(db.unadmitted.map((entry) => [entry.word, entry.line])).toEqual([['agent', 3]]);
+    expect(refusedMandates(db)).toEqual([]);
+    expect(identities(db, { actor: participant, workspace: demo })).toEqual([mandate('demo-mandate')]);
+  });
+});
