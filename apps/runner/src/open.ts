@@ -150,12 +150,21 @@ export function openRunner(options: RunnerOptions) {
       principal,
       reader,
       currentCapture,
-      authorize: authorizeOperation,
+      authorize: async (operation, path, operationContext) => {
+        const state = await store.read(operationContext.sessionId);
+        const run = state.runs[operationContext.runId]!;
+        authorizeOperation(operation, path, run.profile);
+        const limits = operationLimits(state, run.id, operation, path, true);
+        for (const key of Object.keys(limits) as (keyof Limits)[])
+          operationContext.grant.limits[key] = Math.min(operationContext.grant.limits[key], limits[key]);
+        operationContext.grant.expiresAt = Math.min(operationContext.grant.expiresAt, limits.deadline);
+      },
     });
     context = new RunnerContext(root, { ...inputs, cache: false });
     let phase: ScopeKey['phase'] = 'orient';
-    const narrowedGrant = (profile: Profile, state: Session | null): Grant => {
+    const narrowedGrant = (profile: Profile, state: Session | null, path?: string): Grant => {
       const selected = compiled.profiles[profile.id]!;
+      const mandates = profileMandates(profile, path);
       const limits: Limits = {
         steps: 64,
         modelCalls: 16,
@@ -168,14 +177,14 @@ export function openRunner(options: RunnerOptions) {
       };
       for (const [key, spelling] of Object.entries(boundedKeys) as [keyof typeof boundedKeys, string][]) {
         limits[key] = Math.min(limits[key], selected.limits[key] ?? limits[key]);
-        for (const mandate of profileMandates(profile)) {
+        for (const mandate of mandates) {
           if (mandate.binds === false) continue;
           const record = records.find((row) => row.identity === mandate.identity)!;
           const value = field(record, 'execution', `limit-${spelling}`);
           if (value && 'text' in value) limits[key] = Math.min(limits[key], Number(value.text));
         }
       }
-      for (const mandate of profileMandates(profile)) {
+      for (const mandate of mandates) {
         if (mandate.binds === false) continue;
         const value = field(
           records.find((row) => row.identity === mandate.identity)!,
@@ -212,11 +221,66 @@ export function openRunner(options: RunnerOptions) {
       const grant = copy(await options.authorize(who, current, state));
       for (const key of Object.keys(ceiling.limits) as (keyof Limits)[])
         grant.limits[key] = Math.min(grant.limits[key], ceiling.limits[key]);
-      grant.operations = grant.operations.filter((id) => ceiling.operations.includes(id));
-      grant.effects = grant.effects.filter((effect) => ceiling.effects.includes(effect));
-      grant.profiles = grant.profiles.filter((id) => ceiling.profiles.includes(id));
+      for (const key of ['operations', 'effects', 'profiles', 'sources', 'models'] as const)
+        (grant[key] as string[]) = grant[key].filter((value) => (ceiling[key] as string[]).includes(value));
       grant.expiresAt = Math.min(grant.expiresAt, ceiling.expiresAt);
       return grant;
+    };
+    const operationPath = (args: unknown): string | undefined =>
+      args && typeof args === 'object' && !Array.isArray(args) && 'path' in args && typeof args.path === 'string'
+        ? args.path
+        : undefined;
+    const operationLimits = (
+      state: Session,
+      runId: string,
+      operation: string,
+      path: string | undefined,
+      prepared: boolean,
+    ): Limits => {
+      const run = state.runs[runId]!;
+      const limits = narrowedGrant(manifest.profiles[run.profile]!, state, path).limits;
+      const used = state.budget;
+      requireRunner(
+        Date.now() < limits.deadline &&
+          used.steps <= limits.steps &&
+          used.modelCalls <= limits.modelCalls &&
+          used.operations + (prepared ? 0 : 1) <= limits.operations &&
+          used.usedTokens + used.reservedTokens <= limits.tokens &&
+          used.children <= limits.children &&
+          run.depth <= limits.depth &&
+          // Reserve the installed output ceiling and journal envelope before revealing a body.
+          used.retainedBytes + (manifest.operations[operation]?.maxOutputBytes ?? 65536) + 2048 <= limits.bytes,
+        'IA-RUNNER-MANDATE-LIMIT',
+        'The applicable mandate limits do not admit this operation against the original session budget',
+      );
+      return limits;
+    };
+    const disclosure = (profile: Profile, grant: Grant): void => {
+      requireRunner(
+        grant.principal === principal &&
+          grant.workspace === manifest.workspace &&
+          grant.expiresAt > Date.now() &&
+          grant.limits.deadline > Date.now() &&
+          grant.profiles.includes(profile.id) &&
+          grant.models.includes(profile.model) &&
+          grant.effects.includes('read') &&
+          grant.sources.includes(capture.revision),
+        'IA-RUNNER-AUTHORITY',
+        'Retained and current host authority do not permit source context disclosure',
+      );
+      const refusal = profileRefusal(profileMandates(profile), 'read').refusal;
+      if (refusal) throw new RunnerError(refusal.code, refusal.message, refusal.next);
+    };
+    const currentDisclosure = async (sessionId: string, runId: string, profile: Profile): Promise<void> => {
+      const state = await store.read(sessionId);
+      const grant = await authorize(principal, manifest, state);
+      const retained = state.runs[runId]!.authority as unknown as Grant;
+      for (const key of ['operations', 'effects', 'profiles', 'sources', 'models'] as const)
+        (grant[key] as string[]) = grant[key].filter((value) => (retained[key] as string[]).includes(value));
+      for (const key of Object.keys(grant.limits) as (keyof Limits)[])
+        grant.limits[key] = Math.min(grant.limits[key], retained.limits[key]);
+      grant.expiresAt = Math.min(grant.expiresAt, retained.expiresAt);
+      disclosure(profile, grant);
     };
     const verify = async () => {
       if (currentCapture().revision !== capture.revision) return false;
@@ -284,6 +348,23 @@ export function openRunner(options: RunnerOptions) {
       model: {
         id: model.id,
         generate: async (request, signal) => {
+          try {
+            await currentDisclosure(request.sessionId, request.runId, request.profile);
+          } catch (error) {
+            if (!(error instanceof RunnerError)) throw error;
+            // The attempt is already journaled, but no request has reached the model transport.
+            return {
+              action: {
+                type: 'outcome',
+                kind: 'refusal',
+                message: `${error.code}: ${error.message}; next: ${error.next}`,
+                continuation: 'finish',
+              },
+              usage: 0,
+              model: request.profile.model,
+              provider: 'runner-policy',
+            };
+          }
           // Compiler teaching remains provenance. Current position/read disclosure supplies model teaching.
           const response = await model.generate(
             { ...request, profile: { ...request.profile, instructions: [], voice: '' } },
@@ -293,6 +374,8 @@ export function openRunner(options: RunnerOptions) {
         },
       },
       context: async (profile, _task, grant, budget) => {
+        // Engine supplies the grant intersected with the authority retained at session creation.
+        disclosure(profile, grant);
         const ctx = catalog.contexts[compiled.profiles[profile.id]!.contexts[0]!]!.value;
         const shape: ScopeKey['shape'] =
           ctx.coordinate.category === 'capability'
@@ -336,9 +419,24 @@ export function openRunner(options: RunnerOptions) {
               ? 'learn'
               : 'plan';
       try {
+        if (
+          pending &&
+          typeof pending === 'object' &&
+          !Array.isArray(pending) &&
+          pending['type'] === 'invoke' &&
+          typeof pending['operation'] === 'string'
+        ) {
+          const path = operationPath(pending['input']);
+          authorizeOperation(pending['operation'], path, before.runs[before.rootId]!.profile);
+          operationLimits(before, before.rootId, pending['operation'], path, false);
+        }
         return await persist(await engine.advance(active, principal, { maxActions: 1 }));
       } catch (error) {
-        if (!(error instanceof SessionError) || error.code !== 'IA-ENGINE-LIMIT-EXCEEDED') throw error;
+        if (
+          !(error instanceof RunnerError) &&
+          (!(error instanceof SessionError) || error.code !== 'IA-ENGINE-LIMIT-EXCEEDED')
+        )
+          throw error;
         // Engine refuses before an over-budget dispatch. Persist that refusal without resetting its accounting.
         const owner = await store.acquire(active);
         try {
@@ -354,13 +452,16 @@ export function openRunner(options: RunnerOptions) {
                 runId: latest.rootId,
                 wait: {
                   id: randomUUID(),
-                  reason: 'runner-limit-refusal',
+                  reason: error.code.includes('LIMIT') ? 'runner-limit-refusal' : 'runner-authority-refusal',
                   objectIds: [],
                   continuation: 'stop',
                   details: {
                     code: error.code,
                     message: error.message,
-                    next: `ia position --seat ${compiled.profiles[compiled.entry.profile]!.mandate ?? manifest.workspace} --shape governance`,
+                    next:
+                      error instanceof RunnerError
+                        ? error.next
+                        : `ia position --seat ${compiled.profiles[compiled.entry.profile]!.mandate ?? manifest.workspace} --shape governance`,
                   },
                 },
               },
@@ -427,30 +528,6 @@ export function openRunner(options: RunnerOptions) {
             commandId,
           ),
         );
-      },
-      async request(operation: 'records' | 'search' | 'traverse' | 'read', params: Record<string, unknown>) {
-        requireRunner(active, 'IA-RUNNER-NOT-OPEN', 'Open or resume a run first');
-        const state = await store.read(active);
-        requireRunner(await verify(), 'IA-RUNNER-SOURCE-CHANGED', 'Pinned input or implementation changed');
-        requireRunner(
-          state.limits.deadline > Date.now() && !terminal(state.runs[state.rootId]!),
-          'IA-RUNNER-LIMIT',
-          'Run is terminal or expired',
-        );
-        const grant = await authorize(principal, manifest, state);
-        requireRunner(
-          grant.principal === principal &&
-            grant.workspace === manifest.workspace &&
-            grant.expiresAt > Date.now() &&
-            grant.effects.includes('read') &&
-            grant.sources.includes(capture.revision) &&
-            grant.profiles.includes(compiled.entry.profile),
-          'IA-RUNNER-AUTHORITY',
-          'Current host authority does not permit navigation',
-        );
-        const refusal = profileRefusal(profileMandates(manifest.profiles[compiled.entry.profile]!), 'read').refusal;
-        if (refusal) throw new RunnerError(refusal.code, refusal.message, refusal.next);
-        return context!.request(operation, params);
       },
       async close() {
         bound!.close();

@@ -5,7 +5,7 @@ import { afterEach, expect, it } from 'vitest';
 import { adoptWorkspace } from '@inventarch/workspace-runtime';
 import { INSTALLED_READ } from '@inventarch/agent-composition-system';
 import { open } from '@inventarch/db';
-import type { ModelAction, ModelRequest } from '@inventarch/agent-system';
+import type { EngineHost, Grant, ModelAction, ModelRequest } from '@inventarch/agent-system';
 import { replay } from '@inventarch/session-system';
 import { openRunner, runnerCatalog } from '../src/index.js';
 
@@ -42,6 +42,55 @@ function read(root: ReturnType<typeof openRunner>): ModelAction {
     operation: INSTALLED_READ.operation,
     input: { path: root.capture.sources.find((row) => row.path.endsWith('/records/runner.ia'))!.path, limit: 3 },
   };
+}
+function pathMandate(
+  options: ReturnType<typeof fixture>,
+  execution: string,
+  path = '.ia/src/systems/agent-composition-system/records/runner.ia',
+) {
+  const file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
+  writeFileSync(
+    file,
+    readFileSync(file, 'utf8') +
+      `
+@mandate covered-read-limits
+  meaning
+    says "Bound execution against the covered captured source."
+    answers "Which cumulative budget applies to this read?"
+  governance
+    requires "Retain the original session budget when reading this path."
+  authority
+    participant @agent runner-reader
+    covers ["${path}"]
+    moves [Observation]
+  execution
+    ${execution}
+`,
+  );
+}
+function hostPolicy(overrides: () => Partial<Grant>): EngineHost['authorize'] {
+  return async (principal, manifest, state) => ({
+    id: 'local-policy',
+    principal,
+    workspace: manifest.workspace,
+    profiles: Object.keys(manifest.profiles),
+    operations: Object.keys(manifest.operations),
+    effects: ['read'],
+    sources: [manifest.sourceDigest],
+    models: ['runner/external'],
+    expiresAt: state?.limits.deadline ?? Date.now() + 600000,
+    limits: {
+      steps: 64,
+      modelCalls: 16,
+      operations: 99,
+      tokens: 200000,
+      children: 0,
+      depth: 0,
+      bytes: 8000000,
+      deadline: state?.limits.deadline ?? Date.now() + 600000,
+    },
+    ...overrides(),
+  });
 }
 
 it('opens, steps, executes the installed read, journals position per model step and replays after restart', async () => {
@@ -120,10 +169,14 @@ it('journals a stable mandate refusal and next command without dispatching', asy
   actions.push(read(runner));
   await runner.start('Attempt a disallowed move', 'refused-read');
   const state = await runner.run();
-  expect(state.runs['root']?.status).toBe('completed');
+  expect(state.runs['root']?.status).toBe('waiting');
   expect(state.budget.operations).toBe(0);
-  expect(JSON.stringify(state.runs['root']?.outcome)).toContain('IA-RUNTIME-MANDATE-MOVE');
-  expect(JSON.stringify(state.runs['root']?.outcome)).toContain('next: ia position');
+  expect(state.budget.modelCalls).toBe(0);
+  expect(seen).toHaveLength(0);
+  expect(state.runs['root']?.wait).toMatchObject({
+    reason: 'runner-authority-refusal',
+    details: { code: 'IA-RUNTIME-MANDATE-MOVE', next: expect.stringContaining('ia position') },
+  });
 });
 
 it('defers one persisted model request and resumes it without creating a second request', async () => {
@@ -163,7 +216,10 @@ it('refuses stale capture resume and leaves authored source bytes unchanged duri
 it('rechecks mandate refusal for externally submitted actions', async () => {
   const options = fixture(),
     file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
-  writeFileSync(file, readFileSync(file, 'utf8').replace('moves [Observation]', 'moves [Verification]'));
+  writeFileSync(
+    file,
+    readFileSync(file, 'utf8').replace('moves [Observation]', 'moves [Observation]\n    excluded-words [operation]'),
+  );
   const runner = openRunner(options);
   cleanups.push(() => runner.close());
   await runner.start('Try an external invocation', 'external-refusal');
@@ -172,7 +228,7 @@ it('rechecks mandate refusal for externally submitted actions', async () => {
   await runner.submit(attempt.id, { action: read(runner), usage: 1, model: 'runner/external', provider: 'local-test' });
   const state = await runner.run();
   expect(state.budget.operations).toBe(0);
-  expect(JSON.stringify(state.runs['root']?.outcome)).toContain('IA-RUNTIME-MANDATE-MOVE');
+  expect(JSON.stringify(state.runs['root']?.outcome)).toContain('IA-RUNTIME-MANDATE-WORD');
 });
 
 it('fails closed when a captured mandate changes before dispatch', async () => {
@@ -187,21 +243,11 @@ it('fails closed when a captured mandate changes before dispatch', async () => {
   expect((await runner.store.read('changed-before-dispatch')).budget.operations).toBe(0);
 });
 
-it('does not disclose record sections through navigation and refuses stale body reads', async () => {
+it('exposes no unbound or unaccounted direct read or navigation API', async () => {
   const options = fixture(),
     runner = openRunner(options);
   cleanups.push(() => runner.close());
-  await expect(runner.request('records', {})).rejects.toMatchObject({ code: 'IA-RUNNER-NOT-OPEN' });
-  await runner.start('Navigate captured records', 'navigation');
-  const rows = await runner.request('records', {});
-  expect(JSON.stringify(rows)).not.toContain('"sections"');
-  const body = await runner.request('read', { locator: runner.compiled.entry.profile });
-  expect(JSON.stringify(body)).toContain('runner-reader-profile');
-  const file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
-  writeFileSync(file, readFileSync(file, 'utf8').replace('one-operation limit', 'changed instruction'));
-  await expect(runner.request('read', { locator: runner.compiled.entry.profile })).rejects.toMatchObject({
-    code: 'IA-RUNNER-SOURCE-CHANGED',
-  });
+  expect('request' in runner).toBe(false);
 });
 
 it('rejects a forged installed implementation description without loading code', () => {
@@ -228,38 +274,162 @@ it('preserves excluded-word refusal even when the move itself is allowed', async
   expect(JSON.stringify(state.runs['root']?.outcome)).toContain('IA-RUNTIME-MANDATE-WORD');
 });
 
-it('requires current host permission for navigation as well as operation dispatch', async () => {
+it.each(['sources', 'effects'] as const)('does not disclose context without current %s permission', async (key) => {
   const options = fixture();
-  let allowed = true;
+  const seen: ModelRequest[] = [];
   const runner = openRunner({
     ...options,
-    authorize: async (principal, manifest, state) => ({
-      id: 'local-policy',
-      principal,
-      workspace: manifest.workspace,
-      profiles: Object.keys(manifest.profiles),
-      operations: Object.keys(manifest.operations),
-      effects: allowed ? ['read'] : [],
-      sources: [manifest.sourceDigest],
-      models: ['runner/external'],
-      expiresAt: state?.limits.deadline ?? Date.now() + 600000,
-      limits: {
-        steps: 64,
-        modelCalls: 16,
-        operations: 99,
-        tokens: 200000,
-        children: 0,
-        depth: 0,
-        bytes: 8000000,
-        deadline: state?.limits.deadline ?? Date.now() + 600000,
-      },
-    }),
+    model: scripted([done], seen),
+    authorize: hostPolicy(() => ({ [key]: [] })),
   });
   cleanups.push(() => runner.close());
   const state = await runner.start('Open under a narrowing host policy', 'host-policy');
   expect(state.limits.operations).toBe(1);
-  allowed = false;
-  await expect(runner.request('records', {})).rejects.toMatchObject({ code: 'IA-RUNNER-AUTHORITY' });
+  const refused = await runner.run();
+  expect(seen).toHaveLength(0);
+  expect(refused.budget.modelCalls).toBe(0);
+  expect(refused.runs['root']?.wait).toMatchObject({
+    reason: 'runner-authority-refusal',
+    details: { code: 'IA-RUNNER-AUTHORITY' },
+  });
+});
+
+it('retains original denied read authority even when the current host permits it', async () => {
+  const options = fixture(),
+    seen: ModelRequest[] = [];
+  let allowed = false;
+  const runner = openRunner({
+    ...options,
+    model: scripted([done], seen),
+    authorize: hostPolicy(() => ({ effects: allowed ? ['read'] : [] })),
+  });
+  cleanups.push(() => runner.close());
+  await runner.start('Retain original authority', 'retained-authority');
+  allowed = true;
+  const refused = await runner.run();
+  expect(seen).toHaveLength(0);
+  expect(refused.runs['root']?.wait).toMatchObject({ details: { code: 'IA-RUNNER-AUTHORITY' } });
+});
+
+it('rechecks disclosure permission after preparing context and before model transport', async () => {
+  const options = fixture(),
+    seen: ModelRequest[] = [];
+  const policy = hostPolicy(() => ({}));
+  const runner = openRunner({
+    ...options,
+    model: scripted([done], seen),
+    authorize: async (principal, manifest, state) => {
+      const grant = await policy(principal, manifest, state);
+      if (state?.budget.modelCalls) grant.effects = [];
+      return grant;
+    },
+  });
+  cleanups.push(() => runner.close());
+  await runner.start('Withdraw read after request preparation', 'dispatch-authority');
+  const refused = await runner.run();
+  expect(seen).toHaveLength(0);
+  expect(refused.budget.modelCalls).toBe(1);
+  expect(JSON.stringify(refused.runs['root']?.outcome)).toContain('IA-RUNNER-AUTHORITY');
+});
+
+it.each(['operations', 'model-calls', 'steps', 'tokens', 'bytes'])(
+  'applies a path-only zero %s mandate before read dispatch',
+  async (limit) => {
+    const options = fixture(),
+      actions: ModelAction[] = [];
+    pathMandate(options, `limit-${limit} 0`);
+    const runner = openRunner({ ...options, model: scripted(actions, []) });
+    cleanups.push(() => runner.close());
+    actions.push(read(runner), done);
+    await runner.start('Read a source with a covered limit', `path-${limit}`);
+    const refused = await runner.run();
+    expect(refused.budget.operations).toBe(0);
+    expect(refused.runs['root']?.wait).toMatchObject({
+      reason: 'runner-limit-refusal',
+      details: { code: 'IA-RUNNER-MANDATE-LIMIT' },
+    });
+    expect(Object.values(refused.attempts).filter((row) => row.kind === 'operation')).toHaveLength(0);
+  },
+);
+
+it('retains cumulative path operation counts after reopening a run', async () => {
+  const options = fixture(),
+    file = resolve(options.root, '.ia/src/systems/agent-composition-system/records/runner.ia');
+  writeFileSync(file, readFileSync(file, 'utf8').replace('limit-operations 1', 'limit-operations 3'));
+  pathMandate(options, 'limit-operations 1');
+  const actions: ModelAction[] = [],
+    runner = openRunner({ ...options, model: scripted(actions, []) });
+  cleanups.push(() => runner.close());
+  actions.push(read(runner));
+  let state = await runner.start('Retain path counters', 'path-resume');
+  while (state.budget.operations === 0) state = await runner.step();
+  expect(state.receipts.some((receipt) => receipt.error === null && receipt.target === INSTALLED_READ.operation)).toBe(
+    true,
+  );
+  await runner.close();
+  const resumedActions: ModelAction[] = [],
+    resumed = openRunner({ ...options, model: scripted(resumedActions, []) });
+  cleanups.push(() => resumed.close());
+  resumedActions.push(read(resumed), done);
+  await resumed.resume(state.id);
+  const refused = await resumed.run();
+  expect(refused.budget.operations).toBe(1);
+  expect(refused.runs['root']?.wait).toMatchObject({ details: { code: 'IA-RUNNER-MANDATE-LIMIT' } });
+});
+
+it('reserves the installed body output bound within a nonzero path byte budget', async () => {
+  const options = fixture(),
+    actions: ModelAction[] = [];
+  pathMandate(options, 'limit-bytes 65536');
+  const runner = openRunner({ ...options, model: scripted(actions, []) });
+  cleanups.push(() => runner.close());
+  actions.push(read(runner));
+  await runner.start('Keep the body within the covered byte budget', 'path-output-bytes');
+  const refused = await runner.run();
+  expect(refused.budget.retainedBytes).toBeLessThan(65536);
+  expect(refused.budget.operations).toBe(0);
+  expect(refused.runs['root']?.wait).toMatchObject({ details: { code: 'IA-RUNNER-MANDATE-LIMIT' } });
+});
+
+it('does not apply an unrelated path mandate to an allowed captured read', async () => {
+  const options = fixture(),
+    actions: ModelAction[] = [];
+  pathMandate(options, 'limit-operations 0', '.ia/src/systems/agent-composition-system/records/other.ia');
+  const runner = openRunner({ ...options, model: scripted(actions, []) });
+  cleanups.push(() => runner.close());
+  actions.push(read(runner), done);
+  await runner.start('Read outside the restricted path', 'unrelated-path');
+  const finished = await runner.run();
+  expect(finished.budget.operations).toBe(1);
+  expect(finished.runs['root']?.status).toBe('completed');
+});
+
+it('applies path limits to externally submitted invocations', async () => {
+  const options = fixture();
+  pathMandate(options, 'limit-operations 0');
+  const runner = openRunner(options);
+  cleanups.push(() => runner.close());
+  await runner.start('Reject an externally submitted over-budget path', 'external-path');
+  const waiting = await runner.run();
+  const attempt = Object.values(waiting.attempts).find((row) => row.kind === 'model')!;
+  await runner.submit(attempt.id, { action: read(runner), usage: 1, model: 'runner/external', provider: 'local-test' });
+  const refused = await runner.run();
+  expect(refused.budget.operations).toBe(0);
+  expect(refused.runs['root']?.wait).toMatchObject({ details: { code: 'IA-RUNNER-MANDATE-LIMIT' } });
+});
+
+it('measures path duration from the original session creation time', async () => {
+  const options = fixture(),
+    actions: ModelAction[] = [];
+  pathMandate(options, 'limit-duration-ms 1');
+  const runner = openRunner({ ...options, model: scripted(actions, []) });
+  cleanups.push(() => runner.close());
+  actions.push(read(runner));
+  await runner.start('Retain original path deadline', 'path-deadline');
+  await new Promise((done) => setTimeout(done, 10));
+  const refused = await runner.run();
+  expect(refused.budget.operations).toBe(0);
+  expect(refused.runs['root']?.wait).toMatchObject({ details: { code: 'IA-RUNNER-MANDATE-LIMIT' } });
 });
 
 it('preserves the durable run when evidence publication fails and retries projection on resume', async () => {

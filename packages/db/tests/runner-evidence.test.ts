@@ -193,6 +193,22 @@ it('keeps a completed failure or blocked outcome from becoming success evidence'
   );
 });
 
+it.each(['runner-authority-refusal', 'external-model'])(
+  'classifies the exact %s wait reason conservatively',
+  (reason) => {
+    const root = workspace(),
+      input = journal(root);
+    append(input.events, { type: 'run.wait', runId: 'root', wait: { reason } });
+    writeRunnerEvidence(root, input);
+    const observation = runtime(root).find((node) => node.discriminator === 'observation')!;
+    const verdict = observation.sections
+      .find((section) => section.name === 'evidence')!
+      .fields.filter((field) => 'key' in field)
+      .find((field) => field.key === 'verdict')!.value;
+    expect(verdict).toMatchObject({ text: reason === 'runner-authority-refusal' ? 'refusal' : 'inconclusive' });
+  },
+);
+
 it('rejects tampering, duplicate JSON fields, unknown receipt fields and injected authority records', () => {
   const root = workspace(),
     input = journal(root),

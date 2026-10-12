@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { INSTALLED_READ, installedReadAdapters, installedReadCatalog } from '@inventarch/agent-composition-system';
 import type { CompiledHarness, CompositionCatalog } from '@inventarch/agent-composition-system';
-import type { Manifest, OperationAdapter } from '@inventarch/agent-system';
+import type { Manifest, OperationAdapter, OperationContext } from '@inventarch/agent-system';
 import type { Capture } from '@inventarch/workspace-runtime';
 import { bindExecution, executionBindings } from '@inventarch/workspace-runtime/bind';
 import type { ReadHandle } from '@inventarch/db';
@@ -19,7 +19,7 @@ export function bindOperations(input: {
   principal: string;
   reader: ReadHandle;
   currentCapture: () => Capture;
-  authorize: (operation: string, path?: string) => void;
+  authorize: (operation: string, path: string | undefined, context: OperationContext) => Promise<void>;
 }) {
   const bindings = executionBindings(input.reader);
   const fixed = installedReadCatalog();
@@ -70,16 +70,23 @@ export function bindOperations(input: {
     operations[operation.handler] = {
       id: operation.handler,
       execute: async (args, context) => {
-        input.authorize(
-          operation.id,
+        const path =
           args && typeof args === 'object' && !Array.isArray(args) && typeof args['path'] === 'string'
             ? args['path']
-            : undefined,
-        );
+            : undefined;
+        await input.authorize(operation.id, path, context);
         if (!bound)
           throw new RunnerError('IA-RUNNER-BINDING-UNAVAILABLE', result?.reason ?? 'No admitted execution binding');
+        const scoped: OperationContext = {
+          ...context,
+          assertCurrent: async () => {
+            await context.assertCurrent?.();
+            scoped.grant = context.grant;
+            await input.authorize(operation.id, path, scoped);
+          },
+        };
         // installedReadAdapters rechecks complete implementation closure, capture and current grant at dispatch.
-        return bound.execute(args, context);
+        return bound.execute(args, scoped);
       },
     };
   }

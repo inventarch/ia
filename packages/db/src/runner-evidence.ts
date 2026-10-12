@@ -325,7 +325,9 @@ function project(value: Receipt, path: string, graph: Graph): string | undefined
     } else if (mutation['runId'] === rootId && type === 'run.wait') {
       const wait = row(mutation['wait']),
         why = text(wait['reason'], 128);
-      verdict = ['limit', 'runner-limit-refusal'].includes(why) ? 'refusal' : 'inconclusive';
+      verdict = ['limit', 'runner-limit-refusal', 'runner-authority-refusal'].includes(why)
+        ? 'refusal'
+        : 'inconclusive';
       reason = `Journal event run.wait records ${why}; a wait is not a terminal outcome.`;
     } else if (type === 'attempt.observe') {
       const attempt = attempts.get(String(mutation['attemptId']));
