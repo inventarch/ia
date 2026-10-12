@@ -34,4 +34,7 @@ export { bindChecks, checkVerdicts, WHOLE_WORKSPACE_SCOPE } from './checks.js';
 export type { CheckBinding, CheckBindingStatus, CheckCatalog, CheckOutcome } from './checks.js';
 export { CHECK_EVIDENCE_WORD, evidenceText, readEvidence, reproducesEvidence, writeEvidence } from './evidence.js';
 export type { EvidenceObservation, EvidenceWrite } from './evidence.js';
+export { RUNNER_EVIDENCE_DIRECTORY } from './inputs.js';
+export { RUNNER_EVIDENCE_FORMAT, writeRunnerEvidence } from './runner-evidence.js';
+export type { RunnerEvidenceWrite } from './runner-evidence.js';
 export type { ViewOptions } from './view.js';

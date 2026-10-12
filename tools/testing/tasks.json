@@ -1680,6 +1680,7 @@
         "tests/membership.test.ts",
         "tests/preview.test.ts",
         "tests/retention.test.ts",
+        "tests/runner-evidence.test.ts",
         "tests/scope.test.ts",
         "tests/seat.test.ts",
         "tests/view.test.ts",

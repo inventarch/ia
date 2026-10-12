@@ -1,0 +1,8 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Admit bounded runner journal claims as optional runtime evidence",
+  "summary": "@inventarch/db adds writeRunnerEvidence and the RunnerEvidenceWrite type, RUNNER_EVIDENCE_FORMAT, RUNNER_EVIDENCE_DIRECTORY and InputSnapshot.runnerEvidence. Readers opened with evidence:true can admit fixed-field @run and @observation projections from current-revision, source-bound local runner journal receipts. Observations reference their run; run status and phase recorded identify a journal projection rather than live engine state. The writer checks bounded plain data, hashes and monotonic journal prefixes, then stages and atomically replaces one receipt under an exclusive lock. Readers reject malformed, stale, colliding, linked, oversized or source-mismatched receipts. Evidence changes the reader revision without changing authoredRevision or existing authored admission. Validation evidence retains its independent exact reproduction gate. Journal integrity is not external attestation, execution authorization or proof of real-world effects; session replay remains the runner's responsibility. No release version or publication is selected by this additive change.",
+  "packages": ["@inventarch/db"],
+  "paths": ["packages/db/", "tools/testing/tasks.json"]
+}

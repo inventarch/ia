@@ -25,6 +25,7 @@ import type { InputSnapshot } from './inputs.js';
 import { EVIDENCE_DIRECTORY, evidenceSource, systemMember } from './inputs.js';
 import { bindChecks } from './checks.js';
 import { reproducesEvidence } from './evidence.js';
+import { runnerEvidenceSources } from './runner-evidence.js';
 import { declaredRoots, membershipOf } from './membership.js';
 import type { DeclaredRoot, MembershipRow } from './membership.js';
 import { repositoryWorkspace } from './seat.js';
@@ -292,21 +293,21 @@ function writerEvidence(source: RevisionSource, root: View): RevisionSource | un
     : undefined;
 }
 /** What `view` admits of everything but the evidence at `path`: its findings, verdicts and refusals, revisions aside. */
-function authoredAdmission(view: View, path: string): string {
+function authoredAdmission(view: View, paths: ReadonlySet<string>): string {
   const evidence = new Set(
-    [...view.graph.nodes.values()].filter((node) => node.source.path === path).map((node) => node.identity),
+    [...view.graph.nodes.values()].filter((node) => paths.has(node.source.path)).map((node) => node.identity),
   );
   return stableSerialize({
-    findings: view.report.findings.filter((finding) => finding.path !== path),
+    findings: view.report.findings.filter((finding) => !paths.has(finding.path)),
     verdicts: view.report.verdicts
       .filter((verdict) => !evidence.has(verdict.scope))
       .map((verdict) => ({
         check: verdict.check,
         scope: verdict.scope,
         outcome: verdict.outcome,
-        findings: verdict.findings.filter((finding) => finding.path !== path),
+        findings: verdict.findings.filter((finding) => !paths.has(finding.path)),
       })),
-    refused: view.refused.filter((record) => record.path !== path),
+    refused: view.refused.filter((record) => !paths.has(record.path)),
     records: [...view.graph.nodes.values()]
       .filter((node) => !evidence.has(node.identity))
       .map((node) => node.identity)
@@ -340,31 +341,56 @@ export function viewBuilder(
   options: ViewOptions = {},
 ): (location?: string, phase?: Phase) => View {
   const metadata = metadataOf(input),
-    authored = views(input, options, metadata, undefined);
-  if (input.evidence === undefined || input.evidence.length === 0) return authored;
+    authored = views(input, options, metadata, []);
+  if (!input.evidence?.length && !input.runnerEvidence?.length) return authored;
   const root = authored(),
     rooted =
       (build: typeof authored, view: View): typeof authored =>
       (location, phase) =>
         location === undefined && phase === undefined ? view : build(location, phase);
   const wanted = `${EVIDENCE_DIRECTORY}/${root.authoredRevision}.ia`;
-  const listed = input.evidence.find((candidate) => candidate.path === wanted),
+  const listed = input.evidence?.find((candidate) => candidate.path === wanted),
     read = listed === undefined ? undefined : evidenceSource(input.root, listed.path),
     source = read === undefined ? undefined : writerEvidence(read, root);
-  if (source === undefined) return rooted(authored, root);
-  const build = views(input, options, metadata, source),
-    evidenced = build();
-  return authoredAdmission(evidenced, source.path) === authoredAdmission(root, source.path)
-    ? rooted(build, evidenced)
-    : rooted(authored, root);
+  let sources: readonly RevisionSource[] = [],
+    build = authored,
+    evidenced = root;
+  if (source !== undefined) {
+    const candidate = views(input, options, metadata, [source]),
+      result = candidate(),
+      paths = new Set([source.path]);
+    if (authoredAdmission(result, paths) === authoredAdmission(root, paths)) {
+      sources = [source];
+      build = candidate;
+      evidenced = result;
+    }
+  }
+  // M7 adds only generated journal claims. D14 validation reproduction above is unchanged and stands independently.
+  if (!root.report.findings.some((finding) => finding.severity === 'error')) {
+    const runner = runnerEvidenceSources(input, root.authoredRevision, evidenced.graph);
+    if (runner.length > 0) {
+      const candidate = views(input, options, metadata, [...sources, ...runner]),
+        result = candidate(),
+        paths = new Set(runner.map((entry) => entry.path));
+      if (
+        authoredAdmission(result, paths) === authoredAdmission(evidenced, paths) &&
+        !result.unadmitted.some((entry) => paths.has(entry.path)) &&
+        !result.report.findings.some((finding) => paths.has(finding.path) && finding.severity === 'error')
+      ) {
+        build = candidate;
+        evidenced = result;
+      }
+    }
+  }
+  return rooted(build, evidenced);
 }
 function views(
   input: InputSnapshot,
   options: ViewOptions,
   metadata: RevisionSource,
-  evidence: RevisionSource | undefined,
+  evidence: readonly RevisionSource[],
 ): (location?: string, phase?: Phase) => View {
-  const inputSources = evidence === undefined ? input.sources : [...input.sources, evidence];
+  const inputSources = evidence.length === 0 ? input.sources : [...input.sources, ...evidence];
   const parsed = inputSources.map((s) => ({ ...parse(s.text, s.path), location: s.location }));
   /** The captured text of each source by path, which `source` occurrences read their unparsed headers from. */
   const texts = new Map(inputSources.map((s) => [s.path, s.text]));

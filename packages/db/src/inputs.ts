@@ -65,12 +65,17 @@ export interface InputSnapshot {
    * `sources`, and none is read here (review finding B3-N10): a view reads only its own authored revision's file.
    */
   readonly evidence?: readonly EvidenceCandidate[];
+  /** M7: bounded runner journal receipts, listed only when evidence was requested. */
+  readonly runnerEvidence?: readonly EvidenceCandidate[];
   readonly fingerprint: string;
 }
 /** D14: where the validate effect writes runtime evidence, one file per authored revision. */
 export const EVIDENCE_DIRECTORY = '.ia/work/evidence';
 /** D14: an evidence file's name, `<authored revision>.ia`; anything else in the directory is not evidence. */
 export const EVIDENCE_FILE = /^[0-9a-f]{64}\.ia$/;
+/** M7 receipts are data, never native sources supplied by a caller. */
+export const RUNNER_EVIDENCE_DIRECTORY = '.ia/work/runner-evidence';
+export const RUNNER_EVIDENCE_FILE = /^[0-9a-f]{64}-[0-9a-f]{64}\.json$/;
 const EVIDENCE_BYTES = 4 * 1024 * 1024;
 /** One listed evidence file: its path, and the size and modification time the fingerprint covers. */
 export interface EvidenceCandidate {
@@ -89,11 +94,16 @@ const RUNTIME = Object.freeze({
  * workspace a released reader validated is never refused for its `.ia/work`. A link, a hard-linked file or anything but
  * a regular file is not listed. The writer refuses where it would have to write through any of these.
  */
-function evidenceSources(root: string): readonly EvidenceCandidate[] {
-  for (const directory of ['.ia', '.ia/work', EVIDENCE_DIRECTORY]) {
+function evidenceSources(
+  root: string,
+  directory = EVIDENCE_DIRECTORY,
+  pattern = EVIDENCE_FILE,
+  limit = Number.MAX_SAFE_INTEGER,
+): readonly EvidenceCandidate[] {
+  for (const folder of ['.ia', '.ia/work', directory]) {
     let stat: Stats | undefined;
     try {
-      stat = lstatSync(safePath(root, directory), { throwIfNoEntry: false });
+      stat = lstatSync(safePath(root, folder), { throwIfNoEntry: false });
     } catch (error) {
       if (error instanceof DbError && error.code === 'IA-DB-PATH-UNSAFE') return [];
       throw error;
@@ -101,12 +111,20 @@ function evidenceSources(root: string): readonly EvidenceCandidate[] {
     if (stat === undefined || !stat.isDirectory()) return [];
   }
   const found: EvidenceCandidate[] = [];
-  for (const name of readdirSync(safePath(root, EVIDENCE_DIRECTORY)).sort(compare)) {
-    if (!EVIDENCE_FILE.test(name)) continue;
-    const path = `${EVIDENCE_DIRECTORY}/${name}`,
+  for (const name of readdirSync(safePath(root, directory)).sort(compare)) {
+    if (!pattern.test(name)) continue;
+    const path = `${directory}/${name}`;
+    let stat: Stats | undefined;
+    try {
       stat = lstatSync(safePath(root, path), { throwIfNoEntry: false });
+    } catch (error) {
+      if (directory === RUNNER_EVIDENCE_DIRECTORY && error instanceof DbError && error.code === 'IA-DB-PATH-UNSAFE')
+        continue;
+      throw error;
+    }
     if (stat?.isFile() === true && stat.nlink === 1)
       found.push(Object.freeze({ path, bytes: stat.size, mtimeMs: stat.mtimeMs }));
+    if (found.length > limit) return Object.freeze([]);
   }
   return Object.freeze(found);
 }
@@ -699,7 +717,13 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
   const activation = installed ? { activation: installed.pointer } : {};
   const authored = options.authoredRoots === undefined ? {} : { authoredRoots: options.authoredRoots };
   // D14: only a reader that asks reads evidence, and its fingerprint then covers it, so a concurrent write is seen.
-  const evidence = options.evidence === true ? { evidence: evidenceSources(canonical) } : {};
+  const evidence =
+    options.evidence === true
+      ? {
+          evidence: evidenceSources(canonical),
+          runnerEvidence: evidenceSources(canonical, RUNNER_EVIDENCE_DIRECTORY, RUNNER_EVIDENCE_FILE, 128),
+        }
+      : {};
   return Object.freeze({
     root: canonical,
     sources: Object.freeze(sources),
