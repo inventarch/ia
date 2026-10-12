@@ -80,7 +80,7 @@ it('refuses a complete packet beyond the finite slot bound and oversized input c
   expect(() => assembleLifecycleContextSegments(Array(13).fill('{}'))).toThrow();
 });
 
-// HOST-03 (private source history) flipped this HOST-02 characterization: the transport fragments and assembles a packet pinned
+// Public host lifecycle contract: the transport fragments and assembles a packet pinned
 // to an available Claude Code row (the H3-v1 selection 2.1.285 or the retained 2.1.278) and refuses every other pin, including
 // an unavailable version's digest and the unsegmented native profile, with the generic IA-LIFECYCLE-BUDGET code.
 it('fragments packets pinned to an available Claude Code row and refuses every other pin', () => {
@@ -115,7 +115,7 @@ it('fragments packets pinned to an available Claude Code row and refuses every o
   }
 });
 
-// HOST-04 (private source history): the ia.lifecycle-context.v1 pins vector keeps exactly its eight keys, which every packet
+// Public host lifecycle contract: the ia.lifecycle-context.v1 pins vector keeps exactly its eight keys, which every packet
 // identity covers. The transport accepts them and refuses a packet whose pins drop, rename or add a key.
 it('keeps the eight-key pins vector and refuses a dropped, renamed or added pin key (HOST-04)', () => {
   const keys = ['binding', 'implementation', 'installation', 'policy', 'profile', 'resources', 'source', 'view'];

@@ -192,12 +192,7 @@ export function installSignals(
     for (const signal of ['SIGINT', 'SIGTERM'] as const) process.off(signal, stop);
   };
 }
-/**
- * §1.2 step 3. Private namespaces the public tree does not carry. tools/release/export.mjs rewrites this table
- * to an empty one and drops the import above, so no private token survives into the public main.ts; that rewrite
- * now throws on a miss instead of no-opping, and tools/release/export.test.ts asserts the emitted file as well.
- * The help text is composed from this table, so emptying it also empties the line that advertised it.
- */
+/** The public CLI has no additional command namespaces; dispatch derives extension help from this empty table. */
 export const EXTENSIONS: readonly Extension[] = [];
 
 if (isEntry(process.argv[1], import.meta.url)) {

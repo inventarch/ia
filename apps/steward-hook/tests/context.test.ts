@@ -337,7 +337,7 @@ describe('fixed-root context hook consumer', () => {
   });
 });
 
-// HOST-02 (private source history) Claude Code 2.1.285 payloads, constructed from docs and binary inspection; the HOST-06 case
+// Public host lifecycle contract: Claude Code 2.1.285 payloads, constructed from docs and binary inspection; the HOST-06 case
 // in `lifecycle-profile.test.ts` holds captured ones. The transcript and scratchpad paths are never opened.
 const claude285 = (fields: Record<string, unknown>): string =>
   JSON.stringify({
@@ -411,7 +411,7 @@ const diagnostic = (code: string) => ({
   output: { systemMessage: `IA lifecycle context unavailable (${code}). No context was generated.` },
 });
 
-/** HOST-03 (private source history): the fixture binding re-created for another available row; every other selection is unchanged. */
+/** Public host lifecycle contract: the fixture binding re-created for another available row; every other selection is unchanged. */
 function bindingFor(version: string): ContextHookBinding {
   const { digest: _digest, ...input } = binding;
   return createContextHookBinding({ ...input, profile: lifecycleProfile('claude-code', version) });
@@ -444,7 +444,7 @@ describe('Claude Code 2.1.285 events through the context executable (HOST-02)', 
     },
   );
 
-  // HOST-03 (private source history) flipped this HOST-02 characterization under H3-v1: a binding of the selected 2.1.285 row serves a
+  // Public host lifecycle contract: a binding of the selected 2.1.285 row serves a
   // titled session's prompt, while a retained 2.1.278 binding still answers the fixed input diagnostic before opening a view.
   it('serves a 2.1.285 titled-session prompt under a 2.1.285 binding, and a retained 2.1.278 binding still refuses it', async () => {
     const openCurrentView = vi.fn(host().openCurrentView),
@@ -654,7 +654,7 @@ describe('selected claude-code@2.1.285 bootstrap through the context executable 
   });
 
   it('rebuilds the same bootstrap pins and required material, writing nothing, from a relocated workspace through the real local host', async () => {
-    // HOST-03 (private source history) relocation and determinism. Each fresh() run imports the context executable into a new module
+    // Public host lifecycle contract: relocation and determinism. Each fresh() run imports the context executable into a new module
     // graph, so composition's content-keyed native-context cache starts empty and the run rebuilds; a second run in the same
     // graph constructs exactly one EditorSnapshot fewer, because it reuses that cache. The workspace copied to another physical
     // root and bound there yields the same source, view, resource, installation, profile, policy and implementation pins and
@@ -692,7 +692,7 @@ describe('selected claude-code@2.1.285 bootstrap through the context executable 
       };
     };
     try {
-      // HOST-04 (private source history), from the HOST-03 review (m10): the mock and the copy are made inside the try, so the
+      // Public host lifecycle contract: the mock and the copy are made inside the try, so the
       // finally always undoes them, even when the copy fails.
       vi.doMock('@inventarch/db/editor', async (importOriginal) => {
         const actual = await importOriginal<typeof import('@inventarch/db/editor')>();
@@ -729,7 +729,7 @@ describe('selected claude-code@2.1.285 bootstrap through the context executable 
   }, 120_000);
 });
 
-/** HOST-04 (private source history): the fixture binding re-created for the selected row at another root, with the full native scope. */
+/** Public host lifecycle contract: the fixture binding re-created for the selected row at another root, with the full native scope. */
 function boundAt(at: string, change: Partial<Parameters<typeof createContextHookBinding>[0]> = {}): ContextHookBinding {
   const { digest: _digest, ...input } = binding;
   return createContextHookBinding({
@@ -804,7 +804,7 @@ const citationGrammar =
   /^(.+?)@([a-f0-9]{64}):(.+)#sha256=([a-f0-9]{64})(?:&lines=([0-9]+)-([0-9]+))?(?:&identity=(.+))?$/;
 
 describe('prompt-scoped runtime and resource context through the context executable (HOST-04)', () => {
-  // HOST-04 (private source history): a 2.1.285 binding serves UserPromptSubmit context through the real local host, from the
+  // Public host lifecycle contract: a 2.1.285 binding serves UserPromptSubmit context through the real local host, from the
   // explicit manifest and the binding's own scope. Each refusal is the fixed closed diagnostic; no case writes the fixture root.
   const real = (): ContextHookHost => ({ ...localContextHookHost(), implementation: () => implementation });
 
@@ -1422,7 +1422,7 @@ describe('prompt-scoped runtime and resource context through the context executa
   }, 120_000);
 });
 
-/** HOST-05 (private source history): the emitted context executable, the module the cache launcher imports, run as new Node processes. */
+/** Public host lifecycle contract: the emitted context executable, the module the cache launcher imports, run as new Node processes. */
 const emitted = resolve(import.meta.dirname, '../dist/context.js');
 /** The installed test profile's subprocess bound (tools/testing/tasks.json); a direct Vitest run uses the same value. */
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 120_000;
@@ -1555,7 +1555,7 @@ async function allSlots(args: (part: number) => string[], input: string): Promis
 }
 
 describe('the context executable in new processes on the selected claude-code@2.1.285 row (HOST-05)', () => {
-  // HOST-05 (private source history): each case owns a disposable copy of the suite's fixture root and runs the executable this
+  // Public host lifecycle contract: each case owns a disposable copy of the suite's fixture root and runs the executable this
   // source builds as separate Node processes, with constructed 2.1.285 payloads. Bindings pin the implementation that the
   // identity handshake reports, as registration does. A run that is not plain has read access only, under Node's permission model.
   const selectedDigest = lifecycleProfile('claude-code', '2.1.285').digest,
@@ -1982,7 +1982,7 @@ describe('the context executable in new processes on the selected claude-code@2.
 });
 
 describe('the installation pin through the real local host (PT3)', () => {
-  // PT3 (private source history): a workspace with an activated installed generation yields a packet whose installation pin is
+  // Public installed-generation contract: a workspace with an activated installed generation yields a packet whose installation pin is
   // that generation, and a fresh evaluation reports the generation activation moved to. The installed state is written in
   // process with @inventarch/db/distribution's own recipes and read back by its verifying reader; no archive is packed. This case has
   // its own binding with the default 30,000 ms deadline, not the suite's shared binding.

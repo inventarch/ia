@@ -1,4 +1,4 @@
-// The one link rule for projected Markdown (private source history). The isolated packed consumer copies this file beside
+// The one link rule for projected Markdown. The isolated packed consumer copies this file beside
 // compile-prose.mjs, and in-repo tests import it, so it imports only Node built-ins. See tools/projections/SPEC.md.
 import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import { join, posix, sep } from 'node:path';

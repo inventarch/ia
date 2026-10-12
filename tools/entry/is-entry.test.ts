@@ -120,9 +120,8 @@ it('leaves no source with the old spelling of the check, resolving process.argv[
 });
 
 it('keeps every copy of the check the same function as @inventarch/runtime/entry, whose cases then cover each', () => {
-  // This directory repeats it without dependencies, and folio (in the private tree only) repeats it because it may import
-  // only @inventarch/language. Their bodies must be the runtime's; the JavaScript copy spells its one type assertion as a JSDoc cast.
-  // tools/distribution/assemble-host.test.ts holds that file's copy to this directory's. This task hashes the whole tree.
+  // This directory repeats the runtime helper without dependencies. The JavaScript copy spells its type assertion
+  // as a JSDoc cast; compare complete parsed bodies. This task hashes the whole tree.
   const body = (path: string): string | undefined =>
     /^export function isEntry\([^)]*\)[^{\n]*\{\n([\s\S]*?)\n\}/m.exec(
       readFileSync(resolve(root, path), 'utf8').replaceAll('\r\n', '\n'),
@@ -145,8 +144,6 @@ it('keeps every copy of the check the same function as @inventarch/runtime/entry
       ),
     ),
   ).toBe(canonical(runtime));
-  if (existsSync(resolve(root, 'apps/folio/src/main.ts')))
-    expect(canonical(body('apps/folio/src/main.ts'))).toBe(canonical(runtime));
 });
 
 it.each(['pnpm.cjs', 'pnpm.mjs', 'pnpm.js', 'pnpm'])(

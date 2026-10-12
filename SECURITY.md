@@ -23,6 +23,6 @@ We acknowledge reports in the advisory thread and keep you informed there as we 
 
 ## Scope
 
-This policy covers the code and records published in this repository and the artifacts attached to its releases. Hosted InventArch services and the private marketplace are not part of this repository; problems in them are reported to their own operators, not here.
+This policy covers the code and records published in this repository and the artifacts attached to its releases. Separately operated hosted services are outside this repository's scope; report their problems to their operators.
 
 Running `ia host claude`, `ia host codex` writes files into your workspace and user profile, and registers hooks and an MCP server with that host. Review the plan the command prints before applying it. A report about what the host set is permitted to do is in scope.

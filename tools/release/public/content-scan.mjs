@@ -183,7 +183,7 @@ function excepted(path, rule, value, policy, carriers) {
   }
   return false;
 }
-/** Same matching semantics in private source checks and emitted archive qualification; no sensitive text in refusals. */
+/** Same matching semantics in source checks and emitted archive qualification; no sensitive text in refusals. */
 export function contentFindings(outputs, policy) {
   validateContentPolicy(policy);
   const findings = [],

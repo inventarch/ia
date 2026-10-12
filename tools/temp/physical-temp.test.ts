@@ -191,8 +191,7 @@ it('is the first import of every Vitest configuration a task runs', () => {
 // Modules that make a temporary root under tmpdir(), or load one that does, without being an entry point, and modules
 // that run where the selector does not apply. `loadedBy` names every script that loads the module; each of those is
 // listed too or imports the selector first. An entry that no longer needs its place fails, and so does a script that
-// loads a listed module without being named. One list serves both trees, so entries and loaders this tree lacks are
-// skipped: tools/systems/fixture.ts exists only in the public tree, several others only in this one.
+// loads a listed module without being named. The list describes this repository's library and platform exceptions.
 const NOT_ENTRY_POINTS: Readonly<Record<string, { reason: string; loadedBy?: readonly string[] }>> = {
   'tools/compliance/hook-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
   'tools/compliance/publication-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
@@ -213,9 +212,8 @@ const NOT_ENTRY_POINTS: Readonly<Record<string, { reason: string; loadedBy?: rea
     reason: 'a library',
     loadedBy: ['tools/quality/main.ts', 'tools/quality/test-design.ts'],
   },
-  'tools/release/export.mjs': { reason: 'its tmpdir() and mkdtemp are text inside a fixture it writes' },
   'tools/systems/fixture.ts': {
-    reason: 'written by tools/release/export.mjs for the public tree',
+    reason: 'a library that creates isolated public system fixtures',
     loadedBy: ['tools/systems/scenarios.ts'],
   },
   'tools/systems/refusal-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },

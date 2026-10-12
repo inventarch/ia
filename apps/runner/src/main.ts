@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isEntry } from '@inventarch/runtime/entry';
 import { canonical } from '@inventarch/session-system';
 import type { ModelResponse } from '@inventarch/agent-system';
 import { openRunner } from './open.js';
@@ -78,7 +78,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     await runner.close();
   }
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+if (isEntry(process.argv[1], import.meta.url))
   main().catch((error: unknown) => {
     const problem = error as { code?: string; message?: string; next?: string };
     process.stderr.write(

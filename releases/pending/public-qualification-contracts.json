@@ -1,0 +1,42 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Align public qualification documentation",
+  "summary": "Public SDK qualification documents its committed source seal, retained archive receipt and manifest-derived package membership. Maintained tooling contracts and host test comments now describe the public repository without obsolete source-export requirements. Runtime behavior and active assertions are unchanged. Qualification tools initialize the physical temporary directory before importing shared selectors.",
+  "packages": [
+    "@inventarch/agent-composition-system",
+    "@inventarch/cli",
+    "@inventarch/distribution",
+    "@inventarch/steward-hook",
+    "@inventarch/runtime",
+    "@inventarch/service-contracts",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    ".ia/src/systems/agent-composition-system/references/sdk-runtime.md",
+    "SECURITY.md",
+    "SUPPORT.md",
+    "apps/cli/src/main.ts",
+    "apps/distribution/tests/context-launcher.test.ts",
+    "apps/distribution/tests/lifecycle-registration.test.ts",
+    "apps/steward-hook/tests/context.test.ts",
+    "packages/runtime/SPEC.md",
+    "packages/service-contracts/src/index.ts",
+    "packages/workspace-runtime/tests/lifecycle-profile.test.ts",
+    "packages/workspace-runtime/tests/lifecycle-segments.test.ts",
+    "packages/workspace-runtime/tests/lifecycle.test.ts",
+    "packages/workspace-runtime/tests/projections.test.ts",
+    "tools/compliance/check.ts",
+    "tools/dependencies/SPEC.md",
+    "tools/distribution/host-payload.mjs",
+    "tools/docs/MARKDOWN.md",
+    "tools/entry/SPEC.md",
+    "tools/entry/is-entry.test.ts",
+    "tools/projections/fixtures/link-walk.mjs",
+    "tools/projections/qualify-projections.mjs",
+    "tools/projections/qualify-resources.mjs",
+    "tools/release/public/content-scan.mjs",
+    "tools/temp/physical-temp.test.ts",
+    "tools/testing/SPEC.md"
+  ]
+}

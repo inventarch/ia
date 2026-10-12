@@ -97,9 +97,9 @@ const json = (value: unknown): string => JSON.stringify(value);
 const without = (value: Record<string, unknown>, key: string): Record<string, unknown> =>
   Object.fromEntries(Object.entries(value).filter(([name]) => name !== key));
 
-// HOST-02 (private source history) Claude Code 2.1.285 payloads, constructed from docs and binary inspection; the HOST-06 case
+// Public host lifecycle contract: Claude Code 2.1.285 payloads, constructed from docs and binary inspection; the HOST-06 case
 // at the end of this file holds captured ones. Field sets follow the hooks reference fetched 2026-09-30 and the 2.1.285 emitter read
-// in the HOST-02 grounding (section 2.3). Values are placeholders: the decoder opens no path and keeps no metadata value.
+// for that version. Values are placeholders: the decoder opens no path and keeps no metadata value.
 const session285 = {
   session_id: '8f14e45f-ceea-467f-a0e6-4b1c2d3e5f60',
   transcript_path: '/home/user/.claude/projects/-fixed-project/8f14e45f-ceea-467f-a0e6-4b1c2d3e5f60.jsonl',
@@ -138,7 +138,7 @@ const positive285: [string, Record<string, unknown>][] = [
   ['UserPromptSubmit under --agent', { ...prompt285, agent_type: 'security-reviewer' }],
 ];
 
-// HOST-02 (private source history) review M2: the inclusive side of each decoder text bound. Each row sets one field of the
+// Public host lifecycle contract: the inclusive side of each decoder text bound. Each row sets one field of the
 // constructed 2.1.285 prompt payload above exactly at its bound (the payloads HOST-06 captured are at the end of this file);
 // the malformed table below refuses one byte past each upper bound, and only the prompt may be empty.
 const inclusive285: [string, 'session_id' | 'transcript_path' | 'prompt', number, string][] = [
@@ -182,7 +182,7 @@ describe('Claude Code 2.1.285 payloads against the 2.1.278 decoder (HOST-02)', (
     },
   );
 
-  // HOST-03 (private source history) flipped this HOST-02 characterization under H3-v1 (G-H3 #415, `@decision parallel-g-h3`). The
+  // Public host lifecycle contract: the
   // selected claude-code@2.1.285 row accepts the documented optional session_title on UserPromptSubmit: it is validated, kept
   // out of the decoded event and the retriable key, and enters only the inputDigest. The retained 2.1.278 row still refuses it.
   it('accepts session_title on a 2.1.285 UserPromptSubmit and keeps refusing it on the retained 2.1.278 row', () => {
@@ -643,7 +643,7 @@ describe('malformed Claude Code lifecycle input (HOST-02)', () => {
   });
 });
 
-// HOST-03 (private source history): H3-v1 (G-H3 #415, `@decision parallel-g-h3`) selects claude-code@2.1.285 exactly. The HOST-02
+// Public host lifecycle contract: H3-v1 selects claude-code@2.1.285 exactly. The HOST-02
 // tables above stay on the retained 2.1.278 row; here the same constructed payloads (the HOST-06 case at the end of this
 // file holds captured ones) run against the selected row, which keeps every closed refusal and adds only the optional prompt session_title.
 describe('the selected claude-code@2.1.285 row (HOST-03)', () => {
@@ -675,8 +675,8 @@ describe('the selected claude-code@2.1.285 row (HOST-03)', () => {
     });
   });
 
-  // #447 review (finding 3): the field tables of these two rows are not in their digested profile bodies, and retained
-  // bindings, the HOST-06 live evidence and `@decision parallel-g-h3` pin their digests. This one case pins both digests, both
+  // The field tables of these two rows are not in their digested profile bodies, and retained
+  // bindings and the captured host evidence pin their digests. This case pins both digests, both
   // field tables and the closed set of unfolded rows; every row added from here folds its table into its digest (below).
   it('keeps the claude-code@2.1.278 and 2.1.285 rows byte-identical and pins their unfolded field tables', () => {
     expect(profile.digest).toBe('911d05a7fbf511e2de10a26dc573092b1cc99a1082f239e3b51aa7a6a9df4733');
@@ -749,7 +749,7 @@ describe('the selected claude-code@2.1.285 row (HOST-03)', () => {
   });
 });
 
-// HOST-04 (private source history), from the HOST-03 review (m8): each Claude Code row is keyed by its literal version, so a
+// Public host lifecycle contract: each Claude Code row is keyed by its literal version, so a
 // re-pin of SELECTED_CLAUDE_CODE_VERSION that adds no row fails here instead of silently moving the row that retained
 // bindings pin.
 describe('the selected Claude Code version (HOST-04)', () => {

@@ -1,5 +1,5 @@
-import { publicSystemNames } from '../native/public-systems.mjs';
 import '../temp/physical-temp.mjs';
+import { publicSystemNames } from '../native/public-systems.mjs';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';

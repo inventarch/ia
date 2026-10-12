@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Recognize linked runner entry points",
+  "summary": "The runner uses the shared entry-point helper so invoking its executable through a link starts the CLI. Importing its main module remains inert; runtime execution logic is unchanged.",
+  "packages": [
+    "@inventarch/runner"
+  ],
+  "paths": [
+    "apps/runner/src/main.ts"
+  ]
+}

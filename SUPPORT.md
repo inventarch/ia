@@ -23,4 +23,4 @@ Do not report security problems in an issue. Use the process in [SECURITY.md](SE
 
 ## What this repository does not cover
 
-Hosted InventArch services and the private marketplace are separate products. Questions about them belong with their operators, not in this repository.
+Questions about separately operated hosted services belong with their operators.

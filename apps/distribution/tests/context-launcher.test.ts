@@ -258,7 +258,7 @@ it("skips exactly the names @inventarch/db's platformDebris skips, since it runs
   }
 });
 it('leaves no stdout when the host cancels a context slot at its outer timeout', async () => {
-  // HOST-02 (private source history) process-level timeout fixture. Claude Code cancels a command hook that reaches its timeout and
+  // Public host lifecycle contract: process-level timeout fixture. Claude Code cancels a command hook that reaches its timeout and
   // discards its output; the launcher writes once, after the hook settles, so a slot stopped inside synchronous work leaves no
   // partial frame. The stand-in module records on stderr that the hook was entered, then never settles, and the slot is killed on
   // that marker: no fixed clock decides the outcome, and SUBPROCESS stays the ceiling on a slow runner. The stand-in blocks the

@@ -2,15 +2,15 @@
 
 The supported executable recipe is plain JavaScript over built package exports. This documents current SDK evidence, not a product decision excluding a future CLI. It changes no native loader or binding semantics.
 
-Start from the packaging owner's selected public tree, compiled archives and extraction receipt. Producer sources remain under `.ia/src/systems`. The fresh consumer installs ten receipt-selected current archives and dependencies; its native input is data copied from the public candidate.
+Start from the reviewed public candidate with its committed v2 `.ia/public-package-inputs.json` seal and retained `npm-release.json` archive receipt. Sources remain under `.ia/src/systems`. SDK membership is the six core packages (language, graph, compliance, db, runtime and workspace-runtime) plus the systems selected by `examples/public-language/manifest.json`: currently seventeen packages in total. The fresh consumer installs those exact archives and their dependencies; its native input is data copied from the same public candidate.
 
 The public packages retain the qualified Node profile `>=22.22.0 <23`. Current installed qualification used Node 22.22.0 on Windows, including `node:sqlite` under ordinary Node without additional flags. This does not qualify every platform or matching runtime. See the [versioned SQLite API reference](https://nodejs.org/download/release/v22.22.0/docs/api/sqlite.html).
 
 ```sh
-node tools/runtime/qualify-sdk.mjs <public-tree> <archives-directory> <new-output-directory> <pnpm.cjs> <populated-offline-store>
+node tools/runtime/qualify-sdk.mjs <public-tree> <archives-directory> <new-output-directory> <pnpm-launcher> <populated-offline-store>
 ```
 
-The helper records extraction provenance and archive hashes, installs offline with lifecycle scripts disabled, then runs `tests/sdk-runtime/recipe.mjs` under ordinary Node without tsx or development conditions. `qualification.json` is local candidate evidence, not registry provenance or acceptance of unexamined archive contents. The packaging owner retains archive safety and public selection responsibility. The helper accepts the current archive namespace; renamed published packages require the corresponding qualified recipe.
+The helper verifies the public input seal, release receipt, compatibility companion and archive hashes, records their public source identity, and installs offline with lifecycle scripts disabled. The launcher may be a Node entry file or a native pnpm executable. It then runs `tests/sdk-runtime/recipe.mjs` under ordinary Node without tsx or development conditions. `qualification.json` is local candidate evidence, not registry provenance or acceptance of unexamined archive contents. The packaging owner retains archive safety and public selection responsibility. The helper accepts the current archive namespace; renamed published packages require the corresponding qualified recipe.
 
 The recipe uses existing `captureWorkspace`, `compileHarness`, `installed`, `executionManifest` and `Engine` exports. Neutral fixture bytes enter an authored example system in the capture and undergo normal admission/compilation. Files use `.ia.fixture` so test records cannot become framework records. The installed catalogue supplies validators, outcomes, mandate, context, host, model, mapping, entry, read operation and evaluator contracts. Native profiles select the mandate and read capability; installed mandate checks select the concrete before-effect evaluator. Method prose supplies instructions and cannot grant authority.
 

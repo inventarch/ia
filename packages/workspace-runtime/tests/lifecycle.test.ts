@@ -527,7 +527,7 @@ describe('shared scoped lifecycle context', () => {
 
 describe('synchronous selection deadline (HOST-02)', () => {
   it('refuses a packet whose synchronous selection outlasts the deadline, which no abort signal can interrupt', async () => {
-    // HOST-02 (private source history) timeout fixture: the timer cannot fire inside synchronous selection, so only the
+    // Public host lifecycle contract: timeout fixture: the timer cannot fire inside synchronous selection, so only the
     // post-selection deadline check stops a late packet; the executable's outer host timeout bounds the wall clock.
     let completed = false;
     const binding = {
@@ -559,7 +559,7 @@ describe('synchronous selection deadline (HOST-02)', () => {
 
 describe('selected claude-code@2.1.285 bootstrap (HOST-03)', () => {
   it('emits a deterministic twelve-slot bootstrap pinned to its own row, reporting the selected source and resources', async () => {
-    // HOST-03 (private source history): the existing selector and transport emit the H3-v1 SessionStart bootstrap. Each run opens its
+    // Public host lifecycle contract: the existing selector and transport emit the H3-v1 SessionStart bootstrap. Each run opens its
     // own cache-disabled reader, so nothing selected in one run is reused by the next. The packet pins its own profile and the
     // view's source, resources, installation and policy. Before the transport accepted this row, every segmented request ended
     // in a misleading IA-LIFECYCLE-BUDGET or IA-LIFECYCLE-CONTEXT refusal.
@@ -632,7 +632,7 @@ describe('selected claude-code@2.1.285 bootstrap (HOST-03)', () => {
 });
 
 describe('prompt-scoped runtime and resource context on the selected claude-code@2.1.285 row (HOST-04)', () => {
-  // HOST-04 (private source history): selection is the runtime door's own context(), the function behind ia_context, over the
+  // Public host lifecycle contract: selection is the runtime door's own context(), the function behind ia_context, over the
   // caller's admitted view. These cases pin that behavior for 2.1.285 prompts with exact diagnostics. Each bound is tested
   // on both sides of a measured minimum, so no case depends on the size of the corpus.
   const selected = lifecycleProfile('claude-code', '2.1.285'),

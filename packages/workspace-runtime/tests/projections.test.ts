@@ -43,7 +43,7 @@ import type { ResourceAssociation, ResourceFilePin, ResourceOccurrence, Resource
 import { inert } from '../src/projection-host.js';
 import { resourceVerifier } from '../src/projection-routine.js';
 import { assignFeatures, featureFiles, resourcesResolve } from '../../../tools/projections/live-features.mjs';
-// The one link rule for projected Markdown (private source history), shared with the isolated packed consumer.
+// The one link rule for projected Markdown, shared with the isolated packed consumer.
 import { linkCounts, linkProblems } from '../../../tools/projections/fixtures/link-walk.mjs';
 
 // Cases rebuild adopted native views and serialize their host projections.

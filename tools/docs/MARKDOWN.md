@@ -50,7 +50,7 @@ Run the portable suite from the repository root:
 pnpm exec vitest run --config vitest.tools.config.mts tools/docs/link-parity.test.ts --maxWorkers=1
 ```
 
-The suite exercises both documentation readers and the teaching reader against the same syntax expectations. [audit.test.ts](audit.test.ts) retains repository-boundary and linked-entry checks. [authoring-manifest.test.ts](../systems/authoring-manifest.test.ts) retains installed-closure and private-citation controls. The public export includes the parser, this reference, both fixture files and their tests; its dependency closure must pass a frozen install.
+The suite exercises both documentation readers and the teaching reader against the same syntax expectations. [audit.test.ts](audit.test.ts) retains repository-boundary and linked-entry checks. [authoring-manifest.test.ts](../systems/authoring-manifest.test.ts) retains installed-closure and private-citation controls. This repository maintains the parser, this reference, both fixture files and their tests; its dependency closure must pass a frozen install.
 
 For a parser or policy update:
 

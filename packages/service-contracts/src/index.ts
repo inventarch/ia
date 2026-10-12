@@ -1,4 +1,4 @@
-// Implements service-host-extraction-and-mcp-design SH-06/07; AW-11/12.
+// Shared service transport contracts; see this package's SPEC.md.
 // Browser-safe structural contracts. Native admission and execution remain with their owners.
 import { z } from 'zod';
 export { z } from 'zod';

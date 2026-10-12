@@ -120,8 +120,8 @@ function repositoryPackageDir(name, repository) {
   return dir;
 }
 /**
- * The assembler's copy filter (tools/distribution/assemble-host.mjs:79) plus the payload's self-exclusion. Each of
- * `implementations` is located and, when its handler module is built, bundled as a further root; the located rows say
+ * Collect the public runtime closure using the explicit file allowlist below, excluding the CLI's own host payload.
+ * Each implementation is located and, when its handler module is built, bundled as a further root; the located rows say
  * why one is not shipped.
  */
 export async function collectPayload(repository, implementations = IMPLEMENTATIONS) {

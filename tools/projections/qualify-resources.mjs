@@ -1,6 +1,6 @@
+import '../temp/physical-temp.mjs';
 import { compiledSystemFolders } from '../native/public-systems.mjs';
 // Build first. This qualification installs emitted packages in a disposable consumer.
-import '../temp/physical-temp.mjs';
 import { packageManagerCommand } from '../entry/package-manager.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

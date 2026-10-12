@@ -470,7 +470,7 @@ it.each(layouts)(
 );
 
 it('registers only the two profile events, the five SessionStart sources and synchronous exec-form handlers', () => {
-  // HOST-02 (private source history) event/profile mapping: no other documented event is registered, UserPromptSubmit carries no
+  // Public host lifecycle contract: event/profile mapping: no other documented event is registered, UserPromptSubmit carries no
   // matcher because the host supports none, and no handler is async, shell-form or another hook type.
   const root = temp(),
     config = JSON.parse(planLifecycleRegistration(root, request(root), ports).after.config!);
@@ -490,11 +490,11 @@ it('registers only the two profile events, the five SessionStart sources and syn
 });
 
 it('matches the installed identity to the binding profile row and refuses an executable serving another row (HOST-03)', () => {
-  // HOST-03 (private source history): new registrations select claude-code@2.1.285 (H3-v1). The probe compares the emitted v2 identity
+  // Public host lifecycle contract: new registrations select claude-code@2.1.285 (H3-v1). The probe compares the emitted v2 identity
   // with the binding's own row instead of a hard-coded 2.1.278 digest, so a registration names exactly the row its executable serves.
   const selected = lifecycleProfile('claude-code', '2.1.285'),
     retained = lifecycleProfile('claude-code', '2.1.278');
-  // Both rows are named, and the remedy points at the binding, which must name the row its cache reports (private source history review).
+  // Both rows are named, and the remedy points at the binding, which must name the row its cache reports.
   const retainedOnCurrent = unsupported(
     "Context binding profile is claude-code 2.1.278, but the installed cache reports claude-code 2.1.285; set the binding's profile to claude-code 2.1.285",
   );
@@ -534,7 +534,7 @@ it('matches the installed identity to the binding profile row and refuses an exe
 });
 
 it('names the row the composition lookup returns for a reported digest, and an unknown profile for every digest it returns null for', () => {
-  // The probe keeps no row list of its own (private source history review): it names whatever segmentedLifecycleRow returns. The two
+  // The probe keeps no row list of its own: it names whatever segmentedLifecycleRow returns. The two
   // installed rows are named in both directions by the HOST-03 case above; here, rows the installed table does not have stand in
   // for a row the composition adds later, and their host comes from the lookup too.
   const binding = lifecycleProfile('claude-code', '2.1.278');
