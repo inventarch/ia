@@ -17,6 +17,7 @@ import {
   isEntry,
   mandateGuardSelects,
   openDatabase,
+  refusedDependencies,
   refusedMandates,
 } from '@inventarch/runtime';
 import type { HookCode } from '@inventarch/runtime';
@@ -815,13 +816,16 @@ export function evaluateHook(root: string, event: unknown, actorsPath?: string):
     return deny('IA-HOOK-STEWARD-UNAVAILABLE', error instanceof Error ? error.message : String(error));
   }
 }
-/** Whether the workspace admits; when it does not, whether an authored `@mandate` is among what admission refused. */
+/**
+ * Whether the workspace admits; when it does not, whether what admission refused fails the mandate resolvers closed: an
+ * authored `@mandate`, or a record an admitted mandate or workspace depends on (lane D, D2 and D9).
+ */
 type Admission = 'admits' | 'refuses' | 'mandate';
 /** The workspace's admission as `recovery` names it, read from an open database. */
 const admissionOf = (db: ReturnType<typeof openDatabase>): Admission =>
   !db.report.findings.some((finding) => finding.severity === 'error')
     ? 'admits'
-    : refusedMandates(db).length > 0
+    : refusedMandates(db).length > 0 || refusedDependencies(db).length > 0
       ? 'mandate'
       : 'refuses';
 /**
@@ -829,8 +833,8 @@ const admissionOf = (db: ReturnType<typeof openDatabase>): Admission =>
  * that very state (review findings G-R7, H-R2 and H-R8): removing the host registration, which restores editing and
  * needs neither an admitting workspace nor readable records; and, only where the workspace admits, re-registering its
  * current hooks, which removes a group whose record is gone. Where it does not admit, `ia validate` shows why; where an
- * authored `@mandate` failed admission, `ia validate` refuses like every mandate-gated command (lane D), so the
- * admission report, the version 1 machine route `ia report`, shows it instead.
+ * authored `@mandate`, or a record a mandate depends on, failed admission, `ia validate` refuses like every
+ * mandate-gated command (lane D), so the admission report, the version 1 machine route `ia report`, shows it instead.
  */
 const recovery = (root: string, admission: Admission): string => {
   const quoted = JSON.stringify(root),

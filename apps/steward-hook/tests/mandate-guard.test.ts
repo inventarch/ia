@@ -634,6 +634,83 @@ it('denies every selected edit while an authored @mandate fails admission, namin
   }
 });
 
+it('denies every selected edit while a record an admitted @mandate depends on fails admission (lane D, D9)', () => {
+  // The D8 probes: demo-mandate observes only, and the hook also selects notes/**, which only the scoped demo-mandate
+  // governs. A second participant, ops, may make every move there.
+  const hooksWithNotes = hooks(['"restricted/**"]', '"restricted/**", "notes/**"]']);
+  const ops = `#! ia 1.0\n${authorized('ops-mandate', ['participant @agent ops', 'moves [Observation, Verification, Synthesis, Delegation, Execution]', 'scope [@workspace demo]'])}\n@agent ops\n  meaning\n    says "A second participant."\n    answers "Who is ops?"\n  governance\n    applies []\n`;
+  const broken = (text: string, after: string): string => edited(text, [[after, `${after}  bogus\n    note x\n`]]);
+  const report = (root: string): string => `Next: ia report --root ${JSON.stringify(root)}`;
+  // Before: the observing default actor is refused under notes/.
+  const intact = workspace({
+    '.ia/src/workspace.ia': OBSERVING,
+    '.ia/src/hooks.ia': hooksWithNotes,
+    '.ia/src/ops.ia': ops,
+  });
+  expect(code(check(intact, 'notes/x.md'))).toBe('IA-HOOK-NOT-MANDATED');
+  // The steward participant's @agent fails admission: the default actor would become ops, so every selected edit fails
+  // closed at the agent, the mandates that name it named.
+  const agent = workspace({
+    '.ia/src/workspace.ia': broken(OBSERVING, '    applies []\n'),
+    '.ia/src/hooks.ia': hooksWithNotes,
+    '.ia/src/ops.ia': ops,
+  });
+  for (const [path, extra] of [
+    ['notes/x.md', {}],
+    ['docs/guide.md', {}],
+    ['notes/x.md', reviewer],
+  ] as const) {
+    const denied = check(agent, path, extra);
+    expect(code(denied), path).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+    expect(reason(denied), path).toContain('depends on @agent demo through');
+    expect(reason(denied), path).toContain(
+      'agent-system/binding/agent/demo (.ia/src/workspace.ia:12) failed admission: IA-COMP-SECTION-UNKNOWN',
+    );
+    expect(reason(denied), path).toContain(report(agent));
+  }
+  expect(check(agent, 'src/app.ts')).toEqual({});
+  // A registration whose hook is not admitted names the admission report too, since ia validate refuses there.
+  const absent = reason(check(agent, 'notes/x.md', {}, 'Write', 'hook-authoring-system/binding/hook/absent'));
+  expect(absent).toContain(`"ia report --root ${JSON.stringify(agent)}"`);
+  expect(absent).not.toContain('ia validate');
+  // The workspace demo-mandate is scoped to fails admission: the mandate would govern nowhere.
+  const scoped = workspace({
+    '.ia/src/workspace.ia': broken(OBSERVING, '    steward @agent demo\n'),
+    '.ia/src/hooks.ia': hooksWithNotes,
+  });
+  for (const extra of [{}, reviewer]) {
+    const denied = check(scoped, 'notes/x.md', extra);
+    expect(code(denied)).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+    expect(reason(denied)).toContain(
+      `${mandate('demo-mandate')} depends on @workspace demo through authority.scope, and ${DEMO} (.ia/src/workspace.ia:3) failed admission`,
+    );
+    expect(reason(denied)).toContain(report(scoped));
+  }
+});
+
+it('decides as before beside an unrelated refused @agent or a never-authored participant (lane D, D9)', () => {
+  const hooksWithNotes = hooks(['"restricted/**"]', '"restricted/**", "notes/**"]']);
+  const stray =
+    '#! ia 1.0\n\n@agent stray\n  meaning\n    says "x"\n    answers "y"\n  governance\n    applies []\n  bogus\n    note x\n';
+  const ghost = `#! ia 1.0\n${authorized('ghost-mandate', ['participant @agent ghost', 'moves [Observation]', 'covers ["notes/"]'])}`;
+  const root = workspace({
+    '.ia/src/workspace.ia': OBSERVING,
+    '.ia/src/hooks.ia': hooksWithNotes,
+    '.ia/src/stray.ia': stray,
+    '.ia/src/ghost.ia': ghost,
+  });
+  const db = open(root, { cache: false });
+  try {
+    expect(db.refused.map((record) => record.identity)).toContain('agent-system/binding/agent/stray');
+  } finally {
+    db.close();
+  }
+  const denied = check(root, 'notes/x.md');
+  expect(code(denied)).toBe('IA-HOOK-NOT-MANDATED');
+  expect(reason(denied)).toContain(`${mandate('demo-mandate')} allows Observation; author needs Synthesis`);
+  expect(check(root, 'docs/guide.md')).toEqual({});
+});
+
 it('keeps naming the governance position for an admitted mandate whose authority the resolver cannot read', () => {
   // A child under `authority.moves`: admission admits the record, the resolver refuses the field.
   const root = workspace({ '.ia/src/hooks.ia': hooks(['moves [Synthesis]', 'moves [Synthesis]\n      note x']) });
