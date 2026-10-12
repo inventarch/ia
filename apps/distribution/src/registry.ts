@@ -7,3 +7,19 @@ export { DEFAULT_REGISTRIES, registryChooser, registryFor, userConfigDir } from 
 export type { RegistryChoice, RegistryLevel, RegistryOptions } from './registry-config.js';
 export { registryWithdrawals, resolveFromRegistries, unpublishedPins } from './registry-resolve.js';
 export type { Acquirer, RegistryResolution, RegistryResolveRequest } from './registry-resolve.js';
+export {
+  collectionIndexPath,
+  decodeCollectionIndex,
+  selectCollection,
+  workspaceFiles,
+  workspaceRevision,
+} from './registry-collections.js';
+export type {
+  CollectionIndex,
+  KitRelease,
+  RegistryKind,
+  WorkspaceFile,
+  WorkspaceRelease,
+} from './registry-collections.js';
+export { adoptionId, applyAdoption, planAdoption } from './adoption.js';
+export type { AdoptionPlan } from './adoption.js';

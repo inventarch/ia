@@ -34,3 +34,5 @@ explicit references, not mutation/re-registration of product or patched base sch
 Qualification must record exact source/archive/dependency identities and separate
 structural findings from consumer semantics. No customer records, private methods,
 provider credentials or grant semantics belong in this release.
+
+The reviewed product assets and authoring-resource selection remain in the product wrapper. Packing delegates to `tools/release/distribution.mjs`, whose `packOptionalDistribution` accepts the source directory, explicit owned systems, release descriptor and exact assets. The wrapper preserves the original archive bytes; optional kits may select multiple systems through the same admission and closure checks.

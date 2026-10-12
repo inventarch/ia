@@ -1,3 +1,7 @@
+import { registryWorkspace } from './adopt.js';
+import { adoptedBindings } from '@inventarch/db';
+import { adoptionId, planAdoption, applyAdoption } from '@inventarch/distribution/registry';
+import type { WorkspaceRelease } from '@inventarch/distribution/registry';
 import { readBase, PIN_PATH, PACKAGE_ID, DAMAGED } from './bundled-base.js';
 import type { Base, BasePin } from './bundled-base.js';
 export { readBase, PIN_PATH, baseArchivePath, PACKAGE_ID } from './bundled-base.js';
@@ -222,6 +226,7 @@ export interface Starter {
   readonly provenance: Provenance;
 }
 export interface InitView {
+  readonly adoption?: { readonly id: string; readonly release: WorkspaceRelease };
   readonly root: string;
   readonly owns: readonly { readonly path: string; readonly purpose: string }[];
   readonly state: TargetState;
@@ -551,7 +556,7 @@ export function starterSystem(name: string): string {
  * The participant `@agent` implies no host permission, and its `@mandate` grants it closed moves over that workspace;
  * the mandate's one prose clause claims nothing. Every name is the workspace's (decision identity-namespace).
  */
-export function starterRecords(name: string, systems: readonly string[]): string {
+export function starterRecords(name: string, systems: readonly string[], sources: readonly string[] = []): string {
   return [
     '#! ia 1.0',
     '',
@@ -561,7 +566,7 @@ export function starterRecords(name: string, systems: readonly string[]): string
     '    answers "Which systems does this workspace compose?"',
     '  composition',
     `    systems [${systems.map((system) => `@system ${system}`).join(', ')}]`,
-    '    sources [".ia/src @authored"]',
+    `    sources [${['.ia/src @authored', ...sources].map((source) => JSON.stringify(source)).join(', ')}]`,
     `    steward @agent ${name}`,
     '',
     `@agent ${name}`,
@@ -611,10 +616,11 @@ export function starterFiles(
   name: string,
   systems: readonly string[],
   system: boolean,
+  sources: readonly string[] = [],
 ): Pick<Starter, 'files' | 'records'> {
   return {
     files: [
-      { path: WORKSPACE_PATH, text: starterRecords(name, system ? [...systems, name] : systems) },
+      { path: WORKSPACE_PATH, text: starterRecords(name, system ? [...systems, name] : systems, sources) },
       ...(system
         ? [
             { path: systemPath(name), text: starterSystem(name) },
@@ -775,6 +781,7 @@ function filesBelow(root: string, path: string): readonly string[] {
 }
 
 export interface InitRequest {
+  readonly adoption?: { readonly id: string; readonly release: WorkspaceRelease };
   readonly root: string;
   readonly host: HostSelection;
   readonly id?: string | undefined;
@@ -799,7 +806,15 @@ export function collectInit(request: InitRequest): InitView {
   if (identity.conflict !== null) conflicts.push(identity.conflict);
   const { name, id } = identity;
   const provenance = readProvenance(request.git);
-  const { files, records } = name === null ? { files: [], records: [] } : starterFiles(name, base.systems, system);
+  const sources = present
+    ? adoptedBindings(root).map((binding) => `${binding.tree}/.ia/src @${binding.placement ?? 'adopted'}`)
+    : [];
+  if (request.adoption) {
+    const source = `.ia/open/${adoptionId(request.adoption.id)}/${request.adoption.release.revision}/.ia/src @open`;
+    if (!sources.includes(source)) sources.push(source);
+  }
+  const { files, records } =
+    name === null ? { files: [], records: [] } : starterFiles(name, base.systems, system, sources);
   // M5.2 §4.3: a temporary file `createFile` left beside one of this initialization's own targets.
   const targets = new Set([...files.map((file) => file.path), IGNORE_PATH, DESCRIPTOR_PATH]);
   // `.<uuid>.tmp` is 41 characters: the dot, a 36-character UUID and `.tmp`.
@@ -903,6 +918,7 @@ export function collectInit(request: InitRequest): InitView {
     ...(host === 'none' ? [] : [{ id: 'project', status: 'pending', paths: [] } as const]),
   ];
   return {
+    ...(request.adoption ? { adoption: request.adoption } : {}),
     root,
     owns: ownedPaths(name, system),
     state,
@@ -999,6 +1015,7 @@ export async function applyInit(view: InitView, options: ApplyOptions): Promise<
   if (step('install').status === 'pending')
     await installBase(root, base, 'install', { signal: options.signal, checkpoint }, resume);
   boundary('install');
+  if (view.adoption) applyAdoption(planAdoption(root, view.adoption.id, view.adoption.release, false));
   // Step 4, author: create-only, so a starter file already present with these bytes is skipped and nothing is ever
   // rewritten. The ignore file is written only where none exists; one the target already holds is its own.
   for (const file of starter.files)
@@ -1132,6 +1149,18 @@ export function initEnvelope(view: InitView, apply: boolean, applied: Applied | 
     root: view.root,
     apply,
     plan: {
+      ...(view.adoption
+        ? {
+            adoption: {
+              id: view.adoption.id,
+              version: view.adoption.release.version,
+              revision: view.adoption.release.revision,
+              placement: 'open',
+              band: 50,
+              files: view.adoption.release.files.map((file) => file.path),
+            },
+          }
+        : {}),
       state: view.state,
       ...(initializedNext(view) === null ? {} : { next: initializedNext(view) }),
       owns: view.owns.map((row) => row.path),
@@ -1325,6 +1354,19 @@ export function renderInit(view: InitView, caps: Capabilities): string {
     [
       headerLine('Plan', 'init', [{ text: view.root, column: 50 }], caps),
       entry([words('This is a preview. Nothing has been written.')], { depth: 1 }, caps),
+      ...(view.adoption
+        ? [
+            entry(
+              [
+                words(
+                  `Adopt ${view.adoption.id}@${view.adoption.release.version}, pinned ${view.adoption.release.revision}, as source-only material at @open (band 50).`,
+                ),
+              ],
+              { depth: 1 },
+              caps,
+            ),
+          ]
+        : []),
       ...planBlocks(view, caps),
       entry([words(next)], { depth: 0, symbol: 'step' }, caps),
     ],
@@ -1433,6 +1475,10 @@ function invocationOf(context: Context): string {
   const parts = ['ia init', ...args.positionals.map(quote)];
   const id = args.value('id'),
     host = args.value('host');
+  for (const option of ['adopt', 'registry']) {
+    const value = args.value(option);
+    if (value !== undefined) parts.push(`--${option}`, quote(value));
+  }
   if (id !== undefined) parts.push('--id', quote(id));
   if (args.flag('migrate')) parts.push('--migrate');
   if (args.flag('system')) parts.push('--system');
@@ -1443,6 +1489,8 @@ function invocationOf(context: Context): string {
 export async function runInit(context: Context): Promise<Result> {
   const { args, host } = context;
   const id = args.value('id');
+  if (args.value('registry') !== undefined && args.value('adopt') === undefined)
+    throw new UsageError('ia init --registry requires --adopt');
   // A malformed identity is usage (§3), decided before the target is read.
   if (id !== undefined && (!PACKAGE_ID.test(id) || id.includes('..')))
     throw new UsageError(`--id must be <provider/name>; got ${id}`);
@@ -1477,7 +1525,10 @@ async function initialize(context: Context, root: string, id: string | undefined
   const selected = (args.value('host') ?? 'none') as HostSelection;
   const apply = args.flag('apply');
   const existing = statSync(root, { throwIfNoEntry: false }) === undefined ? dirname(root) : root;
+  const adoption =
+    args.value('adopt') === undefined ? undefined : await registryWorkspace(context, root, args.value('adopt')!);
   const view = collectInit({
+    ...(adoption ? { adoption } : {}),
     root,
     host: selected,
     id,

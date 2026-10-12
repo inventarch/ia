@@ -1,30 +1,14 @@
-import { readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
-import { resolve, relative } from 'node:path';
+import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { isEntry } from '../entry/is-entry.mjs';
-import { distributionSnapshot, packSnapshotWithDependencies } from '../../apps/distribution/src/snapshot.ts';
-import { verifyArchive } from '../../apps/distribution/src/archive.ts';
-import { resolveReleases } from '../../apps/distribution/src/resolve.ts';
-import { languagePackageInputs } from '../native/public-language.ts';
-import { buildLanguageBase } from '../native/language-base.ts';
 import { DISTRIBUTION_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
 
+import { packOptionalDistribution } from './distribution.mjs';
+
 export function productStructure(root) {
-  const base = languagePackageInputs(root),
-    language = buildLanguageBase(root);
   const directory = resolve(root, 'distributions/product-structure');
-  const files = (dir) =>
-    readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-      entry.isDirectory() ? files(resolve(dir, entry.name)) : [resolve(dir, entry.name)],
-    );
-  const native = files(resolve(directory, '.ia/src'))
-    .filter((file) => file.endsWith('.ia'))
-    .map((file) => ({
-      path: relative(directory, file).replaceAll('\\', '/'),
-      text: readFileSync(file, 'utf8'),
-      location: { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' },
-    }));
   const own = '.ia/src/systems/product-system';
   // Reviewed release closure: research and arbitrary future Markdown are never shipped by glob.
   const selectedAssets = [
@@ -82,7 +66,6 @@ export function productStructure(root) {
     },
   };
   assets.set('.ia/authoring.resources.json', Buffer.from(JSON.stringify(selection)));
-  const verified = verifyArchive(language.bytes);
   const descriptor = {
     formatVersion: 1,
     id: 'inventarch/product-structure',
@@ -90,7 +73,6 @@ export function productStructure(root) {
     distribution: 'workspace-system/definition/distribution/product-structure',
     engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
     language: ['1.0'],
-    dependencies: [{ id: verified.manifest.id, range: verified.manifest.version, systems: [...base.folders].sort() }],
     assets: [...assets.keys()].sort().map((path) => ({
       path,
       role: ['LICENSE', 'NOTICE'].includes(path) ? 'license' : path.endsWith('.md') ? 'documentation' : 'asset',
@@ -99,25 +81,7 @@ export function productStructure(root) {
     license: 'Apache-2.0',
     description: 'Explicitly selected public product structural vocabulary; no private methods or grants',
   };
-  const selected = resolveReleases(
-    [{ id: verified.manifest.id, range: verified.manifest.version }],
-    [{ release: verified, location: `sha256:${verified.archiveDigest}`, withdrawn: false }],
-    DISTRIBUTION_ENGINE_VERSION,
-  );
-  const product = packSnapshotWithDependencies(
-    distributionSnapshot({
-      sources: [...base.inputs, ...native],
-      folders: [...base.folders, 'product-system'],
-      floorOrigin: 'local',
-    }),
-    descriptor,
-    assets,
-    selected.lock,
-    new Map([[verified.archiveDigest, language.bytes]]),
-  );
-  if (product.manifest.systems.length !== 1 || product.manifest.systems[0].name !== 'product-system')
-    throw new Error('Product release widened its owned closure');
-  return { language, product };
+  return packOptionalDistribution(root, { directory, systems: ['product-system'], descriptor, assets });
 }
 
 if (isEntry(process.argv[1], import.meta.url)) {

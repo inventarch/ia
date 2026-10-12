@@ -141,6 +141,14 @@ export const COMMANDS: readonly CommandSpec[] = [
       options: [
         ...COMMON_OPTIONS.filter((entry) => entry.name !== 'root'),
         { ...ROOT, refuse: 'ia init takes its target as <directory>; --root is not accepted for this verb' },
+        REGISTRY,
+        option({
+          name: 'adopt',
+          kind: 'value',
+          conflicts: ['migrate', 'decline', 'forget-decline'],
+          placeholder: '<id>[@version]',
+          summary: 'Mount a source-only registry workspace at band 50',
+        }),
         // M5.1 §2.3: the package id, when the directory name does not normalize to the one wanted.
         option({
           name: 'id',
@@ -605,6 +613,19 @@ export const COMMANDS: readonly CommandSpec[] = [
         option({ name: 'apply', kind: 'boolean', summary: 'Apply the plan rather than previewing it' }),
       ],
       positionals('id', 0, Number.POSITIVE_INFINITY),
+    ),
+  },
+  {
+    name: 'adopt',
+    group: 'distribution',
+    summary: 'Plan or apply a source-only workspace adoption',
+    syntax: ['ia adopt <id>[@version] [--registry <url|dir>] [--apply] [--yes] [--json]'],
+    grammar: grammar(
+      [
+        REGISTRY,
+        option({ name: 'apply', kind: 'boolean', summary: 'Apply the adoption and refresh packet projections' }),
+      ],
+      positionals('id', 1, 1),
     ),
   },
   {

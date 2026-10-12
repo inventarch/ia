@@ -1009,6 +1009,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/adopt.test.ts",
         "tests/init-migrate.test.ts",
         "tests/init.test.ts"
       ],
@@ -1211,6 +1212,7 @@
         "tests/projection.test.ts",
         "tests/publication.test.ts",
         "tests/registry-build.test.ts",
+        "tests/registry-collections.test.ts",
         "tests/registry-config.test.ts",
         "tests/registry-layout.test.ts",
         "tests/registry-resolve.test.ts",

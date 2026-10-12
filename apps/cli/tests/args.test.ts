@@ -190,6 +190,7 @@ it('tags the agent commands for the packet catalog in table order, each naming o
     'vocabulary',
     'pack',
     'install',
+    'adopt',
     'update',
     'remove',
     'restore',

@@ -11,6 +11,8 @@ import {
   relabel,
 } from './registry-layout.js';
 import type { PackageIndex, RegistryInfo } from './registry-layout.js';
+import { collectionIndexPath, decodeCollectionIndex } from './registry-collections.js';
+import type { CollectionIndex } from './registry-collections.js';
 
 export type RegistryBase =
   | { readonly kind: 'https'; readonly url: string }
@@ -26,6 +28,8 @@ export interface Registry {
   readonly info: RegistryInfo;
   /** Reads the current index on every call (§5.1: never cached); a missing index is an empty one ("the registry has no releases of X"). */
   index(id: string): Promise<PackageIndex>;
+  index(kind: 'release', id: string): Promise<PackageIndex>;
+  index<K extends 'kit' | 'workspace'>(kind: K, id: string): Promise<CollectionIndex<K>>;
   artifactUrl(archive: string): string;
   /** A directory registry's exact artifact bytes, read with links and hard links refused (`bytes`); a missing artifact is ARTIFACT-UNAVAILABLE. */
   artifactBytes(archive: string): Buffer;
@@ -106,16 +110,35 @@ export async function openRegistry(
     fail('INPUT-INVALID', `Not a registry: ${where} has no ia-registry.json`);
   }
   const info = decoded(infoContent, decodeRegistryInfo, `Not a registry: ${where}: `, '');
+  function index(id: string): Promise<PackageIndex>;
+  function index(kind: 'release', id: string): Promise<PackageIndex>;
+  function index<K extends 'kit' | 'workspace'>(kind: K, id: string): Promise<CollectionIndex<K>>;
+  async function index(
+    kindOrId: string,
+    selectedId?: string,
+  ): Promise<PackageIndex | CollectionIndex<'kit' | 'workspace'>> {
+    const id = selectedId ?? kindOrId;
+    if (selectedId !== undefined && kindOrId !== 'release') {
+      if (kindOrId !== 'kit' && kindOrId !== 'workspace') fail('INPUT-INVALID', 'Unknown registry index kind');
+      const path = collectionIndexPath(kindOrId, id),
+        content = await read(path);
+      return decoded(
+        content ?? Buffer.from(JSON.stringify({ format: `ia.registry-${kindOrId}.v1`, id, releases: [] })),
+        (text) => decodeCollectionIndex(text, kindOrId, id),
+        '',
+        `: ${at(path)}`,
+      );
+    }
+    const path = packageIndexPath(id),
+      content = await read(path);
+    if (content === null)
+      return Object.freeze({ format: 'ia.registry-package.v1' as const, id, releases: Object.freeze([]) });
+    return decoded(content, (text) => decodePackageIndex(text, id), '', `: ${at(path)}`);
+  }
   return {
     base,
     info,
-    async index(id) {
-      const path = packageIndexPath(id),
-        content = await read(path);
-      if (content === null)
-        return Object.freeze({ format: 'ia.registry-package.v1' as const, id, releases: Object.freeze([]) });
-      return decoded(content, (text) => decodePackageIndex(text, id), '', `: ${at(path)}`);
-    },
+    index,
     artifactUrl: (archive) => {
       if (root !== undefined) fail('INPUT-INVALID', 'Directory registries have no artifact URL');
       return `${where}${archivePath(archive)}`;

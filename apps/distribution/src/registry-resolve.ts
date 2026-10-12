@@ -11,6 +11,7 @@ import { matchRegistryRelease as matches } from './registry-admission.js';
 import type { PackageIndex, RegistryRelease } from './registry-layout.js';
 import { openRegistry, registryBudget, registryLocation } from './registry-source.js';
 import type { Registry, RegistryBudget } from './registry-source.js';
+import { selectCollectionRelease } from './registry-collections.js';
 import { resolveReleases, selectReleases } from './resolve.js';
 import type { MetadataCandidate, ReleaseCandidate } from './resolve.js';
 
@@ -22,6 +23,7 @@ export interface Acquirer {
   ): Promise<{ location: `sha256:${string}` }>;
 }
 export interface RegistryResolveRequest {
+  readonly allowKits?: boolean;
   readonly root: string;
   readonly requests: readonly Dependency[];
   readonly engine: string;
@@ -45,6 +47,7 @@ export interface RegistryResolveRequest {
  * from none.
  */
 export interface RegistryResolution {
+  readonly expandedRequests?: readonly Dependency[];
   readonly candidates: readonly ReleaseCandidate<BundleMetadata>[];
   readonly sources: ReadonlyMap<string, RegistryChoice>;
 }
@@ -212,7 +215,7 @@ async function resolveWithPins(
   verified: ReadonlyMap<string, CachedPin>,
 ): Promise<RegistryResolution> {
   const { signal, engine, previous, acquirer } = request;
-  const requests = decodeDistributionRequests(request.requests),
+  const requests = [...decodeDistributionRequests(request.requests)],
     read = registries(request.choose, signal);
   // §5.1: a usable cached pin is a verified cached lock pin whose engine range admits the running engine; each is a
   // candidate at the lock's own location. One the engine no longer admits is looked up like an uncached pin.
@@ -282,6 +285,24 @@ async function resolveWithPins(
     if (entry === undefined) {
       entry = await read(id);
       indexed.set(id, entry);
+    }
+    // An explicit install may name a kit only when no release index owns that id.
+    // Members remain ordinary verified distributions; a kit grants no execution or registry credentials.
+    const direct = requests.findIndex((item) => item.id === id);
+    if (request.allowKits && direct >= 0 && named.has(id) && entry.index.releases.length === 0) {
+      const kitIndex = await entry.registry.index('kit', id);
+      if (kitIndex.releases.length) {
+        const kit = selectCollectionRelease(kitIndex, requests[direct]!.range);
+        requests.splice(direct, 1);
+        for (const member of kit.distributions) {
+          const existing = requests.find((item) => item.id === member.id);
+          if (existing && existing.range !== member.range)
+            fail('CONFLICT', `Kit conflicts with direct request ${member.id}`);
+          if (!existing) requests.push(member);
+          named.add(member.id);
+          need(member.id, member.range, null);
+        }
+      }
     }
     for (const release of entry.index.releases)
       if (!followed.has(release) && admissible(id, release)) {
@@ -448,6 +469,7 @@ async function resolveWithPins(
     signal?.throwIfAborted();
     const admitted = cacheSelectedArchiveClosure(root, resolved.lock, archives);
     return {
+      ...(request.allowKits ? { expandedRequests: requests } : {}),
       candidates: pending.map((candidate) => ({ ...candidate, release: admitted.get(candidate.release.manifest.id)! })),
       sources,
     };
@@ -485,7 +507,7 @@ async function resolveWithPins(
     candidates.push({ release: matches(id, entry, release), location, withdrawn: entry.withdrawn });
     sources.set(id, source.choice);
   }
-  return { candidates, sources };
+  return { candidates, sources, ...(request.allowKits ? { expandedRequests: requests } : {}) };
 }
 /**
  * Registry spec §6.3: reads each locked package's index and returns the `id@version` pins it marks withdrawn. A locked

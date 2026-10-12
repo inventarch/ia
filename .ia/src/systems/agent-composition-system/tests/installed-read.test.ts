@@ -141,13 +141,18 @@ it('retains the reader across repeated dispatches and refuses reads after its ow
   });
   expect(premature.context.assertCurrent).not.toHaveBeenCalled();
 });
-it.each(['adopted', 'native-store'])(
+it.each(['adopted', 'open', 'native-store'])(
   'binds %s native operation occurrences without relaxing StageE paths or loading a source module',
   async (origin) => {
     const f = readFixture(SDK, root),
       { revision: _revision, ...body } = f.capture;
     const source = body.sources.find((row) => row.path.endsWith('/operations/read-captured-source.ia'))!;
-    const prefix = origin === 'adopted' ? '.ia/adopted/public-read' : '.ia/distributions/store';
+    const prefix =
+      origin === 'adopted'
+        ? '.ia/adopted/public-read'
+        : origin === 'open'
+          ? '.ia/open/public-read'
+          : '.ia/distributions/store';
     const next = {
       ...body,
       sources: body.sources
@@ -157,7 +162,10 @@ it.each(['adopted', 'native-store'])(
                 ...row,
                 path: `${prefix}/${'a'.repeat(64)}/${row.path}`,
                 location: {
-                  placement: { kind: 'adopted' as const, band: 90 as const, reach: '' },
+                  placement:
+                    origin === 'open'
+                      ? { kind: 'open' as const, band: 50 as const, reach: '' }
+                      : { kind: 'adopted' as const, band: 90 as const, reach: '' },
                   provenance: 'methodology' as const,
                 },
               }

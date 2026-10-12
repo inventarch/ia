@@ -716,7 +716,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     );
   } else {
     const updated = operation === 'update' ? request.ids[0]! : undefined;
-    const requests =
+    let requests =
       updated !== undefined
         ? repin(previous, updated, request.to, reruns)
         : request.requestsFile === undefined
@@ -758,6 +758,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
       const resolution = await acquiring(
         () =>
           resolveFromRegistries({
+            allowKits: operation === 'install',
             root,
             requests,
             engine: DISTRIBUTION_ENGINE_VERSION,
@@ -771,6 +772,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         'registry',
         reruns,
       );
+      requests = resolution.expandedRequests ?? requests;
       choices = resolution.candidates;
       registries = registrySources(resolution.sources.values());
     }

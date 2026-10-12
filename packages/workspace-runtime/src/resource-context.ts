@@ -94,7 +94,9 @@ function buildNativeContext(capture: Capture): NativeContext {
       qualified.set(source.path, { source: id, revision: '', path });
       continue;
     }
-    const adopted = /^\.ia\/adopted\/([a-z][a-z0-9-]{0,63})\/([a-f0-9]{64})\/(\.ia\/src\/.+)$/.exec(source.path);
+    const adopted = /^\.ia\/(?:adopted|open)\/([a-z][a-z0-9-]{0,63})\/([a-f0-9]{64})\/(\.ia\/src\/.+)$/.exec(
+      source.path,
+    );
     if (adopted) {
       const id = adopted[1]!,
         revision = adopted[2]!,
@@ -102,7 +104,7 @@ function buildNativeContext(capture: Capture): NativeContext {
       portablePath(path);
       if (
         id === capture.id ||
-        source.location.placement.kind !== 'adopted' ||
+        source.location.placement.kind !== (source.path.startsWith('.ia/open/') ? 'open' : 'adopted') ||
         path.startsWith('.ia/src/floor/') ||
         (revisions.has(id) && revisions.get(id) !== revision)
       )
@@ -116,7 +118,10 @@ function buildNativeContext(capture: Capture): NativeContext {
       const generated =
         capture.activation &&
         source.path === `.ia/distributions/generations/${capture.activation.generation}/workspace.ia`;
-      if ((!source.path.startsWith('.ia/src/') && !generated) || source.location.placement.kind === 'adopted')
+      if (
+        (!source.path.startsWith('.ia/src/') && !generated) ||
+        ['adopted', 'open'].includes(source.location.placement.kind)
+      )
         invalid('Unqualified native resource source');
       portablePath(source.path);
       qualified.set(source.path, { source: capture.id, revision: capture.revision, path: source.path });

@@ -13,6 +13,7 @@
     "LICENSE",
     "NOTICE",
     "references/system-package.md",
+    "references/registry-collections.md",
     "LANGUAGE.md"
   ],
   "engines": {

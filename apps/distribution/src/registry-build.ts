@@ -25,6 +25,8 @@ import {
   relabel,
 } from './registry-layout.js';
 import type { PackageIndex, RegistryInfo, RegistryRelease } from './registry-layout.js';
+import { collectionIndexPath, decodeCollectionIndex } from './registry-collections.js';
+import type { CollectionIndex } from './registry-collections.js';
 
 /** Registry spec §8: the layout builder. Writes stay inside the registry directory and refuse links (files.ts); it never contacts a network. */
 export interface RegistryAddRequest {
@@ -44,6 +46,27 @@ const INFO = 'ia-registry.json';
 const encode = (value: unknown): Buffer => Buffer.from(JSON.stringify(JSON.parse(json(value)), null, 2) + '\n');
 /** Registry files are public static data, served or mirrored by other users: world-readable, unlike install state. */
 const PUBLIC = 0o644;
+
+/** Add static, source-only collection metadata after validating it with the consumer decoder. */
+export function registryAddCollection<K extends 'kit' | 'workspace'>(
+  dir: string,
+  kind: K,
+  value: CollectionIndex<K>,
+): void {
+  const root = registryRoot(dir),
+    content = encode(value);
+  if (content.length > REGISTRY_LIMITS.indexBytes) fail('LIMIT-EXCEEDED', 'Collection index exceeds 4 MiB');
+  const index = decodeCollectionIndex(utf8(content), kind, value.id),
+    path = collectionIndexPath(kind, index.id);
+  const previous = existing(root, path, (text) => decodeCollectionIndex(text, kind, index.id));
+  for (const prior of previous?.releases ?? []) {
+    const next = index.releases.find((release) => release.version === prior.version);
+    if (!next || json(next) !== json(prior)) fail('CONFLICT', 'Collection indexes are append-only');
+  }
+  if (readInfo(root) === null) create(root, INFO, encode({ format: 'ia.registry.v1', name: basename(root) }));
+  if (previous === null) create(root, path, content);
+  else replace(root, path, content, PUBLIC);
+}
 /** The `--registry` directory: absolute, existing, reached without links. */
 function registryRoot(dir: string): string {
   if (!isAbsolute(dir)) fail('INPUT-INVALID', 'An absolute --registry is required');

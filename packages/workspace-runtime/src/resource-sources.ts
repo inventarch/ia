@@ -8,6 +8,8 @@ export function resourcePrefix(capture: Capture, key: Pick<ResourceKey, 'source'
   for (const source of capture.sources) {
     const match = installedSource(source.path);
     if (match && installedId(match[1]!) === key.source) return `.ia/distributions/store/${match[1]}/`;
+    const open = `.ia/open/${key.source}/${key.revision}/`;
+    if (source.path.startsWith(open) && source.location.placement.kind === 'open') return open;
   }
   return `.ia/adopted/${key.source}/${key.revision}/`;
 }

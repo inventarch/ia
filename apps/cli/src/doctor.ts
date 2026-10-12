@@ -1069,6 +1069,8 @@ function portableLock(root: string): DistributionLock | undefined {
   }
 }
 
+import { sourceBindingRows } from './doctor-mounts.js';
+
 export function collectDoctor(request: DoctorRequest): DoctorView {
   const checks: Check[] = [...environment(request)];
   const supplied =
@@ -1093,6 +1095,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
         : `${supplied} is not an existing directory`,
     remedy: usable ? null : 'ia init',
   });
+  if (usable) checks.push(...sourceBindingRows(root));
   const pending = usable && existsSync(resolve(root, INSTALL_PATHS.pending));
   const pinned = pinnedRelease(request.packageRoot);
   // One verification per payload directory for the whole report: host, catalog and join rows share it (B-N7).

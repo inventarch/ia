@@ -29,6 +29,8 @@ export interface FloorSource {
   readonly text: string;
 }
 export interface AdoptedSource {
+  readonly placement?: 'open';
+  readonly reach?: string;
   readonly id: string;
   readonly revision: string;
   readonly sources: readonly FloorSource[];
@@ -360,7 +362,14 @@ export function inputOptions(options: InputOptions): InputOptions {
     const revision = createHash('sha256').update(stableSerialize(sources)).digest('hex');
     if (revision !== mount.revision)
       throw new DbError('IA-DB-SOURCE-CHANGED', 'Adopted source revision does not match exact bytes');
-    return Object.freeze({ id: mount.id, revision, sources: Object.freeze(sources) });
+    if (mount.placement !== undefined && mount.placement !== 'open')
+      throw new DbError('IA-DB-PATH-UNSAFE', 'Invalid bound source placement');
+    return Object.freeze({
+      id: mount.id,
+      revision,
+      sources: Object.freeze(sources),
+      ...(mount.placement === 'open' ? { placement: 'open' as const, reach: relativePath(mount.reach ?? '') } : {}),
+    });
   });
   const writableSystems =
     options.writableSystems === undefined ? undefined : Object.freeze([...options.writableSystems]);
@@ -413,8 +422,10 @@ export interface AdoptedBinding {
   /** The canonical workspace-relative directory whose `.ia/src` the binding captures. */
   readonly path: string;
   readonly revision: string;
-  /** The `.ia/adopted/<id>/<revision>` label the mount's sources carry in place of `path`; no file lives under it. */
+  /** The qualified source label: virtual for adopted bindings and the immutable on-disk tree for open bindings. */
   readonly tree: string;
+  readonly placement?: 'open';
+  readonly reach?: string;
 }
 const adoptedTree = (id: string, revision: string): string => `.ia/adopted/${id}/${revision}`;
 /**
@@ -425,7 +436,13 @@ export function adoptedBindings(root: string): readonly AdoptedBinding[] {
   return discovering(root, () =>
     Object.freeze(
       bindings(workspaceRoot(root)).map((binding) =>
-        Object.freeze({ ...binding, tree: adoptedTree(binding.id, binding.revision) }),
+        Object.freeze({
+          ...binding,
+          tree:
+            binding.placement === 'open'
+              ? `.ia/open/${binding.id}/${binding.revision}`
+              : adoptedTree(binding.id, binding.revision),
+        }),
       ),
     ),
   );
@@ -435,6 +452,8 @@ const invalid = (message: string): never => {
   throw new DbError('IA-DB-SOURCE-UNAVAILABLE', `.ia/workspace.json: ${message}`);
 };
 interface Binding {
+  readonly placement?: 'open';
+  readonly reach?: string;
   readonly id: string;
   readonly path: string;
   readonly revision: string;
@@ -460,17 +479,23 @@ function bindings<T = Binding>(root: string, each: (binding: Binding) => T = (bi
   if (
     !object(value) ||
     value['version'] !== 1 ||
-    Object.keys(value).some((k) => !['version', 'adopted'].includes(k)) ||
-    !Array.isArray(value['adopted']) ||
-    value['adopted'].length > 16
+    Object.keys(value).some((k) => !['version', 'adopted', 'open'].includes(k)) ||
+    (value['adopted'] !== undefined && !Array.isArray(value['adopted'])) ||
+    (value['open'] !== undefined && !Array.isArray(value['open'])) ||
+    ((value['adopted'] as unknown[]) ?? []).length + ((value['open'] as unknown[]) ?? []).length > 16
   )
     invalid('Expected version 1 and at most 16 adopted bindings');
   const ids = new Set<string>(),
     paths = new Set<string>();
-  return (value as { adopted: unknown[] }).adopted.map((entry) => {
+  return [
+    ...((value as { adopted?: unknown[] }).adopted ?? []).map((entry) => ({ entry, open: false })),
+    ...((value as { open?: unknown[] }).open ?? []).map((entry) => ({ entry, open: true })),
+  ].map(({ entry, open }) => {
     if (
       !object(entry) ||
-      Object.keys(entry).some((k) => !['id', 'path', 'revision'].includes(k)) ||
+      Object.keys(entry).some(
+        (k) => !(open ? ['id', 'path', 'revision', 'reach'] : ['id', 'path', 'revision']).includes(k),
+      ) ||
       typeof entry['id'] !== 'string' ||
       !/^[a-z][a-z0-9-]{0,63}$/.test(entry['id']) ||
       typeof entry['path'] !== 'string' ||
@@ -486,15 +511,30 @@ function bindings<T = Binding>(root: string, each: (binding: Binding) => T = (bi
       local !== local.normalize('NFC') ||
       /[\\\u0000-\u001f<>:"|?*]/.test(local) ||
       local.split('/').some((p) => !p || /[. ]$/.test(p) || /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(p)) ||
-      local.toLowerCase() === '.ia' ||
-      local.toLowerCase().startsWith('.ia/')
+      (open
+        ? local !== `.ia/open/${binding.id}/${binding.revision}`
+        : local.toLowerCase() === '.ia' || local.toLowerCase().startsWith('.ia/'))
     )
-      invalid('Source roots must be canonical workspace-relative directories outside .ia');
+      invalid(
+        open
+          ? 'Open sources must use their exact .ia/open/<id>/<revision> tree'
+          : 'Source roots must be canonical workspace-relative directories outside .ia',
+      );
     const key = local.toLowerCase();
     if (ids.has(binding.id) || paths.has(key)) invalid('Duplicate source identity or directory');
     ids.add(binding.id);
     paths.add(key);
-    return each({ id: binding.id, path: local, revision: binding.revision });
+    const reach =
+      open && (entry as Record<string, unknown>)['reach'] !== undefined
+        ? (entry as Record<string, unknown>)['reach']
+        : '';
+    if (typeof reach !== 'string' || relativePath(reach) !== reach) invalid('Invalid open source reach');
+    return each({
+      id: binding.id,
+      path: local,
+      revision: binding.revision,
+      ...(open ? { placement: 'open' as const, reach: reach as string } : {}),
+    });
   });
 }
 function workspaceSources(root: string): readonly AdoptedSource[] {
@@ -510,7 +550,12 @@ function workspaceSources(root: string): readonly AdoptedSource[] {
     const revision = createHash('sha256').update(stableSerialize(sources)).digest('hex');
     if (revision !== binding.revision)
       invalid(`Pinned source revision differs for ${binding.id}; refresh the binding with the intended source bytes`);
-    return { id: binding.id, revision, sources };
+    return {
+      id: binding.id,
+      revision,
+      sources,
+      ...(binding.placement === 'open' ? { placement: 'open' as const, reach: binding.reach ?? '' } : {}),
+    };
   });
 }
 /** The canonical directory of a workspace root, refused with IA-DB-ROOT-INVALID when it is none. */
@@ -690,12 +735,20 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
   if (installed) sources.push(...installed.sources);
   for (const mount of options.adopted ?? [])
     for (const source of mount.sources) {
-      const path = `${adoptedTree(mount.id, mount.revision)}/${source.path}`;
+      const tree =
+        mount.placement === 'open' ? `.ia/open/${mount.id}/${mount.revision}` : adoptedTree(mount.id, mount.revision);
+      const path = `${tree}/${source.path}`;
       sources.push(
         Object.freeze({
           path,
           text: source.text,
-          location: location({ placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' }),
+          location: location({
+            placement:
+              mount.placement === 'open'
+                ? { kind: 'open', band: 50, reach: mount.reach ?? '' }
+                : { kind: 'adopted', band: 90, reach: '' },
+            provenance: 'methodology',
+          }),
         }),
       );
     }
@@ -741,7 +794,7 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
 /** Shared membership for local and qualified adopted sources. */
 export function systemMember(path: string): { name: string; root: string } | undefined {
   const match =
-    /^(\.ia\/(?:(?:adopted\/[a-z][a-z0-9-]*|distributions\/store)\/[a-f0-9]{64}\/\.ia\/)?src\/systems\/([^/]+))\//.exec(
+    /^(\.ia\/(?:(?:(?:adopted|open)\/[a-z][a-z0-9-]*|distributions\/store)\/[a-f0-9]{64}\/\.ia\/)?src\/systems\/([^/]+))\//.exec(
       path,
     ) ?? /^((?!\.ia\/)(?:[^/]+\/)+\.ia\/src\/systems\/([^/]+))\//.exec(path);
   return match ? { name: match[2]!, root: match[1]! } : undefined;

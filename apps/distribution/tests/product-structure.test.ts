@@ -1,4 +1,11 @@
 import { beforeAll, expect, it } from 'vitest';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
+import { packOptionalDistribution } from '../../../tools/release/distribution.mjs';
+import { registryAddCollection } from '../src/registry-build.js';
+import { openRegistry } from '../src/registry-source.js';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { DISTRIBUTION_ENGINE_VERSION } from '@inventarch/db/distribution';
 import { KERNEL_SOURCES } from '@inventarch/language';
@@ -11,6 +18,86 @@ import { resolveReleases } from '../src/resolve.js';
 import { repository } from './snapshot-fixture.js';
 
 let releases: ReturnType<typeof productStructure>;
+it('packs two explicitly owned systems and indexes their optional kit', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'ia-two-system-'));
+  try {
+    cpSync(join(repository, 'distributions/product-structure'), directory, { recursive: true });
+    const own = join(directory, '.ia/src/systems/product-system'),
+      second = join(directory, '.ia/src/systems/gadget-system');
+    const copy = (from: string, to: string): void => {
+      mkdirSync(to, { recursive: true });
+      for (const entry of readdirSync(from, { withFileTypes: true })) {
+        const target = join(to, entry.name.replaceAll('product', 'gadget'));
+        if (entry.isDirectory()) copy(join(from, entry.name), target);
+        else
+          writeFileSync(
+            target,
+            readFileSync(join(from, entry.name), 'utf8')
+              .replaceAll('product', 'gadget')
+              .replaceAll('PRODUCT', 'GADGET'),
+          );
+      }
+    };
+    copy(own, second);
+    const control = join(own, 'release.ia');
+    writeFileSync(
+      control,
+      readFileSync(control, 'utf8').replace(
+        'systems [@system product-system]',
+        'systems [@system product-system, @system gadget-system]',
+      ),
+    );
+    const original = releases.product.files.get('.ia/authoring.resources.json')!;
+    const selection = JSON.parse(original.toString('utf8'));
+    const additional = JSON.parse(original.toString('utf8').replaceAll('product', 'gadget'));
+    const assets = new Map<string, Buffer>();
+    for (const path of ['README.md', 'SPEC.md', 'consumer.mjs', 'consumer.d.mts', 'LICENSE', 'NOTICE'])
+      assets.set(path, releases.product.files.get(path)!);
+    for (const file of [...selection.files, ...additional.files] as { path: string; bytes: number; sha256: string }[]) {
+      const content = readFileSync(join(directory, file.path));
+      assets.set(file.path, content);
+      file.bytes = content.length;
+      file.sha256 = createHash('sha256').update(content).digest('hex');
+    }
+    selection.files.push(...additional.files);
+    selection.associations.push(...additional.associations);
+    selection.index.systems.push(...additional.index.systems);
+    assets.set('.ia/authoring.resources.json', Buffer.from(JSON.stringify(selection)));
+    const { product } = packOptionalDistribution(repository, {
+      directory,
+      systems: ['product-system', 'gadget-system'],
+      assets,
+      descriptor: {
+        formatVersion: 1,
+        id: 'example/two-system',
+        version: '1.0.0',
+        distribution: 'workspace-system/definition/distribution/product-structure',
+        source: { repository: null, commit: null, recipe: 'ustar-v1', epoch: 0 },
+        license: 'Apache-2.0',
+        description: 'Two explicitly selected public fixture systems',
+      },
+    });
+    expect(product.manifest.systems.map((system) => system.name).sort()).toEqual(['gadget-system', 'product-system']);
+    const registry = join(directory, 'registry');
+    mkdirSync(registry);
+    registryAddCollection(registry, 'kit', {
+      format: 'ia.registry-kit.v1',
+      id: 'example/two-system-kit',
+      releases: [
+        {
+          version: '1.0.0',
+          withdrawn: false,
+          distributions: [{ id: product.manifest.id, range: product.manifest.version }],
+        },
+      ],
+    });
+    expect(
+      (await (await openRegistry({ kind: 'dir', path: registry })).index('kit', 'example/two-system-kit')).releases,
+    ).toHaveLength(1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 beforeAll(() => {
   releases = productStructure(repository);
 });

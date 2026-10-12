@@ -67,10 +67,10 @@ export function verifyCapture(input: Capture): Capture {
     const placement = source.location.placement;
     if (
       placement.reach !== '' ||
-      !['authored', 'adopted', 'floor'].includes(placement.kind) ||
-      placement.band !== ({ authored: 100, adopted: 90, floor: 10 } as Record<string, number>)[placement.kind]
+      !['authored', 'adopted', 'open', 'floor'].includes(placement.kind) ||
+      placement.band !== ({ authored: 100, adopted: 90, open: 50, floor: 10 } as Record<string, number>)[placement.kind]
     )
-      fail('This capture profile supports whole-workspace authored/adopted/floor sources only');
+      fail('This capture profile supports whole-workspace authored/adopted/open/floor sources only');
     paths.add(key);
     bytes += size;
   }

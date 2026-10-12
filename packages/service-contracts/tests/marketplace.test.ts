@@ -6,8 +6,28 @@ import {
   releaseBuildRequest,
   releasePublishRequest,
   releaseTerms,
+  registryKitIndex,
+  registryWorkspaceIndex,
 } from '../src/marketplace.js';
 const hash = 'a'.repeat(64);
+it('keeps kit/workspace indexes strict and free of configuration and credentials', () => {
+  const kit = {
+    format: 'ia.registry-kit.v1',
+    id: 'example/kit',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'example/base', range: '1.0.0' }] }],
+  };
+  expect(registryKitIndex.safeParse(kit).success).toBe(true);
+  expect(registryKitIndex.safeParse({ ...kit, credentials: 'remote' }).success).toBe(false);
+  const workspace = {
+    format: 'ia.registry-workspace.v1',
+    id: 'example/workspace',
+    releases: [
+      { version: '1.0.0', withdrawn: false, revision: hash, files: [{ path: '.ia/src/work.ia', text: '#! ia 1.0\n' }] },
+    ],
+  };
+  expect(registryWorkspaceIndex.safeParse(workspace).success).toBe(true);
+  expect(registryWorkspaceIndex.safeParse({ ...workspace, registry: 'https://another.example/' }).success).toBe(false);
+});
 const descriptor = {
   formatVersion: 1,
   id: 'independent/product',

@@ -126,3 +126,30 @@ export type PublishedRelease = z.infer<typeof publishedRelease>;
 export type AcquisitionQuote = z.infer<typeof acquisitionQuote>;
 export type AcquisitionReceipt = z.infer<typeof acquisitionReceipt>;
 export type ArtifactChunk = z.infer<typeof artifactChunk>;
+
+/** Public static registry collections. Native/source admission remains the distribution and db owners' job. */
+export const registryKind = z.enum(['release', 'kit', 'workspace']);
+export const registryKitIndex = z.strictObject({
+  format: z.literal('ia.registry-kit.v1'),
+  id: packageId,
+  releases: z
+    .array(z.strictObject({ version, withdrawn: z.boolean(), distributions: z.array(dependency).min(1).max(128) }))
+    .max(1000),
+});
+export const registryWorkspaceIndex = z.strictObject({
+  format: z.literal('ia.registry-workspace.v1'),
+  id: packageId,
+  releases: z
+    .array(
+      z.strictObject({
+        version,
+        withdrawn: z.boolean(),
+        revision: digest,
+        files: z
+          .array(z.strictObject({ path: z.string().min(1).max(1024), text: z.string().max(1048576) }))
+          .min(1)
+          .max(1000),
+      }),
+    )
+    .max(1000),
+});

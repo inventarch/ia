@@ -30,6 +30,7 @@ import { runDistribute } from './distribute.js';
 import { runDoctor } from './doctor.js';
 import { runFormat } from './format.js';
 import { runHost, runRecovery } from './host.js';
+import { runAdopt } from './adopt.js';
 import { runInit } from './init.js';
 import { runInspect } from './inspect.js';
 import { runNext } from './next.js';
@@ -480,6 +481,7 @@ type Handler = (context: Context) => Result | Promise<Result>;
 /** The consumer verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
 const HANDLERS: Readonly<Record<string, Handler>> = {
   init: runInit,
+  adopt: runAdopt,
   vocabulary: runVocabulary,
   format: runFormat,
   capture: runCapture,
