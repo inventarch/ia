@@ -28,7 +28,7 @@
 
 @agent public-template-system-steward
   meaning
-    says "Identifies the owner of template-system contracts in this example."
-    answers "Who owns the template word in this example?"
+    says "Accountable owner of template-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the template word?"
   governance
     applies [template]

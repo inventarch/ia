@@ -135,6 +135,14 @@ export function range(value: unknown): string {
   return v;
 }
 export const satisfies = (v: string, r: string): boolean => semver.satisfies(version(v), range(r));
+/** Released 0.1.0 solvers wrote their exact producer marker; retain those locks within the 0.1 compatibility line. */
+export const supportsDistributionLockEngine = (engine: string, declared: string): boolean =>
+  satisfies(engine, declared === '0.1.0' ? '^0.1.0' : declared);
+/** First engine capability that can read a pinned root release-control source. */
+export const ROOT_RELEASE_CONTROL_ENGINE_VERSION = '0.1.1';
+/** Every engine a control archive advertises must support its source profile, including disjoint range branches. */
+export const supportsRootReleaseControls = (engine: string): boolean =>
+  semver.subset(range(engine), `>=${ROOT_RELEASE_CONTROL_ENGINE_VERSION}`);
 export const compareVersions = (a: string, b: string): number =>
   semver.rcompare(version(a), version(b)) || compare(a, b);
 export function portablePath(value: unknown): string {

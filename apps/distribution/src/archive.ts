@@ -6,6 +6,7 @@ import {
   deriveGenerationInputs,
   DISTRIBUTION_LIMITS,
   portablePath,
+  verifyReleaseControl,
   sha256,
 } from '@inventarch/db/distribution';
 import type { BundleManifest, BundleMetadata } from '@inventarch/db/distribution';
@@ -39,6 +40,7 @@ function remembered(cache: Map<string, true>, key: string, verify: () => void): 
   if (cache.size > 32) cache.delete(cache.keys().next().value!);
 }
 const kernelDigest = (): string => sha256(JSON.stringify(KERNEL_SOURCES));
+
 const header = (path: string, size: number, epoch: number): Buffer => {
   portablePath(path);
   return ustarHeader(path, size, epoch);
@@ -129,6 +131,8 @@ function verifyArchiveBytes(input: Uint8Array, expectedDigest?: string): { pendi
   const manifest = decodeBundleManifest(utf8(content));
   if (canonicalDistributionJson(manifest) !== utf8(content)) fail('ARCHIVE-INVALID', 'Noncanonical manifest');
   files.delete('distribution.json');
+  const control = files.get(`.ia/src/releases/${manifest.distribution.split('/')[3]}.ia`);
+  if (control) verifyReleaseControl(manifest, utf8(control), (message) => fail('CLOSURE-INVALID', message));
   // One canonical USTAR per manifest and payload; inflateCanonical already held it to the recipe's gzip envelope. The deflate bytes
   // are not compared: zlib builds encode the same tar differently (Homebrew's Node links the system zlib). A pinned digest still binds exact bytes.
   if (!archiveTar(manifest, files).equals(tar))

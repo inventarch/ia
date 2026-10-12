@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "local/demo",
   "version": "0.1.0",
-  "engine": "^0.1.0",
+  "engine": "^0.1.1",
   "language": [
     "1.0"
   ],

@@ -38,6 +38,7 @@ export function ownerOf(path: string): string | undefined {
   if (path.startsWith('.ia/learning/')) return '.ia/learning';
   if (path.startsWith('.ia/src/floor/')) return '.ia/src/floor';
   if (path.startsWith('.ia/src/systems/') && parts.length >= 5) return parts.slice(0, 4).join('/');
+  if (path.startsWith('.ia/src/records/') || path.startsWith('.ia/src/releases/')) return '.';
   if (parts[0] === '.ia' && (parts.length === 2 || (parts.length === 3 && parts[1] === 'src'))) return '.';
   return undefined;
 }

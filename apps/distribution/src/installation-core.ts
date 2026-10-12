@@ -10,7 +10,7 @@ import {
   generationSources,
   installationWorkspace,
   metadataDigest,
-  satisfies,
+  supportsDistributionLockEngine,
 } from '@inventarch/db/distribution';
 import type { ActivationPointer, DistributionLock, GenerationInputs } from '@inventarch/db/distribution';
 import { verifySelectedArchiveClosure, type VerifiedArchive } from './archive.js';
@@ -105,7 +105,8 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
   if (op !== 'restore' && (previous === null) !== (previousLock === null))
     fail('RESTORE-REQUIRED', 'Current installation requires explicit recovery or restore');
   const lock = decodeDistributionLock(row['lock']);
-  if (!satisfies(DISTRIBUTION_ENGINE_VERSION, lock.engine)) fail('CONFLICT', 'Lock engine compatibility differs');
+  if (!supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, lock.engine))
+    fail('CONFLICT', 'Lock engine compatibility differs');
   const releases = selectedArchives(row['archives'], lock),
     inputs = deriveGenerationInputs(lock, releases);
   const pointer = decodeActivationPointer({

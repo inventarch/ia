@@ -13,7 +13,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { canonicalDistributionJson, sha256 } from '@inventarch/db/distribution';
+import { DISTRIBUTION_ENGINE_VERSION, canonicalDistributionJson, sha256 } from '@inventarch/db/distribution';
 import type { BundleManifest } from '@inventarch/db/distribution';
 import { productStructure } from '../../../tools/release/product-structure.mjs';
 import { buildArchive, inspectArchiveMetadata, verifyArchive } from '../src/archive.js';
@@ -120,21 +120,26 @@ it.each(['directory', 'https'] as const)(
     if (transport === 'https') serveDirectory(dir, base);
     expect(() => verifyArchive(releases[1]!.bytes)).toThrow(/authoring/i);
     expect('files' in inspectArchiveMetadata(releases[1]!.bytes).pending).toBe(false);
-    const result = await resolveFromRegistries({ root, requests, engine: '0.1.0', choose: choose(root, base) });
-    const { lock } = resolveReleases(requests, result.candidates, '0.1.0');
+    const result = await resolveFromRegistries({
+      root,
+      requests,
+      engine: DISTRIBUTION_ENGINE_VERSION,
+      choose: choose(root, base),
+    });
+    const { lock } = resolveReleases(requests, result.candidates, DISTRIBUTION_ENGINE_VERSION);
     expect(cachedReleases(root, lock).size).toBe(2);
     expect(applyInstallation(planInstallation(root, lock, 'install')).status).toBe('installed');
     const offline = await resolveFromRegistries({
       root,
       requests,
-      engine: '0.1.0',
+      engine: DISTRIBUTION_ENGINE_VERSION,
       previous: lock,
       named: [],
       choose: () => {
         throw Error('Offline pins must not contact a registry');
       },
     });
-    expect(resolveReleases(requests, offline.candidates, '0.1.0').lock).toEqual(lock);
+    expect(resolveReleases(requests, offline.candidates, DISTRIBUTION_ENGINE_VERSION).lock).toEqual(lock);
     const file = join(dir, 'packages/inventarch/product-structure.json'),
       index = JSON.parse(readFileSync(file, 'utf8'));
     index.releases[0].withdrawn = true;
@@ -155,7 +160,7 @@ it('refuses late corrupt bytes and index skew before caching earlier selected me
       writeFileSync(file, JSON.stringify(index));
     }
     await expect(
-      resolveFromRegistries({ root, requests, engine: '0.1.0', choose: choose(root, dir) }),
+      resolveFromRegistries({ root, requests, engine: DISTRIBUTION_ENGINE_VERSION, choose: choose(root, dir) }),
     ).rejects.toThrow();
     expect(existsSync(join(root, '.ia/distributions/cache'))).toBe(false);
   }
@@ -170,7 +175,7 @@ it('refuses an unrelated selected root supplying an undeclared guide dependency'
     resolveFromRegistries({
       root,
       requests: [...requests, { id: releases[0]!.manifest.id, range: releases[0]!.manifest.version }],
-      engine: '0.1.0',
+      engine: DISTRIBUTION_ENGINE_VERSION,
       choose: choose(root, dir),
     }),
   ).rejects.toThrow();
@@ -182,12 +187,17 @@ it('plans dependent offline cache selection and remote locked restore through ac
     dir = registry(),
     base = 'https://registry.test/base/';
   serveDirectory(dir, base);
-  const result = await resolveFromRegistries({ root: source, requests, engine: '0.1.0', choose: choose(source, base) });
-  const { lock } = resolveReleases(requests, result.candidates, '0.1.0');
+  const result = await resolveFromRegistries({
+    root: source,
+    requests,
+    engine: DISTRIBUTION_ENGINE_VERSION,
+    choose: choose(source, base),
+  });
+  const { lock } = resolveReleases(requests, result.candidates, DISTRIBUTION_ENGINE_VERSION);
   const offline = resolveReleases(
     requests,
     cachedCandidates({ root: source, reach: requests.map((row) => row.id) }),
-    '0.1.0',
+    DISTRIBUTION_ENGINE_VERSION,
   );
   expect(offline.lock.packages.map((row) => row.archive)).toEqual(lock.packages.map((row) => row.archive));
   expect(applyInstallation(planInstallation(source, offline.lock, 'install')).status).toBe('installed');
@@ -210,7 +220,7 @@ it('publishes a dependent archive only after its exact public dependencies are a
     location: `sha256:${release.archiveDigest}`,
     withdrawn: false,
   }));
-  const { lock } = resolveReleases(requests, candidates, '0.1.0');
+  const { lock } = resolveReleases(requests, candidates, DISTRIBUTION_ENGINE_VERSION);
   const selection = { lock, archives: new Map(releases.map((release) => [release.archiveDigest, release.bytes])) };
   const targetPath = join(inputs, 'product.ia.tgz'),
     canonicalPath = join(inputs, 'language.ia.tgz');
@@ -228,10 +238,10 @@ it('publishes a dependent archive only after its exact public dependencies are a
     resolved = await resolveFromRegistries({
       root: consumer,
       requests,
-      engine: '0.1.0',
+      engine: DISTRIBUTION_ENGINE_VERSION,
       choose: choose(consumer, dir),
     });
-  expect(resolveReleases(requests, resolved.candidates, '0.1.0').lock.packages).toHaveLength(2);
+  expect(resolveReleases(requests, resolved.candidates, DISTRIBUTION_ENGINE_VERSION).lock.packages).toHaveLength(2);
   expect(registryAdd({ dir, archive: targetPath, selection }).archive).toBe(target.archiveDigest);
 });
 
@@ -240,7 +250,7 @@ it('refuses withdrawn, missing, changed or skewed registry dependency before pub
     { lock } = resolveReleases(
       requests,
       releases.map((release) => ({ release, location: `sha256:${release.archiveDigest}`, withdrawn: false })),
-      '0.1.0',
+      DISTRIBUTION_ENGINE_VERSION,
     );
   const selection = { lock, archives: new Map(releases.map((release) => [release.archiveDigest, release.bytes])) };
   for (const mode of ['withdrawn', 'missing', 'changed', 'index']) {
@@ -274,10 +284,10 @@ it('publishes through CLI selection-root without changing the source installatio
   const acquired = await resolveFromRegistries({
     root: source,
     requests,
-    engine: '0.1.0',
+    engine: DISTRIBUTION_ENGINE_VERSION,
     choose: choose(source, origin),
   });
-  const { lock } = resolveReleases(requests, acquired.candidates, '0.1.0');
+  const { lock } = resolveReleases(requests, acquired.candidates, DISTRIBUTION_ENGINE_VERSION);
   applyInstallation(planInstallation(source, lock, 'install'));
   const archive = join(input, 'product.ia.tgz');
   writeFileSync(archive, releases[1]!.bytes);
@@ -314,7 +324,7 @@ function closure(members: readonly (typeof releases)[number][], roots = requests
   const { lock } = resolveReleases(
     roots,
     members.map((release) => ({ release, location: `sha256:${release.archiveDigest}`, withdrawn: false })),
-    '0.1.0',
+    DISTRIBUTION_ENGINE_VERSION,
   );
   return { lock, archives: new Map(members.map((release) => [release.archiveDigest, release.bytes])) };
 }
@@ -351,10 +361,10 @@ it('publishes sourced language then product dependency-first, each through its o
     const resolved = await resolveFromRegistries({
       root: consumer,
       requests,
-      engine: '0.1.0',
+      engine: DISTRIBUTION_ENGINE_VERSION,
       choose: choose(consumer, base),
     });
-    const { lock } = resolveReleases(requests, resolved.candidates, '0.1.0');
+    const { lock } = resolveReleases(requests, resolved.candidates, DISTRIBUTION_ENGINE_VERSION);
     expect(lock.packages.map((row) => row.archive).sort()).toEqual(
       [language, product].map((release) => release.archiveDigest).sort(),
     );
@@ -513,12 +523,16 @@ for (const mode of [
       const acquired = await resolveFromRegistries({
         root: source,
         requests: roots,
-        engine: '0.1.0',
+        engine: DISTRIBUTION_ENGINE_VERSION,
         choose: choose(source, dir),
       });
       expect(
         applyInstallation(
-          planInstallation(source, resolveReleases(roots, acquired.candidates, '0.1.0').lock, 'install'),
+          planInstallation(
+            source,
+            resolveReleases(roots, acquired.candidates, DISTRIBUTION_ENGINE_VERSION).lock,
+            'install',
+          ),
         ).status,
       ).toBe('installed');
       return source;
@@ -573,10 +587,16 @@ it('republishes through CLI selection-root with identical output and untouched r
   const acquired = await resolveFromRegistries({
     root: source,
     requests,
-    engine: '0.1.0',
+    engine: DISTRIBUTION_ENGINE_VERSION,
     choose: choose(source, origin),
   });
-  applyInstallation(planInstallation(source, resolveReleases(requests, acquired.candidates, '0.1.0').lock, 'install'));
+  applyInstallation(
+    planInstallation(
+      source,
+      resolveReleases(requests, acquired.candidates, DISTRIBUTION_ENGINE_VERSION).lock,
+      'install',
+    ),
+  );
   const args = ['registry', 'add', '--registry', dir, '--archive', archive, '--selection-root', source],
     first = await runNative(args);
   const registryBefore = tree(dir),

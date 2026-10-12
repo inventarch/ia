@@ -15,7 +15,8 @@ import {
 } from './public-language.js';
 import { vocabularyOutputs } from './public-vocabulary.js';
 import { compileNative } from './compile.js';
-import { readNative } from './check.js';
+import { checkNative, readNative } from './check.js';
+import { publicFixtureInputs } from './public-fixture.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const baseline = checkPublicLanguage(root);
@@ -36,6 +37,22 @@ function evaluate(name: string, requirement: string, evaluator?: ClauseEvaluator
   return validateAdoption(graph, evaluators).find((a) => a.scope.endsWith(`->${contract.identity}`))!;
 }
 describe('public language conformance', () => {
+  it('keeps public vocabulary declarations identical to their canonical owners', () => {
+    for (const name of baseline.folders) {
+      const canonical = readFileSync(resolve(root, `.ia/src/systems/${name}/system.ia`), 'utf8');
+      const publicContract = readFileSync(resolve(root, `examples/public-language/contracts/${name}.ia`), 'utf8');
+      expect(publicContract.replace(/\r\n/g, '\n'), name).toBe(canonical.replace(/\r\n/g, '\n'));
+    }
+  });
+  it('builds admitted test examples independently of repository maintenance work', () => {
+    const fixture = publicFixtureInputs(root);
+    const checked = checkNative(fixture.inputs, fixture.folders);
+    expect(checked.ok).toBe(true);
+    expect(checked.records.some((record) => record.identity === 'work-system/definition/task/example-task')).toBe(true);
+    expect(fixture.inputs.some((input) => input.path === '.ia/src/systems/work-system/records/work.ia')).toBe(true);
+    expect(fixture.inputs.some((input) => input.text.includes('@plan npm-release-hygiene'))).toBe(false);
+    expect(fixture.inputs.some((input) => input.path.startsWith('.ia/src/work/'))).toBe(false);
+  });
   it('admits a closed public corpus and compiles an original method without private authored inputs', () => {
     expect(baseline.ok).toBe(true);
     expect(baseline.graph.dangling).toEqual([]);

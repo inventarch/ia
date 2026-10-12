@@ -6,7 +6,7 @@ import {
   DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   generationSources,
-  satisfies,
+  supportsDistributionLockEngine,
 } from '@inventarch/db/distribution';
 import { copy } from '@inventarch/session-system';
 import type {
@@ -76,7 +76,7 @@ export function readSourceInstallation(value: unknown): SourceInstallation & { r
   const pointer = decodeActivationPointer(row['pointer']),
     lock = decodeDistributionLock(row['lock']),
     inputs = decodeGenerationInputs(row['inputs']);
-  if (!satisfies(DISTRIBUTION_ENGINE_VERSION, lock.engine)) fail();
+  if (!supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, lock.engine)) fail();
   const bundles = new Map<string, ExpandedBundle>();
   let total = 0,
     count = 0,

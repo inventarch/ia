@@ -149,8 +149,8 @@ it('holds the entry formula on the conformance corpus and on this repository, co
     expect(packet.systems.length, name).toBe(packet.seat.systems);
     expect(entryCount(packet), name).toBe(formula(db, CATALOG.length));
     // B1's pinned counts under the nine-row catalog: the conformance corpus (P = M = T = 0, N = 5) and this repository
-    // (P = M = 1, N = 11, T = 22), whose committed CLAUDE.md renders the same 58 (tools/projections/generate.test.ts).
-    expect(entryCount(packet), name).toBe(name === 'conformance' ? 28 : 58);
+    // (P = M = 1, N = 11, T = 17) after separating the neutral examples from the live corpus.
+    expect(entryCount(packet), name).toBe(name === 'conformance' ? 28 : 53);
     // The host note is no entry, and the formula does not read the catalog's contents.
     expect(entryCount(render(db, []).packet), name).toBe(entryCount(packet) - CATALOG.length);
   }

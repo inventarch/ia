@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@distribution package-work-system
+  meaning
+    says "The independently identified archive owned by work-system with explicit dependencies."
+    answers "Which declared records belong to the work-system native archive?"
+  distribution
+    records [@system work-system]

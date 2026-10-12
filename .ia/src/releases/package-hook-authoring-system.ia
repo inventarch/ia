@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@distribution package-hook-authoring-system
+  meaning
+    says "The independently identified archive owned by hook-authoring-system with explicit dependencies."
+    answers "Which declared records belong to the hook-authoring-system native archive?"
+  distribution
+    records [@system hook-authoring-system]

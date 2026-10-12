@@ -1,3 +1,9 @@
 # Public language contract
 
 This owner supplies the public language definitions or their structural checking mechanism. See the root language reference for schemas, identity and evaluation limits. Private design and assessment methods are not part of this owner.
+
+`pnpm native:check` also evaluates this repository's architecture boundary: reusable system payloads contain no neutral examples or repository plans, milestones, tasks or decisions. Examples live under `examples/public-language` and tests materialize an explicitly selected fixture corpus. Maintenance work and repository policy live under `.ia/src/records`; `.ia/src/workspace.ia` is the single source-declaring repository workspace. Root release controls are selected explicitly by the native package-set packer.
+
+The release-work lint reads compiled work records sourced from `releases/current.json` or the maintained system-package policy, following work hierarchy and require/ground links. Active intent cannot duplicate an explicit npm version or package count, even if it matches the current policy. Historical decisions may retain literal choices when bound to versioned release evidence. Independent native/protocol versions and unrelated fixtures remain valid. This is a bounded repository lint, not an English semantic evaluator or a host authorization gate. Generic `ia validate` establishes admission; the repository's `pnpm native:check` and focused test suites establish these additional invariants.
+
+The native law, contract, coverage check and success/refusal cases in `.ia/src/records/repository-policy.ia` describe these obligations. `COMP-COVERAGE` declares requirement coverage; the concrete functions in `release-work.ts` and `repository-architecture.ts`, invoked by `check.ts`, enforce the repository checks. A law record does not install a hook or activate a ledger.

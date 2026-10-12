@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Validate retained root release controls consistently",
+  "summary": "Expanded and retained installations now enforce the same exact root release-control declaration and system roots as archive verification, including when all content and metadata pins have been recomputed. Existing system-source admission and legacy installations remain unchanged.",
+  "packages": [
+    "@inventarch/db",
+    "@inventarch/distribution"
+  ],
+  "paths": [
+    "apps/distribution/",
+    "packages/db/",
+    "tools/"
+  ]
+}

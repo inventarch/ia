@@ -34,7 +34,7 @@
 
 @agent public-authoring-system-steward
   meaning
-    says "Identifies the owner of authoring-system contracts in this example."
-    answers "Who owns the authoring-guide and operation words in this example?"
+    says "Accountable owner of authoring-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the authoring-guide and operation words?"
   governance
     applies [authoring-guide, operation]

@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Recognize repository native records and release roots",
+  "summary": "Repository ownership now assigns native records and release controls outside reusable system folders to the root contract. Qualification fixtures follow the separated live workspace, public examples, current distribution engine and production dependency partitions without weakening admission or cycle checks.",
+  "packages": [
+    "@inventarch/authoring-system",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    ".ia/src/systems/authoring-system/",
+    "packages/runtime/",
+    "tools/"
+  ]
+}

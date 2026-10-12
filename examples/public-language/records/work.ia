@@ -2,22 +2,22 @@
 
 @plan example-plan
   meaning
-    says "Arranges the milestones that take an example module from a draft to a released package."
-    answers "How, and in what order, is the example module released?"
+    says "Arranges writing and reviewing the example module's first reference page."
+    answers "How, and in what order, is the first reference page completed?"
   work
-    title "Example module release"
+    title "First reference page"
     status open
     owner "example owner"
     start "2026-09-01"
 
 @milestone example-milestone
   meaning
-    says "The example module's documentation is complete and reviewed."
+    says "The first reference page is written and approved by a reviewer."
   work
-    title "Documentation complete"
+    title "First reference page reviewed"
     status open
     plan @plan example-plan
-    exit "Every public word of the example module has a reference page that a reviewer has approved."
+    exit "The first public word has a reference page that a reviewer has approved."
     due "2026-10-15"
 
 @task example-task
@@ -33,6 +33,19 @@
     expected-artifact "docs/reference/first-word.md"
   relationships
     requires @decision example-decision
+
+@task example-reference-review
+  meaning
+    says "Review the first reference page against the word's schema and authoring guide."
+  work
+    title "Review the first reference page"
+    status open
+    milestone @milestone example-milestone
+    owner "example reviewer"
+    action "Approve the first reference page only after checking it against the schema and authoring guide."
+    expected-artifact "Review of docs/reference/first-word.md"
+  relationships
+    requires @task example-task
 
 @decision example-decision
   meaning

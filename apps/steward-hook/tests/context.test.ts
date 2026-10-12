@@ -1,3 +1,4 @@
+import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   appendFileSync,
@@ -100,10 +101,11 @@ function host(overrides: Partial<ContextHookHost> = {}): ContextHookHost {
 }
 beforeAll(() => {
   const repository = resolve(import.meta.dirname, '../../..');
-  cpSync(join(repository, '.ia/src'), join(root, '.ia/src'), {
+  cpSync(join(repository, '.ia/src/systems'), join(root, '.ia/src/systems'), {
     recursive: true,
     filter: (path) => !/(?:^|[\\/])(node_modules|dist|\.git)(?:[\\/]|$)/.test(path),
   });
+  copyPublicLanguageFixture(repository, root);
   const manifest = JSON.parse(readFileSync(join(repository, '.ia/authoring.resources.json'), 'utf8')) as {
     files: { path: string; bytes: number; sha256: string }[];
   };

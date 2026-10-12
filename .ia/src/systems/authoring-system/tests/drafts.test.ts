@@ -109,7 +109,7 @@ it('drafts a file under an authored root outside every system folder, and no fil
     );
   // A root the workspace does not declare at the authored placement takes no draft: one that does not contain the
   // file, and the same root declared at another placement. The whole repository, declared as the root, takes it.
-  const language = '.ia/src/systems/workspace-system/records/language.ia',
+  const language = '.ia/src/workspace.ia',
     declared = readFileSync(resolve(root, language), 'utf8');
   // Each declared root is read back first, so a refusal is the rule's and never an entry db declined to read.
   const drafted = (spelled: string, declaredRoot: string, placement: string) => {

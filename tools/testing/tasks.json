@@ -1109,6 +1109,15 @@
       "resourceClass": "subprocess",
       "covers": [
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/preview.test.ts > path spelling (review C-R1, C-R7) matches covers as the edit guard does where pathKey folds case: a missing covered directory, a covers in another case, never a longer name (review C-RC1)",
+          "reason": "db pathKey folds case only on Windows and macOS, as the edit guard keys paths; on Linux each case is its own path, so there is no folding to observe.",
+          "platforms": [
+            "linux"
+          ]
+        }
       ]
     },
     {
@@ -1284,6 +1293,14 @@
             "windows"
           ],
           "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/implementations.test.ts > compares a network path a registration names to the pinned payload and never opens it (B2-RC2)",
+          "reason": "Only Windows spells a local directory as a network path (the \\\\localhost administrative share); POSIX has no such second spelling to compare.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
         }
       ]
     },
@@ -2612,6 +2629,10 @@
       "project": ".",
       "files": [
         "tools/native/public-language.test.ts",
+        "tools/native/public-fixture.test.ts",
+        "tools/native/release-work.test.ts",
+        "tools/native/repository-architecture.test.ts",
+        "tools/native/work-example.test.ts",
         "tools/native/check.test.ts",
         "tools/native/language-base.test.ts"
       ],

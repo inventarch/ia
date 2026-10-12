@@ -5,6 +5,8 @@ import { validateSchema, validateSystems } from '../../packages/compliance/src/i
 import type { CompiledRecord } from '../../packages/language/src/index.js';
 import { compileNative } from './compile.js';
 import type { NativeInput } from './compile.js';
+import { checkReleaseWork } from './release-work.js';
+import { checkRepositoryArchitecture } from './repository-architecture.js';
 import { isEntry } from '../entry/is-entry.mjs';
 
 export function readNative(root: string): { inputs: readonly NativeInput[]; folders: readonly string[] } {
@@ -117,15 +119,19 @@ export function checkMeaning(records: readonly CompiledRecord[]): readonly Meani
 }
 export function nativeOutcome(result: ReturnType<typeof checkNative>) {
   const meaning = checkMeaning(result.records);
+  const release = checkReleaseWork(result.records);
   return {
-    ok: result.ok && meaning.length === 0,
-    findings: [...result.diagnostics, ...result.assessments.flatMap((a) => a.findings), ...meaning],
+    ok: result.ok && meaning.length === 0 && release.length === 0,
+    findings: [...result.diagnostics, ...result.assessments.flatMap((a) => a.findings), ...meaning, ...release],
   };
 }
 if (isEntry(process.argv[1], import.meta.url)) {
   const { inputs, folders } = readNative(fileURLToPath(new URL('../../', import.meta.url)));
   const result = checkNative(inputs, folders);
-  const { ok, findings } = nativeOutcome(result);
+  const evaluated = nativeOutcome(result);
+  const architecture = checkRepositoryArchitecture(result.records);
+  const ok = evaluated.ok && architecture.length === 0;
+  const findings = [...evaluated.findings, ...architecture];
   if (findings.length > 0) process.stdout.write(`${JSON.stringify(findings, null, 2)}\n`);
   process.stdout.write(
     `${ok ? 'PASS' : 'FAIL'}: ${result.records.length} native records; ${result.assessments.length} structural assessments; order ${result.registry.order.join(', ')}.\n`,

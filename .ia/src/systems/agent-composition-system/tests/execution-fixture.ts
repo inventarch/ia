@@ -1,5 +1,6 @@
+import { publicFixtureCapture } from '../../../../../tools/native/public-fixture.js';
 import { digest } from '@inventarch/session-system';
-import { captureWorkspace, installed } from '../src/index.js';
+import { installed } from '../src/index.js';
 import { exampleCatalog } from '../../../../../tools/native/public-language.js';
 
 export function executionCatalog(model: string, implementationDigest: string) {
@@ -44,7 +45,7 @@ export function executionCatalog(model: string, implementationDigest: string) {
 }
 
 export function executionFixture(root: string) {
-  const { revision: _revision, ...body } = captureWorkspace(root);
+  const { revision: _revision, ...body } = publicFixtureCapture(root);
   const sources = body.sources.map((source) =>
     source.path.endsWith('/records/composition.ia')
       ? {

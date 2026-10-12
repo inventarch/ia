@@ -721,8 +721,9 @@ it('admits one plan, milestone, task and decision in a fresh workspace with no e
     'work-system/contract/spec/example-spec',
     'work-system/definition/decision/example-decision',
     'work-system/definition/decision/example-split-decision',
+    'work-system/definition/task/example-reference-review',
     ...['milestone', 'plan', 'task'].map((word) => `work-system/definition/${word}/example-${word}`),
-  ];
+  ].sort();
   const admitted = async (root: string, path: string): Promise<void> => {
     const validated = await run(['validate', '--root', root, '--json']);
     expect(validated.exitCode, validated.stdout).toBe(0);
@@ -756,13 +757,13 @@ it('admits one plan, milestone, task and decision in a fresh workspace with no e
   await admitted(root, '.ia/src/systems/demo/records/work.ia');
   expect(readFileSync(system, 'utf8')).toBe(starter);
   // The selected work example also contains two spec contracts, one partially superseding the other. The
-  // requirement admits all seven; without it every definition and both spec contracts must refuse through the same
+  // requirement admits all eight; without it every definition and both spec contracts must refuse through the same
   // foreign-discriminator check.
   writeFileSync(system, starter.replace('    - work-system\n', ''));
   const refused = json(await run(['validate', '--root', root, '--json']));
   const errors = refused.findings.filter((finding: { severity: string }) => finding.severity === 'error');
   expect(errors.map((finding: { code: string }) => finding.code)).toEqual(
-    Array(7).fill('IA-COMP-DISCRIMINATOR-FOREIGN'),
+    Array(identities.length).fill('IA-COMP-DISCRIMINATOR-FOREIGN'),
   );
 });
 

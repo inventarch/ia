@@ -13,9 +13,9 @@ import { freeze } from './types.js';
  * kernel moves), the workspaces it scopes, and the words and path selections it excludes or covers. This module
  * publishes the CLI mode -> move table and the pure refusal check that the authoring verbs will consume, and resolves
  * the authored mandates that govern an actor at a workspace or path, the actor a command acts as when none is named and
- * the refusal profile those mandates give a mode (plan amendment C1). Nothing here is wired into the CLI or the guard
- * yet: the authoring verbs and the re-keyed guard land later in the milestone, and until then no command consults a
- * mandate. A mandate adds closed restrictions only; it never grants host permissions, and a mandate without
+ * the refusal profile those mandates give a mode (plan amendment C1). The CLI's profile module and the generated
+ * mandate guard consume these checks for their gated commands and host events. A mandate adds closed restrictions
+ * only; it never grants host permissions, and a mandate without
  * `authority.moves` restricts no move.
  */
 

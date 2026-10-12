@@ -32,7 +32,7 @@
 
 @agent public-agent-system-steward
   meaning
-    says "Identifies the owner of agent-system contracts in this example."
-    answers "Who owns the agent and mandate words in this example?"
+    says "Accountable owner of agent-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the agent and mandate words?"
   governance
     applies [agent, mandate]

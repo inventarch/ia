@@ -9,16 +9,17 @@
   "cycles": [
     [
       "@inventarch/agent-composition-system",
-      "@inventarch/agent-system",
       "@inventarch/authoring-system",
-      "@inventarch/compliance-system",
-      "@inventarch/governance-system",
       "@inventarch/hook-authoring-system",
       "@inventarch/learning-system",
-      "@inventarch/session-system",
       "@inventarch/template-system",
-      "@inventarch/work-system",
-      "@inventarch/workspace-runtime",
+      "@inventarch/workspace-runtime"
+    ],
+    [
+      "@inventarch/agent-system",
+      "@inventarch/compliance-system",
+      "@inventarch/governance-system",
+      "@inventarch/session-system",
       "@inventarch/workspace-system"
     ]
   ]

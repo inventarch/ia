@@ -1,6 +1,7 @@
 /** Exact public whole-system and teaching partition. This module never loads handlers. */
 import { systemMember } from '@inventarch/db';
 import { EditorSnapshot } from '@inventarch/db/editor';
+import { DISTRIBUTION_ENGINE_VERSION } from '@inventarch/db/distribution';
 import type { DistributionSnapshot } from '../../apps/distribution/src/snapshot.js';
 import type { EdgeReference } from '../../packages/language/src/index.js';
 
@@ -111,9 +112,30 @@ export function systemArchivePartitions(
         (row) => row.identity === owner.distribution && row.discriminator === 'distribution',
       );
       const declarationOwner = declaration && physicalOwner(declaration.source.path);
-      if (!declarationOwner || !names.includes(declarationOwner))
+      const rootControl =
+        declaration !== undefined && declaration.source.path === `.ia/src/releases/${declaration.name}.ia`;
+      if (!declaration || (!rootControl && (!declarationOwner || !names.includes(declarationOwner))))
         throw new Error('Missing selected native distribution declaration');
-      if (declarationOwner !== owner.system) dependencies.add(declarationOwner);
+      if (rootControl) {
+        const roots = declaration.sections.flatMap((section) =>
+          section.name === 'distribution'
+            ? section.fields.filter((field) => 'key' in field && field.key === 'records')
+            : [],
+        );
+        const value = roots[0] && 'value' in roots[0] ? roots[0].value : undefined;
+        if (
+          roots.length !== 1 ||
+          value?.kind !== 'list' ||
+          value.items.length !== 1 ||
+          value.items[0]?.kind !== 'ref' ||
+          value.items[0].discriminator !== 'system' ||
+          value.items[0].name !== owner.system ||
+          value.items[0].fragment !== undefined
+        )
+          throw new Error('Root release control must select exactly its declared native owner');
+        // Installed workspace metadata and the retained @distribution control need this vocabulary owner.
+        if (owner.system !== 'workspace-system') dependencies.add('workspace-system');
+      } else if (declarationOwner !== owner.system) dependencies.add(declarationOwner!);
       const include = (reference: EdgeReference): void => {
         const resolved = reader.resolve(reference);
         if (!resolved.ok) throw new Error('Unresolved system package dependency');
@@ -161,7 +183,7 @@ export function systemArchivePartitions(
           id: owner.id,
           version: owner.version,
           distribution: owner.distribution,
-          engine: '^0.1.0',
+          engine: rootControl ? `^${DISTRIBUTION_ENGINE_VERSION}` : '^0.1.0',
           language: ['1.0'],
           dependencies: [...dependencies]
             .sort(order)

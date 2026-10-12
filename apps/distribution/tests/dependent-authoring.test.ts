@@ -1,5 +1,10 @@
 import { beforeAll, expect, it } from 'vitest';
-import { canonicalDistributionJson, sha256, type BundleManifest } from '@inventarch/db/distribution';
+import {
+  DISTRIBUTION_ENGINE_VERSION,
+  canonicalDistributionJson,
+  sha256,
+  type BundleManifest,
+} from '@inventarch/db/distribution';
 import { buildLanguageBase } from '../../../tools/native/language-base.js';
 import { languagePackageInputs } from '../../../tools/native/public-language.js';
 import { buildArchive, verifyArchive, verifySelectedArchiveClosure } from '../src/archive.js';
@@ -26,7 +31,7 @@ beforeAll(() => {
   dependency = resolveReleases(
     [{ id: language.manifest.id, range: language.manifest.version }],
     [{ release: language, location: `sha256:${language.archiveDigest}`, withdrawn: false }],
-    '0.1.0',
+    DISTRIBUTION_ENGINE_VERSION,
   );
   const files = new Map([
     [

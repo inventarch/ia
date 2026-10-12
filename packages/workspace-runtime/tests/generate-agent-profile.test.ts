@@ -8,6 +8,7 @@ import { PACKET_MARKER } from '@inventarch/runtime';
 import { adoptWorkspace } from '../src/corpus.js';
 import { generateAgentProfiles } from '../src/generate/index.js';
 import type { GeneratedFile, GeneratedSet } from '../src/generate/index.js';
+import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.js';
 
 // Milestone generation-binding task generation-agent-profile (plan amendments C5, C7 and C12): the authored
 // `@agent-profile` of apps/cli's composition fixture renders one claude agent file. The fixture's `.ia/src` is laid over
@@ -482,10 +483,15 @@ it('renders nothing for an adopted profile, and reports nothing', () => {
     expect(generateAgentProfiles(db, within, host), host).toEqual({ files: [], unsupported: [] });
 });
 
-it("renders a public system's profile where the workspace authors that system, as this repository does", () => {
-  // The band filter is the only one: this repository authors the public systems at band 100, so their example profile
-  // renders here, while a consumer's installed base, adopted below band 100, renders nothing (the case above).
-  const db = open(repository, { cache: false });
+it("renders a public system's authored example profile only in the explicit example workspace", () => {
+  // The authored example remains at band 100; the live repository and a consumer's adopted base do not author it.
+  const live = open(repository, { cache: false });
+  handles.push(live);
+  expect(live.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+  expect(claude(live, live.resolveScope().token)).toEqual([]);
+  const root = mkdtempSync(join(temporary, 'public-'));
+  copyPublicLanguageFixture(repository, root);
+  const db = open(root, { cache: false });
   handles.push(db);
   expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
   expect(claude(db, db.resolveScope().token).map((file) => [file.path, file.identity])).toEqual([

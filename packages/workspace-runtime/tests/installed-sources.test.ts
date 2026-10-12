@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -10,10 +10,12 @@ import {
   generationDigest,
   generationSources,
   installationWorkspace,
+  readExpandedBundle,
   sha256,
   type ExpandedBundle,
 } from '@inventarch/db/distribution';
 import { digest } from '@inventarch/session-system';
+import { readSourceInstallation } from '../src/installed-source-policy.js';
 import {
   createInstalledSourcePolicy,
   createSourcePolicy,
@@ -30,23 +32,27 @@ afterAll(() => {
 const base = () => createSourcePolicy(root, { validator: digest('validator') });
 
 // Structural retained-byte fixture. Native admission and real packing are separate install-core gates.
-function installed(version = '1.0.0') {
+function installed(version = '1.0.0', control?: string) {
   const files = new Map<string, Buffer>([
     ['.ia/src/systems/sample/system.ia', Buffer.from('#! ia 1.0\n# Structural retained source fixture.\n')],
     ['.ia/src/systems/sample/record.ia', Buffer.from(`#! ia 1.0\n# release ${version}\n`)],
     ['LICENSE', Buffer.from('Fixture license text.\n')],
   ]);
+  if (control !== undefined) files.set('.ia/src/releases/sample.ia', Buffer.from(control));
   const manifest = decodeBundleManifest({
     formatVersion: 1,
     id: 'example/sample',
     version,
-    distribution: 'sample/definition/distribution/sample',
-    engine: '^0.1.0',
+    distribution:
+      control === undefined
+        ? 'sample/definition/distribution/sample'
+        : 'workspace-system/definition/distribution/sample',
+    engine: control === undefined ? '^0.1.0' : '^0.1.1',
     language: ['1.0'],
     source: { repository: 'https://example.test/source', commit: digest(version), recipe: 'captured-source', epoch: 0 },
     license: 'MIT',
     description: 'Retained byte fixture',
-    roots: ['sample/definition/distribution/sample'],
+    roots: [control === undefined ? 'sample/definition/distribution/sample' : 'floor/definition/system/sample'],
     systems: [{ name: 'sample', provider: 'example', version, path: '.ia/src/systems/sample' }],
     dependencies: [],
     files: [...files]
@@ -91,7 +97,66 @@ function installed(version = '1.0.0') {
   return { pointer, lock, bundles, inputs };
 }
 
+const releaseControl =
+  '#! ia 1.0\n\n@distribution sample\n  meaning\n    says "Release the sample system."\n    answers "Which system is selected?"\n  distribution\n    records [@system sample]\n';
+
+function retained(release: ReturnType<typeof installed>) {
+  return {
+    ...release,
+    bundles: [...release.bundles].map(([id, bundle]) => ({
+      id,
+      ...bundle,
+      files: [...bundle.files]
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([path, bytes]) => ({ path, base64: bytes.toString('base64') })),
+    })),
+  };
+}
+
+function expanded(release: ReturnType<typeof installed>) {
+  const directory = mkdtempSync(resolve(root, 'expanded-'));
+  const bundle = release.bundles.get('example/sample')!;
+  const store = resolve(directory, '.ia/distributions/store', bundle.archiveDigest);
+  for (const [path, bytes] of bundle.files) {
+    mkdirSync(dirname(resolve(store, path)), { recursive: true });
+    writeFileSync(resolve(store, path), bytes);
+  }
+  writeFileSync(resolve(store, 'distribution.json'), canonicalDistributionJson(bundle.manifest));
+  return readExpandedBundle(directory, release.lock.packages[0]!);
+}
+
 describe('installed source policy', () => {
+  it('retains exact root release controls through the expanded and retained readers', () => {
+    const release = installed('1.0.0', releaseControl);
+    expect(expanded(release)).toEqual(release.bundles.get('example/sample'));
+    expect(readSourceInstallation(retained(release)).sources.some((source) => source.text === releaseControl)).toBe(
+      true,
+    );
+    const policy = createInstalledSourcePolicy(base(), release);
+    expect(verifySourcePolicy(policy)).toEqual(policy);
+    expect(homeSourceCapture('owned', [], policy).sources.some((source) => source.text === releaseControl)).toBe(true);
+  });
+
+  it.each([
+    ['extra record', releaseControl + '\n@agent injected\n  meaning\n    says "An extra record."\n'],
+    ['different roots', releaseControl.replace('records [@system sample]', 'records [@system other]')],
+    [
+      'conditional roots',
+      releaseControl.replace('records [@system sample]', 'records [@system sample] when phase is act'),
+    ],
+    ['different declaration', releaseControl.replace('@distribution sample', '@distribution other')],
+    ['extra section', releaseControl + '  relationships\n    requires @system sample\n'],
+  ])('refuses a fully repinned root control with %s before exposing installed sources', (_name, control) => {
+    // The fixture recomputes every content, manifest, membership and generation pin; pin integrity alone passes.
+    const release = installed('1.0.0', control);
+    expect(() => generationSources(release.pointer, release.lock, release.inputs, release.bundles)).toThrow(
+      'Root release control',
+    );
+    expect(() => readSourceInstallation(retained(release))).toThrow('Root release control');
+    expect(() => createInstalledSourcePolicy(base(), release)).toThrow('Root release control');
+    expect(() => expanded(release)).toThrow('Root release control');
+  });
+
   it('preserves version-one bytes and replaces its dependency injection with the exact installed view', () => {
     const v1 = base(),
       before = JSON.stringify(v1),

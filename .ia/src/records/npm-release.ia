@@ -1,0 +1,82 @@
+#! ia 1.0
+
+@decision coordinated-npm-release
+  meaning
+    says "Retains the historical selection for the earlier coordinated npm release; it does not select the current release."
+  work
+    title "Historical coordinated npm cohort"
+    status made
+    owner "inventarch"
+    start "2026-10-05"
+    ended "2026-10-05"
+    source "releases/changesets/1.1.0.json"
+  decision
+    question "How was the earlier npm cohort versioned and reviewed?"
+    decider "Release maintainer"
+    choice "Select 1.1.0 for all 21 npm packages, require complete package and changed-file coverage, and preserve independent native and protocol versions."
+    rationale "The release maintainer selected this earlier cohort before publication; its versioned changeset retains the historical evidence."
+    constraints ["This historical choice does not govern the active release plan.", "Publication is a separate checkpoint from preparing source or archives."]
+
+@decision npm-release-policy
+  meaning
+    says "Selects each current npm release from the maintained release policy and package manifests, without copying its version or cohort count into work records."
+    answers "Where does current release work obtain its version and package membership?"
+  work
+    title "Use the maintained release selection"
+    status made
+    owner "inventarch"
+    source "releases/current.json"
+  decision
+    question "How does release work remain current when the npm cohort changes?"
+    decider "Release maintainer"
+    choice "Read the npm version from releases/current.json and derive package membership from the selected public package manifests; bind historical choices to their versioned changesets."
+    rationale "A mutable release selection must have one authority. Work records state the qualification process and historical records retain immutable evidence."
+    constraints ["Native system, language archive and protocol versions remain independently selected.", "Work status does not establish qualification; current-source observations and exact archive receipts supply evidence.", "Merge, tags, registry publication, trust configuration and deployment require their own publication checkpoint."]
+
+@plan npm-release-hygiene
+  meaning
+    says "Maintain release selection, qualify the exact candidate archives and review the publication prerequisites for the cohort selected by the current policy."
+    answers "Which outcomes must the current release qualification establish?"
+  work
+    title "Qualify the selected npm cohort"
+    status open
+    owner "inventarch"
+    start "2026-10-05"
+    source "releases/current.json"
+
+@milestone npm-release-prepared
+  meaning
+    says "The selected source and archive receipts have complete change coverage, passing qualification and a separate review of publication prerequisites."
+  work
+    title "Release candidate qualified"
+    status open
+    plan @plan npm-release-hygiene
+    exit "The current selection has complete reviewed change coverage, passing platform and installed-consumer qualification for its exact source and archives, and a recorded review of registry setup and publication prerequisites."
+
+@task npm-release-hygiene-checks
+  meaning
+    says "Qualify the current source, its reviewed changeset, exact package versions, packed closure, installed consumers and platform behavior using the maintained release tools."
+  work
+    title "Qualify release source and archives"
+    status open
+    milestone @milestone npm-release-prepared
+    owner "Release maintainer"
+    source "tools/distribution/NPM-PUBLISHING.md"
+    action "Run the release coverage and package qualification commands against the policy-selected source; retain exact receipts and report every refusal or unavailable prerequisite."
+    expected-artifact "Exact source-bound package qualification and archive receipts"
+  relationships
+    requires @decision npm-release-policy
+
+@task npm-release-publication-review
+  meaning
+    says "Review the qualified archive receipts and registry setup, and record whether the candidate is ready for a separate publication checkpoint."
+  work
+    title "Review publication prerequisites"
+    status open
+    milestone @milestone npm-release-prepared
+    owner "Release reviewer"
+    source "tools/distribution/NPM-PUBLISHING.md"
+    action "Review the qualification receipts, trusted publication setup and remaining blockers without treating preparation as publication."
+    expected-artifact "Review of publication prerequisites and explicit remaining blockers"
+  relationships
+    requires @task npm-release-hygiene-checks

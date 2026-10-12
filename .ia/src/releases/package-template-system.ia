@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@distribution package-template-system
+  meaning
+    says "The independently identified archive owned by template-system with explicit dependencies."
+    answers "Which declared records belong to the template-system native archive?"
+  distribution
+    records [@system template-system]

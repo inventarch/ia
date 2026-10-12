@@ -3,6 +3,8 @@ import { packageManagerCommand } from '../entry/package-manager.mjs';
 import { packPublicPackages, COMPATIBILITY } from '../release/public-pack.mjs';
 import { scanPackedPublicContent } from '../release/scan-packed.mjs';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { packedManifest, releaseGraph } from './release-graph.mjs';
 import { executableExports, systemVerificationProgram } from './installed-consumer.mjs';
 import { qualifyInit, qualifyInstalledViews } from './installed-views.mjs';
 import { execFileSync } from 'node:child_process';
@@ -65,6 +67,20 @@ try {
   const packed = bundled.packed;
   const contentScan = scanPackedPublicContent(root, packed);
   assert.equal(packed.length, projects.length);
+  const policy = json(resolve(root, 'releases/current.json'));
+  const graph = releaseGraph(
+    packed.map(({ name, filename }) => {
+      const bytes = readFileSync(filename);
+      assert.equal(
+        createHash('sha256').update(bytes).digest('hex'),
+        contentScan.observations.find((row) => row.name === name)?.sha256,
+        `${name}: archive changed after content qualification`,
+      );
+      return packedManifest(filename, bytes);
+    }),
+    policy.version,
+    policy.cycles,
+  );
   const dependencies = Object.fromEntries(
     packed.map(({ name, filename }) => [name, 'file:' + filename.replaceAll('\\', '/')]),
   );
@@ -217,6 +233,7 @@ try {
   console.log(
     JSON.stringify({
       contentScan,
+      dependencyCycles: graph.groups.filter((group) => group.cyclic).map((group) => group.members),
       packages: projects.length,
       exports: imports.length,
       targets,

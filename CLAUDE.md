@@ -30,28 +30,23 @@
 
 ## Captured records
 
-- agent 13
-- agent-profile 1
+- agent 12
 - authoring-guide 44
-- capability 1
 - case 6
 - check 1
-- contract 3
-- decision 3
-- distribution 14
-- execution-binding 2
-- harness 1
+- contract 2
+- decision 2
+- distribution 12
+- execution-binding 1
+- law 1
 - mandate 1
-- milestone 2
-- observation 2
+- milestone 1
 - operation 4
-- plan 2
-- playbook 1
+- plan 1
 - schema 28
-- spec 2
 - system 11
 - task 2
-- workspace 5
+- workspace 1
 
 ## Intent shapes
 
@@ -92,4 +87,4 @@
 - state intent to the CLI as shape + optional phase + optional seat + optional word; the CLI never receives free text
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 
-ia-generated 09ac5381bfd7fd878713d7185c970129ce5551db3d15744e60533ce9efda49ff 1cf4fd8e921fbfa082ee607d4ecb6086e61c47a8cb1a0b2ba49a5dc549b331e7 ia-claude
+ia-generated 0a1aa431a239fdf5ef0b2070f11f8117b3fefebc70e3ba69e1bd201df533e22a 65bb8ce5db7cb136e3d393d31073bc64a540edf7d47bcf1a5cacdc7d2e4e94e1 ia-claude

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readInputs } from '@inventarch/db';
-import { sha256 } from '@inventarch/db/distribution';
-import { distributionSnapshot, packSnapshot } from '@inventarch/distribution/snapshot';
+import { DISTRIBUTION_ENGINE_VERSION, sha256 } from '@inventarch/db/distribution';
+import { distributionSnapshot, packSnapshotSet } from '@inventarch/distribution/snapshot';
 import { resolveReleases } from '@inventarch/distribution/resolve';
 
 export function mintingFixture() {
@@ -86,8 +86,8 @@ export function mintingFixture() {
       formatVersion: 1,
       id: 'fixture/minting-foundation',
       version: kind === 'baseline' ? '1.0.0' : '1.1.0',
-      distribution: 'workspace-system/definition/distribution/public-language',
-      engine: '^0.1.0',
+      distribution: 'workspace-system/definition/distribution/language-distribution',
+      engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
       language: ['1.0'],
       dependencies: [],
       assets: [...assets.keys()]
@@ -105,11 +105,11 @@ export function mintingFixture() {
       license: 'MIT',
       description: 'Explicit production minting fixture',
     };
-    const packed = packSnapshot(snapshot, descriptor, assets);
+    const packed = packSnapshotSet(snapshot, [{ descriptor, assets }])[0]!;
     const { lock } = resolveReleases(
       [{ id: packed.manifest.id, range: packed.manifest.version }],
       [{ release: packed, location: `sha256:${packed.archiveDigest}`, withdrawn: false }],
-      '0.1.0',
+      DISTRIBUTION_ENGINE_VERSION,
     );
     return { packed, lock, archives: new Map([[packed.archiveDigest, packed.bytes]]), snapshot, descriptor, assets };
   };

@@ -20,6 +20,7 @@ import {
 } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
+import { DISTRIBUTION_ENGINE_VERSION } from '@inventarch/db/distribution';
 import { cleanup, cli, FORMATTABLE, makeHost, packable, run, scratch, workspace } from './workspace-fixture.js';
 import { dispatch } from '../src/consumer.js';
 import { collectPlan } from '../src/distribute.js';
@@ -274,7 +275,7 @@ it('plans and applies an installation, an update, a restore and a removal throug
   };
   expect(machine).toMatchObject({ version: 1, command: 'install' });
   expect(machine.plan.operation).toBe('install');
-  expect(machine.plan.engine).toBe('0.1.0');
+  expect(machine.plan.engine).toBe(DISTRIBUTION_ENGINE_VERSION);
   expect(machine.plan.changes.added).toEqual([ID]);
   expect(machine.applied).toBeUndefined();
 

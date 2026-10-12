@@ -36,7 +36,7 @@
 
 @agent public-learning-system-steward
   meaning
-    says "Identifies the owner of learning-system contracts in this example."
-    answers "Who owns the observation and improvement words in this example?"
+    says "Accountable owner of learning-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the observation and improvement words?"
   governance
     applies [observation, improvement]

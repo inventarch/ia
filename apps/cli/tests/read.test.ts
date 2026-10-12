@@ -122,7 +122,8 @@ function located(): string {
 }
 
 it('prints the says text only for the plan exit-evidence identity, with its digest and the not-certified line', async () => {
-  const says = 'Identifies the owner of agent-system contracts in this example.';
+  const says =
+    'Accountable owner of agent-system vocabulary, canonical schemas, relationship consent and direct dependencies.';
   const human = await run(['read', STEWARD, '--root', repository]);
   expect(human.exitCode, human.stderr).toBe(0);
   expect(human.stderr).toBe('');

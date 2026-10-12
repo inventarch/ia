@@ -6,6 +6,7 @@ import {
   DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   satisfies,
+  supportsDistributionLockEngine,
 } from '@inventarch/db/distribution';
 import type { DistributionLock } from '@inventarch/db/distribution';
 import { verifyCapture, type Capture } from '@inventarch/workspace-runtime';
@@ -99,7 +100,7 @@ function releaseSet(input: unknown) {
   const row = object(input, ['lock', 'archives']),
     lock = decodeDistributionLock(row['lock']),
     archives = row['archives'];
-  if (!satisfies(DISTRIBUTION_ENGINE_VERSION, lock.engine)) return refused();
+  if (!supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, lock.engine)) return refused();
   if (!(archives instanceof Map) || archives.size !== new Set(lock.packages.map((pkg) => pkg.archive)).size)
     return refused();
   const releases = new Map<string, VerifiedArchive>();

@@ -14,6 +14,8 @@ import {
   range,
   refuse,
   satisfies,
+  ROOT_RELEASE_CONTROL_ENGINE_VERSION,
+  supportsRootReleaseControls,
   sha256,
   sorted,
   text,
@@ -249,7 +251,10 @@ export function decodeBundleManifest(input: unknown): BundleManifest {
       total += bytes;
       if (total > DISTRIBUTION_LIMITS.expanded) refuse('Expanded file budget');
       const system = systems.find((s) => path.startsWith(`${s.path}/`));
-      if (role === 'source' ? !system || !path.endsWith('.ia') : !publicAsset(path, role))
+      const releaseControl = path === `.ia/src/releases/${body.distribution!.split('/')[3]}.ia`;
+      if (role === 'source' && releaseControl && !supportsRootReleaseControls(body.engine))
+        refuse(`Root release control requires distribution engine >=${ROOT_RELEASE_CONTROL_ENGINE_VERSION}`);
+      if (role === 'source' ? (!system && !releaseControl) || !path.endsWith('.ia') : !publicAsset(path, role))
         refuse('Source/asset path mismatch');
       return { path, bytes, sha256: hash(r['sha256']), role: role as FilePin['role'] };
     }),

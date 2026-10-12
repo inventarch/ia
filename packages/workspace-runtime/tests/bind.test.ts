@@ -2,12 +2,15 @@
 // catalog's operation rows. Only an available, shipped implementation of the binding's own operation is bound; nothing
 // is ever executed.
 import { resolve } from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { open } from '@inventarch/db';
 import { afterAll, expect, it } from 'vitest';
 import { bindExecution, executionBindingOf, executionBindings } from '../src/bind.js';
 import type { ReadHandle } from '@inventarch/db';
 import type { InstalledOperation } from '@inventarch/db/distribution';
 import type { BindingCatalog, ExecutionBinding } from '../src/bind.js';
+import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.js';
 
 const READ = 'authoring-system/binding/operation/read-captured-source',
   TARGET = { reference: '@operation read-captured-source', identity: READ };
@@ -109,27 +112,40 @@ const repository = resolve(import.meta.dirname, '../../..'),
 afterAll(() => reader.close());
 it('reads the repository’s execution bindings with their targets resolved, and binds the read adapter’s', () => {
   const bindings = executionBindings(reader);
-  expect(bindings).toEqual(
-    expect.arrayContaining([
-      {
-        identity: 'agent-composition-system/binding/execution-binding/read-captured-source-binding',
-        kind: 'operation',
-        implementation: 'captured-source-read-v1',
-        target: TARGET,
-      },
-      expect.objectContaining({
-        identity: 'agent-composition-system/binding/execution-binding/example-entry',
-        kind: 'entry',
-        implementation: 'example-entry-v1',
-      }),
-    ]),
-  );
+  expect(bindings).toEqual([
+    {
+      identity: 'agent-composition-system/binding/execution-binding/read-captured-source-binding',
+      kind: 'operation',
+      implementation: 'captured-source-read-v1',
+      target: TARGET,
+    },
+  ]);
   expect(bindings.map((row) => row.identity)).toEqual([...bindings.map((row) => row.identity)].sort());
   const read = bindings.find((row) => row.implementation === 'captured-source-read-v1')!;
   expect(bindExecution(read, present(available)).status).toBe('bound');
   expect(bindExecution(read, present({ ...available, operation: 'acme/binding/operation/other' })).status).toBe(
     'unavailable',
   );
+});
+
+it('reads the example entry binding from the explicit public fixture', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-public-binding-'));
+  let example: ReturnType<typeof open> | undefined;
+  try {
+    copyPublicLanguageFixture(repository, root);
+    example = open(root, { cache: false });
+    expect(example.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+    expect(executionBindings(example)).toEqual([
+      expect.objectContaining({
+        identity: 'agent-composition-system/binding/execution-binding/example-entry',
+        kind: 'entry',
+        implementation: 'example-entry-v1',
+      }),
+    ]);
+  } finally {
+    example?.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 it('keeps a stated target that resolves to no admitted record apart from no target, so it never binds (B2-R1)', () => {

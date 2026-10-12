@@ -8,6 +8,7 @@ import {
   metadataDigest,
   portablePath,
   satisfies,
+  supportsDistributionLockEngine,
   sha256,
 } from './codec.js';
 import {
@@ -20,8 +21,9 @@ import {
 import type { ActivationPointer, DistributionLock, GenerationInputs, LockedPackage } from './contracts.js';
 import { deriveGenerationInputs, installationWorkspace } from './membership.js';
 import type { BundleMetadata } from './membership.js';
+import { verifyReleaseControl } from './release-control.js';
 
-export const DISTRIBUTION_ENGINE_VERSION = '0.1.0';
+export const DISTRIBUTION_ENGINE_VERSION = '0.1.1';
 export const INSTALL_PATHS = Object.freeze({
   lock: '.ia/distributions.lock.json',
   active: '.ia/distributions/active.json',
@@ -113,6 +115,8 @@ export function generationSources(
       total += content.length;
       if (total > DISTRIBUTION_LIMITS.expanded) corrupt('Combined installation byte limit');
     }
+    const control = bundle.files.get(`.ia/src/releases/${manifest.distribution.split('/')[3]}.ia`);
+    if (control) verifyReleaseControl(manifest, utf8(control), corrupt);
   }
   const workspaceText = installationWorkspace(lock, inputs, bundles);
   if (generationDigest(lock, inputs, workspaceText) !== pointer.generation)
@@ -131,6 +135,21 @@ export function generationSources(
           }),
         }),
       );
+  }
+  // Release controls are pinned root instances, separate from a system's vocabulary/source ownership.
+  for (const bundle of bundles.values()) {
+    const path = `.ia/src/releases/${bundle.manifest.distribution.split('/')[3]}.ia`;
+    if (!bundle.manifest.files.some((file) => file.role === 'source' && file.path === path)) continue;
+    sources.push(
+      Object.freeze({
+        path: `${INSTALL_PATHS.store}/${bundle.archiveDigest}/${path}`,
+        text: utf8(bundle.files.get(path)!),
+        location: Object.freeze({
+          placement: Object.freeze({ kind: 'adopted' as const, band: 90 as const, reach: '' }),
+          provenance: 'methodology' as const,
+        }),
+      }),
+    );
   }
   if (workspaceText !== null)
     sources.push(
@@ -188,6 +207,8 @@ export function readExpandedBundle(
   };
   walk('');
   if (files.size !== expected.size) corrupt('Incomplete installed payload inventory');
+  const control = files.get(`.ia/src/releases/${manifest.distribution.split('/')[3]}.ia`);
+  if (control) verifyReleaseControl(manifest, utf8(control), corrupt);
   return { manifest, files, archiveDigest: pkg.archive, manifestDigest: pkg.manifest };
 }
 export interface InstalledGeneration {
@@ -211,7 +232,8 @@ export function readInstalledGeneration(root: string, candidate?: ActivationPoin
     lock = decode(lockBytes, decodeDistributionLock);
   if (!candidate && (!portableBytes || !portableBytes.equals(lockBytes)))
     throw new InstallationError('lock-drift', 'Portable lock differs from the active generation; restore explicitly');
-  if (!satisfies(DISTRIBUTION_ENGINE_VERSION, lock.engine)) corrupt('Installation engine compatibility differs');
+  if (!supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, lock.engine))
+    corrupt('Installation engine compatibility differs');
   const inputs = decode(required(root, `${directory}/inputs.json`), decodeGenerationInputs),
     workspaceBytes = read(root, `${directory}/workspace.ia`, DISTRIBUTION_LIMITS.file),
     workspaceText = workspaceBytes === null ? null : utf8(workspaceBytes);

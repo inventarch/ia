@@ -28,7 +28,7 @@
 
 @agent public-hook-authoring-system-steward
   meaning
-    says "Identifies the owner of hook-authoring-system contracts in this example."
-    answers "Who owns the hook word in this example?"
+    says "Accountable owner of hook-authoring-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the hook word?"
   governance
     applies [hook]

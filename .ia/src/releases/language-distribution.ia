@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@distribution language-distribution
+  meaning
+    says "The root of the public language vocabulary closure."
+    answers "Which systems form the public language distribution?"
+  distribution
+    records [@system agent-composition-system, @system agent-system, @system authoring-system, @system compliance-system, @system governance-system, @system hook-authoring-system, @system learning-system, @system session-system, @system template-system, @system work-system, @system workspace-system]

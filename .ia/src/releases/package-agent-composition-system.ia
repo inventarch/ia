@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@distribution package-agent-composition-system
+  meaning
+    says "The independently identified archive owned by agent-composition-system with explicit dependencies."
+    answers "Which declared records belong to the agent-composition-system native archive?"
+  distribution
+    records [@system agent-composition-system]

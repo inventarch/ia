@@ -2,9 +2,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, expect, it } from 'vitest';
 import { readInputs } from '@inventarch/db';
-import { canonicalDistributionJson, sha256, type BundleManifest } from '@inventarch/db/distribution';
+import {
+  DISTRIBUTION_ENGINE_VERSION,
+  canonicalDistributionJson,
+  sha256,
+  type BundleManifest,
+} from '@inventarch/db/distribution';
 import { buildArchive, verifyArchive } from '../src/archive.js';
-import { distributionSnapshot, packSnapshot, type PackedDistribution } from '../src/snapshot.js';
+import { distributionSnapshot, packSnapshotSet, type PackedDistribution } from '../src/snapshot.js';
 import { descriptor, repository, sourceInput } from './snapshot-fixture.js';
 import { planInstallationSnapshot } from '../src/installation-core.js';
 import { resolveReleases } from '../src/resolve.js';
@@ -26,9 +31,15 @@ beforeAll(() => {
     { path: manifestPath, role: 'asset' },
     ...manifest.files.map((f) => ({ path: f.path, role: 'documentation' })),
   ].sort((a, b) => (a.path < b.path ? -1 : 1));
-  release = { ...descriptor, license: 'MIT', assets: selected };
+  release = {
+    ...descriptor,
+    distribution: 'workspace-system/definition/distribution/language-distribution',
+    engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
+    license: 'MIT',
+    assets: selected,
+  };
   assets = new Map(selected.map((asset) => [asset.path, readFileSync(resolve(repository, asset.path))]));
-  packed = packSnapshot(snapshot, release, assets);
+  packed = packSnapshotSet(snapshot, [{ descriptor: release, assets }])[0]!;
 }, 30_000);
 function rewritten(
   changes: ReadonlyMap<string, Buffer>,
@@ -59,7 +70,12 @@ function rewritten(
 it('refuses native guide packing without its explicit resource closure', () => {
   expect(snapshot.sources.some((s) => s.path.endsWith('/records/public-guides.ia'))).toBe(true);
   expect(() =>
-    packSnapshot(snapshot, { ...descriptor, license: 'MIT' }, new Map([['LICENSE', assets.get('LICENSE')!]])),
+    packSnapshotSet(snapshot, [
+      {
+        descriptor: { ...release, assets: descriptor.assets },
+        assets: new Map([['LICENSE', assets.get('LICENSE')!]]),
+      },
+    ]),
   ).toThrow(/authoring/i);
 });
 it('verifies all actual guide assets and the embedded-floor joins without reading an application root', () => {
@@ -131,7 +147,7 @@ it('revalidates authoring evidence when installing an otherwise exactly pinned a
   const { lock } = resolveReleases(
     [{ id: packed.manifest.id, range: packed.manifest.version }],
     [{ release: packed, location: `sha256:${packed.archiveDigest}`, withdrawn: false }],
-    '0.1.0',
+    DISTRIBUTION_ENGINE_VERSION,
   );
   const request = {
     base,

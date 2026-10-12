@@ -3,7 +3,12 @@ import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wri
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { open } from '@inventarch/db';
-import { canonicalDistributionJson as json, readInstalledGeneration, sha256 } from '@inventarch/db/distribution';
+import {
+  DISTRIBUTION_ENGINE_VERSION,
+  canonicalDistributionJson as json,
+  readInstalledGeneration,
+  sha256,
+} from '@inventarch/db/distribution';
 import { productStructure } from '../../../tools/release/product-structure.mjs';
 import { buildArchive, verifyArchive } from '../src/archive.js';
 import {
@@ -42,7 +47,7 @@ beforeAll(() => {
       location: `sha256:${release.archiveDigest}`,
       withdrawn: false,
     })),
-    '0.1.0',
+    DISTRIBUTION_ENGINE_VERSION,
   );
   archives = new Map([
     [releases.language.pin.archive, releases.language.bytes],

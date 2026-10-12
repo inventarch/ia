@@ -10,6 +10,8 @@ import {
   metadataDigest,
   portablePath,
   sha256,
+  ROOT_RELEASE_CONTROL_ENGINE_VERSION,
+  supportsRootReleaseControls,
 } from '@inventarch/db/distribution';
 import type { BundleManifest } from '@inventarch/db/distribution';
 import { isProvenance } from '@inventarch/language';
@@ -246,7 +248,7 @@ export function packSnapshotWithDependencies(
   return Object.freeze({ ...verified, ...pending });
 }
 
-/** Atomically verifies mutually dependent whole-system releases; no pending member escapes as verified. */
+/** Atomically verifies whole-system releases and their exact optional root release controls. */
 export function packSnapshotSet(
   input: DistributionSnapshot,
   releases: readonly { readonly descriptor: unknown; readonly assets: ReadonlyMap<string, Uint8Array> }[],
@@ -317,10 +319,28 @@ function preparePack(
       distribution = records.find((r) => r.identity === descriptor.distribution && r.discriminator === 'distribution');
     if (!distribution) fail('CLOSURE-INVALID', 'Distribution must be one admitted native declaration');
     const declarationOwner = systemMember(distribution.source.path);
+    const controlPath = `.ia/src/releases/${distribution.name}.ia`;
+    const rootControl = selectedDeclaration && distribution.source.path === controlPath;
+    if (rootControl) {
+      if (!supportsRootReleaseControls(descriptor.engine))
+        fail(
+          'CLOSURE-INVALID',
+          `Root release control requires distribution engine >=${ROOT_RELEASE_CONTROL_ENGINE_VERSION}`,
+        );
+      const controls = records.filter((record) => record.source.path === controlPath);
+      if (
+        controls.length !== 1 ||
+        distribution.identity !== `workspace-system/definition/distribution/${distribution.name}` ||
+        distribution.sections.some((section) => !['meaning', 'distribution'].includes(section.name)) ||
+        distribution.head.length
+      )
+        fail('CLOSURE-INVALID', 'Root release control must contain exactly its one public distribution declaration');
+    }
     if (
-      !declarationOwner ||
-      declarationOwner.root !== `.ia/src/systems/${declarationOwner.name}` ||
-      (!selectedDeclaration && descriptor.dependencies.some((d) => d.systems.includes(declarationOwner.name)))
+      !rootControl &&
+      (!declarationOwner ||
+        declarationOwner.root !== `.ia/src/systems/${declarationOwner.name}` ||
+        (!selectedDeclaration && descriptor.dependencies.some((d) => d.systems.includes(declarationOwner.name))))
     )
       fail('CLOSURE-INVALID', 'Release must include its own authored distribution declaration');
     const fields = distribution.sections
@@ -349,6 +369,8 @@ function preparePack(
       selected = new Set<string>(),
       pending: string[] = [],
       usedExternal = new Set<string>();
+    if (rootControl && roots.some((record) => record.discriminator !== 'system'))
+      fail('CLOSURE-INVALID', 'Root release controls select native systems only');
     const externals = new Map(descriptor.dependencies.flatMap((d) => d.systems.map((s) => [s, d.id] as const)));
     const include = (record: CompiledRecord): void => {
       if (record.source.path.startsWith('.ia/src/floor/')) return;
@@ -366,7 +388,8 @@ function preparePack(
         pending.push(member.name);
       }
     };
-    include(distribution);
+    if (!rootControl) include(distribution);
+    else include(resolve({ kind: 'ref', discriminator: 'system', name: 'workspace-system' }));
     roots.forEach(include);
     while (pending.length) {
       const name = pending.shift()!,
@@ -391,6 +414,12 @@ function preparePack(
       fail('CLOSURE-INVALID', 'Unused external dependency assignment');
     const files = new Map<string, Buffer>(),
       pins: BundleManifest['files'][number][] = [];
+    if (rootControl) {
+      const source = before.sources.find((row) => row.path === controlPath)!;
+      const content = Buffer.from(source.text);
+      files.set(controlPath, content);
+      pins.push({ path: controlPath, bytes: content.length, sha256: sha256(content), role: 'source' });
+    }
     for (const source of before.sources) {
       const member = systemMember(source.path);
       if (!member || !selected.has(member.name) || member.root !== `.ia/src/systems/${member.name}`) continue;

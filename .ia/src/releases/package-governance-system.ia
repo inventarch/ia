@@ -1,0 +1,8 @@
+#! ia 1.0
+
+@distribution package-governance-system
+  meaning
+    says "The independently identified archive owned by governance-system with explicit dependencies."
+    answers "Which declared records belong to the governance-system native archive?"
+  distribution
+    records [@system governance-system]

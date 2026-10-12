@@ -39,7 +39,7 @@
 
 @agent public-compliance-system-steward
   meaning
-    says "Identifies the owner of compliance-system contracts in this example."
-    answers "Who owns the contract, check and case words in this example?"
+    says "Accountable owner of compliance-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the contract, check and case words?"
   governance
     applies [contract, check, case]

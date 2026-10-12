@@ -409,8 +409,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/workspace.md",
-      "bytes": 1340,
-      "sha256": "c202d955cb831dea670d6cf09a0c6d2074f5fc32c8b2170d899d8e1f92666275",
+      "bytes": 1350,
+      "sha256": "e6b07554bdd757a1978fd79b60669d700e9f5d2eeaf0047ba07c759b0e2f005b",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -423,8 +423,8 @@
     },
     {
       "path": ".ia/src/systems/compliance-system/README.md",
-      "bytes": 111,
-      "sha256": "1b8baf7ad8a09d238d6cf15a92d7df85b9c44c67cecf75642f5f33575441c7a6",
+      "bytes": 299,
+      "sha256": "cfc94bc3fd9bb407eed372e13362e3a071b45e2aafcf28555b0d058214c3e71a",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -444,8 +444,8 @@
     },
     {
       "path": ".ia/src/systems/governance-system/README.md",
-      "bytes": 111,
-      "sha256": "c20ff76b3bea7ba7257c17e8fa87c083d23e8e9f1859fdfe96f4f405355eca0c",
+      "bytes": 299,
+      "sha256": "0f84e8e0566570cfd2b947928638189d884bc01dca4b9ebf3b4135060c3b454b",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -465,8 +465,8 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/README.md",
-      "bytes": 115,
-      "sha256": "03fec22c8ed50bc4a595e68fd4eb413140ed6a2f471c495fc5fcd16bbb6c59df",
+      "bytes": 303,
+      "sha256": "793357dd940691659762c6478096e92194fdb308238953fda7fb241b8d48d11e",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -486,8 +486,8 @@
     },
     {
       "path": ".ia/src/systems/learning-system/README.md",
-      "bytes": 109,
-      "sha256": "8f3125b0bebf786a69aae54928f35b1535d6d3aa2942b8d43363f7d979b3e43d",
+      "bytes": 297,
+      "sha256": "f51fdeea6ece8efd2a46d4b7dce75af888588a1350028e834ef736155c7be066",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -549,8 +549,8 @@
     },
     {
       "path": ".ia/src/systems/work-system/README.md",
-      "bytes": 105,
-      "sha256": "5e4644a67d1d2c88c15fa503cedcf324eb3df23e3020ebfd893967b47524008c",
+      "bytes": 293,
+      "sha256": "c2c3515135f3a01e6c5dbb4336d9f90115810dd7f008fb473ec70205c50d3cb9",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -570,8 +570,8 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/README.md",
-      "bytes": 110,
-      "sha256": "2f5d25d696e16711b8bc095d26217463a3659260a0daccddf5d014b20d308d35",
+      "bytes": 298,
+      "sha256": "dae4449cbbf05bfeff43ab3314c6651d8136515145b3e2105f32fe65f7e60376",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

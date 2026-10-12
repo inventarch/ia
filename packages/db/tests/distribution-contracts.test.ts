@@ -11,6 +11,8 @@ import {
   decodeReleaseDescriptor,
   generationDigest,
   satisfies,
+  supportsDistributionLockEngine,
+  DISTRIBUTION_ENGINE_VERSION,
   sha256,
 } from '../src/distribution/index.js';
 
@@ -197,6 +199,29 @@ it('refuses source traversal, floor payloads, aliases, missing declarations and 
     }),
   ).toThrow();
 });
+it('admits only the release control source whose name matches the selected distribution', () => {
+  const source = { ...manifest.files[0]!, path: '.ia/src/releases/foundation-distribution.ia' };
+  const candidate = { ...manifest, files: [source, ...manifest.files] };
+  expect(decodeBundleManifest({ ...candidate, engine: `^${DISTRIBUTION_ENGINE_VERSION}` }).files).toHaveLength(2);
+  for (const engine of ['^0.1.0', '*', '>=0.1.1 || 0.0.9'])
+    expect(() => decodeBundleManifest({ ...candidate, engine })).toThrow(
+      /Root release control requires distribution engine/,
+    );
+  expect(decodeBundleManifest(manifest).engine).toBe('^0.1.0');
+  for (const path of [
+    '.ia/src/participant.ia',
+    '.ia/src/releases/other.ia',
+    '.ia/src/releases/nested/foundation-distribution.ia',
+    '.ia/src/releases/foundation-distribution.json',
+  ])
+    expect(() =>
+      decodeBundleManifest({
+        ...candidate,
+        engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
+        files: [{ ...source, path }, ...manifest.files],
+      }),
+    ).toThrow(/Source\/asset path/);
+});
 it('verifies exact reachable locks, direct ranges and immutable portable artifact locations', () => {
   expect(decodeDistributionLock(lock)).toEqual(lock);
   const https = { ...selected, location: `https://example.com/releases/${hash}.ia.tgz` };
@@ -224,6 +249,13 @@ it('binds generation identity to every byte and keeps activation counters separa
   expect(() =>
     decodeGenerationInputs({ ...inputs, systems: [{ ...inputs.systems[0], selected: 'test/other' }] }),
   ).toThrow();
+});
+it('retains only the released exact lock marker as a legacy 0.1 compatibility line', () => {
+  expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, '0.1.0')).toBe(true);
+  expect(supportsDistributionLockEngine('0.2.0', '0.1.0')).toBe(false);
+  for (const declared of ['0.1.2', '0.2.0', '=0.1.0'])
+    expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, declared)).toBe(false);
+  expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, '^0.1.0')).toBe(true);
 });
 
 it('shapes an installed-implementation catalog once for its reader and its binders (review finding B-N9)', () => {

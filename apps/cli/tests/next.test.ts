@@ -1,7 +1,7 @@
 /**
  * `ia next` (position-and-projection §9 step 2, design rows 21 and 22), end to end against copies of the runtime's
  * delivery fixtures laid over the conformance corpus, a copy of the loop fixture, which authors no plan, and the
- * repository's own records, which author two.
+ * repository's own maintenance plan.
  *
  * The exit evidence of plan task ia-next-verb: `ia next` lists each task of a plan with a basis or evidence line, and
  * stores nothing under `.ia/`. Its `--json` view is the Door's `next` result, byte for byte.
@@ -461,13 +461,24 @@ it('refuses each delivery refusal at exit 1 with the runtime code and message, n
   );
 });
 
-it("reads the repository's own plans: without a seat several are refused, and the one the refusal names reads", async () => {
-  const refused = await next(repository, [], 1);
+it('reads the repository maintenance plan without selecting public example plans', async () => {
+  const { view } = await next(repository);
+  expect(view.plan).toBe('work-system/definition/plan/npm-release-hygiene');
+  expect(view.tasks.map((row) => row.identity)).toEqual([
+    task('npm-release-hygiene-checks'),
+    task('npm-release-publication-review'),
+  ]);
+  for (const delivered of view.tasks) expect(delivered.line.length, delivered.identity).toBeGreaterThan(0);
+});
+
+it('refuses several fixture plans without a seat, and reads the one the refusal names', async () => {
+  const root = delivery('plans');
+  const refused = await next(root, [], 1);
   expect(refused.code).toBe('IA-RUNTIME-NEXT-AMBIGUOUS');
   const [command] = commandsIn(refused.next);
   expect(command).toMatch(
     new RegExp(
-      `^ia next --seat work-system/definition/plan/[a-z-]+ ${rooted(repository).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+      `^ia next --seat work-system/definition/plan/[a-z-]+ ${rooted(root).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
     ),
   );
   const result = await run([...nextArgv(refused.next), '--json']);

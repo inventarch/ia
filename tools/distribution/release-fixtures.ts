@@ -6,6 +6,9 @@ import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { expect, vi } from 'vitest';
+import { readInputs } from '@inventarch/db';
+import { distributionSnapshot } from '../../apps/distribution/src/snapshot.js';
+import { systemArchivePartitions, type NativeSystemOwner } from '../release/system-partitions.js';
 import { COMPATIBILITY, PUBLIC_SYSTEM_POLICY, publicPackageInputs } from '../release/public-pack.mjs';
 import { runBounded } from '../testing/subprocess.js';
 import { publicPackages, type PackageManifest } from './npm-release.mjs';
@@ -145,7 +148,7 @@ export function tarball(manifest: object): Buffer {
 }
 interface SystemPolicy {
   packages: string[];
-  owners: { native: { system: string; id: string; version: string } }[];
+  owners: { native: NativeSystemOwner }[];
 }
 const systemPolicy = (): SystemPolicy => JSON.parse(readFileSync(resolve(checkout, PUBLIC_SYSTEM_POLICY), 'utf8'));
 const archiveName = (manifest: { name: string; version: string }) =>
@@ -159,24 +162,56 @@ export interface QualifiedArchive {
 }
 /**
  * Archives of this checkout's public cohort, packed as the release would pack them: exact cohort versions, plus the
- * native ring that forms the one reviewed cycle.
+ * native dependencies selected by the same source partitioner as the production packer. The release cycle policy
+ * remains an independent check of these fixture manifests.
  */
 export function archivesFixture(directory: string): QualifiedArchive[] {
-  const systems = systemPolicy()
-      .owners.map((owner) => '@inventarch/' + owner.native.system)
-      .sort(),
+  const owners = systemPolicy().owners.map((owner) => owner.native),
+    npmNames = new Map(owners.map((owner) => [owner.id, '@inventarch/' + owner.system])),
     projects = publicPackages(checkout),
     versions = new Map(projects.map(({ manifest }) => [manifest.name, manifest.version]));
+  const inputs = readInputs(checkout),
+    snapshot = distributionSnapshot({
+      sources: inputs.sources,
+      folders: inputs.folders,
+      floorOrigin: inputs.floorOrigin,
+    }),
+    resources = JSON.parse(readFileSync(resolve(checkout, '.ia/authoring.resources.json'), 'utf8')) as {
+      files: { path: string }[];
+    },
+    assets = new Map(
+      ['LICENSE', 'NOTICE', ...resources.files.map((row) => row.path)].map((path) => [
+        path,
+        readFileSync(resolve(checkout, path)),
+      ]),
+    ),
+    partitions = new Map(
+      systemArchivePartitions(snapshot, resources, assets, owners).map(({ descriptor }) => [
+        npmNames.get(descriptor.id)!,
+        descriptor,
+      ]),
+    );
   return projects.map(({ manifest }) => {
     const dependencies = Object.fromEntries(
       Object.entries(manifest.dependencies ?? {}).map(([name, range]) => [name, versions.get(name) ?? range]),
     );
-    const ring = systems.indexOf(manifest.name);
-    if (ring >= 0) dependencies[systems[(ring + 1) % systems.length]!] = manifest.version;
+    const partition = partitions.get(manifest.name);
+    for (const dependency of partition?.dependencies ?? []) {
+      const name = npmNames.get(dependency.id);
+      const version = name && versions.get(name);
+      if (!name || !version) throw new Error('Native fixture dependency has no npm cohort owner');
+      dependencies[name] = version;
+    }
     const packed = { ...manifest, dependencies },
       bytes = tarball(packed);
     writeFileSync(resolve(directory, archiveName(manifest)), bytes);
-    return { name: manifest.name, filename: archiveName(manifest), sha256: sha(bytes), packed, system: ring >= 0 };
+    return {
+      name: manifest.name,
+      filename: archiveName(manifest),
+      sha256: sha(bytes),
+      packed,
+      system: partition !== undefined,
+    };
   });
 }
 /** The system compatibility companion for the archives in `directory`, written beside them. */

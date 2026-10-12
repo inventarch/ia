@@ -342,6 +342,21 @@ it('requires a separate distribution contract and inherits its nested native con
     'distributions/example: missing colocated SPEC.md',
   );
 });
+it('owns repository records and release roots under the root contract without admitting other native areas', () => {
+  const files = {
+    'SPEC.md': '# Root',
+    '.ia/src/workspace.ia': '',
+    '.ia/src/records/repository-policy.ia': '',
+    '.ia/src/releases/language-distribution.ia': '',
+  };
+  const result = auditRepository(fixture(files), Object.keys(files));
+  expect(result.failures).toEqual([]);
+  expect(result.owners).toEqual([expect.objectContaining({ owner: '.', spec: 'SPEC.md', files: 4 })]);
+  const unknown = { ...files, '.ia/src/unknown/example.ia': '' };
+  expect(auditRepository(fixture(unknown), Object.keys(unknown)).failures).toContain(
+    '.ia/src/unknown/example.ia: no declared ownership area',
+  );
+});
 it('keeps retained learning evidence under its own contract, distinct from native source and scratch state', () => {
   const files = {
     'SPEC.md': '# Root',

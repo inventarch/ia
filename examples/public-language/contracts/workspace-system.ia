@@ -33,7 +33,7 @@
 
 @agent public-workspace-system-steward
   meaning
-    says "Identifies the owner of workspace-system contracts in this example."
-    answers "Who owns the workspace and distribution words in this example?"
+    says "Accountable owner of workspace-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the workspace and distribution words?"
   governance
     applies [workspace, distribution]

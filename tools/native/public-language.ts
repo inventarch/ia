@@ -6,6 +6,7 @@ import { KERNEL_DIGEST, LANGUAGE_VERSION } from '../../packages/language/src/ind
 import { compileHarness } from '../../.ia/src/systems/agent-composition-system/src/compile.js';
 import { installed } from '../../.ia/src/systems/agent-composition-system/src/catalog.js';
 import type { CompositionCatalog } from '../../.ia/src/systems/agent-composition-system/src/catalog.js';
+import { verifyCapture } from '../../packages/workspace-runtime/src/corpus.js';
 import type { Capture } from '../../packages/workspace-runtime/src/corpus.js';
 import { checkNative } from './check.js';
 import type { NativeInput } from './compile.js';
@@ -107,7 +108,7 @@ export function publicCapture(inputs: readonly NativeInput[], folders: readonly 
     folders,
     floorOrigin: 'explicit' as const,
   };
-  return { ...body, revision: digest(body) };
+  return verifyCapture({ ...body, revision: digest(body) });
 }
 export function checkPublicLanguage(root: string) {
   const { inputs, folders } = publicLanguageInputs(root);

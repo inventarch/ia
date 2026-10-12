@@ -1,14 +1,15 @@
+import { publicFixtureCapture } from '../../../../../tools/native/public-fixture.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { digest } from '@inventarch/session-system';
-import { captureWorkspace, installed } from '../src/index.js';
+import { installed } from '../src/index.js';
 import type { Capture, CompositionCatalog } from '../src/index.js';
 import type { OperationContract } from '../src/catalog.js';
 import { draftToolCatalog } from '../src/tools.js';
 import type { TemplateToolSelection } from '../src/tools.js';
 
 export function compilerCapture(root: string): Capture {
-  const { revision: _revision, ...body } = captureWorkspace(root);
+  const { revision: _revision, ...body } = publicFixtureCapture(root);
   const origin = body.sources.find((source) => source.path === '.ia/src/systems/agent-composition-system/system.ia')!;
   const paths = [
     '.ia/src/systems/agent-composition-system/records/native-sample.ia',

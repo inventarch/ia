@@ -5,11 +5,21 @@ import { dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 // @ts-expect-error The reviewed public fixture generator is JavaScript.
 import { publicResources } from '../../../tools/distribution/resources.mjs';
-import { publicLanguageInputs } from '../../../tools/native/public-language.js';
+import { readNative } from '../../../tools/native/check.js';
 import { systemArchivePartitions } from '../../../tools/release/system-partitions.js';
-import { decodeDistributionLock, deriveGenerationInputs } from '@inventarch/db/distribution';
+import {
+  decodeDistributionLock,
+  deriveGenerationInputs,
+  generationDigest,
+  generationSources,
+  installationWorkspace,
+  DISTRIBUTION_ENGINE_VERSION,
+  satisfies,
+} from '@inventarch/db/distribution';
+import { EditorSnapshot } from '@inventarch/db/editor';
+import { KERNEL_SOURCES } from '@inventarch/language';
 import { distributionSnapshot, packSnapshot, packSnapshotSet } from '../src/snapshot.js';
-import { verifyArchive, verifySelectedArchiveClosure } from '../src/archive.js';
+import { buildArchive, verifyArchive, verifySelectedArchiveClosure } from '../src/archive.js';
 import {
   verifySystemPackage,
   OWNED_SYSTEM_PACKAGE_FORMAT,
@@ -26,7 +36,7 @@ const own = '.ia/src/systems/authoring-system',
   guidePath = own + '/records/public-guides.ia',
   document = own + '/reference/agent.md';
 function fixture() {
-  const native = publicLanguageInputs(root);
+  const native = readNative(root);
   const outputs = new Map<string, { bytes: string | Buffer }>();
   const put = (path: string, bytes: string | Buffer) => outputs.set(path, { bytes });
   for (const row of native.inputs) put(row.path, row.text);
@@ -46,18 +56,13 @@ function fixture() {
     json: (path: string, value: unknown) => put(path, json(value)),
     manifest: JSON.parse(readFileSync(resolve(root, 'examples/public-language/manifest.json'), 'utf8')),
   });
-  const declarationPath = '.ia/src/systems/workspace-system/records/system-packages.ia';
-  const declaration = {
-    path: declarationPath,
-    text: readFileSync(resolve(root, declarationPath), 'utf8'),
-    location: {
-      placement: { kind: 'authored' as const, band: 100 as const, reach: '' },
-      provenance: 'workspace' as const,
-    },
+  const location = {
+    placement: { kind: 'authored' as const, band: 100 as const, reach: '' },
+    provenance: 'workspace' as const,
   };
-  const guide = { ...declaration, path: guidePath, text: String(outputs.get(guidePath)!.bytes) };
+  const guide = { location, path: guidePath, text: String(outputs.get(guidePath)!.bytes) };
   const snapshot = distributionSnapshot({
-    sources: [...native.inputs, declaration, guide],
+    sources: [...native.inputs.filter((source) => source.path !== guidePath), guide],
     folders: native.folders,
     floorOrigin: 'local',
   });
@@ -107,6 +112,18 @@ it('atomically admits eleven separate native owners with one shared floor and on
   expect(generation.systems).toHaveLength(11);
   expect(generation.systems.every((row) => row.bundles.length === 1)).toBe(true);
   expect(packed.every((row) => row.manifest.systems.length === 1)).toBe(true);
+  for (const archive of packed) {
+    const path = archive.manifest.systems[0]!.path + '/';
+    const expected = input.snapshot.sources
+      .filter((source) => source.path.startsWith(path))
+      .map((source) => source.path)
+      .sort();
+    const retained = archive.manifest.files
+      .filter((file) => file.role === 'source' && file.path.startsWith(path))
+      .map((file) => file.path)
+      .sort();
+    expect(retained).toEqual(expected);
+  }
   expect(
     packed.flatMap((row) =>
       row.manifest.files.filter((file) => file.role === 'source' && file.path.includes('/floor/')),
@@ -120,13 +137,134 @@ it('atomically admits eleven separate native owners with one shared floor and on
   ]);
   expect(packed.find((row) => row.manifest.id === 'fixture/work-system')!.manifest.version).toBe('2.0.0');
 });
-it('retains standalone refusal for an externalized declaration and dependent authoring assets', () => {
+it('retains standalone refusal for root release controls and dependent authoring assets', () => {
   const row = partitions.find((row) => row.owner.system === 'agent-system')!;
   expect(() => packSnapshot(input.snapshot, row.descriptor, row.assets)).toThrow(/own authored distribution/);
   expect(() => verifyArchive(packed[0]!.bytes)).toThrow(/authoring/i);
 });
+
+it('requires the root-control engine capability while retaining compatibility with legacy archive ranges', () => {
+  const archive = packed.find((row) => row.manifest.id === 'fixture/workspace-system')!;
+  expect(archive.manifest.engine).toBe(`^${DISTRIBUTION_ENGINE_VERSION}`);
+  expect(satisfies('0.1.0', archive.manifest.engine)).toBe(false);
+  expect(satisfies(DISTRIBUTION_ENGINE_VERSION, archive.manifest.engine)).toBe(true);
+  expect(satisfies(DISTRIBUTION_ENGINE_VERSION, '^0.1.0')).toBe(true);
+  for (const engine of ['^0.1.0', '*', '>=0.1.1 || 0.0.9']) {
+    const stale = partitions.map((row) => ({ ...row, descriptor: { ...row.descriptor, engine } }));
+    expect(() => packSnapshotSet(input.snapshot, stale)).toThrow(/Root release control requires distribution engine/);
+  }
+});
+
+it('retains each exact release control without adding unrelated public systems to the workspace package closure', () => {
+  for (const archive of packed) {
+    const path = `.ia/src/releases/${archive.manifest.distribution.split('/')[3]}.ia`;
+    expect(archive.files.get(path)?.toString()).toBe(readFileSync(resolve(root, path), 'utf8'));
+    expect(archive.manifest.files.filter((file) => file.path.startsWith('.ia/src/releases/'))).toHaveLength(1);
+  }
+  const workspace = packed.find((archive) => archive.manifest.id === 'fixture/workspace-system')!;
+  expect(workspace.manifest.dependencies.map((dependency) => dependency.id)).toEqual([
+    'fixture/agent-system',
+    'fixture/compliance-system',
+  ]);
+  const needed = new Set<string>();
+  const visit = (id: string) => {
+    if (needed.has(id)) return;
+    needed.add(id);
+    packed
+      .find((archive) => archive.manifest.id === id)!
+      .manifest.dependencies.forEach((dependency) => visit(dependency.id));
+  };
+  visit(workspace.manifest.id);
+  const full = selection();
+  const lock = decodeDistributionLock({
+    ...full.lock,
+    requests: [{ id: workspace.manifest.id, range: workspace.manifest.version }],
+    packages: full.lock.packages.filter((pkg) => needed.has(pkg.id)),
+  });
+  const archives = new Map(lock.packages.map((pkg) => [pkg.archive, full.archives.get(pkg.archive)!]));
+  const verified = verifySelectedArchiveClosure(lock, archives);
+  expect([...verified.keys()].sort()).toEqual([
+    'fixture/agent-system',
+    'fixture/compliance-system',
+    'fixture/workspace-system',
+  ]);
+  const inputs = deriveGenerationInputs(lock, verified);
+  const pointer = {
+    formatVersion: 1 as const,
+    generation: generationDigest(lock, inputs, installationWorkspace(lock, inputs, verified)),
+    previous: null,
+    counter: 1,
+  };
+  const sources = generationSources(pointer, lock, inputs, verified);
+  const reader = new EditorSnapshot({
+    root: '',
+    floorOrigin: 'embedded',
+    folders: inputs.systems.map((system) => system.name),
+    fingerprint: pointer.generation,
+    sources: [
+      ...KERNEL_SOURCES.map((source) => ({
+        ...source,
+        location: {
+          placement: { kind: 'floor' as const, band: 10 as const, reach: '' },
+          provenance: 'bootstrap' as const,
+        },
+      })),
+      ...sources,
+    ],
+  });
+  try {
+    expect(reader.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+    for (const archive of verified.values())
+      expect(reader.records().some((record) => record.identity === archive.manifest.distribution)).toBe(true);
+    expect(reader.inspect().graph.dangling).toEqual([]);
+  } finally {
+    reader.close();
+  }
+});
+
+it('refuses arbitrary source in a fully repinned root release control and refuses a changed selector root', () => {
+  const archive = packed.find((row) => row.manifest.id === 'fixture/workspace-system')!;
+  const path = `.ia/src/releases/${archive.manifest.distribution.split('/')[3]}.ia`;
+  for (const text of [
+    archive.files.get(path)!.toString() +
+      '\n@agent injected\n  meaning\n    says "Unreviewed authority"\n    answers "Who is injected?"\n  governance\n    applies [workspace]\n',
+    archive.files.get(path)!.toString().replace('records [@system workspace-system]', 'records [@system agent-system]'),
+  ]) {
+    const content = Buffer.from(text),
+      files = new Map(archive.files);
+    files.set(path, content);
+    const manifest = {
+      ...archive.manifest,
+      files: archive.manifest.files.map((pin) =>
+        pin.path === path ? { ...pin, bytes: content.length, sha256: sha(content) } : pin,
+      ),
+    };
+    const bytes = buildArchive(manifest, files);
+    expect(() => verifyArchive(bytes)).toThrow(/Root release control/);
+  }
+});
+
+it('refuses unlisted root-control records and non-system selector roots before returning a selected archive', () => {
+  const path = '.ia/src/releases/package-workspace-system.ia';
+  for (const change of [
+    (text: string) =>
+      text +
+      '\n@agent injected\n  meaning\n    says "Extra root instance"\n    answers "Who is injected?"\n  governance\n    applies [workspace]\n',
+    (text: string) =>
+      text.replace('records [@system workspace-system]', 'records [@agent public-workspace-system-steward]'),
+  ]) {
+    const snapshot = distributionSnapshot({
+      folders: input.snapshot.folders,
+      floorOrigin: input.snapshot.floorOrigin,
+      sources: input.snapshot.sources.map((source) =>
+        source.path === path ? { ...source, text: change(source.text) } : source,
+      ),
+    });
+    expect(() => packSnapshotSet(snapshot, partitions)).toThrow(/Root release control/);
+  }
+});
 it('refuses absent declarations and declarations selecting the wrong native owner', () => {
-  const sources = input.snapshot.sources.filter((row) => !row.path.endsWith('/system-packages.ia'));
+  const sources = input.snapshot.sources.filter((row) => !row.path.startsWith('.ia/src/releases/'));
   const missing = distributionSnapshot({
     sources,
     folders: input.snapshot.folders,
@@ -136,7 +274,7 @@ it('refuses absent declarations and declarations selecting the wrong native owne
     /distribution declaration/,
   );
   const changedSources = input.snapshot.sources.map((row) =>
-    !row.path.endsWith('/system-packages.ia')
+    !row.path.endsWith('/package-agent-composition-system.ia')
       ? row
       : {
           ...row,

@@ -1,0 +1,89 @@
+#! ia 1.0
+
+@law repository-release-selection
+  meaning
+    says "Current release work reads the maintained release selection; historical release choices retain their versioned evidence."
+    answers "How do release records remain current across cohort changes?"
+  governance
+    severity blocking
+    applies [decision, plan, milestone, task]
+    requires "Keep repository work outside vocabulary system payloads. Read active npm versions and package membership from the maintained policy and manifests; do not copy them into live release intent. Pin historical decisions to versioned evidence."
+  subject
+    covers [".ia/src/records/**"]
+  relationships
+    cites @contract repository-architecture-boundary
+
+@contract repository-architecture-boundary
+  version "1.0.0"
+  meaning
+    says "The public repository separates reusable vocabulary, examples and maintenance work, and keeps active release work independent of copied cohort values."
+    answers "Which repository architecture invariants do the native qualification tools check?"
+  invariants
+    REQ-REPOSITORY-WORK-BOUNDARY "Repository work and neutral examples are excluded from the live vocabulary system payloads."
+    REQ-REPOSITORY-RELEASE-SELECTION "Active release work uses maintained policy and derived cohort membership; immutable historical release records may retain their original choices."
+  relationships
+    governs @workspace language-workspace
+    cites @decision npm-release-policy
+
+@check repository-architecture-coverage
+  meaning
+    says "Declares coverage for the repository architecture requirements; pnpm native:check runs their concrete repository lints."
+    answers "Which declaration names the architecture requirements and their repository evaluator?"
+  check
+    runs COMP-COVERAGE
+    scope "compliance-system/contract/signature/repository-architecture-boundary"
+  relationships
+    enforces @contract repository-architecture-boundary#REQ-REPOSITORY-WORK-BOUNDARY
+    enforces @contract repository-architecture-boundary#REQ-REPOSITORY-RELEASE-SELECTION
+
+@case repository-work-boundary-success
+  meaning
+    says "The maintained live corpus keeps vocabulary payloads, repository work and neutral examples in their declared locations."
+    answers "Which positive case checks the live repository source boundary?"
+  scenario
+    kind success
+    given "The maintained repository native source tree."
+    request "Run the repository architecture lint through pnpm native:check."
+    expected "The source boundary passes."
+    evaluator "tools/native/repository-architecture.test.ts | keeps the maintained live corpus admitted and free of sample and release-work payloads"
+  relationships
+    implements @contract repository-architecture-boundary#REQ-REPOSITORY-WORK-BOUNDARY
+
+@case repository-work-boundary-refusal
+  meaning
+    says "A repository task moved into a public vocabulary system remains structurally typed but is refused by repository qualification."
+    answers "Which negative case prevents maintenance work entering native system payloads?"
+  scenario
+    kind refusal
+    given "Repository release work placed in its vocabulary owner's folder."
+    request "Run the repository architecture lint."
+    expected "IA-NATIVE-WORK-PLACEMENT is reported."
+    evaluator "tools/native/repository-architecture.test.ts | refuses moving repository work into its vocabulary owner even when references still resolve"
+  relationships
+    implements @contract repository-architecture-boundary#REQ-REPOSITORY-WORK-BOUNDARY
+
+@case repository-release-selection-success
+  meaning
+    says "A current-source release decision names the selection process without duplicating mutable cohort values."
+    answers "Which positive case establishes version-independent release intent?"
+  scenario
+    kind success
+    given "A release-policy decision sourced from releases/current.json."
+    request "Run the release-work lint."
+    expected "The decision passes without a copied npm version or package count."
+    evaluator "tools/native/release-work.test.ts | keeps mutable release policy version- and membership-neutral"
+  relationships
+    implements @contract repository-architecture-boundary#REQ-REPOSITORY-RELEASE-SELECTION
+
+@case repository-release-selection-refusal
+  meaning
+    says "A live release decision copying an explicit cohort version or count is refused even when those values match today's policy."
+    answers "Which negative case prevents another fixed release selection?"
+  scenario
+    kind refusal
+    given "A release-policy decision containing copied current or future cohort values."
+    request "Run the release-work lint."
+    expected "IA-NATIVE-RELEASE-VERSION-LITERAL and IA-NATIVE-RELEASE-COUNT-LITERAL are reported."
+    evaluator "tools/native/release-work.test.ts | refuses copied release selection %s and %i packages, including future cohorts"
+  relationships
+    implements @contract repository-architecture-boundary#REQ-REPOSITORY-RELEASE-SELECTION

@@ -58,7 +58,7 @@
 
 @agent public-agent-composition-system-steward
   meaning
-    says "Identifies the owner of agent-composition-system contracts in this example."
-    answers "Who owns the voice, agent-profile, harness, capability and execution-binding words in this example?"
+    says "Accountable owner of agent-composition-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the voice, agent-profile, harness, capability and execution-binding words?"
   governance
     applies [voice, agent-profile, harness, capability, execution-binding]

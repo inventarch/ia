@@ -7,6 +7,7 @@ import type { Handle } from '@inventarch/db';
 import { PACKET_MARKER } from '@inventarch/runtime';
 import type { PacketDefinition } from '@inventarch/runtime';
 import { adoptWorkspace } from '../src/corpus.js';
+import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.js';
 import {
   generateAgentProfiles,
   generateDefinitions,
@@ -205,10 +206,16 @@ it("reports an authored playbook named after the packet's ia-authoring skill, ho
     });
 });
 
-it("renders a public system's playbook where the workspace authors that system, as this repository does", () => {
-  // The band filter is the only one: this repository authors the public systems at band 100, so their example playbook
-  // renders here, while a consumer's installed base, adopted below band 100, renders nothing (the case above).
-  const db = open(repository, { cache: false });
+it("renders a public system's authored example playbook only in the explicit example workspace", () => {
+  // The authored example remains at band 100; the live repository and a consumer's adopted base do not author it.
+  const live = open(repository, { cache: false });
+  handles.push(live);
+  expect(live.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+  for (const host of ['claude', 'codex'] as const)
+    expect(generatePlaybookSkills(live, live.resolveScope().token, host).files).toEqual([]);
+  const root = mkdtempSync(join(temporary, 'public-'));
+  copyPublicLanguageFixture(repository, root);
+  const db = open(root, { cache: false });
   handles.push(db);
   expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
   const within = db.resolveScope().token;

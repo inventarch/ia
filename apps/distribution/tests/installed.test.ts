@@ -1,3 +1,4 @@
+import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.js';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -8,6 +9,7 @@ import {
   canonicalDistributionJson as json,
   generationDigest,
   installationWorkspace,
+  DISTRIBUTION_ENGINE_VERSION,
 } from '@inventarch/db/distribution';
 import type { ActivationPointer } from '@inventarch/db/distribution';
 import { packDistribution } from '../src/pack.js';
@@ -19,7 +21,7 @@ import {
   planInstallation,
   recoverInstallation,
 } from '../src/install.js';
-import { buildArchive } from '../src/archive.js';
+import { buildArchive, verifyArchive } from '../src/archive.js';
 import { runNative } from '../src/native-command.js';
 import { captureWorkspace, installedImplementationDigest } from '@inventarch/workspace-runtime';
 import { captureResources, resourceOccurrences, resolveResources } from '@inventarch/workspace-runtime/resources';
@@ -45,76 +47,7 @@ interface Fixture {
 function fixture(name: string, sources: Readonly<Record<string, string>> = {}): Fixture {
   const root = join(temporary, name);
   mkdirSync(root);
-  for (const path of [
-    '.ia/src/systems/workspace-system/records/system-packages.ia',
-    '.ia/src/floor/artifact-set.ia',
-    '.ia/src/floor/axis.ia',
-    '.ia/src/floor/cardinality.ia',
-    '.ia/src/floor/category.ia',
-    '.ia/src/floor/dimension.ia',
-    '.ia/src/floor/floor.schema.ia',
-    '.ia/src/floor/intent-shape.ia',
-    '.ia/src/floor/kernel.schema.ia',
-    '.ia/src/floor/kind.ia',
-    '.ia/src/floor/lane.ia',
-    '.ia/src/floor/move.ia',
-    '.ia/src/floor/phase.ia',
-    '.ia/src/floor/placement.ia',
-    '.ia/src/floor/predicate.ia',
-    '.ia/src/floor/primitive.ia',
-    '.ia/src/floor/taxonomy.system.ia',
-    '.ia/src/floor/value-type.ia',
-    '.ia/src/systems/agent-system/system.ia',
-    '.ia/src/systems/agent-system/schemas/agent.schema.ia',
-    '.ia/src/systems/agent-system/schemas/mandate.schema.ia',
-    '.ia/src/systems/compliance-system/system.ia',
-    '.ia/src/systems/compliance-system/schemas/case.schema.ia',
-    '.ia/src/systems/compliance-system/schemas/check.schema.ia',
-    '.ia/src/systems/compliance-system/schemas/contract.schema.ia',
-    '.ia/src/systems/workspace-system/system.ia',
-    '.ia/src/systems/workspace-system/schemas/distribution.schema.ia',
-    '.ia/src/systems/workspace-system/schemas/workspace.schema.ia',
-    '.ia/src/systems/governance-system/system.ia',
-    '.ia/src/systems/governance-system/schemas/convention.schema.ia',
-    '.ia/src/systems/governance-system/schemas/law.schema.ia',
-    '.ia/src/systems/governance-system/schemas/playbook.schema.ia',
-    '.ia/src/systems/governance-system/schemas/principle.schema.ia',
-    '.ia/src/systems/session-system/system.ia',
-    '.ia/src/systems/session-system/schemas/run.schema.ia',
-    '.ia/src/systems/authoring-system/system.ia',
-    '.ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia',
-    '.ia/src/systems/authoring-system/schemas/operation.schema.ia',
-    '.ia/src/systems/agent-composition-system/system.ia',
-    '.ia/src/systems/agent-composition-system/schemas/agent-profile.schema.ia',
-    '.ia/src/systems/agent-composition-system/schemas/capability.schema.ia',
-    '.ia/src/systems/agent-composition-system/schemas/execution-binding.schema.ia',
-    '.ia/src/systems/agent-composition-system/schemas/harness.schema.ia',
-    '.ia/src/systems/agent-composition-system/schemas/voice.schema.ia',
-    '.ia/src/systems/template-system/system.ia',
-    '.ia/src/systems/template-system/schemas/template.schema.ia',
-    '.ia/src/systems/hook-authoring-system/system.ia',
-    '.ia/src/systems/hook-authoring-system/schemas/hook.schema.ia',
-    '.ia/src/systems/learning-system/system.ia',
-    '.ia/src/systems/learning-system/schemas/improvement.schema.ia',
-    '.ia/src/systems/learning-system/schemas/observation.schema.ia',
-    '.ia/src/systems/work-system/system.ia',
-    '.ia/src/systems/work-system/schemas/decision.schema.ia',
-    '.ia/src/systems/work-system/schemas/milestone.schema.ia',
-    '.ia/src/systems/work-system/schemas/plan.schema.ia',
-    '.ia/src/systems/work-system/schemas/task.schema.ia',
-    '.ia/src/systems/work-system/schemas/spec.schema.ia',
-    '.ia/src/systems/agent-composition-system/records/composition.ia',
-    '.ia/src/systems/workspace-system/records/quality.ia',
-    '.ia/src/systems/workspace-system/records/architecture.ia',
-    '.ia/src/systems/learning-system/records/evidence.ia',
-    '.ia/src/systems/workspace-system/records/language.ia',
-    '.ia/src/systems/work-system/records/work.ia',
-    '.ia/src/systems/authoring-system/operations/validate-ia.ia',
-    '.ia/src/systems/authoring-system/operations/format-ia.ia',
-    '.ia/src/systems/template-system/operations/render-template.ia',
-    '.ia/src/systems/workspace-system/records/repository-distribution.ia',
-  ])
-    put(root, path, readFileSync(join(repository, path)));
+  copyPublicLanguageFixture(repository, root);
   put(root, 'guide.md', '# Original installed guide\n');
   for (const [path, text] of Object.entries(sources)) put(root, path, text);
   const packed = packDistribution(root, {
@@ -197,6 +130,35 @@ it('admits installed physical sources, native install edges and immutable editor
   } finally {
     reader.close();
   }
+});
+it('opens and restores an exact legacy 0.1.0 lock without rewriting pins, while keeping actual archive engine ranges strict', () => {
+  expect(selected.lock.engine).toBe('0.1.0');
+  expect(packed.manifest.engine).toBe('^0.1.0');
+  const root = install(),
+    lockBefore = readFileSync(join(root, '.ia/distributions.lock.json'));
+  cacheArchive(root, packed.bytes);
+  const plan = planInstallation(root, selected.lock, 'restore');
+  expect(plan.engine).toBe(DISTRIBUTION_ENGINE_VERSION);
+  applyInstallation(plan);
+  expect(readFileSync(join(root, '.ia/distributions.lock.json'))).toEqual(lockBefore);
+  const reader = open(root, { cache: false });
+  try {
+    expect(reader.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+  } finally {
+    reader.close();
+  }
+  for (const engine of ['0.1.2', '0.2.0'])
+    expect(() => planInstallation(root, { ...selected.lock, engine }, 'restore')).toThrow(
+      /Lock engine compatibility differs/,
+    );
+  const incompatible = verifyArchive(buildArchive({ ...packed.manifest, engine: '0.1.0' }, packed.files));
+  cacheArchive(root, buildArchive({ ...packed.manifest, engine: '0.1.0' }, packed.files));
+  const oldSelection = resolveReleases(
+    [{ id: incompatible.manifest.id, range: incompatible.manifest.version }],
+    [{ release: incompatible, location: `sha256:${incompatible.archiveDigest}`, withdrawn: false }],
+    '0.1.0',
+  );
+  expect(() => planInstallation(root, oldSelection.lock, 'restore')).toThrow(/Bundle metadata\/engine differs/);
 });
 it('preserves old handles and invalidates scope tokens after activation and rollback counters', () => {
   const root = install(),

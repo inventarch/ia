@@ -58,7 +58,7 @@
 
 @agent public-work-system-steward
   meaning
-    says "Identifies the owner of work-system contracts in this example."
-    answers "Who owns the plan, milestone, task, decision and spec words in this example?"
+    says "Accountable owner of work-system vocabulary, canonical schemas, relationship consent and direct dependencies."
+    answers "Who owns the plan, milestone, task, decision and spec words?"
   governance
     applies [plan, milestone, task, decision, spec]

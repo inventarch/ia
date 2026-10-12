@@ -500,7 +500,7 @@ it('reports a joined payload whose handler bytes no longer match their pins as d
   });
 });
 
-it('binds only through the payload this installation pins in its own IA home, and opens no other (B2-R2, B2-RC2)', (context) => {
+it('binds only through the payload this installation pins in its own IA home, and opens no other (B2-R2, B2-RC2)', () => {
   const genuine = installed();
   // A self-consistent forged payload (another catalog, every pin recomputed) outside the IA home, registered and joined
   // at its own release: never trusted, and no filesystem call ever names it.
@@ -556,18 +556,29 @@ it('binds only through the payload this installation pins in its own IA home, an
   expect(() => joinedCatalog(own, { home: 'relative', release: genuine.release })).toThrow(
     code('IA-DIST-INPUT-INVALID'),
   );
-  // The genuine payload through a network path (the same directory on this machine): a path the workspace names is
-  // compared, never opened. Only where the administrative share answers.
-  const unc = `\\\\localhost\\${genuine.root.slice(0, 1)}$${genuine.root.slice(2)}`;
-  if (process.platform !== 'win32' || !existsSync(unc)) return context.skip();
-  registered(own, 'claude', unc, genuine.release);
-  const network = watched('\\\\localhost\\', () => joinedCatalog(own, genuine.trust));
-  expect(network.result).toEqual({
-    status: 'unavailable',
-    reason: expect.stringContaining('names a payload other than'),
-  });
-  expect(network.calls).toEqual([]);
 });
+
+it.skipIf(process.platform !== 'win32')(
+  'compares a network path a registration names to the pinned payload and never opens it (B2-RC2)',
+  (context) => {
+    // The genuine payload through a network path (the same directory on this machine): a path the workspace names is
+    // compared, never opened. Only where the administrative share answers.
+    const genuine = installed(),
+      own = temp();
+    const unc = `\\\\localhost\\${genuine.root.slice(0, 1)}$${genuine.root.slice(2)}`;
+    if (!existsSync(unc)) return context.skip('the administrative share does not answer on this machine');
+    // Joined through the pinned payload, then registered through the network spelling of the same directory.
+    registered(own, 'claude', genuine.root, genuine.release);
+    joinHost(own, 'claude', REVISION);
+    registered(own, 'claude', unc, genuine.release);
+    const network = watched('\\\\localhost\\', () => joinedCatalog(own, genuine.trust));
+    expect(network.result).toEqual({
+      status: 'unavailable',
+      reason: expect.stringContaining('names a payload other than'),
+    });
+    expect(network.calls).toEqual([]);
+  },
+);
 
 it('reports the trusted payload damaged whichever host joined it, in either consumer order (B2-N1)', () => {
   for (const [trusted, other] of [

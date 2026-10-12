@@ -2,15 +2,8 @@
 
 @workspace language-workspace
   meaning
-    says "The public systems that define the IA language vocabulary."
-    answers "Which vocabulary contracts compose the public language?"
+    says "Maintains the public IA vocabulary, its executable consumers and this repository's work. Release instances and repository policy stay outside reusable system payloads."
+    answers "Which systems and authored sources support maintenance of the public IA repository?"
   composition
     systems [@system agent-system, @system compliance-system, @system workspace-system, @system governance-system, @system session-system, @system authoring-system, @system agent-composition-system, @system template-system, @system hook-authoring-system, @system learning-system, @system work-system]
     sources [".ia/src @authored"]
-
-@distribution language-distribution
-  meaning
-    says "The root of the public language vocabulary closure."
-    answers "Which workspace starts the public language distribution?"
-  distribution
-    records [@workspace language-workspace]

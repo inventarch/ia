@@ -7,6 +7,7 @@ import type { Location } from '@inventarch/language';
 import { open, readInputs } from '../src/index.js';
 import type { SeatResolution } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
+import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.js';
 import { put, workspace } from './workspace.js';
 
 // D02b (position-and-projection row 17): a path resolves to the seat it is declared at and to the records whose
@@ -143,7 +144,24 @@ it('resolves the exit-evidence path in this repository to the work-system seat',
     // Every claimant states a selection that selects the path, whatever records the repository holds.
     for (const claimant of resolution.claimants)
       expect(claimant.matches.every((m) => selects(m.selection, evidence))).toBe(true);
-    // The work-system spec that covers the reference pages claims them through its `work.covers`.
+    // Neutral examples are absent from the live corpus and cannot claim this repository's reference pages.
+    expect(
+      db
+        .resolveSeat('docs/reference/language/README.md')
+        .claimants.some((c) => c.identity.endsWith('/spec/example-reference-spec')),
+    ).toBe(false);
+  } finally {
+    db.close();
+  }
+});
+
+it('resolves the public example specification claimant from its explicit fixture corpus', () => {
+  const root = workspace(false);
+  copyPublicLanguageFixture(repository, root);
+  const db = open(root, { cache: false });
+  try {
+    expect(errors(db)).toEqual([]);
+    // The fixture spec still claims the reference pages through its exact work.covers selection.
     expect(
       db
         .resolveSeat('docs/reference/language/README.md')

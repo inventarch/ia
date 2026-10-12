@@ -6,7 +6,7 @@
 >
 > This is the **public IA repository**: the language, native schemas, CLI, MCP server, editor integration and worked examples, licensed under Apache-2.0.
 
-Start below with the published [CLI](https://www.npmjs.com/package/@inventarch/cli), then explore the [language guide](docs/reference/language/README.md), [44-word vocabulary](docs/reference/language/vocabulary.md) and [worked examples](examples/public-language/README.md).
+Start below with the published [CLI](https://www.npmjs.com/package/@inventarch/cli), then explore the [language guide](docs/reference/language/README.md), [44-word vocabulary](docs/reference/language/vocabulary.md), [architecture and ownership](docs/reference/architecture/README.md) and [worked examples](examples/public-language/README.md).
 
 ---
 
@@ -17,11 +17,11 @@ Start below with the published [CLI](https://www.npmjs.com/package/@inventarch/c
 Use **Node.js `>=22.22.0 <23`**. Install [`@inventarch/cli`](https://www.npmjs.com/package/@inventarch/cli) globally to make the `ia` command available across your projects, including projects without a `package.json`:
 
 ```sh
-npm install --global @inventarch/cli@1.0.0
+npm install --global @inventarch/cli
 ia --version
 ```
 
-The version command should print `1.0.0`. Each project keeps its own records in its own `.ia/` directory, regardless of where the CLI is installed.
+The version command prints the installed CLI version. Each project keeps its own records in its own `.ia/` directory, regardless of where the CLI is installed.
 
 <details>
 <summary>Prefer a project-local install for a JavaScript or TypeScript repository?</summary>
@@ -95,7 +95,7 @@ ia inspect --path .ia/src/decisions.ia
 ia vocabulary decision --schema
 ```
 
-For this example, look for **Admitted** and **0 errors**. In 1.0.0, a fresh workspace also reports two `IA-COMP-NOT-EVALUATED` warnings for `COMP-FIXTURES` and `COMP-KERNEL`: those checks need matching verification evidence. The overall outcome therefore remains `not-evaluated`; it is not a full evaluation pass.
+For this example, look for **Admitted** and **0 errors**. Read evaluator results separately: a check whose evaluator or verification evidence is unavailable reports `not-evaluated`, which does not establish an evaluation pass. The exact checks and counts depend on the installed toolchain and selected corpus.
 
 `inspect` shows the decision you just added; `vocabulary` shows its required fields and permitted values. If you change `status made` to `status finished`, validation should report `IA-COMP-FIELD-VALUE` at the record's `work.status` field. Restore `made` and validate again to return to zero errors.
 
