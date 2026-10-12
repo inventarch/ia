@@ -1472,6 +1472,20 @@ describe('a file refused whole whose records db cannot all identify (review D2-R
       expect.objectContaining({ admission: 'refused' }),
     );
   });
+  it('counts a line the token scan reads as a mandate once (review D2 recheck F3)', () => {
+    const root = freshInit();
+    put(root, '.ia/src/extra.ia', `#! ia 1.0\n${agent('other')}${String.fromCharCode(0)}@mandate extra\n${body}`);
+    const db = database(root);
+    expect(db.unadmitted.filter((entry) => entry.line === 9).map((entry) => entry.word)).toEqual([
+      undefined,
+      'mandate',
+    ]);
+    expect(refusedMandates(db).map((entry) => [entry.line, entry.unidentified ?? false])).toEqual([[9, false]]);
+    const error = thrownBy(() => governingMandates(db, token(db), { actor: participant, workspace: demo }));
+    expect(error.message).toContain('the @mandate at .ia/src/extra.ia:9 failed admission: IA-LANG-');
+    expect(error.message).not.toContain('unidentified');
+    expect(error.message).not.toContain('more');
+  });
   it('does not fail closed for an empty file, which declares nothing', () => {
     const root = freshInit();
     put(root, '.ia/src/empty.ia', '');

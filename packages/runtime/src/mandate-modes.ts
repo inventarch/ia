@@ -1,6 +1,6 @@
 import type { CompiledField, CompiledRecord, CompiledValue } from '@inventarch/language';
 import { MOVES as KERNEL_MOVES } from '@inventarch/language';
-import type { ReadHandle } from '@inventarch/db';
+import type { ReadHandle, UnadmittedRecord } from '@inventarch/db';
 import { reaches, selects } from '@inventarch/graph';
 import { RUNTIME_CODES, RuntimeError } from './errors.js';
 import type { RuntimeCode, RuntimeWhere } from './errors.js';
@@ -239,22 +239,25 @@ export interface RefusedMandate {
  * `refused` naming it; (b) both occurrences of a mandate identity that ties at band 100; (c) one a file refused whole
  * declares, by a language error or a duplicate requirement id, as db's own parse of the file reads its headers, or as
  * its captured text shows a header the parse could not read, or a `@mandate` token on a line no parsed record spans; and
- * (d) review D2-R2: every record db cannot identify, an error line of a file refused whole that no parsed record spans
- * and no header reading names, which may be a mandate, so it counts as one, marked `unidentified`. A record is a
- * mandate when its word is `mandate` or its identity's facet is, or when db names no word. The band is the one db reads from the
- * source's placement, as capture membership and governingMandates read it, so a mandate refused inside an installed base
- * (band 90) never counts: it never governs.
+ * (d) review D2-R2: every record db cannot identify (db D15 lists it with no word, by the rules and limits D15 states),
+ * which may be a mandate, so it counts as one, marked `unidentified`, except at a line db also lists a mandate at, which
+ * is counted once, as that mandate (review D2 recheck F3). A record is a mandate when its word is `mandate` or its
+ * identity's facet is, or when db names no word. The band is the one db reads from the source's placement, as capture
+ * membership and governingMandates read it, so a mandate refused inside an installed base (band 90) never counts: it
+ * never governs.
  *
  * It reads db's root view, not a scope: a record admission refused belongs to no scope, and its scope, covers and
  * participant cannot be trusted, so what it fails closed (D2) it fails closed workspace-wide.
  */
 export function refusedMandates(reader: ReadHandle): readonly RefusedMandate[] {
+  const authored = reader.unadmitted.filter((entry) => entry.band === 100),
+    mandated = (entry: UnadmittedRecord): boolean =>
+      entry.word === 'mandate' || entry.identity?.split('/')[2] === 'mandate',
+    at = new Set(authored.filter(mandated).map((entry) => JSON.stringify([entry.path, entry.line])));
   return freeze(
-    reader.unadmitted
-      .filter(
-        (entry) =>
-          entry.band === 100 &&
-          (entry.word === undefined || entry.word === 'mandate' || entry.identity?.split('/')[2] === 'mandate'),
+    authored
+      .filter((entry) =>
+        entry.word === undefined ? !at.has(JSON.stringify([entry.path, entry.line])) : mandated(entry),
       )
       .map(
         (entry): RefusedMandate => ({
