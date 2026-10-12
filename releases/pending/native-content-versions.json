@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "major",
   "title": "Align native archives once and enforce independent content versions",
-  "summary": "The bundled public language and system archives move once to native 2.1.0. Future native releases retain unchanged archive versions, require individual change notes, and refuse changed bytes under an already published native identity and version. Native selection remains independent of the coordinated npm release version.",
+  "summary": "The bundled public language and system archives move once to native 2.1.0. The current composition fixture tracks that selected native base while retaining exact equality with the initialized starter. Future native releases retain unchanged archive versions, require individual change notes, and refuse changed bytes under an already published native identity and version. Native selection remains independent of the coordinated npm release version.",
   "packages": [
     "@inventarch/cli",
     "@inventarch/agent-composition-system",
@@ -26,6 +26,7 @@
     "package.json",
     "releases/native/",
     "apps/cli/assets/vocabulary.json",
+    "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
     "apps/mcp-door/assets/vocabulary.json",
     "docs/reference/language/"
   ]
