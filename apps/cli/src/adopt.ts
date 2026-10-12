@@ -1,7 +1,7 @@
 import { applyAdoption, openRegistry, planAdoption, selectCollection } from '@inventarch/distribution/registry';
 import type { WorkspaceRelease } from '@inventarch/distribution/registry';
 import type { Context, Result } from './consumer.js';
-import { confirm, Refusal, requireRoot } from './consumer.js';
+import { confirm, Refusal, requireRoot, respell } from './consumer.js';
 import { UsageError } from './args.js';
 import { collectCapture } from './capture.js';
 import { hostRegistryChooser, registeredProjections, REQUEST, requireProjectionsClean } from './distribute.js';
@@ -57,15 +57,16 @@ export async function runAdopt(context: Context): Promise<Result> {
       stderr: '',
     };
   } catch (error) {
+    const retry = respell(context, {
+      positionals: [`${selected.id}@${selected.release.version}`],
+      options: { root: [root] },
+    });
     throw new Refusal(
       'IA-CLI-ADOPTION-APPLIED',
       `The adoption is applied; capture/projection failed: ${error instanceof Error ? error.message : String(error)}`,
       3,
       { path: root },
-      [
-        `ia capture --root ${JSON.stringify(root)}`,
-        ...hosts.map((host) => `ia project ${host} --root ${JSON.stringify(root)} --apply --yes`),
-      ].join('; '),
+      `Repair the reported failure, then run "${retry} --apply --yes" to finish capture and registered projections.`,
     );
   }
 }

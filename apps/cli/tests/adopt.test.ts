@@ -1,19 +1,21 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { adoptedBindings, open, readInputs } from '@inventarch/db';
 import { registryAddCollection } from '@inventarch/distribution/registry-build';
 import { workspaceRevision, planAdoption, applyAdoption } from '@inventarch/distribution/registry';
 import { captureWorkspace, Corpus } from '@inventarch/workspace-runtime';
 import { resourceOccurrences } from '@inventarch/workspace-runtime/resources';
-import { cleanup, run, scratch } from './workspace-fixture.js';
+import { cleanup, nextArgv, run, scratch } from './workspace-fixture.js';
+import * as captureService from '../src/capture.js';
+import * as projectionService from '../src/host-projection.js';
 import { buildFixtureRegistry } from './registry-fixture.js';
 
 afterEach(cleanup);
 const native = (title: string) =>
   `#! ia 1.0\n@plan shared-plan\n  meaning\n    says "Shared work"\n    answers "What is planned?"\n  work\n    title "${title}"\n    status open\n    owner "example"\n`;
-function registry() {
-  const root = scratch('adoption-registry'),
+function registry(label = 'adoption-registry') {
+  const root = scratch(label),
     files = [{ path: '.ia/src/work.ia', text: native('Adopted plan') }];
   const release = { version: '1.0.0', withdrawn: false, revision: workspaceRevision(files), files };
   registryAddCollection(root, 'workspace', {
@@ -120,3 +122,60 @@ it('ia install resolves a kit to its distributions and preserves ordinary instal
   expect(result.exitCode, result.stdout).toBe(0);
   expect(JSON.parse(result.stdout).plan.lock.requests).toEqual([{ id: 'example/foundation', range: '1.0.0' }]);
 });
+
+it.each(['capture', 'projection'] as const)(
+  'prints one pinned adoption retry that completes a failed %s effect',
+  async (effect) => {
+    const fixture = registry('adoption registry'),
+      root = join(scratch('adoption recovery'), 'workspace with spaces');
+    expect((await run(['init', root, '--apply', '--yes', '--json'])).exitCode).toBe(0);
+    expect((await run(['project', 'codex', '--root', root, '--apply', '--yes', '--json'])).exitCode).toBe(0);
+    const before = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    const injected =
+      effect === 'capture'
+        ? vi.spyOn(captureService, 'collectCapture').mockImplementationOnce(() => {
+            throw new Error('temporary capture write failure');
+          })
+        : vi.spyOn(projectionService, 'applyHostProjection').mockImplementationOnce(() => {
+            throw new Error('temporary projection write failure');
+          });
+    let refused;
+    try {
+      refused = await run([
+        'adopt',
+        'example/reference',
+        '--registry',
+        fixture.root,
+        '--root',
+        root,
+        '--apply',
+        '--yes',
+        '--json',
+      ]);
+    } finally {
+      injected.mockRestore();
+    }
+    expect(refused.exitCode).toBe(3);
+    const body = JSON.parse(refused.stdout) as { code: string; next: string };
+    expect(body.code).toBe('IA-CLI-ADOPTION-APPLIED');
+    const pin = adoptedBindings(root);
+    expect(pin).toHaveLength(1);
+    const args = nextArgv(body.next);
+    expect(args).toEqual([
+      'adopt',
+      'example/reference@1.0.0',
+      '--registry',
+      fixture.root,
+      '--root',
+      root,
+      '--apply',
+      '--yes',
+    ]);
+    const restored = await run([...args, '--json']);
+    expect(restored.exitCode, restored.stdout).toBe(0);
+    expect(JSON.parse(restored.stdout).projections).toHaveLength(1);
+    expect(JSON.parse(restored.stdout).capture).toMatch(/^[a-f0-9]{64}$/);
+    expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).not.toBe(before);
+    expect(adoptedBindings(root)).toEqual(pin);
+  },
+);
