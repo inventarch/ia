@@ -25,7 +25,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { open, readInputs } from '@inventarch/db';
-import { HOOK_CODES } from '@inventarch/runtime';
+import { Door, HOOK_CODES } from '@inventarch/runtime';
 import { digestValue } from '@inventarch/runtime/authoring';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { evaluateHook, evaluateMandateHook, printable, runHook, streamed } from '../src/main.js';
@@ -583,6 +583,67 @@ const ownership = (root: string, groups: readonly (readonly [string, readonly st
     }),
   );
 
+it('denies every selected edit while an authored @mandate fails admission, naming it and a report that runs (lane D, D4)', () => {
+  // The probe: demo-mandate states an unknown move and excludes task, so admission refuses it and it governs nothing.
+  const root = workspace({
+    '.ia/src/workspace.ia': starter([
+      'moves [Observation, Verification, Synthesis, Delegation, Execution]',
+      'moves [Bogus]\n    excluded-words [task]',
+    ]),
+  });
+  const report = `Next: ia report --root ${JSON.stringify(root)}`,
+    lift = `"ia host claude --root ${JSON.stringify(root)} --remove --apply --yes"`;
+  for (const [path, extra] of [
+    ['docs/guide.md', {}],
+    ['restricted/plan.md', {}],
+    ['docs/guide.md', reviewer],
+    ['docs/guide.md', stranger],
+  ] as const) {
+    const denied = check(root, path, extra);
+    expect(code(denied), path).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+    expect(reason(denied), path).toContain(MESSAGE);
+    expect(reason(denied), path).toContain(
+      `${mandate('demo-mandate')} (.ia/src/workspace.ia:19) failed admission: IA-COMP-FIELD-VALUE`,
+    );
+    expect(reason(denied), path).toContain(report);
+    expect(reason(denied), path).not.toContain('ia validate');
+    // The main session is named the shell command that lifts every hook; a subagent's denial is the main session's.
+    if ('agent_id' in extra) expect(reason(denied), path).not.toContain(lift);
+    else expect(reason(denied), path).toContain(lift);
+  }
+  // Paths the hook does not select are still not decided, broken mandate or not (C10).
+  expect(check(root, 'src/app.ts')).toEqual({});
+  expect(check(root, 'notes/todo.md', reviewer, 'Edit')).toEqual({});
+  // A mandate in a file admission refuses whole fails closed alike; one refused in the installed base never would.
+  const whole = workspace({
+    '.ia/src/broken.ia': `#! ia 1.0\n${authorized('broken', ['participant @agent demo', 'moves [Observation]'])}   misindented\n`,
+  });
+  const denied = check(whole, 'docs/guide.md');
+  expect(code(denied)).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+  expect(reason(denied)).toContain(`${mandate('broken')} (.ia/src/broken.ia:3) failed admission: IA-LANG-INDENT-STEP`);
+  // The report it names is the version 1 machine route, which the Door serves ungated: it shows the finding.
+  const door = new Door(root, { cache: false, allowReport: true, protocol: 1 });
+  try {
+    const shown = door.request({ operation: 'report', params: {} });
+    expect(shown.ok).toBe(true);
+    expect(shown.ok && (shown.result as { findings: unknown[] }).findings).toContainEqual(
+      expect.objectContaining({ code: 'IA-COMP-FIELD-VALUE', path: '.ia/src/workspace.ia', line: 27 }),
+    );
+  } finally {
+    door.close();
+  }
+});
+
+it('keeps naming the governance position for an admitted mandate whose authority the resolver cannot read', () => {
+  // A child under `authority.moves`: admission admits the record, the resolver refuses the field.
+  const root = workspace({ '.ia/src/hooks.ia': hooks(['moves [Synthesis]', 'moves [Synthesis]\n      note x']) });
+  const denied = check(root, 'docs/guide.md');
+  expect(code(denied)).toBe('IA-HOOK-MANDATE-UNAVAILABLE');
+  expect(reason(denied)).toContain(`${mandate('docs-mandate')}: authority.moves must be an unconditional inline value`);
+  expect(reason(denied)).toContain(`Next: ${governance('docs-mandate')}`);
+  expect(check(root, 'src/app.ts')).toEqual({});
+});
+
 it('refuses no more than the last registered selection when the records cannot open, naming only the removal (H-R8, H-N14)', () => {
   // A descriptor the db cannot read: the workspace's records do not open at all.
   const root = workspace({ '.ia/workspace.json': '{ not json' });
@@ -614,13 +675,29 @@ it('refuses no more than the last registered selection when the records cannot o
 
 it('names only the removal when the hook record is gone and the workspace does not admit (H-R2)', () => {
   // A syntax error in hooks.ia: the hook is no admitted record and the workspace does not admit, so re-registering
-  // would refuse; the removal and `ia validate` are the commands that work.
+  // would refuse; the removal and the admission report are the commands that work. The file holds docs-mandate and
+  // reviewer-docs too, which admission refuses with it, so `ia validate`, mandate-gated, would refuse (lane D).
   const root = workspace({ '.ia/src/hooks.ia': hooks(['@hook note-edits', '@hook note-edits\n  bogus\nzzz']) });
   ownership(root, [[HOOK, ['docs/**', '.ia/src/**']]]);
   const refused = check(root, '.ia/src/hooks.ia', {}, 'Edit');
   expect(code(refused)).toBe('IA-HOOK-DECLARATION-UNAVAILABLE');
   expect(reason(refused)).toContain(`"ia host claude --root ${JSON.stringify(root)} --remove --apply --yes"`);
-  expect(reason(refused)).toContain(`"ia validate --root ${JSON.stringify(root)}"`);
+  expect(reason(refused)).toContain(`"ia report --root ${JSON.stringify(root)}"`);
+  expect(reason(refused)).not.toContain('ia validate');
   expect(reason(refused)).not.toContain(`"ia host claude --root ${JSON.stringify(root)} --apply --yes"`);
   expect(check(root, 'src/app.ts', {}, 'Edit')).toEqual({});
+  // A broken hook record in a file with no mandate (the two moved to a file of their own) still names `ia validate`,
+  // which runs there.
+  const from = HOOKS.indexOf('\n@mandate docs-mandate'),
+    to = HOOKS.indexOf('\n@execution-binding notes-hook');
+  const plain = workspace({
+    '.ia/src/hooks.ia': edited(HOOKS.slice(0, from) + HOOKS.slice(to), [
+      ['@hook note-edits', '@hook note-edits\n  bogus\nzzz'],
+    ]),
+    '.ia/src/mandates.ia': `#! ia 1.0\n${HOOKS.slice(from, to)}`,
+  });
+  ownership(plain, [[HOOK, ['docs/**', '.ia/src/**']]]);
+  const named = reason(check(plain, '.ia/src/hooks.ia', {}, 'Edit'));
+  expect(named).toContain(`"ia validate --root ${JSON.stringify(plain)}"`);
+  expect(named).not.toContain('ia report');
 });

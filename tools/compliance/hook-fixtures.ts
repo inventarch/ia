@@ -67,14 +67,15 @@ export function runHookFixtures(root: string): readonly FixtureResult[] {
         docs(subagent, { agent_id: 'fixture-subagent', agent_type: 'reviewer' }),
         ['--root', subagent, '--hook', hook],
       ],
-      // A governing mandate that declares an empty move list cannot be read as an authority.
+      // A governing mandate that states an empty move list fails admission (compliance C05), and a @mandate that fails
+      // admission fails every selected edit closed (lane D).
       ['IA-HOOK-MANDATE-UNAVAILABLE', docs(malformed), ['--root', malformed, '--hook', hook]],
     ];
     return rows.map(([expected, input, args]) => {
       const result = spawnSync(
         process.execPath,
         [resolve(root, 'apps/steward-hook/tests/fixtures/steward-write.mjs'), ...args],
-        { input: JSON.stringify(input), encoding: 'utf8', timeout: 20000 },
+        { input: JSON.stringify(input), encoding: 'utf8', timeout: 20000, windowsHide: true },
       );
       let observedCodes: string[] = [];
       try {
