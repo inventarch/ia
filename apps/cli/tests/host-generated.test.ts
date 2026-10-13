@@ -176,6 +176,64 @@ async function guarded(
 }
 const codeOf = (reason: string | undefined): string | undefined => reason?.split(':')[0];
 
+it('refuses removal when hook ownership is lost and preserves the active group until manual recovery', async () => {
+  const { root, env } = await composed();
+  const unrelated = { permissions: { allow: ['Bash(ls)'] } };
+  put(root, SETTINGS, JSON.stringify(unrelated) + '\n');
+  await apply(root, env);
+  rmSync(resolve(root, HOOK_STATE));
+  const group = hookGroups(root).get(HOOK);
+  expect(codeOf(await guarded(root, group, 'docs/guide.md', reviewer))).toBe('IA-HOOK-NOT-MANDATED');
+  expect((await doctor(root, env)).checks.find((row) => row.id === `projection-claude-hook:${HOOK}`)).toMatchObject({
+    status: 'warn',
+    detail: expect.stringContaining('delete only this unowned group manually'),
+    remedy: null,
+  });
+  const paths = [
+      SETTINGS,
+      HOOK_STATE,
+      PROJECTION,
+      RECEIPT_PATH,
+      '.ia/distributions/hosts/joins.json',
+      '.ia/distributions/hosts/guard-pending.json',
+      '.mcp.json',
+      AGENT,
+      SKILL,
+      ...PACKET,
+    ],
+    before = snapshot(root, paths);
+  for (const flags of [[], ['--apply', '--yes']]) {
+    const result = await host(root, env, 'claude', '--remove', ...flags);
+    if (flags.length === 0) {
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(projection(result.stdout)).toMatchObject({
+        action: 'refused',
+        conflict: { code: 'IA-DIST-LOCAL-MODIFICATION', path: SETTINGS },
+      });
+    } else {
+      expect(result.exitCode, result.stdout).toBe(3);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        code: 'IA-DIST-LOCAL-MODIFICATION',
+        where: { path: SETTINGS },
+        next: expect.stringContaining(`Delete only the unowned IA hook group for ${HOOK}`),
+      });
+    }
+    expect(snapshot(root, paths)).toEqual(before);
+  }
+  expect(codeOf(await guarded(root, hookGroups(root).get(HOOK), 'docs/guide.md', reviewer))).toBe(
+    'IA-HOOK-NOT-MANDATED',
+  );
+  // The refusal does not authorize adopting or deleting the whole settings file. Remove just the identified group.
+  const repaired = settings(root);
+  repaired.hooks!.PreToolUse = repaired.hooks!.PreToolUse!.filter(
+    (entry) => entry !== undefined && !entry.hooks.some((handler) => handler.args?.includes(HOOK)),
+  );
+  put(root, SETTINGS, JSON.stringify(repaired) + '\n');
+  expect((await host(root, env, 'claude', '--remove', '--apply', '--yes')).exitCode).toBe(0);
+  expect(settings(root)['permissions']).toEqual(unrelated.permissions);
+  expect(hookGroups(root).size).toBe(0);
+});
+
 it('applies the packet, one agent, one skill and one hook group through the one writer, and a second apply writes nothing', async () => {
   const { root, env } = await composed();
   const first = projection((await apply(root, env)).stdout);

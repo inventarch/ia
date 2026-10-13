@@ -2,6 +2,8 @@
 
 `tests/check-evidence.test.ts` pins D13's exact scope selection against both ancestor and descendant scopes and lexical prefixes. A matching verdict passes alone even when its neighboring scopes fail; without the exact scope, the result remains not-evaluated.
 
+`safePath` locates a symlink or junction refusal at the first unsafe workspace-relative component it encounters. Evidence writers preserve that location, so recovery can replace the workspace link itself instead of acting on a child through its external target. The walk stops before traversing the refused component; the existing read-only evidence behavior remains unchanged.
+
 ## M7 runner journal evidence
 
 Event IDs are session command IDs: an atomic command may contribute up to 32 contiguous events with the same ID, actor and cause. Noncontiguous reuse, changed command attribution, and oversized command groups are rejected. Sequence and hash chaining identify each distinct event. Exact runner authority and limit refusal waits project refusal; unrelated waits remain inconclusive.

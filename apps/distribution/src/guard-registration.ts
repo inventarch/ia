@@ -14,7 +14,19 @@ import {
   verifyHostCache,
 } from './host.js';
 import type { HostCacheTarget } from './host.js';
-import { bytes, digest, fail, json, locate, object, replace, sha256, utf8, workspace } from './files.js';
+import {
+  bytes,
+  digest,
+  DistributionError,
+  fail,
+  json,
+  locate,
+  object,
+  replace,
+  sha256,
+  utf8,
+  workspace,
+} from './files.js';
 import { editJson, emptyJson, keptPaths, presentJson } from './json-edit.js';
 import type { JsonPath } from './json-edit.js';
 
@@ -599,9 +611,44 @@ export function planHookRegistration(rootInput: string, request: HookRequest): H
   assertHostRegistrationIdle(root);
   const remove = Object.hasOwn(plain(request), 'remove'),
     row = object(request, remove ? ['remove'] : ['cache', 'hooks']);
-  if (remove) return planHooksWith(root, null, [], row['remove']);
+  if (remove) {
+    assertRemovableHooks(root, identity(row['remove']));
+    return planHooksWith(root, null, [], row['remove']);
+  }
   const hooks = hookRows(row['hooks']);
   return planHooksWith(root, verifyHostCache(row['cache'] as string), hooks, null);
+}
+/**
+ * Explicit removal must not report that protection was lifted while an unowned IA hook still runs. Check both settings
+ * locations, including after ownership was lost, and leave every byte untouched. A foreign group is never adopted.
+ */
+export function assertRemovableHooks(rootInput: string, id: string = HOST_REGISTRATION): void {
+  const root = workspace(rootInput),
+    stateFile = hookStatePath(id),
+    state = locate(stateFile, () => savedHooks(read(root, stateFile), root, id, true));
+  for (const path of [configPath, projectPath])
+    locate(path, () => {
+      const text = read(root, path);
+      if (text === null) return;
+      const config = plain(decodeDistributionJson(text)),
+        hooks = config['hooks'] === undefined ? {} : plain(config['hooks']),
+        rows = hooks['PreToolUse'] ?? [];
+      if (!Array.isArray(rows) || rows.length > 256) fail('INPUT-INVALID', 'Expected a bounded PreToolUse hook array');
+      for (const group of rows) {
+        const hook = guardInvocation(group);
+        if (typeof hook !== 'string') continue;
+        // Existing modified/duplicate owned groups retain their own refusal and recovery.
+        if (path === configPath && state?.groups.some((row) => row.hook === hook)) continue;
+        throw Object.assign(
+          new DistributionError(
+            'IA-DIST-LOCAL-MODIFICATION',
+            `IA hook group for ${hook} has no matching ownership state; protection may remain active until that group is removed manually`,
+            path,
+          ),
+          { unownedHook: { hook, path } },
+        );
+      }
+    });
 }
 /** `planHookRegistration` against an expected, unverified cache (`expectedHostCache`); apply re-plans with verification. */
 export function planHooksFor(rootInput: string, expected: HostCacheTarget, hooks: readonly HookRow[]): HookPlan {

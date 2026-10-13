@@ -385,6 +385,7 @@ export const projectionRepair = (host: HostName, path: string, rerun: string, co
  */
 export type HookRefusal =
   | { readonly drift: 'missing' | 'modified'; readonly hook: string }
+  | { readonly drift: 'foreign'; readonly hook: string; readonly path: string }
   | { readonly payload: string };
 /** The populated skill folder a projection refusal names (distribution's `skillFolder`, review finding A-F2), if any. */
 export const skillFolderOf = (error: unknown): string | undefined =>
@@ -407,9 +408,11 @@ export const hookRefusalOf = (error: unknown): HookRefusal | undefined =>
 export const hookRepair = (refusal: HookRefusal): string =>
   'payload' in refusal
     ? `Run "ia host claude --apply" to materialize this release's payload and register the workspace's hooks against it.`
-    : refusal.drift === 'modified'
-      ? `Delete every IA hook group for ${refusal.hook} in ${SETTINGS}, then run "ia host claude --remove --apply" and register again with ia host.`
-      : `Run "ia host claude --remove --apply", which drops the registration of the hook group deleted by hand, then register again with ia host.`;
+    : refusal.drift === 'foreign'
+      ? `Delete only the unowned IA hook group for ${refusal.hook} in ${refusal.path}, preserving other groups and settings, then run "ia host claude --remove --apply" to finish removal. Protection may remain active until that group is removed.`
+      : refusal.drift === 'modified'
+        ? `Delete every IA hook group for ${refusal.hook} in ${SETTINGS}, then run "ia host claude --remove --apply" and register again with ia host.`
+        : `Run "ia host claude --remove --apply", which drops the registration of the hook group deleted by hand, then register again with ia host.`;
 /** A journal owns recovery; raw operating-system errors never authorize deleting settings or ownership. */
 export function projectionFailure(error: unknown, root: string, host: HostName, rerun: string): Refusal {
   const refusal = refusalOf(error),

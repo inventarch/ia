@@ -11,6 +11,7 @@ import {
   applyGuardRegistration,
   applyHookRegistration,
   assertRetirableGuard,
+  assertRemovableHooks,
   currentGuardForm,
   FAIL_CLOSED,
   FAIL_CLOSED_ACCEPTED,
@@ -58,6 +59,46 @@ function cacheV2() {
   return root;
 }
 const settings = '.claude/settings.local.json';
+it('refuses explicit hook removal with lost, partial or shared ownership while keeping unrelated settings', () => {
+  const cache = cacheV2(),
+    hook: HookRow = { identity: 'hook-authoring-system/binding/hook/owned', tools: ['Write'], paths: ['docs/'] },
+    foreign: HookRow = { ...hook, identity: 'hook-authoring-system/binding/hook/foreign' };
+  for (const mode of ['missing', 'partial', 'shared', 'moved'] as const) {
+    let root = temp();
+    const unrelated = { hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo' }] }] } };
+    put(root, settings, json(unrelated));
+    applyHookRegistration(planHookRegistration(root, { cache, hooks: [hook] }));
+    if (mode === 'missing' || mode === 'moved')
+      rmSync(resolve(root, '.ia/distributions/hosts/claude-hooks-workspace.json'));
+    const path = mode === 'shared' ? '.claude/settings.json' : settings;
+    if (mode === 'partial' || mode === 'shared') {
+      const config =
+        mode === 'shared' ? structuredClone(unrelated) : JSON.parse(readFileSync(resolve(root, path), 'utf8'));
+      config.hooks.PreToolUse.push(hookGroup(join(cache, 'scripts/ia.mjs'), root, foreign));
+      put(root, path, json(config));
+    }
+    if (mode === 'moved') {
+      const copied = temp();
+      cpSync(root, copied, { recursive: true });
+      root = copied;
+    }
+    const before = readFileSync(resolve(root, path));
+    for (const remove of [() => assertRemovableHooks(root), () => planHookRegistration(root, { remove: 'workspace' })])
+      expect(remove).toThrow(expect.objectContaining({ code: 'IA-DIST-LOCAL-MODIFICATION', path }));
+    expect(readFileSync(resolve(root, path))).toEqual(before);
+    const config = JSON.parse(before.toString());
+    config.hooks.PreToolUse = config.hooks.PreToolUse.filter(
+      (group: { matcher: string; hooks: { args: string[] }[] }) =>
+        group.matcher === 'Bash' || (mode === 'partial' && group.hooks[0]?.args.at(-1) === hook.identity),
+    );
+    put(root, path, json(config));
+    expect(() => assertRemovableHooks(root)).not.toThrow();
+    if (mode === 'partial' || mode === 'shared') {
+      applyHookRegistration(planHookRegistration(root, { remove: 'workspace' }));
+      expect(readFileSync(resolve(root, settings), 'utf8')).toBe(json(unrelated));
+    }
+  }
+});
 it('registers one PreToolUse group with an explicit root and removes exactly it', () => {
   const root = temp(),
     cache = cacheV2(),

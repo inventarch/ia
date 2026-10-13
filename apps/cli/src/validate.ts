@@ -182,7 +182,7 @@ function evidenceRefusal(error: unknown, root: string): Refusal {
     3,
     { path: located },
     code === 'IA-DB-PATH-UNSAFE'
-      ? `Replace ${located}, a link, junction or entry of the wrong kind, with a directory of this workspace, then run "${rerun}".`
+      ? `Replace only the unsafe entry ${located}, without following it or deleting its target, with a plain entry of the required kind inside this workspace, then run "${rerun}".`
       : `Make ${EVIDENCE_DIRECTORY} writable, then run "${rerun}".`,
   );
 }

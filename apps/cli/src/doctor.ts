@@ -612,8 +612,8 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
             `projection-${host}-hook:${hook}`,
             title,
             'warn',
-            `${SETTINGS} holds a guard hook group for ${hook}, which this workspace's registration does not own; it is left in place`,
-            apply,
+            `${SETTINGS} holds a guard hook group for ${hook}, which this workspace's registration does not own; it is left in place and may still enforce protection. Explicit host removal refuses until you delete only this unowned group manually, preserving every other group and setting.`,
+            null,
           )
         : installation(
             `projection-${host}-hook:${hook}`,

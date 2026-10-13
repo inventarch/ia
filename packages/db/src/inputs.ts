@@ -13,7 +13,7 @@ import {
   statSync,
 } from 'node:fs';
 import type { Stats } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { BAND_OF, KERNEL_SOURCES, isPlacementKind, isProvenance } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import { canonicalRoot, stableSerialize } from '@inventarch/graph';
@@ -161,7 +161,11 @@ export function safePath(root: string, path: string): string {
     current = join(current, segment);
     try {
       if (lstatSync(current).isSymbolicLink())
-        throw new DbError('IA-DB-PATH-UNSAFE', `Symlink/junction traversal is not admitted: ${current}`);
+        throw new DbError(
+          'IA-DB-PATH-UNSAFE',
+          `Symlink/junction traversal is not admitted: ${current}`,
+          relative(root, current).replaceAll('\\', '/'),
+        );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
       throw error;

@@ -6,13 +6,25 @@
  * tests/equivalence.test.ts holds the two validation binaries to one result and one evidence file.
  */
 import { spawn } from 'node:child_process';
-import { chmodSync, existsSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, utimesSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  unlinkSync,
+  utimesSync,
+} from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
 import { open } from '@inventarch/db';
 import { doctor, host, initialized, put } from './host-fixture.js';
-import { cleanup, repository, run } from './workspace-fixture.js';
+import { cleanup, repository, run, scratch } from './workspace-fixture.js';
 
 vi.setConfig({ testTimeout: 240_000 });
 // Every node:fs export calls through; a test can make one unlink fail as a file the process may not remove would.
@@ -78,6 +90,38 @@ const authoredRevision = (root: string) => {
     db.close();
   }
 };
+
+it('locates an unsafe evidence ancestor and never suggests repairing a child through its link', async () => {
+  for (const linked of ['.ia/work', EVIDENCE]) {
+    const { root, env } = await initialized();
+    put(root, '.ia/src/checks.ia', BUILT_IN);
+    const elsewhere = scratch('external-evidence');
+    put(elsewhere, 'evidence/keep.ia', 'outside workspace\n');
+    if (existsSync(resolve(root, '.ia/work'))) renameSync(resolve(root, '.ia/work'), resolve(root, 'saved-work'));
+    mkdirSync(resolve(root, '.ia'), { recursive: true });
+    if (linked === EVIDENCE) mkdirSync(resolve(root, '.ia/work'));
+    symlinkSync(elsewhere, resolve(root, linked), 'junction');
+    const before = tree(elsewhere);
+    // Doctor is observational: it neither records evidence nor supplies a destructive evidence remedy.
+    const observed = await doctor(root, env);
+    expect(observed.checks.every((row) => !/delete.*work\/evidence/i.test(row.remedy ?? ''))).toBe(true);
+    expect(tree(elsewhere)).toEqual(before);
+    const refused = await json(root, env);
+    expect(refused.exitCode).toBe(3);
+    expect(refused.envelope).toMatchObject({
+      code: 'IA-DB-PATH-UNSAFE',
+      where: { path: linked },
+      next: expect.stringContaining(`Replace only the unsafe entry ${linked}`),
+    });
+    expect(refused.envelope.next).toContain('without following it or deleting its target');
+    expect(tree(elsewhere)).toEqual(before);
+    // Only unlink the workspace entry; the external directory and every byte in it stay intact.
+    rmSync(resolve(root, linked));
+    mkdirSync(resolve(root, linked));
+    expect((await json(root, env)).exitCode).toBe(0);
+    expect(tree(elsewhere)).toEqual(before);
+  }
+});
 
 it('binds every check, reports one Checks section, and records the passing one as admitted runtime evidence', async () => {
   const { root, env } = await initialized();

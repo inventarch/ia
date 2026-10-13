@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Preserve unowned hooks and external evidence during recovery",
+  "summary": "Explicit Claude host removal refuses when an IA hook lacks matching ownership, identifies only that group for manual recovery, and leaves all settings and managed files intact. Validation evidence refusals locate the unsafe directory ancestor and instruct replacing only the workspace entry without following its link or deleting its target.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/distribution"
+  ],
+  "paths": [
+    "apps/cli/",
+    "apps/distribution/",
+    "packages/db/"
+  ]
+}

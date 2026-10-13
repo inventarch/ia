@@ -49,6 +49,7 @@ import {
   applyGuardRegistration,
   applyHookRegistration,
   assertRetirableGuard,
+  assertRemovableHooks,
   hookGroupDigest,
   hooksDisabledBy,
   planGuardRegistration,
@@ -211,6 +212,7 @@ export const HOOKS_NEED_HOST =
  */
 export function planHooks(root: string, host: HostName, rendered: HostOutput | null, cache: HookCache): HookStep {
   if (host !== 'claude') return { plan: null, unregistered: [] };
+  if (rendered === null) assertRemovableHooks(root);
   const rows = (rendered?.hooks ?? []).map(({ identity, tools, paths }) => ({ identity, tools, paths }));
   const prior = readHookRegistration(root);
   if (rows.length === 0)
@@ -716,6 +718,12 @@ export function planHookStep(root: string, host: HostName, rendered: HostOutput 
   try {
     return planHooks(root, host, rendered, cache);
   } catch (error) {
+    if (error instanceof DistributionError && 'unownedHook' in error) {
+      const unowned = error.unownedHook as { hook: string; path: string };
+      throw Object.assign(error, {
+        hookRefusal: { drift: 'foreign', hook: unowned.hook, path: unowned.path } satisfies HookRefusal,
+      });
+    }
     const code = codeOf(error, '');
     if (
       error instanceof Error &&
