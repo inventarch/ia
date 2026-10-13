@@ -158,7 +158,35 @@ it('opens and restores an exact legacy 0.1.0 lock without rewriting pins, while 
     [{ release: incompatible, location: `sha256:${incompatible.archiveDigest}`, withdrawn: false }],
     '0.1.0',
   );
-  expect(() => planInstallation(root, oldSelection.lock, 'restore')).toThrow(/Bundle metadata\/engine differs/);
+  expect(() => planInstallation(root, oldSelection.lock, 'restore')).toThrow(/requires distribution engine 0.1.0/);
+});
+it('distinguishes an unsupported engine from corrupt state without weakening or rewriting the lock', () => {
+  const futureLock = { ...selected.lock, engine: '^9.0.0' };
+  const generation = generationDigest(
+    futureLock,
+    selected.inputs,
+    installationWorkspace(futureLock, selected.inputs, selected.releases),
+  );
+  const root = install({
+    packed,
+    selected: { ...selected, lock: futureLock },
+    pointer: { ...pointer, generation },
+  });
+  cacheArchive(root, packed.bytes);
+  const before = readFileSync(join(root, '.ia/distributions.lock.json'));
+  expect(() => open(root, { cache: false })).toThrow(
+    expect.objectContaining({
+      code: 'IA-DB-SOURCE-UNAVAILABLE',
+      reason: 'engine-incompatible',
+      message: expect.stringContaining(
+        `requires distribution engine ^9.0.0; this reader is ${DISTRIBUTION_ENGINE_VERSION}`,
+      ),
+    }),
+  );
+  expect(() => planInstallation(root, futureLock, 'restore')).toThrow(
+    `Lock engine compatibility differs: requires ^9.0.0, this installer is ${DISTRIBUTION_ENGINE_VERSION}`,
+  );
+  expect(readFileSync(join(root, '.ia/distributions.lock.json'))).toEqual(before);
 });
 it('preserves old handles and invalidates scope tokens after activation and rollback counters', () => {
   const root = install(),

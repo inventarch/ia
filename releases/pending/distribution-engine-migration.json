@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Explain distribution engine incompatibility and preserve exact pins during migration",
+  "summary": "Published IA 2.0.0 uses distribution engine 0.1.0; the successor uses 0.1.1 for pinned root release-control sources. The new reader preserves the released exact 0.1.0 lock marker when its archives remain compatible, but this does not make newer locks or archives readable by 2.0.0. Archive engine requirements remain strict. An unsupported installed lock or archive now raises IA-DB-SOURCE-UNAVAILABLE with InstallationError reason engine-incompatible and the required/current engine; an incompatible installation plan retains IA-DIST-CONFLICT with those details. The CLI directs the user to a compatible IA installation and validation, not a restore loop: restore cannot upgrade the CLI. Preserve locks and archive ranges. Before upgrading keep a complete workspace/state backup and exact archives. A downgrade restores that backup with its matching old CLI after using the newer CLI for pending recovery and generated host removal where applicable; it does not rewrite an engine marker in place. This clarification does not change the required capability or authorize publication.",
+  "packages": [
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "packages/db/",
+    "apps/distribution/",
+    "apps/cli/"
+  ]
+}

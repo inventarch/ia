@@ -47,6 +47,8 @@ function openNext(error: unknown, root: string): string {
       return `An interrupted installation blocks the read. Run "${recoverCommand('recover', root)}".`;
     if (reason === 'restore-required' || reason === 'lock-drift')
       return `Run "ia restore --apply --yes --root ${quote(root)}" to reinstall the locked generation.`;
+    if (reason === 'engine-incompatible')
+      return `Use an IA installation supporting the required distribution engine, then run "${validate}". Keep the lock and archive engine ranges intact; restore cannot upgrade the running CLI. To downgrade, restore a complete pre-upgrade workspace backup with its matching CLI.`;
     if (reason === undefined) return `Repair the source named above, then run "${validate}".`;
     return serviceNext(code, { command: null, root });
   }

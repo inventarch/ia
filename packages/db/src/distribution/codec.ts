@@ -17,6 +17,7 @@ export type DistributionReason =
   | 'contract-invalid'
   | 'restore-required'
   | 'lock-drift'
+  | 'engine-incompatible'
   | 'corrupt-state'
   | 'recovery-required'
   | 'conflict';

@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "major",
+  "title": "Document removal of the exported CLI admission helper",
+  "summary": "The exported @inventarch/cli/internal/host-projection subpath no longer exports checkAdmitted(root), which published 2.0.0 provided. Host removal deliberately works without admitting the workspace so it can restore editing when source records are broken. Consumers must stop importing checkAdmitted: invoke ia host <host> --remove --apply for managed host removal, or use @inventarch/distribution/services openWorkspaceSession({root}), inspect its validation result and close the session when their own application needs an admission check. The session result is data; callers must enforce their own refusal policy. renderProjectionFor remains the projection renderer and is not a replacement for a standalone admission check. The CLI command names and machine route shapes are unchanged by this export migration.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/"
+  ]
+}

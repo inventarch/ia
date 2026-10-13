@@ -106,7 +106,10 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
     fail('RESTORE-REQUIRED', 'Current installation requires explicit recovery or restore');
   const lock = decodeDistributionLock(row['lock']);
   if (!supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, lock.engine))
-    fail('CONFLICT', 'Lock engine compatibility differs');
+    fail(
+      'CONFLICT',
+      `Lock engine compatibility differs: requires ${lock.engine}, this installer is ${DISTRIBUTION_ENGINE_VERSION}. Use a compatible IA installation; preserve the lock and archive engine ranges.`,
+    );
   const releases = selectedArchives(row['archives'], lock),
     inputs = deriveGenerationInputs(lock, releases);
   const pointer = decodeActivationPointer({

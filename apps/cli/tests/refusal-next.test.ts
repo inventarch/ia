@@ -12,6 +12,7 @@ import ts from 'typescript';
 import { afterAll, expect, it } from 'vitest';
 import { COMP_CODES, EVIDENCE_CODES } from '@inventarch/compliance';
 import { DB_CODES } from '@inventarch/db';
+import { canonicalDistributionJson, generationDigest } from '@inventarch/db/distribution';
 import { HOOK_CODES, RUNTIME_CODES } from '@inventarch/runtime';
 import { UsageError } from '../src/args.js';
 import { dispatch, Refusal, refusalOf, renderRefusal } from '../src/consumer.js';
@@ -33,6 +34,34 @@ import {
 } from './workspace-fixture.js';
 
 afterAll(cleanup);
+
+it('names a compatible IA installation for an unsupported lock, without suggesting restore as an engine upgrade', async () => {
+  const root = workspace();
+  const lock = { formatVersion: 1 as const, engine: '^9.0.0', requests: [], packages: [] };
+  const inputs = { formatVersion: 1 as const, bundles: [], systems: [] };
+  const generation = generationDigest(lock, inputs, null);
+  const directory = resolve(root, '.ia/distributions/generations', generation);
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(resolve(directory, 'lock.json'), canonicalDistributionJson(lock));
+  writeFileSync(resolve(directory, 'inputs.json'), canonicalDistributionJson(inputs));
+  const locked = resolve(root, '.ia/distributions.lock.json');
+  writeFileSync(locked, canonicalDistributionJson(lock));
+  writeFileSync(
+    resolve(root, '.ia/distributions/active.json'),
+    canonicalDistributionJson({ formatVersion: 1, generation, previous: null, counter: 1 }),
+  );
+  const before = readFileSync(locked);
+  const result = await run(['validate', '--root', root, '--json']);
+  expect(result.exitCode).toBe(3);
+  const refusal = JSON.parse(result.stdout);
+  expect(refusal.code).toBe('IA-DB-SOURCE-UNAVAILABLE');
+  expect(refusal.message).toContain('requires distribution engine ^9.0.0');
+  expect(refusal.next).toContain('Use an IA installation supporting the required distribution engine');
+  expect(refusal.next).toContain('restore cannot upgrade the running CLI');
+  expect(refusal.next).not.toContain('ia restore');
+  expect(nextArgv(refusal.next)).toEqual(['validate', '--root', root]);
+  expect(readFileSync(locked)).toEqual(before);
+});
 
 const flat = (text: string): string => text.replace(/\s+/g, ' ').trim();
 

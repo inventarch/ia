@@ -34,6 +34,16 @@ export const INSTALL_PATHS = Object.freeze({
 function corrupt(message: string): never {
   throw new InstallationError('corrupt-state', message);
 }
+function requireEngine(declared: string, subject: string, lock = false): void {
+  const compatible = lock
+    ? supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, declared)
+    : satisfies(DISTRIBUTION_ENGINE_VERSION, declared);
+  if (!compatible)
+    throw new InstallationError(
+      'engine-incompatible',
+      `${subject} requires distribution engine ${declared}; this reader is ${DISTRIBUTION_ENGINE_VERSION}. Use a compatible IA installation; preserve the lock and archive engine ranges.`,
+    );
+}
 function safe(root: string, path: string): string {
   portablePath(path);
   const absolute = resolve(root, path),
@@ -104,10 +114,10 @@ export function generationSources(
     const manifest = decodeBundleManifest(bundle.manifest);
     if (
       sha256(canonicalDistributionJson(manifest)) !== bundle.manifestDigest ||
-      bundle.files.size !== manifest.files.length ||
-      !satisfies(DISTRIBUTION_ENGINE_VERSION, manifest.engine)
+      bundle.files.size !== manifest.files.length
     )
       corrupt('Bundle metadata/engine differs');
+    requireEngine(manifest.engine, `Bundle ${manifest.id}@${manifest.version}`);
     for (const pin of manifest.files) {
       const content = bundle.files.get(pin.path);
       if (!content || content.length !== pin.bytes || sha256(content) !== pin.sha256)
@@ -232,8 +242,7 @@ export function readInstalledGeneration(root: string, candidate?: ActivationPoin
     lock = decode(lockBytes, decodeDistributionLock);
   if (!candidate && (!portableBytes || !portableBytes.equals(lockBytes)))
     throw new InstallationError('lock-drift', 'Portable lock differs from the active generation; restore explicitly');
-  if (!supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, lock.engine))
-    corrupt('Installation engine compatibility differs');
+  requireEngine(lock.engine, 'Installation lock', true);
   const inputs = decode(required(root, `${directory}/inputs.json`), decodeGenerationInputs),
     workspaceBytes = read(root, `${directory}/workspace.ia`, DISTRIBUTION_LIMITS.file),
     workspaceText = workspaceBytes === null ? null : utf8(workspaceBytes);
@@ -256,7 +265,7 @@ export function readInstalledGeneration(root: string, candidate?: ActivationPoin
     bundles.set(pkg.id, bundle);
   }
   for (const bundle of bundles.values())
-    if (!satisfies(DISTRIBUTION_ENGINE_VERSION, bundle.manifest.engine)) corrupt('Bundle engine compatibility differs');
+    requireEngine(bundle.manifest.engine, `Bundle ${bundle.manifest.id}@${bundle.manifest.version}`);
   if (
     canonicalDistributionJson(deriveGenerationInputs(lock, bundles)) !== canonicalDistributionJson(inputs) ||
     installationWorkspace(lock, inputs, bundles) !== workspaceText
