@@ -32,7 +32,7 @@ Long options accept `--flag value` and `--flag=value`. Boolean options, explicit
 
 ### 2.4 Capture and 2.5 validation
 
-`capture` persists a captured snapshot through the database service. The deprecated `compile` path retains its compatibility artifact and deprecation remedy. `validate` reports language/contract findings and check execution evidence separately; an unbound check is not reported as passed. The command does not write authored records.
+`capture` persists a captured snapshot through the database service. The deprecated `compile` path retains its compatibility artifact and deprecation remedy. `validate` reports language/contract findings and check execution evidence separately; an unbound check is not reported as passed. Validation evidence is written only for the exact authored revision it reproduces; refused validation writes no evidence, and existing external evidence remains untouched. The command does not write authored records.
 
 ### 2.6 Inspection and 2.7 packing
 

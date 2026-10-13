@@ -40,6 +40,8 @@ Capture and host projection report independently. A failed capture keeps initial
 
 Migration preflights every move, delete, write, identity and registered projection. A failed file step lists completed changes and names validation or a safe migration rerun. A failed post-migration effect names that effect's command. Repository history or a caller-owned backup supplies rollback; the CLI does not claim transactionality across all effects.
 
+Projection recovery is conservative: unowned hooks, foreign files and external validation evidence are not adopted or removed while resuming initialization. Receipts and journals are reused only when their recorded inputs and current bytes still match; otherwise the apply refuses with the exact repair target.
+
 ## 8 Acceptance evidence
 
 [Init tests](../../../apps/cli/tests/init.test.ts), [language-base tests](../../../tools/native/language-base.test.ts) and [installed view checks](../../../tools/distribution/installed-views.mjs) exercise the authored shape, descriptor, capture, omission of implicit hosts, interrupted effects and offline base. Publication and host activation require additional evidence.

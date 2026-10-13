@@ -32,6 +32,8 @@ A planned write records owned paths, current state and expected payload. Modifie
 
 Registration and installation journals have explicit recovery commands. A partially applied host action is not silently called registered. Removal respects ownership and preserves foreign files.
 
+Projection recovery also preserves unowned hook registrations and foreign generated files. A legacy or unowned guard is never adopted or deleted as part of a recovery; the refusal identifies the exact settings file and the safe removal or repair command. A projection receipt is reused only when its render inputs, owned-file digests and removal evidence still match, so an interrupted apply cannot turn an external change into owned state.
+
 ## 7 Doctor and support
 
 [Doctor](../../../apps/cli/src/doctor.ts) only observes. A matching registration says written, not observed answering. Missing/changed packet files or a different rendered revision report drift; a malformed state reports failure. Catalog and join rows inspect pinned bytes without importing handlers.
