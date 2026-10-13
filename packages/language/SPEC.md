@@ -1,5 +1,7 @@
 # Language package specification
 
+`tests/edit-source.test.ts` pins E04's sibling-byte preservation for set-field, relationship, append and annotation edits on mixed LF/CRLF files. The cases exercise either initial ending, a BOM, noncanonical spacing and a final record with or without a terminating newline; byte comparisons do not normalize the untouched text.
+
 **Owner:** `@inventarch/language`. **Current status:** Plans 1–4 are implemented: syntax, registration, structured and semantic compilation, native kernel generation and loss-checked formatting. Sections 1–9 retain the Plans 1–2 baseline at `69c75b7`; their statements of missing behavior are historical. Sections 10–12 supersede those limits and define the delivered semantic/format/kernel contracts. Downstream graph, compliance, database, runtime and local executable consumers have also shipped; current readiness and the audit map their evidence. Editor and development harness implementations have their own contracts and qualification; their existence does not change language ownership.
 
 The shared language design defines the language and its numbered implementation refinements. The systems design defines package dependencies and consumer responsibilities. This file distinguishes delivered package behavior from those future obligations; it does not turn an implementation gap into permission to ignore a language rule.

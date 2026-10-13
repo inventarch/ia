@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Pin scope, evidence gate and editor byte preservation regressions",
+  "summary": "Tests cover exact check scope selection, validation refusal before evidence replacement or pruning, and untouched sibling bytes across mixed line ending edits. Runtime behavior and package versions are unchanged.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/language"
+  ],
+  "paths": [
+    "apps/cli/",
+    "packages/db/",
+    "packages/language/"
+  ]
+}

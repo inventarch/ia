@@ -399,6 +399,47 @@ describe('the bytes of everything but the edited record (review C-R8)', () => {
       '\r\n@task three\r\n  meaning\r\n    says "Third"\r\n  work\r\n    status open\r\n',
     );
   });
+  it.each(edits)('preserves mixed LF/CRLF sibling bytes through %s (L6-03)', (name, edit) => {
+    // Alternate every physical ending, including comments and blanks. Exercise either first ending, a BOM,
+    // noncanonical sibling spacing and an unterminated last record; no whole-file formatter is an oracle here.
+    const odd = source.replace('says "First"', 'says   "First"   ').replace('says "Second"', 'says    "Second"');
+    for (const first of ['\n', '\r\n']) {
+      for (const finalEnding of [true, false]) {
+        let line = 0;
+        const mixed = `${bom}${odd.replace(/\n/g, () => (line++ % 2 === 0 ? first : first === '\n' ? '\r\n' : '\n'))}`;
+        const input = finalEnding ? mixed : mixed.replace(/\r?\n$/, '');
+        const output = edit(input);
+        expect(parse(output, 'x.ia').diagnostics).toEqual([]);
+        const changed = name === 'addRelationship' ? '@task one' : '@task two';
+        const bounds = (text: string) => {
+          const pieces = text.match(/[^\n]*\n|[^\n]+$/g)!;
+          const record = parse(text, 'x.ia').ast.records.find(
+            (row) => `@${row.discriminator} ${row.name}` === changed,
+          )!;
+          return {
+            before: pieces.slice(0, record.span.line - 1).join(''),
+            after: pieces.slice(record.span.endLine).join(''),
+          };
+        };
+        if (name === 'appendRecord') {
+          expect(Buffer.from(output.slice(0, input.length))).toEqual(Buffer.from(input));
+          expect([...digests(output).keys()]).toEqual([...digests(input).keys(), '@task three']);
+        } else if (name === 'annotateRecord') {
+          const added = `# authored-by @agent demo under @mandate m at abc${first}`;
+          expect(output).toContain(added);
+          expect(Buffer.from(output.replace(added, ''))).toEqual(Buffer.from(input));
+          expect(digests(output)).toEqual(digests(input));
+        } else {
+          expect(Buffer.from(bounds(output).before)).toEqual(Buffer.from(bounds(input).before));
+          expect(Buffer.from(bounds(output).after)).toEqual(Buffer.from(bounds(input).after));
+          const was = digests(input),
+            now = digests(output);
+          expect([...now.keys()].filter((key) => now.get(key) !== was.get(key))).toEqual([changed]);
+          expect([...now.keys()]).toEqual([...was.keys()]);
+        }
+      }
+    }
+  });
   it('gives a last line with no ending one before appending, and keeps it absent on an edit at the end', () => {
     const open = source.replace(/\n$/, '');
     const appended = edits[2]![1](open);

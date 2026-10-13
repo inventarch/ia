@@ -103,6 +103,24 @@ it('aggregates the verdicts a scope selects: fail, then not-evaluated, then pass
   expect(checkVerdicts(all, 'COMP-X', '*', new Set(['c'])).outcome).toBe('not-evaluated');
 });
 
+it('selects exact scopes without admitting descendants, lexical prefixes or ancestors (L6-02)', () => {
+  const verdict = (scope: string, outcome: Verdict['outcome']): Verdict =>
+    ({ check: 'COMP-SCHEMA', scope, outcome, findings: [], revision: 'r' }) as Verdict;
+  const scopes = ['a', 'a/b', 'ab', 'a-b', 'a/b/c', 'a/bc'];
+  for (const scope of scopes) {
+    const exact = verdict(scope, 'pass');
+    const neighbors = scopes.filter((other) => other !== scope).map((other) => verdict(other, 'fail'));
+    expect(checkVerdicts([exact, ...neighbors], 'COMP-SCHEMA', scope), scope).toEqual({
+      outcome: 'pass',
+      selected: [exact],
+    });
+    expect(checkVerdicts(neighbors, 'COMP-SCHEMA', scope), `absent ${scope}`).toEqual({
+      outcome: 'not-evaluated',
+      selected: [],
+    });
+  }
+});
+
 it('binds a built-in check to the admission verdicts its scope selects, and a prose scope to not-evaluated (C15, C22)', () => {
   const root = workspace();
   fixture(

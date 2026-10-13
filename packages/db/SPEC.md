@@ -1,5 +1,7 @@
 # Database specification
 
+`tests/check-evidence.test.ts` pins D13's exact scope selection against both ancestor and descendant scopes and lexical prefixes. A matching verdict passes alone even when its neighboring scopes fail; without the exact scope, the result remains not-evaluated.
+
 ## M7 runner journal evidence
 
 Event IDs are session command IDs: an atomic command may contribute up to 32 contiguous events with the same ID, actor and cause. Noncontiguous reuse, changed command attribution, and oversized command groups are rejected. Sequence and hash chaining identify each distinct event. Exact runner authority and limit refusal waits project refusal; unrelated waits remain inconclusive.

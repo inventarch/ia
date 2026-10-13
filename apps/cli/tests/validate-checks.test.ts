@@ -6,7 +6,7 @@
  * tests/equivalence.test.ts holds the two validation binaries to one result and one evidence file.
  */
 import { spawn } from 'node:child_process';
-import { chmodSync, existsSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync } from 'node:fs';
+import { chmodSync, existsSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, utimesSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
@@ -194,6 +194,78 @@ it('never creates or prunes evidence from doctor, capture --preview or a refused
     expect(tree(root, home), argv.join(' ')).toEqual(before);
     if (argv[0] === 'init' || argv[0] === 'host') expect(result.exitCode, argv.join(' ')).not.toBe(0);
   }
+});
+
+it('refuses a profile before replacing current evidence or pruning stale evidence (L6-04)', async () => {
+  const { root, env } = await initialized();
+  put(root, '.ia/src/checks.ia', `#! ia 1.0\n\n${check('demo-schema-check', 'COMP-SCHEMA', '*')}`);
+  const seeded = await json(root, env);
+  expect(seeded.exitCode).toBe(0);
+  expect(seeded.envelope.evidence.written).toBe(true);
+  const stale = seeded.envelope.evidence.path as string;
+
+  const source = '.ia/src/workspace.ia';
+  const original = readFileSync(resolve(root, source), 'utf8');
+  const restricted = original.replace(
+    'moves [Observation, Verification, Synthesis, Delegation, Execution]',
+    'moves [Observation]',
+  );
+  expect(restricted).not.toBe(original);
+  put(
+    root,
+    source,
+    `${restricted}\n@agent verifier
+  meaning
+    says "The separate participant authorized to validate this fixture."
+    answers "Who can validate?"
+  governance
+    applies []
+
+@mandate verifier-mandate
+  meaning
+    says "Allow verification in this fixture."
+    answers "Which move is allowed?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent verifier
+    moves [Verification]
+    scope [@workspace demo]
+`,
+  );
+  const revision = authoredRevision(root);
+  const current = `${EVIDENCE}/${revision}.ia`;
+  expect(current).not.toBe(stale);
+  // Both are writable: a late gate can replace the current receipt and prune the older revision before refusing.
+  put(root, current, '#! ia 1.0\n# stale current evidence\n');
+  const old = new Date(Date.now() - 60_000);
+  utimesSync(resolve(root, stale), old, old);
+  const before = tree(root, env.IA_HOST_HOME);
+  const refused = await validate(root, env, '--actor', 'demo', '--json');
+  expect(refused.exitCode, refused.stdout).toBe(1);
+  expect(JSON.parse(refused.stdout)).toMatchObject({
+    ok: false,
+    code: 'IA-RUNTIME-MANDATE-MOVE',
+    message: expect.stringContaining('validate needs Verification'),
+  });
+  expect(tree(root, env.IA_HOST_HOME)).toEqual(before);
+
+  // The very same source revision does produce evidence for its authorized participant. No malformed check or
+  // unwritable path masks a late-gate bug, and the old receipt really is eligible for pruning.
+  const allowed = await validate(root, env, '--actor', 'verifier', '--json');
+  expect(allowed.exitCode, allowed.stdout).toBe(0);
+  const envelope = JSON.parse(allowed.stdout);
+  expect(envelope.authoredRevision).toBe(revision);
+  expect(envelope.checks.results).toContainEqual(
+    expect.objectContaining({
+      name: 'demo-schema-check',
+      status: 'bound',
+      outcome: 'pass',
+    }),
+  );
+  expect(envelope.evidence).toMatchObject({ path: current, written: true, pruned: [stale] });
+  expect(existsSync(resolve(root, stale))).toBe(false);
+  expect(readFileSync(resolve(root, current), 'utf8')).not.toBe('#! ia 1.0\n# stale current evidence\n');
 });
 
 it('refuses cleanly where the evidence cannot be written, leaving what it found, and reads none from a broken .ia/work', async () => {

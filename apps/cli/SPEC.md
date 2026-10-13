@@ -1,5 +1,7 @@
 # @inventarch/cli
 
+`tests/validate-checks.test.ts` verifies that a refused validation profile cannot replace a writable current-revision evidence receipt or prune an older receipt. A participant authorized for Verification subsequently validates the identical source revision and performs both writes, establishing that refusal, rather than an inactive writer or broken fixture, preserved the earlier tree.
+
 The `ia` binary exposes consumer commands and the structured agent query protocol. The [language reference](https://github.com/inventarch/ia/blob/main/docs/reference/language/README.md) defines vocabulary and evaluation limits, and the packaged [language summary](LANGUAGE.md) lists the words this release ships. This package bundles the language archive, vocabulary catalogue and host payload needed by its commands.
 
 ## Workspace commands
