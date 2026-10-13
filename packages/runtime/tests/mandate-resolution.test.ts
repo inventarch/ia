@@ -1394,6 +1394,41 @@ it('spells the admission report root only when every character is inert unquoted
 
 describe('a file refused whole whose records db cannot all identify (review D2-R2)', () => {
   const body = '  meaning\n    says "x"\n';
+  it('keeps the restrictive profile when an unrelated rejected file contains an attribution comment', () => {
+    const root = freshInit(readFileSync(packetFixture, 'utf8').replace(ALL_MOVES, 'moves [Observation]')),
+      comment = `# authored-by @agent demo under @mandate demo-mandate at ${'a'.repeat(64)}`;
+    put(root, '.ia/src/extra.ia', `#! ia 1.0\n${comment}\n@agent unrelated\n  meaning\n    says "unfinished\n`);
+    const db = database(root),
+      within = token(db);
+    expect(refusedMandates(db)).toEqual([]);
+    expect(defaultActor(db, within, demo).actor).toBe(participant);
+    const mandates = governingMandates(db, within, { actor: participant, workspace: demo });
+    expect(mandates.map((entry) => entry.identity)).toEqual([mandate('demo-mandate')]);
+    expect(profileRefusal(mandates, 'read').refusal).toBeUndefined();
+    expect(profileRefusal(mandates, 'effect').refusal?.code).toBe('IA-RUNTIME-MANDATE-MOVE');
+  });
+  it('retains unidentified authority and resolution dependency refusals after an attribution comment', () => {
+    const comment = `# authored-by @agent demo under @mandate demo-mandate at ${'a'.repeat(64)}`;
+    for (const text of [
+      '@ mandate hidden\n',
+      '\uFF20mandate hidden\n',
+      '<<<<<<< HEAD\ngarbage\n=======\nother\n>>>>>>> incoming\n',
+      '@mandate hidden\n  meaning\n    says "unfinished\n',
+      '@agent demo\n  meaning\n    says "unfinished\n',
+      '@workspace demo\n  meaning\n    says "unfinished\n',
+    ]) {
+      const root = freshInit();
+      put(root, '.ia/src/extra.ia', `#! ia 1.0\n${comment}\n${text}`);
+      const db = database(root),
+        within = token(db);
+      for (const resolve of [
+        () => defaultActor(db, within, demo),
+        () => seatedWorkspace(db, within, '.ia/src/workspace.ia'),
+        () => governingMandates(db, within, { actor: participant, workspace: demo }),
+      ])
+        expect(resolve, text).toThrow(expect.objectContaining({ admission: 'refused' }));
+    }
+  });
   const thrownBy = (run: () => unknown): RuntimeError => {
     try {
       run();

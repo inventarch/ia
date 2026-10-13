@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Preserve attribution comments during rejected-file classification",
+  "summary": "Genuine full-line comments, including attribution written by `ia author`, no longer fabricate a refused `@mandate` when an unrelated file fails parsing. Admission still reports the original error. Unidentified lines, conflict markers, malformed authority, mandate identity facets and agent/workspace resolution dependencies retain fail-closed behavior.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/cli/",
+    "packages/db/",
+    "packages/runtime/"
+  ]
+}

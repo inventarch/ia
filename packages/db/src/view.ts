@@ -6,6 +6,7 @@ import {
   identityOf,
   parse,
   requirementCollisions,
+  scan,
 } from '@inventarch/language';
 import type { Band, CompiledRecord, Diagnostic, FrozenRegistry, Phase, RecordNode, Source } from '@inventarch/language';
 import { authoredRevisionOf, canonicalRoot, load, reaches, stableSerialize } from '@inventarch/graph';
@@ -159,7 +160,8 @@ const PRAGMA = new Set(['IA-LANG-PRAGMA-MISSING', 'IA-LANG-VERSION-UNSUPPORTED']
  * The occurrences of a file a view refuses whole (`UnadmittedRecord`): every header its parse reads, nested ones
  * included, with the identity its compile gives that header's record or, for one its compile refused, the identity spec
  * 3.1 gives it (`identityOf` over its word's registration), then every other line of `text` that opens with a header,
- * under its word and name, every `@<word>` token on a line no parsed record spans, under its word, and, under no word,
+ * under its word and name, every `@<word>` token on a line no parsed record spans that is not a proven full-line
+ * comment, under its word, and, under no word,
  * every line no header reading names that may declare a record db cannot identify (review D2-R2 and its recheck F1, F2):
  * an error's (for one at a blank or comment line, the first line from there that is neither) that no parsed record
  * spans, one an at sign opens, and in a file refused at its pragma one at column 0 that is neither blank nor a comment.
@@ -220,6 +222,21 @@ function refusedWhole(
     ];
   const spanned = (line: number): boolean => spans.some((span) => line >= span.line && line <= span.endLine);
   const lines = text.split(/\r\n|\r|\n/),
+    atPragma = errors.some((error) => PRAGMA.has(error.code)),
+    // An attribution's references are not declarations. Require actual language trivia and the complete physical
+    // line: a trailing comment, comment-like prose or malformed prefix must keep the conservative token scan.
+    // A pragma refusal drops AST trivia, so recover it from the same captured text, never a filesystem reread.
+    // The language scanner does not split bare CR; do not use its line numbers against our broader line splitting.
+    comments = new Set(
+      (/\r(?!\n)/.test(text) ? [] : atPragma ? scan(text, path).trivia : source.ast.trivia)
+        .filter(
+          (trivia) =>
+            trivia.kind === 'comment' &&
+            /^[ \t]*#/.test(lines[trivia.line - 1] ?? '') &&
+            lines[trivia.line - 1]!.trim() === trivia.text,
+        )
+        .map((trivia) => trivia.line),
+    ),
     named = new Set<number>();
   const unread = lines.flatMap((spelled, index): UnadmittedRecord[] => {
     const line = index + 1,
@@ -228,7 +245,7 @@ function refusedWhole(
       named.add(line);
       return headers.has(line) ? [] : [occurrence(header[1]!, header[2], line, line)];
     }
-    return spanned(line)
+    return spanned(line) || comments.has(line)
       ? []
       : [...spelled.matchAll(TOKEN)].map((token) => occurrence(token[1]!, undefined, line, line));
   });
@@ -243,7 +260,6 @@ function refusedWhole(
     for (let at = Math.max(line, 1); at <= lines.length; at++) if (declares(lines[at - 1]!)) return at;
     return undefined;
   };
-  const atPragma = errors.some((error) => PRAGMA.has(error.code));
   const suspect = new Set<number>();
   for (const error of errors) {
     const line = declaring(error.line);

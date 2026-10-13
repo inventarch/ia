@@ -456,6 +456,78 @@ it('lists a record of no word for every unnamed line opening with an at sign, an
     db.close();
   }
 });
+it('does not classify genuine full-line attribution comments as declarations in a file refused whole', () => {
+  const root = workspace(),
+    comment = `# authored-by @agent demo under @mandate demo-mandate at ${'a'.repeat(64)}`,
+    damaged = '@agent unrelated\n  meaning\n    says "unfinished\n';
+  for (const [name, text] of [
+    ['lf', `#! ia 1.0\n\n${comment}\n${damaged}`],
+    ['crlf', `#! ia 1.0\n\n${comment}\n${damaged}`.replaceAll('\n', '\r\n')],
+    ['indented', `#! ia 1.0\n\n  ${comment}\n${damaged}`],
+    ['missing-pragma', `${comment}\n`],
+    ['unsupported-pragma', `#! ia 9.9\n${comment}\n`],
+  ])
+    put(root, `.ia/src/comment-${name}.ia`, text!);
+  const db = open(root, { cache: false });
+  try {
+    for (const name of ['lf', 'crlf', 'indented']) {
+      const path = `.ia/src/comment-${name}.ia`;
+      expect(db.unadmitted.filter((entry) => entry.path === path).map((entry) => [entry.word, entry.name])).toEqual([
+        ['agent', 'unrelated'],
+      ]);
+      expect(
+        db.report.findings.some((finding) => finding.path === path && finding.code === 'IA-LANG-STRING-UNTERMINATED'),
+      ).toBe(true);
+    }
+    for (const name of ['missing-pragma', 'unsupported-pragma']) {
+      const path = `.ia/src/comment-${name}.ia`;
+      expect(db.unadmitted.filter((entry) => entry.path === path)).toEqual([]);
+      expect(db.report.findings.some((finding) => finding.path === path)).toBe(true);
+    }
+  } finally {
+    db.close();
+  }
+});
+it('keeps conservative attribution lookalikes and declarations following genuine comments', () => {
+  const root = workspace(),
+    comment = `# authored-by @agent demo under @mandate demo-mandate at ${'a'.repeat(64)}`;
+  for (const [name, text] of [
+    ['inline', `#! ia 1.0\njunk ${comment}\n`],
+    ['format-prefix', `#! ia 1.0\n\u200d${comment}\n`],
+    ['nul-prefix', `#! ia 1.0\n\0${comment}\n`],
+    ['odd-indent', `#! ia 1.0\n ${comment}\n`],
+    ['tab-indent', `#! ia 1.0\n\t${comment}\n`],
+    ['open-prose', `#! ia 1.0\njunk """\n${comment}\n`],
+    ['bare-cr', `#! ia 1.0\r${comment}\r@ mandate hidden\r`],
+  ])
+    put(root, `.ia/src/lookalike-${name}.ia`, text!);
+  put(root, '.ia/src/comment-header.ia', `#! ia 1.0\n${comment}\n@ mandate hidden\n`);
+  put(
+    root,
+    '.ia/src/comment-declaration.ia',
+    `#! ia 1.0\n${comment}\n@mandate named\n  meaning\n    says "unfinished\n`,
+  );
+  const db = open(root, { cache: false });
+  try {
+    for (const name of ['inline', 'format-prefix', 'nul-prefix', 'odd-indent', 'tab-indent', 'open-prose', 'bare-cr'])
+      expect(
+        db.unadmitted.some((entry) => entry.path === `.ia/src/lookalike-${name}.ia` && entry.word === 'mandate'),
+        name,
+      ).toBe(true);
+    expect(
+      db.unadmitted
+        .filter((entry) => entry.path === '.ia/src/comment-header.ia')
+        .map((entry) => [entry.word, entry.line]),
+    ).toEqual([[undefined, 3]]);
+    expect(
+      db.unadmitted
+        .filter((entry) => entry.path === '.ia/src/comment-declaration.ia')
+        .map((entry) => [entry.word, entry.name, entry.line]),
+    ).toEqual([['mandate', 'named', 3]]);
+  } finally {
+    db.close();
+  }
+});
 it('closes idempotently and refuses all subsequent reads and refreshes', () => {
   const db = open(workspace(false), { cache: false });
   db.close();

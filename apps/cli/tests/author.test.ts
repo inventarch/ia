@@ -195,6 +195,22 @@ const onlyChanged = (before: ReadonlyMap<string, string>, after: ReadonlyMap<str
   [...new Set([...before.keys(), ...after.keys()])].filter((id) => before.get(id) !== after.get(id)).sort();
 
 describe('ia author', () => {
+  it('does not treat its attribution comment as a mandate when an unrelated work file later fails parsing', async () => {
+    const root = workspace();
+    await authored(root, ['--set', '@plan p1', 'work.title=Retitled']);
+    const written = readFileSync(resolve(root, '.ia/src/work.ia'), 'utf8');
+    expect(written).toMatch(/# authored-by @agent demo under @mandate demo-mandate at [0-9a-f]{64}\n@plan p1/);
+    rewrite(root, '.ia/src/work.ia', (text) => text.replace('says "The demo plan."', 'says "unfinished'));
+    expect((await unchanged(root, ['read', participant])).exitCode).toBe(0);
+    const validated = await unchanged(root, ['validate']);
+    expect(validated.exitCode).toBe(1);
+    expect(validated.stdout).toContain('IA-LANG-STRING-UNTERMINATED');
+    expect(validated.stdout).not.toContain('IA-RUNTIME-REQUEST-INVALID');
+    // The comment does not exempt an unidentified declaration in the same rejected file.
+    rewrite(root, '.ia/src/work.ia', (text) => `${text}\n@ mandate hidden\n`);
+    await refused(root, ['read', participant], 'IA-RUNTIME-REQUEST-INVALID');
+    expect(readFileSync(resolve(root, '.ia/src/work.ia'), 'utf8')).toContain('# authored-by ');
+  });
   it('writes one relationship row with its attribution, and the workspace still validates', async () => {
     const root = workspace();
     const work = readFileSync(resolve(root, '.ia/src/work.ia'), 'utf8');
