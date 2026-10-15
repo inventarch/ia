@@ -2,7 +2,7 @@
 
 @system agent-system
   provider "inventarch.foundation"
-  version "3.0.0"
+  version "3.1.0"
   describes "Public agent-system vocabulary contracts"
   steward @agent public-agent-system-steward
   requires

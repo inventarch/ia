@@ -1,0 +1,646 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.1.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "8f9220040d29fce02f230c2899ff284b69293ff3",
+    "version": "3.0.0"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 3.1.0 release of the 23 public npm packages: Opt-in native conformance evidence for COMP-KERNEL and COMP-FIXTURES.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/cli": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.0.0",
+      "kind": "changed",
+      "summary": "Opt-in native conformance evidence for COMP-KERNEL and COMP-FIXTURES."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/db": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/graph": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/language": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/runner": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.0.0",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    }
+  },
+  "changes": [
+    {
+      "id": "native-conformance-evidence",
+      "title": "Opt-in native conformance evidence for COMP-KERNEL and COMP-FIXTURES",
+      "summary": "Compliance C31. @inventarch/compliance adds verifyKernel(floor?) and verifyFixtures(), isConformanceEvidence(value, subject?), CONFORMANCE_PROFILE ('package-v1') and the KernelEvidence, FixtureEvidence, ConformanceEvidence, ConformanceToolchain, ConformanceProfile, OutOfProfileSuite, KernelSource, ConformanceOptions and ConformanceSummary types. verifyKernel regenerates the kernel from a floor (the embedded one by default) in-process and compares it with the running @inventarch/language; verifyFixtures runs the package-v1 profile of the shipped language, refusal and evidence fixtures against a generated inventory. Both run only when called and read only this package's own files. Their evidence is deeply frozen and accepted only from the producing module instance. evaluate's new opt-in conformance: {inputs, kernel, fixtures} option binds that evidence to the evaluated graph: evidence for another revision, language version, kernel digest, floor or toolchain stays not-evaluated, each check judged on its own evidence, a verified failure on the graph's own floor fails, and copied, hand-built or swapped evidence, or evidence together with conformance, is a TypeError. evaluate reads the inputs once and refuses fields that are not strings. Results verified from evaluated evidence carry the new Verdict.basis 'verified' and add Report.conformance for those checks, a verified fixture result with the suites it did not run. Results taken from the caller-asserted evidence map now carry basis 'caller-asserted' and are rebuilt from their check, scope, outcome and findings, so other keys a caller put on such a verdict no longer reach the report: outcomes are unchanged, but reports from callers that pass the map change digest. Reports that pass neither option are unchanged. Limits: the profile does not run the hook, runtime, execution or publication suites, and every fixture result lists them as out of profile; the evidence verifies the installed package against itself, and the binding trusts the Graph it is given, so a consumer pins kernelDigest and inventoryDigest and relies on npm integrity.",
+      "packages": [
+        "@inventarch/compliance"
+      ],
+      "paths": [
+        "packages/compliance/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package and native artifact version metadata follows the coordinated 3.1.0 release.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runner",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-runtime",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/package.json",
+        ".ia/src/systems/agent-composition-system/system.ia",
+        ".ia/src/systems/agent-system/package.json",
+        ".ia/src/systems/agent-system/system.ia",
+        ".ia/src/systems/authoring-system/package.json",
+        ".ia/src/systems/authoring-system/system.ia",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/compliance-system/system.ia",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/governance-system/system.ia",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/hook-authoring-system/system.ia",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/learning-system/system.ia",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/session-system/system.ia",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/template-system/system.ia",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/work-system/system.ia",
+        ".ia/src/systems/workspace-system/package.json",
+        ".ia/src/systems/workspace-system/system.ia",
+        "apps/cli/package.json",
+        "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
+        "apps/distribution/package.json",
+        "apps/mcp-door/package.json",
+        "apps/runner/package.json",
+        "apps/steward-hook/package.json",
+        "packages/db/package.json",
+        "packages/graph/package.json",
+        "packages/language/package.json",
+        "packages/runtime/package.json",
+        "packages/service-contracts/package.json",
+        "packages/workspace-runtime/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "examples/",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "78233099decb213e2c151740da3a2ba42509b74b5646c4f7dcdfdeb55da6acc4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/system.ia",
+      "sha256": "9e2b5e5b4d21e2c92ac3413c292c368b4d5a62a963ea120b77c7a2c7b9684a78",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "c67e1416b37e7d23c5038946d5049023282b21c5910cb193f03022d6e3f8b290",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/system.ia",
+      "sha256": "beb188e9d50b6b75b782f279ed36bee353c5107c67f80482867ef84404be754b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "a566d1e52320beb637f3b2f4f2736f17d660639691bbc514147a3aaa38e61572",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/system.ia",
+      "sha256": "78a7bde072bb6b394b7b19322f9850b923bb6e7bf7c84a00ed8c864ae444d352",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "f93c4aae6d06e400522981c0052353528a0daee2fbc68344e5e58c492b8b2f97",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/system.ia",
+      "sha256": "46804ff25dd67dd50942e85c822d41f4b7ddfe7248f74415845ad850e8597742",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "ed66c9685d5836bc983fa54448fba347d73296388e1931400e2e0802d9a176b7",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/system.ia",
+      "sha256": "5cbf539ad94b4f3e0abd5c7ba63c91f3965af7d126eb995c5ab22b3ce28fba9c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "83a2df6a5c9dfd59ae3de2fd79cbcadd13f23b83bf95fbebd4cb2f83d67aa8cf",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/system.ia",
+      "sha256": "b0455bed61bdf8bb9be887e5e3444df914cfe2a2f495580915987ede34baf51c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "f885854868807dbac81791860004899ceee109555527fe8113360ceb69d452da",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/system.ia",
+      "sha256": "7ffe279e22ffbf7ec9c0f1ee2ef8175a572b81dd7e96015b2e1be37fcc73b3ba",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "9b6b216bc2bb571ebb6b64e376441be7a8ad2064ff4804d4f231da09655eb47b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/system.ia",
+      "sha256": "e258018ed149cc1aa34540aaa808a5a9b2690156f4bc81a637e7a0820be29e07",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "9aa0d238235fad13e8d0fef5cd049325f1079223ca6fc1f402f7e7854595c5c6",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/system.ia",
+      "sha256": "d14912ad57a228cbddf04e988d9e61278ff67d332738861828299398a1e658c4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "48970c940645692417a3e95ea9f31d01e2e0444447c05947297e13d7b130b1ac",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/system.ia",
+      "sha256": "1d0147eff2f5db316d66fa82a413ecc7940763f0aea822778dfde005f4aec07b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "f64eeddf4dc64cf8a3c0c921cabdd6b2937b0fd244882e7a37ca7327f49cc298",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/system.ia",
+      "sha256": "4268fe8eac81e16b461d64d0020bc686a95dddb9e9b5d861daa8d23a1bdecf27",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "968cc79e085600e9116a1140145685a37d8bcaaefb07fcc8509a7c17ac276359",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
+      "sha256": "0fcd1560eb93b5500dccbe0a199c4a7f37031235242932c7a61ef2a78d065ea9",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "5ba767422fc5e4580e145eda7365a37a3c381833ac171b4402abf5b0cd097c5a",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "c1e221a1aca0f1652cf1ad3e08073d705181e5a0f5845fd911791b06d1492746",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "dc97e3955993b98edcd8c5ffa97ddcc250420cf32036ba1d35c6056ef754c973",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "61d14adae698f996f807bc4b27def19447cfe4112a768b69711c300c6ab1b3a0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "c32ffe59abc54161c6b22b649726ec0c3483fec237e5f8458f0966309aa21428",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "2ce3793566a13ee21c59f30c1494936985441a1ba7c10cf74c766a2619692c03",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-composition-system.ia",
+      "sha256": "9e2b5e5b4d21e2c92ac3413c292c368b4d5a62a963ea120b77c7a2c7b9684a78",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-system.ia",
+      "sha256": "beb188e9d50b6b75b782f279ed36bee353c5107c67f80482867ef84404be754b",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/authoring-system.ia",
+      "sha256": "78a7bde072bb6b394b7b19322f9850b923bb6e7bf7c84a00ed8c864ae444d352",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/compliance-system.ia",
+      "sha256": "46804ff25dd67dd50942e85c822d41f4b7ddfe7248f74415845ad850e8597742",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/governance-system.ia",
+      "sha256": "5cbf539ad94b4f3e0abd5c7ba63c91f3965af7d126eb995c5ab22b3ce28fba9c",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/hook-authoring-system.ia",
+      "sha256": "b0455bed61bdf8bb9be887e5e3444df914cfe2a2f495580915987ede34baf51c",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/learning-system.ia",
+      "sha256": "7ffe279e22ffbf7ec9c0f1ee2ef8175a572b81dd7e96015b2e1be37fcc73b3ba",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/session-system.ia",
+      "sha256": "e258018ed149cc1aa34540aaa808a5a9b2690156f4bc81a637e7a0820be29e07",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/template-system.ia",
+      "sha256": "d14912ad57a228cbddf04e988d9e61278ff67d332738861828299398a1e658c4",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/work-system.ia",
+      "sha256": "1d0147eff2f5db316d66fa82a413ecc7940763f0aea822778dfde005f4aec07b",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/workspace-system.ia",
+      "sha256": "4268fe8eac81e16b461d64d0020bc686a95dddb9e9b5d861daa8d23a1bdecf27",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/versions.json",
+      "sha256": "9ca4d7fed459aa51ba8f6f6b181c1aa288ede3f09e07cc495064b1d71b971b9a",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "packages/compliance/README.md",
+      "sha256": "a535644ae3a75d0e0cb02ac4057f432140f05d53aaa7ac88e0c2bcdb04f58e39",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/SPEC.md",
+      "sha256": "5ae599cca0e4a3a7559f44f473d2b869a9bed1f890e85cd77045165c402ce2b0",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/fixtures/refusals.ts",
+      "sha256": "e44f24af91ef283b4702f0e5d8e0940d46bf73f807fe94508c61eb021f4c8b72",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "485d3ce69e62cf1d9b835d3007e354200d1cdd5fd1eed36d34e0b6644c24052d",
+      "cohortOnly": true,
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/bind.ts",
+      "sha256": "9e4fc1dce2f2aeec0e2e3e763a77ffdd0f36d5395309e1f3ed72ae69470bf383",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/corpus.ts",
+      "sha256": "e8734b2bb751e1b6891ae861adcaff149a5195eeff4f7c18a5425f68300ffa4b",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/evidence-fixtures.ts",
+      "sha256": "04de47cd21529b240cd7b3bd2304befd4ff8b6dc9d22ae5171f86f565445f56a",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/evidence.ts",
+      "sha256": "5a2f4e5366c970e146f26a0b5bffcbe948ca96ce1c56f7ccdf5ad8fde1b93785",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/inventory.generated.ts",
+      "sha256": "27f28ca95c475194a651d75cb43d25a7a16c97472e3d397ea30b98499f5d77a9",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/inventory.ts",
+      "sha256": "a423b5e277bb7814a68d09261cc009c0130da36f25b47b24c72f55413da1502d",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/refusals.ts",
+      "sha256": "799d4d40d7e83c983d1c577fe97f0e92d45c3176854327d6f60bc1fa80d71600",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/verify-kernel.ts",
+      "sha256": "481ce85eff7bd9405537e8221d2de69be49178fd5be321f12818a25836d155ec",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/conformance/verify.ts",
+      "sha256": "9346af4fc7ba20ced8367f7fe572f03014f8fe9463b61ed906f4575d03087d0b",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/index.ts",
+      "sha256": "9f1321e3f75096fd6787b19d69446059ccc689d3d562103ce322e87c14c4902a",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/kernel.ts",
+      "sha256": "be9fd2f6bc18c98713fd0b230e70fcf76602a9bf5639aba8907428509862d534",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/report.ts",
+      "sha256": "27e6c6c6998388460e423049a7545aea0b5af72cdfb16aa29ff9a06eb3690325",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/src/types.ts",
+      "sha256": "2a8bdeae623dcdca49363e33a37c7ce3ebd46f0fe1dd7e3b7bb57c6c6640ff03",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/compliance/tests/report.test.ts",
+      "sha256": "fd7ce651d3cf775c45d8208b5c9b475dcd1de3c49b2a841270f94a3c0394ac48",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "35a4689de477e4b18fe5cdd2655c69cc46c80a546cdc314a00eb07ace234a24c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "461d73860606a95a18b6fe01f0b455f068d1ed8a575b4a25a349b98f28dbe55b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "53b1f0c7c0ac9972d05051590f7369477b785a771ea47a8ade472728fbe1d927",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "61b5a60cd34d1e671184a6e7741cd96760ab5cec8947b693ac90b1c84121e5d4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "5f84b66121dfc5dca4281dc3b759197c8bc29dc2cb53b19f54101090e9eceb17",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "9b4cbbbe45f25d5cc65817cf5f0735d2c86cf83fc8d3169757a898b6ae753d3f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "9bd2473da30426e16f6b7de0cdb53285134395e52791801201f1de720c5cc52f",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/compliance/SPEC.md",
+      "sha256": "433f809a7fa96b1917fb84a303462f974c65e22d2c7afba085e85baeb559dc4c",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "tools/compliance/check.test.ts",
+      "sha256": "be7af303d11499d990a9ea3f02b4ec29b3f435af94a98af525091626f37609a7",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "tools/compliance/check.ts",
+      "sha256": "cf946353961c3d35f850c4d3837a3220f1659401ec9196ccf3a72ccf042cb626",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "tools/compliance/evidence-fixtures.ts",
+      "sha256": "f371b91883e4157f526972f23a47f2ee94149354eb5714285971e38762b44e15",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "tools/compliance/inventory.ts",
+      "sha256": "7086a6f7cb8dda192f3cc65ace9fc6ebbe016f732b02a5f40d3ae98a4ecd6c2c",
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "fdc9e590521083c1e9bac543e8203554f318c6c98ce44088114f0e82e2f73bd6",
+      "cohortOnly": true,
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "tools/kernel/closed-contract.json",
+      "sha256": null,
+      "change": "native-conformance-evidence"
+    },
+    {
+      "path": "tools/kernel/generate.ts",
+      "sha256": "493f479cf56693c275a5832bde0fd99f94ccffd85aa0b3f453e8dd4b72d63682",
+      "change": "native-conformance-evidence"
+    }
+  ]
+}

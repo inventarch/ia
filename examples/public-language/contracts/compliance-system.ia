@@ -2,7 +2,7 @@
 
 @system compliance-system
   provider "inventarch.foundation"
-  version "3.0.0"
+  version "3.1.0"
   describes "Public compliance-system vocabulary contracts"
   steward @agent public-compliance-system-steward
   requires

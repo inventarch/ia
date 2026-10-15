@@ -2,7 +2,7 @@
 
 @system learning-system
   provider "inventarch.local"
-  version "3.0.0"
+  version "3.1.0"
   describes "Public learning-system vocabulary contracts"
   steward @agent public-learning-system-steward
   requires

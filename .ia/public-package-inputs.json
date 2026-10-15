@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "b843a68f1c8e4739d507b1d8f0b32fbcd3597b35",
-    "tree": "580bf44793442578c2b577c81ad6bcebffc6f5d1",
+    "commit": "3983d6b9cf9bb5d9377c822a3bb92919ca8c768a",
+    "tree": "99177ae93a6b1ba0449b8112152e360cb37a1ba6",
     "dirty": true
   },
   "membership": {
@@ -11,30 +11,30 @@
     "sha256": "c4c78c0860e4547a7ca03facc56488ac37398057d4c0cec67c5af7262aecc284"
   },
   "npm": {
-    ".ia/src/systems/agent-composition-system/package.json": "3.0.0",
-    ".ia/src/systems/agent-system/package.json": "3.0.0",
-    ".ia/src/systems/authoring-system/package.json": "3.0.0",
-    ".ia/src/systems/compliance-system/package.json": "3.0.0",
-    ".ia/src/systems/governance-system/package.json": "3.0.0",
-    ".ia/src/systems/hook-authoring-system/package.json": "3.0.0",
-    ".ia/src/systems/learning-system/package.json": "3.0.0",
-    ".ia/src/systems/session-system/package.json": "3.0.0",
-    ".ia/src/systems/template-system/package.json": "3.0.0",
-    ".ia/src/systems/work-system/package.json": "3.0.0",
-    ".ia/src/systems/workspace-system/package.json": "3.0.0",
-    "apps/cli/package.json": "3.0.0",
-    "apps/distribution/package.json": "3.0.0",
-    "apps/mcp-door/package.json": "3.0.0",
-    "apps/runner/package.json": "3.0.0",
-    "apps/steward-hook/package.json": "3.0.0",
-    "apps/vscode/package.json": "3.0.0",
-    "packages/compliance/package.json": "3.0.0",
-    "packages/db/package.json": "3.0.0",
-    "packages/graph/package.json": "3.0.0",
-    "packages/language/package.json": "3.0.0",
-    "packages/runtime/package.json": "3.0.0",
-    "packages/service-contracts/package.json": "3.0.0",
-    "packages/workspace-runtime/package.json": "3.0.0"
+    ".ia/src/systems/agent-composition-system/package.json": "3.1.0",
+    ".ia/src/systems/agent-system/package.json": "3.1.0",
+    ".ia/src/systems/authoring-system/package.json": "3.1.0",
+    ".ia/src/systems/compliance-system/package.json": "3.1.0",
+    ".ia/src/systems/governance-system/package.json": "3.1.0",
+    ".ia/src/systems/hook-authoring-system/package.json": "3.1.0",
+    ".ia/src/systems/learning-system/package.json": "3.1.0",
+    ".ia/src/systems/session-system/package.json": "3.1.0",
+    ".ia/src/systems/template-system/package.json": "3.1.0",
+    ".ia/src/systems/work-system/package.json": "3.1.0",
+    ".ia/src/systems/workspace-system/package.json": "3.1.0",
+    "apps/cli/package.json": "3.1.0",
+    "apps/distribution/package.json": "3.1.0",
+    "apps/mcp-door/package.json": "3.1.0",
+    "apps/runner/package.json": "3.1.0",
+    "apps/steward-hook/package.json": "3.1.0",
+    "apps/vscode/package.json": "3.1.0",
+    "packages/compliance/package.json": "3.1.0",
+    "packages/db/package.json": "3.1.0",
+    "packages/graph/package.json": "3.1.0",
+    "packages/language/package.json": "3.1.0",
+    "packages/runtime/package.json": "3.1.0",
+    "packages/service-contracts/package.json": "3.1.0",
+    "packages/workspace-runtime/package.json": "3.1.0"
   },
   "files": [
     {
@@ -303,7 +303,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/package.json",
-      "sha256": "f310cd1c51f62fcb60ba4247bc7f73c84e31efb3405dcf4f6fdfc7bf03796510"
+      "sha256": "78233099decb213e2c151740da3a2ba42509b74b5646c4f7dcdfdeb55da6acc4"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/records/read-captured-source-binding.ia",
@@ -515,7 +515,7 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/system.ia",
-      "sha256": "a22b8e92ab3e4fe1dfcf3896e8905e8b49cb723c3fc0b1facc6de087ad25632b"
+      "sha256": "9e2b5e5b4d21e2c92ac3413c292c368b4d5a62a963ea120b77c7a2c7b9684a78"
     },
     {
       "path": ".ia/src/systems/agent-composition-system/tests/compatibility.test.ts",
@@ -631,7 +631,7 @@
     },
     {
       "path": ".ia/src/systems/agent-system/package.json",
-      "sha256": "a9c9fab80f3480097fd22a7eaa5926b018f46c6eea0f50eed1cf19d6254ded5f"
+      "sha256": "c67e1416b37e7d23c5038946d5049023282b21c5910cb193f03022d6e3f8b290"
     },
     {
       "path": ".ia/src/systems/agent-system/schemas/agent.schema.ia",
@@ -663,7 +663,7 @@
     },
     {
       "path": ".ia/src/systems/agent-system/system.ia",
-      "sha256": "78687adaf4f010a74a06547276a1be406729cbafbc4b99fea71fa1b21e030e38"
+      "sha256": "beb188e9d50b6b75b782f279ed36bee353c5107c67f80482867ef84404be754b"
     },
     {
       "path": ".ia/src/systems/agent-system/tests/contracts.test.ts",
@@ -735,7 +735,7 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/package.json",
-      "sha256": "785f827a5d577c25393df9b7df437ab6736c5987fe7933efa45591c194fe8850"
+      "sha256": "a566d1e52320beb637f3b2f4f2736f17d660639691bbc514147a3aaa38e61572"
     },
     {
       "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
@@ -931,7 +931,7 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/system.ia",
-      "sha256": "517b70b6891790d7a7baaef03e1a5e9b78c3f1dca255e4bc88bdfcd92a40e7d9"
+      "sha256": "78a7bde072bb6b394b7b19322f9850b923bb6e7bf7c84a00ed8c864ae444d352"
     },
     {
       "path": ".ia/src/systems/authoring-system/tests/drafts.test.ts",
@@ -971,7 +971,7 @@
     },
     {
       "path": ".ia/src/systems/compliance-system/package.json",
-      "sha256": "0f9d173328bc04d14cec83d458140f3941f9973ac745a044520ae3fb7a0ae300"
+      "sha256": "f93c4aae6d06e400522981c0052353528a0daee2fbc68344e5e58c492b8b2f97"
     },
     {
       "path": ".ia/src/systems/compliance-system/schemas/case.schema.ia",
@@ -987,7 +987,7 @@
     },
     {
       "path": ".ia/src/systems/compliance-system/system.ia",
-      "sha256": "5ceeb87e0bd319268e542cd9f86921409a53de46bee5dcd721ae554db0be1e0f"
+      "sha256": "46804ff25dd67dd50942e85c822d41f4b7ddfe7248f74415845ad850e8597742"
     },
     {
       "path": ".ia/src/systems/governance-system/LANGUAGE.md",
@@ -1011,7 +1011,7 @@
     },
     {
       "path": ".ia/src/systems/governance-system/package.json",
-      "sha256": "ef50c6b5a5e527cc35f525bb134ed5f5a380fe8db91e274d1bc2729070fbee2b"
+      "sha256": "ed66c9685d5836bc983fa54448fba347d73296388e1931400e2e0802d9a176b7"
     },
     {
       "path": ".ia/src/systems/governance-system/schemas/convention.schema.ia",
@@ -1031,7 +1031,7 @@
     },
     {
       "path": ".ia/src/systems/governance-system/system.ia",
-      "sha256": "704b91559e22cab2caae4c02dcffae575ebc371e72e32e3028110eacc2995836"
+      "sha256": "5cbf539ad94b4f3e0abd5c7ba63c91f3965af7d126eb995c5ab22b3ce28fba9c"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md",
@@ -1055,7 +1055,7 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/package.json",
-      "sha256": "e1612be2f534d24af89fdff6e00dd64868f580df634b4441a91a5014cf2a9555"
+      "sha256": "83a2df6a5c9dfd59ae3de2fd79cbcadd13f23b83bf95fbebd4cb2f83d67aa8cf"
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/schemas/hook.schema.ia",
@@ -1063,7 +1063,7 @@
     },
     {
       "path": ".ia/src/systems/hook-authoring-system/system.ia",
-      "sha256": "bd89e12d2d149e944556b2541235faebc325eba9561120bdcc274d3664a888a5"
+      "sha256": "b0455bed61bdf8bb9be887e5e3444df914cfe2a2f495580915987ede34baf51c"
     },
     {
       "path": ".ia/src/systems/learning-system/LANGUAGE.md",
@@ -1087,7 +1087,7 @@
     },
     {
       "path": ".ia/src/systems/learning-system/package.json",
-      "sha256": "2f6008bdc4cbedabb71362587aa4fc8bf96075a2772ea32d4688638724bdabff"
+      "sha256": "f885854868807dbac81791860004899ceee109555527fe8113360ceb69d452da"
     },
     {
       "path": ".ia/src/systems/learning-system/schemas/improvement.schema.ia",
@@ -1099,7 +1099,7 @@
     },
     {
       "path": ".ia/src/systems/learning-system/system.ia",
-      "sha256": "40a811de96f35992721e285cf983a7414c06a40a94165aa98b42be2a4007cff1"
+      "sha256": "7ffe279e22ffbf7ec9c0f1ee2ef8175a572b81dd7e96015b2e1be37fcc73b3ba"
     },
     {
       "path": ".ia/src/systems/session-system/LANGUAGE.md",
@@ -1123,7 +1123,7 @@
     },
     {
       "path": ".ia/src/systems/session-system/package.json",
-      "sha256": "393ddfbd8dbf4cced897e598cf1545fd0320a71ef77721c241a2572c27c90183"
+      "sha256": "9b6b216bc2bb571ebb6b64e376441be7a8ad2064ff4804d4f231da09655eb47b"
     },
     {
       "path": ".ia/src/systems/session-system/schemas/run.schema.ia",
@@ -1159,7 +1159,7 @@
     },
     {
       "path": ".ia/src/systems/session-system/system.ia",
-      "sha256": "df7c06ae37b4838f71fc2794cbca0201f14c51ccdfbe419197df575db5a39655"
+      "sha256": "e258018ed149cc1aa34540aaa808a5a9b2690156f4bc81a637e7a0820be29e07"
     },
     {
       "path": ".ia/src/systems/session-system/tests/contracts.test.ts",
@@ -1219,7 +1219,7 @@
     },
     {
       "path": ".ia/src/systems/template-system/package.json",
-      "sha256": "8b9ec35764804bf050d828ed09c21460e6e6a3a6bb64a1d437d064dd41fa9972"
+      "sha256": "9aa0d238235fad13e8d0fef5cd049325f1079223ca6fc1f402f7e7854595c5c6"
     },
     {
       "path": ".ia/src/systems/template-system/schemas/template.schema.ia",
@@ -1243,7 +1243,7 @@
     },
     {
       "path": ".ia/src/systems/template-system/system.ia",
-      "sha256": "f6f05be502c112358ceed5f4a3caac6a96e8bfa2b873ba5050971f1a97d49e19"
+      "sha256": "d14912ad57a228cbddf04e988d9e61278ff67d332738861828299398a1e658c4"
     },
     {
       "path": ".ia/src/systems/template-system/tests/structured.test.ts",
@@ -1283,7 +1283,7 @@
     },
     {
       "path": ".ia/src/systems/work-system/package.json",
-      "sha256": "dbcbdf20e385d92531862beab79bf1c1f53675615881d43bc5d952ccdf47d681"
+      "sha256": "48970c940645692417a3e95ea9f31d01e2e0444447c05947297e13d7b130b1ac"
     },
     {
       "path": ".ia/src/systems/work-system/schemas/decision.schema.ia",
@@ -1307,7 +1307,7 @@
     },
     {
       "path": ".ia/src/systems/work-system/system.ia",
-      "sha256": "b4c6564f81d384bc6c36749f152e68741d8bbe9d2feb9ad65fdee23b39944ecb"
+      "sha256": "1d0147eff2f5db316d66fa82a413ecc7940763f0aea822778dfde005f4aec07b"
     },
     {
       "path": ".ia/src/systems/workspace-system/LANGUAGE.md",
@@ -1331,7 +1331,7 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/package.json",
-      "sha256": "7f4cbe26f292af462f5a913421436e7f5d1531e3e84b6ad517296dca2eea25f5"
+      "sha256": "f64eeddf4dc64cf8a3c0c921cabdd6b2937b0fd244882e7a37ca7327f49cc298"
     },
     {
       "path": ".ia/src/systems/workspace-system/schemas/distribution.schema.ia",
@@ -1343,7 +1343,7 @@
     },
     {
       "path": ".ia/src/systems/workspace-system/system.ia",
-      "sha256": "5c120ad8fed68eb821afa6eddfc590dc6c0085bff193930397b51d1a36422d8a"
+      "sha256": "4268fe8eac81e16b461d64d0020bc686a95dddb9e9b5d861daa8d23a1bdecf27"
     },
     {
       "path": ".ia/src/workspace.ia",
@@ -1355,7 +1355,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "a578080d9b78f3f8c397f8f0dbddbcbb6cc55cfdc3452b94c7367352347cb94f"
+      "sha256": "0157af412f71b56f66cbe52a7efb51fdc4314485d0e35e9152ac6fee1e3c846e"
     },
     {
       "path": "CLAUDE.md",
@@ -1419,7 +1419,7 @@
     },
     {
       "path": "apps/cli/package.json",
-      "sha256": "031e2a271e0a99c354cea070ef7b2b007f186131dbdf08dccb08e26fb1a3c580"
+      "sha256": "968cc79e085600e9116a1140145685a37d8bcaaefb07fcc8509a7c17ac276359"
     },
     {
       "path": "apps/cli/src/adopt.ts",
@@ -1639,7 +1639,7 @@
     },
     {
       "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
-      "sha256": "b43becc232d08abf2af8603221ecfe456cde135f8cb988f00f930328c9b236fc"
+      "sha256": "0fcd1560eb93b5500dccbe0a199c4a7f37031235242932c7a61ef2a78d065ea9"
     },
     {
       "path": "apps/cli/tests/fixtures/composition-workspace/.ia/src/composition.ia",
@@ -1831,7 +1831,7 @@
     },
     {
       "path": "apps/distribution/package.json",
-      "sha256": "29c755dc48342d122b8aa610ff1925ac966b0f97098951f831de46ab6549daa9"
+      "sha256": "5ba767422fc5e4580e145eda7365a37a3c381833ac171b4402abf5b0cd097c5a"
     },
     {
       "path": "apps/distribution/references/registry-collections.md",
@@ -2243,7 +2243,7 @@
     },
     {
       "path": "apps/mcp-door/package.json",
-      "sha256": "492c49bc196eb9e69cb8db44eadc70bac9ffe487f7804dc9bcd7cfa102d52db9"
+      "sha256": "c1e221a1aca0f1652cf1ad3e08073d705181e5a0f5845fd911791b06d1492746"
     },
     {
       "path": "apps/mcp-door/src/main.ts",
@@ -2307,7 +2307,7 @@
     },
     {
       "path": "apps/runner/package.json",
-      "sha256": "225d6dd88b4fb9669c75f33d0df9513607542ceb4ca2256de6f619225cdcf585"
+      "sha256": "dc97e3955993b98edcd8c5ffa97ddcc250420cf32036ba1d35c6056ef754c973"
     },
     {
       "path": "apps/runner/src/catalog.ts",
@@ -2383,7 +2383,7 @@
     },
     {
       "path": "apps/steward-hook/package.json",
-      "sha256": "7c69f59e77aeaa3c4fba653277a4beb730234b95fabdf2a1d8c6d386a75baf76"
+      "sha256": "61d14adae698f996f807bc4b27def19447cfe4112a768b69711c300c6ab1b3a0"
     },
     {
       "path": "apps/steward-hook/src/context.ts",
@@ -2463,7 +2463,7 @@
     },
     {
       "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
-      "sha256": "41a4cb16a501070dbdc707f294f1f68788f94d7619c1239bda2c7c482caf66b0"
+      "sha256": "c32ffe59abc54161c6b22b649726ec0c3483fec237e5f8458f0966309aa21428"
     },
     {
       "path": "apps/vscode/build.mjs",
@@ -2487,7 +2487,7 @@
     },
     {
       "path": "apps/vscode/package.json",
-      "sha256": "45ba1d1d0799c550917a9d83dc8ad03884937ad1b5e60d416683f096ca4463ba"
+      "sha256": "2ce3793566a13ee21c59f30c1494936985441a1ba7c10cf74c766a2619692c03"
     },
     {
       "path": "apps/vscode/src/create.ts",
@@ -3163,47 +3163,47 @@
     },
     {
       "path": "examples/public-language/contracts/agent-composition-system.ia",
-      "sha256": "a22b8e92ab3e4fe1dfcf3896e8905e8b49cb723c3fc0b1facc6de087ad25632b"
+      "sha256": "9e2b5e5b4d21e2c92ac3413c292c368b4d5a62a963ea120b77c7a2c7b9684a78"
     },
     {
       "path": "examples/public-language/contracts/agent-system.ia",
-      "sha256": "78687adaf4f010a74a06547276a1be406729cbafbc4b99fea71fa1b21e030e38"
+      "sha256": "beb188e9d50b6b75b782f279ed36bee353c5107c67f80482867ef84404be754b"
     },
     {
       "path": "examples/public-language/contracts/authoring-system.ia",
-      "sha256": "517b70b6891790d7a7baaef03e1a5e9b78c3f1dca255e4bc88bdfcd92a40e7d9"
+      "sha256": "78a7bde072bb6b394b7b19322f9850b923bb6e7bf7c84a00ed8c864ae444d352"
     },
     {
       "path": "examples/public-language/contracts/compliance-system.ia",
-      "sha256": "5ceeb87e0bd319268e542cd9f86921409a53de46bee5dcd721ae554db0be1e0f"
+      "sha256": "46804ff25dd67dd50942e85c822d41f4b7ddfe7248f74415845ad850e8597742"
     },
     {
       "path": "examples/public-language/contracts/governance-system.ia",
-      "sha256": "704b91559e22cab2caae4c02dcffae575ebc371e72e32e3028110eacc2995836"
+      "sha256": "5cbf539ad94b4f3e0abd5c7ba63c91f3965af7d126eb995c5ab22b3ce28fba9c"
     },
     {
       "path": "examples/public-language/contracts/hook-authoring-system.ia",
-      "sha256": "bd89e12d2d149e944556b2541235faebc325eba9561120bdcc274d3664a888a5"
+      "sha256": "b0455bed61bdf8bb9be887e5e3444df914cfe2a2f495580915987ede34baf51c"
     },
     {
       "path": "examples/public-language/contracts/learning-system.ia",
-      "sha256": "40a811de96f35992721e285cf983a7414c06a40a94165aa98b42be2a4007cff1"
+      "sha256": "7ffe279e22ffbf7ec9c0f1ee2ef8175a572b81dd7e96015b2e1be37fcc73b3ba"
     },
     {
       "path": "examples/public-language/contracts/session-system.ia",
-      "sha256": "df7c06ae37b4838f71fc2794cbca0201f14c51ccdfbe419197df575db5a39655"
+      "sha256": "e258018ed149cc1aa34540aaa808a5a9b2690156f4bc81a637e7a0820be29e07"
     },
     {
       "path": "examples/public-language/contracts/template-system.ia",
-      "sha256": "f6f05be502c112358ceed5f4a3caac6a96e8bfa2b873ba5050971f1a97d49e19"
+      "sha256": "d14912ad57a228cbddf04e988d9e61278ff67d332738861828299398a1e658c4"
     },
     {
       "path": "examples/public-language/contracts/work-system.ia",
-      "sha256": "b4c6564f81d384bc6c36749f152e68741d8bbe9d2feb9ad65fdee23b39944ecb"
+      "sha256": "1d0147eff2f5db316d66fa82a413ecc7940763f0aea822778dfde005f4aec07b"
     },
     {
       "path": "examples/public-language/contracts/workspace-system.ia",
-      "sha256": "5c120ad8fed68eb821afa6eddfc590dc6c0085bff193930397b51d1a36422d8a"
+      "sha256": "4268fe8eac81e16b461d64d0020bc686a95dddb9e9b5d861daa8d23a1bdecf27"
     },
     {
       "path": "examples/public-language/fixtures/repository-distribution.ia",
@@ -3243,7 +3243,7 @@
     },
     {
       "path": "examples/public-language/versions.json",
-      "sha256": "15fcf72e1bac7b7d45f442131373a4c2810d0a69fc6d53e44b9c2e9ca11856de"
+      "sha256": "9ca4d7fed459aa51ba8f6f6b181c1aa288ede3f09e07cc495064b1d71b971b9a"
     },
     {
       "path": "nx.json",
@@ -3267,11 +3267,11 @@
     },
     {
       "path": "packages/compliance/README.md",
-      "sha256": "6fb472cc14bb82465acade235d83e8398516bc1014f67be0c6afc202aea14185"
+      "sha256": "a535644ae3a75d0e0cb02ac4057f432140f05d53aaa7ac88e0c2bcdb04f58e39"
     },
     {
       "path": "packages/compliance/SPEC.md",
-      "sha256": "3eda48801f3a431e25ea69d01cd717d3f15f5e4bbdae7612d55dc9d494ac687b"
+      "sha256": "5ae599cca0e4a3a7559f44f473d2b869a9bed1f890e85cd77045165c402ce2b0"
     },
     {
       "path": "packages/compliance/fixtures/language/cases/fail/duplicate-given.diagnostics.json",
@@ -4959,11 +4959,11 @@
     },
     {
       "path": "packages/compliance/fixtures/refusals.ts",
-      "sha256": "9ea8e85497ad7935b0165f939d119e97bacb546623cd0089ae44aad3f9d0839c"
+      "sha256": "e44f24af91ef283b4702f0e5d8e0940d46bf73f807fe94508c61eb021f4c8b72"
     },
     {
       "path": "packages/compliance/package.json",
-      "sha256": "3402b4e34718c58e2162a9a2b14a7d9ca13b863aa4e503853e5df6c79eb18780"
+      "sha256": "485d3ce69e62cf1d9b835d3007e354200d1cdd5fd1eed36d34e0b6644c24052d"
     },
     {
       "path": "packages/compliance/src/adoption.ts",
@@ -4976,6 +4976,42 @@
     {
       "path": "packages/compliance/src/check-ids.ts",
       "sha256": "61117e371576d89f3d3ea44a82e1884da3341999ef265fece567fce03e31fb91"
+    },
+    {
+      "path": "packages/compliance/src/conformance/bind.ts",
+      "sha256": "9e4fc1dce2f2aeec0e2e3e763a77ffdd0f36d5395309e1f3ed72ae69470bf383"
+    },
+    {
+      "path": "packages/compliance/src/conformance/corpus.ts",
+      "sha256": "e8734b2bb751e1b6891ae861adcaff149a5195eeff4f7c18a5425f68300ffa4b"
+    },
+    {
+      "path": "packages/compliance/src/conformance/evidence-fixtures.ts",
+      "sha256": "04de47cd21529b240cd7b3bd2304befd4ff8b6dc9d22ae5171f86f565445f56a"
+    },
+    {
+      "path": "packages/compliance/src/conformance/evidence.ts",
+      "sha256": "5a2f4e5366c970e146f26a0b5bffcbe948ca96ce1c56f7ccdf5ad8fde1b93785"
+    },
+    {
+      "path": "packages/compliance/src/conformance/inventory.generated.ts",
+      "sha256": "27f28ca95c475194a651d75cb43d25a7a16c97472e3d397ea30b98499f5d77a9"
+    },
+    {
+      "path": "packages/compliance/src/conformance/inventory.ts",
+      "sha256": "a423b5e277bb7814a68d09261cc009c0130da36f25b47b24c72f55413da1502d"
+    },
+    {
+      "path": "packages/compliance/src/conformance/refusals.ts",
+      "sha256": "799d4d40d7e83c983d1c577fe97f0e92d45c3176854327d6f60bc1fa80d71600"
+    },
+    {
+      "path": "packages/compliance/src/conformance/verify-kernel.ts",
+      "sha256": "481ce85eff7bd9405537e8221d2de69be49178fd5be321f12818a25836d155ec"
+    },
+    {
+      "path": "packages/compliance/src/conformance/verify.ts",
+      "sha256": "9346af4fc7ba20ced8367f7fe572f03014f8fe9463b61ed906f4575d03087d0b"
     },
     {
       "path": "packages/compliance/src/evidence.ts",
@@ -4995,7 +5031,11 @@
     },
     {
       "path": "packages/compliance/src/index.ts",
-      "sha256": "2353a2059543fc529ed7beedc43d2e28bf97f0674d6e0964c0c4934bd2cc1993"
+      "sha256": "9f1321e3f75096fd6787b19d69446059ccc689d3d562103ce322e87c14c4902a"
+    },
+    {
+      "path": "packages/compliance/src/kernel.ts",
+      "sha256": "be9fd2f6bc18c98713fd0b230e70fcf76602a9bf5639aba8907428509862d534"
     },
     {
       "path": "packages/compliance/src/obligations.ts",
@@ -5011,7 +5051,7 @@
     },
     {
       "path": "packages/compliance/src/report.ts",
-      "sha256": "329f07e88993eec7fd3d771200c60ac6dc047ad978aa0ce7ba233ffbce541f51"
+      "sha256": "27e6c6c6998388460e423049a7545aea0b5af72cdfb16aa29ff9a06eb3690325"
     },
     {
       "path": "packages/compliance/src/schema.ts",
@@ -5031,7 +5071,7 @@
     },
     {
       "path": "packages/compliance/src/types.ts",
-      "sha256": "7f4f63d70717e122be20a137774d23cae61cb7305b1eb94ab867e316e74b5fe7"
+      "sha256": "2a8bdeae623dcdca49363e33a37c7ce3ebd46f0fe1dd7e3b7bb57c6c6640ff03"
     },
     {
       "path": "packages/compliance/src/values.ts",
@@ -5067,7 +5107,7 @@
     },
     {
       "path": "packages/compliance/tests/report.test.ts",
-      "sha256": "f0c6486862da335ba67ebd7045a78df6db561db6a049f838937d93ab715a603b"
+      "sha256": "fd7ce651d3cf775c45d8208b5c9b475dcd1de3c49b2a841270f94a3c0394ac48"
     },
     {
       "path": "packages/compliance/tests/schema.test.ts",
@@ -5195,7 +5235,7 @@
     },
     {
       "path": "packages/db/package.json",
-      "sha256": "51d5ce87410a6d79cc94b9d42c88fd2a6e9b01b080e2e879ec84b27b7e8cc1d9"
+      "sha256": "35a4689de477e4b18fe5cdd2655c69cc46c80a546cdc314a00eb07ace234a24c"
     },
     {
       "path": "packages/db/src/cache.ts",
@@ -5423,7 +5463,7 @@
     },
     {
       "path": "packages/graph/package.json",
-      "sha256": "aa04253d2cec2870f3406c6f9669b42e37b7ff57203d0f3e426c5458d65004e3"
+      "sha256": "461d73860606a95a18b6fe01f0b455f068d1ed8a575b4a25a349b98f28dbe55b"
     },
     {
       "path": "packages/graph/src/claims.ts",
@@ -5563,7 +5603,7 @@
     },
     {
       "path": "packages/language/package.json",
-      "sha256": "9737e3ffe2a36062d5fbeb53ae66a2d98654ff0ebebacc64a7445d0092f70c2b"
+      "sha256": "53b1f0c7c0ac9972d05051590f7369477b785a771ea47a8ade472728fbe1d927"
     },
     {
       "path": "packages/language/src/ast.ts",
@@ -5955,7 +5995,7 @@
     },
     {
       "path": "packages/runtime/package.json",
-      "sha256": "0919386ce13f694ca98a000809fd15553efe5f7619162e2b72685a39bc4e9c06"
+      "sha256": "61b5a60cd34d1e671184a6e7741cd96760ab5cec8947b693ac90b1c84121e5d4"
     },
     {
       "path": "packages/runtime/src/authoring-execution/execution.ts",
@@ -6271,7 +6311,7 @@
     },
     {
       "path": "packages/service-contracts/package.json",
-      "sha256": "7257a470bcf537ce577e05bcd61ec3ba3cbb19e8439391f00c72970fab4258c8"
+      "sha256": "5f84b66121dfc5dca4281dc3b759197c8bc29dc2cb53b19f54101090e9eceb17"
     },
     {
       "path": "packages/service-contracts/src/index.ts",
@@ -6363,7 +6403,7 @@
     },
     {
       "path": "packages/workspace-runtime/package.json",
-      "sha256": "a6396707c11bf4bc1d658e970dd43dcf7d44ba7f4f211599e92cdf4cd98e567d"
+      "sha256": "9b4cbbbe45f25d5cc65817cf5f0735d2c86cf83fc8d3169757a898b6ae753d3f"
     },
     {
       "path": "packages/workspace-runtime/src/adapters.ts",
@@ -6678,8 +6718,12 @@
       "sha256": "c82e4b0252891db4fd4241f3069d92efb750e9396817bc33542635b35b9c03d3"
     },
     {
+      "path": "releases/changesets/3.1.0.json",
+      "sha256": "9377d4fb30f0f3b19ed085795510bac277ba47f62e8a33167892911c0a6d8e8d"
+    },
+    {
       "path": "releases/current.json",
-      "sha256": "a6b1444eec6cbd1fdeaa301845e2a9597e3f121dff81982da20d95e41e0c6d99"
+      "sha256": "9bd2473da30426e16f6b7de0cdb53285134395e52791801201f1de720c5cc52f"
     },
     {
       "path": "releases/native/baselines/npm-2.0.0.json",
@@ -6695,19 +6739,19 @@
     },
     {
       "path": "tools/compliance/SPEC.md",
-      "sha256": "059a0c3830776dd734eef2994b708d7dca6505c5efb30f869d15662426fdd75a"
+      "sha256": "433f809a7fa96b1917fb84a303462f974c65e22d2c7afba085e85baeb559dc4c"
     },
     {
       "path": "tools/compliance/check.test.ts",
-      "sha256": "58dc6e096ba30ce30477657aa2d730d10541dbc7492de113f81672ef47594c58"
+      "sha256": "be7af303d11499d990a9ea3f02b4ec29b3f435af94a98af525091626f37609a7"
     },
     {
       "path": "tools/compliance/check.ts",
-      "sha256": "90c00c0f2dc8c148fd869581a84e089567f444e6ddbf9f2109455a4935f85d36"
+      "sha256": "cf946353961c3d35f850c4d3837a3220f1659401ec9196ccf3a72ccf042cb626"
     },
     {
       "path": "tools/compliance/evidence-fixtures.ts",
-      "sha256": "09c9087f6d8b6845aa840cb39264655506f7b88b7f603487af47389bdfc96d5b"
+      "sha256": "f371b91883e4157f526972f23a47f2ee94149354eb5714285971e38762b44e15"
     },
     {
       "path": "tools/compliance/foundation-adoption.test.ts",
@@ -6720,6 +6764,10 @@
     {
       "path": "tools/compliance/hook-fixtures.ts",
       "sha256": "86eb2463f6c6b79a375c1c98fc1d2711c0b8defb16f1a119208a3ee6e4408a50"
+    },
+    {
+      "path": "tools/compliance/inventory.ts",
+      "sha256": "7086a6f7cb8dda192f3cc65ace9fc6ebbe016f732b02a5f40d3ae98a4ecd6c2c"
     },
     {
       "path": "tools/compliance/publication-fixtures.test.ts",
@@ -6939,7 +6987,7 @@
     },
     {
       "path": "tools/distribution/system-package-policy.json",
-      "sha256": "21dd5c65858f681098452b94ab6c92497dff627e26cb5a1e89bbb9fb236009e8"
+      "sha256": "fdc9e590521083c1e9bac543e8203554f318c6c98ce44088114f0e82e2f73bd6"
     },
     {
       "path": "tools/docs/MARKDOWN.md",
@@ -7030,16 +7078,12 @@
       "sha256": "1df7d3956320c05ce7620e60fa6436b3dbadd8fc018bda0aca52ae21000f2af5"
     },
     {
-      "path": "tools/kernel/closed-contract.json",
-      "sha256": "b6760bbd03e4df07c1e004082cf9dad31df212eb8c5855e25c6f00173445139a"
-    },
-    {
       "path": "tools/kernel/generate.test.ts",
       "sha256": "770a93894dd4b9839d75b61bc76d1d2882b3e6be07e0a881d00dcc986b4969df"
     },
     {
       "path": "tools/kernel/generate.ts",
-      "sha256": "d5a0cbc00ed7006bc2849f37fa0153e46fca7a6e19a936cc654453666b12d1eb"
+      "sha256": "493f479cf56693c275a5832bde0fd99f94ccffd85aa0b3f453e8dd4b72d63682"
     },
     {
       "path": "tools/native/SPEC.md",
@@ -7554,5 +7598,5 @@
       "sha256": "291a1735a1bdf4a85d3baafef644f0bffe0d9bfbada49d63c648311ff4429ed1"
     }
   ],
-  "inputDigest": "5b1b9175b78e73132409c009f30db72d7b125f31341b01cb99cc54da00689505"
+  "inputDigest": "34788f84c5359f538577f7c434d04403105c3f876a56e2db581f1ede6df26446"
 }
