@@ -288,6 +288,25 @@ describe('coordinate and authored dimensions', () => {
       message: `Unknown phase value '${shown}'; admitted: ${phases}`,
     });
   });
+  it.each<[string, unknown]>([
+    ['the parsed object {"toString":1}', JSON.parse('{"toString":1}')],
+    ['the parsed object {"toString":{},"valueOf":{}}', JSON.parse('{"toString":{},"valueOf":{}}')],
+    ['an object without a prototype', Object.create(null)],
+    [
+      'an object whose toString throws',
+      {
+        toString: () => {
+          throw new Error('no text');
+        },
+      },
+    ],
+  ])('refuses %s, which String() cannot render, as an unknown value', (_label, value) => {
+    expect(() => String(value)).toThrow();
+    expect(refusalOf({ phase: value })).toEqual({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: `Unknown phase value '<unprintable>'; admitted: ${phases}`,
+    });
+  });
   it('reads actual severity and explicit classification without interpreting glosses', () => {
     const law = records.find((r) => r.name === 'sample-rule')!;
     expect(dimensionsOf(law)).toEqual({

@@ -140,3 +140,25 @@ it('refuses a parsed prototype key as an unknown axis on the door coordinate pat
     door.close();
   }
 });
+it('refuses a parsed value String() cannot render as an unknown value on the door phase paths', () => {
+  const door = new Door(workspace(), { cache: false });
+  try {
+    const value = '{"toString":1}',
+      refusal = {
+        ok: false,
+        code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+        message: "Unknown phase value '<unprintable>'; admitted: orient, plan, act, learn",
+      };
+    expect(() => prepareCoordinate('', parsed(`{"phase":${value}}`))).toThrow(
+      expect.objectContaining({ code: refusal.code, message: refusal.message }),
+    );
+    for (const [operation, params] of [
+      ['traverse', `{"start":[],"coordinate":{"phase":${value}}}`],
+      ['context', `{"text":"","coordinate":{"phase":${value}}}`],
+      ['records', `{"phase":${value}}`],
+    ] as const)
+      expect(door.request({ operation, params: parsed(params) })).toEqual(refusal);
+  } finally {
+    door.close();
+  }
+});
