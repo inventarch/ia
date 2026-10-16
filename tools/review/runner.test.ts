@@ -313,16 +313,6 @@ it('omits linked and too-deep evidence, skips other entries and admits reports u
     put('f/evidence.json/inner.txt', 'a directory named like a report is listed, not read');
     put('g/h/i/j/evidence.json', '{}');
     symlinkSync(resolve(root, 'a'), resolve(root, 'linked'), 'junction');
-    const omitted = ['Evidence omitted by disclosure bound: c/evidence.json'];
-    // File links need a privilege on Windows, which has no FIFOs.
-    if (process.platform !== 'win32') {
-      mkdirSync(resolve(root, 'e'));
-      symlinkSync(resolve(root, 'a/evidence.json'), resolve(root, 'e/evidence.json'));
-      mkdirSync(resolve(root, 'k'));
-      expect((await runBounded('mkfifo', [resolve(root, 'k/evidence.json')], { timeoutMs: 10_000 })).status).toBe(0);
-      omitted.push('Evidence symlink omitted: e/evidence.json');
-    }
-    omitted.push('Evidence nesting omitted: g/h/i/j', 'Evidence symlink omitted: linked');
     const omissions: string[] = [];
     expect(
       evidenceFiles(root, omissions).map(({ name, content, digest: hash }) => [name, content.length, hash]),
@@ -330,11 +320,39 @@ it('omits linked and too-deep evidence, skips other entries and admits reports u
       ['a/evidence.json', 600000, digest(report(600000))],
       ['b/evidence.json', 200000, digest(report(200000))],
     ]);
-    expect(omissions).toEqual(omitted);
+    expect(omissions).toEqual([
+      'Evidence omitted by disclosure bound: c/evidence.json',
+      'Evidence nesting omitted: g/h/i/j',
+      'Evidence symlink omitted: linked',
+    ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
+// Windows has no FIFOs and needs a privilege to create a file symbolic link: a declared Windows skip.
+it.skipIf(process.platform === 'win32')(
+  'omits a report symlink and skips a FIFO named like a report without opening either',
+  async () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+    if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+    try {
+      mkdirSync(resolve(root, 'a'));
+      writeFileSync(resolve(root, 'a/evidence.json'), '{"a":1}');
+      mkdirSync(resolve(root, 'e'));
+      symlinkSync(resolve(root, 'a/evidence.json'), resolve(root, 'e/evidence.json'));
+      mkdirSync(resolve(root, 'k'));
+      expect((await runBounded('mkfifo', [resolve(root, 'k/evidence.json')], { timeoutMs: 10_000 })).status).toBe(0);
+      const omissions: string[] = [];
+      // A FIFO opened for reading would wait for a writer; listed as no file, it is never opened.
+      expect(evidenceFiles(root, omissions).map(({ name, content }) => [name, content])).toEqual([
+        ['a/evidence.json', '{"a":1}'],
+      ]);
+      expect(omissions).toEqual(['Evidence symlink omitted: e/evidence.json']);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
 it('refuses unparsable or too many evidence entries and a missing, linked or non-directory evidence root', () => {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
   if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
@@ -431,32 +449,35 @@ it('summarizes the job only with a validated review id and one of the four verdi
   for (const id of ['', `${result.id}\n`, '../review'])
     expect(() => reviewSummary(id, 'APPROVE', {})).toThrow('Invalid retained review result');
 });
-it('omits an unreadable report past either disclosure bound before reading it, and rethrows its error within them', () => {
-  // Root reads a file whatever its mode, and Windows has no such mode.
-  if (process.platform === 'win32' || process.getuid?.() === 0) return;
-  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
-  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
-  try {
-    const put = (path: string, content: string, mode?: number) => {
-      mkdirSync(dirname(resolve(root, path)), { recursive: true });
-      writeFileSync(resolve(root, path), content);
-      if (mode !== undefined) chmodSync(resolve(root, path), mode);
-    };
-    put('a/evidence.json', ' '.repeat(600001), 0o000); // past the per-report bound
-    put('b/evidence.json', JSON.stringify('x'.repeat(399998))); // 400000 bytes, read
-    put('c/evidence.json', ' '.repeat(400001), 0o000); // past the running total
-    const omissions: string[] = [];
-    expect(evidenceFiles(root, omissions).map(({ name }) => name)).toEqual(['b/evidence.json']);
-    expect(omissions).toEqual([
-      'Evidence omitted by disclosure bound: a/evidence.json',
-      'Evidence omitted by disclosure bound: c/evidence.json',
-    ]);
-    put('d/evidence.json', '{}', 0o000); // within both bounds: its read fails
-    expect(() => evidenceFiles(root, [])).toThrow(/^EACCES: permission denied, open /);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+it.skipIf(process.platform === 'win32')(
+  'omits an unreadable report past either disclosure bound before reading it, and rethrows its error within them',
+  () => {
+    // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+    if (process.getuid?.() === 0) return;
+    const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+    if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+    try {
+      const put = (path: string, content: string, mode?: number) => {
+        mkdirSync(dirname(resolve(root, path)), { recursive: true });
+        writeFileSync(resolve(root, path), content);
+        if (mode !== undefined) chmodSync(resolve(root, path), mode);
+      };
+      put('a/evidence.json', ' '.repeat(600001), 0o000); // past the per-report bound
+      put('b/evidence.json', JSON.stringify('x'.repeat(399998))); // 400000 bytes, read
+      put('c/evidence.json', ' '.repeat(400001), 0o000); // past the running total
+      const omissions: string[] = [];
+      expect(evidenceFiles(root, omissions).map(({ name }) => name)).toEqual(['b/evidence.json']);
+      expect(omissions).toEqual([
+        'Evidence omitted by disclosure bound: a/evidence.json',
+        'Evidence omitted by disclosure bound: c/evidence.json',
+      ]);
+      put('d/evidence.json', '{}', 0o000); // within both bounds: its read fails
+      expect(() => evidenceFiles(root, [])).toThrow(/^EACCES: permission denied, open /);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
 it('refuses a report rewritten at the same size while it is read', () => {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
   if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
@@ -483,37 +504,43 @@ it('refuses a report rewritten at the same size while it is read', () => {
   }
 });
 
-it('rethrows the open error of an unreadable report exactly at the per-report bound', () => {
-  // Root reads a file whatever its mode, and Windows has no such mode.
-  if (process.platform === 'win32' || process.getuid?.() === 0) return;
-  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
-  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
-  try {
-    mkdirSync(resolve(root, 'task'));
-    writeFileSync(resolve(root, 'task/evidence.json'), ' '.repeat(600000));
-    chmodSync(resolve(root, 'task/evidence.json'), 0o000);
-    const omissions: string[] = [];
-    expect(() => evidenceFiles(root, omissions)).toThrow(/^EACCES: permission denied, open /);
-    expect(omissions).toEqual([]);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-it('rethrows the open error of an unreadable report that brings the running total exactly to its bound', () => {
-  // Root reads a file whatever its mode, and Windows has no such mode.
-  if (process.platform === 'win32' || process.getuid?.() === 0) return;
-  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
-  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
-  try {
-    mkdirSync(resolve(root, 'a'));
-    mkdirSync(resolve(root, 'b'));
-    writeFileSync(resolve(root, 'a/evidence.json'), JSON.stringify('x'.repeat(399998))); // 400000 bytes, read
-    writeFileSync(resolve(root, 'b/evidence.json'), ' '.repeat(400000)); // the total is then exactly 800000
-    chmodSync(resolve(root, 'b/evidence.json'), 0o000);
-    const omissions: string[] = [];
-    expect(() => evidenceFiles(root, omissions)).toThrow(/^EACCES: permission denied, open /);
-    expect(omissions).toEqual([]);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+it.skipIf(process.platform === 'win32')(
+  'rethrows the open error of an unreadable report exactly at the per-report bound',
+  () => {
+    // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+    if (process.getuid?.() === 0) return;
+    const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+    if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+    try {
+      mkdirSync(resolve(root, 'task'));
+      writeFileSync(resolve(root, 'task/evidence.json'), ' '.repeat(600000));
+      chmodSync(resolve(root, 'task/evidence.json'), 0o000);
+      const omissions: string[] = [];
+      expect(() => evidenceFiles(root, omissions)).toThrow(/^EACCES: permission denied, open /);
+      expect(omissions).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+it.skipIf(process.platform === 'win32')(
+  'rethrows the open error of an unreadable report that brings the running total exactly to its bound',
+  () => {
+    // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+    if (process.getuid?.() === 0) return;
+    const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+    if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+    try {
+      mkdirSync(resolve(root, 'a'));
+      mkdirSync(resolve(root, 'b'));
+      writeFileSync(resolve(root, 'a/evidence.json'), JSON.stringify('x'.repeat(399998))); // 400000 bytes, read
+      writeFileSync(resolve(root, 'b/evidence.json'), ' '.repeat(400000)); // the total is then exactly 800000
+      chmodSync(resolve(root, 'b/evidence.json'), 0o000);
+      const omissions: string[] = [];
+      expect(() => evidenceFiles(root, omissions)).toThrow(/^EACCES: permission denied, open /);
+      expect(omissions).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);

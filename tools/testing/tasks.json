@@ -3380,6 +3380,36 @@
       "resourceClass": "subprocess",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/review/runner.test.ts > omits a report symlink and skips a FIFO named like a report without opening either",
+          "reason": "Windows has no FIFOs and needs a privilege to create a file symbolic link; Linux and macOS run this case, and the junction, bound and nesting cases run on every platform.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/review/runner.test.ts > omits an unreadable report past either disclosure bound before reading it, and rethrows its error within them",
+          "reason": "chmod cannot make a file unreadable on Windows, where it only sets the read-only attribute; Linux and macOS run this case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/review/runner.test.ts > rethrows the open error of an unreadable report exactly at the per-report bound",
+          "reason": "chmod cannot make a file unreadable on Windows, where it only sets the read-only attribute; Linux and macOS run this case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/review/runner.test.ts > rethrows the open error of an unreadable report that brings the running total exactly to its bound",
+          "reason": "chmod cannot make a file unreadable on Windows, where it only sets the read-only attribute; Linux and macOS run this case.",
+          "platforms": [
+            "windows"
+          ]
+        }
       ]
     },
     {
