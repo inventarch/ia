@@ -10,6 +10,10 @@ import { createContextHookBinding, readContextHookBinding } from '../src/context
 const gate = vi.hoisted(() => ({
   path: '',
   afterStat: null as (() => void) | null,
+  afterOpen: null as (() => void) | null,
+  /** The inode numbers stats of the gated binding report: by its open descriptor, and by its name. */
+  ino: null as { opened: bigint; named: bigint } | null,
+  fd: -1,
   /** Each FIFO opened to read without O_NONBLOCK, an open that would have waited for a writer. */
   waited: [] as string[],
 }));
@@ -29,6 +33,9 @@ vi.mock('node:fs', async (importOriginal) => {
       return false;
     }
   };
+  /** `stat` reporting `ino`, in the width the caller asked for. */
+  const numbered = <T extends { ino: unknown }>(stat: T, ino: bigint | undefined): T =>
+    ino === undefined ? stat : Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? ino : Number(ino) });
   return {
     ...actual,
     // The gate passes each call's options on, so a caller that asks for bigint stats gets them.
@@ -39,14 +46,25 @@ vi.mock('node:fs', async (importOriginal) => {
         gate.afterStat = null;
         run();
       }
-      return stat;
+      return stat !== undefined && resolve(path) === gate.path ? numbered(stat, gate.ino?.named) : stat;
+    },
+    fstatSync: (fd: number, options?: Parameters<typeof actual.fstatSync>[1]) => {
+      const stat = actual.fstatSync(fd, options);
+      return fd === gate.fd ? numbered(stat, gate.ino?.opened) : stat;
     },
     openSync: (...args: Parameters<typeof actual.openSync>) => {
       if (waits(args[0], args[1])) {
         gate.waited.push(String(args[0]));
         throw new Error('A FIFO opened to read without O_NONBLOCK would wait for a writer');
       }
-      return actual.openSync(...args);
+      const fd = actual.openSync(...args);
+      if (resolve(String(args[0])) === gate.path) {
+        gate.fd = fd;
+        const run = gate.afterOpen;
+        gate.afterOpen = null;
+        run?.();
+      }
+      return fd;
     },
   };
 });
@@ -54,6 +72,9 @@ const roots: string[] = [];
 afterEach(() => {
   gate.path = '';
   gate.afterStat = null;
+  gate.afterOpen = null;
+  gate.ino = null;
+  gate.fd = -1;
   gate.waited.length = 0;
   for (const root of roots.splice(0)) {
     if (dirname(root) !== resolve(tmpdir()) || !root.startsWith(join(tmpdir(), 'ia-context-binding-')))
@@ -181,5 +202,29 @@ it('passes on the error of a binding it may not open', () => {
   expect(refusal(() => readContextHookBinding(root, path))).toEqual({
     code: 'EACCES',
     message: `EACCES: permission denied, open '${path}'`,
+  });
+});
+it('refuses a binding replaced after it was opened, before reading it', () => {
+  const { root, path, input } = fixture(),
+    replacement = createContextHookBinding({ ...input, owner: 'owner-two' });
+  gate.path = resolve(path);
+  gate.afterOpen = () => {
+    renameSync(path, `${path}.retained`);
+    writeFileSync(path, JSON.stringify(replacement));
+  };
+  expect(refusal(() => readContextHookBinding(root, path))).toEqual({
+    code: 'IA-LIFECYCLE-BINDING',
+    message: 'Context binding identity changed before read',
+  });
+  expect(readContextHookBinding(root, path).owner).toBe('owner-two');
+});
+it('refuses a binding whose opened and named inode numbers collide as JavaScript numbers', () => {
+  const { root, path } = fixture();
+  gate.path = resolve(path);
+  gate.ino = { opened: 2n ** 54n, named: 2n ** 54n + 1n };
+  expect(Number(gate.ino.opened)).toBe(Number(gate.ino.named));
+  expect(refusal(() => readContextHookBinding(root, path))).toEqual({
+    code: 'IA-LIFECYCLE-BINDING',
+    message: 'Context binding identity changed before read',
   });
 });

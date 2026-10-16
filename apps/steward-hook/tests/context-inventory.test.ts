@@ -23,9 +23,16 @@ vi.mock('@inventarch/workspace-runtime', async (original) => ({
   ...(await original<typeof import('@inventarch/workspace-runtime')>()),
   installedImplementationDigest: () => 'a'.repeat(64),
 }));
-/** A pass-through `node:fs`: a case can change an entry once its directory is listed. */
+/**
+ * A pass-through `node:fs`: a case can change an entry once its directory is listed, once it is opened or before it is
+ * read, or have the stats of one file report other inode numbers.
+ */
 const seam = vi.hoisted(() => ({
   afterList: undefined as ((directory: string) => void) | undefined,
+  afterOpen: undefined as ((path: string, fd: number) => void) | undefined,
+  beforeRead: undefined as ((fd: number, length: number) => void) | undefined,
+  /** The inode numbers the stats of the file at `path` report: by its open descriptor, and by its name. */
+  ino: undefined as { path: string; opened: bigint; named: bigint; fd?: number } | undefined,
   /** Each FIFO opened to read without O_NONBLOCK, an open that would have waited for a writer. */
   waited: [] as string[],
 }));
@@ -45,6 +52,9 @@ vi.mock('node:fs', async (importOriginal) => {
       return false;
     }
   };
+  /** `stat` reporting `ino`, in the width the caller asked for. */
+  const numbered = <T extends { ino: unknown }>(stat: T, ino: bigint | undefined): T =>
+    ino === undefined ? stat : Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? ino : Number(ino) });
   return {
     ...actual,
     openSync: (...args: Parameters<typeof actual.openSync>) => {
@@ -52,7 +62,23 @@ vi.mock('node:fs', async (importOriginal) => {
         seam.waited.push(String(args[0]));
         throw new Error('A FIFO opened to read without O_NONBLOCK would wait for a writer');
       }
-      return actual.openSync(...args);
+      const fd = actual.openSync(...args),
+        path = resolve(String(args[0]));
+      if (seam.ino?.path === path) seam.ino.fd = fd;
+      seam.afterOpen?.(path, fd);
+      return fd;
+    },
+    readSync: (fd: number, buffer: Buffer, offset: number, length: number, position: number | null) => {
+      seam.beforeRead?.(fd, length);
+      return actual.readSync(fd, buffer, offset, length, position);
+    },
+    fstatSync: (fd: number, options?: Parameters<typeof actual.fstatSync>[1]) => {
+      const stat = actual.fstatSync(fd, options);
+      return seam.ino !== undefined && fd === seam.ino.fd ? numbered(stat, seam.ino.opened) : stat;
+    },
+    lstatSync: (path: string, options?: Parameters<typeof actual.lstatSync>[1]) => {
+      const stat = actual.lstatSync(path, options);
+      return stat !== undefined && resolve(path) === seam.ino?.path ? numbered(stat, seam.ino.named) : stat;
     },
     readdirSync: (...args: Parameters<typeof actual.readdirSync>) => {
       const listed = actual.readdirSync(...args);
@@ -72,6 +98,9 @@ function fixture(): string {
 }
 afterEach(() => {
   seam.afterList = undefined;
+  seam.afterOpen = undefined;
+  seam.beforeRead = undefined;
+  seam.ino = undefined;
   seam.waited.length = 0;
   for (const root of roots.splice(0)) {
     if (dirname(root) !== resolve(tmpdir()) || !root.startsWith(join(tmpdir(), 'ia-hook-runtime-')))
@@ -264,3 +293,41 @@ it.each(['removed', 'a FIFO', 'a socket', 'a link'] as const)(
     expect(seam.waited).toEqual([]);
   },
 );
+it('refuses a code file replaced after it was opened', () => {
+  const root = fixture(),
+    path = join(root, 'policy.json');
+  writeFileSync(path, '{"policy":1}');
+  seam.afterOpen = (opened) => {
+    if (opened !== resolve(path)) return;
+    seam.afterOpen = undefined;
+    renameSync(path, join(root, 'policy.retained'));
+    writeFileSync(path, '{"policy":1}');
+  };
+  expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
+});
+it('refuses a code file that grows while it is read, reading no more than its opened size and one byte', () => {
+  const root = fixture(),
+    path = join(root, 'policy.json');
+  writeFileSync(path, '{"policy":1}');
+  let opened: number | undefined,
+    requested = 0;
+  seam.afterOpen = (name, fd) => {
+    if (name === resolve(path)) opened = fd;
+  };
+  seam.beforeRead = (fd, length) => {
+    if (fd !== opened) return;
+    if (requested === 0) writeFileSync(path, '{"policy":1}'.padEnd(64 * 1024, ' '));
+    requested += length;
+  };
+  expect(refusal(() => contextHookImplementationDigest(root))).toEqual({
+    code: BINDING,
+    message: 'Hook implementation changed while it was read',
+  });
+  expect(requested).toBe('{"policy":1}'.length + 1);
+});
+it('refuses a code file whose opened and named inode numbers collide as JavaScript numbers', () => {
+  const root = fixture();
+  seam.ino = { path: resolve(join(root, 'main.js')), opened: 2n ** 54n, named: 2n ** 54n + 1n };
+  expect(Number(seam.ino.opened)).toBe(Number(seam.ino.named));
+  expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
+});
