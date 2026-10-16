@@ -4,6 +4,7 @@
  * the same in both modes. tests/hook.test.ts keeps the legacy list.
  */
 import {
+  chmodSync,
   cpSync,
   fstatSync,
   lstatSync,
@@ -16,22 +17,46 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
+import { openDatabase } from '@inventarch/runtime';
+import { runBounded } from '@tools/testing/subprocess.js';
 import { evaluateHook } from '../src/main.js';
 
 const fileSeam = vi.hoisted(() => ({
   afterOpen: undefined as ((path: unknown, fd: number) => void) | undefined,
   beforeRead: undefined as ((fd: number, length: number) => void) | undefined,
+  afterList: undefined as ((directory: string) => void) | undefined,
+  /** Each FIFO opened to read without O_NONBLOCK, an open that would have waited for a writer. */
+  waited: [] as string[],
 }));
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
+  // An open that reads a FIFO without O_NONBLOCK waits for a writer, which would hold this whole run: here it is
+  // recorded and fails instead.
+  const waits = (path: unknown, flags: unknown): boolean => {
+    const { O_NONBLOCK = 0, O_RDWR, O_WRONLY } = actual.constants;
+    if (
+      typeof flags === 'number' ? (flags & (O_RDWR | O_WRONLY | O_NONBLOCK)) !== 0 : !/^rs?$/.test(String(flags ?? 'r'))
+    )
+      return false;
+    try {
+      return actual.statSync(path as string, { throwIfNoEntry: false })?.isFIFO() === true;
+    } catch {
+      return false;
+    }
+  };
   return {
     ...actual,
     fstatSync: vi.fn(actual.fstatSync),
     lstatSync: vi.fn(actual.lstatSync),
     openSync: (...args: Parameters<typeof actual.openSync>) => {
+      if (waits(args[0], args[1])) {
+        fileSeam.waited.push(String(args[0]));
+        throw new Error('A FIFO opened to read without O_NONBLOCK would wait for a writer');
+      }
       const fd = actual.openSync(...args);
       fileSeam.afterOpen?.(args[0], fd);
       return fd;
@@ -39,6 +64,11 @@ vi.mock('node:fs', async (importOriginal) => {
     readSync: (fd: number, buffer: Buffer, offset: number, length: number, position: number | null) => {
       fileSeam.beforeRead?.(fd, length);
       return actual.readSync(fd, buffer, offset, length, position);
+    },
+    readdirSync: (...args: Parameters<typeof actual.readdirSync>) => {
+      const listed = actual.readdirSync(...args);
+      fileSeam.afterList?.(String(args[0]));
+      return listed;
     },
   };
 });
@@ -80,6 +110,8 @@ function code(root: string, path: string, extra: Record<string, unknown> = {}): 
 afterEach(() => {
   fileSeam.afterOpen = undefined;
   fileSeam.beforeRead = undefined;
+  fileSeam.afterList = undefined;
+  fileSeam.waited.length = 0;
   for (const root of roots.splice(0)) {
     const path = relative(tmpdir(), root);
     if (isAbsolute(path) || !path.startsWith('ia-consumer-guard-') || path.includes('..'))
@@ -477,4 +509,218 @@ it('protects the agents and skills a projection state owns as generated, and lea
     expect(code(root, path), path).toBe('IA-HOOK-PROJECTION-MANAGED');
   for (const path of ['.claude/agents/other.md', '.claude/skills/other/SKILL.md', '.agents/skills/other/SKILL.md'])
     expect(check(root, path), path).toEqual({});
+});
+
+/** The reasons the guard gives for the context ownership markers and the actor map it reads, as the host displays them. */
+const MANAGED_REASON =
+    'IA-HOOK-PROJECTION-MANAGED: Use the owning command for generated state. Guard settings require a trusted operator edit outside intercepted assistant tools, preserving the guard, followed by registration qualification',
+  UNSAFE_MARKER = 'IA-HOOK-PATH-UNSAFE: Unsafe context ownership marker',
+  INVALID_ACTORS = 'IA-HOOK-STEWARD-UNAVAILABLE: Invalid actor map file',
+  ALIASED_ACTORS = 'IA-HOOK-STEWARD-UNAVAILABLE: Actor map must be an absolute unaliased file';
+const posix = process.platform !== 'win32';
+const reason = (root: string, path = '.claude/settings.local.json'): string | undefined =>
+  check(root, path).hookSpecificOutput?.permissionDecisionReason;
+/** A guard ownership state for the workspace at `root`: while it exists, both settings layers are managed. */
+const guardState = (root: string) => ({
+  format: 'ia.guard-registration-state.v1',
+  id: 'workspace',
+  cache: root,
+  release: hash,
+  created: true,
+  group: { matcher: 'Write|Edit|MultiEdit', hooks: [] },
+});
+type Kind = 'a file link' | 'a junction' | 'a hard link' | 'a directory' | 'a FIFO' | 'a socket';
+const POSIX_ONLY: readonly Kind[] = ['a file link', 'a FIFO', 'a socket'];
+/**
+ * Puts `kind` at `path`, beside a regular `elsewhere/valid.json` holding `content`: a link to that file, a junction to its
+ * directory, another name for it, or a directory, a FIFO with no writer or a socket. A socket is bound at a short name
+ * first, since socket paths are short on macOS, and moved into place.
+ */
+async function place(root: string, path: string, kind: Kind, content: string): Promise<void> {
+  const elsewhere = resolve(root, 'elsewhere'),
+    valid = resolve(elsewhere, 'valid.json');
+  mkdirSync(elsewhere, { recursive: true });
+  writeFileSync(valid, content);
+  rmSync(path, { force: true });
+  if (kind === 'a file link') symlinkSync(valid, path, 'file');
+  else if (kind === 'a junction') symlinkSync(elsewhere, path, 'junction');
+  else if (kind === 'a hard link') linkSync(valid, path);
+  else if (kind === 'a directory') mkdirSync(path);
+  else if (kind === 'a FIFO') expect((await runBounded('mkfifo', [path], { timeoutMs: 10_000 })).status).toBe(0);
+  else {
+    const server = createServer(),
+      bound = resolve(root, 's');
+    await new Promise<void>((done, failed) => {
+      server.once('error', failed);
+      server.listen(bound, () => done());
+    });
+    renameSync(bound, path);
+    await new Promise<void>((done) => server.close(() => done()));
+  }
+}
+
+it('admits a context ownership marker of exactly 1 MiB and a pending journal of up to 8 MiB, and refuses one byte more', () => {
+  const root = workspace(),
+    marker = resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json'),
+    journal = resolve(root, '.ia/distributions/hosts/guard-pending.json'),
+    state = JSON.stringify(guardState(root));
+  writeFileSync(marker, state.padEnd(1024 * 1024, ' '));
+  expect(reason(root)).toBe(MANAGED_REASON);
+  writeFileSync(marker, state.padEnd(1024 * 1024 + 1, ' '));
+  expect(reason(root)).toBe(UNSAFE_MARKER);
+  rmSync(marker);
+  const pending = JSON.stringify({
+    format: 'ia.guard-registration-pending.v1',
+    id: 'workspace',
+    before: { config: null, state: null },
+    after: { config: '{}', state },
+  });
+  writeFileSync(journal, pending.padEnd(2 * 1024 * 1024, ' '));
+  expect(reason(root)).toBe(MANAGED_REASON);
+  // At its bound a journal is read, and the 4 MiB metadata decoder refuses it; one byte more is refused before decoding.
+  writeFileSync(journal, pending.padEnd(8 * 1024 * 1024, ' '));
+  expect(reason(root)).toBe(
+    'IA-HOOK-PATH-UNSAFE: IA-DB-SOURCE-UNAVAILABLE: Distribution contract-invalid: Metadata byte limit/encoding',
+  );
+  writeFileSync(journal, pending.padEnd(8 * 1024 * 1024 + 1, ' '));
+  expect(reason(root)).toBe(UNSAFE_MARKER);
+});
+
+it.each(['a file link', 'a junction', 'a hard link', 'a directory', 'a FIFO', 'a socket'] as const)(
+  'refuses a context ownership marker that is %s',
+  async (kind) => {
+    if (!posix && POSIX_ONLY.includes(kind)) return;
+    const root = workspace(),
+      marker = resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json');
+    await place(root, marker, kind, JSON.stringify(guardState(root)));
+    expect(reason(root)).toBe(UNSAFE_MARKER);
+    expect(fileSeam.waited).toEqual([]);
+  },
+);
+
+it('refuses the context ownership markers of a hosts directory reached through a junction', () => {
+  const root = workspace(),
+    hosts = resolve(root, '.ia/distributions/hosts'),
+    elsewhere = resolve(root, 'elsewhere');
+  mkdirSync(elsewhere);
+  writeFileSync(resolve(elsewhere, 'claude-guard-workspace.json'), JSON.stringify(guardState(root)));
+  rmSync(hosts, { recursive: true });
+  symlinkSync(elsewhere, hosts, 'junction');
+  expect(reason(root)).toBe('IA-HOOK-PATH-UNSAFE: Context ownership directory is aliased');
+});
+
+it('refuses a context ownership marker named in another case where the volume folds names, and ignores it elsewhere', () => {
+  const root = workspace();
+  write(root, 'Claude-Guard-workspace.json', guardState(root));
+  expect(reason(root)).toBe(process.platform === 'darwin' || process.platform === 'win32' ? UNSAFE_MARKER : undefined);
+});
+
+it('passes on the error of a context ownership marker it may not open', () => {
+  if (!posix || process.getuid?.() === 0) return;
+  const root = workspace(),
+    marker = resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json');
+  write(root, 'claude-guard-workspace.json', guardState(root));
+  chmodSync(marker, 0o000);
+  expect(reason(root)).toBe(`IA-HOOK-PATH-UNSAFE: EACCES: permission denied, open '${marker}'`);
+});
+
+it('refuses a context ownership marker removed between the listing and its read', () => {
+  const root = workspace(),
+    hosts = resolve(root, '.ia/distributions/hosts'),
+    marker = resolve(hosts, 'claude-guard-workspace.json');
+  write(root, 'claude-guard-workspace.json', guardState(root));
+  fileSeam.afterList = (directory) => {
+    if (directory !== hosts) return;
+    fileSeam.afterList = undefined;
+    rmSync(marker);
+  };
+  expect(reason(root)).toBe(`IA-HOOK-PATH-UNSAFE: ENOENT: no such file or directory, lstat '${marker}'`);
+});
+
+/** A copy of the fixture, the absolute path of an actor map in it, and a map that names its governance steward. */
+function actorWorkspace(): { readonly root: string; readonly map: string; readonly text: string } {
+  const root = workspace(true),
+    db = openDatabase(root, { cache: false });
+  try {
+    const identity = db
+      .records()
+      .find((record) => record.discriminator === 'agent' && record.name === 'governance-steward')!.identity;
+    return {
+      root,
+      map: resolve(root, 'actors.json'),
+      text: JSON.stringify({
+        format: 'ia.steward-actors.v1',
+        revision: db.revision,
+        actors: [{ host: 'fixture-plugin:owner', identity }],
+      }),
+    };
+  } finally {
+    db.close();
+  }
+}
+/** The guard's decision on an edit of a governance record by `fixture-plugin:owner`, with the actor map at `actors`. */
+const mapped = (root: string, actors: string) =>
+  evaluateHook(
+    root,
+    {
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Write',
+      tool_input: { file_path: resolve(root, '.ia/src/systems/governance-system/records/x.ia'), content: 'x' },
+      agent_type: 'fixture-plugin:owner',
+    },
+    actors,
+  );
+
+it('admits an actor map of exactly 1 MiB and refuses one byte more', () => {
+  const { root, map, text } = actorWorkspace();
+  writeFileSync(map, text.padEnd(1024 * 1024, ' '));
+  expect(mapped(root, map)).toEqual({});
+  writeFileSync(map, text.padEnd(1024 * 1024 + 1, ' '));
+  expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(INVALID_ACTORS);
+});
+
+it('refuses a missing actor map', () => {
+  const { root, map } = actorWorkspace();
+  expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(
+    `IA-HOOK-STEWARD-UNAVAILABLE: ENOENT: no such file or directory, lstat '${map}'`,
+  );
+});
+
+it.each(['a file link', 'a junction', 'a path through a junction', 'a relative path'] as const)(
+  'refuses an actor map named by %s',
+  async (kind) => {
+    if (!posix && kind === 'a file link') return;
+    const { root, map, text } = actorWorkspace();
+    let actors = map;
+    if (kind === 'a file link' || kind === 'a junction') await place(root, map, kind, text);
+    else if (kind === 'a path through a junction') {
+      await place(root, map, 'a junction', text);
+      actors = resolve(map, 'valid.json');
+    } else {
+      writeFileSync(map, text);
+      actors = 'actors.json';
+    }
+    expect(mapped(root, actors).hookSpecificOutput?.permissionDecisionReason).toBe(ALIASED_ACTORS);
+  },
+);
+
+it.each(['a hard link', 'a directory', 'a FIFO', 'a socket'] as const)(
+  'refuses an actor map that is %s',
+  async (kind) => {
+    if (!posix && POSIX_ONLY.includes(kind)) return;
+    const { root, map, text } = actorWorkspace();
+    await place(root, map, kind, text);
+    expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(INVALID_ACTORS);
+    expect(fileSeam.waited).toEqual([]);
+  },
+);
+
+it('passes on the error of an actor map it may not open', () => {
+  if (!posix || process.getuid?.() === 0) return;
+  const { root, map, text } = actorWorkspace();
+  writeFileSync(map, text);
+  chmodSync(map, 0o000);
+  expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(
+    `IA-HOOK-STEWARD-UNAVAILABLE: EACCES: permission denied, open '${map}'`,
+  );
 });
