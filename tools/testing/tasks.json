@@ -1481,6 +1481,64 @@
             "linux",
             "macos"
           ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a code file that is a FIFO once its directory is listed",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a code file that is a socket once its directory is listed",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a code file that is a link once its directory is listed",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/context-inventory.test.ts > classifies a module directory that is a FIFO once its parent is listed by what lstat then reports, as it did every entry",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > classifies a module directory that is a socket once its parent is listed by what lstat then reports, as it did every entry",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a file it never reads that is a FIFO once its directory is listed, as it refused a listed one",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a file it never reads that is a socket once its directory is listed, as it refused a listed one",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a file it never reads that is a link once its directory is listed, as it refused a listed one",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
         }
       ]
     },
