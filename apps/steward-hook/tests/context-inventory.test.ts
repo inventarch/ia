@@ -16,6 +16,7 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs';
+import type { Dirent } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -32,6 +33,8 @@ const seam = vi.hoisted(() => ({
   afterList: undefined as ((directory: string) => void) | undefined,
   afterOpen: undefined as ((path: string, fd: number) => void) | undefined,
   beforeRead: undefined as ((fd: number, length: number) => void) | undefined,
+  /** Entries the listing reports as links whatever they hold, as Windows lists every reparse point. */
+  listedAsLink: undefined as ReadonlySet<string> | undefined,
   /** The inode numbers the stats of the file at `path` report: by its open descriptor, and by its name. */
   ino: undefined as { path: string; opened: bigint; named: bigint; fd?: number } | undefined,
   /** Each FIFO opened to read without O_NONBLOCK, an open that would have waited for a writer. */
@@ -82,9 +85,19 @@ vi.mock('node:fs', async (importOriginal) => {
       return stat !== undefined && resolve(path) === seam.ino?.path ? numbered(stat, seam.ino.named) : stat;
     },
     readdirSync: (...args: Parameters<typeof actual.readdirSync>) => {
-      const listed = actual.readdirSync(...args);
+      const listed = actual.readdirSync(...args),
+        links = seam.listedAsLink;
       seam.afterList?.(String(args[0]));
-      return listed;
+      if (links === undefined) return listed;
+      return (listed as unknown as (string | Dirent)[]).map((entry) =>
+        typeof entry === 'string' || !links.has(resolve(String(args[0]), entry.name))
+          ? entry
+          : Object.assign(Object.create(Object.getPrototypeOf(entry)) as Dirent, entry, {
+              isFile: () => false,
+              isDirectory: () => false,
+              isSymbolicLink: () => true,
+            }),
+      );
     },
   };
 });
@@ -102,6 +115,7 @@ afterEach(() => {
   seam.afterOpen = undefined;
   seam.beforeRead = undefined;
   seam.ino = undefined;
+  seam.listedAsLink = undefined;
   seam.waited.length = 0;
   for (const root of roots.splice(0)) {
     if (dirname(root) !== resolve(tmpdir()) || !root.startsWith(join(tmpdir(), 'ia-hook-runtime-')))
@@ -351,4 +365,31 @@ it('refuses a code file rewritten at the same size while it is read', () => {
     code: BINDING,
     message: 'Hook implementation changed while it was read',
   });
+});
+it('walks, reads or skips an entry the listing calls a link but lstat does not, as Windows lists a reparse point', () => {
+  const root = fixture();
+  mkdirSync(join(root, 'folder'));
+  writeFileSync(join(root, 'folder', 'inner.js'), '// inner');
+  writeFileSync(join(root, 'cloud.js'), '// cloud');
+  writeFileSync(join(root, 'notes.txt'), 'not code');
+  const original = contextHookImplementationDigest(root);
+  // A cloud placeholder or a deduplicated file is listed as a link, and lstat reports what it holds.
+  seam.listedAsLink = new Set(['folder', 'cloud.js', 'notes.txt'].map((name) => resolve(root, name)));
+  expect(contextHookImplementationDigest(root)).toBe(original);
+});
+it('refuses a code file reached through a directory swapped for a link once its parent is listed', () => {
+  const root = fixture(),
+    aside = fixture(),
+    lib = join(root, 'lib');
+  mkdirSync(lib);
+  writeFileSync(join(lib, 'part.js'), '// part');
+  mkdirSync(join(aside, 'lib'));
+  writeFileSync(join(aside, 'lib', 'part.js'), '// elsewhere');
+  seam.afterList = (directory) => {
+    if (resolve(directory) !== resolve(root)) return;
+    seam.afterList = undefined;
+    renameSync(lib, join(aside, 'retained'));
+    symlinkSync(join(aside, 'lib'), lib, 'junction');
+  };
+  expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
 });

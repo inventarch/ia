@@ -349,8 +349,8 @@ export function readContextHookBinding(rootInput: string, pathInput: string): Co
 /**
  * The bytes of a code file the inventory listed as a regular file, read through one descriptor: opened before it is
  * judged (CodeQL js/file-system-race), never through a leaf link or waiting on a FIFO where the platform has the flag,
- * of at most `limit` bytes by that descriptor, unchanged by the read, and still the file at `path` by device and inode
- * (on Windows, which has neither flag, the only guard against a link).
+ * of at most `limit` bytes by that descriptor, unchanged by the read, and after it still the file at `path` by device
+ * and inode (on Windows, which has neither flag, the only guard against a link) and reached through no link on the way.
  */
 function implementationBytes(path: string, limit: number): Buffer {
   let fd: number;
@@ -380,7 +380,9 @@ function implementationBytes(path: string, limit: number): Buffer {
     if (BigInt(length) !== opened.size || after.size !== opened.size || after.mtimeNs !== opened.mtimeNs)
       fail('Hook implementation changed while it was read');
     const named = lstatSync(path, { bigint: true });
-    if (named.dev !== opened.dev || named.ino !== opened.ino) fail('Hook implementation aliases are unsupported');
+    // A directory on the way that became a link after it was listed is walked through it; such a path is not its own.
+    if (named.dev !== opened.dev || named.ino !== opened.ino || !unaliased(path, realpathSync.native(path)))
+      fail('Hook implementation aliases are unsupported');
     return buffer.subarray(0, length);
   } finally {
     closeSync(fd);
@@ -408,11 +410,14 @@ export function contextHookImplementationDigest(directory = import.meta.dirname)
         fail('Hook implementation has aliased paths');
       names.add(path.toLowerCase());
       const absolute = resolve(directory, name);
-      // The listing's own entry types classify each name, so no pathname stat judges a file that is then read by name;
-      // a code file is judged again by the descriptor it is read through, which also bounds its bytes.
-      if (entry.isSymbolicLink()) fail('Hook implementation aliases are unsupported');
-      if (entry.isDirectory()) visit(absolute, path + '/', depth + 1);
-      else if (!entry.isFile()) fail('Hook implementation has a nonregular file');
+      // The listing's own entry types classify each name, and a code file is admitted only by the descriptor it is read
+      // through, which also bounds its bytes. Windows lists every reparse point as a link, a cloud placeholder or a
+      // deduplicated file among them, so lstat confirms a listed link: it decides only whether that entry is refused or
+      // how it is walked, never that a file is admitted.
+      const listed = entry.isSymbolicLink() ? lstatSync(absolute) : entry;
+      if (listed.isSymbolicLink()) fail('Hook implementation aliases are unsupported');
+      if (listed.isDirectory()) visit(absolute, path + '/', depth + 1);
+      else if (!listed.isFile()) fail('Hook implementation has a nonregular file');
       // A Finder or AppleDouble file is never code: the launcher skips it, so the identity must too (crowncodes/ia#323).
       else if (/\.(?:[cm]?[jt]s|json|node|wasm)$/.test(name) && !/\.d\.[cm]?ts$/.test(name) && !platformDebris(name)) {
         const bytes = implementationBytes(absolute, Math.min(8 * 1024 * 1024, 32 * 1024 * 1024 - total));
