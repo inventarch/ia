@@ -551,29 +551,6 @@ export async function publishReview(gh, repository, result) {
   return { reviewId: String(posted.id), duplicate: false };
 }
 
-/**
- * Starts or reuses the review keyed `key` for the uploaded subject `subjectDigest` through the review API's `api`, and
- * advances it until it has a result, cancelling it once `timeoutMs` has passed without one, as main() does. Resolves to
- * `review`, the review the first receipt started, and `receipt`, the receipt that holds its result: every request after
- * the first names that review, and every advance must return it. `pause` and `now` are the loop's delay and clock.
- */
-export async function awaitResult({ api, pause, now = Date.now, timeoutMs = 15 * 60000, key, subjectDigest }) {
-  let receipt = await api('', { key, digest: subjectDigest });
-  // Every later request and the job summary name the review this receipt started; each advance must return it.
-  const review = receiptId(receipt);
-  const deadline = now() + timeoutMs;
-  while (!receipt.result && now() < deadline) {
-    receipt = await api(`/${review}/advance`);
-    receiptId(receipt, review);
-    if (receipt.state === 'running') await pause(3000);
-  }
-  if (!receipt.result) {
-    await api(`/${review}/cancel`);
-    throw new Error('Review exceeded CI deadline');
-  }
-  return { review, receipt };
-}
-
 async function main() {
   const repository = repoName(process.env.GITHUB_REPOSITORY ?? '');
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
@@ -638,12 +615,21 @@ async function main() {
   const content = JSON.stringify(subject),
     subjectDigest = digest(content);
   await api(`/artifacts/${subjectDigest}`, { content }, 'PUT');
-  const { review, receipt } = await awaitResult({
-    api,
-    pause,
+  let receipt = await api('', {
     key: `github:${runId}:${subject.evidence.attempt}:${subject.head}`,
-    subjectDigest,
+    digest: subjectDigest,
   });
+  const review = receiptId(receipt);
+  const deadline = Date.now() + 15 * 60000;
+  while (!receipt.result && Date.now() < deadline) {
+    receipt = await api(`/${review}/advance`);
+    receiptId(receipt, review);
+    if (receipt.state === 'running') await pause(3000);
+  }
+  if (!receipt.result) {
+    await api(`/${review}/cancel`);
+    throw new Error('Review exceeded CI deadline');
+  }
   mkdirSync('artifacts/review', { recursive: true });
   writeFileSync('artifacts/review/result.json', JSON.stringify(receipt.result, null, 2));
   const delivery = await publishReview(gh, repository, receipt.result);
