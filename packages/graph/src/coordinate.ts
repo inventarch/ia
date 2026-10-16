@@ -21,7 +21,8 @@ export function validateCoordinate(input: Readonly<Record<string, unknown>>): Co
     throw new GraphUsageError('IA-GRAPH-COORDINATE-VALUE-UNKNOWN', 'Coordinate must be an axis/value object');
   const output: Partial<Record<ConditionAxis, string>> = {};
   for (const [name, value] of Object.entries(input)) {
-    if (valuesFor(name) === undefined)
+    // A membership test on the closed axis list, so the write below only ever names an admitted axis.
+    if (!(CONDITION_AXES as readonly string[]).includes(name))
       throw new GraphUsageError(
         'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
         `Unknown coordinate axis '${name}'; admitted: ${CONDITION_AXES.join(', ')}`,
