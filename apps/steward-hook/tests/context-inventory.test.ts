@@ -400,6 +400,63 @@ it('refuses a code file reached through a directory swapped for a link once its 
   };
   expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
 });
+it.each([
+  'left in place',
+  'swapped for a link to a directory of ignored content',
+  'swapped for a link to a directory of code',
+] as const)(
+  'judges by its name, as the walk enters it, an empty module directory %s once its parent is listed',
+  (kind) => {
+    const root = fixture(),
+      aside = fixture(),
+      lib = join(root, 'lib'),
+      outside = join(aside, 'outside');
+    mkdirSync(lib);
+    mkdirSync(outside);
+    writeFileSync(join(outside, kind.endsWith('code') ? 'part.js' : 'notes.txt'), '// elsewhere');
+    const original = contextHookImplementationDigest(root),
+      listed: string[] = [],
+      opened: string[] = [];
+    seam.afterList = (directory) => {
+      listed.push(resolve(directory));
+      if (listed.length > 1 || kind === 'left in place') return;
+      renameSync(lib, join(aside, 'retained'));
+      symlinkSync(outside, lib, 'junction');
+    };
+    seam.afterOpen = (path) => opened.push(path);
+    if (kind === 'left in place') expect(contextHookImplementationDigest(root)).toBe(original);
+    else expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
+    // A link in the directory's place is refused by its name before anything is listed or opened through it.
+    expect(listed).toEqual(kind === 'left in place' ? [resolve(root), resolve(lib)] : [resolve(root)]);
+    expect(opened.filter((path) => dirname(path) !== resolve(root))).toEqual([]);
+  },
+);
+if (process.platform === 'win32') {
+  it.each(['present when its parent is listed', 'swapped in once its parent is listed'] as const)(
+    'refuses a junction in place of a module directory, %s, without walking it',
+    (kind) => {
+      const root = fixture(),
+        aside = fixture(),
+        lib = join(root, 'lib'),
+        outside = join(aside, 'outside');
+      mkdirSync(outside);
+      writeFileSync(join(outside, 'part.js'), '// elsewhere');
+      writeFileSync(join(outside, 'notes.txt'), 'not code');
+      const listed: string[] = [];
+      // Windows makes a junction without privilege, lists it, as every reparse point, as a link, and lstat reports one.
+      if (kind === 'present when its parent is listed') symlinkSync(outside, lib, 'junction');
+      else mkdirSync(lib);
+      seam.afterList = (directory) => {
+        listed.push(resolve(directory));
+        if (listed.length > 1 || kind === 'present when its parent is listed') return;
+        renameSync(lib, join(aside, 'retained'));
+        symlinkSync(outside, lib, 'junction');
+      };
+      expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
+      expect(listed).toEqual([resolve(root)]);
+    },
+  );
+}
 it.each(['removed', 'a FIFO', 'a socket', 'a link'] as const)(
   'refuses a file it never reads that is %s once its directory is listed, as it refused a listed one',
   async (kind) => {
