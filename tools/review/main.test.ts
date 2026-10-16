@@ -280,21 +280,29 @@ it.each([
   settle,
 );
 
-it(
-  'binds its requests and summary to the started receipt id when the retained result names another review',
-  async () => {
-    // The receipt's id, not its result's, is the review the caller requests and reports. The result's own id only marks
-    // the comment rendered from it.
-    const run = await runMain({
+it.each([
+  ['the first receipt', { started: { id: STARTED, state: 'completed', result: { ...result, id: OTHER } } }, SETUP],
+  [
+    'an advance',
+    {
       started: { id: STARTED, state: 'queued' },
       advances: [{ body: { id: STARTED, state: 'completed', result: { ...result, id: OTHER } } }],
-    });
-    expect(run.status).toBe(0);
-    expect(run.review).toEqual([...SETUP, advance, delivery]);
-    expect(run.reviewCalls.some((call) => call.url.includes(OTHER))).toBe(false);
-    expect(String(run.comments[0]?.body?.['body'])).toContain(`<!-- inventarch-review:${OTHER} -->`);
-    expect(run.retained).toMatchObject({ id: OTHER });
-    expect(run.summary).toBe(`InventArch review ${STARTED}: CONDITIONAL (advisory). Review comment delivered.\n`);
+    },
+    [...SETUP, advance],
+  ],
+])(
+  'refuses a result from %s that names another review once it is retained, before any delivery read, comment or summary',
+  async (_, script, requests) => {
+    // Every request, the comment marker, the delivery and the summary carry only the started id.
+    const run = await runMain(script);
+    expect(run.review).toEqual(requests);
+    expect(run.prReads).toBe(2);
+    expect(run.comments).toEqual([]);
+    expect(run.summary).toBeUndefined();
+    // The refused result stays retained for inspection.
+    expect(run.retained).toEqual({ ...result, id: OTHER });
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain('Review result identity required');
   },
   settle,
 );

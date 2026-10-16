@@ -427,7 +427,8 @@ const REVIEW_ID = /^[a-f0-9-]{36}$/;
 const VERDICTS = ['APPROVE', 'CONDITIONAL', 'REQUEST_CHANGES', 'INCOMPLETE'];
 /**
  * The review id a receipt from the review API carries, refused unless it has the review id form; an advance receipt must
- * also name `started`, the review the first receipt started. The caller requests and reports only this id.
+ * also name `started`, the review the first receipt started. The caller requests and reports only this id, and refuses a
+ * retained result that names another.
  */
 export function receiptId(receipt, started) {
   const id = receipt?.id;
@@ -632,6 +633,8 @@ async function main() {
   }
   mkdirSync('artifacts/review', { recursive: true });
   writeFileSync('artifacts/review/result.json', JSON.stringify(receipt.result, null, 2));
+  // A result that names another review stays retained above for inspection and is refused before anything is posted.
+  if (receipt.result.id !== review) throw new Error('Review result identity required');
   const delivery = await publishReview(gh, repository, receipt.result);
   if (delivery.reviewId) await api(`/${review}/delivery`, { reviewId: delivery.reviewId, head: subject.head });
   if (process.env.GITHUB_STEP_SUMMARY)
