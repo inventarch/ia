@@ -416,11 +416,16 @@ export function contextHookImplementationDigest(directory = import.meta.dirname)
       names.add(path.toLowerCase());
       const absolute = resolve(directory, name);
       // The listing's own entry types classify each name, and a code file is admitted only by the descriptor it is read
-      // through, which also bounds its bytes. An entry listed as a link, and a file the walk never reads, are classified
-      // by lstat, as every entry was before the walk opened files: Windows lists every reparse point as a link, a cloud
-      // placeholder or a deduplicated file among them, and a file never read has no descriptor to judge it. That lstat
-      // decides only whether the entry is refused or how it is walked, never that a file is admitted.
-      const listed = entry.isSymbolicLink() || (entry.isFile() && !hashed(name)) ? lstatSync(absolute) : entry;
+      // through, which also bounds its bytes. An entry listed as a link, a directory and a file the walk never reads are
+      // classified by lstat, as every entry was before the walk opened files: Windows lists every reparse point as a link,
+      // a cloud placeholder or a deduplicated file among them; a directory is judged by its name as the walk enters it, so
+      // one replaced by a link or junction since its parent was listed is refused, never walked through; and a file never
+      // read has no descriptor to judge it. That lstat decides only whether the entry is refused or how it is walked, never
+      // that a file is admitted, and it is no snapshot of the tree: a directory can still change once it is judged.
+      const listed =
+        entry.isSymbolicLink() || entry.isDirectory() || (entry.isFile() && !hashed(name))
+          ? lstatSync(absolute)
+          : entry;
       if (listed.isSymbolicLink()) fail('Hook implementation aliases are unsupported');
       if (listed.isDirectory()) visit(absolute, path + '/', depth + 1);
       else if (!listed.isFile()) fail('Hook implementation has a nonregular file');
