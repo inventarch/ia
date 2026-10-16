@@ -195,7 +195,10 @@ jobs:
           key: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
       - name: Run assigned tasks
+      # Inside the job's 60 minutes, so a shard that runs out of time fails this step rather than the job: the evidence
+      # upload and the timeout warning below then still run for it.
         run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+        timeout-minutes: 55
       - uses: actions/cache/save@v6
         if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
@@ -211,7 +214,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       # A shard past 40 minutes is two thirds of the way to its 60-minute timeout: re-record the schedule or split
-      # its longest task before it reaches it. The warning never changes the job's result.
+      # its longest task before it reaches it. A shard that hit the task step's 55-minute limit warns here too. The
+      # warning never changes the job's result.
       - name: Warn when the shard nears its timeout
         if: always()
         continue-on-error: true

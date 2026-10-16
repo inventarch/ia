@@ -717,6 +717,11 @@ it('writes every matrix line before it exits, however slowly the Plan job reads 
   // A child's piped stdout is a socket off Windows, which Node writes asynchronously: what the socket cannot take yet is
   // queued in the process, and process.exit() drops it. macOS gives such a socket an 8 KiB buffer, so a planner that
   // exits that way can lose matrix lines whenever its reader falls behind (crowncodes/ia#323). Here the reader takes nothing until the
+  // The task step stops itself inside the job's timeout, so a shard out of time still reaches the warning.
+  expect(tests).toMatch(/- name: Run assigned tasks\ntimeout-minutes: 55\n/);
+  expect(tests.indexOf('name: Warn when the shard nears its timeout')).toBeGreaterThan(
+    tests.indexOf('name: Run assigned tasks'),
+  );
   // planner has output queued, behind a socket a preload filled first; Windows writes pipes synchronously, so there
   // nothing is queued and the reader starts when the planner exits.
   const directory = mkdtempSync(resolve(tmpdir(), 'ia-plan-')),
