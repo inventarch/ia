@@ -335,7 +335,7 @@ const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
  * unsuccessful status refuses, naming the package and keeping the status.
  */
 export async function registryPackage(name, request = fetch) {
-  // The URL is built from the name this test passed.
+  // The URL is built from the name the pattern admitted.
   if (typeof name !== 'string' || !PACKAGE_NAME.test(name))
     throw new assert.AssertionError({ message: `${name}: not an npm package name` });
   const response = await request(`${REGISTRY}/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(30_000) });
