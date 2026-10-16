@@ -16,6 +16,7 @@ import {
   renderReview,
   resolveRun,
   reviewSummary,
+  runReview,
   safeSource,
 } from './runner.mjs';
 
@@ -480,4 +481,95 @@ it('refuses a report rewritten at the same size while it is read', () => {
     syncBuiltinESMExports();
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+const started = 'abcdef12-3456-4789-8abc-def012345678',
+  other = '22222222-2222-4222-8222-222222222222';
+/**
+ * A review API that answers the start with `start` and each advance with the next of `advances`, the last one
+ * repeating, and a clock that only `pause` moves; every request and pause is recorded.
+ */
+function reviewApi(start: unknown, advances: unknown[]) {
+  const requests: [string, unknown][] = [],
+    pauses: number[] = [],
+    steps: string[] = [];
+  let advanced = 0,
+    clock = 0;
+  const options = {
+    api: async (path: string, input?: unknown) => {
+      requests.push([path, input]);
+      if (path === '') return start;
+      if (path.endsWith('/advance')) return advances[Math.min(advanced++, advances.length - 1)];
+      return {};
+    },
+    pause: async (ms: number) => {
+      pauses.push(ms);
+      clock += ms;
+    },
+    now: () => clock,
+    key: `github:123:1:${head}`,
+    subjectDigest: 'd'.repeat(64),
+    head,
+    retain: (kept: unknown) => {
+      steps.push('retain');
+      retained.push(kept);
+    },
+    publish: async (delivered: unknown) => {
+      steps.push('publish');
+      published.push(delivered);
+      return { reviewId: '88', duplicate: false };
+    },
+  };
+  const retained: unknown[] = [],
+    published: unknown[] = [];
+  return { requests, pauses, steps, retained, published, options };
+}
+it('starts, advances, retains, delivers and summarizes one review under the id its first receipt carried', async () => {
+  // Reading the first receipt again would name another review: it reports another id after its first read.
+  let reads = 0;
+  const start = {
+    get id() {
+      return reads++ === 0 ? started : other;
+    },
+    state: 'queued',
+  };
+  const kept = { ...result, id: started };
+  const { requests, pauses, steps, retained, published, options } = reviewApi(start, [
+    { id: started, state: 'running' },
+    { id: started, state: 'complete', result: kept },
+  ]);
+  expect(await runReview(options)).toBe(
+    `InventArch review ${started}: INCOMPLETE (advisory). Review comment delivered.\n`,
+  );
+  expect(requests).toEqual([
+    ['', { key: `github:123:1:${head}`, digest: 'd'.repeat(64) }],
+    [`/${started}/advance`, undefined],
+    [`/${started}/advance`, undefined],
+    [`/${started}/delivery`, { reviewId: '88', head }],
+  ]);
+  expect(pauses).toEqual([3000]);
+  expect(steps).toEqual(['retain', 'publish']);
+  expect(retained[0]).toBe(kept);
+  expect(published[0]).toBe(kept);
+});
+it('refuses an advance that names another review and makes no further request', async () => {
+  const { requests, steps, options } = reviewApi({ id: started, state: 'queued' }, [{ id: other, state: 'running' }]);
+  await expect(runReview(options)).rejects.toThrow('Review receipt identity required');
+  expect(requests.map(([path]) => path)).toEqual(['', `/${started}/advance`]);
+  expect(steps).toEqual([]);
+});
+it('cancels the review it started once the deadline passes without a result', async () => {
+  const { requests, pauses, steps, options } = reviewApi({ id: started, state: 'queued' }, [
+    { id: started, state: 'running' },
+  ]);
+  await expect(runReview({ ...options, timeoutMs: 9000 })).rejects.toThrow('Review exceeded CI deadline');
+  expect(requests.map(([path]) => path)).toEqual([
+    '',
+    `/${started}/advance`,
+    `/${started}/advance`,
+    `/${started}/advance`,
+    `/${started}/cancel`,
+  ]);
+  expect(pauses).toEqual([3000, 3000, 3000]);
+  expect(steps).toEqual([]);
 });

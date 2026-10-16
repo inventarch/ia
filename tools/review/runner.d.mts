@@ -33,6 +33,23 @@ export function receiptId(receipt: unknown, started?: string): string;
 /** The job summary line, from a review id and one of the four advisory verdicts. */
 export function reviewSummary(id: unknown, verdict: unknown, delivery: { skipped?: string }): string;
 export function renderReview(result: unknown): string;
+/** A request to the review API: its path under /v1/reviews, its JSON body and method (POST by default). */
+export type ReviewApi = (path: string, input?: unknown, method?: string) => Promise<unknown>;
+/**
+ * One review run, as main() runs it: start or reuse, advance to a result or cancel at the deadline, retain, deliver.
+ * Resolves to the job summary line.
+ */
+export function runReview(options: {
+  api: ReviewApi;
+  pause: (ms: number) => Promise<unknown>;
+  now?: () => number;
+  timeoutMs?: number;
+  key: string;
+  subjectDigest: string;
+  head: string;
+  retain: (result: unknown) => void;
+  publish: (result: unknown) => Promise<{ reviewId?: string; duplicate?: boolean; skipped?: string }>;
+}): Promise<string>;
 export function publishReview(
   gh: Github,
   repository: string,
