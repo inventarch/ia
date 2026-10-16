@@ -13,6 +13,7 @@ import {
   rmSync,
   symlinkSync,
   unlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer } from 'node:net';
@@ -330,4 +331,24 @@ it('refuses a code file whose opened and named inode numbers collide as JavaScri
   seam.ino = { path: resolve(join(root, 'main.js')), opened: 2n ** 54n, named: 2n ** 54n + 1n };
   expect(Number(seam.ino.opened)).toBe(Number(seam.ino.named));
   expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
+});
+it('refuses a code file rewritten at the same size while it is read', () => {
+  const root = fixture(),
+    path = join(root, 'policy.json');
+  writeFileSync(path, '{"policy":1}');
+  // An old modification time, so the rewrite's own differs even where the clock that stamps files is coarse.
+  utimesSync(path, 1_000_000, 1_000_000);
+  let opened: number | undefined;
+  seam.afterOpen = (name, fd) => {
+    if (name === resolve(path)) opened = fd;
+  };
+  seam.beforeRead = (fd) => {
+    if (fd !== opened) return;
+    seam.beforeRead = undefined;
+    writeFileSync(path, '{"policy":2}');
+  };
+  expect(refusal(() => contextHookImplementationDigest(root))).toEqual({
+    code: BINDING,
+    message: 'Hook implementation changed while it was read',
+  });
 });
