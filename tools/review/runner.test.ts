@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { expect, it } from 'vitest';
@@ -428,4 +428,30 @@ it('summarizes the job only with a validated review id and one of the four verdi
     expect(() => reviewSummary(result.id, verdict, {})).toThrow('Invalid retained review result');
   for (const id of ['', `${result.id}\n`, '../review'])
     expect(() => reviewSummary(id, 'APPROVE', {})).toThrow('Invalid retained review result');
+});
+it('omits an unreadable report past either disclosure bound before reading it, and rethrows its error within them', () => {
+  // Root reads a file whatever its mode, and Windows has no such mode.
+  if (process.platform === 'win32' || process.getuid?.() === 0) return;
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+  try {
+    const put = (path: string, content: string, mode?: number) => {
+      mkdirSync(dirname(resolve(root, path)), { recursive: true });
+      writeFileSync(resolve(root, path), content);
+      if (mode !== undefined) chmodSync(resolve(root, path), mode);
+    };
+    put('a/evidence.json', ' '.repeat(600001), 0o000); // past the per-report bound
+    put('b/evidence.json', JSON.stringify('x'.repeat(399998))); // 400000 bytes, read
+    put('c/evidence.json', ' '.repeat(400001), 0o000); // past the running total
+    const omissions: string[] = [];
+    expect(evidenceFiles(root, omissions).map(({ name }) => name)).toEqual(['b/evidence.json']);
+    expect(omissions).toEqual([
+      'Evidence omitted by disclosure bound: a/evidence.json',
+      'Evidence omitted by disclosure bound: c/evidence.json',
+    ]);
+    put('d/evidence.json', '{}', 0o000); // within both bounds: its read fails
+    expect(() => evidenceFiles(root, [])).toThrow(/^EACCES: permission denied, open /);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

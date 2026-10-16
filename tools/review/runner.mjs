@@ -199,6 +199,11 @@ function evidenceReport(path, name, disclosed, omissions) {
       return undefined;
     }
     if (!named.isFile()) return undefined;
+    // A report it cannot read is still omitted past either bound before any read, as it always was; no read follows.
+    if (named.size > 600000 || disclosed + named.size > 800000) {
+      omissions.push(`Evidence omitted by disclosure bound: ${name}`);
+      return undefined;
+    }
     throw error;
   }
   try {
