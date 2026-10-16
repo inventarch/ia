@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "patch",
   "title": "Refuse a coordinate value whose text conversion throws as an unknown value",
-  "summary": "`validateCoordinate` now refuses a coordinate value whose conversion to text throws, such as the JSON object `{\"toString\":1}` or a very deeply nested array, with `IA-GRAPH-COORDINATE-VALUE-UNKNOWN`, and its message shows that value as `<unprintable>`. It used to throw whatever that conversion threw, which the runtime door answered with `IA-RUNTIME-REQUEST-INVALID` for such a value in a `traverse` or `context` coordinate or in the `phase` parameter of `scope`, `get`, `records`, `resolve`, `search` or `traverse`. The admitted axes, the error order, the output and the message for every other value are unchanged.",
+  "summary": "`validateCoordinate` now refuses a coordinate value whose conversion to text throws, such as the JSON object `{\"toString\":1}` or a very deeply nested array, with `IA-GRAPH-COORDINATE-VALUE-UNKNOWN`, and its message shows that value as `<unprintable>`. It used to throw whatever that conversion threw, which the runtime door answered with `IA-RUNTIME-REQUEST-INVALID` for such a value in a `context`, `select` or `traverse` coordinate or in the `phase` parameter of `scope`, `get`, `records`, `resolve`, `search` or `traverse`. The admitted axes, the error order, the output and the message for every other value are unchanged.",
   "packages": [
     "@inventarch/graph",
     "@inventarch/runtime"
