@@ -1539,6 +1539,43 @@
             "windows"
           ],
           "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a file link in place of a code file or a module directory",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a dangling link in place of a code file or a module directory",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a FIFO, named as code or not",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a socket, named as code or not",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > passes on the error of a code file it may not open",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
         }
       ]
     },
