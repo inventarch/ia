@@ -634,7 +634,7 @@ it('refuses a context ownership marker removed between the listing and its read'
     fileSeam.afterList = undefined;
     rmSync(marker);
   };
-  expect(reason(root)).toBe(`IA-HOOK-PATH-UNSAFE: ENOENT: no such file or directory, lstat '${marker}'`);
+  expect(reason(root)).toBe(UNSAFE_MARKER);
 });
 
 /** A copy of the fixture, the absolute path of an actor map in it, and a map that names its governance steward. */
@@ -681,9 +681,7 @@ it('admits an actor map of exactly 1 MiB and refuses one byte more', () => {
 
 it('refuses a missing actor map', () => {
   const { root, map } = actorWorkspace();
-  expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(
-    `IA-HOOK-STEWARD-UNAVAILABLE: ENOENT: no such file or directory, lstat '${map}'`,
-  );
+  expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(INVALID_ACTORS);
 });
 
 it.each(['a file link', 'a junction', 'a path through a junction', 'a relative path'] as const)(
@@ -724,3 +722,70 @@ it('passes on the error of an actor map it may not open', () => {
     `IA-HOOK-STEWARD-UNAVAILABLE: EACCES: permission denied, open '${map}'`,
   );
 });
+
+it.each(['marker', 'actor map'] as const)('fails closed if the %s changes during its handle read', (reader) => {
+  for (const kind of ['replacement', 'growth', 'hardlink'] as const) {
+    const fixtureMap = reader === 'actor map' ? actorWorkspace() : undefined,
+      root = fixtureMap?.root ?? workspace(),
+      target = fixtureMap?.map ?? resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json'),
+      text = fixtureMap?.text ?? JSON.stringify(guardState(root));
+    writeFileSync(target, text);
+    let opened: number | undefined,
+      requested = 0;
+    fileSeam.afterOpen = (name, fd) => {
+      if (name !== target || opened !== undefined) return;
+      opened = fd;
+      // The replacement holds the same bytes, so only the identity check refuses it; the second name changes only the
+      // opened file's link count.
+      if (kind === 'replacement') {
+        renameSync(target, `${target}.before`);
+        writeFileSync(target, text);
+      } else if (kind === 'hardlink') linkSync(target, `${target}.alias`);
+    };
+    fileSeam.beforeRead = (fd, length) => {
+      if (fd !== opened) return;
+      if (kind === 'growth' && requested === 0) writeFileSync(target, text.padEnd(2 * 1024 * 1024, ' '));
+      requested += length;
+    };
+    const decided = reader === 'actor map' ? mapped(root, target) : check(root, '.claude/settings.local.json');
+    expect(decided.hookSpecificOutput?.permissionDecisionReason, kind).toBe(
+      reader === 'actor map' ? INVALID_ACTORS : UNSAFE_MARKER,
+    );
+    expect(opened, kind).toBeTypeOf('number');
+    expect(() => fstatSync(opened!), kind).toThrow();
+    // Neither replacement nor a second link is read; growth is read no further than the opened size and one byte.
+    expect(requested, kind).toBe(kind === 'growth' ? text.length + 1 : 0);
+    fileSeam.afterOpen = undefined;
+    fileSeam.beforeRead = undefined;
+  }
+});
+
+it.each(['a context ownership marker', 'a pending journal', 'an actor map'] as const)(
+  'refuses %s past its bound after opening it, without reading any of it',
+  (kind) => {
+    const fixtureMap = kind === 'an actor map' ? actorWorkspace() : undefined,
+      root = fixtureMap?.root ?? workspace(),
+      target =
+        fixtureMap?.map ??
+        resolve(
+          root,
+          '.ia/distributions/hosts',
+          kind === 'a pending journal' ? 'guard-pending.json' : 'claude-guard-workspace.json',
+        );
+    writeFileSync(target, ' '.repeat((kind === 'a pending journal' ? 8 : 1) * 1024 * 1024 + 1));
+    let opened: number | undefined,
+      requested = 0;
+    fileSeam.afterOpen = (name, fd) => {
+      if (name === target) opened = fd;
+    };
+    fileSeam.beforeRead = (fd, length) => {
+      if (fd === opened) requested += length;
+    };
+    const decided = kind === 'an actor map' ? mapped(root, target) : check(root, '.claude/settings.local.json');
+    expect(decided.hookSpecificOutput?.permissionDecisionReason).toBe(
+      kind === 'an actor map' ? INVALID_ACTORS : UNSAFE_MARKER,
+    );
+    expect(opened).toBeTypeOf('number');
+    expect(requested).toBe(0);
+  },
+);

@@ -1,16 +1,6 @@
 import { createHash } from 'node:crypto';
-import {
-  closeSync,
-  constants,
-  fstatSync,
-  lstatSync,
-  openSync,
-  readdirSync,
-  readFileSync,
-  readSync,
-  realpathSync,
-} from 'node:fs';
-import type { Stats } from 'node:fs';
+import { closeSync, constants, fstatSync, lstatSync, openSync, readdirSync, readSync, realpathSync } from 'node:fs';
+import type { BigIntStats } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathKey, unaliased } from '@inventarch/db';
 import { canonicalDistributionJson, decodeDistributionJson, platformDebris } from '@inventarch/db/distribution';
@@ -304,23 +294,34 @@ export function readContextHookBinding(rootInput: string, pathInput: string): Co
   )
     fail('Context binding path is outside its fixed managed location');
   physicalDirectory(dirname(path));
-  const maximum = 64 * 1024,
-    stat = lstatSync(path);
-  const regular = (value: Stats): boolean =>
-    value.isFile() && !value.isSymbolicLink() && value.nlink === 1 && value.size <= maximum;
-  const same = (value: Stats): boolean =>
-    regular(value) &&
-    value.dev === stat.dev &&
-    value.ino === stat.ino &&
-    value.size === stat.size &&
-    value.mtimeMs === stat.mtimeMs &&
-    value.ctimeMs === stat.ctimeMs;
-  if (!regular(stat)) fail('Context binding is not a bounded regular file');
-  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const maximum = 64 * 1024;
+  const regular = (value: BigIntStats): boolean =>
+    value.isFile() && !value.isSymbolicLink() && value.nlink === 1n && value.size <= BigInt(maximum);
+  let fd: number;
+  try {
+    // Opened before it is judged, so the checks and the read are of one file (CodeQL js/file-system-race): never
+    // through a leaf link, and never waiting on a FIFO, where the platform has the flag.
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    // What the open refuses (a link, a socket, a directory Windows will not open) is refused as an opened one is; a
+    // binding gone since its path was checked fails with lstat's own error.
+    if (!regular(lstatSync(path, { bigint: true }))) fail('Context binding is not a bounded regular file');
+    throw error;
+  }
   let bytes: Buffer;
   try {
-    if (!same(fstatSync(fd))) fail('Context binding identity changed before read');
-    const buffer = Buffer.alloc(maximum + 1);
+    const stat = fstatSync(fd, { bigint: true });
+    const same = (value: BigIntStats): boolean =>
+      regular(value) &&
+      value.dev === stat.dev &&
+      value.ino === stat.ino &&
+      value.size === stat.size &&
+      value.mtimeNs === stat.mtimeNs &&
+      value.ctimeNs === stat.ctimeNs;
+    if (!regular(stat)) fail('Context binding is not a bounded regular file');
+    // The name must be the opened file; on Windows, which has neither flag, this is the only guard against a link.
+    if (!same(lstatSync(path, { bigint: true }))) fail('Context binding identity changed before read');
+    const buffer = Buffer.alloc(Number(stat.size) + 1);
     let length = 0;
     while (length < buffer.length) {
       const count = readSync(fd, buffer, length, buffer.length - length, length);
@@ -328,10 +329,10 @@ export function readContextHookBinding(rootInput: string, pathInput: string): Co
       length += count;
     }
     if (
-      length !== stat.size ||
+      BigInt(length) !== stat.size ||
       length > maximum ||
-      !same(fstatSync(fd)) ||
-      !same(lstatSync(path)) ||
+      !same(fstatSync(fd, { bigint: true })) ||
+      !same(lstatSync(path, { bigint: true })) ||
       !unaliased(path, realpathSync.native(path))
     )
       fail('Context binding changed during read');
@@ -344,6 +345,46 @@ export function readContextHookBinding(rootInput: string, pathInput: string): Co
     result = verifyBinding(parsed);
   if (fold(result.root) !== fold(root)) fail('Context binding names another root');
   return result;
+}
+/**
+ * The bytes of a code file the inventory listed as a regular file, read through one descriptor: opened before it is
+ * judged (CodeQL js/file-system-race), never through a leaf link or waiting on a FIFO where the platform has the flag,
+ * of at most `limit` bytes by that descriptor, unchanged by the read, and still the file at `path` by device and inode
+ * (on Windows, which has neither flag, the only guard against a link).
+ */
+function implementationBytes(path: string, limit: number): Buffer {
+  let fd: number;
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    // A link or another nonregular file in the listed entry's place is refused as the listing would have refused it,
+    // and so is a directory Windows will not open; a file gone since the listing fails with lstat's own error.
+    const named = lstatSync(path, { bigint: true });
+    if (named.isSymbolicLink()) fail('Hook implementation aliases are unsupported');
+    if (!named.isFile()) fail('Hook implementation has a nonregular file');
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) fail('Hook implementation has a nonregular file');
+    if (opened.size > BigInt(limit)) fail('Hook implementation bytes exceed their bound');
+    // The opened size plus one byte: growth during the read shows, and nothing past the bound is ever read.
+    const buffer = Buffer.alloc(Number(opened.size) + 1);
+    let length = 0;
+    while (length < buffer.length) {
+      const count = readSync(fd, buffer, length, buffer.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    const after = fstatSync(fd, { bigint: true });
+    if (BigInt(length) !== opened.size || after.size !== opened.size || after.mtimeNs !== opened.mtimeNs)
+      fail('Hook implementation changed while it was read');
+    const named = lstatSync(path, { bigint: true });
+    if (named.dev !== opened.dev || named.ino !== opened.ino) fail('Hook implementation aliases are unsupported');
+    return buffer.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
 }
 /** Fixed module inventory; no import-time I/O. Root override is for isolated host tests only. */
 export function contextHookImplementationDigest(directory = import.meta.dirname): string {
@@ -366,16 +407,17 @@ export function contextHookImplementationDigest(directory = import.meta.dirname)
       )
         fail('Hook implementation has aliased paths');
       names.add(path.toLowerCase());
-      const absolute = resolve(directory, name),
-        stat = lstatSync(absolute);
-      if (stat.isSymbolicLink()) fail('Hook implementation aliases are unsupported');
-      if (stat.isDirectory()) visit(absolute, path + '/', depth + 1);
-      else if (!stat.isFile()) fail('Hook implementation has a nonregular file');
+      const absolute = resolve(directory, name);
+      // The listing's own entry types classify each name, so no pathname stat judges a file that is then read by name;
+      // a code file is judged again by the descriptor it is read through, which also bounds its bytes.
+      if (entry.isSymbolicLink()) fail('Hook implementation aliases are unsupported');
+      if (entry.isDirectory()) visit(absolute, path + '/', depth + 1);
+      else if (!entry.isFile()) fail('Hook implementation has a nonregular file');
       // A Finder or AppleDouble file is never code: the launcher skips it, so the identity must too (crowncodes/ia#323).
       else if (/\.(?:[cm]?[jt]s|json|node|wasm)$/.test(name) && !/\.d\.[cm]?ts$/.test(name) && !platformDebris(name)) {
-        if (stat.size > 8 * 1024 * 1024 || (total += stat.size) > 32 * 1024 * 1024)
-          fail('Hook implementation bytes exceed their bound');
-        files.push({ path, digest: hash(readFileSync(absolute)) });
+        const bytes = implementationBytes(absolute, Math.min(8 * 1024 * 1024, 32 * 1024 * 1024 - total));
+        total += bytes.length;
+        files.push({ path, digest: hash(bytes) });
       }
     }
   };
