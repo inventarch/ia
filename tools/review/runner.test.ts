@@ -532,6 +532,11 @@ it('starts and advances one review under the id its first receipt carried, and r
   ]);
   expect(pauses).toEqual([3000]);
 });
+it('refuses a first receipt whose id is not a review id before any further request', async () => {
+  const { requests, options } = reviewApi({ id: '../x', state: 'queued' }, [{ id: started, state: 'running' }]);
+  await expect(awaitResult(options)).rejects.toThrow('Review receipt identity required');
+  expect(requests.map(([path]) => path)).toEqual(['']);
+});
 it('refuses an advance that names another review and makes no further request', async () => {
   const { requests, options } = reviewApi({ id: started, state: 'queued' }, [{ id: other, state: 'running' }]);
   await expect(awaitResult(options)).rejects.toThrow('Review receipt identity required');
