@@ -1,5 +1,15 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { chmodSync, linkSync, mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  fstatSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -10,6 +20,7 @@ import { createContextHookBinding, readContextHookBinding } from '../src/context
 const gate = vi.hoisted(() => ({
   path: '',
   afterStat: null as (() => void) | null,
+  beforeOpen: null as (() => void) | null,
   afterOpen: null as (() => void) | null,
   beforeRead: null as ((length: number) => void) | null,
   /** The inode numbers stats of the gated binding report: by its open descriptor, and by its name. */
@@ -58,6 +69,11 @@ vi.mock('node:fs', async (importOriginal) => {
       return actual.readSync(fd, buffer, offset, length, position);
     },
     openSync: (...args: Parameters<typeof actual.openSync>) => {
+      if (resolve(String(args[0])) === gate.path && gate.beforeOpen) {
+        const run = gate.beforeOpen;
+        gate.beforeOpen = null;
+        run();
+      }
       if (waits(args[0], args[1])) {
         gate.waited.push(String(args[0]));
         throw new Error('A FIFO opened to read without O_NONBLOCK would wait for a writer');
@@ -77,6 +93,7 @@ const roots: string[] = [];
 afterEach(() => {
   gate.path = '';
   gate.afterStat = null;
+  gate.beforeOpen = null;
   gate.afterOpen = null;
   gate.beforeRead = null;
   gate.ino = null;
@@ -222,7 +239,9 @@ it('refuses a binding replaced after it was opened, before reading it', () => {
     code: 'IA-LIFECYCLE-BINDING',
     message: 'Context binding identity changed before read',
   });
+  expect(() => fstatSync(gate.fd)).toThrow();
   expect(readContextHookBinding(root, path).owner).toBe('owner-two');
+  expect(() => fstatSync(gate.fd)).toThrow();
 });
 it('refuses a binding whose opened and named inode numbers collide as JavaScript numbers', () => {
   const { root, path } = fixture();
@@ -233,6 +252,7 @@ it('refuses a binding whose opened and named inode numbers collide as JavaScript
     code: 'IA-LIFECYCLE-BINDING',
     message: 'Context binding identity changed before read',
   });
+  expect(() => fstatSync(gate.fd)).toThrow();
 });
 it('refuses a binding that grows while it is read, reading no more than its opened size and one byte', () => {
   const { root, path, binding } = fixture(),
@@ -248,4 +268,16 @@ it('refuses a binding that grows while it is read, reading no more than its open
     message: 'Context binding changed during read',
   });
   expect(requested).toBe(Buffer.byteLength(text) + 1);
+  expect(() => fstatSync(gate.fd)).toThrow();
+});
+it('refuses a file link swapped in for the binding after its path check as not a bounded regular file', () => {
+  if (!posix) return;
+  const { root, path } = fixture();
+  gate.path = resolve(path);
+  // Between the path check and the open: an open that refuses links refuses this one.
+  gate.beforeOpen = () => {
+    renameSync(path, `${path}.retained`);
+    symlinkSync(`${path}.retained`, path, 'file');
+  };
+  expect(refusal(() => readContextHookBinding(root, path))).toEqual(NOT_REGULAR);
 });
