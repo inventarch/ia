@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readFileSync,
   readdirSync,
   renameSync,
   rmSync,
@@ -391,3 +392,54 @@ it('refuses INSTALL-BUSY after bounded takeover attempts, without hanging, when 
   expect((caught as { code?: string } | undefined)?.code).toBe('IA-DIST-INSTALL-BUSY');
   expect((caught as Error).message).toMatch(/Another ia host --user run holds/);
 }, 5000);
+// Each verdict on both sides of its bound: a dead pid at any age, 10 minutes for a live pid, and 10 seconds' grace for
+// an empty or unparseable one. Ages are set with utimesSync, never waited out.
+it('takes over a lock whose pid died, that is over 10 minutes old, or whose pid is missing past 10 seconds, and refuses any other INSTALL-BUSY untouched', () => {
+  const minutes = 60_000,
+    live = String(process.pid),
+    dead = '999999'; // not a live pid in this test run
+  const cases: Record<string, readonly [text: string, ageMs: number, takenOver: boolean]> = {
+    'dead pid, just written': [dead, 0, true],
+    'dead pid, 20 minutes old': [dead, 20 * minutes, true],
+    'live pid, just written': [live, 0, false],
+    'live pid, 9 minutes old': [live, 9 * minutes, false],
+    'live pid, 11 minutes old': [live, 11 * minutes, true],
+    'empty, 5 seconds old': ['', 5_000, false],
+    'empty, 20 seconds old': ['', 20_000, true],
+    'unparseable, 5 seconds old': ['not a pid', 5_000, false],
+    'unparseable, 20 seconds old': ['not a pid', 20_000, true],
+  };
+  const seen: Record<string, unknown> = {},
+    expected: Record<string, unknown> = {};
+  for (const [name, [text, ageMs, takenOver]] of Object.entries(cases)) {
+    const home = join(temp(), '.ia'),
+      lockPath = join(home, 'claude', '.lock');
+    mkdirSync(join(home, 'claude'), { recursive: true });
+    writeFileSync(lockPath, text);
+    const when = new Date(Date.now() - ageMs);
+    utimesSync(lockPath, when, when);
+    let outcome: unknown = 'materialized';
+    try {
+      materializeMarketplace(home, files('0.1.0+aaa'));
+    } catch (error) {
+      outcome = { code: (error as { code?: unknown }).code, message: (error as Error).message };
+    }
+    seen[name] = {
+      outcome,
+      lock: existsSync(lockPath) ? readFileSync(lockPath, 'utf8') : null,
+      version: readMaterializedPlugin(home)?.version ?? null,
+    };
+    expected[name] = takenOver
+      ? { outcome: 'materialized', lock: null, version: '0.1.0+aaa' }
+      : {
+          outcome: {
+            code: 'IA-DIST-INSTALL-BUSY',
+            message: `Another ia host --user run holds ${lockPath}; wait for it or delete the file if no run is active`,
+          },
+          lock: text,
+          version: null,
+        };
+  }
+  // One comparison, so a changed verdict shows every case it moves, not only the first.
+  expect(seen).toEqual(expected);
+});
