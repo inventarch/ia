@@ -673,6 +673,33 @@ describe('system package input reads', () => {
       rmSync(big, { force: true });
     }
   });
+  it('reads at most 2147483647 bytes at a time, so an input reported at that size refuses as changed', () => {
+    // Its buffer is 2 ** 31 bytes: zeroed lazily on Linux and macOS, but committed in full on Windows.
+    if (process.platform === 'win32') return;
+    const root = temporary(),
+      target = resolve(root, '.ia/src/a.ia');
+    write(root, '.ia/src/a.ia', 'native source');
+    const open = fs.openSync,
+      fstat = fs.fstatSync;
+    let selected: number | undefined;
+    vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+      const fd = Reflect.apply(open, fs, args) as number;
+      if (String(args[0]) === target) selected = fd;
+      return fd;
+    });
+    // The input's descriptor reports 2147483647 bytes before and after its read: one read may ask for all of them, the
+    // read stops at the real end, and the input refuses as changed. Asking for one byte more throws ERR_OUT_OF_RANGE.
+    vi.spyOn(fs, 'fstatSync').mockImplementation(((...args: Parameters<typeof fs.fstatSync>) => {
+      const stat = Reflect.apply(fstat, fs, args);
+      if (args[0] === selected && typeof stat?.size === 'bigint') (stat as { size: bigint }).size = 0x7fffffffn;
+      return stat;
+    }) as typeof fs.fstatSync);
+    syncBuiltinESMExports();
+    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(
+      /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
+    );
+    expect(selected).toBeDefined();
+  });
   afterEach(() => {
     vi.restoreAllMocks();
     syncBuiltinESMExports();
