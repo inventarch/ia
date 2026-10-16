@@ -265,32 +265,34 @@ it.each([
   settle,
 );
 
-it.each([
-  ['a symbolic link at its selection', { link: 'symbolic' }, 'isSymbolicLink()'],
-  ['a symbolic link put in place after its selection', { race: { at: 'open', change: 'link' } }, 'isSymbolicLink()'],
-  [
-    'the same bytes under a new identity once it is open',
-    { race: { at: 'read', change: 'identity' } },
-    'Selected archive changed while it was read',
-  ],
-  [
-    'a FIFO put in place after its selection',
-    { race: { at: 'open', change: 'fifo' } },
-    'Selected archive is not a regular file',
-  ],
-] as const)(
-  'refuses %s before tar is handed its bytes',
-  async (_, options, message) => {
-    // Windows has no FIFOs and needs a privilege for file links; a rename over a name held open is not tried there.
-    // A FIFO refuses without waiting for a writer: the run would otherwise reach its bound.
-    if (process.platform !== 'win32') {
-      const run = await qualify(options);
-      expect(run.status).toBe(1);
-      expect(run.stderr).toContain(message);
-      expect(run.tar).toEqual(names.slice(0, names.indexOf('db')).map((name) => handed(run.bytes[name] as Buffer)));
-      expect(run.pins).toBeUndefined();
-    }
-  },
+// Windows has no FIFOs and needs a privilege to create a file symbolic link, and a rename over a name held open is not
+// tried there: these four cases are declared Windows skips in tasks.json.
+const refusesBeforeTar = async (options: Options, message: string) => {
+  const run = await qualify(options);
+  expect(run.status).toBe(1);
+  expect(run.stderr).toContain(message);
+  expect(run.tar).toEqual(names.slice(0, names.indexOf('db')).map((name) => handed(run.bytes[name] as Buffer)));
+  expect(run.pins).toBeUndefined();
+};
+it.skipIf(process.platform === 'win32')(
+  'refuses a symbolic link at its selection before tar is handed its bytes',
+  () => refusesBeforeTar({ link: 'symbolic' }, 'isSymbolicLink()'),
+  settle,
+);
+it.skipIf(process.platform === 'win32')(
+  'refuses a symbolic link put in place after its selection before tar is handed its bytes',
+  () => refusesBeforeTar({ race: { at: 'open', change: 'link' } }, 'isSymbolicLink()'),
+  settle,
+);
+it.skipIf(process.platform === 'win32')(
+  'refuses the same bytes under a new identity once it is open before tar is handed its bytes',
+  () => refusesBeforeTar({ race: { at: 'read', change: 'identity' } }, 'Selected archive changed while it was read'),
+  settle,
+);
+// A FIFO refuses without waiting for a writer: the run would otherwise reach its bound.
+it.skipIf(process.platform === 'win32')(
+  'refuses a FIFO put in place after its selection before tar is handed its bytes',
+  () => refusesBeforeTar({ race: { at: 'open', change: 'fifo' } }, 'Selected archive is not a regular file'),
   settle,
 );
 

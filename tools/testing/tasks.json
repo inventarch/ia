@@ -3406,6 +3406,36 @@
       "resourceClass": "subprocess",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/runtime/qualify-sdk.test.ts > refuses a symbolic link at its selection before tar is handed its bytes",
+          "reason": "Creating a file symbolic link needs a privilege on Windows; Linux and macOS run this refusal, and the hard-link and read-race cases run on every platform.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/runtime/qualify-sdk.test.ts > refuses a symbolic link put in place after its selection before tar is handed its bytes",
+          "reason": "Creating a file symbolic link needs a privilege on Windows; Linux and macOS run this refusal, and the hard-link and read-race cases run on every platform.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/runtime/qualify-sdk.test.ts > refuses the same bytes under a new identity once it is open before tar is handed its bytes",
+          "reason": "The case renames a file over a name the script holds open, which is not exercised on Windows; Linux and macOS run this identity refusal.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/runtime/qualify-sdk.test.ts > refuses a FIFO put in place after its selection before tar is handed its bytes",
+          "reason": "Windows has no FIFOs; Linux and macOS run this refusal.",
+          "platforms": [
+            "windows"
+          ]
+        }
       ]
     },
     {
