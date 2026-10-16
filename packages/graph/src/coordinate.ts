@@ -29,8 +29,15 @@ export function validateCoordinate(input: Readonly<Record<string, unknown>>): Co
     throw new GraphUsageError('IA-GRAPH-COORDINATE-VALUE-UNKNOWN', 'Coordinate must be an axis/value object');
   const output: Partial<Record<ConditionAxis, string>> = {};
   for (const [name, value] of Object.entries(input)) {
-    // A membership test on the closed axis list, so the write below only ever names an admitted axis.
+    // `includes()` is a barrier CodeQL js/remote-property-injection recognizes; a `valuesFor()` Map lookup is not.
     if (!(CONDITION_AXES as readonly string[]).includes(name))
+      throw new GraphUsageError(
+        'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+        `Unknown coordinate axis '${name}'; admitted: ${CONDITION_AXES.join(', ')}`,
+      );
+    // CONDITION_AXES and the value tables are separate language exports; an axis without values is refused too.
+    const admitted = valuesFor(name);
+    if (admitted === undefined)
       throw new GraphUsageError(
         'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
         `Unknown coordinate axis '${name}'; admitted: ${CONDITION_AXES.join(', ')}`,
@@ -40,7 +47,7 @@ export function validateCoordinate(input: Readonly<Record<string, unknown>>): Co
     if (canonical === undefined)
       throw new GraphUsageError(
         'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
-        `Unknown ${name} value '${valueText(value)}'; admitted: ${valuesFor(name)!.join(', ')}`,
+        `Unknown ${name} value '${valueText(value)}'; admitted: ${admitted.join(', ')}`,
       );
     output[name as ConditionAxis] = canonical;
   }
