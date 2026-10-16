@@ -1,4 +1,3 @@
-import { once } from 'node:events';
 import {
   chmodSync,
   cpSync,
@@ -19,11 +18,9 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { runBounded } from '@tools/testing/subprocess.js';
 import { KERNEL_SOURCES, buildRegistry, compile, parse } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import {
@@ -39,6 +36,7 @@ import {
 } from '../src/index.js';
 import type { InputSnapshot } from '../src/index.js';
 import { readInstalledGeneration } from '../src/distribution/index.js';
+import { blockingOpens, fifo, outcome, socket } from './file-races.js';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -62,54 +60,6 @@ const put = (root: string, path: string, text: string | Uint8Array) => {
   const file = resolve(root, path);
   mkdirSync(resolve(file, '..'), { recursive: true });
   writeFileSync(file, text);
-};
-const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
-/** A FIFO at the absolute `path` (POSIX). */
-const fifo = async (path: string): Promise<void> => {
-  mkdirSync(resolve(path, '..'), { recursive: true });
-  expect((await runBounded('mkfifo', [path], { timeoutMs: SUBPROCESS })).status).toBe(0);
-};
-/** A Unix socket file at the absolute `path` (POSIX), bound at a short name in `root` first: a socket path holds ~100 bytes. */
-const socket = async (root: string, path: string): Promise<void> => {
-  const server = createServer(),
-    bound = resolve(root, 's');
-  server.listen(bound);
-  await once(server, 'listening');
-  mkdirSync(resolve(path, '..'), { recursive: true });
-  renameSync(bound, path);
-  server.close();
-  await once(server, 'close');
-};
-/**
- * Lets `openSync` run as it does, after `before`, except an open that would wait for a FIFO's writer: that one is recorded
- * and refused instead, so a reader that opens a FIFO without O_NONBLOCK fails its test rather than blocking the runner.
- */
-const blockingOpens = async (before: (path: string) => void = () => {}): Promise<readonly string[]> => {
-  const actual = await vi.importActual<typeof import('node:fs')>('node:fs'),
-    blocking: string[] = [];
-  vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
-    const [path, flags] = args;
-    before(String(path));
-    if (
-      (typeof flags !== 'number' || (flags & actual.constants.O_NONBLOCK) === 0) &&
-      actual.lstatSync(path, { throwIfNoEntry: false })?.isFIFO()
-    ) {
-      blocking.push(String(path));
-      throw Object.assign(new Error(`EAGAIN: an open that waits for a FIFO writer, open '${String(path)}'`), {
-        code: 'EAGAIN',
-      });
-    }
-    return actual.openSync(...args);
-  });
-  return blocking;
-};
-/** The thrown value, or the result when nothing is thrown. */
-const outcome = (read: () => unknown): unknown => {
-  try {
-    return read();
-  } catch (error) {
-    return error;
-  }
 };
 it('captures only explicit package sources with their physical paths and immutable selection', () => {
   const root = workspace(),
