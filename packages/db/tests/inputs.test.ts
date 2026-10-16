@@ -800,6 +800,24 @@ it('refuses a package source removed after it is listed, as the lstat of its nam
     message: `IA-DB-SOURCE-CHANGED: Source discovery failed in ${root}: Error: ENOENT: no such file or directory, lstat '${file}'`,
   });
 });
+it('reads at most one byte past a package source that grows while it is read, and refuses it as changed', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = packageWorkspace(),
+    file = resolve(root, SOURCE);
+  let read = 0,
+    calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    read += count;
+    if (++calls === 1) appendFileSync(file, 'x'.repeat(1_000));
+    return count;
+  });
+  expect(captured(root)).toMatchObject({
+    code: 'IA-DB-SOURCE-CHANGED',
+    message: `IA-DB-SOURCE-CHANGED: Package source changed during read: ${SOURCE}`,
+  });
+  expect(read).toBe('#! ia 1.0\n'.length + 1);
+});
 it('refuses a package source whose name stops naming the file that is read', async () => {
   const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
   const root = packageWorkspace(),
