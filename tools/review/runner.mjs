@@ -192,7 +192,8 @@ function evidenceReport(path, name, disclosed, omissions) {
     // NOFOLLOW refuses a link put in place after the listing; NONBLOCK keeps a FIFO from blocking the open.
     fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch (error) {
-    // A link fails the open (ELOOP) and Windows will not open a directory: omitted or skipped as the listing would.
+    // A link fails the open (ELOOP), and so does a directory if the platform refuses to open one: omitted or skipped
+    // as the listing would.
     const named = lstatSync(path);
     if (named.isSymbolicLink()) {
       omissions.push(`Evidence symlink omitted: ${name}`);

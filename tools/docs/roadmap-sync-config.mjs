@@ -52,8 +52,8 @@ try {
   existing = openSync(output, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
 } catch (error) {
   if (error.code !== 'ENOENT') {
-    // A link put in place after the ancestry check above fails the open (ELOOP); a socket, and a directory Windows will
-    // not open, fail as reading them did.
+    // A link put in place after the ancestry check above fails the open (ELOOP); a socket, and a directory if the
+    // platform refuses to open one, fail as reading them did.
     if (lstatSync(output).isSymbolicLink()) throw new Error(`Aliased output: ${output}`);
     throw error;
   }

@@ -10,8 +10,9 @@ export function packageManagerCommand(launcher, args, nodePath = process.execPat
   try {
     file = openSync(launcher, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0) | (constants.O_NOCTTY ?? 0));
   } catch (error) {
-    // Report a launcher that cannot be opened as the stat by name did: a missing one by its stat error, and a directory,
-    // which Windows will not open, as not a regular file. Anything else, such as EACCES, is the open's error, as before.
+    // Report a launcher that cannot be opened as the stat by name did: a missing one by its stat error, and a
+    // directory, if the platform refuses to open one, as not a regular file. Anything else, such as EACCES, is the
+    // open's error, as before.
     if (!statSync(launcher).isFile()) throw new Error('Package-manager launcher must be a regular file');
     throw error;
   }

@@ -62,7 +62,8 @@ export function authoringResources(root: string): {
     try {
       fd = openSync(current, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
     } catch (error) {
-      // A link fails the open (ELOOP) and Windows will not open a directory: refused as the walk and lstat refused them.
+      // A link fails the open (ELOOP), and so does a directory if the platform refuses to open one: refused as the walk
+      // and lstat refused them.
       const named = lstatSync(current);
       if (named.isSymbolicLink()) throw new Error('Authoring selection crosses an alias');
       // A file it cannot read is still refused past either cap before any read, as it always was; no read follows.
