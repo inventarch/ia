@@ -11,8 +11,10 @@ import {
   evidenceFiles,
   githubClient,
   publishReview,
+  receiptId,
   renderReview,
   resolveRun,
+  reviewSummary,
   safeSource,
 } from './runner.mjs';
 
@@ -396,4 +398,34 @@ it('requests the run identifier it tested even from a value that spells itself d
   const shifting = { toString: () => (spellings++ === 0 ? '123' : '123/../../../other/repo') };
   await resolveRun(gh, 'test/repo', shifting as unknown as string);
   expect(paths[0]).toBe('/repos/test/repo/actions/runs/123');
+});
+it('takes a receipt id only in the review id form, and an advance only for the review it started', () => {
+  const started = 'abcdef12-3456-4789-8abc-def012345678';
+  expect(receiptId({ id: started })).toBe(started);
+  expect(receiptId({ id: started, state: 'running' }, started)).toBe(started);
+  for (const receipt of [
+    {},
+    null,
+    { id: '' },
+    { id: 7 },
+    { id: [started] },
+    { id: started.toUpperCase() },
+    { id: `${started}/cancel` },
+    { id: `../${started.slice(3)}` },
+  ])
+    expect(() => receiptId(receipt)).toThrow('Review receipt identity required');
+  expect(() => receiptId({ id: result.id }, started)).toThrow('Review receipt identity required');
+});
+it('summarizes the job only with a validated review id and one of the four verdicts', () => {
+  for (const verdict of ['APPROVE', 'CONDITIONAL', 'REQUEST_CHANGES', 'INCOMPLETE'])
+    expect(reviewSummary(result.id, verdict, {})).toBe(
+      `InventArch review ${result.id}: ${verdict} (advisory). Review comment delivered.\n`,
+    );
+  expect(reviewSummary(result.id, 'APPROVE', { skipped: 'stale-head' })).toBe(
+    `InventArch review ${result.id}: APPROVE (advisory). Stale delivery suppressed.\n`,
+  );
+  for (const verdict of ['approve', 'APPROVE\n', '', undefined, ['APPROVE']])
+    expect(() => reviewSummary(result.id, verdict, {})).toThrow('Invalid retained review result');
+  for (const id of ['', `${result.id}\n`, '../review'])
+    expect(() => reviewSummary(id, 'APPROVE', {})).toThrow('Invalid retained review result');
 });

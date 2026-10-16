@@ -28,6 +28,10 @@ export function evidenceFiles(
   directory: string | undefined,
   omissions: string[],
 ): { name: string; digest: string; content: string }[];
+/** A review API receipt's review id; an advance receipt must also name `started`, the review the first one started. */
+export function receiptId(receipt: unknown, started?: string): string;
+/** The job summary line, from a review id and one of the four advisory verdicts. */
+export function reviewSummary(id: unknown, verdict: unknown, delivery: { skipped?: string }): string;
 export function renderReview(result: unknown): string;
 export function publishReview(
   gh: Github,
