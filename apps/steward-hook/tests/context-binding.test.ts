@@ -11,6 +11,7 @@ const gate = vi.hoisted(() => ({
   path: '',
   afterStat: null as (() => void) | null,
   afterOpen: null as (() => void) | null,
+  beforeRead: null as ((length: number) => void) | null,
   /** The inode numbers stats of the gated binding report: by its open descriptor, and by its name. */
   ino: null as { opened: bigint; named: bigint } | null,
   fd: -1,
@@ -52,6 +53,10 @@ vi.mock('node:fs', async (importOriginal) => {
       const stat = actual.fstatSync(fd, options);
       return fd === gate.fd ? numbered(stat, gate.ino?.opened) : stat;
     },
+    readSync: (fd: number, buffer: Buffer, offset: number, length: number, position: number | null) => {
+      if (fd === gate.fd) gate.beforeRead?.(length);
+      return actual.readSync(fd, buffer, offset, length, position);
+    },
     openSync: (...args: Parameters<typeof actual.openSync>) => {
       if (waits(args[0], args[1])) {
         gate.waited.push(String(args[0]));
@@ -73,6 +78,7 @@ afterEach(() => {
   gate.path = '';
   gate.afterStat = null;
   gate.afterOpen = null;
+  gate.beforeRead = null;
   gate.ino = null;
   gate.fd = -1;
   gate.waited.length = 0;
@@ -227,4 +233,19 @@ it('refuses a binding whose opened and named inode numbers collide as JavaScript
     code: 'IA-LIFECYCLE-BINDING',
     message: 'Context binding identity changed before read',
   });
+});
+it('refuses a binding that grows while it is read, reading no more than its opened size and one byte', () => {
+  const { root, path, binding } = fixture(),
+    text = JSON.stringify(binding);
+  let requested = 0;
+  gate.path = resolve(path);
+  gate.beforeRead = (length) => {
+    if (requested === 0) writeFileSync(path, text.padEnd(text.length + 1024, ' '));
+    requested += length;
+  };
+  expect(refusal(() => readContextHookBinding(root, path))).toEqual({
+    code: 'IA-LIFECYCLE-BINDING',
+    message: 'Context binding changed during read',
+  });
+  expect(requested).toBe(Buffer.byteLength(text) + 1);
 });

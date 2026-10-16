@@ -723,6 +723,26 @@ it('passes on the error of an actor map it may not open', () => {
   );
 });
 
+it.each([
+  ['a context ownership marker', 'past its bound'],
+  ['a context ownership marker', 'hard-linked'],
+  ['an actor map', 'past its bound'],
+  ['an actor map', 'hard-linked'],
+] as const)('refuses %s it may not open that is %s as it refuses a readable one', (reader, kind) => {
+  if (!posix || process.getuid?.() === 0) return;
+  const fixtureMap = reader === 'an actor map' ? actorWorkspace() : undefined,
+    root = fixtureMap?.root ?? workspace(),
+    target = fixtureMap?.map ?? resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json'),
+    text = fixtureMap?.text ?? JSON.stringify(guardState(root));
+  writeFileSync(target, kind === 'past its bound' ? text.padEnd(1024 * 1024 + 1, ' ') : text);
+  if (kind === 'hard-linked') linkSync(target, `${target}.alias`);
+  chmodSync(target, 0o000);
+  const decided = reader === 'an actor map' ? mapped(root, target) : check(root, '.claude/settings.local.json');
+  expect(decided.hookSpecificOutput?.permissionDecisionReason).toBe(
+    reader === 'an actor map' ? INVALID_ACTORS : UNSAFE_MARKER,
+  );
+});
+
 it.each(['marker', 'actor map'] as const)('fails closed if the %s changes during its handle read', (reader) => {
   for (const kind of ['replacement', 'growth', 'hardlink'] as const) {
     const fixtureMap = reader === 'actor map' ? actorWorkspace() : undefined,
