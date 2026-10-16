@@ -195,8 +195,8 @@ function flush(path: string, text: string): void {
   }
 }
 /**
- * Read-only; NOFOLLOW refuses a final link and NONBLOCK keeps a FIFO from blocking the open. Windows has neither flag
- * (both are zero there), so it opens through a link, and the identity recheck after the read refuses it.
+ * Read-only; NOFOLLOW refuses a final link and NONBLOCK keeps a FIFO from blocking the open. Windows defines neither
+ * flag, so `?? 0` makes both zero there: it opens through a link, and the identity recheck after the read refuses it.
  */
 const READ = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
 /**
@@ -215,7 +215,8 @@ function readOpened(fd: number, path: string, limit: number): Buffer | undefined
     if (!count) break;
     length += count;
   }
-  // On Windows, which opens through a link, the name's identity is the only link guard.
+  // On Windows, which opens through a link, the name's identity is the only guard against a link placed after the path
+  // check.
   const after = fstatSync(fd, { bigint: true }),
     named = lstatSync(path, { bigint: true });
   return BigInt(length) === stat.size &&
