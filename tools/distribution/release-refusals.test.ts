@@ -554,6 +554,55 @@ it('refuses an archive download that fails after the wait, naming the package an
   expect(requested).toEqual(['https://registry.npmjs.org/example.tgz', 'https://registry.npmjs.org/example.tgz']);
 });
 
+/** A registry that answers every request with `status`, recording each URL and whether it carried a signal. */
+function registryAnswering(status: number) {
+  const requested: string[] = [];
+  const request = async (url: string, init: { signal: AbortSignal }) => {
+    requested.push(`${url}${init.signal instanceof AbortSignal ? '' : ' (no signal)'}`);
+    return status === 200 ? Response.json(published()) : new Response('', { status });
+  };
+  return { request, requested };
+}
+
+it('reads one packument by its encoded name, gives null for a 404 and refuses another status with it', async () => {
+  const ok = registryAnswering(200);
+  for (const name of [a, '@inventarch/workspace-runtime', 'plain.name_with-parts'])
+    await expect(registryPackage(name, ok.request)).resolves.toEqual(published());
+  expect(ok.requested).toEqual([
+    `${REGISTRY}/%40inventarch%2Fa`,
+    `${REGISTRY}/%40inventarch%2Fworkspace-runtime`,
+    `${REGISTRY}/plain.name_with-parts`,
+  ]);
+  await expect(registryPackage(a, registryAnswering(404).request)).resolves.toBeNull();
+  const unavailable = registryPackage(a, registryAnswering(503).request);
+  await expect(unavailable).rejects.toThrow(refusal(`${a}: registry returned 503`));
+  await expect(unavailable).rejects.toMatchObject({ status: 503 });
+});
+
+it('refuses a name that is not an npm package name before any registry request', async () => {
+  const { request, requested } = registryAnswering(200);
+  for (const name of [
+    '',
+    '../registry',
+    '@inventarch/../a',
+    '@inventarch/a/b',
+    '@inventarch/',
+    '@/a',
+    '@Inventarch/a',
+    'Upper',
+    '.hidden',
+    '_private',
+    'a b',
+    'a?b',
+    'a#b',
+    'a%2Fb',
+    'a\nb',
+  ])
+    await expect(registryPackage(name, request)).rejects.toThrow(refusal(`${name}: not an npm package name`));
+  await expect(registryPackage(7 as unknown as string, request)).rejects.toThrow(refusal('7: not an npm package name'));
+  expect(requested).toEqual([]);
+});
+
 function put(repository: string, path: string, value: unknown): void {
   mkdirSync(dirname(resolve(repository, path)), { recursive: true });
   writeFileSync(resolve(repository, path), typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n');

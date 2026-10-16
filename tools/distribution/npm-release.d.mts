@@ -107,7 +107,10 @@ export declare const REGISTRY_VISIBILITY: Readonly<RegistryVisibility>;
 export declare const REGISTRY_WAIT: Readonly<RegistryWait>;
 /** The request `registryPackage` makes; `fetch` by default. */
 export type RegistryRequest = (url: string, init: { signal: AbortSignal }) => Promise<Response>;
-/** One packument from the npm registry, or null for a 404; any other unsuccessful status throws with its `status`. */
+/**
+ * One packument from the npm registry, or null for a 404. A name that is not an npm package name refuses before any
+ * request; any other unsuccessful status throws with its `status`.
+ */
 export declare function registryPackage(name: string, request?: RegistryRequest): Promise<RegistryPackage | null>;
 /**
  * `lookup` returns null only for a 404. A timeout or abort, a network failure, or an error whose `status` is 429 or a
