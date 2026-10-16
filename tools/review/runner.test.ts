@@ -572,3 +572,21 @@ it('rethrows the open error of an unreadable report exactly at the per-report bo
     rmSync(root, { recursive: true, force: true });
   }
 });
+it('rethrows the open error of an unreadable report that brings the running total exactly to its bound', () => {
+  // Root reads a file whatever its mode, and Windows has no such mode.
+  if (process.platform === 'win32' || process.getuid?.() === 0) return;
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+  try {
+    mkdirSync(resolve(root, 'a'));
+    mkdirSync(resolve(root, 'b'));
+    writeFileSync(resolve(root, 'a/evidence.json'), JSON.stringify('x'.repeat(399998))); // 400000 bytes, read
+    writeFileSync(resolve(root, 'b/evidence.json'), ' '.repeat(400000)); // the total is then exactly 800000
+    chmodSync(resolve(root, 'b/evidence.json'), 0o000);
+    const omissions: string[] = [];
+    expect(() => evidenceFiles(root, omissions)).toThrow(/^EACCES: permission denied, open /);
+    expect(omissions).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
