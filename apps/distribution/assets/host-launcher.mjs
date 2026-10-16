@@ -51,14 +51,18 @@ try {
   let count = 0,
     total = 0,
     entries = 0;
-  // What the walk does with a file, from its stat (bigint): a link, a special file or a second link refuses; the
-  // launcher's own files and unpinned platform files are skipped (false); an unpinned, resized or over-budget file
-  // refuses; any other file is read and hashed (true).
+  // The launcher's own files, and unpinned platform files, which the walk never reads.
+  const skipped = (rel, name, file) =>
+    rel === 'inventory.json' ||
+    rel === 'scripts/ia.mjs' ||
+    rel === 'release.json' ||
+    (!file && (name === '.DS_Store' || name.startsWith('._')));
+  // What the walk does with a file, from its stat (bigint): a link, a special file or a second link refuses; a skipped
+  // file is skipped (false); an unpinned, resized or over-budget file refuses; any other file is read and hashed (true).
   const judge = (stat, rel, name, file) => {
     if (stat.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
     if (!stat.isFile() || stat.nlink !== 1n) throw Error('Plugin cache file is aliased');
-    if (rel === 'inventory.json' || rel === 'scripts/ia.mjs' || rel === 'release.json') return false;
-    if (!file && (name === '.DS_Store' || name.startsWith('._'))) return false;
+    if (skipped(rel, name, file)) return false;
     if (
       !file ||
       !Number.isSafeInteger(file.bytes) ||
@@ -68,7 +72,14 @@ try {
       throw Error('Plugin cache payload differs: ' + rel);
     return true;
   };
-  // The lstat (bigint) of `path`, or undefined once it is gone.
+  // An entry its listed name no longer reaches: removed since its directory was read, or listed under a name that is not
+  // UTF-8, which Node decodes lossily on Linux. It is never admitted: a pinned one is left uncounted, so it is missing
+  // (false), and any other, one the walk would skip included, is no file the inventory pins.
+  const gone = (rel, file) => {
+    if (file) return false;
+    throw Error('Plugin cache payload differs: ' + rel);
+  };
+  // The lstat (bigint) of `path`, or undefined once its name reaches nothing.
   const named = (path) => {
     try {
       return lstatSync(path, { bigint: true });
@@ -80,21 +91,24 @@ try {
   // Whether the file entry at `rel` is pinned and verified. It is opened before it is judged, so the file judged is the
   // file hashed (CodeQL js/file-system-race): never through a link where the platform refuses one at the open, never
   // waiting on a FIFO, read through that descriptor at most one byte past its pinned size, and still the file at `rel`
-  // afterwards, which on Windows, without either open flag, is the one check of a link swapped in after the listing. An
-  // entry gone since its directory was read is left uncounted, as one never listed would be, so no system error names it.
+  // afterwards, which on Windows, without either open flag, is the one check of a link swapped in after the listing.
   const verified = (rel, name, file) => {
     const full = join(root, rel);
     let fd;
     try {
       fd = openSync(full, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
     } catch (error) {
-      // Judged by its name, as before the walk opened files: a link the open refused (ELOOP; EMLINK on FreeBSD), a socket
-      // or a directory Windows will not open keeps its refusal, and only a file the walk would read rethrows its error.
-      const stat = named(full);
-      if (!stat) return false;
+      // No system error is printed but that of a pinned file the walk may not read (EACCES, EPERM), as before. A name that
+      // reaches nothing is gone, and a link the open refused (ELOOP; EMLINK on FreeBSD) is refused as one. Anything else is
+      // judged by its name, as before the walk opened files (Windows may refuse to open a directory), and a pinned file
+      // some other failure kept from opening changed between the open and the lstat.
+      if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return gone(rel, file);
       if (error.code === 'ELOOP' || error.code === 'EMLINK') throw Error('Plugin cache links are unsupported');
-      if (judge(stat, rel, name, file)) throw error;
-      return false;
+      const stat = named(full);
+      if (!stat) return gone(rel, file);
+      if (!judge(stat, rel, name, file)) return false;
+      if (error.code === 'EACCES' || error.code === 'EPERM') throw error;
+      throw Error('Plugin cache payload differs: ' + rel);
     }
     try {
       const opened = fstatSync(fd, { bigint: true });
@@ -108,7 +122,7 @@ try {
       }
       const after = fstatSync(fd, { bigint: true }),
         stat = named(full);
-      if (!stat) return false;
+      if (!stat) return gone(rel, file);
       if (stat.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
       if (!stat.isFile() || stat.nlink !== 1n) throw Error('Plugin cache file is aliased');
       if (
@@ -128,15 +142,30 @@ try {
   };
   const visit = (path = '', depth = 0) => {
     if (depth > 32) throw Error('Plugin cache directory depth exceeds 32');
-    for (const entry of readdirSync(join(root, path), { withFileTypes: true })) {
+    let listed;
+    try {
+      listed = readdirSync(join(root, path), { withFileTypes: true });
+    } catch (error) {
+      // A directory its listed name no longer reaches is no part of the payload.
+      if (path && (error.code === 'ENOENT' || error.code === 'ENOTDIR'))
+        throw Error('Plugin cache payload differs: ' + path);
+      throw error;
+    }
+    for (const entry of listed) {
       if (++entries > 20000) throw Error('Plugin cache filesystem inventory exceeds its bound');
       const name = entry.name,
-        rel = path ? path + '/' + name : name;
-      // A link or a special file is refused from its directory entry, before anything is opened.
-      if (entry.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
-      if (entry.isDirectory()) visit(rel, depth + 1);
-      else if (!entry.isFile()) throw Error('Plugin cache file is aliased');
-      else if (verified(rel, name, expected.get(rel))) count++;
+        rel = path ? path + '/' + name : name,
+        file = expected.get(rel);
+      // A special file is refused from its directory entry, before anything is opened. Windows lists every reparse point
+      // as a link, so a listed link is confirmed by its lstat, as the walk judged every entry before it opened files: only
+      // a real link refuses, a placeholder or deduplicated entry is judged by the type its lstat gives, and a file is still
+      // judged by the descriptor it is read through.
+      const kind = entry.isSymbolicLink() ? named(join(root, rel)) : entry;
+      if (!kind) gone(rel, file);
+      else if (kind.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
+      else if (kind.isDirectory()) visit(rel, depth + 1);
+      else if (!kind.isFile()) throw Error('Plugin cache file is aliased');
+      else if (verified(rel, name, file)) count++;
     }
   };
   visit();

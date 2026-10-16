@@ -16,7 +16,7 @@ import {
 } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { pathToFileURL } from 'node:url';
 import { runBounded } from '@tools/testing/subprocess.js';
@@ -24,25 +24,55 @@ import { installedDistributionDigest } from '../src/inventory.js';
 import { RACE_PRELOAD, type Race } from './race-fixture.js';
 
 /**
- * A pass-through `node:fs` with one hook on `target`: `beforeOpen` runs once just before it is opened, and `afterRead` once
- * just after the first read through a descriptor opened on it, so a test changes an entry between two of the reader's own
- * calls. Every other path behaves exactly as usual.
+ * A pass-through `node:fs` with one hook on `target`: `beforeOpen`, `beforeLstat` and `beforeList` run once just before it
+ * is opened, lstat'd or listed as a directory, and `afterRead` once just after the first read through a descriptor opened
+ * on it, so a test changes an entry between two of the reader's own calls. `linked` lists the named entries of a directory
+ * as links whatever they are, as Windows lists every reparse point. Every other path behaves exactly as usual.
  */
 const race = vi.hoisted(() => ({
   target: undefined as string | undefined,
   beforeOpen: undefined as (() => void) | undefined,
+  beforeLstat: undefined as (() => void) | undefined,
+  beforeList: undefined as (() => void) | undefined,
   afterRead: undefined as (() => void) | undefined,
+  linked: undefined as { readonly directory: string; readonly names: readonly string[] } | undefined,
   opened: new Set<number>(),
 }));
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
-  const fire = (step: 'beforeOpen' | 'afterRead') => {
+  const fire = (step: 'beforeOpen' | 'beforeLstat' | 'beforeList' | 'afterRead') => {
     const act = race[step];
     race[step] = undefined;
     act?.();
   };
+  const link = (entry: { name: string }) => ({
+    ...entry,
+    isSymbolicLink: () => true,
+    isDirectory: () => false,
+    isFile: () => false,
+    isFIFO: () => false,
+    isSocket: () => false,
+    isBlockDevice: () => false,
+    isCharacterDevice: () => false,
+  });
   return {
     ...actual,
+    lstatSync: (path: unknown, ...rest: unknown[]) => {
+      if (String(path) === race.target) fire('beforeLstat');
+      return (actual.lstatSync as (path: unknown, ...rest: unknown[]) => unknown)(path, ...rest);
+    },
+    readdirSync: (path: unknown, ...rest: unknown[]) => {
+      const directory = String(path);
+      if (directory === race.target) fire('beforeList');
+      const entries = (actual.readdirSync as (path: unknown, ...rest: unknown[]) => unknown[])(path, ...rest),
+        linked = race.linked;
+      if (linked?.directory !== directory) return entries;
+      return entries.map((entry) =>
+        typeof entry === 'object' && linked.names.includes((entry as { name: string }).name)
+          ? link(entry as { name: string })
+          : entry,
+      );
+    },
     openSync: (...args: Parameters<typeof actual.openSync>) => {
       const target = String(args[0]) === race.target;
       if (target) fire('beforeOpen');
@@ -98,7 +128,7 @@ const POSIX = process.platform !== 'win32';
 const REFUSED = { code: undefined, message: 'Installed distribution runtime is missing, mixed or aliased' };
 const roots: string[] = [];
 afterEach(() => {
-  race.target = race.beforeOpen = race.afterRead = undefined;
+  race.target = race.beforeOpen = race.beforeLstat = race.beforeList = race.afterRead = race.linked = undefined;
   race.opened.clear();
   for (const root of roots.splice(0)) {
     if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe inventory cleanup');
@@ -368,4 +398,52 @@ it('the inventory refuses a runtime module replaced by a FIFO before the open at
     timedOut: false,
     stdout: REFUSED.message,
   });
+});
+/**
+ * An entry its listed name no longer reaches, removed once it was listed or (on Linux) listed under a name that is not
+ * UTF-8, refuses, though no file that is not a runtime module is ever read.
+ */
+it('the inventory refuses a file that is no runtime module removed before its lstat', () => {
+  const root = runtime(),
+    notes = join(root, 'notes.md');
+  writeFileSync(notes, 'Notes.\n');
+  race.target = notes;
+  race.beforeLstat = () => unlinkSync(notes);
+  expect(inventory(root)).toEqual(REFUSED);
+});
+it('the inventory refuses a directory removed before it is listed', () => {
+  const root = runtime(),
+    nested = join(root, 'nested');
+  mkdirSync(nested);
+  writeFileSync(join(nested, 'helper.js'), '// Helper.\n');
+  race.target = nested;
+  race.beforeList = () => renameSync(nested, join(temporary(), 'nested'));
+  expect(inventory(root)).toEqual(REFUSED);
+});
+it('the inventory refuses a file that is no runtime module, named in bytes that are not UTF-8 (Linux)', () => {
+  if (process.platform !== 'linux') return;
+  const root = runtime(),
+    raw = Buffer.concat([Buffer.from(root + sep), Buffer.from([0xff]), Buffer.from('.md')]);
+  writeFileSync(raw, 'Notes.\n');
+  try {
+    // Node lists the name lossily, so the name it gives reaches nothing.
+    expect(inventory(root)).toEqual(REFUSED);
+  } finally {
+    unlinkSync(raw);
+  }
+});
+/**
+ * Windows lists every reparse point as a link, a cloud placeholder or deduplicated file included, while its lstat calls
+ * only a real link one. A listed link is confirmed by its lstat, so a runtime module, another file or a directory its
+ * listing calls a link is inventoried as before, and a real link is still refused.
+ */
+it('the inventory admits a file or directory its listing calls a link', () => {
+  const root = runtime();
+  mkdirSync(join(root, 'nested'));
+  writeFileSync(join(root, 'nested', 'helper.js'), '// Helper.\n');
+  writeFileSync(join(root, 'notes.md'), 'Notes.\n');
+  const before = inventory(root);
+  expect(before).toEqual({ digest: expect.stringMatching(/^[a-f0-9]{64}$/) });
+  race.linked = { directory: root, names: ['archive.js', 'notes.md', 'nested'] };
+  expect(inventory(root)).toEqual(before);
 });

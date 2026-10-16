@@ -17,7 +17,7 @@ import {
 } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, expect, it } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
@@ -570,7 +570,7 @@ async function raced(selected: Cache, race: Race) {
         ...process.env,
         NODE_OPTIONS: '',
         NODE_PATH: '',
-        IA_TEST_RACE: JSON.stringify({ ...race, target: selected.module }),
+        IA_TEST_RACE: JSON.stringify({ target: selected.module, ...race }),
       },
     },
   );
@@ -606,6 +606,16 @@ it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
     'grown by a byte after its first read',
     (s) => ({ at: 'read', steps: [['appendFileSync', s.module, ' ']] }),
     `Plugin cache payload differs: ${MODULE}`,
+  ],
+  [
+    // The open fails for want of the file and the file is back before it is judged: it is gone, so missing, and the
+    // open's error is never printed.
+    'moved away for its open and back before it is judged',
+    (s) => {
+      const moved = join(outside(), 'context.js');
+      return { at: 'open', steps: [['renameSync', s.module, moved]], failed: [['renameSync', moved, s.module]] };
+    },
+    'Plugin cache payload is missing',
   ],
 ])('verify refuses a pinned module %s', async (_, arrange, message) => {
   const selected = cache(),
@@ -699,4 +709,96 @@ it('verify refuses a pinned module replaced by a UNIX socket before the open (PO
   } finally {
     server.close();
   }
+});
+it('verify refuses a pinned module replaced by a UNIX socket for its open and restored before it is judged (POSIX)', async () => {
+  if (!POSIX) return;
+  const selected = cache(),
+    bound = join(outside(), 's'),
+    moved = join(outside(), 'context.js'),
+    server = createServer();
+  server.listen(bound);
+  await once(server, 'listening');
+  try {
+    // The open fails on the socket, and the pinned file is back before it is judged: it changed between the two calls,
+    // so it refuses as a changed payload, not with the socket's system error.
+    const race: Race = {
+      at: 'open',
+      steps: [
+        ['renameSync', selected.module, moved],
+        ['renameSync', bound, selected.module],
+      ],
+      failed: [
+        ['unlinkSync', selected.module],
+        ['renameSync', moved, selected.module],
+      ],
+    };
+    expect(await raced(selected, race)).toEqual({
+      timedOut: false,
+      ...refused(`Plugin cache payload differs: ${MODULE}`),
+    });
+  } finally {
+    server.close();
+  }
+});
+/**
+ * An entry its listed name no longer reaches, removed once it was listed or (on Linux) listed under a name that is not
+ * UTF-8, is never admitted: missing when pinned, and otherwise refused as a file the inventory does not pin, one the walk
+ * would skip included.
+ */
+it.each<[string, (selected: Cache) => Race, unknown]>([
+  [
+    'an unpinned file removed before its open',
+    (s) => {
+      const extra = join(s.root, 'runtime', 'extra.txt');
+      writeFileSync(extra, 'not pinned');
+      return { target: extra, at: 'open', steps: [['unlinkSync', extra]] };
+    },
+    refused('Plugin cache payload differs: runtime/extra.txt'),
+  ],
+  [
+    'an unpinned .DS_Store removed before its open',
+    (s) => {
+      const debris = join(s.root, 'runtime', '.DS_Store');
+      writeFileSync(debris, 'written by the platform');
+      return { target: debris, at: 'open', steps: [['unlinkSync', debris]] };
+    },
+    refused('Plugin cache payload differs: runtime/.DS_Store'),
+  ],
+  [
+    'a directory removed before it is listed',
+    (s) => {
+      const dist = dirname(s.module);
+      return { target: dist, at: 'list', steps: [['renameSync', dist, join(outside(), 'dist')]] };
+    },
+    refused(`Plugin cache payload differs: ${dirname(MODULE)}`),
+  ],
+])('verify answers for %s while it walks', async (_, arrange, expected) => {
+  const selected = cache();
+  expect(await raced(selected, arrange(selected))).toEqual({ timedOut: false, ...(expected as object) });
+});
+it('verify refuses an unpinned file whose name is not UTF-8 (Linux)', async () => {
+  if (process.platform !== 'linux') return;
+  const selected = cache(),
+    raw = Buffer.concat([Buffer.from(join(selected.root, 'runtime') + sep), Buffer.from([0xff]), Buffer.from('.txt')]);
+  writeFileSync(raw, 'not pinned');
+  try {
+    // Node lists the name lossily, so the name it gives reaches nothing.
+    expect(await verdict(selected)).toEqual(
+      refused(`Plugin cache payload differs: runtime/${Buffer.from([0xff]).toString('utf8')}.txt`),
+    );
+  } finally {
+    unlinkSync(raw);
+  }
+});
+/**
+ * Windows lists every reparse point as a link, a cloud placeholder or deduplicated file included, while its lstat calls
+ * only a real link one. A listed link is confirmed by its lstat, as the walk judged every entry before it opened files, so
+ * a file or directory its listing calls a link is admitted, and a real link is still refused.
+ */
+it.each<[string, (selected: Cache) => Race]>([
+  ['a pinned file', (s) => ({ linked: { directory: dirname(s.module), names: [basename(s.module)] } })],
+  ['a directory on the way to a pinned file', (s) => ({ linked: { directory: s.root, names: ['runtime'] } })],
+])('verify admits %s that its listing calls a link', async (_, arrange) => {
+  const selected = cache();
+  expect(await raced(selected, arrange(selected))).toEqual({ timedOut: false, ...VERIFIED });
 });

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readdirSync, readSync, realpathSync } from 'node:fs';
-import type { BigIntStats } from 'node:fs';
+import type { BigIntStats, Stats } from 'node:fs';
 import { isAbsolute, parse, relative, resolve, sep } from 'node:path';
 import { unaliased } from '@inventarch/db';
 import { metadataDigest } from '@inventarch/db/distribution';
@@ -10,6 +10,27 @@ const runtime = /\.(?:[cm]?[jt]sx?|json|node|wasm)$/;
 const declaration = /\.d\.[cm]?ts$/;
 function refuse(): never {
   throw new Error('Installed distribution runtime is missing, mixed or aliased');
+}
+/** A name that reaches nothing: removed once it was listed, or listed under a name that is not UTF-8, which Node decodes lossily on Linux. */
+const unreached = (error: unknown): boolean =>
+  ['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '');
+/** The entries of `directory`; a directory its listed name no longer reaches refuses. */
+function listed(directory: string) {
+  try {
+    return readdirSync(directory, { withFileTypes: true });
+  } catch (error) {
+    if (unreached(error)) return refuse();
+    throw error;
+  }
+}
+/** The lstat of `path`, which is never opened; a name that no longer reaches an entry refuses. */
+function present(path: string): Stats {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    if (unreached(error)) return refuse();
+    throw error;
+  }
 }
 /**
  * The bytes of the runtime file at `path`. It is opened before it is judged, so the file judged is the file hashed (CodeQL
@@ -73,17 +94,20 @@ export function installedDistributionDigest(root = import.meta.dirname): string 
   const files: { path: string; sha256: string }[] = [],
     names = new Set<string>();
   function visit(directory: string): void {
-    // Entries are judged by their directory entry, and a runtime file again by the file opened to hash it.
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    for (const entry of listed(directory)) {
       const absolute = resolve(directory, entry.name),
         path = relative(root, absolute).replaceAll('\\', '/'),
-        key = path.toLowerCase();
-      if (names.has(key) || entry.isSymbolicLink() || path.normalize('NFC') !== path) return refuse();
+        key = path.toLowerCase(),
+        hashed = runtime.test(entry.name) && !declaration.test(entry.name),
+        // A runtime file is judged by the descriptor it is hashed through. A listed link is confirmed by its lstat, since
+        // Windows lists every reparse point as a link, so only a real link refuses, as before; and so is a file never
+        // read, so a name that no longer reaches it refuses rather than passing unread.
+        kind = entry.isSymbolicLink() || (entry.isFile() && !hashed) ? present(absolute) : entry;
+      if (names.has(key) || kind.isSymbolicLink() || path.normalize('NFC') !== path) return refuse();
       names.add(key);
-      if (entry.isDirectory()) visit(absolute);
-      else if (!entry.isFile()) refuse();
-      else if (runtime.test(entry.name) && !declaration.test(entry.name))
-        files.push({ path, sha256: createHash('sha256').update(runtimeBytes(absolute)).digest('hex') });
+      if (kind.isDirectory()) visit(absolute);
+      else if (!kind.isFile()) refuse();
+      else if (hashed) files.push({ path, sha256: createHash('sha256').update(runtimeBytes(absolute)).digest('hex') });
     }
   }
   visit(root);
