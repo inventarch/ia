@@ -79,12 +79,14 @@ try {
     if (file) return false;
     throw Error('Plugin cache payload differs: ' + rel);
   };
-  // The lstat (bigint) of `path`, or undefined once its name reaches nothing.
+  // The lstat (bigint) of `path`, or undefined once its name reaches nothing. Every directory on the way was listed as
+  // one, so a loop on the way (ELOOP) is a link swapped in since.
   const named = (path) => {
     try {
       return lstatSync(path, { bigint: true });
     } catch (error) {
       if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return undefined;
+      if (error.code === 'ELOOP') throw Error('Plugin cache links are unsupported');
       throw error;
     }
   };
@@ -147,9 +149,11 @@ try {
     try {
       listed = readdirSync(join(root, path), { withFileTypes: true });
     } catch (error) {
-      // A directory its listed name no longer reaches is no part of the payload.
+      // A directory its listed name no longer reaches is no part of the payload. It and every directory on its way were
+      // listed as directories (the root resolved), so one that loops (ELOOP) is a link swapped in since.
       if (path && (error.code === 'ENOENT' || error.code === 'ENOTDIR'))
         throw Error('Plugin cache payload differs: ' + path);
+      if (error.code === 'ELOOP') throw Error('Plugin cache links are unsupported');
       throw error;
     }
     for (const entry of listed) {

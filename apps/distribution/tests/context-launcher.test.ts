@@ -680,6 +680,37 @@ it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
     `Plugin cache payload differs: ${MODULE}`,
   ],
   [
+    // Every directory on the way was listed as one, so a loop there is a link swapped in, refused as one rather than
+    // with the system error ELOOP.
+    'whose directory is replaced by a link to itself before it is listed',
+    (s) => {
+      const dist = dirname(s.module);
+      return {
+        target: dist,
+        at: 'list',
+        steps: [
+          ['renameSync', dist, join(outside(), 'dist')],
+          ['symlinkSync', dist, dist],
+        ],
+      };
+    },
+    'Plugin cache links are unsupported',
+  ],
+  [
+    'whose directory is replaced by a link to itself after its first read',
+    (s) => {
+      const dist = dirname(s.module);
+      return {
+        at: 'read',
+        steps: [
+          ['renameSync', dist, join(outside(), 'dist')],
+          ['symlinkSync', dist, dist],
+        ],
+      };
+    },
+    'Plugin cache links are unsupported',
+  ],
+  [
     'given a second link after its first read',
     (s) => ({ at: 'read', steps: [['linkSync', s.module, join(outside(), 'context.js')]] }),
     'Plugin cache file is aliased',
