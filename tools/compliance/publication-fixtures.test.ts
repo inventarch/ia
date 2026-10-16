@@ -1,12 +1,17 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import fs, { appendFileSync, chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { PUBLICATION_CODES } from '../../packages/runtime/src/index.js';
 import { runBounded } from '../testing/subprocess.js';
 import { contents, publicationFixtureCodes, runPublicationFixtures } from './publication-fixtures.js';
 
 const base64 = (text: string): string => Buffer.from(text).toString('base64');
+afterEach(() => {
+  vi.restoreAllMocks();
+  syncBuiltinESMExports();
+});
 
 it('snapshots each regular file by its bytes and every other entry, a link included, as null', async () => {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-publication-snapshot-'));
@@ -89,3 +94,49 @@ it.skipIf(process.platform !== 'win32')(
     expect(publicationFixtureCodes()).toEqual(PUBLICATION_CODES);
   },
 );
+
+it('records a link as null even where the open follows links, as it does on Windows', () => {
+  // File links need a privilege on Windows, so the POSIX open is made to follow a final link as Windows opens one.
+  if (process.platform === 'win32') return;
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-publication-snapshot-'));
+  try {
+    writeFileSync(resolve(root, 'file.txt'), 'file bytes');
+    symlinkSync('file.txt', resolve(root, 'link'));
+    const open = fs.openSync;
+    const following = vi
+      .spyOn(fs, 'openSync')
+      .mockImplementation((path, flags, mode) =>
+        open(path, typeof flags === 'number' ? flags & ~fs.constants.O_NOFOLLOW : flags, mode),
+      );
+    syncBuiltinESMExports();
+    expect(JSON.parse(contents(root))).toEqual([
+      ['file.txt', base64('file bytes')],
+      ['link', null],
+    ]);
+    expect(following).toHaveBeenCalled();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('refuses a snapshot entry that grows while it is read instead of recording the larger bytes', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-publication-snapshot-'));
+  try {
+    const file = resolve(root, 'growing.txt');
+    writeFileSync(file, 'first bytes');
+    const read = fs.readSync;
+    let grown = false;
+    vi.spyOn(fs, 'readSync').mockImplementation((...args: Parameters<typeof fs.readSync>) => {
+      if (!grown) {
+        grown = true;
+        appendFileSync(file, ' and more');
+      }
+      return Reflect.apply(read, fs, args) as number;
+    });
+    syncBuiltinESMExports();
+    expect(() => contents(root)).toThrow(/^Publication fixture entry changed while it was read: .*growing\.txt$/);
+    expect(grown).toBe(true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

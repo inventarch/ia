@@ -6,7 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
-  readFileSync,
+  readSync,
   readdirSync,
   rmSync,
   writeFileSync,
@@ -25,7 +25,8 @@ export function publicationFixtureCodes(): readonly string[] {
 }
 /**
  * A snapshot of every entry under `root`: a regular file's bytes in base64, null for anything else, a link included. Each
- * file is opened before it is judged, so the judgment and the read are of one file (CodeQL js/file-system-race).
+ * file is opened before it is judged, so the judgment and the read are of one file (CodeQL js/file-system-race), and its
+ * name is checked again after the read.
  */
 export function contents(root: string): string {
   return JSON.stringify(
@@ -45,7 +46,30 @@ function fileBytes(file: string): string | null {
     throw error;
   }
   try {
-    return fstatSync(fd).isFile() ? readFileSync(fd).toString('base64') : null;
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) return null;
+    // Read at most one byte past the opened size, so a file that grows while it is read is caught below.
+    const bytes = Buffer.alloc(Number(opened.size) + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = readSync(fd, bytes, length, bytes.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    // Windows has no O_NOFOLLOW and opens through a link, whose name still lstats as the link: null, as for any link.
+    const named = lstatSync(file, { bigint: true }),
+      after = fstatSync(fd, { bigint: true });
+    if (named.isSymbolicLink()) return null;
+    if (
+      !named.isFile() ||
+      named.dev !== opened.dev ||
+      named.ino !== opened.ino ||
+      after.size !== opened.size ||
+      after.mtimeNs !== opened.mtimeNs ||
+      BigInt(length) !== opened.size
+    )
+      throw new Error(`Publication fixture entry changed while it was read: ${file}`);
+    return bytes.subarray(0, length).toString('base64');
   } finally {
     closeSync(fd);
   }
