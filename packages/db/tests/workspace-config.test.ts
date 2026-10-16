@@ -2,9 +2,11 @@ import { createHash } from 'node:crypto';
 import {
   appendFileSync,
   chmodSync,
+  closeSync,
   cpSync,
   existsSync,
   linkSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readSync,
@@ -17,14 +19,31 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
 import { adoptedBindings, open, readInputs, sourceTree } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
-import { blockingOpens, directoryBecomesFile, fifo, outcome, socket } from './file-races.js';
+import {
+  blockingOpens,
+  descriptors,
+  directoryBecomesFile,
+  fifo,
+  otherDevice,
+  outcome,
+  socket,
+  vanishAtRecheck,
+} from './file-races.js';
 import { put, workspace } from './workspace.js';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
-  return { ...actual, openSync: vi.fn(actual.openSync), readSync: vi.fn(actual.readSync) };
+  return {
+    ...actual,
+    closeSync: vi.fn(actual.closeSync),
+    lstatSync: vi.fn(actual.lstatSync),
+    openSync: vi.fn(actual.openSync),
+    readSync: vi.fn(actual.readSync),
+  };
 });
 afterEach(() => {
+  vi.mocked(closeSync).mockReset();
+  vi.mocked(lstatSync).mockReset();
   vi.mocked(openSync).mockReset();
   vi.mocked(readSync).mockReset();
 });
@@ -371,3 +390,28 @@ it.skipIf(process.platform === 'win32')(
     expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
   },
 );
+it('refuses a manifest whose name names nothing, or another device, after the read', async () => {
+  const text = JSON.stringify({ version: 1, adopted: [] });
+  const gone = workspace(false);
+  put(gone, MANIFEST, text);
+  await vanishAtRecheck(resolve(gone, MANIFEST));
+  expect(outcome(() => adoptedBindings(gone))).toMatchObject(irregular);
+  const elsewhere = workspace(false);
+  put(elsewhere, MANIFEST, text);
+  await otherDevice(resolve(elsewhere, MANIFEST));
+  expect(outcome(() => adoptedBindings(elsewhere))).toMatchObject(irregular);
+});
+it('closes the manifest it opens, when it reads it and when it refuses it', async () => {
+  const root = workspace(false),
+    manifest = resolve(root, MANIFEST);
+  put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [] }));
+  const opened = await descriptors(manifest);
+  vi.mocked(closeSync).mockClear();
+  expect(outcome(() => adoptedBindings(root))).toEqual([]);
+  expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
+  put(root, MANIFEST, ' '.repeat(65_537));
+  vi.mocked(closeSync).mockClear();
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+  expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
+  expect(opened).toHaveLength(2);
+});

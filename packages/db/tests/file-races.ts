@@ -1,5 +1,5 @@
 import { once } from 'node:events';
-import { mkdirSync, openSync, readSync, renameSync } from 'node:fs';
+import { lstatSync, mkdirSync, openSync, readSync, renameSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { expect, vi } from 'vitest';
@@ -72,4 +72,36 @@ export const directoryBecomesFile = async (directory: string): Promise<void> => 
     }
     return count;
   });
+};
+/** Whether an lstat call asks for full-width stats, as the readers' own lstat of a name after its read does. */
+const fullWidth = (args: Parameters<typeof lstatSync>): boolean =>
+  (args[1] as { bigint?: boolean } | undefined)?.bigint === true;
+/** Removes `file` just before the reader's own full-width lstat of it: the recheck after its read. */
+export const vanishAtRecheck = async (file: string): Promise<void> => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  vi.mocked(lstatSync).mockImplementation((...args: Parameters<typeof lstatSync>) => {
+    if (String(args[0]) === file && fullWidth(args) && actual.existsSync(file)) actual.rmSync(file);
+    return actual.lstatSync(...args);
+  });
+};
+/** Reports another device, the inode unchanged, at every full-width lstat of `file`. */
+export const otherDevice = async (file: string): Promise<void> => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  vi.mocked(lstatSync).mockImplementation((...args: Parameters<typeof lstatSync>) => {
+    const stat = actual.lstatSync(...args);
+    return String(args[0]) === file && typeof stat?.dev === 'bigint'
+      ? Object.assign(stat, { dev: stat.dev + 1n })
+      : stat;
+  });
+};
+/** The descriptors opened for `file`, in order, as it is opened. */
+export const descriptors = async (file: string): Promise<readonly number[]> => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs'),
+    opened: number[] = [];
+  vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+    const fd = actual.openSync(...args);
+    if (String(args[0]) === file) opened.push(fd);
+    return fd;
+  });
+  return opened;
 };

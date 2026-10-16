@@ -16,6 +16,7 @@ import {
   realpathSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -36,7 +37,16 @@ import {
 } from '../src/index.js';
 import type { InputSnapshot } from '../src/index.js';
 import { readInstalledGeneration } from '../src/distribution/index.js';
-import { blockingOpens, directoryBecomesFile, fifo, outcome, socket } from './file-races.js';
+import {
+  blockingOpens,
+  descriptors,
+  directoryBecomesFile,
+  fifo,
+  otherDevice,
+  outcome,
+  socket,
+  vanishAtRecheck,
+} from './file-races.js';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -710,6 +720,32 @@ it.skipIf(process.platform === 'win32')(
     expect(installation(root)).toMatchObject(unaliasedState);
   },
 );
+it('refuses installation state whose name names nothing, or another device, after the read', async () => {
+  const gone = workspace();
+  put(gone, PENDING, '{}');
+  await vanishAtRecheck(resolve(gone, PENDING));
+  expect(installation(gone)).toMatchObject(unaliasedState);
+  const elsewhere = workspace();
+  put(elsewhere, PENDING, '{}');
+  await otherDevice(resolve(elsewhere, PENDING));
+  expect(installation(elsewhere)).toMatchObject(unaliasedState);
+});
+it('closes the installation file it opens, when it reads it and when it refuses it', async () => {
+  const root = workspace(),
+    state = resolve(root, PENDING);
+  put(root, PENDING, '{}');
+  const opened = await descriptors(state);
+  vi.mocked(closeSync).mockClear();
+  expect(installation(root)).toMatchObject(
+    distribution('recovery-required', 'Run explicit distribution recovery before reading'),
+  );
+  expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
+  linkSync(state, resolve(root, 'second.json'));
+  vi.mocked(closeSync).mockClear();
+  expect(installation(root)).toMatchObject(unaliasedState);
+  expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
+  expect(opened).toHaveLength(2);
+});
 
 // Authored package source capture (`readInputs` with `authoredRoots`).
 const PACKAGE = 'packages/example',
@@ -912,3 +948,48 @@ it.skipIf(process.platform === 'win32')(
     });
   },
 );
+it('refuses a package source whose name names nothing, or another device, after the read', async () => {
+  const replaced = {
+    code: 'IA-DB-SOURCE-CHANGED',
+    message: `IA-DB-SOURCE-CHANGED: Package source replaced during read: ${SOURCE}`,
+  };
+  const gone = packageWorkspace();
+  await vanishAtRecheck(resolve(gone, SOURCE));
+  expect(captured(gone)).toMatchObject(replaced);
+  const elsewhere = packageWorkspace();
+  await otherDevice(resolve(elsewhere, SOURCE));
+  expect(captured(elsewhere)).toMatchObject(replaced);
+});
+it('closes each package source it opens, when it captures it and when it refuses it', async () => {
+  const root = packageWorkspace(),
+    file = resolve(root, SOURCE);
+  const opened = await descriptors(file);
+  vi.mocked(closeSync).mockClear();
+  expect(packaged(root)).toEqual([SOURCE]);
+  expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
+  linkSync(file, resolve(root, 'second.ia'));
+  vi.mocked(closeSync).mockClear();
+  expect(captured(root)).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    message: `IA-DB-PATH-UNSAFE: Hard-linked package source: ${SOURCE}`,
+  });
+  expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
+  expect(opened).toHaveLength(2);
+});
+it('refuses a package source rewritten in place with as many bytes while it is read, as changed', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = packageWorkspace(),
+    file = resolve(root, SOURCE);
+  // An old modification time, so the rewrite stamps another one whatever the clock's resolution.
+  utimesSync(file, new Date(2000, 0, 1), new Date(2000, 0, 1));
+  let calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    if (++calls === 1) actual.writeFileSync(file, '#! ia 2.0\n');
+    return count;
+  });
+  expect(captured(root)).toMatchObject({
+    code: 'IA-DB-SOURCE-CHANGED',
+    message: `IA-DB-SOURCE-CHANGED: Package source changed during read: ${SOURCE}`,
+  });
+});
