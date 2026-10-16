@@ -1,8 +1,18 @@
 import { createHash } from 'node:crypto';
-import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import fs, {
+  chmodSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { captureWorkspace } from '@inventarch/workspace-runtime';
 import {
   captureAuthoringManifest,
@@ -294,4 +304,43 @@ it('refuses an unreadable authoring file past either cap as unbounded before rea
   const full = library({ ...files, '.ia/src/guide/tail.md': 'x' });
   chmodSync(resolve(full, '.ia/src/guide/tail.md'), 0o000);
   expect(() => authoringResources(full)).toThrow(unbounded);
+});
+
+it('refuses an authoring file rewritten at the same size, within one millisecond, while it is read', () => {
+  const root = library({ '.ia/src/guide/README.md': '# Guide\n' }),
+    target = resolve(root, '.ia/src/guide/README.md');
+  // Two modification times in one millisecond: only a comparison at full precision tells them apart.
+  const before = 1_700_000_000.0001,
+    after = 1_700_000_000.0005;
+  fs.utimesSync(target, before, before);
+  const open = fs.openSync,
+    read = fs.readSync;
+  let selected: number | undefined,
+    rewritten = false;
+  const opening = vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+    const fd = Reflect.apply(open, fs, args) as number;
+    if (String(args[0]) === target) selected = fd;
+    return fd;
+  });
+  const reading = vi.spyOn(fs, 'readSync').mockImplementation((...args: Parameters<typeof fs.readSync>) => {
+    if (!rewritten && args[0] === selected) {
+      rewritten = true;
+      const was = fs.statSync(target, { bigint: true });
+      writeFileSync(target, '# GUIDE\n');
+      fs.utimesSync(target, after, after);
+      const now = fs.statSync(target, { bigint: true });
+      expect([now.mtimeMs, now.size]).toEqual([was.mtimeMs, was.size]);
+      expect(now.mtimeNs).not.toBe(was.mtimeNs);
+    }
+    return Reflect.apply(read, fs, args) as number;
+  });
+  syncBuiltinESMExports();
+  try {
+    expect(() => authoringResources(root)).toThrow(/^Authoring file changed during generation$/);
+    expect(rewritten).toBe(true);
+  } finally {
+    opening.mockRestore();
+    reading.mockRestore();
+    syncBuiltinESMExports();
+  }
 });

@@ -573,3 +573,19 @@ it('cancels the review it started once the deadline passes without a result', as
   expect(pauses).toEqual([3000, 3000, 3000]);
   expect(steps).toEqual([]);
 });
+it('rethrows the open error of an unreadable report exactly at the per-report bound', () => {
+  // Root reads a file whatever its mode, and Windows has no such mode.
+  if (process.platform === 'win32' || process.getuid?.() === 0) return;
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+  try {
+    mkdirSync(resolve(root, 'task'));
+    writeFileSync(resolve(root, 'task/evidence.json'), ' '.repeat(600000));
+    chmodSync(resolve(root, 'task/evidence.json'), 0o000);
+    const omissions: string[] = [];
+    expect(() => evidenceFiles(root, omissions)).toThrow(/^EACCES: permission denied, open /);
+    expect(omissions).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
