@@ -609,20 +609,25 @@ it('refuses the context ownership markers of a hosts directory reached through a
   expect(reason(root)).toBe('IA-HOOK-PATH-UNSAFE: Context ownership directory is aliased');
 });
 
-it('refuses a context ownership marker named in another case where the volume folds names, and ignores it elsewhere', () => {
+it('refuses a context ownership marker named in another case on a platform that folds names, and ignores it elsewhere', () => {
   const root = workspace();
   write(root, 'Claude-Guard-workspace.json', guardState(root));
   expect(reason(root)).toBe(process.platform === 'darwin' || process.platform === 'win32' ? UNSAFE_MARKER : undefined);
 });
 
-it('passes on the error of a context ownership marker it may not open', () => {
-  if (!posix || process.getuid?.() === 0) return;
-  const root = workspace(),
-    marker = resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json');
-  write(root, 'claude-guard-workspace.json', guardState(root));
-  chmodSync(marker, 0o000);
-  expect(reason(root)).toBe(`IA-HOOK-PATH-UNSAFE: EACCES: permission denied, open '${marker}'`);
-});
+it.each(['a context ownership marker', 'a 2 MiB pending journal'] as const)(
+  'passes on the error of %s it may not open',
+  (kind) => {
+    if (!posix || process.getuid?.() === 0) return;
+    const root = workspace(),
+      name = kind === 'a context ownership marker' ? 'claude-guard-workspace.json' : 'guard-pending.json',
+      marker = resolve(root, '.ia/distributions/hosts', name);
+    // A journal's bound is 8 MiB, so one of 2 MiB that cannot be opened keeps the open's error.
+    write(root, name, kind === 'a context ownership marker' ? guardState(root) : ' '.repeat(2 * 1024 * 1024));
+    chmodSync(marker, 0o000);
+    expect(reason(root)).toBe(`IA-HOOK-PATH-UNSAFE: EACCES: permission denied, open '${marker}'`);
+  },
+);
 
 it('refuses a context ownership marker removed between the listing and its read', () => {
   const root = workspace(),

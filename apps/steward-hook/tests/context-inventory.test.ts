@@ -3,6 +3,7 @@ import { runBounded } from '@tools/testing/subprocess.js';
 import {
   chmodSync,
   closeSync,
+  fstatSync,
   ftruncateSync,
   linkSync,
   mkdirSync,
@@ -312,13 +313,16 @@ it('refuses a code file replaced after it was opened', () => {
   const root = fixture(),
     path = join(root, 'policy.json');
   writeFileSync(path, '{"policy":1}');
-  seam.afterOpen = (opened) => {
-    if (opened !== resolve(path)) return;
+  let opened: number | undefined;
+  seam.afterOpen = (name, fd) => {
+    if (name !== resolve(path)) return;
     seam.afterOpen = undefined;
+    opened = fd;
     renameSync(path, join(root, 'policy.retained'));
     writeFileSync(path, '{"policy":1}');
   };
   expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
+  expect(() => fstatSync(opened!)).toThrow();
 });
 it('refuses a code file that grows while it is read, reading no more than its opened size and one byte', () => {
   const root = fixture(),
@@ -339,12 +343,14 @@ it('refuses a code file that grows while it is read, reading no more than its op
     message: 'Hook implementation changed while it was read',
   });
   expect(requested).toBe('{"policy":1}'.length + 1);
+  expect(() => fstatSync(opened!)).toThrow();
 });
 it('refuses a code file whose opened and named inode numbers collide as JavaScript numbers', () => {
   const root = fixture();
   seam.ino = { path: resolve(join(root, 'main.js')), opened: 2n ** 54n, named: 2n ** 54n + 1n };
   expect(Number(seam.ino.opened)).toBe(Number(seam.ino.named));
   expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
+  expect(() => fstatSync(seam.ino!.fd!)).toThrow();
 });
 it('refuses a code file rewritten at the same size while it is read', () => {
   const root = fixture(),
@@ -365,6 +371,7 @@ it('refuses a code file rewritten at the same size while it is read', () => {
     code: BINDING,
     message: 'Hook implementation changed while it was read',
   });
+  expect(() => fstatSync(opened!)).toThrow();
 });
 it('walks, reads or skips an entry the listing calls a link but lstat does not, as Windows lists a reparse point', () => {
   const root = fixture();
@@ -420,3 +427,13 @@ it.each(['removed', 'a FIFO', 'a socket', 'a link'] as const)(
     expect(seam.waited).toEqual([]);
   },
 );
+it('closes the descriptor of every code file it reads', () => {
+  const root = fixture(),
+    opened: number[] = [];
+  seam.afterOpen = (name, fd) => {
+    if (dirname(name) === resolve(root)) opened.push(fd);
+  };
+  expect(contextHookImplementationDigest(root)).toMatch(/^[a-f0-9]{64}$/);
+  expect(opened).toHaveLength(2);
+  for (const fd of opened) expect(() => fstatSync(fd)).toThrow();
+});
