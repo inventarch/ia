@@ -1,18 +1,23 @@
 import {
   closeSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   openSync,
   readFileSync,
   readdirSync,
+  readlinkSync,
   renameSync,
   rmSync,
+  statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { runBounded } from '@tools/testing/subprocess.js';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
   MARKETPLACE_DIR,
@@ -40,11 +45,14 @@ afterEach(() => {
     }
   }
 });
-// Every busy/failure test overrides renameSync and/or rmSync; put both back to a plain passthrough so later tests see the real filesystem.
+// Every busy/failure test overrides renameSync and/or rmSync, and the lock tests openSync or statSync; put each back to a plain passthrough so later tests see the real filesystem.
 afterEach(() => {
   vi.mocked(renameSync).mockImplementation((from, to) => real.renameSync(from as never, to as never));
   vi.mocked(rmSync).mockImplementation((path, options) => real.rmSync(path as never, options as never));
+  vi.mocked(openSync).mockImplementation((path, flags, mode) => real.openSync(path, flags, mode));
+  vi.mocked(statSync).mockImplementation(((path: never, options: never) => real.statSync(path, options)) as never);
 });
+const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
 const files = (version: string) => [
   { path: 'plugins/ia/.claude-plugin/plugin.json', text: JSON.stringify({ name: 'ia', version }) },
   {
@@ -442,4 +450,99 @@ it('takes over a lock whose pid died, that is over 10 minutes old, or whose pid 
   }
   // One comparison, so a changed verdict shows every case it moves, not only the first.
   expect(seen).toEqual(expected);
+});
+/** What a materialize did: the refusal it raised, as its code and message, or `materialized`. */
+function materialized(home: string): unknown {
+  try {
+    materializeMarketplace(home, files('0.1.0+aaa'));
+  } catch (error) {
+    return { code: (error as { code?: unknown }).code, message: (error as Error).message };
+  }
+  return 'materialized';
+}
+const heldBy = (lockPath: string) => ({
+  code: 'IA-DIST-INSTALL-BUSY',
+  message: `Another ia host --user run holds ${lockPath}; wait for it or delete the file if no run is active`,
+});
+// The race CodeQL js/file-system-race flags: another run takes the stale lock over just after this run first looks at
+// it, and writes its own. This run must judge only the file it looked at, and must not remove the lock now at its name.
+it('never removes a fresh lock that replaced the stale one it judged, and refuses INSTALL-BUSY', () => {
+  const root = temp(),
+    home = join(root, '.ia'),
+    lockPath = join(home, 'claude', '.lock');
+  mkdirSync(join(home, 'claude'), { recursive: true });
+  writeFileSync(lockPath, '999999'); // not a live pid in this test run
+  const past = new Date(Date.now() - 20 * 60_000);
+  utimesSync(lockPath, past, past);
+  let replaced = false,
+    fresh: bigint | undefined;
+  const replace = (path: unknown): void => {
+    if (replaced || String(path) !== lockPath) return;
+    replaced = true; // first: the real writeFileSync below opens through the openSync spy too
+    // Moved aside rather than removed, so its name is free on every platform while this run still holds it open.
+    real.renameSync(lockPath, join(root, 'judged.lock'));
+    real.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
+    fresh = real.statSync(lockPath, { bigint: true }).ino;
+  };
+  // Whichever call makes this run's first look at the held lock, the other run replaces it right after.
+  vi.mocked(openSync).mockImplementation((path, flags, mode) => {
+    const fd = real.openSync(path, flags, mode);
+    replace(path);
+    return fd;
+  });
+  vi.mocked(statSync).mockImplementation(((path: never, options: never) => {
+    const stats = real.statSync(path, options);
+    replace(path);
+    return stats;
+  }) as never);
+  const outcome = materialized(home);
+  expect(fresh).toBeDefined(); // the other run did replace the lock
+  expect(outcome).toEqual(heldBy(lockPath));
+  expect(real.statSync(lockPath, { bigint: true }).ino).toBe(fresh);
+  expect(readFileSync(lockPath, 'utf8')).toBe(String(process.pid));
+  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+});
+// The lock is only ever created as a regular file, so a link at its path was put there. Followed, this one would read as
+// a long-dead lock (a dead pid, 20 minutes old) and be removed.
+it('refuses INSTALL-BUSY for a linked lock, never opening through the link or changing it or its target', () => {
+  if (process.platform === 'win32') return; // a file symlink needs a privilege there; the replaced-lock case pins the identity check
+  const root = temp(),
+    home = join(root, '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    target = join(root, 'elsewhere.lock');
+  mkdirSync(join(home, 'claude'), { recursive: true });
+  writeFileSync(target, '999999'); // not a live pid in this test run
+  const past = new Date(Date.now() - 20 * 60_000);
+  utimesSync(target, past, past);
+  symlinkSync(target, lockPath);
+  const before = real.statSync(target, { bigint: true });
+  // While the link stands at the lock path, an open of that path that succeeds opens what the link names.
+  let opened = 0;
+  vi.mocked(openSync).mockImplementation((path, flags, mode) => {
+    const fd = real.openSync(path, flags, mode);
+    if (String(path) === lockPath) opened++;
+    return fd;
+  });
+  expect(materialized(home)).toEqual(heldBy(lockPath));
+  expect(opened).toBe(0);
+  expect(lstatSync(lockPath).isSymbolicLink()).toBe(true);
+  expect(readlinkSync(lockPath)).toBe(target);
+  const after = real.statSync(target, { bigint: true });
+  expect([after.ino, after.size, after.mtimeNs]).toEqual([before.ino, before.size, before.mtimeNs]);
+  expect(readFileSync(target, 'utf8')).toBe('999999');
+  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+});
+// A FIFO at the lock path hung the takeover's read until a writer came. It is judged by its type alone: never read,
+// never removed, though it is old enough that a regular file there would be taken over.
+it('refuses INSTALL-BUSY for a FIFO at the lock path without hanging, and leaves it in place', async () => {
+  if (process.platform === 'win32') return; // no FIFO can be created in a Windows directory
+  const home = join(temp(), '.ia'),
+    lockPath = join(home, 'claude', '.lock');
+  mkdirSync(join(home, 'claude'), { recursive: true });
+  expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
+  const past = new Date(Date.now() - 20 * 60_000);
+  utimesSync(lockPath, past, past);
+  expect(materialized(home)).toEqual(heldBy(lockPath));
+  expect(lstatSync(lockPath).isFIFO()).toBe(true);
+  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
 });

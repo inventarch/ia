@@ -1,14 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import {
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
+  readSync,
   readdirSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -66,7 +69,9 @@ function renameRetrying(from: string, to: string, contextDir: string): void {
 const LOCK_NAME = '.lock',
   LOCK_STALE_MS = 10 * 60 * 1000,
   LOCK_EMPTY_GRACE_MS = 10 * 1000,
-  LOCK_TAKEOVER_ATTEMPTS = 5;
+  LOCK_TAKEOVER_ATTEMPTS = 5,
+  /** A pid is at most 10 decimal digits on every platform; no more than this is read from a held lock. */
+  LOCK_PID_BYTES = 32;
 /** `process.kill(pid, 0)` throwing ESRCH is the only "not alive" case; any other outcome, including an unreadable errno, is treated as alive so a live run is never stolen from under itself. */
 function isPidAlive(pid: number): boolean {
   try {
@@ -77,13 +82,68 @@ function isPidAlive(pid: number): boolean {
   return true;
 }
 /**
+ * One takeover attempt on the lock `acquireLock` found held at `path`: `busy` while it must be waited for, `removed`
+ * once a stale lock is gone, or `retry` when there was nothing it could judge or remove (the lock vanished or was
+ * replaced, could not be opened, or could not be removed), so the caller retries its own open. Every judged value (the
+ * file's type, its age and its pid) comes from one descriptor, so all of them describe one file (CodeQL
+ * js/file-system-race); it is opened without waiting on a FIFO and, where the platform has O_NOFOLLOW, without
+ * following a link. Only a regular file is ever removed: the lock is created as nothing else, so a link or any other
+ * file there was put there by something else. A stale lock is removed only after its name is found to still name the
+ * judged file, compared while the descriptor is open so that file's inode cannot be reused (on Windows, where a link
+ * is followed, this comparison is what refuses one); the descriptor is closed first, as Windows may keep a removed
+ * file's name until its last handle closes. A window between that comparison and the removal remains: Node has no
+ * unlink-if-same.
+ */
+function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
+  let fd: number;
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch {
+    return 'retry'; // vanished, a link O_NOFOLLOW refuses, or unopenable: the caller's attempt bound stops the spin
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) return 'busy';
+    const ageMs = Date.now() - Number(opened.mtimeNs) / 1e6;
+    let pid = Number.NaN;
+    try {
+      const bytes = Buffer.alloc(LOCK_PID_BYTES);
+      let size = 0;
+      for (;;) {
+        const count = readSync(fd, bytes, size, bytes.length - size, null);
+        size += count;
+        if (count === 0 || size === bytes.length) break;
+      }
+      pid = Number.parseInt(bytes.toString('utf8', 0, size), 10);
+    } catch {
+      /* unreadable: pid stays NaN, judged on age alone below */
+    }
+    const parsed = Number.isInteger(pid);
+    const stale = (parsed && !isPidAlive(pid)) || ageMs > LOCK_STALE_MS || (!parsed && ageMs > LOCK_EMPTY_GRACE_MS);
+    if (!stale) return 'busy';
+    const named = lstatSync(path, { bigint: true });
+    if (named.dev !== opened.dev || named.ino !== opened.ino) return 'retry';
+  } catch {
+    return 'retry'; // the descriptor could not be judged, or the name vanished before it was compared
+  } finally {
+    closeSync(fd);
+  }
+  try {
+    rmSync(path, { force: true });
+  } catch {
+    return 'retry'; // removal itself failing too; the caller's attempt bound stops the spin
+  }
+  return 'removed';
+}
+/**
  * Held for the lifetime of a materialize's recovery-through-swap, or of a whole `removeMarketplace`, so two
- * concurrent `ia host --user` runs cannot interleave their renames. A lock is taken over — never trusted blindly —
- * only once its pid has parsed and died, or it is older than `LOCK_STALE_MS`, or (an empty/unparseable pid, the
- * short window between another run's `openSync` and its pid write) it is older than `LOCK_EMPTY_GRACE_MS`;
- * otherwise this refuses INSTALL-BUSY. Bounded at `LOCK_TAKEOVER_ATTEMPTS`, so a lock file that keeps coming back
- * (removal failing, or another process winning the race) fails loudly instead of spinning forever. The sweep
- * functions below must never touch this file.
+ * concurrent `ia host --user` runs cannot interleave their renames. A held lock is taken over — never trusted
+ * blindly — only by `takeOverStale`, once it is a regular file whose pid has parsed and died, or that is older than
+ * `LOCK_STALE_MS`, or (an empty/unparseable pid, the short window between another run's `openSync` and its pid write)
+ * that is older than `LOCK_EMPTY_GRACE_MS`; otherwise this refuses INSTALL-BUSY. A link or any other non-regular file
+ * at the lock path is never removed, so it refuses INSTALL-BUSY too. Bounded at `LOCK_TAKEOVER_ATTEMPTS`, so a lock
+ * file that keeps coming back (removal failing, a lock replaced while it was judged, or another process winning the
+ * race) fails loudly instead of spinning forever. The sweep functions below must never touch this file.
  */
 function acquireLock(parent: string): string {
   mkdirSync(parent, { recursive: true });
@@ -105,26 +165,9 @@ function acquireLock(parent: string): string {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
       if (attempts >= LOCK_TAKEOVER_ATTEMPTS) busy();
-      let ageMs: number;
-      try {
-        ageMs = Date.now() - statSync(path).mtimeMs;
-      } catch {
-        continue;
-      } // vanished mid-check: just retry the open
-      let pid = Number.NaN;
-      try {
-        pid = Number.parseInt(readFileSync(path, 'utf8'), 10);
-      } catch {
-        /* vanished between stat and read: pid stays NaN, judged on age alone below */
-      }
-      const parsed = Number.isInteger(pid);
-      const stale = (parsed && !isPidAlive(pid)) || ageMs > LOCK_STALE_MS || (!parsed && ageMs > LOCK_EMPTY_GRACE_MS);
-      if (!stale) busy();
-      try {
-        rmSync(path, { force: true });
-      } catch {
-        /* removal itself failing too; the attempt bound above stops the spin */
-      }
+      // A function of its own, as the exclusive open above checks nothing the takeover relies on: the takeover judges
+      // only the descriptor it opens itself.
+      if (takeOverStale(path) === 'busy') busy();
     }
   }
 }
