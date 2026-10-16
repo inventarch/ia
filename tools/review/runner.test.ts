@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 import { expect, it, vi } from 'vitest';
 import { runBounded } from '../testing/subprocess.js';
 import {
+  awaitResult,
   collectSubject,
   digest,
   evidenceCommit,
@@ -16,7 +17,6 @@ import {
   renderReview,
   resolveRun,
   reviewSummary,
-  runReview,
   safeSource,
 } from './runner.mjs';
 
@@ -491,8 +491,7 @@ const started = 'abcdef12-3456-4789-8abc-def012345678',
  */
 function reviewApi(start: unknown, advances: unknown[]) {
   const requests: [string, unknown][] = [],
-    pauses: number[] = [],
-    steps: string[] = [];
+    pauses: number[] = [];
   let advanced = 0,
     clock = 0;
   const options = {
@@ -509,22 +508,10 @@ function reviewApi(start: unknown, advances: unknown[]) {
     now: () => clock,
     key: `github:123:1:${head}`,
     subjectDigest: 'd'.repeat(64),
-    head,
-    retain: (kept: unknown) => {
-      steps.push('retain');
-      retained.push(kept);
-    },
-    publish: async (delivered: unknown) => {
-      steps.push('publish');
-      published.push(delivered);
-      return { reviewId: '88', duplicate: false };
-    },
   };
-  const retained: unknown[] = [],
-    published: unknown[] = [];
-  return { requests, pauses, steps, retained, published, options };
+  return { requests, pauses, options };
 }
-it('starts, advances, retains, delivers and summarizes one review under the id its first receipt carried', async () => {
+it('starts and advances one review under the id its first receipt carried, and returns it with its result', async () => {
   // Reading the first receipt again would name another review: it reports another id after its first read.
   let reads = 0;
   const start = {
@@ -533,36 +520,28 @@ it('starts, advances, retains, delivers and summarizes one review under the id i
     },
     state: 'queued',
   };
-  const kept = { ...result, id: started };
-  const { requests, pauses, steps, retained, published, options } = reviewApi(start, [
-    { id: started, state: 'running' },
-    { id: started, state: 'complete', result: kept },
-  ]);
-  expect(await runReview(options)).toBe(
-    `InventArch review ${started}: INCOMPLETE (advisory). Review comment delivered.\n`,
-  );
+  const done = { id: started, state: 'complete', result: { ...result, id: started } };
+  const { requests, pauses, options } = reviewApi(start, [{ id: started, state: 'running' }, done]);
+  const awaited = await awaitResult(options);
+  expect(awaited.review).toBe(started);
+  expect(awaited.receipt).toBe(done);
   expect(requests).toEqual([
     ['', { key: `github:123:1:${head}`, digest: 'd'.repeat(64) }],
     [`/${started}/advance`, undefined],
     [`/${started}/advance`, undefined],
-    [`/${started}/delivery`, { reviewId: '88', head }],
   ]);
   expect(pauses).toEqual([3000]);
-  expect(steps).toEqual(['retain', 'publish']);
-  expect(retained[0]).toBe(kept);
-  expect(published[0]).toBe(kept);
 });
 it('refuses an advance that names another review and makes no further request', async () => {
-  const { requests, steps, options } = reviewApi({ id: started, state: 'queued' }, [{ id: other, state: 'running' }]);
-  await expect(runReview(options)).rejects.toThrow('Review receipt identity required');
+  const { requests, options } = reviewApi({ id: started, state: 'queued' }, [{ id: other, state: 'running' }]);
+  await expect(awaitResult(options)).rejects.toThrow('Review receipt identity required');
   expect(requests.map(([path]) => path)).toEqual(['', `/${started}/advance`]);
-  expect(steps).toEqual([]);
 });
 it('cancels the review it started once the deadline passes without a result', async () => {
-  const { requests, pauses, steps, options } = reviewApi({ id: started, state: 'queued' }, [
+  const { requests, pauses, options } = reviewApi({ id: started, state: 'queued' }, [
     { id: started, state: 'running' },
   ]);
-  await expect(runReview({ ...options, timeoutMs: 9000 })).rejects.toThrow('Review exceeded CI deadline');
+  await expect(awaitResult({ ...options, timeoutMs: 9000 })).rejects.toThrow('Review exceeded CI deadline');
   expect(requests.map(([path]) => path)).toEqual([
     '',
     `/${started}/advance`,
@@ -571,7 +550,6 @@ it('cancels the review it started once the deadline passes without a result', as
     `/${started}/cancel`,
   ]);
   expect(pauses).toEqual([3000, 3000, 3000]);
-  expect(steps).toEqual([]);
 });
 it('rethrows the open error of an unreadable report exactly at the per-report bound', () => {
   // Root reads a file whatever its mode, and Windows has no such mode.

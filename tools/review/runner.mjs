@@ -552,23 +552,12 @@ export async function publishReview(gh, repository, result) {
 }
 
 /**
- * Runs one review through the review API's `api`, as main() does: starts or reuses the review keyed `key` for the
- * uploaded subject `subjectDigest`, advances it until it has a result, cancelling it once `timeoutMs` has passed without
- * one, has `retain` keep the result, delivers it with `publish` and returns the job summary line. Every request after the
- * first names the review the first receipt started, and every advance must return that review. `pause` and `now` are the
- * loop's delay and clock.
+ * Starts or reuses the review keyed `key` for the uploaded subject `subjectDigest` through the review API's `api`, and
+ * advances it until it has a result, cancelling it once `timeoutMs` has passed without one, as main() does. Resolves to
+ * `review`, the review the first receipt started, and `receipt`, the receipt that holds its result: every request after
+ * the first names that review, and every advance must return it. `pause` and `now` are the loop's delay and clock.
  */
-export async function runReview({
-  api,
-  pause,
-  now = Date.now,
-  timeoutMs = 15 * 60000,
-  key,
-  subjectDigest,
-  head,
-  retain,
-  publish,
-}) {
+export async function awaitResult({ api, pause, now = Date.now, timeoutMs = 15 * 60000, key, subjectDigest }) {
   let receipt = await api('', { key, digest: subjectDigest });
   // Every later request and the job summary name the review this receipt started; each advance must return it.
   const review = receiptId(receipt);
@@ -582,10 +571,7 @@ export async function runReview({
     await api(`/${review}/cancel`);
     throw new Error('Review exceeded CI deadline');
   }
-  retain(receipt.result);
-  const delivery = await publish(receipt.result);
-  if (delivery.reviewId) await api(`/${review}/delivery`, { reviewId: delivery.reviewId, head });
-  return reviewSummary(review, receipt.result.verdict, delivery);
+  return { review, receipt };
 }
 
 async function main() {
@@ -652,19 +638,18 @@ async function main() {
   const content = JSON.stringify(subject),
     subjectDigest = digest(content);
   await api(`/artifacts/${subjectDigest}`, { content }, 'PUT');
-  const summary = await runReview({
+  const { review, receipt } = await awaitResult({
     api,
     pause,
     key: `github:${runId}:${subject.evidence.attempt}:${subject.head}`,
     subjectDigest,
-    head: subject.head,
-    retain: (result) => {
-      mkdirSync('artifacts/review', { recursive: true });
-      writeFileSync('artifacts/review/result.json', JSON.stringify(result, null, 2));
-    },
-    publish: (result) => publishReview(gh, repository, result),
   });
-  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+  mkdirSync('artifacts/review', { recursive: true });
+  writeFileSync('artifacts/review/result.json', JSON.stringify(receipt.result, null, 2));
+  const delivery = await publishReview(gh, repository, receipt.result);
+  if (delivery.reviewId) await api(`/${review}/delivery`, { reviewId: delivery.reviewId, head: subject.head });
+  if (process.env.GITHUB_STEP_SUMMARY)
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, reviewSummary(review, receipt.result.verdict, delivery));
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href)
   main().catch((error) => {

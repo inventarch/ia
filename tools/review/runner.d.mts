@@ -36,20 +36,17 @@ export function renderReview(result: unknown): string;
 /** A request to the review API: its path under /v1/reviews, its JSON body and method (POST by default). */
 export type ReviewApi = (path: string, input?: unknown, method?: string) => Promise<unknown>;
 /**
- * One review run, as main() runs it: start or reuse, advance to a result or cancel at the deadline, retain, deliver.
- * Resolves to the job summary line.
+ * Start or reuse a review and advance it to a result, as main() does, cancelling it at the deadline. Resolves to the
+ * review the first receipt started and the receipt that holds its result.
  */
-export function runReview(options: {
+export function awaitResult(options: {
   api: ReviewApi;
   pause: (ms: number) => Promise<unknown>;
   now?: () => number;
   timeoutMs?: number;
   key: string;
   subjectDigest: string;
-  head: string;
-  retain: (result: unknown) => void;
-  publish: (result: unknown) => Promise<{ reviewId?: string; duplicate?: boolean; skipped?: string }>;
-}): Promise<string>;
+}): Promise<{ review: string; receipt: { result: unknown } & Record<string, unknown> }>;
 export function publishReview(
   gh: Github,
   repository: string,
