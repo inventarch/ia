@@ -1,11 +1,33 @@
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, symlinkSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { once } from 'node:events';
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  linkSync,
+  mkdirSync,
+  openSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import { createServer } from 'node:net';
+import { join, resolve } from 'node:path';
+import { afterEach, expect, it, vi } from 'vitest';
+import { runBounded } from '@tools/testing/subprocess.js';
 import { stableSerialize } from '@inventarch/graph';
 import { adoptedBindings, open, readInputs, sourceTree } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
 import { put, workspace } from './workspace.js';
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, openSync: vi.fn(actual.openSync) };
+});
+afterEach(() => {
+  vi.mocked(openSync).mockReset();
+});
 
 const path = 'vendor/foundation',
   source = '.ia/src/example.ia';
@@ -188,3 +210,127 @@ it('names each binding with the tree label its sources carry, and refuses a mani
     expect.objectContaining({ code: 'IA-DB-ROOT-INVALID' }),
   );
 });
+
+// The manifest reader: `.ia/workspace.json` as `adoptedBindings` and discovery read it.
+const MANIFEST = '.ia/workspace.json',
+  LINK = process.platform === 'win32' ? 'junction' : 'dir',
+  SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
+const outcome = (read: () => unknown): unknown => {
+  try {
+    return read();
+  } catch (error) {
+    return error;
+  }
+};
+/** A manifest refusal with its exact message. */
+const refused = (message: string) => ({
+  code: 'IA-DB-SOURCE-UNAVAILABLE',
+  message: `IA-DB-SOURCE-UNAVAILABLE: ${MANIFEST}: ${message}`,
+});
+const irregular = refused('Expected a regular manifest of at most 64 KiB'),
+  undecodable = refused('Expected UTF-8 JSON');
+/**
+ * Lets `openSync` run as it does, except an open that would wait for a FIFO's writer: that one is recorded and refused
+ * instead, so a reader that opens a FIFO without O_NONBLOCK fails its test rather than blocking the runner.
+ */
+const blockingOpens = async (): Promise<readonly string[]> => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs'),
+    blocking: string[] = [];
+  vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+    const [path, flags] = args;
+    if (
+      (typeof flags !== 'number' || (flags & actual.constants.O_NONBLOCK) === 0) &&
+      actual.lstatSync(path, { throwIfNoEntry: false })?.isFIFO()
+    ) {
+      blocking.push(String(path));
+      throw Object.assign(new Error(`EAGAIN: an open that waits for a FIFO writer, open '${String(path)}'`), {
+        code: 'EAGAIN',
+      });
+    }
+    return actual.openSync(...args);
+  });
+  return blocking;
+};
+it('reads the manifest as a regular file of at most 64 KiB whatever its link count, a missing one as none, and refuses links', () => {
+  expect(outcome(() => adoptedBindings(workspace(false)))).toEqual([]);
+  // A second name does not alias the manifest.
+  const { root, entry } = fixture();
+  linkSync(resolve(root, MANIFEST), resolve(root, 'second.json'));
+  expect(outcome(() => adoptedBindings(root))).toEqual([
+    { ...entry, tree: `.ia/adopted/foundation/${entry.revision}` },
+  ]);
+  // At the bound it is read; one byte past it, or a directory, is refused.
+  const sized = workspace(false),
+    text = JSON.stringify({ version: 1, adopted: [] });
+  put(sized, MANIFEST, text.padEnd(65_536, ' '));
+  expect(outcome(() => adoptedBindings(sized))).toEqual([]);
+  put(sized, MANIFEST, text.padEnd(65_537, ' '));
+  expect(outcome(() => adoptedBindings(sized))).toMatchObject(irregular);
+  expect(outcome(() => readInputs(sized))).toMatchObject(irregular);
+  const directory = workspace(false);
+  mkdirSync(resolve(directory, MANIFEST), { recursive: true });
+  expect(outcome(() => adoptedBindings(directory))).toMatchObject(irregular);
+  expect(outcome(() => readInputs(directory))).toMatchObject(irregular);
+  // Bytes that are not UTF-8, or not JSON.
+  put(sized, MANIFEST, new Uint8Array([0xc3, 0x28]));
+  expect(outcome(() => adoptedBindings(sized))).toMatchObject(undecodable);
+  put(sized, MANIFEST, 'not JSON');
+  expect(outcome(() => adoptedBindings(sized))).toMatchObject(undecodable);
+  expect(outcome(() => readInputs(sized))).toMatchObject(undecodable);
+  // A link at the name, or on the way to it, is refused by name and never followed.
+  const leaf = workspace(false);
+  mkdirSync(resolve(leaf, 'elsewhere'));
+  mkdirSync(resolve(leaf, '.ia'));
+  symlinkSync(resolve(leaf, 'elsewhere'), resolve(leaf, MANIFEST), LINK);
+  expect(outcome(() => adoptedBindings(leaf))).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    path: MANIFEST,
+    message: `IA-DB-PATH-UNSAFE: Symlink/junction traversal is not admitted: ${join(realpathSync(leaf), '.ia', 'workspace.json')}`,
+  });
+  const way = workspace(false);
+  put(way, 'elsewhere/workspace.json', text);
+  symlinkSync(resolve(way, 'elsewhere'), resolve(way, '.ia'), LINK);
+  expect(outcome(() => adoptedBindings(way))).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    path: '.ia',
+    message: `IA-DB-PATH-UNSAFE: Symlink/junction traversal is not admitted: ${join(realpathSync(way), '.ia')}`,
+  });
+});
+it.skipIf(process.platform === 'win32')(
+  'refuses a FIFO or a socket as the manifest without waiting for a writer',
+  async () => {
+    const root = workspace(false),
+      manifest = resolve(root, MANIFEST),
+      blocking = await blockingOpens();
+    mkdirSync(resolve(root, '.ia'));
+    expect((await runBounded('mkfifo', [manifest], { timeoutMs: SUBPROCESS })).status).toBe(0);
+    expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+    expect(outcome(() => readInputs(root))).toMatchObject(irregular);
+    rmSync(manifest);
+    // A socket path holds about 100 bytes: bind a short name, then move the socket into place.
+    const server = createServer(),
+      bound = resolve(root, 's');
+    server.listen(bound);
+    await once(server, 'listening');
+    renameSync(bound, manifest);
+    server.close();
+    await once(server, 'close');
+    expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+    expect(blocking).toEqual([]);
+  },
+);
+it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+  'refuses an unreadable manifest as undecodable, unless it is past its bound',
+  () => {
+    const root = workspace(false),
+      manifest = resolve(root, MANIFEST);
+    put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [] }));
+    chmodSync(manifest, 0o000);
+    expect(outcome(() => adoptedBindings(root))).toMatchObject(undecodable);
+    const large = workspace(false),
+      oversized = resolve(large, MANIFEST);
+    put(large, MANIFEST, ' '.repeat(65_537));
+    chmodSync(oversized, 0o000);
+    expect(outcome(() => adoptedBindings(large))).toMatchObject(irregular);
+  },
+);

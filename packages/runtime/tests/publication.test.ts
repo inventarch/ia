@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -128,6 +129,41 @@ describe.skipIf(process.platform !== 'win32')('qualified local NTFS publication'
     writeFileSync(resolve(root, destination, files[0]!.path), files[0]!.text);
     mkdirSync(resolve(root, destination, 'extra'));
     expect(await inspect()).toBe('partial');
+  });
+  it('reads the marker as a regular file within 2 MiB and each file at its exact size, of any link count', async () => {
+    const root = temp(),
+      marker = resolve(root, destination, 'result.json'),
+      file = resolve(root, destination, files[0]!.path),
+      inspect = (expected = metadata) => inspectPublication(root, destination, files, expected, current);
+    mkdirSync(resolve(root, destination, 'nested'), { recursive: true });
+    writeFileSync(file, files[0]!.text);
+    // A directory in the marker's place is unknown.
+    mkdirSync(marker);
+    expect(await inspect()).toBe('unknown');
+    rmSync(marker, { recursive: true });
+    // A marker at the 2 MiB bound is read; one byte past it is unknown.
+    const bound = 'x'.repeat(2 * 1024 * 1024);
+    writeFileSync(marker, bound);
+    expect(await inspect(bound)).toBe('applied');
+    writeFileSync(marker, `${bound}x`);
+    expect(await inspect(bound)).toBe('unknown');
+    // Publication links its files into place, so a second name aliases neither the marker nor a file.
+    writeFileSync(marker, metadata);
+    linkSync(marker, resolve(root, 'marker'));
+    linkSync(file, resolve(root, 'draft'));
+    expect(await inspect()).toBe('applied');
+    // A file one byte longer, or of its size with other bytes, is partial.
+    writeFileSync(file, `${files[0]!.text}x`);
+    expect(await inspect()).toBe('partial');
+    writeFileSync(file, files[0]!.text.toLowerCase());
+    expect(await inspect()).toBe('partial');
+    // A junction in the marker's place is refused, never followed.
+    rmSync(marker);
+    symlinkSync(temp(), marker, 'junction');
+    await expect(inspect()).rejects.toMatchObject({
+      code: 'IA-PUBLICATION-PATH-UNSAFE',
+      message: 'Filesystem aliases are unsupported',
+    });
   });
   it('refuses a second destination owner, preexisting empty directories, and a late destination race', () => {
     const root = temp(),
