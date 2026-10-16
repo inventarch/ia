@@ -92,7 +92,7 @@ export function authoringResources(root: string): {
         stat.ino !== after.ino ||
         stat.dev !== after.dev ||
         stat.size !== after.size ||
-        stat.mtimeMs !== after.mtimeMs ||
+        stat.mtimeNs !== after.mtimeNs ||
         BigInt(bytes.length) !== stat.size
       )
         throw new Error('Authoring file changed during generation');
