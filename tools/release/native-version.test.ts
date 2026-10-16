@@ -676,7 +676,8 @@ describe('system package input reads', () => {
     syncBuiltinESMExports();
     return () => changed;
   }
-  const changes: [string, 'open' | 'read', (target: string) => (() => void) | void, RegExp][] = [
+  // The fifth entry, where there is one, says why a case runs only off Windows.
+  const changes: [string, 'open' | 'read', (target: string) => (() => void) | void, RegExp, string?][] = [
     [
       'a link put in place at the open as aliased, even once it is gone again',
       'open',
@@ -686,6 +687,7 @@ describe('system package input reads', () => {
         return () => rmSync(target);
       },
       /^System package input is aliased: \.ia\/src\/a\.ia$/,
+      'Windows has no O_NOFOLLOW, so its open follows the link and fails with ENOENT; its file links need a privilege',
     ],
     [
       'an input gone before the open with the open error',
@@ -707,6 +709,7 @@ describe('system package input reads', () => {
         mkdirSync(target);
       },
       /^System package input is not a regular file: \.ia\/src\/a\.ia$/,
+      'Windows can keep the name of a file that is still open, so the directory may not take its place',
     ],
     [
       'an input rewritten at the same size during the read as changed',
@@ -718,7 +721,8 @@ describe('system package input reads', () => {
       /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
     ],
   ];
-  it.each(changes)('refuses %s', (_, at, change, refusal) => {
+  it.each(changes)('refuses %s', (_, at, change, refusal, posixOnly) => {
+    if (posixOnly && process.platform === 'win32') return;
     const root = temporary(),
       target = resolve(root, '.ia/src/a.ia');
     write(root, '.ia/src/a.ia', 'native source');
