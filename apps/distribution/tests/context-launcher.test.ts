@@ -1,4 +1,21 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { once } from 'node:events';
+import {
+  appendFileSync,
+  chmodSync,
+  existsSync,
+  linkSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  truncateSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -72,6 +89,47 @@ afterEach(() => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+type Cache = ReturnType<typeof cache>;
+/** The cache path of the pinned module every fixture cache holds. */
+const MODULE = 'runtime/node_modules/@inventarch/steward-hook/dist/context.js';
+const POSIX = process.platform !== 'win32';
+/** Mode bits do not keep the superuser from reading a file, so an unreadable fixture needs an ordinary user. */
+const UNPRIVILEGED = POSIX && process.getuid?.() !== 0;
+/** A directory beside the cache, for the far end of a link and for entries moved out of the cache. */
+function outside(): string {
+  const directory = mkdtempSync(join(tmpdir(), 'ia-context-launcher-'));
+  roots.push(directory);
+  return directory;
+}
+async function mkfifo(path: string): Promise<void> {
+  expect((await runBounded('mkfifo', [path], { timeoutMs: SUBPROCESS })).status).toBe(0);
+}
+/** Pins exactly `files` in the cache's inventory, and its launcher to that inventory. */
+function repin(root: string, files: readonly { path: string; bytes: number; sha256: string }[]): void {
+  const text = json({ ...JSON.parse(readFileSync(join(root, 'inventory.json'), 'utf8')), files });
+  writeFileSync(join(root, 'inventory.json'), text);
+  writeFileSync(
+    join(root, 'scripts/ia.mjs'),
+    readFileSync(resolve(import.meta.dirname, '../assets/host-launcher.mjs'), 'utf8').replace(
+      '__INVENTORY_DIGEST__',
+      sha256(text),
+    ),
+  );
+}
+const parsed = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+/** What `verify` answers: its exit status and the refusal it writes to stderr, or a verified marker. */
+async function verdict(selected: Cache): Promise<{ status: number | null; output: unknown }> {
+  const result = await selected.launch(['verify']);
+  return { status: result.status, output: result.status === 0 ? 'verified' : parsed(result.stderr) };
+}
+const VERIFIED = { status: 0, output: 'verified' };
+const refused = (message: string) => ({ status: 1, output: { status: 'refused', message } });
 it('probes context identity through the actual verified packaged launcher', async () => {
   const result = await cache().launch(['context', 'identity']);
   expect(result.status, result.stderr).toBe(0);
@@ -284,4 +342,209 @@ it('leaves no stdout when the host cancels a context slot at its outer timeout',
   expect(result.timedOut).toBe(false);
   expect(result.status).not.toBe(0);
   expect(result.stdout).toBe('');
+});
+/**
+ * What the cache walk admits and refuses, entry by entry. Each arrangement changes one entry of a fresh cache and returns
+ * the verdict it expects. A link count, like a link or a special file, is judged before the launcher's own files and
+ * unpinned platform files are skipped, so a second link to one of those still refuses.
+ */
+it.each<[string, (selected: Cache) => unknown]>([
+  [
+    'a missing pinned file',
+    (selected) => {
+      unlinkSync(selected.module);
+      return refused('Plugin cache payload is missing');
+    },
+  ],
+  [
+    'a directory where a pinned file belongs',
+    (selected) => {
+      unlinkSync(selected.module);
+      mkdirSync(selected.module);
+      return refused('Plugin cache payload is missing');
+    },
+  ],
+  [
+    'a pinned file one byte longer than its pin',
+    (selected) => {
+      appendFileSync(selected.module, ' ');
+      return refused(`Plugin cache payload differs: ${MODULE}`);
+    },
+  ],
+  [
+    'a pinned file of its pinned length with other bytes',
+    (selected) => {
+      writeFileSync(selected.module, readFileSync(selected.module, 'utf8').replace('identity', 'IDENTITY'));
+      return refused(`Plugin cache payload differs: ${MODULE}`);
+    },
+  ],
+  [
+    'a pinned file with a second link',
+    (selected) => {
+      linkSync(selected.module, join(outside(), 'context.js'));
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+  [
+    'inventory.json with a second link',
+    (selected) => {
+      linkSync(join(selected.root, 'inventory.json'), join(outside(), 'inventory.json'));
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+  [
+    'the launcher with a second link',
+    (selected) => {
+      linkSync(join(selected.root, 'scripts/ia.mjs'), join(outside(), 'ia.mjs'));
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+  [
+    'an unpinned release.json',
+    (selected) => {
+      writeFileSync(join(selected.root, 'release.json'), '{}\n');
+      return VERIFIED;
+    },
+  ],
+  [
+    'an unpinned release.json with a second link',
+    (selected) => {
+      writeFileSync(join(selected.root, 'release.json'), '{}\n');
+      linkSync(join(selected.root, 'release.json'), join(outside(), 'release.json'));
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+  [
+    'an unpinned .DS_Store with a second link',
+    (selected) => {
+      writeFileSync(join(selected.root, 'runtime', '.DS_Store'), 'written by the platform');
+      linkSync(join(selected.root, 'runtime', '.DS_Store'), join(outside(), '.DS_Store'));
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+  [
+    'a directory link or junction on the way to a pinned file',
+    (selected) => {
+      const dist = dirname(selected.module),
+        moved = join(outside(), 'dist');
+      renameSync(dist, moved);
+      symlinkSync(moved, dist, 'junction');
+      return refused('Plugin cache links are unsupported');
+    },
+  ],
+])('verify answers for %s', async (_, arrange) => {
+  const selected = cache(),
+    expected = arrange(selected);
+  expect(await verdict(selected)).toEqual(expected);
+});
+it.skipIf(!POSIX).each<[string, (selected: Cache) => Promise<unknown>]>([
+  [
+    'a symbolic link where a pinned file belongs',
+    async (selected) => {
+      const moved = join(outside(), 'context.js');
+      renameSync(selected.module, moved);
+      symlinkSync(moved, selected.module);
+      return refused('Plugin cache links are unsupported');
+    },
+  ],
+  [
+    'a dangling symbolic link',
+    async (selected) => {
+      symlinkSync(join(outside(), 'nowhere'), join(selected.root, 'runtime', 'dangling'));
+      return refused('Plugin cache links are unsupported');
+    },
+  ],
+  [
+    'a FIFO at an unpinned name',
+    async (selected) => {
+      await mkfifo(join(selected.root, 'runtime', 'fifo'));
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+  [
+    'a FIFO named .DS_Store',
+    async (selected) => {
+      await mkfifo(join(selected.root, 'runtime', '.DS_Store'));
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+  [
+    'a FIFO named release.json',
+    async (selected) => {
+      await mkfifo(join(selected.root, 'release.json'));
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+  [
+    'a FIFO where a pinned file belongs',
+    async (selected) => {
+      unlinkSync(selected.module);
+      await mkfifo(selected.module);
+      return refused('Plugin cache file is aliased');
+    },
+  ],
+])('verify answers for %s (POSIX)', async (_, arrange) => {
+  const selected = cache(),
+    expected = await arrange(selected);
+  expect(await verdict(selected)).toEqual(expected);
+});
+it.skipIf(!POSIX)('verify refuses a UNIX socket in the cache as an aliased file (POSIX)', async () => {
+  const selected = cache(),
+    server = createServer();
+  server.listen(join(selected.root, 'runtime', 's'));
+  await once(server, 'listening');
+  try {
+    expect(await verdict(selected)).toEqual(refused('Plugin cache file is aliased'));
+  } finally {
+    server.close();
+  }
+});
+/** An unreadable file is judged as a readable one would be, and only the read of a pinned file it admits fails. */
+it.skipIf(!UNPRIVILEGED).each<[string, (selected: Cache) => unknown]>([
+  [
+    'an unreadable pinned file',
+    (selected) => {
+      chmodSync(selected.module, 0);
+      return refused(`EACCES: permission denied, open '${selected.module}'`);
+    },
+  ],
+  [
+    'an unreadable pinned file one byte longer than its pin',
+    (selected) => {
+      appendFileSync(selected.module, ' ');
+      chmodSync(selected.module, 0);
+      return refused(`Plugin cache payload differs: ${MODULE}`);
+    },
+  ],
+  [
+    'an unreadable unpinned .DS_Store',
+    (selected) => {
+      writeFileSync(join(selected.root, 'runtime', '.DS_Store'), 'written by the platform');
+      chmodSync(join(selected.root, 'runtime', '.DS_Store'), 0);
+      return VERIFIED;
+    },
+  ],
+])('verify answers for %s (POSIX, unprivileged)', async (_, arrange) => {
+  const selected = cache(),
+    expected = arrange(selected);
+  expect(await verdict(selected)).toEqual(expected);
+});
+it('verify admits a pinned payload of exactly 256 MiB and refuses one byte more', async () => {
+  const budget = 256 * 1024 * 1024,
+    zeros = Buffer.alloc(1024 * 1024),
+    verdicts: unknown[] = [];
+  for (const bytes of [budget, budget + 1]) {
+    // A sparse file of zeros, the only pinned file, so the budget alone decides.
+    const selected = cache(),
+      big = join(selected.root, 'big'),
+      digest = createHash('sha256');
+    rmSync(join(selected.root, 'runtime'), { recursive: true });
+    writeFileSync(big, '');
+    truncateSync(big, bytes);
+    for (let left = bytes; left > 0; left -= zeros.length)
+      digest.update(zeros.subarray(0, Math.min(left, zeros.length)));
+    repin(selected.root, [{ path: 'big', bytes, sha256: digest.digest('hex') }]);
+    verdicts.push(await verdict(selected));
+  }
+  expect(verdicts).toEqual([VERIFIED, refused('Plugin cache payload differs: big')]);
 });

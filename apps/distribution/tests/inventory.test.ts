@@ -1,7 +1,10 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { once } from 'node:events';
+import { linkSync, mkdtempSync, mkdirSync, renameSync, writeFileSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
+import { runBounded } from '@tools/testing/subprocess.js';
 import { installedDistributionDigest } from '../src/inventory.js';
 
 it('pins every installed distribution runtime module and refuses a partial or mixed installation', () => {
@@ -32,5 +35,148 @@ it('pins every installed distribution runtime module and refuses a partial or mi
   } finally {
     if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe inventory cleanup');
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
+const POSIX = process.platform !== 'win32';
+const REFUSED = { code: undefined, message: 'Installed distribution runtime is missing, mixed or aliased' };
+const roots: string[] = [];
+afterEach(() => {
+  for (const root of roots.splice(0)) {
+    if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe inventory cleanup');
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+function temporary(): string {
+  const root = mkdtempSync(join(tmpdir(), 'ia-distribution-code-'));
+  roots.push(root);
+  return root;
+}
+/** A complete emitted runtime: one file for each module the inventory requires. */
+function runtime(): string {
+  const root = temporary();
+  for (const name of [
+    'archive',
+    'pack',
+    'resolve',
+    'snapshot',
+    'install',
+    'installation-core',
+    'inventory',
+    'transfer',
+  ])
+    writeFileSync(join(root, `${name}.js`), `// Emitted ${name}.\n`);
+  return root;
+}
+/** The digest of `root`, or the code and message of the refusal. */
+const inventory = (root: string): unknown => {
+  try {
+    return { digest: installedDistributionDigest(root) };
+  } catch (error) {
+    return { code: (error as { code?: unknown }).code, message: (error as Error).message };
+  }
+};
+/**
+ * What the inventory admits and refuses. Each arrangement changes a fresh runtime and returns the root to inventory and
+ * what it expects, given the digest of the runtime before the change. Links are refused at every level, hard links are
+ * admitted, and every other refusal is the one message.
+ */
+it.each<[string, (root: string, before: unknown) => [string, unknown]]>([
+  [
+    'a missing root',
+    (root) => {
+      const missing = join(root, 'missing');
+      return [missing, { code: 'ENOENT', message: `ENOENT: no such file or directory, lstat '${missing}'` }];
+    },
+  ],
+  [
+    'a required module missing',
+    (root) => {
+      unlinkSync(join(root, 'archive.js'));
+      return [root, REFUSED];
+    },
+  ],
+  [
+    'a runtime module with a second link',
+    (root, before) => {
+      linkSync(join(root, 'archive.js'), join(temporary(), 'archive.js'));
+      return [root, before];
+    },
+  ],
+  [
+    'an empty directory named like a runtime module',
+    (root, before) => {
+      mkdirSync(join(root, 'nested.js'));
+      return [root, before];
+    },
+  ],
+  [
+    'a directory link or junction inside the root',
+    (root) => {
+      const real = join(temporary(), 'real');
+      mkdirSync(real);
+      writeFileSync(join(real, 'module.js'), '// Linked module.\n');
+      symlinkSync(real, join(root, 'alias'), 'junction');
+      return [root, REFUSED];
+    },
+  ],
+  [
+    'a root reached through a directory link or junction',
+    (root) => {
+      const alias = join(temporary(), 'alias');
+      symlinkSync(root, alias, 'junction');
+      return [alias, REFUSED];
+    },
+  ],
+])('the inventory answers for %s', (_, arrange) => {
+  const root = runtime(),
+    [target, expected] = arrange(root, inventory(root));
+  expect(inventory(target)).toEqual(expected);
+});
+it.skipIf(!POSIX).each<[string, (root: string) => Promise<void> | void]>([
+  [
+    'a runtime module that is a symbolic link',
+    (root) => {
+      const moved = join(temporary(), 'archive.js');
+      renameSync(join(root, 'archive.js'), moved);
+      symlinkSync(moved, join(root, 'archive.js'));
+    },
+  ],
+  ['a dangling symbolic link', (root) => symlinkSync(join(temporary(), 'nowhere'), join(root, 'dangling.js'))],
+  [
+    'a symbolic link to a file that is no runtime module',
+    (root) => {
+      const notes = join(temporary(), 'notes.md');
+      writeFileSync(notes, 'Notes.\n');
+      symlinkSync(notes, join(root, 'notes.md'));
+    },
+  ],
+  [
+    'a FIFO named like a runtime module',
+    async (root) => {
+      expect((await runBounded('mkfifo', [join(root, 'fifo.js')], { timeoutMs: SUBPROCESS })).status).toBe(0);
+    },
+  ],
+  [
+    'a FIFO with another name',
+    async (root) => {
+      expect((await runBounded('mkfifo', [join(root, 'fifo')], { timeoutMs: SUBPROCESS })).status).toBe(0);
+    },
+  ],
+])('the inventory refuses %s (POSIX)', async (_, arrange) => {
+  const root = runtime();
+  await arrange(root);
+  expect(inventory(root)).toEqual(REFUSED);
+});
+it.skipIf(!POSIX)('the inventory refuses a UNIX socket (POSIX)', async () => {
+  const root = runtime(),
+    server = createServer();
+  server.listen(join(root, 's.js'));
+  await once(server, 'listening');
+  try {
+    expect(inventory(root)).toEqual(REFUSED);
+  } finally {
+    server.close();
   }
 });
