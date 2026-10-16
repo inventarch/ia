@@ -87,19 +87,20 @@ function isPidAlive(pid: number): boolean {
  * replaced, could not be opened, or could not be removed), so the caller retries its own open. Every judged value (the
  * file's type, its age and its pid) comes from one descriptor, so all of them describe one file (CodeQL
  * js/file-system-race); it is opened without waiting on a FIFO and, where the platform has O_NOFOLLOW, without
- * following a link. Only a regular file is ever taken over: the lock is created as nothing else, so a link or any other
- * file there was put there by something else. A stale lock is removed only after its name is found to still name the
- * judged file, compared while the descriptor is open so that file's inode cannot be reused (on Windows, where a link
- * is followed, this comparison is what refuses one); the descriptor is closed first, as Windows may keep a removed
- * file's name until its last handle closes. A window between that comparison and the removal remains: Node has no
- * unlink-if-same.
+ * following a symbolic link. Only a regular file is ever taken over: the lock is created as nothing else, so a symbolic
+ * link or any other file there was put there by something else. A hard link at the lock path names the judged file
+ * itself, so it is judged like any other lock, and taking it over removes only that name. A stale lock is removed only
+ * after its name is found to still name the judged file, compared while the descriptor is open so that file's inode
+ * cannot be reused (on Windows, where a symbolic link is followed, this comparison is what refuses one); the descriptor
+ * is closed first, as Windows may keep a removed file's name until its last handle closes. A window between that
+ * comparison and the removal remains: Node has no unlink-if-same.
  */
 function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
   let fd: number;
   try {
     fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch {
-    return 'retry'; // vanished, a link O_NOFOLLOW refuses, or unopenable: the caller's attempt bound stops the spin
+    return 'retry'; // vanished, a symbolic link O_NOFOLLOW refuses, or unopenable: the attempt bound stops the spin
   }
   try {
     const opened = fstatSync(fd, { bigint: true });
@@ -140,10 +141,11 @@ function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
  * concurrent `ia host --user` runs cannot interleave their renames. A held lock is taken over — never trusted
  * blindly — only by `takeOverStale`, once it is a regular file whose pid has parsed and died, or that is older than
  * `LOCK_STALE_MS`, or (an empty/unparseable pid, the short window between another run's `openSync` and its pid write)
- * that is older than `LOCK_EMPTY_GRACE_MS`; otherwise this refuses INSTALL-BUSY. A link or any other non-regular file
- * at the lock path is never taken over, so it refuses INSTALL-BUSY too. Bounded at `LOCK_TAKEOVER_ATTEMPTS`, so a lock
- * file that keeps coming back (removal failing, a lock replaced while it was judged, or another process winning the
- * race) fails loudly instead of spinning forever. The sweep functions below must never touch this file.
+ * that is older than `LOCK_EMPTY_GRACE_MS`; otherwise this refuses INSTALL-BUSY. A symbolic link or any other
+ * non-regular file at the lock path is never taken over, so it refuses INSTALL-BUSY too. Bounded at
+ * `LOCK_TAKEOVER_ATTEMPTS`, so a lock file that keeps coming back (removal failing, a lock replaced while it was
+ * judged, or another process winning the race) fails loudly instead of spinning forever. The sweep functions below
+ * must never touch this file.
  */
 function acquireLock(parent: string): string {
   mkdirSync(parent, { recursive: true });
@@ -165,8 +167,8 @@ function acquireLock(parent: string): string {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
       if (attempts >= LOCK_TAKEOVER_ATTEMPTS) busy();
-      // A function of its own, as the exclusive open above checks nothing the takeover relies on: the takeover judges
-      // only the descriptor it opens itself.
+      // Judged in its own function, from a descriptor it opens itself: the exclusive open above only shows the
+      // name is taken.
       if (takeOverStale(path) === 'busy') busy();
     }
   }
