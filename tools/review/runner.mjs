@@ -1,6 +1,19 @@
 /** Trusted default-branch caller. PR contents are data; no checkout, shell or dependency install. */
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -137,35 +150,88 @@ export function evidenceFiles(directory, omissions) {
   let bytes = 0,
     entries = 0;
   const visit = (relative = '', depth = 0) => {
-    for (const entry of readdirSync(resolve(directory, relative)).sort()) {
+    // Each entry is classified by its directory entry type; only an evidence.json listed as a file is opened.
+    const listed = readdirSync(resolve(directory, relative), { withFileTypes: true }).sort((a, b) =>
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+    );
+    for (const entry of listed) {
       if (++entries > 2000) throw new Error('Evidence inventory exceeds disclosure bound');
-      const name = relative ? `${relative}/${entry}` : entry;
-      const path = resolve(directory, name),
-        stat = lstatSync(path);
-      if (stat.isSymbolicLink()) {
+      const name = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isSymbolicLink()) {
         omissions.push(`Evidence symlink omitted: ${name}`);
         continue;
       }
-      if (stat.isDirectory()) {
+      if (entry.isDirectory()) {
         if (depth >= 3) omissions.push(`Evidence nesting omitted: ${name}`);
         else visit(name, depth + 1);
         continue;
       }
       // Public quality emits <task>/evidence.json alongside raw logs/Vitest output.
-      if (!stat.isFile() || entry !== 'evidence.json') continue;
-      if (stat.size > 600000 || bytes + stat.size > 800000) {
-        omissions.push(`Evidence omitted by disclosure bound: ${name}`);
-        continue;
-      }
-      const content = readFileSync(path, 'utf8');
-      JSON.parse(content);
-      reports.push({ name, digest: digest(content), content });
-      bytes += stat.size;
+      if (!entry.isFile() || entry.name !== 'evidence.json') continue;
+      const report = evidenceReport(resolve(directory, name), name, bytes, omissions);
+      if (!report) continue;
+      JSON.parse(report.content);
+      reports.push({ name, digest: digest(report.content), content: report.content });
+      bytes += report.size;
     }
   };
   visit();
   if (!reports.length) omissions.push('No task-level execution evidence disclosed');
   return reports;
+}
+/**
+ * One listed evidence.json, opened before it is judged so that its bounds and its text are of one file (CodeQL
+ * js/file-system-race): its text and the size it was opened at, or undefined when it is omitted or is no regular file.
+ * `disclosed` is the size of the reports already admitted.
+ */
+function evidenceReport(path, name, disclosed, omissions) {
+  let fd;
+  try {
+    // NOFOLLOW refuses a link put in place after the listing; NONBLOCK keeps a FIFO from blocking the open.
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    // A link fails the open (ELOOP) and Windows will not open a directory: omitted or skipped as the listing would.
+    const named = lstatSync(path);
+    if (named.isSymbolicLink()) {
+      omissions.push(`Evidence symlink omitted: ${name}`);
+      return undefined;
+    }
+    if (!named.isFile()) return undefined;
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) return undefined;
+    const size = Number(opened.size);
+    if (size > 600000 || disclosed + size > 800000) {
+      omissions.push(`Evidence omitted by disclosure bound: ${name}`);
+      return undefined;
+    }
+    // Read at most one byte past the opened size, so a report that grows while it is read is not admitted.
+    const buffer = Buffer.alloc(size + 1);
+    let length = 0;
+    while (length < buffer.length) {
+      const count = readSync(fd, buffer, length, buffer.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    // Windows follows a link on open, so the name must still be the file that was read, unchanged.
+    const named = lstatSync(path, { bigint: true });
+    if (named.isSymbolicLink()) {
+      omissions.push(`Evidence symlink omitted: ${name}`);
+      return undefined;
+    }
+    if (
+      length !== size ||
+      fstatSync(fd, { bigint: true }).size !== opened.size ||
+      named.dev !== opened.dev ||
+      named.ino !== opened.ino
+    )
+      throw new Error(`Evidence changed while it was read: ${name}`);
+    return { content: buffer.subarray(0, length).toString('utf8'), size };
+  } finally {
+    closeSync(fd);
+  }
 }
 export async function evidenceCommit(gh, repository, reports, head, base, fallback) {
   const commits = [...new Set(reports.map((r) => JSON.parse(r.content).current?.commit).filter(Boolean))];

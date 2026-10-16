@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { expect, it } from 'vitest';
+import { runBounded } from '../testing/subprocess.js';
 import {
   collectSubject,
   digest,
@@ -288,6 +289,71 @@ it('reads nested task evidence from the actual gate artifact layout without mist
     writeFileSync(resolve(root, 'task/evidence.json'), ' '.repeat(600001));
     expect(evidenceFiles(root, omissions)).toEqual([]);
     expect(omissions).toContain('Evidence omitted by disclosure bound: task/evidence.json');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+it('omits linked and too-deep evidence, skips other entries and admits reports up to each bound', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+  try {
+    const put = (path: string, content: string) => {
+      mkdirSync(dirname(resolve(root, path)), { recursive: true });
+      writeFileSync(resolve(root, path), content);
+    };
+    // A JSON string of exactly `bytes` bytes.
+    const report = (bytes: number) => JSON.stringify('x'.repeat(bytes - 2));
+    put('a/evidence.json', report(600000)); // at the per-report bound
+    put('a/vitest.json', '{"numFailedTests":0}');
+    put('b/evidence.json', report(200000)); // brings the total to its bound
+    put('c/evidence.json', '0'); // one byte past the total
+    put('f/evidence.json/inner.txt', 'a directory named like a report is listed, not read');
+    put('g/h/i/j/evidence.json', '{}');
+    symlinkSync(resolve(root, 'a'), resolve(root, 'linked'), 'junction');
+    const omitted = ['Evidence omitted by disclosure bound: c/evidence.json'];
+    // File links need a privilege on Windows, which has no FIFOs.
+    if (process.platform !== 'win32') {
+      mkdirSync(resolve(root, 'e'));
+      symlinkSync(resolve(root, 'a/evidence.json'), resolve(root, 'e/evidence.json'));
+      mkdirSync(resolve(root, 'k'));
+      expect((await runBounded('mkfifo', [resolve(root, 'k/evidence.json')], { timeoutMs: 10_000 })).status).toBe(0);
+      omitted.push('Evidence symlink omitted: e/evidence.json');
+    }
+    omitted.push('Evidence nesting omitted: g/h/i/j', 'Evidence symlink omitted: linked');
+    const omissions: string[] = [];
+    expect(
+      evidenceFiles(root, omissions).map(({ name, content, digest: hash }) => [name, content.length, hash]),
+    ).toEqual([
+      ['a/evidence.json', 600000, digest(report(600000))],
+      ['b/evidence.json', 200000, digest(report(200000))],
+    ]);
+    expect(omissions).toEqual(omitted);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+it('refuses unparsable or too many evidence entries and a missing, linked or non-directory evidence root', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+  try {
+    const omissions: string[] = [];
+    expect(evidenceFiles(resolve(root, 'missing'), omissions)).toEqual([]);
+    expect(omissions).toEqual(['Quality evidence artifacts unavailable']);
+    writeFileSync(resolve(root, 'file'), '{}');
+    expect(() => evidenceFiles(resolve(root, 'file'), [])).toThrow('Evidence must be a real directory');
+    mkdirSync(resolve(root, 'evidence/task'), { recursive: true });
+    symlinkSync(resolve(root, 'evidence'), resolve(root, 'linked'), 'junction');
+    expect(() => evidenceFiles(resolve(root, 'linked'), [])).toThrow('Evidence must be a real directory');
+    writeFileSync(resolve(root, 'evidence/task/evidence.json'), 'not JSON');
+    expect(() => evidenceFiles(resolve(root, 'evidence'), [])).toThrow(SyntaxError);
+    rmSync(resolve(root, 'evidence/task/evidence.json'));
+    for (let index = 0; index < 1999; index++) writeFileSync(resolve(root, 'evidence/task', `log-${index}.txt`), '');
+    // The task directory and 1,999 logs are 2,000 entries: at the bound, with no report to disclose.
+    const atBound: string[] = [];
+    expect(evidenceFiles(resolve(root, 'evidence'), atBound)).toEqual([]);
+    expect(atBound).toEqual(['No task-level execution evidence disclosed']);
+    writeFileSync(resolve(root, 'evidence/task/log-1999.txt'), '');
+    expect(() => evidenceFiles(resolve(root, 'evidence'), [])).toThrow('Evidence inventory exceeds disclosure bound');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
