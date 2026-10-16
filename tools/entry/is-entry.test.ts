@@ -198,6 +198,46 @@ it('runs a real native launcher directly from a path with spaces and preserves i
   }
 });
 
+it('refuses a missing or dangling launcher with its stat error and a directory or FIFO as not a regular file', () => {
+  scratch((base) => {
+    const notRegular = /^Package-manager launcher must be a regular file$/,
+      missing = /^ENOENT: no such file or directory, stat /;
+    expect(() => packageManagerCommand(resolve(base, 'missing'), [])).toThrow(missing);
+    expect(() => packageManagerCommand(base, [])).toThrow(notRegular);
+    // A directory junction needs no privilege on Windows, and the launcher it reaches is still a directory.
+    symlinkSync(base, resolve(base, 'directory link'), 'junction');
+    expect(() => packageManagerCommand(resolve(base, 'directory link'), [])).toThrow(notRegular);
+    // File links need a privilege on Windows, which has no FIFOs.
+    if (process.platform === 'win32') return;
+    symlinkSync(resolve(base, 'missing'), resolve(base, 'dangling'));
+    expect(() => packageManagerCommand(resolve(base, 'dangling'), [])).toThrow(missing);
+    const fifo = resolve(base, 'pnpm fifo');
+    expect(spawnSync('mkfifo', [fifo], { timeout: 10_000 }).status).toBe(0);
+    expect(() => packageManagerCommand(fifo, [])).toThrow(notRegular);
+  });
+});
+
+it('follows a link to a launcher and judges the file it reaches', () => {
+  scratch((base) => {
+    const target = resolve(base, 'pnpm.cjs'),
+      link = resolve(base, 'pnpm');
+    writeFileSync(target, '#!/usr/bin/env node\n');
+    if (!fileLink(target, link)) return;
+    expect(packageManagerCommand(link, ['install'], 'node')).toEqual({ command: 'node', args: [link, 'install'] });
+  });
+});
+
+it('rethrows the open error for a launcher it cannot read', () => {
+  // Root reads a file whatever its mode, and Windows has no such mode.
+  if (process.platform === 'win32' || process.getuid?.() === 0) return;
+  scratch((base) => {
+    const launcher = resolve(base, 'pnpm.cjs');
+    writeFileSync(launcher, '#!/usr/bin/env node\n');
+    chmodSync(launcher, 0o000);
+    expect(() => packageManagerCommand(launcher, [])).toThrow(/^EACCES: permission denied, open /);
+  });
+});
+
 it('refuses absent, nonregular and unsupported package-manager launchers before spawning', () => {
   scratch((base) => {
     expect(() => packageManagerCommand(resolve(base, 'missing'), [])).toThrow();
