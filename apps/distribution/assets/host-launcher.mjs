@@ -1,6 +1,17 @@
 // Packaged artifact entrypoint. Its inventory pin is inserted by release assembly.
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'),
@@ -40,29 +51,92 @@ try {
   let count = 0,
     total = 0,
     entries = 0;
+  // What the walk does with a file, from its stat (bigint): a link, a special file or a second link refuses; the
+  // launcher's own files and unpinned platform files are skipped (false); an unpinned, resized or over-budget file
+  // refuses; any other file is read and hashed (true).
+  const judge = (stat, rel, name, file) => {
+    if (stat.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
+    if (!stat.isFile() || stat.nlink !== 1n) throw Error('Plugin cache file is aliased');
+    if (rel === 'inventory.json' || rel === 'scripts/ia.mjs' || rel === 'release.json') return false;
+    if (!file && (name === '.DS_Store' || name.startsWith('._'))) return false;
+    if (
+      !file ||
+      !Number.isSafeInteger(file.bytes) ||
+      stat.size !== BigInt(file.bytes) ||
+      (total += file.bytes) > 256 * 1024 * 1024
+    )
+      throw Error('Plugin cache payload differs: ' + rel);
+    return true;
+  };
+  // The lstat (bigint) of `path`, or undefined once it is gone.
+  const named = (path) => {
+    try {
+      return lstatSync(path, { bigint: true });
+    } catch (error) {
+      if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return undefined;
+      throw error;
+    }
+  };
+  // Whether the file entry at `rel` is pinned and verified. It is opened before it is judged, so the file judged is the
+  // file hashed (CodeQL js/file-system-race): never through a link where the platform refuses one at the open, never
+  // waiting on a FIFO, read through that descriptor at most one byte past its pinned size, and still the file at `rel`
+  // afterwards, which on Windows, without either open flag, is the one check of a link swapped in after the listing. An
+  // entry gone since its directory was read is left uncounted, as one never listed would be, so no system error names it.
+  const verified = (rel, name, file) => {
+    const full = join(root, rel);
+    let fd;
+    try {
+      fd = openSync(full, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+    } catch (error) {
+      // Judged by its name, as before the walk opened files: a link the open refused (ELOOP; EMLINK on FreeBSD), a socket
+      // or a directory Windows will not open keeps its refusal, and only a file the walk would read rethrows its error.
+      const stat = named(full);
+      if (!stat) return false;
+      if (error.code === 'ELOOP' || error.code === 'EMLINK') throw Error('Plugin cache links are unsupported');
+      if (judge(stat, rel, name, file)) throw error;
+      return false;
+    }
+    try {
+      const opened = fstatSync(fd, { bigint: true });
+      if (!judge(opened, rel, name, file)) return false;
+      const bytes = Buffer.alloc(file.bytes + 1);
+      let length = 0;
+      while (length < bytes.length) {
+        const read = readSync(fd, bytes, length, bytes.length - length, null);
+        if (!read) break;
+        length += read;
+      }
+      const after = fstatSync(fd, { bigint: true }),
+        stat = named(full);
+      if (!stat) return false;
+      if (stat.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
+      if (!stat.isFile() || stat.nlink !== 1n) throw Error('Plugin cache file is aliased');
+      if (
+        stat.dev !== opened.dev ||
+        stat.ino !== opened.ino ||
+        after.size !== opened.size ||
+        after.mtimeNs !== opened.mtimeNs ||
+        after.ctimeNs !== opened.ctimeNs ||
+        length !== file.bytes ||
+        hash(bytes.subarray(0, length)) !== file.sha256
+      )
+        throw Error('Plugin cache payload differs: ' + rel);
+      return true;
+    } finally {
+      closeSync(fd);
+    }
+  };
   const visit = (path = '', depth = 0) => {
     if (depth > 32) throw Error('Plugin cache directory depth exceeds 32');
-    for (const name of readdirSync(join(root, path))) {
+    for (const entry of readdirSync(join(root, path), { withFileTypes: true })) {
       if (++entries > 20000) throw Error('Plugin cache filesystem inventory exceeds its bound');
-      const rel = path ? path + '/' + name : name,
-        full = join(root, rel),
-        stat = lstatSync(full);
-      if (stat.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
-      if (stat.isDirectory()) visit(rel, depth + 1);
-      else {
-        if (!stat.isFile() || stat.nlink !== 1) throw Error('Plugin cache file is aliased');
-        if (rel === 'inventory.json' || rel === 'scripts/ia.mjs' || rel === 'release.json') continue;
-        const file = expected.get(rel);
-        if (!file && (name === '.DS_Store' || name.startsWith('._'))) continue;
-        if (
-          !file ||
-          stat.size !== file.bytes ||
-          (total += stat.size) > 256 * 1024 * 1024 ||
-          hash(readFileSync(full)) !== file.sha256
-        )
-          throw Error('Plugin cache payload differs: ' + rel);
-        count++;
-      }
+      const name = entry.name,
+        rel = path ? path + '/' + name : name;
+      // A link or a special file is refused from its directory entry, before anything is opened.
+      if (entry.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
+      if (entry.isDirectory()) visit(rel, depth + 1);
+      else if (!entry.isFile()) throw Error('Plugin cache file is aliased');
+      else if (verified(rel, name, expected.get(rel))) count++;
     }
   };
   visit();

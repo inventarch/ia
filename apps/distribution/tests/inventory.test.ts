@@ -1,11 +1,64 @@
 import { once } from 'node:events';
-import { linkSync, mkdtempSync, mkdirSync, renameSync, writeFileSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
+import {
+  appendFileSync,
+  chmodSync,
+  closeSync,
+  constants,
+  linkSync,
+  mkdtempSync,
+  mkdirSync,
+  openSync,
+  renameSync,
+  writeFileSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+} from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { installedDistributionDigest } from '../src/inventory.js';
+
+/**
+ * A pass-through `node:fs` with one hook on `target`: `beforeOpen` runs once just before it is opened, and `afterRead` once
+ * just after the first read through a descriptor opened on it, so a test changes an entry between two of the reader's own
+ * calls. Every other path behaves exactly as usual.
+ */
+const race = vi.hoisted(() => ({
+  target: undefined as string | undefined,
+  beforeOpen: undefined as (() => void) | undefined,
+  afterRead: undefined as (() => void) | undefined,
+  opened: new Set<number>(),
+}));
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  const fire = (step: 'beforeOpen' | 'afterRead') => {
+    const act = race[step];
+    race[step] = undefined;
+    act?.();
+  };
+  return {
+    ...actual,
+    openSync: (...args: Parameters<typeof actual.openSync>) => {
+      const target = String(args[0]) === race.target;
+      if (target) fire('beforeOpen');
+      const fd = actual.openSync(...args);
+      if (target) race.opened.add(fd);
+      return fd;
+    },
+    readSync: (fd: number, ...rest: unknown[]) => {
+      const read = (actual.readSync as (fd: number, ...rest: unknown[]) => number)(fd, ...rest);
+      if (race.opened.has(fd)) fire('afterRead');
+      return read;
+    },
+    closeSync: (fd: number) => {
+      race.opened.delete(fd);
+      actual.closeSync(fd);
+    },
+  };
+});
 
 it('pins every installed distribution runtime module and refuses a partial or mixed installation', () => {
   expect(installedDistributionDigest()).toMatch(/^[a-f0-9]{64}$/);
@@ -43,6 +96,8 @@ const POSIX = process.platform !== 'win32';
 const REFUSED = { code: undefined, message: 'Installed distribution runtime is missing, mixed or aliased' };
 const roots: string[] = [];
 afterEach(() => {
+  race.target = race.beforeOpen = race.afterRead = undefined;
+  race.opened.clear();
   for (const root of roots.splice(0)) {
     if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe inventory cleanup');
     rmSync(root, { recursive: true, force: true });
@@ -179,4 +234,89 @@ it.skipIf(!POSIX)('the inventory refuses a UNIX socket (POSIX)', async () => {
   } finally {
     server.close();
   }
+});
+const UNPRIVILEGED = POSIX && process.getuid?.() !== 0;
+/**
+ * The inventory judges the file it opened, not the entry it listed: whatever replaces a runtime module after its directory
+ * was read, or while it is read, refuses. A FIFO is held open for reading and writing meanwhile, so no open of it can wait.
+ */
+it.each<[string, (module: string) => void]>([
+  ['removed before the open', (module) => (race.beforeOpen = () => unlinkSync(module))],
+  ['grown by a byte after its first read', (module) => (race.afterRead = () => appendFileSync(module, ' '))],
+])('the inventory refuses a runtime module %s', (_, arrange) => {
+  const root = runtime();
+  race.target = join(root, 'archive.js');
+  arrange(race.target);
+  expect(inventory(root)).toEqual(REFUSED);
+});
+it.skipIf(!POSIX).each<[string, (module: string) => void]>([
+  [
+    'replaced by a link before the open',
+    (module) => {
+      const moved = join(temporary(), 'archive.js');
+      race.beforeOpen = () => {
+        renameSync(module, moved);
+        symlinkSync(moved, module);
+      };
+    },
+  ],
+  [
+    'replaced by a link after its first read',
+    (module) => {
+      const moved = join(temporary(), 'archive.js');
+      race.afterRead = () => {
+        renameSync(module, moved);
+        symlinkSync(moved, module);
+      };
+    },
+  ],
+  [
+    'replaced by another file of the same bytes after its first read',
+    (module) => {
+      const other = join(temporary(), 'archive.js');
+      writeFileSync(other, '// Emitted archive.\n');
+      race.afterRead = () => renameSync(other, module);
+    },
+  ],
+])('the inventory refuses a runtime module %s (POSIX)', (_, arrange) => {
+  const root = runtime();
+  race.target = join(root, 'archive.js');
+  arrange(race.target);
+  expect(inventory(root)).toEqual(REFUSED);
+});
+it.skipIf(!POSIX)('the inventory refuses a runtime module replaced by a FIFO before the open (POSIX)', async () => {
+  const root = runtime(),
+    fifo = join(temporary(), 'fifo');
+  expect((await runBounded('mkfifo', [fifo], { timeoutMs: SUBPROCESS })).status).toBe(0);
+  const held = openSync(fifo, constants.O_RDWR);
+  try {
+    race.target = join(root, 'archive.js');
+    race.beforeOpen = () => renameSync(fifo, join(root, 'archive.js'));
+    expect(inventory(root)).toEqual(REFUSED);
+  } finally {
+    closeSync(held);
+  }
+});
+it.skipIf(!POSIX)(
+  'the inventory refuses a runtime module replaced by a UNIX socket before the open (POSIX)',
+  async () => {
+    const root = runtime(),
+      bound = join(temporary(), 's'),
+      server = createServer();
+    server.listen(bound);
+    await once(server, 'listening');
+    try {
+      race.target = join(root, 'archive.js');
+      race.beforeOpen = () => renameSync(bound, join(root, 'archive.js'));
+      expect(inventory(root)).toEqual(REFUSED);
+    } finally {
+      server.close();
+    }
+  },
+);
+/** Every open that fails refuses, a file the process may not read included, not only an entry swapped meanwhile. */
+it.skipIf(!UNPRIVILEGED)('the inventory refuses an unreadable runtime module (POSIX, unprivileged)', () => {
+  const root = runtime();
+  chmodSync(join(root, 'archive.js'), 0);
+  expect(inventory(root)).toEqual(REFUSED);
 });

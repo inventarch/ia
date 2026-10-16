@@ -1,10 +1,15 @@
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import {
+  appendFileSync,
   chmodSync,
+  closeSync,
+  constants,
   linkSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
+  readFileSync,
   renameSync,
   rmSync,
   symlinkSync,
@@ -14,8 +19,47 @@ import {
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
+
+/**
+ * A pass-through `node:fs` with one hook on `target`: `beforeOpen` runs once just before it is opened, and `afterRead` once
+ * just after the first read through a descriptor opened on it, so a test changes an input between two of the reader's own
+ * calls. Every other path behaves exactly as usual.
+ */
+const race = vi.hoisted(() => ({
+  target: undefined as string | undefined,
+  beforeOpen: undefined as (() => void) | undefined,
+  afterRead: undefined as (() => void) | undefined,
+  opened: new Set<number>(),
+}));
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  const fire = (step: 'beforeOpen' | 'afterRead') => {
+    const act = race[step];
+    race[step] = undefined;
+    act?.();
+  };
+  return {
+    ...actual,
+    openSync: (...args: Parameters<typeof actual.openSync>) => {
+      const target = String(args[0]) === race.target;
+      if (target) fire('beforeOpen');
+      const fd = actual.openSync(...args);
+      if (target) race.opened.add(fd);
+      return fd;
+    },
+    readSync: (fd: number, ...rest: unknown[]) => {
+      const read = (actual.readSync as (fd: number, ...rest: unknown[]) => number)(fd, ...rest);
+      if (race.opened.has(fd)) fire('afterRead');
+      return read;
+    },
+    closeSync: (fd: number) => {
+      race.opened.delete(fd);
+      actual.closeSync(fd);
+    },
+  };
+});
 
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
 const POSIX = process.platform !== 'win32';
@@ -25,6 +69,8 @@ const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
 const sha = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const roots: string[] = [];
 afterEach(() => {
+  race.target = race.beforeOpen = race.afterRead = undefined;
+  race.opened.clear();
   for (const root of roots.splice(0)) {
     if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
     rmSync(root, { recursive: true, force: true });
@@ -287,3 +333,96 @@ it.skipIf(!UNPRIVILEGED)(
     });
   },
 );
+/**
+ * Reading an input judges the file it opened, not the entry it found: whatever replaces package.json after its name was
+ * checked, or while it is read, refuses with the input's own message, never through a link, a FIFO or a socket. One removed
+ * before the open keeps the error of its open. A FIFO is held open for reading and writing meanwhile, so no open of it can
+ * wait.
+ */
+const changed = { code: undefined, message: 'System package input changed while it was read: package.json' };
+it.each<[string, (manifest: string) => unknown]>([
+  [
+    'removed before the open',
+    (manifest) => {
+      race.beforeOpen = () => unlinkSync(manifest);
+      return { code: 'ENOENT', message: `ENOENT: no such file or directory, open '${manifest}'` };
+    },
+  ],
+  [
+    'grown by a byte after its first read',
+    (manifest) => {
+      race.afterRead = () => appendFileSync(manifest, ' ');
+      return changed;
+    },
+  ],
+])('verification refuses a package.json %s', async (_, arrange) => {
+  const selected = await legacyPackage();
+  race.target = resolve(selected.scratch, 'package.json');
+  const expected = arrange(race.target);
+  expect(await verification(selected.scratch, selected.pin)).toEqual(expected);
+});
+it.skipIf(!POSIX).each<[string, (manifest: string) => unknown]>([
+  [
+    'replaced by a link before the open',
+    (manifest) => {
+      const moved = resolve(temporary('ia-system-package-other-'), 'package.json');
+      race.beforeOpen = () => {
+        renameSync(manifest, moved);
+        symlinkSync(moved, manifest);
+      };
+      return { code: undefined, message: 'System package input is aliased: package.json' };
+    },
+  ],
+  [
+    'replaced by a link after its first read',
+    (manifest) => {
+      const moved = resolve(temporary('ia-system-package-other-'), 'package.json');
+      race.afterRead = () => {
+        renameSync(manifest, moved);
+        symlinkSync(moved, manifest);
+      };
+      return { code: undefined, message: 'System package input is aliased: package.json' };
+    },
+  ],
+  [
+    'replaced by another file of the same bytes after its first read',
+    (manifest) => {
+      const other = resolve(temporary('ia-system-package-other-'), 'package.json');
+      writeFileSync(other, readFileSync(manifest));
+      race.afterRead = () => renameSync(other, manifest);
+      return changed;
+    },
+  ],
+])('verification refuses a package.json %s (POSIX)', async (_, arrange) => {
+  const selected = await legacyPackage();
+  race.target = resolve(selected.scratch, 'package.json');
+  const expected = arrange(race.target);
+  expect(await verification(selected.scratch, selected.pin)).toEqual(expected);
+});
+it.skipIf(!POSIX)('verification refuses a package.json replaced by a FIFO before the open (POSIX)', async () => {
+  const selected = await legacyPackage(),
+    fifo = resolve(temporary('ia-sp-'), 'fifo');
+  await mkfifo(fifo);
+  const held = openSync(fifo, constants.O_RDWR);
+  try {
+    race.target = resolve(selected.scratch, 'package.json');
+    race.beforeOpen = () => renameSync(fifo, resolve(selected.scratch, 'package.json'));
+    expect(await verification(selected.scratch, selected.pin)).toEqual(notRegular('package.json'));
+  } finally {
+    closeSync(held);
+  }
+});
+it.skipIf(!POSIX)('verification refuses a package.json replaced by a UNIX socket before the open (POSIX)', async () => {
+  const selected = await legacyPackage(),
+    bound = resolve(temporary('ia-sp-'), 's'),
+    server = createServer();
+  server.listen(bound);
+  await once(server, 'listening');
+  try {
+    race.target = resolve(selected.scratch, 'package.json');
+    race.beforeOpen = () => renameSync(bound, resolve(selected.scratch, 'package.json'));
+    expect(await verification(selected.scratch, selected.pin)).toEqual(notRegular('package.json'));
+  } finally {
+    server.close();
+  }
+});

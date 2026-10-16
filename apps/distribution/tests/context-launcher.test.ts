@@ -18,6 +18,7 @@ import {
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, expect, it } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { platformDebris } from '@inventarch/db/distribution';
@@ -547,4 +548,154 @@ it('verify admits a pinned payload of exactly 256 MiB and refuses one byte more'
     verdicts.push(await verdict(selected));
   }
   expect(verdicts).toEqual([VERIFIED, refused('Plugin cache payload differs: big')]);
+});
+/**
+ * A preload (`node --import`) that runs the `steps` of IA_TEST_RACE, each an `fs` function name and its arguments, once:
+ * just before the launcher opens `target` or just after its first read of it. So a case changes an entry after the walk
+ * listed it, between two of the launcher's own calls, with no timing involved.
+ */
+const RACE = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const plan = JSON.parse(process.env.IA_TEST_RACE), { openSync, readSync, closeSync } = fs, opened = new Set();
+let pending = true;
+const act = () => {
+  if (!pending) return;
+  pending = false;
+  for (const [step, ...args] of plan.steps) fs[step](...args);
+};
+fs.openSync = function (path, ...rest) {
+  const target = String(path) === plan.target;
+  if (target && plan.at === 'open') act();
+  const fd = openSync.call(this, path, ...rest);
+  if (target) opened.add(fd);
+  return fd;
+};
+fs.readSync = function (fd, ...rest) {
+  const read = readSync.call(this, fd, ...rest);
+  if (opened.has(fd) && plan.at === 'read') act();
+  return read;
+};
+fs.closeSync = function (fd) {
+  opened.delete(fd);
+  return closeSync.call(this, fd);
+};
+syncBuiltinESMExports();
+`;
+type Race = { readonly at: 'open' | 'read'; readonly steps: readonly (readonly unknown[])[] };
+/** What `verify` answers when `race` changes the pinned module, and whether the launcher had to be stopped. */
+async function raced(selected: Cache, race: Race) {
+  const preload = join(outside(), 'race.mjs');
+  writeFileSync(preload, RACE);
+  const result = await runBounded(
+    process.execPath,
+    ['--import', pathToFileURL(preload).href, join(selected.root, 'scripts/ia.mjs'), 'verify'],
+    {
+      timeoutMs: SUBPROCESS,
+      maxBufferBytes: 1024 * 1024,
+      env: {
+        ...process.env,
+        NODE_OPTIONS: '',
+        NODE_PATH: '',
+        IA_TEST_RACE: JSON.stringify({ ...race, target: selected.module }),
+      },
+    },
+  );
+  return {
+    timedOut: result.timedOut,
+    status: result.status,
+    output: result.status === 0 ? 'verified' : parsed(result.stderr),
+  };
+}
+/** A copy of the pinned module outside the cache: the same bytes as another file. */
+function copy(selected: Cache): string {
+  const path = join(outside(), 'context.js');
+  writeFileSync(path, readFileSync(selected.module));
+  return path;
+}
+/**
+ * The walk judges the file it opened, not the entry it listed: whatever replaces the pinned module after the directory
+ * was read is refused with the walk's own message, at once, never through a link, a FIFO or a socket, and never with a
+ * system error's text. A FIFO opened without O_NONBLOCK would block until the subprocess bound stopped the launcher.
+ */
+it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
+  [
+    'removed before the open',
+    (s) => ({ at: 'open', steps: [['unlinkSync', s.module]] }),
+    'Plugin cache payload is missing',
+  ],
+  [
+    'given a second link before the open',
+    (s) => ({ at: 'open', steps: [['linkSync', s.module, join(outside(), 'context.js')]] }),
+    'Plugin cache file is aliased',
+  ],
+  [
+    'grown by a byte after its first read',
+    (s) => ({ at: 'read', steps: [['appendFileSync', s.module, ' ']] }),
+    `Plugin cache payload differs: ${MODULE}`,
+  ],
+])('verify refuses a pinned module %s', async (_, arrange, message) => {
+  const selected = cache(),
+    race = await arrange(selected);
+  expect(await raced(selected, race)).toEqual({ timedOut: false, ...refused(message) });
+});
+it.skipIf(!POSIX).each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
+  [
+    'replaced by a FIFO before the open',
+    async (s) => {
+      const fifo = join(outside(), 'fifo');
+      await mkfifo(fifo);
+      return { at: 'open', steps: [['renameSync', fifo, s.module]] };
+    },
+    'Plugin cache file is aliased',
+  ],
+  [
+    'replaced by a link to a FIFO before the open',
+    async (s) => {
+      const fifo = join(outside(), 'fifo');
+      await mkfifo(fifo);
+      return {
+        at: 'open',
+        steps: [
+          ['unlinkSync', s.module],
+          ['symlinkSync', fifo, s.module],
+        ],
+      };
+    },
+    'Plugin cache links are unsupported',
+  ],
+  [
+    'replaced by a link to the same bytes after its first read',
+    (s) => ({
+      at: 'read',
+      steps: [
+        ['unlinkSync', s.module],
+        ['symlinkSync', copy(s), s.module],
+      ],
+    }),
+    'Plugin cache links are unsupported',
+  ],
+  [
+    'replaced by another file of the same bytes after its first read',
+    (s) => ({ at: 'read', steps: [['renameSync', copy(s), s.module]] }),
+    `Plugin cache payload differs: ${MODULE}`,
+  ],
+])('verify refuses a pinned module %s (POSIX)', async (_, arrange, message) => {
+  const selected = cache(),
+    race = await arrange(selected);
+  expect(await raced(selected, race)).toEqual({ timedOut: false, ...refused(message) });
+});
+it.skipIf(!POSIX)('verify refuses a pinned module replaced by a UNIX socket before the open (POSIX)', async () => {
+  const selected = cache(),
+    bound = join(outside(), 's'),
+    server = createServer();
+  server.listen(bound);
+  await once(server, 'listening');
+  try {
+    expect(await raced(selected, { at: 'open', steps: [['renameSync', bound, selected.module]] })).toEqual({
+      timedOut: false,
+      ...refused('Plugin cache file is aliased'),
+    });
+  } finally {
+    server.close();
+  }
 });
