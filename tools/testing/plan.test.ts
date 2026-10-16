@@ -6,11 +6,12 @@ import { tmpdir } from 'node:os';
 import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { expect, it } from 'vitest';
-import { PLATFORMS, type Manifest, type TaskRecord } from './inventory.js';
+import { PLATFORMS, readManifest, type Manifest, type TaskRecord } from './inventory.js';
 import { buildReport, currentPlatform, readVitestResults, writeEvidence, type GateEvidence } from './report.js';
 import {
   BORROWED_PLATFORM,
   CONSERVATIVE_ESTIMATE_SECONDS,
+  MACOS_CONCURRENT_JOBS,
   PULL_REQUEST_PLATFORMS,
   RUNNERS,
   borrowedRatio,
@@ -22,9 +23,11 @@ import {
   laneOf,
   planShards,
   platformCounts,
+  readSchedule,
   runNeeded,
   selectedPlatforms,
   updateSchedule,
+  upperMedian,
   type Schedule,
 } from './plan.js';
 import { GATE_JOB, qualifyNeeds, qualifyRows, workflowJobs } from './workflow.js';
@@ -410,6 +413,101 @@ it('records executed durations and excludes restored ones from the schedule', ()
   }
 });
 
+it('takes the upper median of an observed sample, so it is always a value some run measured', () => {
+  expect(upperMedian([7])).toBe(7);
+  expect(upperMedian([1010, 611, 889, 850, 1002])).toBe(889);
+  expect(upperMedian([40, 10, 30, 20])).toBe(30);
+  expect(() => upperMedian([])).toThrow('at least one sample');
+});
+
+it('records several runs as each task’s median over the runs that executed it', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'ia-schedule-'));
+  if (!directory.startsWith(resolve(tmpdir(), 'ia-schedule-'))) throw new Error('Unexpected temporary cleanup path');
+  try {
+    const platform = currentPlatform(),
+      other = PLATFORMS.find((candidate) => candidate !== platform)!;
+    const write = (run: string, task: string, outcome: GateEvidence['outcome'], seconds: number, on = platform) => {
+      const report = buildReport(base, {
+        ...readVitestResults('.', 'packages/thing', {
+          success: true,
+          testResults: [
+            {
+              name: resolve('packages/thing', 'tests/a.test.ts'),
+              assertionResults: [{ fullName: 'holds', status: 'passed', duration: 1 }],
+            },
+          ],
+        }),
+        passed: true,
+        durationMs: seconds * 1000,
+        startedAt: 'x',
+        commit: null,
+        run: null,
+      });
+      writeEvidence(resolve(directory, run, task.replace(':', '-'), 'evidence.json'), {
+        version: 1,
+        task,
+        platform: on,
+        outcome,
+        source: outcome === 'executed' ? 'execution' : 'remote-cache',
+        hash: 'abc',
+        current: { run: null, commit: null },
+        provenanceAvailable: true,
+        report: { ...report, task },
+      });
+    };
+    // Four runs of b:test, one of them restored and so not a sample; four executed runs of a:test.
+    for (const [run, seconds] of [
+      ['r1', 50],
+      ['r2', 10],
+      ['r3', 30],
+    ] as const)
+      write(run, 'b:test', 'executed', seconds);
+    write('r4', 'b:test', 'restored', 1);
+    for (const [run, seconds] of [
+      ['r1', 4],
+      ['r2', 8],
+      ['r3', 6],
+      ['r4', 2],
+    ] as const)
+      write(run, 'a:test', 'executed', seconds);
+    // Another platform's observation lands in that platform's section only.
+    write('r1', 'a:test', 'executed', 99, other);
+    const before = {
+      version: 1,
+      platforms: { linux: {}, windows: {}, macos: {}, [platform]: { 'z:test': 5, 'b:test': 1 } },
+    } as Schedule;
+    const runs = ['r1', 'r2', 'r3', 'r4'].map((run) => resolve(directory, run));
+    const updated = updateSchedule(before, runs);
+    // The upper median of 2/4/6/8 is 6 and of 10/30/50 is 30; a task no run executed keeps its estimate; keys sort.
+    expect(updated.platforms[platform]).toEqual({ 'a:test': 6, 'b:test': 30, 'z:test': 5 });
+    expect(Object.keys(updated.platforms[platform]!)).toEqual(['a:test', 'b:test', 'z:test']);
+    expect(updated.platforms[other]).toEqual({ 'a:test': 99 });
+    // One directory is one run, so recording the runs one at a time keeps only the last.
+    expect(runs.reduce((schedule, run) => updateSchedule(schedule, run), before).platforms[platform]).toMatchObject({
+      'a:test': 2,
+    });
+    // The command line takes --record once per run and writes the same schedule.
+    const output = resolve(directory, 'planning/schedule.json');
+    const cli = (...args: string[]) =>
+      spawnSync(process.execPath, ['--import', 'tsx', 'tools/testing/plan.ts', ...args], {
+        cwd: root,
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: SUBPROCESS,
+      });
+    const exported = cli(...runs.flatMap((run) => ['--record', run]), '--record-out', output);
+    expect(exported.status, exported.stderr).toBe(0);
+    const recorded = JSON.parse(readFileSync(output, 'utf8')) as Schedule;
+    expect(recorded.platforms[platform]).toMatchObject({ 'a:test': 6, 'b:test': 30 });
+    expect(cli('--record', '--record-out', output)).toMatchObject({
+      status: 1,
+      stderr: expect.stringContaining('--record expects an evidence directory'),
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 it('reads gate rows and needs through comments, quotes, either key order and CRLF', () => {
   const text = [
     'jobs:',
@@ -522,7 +620,7 @@ it('skips a scheduled run only when main is the commit the last successful sched
 });
 
 it('passes the planner the shard counts it accepts, with fewer on macOS than on Linux', () => {
-  // Hosted macOS minutes bill at a multiple of Linux's, and macOS is not the workflow's critical path.
+  // Every macOS job shares the organization's macOS slots with every other run, and macOS is not the critical path.
   const step = /tests:plan --ci-matrix --shards (\S+) --native-shards (\S+)/.exec(workflow());
   expect(step).not.toBeNull();
   const shards = platformCounts(step![1]!, '--shards'),
@@ -576,6 +674,42 @@ it("plans each platform with the workflow's shard counts through the command lin
   const macos = plan('--platform', 'macos', '--shards', shards, '--native-shards', native, '--json');
   expect(macos).toMatchObject({ status: 0 });
   expect((JSON.parse(macos.stdout) as { shards: readonly unknown[] }).shards).toHaveLength(counts.macos);
+});
+
+it("keeps one run's concurrent macOS jobs within the organization's macOS slots", () => {
+  // Static, emitted and test jobs all start when the build finishes and run together; the build and the Homebrew smoke
+  // run before them and the gate after them. More than the limit makes one run queue behind itself.
+  const step = /tests:plan --ci-matrix --shards (\S+) --native-shards (\S+)/.exec(workflow());
+  expect(step).not.toBeNull();
+  for (const job of ['static', 'emitted', 'tests'])
+    expect(workflowJobs(workflow()).get(job)).toMatch(/^needs: \[plan, build\]$/m);
+  const matrices = ciMatrices(readManifest(root), readSchedule(root), {
+    shards: platformCounts(step![1]!, '--shards'),
+    nativeShards: platformCounts(step![2]!, '--native-shards'),
+  });
+  const macos = (['static', 'emitted', 'tests'] as const).flatMap((lane) =>
+    matrices[lane].include.filter((row) => row.platform === 'macos'),
+  );
+  expect(macos.length).toBeLessThanOrEqual(MACOS_CONCURRENT_JOBS);
+});
+
+it('exports each platform’s durations from the gate and warns on a test shard near its timeout, never failing', () => {
+  const jobs = workflowJobs(workflow());
+  const gate = jobs.get(GATE_JOB)!,
+    tests = jobs.get('tests')!;
+  // Export and upload come before the refusal step, the gate's last, so they still run after a failed comparison.
+  const exported = gate.indexOf('run: pnpm tests:plan --record artifacts/tests --record-out artifacts/schedule/');
+  expect(exported).toBeGreaterThan(gate.indexOf('id: gate'));
+  expect(gate.indexOf('name: schedule-${{ matrix.platform }}')).toBeGreaterThan(exported);
+  expect(gate.indexOf('name: Refuse an aggregate built on unfinished work')).toBeGreaterThan(
+    gate.indexOf('name: schedule-${{ matrix.platform }}'),
+  );
+  expect(gate.slice(gate.lastIndexOf('- ', exported), exported)).toContain('continue-on-error: true');
+  // The start time is taken before any other step, and the warning runs whatever the tasks did.
+  expect(tests).toMatch(/^steps:\n- name: Note when the job started\n/m);
+  expect(tests).toMatch(/- name: Warn when the shard nears its timeout\nif: always\(\)\ncontinue-on-error: true\n/);
+  expect(tests).toMatch(/^timeout-minutes: 60$/m);
+  expect(tests).toContain('if [ "$minutes" -ge 40 ]; then echo "::warning::');
 });
 
 it('writes every matrix line before it exits, however slowly the Plan job reads them', async () => {

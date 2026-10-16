@@ -46,7 +46,12 @@ export interface ShardPlan {
 export const CONSERVATIVE_ESTIMATE_SECONDS = 600;
 /** A task a platform has not recorded is placed by this platform's duration for it, scaled, until `--record` gives it its own. */
 export const BORROWED_PLATFORM: Platform = 'linux';
-/** Test shards per platform. Platforms differ in cost as well as speed: hosted macOS minutes bill at a multiple of Linux's. */
+/** GitHub-hosted macOS jobs one organization can run at once, shared by every run; a job past it waits for a slot. */
+export const MACOS_CONCURRENT_JOBS = 5;
+/**
+ * Test shards per platform. Platforms differ in speed and in runner supply: hosted minutes are free on this public
+ * repository, but the organization runs at most `MACOS_CONCURRENT_JOBS` macOS jobs at once, across every run.
+ */
 export type PlatformCounts = Readonly<Record<Platform, number>>;
 
 export function emptySchedule(): Schedule {
@@ -334,17 +339,40 @@ export function ciMatrices(
   };
 }
 
-/** Folds executed durations into the schedule. Restored results carry no execution time, so they are ignored. */
-export function updateSchedule(schedule: Schedule, evidenceDirectory: string): Schedule {
-  const { evidence } = readEvidence(evidenceDirectory);
-  const platforms: Record<string, Record<string, number>> = Object.fromEntries(
+/** The middle sample, or the upper of the two middle ones for an even count, so the value is always one that was observed. */
+export function upperMedian(samples: readonly number[]): number {
+  if (!samples.length) throw new Error('A median needs at least one sample');
+  return [...samples].sort((a, b) => a - b)[Math.floor(samples.length / 2)]!;
+}
+
+/**
+ * Folds executed durations into the schedule. Each evidence directory is one run; a task the runs executed keeps the
+ * upper median of their whole-second durations, so one slow or fast run cannot set its estimate alone. Restored results
+ * carry no execution time, so they are ignored, and a task no run executed keeps its estimate.
+ */
+export function updateSchedule(schedule: Schedule, evidenceDirectories: string | readonly string[]): Schedule {
+  const samples = new Map<string, number[]>();
+  for (const directory of typeof evidenceDirectories === 'string' ? [evidenceDirectories] : evidenceDirectories)
+    for (const entry of readEvidence(directory).evidence) {
+      if (entry.outcome !== 'executed' || entry.report.status !== 'passed') continue;
+      const key = `${entry.platform}\0${entry.task}`;
+      samples.set(key, [...(samples.get(key) ?? []), Math.round(entry.report.durationMs / 1000)]);
+    }
+  const platforms = Object.fromEntries(
     PLATFORMS.map((platform) => [platform, { ...schedule.platforms?.[platform] }]),
-  );
-  for (const entry of evidence) {
-    if (entry.outcome !== 'executed' || entry.report.status !== 'passed') continue;
-    platforms[entry.platform]![entry.task] = Math.round(entry.report.durationMs / 1000);
+  ) as Record<string, Record<string, number>>;
+  for (const [key, observed] of samples) {
+    const [platform, task] = key.split('\0') as [Platform, string];
+    platforms[platform] = { ...platforms[platform], [task]: upperMedian(observed) };
   }
-  return { version: SCHEDULE_VERSION, platforms: platforms as Schedule['platforms'] };
+  // Tasks in identity order, so the same evidence always writes the same file whatever order the schedule had.
+  const sorted = Object.fromEntries(
+    PLATFORMS.map((platform) => [
+      platform,
+      Object.fromEntries(Object.entries(platforms[platform]!).sort(([a], [b]) => a.localeCompare(b))),
+    ]),
+  );
+  return { version: SCHEDULE_VERSION, platforms: sorted as Schedule['platforms'] };
 }
 
 if (isEntry(process.argv[1], import.meta.url)) {
@@ -372,12 +400,16 @@ if (isEntry(process.argv[1], import.meta.url)) {
   );
   if (stray.length) {
     console.error(
-      `Usage: pnpm tests:plan [--platform <${PLATFORMS.join('|')}>] [--shards N|${PLATFORMS.map((platform) => `${platform}=N`).join(',')}] [--native-shards (the same)] [--matrix|--ci-matrix [--event <GitHub event> --head-sha <sha> --verified-sha <sha>]|--json] [--record <evidence directory> [--record-out <output file>]]`,
+      `Usage: pnpm tests:plan [--platform <${PLATFORMS.join('|')}>] [--shards N|${PLATFORMS.map((platform) => `${platform}=N`).join(',')}] [--native-shards (the same)] [--matrix|--ci-matrix [--event <GitHub event> --head-sha <sha> --verified-sha <sha>]|--json] [--record <evidence directory> ... [--record-out <output file>]]`,
     );
     process.exitCode = 2;
   } else
     try {
-      const record = flag('--record');
+      // `--record` repeats: one evidence directory per run.
+      const records = args.flatMap((arg, index) => (arg === '--record' ? [args[index + 1] ?? ''] : []));
+      if (records.some((directory) => !directory || directory.startsWith('--')))
+        throw new Error('--record expects an evidence directory');
+      const record = records.length ? records : undefined;
       if (args.includes('--record-out') && (!record || !flag('--record-out')))
         throw new Error('--record-out requires --record <evidence directory> and an output file');
       if (args.includes('--ci-matrix')) {
@@ -398,7 +430,10 @@ if (isEntry(process.argv[1], import.meta.url)) {
         console.log(`run=${runNeeded(event, flag('--head-sha'), flag('--verified-sha'))}`);
         // No process.exit(): output a slow reader has not taken yet is still queued here, and exiting would drop it.
       } else if (record !== undefined) {
-        const updated = updateSchedule(readSchedule(root), resolve(root, record));
+        const updated = updateSchedule(
+          readSchedule(root),
+          record.map((directory) => resolve(root, directory)),
+        );
         const output = resolve(root, flag('--record-out') ?? 'tools/testing/schedule.json');
         mkdirSync(dirname(output), { recursive: true });
         writeFileSync(output, JSON.stringify(updated, null, 2) + '\n');

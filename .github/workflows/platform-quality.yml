@@ -79,7 +79,9 @@ jobs:
           echo "Last successful scheduled run verified ${sha:-nothing}; main is at ${{ github.sha }}."
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
       # Public source tasks use four general lanes on Linux, six on Windows and three on macOS. Windows runs the
-      # slowest, so it gets the most lanes; macOS stays below Linux because its minutes bill at a multiple.
+      # slowest, so it gets the most lanes. Hosted minutes are free on this public repository; what limits macOS is
+      # the organization's five concurrent macOS jobs, shared by every run. Static, emitted and three test shards
+      # fill all five, so a second run's macOS jobs wait for a slot (tools/testing/plan.test.ts holds this).
       # Pull requests targeting main and every other trigger plan Linux, Windows and macOS. The planner also
       # emits the gate's rows and, for a scheduled run on an already verified main, run=false.
       - name: Assign tasks to shards
@@ -175,6 +177,10 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.tests) }}
     steps:
+      # First, so the warning at the end measures every step of the job.
+      - name: Note when the job started
+        shell: bash
+        run: date +%s > "$RUNNER_TEMP/job-started"
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -204,6 +210,16 @@ jobs:
           path: artifacts/evidence
           if-no-files-found: warn
           retention-days: 14
+      # A shard past 40 minutes is two thirds of the way to its 60-minute timeout: re-record the schedule or split
+      # its longest task before it reaches it. The warning never changes the job's result.
+      - name: Warn when the shard nears its timeout
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          minutes=$(( ($(date +%s) - $(cat "$RUNNER_TEMP/job-started")) / 60 ))
+          echo "This test shard took $minutes minutes."
+          if [ "$minutes" -ge 40 ]; then echo "::warning::Test shard ${{ matrix.shard }} on ${{ matrix.platform }} took $minutes minutes of its 60-minute timeout; refresh tools/testing/schedule.json or split its longest task."; fi
 
   emitted:
     name: Emitted qualification (${{ matrix.os }})
@@ -337,6 +353,19 @@ jobs:
           path: artifacts/tests
           if-no-files-found: warn
           # The merged evidence tests:plan --record reads to re-record durations; the per-job uploads above only feed it.
+          retention-days: 30
+      # This run's executed durations as a candidate schedule. Best effort: it never changes the gate's result.
+      - name: Export this platform's executed durations
+        if: always()
+        continue-on-error: true
+        run: pnpm tests:plan --record artifacts/tests --record-out artifacts/schedule/schedule.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        continue-on-error: true
+        with:
+          name: schedule-${{ matrix.platform }}
+          path: artifacts/schedule
+          if-no-files-found: warn
           retention-days: 30
       # A skipped or cancelled prerequisite must not read as a green aggregate. The comparison
       # above catches a missing result too; this names the job that did not finish. The Homebrew smoke is required only
