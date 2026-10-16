@@ -431,32 +431,62 @@ it.each([
     expect(opened.filter((path) => dirname(path) !== resolve(root))).toEqual([]);
   },
 );
-if (process.platform === 'win32') {
-  it.each(['present when its parent is listed', 'swapped in once its parent is listed'] as const)(
-    'refuses a junction in place of a module directory, %s, without walking it',
-    (kind) => {
-      const root = fixture(),
-        aside = fixture(),
-        lib = join(root, 'lib'),
-        outside = join(aside, 'outside');
-      mkdirSync(outside);
-      writeFileSync(join(outside, 'part.js'), '// elsewhere');
-      writeFileSync(join(outside, 'notes.txt'), 'not code');
-      const listed: string[] = [];
-      // Windows makes a junction without privilege, lists it, as every reparse point, as a link, and lstat reports one.
-      if (kind === 'present when its parent is listed') symlinkSync(outside, lib, 'junction');
-      else mkdirSync(lib);
-      seam.afterList = (directory) => {
-        listed.push(resolve(directory));
-        if (listed.length > 1 || kind === 'present when its parent is listed') return;
-        renameSync(lib, join(aside, 'retained'));
-        symlinkSync(outside, lib, 'junction');
-      };
-      expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
-      expect(listed).toEqual([resolve(root)]);
-    },
-  );
-}
+// A junction is a Windows reparse point; elsewhere symlinkSync makes a symbolic link, which the cases above cover.
+it
+  .runIf(process.platform === 'win32')
+  .each(['present when its parent is listed', 'swapped in once its parent is listed'] as const)(
+  'refuses a junction in place of a module directory, %s, without walking it',
+  (kind) => {
+    const root = fixture(),
+      aside = fixture(),
+      lib = join(root, 'lib'),
+      outside = join(aside, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'part.js'), '// elsewhere');
+    writeFileSync(join(outside, 'notes.txt'), 'not code');
+    const listed: string[] = [];
+    // Windows makes a junction without privilege, lists it, as every reparse point, as a link, and lstat reports one.
+    if (kind === 'present when its parent is listed') symlinkSync(outside, lib, 'junction');
+    else mkdirSync(lib);
+    seam.afterList = (directory) => {
+      listed.push(resolve(directory));
+      if (listed.length > 1 || kind === 'present when its parent is listed') return;
+      renameSync(lib, join(aside, 'retained'));
+      symlinkSync(outside, lib, 'junction');
+    };
+    expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
+    expect(listed).toEqual([resolve(root)]);
+  },
+);
+it.each(['removed', 'a file', 'a FIFO', 'a socket'] as const)(
+  'classifies a module directory that is %s once its parent is listed by what lstat then reports, as it did every entry',
+  async (kind) => {
+    if (!posix && (kind === 'a FIFO' || kind === 'a socket')) return;
+    const root = fixture(),
+      aside = fixture(),
+      lib = join(root, 'lib'),
+      replacement = join(aside, 'replacement');
+    mkdirSync(lib);
+    if (kind === 'a FIFO' || kind === 'a socket') await special(kind, replacement, join(aside, 's'));
+    else if (kind === 'a file') writeFileSync(replacement, 'not code');
+    const original = contextHookImplementationDigest(root);
+    seam.afterList = (directory) => {
+      if (resolve(directory) !== resolve(root)) return;
+      seam.afterList = undefined;
+      rmSync(lib, { recursive: true });
+      if (kind !== 'removed') renameSync(replacement, lib);
+    };
+    // A file the walk never reads is skipped, as a listed one is; a directory gone or become anything else is refused.
+    if (kind === 'a file') expect(contextHookImplementationDigest(root)).toBe(original);
+    else
+      expect(refusal(() => contextHookImplementationDigest(root))).toEqual(
+        kind === 'removed'
+          ? { code: 'ENOENT', message: `ENOENT: no such file or directory, lstat '${lib}'` }
+          : NONREGULAR,
+      );
+    expect(seam.waited).toEqual([]);
+  },
+);
 it.each(['removed', 'a FIFO', 'a socket', 'a link'] as const)(
   'refuses a file it never reads that is %s once its directory is listed, as it refused a listed one',
   async (kind) => {

@@ -1463,6 +1463,24 @@
       "resourceClass": "subprocess",
       "covers": [
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/context-inventory.test.ts > refuses a junction in place of a module directory, present when its parent is listed, without walking it",
+          "reason": "A junction is a Windows reparse point; elsewhere symlinkSync makes a symbolic link, which the cross-platform swap cases cover, so the fixture runs only on win32.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/context-inventory.test.ts > refuses a junction in place of a module directory, swapped in once its parent is listed, without walking it",
+          "reason": "A junction is a Windows reparse point; elsewhere symlinkSync makes a symbolic link, which the cross-platform swap cases cover, so the fixture runs only on win32.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        }
       ]
     },
     {
