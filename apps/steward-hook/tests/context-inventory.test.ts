@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, type TestContext, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import {
   chmodSync,
@@ -282,32 +282,55 @@ it('passes on the error of a code file it may not open', () => {
     message: `EACCES: permission denied, open '${path}'`,
   });
 });
-it.each(['removed', 'a FIFO', 'a socket', 'a link'] as const)(
-  'refuses a code file that is %s once its directory is listed',
-  async (kind) => {
-    if (!posix && kind !== 'removed') return;
-    const root = fixture(),
-      aside = fixture(),
-      path = join(root, 'swapped.js'),
-      replacement = join(aside, 'replacement');
-    writeFileSync(path, '// listed');
-    if (kind === 'a FIFO' || kind === 'a socket') await special(kind, replacement, join(aside, 's'));
-    else if (kind === 'a link') symlinkSync(join(root, 'main.js'), replacement, 'file');
-    seam.afterList = (directory) => {
-      if (resolve(directory) !== resolve(root)) return;
-      seam.afterList = undefined;
-      if (kind === 'removed') unlinkSync(path);
-      else renameSync(replacement, path);
-    };
-    expect(refusal(() => contextHookImplementationDigest(root))).toEqual(
-      kind === 'removed'
-        ? { code: 'ENOENT', message: `ENOENT: no such file or directory, lstat '${path}'` }
-        : kind === 'a link'
-          ? ALIASES
-          : NONREGULAR,
-    );
-    expect(seam.waited).toEqual([]);
-  },
+/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
+const fileLink = (target: string, path: string): boolean => {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+};
+/**
+ * Lists the file `name`, makes it `kind` once its directory is listed, and expects the refusal a listed entry of that
+ * kind gets. Windows has no FIFO or socket file to swap in, and makes a file link only with a privilege.
+ */
+async function swappedOnceListed(
+  name: string,
+  contents: string,
+  kind: 'removed' | 'a FIFO' | 'a socket' | 'a link',
+  context?: TestContext,
+): Promise<void> {
+  const root = fixture(),
+    aside = fixture(),
+    path = join(root, name),
+    replacement = join(aside, 'replacement');
+  writeFileSync(path, contents);
+  if (kind === 'a FIFO' || kind === 'a socket') await special(kind, replacement, join(aside, 's'));
+  else if (kind === 'a link' && !fileLink(join(root, 'main.js'), replacement))
+    return context?.skip('Windows denied file symlink creation (EPERM)');
+  seam.afterList = (directory) => {
+    if (resolve(directory) !== resolve(root)) return;
+    seam.afterList = undefined;
+    if (kind === 'removed') unlinkSync(path);
+    else renameSync(replacement, path);
+  };
+  expect(refusal(() => contextHookImplementationDigest(root))).toEqual(
+    kind === 'removed'
+      ? { code: 'ENOENT', message: `ENOENT: no such file or directory, lstat '${path}'` }
+      : kind === 'a link'
+        ? ALIASES
+        : NONREGULAR,
+  );
+  expect(seam.waited).toEqual([]);
+}
+const SWAPPED_CODE = 'refuses a code file that is %s once its directory is listed';
+it.for(['removed', 'a link'] as const)(SWAPPED_CODE, (kind, context) =>
+  swappedOnceListed('swapped.js', '// listed', kind, context),
+);
+it.skipIf(process.platform === 'win32').each(['a FIFO', 'a socket'] as const)(SWAPPED_CODE, (kind) =>
+  swappedOnceListed('swapped.js', '// listed', kind),
 );
 it('refuses a code file replaced after it was opened', () => {
   const root = fixture(),
@@ -458,61 +481,45 @@ it
     expect(listed).toEqual([resolve(root)]);
   },
 );
-it.each(['removed', 'a file', 'a FIFO', 'a socket'] as const)(
-  'classifies a module directory that is %s once its parent is listed by what lstat then reports, as it did every entry',
-  async (kind) => {
-    if (!posix && (kind === 'a FIFO' || kind === 'a socket')) return;
-    const root = fixture(),
-      aside = fixture(),
-      lib = join(root, 'lib'),
-      replacement = join(aside, 'replacement');
-    mkdirSync(lib);
-    if (kind === 'a FIFO' || kind === 'a socket') await special(kind, replacement, join(aside, 's'));
-    else if (kind === 'a file') writeFileSync(replacement, 'not code');
-    const original = contextHookImplementationDigest(root);
-    seam.afterList = (directory) => {
-      if (resolve(directory) !== resolve(root)) return;
-      seam.afterList = undefined;
-      rmSync(lib, { recursive: true });
-      if (kind !== 'removed') renameSync(replacement, lib);
-    };
-    // A file the walk never reads is skipped, as a listed one is; a directory gone or become anything else is refused.
-    if (kind === 'a file') expect(contextHookImplementationDigest(root)).toBe(original);
-    else
-      expect(refusal(() => contextHookImplementationDigest(root))).toEqual(
-        kind === 'removed'
-          ? { code: 'ENOENT', message: `ENOENT: no such file or directory, lstat '${lib}'` }
-          : NONREGULAR,
-      );
-    expect(seam.waited).toEqual([]);
-  },
-);
-it.each(['removed', 'a FIFO', 'a socket', 'a link'] as const)(
-  'refuses a file it never reads that is %s once its directory is listed, as it refused a listed one',
-  async (kind) => {
-    if (!posix && kind !== 'removed') return;
-    const root = fixture(),
-      aside = fixture(),
-      path = join(root, 'notes.txt'),
-      replacement = join(aside, 'replacement');
-    writeFileSync(path, 'not code');
-    if (kind === 'a FIFO' || kind === 'a socket') await special(kind, replacement, join(aside, 's'));
-    else if (kind === 'a link') symlinkSync(join(root, 'main.js'), replacement, 'file');
-    seam.afterList = (directory) => {
-      if (resolve(directory) !== resolve(root)) return;
-      seam.afterList = undefined;
-      if (kind === 'removed') unlinkSync(path);
-      else renameSync(replacement, path);
-    };
+/** Lists a module directory, makes it `kind` once its parent is listed, and expects what lstat then classifies it as. */
+async function directorySwappedOnceListed(kind: 'removed' | 'a file' | 'a FIFO' | 'a socket'): Promise<void> {
+  const root = fixture(),
+    aside = fixture(),
+    lib = join(root, 'lib'),
+    replacement = join(aside, 'replacement');
+  mkdirSync(lib);
+  if (kind === 'a FIFO' || kind === 'a socket') await special(kind, replacement, join(aside, 's'));
+  else if (kind === 'a file') writeFileSync(replacement, 'not code');
+  const original = contextHookImplementationDigest(root);
+  seam.afterList = (directory) => {
+    if (resolve(directory) !== resolve(root)) return;
+    seam.afterList = undefined;
+    rmSync(lib, { recursive: true });
+    if (kind !== 'removed') renameSync(replacement, lib);
+  };
+  // A file the walk never reads is skipped, as a listed one is; a directory gone or become anything else is refused.
+  if (kind === 'a file') expect(contextHookImplementationDigest(root)).toBe(original);
+  else
     expect(refusal(() => contextHookImplementationDigest(root))).toEqual(
       kind === 'removed'
-        ? { code: 'ENOENT', message: `ENOENT: no such file or directory, lstat '${path}'` }
-        : kind === 'a link'
-          ? ALIASES
-          : NONREGULAR,
+        ? { code: 'ENOENT', message: `ENOENT: no such file or directory, lstat '${lib}'` }
+        : NONREGULAR,
     );
-    expect(seam.waited).toEqual([]);
-  },
+  expect(seam.waited).toEqual([]);
+}
+const SWAPPED_DIRECTORY =
+  'classifies a module directory that is %s once its parent is listed by what lstat then reports, as it did every entry';
+it.each(['removed', 'a file'] as const)(SWAPPED_DIRECTORY, (kind) => directorySwappedOnceListed(kind));
+it.skipIf(process.platform === 'win32').each(['a FIFO', 'a socket'] as const)(SWAPPED_DIRECTORY, (kind) =>
+  directorySwappedOnceListed(kind),
+);
+const SWAPPED_UNREAD =
+  'refuses a file it never reads that is %s once its directory is listed, as it refused a listed one';
+it.for(['removed', 'a link'] as const)(SWAPPED_UNREAD, (kind, context) =>
+  swappedOnceListed('notes.txt', 'not code', kind, context),
+);
+it.skipIf(process.platform === 'win32').each(['a FIFO', 'a socket'] as const)(SWAPPED_UNREAD, (kind) =>
+  swappedOnceListed('notes.txt', 'not code', kind),
 );
 it('closes the descriptor of every code file it reads', () => {
   const root = fixture(),
