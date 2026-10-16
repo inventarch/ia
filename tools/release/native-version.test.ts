@@ -1,7 +1,7 @@
 import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
+import fs, {
   chmodSync,
   existsSync,
   copyFileSync,
@@ -12,6 +12,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -644,5 +645,86 @@ describe('system package input reads', () => {
     if (process.getuid?.() === 0) return;
     chmodSync(resolve(root, '.ia/src/a.ia'), 0o000);
     expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(/^EACCES: permission denied, open /);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    syncBuiltinESMExports();
+  });
+  /** Runs `change` once: before the first open of the selected input, or before the first read. Whatever it returns runs after that open. */
+  function around(target: string, at: 'open' | 'read', change: () => (() => void) | void): () => boolean {
+    const open = fs.openSync,
+      read = fs.readSync;
+    let changed = false;
+    vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+      if (at !== 'open' || changed || String(args[0]) !== target) return Reflect.apply(open, fs, args) as number;
+      changed = true;
+      const after = change();
+      try {
+        return Reflect.apply(open, fs, args) as number;
+      } finally {
+        after?.();
+      }
+    });
+    vi.spyOn(fs, 'readSync').mockImplementation((...args: Parameters<typeof fs.readSync>) => {
+      if (at === 'read' && !changed) {
+        changed = true;
+        change();
+      }
+      return Reflect.apply(read, fs, args) as number;
+    });
+    syncBuiltinESMExports();
+    return () => changed;
+  }
+  const changes: [string, 'open' | 'read', (target: string) => (() => void) | void, RegExp][] = [
+    [
+      'a link put in place at the open as aliased, even once it is gone again',
+      'open',
+      (target) => {
+        rmSync(target);
+        symlinkSync('elsewhere.ia', target);
+        return () => rmSync(target);
+      },
+      /^System package input is aliased: \.ia\/src\/a\.ia$/,
+    ],
+    [
+      'an input gone before the open with the open error',
+      'open',
+      (target) => rmSync(target),
+      /^ENOENT: no such file or directory, open /,
+    ],
+    [
+      'an input gone after the open as changed',
+      'read',
+      (target) => rmSync(target),
+      /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
+    ],
+    [
+      'an input replaced by a directory during the read as not a regular file',
+      'read',
+      (target) => {
+        rmSync(target);
+        mkdirSync(target);
+      },
+      /^System package input is not a regular file: \.ia\/src\/a\.ia$/,
+    ],
+    [
+      'an input rewritten at the same size during the read as changed',
+      'read',
+      (target) => {
+        writeFileSync(target, 'NATIVE SOURCE');
+        fs.utimesSync(target, new Date(2000, 0, 1), new Date(2000, 0, 1));
+      },
+      /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
+    ],
+  ];
+  it.each(changes)('refuses %s', (_, at, change, refusal) => {
+    const root = temporary(),
+      target = resolve(root, '.ia/src/a.ia');
+    write(root, '.ia/src/a.ia', 'native source');
+    write(root, 'pnpm-workspace.yaml', 'packages: []\n');
+    const changed = around(target, at, () => change(target));
+    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(refusal);
+    expect(changed()).toBe(true);
   });
 });

@@ -16,6 +16,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import type { BigIntStats } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { parse } from 'yaml';
@@ -68,47 +69,66 @@ interface PackagePolicy {
     readonly native: NativeSystemOwner;
   }[];
 }
+/** The lstat (bigint) of `path`, or undefined when it cannot be taken. */
+function linkStat(path: string): BigIntStats | undefined {
+  try {
+    return lstatSync(path, { bigint: true });
+  } catch {
+    return undefined;
+  }
+}
+/**
+ * The bytes of the package input `path`. A link anywhere on the way refuses; then the input is opened before it is judged,
+ * so the file judged is the file read (CodeQL js/file-system-race): never through a link where the platform refuses one at
+ * the open, never waiting on a FIFO, read through that descriptor no further than one byte past its size, and still the
+ * file at its name afterwards, which on Windows, without either open flag, is the one check of a link swapped in there.
+ * Hard links are admitted, so the change time, which another link to the same file moves, is not compared. An open that
+ * fails keeps the refusal its name earns, and otherwise the system's error. This copies file() in
+ * apps/distribution/src/system-package.ts; keep the two alike.
+ */
 function file(root: string, path: string): Buffer {
-  const target = contained(root, path);
+  const target = contained(root, path),
+    aliased = () => new Error('System package input is aliased: ' + path),
+    irregular = () => new Error('System package input is not a regular file: ' + path);
   let current = resolve(root);
   if (lstatSync(current).isSymbolicLink()) throw new Error('System package root is aliased');
   for (const part of path.split('/')) {
     current = resolve(current, part);
-    if (lstatSync(current).isSymbolicLink()) throw new Error('System package input is aliased: ' + path);
+    if (lstatSync(current).isSymbolicLink()) throw aliased();
   }
-  const aliased = () => new Error('System package input is aliased: ' + path),
-    irregular = () => new Error('System package input is not a regular file: ' + path);
-  // Judge and read the file opened, not the name (CodeQL js/file-system-race): NOFOLLOW refuses a link put in place
-  // after the walk above, and NONBLOCK keeps a FIFO from blocking the open.
   let fd: number;
   try {
     fd = openSync(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch (error) {
-    // A link fails the open (ELOOP) and Windows will not open a directory: the refusals the walk and lstat gave.
-    const named = lstatSync(target);
-    if (named.isSymbolicLink()) throw aliased();
-    if (!named.isFile()) throw irregular();
+    // A link the open refused (ELOOP; EMLINK on FreeBSD), a socket, or a directory Windows will not open is judged by
+    // its name; a missing or unreadable file keeps the error of its open.
+    if (['ELOOP', 'EMLINK'].includes((error as NodeJS.ErrnoException).code ?? '')) throw aliased();
+    const named = linkStat(target);
+    if (named?.isSymbolicLink()) throw aliased();
+    if (named && !named.isFile()) throw irregular();
     throw error;
   }
   try {
     const opened = fstatSync(fd, { bigint: true });
     if (!opened.isFile()) throw irregular();
-    // Read at most one byte past the opened size, so a file that grows while it is read cannot pass for the one judged.
     const bytes = Buffer.alloc(Number(opened.size) + 1);
     let length = 0;
     while (length < bytes.length) {
-      const count = readSync(fd, bytes, length, bytes.length - length, null);
-      if (!count) break;
-      length += count;
+      const read = readSync(fd, bytes, length, bytes.length - length, null);
+      if (!read) break;
+      length += read;
     }
-    // Windows follows a link on open, so the name must still be the file that was read, unchanged.
-    const named = lstatSync(target, { bigint: true });
-    if (named.isSymbolicLink()) throw aliased();
+    const after = fstatSync(fd, { bigint: true }),
+      named = linkStat(target);
+    if (named?.isSymbolicLink()) throw aliased();
+    if (named && !named.isFile()) throw irregular();
     if (
-      BigInt(length) !== opened.size ||
-      fstatSync(fd, { bigint: true }).size !== opened.size ||
+      !named ||
       named.dev !== opened.dev ||
-      named.ino !== opened.ino
+      named.ino !== opened.ino ||
+      after.size !== opened.size ||
+      after.mtimeNs !== opened.mtimeNs ||
+      BigInt(length) !== opened.size
     )
       throw new Error('System package input changed while it was read: ' + path);
     return bytes.subarray(0, length);
