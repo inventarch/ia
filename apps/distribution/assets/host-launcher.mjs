@@ -161,11 +161,11 @@ try {
       const name = entry.name,
         rel = path ? path + '/' + name : name,
         file = expected.get(rel);
-      // A special file is refused from its directory entry, before anything is opened. Windows lists every reparse point
-      // as a link, so a listed link is confirmed by its lstat, as the walk judged every entry before it opened files: only
-      // a real link refuses, a placeholder or deduplicated entry is judged by the type its lstat gives, and a file is still
-      // judged by the descriptor it is read through.
-      const kind = entry.isSymbolicLink() ? named(join(root, rel)) : entry;
+      // A file the listing reports is judged by the descriptor it is read through. Any other entry is judged by its lstat,
+      // as the walk judged every entry before it opened files: Windows lists every reparse point as a link, so only a real
+      // link refuses as one, a placeholder or deduplicated entry is judged by the type its lstat gives, and an entry in a
+      // directory the walk can list but not enter fails with the lstat's error, as before.
+      const kind = entry.isFile() ? entry : named(join(root, rel));
       if (!kind) gone(rel, file);
       else if (kind.isSymbolicLink()) throw Error('Plugin cache links are unsupported');
       else if (kind.isDirectory()) visit(rel, depth + 1);

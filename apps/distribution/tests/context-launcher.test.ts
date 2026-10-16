@@ -863,3 +863,46 @@ it.each<[string, (selected: Cache) => Race]>([
   const selected = cache();
   expect(await raced(selected, arrange(selected))).toEqual({ timedOut: false, ...VERIFIED });
 });
+/**
+ * A directory the walk can list but not enter (mode 0444): every entry in it but a file fails its lstat with the system's
+ * error, as when the walk judged every entry by its lstat, and a file fails the lstat its failed open is judged by. The
+ * directory's mode is restored before the cache is removed.
+ */
+it.each<[string, (locked: string) => Promise<string> | string]>([
+  [
+    'a directory',
+    (locked) => {
+      mkdirSync(join(locked, 'sub'));
+      return join(locked, 'sub');
+    },
+  ],
+  [
+    'a FIFO',
+    async (locked) => {
+      await mkfifo(join(locked, 'fifo'));
+      return join(locked, 'fifo');
+    },
+  ],
+  [
+    'an unpinned file',
+    (locked) => {
+      writeFileSync(join(locked, 'extra.txt'), 'not pinned');
+      return join(locked, 'extra.txt');
+    },
+  ],
+])(
+  'verify fails on %s in a directory it can list but not enter, with the lstat error (POSIX, unprivileged)',
+  async (_, arrange) => {
+    if (!UNPRIVILEGED) return;
+    const selected = cache(),
+      locked = join(selected.root, 'runtime', 'locked');
+    mkdirSync(locked);
+    const entry = await arrange(locked);
+    chmodSync(locked, 0o444);
+    try {
+      expect(await verdict(selected)).toEqual(refused(`EACCES: permission denied, lstat '${entry}'`));
+    } finally {
+      chmodSync(locked, 0o755);
+    }
+  },
+);

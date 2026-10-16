@@ -447,3 +447,59 @@ it('the inventory admits a file or directory its listing calls a link', () => {
   race.linked = { directory: root, names: ['archive.js', 'notes.md', 'nested'] };
   expect(inventory(root)).toEqual(before);
 });
+/**
+ * A directory the inventory can list but not enter (mode 0444): every entry in it but a runtime module fails its lstat
+ * with the system's error, as when the inventory judged every entry by its lstat. A runtime module there is opened to be
+ * judged, and an open that fails refuses with the one message. The directory's mode is restored before it is removed.
+ */
+it.each<[string, (locked: string) => Promise<string> | string]>([
+  [
+    'a directory',
+    (locked) => {
+      mkdirSync(join(locked, 'sub'));
+      return join(locked, 'sub');
+    },
+  ],
+  [
+    'a FIFO',
+    async (locked) => {
+      expect((await runBounded('mkfifo', [join(locked, 'fifo')], { timeoutMs: SUBPROCESS })).status).toBe(0);
+      return join(locked, 'fifo');
+    },
+  ],
+  [
+    'a file that is no runtime module',
+    (locked) => {
+      writeFileSync(join(locked, 'notes.md'), 'Notes.\n');
+      return join(locked, 'notes.md');
+    },
+  ],
+])(
+  'the inventory fails on %s in a directory it can list but not enter, with the lstat error (POSIX, unprivileged)',
+  async (_, arrange) => {
+    if (!UNPRIVILEGED) return;
+    const root = runtime(),
+      locked = join(root, 'locked');
+    mkdirSync(locked);
+    const entry = await arrange(locked);
+    chmodSync(locked, 0o444);
+    try {
+      expect(inventory(root)).toEqual({ code: 'EACCES', message: `EACCES: permission denied, lstat '${entry}'` });
+    } finally {
+      chmodSync(locked, 0o755);
+    }
+  },
+);
+it('the inventory refuses a runtime module in a directory it can list but not enter (POSIX, unprivileged)', () => {
+  if (!UNPRIVILEGED) return;
+  const root = runtime(),
+    locked = join(root, 'locked');
+  mkdirSync(locked);
+  writeFileSync(join(locked, 'helper.js'), '// Helper.\n');
+  chmodSync(locked, 0o444);
+  try {
+    expect(inventory(root)).toEqual(REFUSED);
+  } finally {
+    chmodSync(locked, 0o755);
+  }
+});

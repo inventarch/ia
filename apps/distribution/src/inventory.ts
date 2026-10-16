@@ -102,10 +102,10 @@ export function installedDistributionDigest(root = import.meta.dirname): string 
         path = relative(root, absolute).replaceAll('\\', '/'),
         key = path.toLowerCase(),
         hashed = runtime.test(entry.name) && !declaration.test(entry.name),
-        // A runtime file is judged by the descriptor it is hashed through. A listed link is confirmed by its lstat, since
-        // Windows lists every reparse point as a link, so only a real link refuses, as before; and so is a file never
-        // read, so a name that no longer reaches it refuses rather than passing unread.
-        kind = entry.isSymbolicLink() || (entry.isFile() && !hashed) ? present(absolute) : entry;
+        // A runtime file the listing reports is judged by the descriptor it is hashed through. Any other entry is judged by
+        // its lstat, as before: Windows lists every reparse point as a link, so only a real link refuses as one, and a name
+        // that no longer reaches its entry refuses rather than passing unread.
+        kind = entry.isFile() && hashed ? entry : present(absolute);
       if (names.has(key) || kind.isSymbolicLink() || path.normalize('NFC') !== path) return refuse();
       names.add(key);
       if (kind.isDirectory()) visit(absolute);
