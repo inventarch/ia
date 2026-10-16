@@ -358,3 +358,42 @@ it('refuses unparsable or too many evidence entries and a missing, linked or non
     rmSync(root, { recursive: true, force: true });
   }
 });
+/** A completed upstream run, its open pull request and a GitHub reader that records each path it is asked for. */
+function upstream() {
+  const paths: string[] = [];
+  const run = {
+    repository: { full_name: 'test/repo' },
+    path: '.github/workflows/platform-quality.yml',
+    event: 'pull_request',
+    status: 'completed',
+    head_sha: head,
+    pull_requests: [{ number: 7, head: { sha: head }, base: { sha: base } }],
+  };
+  const pr = { state: 'open', base: { sha: base, repo: { full_name: 'test/repo' } }, head: { sha: head } };
+  const gh = async (path: string) => {
+    paths.push(path);
+    return path.includes('/actions/') ? run : pr;
+  };
+  return { gh, paths };
+}
+it('accepts only positive decimal run identifiers and requests each as validated', async () => {
+  const { gh, paths } = upstream();
+  for (const bad of ['0', '00', '-1', '1.5', '', '1e3', ' 1', '0x10'])
+    await expect(resolveRun(gh, 'test/repo', bad)).rejects.toThrow('Positive identifier required');
+  expect(paths).toEqual([]);
+  await resolveRun(gh, 'test/repo', 123 as unknown as string);
+  await resolveRun(gh, 'test/repo', '007');
+  expect(paths).toEqual([
+    '/repos/test/repo/actions/runs/123',
+    '/repos/test/repo/pulls/7',
+    '/repos/test/repo/actions/runs/007',
+    '/repos/test/repo/pulls/7',
+  ]);
+});
+it('requests the run identifier it tested even from a value that spells itself differently each time', async () => {
+  const { gh, paths } = upstream();
+  let spellings = 0;
+  const shifting = { toString: () => (spellings++ === 0 ? '123' : '123/../../../other/repo') };
+  await resolveRun(gh, 'test/repo', shifting as unknown as string);
+  expect(paths[0]).toBe('/repos/test/repo/actions/runs/123');
+});

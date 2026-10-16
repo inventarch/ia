@@ -18,9 +18,11 @@ import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const digest = (text) => createHash('sha256').update(text).digest('hex');
+// Spelled once, so the identifier returned is the one tested: another String(value) need not spell it the same way.
 const integer = (value) => {
-  if (!/^\d+$/.test(String(value)) || Number(value) < 1) throw new Error('Positive identifier required');
-  return String(value);
+  const text = String(value);
+  if (!/^\d+$/.test(text) || Number(text) < 1) throw new Error('Positive identifier required');
+  return text;
 };
 const repoName = (value) => {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) throw new Error('Repository required');
