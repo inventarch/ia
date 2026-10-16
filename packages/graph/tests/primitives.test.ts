@@ -205,21 +205,6 @@ describe('coordinate and authored dimensions', () => {
     });
     expect(validateCoordinate({})).toEqual({});
   });
-  it.each<Readonly<Record<string, unknown>>>([
-    { phase: 'bad' },
-    { missing: 'act' },
-    { Phase: 'act' },
-    { phase: 1 },
-    { phase: null },
-    { constructor: 'toString' },
-  ])('refuses invalid coordinate %j with admitted values', (coordinate) => {
-    expect(() => validateCoordinate(coordinate)).toThrow(
-      expect.objectContaining({
-        code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
-        message: expect.stringContaining('admitted:'),
-      }),
-    );
-  });
   const axes = 'shape, category, phase, primitive, move, kind, lane, predicate, artifact-set, severity, provenance';
   const phases = 'orient, plan, act, learn';
   /** The GraphUsageError validateCoordinate throws for `input`, as its code and message. */
@@ -250,6 +235,12 @@ describe('coordinate and authored dimensions', () => {
       });
     },
   );
+  it('refuses an own constructor key even when its value names a prototype method', () => {
+    expect(refusalOf({ constructor: 'toString' })).toEqual({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: `Unknown coordinate axis 'constructor'; admitted: ${axes}`,
+    });
+  });
   it('checks entries in input order, each axis before its value is skipped or read', () => {
     expect(refusalOf(JSON.parse('{"phase":"bad","invented":"act"}'))).toEqual({
       code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
@@ -291,6 +282,7 @@ describe('coordinate and authored dimensions', () => {
   it.each<[string, unknown]>([
     ['the parsed object {"toString":1}', JSON.parse('{"toString":1}')],
     ['the parsed object {"toString":{},"valueOf":{}}', JSON.parse('{"toString":{},"valueOf":{}}')],
+    ['a deeply nested array', JSON.parse('['.repeat(1e5) + ']'.repeat(1e5))],
     ['an object without a prototype', Object.create(null)],
     [
       'an object whose toString throws',
