@@ -1020,7 +1020,6 @@
       "project": "apps/cli",
       "files": [
         "tests/adopt.test.ts",
-        "tests/init-migrate.test.ts",
         "tests/init.test.ts"
       ],
       "profile": "installed",
@@ -1038,6 +1037,36 @@
       ],
       "outputs": [
         "artifacts/tests/cli-test-init"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-init-migrate",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/init-migrate.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-init-migrate"
       ],
       "cache": true,
       "workerLimit": 1,
@@ -1081,19 +1110,10 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
-        "tests/author.test.ts",
-        "tests/bindings.test.ts",
-        "tests/capture.test.ts",
         "tests/check-admission.test.ts",
-        "tests/consumer.test.ts",
         "tests/decline.test.ts",
-        "tests/distribution-verbs.test.ts",
-        "tests/equivalence.test.ts",
-        "tests/host-plugin.test.ts",
-        "tests/host-projection.test.ts",
         "tests/next.test.ts",
         "tests/position.test.ts",
-        "tests/preview.test.ts",
         "tests/project.test.ts",
         "tests/read.test.ts",
         "tests/refusal-next.test.ts",
@@ -1124,21 +1144,6 @@
       ],
       "skips": [
         {
-          "case": "tests/preview.test.ts > path spelling matches covers as the edit guard does where pathKey folds case: a missing covered directory, a covers in another case, never a longer name",
-          "reason": "db pathKey folds case only on Windows and macOS, as the edit guard keys paths; on Linux each case is its own path, so there is no folding to observe.",
-          "platforms": [
-            "linux"
-          ]
-        },
-        {
-          "case": "tests/capture.test.ts > prints capture preview roots that replay at the same Windows target",
-          "reason": "The fixture replays capture roots with native Windows path semantics and runs only on win32.",
-          "platforms": [
-            "linux",
-            "macos"
-          ]
-        },
-        {
           "case": "tests/refusal-next.test.ts > keeps relative recovery and apply commands in their original directory",
           "reason": "The fixture resolves relative backslash-separated recovery targets on Windows and runs only on win32.",
           "platforms": [
@@ -1162,6 +1167,90 @@
             "macos"
           ]
         }
+      ]
+    },
+    {
+      "id": "cli:test-workspace-authoring",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/author.test.ts",
+        "tests/capture.test.ts",
+        "tests/preview.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-workspace-authoring"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/preview.test.ts > path spelling matches covers as the edit guard does where pathKey folds case: a missing covered directory, a covers in another case, never a longer name",
+          "reason": "db pathKey folds case only on Windows and macOS, as the edit guard keys paths; on Linux each case is its own path, so there is no folding to observe.",
+          "platforms": [
+            "linux"
+          ]
+        },
+        {
+          "case": "tests/capture.test.ts > prints capture preview roots that replay at the same Windows target",
+          "reason": "The fixture replays capture roots with native Windows path semantics and runs only on win32.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cli:test-workspace-hosts",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/bindings.test.ts",
+        "tests/consumer.test.ts",
+        "tests/distribution-verbs.test.ts",
+        "tests/equivalence.test.ts",
+        "tests/host-plugin.test.ts",
+        "tests/host-projection.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "selected-tests-workspace-records",
+      "dependsOn": [
+        "cli:build",
+        "host-payload:generate",
+        "language-base:generate"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-workspace-hosts"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
       ]
     },
     {
@@ -1441,7 +1530,6 @@
         "tests/context-binding.test.ts",
         "tests/context-guard.test.ts",
         "tests/context-inventory.test.ts",
-        "tests/context.test.ts",
         "tests/hook.test.ts",
         "tests/mandate-guard.test.ts"
       ],
@@ -1458,6 +1546,34 @@
       ],
       "outputs": [
         "artifacts/tests/steward-hook-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "steward-hook:test-context",
+      "kind": "vitest",
+      "project": "apps/steward-hook",
+      "files": [
+        "tests/context.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "steward-hook:build"
+      ],
+      "outputs": [
+        "artifacts/tests/steward-hook-test-context"
       ],
       "cache": true,
       "workerLimit": 1,
