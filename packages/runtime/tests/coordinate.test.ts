@@ -109,3 +109,25 @@ it('returns copied immutable coordinate values, source marks, focus lists and sh
   expect(() => (got.focus.predicates as string[]).pop()).toThrow();
   expect(() => (scoreShapes('write') as unknown[]).pop()).toThrow();
 });
+// The MCP door parses each stdin line as JSON; the coordinate of its context and select requests reaches graph
+// validateCoordinate through prepareCoordinate.
+const parsed = (text: string): Record<string, unknown> => JSON.parse(text) as Record<string, unknown>;
+// Spelled out rather than CONDITION_AXES.join(', ') so these tests pin the message text itself.
+const axes = 'shape, category, phase, primitive, move, kind, lane, predicate, artifact-set, severity, provenance';
+it('refuses a parsed prototype key as an unknown declared axis', () => {
+  for (const name of ['__proto__', 'constructor', 'toString'])
+    expect(() => prepareCoordinate('', parsed(`{"${name}":"act"}`))).toThrow(
+      expect.objectContaining({
+        code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+        message: `Unknown coordinate axis '${name}'; admitted: ${axes}`,
+      }),
+    );
+});
+it('refuses a parsed declared value String() cannot render as an unknown value', () => {
+  expect(() => prepareCoordinate('', parsed('{"phase":{"toString":1}}'))).toThrow(
+    expect.objectContaining({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: "Unknown phase value '<unprintable>'; admitted: orient, plan, act, learn",
+    }),
+  );
+});

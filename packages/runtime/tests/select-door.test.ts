@@ -199,6 +199,59 @@ it('preserves named lower-layer errors and guards privileged reports and foreign
     other.close();
   }
 });
+// The MCP door parses each stdin line as JSON and hands the tool arguments to Door.request as its params; a door
+// coordinate reaches graph validateCoordinate directly (traverse) and through prepareCoordinate (context and select).
+const parsed = (text: string): Record<string, unknown> => JSON.parse(text) as Record<string, unknown>;
+const axes = 'shape, category, phase, primitive, move, kind, lane, predicate, artifact-set, severity, provenance';
+it('refuses a parsed prototype key as an unknown axis on the door coordinate paths', () => {
+  const door = new Door(workspace(), { cache: false });
+  try {
+    expect(
+      door.request({ operation: 'traverse', params: parsed('{"start":[],"coordinate":{"phase":"act"}}') }),
+    ).toMatchObject({ ok: true, result: { nodes: [] } });
+    for (const name of ['__proto__', 'constructor', 'toString']) {
+      const coordinate = `{"${name}":"act"}`,
+        message = `Unknown coordinate axis '${name}'; admitted: ${axes}`;
+      for (const [operation, params] of [
+        ['traverse', `{"start":[],"coordinate":${coordinate}}`],
+        ['context', `{"text":"","coordinate":${coordinate}}`],
+        ['select', `{"text":"","candidates":["x"],"coordinate":${coordinate}}`],
+      ] as const)
+        expect(door.request({ operation, params: parsed(params) })).toEqual({
+          ok: false,
+          code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+          message,
+        });
+    }
+  } finally {
+    door.close();
+  }
+});
+it('refuses a parsed value String() cannot render as an unknown value on the door phase paths', () => {
+  const door = new Door(workspace(), { cache: false });
+  try {
+    const value = '{"toString":1}',
+      refusal = {
+        ok: false,
+        code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+        message: "Unknown phase value '<unprintable>'; admitted: orient, plan, act, learn",
+      };
+    for (const [operation, params] of [
+      ['traverse', `{"start":[],"coordinate":{"phase":${value}}}`],
+      ['context', `{"text":"","coordinate":{"phase":${value}}}`],
+      ['select', `{"text":"","candidates":["x"],"coordinate":{"phase":${value}}}`],
+      ['scope', `{"phase":${value}}`],
+      ['get', `{"identity":"x","phase":${value}}`],
+      ['records', `{"phase":${value}}`],
+      ['resolve', `{"reference":{"kind":"identity","identity":"x"},"phase":${value}}`],
+      ['search', `{"text":"x","phase":${value}}`],
+      ['traverse', `{"start":[],"phase":${value}}`],
+    ] as const)
+      expect(door.request({ operation, params: parsed(params) })).toEqual(refusal);
+  } finally {
+    door.close();
+  }
+});
 it('preserves the published 1.2.0 get and records shape, including spelling but without digest or membership', () => {
   const root = workspace(),
     door = new Door(root, { cache: false }),

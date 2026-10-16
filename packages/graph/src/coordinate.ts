@@ -16,12 +16,28 @@ export interface Dimensions {
   readonly artifactSet?: ArtifactSet;
 }
 
+/** A refused value's text as String() gives it, or a placeholder when that throws, as it does for `{"toString":1}`. */
+function valueText(value: unknown): string {
+  try {
+    return String(value);
+  } catch {
+    return '<unprintable>';
+  }
+}
 export function validateCoordinate(input: Readonly<Record<string, unknown>>): Coordinate {
   if (input === null || typeof input !== 'object' || Array.isArray(input))
     throw new GraphUsageError('IA-GRAPH-COORDINATE-VALUE-UNKNOWN', 'Coordinate must be an axis/value object');
   const output: Partial<Record<ConditionAxis, string>> = {};
   for (const [name, value] of Object.entries(input)) {
-    if (valuesFor(name) === undefined)
+    // `includes()` is a barrier CodeQL js/remote-property-injection recognizes; a `valuesFor()` Map lookup is not.
+    if (!(CONDITION_AXES as readonly string[]).includes(name))
+      throw new GraphUsageError(
+        'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+        `Unknown coordinate axis '${name}'; admitted: ${CONDITION_AXES.join(', ')}`,
+      );
+    // @inventarch/language keeps CONDITION_AXES apart from valuesFor()'s tables; an axis without values is refused too.
+    const admitted = valuesFor(name);
+    if (admitted === undefined)
       throw new GraphUsageError(
         'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
         `Unknown coordinate axis '${name}'; admitted: ${CONDITION_AXES.join(', ')}`,
@@ -31,7 +47,7 @@ export function validateCoordinate(input: Readonly<Record<string, unknown>>): Co
     if (canonical === undefined)
       throw new GraphUsageError(
         'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
-        `Unknown ${name} value '${String(value)}'; admitted: ${valuesFor(name)!.join(', ')}`,
+        `Unknown ${name} value '${valueText(value)}'; admitted: ${admitted.join(', ')}`,
       );
     output[name as ConditionAxis] = canonical;
   }
