@@ -108,13 +108,13 @@ function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
     let pid = Number.NaN;
     try {
       const bytes = Buffer.alloc(LOCK_PID_BYTES);
-      let size = 0;
-      for (;;) {
-        const count = readSync(fd, bytes, size, bytes.length - size, null);
-        size += count;
-        if (count === 0 || size === bytes.length) break;
+      let total = 0;
+      while (total < bytes.byteLength) {
+        const count = readSync(fd, bytes, total, bytes.byteLength - total, null);
+        if (count === 0) break;
+        total += count;
       }
-      pid = Number.parseInt(bytes.toString('utf8', 0, size), 10);
+      pid = Number.parseInt(bytes.toString('utf8', 0, total), 10);
     } catch {
       /* unreadable: pid stays NaN, judged on age alone below */
     }
