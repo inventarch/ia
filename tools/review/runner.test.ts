@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import fs, { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { runBounded } from '../testing/subprocess.js';
 import {
   collectSubject,
@@ -452,6 +453,31 @@ it('omits an unreadable report past either disclosure bound before reading it, a
     put('d/evidence.json', '{}', 0o000); // within both bounds: its read fails
     expect(() => evidenceFiles(root, [])).toThrow(/^EACCES: permission denied, open /);
   } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+it('refuses a report rewritten at the same size while it is read', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-evidence-'));
+  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+  const read = fs.readSync;
+  let rewritten = false;
+  const reading = vi.spyOn(fs, 'readSync').mockImplementation((...args: Parameters<typeof fs.readSync>) => {
+    if (!rewritten) {
+      rewritten = true;
+      writeFileSync(resolve(root, 'task/evidence.json'), '{"b":2}');
+      fs.utimesSync(resolve(root, 'task/evidence.json'), new Date(2000, 0, 1), new Date(2000, 0, 1));
+    }
+    return Reflect.apply(read, fs, args) as number;
+  });
+  try {
+    mkdirSync(resolve(root, 'task'));
+    writeFileSync(resolve(root, 'task/evidence.json'), '{"a":1}');
+    syncBuiltinESMExports();
+    expect(() => evidenceFiles(root, [])).toThrow(/^Evidence changed while it was read: task\/evidence\.json$/);
+    expect(rewritten).toBe(true);
+  } finally {
+    reading.mockRestore();
+    syncBuiltinESMExports();
     rmSync(root, { recursive: true, force: true });
   }
 });

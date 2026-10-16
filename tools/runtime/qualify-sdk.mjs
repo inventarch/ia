@@ -80,9 +80,12 @@ function archiveBytes(path) {
     // Windows follows a link on open, so the name must still be that file, as the check by name required.
     const stat = lstatSync(path, { bigint: true });
     assert(stat.isFile() && !stat.isSymbolicLink());
+    // The size and the modification time of the opened file catch a rewrite while it was read, at any size.
+    const after = fstatSync(fd, { bigint: true });
     assert(
       BigInt(length) === opened.size &&
-        fstatSync(fd, { bigint: true }).size === opened.size &&
+        after.size === opened.size &&
+        after.mtimeNs === opened.mtimeNs &&
         stat.dev === opened.dev &&
         stat.ino === opened.ino,
       'Selected archive changed while it was read',

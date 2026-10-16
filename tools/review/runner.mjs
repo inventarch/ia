@@ -228,9 +228,12 @@ function evidenceReport(path, name, disclosed, omissions) {
       omissions.push(`Evidence symlink omitted: ${name}`);
       return undefined;
     }
+    // The size and the modification time of the opened file catch a rewrite while it was read, at any size.
+    const after = fstatSync(fd, { bigint: true });
     if (
       length !== size ||
-      fstatSync(fd, { bigint: true }).size !== opened.size ||
+      after.size !== opened.size ||
+      after.mtimeNs !== opened.mtimeNs ||
       named.dev !== opened.dev ||
       named.ino !== opened.ino
     )
