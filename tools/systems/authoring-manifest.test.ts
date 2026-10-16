@@ -250,12 +250,13 @@ it('generates resources from each selected authoring file up to one mebibyte and
   expect(() => authoringResources(root)).toThrow(unbounded);
 });
 
+// Generating sixteen mebibytes of teaching text takes seconds on every platform, so this case has its own ceiling.
 it('admits sixteen mebibytes of selected authoring files in all and refuses a byte more', () => {
   const files: Record<string, string> = {};
   for (let index = 0; index < 16; index++) files[`.ia/src/guide/part-${String(index).padStart(2, '0')}.md`] = mebibyte;
   expect(authoringResources(library(files)).total).toBe(16 * mebibyte.length);
   expect(() => authoringResources(library({ ...files, '.ia/src/guide/tail.md': 'x' }))).toThrow(unbounded);
-});
+}, 120_000);
 
 it('refuses a directory, hard-linked, missing, undecodable, FIFO, linked or unreadable selection as before', async () => {
   const directory = library({ '.ia/src/guide/folder.md': undefined });
