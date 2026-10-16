@@ -281,3 +281,16 @@ it('refuses a directory, hard-linked, missing, undecodable, FIFO, linked or unre
   chmodSync(resolve(locked, '.ia/src/guide/README.md'), 0o000);
   expect(() => authoringResources(locked)).toThrow(/^EACCES: permission denied, open /);
 });
+
+it('refuses an unreadable authoring file past either cap as unbounded before reading it, as it always has', () => {
+  // Root reads a file whatever its mode, and Windows has no such mode.
+  if (process.platform === 'win32' || process.getuid?.() === 0) return;
+  const large = library({ '.ia/src/guide/large.md': mebibyte + 'x' });
+  chmodSync(resolve(large, '.ia/src/guide/large.md'), 0o000);
+  expect(() => authoringResources(large)).toThrow(unbounded);
+  const files: Record<string, string> = {};
+  for (let index = 0; index < 16; index++) files[`.ia/src/guide/part-${String(index).padStart(2, '0')}.md`] = mebibyte;
+  const full = library({ ...files, '.ia/src/guide/tail.md': 'x' });
+  chmodSync(resolve(full, '.ia/src/guide/tail.md'), 0o000);
+  expect(() => authoringResources(full)).toThrow(unbounded);
+});

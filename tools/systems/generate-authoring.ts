@@ -65,7 +65,9 @@ export function authoringResources(root: string): {
       // A link fails the open (ELOOP) and Windows will not open a directory: refused as the walk and lstat refused them.
       const named = lstatSync(current);
       if (named.isSymbolicLink()) throw new Error('Authoring selection crosses an alias');
-      if (!named.isFile() || named.nlink !== 1) throw unbounded();
+      // A file it cannot read is still refused past either cap before any read, as it always was; no read follows.
+      if (!named.isFile() || named.nlink !== 1 || named.size > 1024 * 1024 || (total += named.size) > 16 * 1024 * 1024)
+        throw unbounded();
       throw error;
     }
     try {
