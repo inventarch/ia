@@ -24,6 +24,7 @@ import {
   planShards,
   platformCounts,
   readSchedule,
+  reusesVerdict,
   runNeeded,
   selectedPlatforms,
   updateSchedule,
@@ -37,13 +38,21 @@ const root = resolve(import.meta.dirname, '../..');
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 120_000;
 const workflow = (): string => readFileSync(resolve(root, '.github/workflows/platform-quality.yml'), 'utf8');
 /** The Plan job's planner arguments, with the GitHub expressions it passes replaced by one run's values. */
-function planArgs(run: { readonly event: string; readonly sha: string; readonly verified: string }): string[] {
+function planArgs(run: {
+  readonly event: string;
+  readonly sha: string;
+  readonly verified: string;
+  readonly action?: string;
+  readonly baseChanged?: boolean;
+}): string[] {
   const command = /pnpm --silent tests:plan (.*?) >> "\$GITHUB_OUTPUT"/.exec(workflow())?.[1];
   if (command === undefined) throw new Error('The Plan job does not run tests:plan into $GITHUB_OUTPUT');
   const filled = command
     .replaceAll('${{ github.event_name }}', run.event)
     .replaceAll('${{ github.sha }}', run.sha)
-    .replaceAll('${{ steps.verified.outputs.sha }}', run.verified);
+    .replaceAll('${{ steps.verified.outputs.sha }}', run.verified)
+    .replaceAll('${{ github.event.action }}', run.action ?? '')
+    .replaceAll("${{ github.event.changes.base && 'true' || 'false' }}", String(run.baseChanged ?? false));
   if (filled.includes('${{')) throw new Error(`Unexpected expression in the planner arguments: ${filled}`);
   return filled.split(' ').map((arg) => arg.replace(/^"(.*)"$/, '$1'));
 }
@@ -618,6 +627,86 @@ it('skips a scheduled run only when main is the commit the last successful sched
   // Every other event always runs, a dispatched full run included, whatever commit it names.
   for (const event of ['push', 'pull_request', 'workflow_dispatch', undefined])
     expect(runNeeded(event, 'abc', 'abc')).toBe(true);
+});
+
+it('copies the verdict only for a pull request edit that keeps its base', () => {
+  expect(reusesVerdict('pull_request', 'edited', false)).toBe(true);
+  // Retargeting changes the merge commit, so it runs in full; so does every other action and event.
+  expect(reusesVerdict('pull_request', 'edited', true)).toBe(false);
+  for (const action of ['opened', 'synchronize', 'reopened', '', undefined])
+    expect(reusesVerdict('pull_request', action, false)).toBe(false);
+  for (const event of ['push', 'schedule', 'workflow_dispatch', undefined])
+    expect(reusesVerdict(event, 'edited', false)).toBe(false);
+});
+
+it("emits run=reuse through the Plan job's own arguments for an edit, and runs in full when the base changed", () => {
+  const run = (action: string, baseChanged: boolean) => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--import',
+        'tsx',
+        'tools/testing/plan.ts',
+        ...planArgs({ event: 'pull_request', sha: 'abc', verified: '', action, baseChanged }),
+      ],
+      { cwd: root, encoding: 'utf8', windowsHide: true, timeout: SUBPROCESS },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    return /^run=(.*)$/m.exec(result.stdout)?.[1];
+  };
+  expect(run('edited', false)).toBe('reuse');
+  expect(run('edited', true)).toBe('true');
+  expect(run('synchronize', false)).toBe('true');
+  // Anything but true or false for --base-changed is refused rather than read as no change.
+  const refused = spawnSync(
+    process.execPath,
+    [
+      '--import',
+      'tsx',
+      'tools/testing/plan.ts',
+      '--ci-matrix',
+      '--event',
+      'pull_request',
+      '--action',
+      'edited',
+      '--base-changed',
+      '',
+    ],
+    { cwd: root, encoding: 'utf8', windowsHide: true, timeout: SUBPROCESS },
+  );
+  expect(refused).toMatchObject({ status: 1, stderr: expect.stringContaining('--base-changed expects true or false') });
+});
+
+it('gives a reuse run its own concurrency group, runs no lane in it, and never skips the gate', () => {
+  const text = workflow(),
+    jobs = workflowJobs(text);
+  // The same condition as reusesVerdict, so an edit neither cancels a running check nor is cancelled by one.
+  expect(text).toContain(
+    "group: public-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base && '-edit' || '' }}",
+  );
+  // Every lane runs only on run == 'true', so reuse, like any other value, runs none of them.
+  for (const job of ['build', 'static', 'tests', 'emitted', 'homebrew-node'])
+    expect(jobs.get(job)).toMatch(/^if: needs\.plan\.outputs\.run == 'true'/m);
+  // The Plan job copies the verdict only on reuse; the gate runs on reuse and fails unless that copy passed.
+  const plan = jobs.get('plan')!,
+    gate = jobs.get(GATE_JOB)!;
+  expect(plan).toContain(
+    "- name: Copy the verdict of this commit's last full run\nid: verdict\nif: steps.matrices.outputs.run == 'reuse'\n",
+  );
+  expect(plan).toContain('verdict: ${{ steps.verdict.outputs.verdict }}');
+  expect(plan).toContain('--head-sha ${{ github.event.pull_request.head.sha }}');
+  // The whole line: a gate that also skipped on reuse would report a pass for a commit nothing verified.
+  expect(gate).toMatch(/^if: always\(\) && needs\.plan\.outputs\.run != 'false'$/m);
+  expect(gate).toContain(
+    `if [ "\${{ needs.plan.result }}" != "success" ] || [ "\${{ needs.plan.outputs.verdict }}" != "success" ]; then`,
+  );
+  // On reuse, every other gate step is off, the refusal loop included, and the report step is the only one that runs.
+  const steps = gate.split(/^- /m).slice(1);
+  expect(steps[0]).toMatch(
+    /^name: Report the verdict of this commit's last full run\nif: needs\.plan\.outputs\.run == 'reuse'\n/,
+  );
+  for (const step of steps.slice(1))
+    expect(step).toMatch(/^(?:.*\n)*?if: (?:always\(\) && )?needs\.plan\.outputs\.run != 'reuse'$/m);
 });
 
 it('passes the planner the shard counts it accepts, with fewer on macOS than on Linux', () => {

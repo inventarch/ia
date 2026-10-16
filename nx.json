@@ -24,6 +24,7 @@
       "{workspaceRoot}/tools/testing/run.ts",
       "{workspaceRoot}/tools/testing/subprocess.ts",
       "{workspaceRoot}/tools/testing/timeouts.ts",
+      "{workspaceRoot}/tools/testing/verdict.ts",
       "{workspaceRoot}/tools/testing/workflow.ts",
       "{workspaceRoot}/tools/temp/physical-temp.mjs",
       {

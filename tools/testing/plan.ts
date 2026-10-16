@@ -257,6 +257,15 @@ export function runNeeded(event: string | undefined, head: string | undefined, v
   return !(event === 'schedule' && !!head && head === verified);
 }
 
+/**
+ * Whether a run only copies the verdict of the head commit's last full run: a pull request edit that leaves the base
+ * branch as it was changes a title or a description, never what is verified. Retargeting changes the merge commit, so
+ * an edit that changes the base runs in full. The workflow's concurrency group repeats this condition.
+ */
+export function reusesVerdict(event: string | undefined, action: string | undefined, baseChanged: boolean): boolean {
+  return event === 'pull_request' && action === 'edited' && !baseChanged;
+}
+
 /** Distinct known platforms, in `PLATFORMS` order; an empty, unknown or repeated platform is refused. */
 export function selectedPlatforms(platforms: readonly string[]): readonly Platform[] {
   const unknown = platforms.filter((platform) => !(PLATFORMS as readonly string[]).includes(platform));
@@ -392,6 +401,8 @@ if (isEntry(process.argv[1], import.meta.url)) {
     '--event',
     '--head-sha',
     '--verified-sha',
+    '--action',
+    '--base-changed',
     '--json',
     '--record',
     '--record-out',
@@ -401,7 +412,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
   );
   if (stray.length) {
     console.error(
-      `Usage: pnpm tests:plan [--platform <${PLATFORMS.join('|')}>] [--shards N|${PLATFORMS.map((platform) => `${platform}=N`).join(',')}] [--native-shards (the same)] [--matrix|--ci-matrix [--event <GitHub event> --head-sha <sha> --verified-sha <sha>]|--json] [--record <evidence directory> ... [--record-out <output file>]]`,
+      `Usage: pnpm tests:plan [--platform <${PLATFORMS.join('|')}>] [--shards N|${PLATFORMS.map((platform) => `${platform}=N`).join(',')}] [--native-shards (the same)] [--matrix|--ci-matrix [--event <GitHub event> --head-sha <sha> --verified-sha <sha> --action <event action> --base-changed <true|false>]|--json] [--record <evidence directory> ... [--record-out <output file>]]`,
     );
     process.exitCode = 2;
   } else
@@ -417,6 +428,9 @@ if (isEntry(process.argv[1], import.meta.url)) {
         // The triggering event selects the platforms, and for a scheduled run whether there is anything new to verify.
         const event = flag('--event'),
           platforms = eventPlatforms(event);
+        // Checked before the first output line, so a refused argument never leaves half the outputs written.
+        const baseChanged = flag('--base-changed') ?? 'false';
+        if (baseChanged !== 'true' && baseChanged !== 'false') throw new Error('--base-changed expects true or false');
         const matrices = ciMatrices(readManifest(root), readSchedule(root), {
           shards: platformCounts(flag('--shards') ?? '4', '--shards'),
           ...(flag('--native-shards') === undefined
@@ -428,7 +442,11 @@ if (isEntry(process.argv[1], import.meta.url)) {
           console.log(`${lane}=${JSON.stringify(matrices[lane])}`);
         console.log(`gate=${JSON.stringify(gateMatrix(platforms))}`);
         console.log(`platforms=${JSON.stringify(platforms)}`);
-        console.log(`run=${runNeeded(event, flag('--head-sha'), flag('--verified-sha'))}`);
+        // `reuse` runs no lane: the gate reports the verdict the Plan job copied. Any value but `true` skips the lanes.
+        const run = reusesVerdict(event, flag('--action'), baseChanged === 'true')
+          ? 'reuse'
+          : runNeeded(event, flag('--head-sha'), flag('--verified-sha'));
+        console.log(`run=${run}`);
         // No process.exit(): output a slow reader has not taken yet is still queued here, and exiting would drop it.
       } else if (record !== undefined) {
         const updated = updateSchedule(
