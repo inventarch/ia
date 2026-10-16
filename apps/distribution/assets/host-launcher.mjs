@@ -102,9 +102,9 @@ try {
     } catch (error) {
       // Of the failures that keep a file from opening, only that of a pinned file the walk may not read (EACCES, EPERM)
       // prints its system error, as before. A name that reaches nothing is gone, and a link the open refused (ELOOP;
-      // EMLINK on FreeBSD) is refused as one. Anything else is judged by its name, as before the walk opened files
-      // (Windows may refuse to open a directory); a pinned file that some other failure kept from opening, one swapped
-      // back after the open or one the system would not open, cannot be verified and refuses as a payload that differs.
+      // EMLINK on FreeBSD) is refused as one. Anything else whose open fails, a socket among them, is judged by its
+      // name, as before the walk opened files; a pinned file that some other failure kept from opening, one swapped back
+      // after the open or one the system would not open, cannot be verified and refuses as a payload that differs.
       if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return gone(rel, file);
       if (error.code === 'ELOOP' || error.code === 'EMLINK') throw Error('Plugin cache links are unsupported');
       const stat = named(full);

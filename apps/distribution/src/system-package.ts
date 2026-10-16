@@ -84,8 +84,8 @@ function file(root: string, path: string): Buffer {
   try {
     fd = openSync(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch (error) {
-    // A link the open refused (ELOOP; EMLINK on FreeBSD), a socket, or a directory Windows will not open is judged by
-    // its name; a missing or unreadable file keeps the error of its open.
+    // A link the open refused (ELOOP; EMLINK on FreeBSD), a socket, or anything else whose open fails is judged by its
+    // name; a missing or unreadable file keeps the error of its open.
     if (['ELOOP', 'EMLINK'].includes((error as NodeJS.ErrnoException).code ?? '')) throw aliased();
     const named = linkStat(target);
     if (named?.isSymbolicLink()) throw aliased();
