@@ -602,6 +602,13 @@ it('keeps full-width file identities when two inode numbers round to the same Ja
 const PENDING = '.ia/distributions/pending.json',
   LINK = process.platform === 'win32' ? 'junction' : 'dir';
 const installation = (root: string): unknown => outcome(() => readInstalledGeneration(root));
+/** An installation read that reads no byte: a refusal judged on the opened file, before its read. */
+const unread = (root: string): unknown => {
+  vi.mocked(readSync).mockClear();
+  const result = installation(root);
+  expect(readSync).not.toHaveBeenCalled();
+  return result;
+};
 /** A distribution refusal with its exact message. */
 const distribution = (reason: string, message: string) => ({
   code: 'IA-DB-SOURCE-UNAVAILABLE',
@@ -626,13 +633,13 @@ it('reads installation state from a single-link regular file within 4 MiB, a mis
     distribution('recovery-required', 'Run explicit distribution recovery before reading'),
   );
   put(root, PENDING, Buffer.alloc(bound + 1, 0x20));
-  expect(installation(root)).toMatchObject(unaliasedState);
+  expect(unread(root)).toMatchObject(unaliasedState);
   put(root, PENDING, '{}');
   linkSync(state, resolve(root, 'second.json'));
-  expect(installation(root)).toMatchObject(unaliasedState);
+  expect(unread(root)).toMatchObject(unaliasedState);
   const directory = workspace();
   mkdirSync(resolve(directory, PENDING), { recursive: true });
-  expect(installation(directory)).toMatchObject(unaliasedState);
+  expect(unread(directory)).toMatchObject(unaliasedState);
   // A link at the name, or on the way to it, is refused without being followed.
   const leaf = workspace();
   put(leaf, 'elsewhere/pending.json', '{}');
@@ -652,10 +659,10 @@ it.skipIf(process.platform === 'win32')(
       state = resolve(root, PENDING),
       blocking = await blockingOpens();
     await fifo(state);
-    expect(installation(root)).toMatchObject(unaliasedState);
+    expect(unread(root)).toMatchObject(unaliasedState);
     rmSync(state);
     await socket(root, state);
-    expect(installation(root)).toMatchObject(unaliasedState);
+    expect(unread(root)).toMatchObject(unaliasedState);
     expect(blocking).toEqual([]);
     // ENOTDIR is thrown as the filesystem reports it.
     const through = workspace();
@@ -687,6 +694,64 @@ it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
   },
 );
 
+it('reads at most one byte past installation state that grows while it is read, and refuses it', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(),
+    state = resolve(root, PENDING);
+  put(root, PENDING, '{}');
+  let read = 0,
+    calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    read += count;
+    if (++calls === 1) appendFileSync(state, 'x'.repeat(1_000));
+    return count;
+  });
+  expect(installation(root)).toMatchObject(distribution('corrupt-state', 'Installed file grew beyond limit'));
+  expect(read).toBe(3);
+});
+it.skipIf(process.platform === 'win32')(
+  'refuses installation state a link replaces after its path is checked, reading nothing through the link',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = workspace(),
+      state = resolve(root, PENDING);
+    put(root, PENDING, '{}');
+    put(root, 'outside.json', '{}');
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      if (String(args[0]) === state) {
+        actual.rmSync(state);
+        actual.symlinkSync(resolve(root, 'outside.json'), state);
+      }
+      return actual.openSync(...args);
+    });
+    expect(unread(root)).toMatchObject(unaliasedState);
+  },
+);
+it('throws a read error of opened installation state as it is', () => {
+  const root = workspace();
+  put(root, PENDING, '{}');
+  vi.mocked(readSync).mockImplementation(() => {
+    throw Object.assign(new Error('EIO: i/o error, read'), { code: 'EIO' });
+  });
+  expect(installation(root)).toMatchObject({ code: 'EIO', message: 'EIO: i/o error, read' });
+});
+it('refuses installation state whose name moves to another file while it is read', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(),
+    state = resolve(root, PENDING);
+  put(root, PENDING, '{}');
+  vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+    const fd = actual.openSync(...args);
+    if (String(args[0]) === state) {
+      actual.renameSync(state, resolve(root, 'original.json'));
+      actual.writeFileSync(state, '{}');
+    }
+    return fd;
+  });
+  expect(installation(root)).toMatchObject(unaliasedState);
+});
+
 // Authored package source capture (`readInputs` with `authoredRoots`).
 const PACKAGE = 'packages/example',
   RECORDS = `${PACKAGE}/.ia/src/systems/demo/records`,
@@ -714,10 +779,12 @@ it('captures a package source of at most 1 MiB with one name, walks a directory,
   expect(readSync).not.toHaveBeenCalled();
   const named = packageWorkspace();
   linkSync(resolve(named, SOURCE), resolve(named, 'second.ia'));
+  vi.mocked(readSync).mockClear();
   expect(captured(named)).toMatchObject({
     code: 'IA-DB-PATH-UNSAFE',
     message: `IA-DB-PATH-UNSAFE: Hard-linked package source: ${SOURCE}`,
   });
+  expect(readSync).not.toHaveBeenCalled();
   const folder = packageWorkspace();
   put(folder, `${RECORDS}/folder.ia/b.ia`, '#! ia 1.0\n');
   expect(packaged(folder)).toEqual([SOURCE, `${RECORDS}/folder.ia/b.ia`]);
@@ -833,6 +900,26 @@ it('refuses a package source whose name stops naming the file that is read', asy
     message: `IA-DB-SOURCE-CHANGED: Package source replaced during read: ${SOURCE}`,
   });
 });
+it.skipIf(process.platform === 'win32')(
+  'refuses a package source a FIFO replaces after it is listed, without waiting for a writer',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = packageWorkspace(),
+      file = resolve(root, SOURCE),
+      pipe = resolve(root, 'pipe');
+    await fifo(pipe);
+    const blocking = await blockingOpens((path) => {
+      if (path === file && actual.existsSync(pipe)) actual.renameSync(pipe, file);
+    });
+    vi.mocked(readSync).mockClear();
+    expect(captured(root)).toMatchObject({
+      code: 'IA-DB-SOURCE-CHANGED',
+      message: `IA-DB-SOURCE-CHANGED: Package source replaced during read: ${SOURCE}`,
+    });
+    expect(blocking).toEqual([]);
+    expect(readSync).not.toHaveBeenCalled();
+  },
+);
 it.skipIf(process.platform === 'win32')(
   'refuses a package source a link replaces after it is listed, reading nothing through the link',
   async () => {

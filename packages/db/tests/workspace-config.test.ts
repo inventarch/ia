@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import {
+  appendFileSync,
   chmodSync,
   cpSync,
   existsSync,
   linkSync,
   mkdirSync,
   openSync,
+  readSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -23,10 +25,11 @@ import { put, workspace } from './workspace.js';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
-  return { ...actual, openSync: vi.fn(actual.openSync) };
+  return { ...actual, openSync: vi.fn(actual.openSync), readSync: vi.fn(actual.readSync) };
 });
 afterEach(() => {
   vi.mocked(openSync).mockReset();
+  vi.mocked(readSync).mockReset();
 });
 
 const path = 'vendor/foundation',
@@ -229,6 +232,13 @@ const refused = (message: string) => ({
 });
 const irregular = refused('Expected a regular manifest of at most 64 KiB'),
   undecodable = refused('Expected UTF-8 JSON');
+/** The bindings read that reads no byte: a refusal judged on the opened manifest, before its read. */
+const unread = (root: string): unknown => {
+  vi.mocked(readSync).mockClear();
+  const result = outcome(() => adoptedBindings(root));
+  expect(readSync).not.toHaveBeenCalled();
+  return result;
+};
 /**
  * Lets `openSync` run as it does, except an open that would wait for a FIFO's writer: that one is recorded and refused
  * instead, so a reader that opens a FIFO without O_NONBLOCK fails its test rather than blocking the runner.
@@ -265,11 +275,11 @@ it('reads the manifest as a regular file of at most 64 KiB whatever its link cou
   put(sized, MANIFEST, text.padEnd(65_536, ' '));
   expect(outcome(() => adoptedBindings(sized))).toEqual([]);
   put(sized, MANIFEST, text.padEnd(65_537, ' '));
-  expect(outcome(() => adoptedBindings(sized))).toMatchObject(irregular);
+  expect(unread(sized)).toMatchObject(irregular);
   expect(outcome(() => readInputs(sized))).toMatchObject(irregular);
   const directory = workspace(false);
   mkdirSync(resolve(directory, MANIFEST), { recursive: true });
-  expect(outcome(() => adoptedBindings(directory))).toMatchObject(irregular);
+  expect(unread(directory)).toMatchObject(irregular);
   expect(outcome(() => readInputs(directory))).toMatchObject(irregular);
   // Bytes that are not UTF-8, or not JSON.
   put(sized, MANIFEST, new Uint8Array([0xc3, 0x28]));
@@ -304,7 +314,7 @@ it.skipIf(process.platform === 'win32')(
       blocking = await blockingOpens();
     mkdirSync(resolve(root, '.ia'));
     expect((await runBounded('mkfifo', [manifest], { timeoutMs: SUBPROCESS })).status).toBe(0);
-    expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+    expect(unread(root)).toMatchObject(irregular);
     expect(outcome(() => readInputs(root))).toMatchObject(irregular);
     rmSync(manifest);
     // A socket path holds about 100 bytes: bind a short name, then move the socket into place.
@@ -315,7 +325,7 @@ it.skipIf(process.platform === 'win32')(
     renameSync(bound, manifest);
     server.close();
     await once(server, 'close');
-    expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+    expect(unread(root)).toMatchObject(irregular);
     expect(blocking).toEqual([]);
   },
 );
@@ -334,3 +344,62 @@ it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
     expect(outcome(() => adoptedBindings(large))).toMatchObject(irregular);
   },
 );
+it('reads at most one byte past a manifest that grows while it is read, and refuses it as irregular', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(false),
+    text = JSON.stringify({ version: 1, adopted: [] });
+  put(root, MANIFEST, text);
+  let read = 0,
+    calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    read += count;
+    if (++calls === 1) appendFileSync(resolve(root, MANIFEST), ' '.repeat(1_000));
+    return count;
+  });
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+  expect(read).toBe(text.length + 1);
+});
+it('refuses a manifest that cannot be read once it is opened as undecodable', () => {
+  const root = workspace(false);
+  put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [] }));
+  vi.mocked(readSync).mockImplementation(() => {
+    throw Object.assign(new Error('EIO: i/o error, read'), { code: 'EIO' });
+  });
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(undecodable);
+});
+it.skipIf(process.platform === 'win32')(
+  'refuses a manifest a link replaces after its path is checked, reading nothing through the link',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = workspace(false),
+      manifest = resolve(root, MANIFEST),
+      text = JSON.stringify({ version: 1, adopted: [] });
+    put(root, MANIFEST, text);
+    put(root, 'outside.json', text);
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      if (String(args[0]) === manifest) {
+        actual.rmSync(manifest);
+        actual.symlinkSync(resolve(root, 'outside.json'), manifest);
+      }
+      return actual.openSync(...args);
+    });
+    expect(unread(root)).toMatchObject(irregular);
+  },
+);
+it('refuses a manifest whose name moves to another file while it is read', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(false),
+    manifest = resolve(root, MANIFEST),
+    text = JSON.stringify({ version: 1, adopted: [] });
+  put(root, MANIFEST, text);
+  vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+    const fd = actual.openSync(...args);
+    if (String(args[0]) === manifest) {
+      actual.renameSync(manifest, resolve(root, 'original.json'));
+      actual.writeFileSync(manifest, text);
+    }
+    return fd;
+  });
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+});

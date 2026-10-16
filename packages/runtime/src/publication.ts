@@ -2,14 +2,16 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   fsyncSync,
   linkSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
   openSync,
-  readFileSync,
+  readSync,
   readdirSync,
   realpathSync,
   rmSync,
@@ -192,6 +194,38 @@ function flush(path: string, text: string): void {
     closeSync(fd);
   }
 }
+/**
+ * Read-only; NOFOLLOW refuses a final link and NONBLOCK keeps a FIFO from blocking the open. Windows has neither flag
+ * (both are zero there), so it opens through a link, and the identity recheck after the read refuses it.
+ */
+const READ = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
+/**
+ * The bytes of the file opened as `fd` from `path`, read through the descriptor: undefined when it is not a regular file
+ * of at most `limit` bytes, or when after the read it has another size or `path` names another file; a `path` that names
+ * nothing by then throws. At most its size and one byte more are read. The judgment and the bytes are of one file (CodeQL
+ * js/file-system-race).
+ */
+function readOpened(fd: number, path: string, limit: number): Buffer | undefined {
+  const stat = fstatSync(fd, { bigint: true });
+  if (!stat.isFile() || stat.size > BigInt(limit)) return undefined;
+  const bytes = Buffer.alloc(Number(stat.size) + 1);
+  let length = 0;
+  while (length < bytes.length) {
+    const count = readSync(fd, bytes, length, bytes.length - length, null);
+    if (!count) break;
+    length += count;
+  }
+  // On Windows, which opens through a link, the name's identity is the only link guard.
+  const after = fstatSync(fd, { bigint: true }),
+    named = lstatSync(path, { bigint: true });
+  return BigInt(length) === stat.size &&
+    after.size === stat.size &&
+    named.isFile() &&
+    named.dev === stat.dev &&
+    named.ino === stat.ino
+    ? bytes.subarray(0, length)
+    : undefined;
+}
 function cleanup(root: string, stage: string): void {
   const parent = resolve(root, '.ia/work/generated'),
     rel = relative(parent, stage);
@@ -287,13 +321,22 @@ export async function inspectPublication(
     if (!existsSync(target)) return 'absent';
     if (!lstatSync(target).isDirectory()) return 'unknown';
     const marker = safe(base, `${destination}/result.json`);
-    if (!existsSync(marker)) return 'partial';
-    if (
-      !lstatSync(marker).isFile() ||
-      lstatSync(marker).size > 2 * 1024 * 1024 ||
-      readFileSync(marker, 'utf8') !== metadata
-    )
-      return 'unknown';
+    let fd: number;
+    try {
+      fd = openSync(marker, READ);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'partial';
+      // A marker that is no regular file within its bound is unknown before any read, as one that opens is; Windows may
+      // refuse to open a directory, and an unreadable marker past the bound is unknown, as it was when read by name.
+      const named = lstatSync(marker);
+      if (!named.isFile() || named.size > 2 * 1024 * 1024) return 'unknown';
+      throw error;
+    }
+    try {
+      if (readOpened(fd, marker, 2 * 1024 * 1024)?.toString('utf8') !== metadata) return 'unknown';
+    } finally {
+      closeSync(fd);
+    }
     const expected = new Map([...snapshot.map((f) => [f.path, f.text] as const), ['result.json', metadata] as const]);
     const found: string[] = [];
     const walk = (path: string): boolean => {
@@ -304,12 +347,23 @@ export async function inspectPublication(
           if (![...expected.keys()].some((p) => p.startsWith(child + '/')) || !walk(child)) return false;
         } else if (entry.isFile()) {
           const text = expected.get(child);
-          if (
-            text === undefined ||
-            lstatSync(full).size !== Buffer.byteLength(text) ||
-            !readFileSync(full).equals(Buffer.from(text))
-          )
-            return false;
+          if (text === undefined) return false;
+          const bytes = Buffer.from(text);
+          let descriptor: number;
+          try {
+            descriptor = openSync(full, READ);
+          } catch (error) {
+            // As when it was read by name: a file of another size is partial before any read, and any other failure
+            // throws; for a vanished entry that is the lstat's own error.
+            if (lstatSync(full).size !== bytes.length) return false;
+            throw error;
+          }
+          try {
+            // One of another size or other bytes, or that its name no longer names, is partial.
+            if (!readOpened(descriptor, full, bytes.length)?.equals(bytes)) return false;
+          } finally {
+            closeSync(descriptor);
+          }
           found.push(child);
         } else return false;
       }

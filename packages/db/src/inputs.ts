@@ -12,7 +12,7 @@ import {
   realpathSync,
   statSync,
 } from 'node:fs';
-import type { Stats } from 'node:fs';
+import type { BigIntStats, Stats } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { BAND_OF, KERNEL_SOURCES, isPlacementKind, isProvenance } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
@@ -469,15 +469,60 @@ interface Binding {
  * `ia scope` report that refusal, so the order is part of their output.
  */
 function bindings<T = Binding>(root: string, each: (binding: Binding) => T = (binding) => binding as T): readonly T[] {
-  const path = safePath(root, '.ia/workspace.json');
-  if (!existsSync(path)) return [];
-  if (!statSync(path).isFile() || statSync(path).size > 65_536)
-    invalid('Expected a regular manifest of at most 64 KiB');
+  const path = safePath(root, '.ia/workspace.json'),
+    irregular = (): never => invalid('Expected a regular manifest of at most 64 KiB'),
+    undecodable = (): never => invalid('Expected UTF-8 JSON');
+  // The manifest is opened before it is judged, so the judgment and the bytes are of one file (CodeQL
+  // js/file-system-race). NOFOLLOW refuses a final link put in place after safePath, NONBLOCK keeps a FIFO from
+  // blocking the open; a flag a platform lacks is zero. A missing manifest declares no bindings.
+  let fd: number;
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    // A link, a socket or, on Windows, a directory may refuse to open: refuse it as an opened one is refused. A
+    // regular manifest that cannot be opened is unreadable, as one that cannot be read is.
+    const named = lstatSync(path, { bigint: true });
+    if (!named.isFile() || named.size > 65_536n) irregular();
+    return undecodable();
+  }
+  let bytes: Buffer;
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile() || opened.size > 65_536n) irregular();
+    // Allocate and read the judged size and one byte more, which only a concurrent writer can supply.
+    const buffer = Buffer.alloc(Number(opened.size) + 1);
+    let length = 0;
+    try {
+      while (length < buffer.length) {
+        const count = readSync(fd, buffer, length, buffer.length - length, null);
+        if (!count) break;
+        length += count;
+      }
+    } catch {
+      undecodable();
+    }
+    // The bytes are the manifest's only if it kept its size and still has that name; on Windows, which opens through a
+    // link, the name's identity is the only link guard.
+    const after = fstatSync(fd, { bigint: true }),
+      named = lstatSync(path, { bigint: true, throwIfNoEntry: false });
+    if (
+      BigInt(length) !== opened.size ||
+      after.size !== opened.size ||
+      named?.isFile() !== true ||
+      named.dev !== opened.dev ||
+      named.ino !== opened.ino
+    )
+      irregular();
+    bytes = buffer.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
   let value: unknown;
   try {
-    value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(readFileSync(path)));
+    value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
   } catch {
-    invalid('Expected UTF-8 JSON');
+    undecodable();
   }
   const object = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
   if (
@@ -696,31 +741,48 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
             !existsSync(safePath(canonical, `.ia/src/systems/${owner.name}/system.ia`))
           )
             throw new DbError('IA-DB-PATH-UNSAFE', `Package instance lacks a root-owned system declaration: ${child}`);
-          const stat = lstatSync(file);
-          if (stat.nlink !== 1) throw new DbError('IA-DB-PATH-UNSAFE', `Hard-linked package source: ${child}`);
-          if (++packageFiles > 20000 || stat.size > 1048576 || (packageBytes += stat.size) > 67108864)
-            throw new DbError('IA-DB-SOURCE-UNAVAILABLE', 'Authored package source capture limit exceeded');
-          // Bound allocation and reading even if a concurrent writer grows the file.
-          const fd = openSync(file, 'r'),
-            buffer = Buffer.alloc(stat.size + 1);
-          let length = 0;
+          const replaced = () => new DbError('IA-DB-SOURCE-CHANGED', `Package source replaced during read: ${child}`);
+          // Still the regular file the listing named, with one link and within the capture bounds, before any byte is read.
+          const admit = (stat: BigIntStats): void => {
+            if (!stat.isFile()) throw replaced();
+            if (stat.nlink !== 1n) throw new DbError('IA-DB-PATH-UNSAFE', `Hard-linked package source: ${child}`);
+            if (++packageFiles > 20000 || stat.size > 1048576n || (packageBytes += Number(stat.size)) > 67108864)
+              throw new DbError('IA-DB-SOURCE-UNAVAILABLE', 'Authored package source capture limit exceeded');
+          };
+          // The file is opened before it is judged, so the judgment and the bytes are of one file (CodeQL
+          // js/file-system-race). NOFOLLOW refuses a link put in place since the listing and NONBLOCK keeps a FIFO from
+          // blocking the open; a flag a platform lacks is zero.
+          let fd: number;
           try {
-            const opened = fstatSync(fd);
-            if (!opened.isFile() || opened.dev !== stat.dev || opened.ino !== stat.ino || opened.nlink !== 1)
-              throw new DbError('IA-DB-SOURCE-CHANGED', `Package source replaced during read: ${child}`);
+            fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+          } catch (error) {
+            // A link, a socket or, on Windows, a directory may refuse to open: judge the name as the opened file would be.
+            admit(lstatSync(file, { bigint: true }));
+            throw error;
+          }
+          let length = 0,
+            buffer: Buffer;
+          try {
+            const opened = fstatSync(fd, { bigint: true });
+            admit(opened);
+            // Bound allocation and reading even if a concurrent writer grows the file.
+            buffer = Buffer.alloc(Number(opened.size) + 1);
             while (length < buffer.length) {
               const count = readSync(fd, buffer, length, buffer.length - length, null);
               if (!count) break;
               length += count;
             }
-            const after = fstatSync(fd);
+            const after = fstatSync(fd, { bigint: true });
             if (
-              length !== stat.size ||
-              after.size !== stat.size ||
-              after.mtimeMs !== stat.mtimeMs ||
-              after.ctimeMs !== stat.ctimeMs
+              BigInt(length) !== opened.size ||
+              after.size !== opened.size ||
+              after.mtimeNs !== opened.mtimeNs ||
+              after.ctimeNs !== opened.ctimeNs
             )
               throw new DbError('IA-DB-SOURCE-CHANGED', `Package source changed during read: ${child}`);
+            // On Windows, which opens through a link, the name's identity is the only link guard.
+            const named = lstatSync(file, { bigint: true, throwIfNoEntry: false });
+            if (named?.isFile() !== true || named.dev !== opened.dev || named.ino !== opened.ino) throw replaced();
           } finally {
             closeSync(fd);
           }

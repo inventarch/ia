@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
+import { closeSync, constants, existsSync, fstatSync, lstatSync, openSync, readSync, readdirSync } from 'node:fs';
 import { join, parse, resolve } from 'node:path';
 import type { RevisionSource } from '@inventarch/graph';
 import {
@@ -68,20 +68,54 @@ function safe(root: string, path: string): string {
   }
   return absolute;
 }
+/**
+ * The bytes of the installed file at `path`, or null when there is none. It must be a regular file with one link and at
+ * most `max` bytes. It is opened before it is judged, so the judgment and the bytes are of one file (CodeQL
+ * js/file-system-race), and it must still be that file, at that name and size, after the read.
+ */
 function read(root: string, path: string, max: number = DISTRIBUTION_LIMITS.metadata): Buffer | null {
-  const target = safe(root, path);
-  let stat;
+  const target = safe(root, path),
+    unaliased = (): never => corrupt(`Expected bounded unaliased regular file: ${path}`);
+  let fd: number;
   try {
-    stat = lstatSync(target);
+    // NOFOLLOW refuses a final link and NONBLOCK keeps a FIFO from blocking the open; a flag a platform lacks is zero.
+    fd = openSync(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    // A link, a socket or, on Windows, a directory may refuse to open: refuse it as an opened one is refused.
+    const named = lstatSync(target, { bigint: true });
+    if (!named.isFile() || named.nlink !== 1n || named.size > BigInt(max)) unaliased();
     throw error;
   }
-  if (!stat.isFile() || stat.nlink !== 1 || stat.size > max)
-    corrupt(`Expected bounded unaliased regular file: ${path}`);
-  const bytes = readFileSync(target);
-  if (bytes.length > max) corrupt('Installed file grew beyond limit');
-  return bytes;
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile() || opened.nlink !== 1n || opened.size > BigInt(max)) unaliased();
+    // Allocate and read the judged size and one byte more, which only a concurrent writer can supply.
+    const bytes = Buffer.alloc(Number(opened.size) + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = readSync(fd, bytes, length, bytes.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    if (BigInt(length) > opened.size) corrupt('Installed file grew beyond limit');
+    // On Windows, which opens through a link, the name's identity is the only link guard.
+    const after = fstatSync(fd, { bigint: true }),
+      named = lstatSync(target, { bigint: true, throwIfNoEntry: false });
+    if (
+      BigInt(length) !== opened.size ||
+      after.size !== opened.size ||
+      after.nlink !== 1n ||
+      named?.isFile() !== true ||
+      named.nlink !== 1n ||
+      named.dev !== opened.dev ||
+      named.ino !== opened.ino
+    )
+      unaliased();
+    return bytes.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
 }
 function utf8(bytes: Buffer): string {
   try {
