@@ -84,7 +84,7 @@ jobs:
           sha="$(gh api "repos/${{ github.repository }}/actions/workflows/platform-quality.yml/runs?event=schedule&status=success&branch=main&per_page=1" --jq '.workflow_runs[0].head_sha // empty')" || { echo "::warning::could not read the last successful scheduled run; verifying anyway"; sha=""; }
           echo "Last successful scheduled run verified ${sha:-nothing}; main is at ${{ github.sha }}."
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-      # Public source tasks use four general lanes on Linux, six on Windows and three on macOS. Windows runs the
+      # Public source tasks use four general lanes on Linux, eight on Windows and three on macOS. Windows runs the
       # slowest, so it gets the most lanes. Hosted minutes are free on this public repository; what limits macOS is
       # the organization's five concurrent macOS jobs, shared by every run. Static, emitted and three test shards
       # fill all five, so a second run's macOS jobs wait for a slot (tools/testing/plan.test.ts holds this). The
@@ -94,7 +94,7 @@ jobs:
       # request edit that keeps its base.
       - name: Assign tasks to shards
         id: matrices
-        run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=6,macos=3 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" --action "${{ github.event.action }}" --base-changed ${{ github.event.changes.base && 'true' || 'false' }} >> "$GITHUB_OUTPUT"
+        run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=8,macos=3 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" --action "${{ github.event.action }}" --base-changed ${{ github.event.changes.base && 'true' || 'false' }} >> "$GITHUB_OUTPUT"
       # A reuse run runs no lane. This step fails unless the head commit's last full run of this workflow finished and
       # passed, so an edit can never turn a failed or unverified commit green. Earlier copies are not full runs.
       - name: Copy the verdict of this commit's last full run
