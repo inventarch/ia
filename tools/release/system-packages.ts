@@ -82,6 +82,7 @@ function linkStat(path: string): BigIntStats | undefined {
  * so the file judged is the file read (CodeQL js/file-system-race): never through a link where the platform refuses one at
  * the open, never waiting on a FIFO, read through that descriptor no further than one byte past its size, and still the
  * file at its name afterwards, which on Windows, without either open flag, is the one check of a link swapped in there.
+ * An input over 2147483647 bytes, the most the read by name admitted, refuses before anything is allocated for it.
  * Hard links are admitted, so the change time, which another link to the same file moves, is not compared. An open that
  * fails keeps the refusal its name earns, and otherwise the system's error. This copies file() in
  * apps/distribution/src/system-package.ts; keep the two alike.
@@ -111,10 +112,11 @@ function file(root: string, path: string): Buffer {
   try {
     const opened = fstatSync(fd, { bigint: true });
     if (!opened.isFile()) throw irregular();
+    if (opened.size > 0x7fffffffn) throw new Error('System package input exceeds 2147483647 bytes: ' + path);
     const bytes = Buffer.alloc(Number(opened.size) + 1);
     let length = 0;
     while (length < bytes.length) {
-      const read = readSync(fd, bytes, length, bytes.length - length, null);
+      const read = readSync(fd, bytes, length, Math.min(bytes.length - length, 0x7fffffff), null);
       if (!read) break;
       length += read;
     }

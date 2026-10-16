@@ -647,6 +647,32 @@ describe('system package input reads', () => {
     expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(/^EACCES: permission denied, open /);
   });
 
+  it('refuses an input over 2147483647 bytes before allocating a buffer for it', () => {
+    const root = temporary(),
+      big = resolve(root, '.ia/src/big.ia');
+    write(root, '.ia/src/big.ia', '');
+    // A buffer past the bound is never allocated here: the guard refuses first, and without it this spy refuses instead.
+    const allocate = Buffer.alloc;
+    const allocating = vi.spyOn(Buffer, 'alloc').mockImplementation((...args: Parameters<typeof Buffer.alloc>) => {
+      if (args[0] > 0x7fffffff) throw new Error('A buffer past 2147483647 bytes was allocated');
+      return Reflect.apply(allocate, Buffer, args) as ReturnType<typeof Buffer.alloc>;
+    });
+    try {
+      const fd = fs.openSync(big, 'r+');
+      try {
+        // A sparse file: its size is 2147483648 bytes without that much being written.
+        fs.ftruncateSync(fd, 2147483648);
+      } finally {
+        fs.closeSync(fd);
+      }
+      expect(() => bundle(root, '.ia/src/big.ia', digest(''))).toThrow(
+        /^System package input exceeds 2147483647 bytes: \.ia\/src\/big\.ia$/,
+      );
+    } finally {
+      allocating.mockRestore();
+      rmSync(big, { force: true });
+    }
+  });
   afterEach(() => {
     vi.restoreAllMocks();
     syncBuiltinESMExports();
