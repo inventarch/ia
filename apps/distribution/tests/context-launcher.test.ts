@@ -635,6 +635,13 @@ it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
     `Plugin cache payload differs: ${MODULE}`,
   ],
   [
+    // Its name reaches nothing once it is read, so it is gone, and a pinned file gone is missing.
+    // On Windows, libuv's unlink tries POSIX delete semantics first, so the name goes at once though the file is open.
+    'removed after its first read',
+    (s) => ({ at: 'read', steps: [['unlinkSync', s.module]] }),
+    'Plugin cache payload is missing',
+  ],
+  [
     // The open fails for want of the file and the file is back before it is judged: it is gone, so missing, and the
     // open's error is never printed.
     'moved away for its open and back before it is judged',
@@ -741,12 +748,6 @@ it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
     'given a second link after its first read',
     (s) => ({ at: 'read', steps: [['linkSync', s.module, join(outside(), 'context.js')]] }),
     'Plugin cache file is aliased',
-  ],
-  [
-    // Its name reaches nothing once it is read, so it is gone, and a pinned file gone is missing.
-    'removed after its first read',
-    (s) => ({ at: 'read', steps: [['unlinkSync', s.module]] }),
-    'Plugin cache payload is missing',
   ],
   [
     // The open meets the link and refuses it; the file is back before the name is judged, so only the open's ELOOP

@@ -388,6 +388,14 @@ it.each<[string, (manifest: string) => unknown]>([
       return changed;
     },
   ],
+  [
+    // Its name reaches nothing once it is read, which no longer holds the file read.
+    'removed after its first read',
+    (manifest) => {
+      race.afterRead = () => unlinkSync(manifest);
+      return changed;
+    },
+  ],
 ])('verification refuses a package.json %s', async (_, arrange) => {
   const selected = await legacyPackage();
   race.target = resolve(selected.scratch, 'package.json');
@@ -423,14 +431,6 @@ it.each<[string, (manifest: string) => unknown]>([
       const other = resolve(temporary('ia-system-package-other-'), 'package.json');
       writeFileSync(other, readFileSync(manifest));
       race.afterRead = () => renameSync(other, manifest);
-      return changed;
-    },
-  ],
-  [
-    // Its name reaches nothing once it is read, which no longer holds the file read.
-    'removed after its first read',
-    (manifest) => {
-      race.afterRead = () => unlinkSync(manifest);
       return changed;
     },
   ],

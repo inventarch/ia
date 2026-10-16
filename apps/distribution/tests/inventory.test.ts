@@ -291,6 +291,7 @@ it.each<[string, (module: string) => void]>([
       race.afterRead = () => writeFileSync(module, rewritten);
     },
   ],
+  ['removed after its first read', (module) => (race.afterRead = () => unlinkSync(module))],
 ])('the inventory refuses a runtime module %s', (_, arrange) => {
   const root = runtime();
   race.target = join(root, 'archive.js');
@@ -326,7 +327,6 @@ it.each<[string, (module: string) => void]>([
       race.afterRead = () => renameSync(other, module);
     },
   ],
-  ['removed after its first read', (module) => (race.afterRead = () => unlinkSync(module))],
 ])('the inventory refuses a runtime module %s (POSIX)', (_, arrange) => {
   if (!POSIX) return;
   const root = runtime();
