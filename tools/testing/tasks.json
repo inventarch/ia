@@ -3360,6 +3360,7 @@
       "kind": "vitest",
       "project": ".",
       "files": [
+        "tools/review/main.test.ts",
         "tools/review/runner.test.ts"
       ],
       "profile": "unit",
@@ -3376,7 +3377,7 @@
       ],
       "cache": true,
       "workerLimit": 1,
-      "resourceClass": "pure",
+      "resourceClass": "subprocess",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
       ]
