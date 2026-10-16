@@ -200,7 +200,7 @@ it('preserves named lower-layer errors and guards privileged reports and foreign
   }
 });
 // The MCP door parses each stdin line as JSON and hands the tool arguments to Door.request as its params; a door
-// coordinate reaches graph validateCoordinate directly (traverse) and through prepareCoordinate (context).
+// coordinate reaches graph validateCoordinate directly (traverse) and through prepareCoordinate (context and select).
 const parsed = (text: string): Record<string, unknown> => JSON.parse(text) as Record<string, unknown>;
 const axes = 'shape, category, phase, primitive, move, kind, lane, predicate, artifact-set, severity, provenance';
 it('refuses a parsed prototype key as an unknown axis on the door coordinate paths', () => {
@@ -215,6 +215,7 @@ it('refuses a parsed prototype key as an unknown axis on the door coordinate pat
       for (const [operation, params] of [
         ['traverse', `{"start":[],"coordinate":${coordinate}}`],
         ['context', `{"text":"","coordinate":${coordinate}}`],
+        ['select', `{"text":"","candidates":["x"],"coordinate":${coordinate}}`],
       ] as const)
         expect(door.request({ operation, params: parsed(params) })).toEqual({
           ok: false,
@@ -238,6 +239,7 @@ it('refuses a parsed value String() cannot render as an unknown value on the doo
     for (const [operation, params] of [
       ['traverse', `{"start":[],"coordinate":{"phase":${value}}}`],
       ['context', `{"text":"","coordinate":{"phase":${value}}}`],
+      ['select', `{"text":"","candidates":["x"],"coordinate":{"phase":${value}}}`],
       ['scope', `{"phase":${value}}`],
       ['get', `{"identity":"x","phase":${value}}`],
       ['records', `{"phase":${value}}`],

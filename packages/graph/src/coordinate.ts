@@ -35,7 +35,7 @@ export function validateCoordinate(input: Readonly<Record<string, unknown>>): Co
         'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
         `Unknown coordinate axis '${name}'; admitted: ${CONDITION_AXES.join(', ')}`,
       );
-    // CONDITION_AXES and the value tables are separate language exports; an axis without values is refused too.
+    // @inventarch/language keeps CONDITION_AXES apart from valuesFor()'s tables; an axis without values is refused too.
     const admitted = valuesFor(name);
     if (admitted === undefined)
       throw new GraphUsageError(

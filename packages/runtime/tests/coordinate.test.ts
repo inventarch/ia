@@ -112,6 +112,7 @@ it('returns copied immutable coordinate values, source marks, focus lists and sh
 // The MCP door parses each stdin line as JSON; the coordinate of its context and select requests reaches graph
 // validateCoordinate through prepareCoordinate.
 const parsed = (text: string): Record<string, unknown> => JSON.parse(text) as Record<string, unknown>;
+// Spelled out rather than CONDITION_AXES.join(', ') so these tests pin the message text itself.
 const axes = 'shape, category, phase, primitive, move, kind, lane, predicate, artifact-set, severity, provenance';
 it('refuses a parsed prototype key as an unknown declared axis', () => {
   for (const name of ['__proto__', 'constructor', 'toString'])
