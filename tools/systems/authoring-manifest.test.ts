@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { captureWorkspace } from '@inventarch/workspace-runtime';
 import {
@@ -10,6 +10,8 @@ import {
   readAuthoringManifestFile,
 } from '@inventarch/workspace-runtime/authoring-manifest';
 import { resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
+import { runBounded } from '../testing/subprocess.js';
+import { authoringResources } from './generate-authoring.js';
 import { teachingLinkClasses, teachingLinkFindings } from './teaching-links.js';
 
 const temporary: string[] = [];
@@ -200,4 +202,82 @@ it('keeps adopted guide resources separate from the host kernel and resolves the
   } finally {
     local.close();
   }
+});
+
+/** A root whose explicit authoring library selects each key of `files`, written with its content unless that is undefined. */
+function library(files: Record<string, string | Buffer | undefined>): string {
+  const root = temp();
+  mkdirSync(resolve(root, '.ia/src/systems/authoring-system'), { recursive: true });
+  writeFileSync(
+    resolve(root, '.ia/src/systems/authoring-system/library.json'),
+    JSON.stringify({
+      format: 'ia.authoring-library.v1',
+      files: Object.keys(files).map((path) => ({ path })),
+      associations: [],
+      index: emptyIndex(),
+    }),
+  );
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(dirname(resolve(root, path)), { recursive: true });
+    if (content !== undefined) writeFileSync(resolve(root, path), content);
+  }
+  return root;
+}
+const mebibyte = 'x'.repeat(1024 * 1024);
+const unbounded = /^Unbounded or aliased authoring file$/;
+
+it('generates resources from each selected authoring file up to one mebibyte and refuses a byte more', () => {
+  const root = library({ '.ia/src/guide/README.md': '# Guide\n', '.ia/src/guide/large.md': mebibyte });
+  const { output, files, total } = authoringResources(root);
+  expect([files, total]).toEqual([2, 8 + mebibyte.length]);
+  expect(JSON.parse(output).files).toEqual([
+    {
+      path: '.ia/src/guide/README.md',
+      bytes: 8,
+      sha256: sha('# Guide\n'),
+      mediaType: 'text/markdown',
+      encoding: 'utf8',
+    },
+    {
+      path: '.ia/src/guide/large.md',
+      bytes: mebibyte.length,
+      sha256: sha(mebibyte),
+      mediaType: 'text/markdown',
+      encoding: 'utf8',
+    },
+  ]);
+  writeFileSync(resolve(root, '.ia/src/guide/large.md'), mebibyte + 'x');
+  expect(() => authoringResources(root)).toThrow(unbounded);
+});
+
+it('admits sixteen mebibytes of selected authoring files in all and refuses a byte more', () => {
+  const files: Record<string, string> = {};
+  for (let index = 0; index < 16; index++) files[`.ia/src/guide/part-${String(index).padStart(2, '0')}.md`] = mebibyte;
+  expect(authoringResources(library(files)).total).toBe(16 * mebibyte.length);
+  expect(() => authoringResources(library({ ...files, '.ia/src/guide/tail.md': 'x' }))).toThrow(unbounded);
+});
+
+it('refuses a directory, hard-linked, missing, undecodable, FIFO, linked or unreadable selection as before', async () => {
+  const directory = library({ '.ia/src/guide/folder.md': undefined });
+  mkdirSync(resolve(directory, '.ia/src/guide/folder.md'));
+  expect(() => authoringResources(directory)).toThrow(unbounded);
+  const shared = library({ '.ia/src/guide/README.md': '# Guide\n' });
+  linkSync(resolve(shared, '.ia/src/guide/README.md'), resolve(shared, 'other.md'));
+  expect(() => authoringResources(shared)).toThrow(unbounded);
+  expect(() => authoringResources(library({ '.ia/src/guide/missing.md': undefined }))).toThrow(
+    /^ENOENT: no such file or directory, lstat /,
+  );
+  expect(() => authoringResources(library({ '.ia/src/guide/bytes.md': Buffer.from([0xff, 0xfe]) }))).toThrow(TypeError);
+  // Windows has no FIFOs, file links need a privilege there, and root reads a file whatever its mode.
+  if (process.platform === 'win32') return;
+  const fifo = library({ '.ia/src/guide/fifo.md': undefined });
+  expect((await runBounded('mkfifo', [resolve(fifo, '.ia/src/guide/fifo.md')], { timeoutMs: 10_000 })).status).toBe(0);
+  expect(() => authoringResources(fifo)).toThrow(unbounded);
+  const linked = library({ '.ia/src/guide/README.md': '# Guide\n', '.ia/src/guide/link.md': undefined });
+  symlinkSync('README.md', resolve(linked, '.ia/src/guide/link.md'));
+  expect(() => authoringResources(linked)).toThrow(/^Authoring selection crosses an alias$/);
+  if (process.getuid?.() === 0) return;
+  const locked = library({ '.ia/src/guide/README.md': '# Guide\n' });
+  chmodSync(resolve(locked, '.ia/src/guide/README.md'), 0o000);
+  expect(() => authoringResources(locked)).toThrow(/^EACCES: permission denied, open /);
 });
