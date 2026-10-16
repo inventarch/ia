@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { KINDS } from '@inventarch/language';
 import { expect, it } from 'vitest';
-import { Door, MACHINE_PROTOCOL, context, prepareCoordinate, select } from '../src/index.js';
+import { Door, MACHINE_PROTOCOL, context, select } from '../src/index.js';
 import type { ContextRequest, Scope } from '../src/index.js';
 import { envelopeBytes } from '../src/context.js';
 import type { Node } from '@inventarch/graph';
@@ -212,9 +212,6 @@ it('refuses a parsed prototype key as an unknown axis on the door coordinate pat
     for (const name of ['__proto__', 'constructor', 'toString']) {
       const coordinate = `{"${name}":"act"}`,
         message = `Unknown coordinate axis '${name}'; admitted: ${axes}`;
-      expect(() => prepareCoordinate('', parsed(coordinate))).toThrow(
-        expect.objectContaining({ code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN', message }),
-      );
       for (const [operation, params] of [
         ['traverse', `{"start":[],"coordinate":${coordinate}}`],
         ['context', `{"text":"","coordinate":${coordinate}}`],
@@ -238,13 +235,15 @@ it('refuses a parsed value String() cannot render as an unknown value on the doo
         code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
         message: "Unknown phase value '<unprintable>'; admitted: orient, plan, act, learn",
       };
-    expect(() => prepareCoordinate('', parsed(`{"phase":${value}}`))).toThrow(
-      expect.objectContaining({ code: refusal.code, message: refusal.message }),
-    );
     for (const [operation, params] of [
       ['traverse', `{"start":[],"coordinate":{"phase":${value}}}`],
       ['context', `{"text":"","coordinate":{"phase":${value}}}`],
+      ['scope', `{"phase":${value}}`],
+      ['get', `{"identity":"x","phase":${value}}`],
       ['records', `{"phase":${value}}`],
+      ['resolve', `{"reference":{"kind":"identity","identity":"x"},"phase":${value}}`],
+      ['search', `{"text":"x","phase":${value}}`],
+      ['traverse', `{"start":[],"phase":${value}}`],
     ] as const)
       expect(door.request({ operation, params: parsed(params) })).toEqual(refusal);
   } finally {
