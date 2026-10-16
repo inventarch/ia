@@ -365,11 +365,12 @@ export function updateSchedule(schedule: Schedule, evidenceDirectories: string |
     const [platform, task] = key.split('\0') as [Platform, string];
     platforms[platform] = { ...platforms[platform], [task]: upperMedian(observed) };
   }
-  // Tasks in identity order, so the same evidence always writes the same file whatever order the schedule had.
+  // Tasks in identity order, so the same evidence always writes the same file whatever order the schedule had. The
+  // order is by code point: localeCompare follows the machine's locale, and Lithuanian, for one, puts y before s.
   const sorted = Object.fromEntries(
     PLATFORMS.map((platform) => [
       platform,
-      Object.fromEntries(Object.entries(platforms[platform]!).sort(([a], [b]) => a.localeCompare(b))),
+      Object.fromEntries(Object.entries(platforms[platform]!).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
     ]),
   );
   return { version: SCHEDULE_VERSION, platforms: sorted as Schedule['platforms'] };

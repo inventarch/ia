@@ -474,13 +474,14 @@ it('records several runs as each task’s median over the runs that executed it'
     write('r1', 'a:test', 'executed', 99, other);
     const before = {
       version: 1,
-      platforms: { linux: {}, windows: {}, macos: {}, [platform]: { 'z:test': 5, 'b:test': 1 } },
+      platforms: { linux: {}, windows: {}, macos: {}, [platform]: { 'z:test': 5, 'b:test': 1, 'Y:test': 3 } },
     } as Schedule;
     const runs = ['r1', 'r2', 'r3', 'r4'].map((run) => resolve(directory, run));
     const updated = updateSchedule(before, runs);
-    // The upper median of 2/4/6/8 is 6 and of 10/30/50 is 30; a task no run executed keeps its estimate; keys sort.
-    expect(updated.platforms[platform]).toEqual({ 'a:test': 6, 'b:test': 30, 'z:test': 5 });
-    expect(Object.keys(updated.platforms[platform]!)).toEqual(['a:test', 'b:test', 'z:test']);
+    // The upper median of 2/4/6/8 is 6 and of 10/30/50 is 30; a task no run executed keeps its estimate.
+    expect(updated.platforms[platform]).toEqual({ 'a:test': 6, 'b:test': 30, 'Y:test': 3, 'z:test': 5 });
+    // Keys sort by code point, not by the machine's locale, so 'Y' comes before 'a' everywhere.
+    expect(Object.keys(updated.platforms[platform]!)).toEqual(['Y:test', 'a:test', 'b:test', 'z:test']);
     expect(updated.platforms[other]).toEqual({ 'a:test': 99 });
     // One directory is one run, so recording the runs one at a time keeps only the last.
     expect(runs.reduce((schedule, run) => updateSchedule(schedule, run), before).platforms[platform]).toMatchObject({
