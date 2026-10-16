@@ -173,7 +173,6 @@ const BINDING = 'IA-LIFECYCLE-BINDING',
   ALIASES = { code: BINDING, message: 'Hook implementation aliases are unsupported' },
   NONREGULAR = { code: BINDING, message: 'Hook implementation has a nonregular file' },
   BYTES = { code: BINDING, message: 'Hook implementation bytes exceed their bound' };
-const posix = process.platform !== 'win32';
 /** The code and message of what `run` throws. */
 function refusal(run: () => unknown): { readonly code: unknown; readonly message: string } {
   try {
@@ -221,18 +220,26 @@ it('hashes a code file of exactly 8 MiB and 32 MiB of code in all, and refuses o
   sized(join(root, 'rest.json'), 8 * 1024 * 1024 - used + 1);
   expect(refusal(() => contextHookImplementationDigest(root))).toEqual(BYTES);
 }, 30_000);
-it.each(['a file link', 'a dangling link', 'a junction'] as const)(
+/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
+const fileLink = (target: string, path: string): boolean => {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+};
+it.for(['a file link', 'a dangling link', 'a junction'] as const)(
   'refuses %s in place of a code file or a module directory',
-  (kind) => {
-    if (!posix && kind !== 'a junction') return;
+  (kind, context) => {
     const root = fixture();
-    if (kind === 'a file link') symlinkSync(join(root, 'main.js'), join(root, 'linked.js'), 'file');
-    else if (kind === 'a dangling link') symlinkSync(join(root, 'absent.js'), join(root, 'linked.js'), 'file');
-    else {
+    if (kind === 'a junction') {
       mkdirSync(join(root, 'real'));
       writeFileSync(join(root, 'real', 'module.js'), '// module');
       symlinkSync(join(root, 'real'), join(root, 'alias'), 'junction');
-    }
+    } else if (!fileLink(join(root, kind === 'a file link' ? 'main.js' : 'absent.js'), join(root, 'linked.js')))
+      return context.skip('Windows denied file symlink creation (EPERM)');
     expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
   },
 );
@@ -244,18 +251,20 @@ it('refuses an implementation directory reached through a junction', () => {
     message: 'Context root is not an unaliased physical directory',
   });
 });
-it.each(['a FIFO', 'a socket'] as const)('refuses %s, named as code or not', async (kind) => {
-  if (!posix) return;
-  for (const name of ['entry.js', 'entry']) {
-    const root = fixture();
-    await special(kind, join(root, name), join(root, 's'));
-    expect(
-      refusal(() => contextHookImplementationDigest(root)),
-      name,
-    ).toEqual(NONREGULAR);
-  }
-  expect(seam.waited).toEqual([]);
-});
+it.skipIf(process.platform === 'win32').each(['a FIFO', 'a socket'] as const)(
+  'refuses %s, named as code or not',
+  async (kind) => {
+    for (const name of ['entry.js', 'entry']) {
+      const root = fixture();
+      await special(kind, join(root, name), join(root, 's'));
+      expect(
+        refusal(() => contextHookImplementationDigest(root)),
+        name,
+      ).toEqual(NONREGULAR);
+    }
+    expect(seam.waited).toEqual([]);
+  },
+);
 it('hashes a hard-linked code file as its bytes', () => {
   const linked = fixture(),
     copied = fixture();
@@ -271,8 +280,9 @@ it('walks a directory named like a code file instead of reading it', () => {
   writeFileSync(join(root, 'lib.js', 'part.js'), '// part');
   expect(contextHookImplementationDigest(root)).not.toBe(original);
 });
-it('passes on the error of a code file it may not open', () => {
-  if (!posix || process.getuid?.() === 0) return;
+it.skipIf(process.platform === 'win32')('passes on the error of a code file it may not open', () => {
+  // Root opens a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+  if (process.getuid?.() === 0) return;
   const root = fixture(),
     path = join(root, 'locked.js');
   writeFileSync(path, '// locked');
@@ -282,16 +292,6 @@ it('passes on the error of a code file it may not open', () => {
     message: `EACCES: permission denied, open '${path}'`,
   });
 });
-/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
-const fileLink = (target: string, path: string): boolean => {
-  try {
-    symlinkSync(target, path, 'file');
-    return true;
-  } catch (error) {
-    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
-    throw error;
-  }
-};
 /**
  * Lists the file `name`, makes it `kind` once its directory is listed, and expects the refusal a listed entry of that
  * kind gets. Windows has no FIFO or socket file to swap in, and makes a file link only with a privilege.
