@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Judge installed state, workspace manifests, package sources and publications on the opened file",
+  "summary": "Installed distribution files, `.ia/workspace.json` and authored package sources (`@inventarch/db`), and the marker and files `inspectPublication` checks on Windows (`@inventarch/runtime`), are now opened before they are judged and read through that descriptor, without waiting on a FIFO. A link put at the name after the path checks is refused: by the open's no-follow flag where the platform has one, otherwise (Windows) by an identity check after the read. A file that grows or shrinks while it is read, or whose name passes to another file or a link, is refused, or reported unknown or partial, instead of being accepted, as is one whose name is gone by the end of the read, a directory on the way turned into a file included, except that a publication marker or file then throws. An installed file that grows while read is `Installed file grew beyond limit` even within its bound. Outside such a concurrent change, every result and refusal keeps its code and message. Clears CodeQL js/file-system-race.",
+  "packages": [
+    "@inventarch/db",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/db/",
+    "packages/runtime/"
+  ]
+}
