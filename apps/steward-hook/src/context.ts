@@ -388,6 +388,9 @@ function implementationBytes(path: string, limit: number): Buffer {
     closeSync(fd);
   }
 }
+/** Whether the inventory reads and hashes a file of this name: code, never a declaration or a platform's own file. */
+const hashed = (name: string): boolean =>
+  /\.(?:[cm]?[jt]s|json|node|wasm)$/.test(name) && !/\.d\.[cm]?ts$/.test(name) && !platformDebris(name);
 /** Fixed module inventory; no import-time I/O. Root override is for isolated host tests only. */
 export function contextHookImplementationDigest(directory = import.meta.dirname): string {
   const root = physicalDirectory(directory),
@@ -411,15 +414,16 @@ export function contextHookImplementationDigest(directory = import.meta.dirname)
       names.add(path.toLowerCase());
       const absolute = resolve(directory, name);
       // The listing's own entry types classify each name, and a code file is admitted only by the descriptor it is read
-      // through, which also bounds its bytes. Windows lists every reparse point as a link, a cloud placeholder or a
-      // deduplicated file among them, so lstat confirms a listed link: it decides only whether that entry is refused or
-      // how it is walked, never that a file is admitted.
-      const listed = entry.isSymbolicLink() ? lstatSync(absolute) : entry;
+      // through, which also bounds its bytes. An entry listed as a link, and a file the walk never reads, are classified
+      // by lstat, as every entry was before the walk opened files: Windows lists every reparse point as a link, a cloud
+      // placeholder or a deduplicated file among them, and a file never read has no descriptor to judge it. That lstat
+      // decides only whether the entry is refused or how it is walked, never that a file is admitted.
+      const listed = entry.isSymbolicLink() || (entry.isFile() && !hashed(name)) ? lstatSync(absolute) : entry;
       if (listed.isSymbolicLink()) fail('Hook implementation aliases are unsupported');
       if (listed.isDirectory()) visit(absolute, path + '/', depth + 1);
       else if (!listed.isFile()) fail('Hook implementation has a nonregular file');
       // A Finder or AppleDouble file is never code: the launcher skips it, so the identity must too (crowncodes/ia#323).
-      else if (/\.(?:[cm]?[jt]s|json|node|wasm)$/.test(name) && !/\.d\.[cm]?ts$/.test(name) && !platformDebris(name)) {
+      else if (hashed(name)) {
         const bytes = implementationBytes(absolute, Math.min(8 * 1024 * 1024, 32 * 1024 * 1024 - total));
         total += bytes.length;
         files.push({ path, digest: hash(bytes) });
