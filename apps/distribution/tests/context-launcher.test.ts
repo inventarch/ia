@@ -664,6 +664,22 @@ it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
     `Plugin cache payload differs: ${MODULE}`,
   ],
   [
+    // The file read keeps its size, times and single link; only its device and inode tell it from the copy now named.
+    'whose directory is moved away after its first read and rebuilt with the same bytes',
+    (s) => {
+      const dist = dirname(s.module);
+      return {
+        at: 'read',
+        steps: [
+          ['renameSync', dist, join(outside(), 'dist')],
+          ['mkdirSync', dist],
+          ['writeFileSync', s.module, readFileSync(s.module, 'utf8')],
+        ],
+      };
+    },
+    `Plugin cache payload differs: ${MODULE}`,
+  ],
+  [
     'given a second link after its first read',
     (s) => ({ at: 'read', steps: [['linkSync', s.module, join(outside(), 'context.js')]] }),
     'Plugin cache file is aliased',
