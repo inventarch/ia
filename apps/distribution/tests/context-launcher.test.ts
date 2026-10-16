@@ -13,6 +13,7 @@ import {
   symlinkSync,
   truncateSync,
   unlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer } from 'node:net';
@@ -131,6 +132,11 @@ async function verdict(selected: Cache): Promise<{ status: number | null; output
   return { status: result.status, output: result.status === 0 ? 'verified' : parsed(result.stderr) };
 }
 const VERIFIED = { status: 0, output: 'verified' };
+/**
+ * A fixed past time for a file a case rewrites in place: file times come from a coarse clock, so a rewrite in the tick of
+ * the last change could keep its modification time, and the case would not show what checks it.
+ */
+const PAST = new Date('2001-01-01T00:00:00Z');
 const refused = (message: string) => ({ status: 1, output: { status: 'refused', message } });
 it('probes context identity through the actual verified packaged launcher', async () => {
   const result = await cache().launch(['context', 'identity']);
@@ -608,6 +614,15 @@ it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
     `Plugin cache payload differs: ${MODULE}`,
   ],
   [
+    // The bytes read are the pinned ones; only the file's modification time tells that it changed under the read.
+    'rewritten in place with as many bytes after its first read',
+    (s) => {
+      utimesSync(s.module, PAST, PAST);
+      return { at: 'read', steps: [['writeFileSync', s.module, readFileSync(s.module, 'utf8').toUpperCase()]] };
+    },
+    `Plugin cache payload differs: ${MODULE}`,
+  ],
+  [
     // The open fails for want of the file and the file is back before it is judged: it is gone, so missing, and the
     // open's error is never printed.
     'moved away for its open and back before it is judged',
@@ -714,6 +729,12 @@ it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
     'given a second link after its first read',
     (s) => ({ at: 'read', steps: [['linkSync', s.module, join(outside(), 'context.js')]] }),
     'Plugin cache file is aliased',
+  ],
+  [
+    // Its name reaches nothing once it is read, so it is gone, and a pinned file gone is missing.
+    'removed after its first read',
+    (s) => ({ at: 'read', steps: [['unlinkSync', s.module]] }),
+    'Plugin cache payload is missing',
   ],
   [
     // The open meets the link and refuses it; the file is back before the name is judged, so only the open's ELOOP

@@ -8,11 +8,13 @@ import {
   mkdtempSync,
   mkdirSync,
   openSync,
+  readFileSync,
   renameSync,
   writeFileSync,
   rmSync,
   symlinkSync,
   unlinkSync,
+  utimesSync,
 } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -270,6 +272,7 @@ it('the inventory refuses a UNIX socket (POSIX)', async () => {
   }
 });
 const UNPRIVILEGED = POSIX && process.getuid?.() !== 0;
+const PAST = new Date('2001-01-01T00:00:00Z');
 /**
  * The inventory judges the file it opened, not the entry it listed: whatever replaces a runtime module after its directory
  * was read, or while it is read, refuses. A FIFO is held open for reading and writing meanwhile, so no open of it can wait.
@@ -277,6 +280,16 @@ const UNPRIVILEGED = POSIX && process.getuid?.() !== 0;
 it.each<[string, (module: string) => void]>([
   ['removed before the open', (module) => (race.beforeOpen = () => unlinkSync(module))],
   ['grown by a byte after its first read', (module) => (race.afterRead = () => appendFileSync(module, ' '))],
+  [
+    // The bytes read are the module's; only its modification time, set in the past first because file times come from
+    // a coarse clock, tells that it changed under the read.
+    'rewritten in place with as many bytes after its first read',
+    (module) => {
+      utimesSync(module, PAST, PAST);
+      const rewritten = readFileSync(module, 'utf8').toUpperCase();
+      race.afterRead = () => writeFileSync(module, rewritten);
+    },
+  ],
 ])('the inventory refuses a runtime module %s', (_, arrange) => {
   const root = runtime();
   race.target = join(root, 'archive.js');
@@ -312,6 +325,7 @@ it.each<[string, (module: string) => void]>([
       race.afterRead = () => renameSync(other, module);
     },
   ],
+  ['removed after its first read', (module) => (race.afterRead = () => unlinkSync(module))],
 ])('the inventory refuses a runtime module %s (POSIX)', (_, arrange) => {
   if (!POSIX) return;
   const root = runtime();

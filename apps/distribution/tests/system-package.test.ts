@@ -14,6 +14,7 @@ import {
   rmSync,
   symlinkSync,
   unlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer } from 'node:net';
@@ -359,6 +360,7 @@ it('verification fails on an unreadable package.json with the read error (POSIX,
  * wait.
  */
 const changed = { code: undefined, message: 'System package input changed while it was read: package.json' };
+const PAST = new Date('2001-01-01T00:00:00Z');
 it.each<[string, (manifest: string) => unknown]>([
   [
     'removed before the open',
@@ -371,6 +373,17 @@ it.each<[string, (manifest: string) => unknown]>([
     'grown by a byte after its first read',
     (manifest) => {
       race.afterRead = () => appendFileSync(manifest, ' ');
+      return changed;
+    },
+  ],
+  [
+    // The bytes read are the manifest's; only its modification time, set in the past first because file times come
+    // from a coarse clock, tells that it changed under the read.
+    'rewritten in place with as many bytes after its first read',
+    (manifest) => {
+      utimesSync(manifest, PAST, PAST);
+      const rewritten = readFileSync(manifest, 'utf8').toUpperCase();
+      race.afterRead = () => writeFileSync(manifest, rewritten);
       return changed;
     },
   ],
@@ -409,6 +422,14 @@ it.each<[string, (manifest: string) => unknown]>([
       const other = resolve(temporary('ia-system-package-other-'), 'package.json');
       writeFileSync(other, readFileSync(manifest));
       race.afterRead = () => renameSync(other, manifest);
+      return changed;
+    },
+  ],
+  [
+    // Its name reaches nothing once it is read, which no longer holds the file read.
+    'removed after its first read',
+    (manifest) => {
+      race.afterRead = () => unlinkSync(manifest);
       return changed;
     },
   ],
