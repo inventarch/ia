@@ -393,3 +393,30 @@ it('refuses a code file reached through a directory swapped for a link once its 
   };
   expect(refusal(() => contextHookImplementationDigest(root))).toEqual(ALIASES);
 });
+it.each(['removed', 'a FIFO', 'a socket', 'a link'] as const)(
+  'refuses a file it never reads that is %s once its directory is listed, as it refused a listed one',
+  async (kind) => {
+    if (!posix && kind !== 'removed') return;
+    const root = fixture(),
+      aside = fixture(),
+      path = join(root, 'notes.txt'),
+      replacement = join(aside, 'replacement');
+    writeFileSync(path, 'not code');
+    if (kind === 'a FIFO' || kind === 'a socket') await special(kind, replacement, join(aside, 's'));
+    else if (kind === 'a link') symlinkSync(join(root, 'main.js'), replacement, 'file');
+    seam.afterList = (directory) => {
+      if (resolve(directory) !== resolve(root)) return;
+      seam.afterList = undefined;
+      if (kind === 'removed') unlinkSync(path);
+      else renameSync(replacement, path);
+    };
+    expect(refusal(() => contextHookImplementationDigest(root))).toEqual(
+      kind === 'removed'
+        ? { code: 'ENOENT', message: `ENOENT: no such file or directory, lstat '${path}'` }
+        : kind === 'a link'
+          ? ALIASES
+          : NONREGULAR,
+    );
+    expect(seam.waited).toEqual([]);
+  },
+);
