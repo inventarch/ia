@@ -465,8 +465,10 @@ const heldBy = (lockPath: string) => ({
   message: `Another ia host --user run holds ${lockPath}; wait for it or delete the file if no run is active`,
 });
 // The race CodeQL js/file-system-race flags: another run takes the stale lock over just after this run first looks at
-// it, and writes its own. This run must judge only the file it looked at, and must not remove the lock now at its name.
-it('never removes a fresh lock that replaced the stale one it judged, and refuses INSTALL-BUSY', () => {
+// it, and writes its own. This run must judge only the file it looked at, and its identity check must then keep it from
+// removing the lock that took the name. (A replacement after that check, just before the removal, is the window that
+// remains: Node has no unlink-if-same.)
+it('keeps a fresh lock that replaced the stale one while it was judged, and refuses INSTALL-BUSY', () => {
   const root = temp(),
     home = join(root, '.ia'),
     lockPath = join(home, 'claude', '.lock');
@@ -500,6 +502,53 @@ it('never removes a fresh lock that replaced the stale one it judged, and refuse
   expect(outcome).toEqual(heldBy(lockPath));
   expect(real.statSync(lockPath, { bigint: true }).ino).toBe(fresh);
   expect(readFileSync(lockPath, 'utf8')).toBe(String(process.pid));
+  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+});
+// The other half of judging one file: the pid and the age are the opened lock's. The lock this run opens is live and
+// young, and right after the open a stale-looking lock (a dead pid, 20 minutes old) takes its name. A pid or an age read
+// by name would make the opened lock look stale; the identity check would then refuse to remove it, and the retry would
+// take the swapped-in lock over and go ahead.
+it('judges the pid and age of the lock it opened, not of a stale-looking lock swapped in at its name, and refuses INSTALL-BUSY at once', () => {
+  const root = temp(),
+    home = join(root, '.ia'),
+    lockPath = join(home, 'claude', '.lock');
+  mkdirSync(join(home, 'claude'), { recursive: true });
+  writeFileSync(lockPath, String(process.pid)); // live and just written: busy
+  let swapping = false,
+    swapped: bigint | undefined,
+    opened = 0;
+  const swap = (path: unknown): void => {
+    if (swapping || swapped !== undefined || String(path) !== lockPath) return;
+    swapping = true; // the real calls below open and stat through the spies too
+    try {
+      // Moved aside rather than removed, so its name is free on every platform while this run still holds it open.
+      real.renameSync(lockPath, join(root, 'opened.lock'));
+      real.writeFileSync(lockPath, '999999', { flag: 'wx' }); // not a live pid in this test run
+      const past = new Date(Date.now() - 20 * 60_000);
+      real.utimesSync(lockPath, past, past);
+      swapped = real.statSync(lockPath, { bigint: true }).ino;
+    } finally {
+      swapping = false;
+    }
+  };
+  // Whichever call makes this run's first look at the held lock, the swap comes right after it.
+  vi.mocked(openSync).mockImplementation((path, flags, mode) => {
+    const fd = real.openSync(path, flags, mode);
+    if (!swapping && String(path) === lockPath) opened++;
+    swap(path);
+    return fd;
+  });
+  vi.mocked(statSync).mockImplementation(((path: never, options: never) => {
+    const stats = real.statSync(path, options);
+    swap(path);
+    return stats;
+  }) as never);
+  const outcome = materialized(home);
+  expect(swapped).toBeDefined(); // the stale-looking lock did take the name
+  expect(outcome).toEqual(heldBy(lockPath));
+  expect(opened).toBe(1); // judged once: busy on its first look, never retried
+  expect(real.statSync(lockPath, { bigint: true }).ino).toBe(swapped);
+  expect(readFileSync(lockPath, 'utf8')).toBe('999999');
   expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
 });
 // The lock is only ever created as a regular file, so a link at its path was put there. Followed, this one would read as
@@ -542,7 +591,22 @@ it('refuses INSTALL-BUSY for a FIFO at the lock path without hanging, and leaves
   expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
   const past = new Date(Date.now() - 20 * 60_000);
   utimesSync(lockPath, past, past);
-  expect(materialized(home)).toEqual(heldBy(lockPath));
+  // An open of the FIFO that could block (neither O_NONBLOCK nor an exclusive create, which fails at once) would wait for
+  // a writer, and vitest cannot time out a blocked synchronous call. Such an open is refused and recorded instead, so a
+  // revert fails at once rather than hanging the worker.
+  const blocking: string[] = [];
+  vi.mocked(openSync).mockImplementation((path, flags, mode) => {
+    const nonblocking = typeof flags === 'number' && (flags & real.constants.O_NONBLOCK) !== 0,
+      exclusive = typeof flags === 'string' ? flags.includes('x') : (Number(flags) & real.constants.O_EXCL) !== 0;
+    if (String(path) === lockPath && !nonblocking && !exclusive) {
+      blocking.push(String(flags));
+      throw new Error(`Refused an open of the FIFO at ${lockPath} that could block (flags ${String(flags)})`);
+    }
+    return real.openSync(path, flags, mode);
+  });
+  const outcome = materialized(home);
+  expect(blocking, 'opens of the FIFO without O_NONBLOCK').toEqual([]);
+  expect(outcome).toEqual(heldBy(lockPath));
   expect(lstatSync(lockPath).isFIFO()).toBe(true);
   expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
 });
