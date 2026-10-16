@@ -81,7 +81,8 @@ jobs:
       # Public source tasks use four general lanes on Linux, six on Windows and three on macOS. Windows runs the
       # slowest, so it gets the most lanes. Hosted minutes are free on this public repository; what limits macOS is
       # the organization's five concurrent macOS jobs, shared by every run. Static, emitted and three test shards
-      # fill all five, so a second run's macOS jobs wait for a slot (tools/testing/plan.test.ts holds this).
+      # fill all five, so a second run's macOS jobs wait for a slot (tools/testing/plan.test.ts holds this). The
+      # Homebrew smoke needs only the plan and can outlast the macOS build; while it runs, one of the five waits.
       # Pull requests targeting main and every other trigger plan Linux, Windows and macOS. The planner also
       # emits the gate's rows and, for a scheduled run on an already verified main, run=false.
       - name: Assign tasks to shards
@@ -194,11 +195,11 @@ jobs:
             .nx/workspace-data
           key: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
-      - name: Run assigned tasks
       # Inside the job's 60 minutes, so a shard that runs out of time fails this step rather than the job: the evidence
       # upload and the timeout warning below then still run for it.
-        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+      - name: Run assigned tasks
         timeout-minutes: 55
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
       - uses: actions/cache/save@v6
         if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:

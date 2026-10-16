@@ -678,12 +678,19 @@ it("plans each platform with the workflow's shard counts through the command lin
 });
 
 it("keeps one run's concurrent macOS jobs within the organization's macOS slots", () => {
-  // Static, emitted and test jobs all start when the build finishes and run together; the build and the Homebrew smoke
-  // run before them and the gate after them. More than the limit makes one run queue behind itself.
+  // Static, emitted and test jobs all start when the build finishes and run together, and the gate runs after them. The
+  // Homebrew smoke needs only the plan and runs its own build, so it can outlast the macOS build: while it does, the run
+  // asks for one job more than the limit and that job waits for a slot. Only the smoke may overlap that way.
   const step = /tests:plan --ci-matrix --shards (\S+) --native-shards (\S+)/.exec(workflow());
   expect(step).not.toBeNull();
-  for (const job of ['static', 'emitted', 'tests'])
-    expect(workflowJobs(workflow()).get(job)).toMatch(/^needs: \[plan, build\]$/m);
+  const jobs = workflowJobs(workflow());
+  for (const job of ['static', 'emitted', 'tests']) expect(jobs.get(job)).toMatch(/^needs: \[plan, build\]$/m);
+  expect(jobs.get('homebrew-node')).toMatch(/^needs: plan$/m);
+  const others = [...jobs].filter(
+    ([name, body]) =>
+      !['plan', 'build', 'static', 'emitted', 'tests', 'homebrew-node', GATE_JOB].includes(name) && /macos/.test(body),
+  );
+  expect(others.map(([name]) => name)).toEqual([]);
   const matrices = ciMatrices(readManifest(root), readSchedule(root), {
     shards: platformCounts(step![1]!, '--shards'),
     nativeShards: platformCounts(step![2]!, '--native-shards'),
@@ -710,6 +717,11 @@ it('exports each platform’s durations from the gate and warns on a test shard 
   expect(tests).toMatch(/^steps:\n- name: Note when the job started\n/m);
   expect(tests).toMatch(/- name: Warn when the shard nears its timeout\nif: always\(\)\ncontinue-on-error: true\n/);
   expect(tests).toMatch(/^timeout-minutes: 60$/m);
+  // The task step stops itself inside the job's timeout, so a shard out of time still reaches the warning.
+  expect(tests).toMatch(/- name: Run assigned tasks\ntimeout-minutes: 55\n/);
+  expect(tests.indexOf('name: Warn when the shard nears its timeout')).toBeGreaterThan(
+    tests.indexOf('name: Run assigned tasks'),
+  );
   expect(tests).toContain('if [ "$minutes" -ge 40 ]; then echo "::warning::');
 });
 
@@ -717,11 +729,6 @@ it('writes every matrix line before it exits, however slowly the Plan job reads 
   // A child's piped stdout is a socket off Windows, which Node writes asynchronously: what the socket cannot take yet is
   // queued in the process, and process.exit() drops it. macOS gives such a socket an 8 KiB buffer, so a planner that
   // exits that way can lose matrix lines whenever its reader falls behind (crowncodes/ia#323). Here the reader takes nothing until the
-  // The task step stops itself inside the job's timeout, so a shard out of time still reaches the warning.
-  expect(tests).toMatch(/- name: Run assigned tasks\ntimeout-minutes: 55\n/);
-  expect(tests.indexOf('name: Warn when the shard nears its timeout')).toBeGreaterThan(
-    tests.indexOf('name: Run assigned tasks'),
-  );
   // planner has output queued, behind a socket a preload filled first; Windows writes pipes synchronously, so there
   // nothing is queued and the reader starts when the planner exits.
   const directory = mkdtempSync(resolve(tmpdir(), 'ia-plan-')),
