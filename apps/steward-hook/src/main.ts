@@ -174,10 +174,11 @@ function legacySteward(target: string): boolean {
 /** The bound of an ownership state, the actor map and a context ownership marker other than a pending journal. */
 const STATE_LIMIT = 1024 * 1024;
 /**
- * The bytes of the ownership state at the absolute `path`, or undefined when there is none. A state must be a plain,
- * unaliased, single-link file within `limit` bytes. It is opened before it is judged, so the checks and the read are of
- * one file (CodeQL js/file-system-race), and it must still be that file after the read. Anything else throws `unsafe`,
- * and the caller fails closed; an open that fails other than for a missing file throws its own error.
+ * The bytes of the ownership state, context ownership marker or actor map at the absolute `path`, or undefined when there
+ * is none. It must be a plain, unaliased, single-link file within `limit` bytes. It is opened before it is judged, so the
+ * checks and the read are of one file (CodeQL js/file-system-race), and it must still be that file after the read.
+ * Anything else throws `unsafe`, and the caller fails closed; an open that fails other than for a missing file throws its
+ * own error.
  */
 function readState(path: string, unsafe: string, limit = STATE_LIMIT): Buffer | undefined {
   let fd: number;
@@ -226,8 +227,9 @@ function readState(path: string, unsafe: string, limit = STATE_LIMIT): Buffer | 
 }
 /**
  * `readState` for a reader that refuses as `unsafe` whatever is not a plain single-link file within `limit` bytes, also
- * when the open finds it: a failed open has the name examined, so a link (`O_NOFOLLOW`), a socket, or a directory
- * Windows will not open, gets the refusal an opened one does. Any other failed open throws its own error, as before.
+ * when the open fails on it: a failed open has the name examined, so a link (`O_NOFOLLOW`), a socket or anything else
+ * the open refuses that is not such a file gets the refusal an opened one does. A failed open of such a file throws its
+ * own error, as before.
  */
 function stateBytes(path: string, unsafe: string, limit = STATE_LIMIT): Buffer | undefined {
   try {

@@ -303,8 +303,8 @@ export function readContextHookBinding(rootInput: string, pathInput: string): Co
     // through a leaf link, and never waiting on a FIFO, where the platform has the flag.
     fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch (error) {
-    // What the open refuses (a link, a socket, a directory Windows will not open) is refused as an opened one is; a
-    // binding gone since its path was checked fails with lstat's own error.
+    // A name the open refuses that is not a bounded regular file (a link, a socket, anything else) is refused as not
+    // one; a binding gone since its path was checked fails with lstat's own error, and any other failure keeps its own.
     if (!regular(lstatSync(path, { bigint: true }))) fail('Context binding is not a bounded regular file');
     throw error;
   }
@@ -319,7 +319,8 @@ export function readContextHookBinding(rootInput: string, pathInput: string): Co
       value.mtimeNs === stat.mtimeNs &&
       value.ctimeNs === stat.ctimeNs;
     if (!regular(stat)) fail('Context binding is not a bounded regular file');
-    // The name must be the opened file; on Windows, which has neither flag, this is the only guard against a link.
+    // The name must be the opened file: on Windows, which has neither flag, this and the realpath check after the read
+    // are what refuse a link swapped in after the path check.
     if (!same(lstatSync(path, { bigint: true }))) fail('Context binding identity changed before read');
     const buffer = Buffer.alloc(Number(stat.size) + 1);
     let length = 0;
@@ -350,15 +351,16 @@ export function readContextHookBinding(rootInput: string, pathInput: string): Co
  * The bytes of a code file the inventory listed as a regular file, read through one descriptor: opened before it is
  * judged (CodeQL js/file-system-race), never through a leaf link or waiting on a FIFO where the platform has the flag,
  * of at most `limit` bytes by that descriptor, unchanged by the read, and after it still the file at `path` by device
- * and inode (on Windows, which has neither flag, the only guard against a link) and reached through no link on the way.
+ * and inode, with no link at or on the way to `path` (on Windows, which has neither flag, these two checks are what
+ * refuse a link).
  */
 function implementationBytes(path: string, limit: number): Buffer {
   let fd: number;
   try {
     fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   } catch (error) {
-    // A link or another nonregular file in the listed entry's place is refused as the listing would have refused it,
-    // and so is a directory Windows will not open; a file gone since the listing fails with lstat's own error.
+    // A link or another nonregular file in the listed entry's place, whatever the open refused, is refused as the
+    // listing would have refused it; a file gone since the listing fails with lstat's own error.
     const named = lstatSync(path, { bigint: true });
     if (named.isSymbolicLink()) fail('Hook implementation aliases are unsupported');
     if (!named.isFile()) fail('Hook implementation has a nonregular file');
