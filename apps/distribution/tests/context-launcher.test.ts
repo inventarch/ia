@@ -540,6 +540,18 @@ it.each<[string, (selected: Cache) => unknown]>([
     expected = arrange(selected);
   expect(await verdict(selected)).toEqual(expected);
 });
+/** A pinned size that is no whole number matches no file, and refuses as a payload that differs, never with a raw error. */
+it('verify refuses a pinned file whose pinned size is not a whole number', async () => {
+  const selected = cache(),
+    pinned: { path: string; bytes: number; sha256: string }[] = JSON.parse(
+      readFileSync(join(selected.root, 'inventory.json'), 'utf8'),
+    ).files;
+  repin(
+    selected.root,
+    pinned.map((row) => (row.path === MODULE ? { ...row, bytes: 1.5 } : row)),
+  );
+  expect(await verdict(selected)).toEqual(refused(`Plugin cache payload differs: ${MODULE}`));
+});
 it('verify admits a pinned payload of exactly 256 MiB and refuses one byte more', async () => {
   const budget = 256 * 1024 * 1024,
     zeros = Buffer.alloc(1024 * 1024),
