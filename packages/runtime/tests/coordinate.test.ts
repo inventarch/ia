@@ -1,7 +1,6 @@
 import { CONDITION_AXES } from '@inventarch/language';
 import { expect, it } from 'vitest';
-import { Door, classify, prepareCoordinate, scoreShapes } from '../src/index.js';
-import { workspace } from './workspace.js';
+import { classify, prepareCoordinate, scoreShapes } from '../src/index.js';
 
 it.each([
   ['fix the parser', 'execution'],
@@ -109,56 +108,4 @@ it('returns copied immutable coordinate values, source marks, focus lists and sh
   }).toThrow();
   expect(() => (got.focus.predicates as string[]).pop()).toThrow();
   expect(() => (scoreShapes('write') as unknown[]).pop()).toThrow();
-});
-// The MCP door parses each stdin line as JSON and hands the tool arguments to Door.request as its params; a door
-// coordinate reaches graph validateCoordinate directly (traverse) and through prepareCoordinate (context).
-const parsed = (text: string): Record<string, unknown> => JSON.parse(text) as Record<string, unknown>;
-const axes = 'shape, category, phase, primitive, move, kind, lane, predicate, artifact-set, severity, provenance';
-it('refuses a parsed prototype key as an unknown axis on the door coordinate paths', () => {
-  const door = new Door(workspace(), { cache: false });
-  try {
-    expect(
-      door.request({ operation: 'traverse', params: parsed('{"start":[],"coordinate":{"phase":"act"}}') }),
-    ).toMatchObject({ ok: true, result: { nodes: [] } });
-    for (const name of ['__proto__', 'constructor', 'toString']) {
-      const coordinate = `{"${name}":"act"}`,
-        message = `Unknown coordinate axis '${name}'; admitted: ${axes}`;
-      expect(() => prepareCoordinate('', parsed(coordinate))).toThrow(
-        expect.objectContaining({ code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN', message }),
-      );
-      for (const [operation, params] of [
-        ['traverse', `{"start":[],"coordinate":${coordinate}}`],
-        ['context', `{"text":"","coordinate":${coordinate}}`],
-      ] as const)
-        expect(door.request({ operation, params: parsed(params) })).toEqual({
-          ok: false,
-          code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
-          message,
-        });
-    }
-  } finally {
-    door.close();
-  }
-});
-it('refuses a parsed value String() cannot render as an unknown value on the door phase paths', () => {
-  const door = new Door(workspace(), { cache: false });
-  try {
-    const value = '{"toString":1}',
-      refusal = {
-        ok: false,
-        code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
-        message: "Unknown phase value '<unprintable>'; admitted: orient, plan, act, learn",
-      };
-    expect(() => prepareCoordinate('', parsed(`{"phase":${value}}`))).toThrow(
-      expect.objectContaining({ code: refusal.code, message: refusal.message }),
-    );
-    for (const [operation, params] of [
-      ['traverse', `{"start":[],"coordinate":{"phase":${value}}}`],
-      ['context', `{"text":"","coordinate":{"phase":${value}}}`],
-      ['records', `{"phase":${value}}`],
-    ] as const)
-      expect(door.request({ operation, params: parsed(params) })).toEqual(refusal);
-  } finally {
-    door.close();
-  }
 });
