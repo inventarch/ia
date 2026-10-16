@@ -1,4 +1,16 @@
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { PUBLICATION_CODES, portableDraftPath, preparePublication } from '../../packages/runtime/src/index.js';
@@ -11,15 +23,32 @@ export function publicationFixtureCodes(): readonly string[] {
     (code) => process.platform === 'win32' || (code !== 'IA-PUBLICATION-BUSY' && code !== 'IA-PUBLICATION-CONFLICT'),
   );
 }
-function contents(root: string): string {
+/**
+ * A snapshot of every entry under `root`: a regular file's bytes in base64, null for anything else, a link included. Each
+ * file is opened before it is judged, so the judgment and the read are of one file (CodeQL js/file-system-race).
+ */
+export function contents(root: string): string {
   return JSON.stringify(
     readdirSync(root, { recursive: true, encoding: 'utf8' })
       .sort()
-      .map((path) => {
-        const file = resolve(root, path);
-        return [path, lstatSync(file).isFile() ? readFileSync(file).toString('base64') : null];
-      }),
+      .map((path) => [path, fileBytes(resolve(root, path))]),
   );
+}
+function fileBytes(file: string): string | null {
+  let fd: number;
+  try {
+    // NOFOLLOW refuses a final link; NONBLOCK keeps a FIFO from blocking the open.
+    fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    // A link (ELOOP), a socket or a directory Windows will not open is null. A missing file throws from this lstat.
+    if (!lstatSync(file).isFile()) return null;
+    throw error;
+  }
+  try {
+    return fstatSync(fd).isFile() ? readFileSync(fd).toString('base64') : null;
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** Execute each publication refusal; declared expectations never count as observations. */
