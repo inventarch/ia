@@ -52,15 +52,15 @@ try {
   existing = openSync(output, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
 } catch (error) {
   if (error.code !== 'ENOENT') {
-    // A link put in place after the ancestry check above fails the open (ELOOP); a directory Windows will not open
-    // fails as reading it did.
+    // A link put in place after the ancestry check above fails the open (ELOOP); a socket, and a directory Windows will
+    // not open, fail as reading them did.
     if (lstatSync(output).isSymbolicLink()) throw new Error(`Aliased output: ${output}`);
     throw error;
   }
 }
 if (existing !== undefined) {
   try {
-    // A FIFO, socket or device is no configuration this adapter wrote. A directory fails the read with EISDIR, as before.
+    // A FIFO or device is no configuration this adapter wrote. A directory fails the read with EISDIR, as before.
     const stat = fstatSync(existing);
     if (!stat.isFile() && !stat.isDirectory()) throw new Error('Refusing to overwrite an unmanaged sync configuration');
     if (JSON.parse(readFileSync(existing, 'utf8')).syncAdapter?.format !== format)
