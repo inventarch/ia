@@ -3383,6 +3383,32 @@
       ]
     },
     {
+      "id": "tools:test-runtime",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/runtime/qualify-sdk.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-runtime"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
       "id": "public:qualify",
       "kind": "command",
       "project": ".",
