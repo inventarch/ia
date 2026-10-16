@@ -30,7 +30,8 @@ import { RACE_PRELOAD, type Race } from './race-fixture.js';
  * A pass-through `node:fs` with one hook on `target`: `beforeOpen`, `beforeLstat` and `beforeList` run once just before it
  * is opened, lstat'd or listed as a directory, and `afterRead` once just after the first read through a descriptor opened
  * on it, so a test changes an entry between two of the reader's own calls. `linked` lists the named entries of a directory
- * as links whatever they are, as Windows lists every reparse point. Every other path behaves exactly as usual.
+ * as links whatever they are, as Windows lists every reparse point, and `size`, when set, is the size every fstat of a
+ * descriptor opened on `target` reports. Every other path behaves exactly as usual.
  */
 const race = vi.hoisted(() => ({
   target: undefined as string | undefined,
@@ -39,6 +40,7 @@ const race = vi.hoisted(() => ({
   beforeList: undefined as (() => void) | undefined,
   afterRead: undefined as (() => void) | undefined,
   linked: undefined as { readonly directory: string; readonly names: readonly string[] } | undefined,
+  size: undefined as bigint | undefined,
   opened: new Set<number>(),
 }));
 vi.mock('node:fs', async (importOriginal) => {
@@ -92,6 +94,11 @@ vi.mock('node:fs', async (importOriginal) => {
       race.opened.delete(fd);
       actual.closeSync(fd);
     },
+    fstatSync: (fd: number, ...rest: unknown[]) => {
+      const stat = (actual.fstatSync as (fd: number, ...rest: unknown[]) => object)(fd, ...rest);
+      if (race.size === undefined || !race.opened.has(fd)) return stat;
+      return Object.assign(Object.create(Object.getPrototypeOf(stat)), stat, { size: race.size });
+    },
   };
 });
 
@@ -132,6 +139,7 @@ const REFUSED = { code: undefined, message: 'Installed distribution runtime is m
 const roots: string[] = [];
 afterEach(() => {
   race.target = race.beforeOpen = race.beforeLstat = race.beforeList = race.afterRead = race.linked = undefined;
+  race.size = undefined;
   race.opened.clear();
   for (const root of roots.splice(0)) {
     if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe inventory cleanup');
@@ -536,4 +544,18 @@ it('the inventory refuses a runtime module of 2147483648 bytes before reading it
   } finally {
     unlinkSync(big);
   }
+});
+/**
+ * A runtime module whose descriptor reports 2147483647 bytes, the most the inventory reads, though it holds fewer: no read
+ * asks readSync for more than 2147483647 bytes, so the read stops at the file's real end and the shortfall refuses, where
+ * a read asked for the size plus one would make readSync throw a raw ERR_OUT_OF_RANGE. The guard refuses with the same
+ * message, so this case cannot tell a guard at 2147483647 bytes from one above them. POSIX only: the untouched
+ * Buffer.alloc(2 ** 31) the read allocates is lazily zeroed on Linux and macOS but commits 2 GiB on Windows.
+ */
+it('the inventory refuses a runtime module reported at 2147483647 bytes that holds fewer (POSIX)', () => {
+  if (!POSIX) return;
+  const root = runtime();
+  race.target = join(root, 'archive.js');
+  race.size = 0x7fffffffn;
+  expect(inventory(root)).toEqual(REFUSED);
 });

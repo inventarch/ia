@@ -28,13 +28,15 @@ import { runBounded } from '@tools/testing/subprocess.js';
 /**
  * A pass-through `node:fs` with one hook on `target`: `beforeOpen` runs once just before it is opened, `afterOpenError`
  * once just after an open of it fails, and `afterRead` once just after the first read through a descriptor opened on it,
- * so a test changes an input between two of the reader's own calls. Every other path behaves exactly as usual.
+ * so a test changes an input between two of the reader's own calls. `size`, when set, is the size every fstat of a
+ * descriptor opened on `target` reports. Every other path behaves exactly as usual.
  */
 const race = vi.hoisted(() => ({
   target: undefined as string | undefined,
   beforeOpen: undefined as (() => void) | undefined,
   afterOpenError: undefined as (() => void) | undefined,
   afterRead: undefined as (() => void) | undefined,
+  size: undefined as bigint | undefined,
   opened: new Set<number>(),
 }));
 vi.mock('node:fs', async (importOriginal) => {
@@ -68,6 +70,11 @@ vi.mock('node:fs', async (importOriginal) => {
       race.opened.delete(fd);
       actual.closeSync(fd);
     },
+    fstatSync: (fd: number, ...rest: unknown[]) => {
+      const stat = (actual.fstatSync as (fd: number, ...rest: unknown[]) => object)(fd, ...rest);
+      if (race.size === undefined || !race.opened.has(fd)) return stat;
+      return Object.assign(Object.create(Object.getPrototypeOf(stat)), stat, { size: race.size });
+    },
   };
 });
 
@@ -81,6 +88,7 @@ const roots: string[] = [],
   held: number[] = [];
 afterEach(() => {
   race.target = race.beforeOpen = race.afterOpenError = race.afterRead = undefined;
+  race.size = undefined;
   race.opened.clear();
   for (const fd of held.splice(0)) closeSync(fd);
   for (const root of roots.splice(0)) {
@@ -561,4 +569,18 @@ it('verification refuses an input of 2147483648 bytes before reading it', async 
   } finally {
     unlinkSync(path);
   }
+});
+/**
+ * A package.json whose descriptor reports 2147483647 bytes, the most the reader reads, though it holds fewer: no read
+ * asks readSync for more than 2147483647 bytes, so the read stops at the file's real end and the shortfall refuses as a
+ * change, where a read asked for the size plus one would make readSync throw a raw ERR_OUT_OF_RANGE, and a guard at
+ * 2147483647 bytes would refuse it as too large. POSIX only: the untouched Buffer.alloc(2 ** 31) the read allocates is
+ * lazily zeroed on Linux and macOS but commits 2 GiB on Windows.
+ */
+it('verification refuses a package.json reported at 2147483647 bytes that holds fewer (POSIX)', async () => {
+  if (!POSIX) return;
+  const selected = await legacyPackage();
+  race.target = resolve(selected.scratch, 'package.json');
+  race.size = 0x7fffffffn;
+  expect(await verification(selected.scratch, selected.pin)).toEqual(changed);
 });
