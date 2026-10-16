@@ -1,11 +1,52 @@
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, symlinkSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import {
+  appendFileSync,
+  chmodSync,
+  closeSync,
+  cpSync,
+  existsSync,
+  linkSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import { join, resolve } from 'node:path';
+import { afterEach, expect, it, vi } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
 import { adoptedBindings, open, readInputs, sourceTree } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
+import {
+  blockingOpens,
+  descriptors,
+  directoryBecomesFile,
+  fifo,
+  otherDevice,
+  outcome,
+  socket,
+  vanishAtRecheck,
+} from './file-races.js';
 import { put, workspace } from './workspace.js';
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    closeSync: vi.fn(actual.closeSync),
+    lstatSync: vi.fn(actual.lstatSync),
+    openSync: vi.fn(actual.openSync),
+    readSync: vi.fn(actual.readSync),
+  };
+});
+afterEach(() => {
+  vi.mocked(closeSync).mockReset();
+  vi.mocked(lstatSync).mockReset();
+  vi.mocked(openSync).mockReset();
+  vi.mocked(readSync).mockReset();
+});
 
 const path = 'vendor/foundation',
   source = '.ia/src/example.ia';
@@ -187,4 +228,190 @@ it('names each binding with the tree label its sources carry, and refuses a mani
   expect(() => adoptedBindings(resolve(root, 'absent'))).toThrow(
     expect.objectContaining({ code: 'IA-DB-ROOT-INVALID' }),
   );
+});
+
+// The manifest reader: `.ia/workspace.json` as `adoptedBindings` and discovery read it.
+const MANIFEST = '.ia/workspace.json',
+  LINK = process.platform === 'win32' ? 'junction' : 'dir';
+/** A manifest refusal with its exact message. */
+const refused = (message: string) => ({
+  code: 'IA-DB-SOURCE-UNAVAILABLE',
+  message: `IA-DB-SOURCE-UNAVAILABLE: ${MANIFEST}: ${message}`,
+});
+const irregular = refused('Expected a regular manifest of at most 64 KiB'),
+  undecodable = refused('Expected UTF-8 JSON');
+/** The bindings read that reads no byte: a refusal judged on the opened manifest, before its read. */
+const unread = (root: string): unknown => {
+  vi.mocked(readSync).mockClear();
+  const result = outcome(() => adoptedBindings(root));
+  expect(readSync).not.toHaveBeenCalled();
+  return result;
+};
+it('reads the manifest as a regular file of at most 64 KiB whatever its link count, a missing one as none, and refuses links', () => {
+  expect(outcome(() => adoptedBindings(workspace(false)))).toEqual([]);
+  // A second name does not alias the manifest.
+  const { root, entry } = fixture();
+  linkSync(resolve(root, MANIFEST), resolve(root, 'second.json'));
+  expect(outcome(() => adoptedBindings(root))).toEqual([
+    { ...entry, tree: `.ia/adopted/foundation/${entry.revision}` },
+  ]);
+  // At the bound it is read; one byte past it, or a directory, is refused.
+  const sized = workspace(false),
+    text = JSON.stringify({ version: 1, adopted: [] });
+  put(sized, MANIFEST, text.padEnd(65_536, ' '));
+  expect(outcome(() => adoptedBindings(sized))).toEqual([]);
+  put(sized, MANIFEST, text.padEnd(65_537, ' '));
+  expect(unread(sized)).toMatchObject(irregular);
+  expect(outcome(() => readInputs(sized))).toMatchObject(irregular);
+  const directory = workspace(false);
+  mkdirSync(resolve(directory, MANIFEST), { recursive: true });
+  expect(unread(directory)).toMatchObject(irregular);
+  expect(outcome(() => readInputs(directory))).toMatchObject(irregular);
+  // Bytes that are not UTF-8, or not JSON.
+  put(sized, MANIFEST, new Uint8Array([0xc3, 0x28]));
+  expect(outcome(() => adoptedBindings(sized))).toMatchObject(undecodable);
+  put(sized, MANIFEST, 'not JSON');
+  expect(outcome(() => adoptedBindings(sized))).toMatchObject(undecodable);
+  expect(outcome(() => readInputs(sized))).toMatchObject(undecodable);
+  // A link at the name, or on the way to it, is refused by name and never followed.
+  const leaf = workspace(false);
+  mkdirSync(resolve(leaf, 'elsewhere'));
+  mkdirSync(resolve(leaf, '.ia'));
+  symlinkSync(resolve(leaf, 'elsewhere'), resolve(leaf, MANIFEST), LINK);
+  expect(outcome(() => adoptedBindings(leaf))).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    path: MANIFEST,
+    message: `IA-DB-PATH-UNSAFE: Symlink/junction traversal is not admitted: ${join(realpathSync(leaf), '.ia', 'workspace.json')}`,
+  });
+  const way = workspace(false);
+  put(way, 'elsewhere/workspace.json', text);
+  symlinkSync(resolve(way, 'elsewhere'), resolve(way, '.ia'), LINK);
+  expect(outcome(() => adoptedBindings(way))).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    path: '.ia',
+    message: `IA-DB-PATH-UNSAFE: Symlink/junction traversal is not admitted: ${join(realpathSync(way), '.ia')}`,
+  });
+});
+it.skipIf(process.platform === 'win32')(
+  'refuses a FIFO or a socket as the manifest without waiting for a writer',
+  async () => {
+    const root = workspace(false),
+      manifest = resolve(root, MANIFEST),
+      blocking = await blockingOpens();
+    await fifo(manifest);
+    expect(unread(root)).toMatchObject(irregular);
+    expect(outcome(() => readInputs(root))).toMatchObject(irregular);
+    rmSync(manifest);
+    await socket(root, manifest);
+    expect(unread(root)).toMatchObject(irregular);
+    expect(blocking).toEqual([]);
+  },
+);
+it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+  'refuses an unreadable manifest as undecodable, unless it is past its bound',
+  () => {
+    const root = workspace(false),
+      manifest = resolve(root, MANIFEST);
+    put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [] }));
+    chmodSync(manifest, 0o000);
+    expect(outcome(() => adoptedBindings(root))).toMatchObject(undecodable);
+    const large = workspace(false),
+      oversized = resolve(large, MANIFEST);
+    put(large, MANIFEST, ' '.repeat(65_537));
+    chmodSync(oversized, 0o000);
+    expect(outcome(() => adoptedBindings(large))).toMatchObject(irregular);
+  },
+);
+it('reads at most one byte past a manifest that grows while it is read, and refuses it as irregular', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(false),
+    text = JSON.stringify({ version: 1, adopted: [] });
+  put(root, MANIFEST, text);
+  let read = 0,
+    calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    read += count;
+    if (++calls === 1) appendFileSync(resolve(root, MANIFEST), ' '.repeat(1_000));
+    return count;
+  });
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+  expect(read).toBe(text.length + 1);
+});
+it('refuses a manifest that cannot be read once it is opened as undecodable', () => {
+  const root = workspace(false);
+  put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [] }));
+  vi.mocked(readSync).mockImplementation(() => {
+    throw Object.assign(new Error('EIO: i/o error, read'), { code: 'EIO' });
+  });
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(undecodable);
+});
+it.skipIf(process.platform === 'win32')(
+  'refuses a manifest a link replaces after its path is checked, reading nothing through the link',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = workspace(false),
+      manifest = resolve(root, MANIFEST),
+      text = JSON.stringify({ version: 1, adopted: [] });
+    put(root, MANIFEST, text);
+    put(root, 'outside.json', text);
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      if (String(args[0]) === manifest) {
+        actual.rmSync(manifest);
+        actual.symlinkSync(resolve(root, 'outside.json'), manifest);
+      }
+      return actual.openSync(...args);
+    });
+    expect(unread(root)).toMatchObject(irregular);
+  },
+);
+it('refuses a manifest whose name moves to another file while it is read', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(false),
+    manifest = resolve(root, MANIFEST),
+    text = JSON.stringify({ version: 1, adopted: [] });
+  put(root, MANIFEST, text);
+  vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+    const fd = actual.openSync(...args);
+    if (String(args[0]) === manifest) {
+      actual.renameSync(manifest, resolve(root, 'original.json'));
+      actual.writeFileSync(manifest, text);
+    }
+    return fd;
+  });
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+});
+it.skipIf(process.platform === 'win32')(
+  'refuses a manifest whose directory becomes a file while it is read, as irregular',
+  async () => {
+    const root = workspace(false);
+    put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [] }));
+    await directoryBecomesFile(resolve(root, '.ia'));
+    expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+  },
+);
+it('refuses a manifest whose name names nothing, or another device, after the read', async () => {
+  const text = JSON.stringify({ version: 1, adopted: [] });
+  const gone = workspace(false);
+  put(gone, MANIFEST, text);
+  await vanishAtRecheck(resolve(gone, MANIFEST));
+  expect(outcome(() => adoptedBindings(gone))).toMatchObject(irregular);
+  const elsewhere = workspace(false);
+  put(elsewhere, MANIFEST, text);
+  await otherDevice(resolve(elsewhere, MANIFEST));
+  expect(outcome(() => adoptedBindings(elsewhere))).toMatchObject(irregular);
+});
+it('closes the manifest it opens, when it reads it and when it refuses it', async () => {
+  const root = workspace(false),
+    manifest = resolve(root, MANIFEST);
+  put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [] }));
+  const opened = await descriptors(manifest);
+  vi.mocked(closeSync).mockClear();
+  expect(outcome(() => adoptedBindings(root))).toEqual([]);
+  expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
+  put(root, MANIFEST, ' '.repeat(65_537));
+  vi.mocked(closeSync).mockClear();
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+  expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
+  expect(opened).toHaveLength(2);
 });

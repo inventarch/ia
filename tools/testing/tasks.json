@@ -1751,6 +1751,99 @@
       "resourceClass": "io",
       "covers": [
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/inputs.test.ts > refuses a FIFO or a socket among package sources by its listed type, opening neither",
+          "reason": "FIFOs and Unix socket files have no Windows equivalent; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses a FIFO or a socket as installation state without waiting for a writer, and throws a path through a file",
+          "reason": "FIFOs and Unix socket files have no Windows equivalent, and Windows reports a path through a file as ENOENT rather than ENOTDIR; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses a package source a FIFO replaces after it is listed, without waiting for a writer",
+          "reason": "FIFOs have no Windows equivalent; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses a package source a link replaces after it is listed, reading nothing through the link",
+          "reason": "Swapping in a file symbolic link needs a privilege on Windows; Linux and macOS run the case, and the cases that pass the name to another file cover the identity recheck that guards a link on Windows.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses a package source whose directory becomes a file while it is read, as replaced",
+          "reason": "Windows does not rename a directory that holds an open file, and reports a path through a file as ENOENT, which the case of a name gone after the read covers; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses an unreadable package source as its open fails, once its link count and bound admit it",
+          "reason": "POSIX file modes have no Windows equivalent, so the case cannot make a file unreadable there; Linux and macOS run it as a non-root user.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses installation state a link replaces after its path is checked, reading nothing through the link",
+          "reason": "Swapping in a file symbolic link needs a privilege on Windows; Linux and macOS run the case, and the cases that pass the name to another file cover the identity recheck that guards a link on Windows.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses installation state whose directory becomes a file while it is read, as a name that no longer names it",
+          "reason": "Windows does not rename a directory that holds an open file, and reports a path through a file as ENOENT, which the case of a name gone after the read covers; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > throws an unreadable installation file as its read fails, once its bound and link count admit it",
+          "reason": "POSIX file modes have no Windows equivalent, so the case cannot make a file unreadable there; Linux and macOS run it as a non-root user.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/workspace-config.test.ts > refuses a FIFO or a socket as the manifest without waiting for a writer",
+          "reason": "FIFOs and Unix socket files have no Windows equivalent; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/workspace-config.test.ts > refuses a manifest a link replaces after its path is checked, reading nothing through the link",
+          "reason": "Swapping in a file symbolic link needs a privilege on Windows; Linux and macOS run the case, and the cases that pass the name to another file cover the identity recheck that guards a link on Windows.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/workspace-config.test.ts > refuses a manifest whose directory becomes a file while it is read, as irregular",
+          "reason": "Windows does not rename a directory that holds an open file, and reports a path through a file as ENOENT, which the case of a name gone after the read covers; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/workspace-config.test.ts > refuses an unreadable manifest as undecodable, unless it is past its bound",
+          "reason": "POSIX file modes have no Windows equivalent, so the case cannot make a file unreadable there; Linux and macOS run it as a non-root user.",
+          "platforms": [
+            "windows"
+          ]
+        }
       ]
     },
     {
@@ -2004,6 +2097,14 @@
           ]
         },
         {
+          "case": "tests/publication.test.ts > qualified local NTFS publication does not take a marker or a file whose name passes to another file while it is read as the published one",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
           "case": "tests/publication.test.ts > qualified local NTFS publication holds destination ownership across processes and releases it on actual process death",
           "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
           "platforms": [
@@ -2012,7 +2113,31 @@
           ]
         },
         {
+          "case": "tests/publication.test.ts > qualified local NTFS publication judges a marker or a file that cannot be opened by its name: unknown past 2 MiB or as a directory, partial at another size",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
           "case": "tests/publication.test.ts > qualified local NTFS publication publishes exact bytes and inventory only after an exclusive final directory claim",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication reads no byte of a marker past 2 MiB, and does not take one cut to the published bytes while read",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication reads the marker as a regular file within 2 MiB and each file at its exact size, of any link count",
           "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
           "platforms": [
             "linux",
@@ -2037,6 +2162,22 @@
         },
         {
           "case": "tests/publication.test.ts > qualified local NTFS publication refuses junction ancestors without touching their destination",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication throws for a file that vanishes after it is listed, with the error of the lstat that finds it gone",
+          "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/publication.test.ts > qualified local NTFS publication throws the open error of a marker within 2 MiB, or of a file of its expected size, that cannot be opened",
           "reason": "Requires the qualified local Windows NTFS publication/root-identity primitive; Linux and macOS exercise the explicit unsupported-platform refusal instead.",
           "platforms": [
             "linux",
