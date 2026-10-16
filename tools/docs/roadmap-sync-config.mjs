@@ -84,7 +84,9 @@ const prepared = {
 };
 mkdirSync(dirname(output), { recursive: true });
 // Write a new file beside the output and rename it over the output: a rename replaces the name, where a write would go
-// through a link or into a file other names share, and the descriptor read above is never written.
+// through a link or into a file other names share, and the descriptor read above is never written. On Windows the rename
+// can fail, with EPERM, EACCES or EBUSY, while another process holds the output open, where a write in place might have
+// succeeded; the temporary file is then removed and the output is left as it was.
 const temporary = resolve(dirname(output), `.${basename(output)}.${randomUUID()}.tmp`);
 const created = openSync(temporary, 'wx');
 try {
