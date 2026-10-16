@@ -1,9 +1,22 @@
 import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
-import { existsSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  chmodSync,
+  existsSync,
+  copyFileSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { runBounded } from '../testing/subprocess.js';
+import { bundleSystemPackages } from './system-packages.js';
 import * as nativeArchiveModule from './native-archives.js';
 import { declarationVersion, nativeArchives, type NativeArchive } from './native-archives.js';
 import {
@@ -582,3 +595,54 @@ it('refuses a stale composition dependency even when published native versions a
   nativeRelease(root, 'write');
   expect(nativeRelease(root, 'check').changed).toEqual([]);
 }, 120_000);
+
+describe('system package input reads', () => {
+  // `bundleSystemPackages` reads each receipt-selected native source through its file reader before anything else, so a
+  // one-file receipt and an empty policy reach that read and stop at its first refusal.
+  const bundle = (root: string, path: string, sha256: string) =>
+    bundleSystemPackages(
+      root,
+      {
+        format: 'ia.public-package-inputs.v2',
+        source: { repository: 'https://github.com/inventarch/ia', commit: 'a'.repeat(40), tree: 'b'.repeat(40) },
+        files: [{ path, sha256 }],
+      },
+      { format: 'ia.system-package-policy.v2', packages: [], owners: [] },
+    );
+  const digest = (text: string) => createHash('sha256').update(text).digest('hex');
+
+  it('reads a selected regular file and refuses a missing, directory or FIFO input as it always has', async () => {
+    const root = temporary();
+    write(root, '.ia/src/a.ia', 'native source');
+    write(root, 'pnpm-workspace.yaml', 'packages: []\n');
+    // The digest matches, so the read moves on to the next input, which this receipt does not pin.
+    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(
+      /^System package input is absent or changed in public receipt: pnpm-workspace\.yaml$/,
+    );
+    expect(() => bundle(root, '.ia/src/a.ia', digest('other source'))).toThrow(
+      /^System package input is absent or changed in public receipt: \.ia\/src\/a\.ia$/,
+    );
+    expect(() => bundle(root, '.ia/src/missing.ia', digest(''))).toThrow(/^ENOENT: no such file or directory, lstat /);
+    mkdirSync(resolve(root, '.ia/src/dir.ia'));
+    expect(() => bundle(root, '.ia/src/dir.ia', digest(''))).toThrow(
+      /^System package input is not a regular file: \.ia\/src\/dir\.ia$/,
+    );
+    if (process.platform === 'win32') return; // Windows has no FIFOs.
+    expect((await runBounded('mkfifo', [resolve(root, '.ia/src/fifo.ia')], { timeoutMs: 10_000 })).status).toBe(0);
+    expect(() => bundle(root, '.ia/src/fifo.ia', digest(''))).toThrow(
+      /^System package input is not a regular file: \.ia\/src\/fifo\.ia$/,
+    );
+  });
+
+  it('refuses a linked input before reading it and rethrows the open error for one it cannot read', () => {
+    // File links need a privilege on Windows, which has no such mode either; root reads a file whatever its mode.
+    if (process.platform === 'win32') return;
+    const root = temporary();
+    write(root, '.ia/src/a.ia', 'native source');
+    symlinkSync('a.ia', resolve(root, '.ia/src/link.ia'));
+    expect(() => bundle(root, '.ia/src/link.ia', digest('native source'))).toThrow(/^Link\/junction is not allowed: /);
+    if (process.getuid?.() === 0) return;
+    chmodSync(resolve(root, '.ia/src/a.ia'), 0o000);
+    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(/^EACCES: permission denied, open /);
+  });
+});

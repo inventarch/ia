@@ -2,11 +2,16 @@ import '../temp/physical-temp.mjs';
 /** Receipt-bound public system packaging. Native ownership is never inferred from executable exports. */
 import { createHash } from 'node:crypto';
 import {
+  closeSync,
+  constants,
   existsSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
+  readSync,
   readdirSync,
   rmSync,
   writeFileSync,
@@ -71,8 +76,45 @@ function file(root: string, path: string): Buffer {
     current = resolve(current, part);
     if (lstatSync(current).isSymbolicLink()) throw new Error('System package input is aliased: ' + path);
   }
-  if (!lstatSync(target).isFile()) throw new Error('System package input is not a regular file: ' + path);
-  return readFileSync(target);
+  const aliased = () => new Error('System package input is aliased: ' + path),
+    irregular = () => new Error('System package input is not a regular file: ' + path);
+  // Judge and read the file opened, not the name (CodeQL js/file-system-race): NOFOLLOW refuses a link put in place
+  // after the walk above, and NONBLOCK keeps a FIFO from blocking the open.
+  let fd: number;
+  try {
+    fd = openSync(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    // A link fails the open (ELOOP) and Windows will not open a directory: the refusals the walk and lstat gave.
+    const named = lstatSync(target);
+    if (named.isSymbolicLink()) throw aliased();
+    if (!named.isFile()) throw irregular();
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) throw irregular();
+    // Read at most one byte past the opened size, so a file that grows while it is read cannot pass for the one judged.
+    const bytes = Buffer.alloc(Number(opened.size) + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = readSync(fd, bytes, length, bytes.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    // Windows follows a link on open, so the name must still be the file that was read, unchanged.
+    const named = lstatSync(target, { bigint: true });
+    if (named.isSymbolicLink()) throw aliased();
+    if (
+      BigInt(length) !== opened.size ||
+      fstatSync(fd, { bigint: true }).size !== opened.size ||
+      named.dev !== opened.dev ||
+      named.ino !== opened.ino
+    )
+      throw new Error('System package input changed while it was read: ' + path);
+    return bytes.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
 }
 function codeFiles(root: string): readonly FilePin[] {
   const files: FilePin[] = [];
