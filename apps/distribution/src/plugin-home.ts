@@ -87,7 +87,7 @@ function isPidAlive(pid: number): boolean {
  * replaced, could not be opened, or could not be removed), so the caller retries its own open. Every judged value (the
  * file's type, its age and its pid) comes from one descriptor, so all of them describe one file (CodeQL
  * js/file-system-race); it is opened without waiting on a FIFO and, where the platform has O_NOFOLLOW, without
- * following a link. Only a regular file is ever removed: the lock is created as nothing else, so a link or any other
+ * following a link. Only a regular file is ever taken over: the lock is created as nothing else, so a link or any other
  * file there was put there by something else. A stale lock is removed only after its name is found to still name the
  * judged file, compared while the descriptor is open so that file's inode cannot be reused (on Windows, where a link
  * is followed, this comparison is what refuses one); the descriptor is closed first, as Windows may keep a removed
@@ -141,7 +141,7 @@ function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
  * blindly — only by `takeOverStale`, once it is a regular file whose pid has parsed and died, or that is older than
  * `LOCK_STALE_MS`, or (an empty/unparseable pid, the short window between another run's `openSync` and its pid write)
  * that is older than `LOCK_EMPTY_GRACE_MS`; otherwise this refuses INSTALL-BUSY. A link or any other non-regular file
- * at the lock path is never removed, so it refuses INSTALL-BUSY too. Bounded at `LOCK_TAKEOVER_ATTEMPTS`, so a lock
+ * at the lock path is never taken over, so it refuses INSTALL-BUSY too. Bounded at `LOCK_TAKEOVER_ATTEMPTS`, so a lock
  * file that keeps coming back (removal failing, a lock replaced while it was judged, or another process winning the
  * race) fails loudly instead of spinning forever. The sweep functions below must never touch this file.
  */
