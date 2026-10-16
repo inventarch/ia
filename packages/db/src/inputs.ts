@@ -19,6 +19,7 @@ import type { Location } from '@inventarch/language';
 import { canonicalRoot, stableSerialize } from '@inventarch/graph';
 import type { RevisionSource } from '@inventarch/graph';
 import { DbError } from './errors.js';
+import { lstatNamed } from './named.js';
 import { pathKey, sameFile } from './paths.js';
 import { decodeActivationPointer } from './distribution/contracts.js';
 import type { ActivationPointer, LockedPackage } from './distribution/contracts.js';
@@ -503,9 +504,9 @@ function bindings<T = Binding>(root: string, each: (binding: Binding) => T = (bi
       undecodable();
     }
     // The bytes are the manifest's only if it kept its size and still has that name; on Windows, which opens through a
-    // link, the name's identity is the only link guard.
+    // link, the name's identity is the only guard against a link placed after the path check.
     const after = fstatSync(fd, { bigint: true }),
-      named = lstatSync(path, { bigint: true, throwIfNoEntry: false });
+      named = lstatNamed(path);
     if (
       BigInt(length) !== opened.size ||
       after.size !== opened.size ||
@@ -780,8 +781,9 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
               after.ctimeNs !== opened.ctimeNs
             )
               throw new DbError('IA-DB-SOURCE-CHANGED', `Package source changed during read: ${child}`);
-            // On Windows, which opens through a link, the name's identity is the only link guard.
-            const named = lstatSync(file, { bigint: true, throwIfNoEntry: false });
+            // On Windows, which opens through a link, the name's identity is the only guard against a link placed
+            // after the listing.
+            const named = lstatNamed(file);
             if (named?.isFile() !== true || named.dev !== opened.dev || named.ino !== opened.ino) throw replaced();
           } finally {
             closeSync(fd);

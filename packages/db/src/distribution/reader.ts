@@ -1,6 +1,7 @@
 import { closeSync, constants, existsSync, fstatSync, lstatSync, openSync, readSync, readdirSync } from 'node:fs';
 import { join, parse, resolve } from 'node:path';
 import type { RevisionSource } from '@inventarch/graph';
+import { lstatNamed } from '../named.js';
 import {
   canonicalDistributionJson,
   DISTRIBUTION_LIMITS,
@@ -99,9 +100,10 @@ function read(root: string, path: string, max: number = DISTRIBUTION_LIMITS.meta
       length += count;
     }
     if (BigInt(length) > opened.size) corrupt('Installed file grew beyond limit');
-    // On Windows, which opens through a link, the name's identity is the only link guard.
+    // On Windows, which opens through a link, the name's identity is the only guard against a link placed after the
+    // path check. A name that names nothing now, a parent turned file included, no longer names the file.
     const after = fstatSync(fd, { bigint: true }),
-      named = lstatSync(target, { bigint: true, throwIfNoEntry: false });
+      named = lstatNamed(target);
     if (
       BigInt(length) !== opened.size ||
       after.size !== opened.size ||

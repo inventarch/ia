@@ -17,7 +17,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
 import { adoptedBindings, open, readInputs, sourceTree } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
-import { blockingOpens, fifo, outcome, socket } from './file-races.js';
+import { blockingOpens, directoryBecomesFile, fifo, outcome, socket } from './file-races.js';
 import { put, workspace } from './workspace.js';
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -362,3 +362,12 @@ it('refuses a manifest whose name moves to another file while it is read', async
   });
   expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
 });
+it.skipIf(process.platform === 'win32')(
+  'refuses a manifest whose directory becomes a file while it is read, as irregular',
+  async () => {
+    const root = workspace(false);
+    put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [] }));
+    await directoryBecomesFile(resolve(root, '.ia'));
+    expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
+  },
+);

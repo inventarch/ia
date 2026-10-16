@@ -36,7 +36,7 @@ import {
 } from '../src/index.js';
 import type { InputSnapshot } from '../src/index.js';
 import { readInstalledGeneration } from '../src/distribution/index.js';
-import { blockingOpens, fifo, outcome, socket } from './file-races.js';
+import { blockingOpens, directoryBecomesFile, fifo, outcome, socket } from './file-races.js';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -701,6 +701,15 @@ it('refuses installation state whose name moves to another file while it is read
   });
   expect(installation(root)).toMatchObject(unaliasedState);
 });
+it.skipIf(process.platform === 'win32')(
+  'refuses installation state whose directory becomes a file while it is read, as a name that no longer names it',
+  async () => {
+    const root = workspace();
+    put(root, PENDING, '{}');
+    await directoryBecomesFile(resolve(root, '.ia/distributions'));
+    expect(installation(root)).toMatchObject(unaliasedState);
+  },
+);
 
 // Authored package source capture (`readInputs` with `authoredRoots`).
 const PACKAGE = 'packages/example',
@@ -890,5 +899,16 @@ it.skipIf(process.platform === 'win32')(
       message: `IA-DB-SOURCE-CHANGED: Package source replaced during read: ${SOURCE}`,
     });
     expect(readSync).not.toHaveBeenCalled();
+  },
+);
+it.skipIf(process.platform === 'win32')(
+  'refuses a package source whose directory becomes a file while it is read, as replaced',
+  async () => {
+    const root = packageWorkspace();
+    await directoryBecomesFile(resolve(root, RECORDS));
+    expect(captured(root)).toMatchObject({
+      code: 'IA-DB-SOURCE-CHANGED',
+      message: `IA-DB-SOURCE-CHANGED: Package source replaced during read: ${SOURCE}`,
+    });
   },
 );

@@ -1,5 +1,5 @@
 import { once } from 'node:events';
-import { mkdirSync, openSync, renameSync } from 'node:fs';
+import { mkdirSync, openSync, readSync, renameSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { expect, vi } from 'vitest';
@@ -55,4 +55,21 @@ export const blockingOpens = async (before: (path: string) => void = () => {}): 
     return actual.openSync(...args);
   });
   return blocking;
+};
+/**
+ * After the reader's first `readSync` returns, moves `directory` away and puts a regular file at its name, so the lstat
+ * of a name under it fails with ENOTDIR. POSIX only: Windows does not rename a directory that holds an open file, and
+ * there a path through a file is missing (ENOENT).
+ */
+export const directoryBecomesFile = async (directory: string): Promise<void> => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  let calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    if (++calls === 1) {
+      actual.renameSync(directory, `${directory}.moved`);
+      actual.writeFileSync(directory, 'not a directory');
+    }
+    return count;
+  });
 };
