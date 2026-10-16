@@ -5,6 +5,7 @@ import {
   chmodSync,
   closeSync,
   constants,
+  ftruncateSync,
   linkSync,
   mkdirSync,
   mkdtempSync,
@@ -538,4 +539,26 @@ it('verification refuses a FIFO where package.json belongs at once, with no writ
     timedOut: false,
     stdout: notRegular('package.json').message,
   });
+});
+/**
+ * No input of more than 2147483647 bytes is read, as readFileSync read none: one of 2147483648 bytes, sparse, is refused
+ * from its size before anything is allocated for it.
+ */
+it('verification refuses an input of 2147483648 bytes before reading it', async () => {
+  const selected = await legacyPackage(),
+    path = resolve(selected.scratch, 'package.json'),
+    fd = openSync(path, 'r+');
+  try {
+    ftruncateSync(fd, 2 ** 31);
+  } finally {
+    closeSync(fd);
+  }
+  try {
+    expect(await verification(selected.scratch, selected.pin)).toEqual({
+      code: undefined,
+      message: 'System package input exceeds 2147483647 bytes: package.json',
+    });
+  } finally {
+    unlinkSync(path);
+  }
 });

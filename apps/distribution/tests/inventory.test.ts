@@ -4,6 +4,7 @@ import {
   chmodSync,
   closeSync,
   constants,
+  ftruncateSync,
   linkSync,
   mkdtempSync,
   mkdirSync,
@@ -515,5 +516,24 @@ it('the inventory refuses a runtime module in a directory it can list but not en
     expect(inventory(root)).toEqual(REFUSED);
   } finally {
     chmodSync(locked, 0o755);
+  }
+});
+/**
+ * No runtime file of more than 2147483647 bytes is read, as readFileSync read none: one of 2147483648 bytes, sparse, is
+ * refused from its size before anything is allocated for it.
+ */
+it('the inventory refuses a runtime module of 2147483648 bytes before reading it', () => {
+  const root = runtime(),
+    big = join(root, 'archive.js'),
+    fd = openSync(big, 'r+');
+  try {
+    ftruncateSync(fd, 2 ** 31);
+  } finally {
+    closeSync(fd);
+  }
+  try {
+    expect(inventory(root)).toEqual(REFUSED);
+  } finally {
+    unlinkSync(big);
   }
 });

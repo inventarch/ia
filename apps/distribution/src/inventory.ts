@@ -53,10 +53,12 @@ function runtimeBytes(path: string): Buffer {
   try {
     const opened = fstatSync(fd, { bigint: true });
     if (!opened.isFile()) return refuse();
+    // No file of more than 2147483647 bytes is read, as readFileSync read none, and no read asks readSync for more.
+    if (opened.size > 0x7fffffffn) return refuse();
     const bytes = Buffer.alloc(Number(opened.size) + 1);
     let length = 0;
     while (length < bytes.length) {
-      const read = readSync(fd, bytes, length, bytes.length - length, null);
+      const read = readSync(fd, bytes, length, Math.min(bytes.length - length, 0x7fffffff), null);
       if (!read) break;
       length += read;
     }
