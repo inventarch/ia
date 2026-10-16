@@ -19,23 +19,25 @@ import {
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 
 /**
- * A pass-through `node:fs` with one hook on `target`: `beforeOpen` runs once just before it is opened, and `afterRead` once
- * just after the first read through a descriptor opened on it, so a test changes an input between two of the reader's own
- * calls. Every other path behaves exactly as usual.
+ * A pass-through `node:fs` with one hook on `target`: `beforeOpen` runs once just before it is opened, `afterOpenError`
+ * once just after an open of it fails, and `afterRead` once just after the first read through a descriptor opened on it,
+ * so a test changes an input between two of the reader's own calls. Every other path behaves exactly as usual.
  */
 const race = vi.hoisted(() => ({
   target: undefined as string | undefined,
   beforeOpen: undefined as (() => void) | undefined,
+  afterOpenError: undefined as (() => void) | undefined,
   afterRead: undefined as (() => void) | undefined,
   opened: new Set<number>(),
 }));
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
-  const fire = (step: 'beforeOpen' | 'afterRead') => {
+  const fire = (step: 'beforeOpen' | 'afterOpenError' | 'afterRead') => {
     const act = race[step];
     race[step] = undefined;
     act?.();
@@ -45,7 +47,13 @@ vi.mock('node:fs', async (importOriginal) => {
     openSync: (...args: Parameters<typeof actual.openSync>) => {
       const target = String(args[0]) === race.target;
       if (target) fire('beforeOpen');
-      const fd = actual.openSync(...args);
+      let fd: number;
+      try {
+        fd = actual.openSync(...args);
+      } catch (error) {
+        if (target) fire('afterOpenError');
+        throw error;
+      }
       if (target) race.opened.add(fd);
       return fd;
     },
@@ -67,15 +75,24 @@ const POSIX = process.platform !== 'win32';
 const UNPRIVILEGED = POSIX && process.getuid?.() !== 0;
 const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
 const sha = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
-const roots: string[] = [];
+const roots: string[] = [],
+  held: number[] = [];
 afterEach(() => {
-  race.target = race.beforeOpen = race.afterRead = undefined;
+  race.target = race.beforeOpen = race.afterOpenError = race.afterRead = undefined;
   race.opened.clear();
+  for (const fd of held.splice(0)) closeSync(fd);
   for (const root of roots.splice(0)) {
     if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
     rmSync(root, { recursive: true, force: true });
   }
 });
+/**
+ * Keeps `fifo` open for reading and writing until the case ends, so no open of it waits for a writer and no reader can
+ * block this worker, whatever the reader's flags.
+ */
+function hold(fifo: string): void {
+  held.push(openSync(fifo, constants.O_RDWR));
+}
 function temporary(prefix: string): string {
   const root = mkdtempSync(resolve(tmpdir(), prefix));
   roots.push(root);
@@ -263,7 +280,7 @@ it.each<[string, (selected: Package) => [string, unknown]]>([
     [root, expected] = arrange(selected);
   expect(await verification(root, selected.pin)).toEqual(expected);
 });
-it.skipIf(!POSIX).each<[string, (selected: Package) => Promise<[string, unknown]>]>([
+it.each<[string, (selected: Package) => Promise<[string, unknown]>]>([
   [
     'a package.json that is a symbolic link',
     async ({ scratch }) => {
@@ -290,6 +307,7 @@ it.skipIf(!POSIX).each<[string, (selected: Package) => Promise<[string, unknown]
     async ({ scratch }) => {
       unlinkSync(resolve(scratch, 'dist', 'system-package.json'));
       await mkfifo(resolve(scratch, 'dist', 'system-package.json'));
+      hold(resolve(scratch, 'dist', 'system-package.json'));
       return [scratch, notRegular('dist/system-package.json')];
     },
   ],
@@ -298,15 +316,18 @@ it.skipIf(!POSIX).each<[string, (selected: Package) => Promise<[string, unknown]
     async ({ scratch }) => {
       unlinkSync(resolve(scratch, 'package.json'));
       await mkfifo(resolve(scratch, 'package.json'));
+      hold(resolve(scratch, 'package.json'));
       return [scratch, notRegular('package.json')];
     },
   ],
 ])('verification answers for %s (POSIX)', async (_, arrange) => {
+  if (!POSIX) return;
   const selected = await legacyPackage(),
     [root, expected] = await arrange(selected);
   expect(await verification(root, selected.pin)).toEqual(expected);
 });
-it.skipIf(!POSIX)('verification refuses a UNIX socket where package.json belongs (POSIX)', async () => {
+it('verification refuses a UNIX socket where package.json belongs (POSIX)', async () => {
+  if (!POSIX) return;
   const selected = await legacyPackage(),
     // A socket's path is short (104 bytes on macOS), so it is bound beside the package and moved in.
     bound = resolve(temporary('ia-sp-'), 's'),
@@ -321,18 +342,16 @@ it.skipIf(!POSIX)('verification refuses a UNIX socket where package.json belongs
     server.close();
   }
 });
-it.skipIf(!UNPRIVILEGED)(
-  'verification fails on an unreadable package.json with the read error (POSIX, unprivileged)',
-  async () => {
-    const selected = await legacyPackage(),
-      path = resolve(selected.scratch, 'package.json');
-    chmodSync(path, 0);
-    expect(await verification(selected.scratch, selected.pin)).toEqual({
-      code: 'EACCES',
-      message: `EACCES: permission denied, open '${path}'`,
-    });
-  },
-);
+it('verification fails on an unreadable package.json with the read error (POSIX, unprivileged)', async () => {
+  if (!UNPRIVILEGED) return;
+  const selected = await legacyPackage(),
+    path = resolve(selected.scratch, 'package.json');
+  chmodSync(path, 0);
+  expect(await verification(selected.scratch, selected.pin)).toEqual({
+    code: 'EACCES',
+    message: `EACCES: permission denied, open '${path}'`,
+  });
+});
 /**
  * Reading an input judges the file it opened, not the entry it found: whatever replaces package.json after its name was
  * checked, or while it is read, refuses with the input's own message, never through a link, a FIFO or a socket. One removed
@@ -361,7 +380,7 @@ it.each<[string, (manifest: string) => unknown]>([
   const expected = arrange(race.target);
   expect(await verification(selected.scratch, selected.pin)).toEqual(expected);
 });
-it.skipIf(!POSIX).each<[string, (manifest: string) => unknown]>([
+it.each<[string, (manifest: string) => unknown]>([
   [
     'replaced by a link before the open',
     (manifest) => {
@@ -393,26 +412,59 @@ it.skipIf(!POSIX).each<[string, (manifest: string) => unknown]>([
       return changed;
     },
   ],
+  [
+    // The open meets the link and refuses it; the file is back before the name is judged, so only the open's ELOOP tells.
+    'replaced by a link for its open and restored before it is judged',
+    (manifest) => {
+      const moved = resolve(temporary('ia-system-package-other-'), 'package.json');
+      race.beforeOpen = () => {
+        renameSync(manifest, moved);
+        symlinkSync(moved, manifest);
+      };
+      race.afterOpenError = () => {
+        unlinkSync(manifest);
+        renameSync(moved, manifest);
+      };
+      return { code: undefined, message: 'System package input is aliased: package.json' };
+    },
+  ],
 ])('verification refuses a package.json %s (POSIX)', async (_, arrange) => {
+  if (!POSIX) return;
   const selected = await legacyPackage();
   race.target = resolve(selected.scratch, 'package.json');
   const expected = arrange(race.target);
   expect(await verification(selected.scratch, selected.pin)).toEqual(expected);
 });
-it.skipIf(!POSIX)('verification refuses a package.json replaced by a FIFO before the open (POSIX)', async () => {
+it('verification refuses a package.json replaced by a FIFO before the open (POSIX)', async () => {
+  if (!POSIX) return;
   const selected = await legacyPackage(),
     fifo = resolve(temporary('ia-sp-'), 'fifo');
   await mkfifo(fifo);
-  const held = openSync(fifo, constants.O_RDWR);
-  try {
-    race.target = resolve(selected.scratch, 'package.json');
-    race.beforeOpen = () => renameSync(fifo, resolve(selected.scratch, 'package.json'));
-    expect(await verification(selected.scratch, selected.pin)).toEqual(notRegular('package.json'));
-  } finally {
-    closeSync(held);
-  }
+  hold(fifo);
+  race.target = resolve(selected.scratch, 'package.json');
+  race.beforeOpen = () => renameSync(fifo, resolve(selected.scratch, 'package.json'));
+  expect(await verification(selected.scratch, selected.pin)).toEqual(notRegular('package.json'));
 });
-it.skipIf(!POSIX)('verification refuses a package.json replaced by a UNIX socket before the open (POSIX)', async () => {
+it('verification refuses a package.json replaced by a link to a FIFO before the open, at the link (POSIX)', async () => {
+  if (!POSIX) return;
+  const selected = await legacyPackage(),
+    manifest = resolve(selected.scratch, 'package.json'),
+    fifo = resolve(temporary('ia-sp-'), 'fifo');
+  await mkfifo(fifo);
+  // Held open, the FIFO would open at once and be judged as a FIFO: only an open that refuses the link refuses it as one.
+  hold(fifo);
+  race.target = manifest;
+  race.beforeOpen = () => {
+    unlinkSync(manifest);
+    symlinkSync(fifo, manifest);
+  };
+  expect(await verification(selected.scratch, selected.pin)).toEqual({
+    code: undefined,
+    message: 'System package input is aliased: package.json',
+  });
+});
+it('verification refuses a package.json replaced by a UNIX socket before the open (POSIX)', async () => {
+  if (!POSIX) return;
   const selected = await legacyPackage(),
     bound = resolve(temporary('ia-sp-'), 's'),
     server = createServer();
@@ -425,4 +477,44 @@ it.skipIf(!POSIX)('verification refuses a package.json replaced by a UNIX socket
   } finally {
     server.close();
   }
+});
+/**
+ * A FIFO in place of package.json, read in a bounded subprocess where nothing holds it open: the reader opens it to judge
+ * it, so the open must not wait for a writer. Opened without O_NONBLOCK, it would block until the subprocess bound stopped
+ * it, and this worker would never wait.
+ */
+it('verification refuses a FIFO where package.json belongs at once, with no writer (POSIX)', async () => {
+  if (!POSIX) return;
+  const selected = await legacyPackage(),
+    path = resolve(selected.scratch, 'package.json');
+  unlinkSync(path);
+  await mkfifo(path);
+  const script =
+    'const { verifySystemPackage } = await import(process.argv[1]);' +
+    'try { verifySystemPackage(process.argv[2], process.argv[3]); process.stdout.write("verified"); }' +
+    'catch (error) { process.stdout.write(error.message); }';
+  const result = await runBounded(
+    process.execPath,
+    [
+      '--conditions=development',
+      '--import',
+      'tsx',
+      '--input-type=module',
+      '--eval',
+      script,
+      pathToFileURL(resolve(import.meta.dirname, '../src/system-package.ts')).href,
+      selected.scratch,
+      selected.pin,
+    ],
+    {
+      cwd: resolve(import.meta.dirname, '..'),
+      timeoutMs: SUBPROCESS,
+      maxBufferBytes: 1024 * 1024,
+      env: { ...process.env, NODE_OPTIONS: '' },
+    },
+  );
+  expect({ timedOut: result.timedOut, stdout: result.stdout }, result.stderr).toEqual({
+    timedOut: false,
+    stdout: notRegular('package.json').message,
+  });
 });

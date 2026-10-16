@@ -24,6 +24,7 @@ import { runBounded } from '@tools/testing/subprocess.js';
 import { platformDebris } from '@inventarch/db/distribution';
 import { json, sha256 } from '../src/files.js';
 import { HOST_MODES } from '../src/host-modes.js';
+import { RACE_PRELOAD, type Race } from './race-fixture.js';
 
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
 const roots: string[] = [];
@@ -438,7 +439,7 @@ it.each<[string, (selected: Cache) => unknown]>([
     expected = arrange(selected);
   expect(await verdict(selected)).toEqual(expected);
 });
-it.skipIf(!POSIX).each<[string, (selected: Cache) => Promise<unknown>]>([
+it.each<[string, (selected: Cache) => Promise<unknown>]>([
   [
     'a symbolic link where a pinned file belongs',
     async (selected) => {
@@ -485,11 +486,13 @@ it.skipIf(!POSIX).each<[string, (selected: Cache) => Promise<unknown>]>([
     },
   ],
 ])('verify answers for %s (POSIX)', async (_, arrange) => {
+  if (!POSIX) return;
   const selected = cache(),
     expected = await arrange(selected);
   expect(await verdict(selected)).toEqual(expected);
 });
-it.skipIf(!POSIX)('verify refuses a UNIX socket in the cache as an aliased file (POSIX)', async () => {
+it('verify refuses a UNIX socket in the cache as an aliased file (POSIX)', async () => {
+  if (!POSIX) return;
   const selected = cache(),
     server = createServer();
   server.listen(join(selected.root, 'runtime', 's'));
@@ -501,7 +504,7 @@ it.skipIf(!POSIX)('verify refuses a UNIX socket in the cache as an aliased file 
   }
 });
 /** An unreadable file is judged as a readable one would be, and only the read of a pinned file it admits fails. */
-it.skipIf(!UNPRIVILEGED).each<[string, (selected: Cache) => unknown]>([
+it.each<[string, (selected: Cache) => unknown]>([
   [
     'an unreadable pinned file',
     (selected) => {
@@ -526,6 +529,7 @@ it.skipIf(!UNPRIVILEGED).each<[string, (selected: Cache) => unknown]>([
     },
   ],
 ])('verify answers for %s (POSIX, unprivileged)', async (_, arrange) => {
+  if (!UNPRIVILEGED) return;
   const selected = cache(),
     expected = arrange(selected);
   expect(await verdict(selected)).toEqual(expected);
@@ -550,42 +554,12 @@ it('verify admits a pinned payload of exactly 256 MiB and refuses one byte more'
   expect(verdicts).toEqual([VERIFIED, refused('Plugin cache payload differs: big')]);
 });
 /**
- * A preload (`node --import`) that runs the `steps` of IA_TEST_RACE, each an `fs` function name and its arguments, once:
- * just before the launcher opens `target` or just after its first read of it. So a case changes an entry after the walk
- * listed it, between two of the launcher's own calls, with no timing involved.
+ * What `verify` answers when `race` changes the pinned module between two of the launcher's own calls, run by the race
+ * preload, and whether the launcher had to be stopped at the subprocess bound.
  */
-const RACE = `import fs from 'node:fs';
-import { syncBuiltinESMExports } from 'node:module';
-const plan = JSON.parse(process.env.IA_TEST_RACE), { openSync, readSync, closeSync } = fs, opened = new Set();
-let pending = true;
-const act = () => {
-  if (!pending) return;
-  pending = false;
-  for (const [step, ...args] of plan.steps) fs[step](...args);
-};
-fs.openSync = function (path, ...rest) {
-  const target = String(path) === plan.target;
-  if (target && plan.at === 'open') act();
-  const fd = openSync.call(this, path, ...rest);
-  if (target) opened.add(fd);
-  return fd;
-};
-fs.readSync = function (fd, ...rest) {
-  const read = readSync.call(this, fd, ...rest);
-  if (opened.has(fd) && plan.at === 'read') act();
-  return read;
-};
-fs.closeSync = function (fd) {
-  opened.delete(fd);
-  return closeSync.call(this, fd);
-};
-syncBuiltinESMExports();
-`;
-type Race = { readonly at: 'open' | 'read'; readonly steps: readonly (readonly unknown[])[] };
-/** What `verify` answers when `race` changes the pinned module, and whether the launcher had to be stopped. */
 async function raced(selected: Cache, race: Race) {
   const preload = join(outside(), 'race.mjs');
-  writeFileSync(preload, RACE);
+  writeFileSync(preload, RACE_PRELOAD);
   const result = await runBounded(
     process.execPath,
     ['--import', pathToFileURL(preload).href, join(selected.root, 'scripts/ia.mjs'), 'verify'],
@@ -638,7 +612,7 @@ it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
     race = await arrange(selected);
   expect(await raced(selected, race)).toEqual({ timedOut: false, ...refused(message) });
 });
-it.skipIf(!POSIX).each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
+it.each<[string, (selected: Cache) => Promise<Race> | Race, string]>([
   [
     'replaced by a FIFO before the open',
     async (s) => {
@@ -679,12 +653,39 @@ it.skipIf(!POSIX).each<[string, (selected: Cache) => Promise<Race> | Race, strin
     (s) => ({ at: 'read', steps: [['renameSync', copy(s), s.module]] }),
     `Plugin cache payload differs: ${MODULE}`,
   ],
+  [
+    'given a second link after its first read',
+    (s) => ({ at: 'read', steps: [['linkSync', s.module, join(outside(), 'context.js')]] }),
+    'Plugin cache file is aliased',
+  ],
+  [
+    // The open meets the link and refuses it; the file is back before the name is judged, so only the open's ELOOP
+    // tells, and it still refuses as a link rather than with the system error's text.
+    'replaced by a link for its open and restored before it is judged',
+    (s) => {
+      const moved = join(outside(), 'context.js');
+      return {
+        at: 'open',
+        steps: [
+          ['renameSync', s.module, moved],
+          ['symlinkSync', moved, s.module],
+        ],
+        failed: [
+          ['unlinkSync', s.module],
+          ['renameSync', moved, s.module],
+        ],
+      };
+    },
+    'Plugin cache links are unsupported',
+  ],
 ])('verify refuses a pinned module %s (POSIX)', async (_, arrange, message) => {
+  if (!POSIX) return;
   const selected = cache(),
     race = await arrange(selected);
   expect(await raced(selected, race)).toEqual({ timedOut: false, ...refused(message) });
 });
-it.skipIf(!POSIX)('verify refuses a pinned module replaced by a UNIX socket before the open (POSIX)', async () => {
+it('verify refuses a pinned module replaced by a UNIX socket before the open (POSIX)', async () => {
+  if (!POSIX) return;
   const selected = cache(),
     bound = join(outside(), 's'),
     server = createServer();

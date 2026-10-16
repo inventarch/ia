@@ -18,8 +18,10 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
+import { pathToFileURL } from 'node:url';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { installedDistributionDigest } from '../src/inventory.js';
+import { RACE_PRELOAD, type Race } from './race-fixture.js';
 
 /**
  * A pass-through `node:fs` with one hook on `target`: `beforeOpen` runs once just before it is opened, and `afterRead` once
@@ -189,7 +191,7 @@ it.each<[string, (root: string, before: unknown) => [string, unknown]]>([
     [target, expected] = arrange(root, inventory(root));
   expect(inventory(target)).toEqual(expected);
 });
-it.skipIf(!POSIX).each<[string, (root: string) => Promise<void> | void]>([
+it.each<[string, (root: string) => Promise<void> | void]>([
   [
     'a runtime module that is a symbolic link',
     (root) => {
@@ -220,11 +222,13 @@ it.skipIf(!POSIX).each<[string, (root: string) => Promise<void> | void]>([
     },
   ],
 ])('the inventory refuses %s (POSIX)', async (_, arrange) => {
+  if (!POSIX) return;
   const root = runtime();
   await arrange(root);
   expect(inventory(root)).toEqual(REFUSED);
 });
-it.skipIf(!POSIX)('the inventory refuses a UNIX socket (POSIX)', async () => {
+it('the inventory refuses a UNIX socket (POSIX)', async () => {
+  if (!POSIX) return;
   const root = runtime(),
     server = createServer();
   server.listen(join(root, 's.js'));
@@ -249,7 +253,7 @@ it.each<[string, (module: string) => void]>([
   arrange(race.target);
   expect(inventory(root)).toEqual(REFUSED);
 });
-it.skipIf(!POSIX).each<[string, (module: string) => void]>([
+it.each<[string, (module: string) => void]>([
   [
     'replaced by a link before the open',
     (module) => {
@@ -279,12 +283,14 @@ it.skipIf(!POSIX).each<[string, (module: string) => void]>([
     },
   ],
 ])('the inventory refuses a runtime module %s (POSIX)', (_, arrange) => {
+  if (!POSIX) return;
   const root = runtime();
   race.target = join(root, 'archive.js');
   arrange(race.target);
   expect(inventory(root)).toEqual(REFUSED);
 });
-it.skipIf(!POSIX)('the inventory refuses a runtime module replaced by a FIFO before the open (POSIX)', async () => {
+it('the inventory refuses a runtime module replaced by a FIFO before the open (POSIX)', async () => {
+  if (!POSIX) return;
   const root = runtime(),
     fifo = join(temporary(), 'fifo');
   expect((await runBounded('mkfifo', [fifo], { timeoutMs: SUBPROCESS })).status).toBe(0);
@@ -297,26 +303,69 @@ it.skipIf(!POSIX)('the inventory refuses a runtime module replaced by a FIFO bef
     closeSync(held);
   }
 });
-it.skipIf(!POSIX)(
-  'the inventory refuses a runtime module replaced by a UNIX socket before the open (POSIX)',
-  async () => {
-    const root = runtime(),
-      bound = join(temporary(), 's'),
-      server = createServer();
-    server.listen(bound);
-    await once(server, 'listening');
-    try {
-      race.target = join(root, 'archive.js');
-      race.beforeOpen = () => renameSync(bound, join(root, 'archive.js'));
-      expect(inventory(root)).toEqual(REFUSED);
-    } finally {
-      server.close();
-    }
-  },
-);
+it('the inventory refuses a runtime module replaced by a UNIX socket before the open (POSIX)', async () => {
+  if (!POSIX) return;
+  const root = runtime(),
+    bound = join(temporary(), 's'),
+    server = createServer();
+  server.listen(bound);
+  await once(server, 'listening');
+  try {
+    race.target = join(root, 'archive.js');
+    race.beforeOpen = () => renameSync(bound, join(root, 'archive.js'));
+    expect(inventory(root)).toEqual(REFUSED);
+  } finally {
+    server.close();
+  }
+});
 /** Every open that fails refuses, a file the process may not read included, not only an entry swapped meanwhile. */
-it.skipIf(!UNPRIVILEGED)('the inventory refuses an unreadable runtime module (POSIX, unprivileged)', () => {
+it('the inventory refuses an unreadable runtime module (POSIX, unprivileged)', () => {
+  if (!UNPRIVILEGED) return;
   const root = runtime();
   chmodSync(join(root, 'archive.js'), 0);
   expect(inventory(root)).toEqual(REFUSED);
+});
+/**
+ * The same race in a bounded subprocess, where nothing holds the FIFO open: the open must not wait for a writer. Opened
+ * without O_NONBLOCK, the inventory would block until the subprocess bound stopped it, and this worker would never wait.
+ */
+it('the inventory refuses a runtime module replaced by a FIFO before the open at once, with no writer (POSIX)', async () => {
+  if (!POSIX) return;
+  const root = runtime(),
+    other = temporary(),
+    fifo = join(other, 'fifo'),
+    preload = join(other, 'race.mjs'),
+    module = join(root, 'archive.js');
+  expect((await runBounded('mkfifo', [fifo], { timeoutMs: SUBPROCESS })).status).toBe(0);
+  writeFileSync(preload, RACE_PRELOAD);
+  const race: Race = { at: 'open', steps: [['renameSync', fifo, module]] },
+    script =
+      'const { installedDistributionDigest } = await import(process.argv[1]);' +
+      'try { process.stdout.write(installedDistributionDigest(process.argv[2])); }' +
+      'catch (error) { process.stdout.write(error.message); }';
+  const result = await runBounded(
+    process.execPath,
+    [
+      '--conditions=development',
+      '--import',
+      'tsx',
+      '--import',
+      pathToFileURL(preload).href,
+      '--input-type=module',
+      '--eval',
+      script,
+      pathToFileURL(resolve(import.meta.dirname, '../src/inventory.ts')).href,
+      root,
+    ],
+    {
+      cwd: resolve(import.meta.dirname, '..'),
+      timeoutMs: SUBPROCESS,
+      maxBufferBytes: 1024 * 1024,
+      env: { ...process.env, NODE_OPTIONS: '', IA_TEST_RACE: JSON.stringify({ ...race, target: module }) },
+    },
+  );
+  expect({ timedOut: result.timedOut, stdout: result.stdout }, result.stderr).toEqual({
+    timedOut: false,
+    stdout: REFUSED.message,
+  });
 });
