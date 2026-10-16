@@ -781,6 +781,20 @@ it.each<[string, (selected: Cache) => Race, unknown]>([
     refused('Plugin cache payload differs: runtime/.DS_Store'),
   ],
   [
+    'an unpinned file its listing calls a link, removed before its lstat',
+    (s) => {
+      const extra = join(s.root, 'runtime', 'extra.txt');
+      writeFileSync(extra, 'not pinned');
+      return {
+        target: extra,
+        at: 'lstat',
+        steps: [['unlinkSync', extra]],
+        linked: { directory: join(s.root, 'runtime'), names: ['extra.txt'] },
+      };
+    },
+    refused('Plugin cache payload differs: runtime/extra.txt'),
+  ],
+  [
     'a directory removed before it is listed',
     (s) => {
       const dist = dirname(s.module);

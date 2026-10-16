@@ -1,25 +1,27 @@
 /**
  * A change one test makes to an entry between two of a reader's own calls in another process. `steps` run once, each an
  * `fs` function name and its arguments: just before the process opens `target` (`at: 'open'`), just after its first read
- * through a descriptor opened on it (`at: 'read'`), or just before it lists `target` as a directory (`at: 'list'`);
- * `failed` steps run once just after an open of `target` fails. `linked` lists the named entries of a directory as links
- * whatever they are, as Windows lists every reparse point.
+ * through a descriptor opened on it (`at: 'read'`), just before it lists `target` as a directory (`at: 'list'`), or just
+ * before it lstats `target` (`at: 'lstat'`); `failed` steps run once just after an open of `target` fails. `linked` lists
+ * the named entries of a directory as links whatever they are, as Windows lists every reparse point.
  */
 export interface Race {
   readonly target?: string;
-  readonly at?: 'open' | 'read' | 'list';
+  readonly at?: 'open' | 'read' | 'list' | 'lstat';
   readonly steps?: readonly (readonly unknown[])[];
   readonly failed?: readonly (readonly unknown[])[];
   readonly linked?: { readonly directory: string; readonly names: readonly string[] };
 }
 /**
  * The preload (`node --import <file>`) that performs a race passed as JSON in IA_TEST_RACE. It patches `fs` and syncs the
- * built-in module's named exports, so a reader's own `openSync`, `readSync` and `readdirSync` reach it with no timing
- * involved; every other path behaves exactly as usual.
+ * built-in module's named exports, so a reader's own `openSync`, `readSync`, `readdirSync` and `lstatSync` reach it with
+ * no timing involved; every other path behaves exactly as usual.
  */
 export const RACE_PRELOAD = `import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
-const plan = JSON.parse(process.env.IA_TEST_RACE), { openSync, readSync, closeSync, readdirSync } = fs, opened = new Set();
+const plan = JSON.parse(process.env.IA_TEST_RACE),
+  { openSync, readSync, closeSync, readdirSync, lstatSync } = fs,
+  opened = new Set();
 const run = (steps = []) => {
   for (const [step, ...args] of steps.splice(0)) fs[step](...args);
 };
@@ -65,6 +67,10 @@ fs.readdirSync = function (path, ...rest) {
   return entries.map((entry) =>
     typeof entry === 'object' && plan.linked.names.includes(entry.name) ? link(entry) : entry,
   );
+};
+fs.lstatSync = function (path, ...rest) {
+  if (String(path) === plan.target && plan.at === 'lstat') run(plan.steps);
+  return lstatSync.call(this, path, ...rest);
 };
 syncBuiltinESMExports();
 `;

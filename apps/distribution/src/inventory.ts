@@ -11,7 +11,10 @@ const declaration = /\.d\.[cm]?ts$/;
 function refuse(): never {
   throw new Error('Installed distribution runtime is missing, mixed or aliased');
 }
-/** A name that reaches nothing: removed once it was listed, or listed under a name that is not UTF-8, which Node decodes lossily on Linux. */
+/**
+ * A name that reaches nothing: removed once it was listed, or listed under a name that is not UTF-8, which Node decodes
+ * lossily on Linux.
+ */
 const unreached = (error: unknown): boolean =>
   ['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '');
 /** The entries of `directory`; a directory its listed name no longer reaches refuses. */
