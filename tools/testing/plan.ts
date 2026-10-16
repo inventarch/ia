@@ -366,7 +366,7 @@ export function updateSchedule(schedule: Schedule, evidenceDirectories: string |
     platforms[platform] = { ...platforms[platform], [task]: upperMedian(observed) };
   }
   // Tasks in identity order, so the same evidence always writes the same file whatever order the schedule had. The
-  // order is by code point: localeCompare follows the machine's locale, and Lithuanian, for one, puts y before s.
+  // order is by code point: localeCompare follows the machine's locale, and Lithuanian, for one, sorts y as i.
   const sorted = Object.fromEntries(
     PLATFORMS.map((platform) => [
       platform,
