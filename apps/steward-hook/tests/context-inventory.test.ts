@@ -332,6 +332,18 @@ it.for(['removed', 'a link'] as const)(SWAPPED_CODE, (kind, context) =>
 it.skipIf(process.platform === 'win32').each(['a FIFO', 'a socket'] as const)(SWAPPED_CODE, (kind) =>
   swappedOnceListed('swapped.js', '// listed', kind),
 );
+it('refuses a code file that is a directory once its directory is listed', () => {
+  const root = fixture(),
+    path = join(root, 'swapped.js');
+  writeFileSync(path, '// listed');
+  seam.afterList = (directory) => {
+    if (resolve(directory) !== resolve(root)) return;
+    seam.afterList = undefined;
+    unlinkSync(path);
+    mkdirSync(path);
+  };
+  expect(refusal(() => contextHookImplementationDigest(root))).toEqual(NONREGULAR);
+});
 it('refuses a code file replaced after it was opened', () => {
   const root = fixture(),
     path = join(root, 'policy.json');
