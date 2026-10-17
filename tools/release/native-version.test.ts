@@ -1,20 +1,9 @@
 import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
-import {
-  chmodSync,
-  existsSync,
-  copyFileSync,
-  mkdtempSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { collectChanges, releaseChanges } from '../distribution/release-changes.mjs';
-import { versionRelease } from '../distribution/release-version.mjs';
 import * as nativeArchiveModule from './native-archives.js';
 import { declarationVersion, nativeArchives, type NativeArchive } from './native-archives.js';
 import {
@@ -37,6 +26,9 @@ import {
   prepareNativeSelection,
   readNativeReleaseTarget,
 } from './native-selectors.mjs';
+import { chmodSync } from 'node:fs';
+import { collectChanges, releaseChanges } from '../distribution/release-changes.mjs';
+import { versionRelease } from '../distribution/release-version.mjs';
 
 const checkout = resolve(import.meta.dirname, '../..');
 const pin = (name: string, dependencies: string[] = []): NativeArchive => ({
