@@ -29,6 +29,7 @@ import {
 import { bumpVersion, draftNote, inferBump, maxBump, notePaths, releaseBump, validateNote } from './release-notes.mjs';
 import { a, b, c, changeset, refusal, inRepository, git as fixtureGit } from './release-fixtures.js';
 import { pullRequestBody, versionRelease, type VersionResult } from './release-version.mjs';
+import { prepareNativeSelection } from '../release/native-selectors.mjs';
 
 const names = ['@inventarch/a', '@inventarch/b'];
 const note = (bump: string, packages: string[], title: string) => ({
@@ -1015,6 +1016,7 @@ it.each([
         expect(entry.changes.find(({ id }) => id === 'cohort-alignment')).toMatchObject({
           packages: ['@inventarch/agent-system', '@inventarch/session-system'],
           paths: nativeSystems.map((system) => nativeOwner(system) + '/package.json'),
+          summary: `Version metadata only: packages follow the coordinated ${version} release; native artifact versions follow their own selection.`,
         });
         expect(entry.coverage.some((row) => row.path.endsWith('/system.ia'))).toBe(false);
         expect(() => releaseChanges(root, projects())).not.toThrow();
@@ -1077,6 +1079,8 @@ it('aligns every native selector at an npm major and covers a narrowly documente
     expect(readFileSync(resolve(root, 'releases/native/current.json'))).toEqual(ledger);
     const entry = read(result.changeset!) as Changeset;
     expect(entry.changes.find(({ id }) => id === 'cohort-alignment')).toMatchObject({
+      summary:
+        'Version metadata only: packages follow the coordinated 4.0.0 release, and every native artifact aligns to 4.0.0 at this breaking major.',
       packages: ['@inventarch/agent-system', '@inventarch/session-system'],
       paths: nativeSystems
         .flatMap((system) => [nativeOwner(system) + '/package.json', nativeOwner(system) + '/system.ia'])
@@ -1090,6 +1094,40 @@ it('aligns every native selector at an npm major and covers a narrowly documente
         cohortOnly: true,
         change: 'cohort-alignment',
       });
+    expect(() => releaseChanges(root, projects())).not.toThrow();
+  });
+}, 120_000);
+
+it('regenerates coverage for a later per-archive native selection on refresh, which collect alone refuses', async () => {
+  await withAlignedRelease(async ({ root, write, read, commit, projects, note }) => {
+    await note(true, 'minor');
+    await versionRelease(root, projects(), { write: true, registry: null, sealInputs: false });
+    await commit('Prepare 3.1.0');
+    // The native release writer then selects a dependency-only session-system bump and a language bump.
+    const selected = {
+      'inventarch/agent-system': '3.0.0',
+      'inventarch/session-system': '3.0.1',
+      'inventarch/language': '3.0.1',
+    };
+    for (const [path, text] of prepareNativeSelection(root, '3.1.0', selected)) write(path, text);
+    await commit('Select native versions');
+    const declaration = nativeOwner('session-system') + '/system.ia';
+    expect(() => collectChanges(root, projects())).toThrow('No reviewed change scope for ' + declaration);
+    const result = await versionRelease(root, projects(), {
+      write: true,
+      registry: null,
+      sealInputs: false,
+      refresh: true,
+    });
+    expect(result).toMatchObject({ action: 'refresh', version: '3.1.0' });
+    expect(readFileSync(resolve(root, declaration), 'utf8')).toBe(nativeDeclaration('session-system', '3.0.1'));
+    expect(read('examples/public-language/versions.json').language).toBe('3.0.1');
+    const entry = read(result.changeset!) as Changeset;
+    expect(entry.changes.find(({ id }) => id === 'cohort-alignment')!.paths).toContain(declaration);
+    expect(entry.coverage.find((row) => row.path === declaration)).toMatchObject({
+      cohortOnly: true,
+      change: 'cohort-alignment',
+    });
     expect(() => releaseChanges(root, projects())).not.toThrow();
   });
 }, 120_000);
@@ -1323,6 +1361,7 @@ it.each([false, true])(
         'authoring:generate',
         'native:version --write',
         'platform:qualify',
+        'release:version --write --refresh',
         'release:collect',
         'npm:inputs',
         'npm:prepare',

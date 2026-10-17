@@ -14,7 +14,7 @@ export function nativeMajorAlignment(target: string, published: string): string 
 export function prepareNativeSelection(
   root: string,
   target: string,
-  versions?: Readonly<Record<string, string>>,
+  versions: Readonly<Record<string, string>>,
 ): Map<string, string>;
 export function cohortNativeVersions(root: string, target: string, published: string): Record<string, string>;
 export function nativeVersionOnly(

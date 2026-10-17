@@ -94,6 +94,13 @@ export function nativeBaseline(root: string): NativeBaseline {
     );
   return { source: { tag, commit }, archives };
 }
+const IMPACTS = ['patch', 'minor', 'major'] as const;
+const RELEASES = ['none', ...IMPACTS] as const;
+/** The npm release's own bump from its published version: none, patch, minor or major. */
+function releaseBump(published: string, target: string): (typeof RELEASES)[number] {
+  const [from, to] = [published, target].map((version) => version.split('.').map(Number)) as [number[], number[]];
+  return from[0] !== to[0] ? 'major' : from[1] !== to[1] ? 'minor' : from[2] !== to[2] ? 'patch' : 'none';
+}
 function bump(version: string, kind: 'patch' | 'minor' | 'major'): string {
   const [major, minor, patch] = version.split('.').map(Number) as [number, number, number];
   return kind === 'major'
@@ -130,7 +137,8 @@ export function assertNativeBaseline(root: string, baseline: NativeBaseline, pol
 /**
  * Normalized content changes and their exact dependency consumers need impact notes against the latest published tag.
  * A new npm major aligns every identity to its `x.0.0`; within a major, a changed archive takes its own impact bump
- * and an unchanged archive keeps its published version.
+ * and an unchanged archive keeps its published version. The npm release's own bump must cover every note, so from each
+ * `x.0.0` alignment no native version passes the npm version.
  */
 export function planNativeVersions(
   baseline: NativeBaseline,
@@ -182,16 +190,25 @@ export function planNativeVersions(
   }
   const applicable = notes?.baseline.tag === baseline.source.tag && notes?.baseline.commit === baseline.source.commit;
   if (changed.size) assert.ok(applicable, 'Changed native archives require notes against the latest published tag');
-  const selected = new Map<string, string>();
+  const published = baseline.source.tag.slice(1),
+    release = releaseBump(published, target),
+    selected = new Map<string, string>();
   for (const id of changed) {
     const note = applicable ? notes!.changes.find((entry) => entry.id === id) : undefined;
     assert.ok(note, id + ': changed archive requires its own bump note (including dependency changes)');
-    const version = bump(prior.get(id)!.version, note.bump);
-    assert.ok(compare(target, version) >= 0, id + ': npm target does not satisfy native ' + note.bump + ' impact');
-    selected.set(id, version);
+    // Lag-independent: the npm release bump, not the distance to npm, bounds each archive's impact.
+    assert.ok(
+      RELEASES.indexOf(release) >= RELEASES.indexOf(note.bump),
+      `${id}: npm ${published} -> ${target} (${release}) does not satisfy native ${note.bump} impact`,
+    );
+    selected.set(id, bump(prior.get(id)!.version, note.bump));
   }
   const versions = Object.fromEntries(
     normalized.map((row) => [row.id, alignment ?? selected.get(row.id) ?? row.version]),
+  );
+  assert.ok(
+    Object.values(versions).every((version) => compare(version, target) <= 0),
+    'Native versions cannot pass the npm target',
   );
   return { versions, alignment, direct: direct.sort(), changed: [...changed].sort() };
 }
