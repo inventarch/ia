@@ -2496,6 +2496,28 @@
             "linux",
             "macos"
           ]
+        },
+        {
+          "case": "tools/compliance/publication-fixtures.test.ts > throws what opening an unreadable file throws, as reading it by name did",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/compliance/publication-fixtures.test.ts > snapshots a link, a dangling link, a linked directory and a FIFO as null, and the files under the linked directory by their bytes",
+          "reason": "Windows has no FIFO special file, and its file links need a privilege, so the fixture cannot make a FIFO and runs only on POSIX. The snapshot of regular files and a directory runs on every platform in its own case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/compliance/publication-fixtures.test.ts > records a link as null even where the open follows links, as it does on Windows",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
         }
       ]
     },
@@ -2618,6 +2640,23 @@
       "resourceClass": "io",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/docs/audit.test.ts > refuses a link to a configuration this adapter wrote as an alias and leaves the configuration as it was",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included. The directory and unparsable-output refusals run on every platform in their own case.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tools/docs/audit.test.ts > refuses a FIFO at the roadmap output as unmanaged instead of waiting to read it",
+          "reason": "Windows has no FIFO special file, so the fixture cannot make one and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        }
       ]
     },
     {
@@ -2644,6 +2683,45 @@
       "resourceClass": "io",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/entry/is-entry.test.ts > compares real paths when a file link reaches the tool",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included. The directory junction case runs on every platform.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tools/entry/is-entry.test.ts > throws rather than answering \"not the entry\" when a path fails to resolve for a reason other than absence",
+          "reason": "The case makes a link loop, which needs a privilege on Windows, and an unreadable directory, which a Windows mode cannot make because it keeps only the read-only attribute; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/entry/is-entry.test.ts > refuses a dangling launcher with its stat error and a FIFO as not a regular file",
+          "reason": "Windows has no FIFO special file, and its file links need a privilege, so the fixture cannot make a FIFO and runs only on POSIX. The missing launcher and the directory and junction launchers run on every platform in their own case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/entry/is-entry.test.ts > follows a link to a launcher and judges the file it reaches",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tools/entry/is-entry.test.ts > rethrows the open error for a launcher it cannot read",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        }
       ]
     },
     {
@@ -2784,6 +2862,20 @@
           "platforms": [
             "linux",
             "macos"
+          ]
+        },
+        {
+          "case": "tools/systems/authoring-manifest.test.ts > refuses a FIFO, linked or unreadable selection as before",
+          "reason": "Windows has no FIFO special file, its file links need a privilege, and it keeps only the read-only attribute of a file's mode, so the fixture runs only on POSIX. The directory, hard-linked, missing and undecodable selections run on every platform in their own case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/systems/authoring-manifest.test.ts > refuses an unreadable authoring file past either cap as unbounded before reading it, as it always has",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
           ]
         }
       ]
@@ -3756,6 +3848,43 @@
       "resourceClass": "io",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tools/release/native-version.test.ts > system package input reads refuses a FIFO input as not a regular file, as it always has",
+          "reason": "Windows has no FIFO special file, so the fixture cannot make one and runs only on POSIX. The selected, missing and directory inputs run on every platform in their own case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/release/native-version.test.ts > system package input reads refuses a linked input before reading it and rethrows the open error for one it cannot read",
+          "reason": "File links need a privilege on Windows, and it keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/release/native-version.test.ts > system package input reads reads at most 2147483647 bytes at a time, so an input reported at that size refuses as changed",
+          "reason": "Its buffer is 2 ** 31 bytes, zeroed lazily on Linux and macOS but committed in full on Windows, so the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/release/native-version.test.ts > system package input reads refuses a link put in place at the open as aliased, even once it is gone again",
+          "reason": "Windows has no O_NOFOLLOW, so its open follows the link and fails with ENOENT, and its file links need a privilege; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tools/release/native-version.test.ts > system package input reads refuses an input replaced by a directory during the read as not a regular file",
+          "reason": "Windows can keep the name of a file that is still open, so the directory may not take its place; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        }
       ]
     }
   ]

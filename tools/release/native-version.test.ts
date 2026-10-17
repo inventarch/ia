@@ -612,7 +612,7 @@ describe('system package input reads', () => {
     );
   const digest = (text: string) => createHash('sha256').update(text).digest('hex');
 
-  it('reads a selected regular file and refuses a missing, directory or FIFO input as it always has', async () => {
+  it('reads a selected regular file and refuses a missing, directory or FIFO input as it always has', () => {
     const root = temporary();
     write(root, '.ia/src/a.ia', 'native source');
     write(root, 'pnpm-workspace.yaml', 'packages: []\n');
@@ -628,24 +628,35 @@ describe('system package input reads', () => {
     expect(() => bundle(root, '.ia/src/dir.ia', digest(''))).toThrow(
       /^System package input is not a regular file: \.ia\/src\/dir\.ia$/,
     );
-    if (process.platform === 'win32') return; // Windows has no FIFOs.
+  });
+
+  // Windows has no FIFOs.
+  it.skipIf(process.platform === 'win32')('refuses a FIFO input as not a regular file, as it always has', async () => {
+    const root = temporary();
+    write(root, '.ia/src/a.ia', 'native source');
+    write(root, 'pnpm-workspace.yaml', 'packages: []\n');
     expect((await runBounded('mkfifo', [resolve(root, '.ia/src/fifo.ia')], { timeoutMs: 10_000 })).status).toBe(0);
     expect(() => bundle(root, '.ia/src/fifo.ia', digest(''))).toThrow(
       /^System package input is not a regular file: \.ia\/src\/fifo\.ia$/,
     );
   });
 
-  it('refuses a linked input before reading it and rethrows the open error for one it cannot read', () => {
-    // File links need a privilege on Windows, which has no such mode either; root reads a file whatever its mode.
-    if (process.platform === 'win32') return;
-    const root = temporary();
-    write(root, '.ia/src/a.ia', 'native source');
-    symlinkSync('a.ia', resolve(root, '.ia/src/link.ia'));
-    expect(() => bundle(root, '.ia/src/link.ia', digest('native source'))).toThrow(/^Link\/junction is not allowed: /);
-    if (process.getuid?.() === 0) return;
-    chmodSync(resolve(root, '.ia/src/a.ia'), 0o000);
-    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(/^EACCES: permission denied, open /);
-  });
+  // File links need a privilege on Windows, and chmod 0o000 never denies a read there.
+  it.skipIf(process.platform === 'win32')(
+    'refuses a linked input before reading it and rethrows the open error for one it cannot read',
+    () => {
+      const root = temporary();
+      write(root, '.ia/src/a.ia', 'native source');
+      symlinkSync('a.ia', resolve(root, '.ia/src/link.ia'));
+      expect(() => bundle(root, '.ia/src/link.ia', digest('native source'))).toThrow(
+        /^Link\/junction is not allowed: /,
+      );
+      // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+      if (process.getuid?.() === 0) return;
+      chmodSync(resolve(root, '.ia/src/a.ia'), 0o000);
+      expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(/^EACCES: permission denied, open /);
+    },
+  );
 
   it('refuses an input over 2147483647 bytes before allocating a buffer for it', () => {
     const root = temporary(),
@@ -673,33 +684,35 @@ describe('system package input reads', () => {
       rmSync(big, { force: true });
     }
   });
-  it('reads at most 2147483647 bytes at a time, so an input reported at that size refuses as changed', () => {
-    // Its buffer is 2 ** 31 bytes: zeroed lazily on Linux and macOS, but committed in full on Windows.
-    if (process.platform === 'win32') return;
-    const root = temporary(),
-      target = resolve(root, '.ia/src/a.ia');
-    write(root, '.ia/src/a.ia', 'native source');
-    const open = fs.openSync,
-      fstat = fs.fstatSync;
-    let selected: number | undefined;
-    vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
-      const fd = Reflect.apply(open, fs, args) as number;
-      if (String(args[0]) === target) selected = fd;
-      return fd;
-    });
-    // The input's descriptor reports 2147483647 bytes before and after its read: one read may ask for all of them, the
-    // read stops at the real end, and the input refuses as changed. Asking for one byte more throws ERR_OUT_OF_RANGE.
-    vi.spyOn(fs, 'fstatSync').mockImplementation(((...args: Parameters<typeof fs.fstatSync>) => {
-      const stat = Reflect.apply(fstat, fs, args);
-      if (args[0] === selected && typeof stat?.size === 'bigint') (stat as { size: bigint }).size = 0x7fffffffn;
-      return stat;
-    }) as typeof fs.fstatSync);
-    syncBuiltinESMExports();
-    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(
-      /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
-    );
-    expect(selected).toBeDefined();
-  });
+  // Its buffer is 2 ** 31 bytes: zeroed lazily on Linux and macOS, but committed in full on Windows.
+  it.skipIf(process.platform === 'win32')(
+    'reads at most 2147483647 bytes at a time, so an input reported at that size refuses as changed',
+    () => {
+      const root = temporary(),
+        target = resolve(root, '.ia/src/a.ia');
+      write(root, '.ia/src/a.ia', 'native source');
+      const open = fs.openSync,
+        fstat = fs.fstatSync;
+      let selected: number | undefined;
+      vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+        const fd = Reflect.apply(open, fs, args) as number;
+        if (String(args[0]) === target) selected = fd;
+        return fd;
+      });
+      // The input's descriptor reports 2147483647 bytes before and after its read: one read may ask for all of them, the
+      // read stops at the real end, and the input refuses as changed. Asking for one byte more throws ERR_OUT_OF_RANGE.
+      vi.spyOn(fs, 'fstatSync').mockImplementation(((...args: Parameters<typeof fs.fstatSync>) => {
+        const stat = Reflect.apply(fstat, fs, args);
+        if (args[0] === selected && typeof stat?.size === 'bigint') (stat as { size: bigint }).size = 0x7fffffffn;
+        return stat;
+      }) as typeof fs.fstatSync);
+      syncBuiltinESMExports();
+      expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(
+        /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
+      );
+      expect(selected).toBeDefined();
+    },
+  );
   afterEach(() => {
     vi.restoreAllMocks();
     syncBuiltinESMExports();
@@ -774,8 +787,12 @@ describe('system package input reads', () => {
       /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
     ],
   ];
-  it.each(changes)('refuses %s', (_, at, change, refusal, posixOnly) => {
-    if (posixOnly && process.platform === 'win32') return;
+  const refused = (
+    _: string,
+    at: 'open' | 'read',
+    change: (target: string) => (() => void) | void,
+    refusal: RegExp,
+  ) => {
     const root = temporary(),
       target = resolve(root, '.ia/src/a.ia');
     write(root, '.ia/src/a.ia', 'native source');
@@ -783,5 +800,10 @@ describe('system package input reads', () => {
     const changed = around(target, at, () => change(target));
     expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(refusal);
     expect(changed()).toBe(true);
-  });
+  };
+  it.each(changes.filter(([, , , , posixOnly]) => !posixOnly))('refuses %s', refused);
+  it.skipIf(process.platform === 'win32').each(changes.filter(([, , , , posixOnly]) => posixOnly))(
+    'refuses %s',
+    refused,
+  );
 });

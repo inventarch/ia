@@ -268,7 +268,7 @@ it('admits sixteen mebibytes of selected authoring files in all and refuses a by
   expect(() => authoringResources(library({ ...files, '.ia/src/guide/tail.md': 'x' }))).toThrow(unbounded);
 }, 120_000);
 
-it('refuses a directory, hard-linked, missing, undecodable, FIFO, linked or unreadable selection as before', async () => {
+it('refuses a directory, hard-linked, missing, undecodable, FIFO, linked or unreadable selection as before', () => {
   const directory = library({ '.ia/src/guide/folder.md': undefined });
   mkdirSync(resolve(directory, '.ia/src/guide/folder.md'));
   expect(() => authoringResources(directory)).toThrow(unbounded);
@@ -279,32 +279,39 @@ it('refuses a directory, hard-linked, missing, undecodable, FIFO, linked or unre
     /^ENOENT: no such file or directory, lstat /,
   );
   expect(() => authoringResources(library({ '.ia/src/guide/bytes.md': Buffer.from([0xff, 0xfe]) }))).toThrow(TypeError);
-  // Windows has no FIFOs, file links need a privilege there, and root reads a file whatever its mode.
-  if (process.platform === 'win32') return;
+});
+
+// Windows has no FIFOs, and file links need a privilege there.
+it.skipIf(process.platform === 'win32')('refuses a FIFO, linked or unreadable selection as before', async () => {
   const fifo = library({ '.ia/src/guide/fifo.md': undefined });
   expect((await runBounded('mkfifo', [resolve(fifo, '.ia/src/guide/fifo.md')], { timeoutMs: 10_000 })).status).toBe(0);
   expect(() => authoringResources(fifo)).toThrow(unbounded);
   const linked = library({ '.ia/src/guide/README.md': '# Guide\n', '.ia/src/guide/link.md': undefined });
   symlinkSync('README.md', resolve(linked, '.ia/src/guide/link.md'));
   expect(() => authoringResources(linked)).toThrow(/^Authoring selection crosses an alias$/);
+  // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
   if (process.getuid?.() === 0) return;
   const locked = library({ '.ia/src/guide/README.md': '# Guide\n' });
   chmodSync(resolve(locked, '.ia/src/guide/README.md'), 0o000);
   expect(() => authoringResources(locked)).toThrow(/^EACCES: permission denied, open /);
 });
 
-it('refuses an unreadable authoring file past either cap as unbounded before reading it, as it always has', () => {
-  // Root reads a file whatever its mode, and Windows has no such mode.
-  if (process.platform === 'win32' || process.getuid?.() === 0) return;
-  const large = library({ '.ia/src/guide/large.md': mebibyte + 'x' });
-  chmodSync(resolve(large, '.ia/src/guide/large.md'), 0o000);
-  expect(() => authoringResources(large)).toThrow(unbounded);
-  const files: Record<string, string> = {};
-  for (let index = 0; index < 16; index++) files[`.ia/src/guide/part-${String(index).padStart(2, '0')}.md`] = mebibyte;
-  const full = library({ ...files, '.ia/src/guide/tail.md': 'x' });
-  chmodSync(resolve(full, '.ia/src/guide/tail.md'), 0o000);
-  expect(() => authoringResources(full)).toThrow(unbounded);
-});
+it.skipIf(process.platform === 'win32')(
+  'refuses an unreadable authoring file past either cap as unbounded before reading it, as it always has',
+  () => {
+    // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+    if (process.getuid?.() === 0) return;
+    const large = library({ '.ia/src/guide/large.md': mebibyte + 'x' });
+    chmodSync(resolve(large, '.ia/src/guide/large.md'), 0o000);
+    expect(() => authoringResources(large)).toThrow(unbounded);
+    const files: Record<string, string> = {};
+    for (let index = 0; index < 16; index++)
+      files[`.ia/src/guide/part-${String(index).padStart(2, '0')}.md`] = mebibyte;
+    const full = library({ ...files, '.ia/src/guide/tail.md': 'x' });
+    chmodSync(resolve(full, '.ia/src/guide/tail.md'), 0o000);
+    expect(() => authoringResources(full)).toThrow(unbounded);
+  },
+);
 
 it('refuses an authoring file rewritten at the same size, within one millisecond, while it is read', () => {
   const root = library({ '.ia/src/guide/README.md': '# Guide\n' }),

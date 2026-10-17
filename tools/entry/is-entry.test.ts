@@ -56,7 +56,7 @@ it('compares real paths when a link reaches the tool, such as a linked checkout'
     mkdirSync(tools);
     writeFileSync(main, '');
     writeFileSync(resolve(tools, 'other.mjs'), '');
-    // A directory junction needs no privilege on Windows; a file link does, so that case runs wherever it is granted.
+    // A directory junction needs no privilege on Windows; a file link does, and has its own case below.
     symlinkSync(tools, linked, 'junction');
     expect(isEntry(resolve(linked, 'main.mjs'), url)).toBe(true);
     expect(isEntry(resolve(linked, 'other.mjs'), url)).toBe(false);
@@ -64,32 +64,46 @@ it('compares real paths when a link reaches the tool, such as a linked checkout'
     // A path through a file, or with a name too long for the file system, names no file either: it cannot be the entry.
     expect(isEntry(resolve(main, 'main.mjs'), url)).toBe(false);
     expect(isEntry(resolve(base, 'x'.repeat(300)), url)).toBe(false);
-    if (fileLink(main, resolve(base, 'tool'))) expect(isEntry(resolve(base, 'tool'), url)).toBe(true);
   });
 });
 
-it('throws rather than answering "not the entry" when a path fails to resolve for a reason other than absence', () => {
-  // Answering false would let a tool exit 0 having done nothing. File links need privilege on Windows, and root reads a
-  // directory whatever its mode, so the link loop and the unreadable directory are POSIX-only, non-root cases.
-  if (process.platform === 'win32') return;
+it('compares real paths when a file link reaches the tool', (context) => {
   scratch((base) => {
-    const main = resolve(base, 'main.mjs'),
-      url = pathToFileURL(main).href,
-      locked = resolve(base, 'locked');
+    const tools = resolve(base, 'tools'),
+      main = resolve(tools, 'main.mjs'),
+      url = pathToFileURL(main).href;
+    mkdirSync(tools);
     writeFileSync(main, '');
-    symlinkSync(resolve(base, 'b'), resolve(base, 'a'));
-    symlinkSync(resolve(base, 'a'), resolve(base, 'b'));
-    expect(() => isEntry(resolve(base, 'a'), url)).toThrow(/ELOOP/);
-    if (process.getuid?.() === 0) return;
-    mkdirSync(resolve(locked, 'sub'), { recursive: true });
-    chmodSync(locked, 0o000);
-    try {
-      expect(() => isEntry(resolve(locked, 'sub/main.mjs'), url)).toThrow(/EACCES/);
-    } finally {
-      chmodSync(locked, 0o700);
-    }
+    if (!fileLink(main, resolve(base, 'tool'))) return context.skip('Windows denied file symlink creation (EPERM)');
+    expect(isEntry(resolve(base, 'tool'), url)).toBe(true);
   });
 });
+
+it.skipIf(process.platform === 'win32')(
+  'throws rather than answering "not the entry" when a path fails to resolve for a reason other than absence',
+  () => {
+    // Answering false would let a tool exit 0 having done nothing.
+    scratch((base) => {
+      const main = resolve(base, 'main.mjs'),
+        url = pathToFileURL(main).href,
+        locked = resolve(base, 'locked');
+      writeFileSync(main, '');
+      symlinkSync(resolve(base, 'b'), resolve(base, 'a'));
+      symlinkSync(resolve(base, 'a'), resolve(base, 'b'));
+      expect(() => isEntry(resolve(base, 'a'), url)).toThrow(/ELOOP/);
+      // Root reads a directory whatever its mode; the gate has no skip condition for root, so the case returns early
+      // instead.
+      if (process.getuid?.() === 0) return;
+      mkdirSync(resolve(locked, 'sub'), { recursive: true });
+      chmodSync(locked, 0o000);
+      try {
+        expect(() => isEntry(resolve(locked, 'sub/main.mjs'), url)).toThrow(/EACCES/);
+      } finally {
+        chmodSync(locked, 0o700);
+      }
+    });
+  },
+);
 
 it('leaves no source with the old spelling of the check, resolving process.argv[1] and comparing it with ===', () => {
   // Comparing the resolved invoked path with the module's own path never matches through a link, so the tool exits 0
@@ -198,38 +212,45 @@ it('runs a real native launcher directly from a path with spaces and preserves i
   }
 });
 
+const NOT_REGULAR_LAUNCHER = /^Package-manager launcher must be a regular file$/,
+  MISSING_LAUNCHER = /^ENOENT: no such file or directory, stat /;
 it('refuses a missing or dangling launcher with its stat error and a directory or FIFO as not a regular file', () => {
   scratch((base) => {
-    const notRegular = /^Package-manager launcher must be a regular file$/,
-      missing = /^ENOENT: no such file or directory, stat /;
-    expect(() => packageManagerCommand(resolve(base, 'missing'), [])).toThrow(missing);
-    expect(() => packageManagerCommand(base, [])).toThrow(notRegular);
+    expect(() => packageManagerCommand(resolve(base, 'missing'), [])).toThrow(MISSING_LAUNCHER);
+    expect(() => packageManagerCommand(base, [])).toThrow(NOT_REGULAR_LAUNCHER);
     // A directory junction needs no privilege on Windows, and the launcher it reaches is still a directory.
     symlinkSync(base, resolve(base, 'directory link'), 'junction');
-    expect(() => packageManagerCommand(resolve(base, 'directory link'), [])).toThrow(notRegular);
-    // File links need a privilege on Windows, which has no FIFOs.
-    if (process.platform === 'win32') return;
-    symlinkSync(resolve(base, 'missing'), resolve(base, 'dangling'));
-    expect(() => packageManagerCommand(resolve(base, 'dangling'), [])).toThrow(missing);
-    const fifo = resolve(base, 'pnpm fifo');
-    expect(spawnSync('mkfifo', [fifo], { timeout: 10_000 }).status).toBe(0);
-    expect(() => packageManagerCommand(fifo, [])).toThrow(notRegular);
+    expect(() => packageManagerCommand(resolve(base, 'directory link'), [])).toThrow(NOT_REGULAR_LAUNCHER);
   });
 });
 
-it('follows a link to a launcher and judges the file it reaches', () => {
+// File links need a privilege on Windows, which has no FIFOs.
+it.skipIf(process.platform === 'win32')(
+  'refuses a dangling launcher with its stat error and a FIFO as not a regular file',
+  () => {
+    scratch((base) => {
+      symlinkSync(resolve(base, 'missing'), resolve(base, 'dangling'));
+      expect(() => packageManagerCommand(resolve(base, 'dangling'), [])).toThrow(MISSING_LAUNCHER);
+      const fifo = resolve(base, 'pnpm fifo');
+      expect(spawnSync('mkfifo', [fifo], { timeout: 10_000 }).status).toBe(0);
+      expect(() => packageManagerCommand(fifo, [])).toThrow(NOT_REGULAR_LAUNCHER);
+    });
+  },
+);
+
+it('follows a link to a launcher and judges the file it reaches', (context) => {
   scratch((base) => {
     const target = resolve(base, 'pnpm.cjs'),
       link = resolve(base, 'pnpm');
     writeFileSync(target, '#!/usr/bin/env node\n');
-    if (!fileLink(target, link)) return;
+    if (!fileLink(target, link)) return context.skip('Windows denied file symlink creation (EPERM)');
     expect(packageManagerCommand(link, ['install'], 'node')).toEqual({ command: 'node', args: [link, 'install'] });
   });
 });
 
-it('rethrows the open error for a launcher it cannot read', () => {
-  // Root reads a file whatever its mode, and Windows has no such mode.
-  if (process.platform === 'win32' || process.getuid?.() === 0) return;
+it.skipIf(process.platform === 'win32')('rethrows the open error for a launcher it cannot read', () => {
+  // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+  if (process.getuid?.() === 0) return;
   scratch((base) => {
     const launcher = resolve(base, 'pnpm.cjs');
     writeFileSync(launcher, '#!/usr/bin/env node\n');
