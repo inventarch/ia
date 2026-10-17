@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "patch",
   "title": "Verify the host payload once per ia host apply",
-  "summary": "ia host --apply verifies the host payload (about 1,400 files) once for its plans instead of on each plan, so applies with hooks are faster. The checks that guard each commit still verify afresh, so a payload that changes during the command still refuses the apply.",
+  "summary": "ia host --apply shares one verification of the host payload (about 1,400 files) between its MCP plan and its projection pre-check, so an apply scans the payload fewer times. Each step that writes still verifies afresh, so a payload that changes during the command still refuses the apply.",
   "packages": [
     "@inventarch/cli",
     "@inventarch/distribution"
