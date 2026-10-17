@@ -31,7 +31,7 @@
     decider "Release maintainer"
     choice "Read the npm version from releases/current.json and derive package membership from the selected public package manifests; bind historical choices to their versioned changesets."
     rationale "A mutable release selection must have one authority. Work records state the qualification process and historical records retain immutable evidence."
-    constraints ["Public native system and language archive artifact versions follow the npm release target; syntax, schema, format, engine and protocol versions retain their own compatibility meaning.", "Work status does not establish qualification; current-source observations and exact archive receipts supply evidence.", "Merge, tags, registry publication, trust configuration and deployment require their own publication checkpoint."]
+    constraints ["Public native system and language archive artifact versions align to the npm release at each breaking major and otherwise change only with their own content; syntax, schema, format, engine and protocol versions retain their own compatibility meaning.", "Work status does not establish qualification; current-source observations and exact archive receipts supply evidence.", "Merge, tags, registry publication, trust configuration and deployment require their own publication checkpoint."]
 
 @plan npm-release-hygiene
   meaning

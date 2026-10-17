@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "State the bundled language base's own native version in the CLI contract",
+  "summary": "The CLI SPEC now says the bundled inventarch/language base carries its own native artifact version, which aligns to the npm release at each breaking major rather than always matching the CLI version. CLI behavior is unchanged.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/SPEC.md"
+  ]
+}
