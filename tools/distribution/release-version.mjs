@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
 import { PUBLIC_INPUTS, publicPackageInputs, refreshPublicPackageInputs } from '../release/public-pack.mjs';
 import { REGISTRY } from './npm-release.mjs';
-import { prepareNativeSelection } from '../release/native-selectors.mjs';
+import { cohortNativeVersions, prepareNativeSelection } from '../release/native-selectors.mjs';
 import {
   RELEASE_POLICY,
   changeApplies,
@@ -134,7 +134,11 @@ export async function versionRelease(root, projects, options = {}) {
     if (!refresh) return none(`${policy.version} is prepared; pass --refresh to re-collect it`);
     try {
       releaseChanges(root, projects);
-      const selectors = prepareNativeSelection(root, policy.version);
+      const selectors = prepareNativeSelection(
+        root,
+        policy.version,
+        cohortNativeVersions(root, policy.version, policy.baseline.version),
+      );
       if ([...selectors].every(([path, bytes]) => readFileSync(resolve(root, path), 'utf8') === bytes))
         return none(`${policy.version} is prepared and current`);
     } catch {}
@@ -148,8 +152,9 @@ export async function versionRelease(root, projects, options = {}) {
   const bump = maxBump(bumps),
     version = bumpVersion(baseline.version, bump),
     action = published ? 'version' : notes.length ? 'amend' : 'refresh';
-  // Validate the complete native selector surface before any write, including explicit same-version refreshes.
-  const selectors = prepareNativeSelection(root, version),
+  // Validate the complete native selector surface before any write, including explicit same-version refreshes. Native
+  // versions move only when npm starts a new major; otherwise the native release writer selects them from content.
+  const selectors = prepareNativeSelection(root, version, cohortNativeVersions(root, version, baseline.version)),
     selectorWrites = [...selectors].filter(([path, bytes]) => readFileSync(resolve(root, path), 'utf8') !== bytes);
   const plan = {
     action,
@@ -228,7 +233,7 @@ export async function versionRelease(root, projects, options = {}) {
       changes.push({
         id: 'cohort-alignment',
         title: 'Coordinated version alignment',
-        summary: `Package and native artifact version metadata follows the coordinated ${version} release.`,
+        summary: `Version metadata only: packages follow the coordinated ${version} release; native artifact versions follow their own selection.`,
         packages: [...new Set(paths.map((path) => packageOwner(projects, path)))].sort(),
         paths,
       });
@@ -252,7 +257,7 @@ export async function versionRelease(root, projects, options = {}) {
           const summary =
             prior?.kind === 'cohort'
               ? prior.summary
-              : 'Package and native artifact version metadata aligned with the coordinated cohort.';
+              : 'Version metadata only; the package version follows the coordinated cohort.';
           return [name, { previous, kind: 'cohort', summary }];
         }
         // Keep a reviewed summary and append new note titles; otherwise summarize every change naming the package.
