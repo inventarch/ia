@@ -3,8 +3,9 @@
 // manifest readers, which need a prepared candidate, resolve to stubs; the archive reading under test is unchanged.
 // Every buffer the script hands to tar is recorded in the fixture's log. With `race`, the selected archive at
 // `race.path` is changed once at a named moment: `open` just before the script opens it by descriptor, `read` at the
-// first read through that descriptor, and `tar` when its checked bytes are handed to tar. Built-in functions are
-// replaced on their module objects and published to the script's ES imports with syncBuiltinESMExports.
+// first read through that descriptor, and `tar` when its checked bytes are handed to tar; the `extend` change makes it a
+// sparse file of `race.size` bytes. Built-in functions are replaced on their module objects and published to the
+// script's ES imports with syncBuiltinESMExports.
 import childProcess from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -48,6 +49,8 @@ const changes = {
   },
   grow: () => fs.appendFileSync(race.path, Buffer.from([0])),
   shrink: () => fs.truncateSync(race.path, fs.statSync(race.path).size - 1),
+  // The archive made a sparse file of `race.size` bytes.
+  extend: () => fs.truncateSync(race.path, race.size),
   // Other bytes at the same size, with an older modification time.
   rewrite: () => {
     const bytes = fs.readFileSync(race.path);
@@ -68,6 +71,18 @@ const change = (at) => {
     changes[race.change]();
   }
 };
+// No buffer past 2147483647 bytes is allocated. An archive of exactly that size earns one a byte longer, 2 ** 31 bytes: a
+// stand-in of that length is handed back, and the first read into it ends the run, naming the length it asked for. A
+// longer buffer refuses at the allocation, naming its size.
+const { alloc } = Buffer;
+const standIns = new WeakSet();
+Buffer.alloc = function (size, ...rest) {
+  if (size > 2 ** 31) throw new Error(`A buffer of ${size} bytes was allocated`);
+  if (size < 2 ** 31) return Reflect.apply(alloc, this, [size, ...rest]);
+  const standIn = Object.defineProperty(Reflect.apply(alloc, this, [1]), 'length', { value: size });
+  standIns.add(standIn);
+  return standIn;
+};
 const descriptors = new Set();
 fs.openSync = function (path, flags, ...rest) {
   // The script opens a selected archive with numeric flags; its earlier reads by name pass a string.
@@ -77,9 +92,11 @@ fs.openSync = function (path, flags, ...rest) {
   if (selected) descriptors.add(descriptor);
   return descriptor;
 };
-fs.readSync = function (descriptor, ...rest) {
+fs.readSync = function (descriptor, buffer, ...rest) {
+  if (standIns.has(buffer))
+    throw new Error(`A read of ${rest[1]} bytes was asked of the buffer of ${buffer.length} bytes`);
   if (descriptors.has(descriptor)) change('read');
-  return Reflect.apply(readSync, fs, [descriptor, ...rest]);
+  return Reflect.apply(readSync, fs, [descriptor, buffer, ...rest]);
 };
 childProcess.execFileSync = function (file, args, options) {
   if (file === 'tar') {

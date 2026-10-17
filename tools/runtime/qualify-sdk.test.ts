@@ -68,12 +68,17 @@ interface Options {
   /** The db archive's name as a link to the archive moved elsewhere. */
   readonly link?: 'hard' | 'symbolic';
   /** A change to the db archive at the named moment of its reading, as fixtures/qualify-sdk.mjs makes it. */
-  readonly race?: { readonly at: 'open' | 'read' | 'tar'; readonly change: string };
+  readonly race?: { readonly at: 'open' | 'read' | 'tar'; readonly change: string; readonly size?: number };
 }
 interface Pin {
   readonly package: string;
   readonly archive: string;
   readonly sha256: string;
+}
+function dbAfter(db: string): string | undefined {
+  const stat = lstatSync(db, { throwIfNoEntry: false });
+  // A sparse archive past 2147483647 bytes is not read: readFileSync refuses it, and its digest is not asked for.
+  return stat?.isFile() && stat.size <= 0x7fffffff ? sha256(readFileSync(db)) : undefined;
 }
 async function qualify(options: Options = {}) {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-qualify-sdk-'));
@@ -170,8 +175,8 @@ async function qualify(options: Options = {}) {
         ?.dependencies,
       /** The digest of each archive at the path the install names, as the install read it. */
       installed: read(resolve(output, 'install.log')) as Record<string, string> | undefined,
-      /** The digest of the bytes at the db archive's name after the run, while it is a regular file. */
-      dbAfter: lstatSync(db, { throwIfNoEntry: false })?.isFile() ? sha256(readFileSync(db)) : undefined,
+      /** The digest of the bytes at the db archive's name after the run, while it is a regular file the read by name admits. */
+      dbAfter: dbAfter(db),
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -322,6 +327,30 @@ it.skipIf(process.platform === 'win32')(
 it.skipIf(process.platform === 'win32')(
   'refuses a FIFO put in place after its selection before tar is handed its bytes',
   () => refusesBeforeTar({ race: { at: 'open', change: 'fifo' } }, 'Selected archive is not a regular file'),
+  settle,
+);
+
+// The read by name that digests every archive refuses one over 2147483647 bytes itself, so the read through the descriptor
+// meets a larger archive only if one grows after that: the fixture extends it, as a sparse file, just before its open. It
+// allocates no buffer past that size either: a longer one refuses there, naming its size, and without the bound that
+// refusal, not the script's own, is what these cases would see.
+it(
+  'refuses an archive over 2147483647 bytes before allocating a buffer for it',
+  () =>
+    refusesBeforeTar(
+      { race: { at: 'open', change: 'extend', size: 2147483648 } },
+      'Selected archive exceeds 2147483647 bytes: ',
+    ),
+  settle,
+);
+it(
+  'admits an archive of exactly 2147483647 bytes and reads at most that many bytes at a time',
+  // The fixture hands back a stand-in for its buffer, one byte longer, and ends the run at the first read into it.
+  () =>
+    refusesBeforeTar(
+      { race: { at: 'open', change: 'extend', size: 0x7fffffff } },
+      'A read of 2147483647 bytes was asked of the buffer of 2147483648 bytes',
+    ),
   settle,
 );
 

@@ -1,4 +1,13 @@
-import fs, { appendFileSync, chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import fs, {
+  appendFileSync,
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  truncateSync,
+  writeFileSync,
+} from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -136,6 +145,54 @@ it('refuses a snapshot entry that grows while it is read instead of recording th
     syncBuiltinESMExports();
     expect(() => contents(root)).toThrow(/^Publication fixture entry changed while it was read: .*growing\.txt$/);
     expect(grown).toBe(true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('refuses an entry over 2147483647 bytes before allocating a buffer for it', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-publication-snapshot-'));
+  try {
+    // A sparse file: its size is 2147483648 bytes without that much being written.
+    writeFileSync(resolve(root, 'big.bin'), '');
+    truncateSync(resolve(root, 'big.bin'), 2147483648);
+    // A buffer past the bound is never allocated here: the guard refuses first, and without it this spy refuses instead.
+    const alloc = Buffer.alloc;
+    vi.spyOn(Buffer, 'alloc').mockImplementation((...args: Parameters<typeof Buffer.alloc>) => {
+      if (args[0] > 0x7fffffff) throw new Error('A buffer past 2147483647 bytes was allocated');
+      return Reflect.apply(alloc, Buffer, args) as ReturnType<typeof Buffer.alloc>;
+    });
+    expect(() => contents(root)).toThrow(/^Publication fixture entry exceeds 2147483647 bytes: .*big\.bin$/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('admits an entry of exactly 2147483647 bytes and reads at most that many bytes at a time', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-publication-snapshot-'));
+  try {
+    // A sparse file of the most the read by name admitted.
+    writeFileSync(resolve(root, 'edge.bin'), '');
+    truncateSync(resolve(root, 'edge.bin'), 0x7fffffff);
+    // Its buffer, one byte longer, is 2 ** 31 bytes. None is allocated here: a stand-in of that length is handed back and
+    // the reads are recorded instead of made. The first returns no bytes, so the entry refuses as changed.
+    const alloc = Buffer.alloc,
+      allocated: number[] = [],
+      asked: number[] = [];
+    vi.spyOn(Buffer, 'alloc').mockImplementation((...args: Parameters<typeof Buffer.alloc>) => {
+      if (args[0] <= 0x7fffffff) return Reflect.apply(alloc, Buffer, args) as ReturnType<typeof Buffer.alloc>;
+      allocated.push(args[0]);
+      return Object.defineProperty(Reflect.apply(alloc, Buffer, [1]) as Buffer, 'length', { value: args[0] });
+    });
+    vi.spyOn(fs, 'readSync').mockImplementation(((...args: Parameters<typeof fs.readSync>) => {
+      asked.push(args[3] as number);
+      return 0;
+    }) as typeof fs.readSync);
+    syncBuiltinESMExports();
+    expect(() => contents(root)).toThrow(/^Publication fixture entry changed while it was read: .*edge\.bin$/);
+    // The guard let it through to its buffer, and the read asked for 2147483647 bytes, not 2147483648, which Node refuses.
+    expect(allocated).toEqual([2147483648]);
+    expect(asked).toEqual([0x7fffffff]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
