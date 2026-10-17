@@ -35,6 +35,8 @@ import type { JsonPath } from './json-edit.js';
 import type { Stats } from 'node:fs';
 import type { WorkspaceHost as Host } from './hosts.js';
 import { asWorkspaceHost } from './hosts.js';
+import { isMinted } from './host-verdict.js';
+import type { HostVerifier } from './host-verdict.js';
 
 interface Cache {
   directory: string;
@@ -364,12 +366,26 @@ export function expectedHostCache(directory: string, release: string): HostCache
     launcher: join(settledDirectory, 'scripts/ia.mjs'),
   };
 }
-/** Descriptive plan: configuration and ownership bytes are always rederived on apply. */
-export function planHost(rootInput: string, hostInput: Host, cacheInput: string | null, removeId?: string): HostPlan {
+/**
+ * Descriptive plan: configuration and ownership bytes are always rederived on apply. `verify`, a command's shared
+ * `hostVerifier`, reuses a verdict it already holds; without it the cache is verified afresh, as `applyHost` does.
+ */
+export function planHost(
+  rootInput: string,
+  hostInput: Host,
+  cacheInput: string | null,
+  removeId?: string,
+  verify?: HostVerifier,
+): HostPlan {
   const root = workspace(rootInput),
     host = asHost(hostInput);
   assertHostRegistrationIdle(root);
-  return planHostWith(root, host, cacheInput === null ? null : verifyHostCache(cacheInput), removeId);
+  return planHostWith(
+    root,
+    host,
+    cacheInput === null ? null : (isMinted(verify) ? verify : verifyHostCache)(cacheInput),
+    removeId,
+  );
 }
 /** `planHost` against an expected, unverified cache (`expectedHostCache`), or against none for a removal. Never reads the cache. */
 export function planHostFor(
