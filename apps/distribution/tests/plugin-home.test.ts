@@ -584,6 +584,8 @@ it('releases only the lock it wrote, leaving whatever replaced it for the next r
     'the lock of another run: this pid with another token': (lockPath) =>
       real.writeFileSync(lockPath, `${live} ${OTHER_TOKEN}`, { flag: 'wx' }),
     'the lock of an older CLI: this pid alone': (lockPath) => real.writeFileSync(lockPath, live, { flag: 'wx' }),
+    'the bytes of A followed by a newline': (lockPath, aside) =>
+      real.writeFileSync(lockPath, `${real.readFileSync(aside, 'utf8')}\n`, { flag: 'wx' }),
     'nothing: removed by hand': () => {},
   };
   if (links)
@@ -620,6 +622,41 @@ it('releases only the lock it wrote, leaving whatever replaced it for the next r
     };
   }
   expect(seen).toEqual(expected);
+});
+// The release's identity check. Right after the release opens this run's lock, the lock is moved aside and a copy of it,
+// holding this run's exact bytes, takes its name. The opened file passes every other check, so only comparing the name
+// with the opened descriptor (dev and ino) keeps the release from removing the copy. Off Windows a symbolic link never
+// reaches that comparison, as O_NOFOLLOW refuses it first, so this case is what holds it there.
+it('leaves in place a file holding its own bytes that takes the lock path while its release judges the lock', () => {
+  const root = temp(),
+    home = join(root, '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    copy = join(root, 'copy.lock');
+  let swapped = false,
+    copied: bigint | undefined,
+    own = '';
+  vi.mocked(openSync).mockImplementation((path, flags, mode) => {
+    const fd = real.openSync(path, flags, mode);
+    // Only the release opens the free lock path with numeric flags: the acquire's exclusive open passes 'wx'.
+    if (!swapped && String(path) === lockPath && typeof flags === 'number') {
+      swapped = true; // set first: given options with no encoding, the real writeFileSync below opens through this stub
+      own = real.readFileSync(lockPath, 'utf8');
+      real.writeFileSync(copy, own, { flag: 'wx' });
+      // Moved aside rather than removed, so its name is free on every platform while the release still holds it open.
+      real.renameSync(lockPath, join(root, 'released.lock'));
+      real.renameSync(copy, lockPath);
+      copied = real.statSync(lockPath, { bigint: true }).ino;
+    }
+    return fd;
+  });
+  const a = materialized(home);
+  expect(swapped).toBe(true);
+  expect({
+    a,
+    named: real.statSync(lockPath, { bigint: true, throwIfNoEntry: false })?.ino === copied,
+    left: standing(lockPath),
+  }).toEqual({ a: 'materialized', named: true, left: `file holding ${own}` });
+  expect(materialized(home)).toEqual(heldBy(lockPath)); // the copy names a live pid, so the next run waits for it
 });
 // A run writes its pid, a space and a token of its own. The pid comes first, so a reader that parses only a leading pid,
 // as an older CLI and the takeover's bounded read do, still finds it; the token tells this run's lock from that of any
@@ -688,52 +725,76 @@ it('keeps a fresh lock that replaced the stale one while it was judged, and refu
   expect(readFileSync(lockPath, 'utf8')).toBe(String(process.pid));
   expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
 });
-// The other half of judging one file: the pid and the age are the opened lock's. The lock this run opens is live and
-// young, and right after the open a stale-looking lock (a dead pid, 20 minutes old) takes its name. A pid read by name
-// would make the opened lock look stale; the identity check would then refuse to remove it, and the retry would take
-// the swapped-in lock over and go ahead.
+// The other half of judging one file: the pid and the age are the opened lock's. In each row, right after this run opens
+// the held lock, a stale-looking lock takes its name. In the first, the opened lock is live and young and the
+// swapped-in one holds a dead pid, 20 minutes old, so a pid read by name would make the opened lock look stale. In the
+// second, neither holds a pid, so only their ages tell them apart: the opened lock is 5 seconds old, inside the grace,
+// and the swapped-in one 20 seconds old, past it, so an age read by name would make the opened lock look stale. Either
+// way the identity check would then refuse to remove it, and the retry would take the swapped-in lock over and go ahead.
 it('judges the pid and age of the lock it opened, not of a stale-looking lock swapped in at its name, and refuses INSTALL-BUSY at once', () => {
-  const root = temp(),
-    home = join(root, '.ia'),
-    lockPath = join(home, 'claude', '.lock');
-  mkdirSync(join(home, 'claude'), { recursive: true });
-  writeFileSync(lockPath, String(process.pid)); // live and just written: busy
-  let swapping = false,
-    swapped: bigint | undefined,
-    opened = 0;
-  const swap = (path: unknown): void => {
-    if (swapping || swapped !== undefined || String(path) !== lockPath) return;
-    swapping = true; // given options with no encoding, the real writeFileSync below opens through the openSync stub
-    try {
-      // Moved aside rather than removed, so its name is free on every platform while this run still holds it open.
-      real.renameSync(lockPath, join(root, 'opened.lock'));
-      real.writeFileSync(lockPath, DEAD_PID, { flag: 'wx' });
-      const past = new Date(Date.now() - 20 * 60_000);
-      real.utimesSync(lockPath, past, past);
-      swapped = real.statSync(lockPath, { bigint: true }).ino;
-    } finally {
-      swapping = false;
-    }
+  const rows: Record<
+    string,
+    readonly [opened: string, openedAgeMs: number, swappedIn: string, swappedInAgeMs: number]
+  > = {
+    'a live pid just written, then a dead pid 20 minutes old': [String(process.pid), 0, DEAD_PID, 20 * 60_000],
+    'no pid, 5 seconds old, then no pid, 20 seconds old': ['', 5_000, '', 20_000],
   };
-  // Whichever call makes this run's first look at the held lock, the swap comes right after it.
-  vi.mocked(openSync).mockImplementation((path, flags, mode) => {
-    const fd = real.openSync(path, flags, mode);
-    if (!swapping && String(path) === lockPath) opened++;
-    swap(path);
-    return fd;
-  });
-  vi.mocked(statSync).mockImplementation(((path: never, options: never) => {
-    const stats = real.statSync(path, options);
-    swap(path);
-    return stats;
-  }) as never);
-  const outcome = materialized(home);
-  expect(swapped).toBeDefined(); // the stale-looking lock did take the name
-  expect(outcome).toEqual(heldBy(lockPath));
-  expect(opened).toBe(1); // judged once: busy on its first look, never retried
-  expect(real.statSync(lockPath, { bigint: true }).ino).toBe(swapped);
-  expect(readFileSync(lockPath, 'utf8')).toBe(DEAD_PID);
-  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+  const seen: Record<string, unknown> = {},
+    expected: Record<string, unknown> = {};
+  for (const [name, [openedText, openedAgeMs, swappedText, swappedAgeMs]] of Object.entries(rows)) {
+    const root = temp(),
+      home = join(root, '.ia'),
+      lockPath = join(home, 'claude', '.lock');
+    mkdirSync(join(home, 'claude'), { recursive: true });
+    writeFileSync(lockPath, openedText);
+    const openedAt = new Date(Date.now() - openedAgeMs);
+    utimesSync(lockPath, openedAt, openedAt);
+    let swapping = false,
+      swapped: bigint | undefined,
+      opened = 0;
+    const swap = (path: unknown): void => {
+      if (swapping || swapped !== undefined || String(path) !== lockPath) return;
+      swapping = true; // given options with no encoding, the real writeFileSync below opens through the openSync stub
+      try {
+        // Moved aside rather than removed, so its name is free on every platform while this run still holds it open.
+        real.renameSync(lockPath, join(root, 'opened.lock'));
+        real.writeFileSync(lockPath, swappedText, { flag: 'wx' });
+        const past = new Date(Date.now() - swappedAgeMs);
+        real.utimesSync(lockPath, past, past);
+        swapped = real.statSync(lockPath, { bigint: true }).ino;
+      } finally {
+        swapping = false;
+      }
+    };
+    // Whichever call makes this run's first look at the held lock, the swap comes right after it.
+    vi.mocked(openSync).mockImplementation((path, flags, mode) => {
+      const fd = real.openSync(path, flags, mode);
+      if (!swapping && String(path) === lockPath) opened++;
+      swap(path);
+      return fd;
+    });
+    vi.mocked(statSync).mockImplementation(((path: never, options: never) => {
+      const stats = real.statSync(path, options);
+      swap(path);
+      return stats;
+    }) as never);
+    const outcome = materialized(home);
+    seen[name] = {
+      outcome,
+      opened, // judged once: busy on its first look, never retried
+      named: swapped !== undefined && real.statSync(lockPath, { bigint: true, throwIfNoEntry: false })?.ino === swapped,
+      left: standing(lockPath),
+      plugin: inspectMaterializedPlugin(home),
+    };
+    expected[name] = {
+      outcome: heldBy(lockPath),
+      opened: 1,
+      named: true,
+      left: `file holding ${swappedText}`,
+      plugin: { state: 'absent' },
+    };
+  }
+  expect(seen).toEqual(expected);
 });
 // The lock is only ever created as a regular file, so a symbolic link at its path was put there. Followed, this one would
 // read as a long-dead lock (a dead pid, 20 minutes old) and be removed. Off Windows it is never even opened through
