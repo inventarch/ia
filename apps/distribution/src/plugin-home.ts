@@ -67,11 +67,35 @@ function renameRetrying(from: string, to: string, contextDir: string): void {
   }
 }
 const LOCK_NAME = '.lock',
-  LOCK_STALE_MS = 10 * 60 * 1000,
   LOCK_EMPTY_GRACE_MS = 10 * 1000,
   LOCK_TAKEOVER_ATTEMPTS = 5,
-  /** A pid is at most 10 decimal digits on every platform; no more than this is read from a held lock. */
-  LOCK_PID_BYTES = 32;
+  /** A pid is at most 10 decimal digits on every platform and leads the lock; no more is read to judge one. */
+  LOCK_PID_BYTES = 32,
+  /**
+   * More than the at most 47 bytes a run writes to its lock (a pid of at most 10 digits, a space and a 36-character
+   * UUID), so reading this much shows whether the lock holds anything beyond them.
+   */
+  LOCK_OWNER_BYTES = 64;
+/** A lock this run holds: its path, and exactly the text this run wrote there, which no other run's lock holds. */
+interface HeldLock {
+  readonly path: string;
+  readonly owner: string;
+}
+/** Opens a lock to judge it: read-only, never waiting on a FIFO and, where the platform has O_NOFOLLOW, never through a symbolic link. */
+function openLockToJudge(path: string): number {
+  return openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+}
+/** Reads at most `limit` bytes from the start of the just-opened `fd`, looping until the file ends or `limit` is reached. */
+function readLockHead(fd: number, limit: number): Buffer {
+  const bytes = Buffer.alloc(limit);
+  let total = 0;
+  while (total < limit) {
+    const count = readSync(fd, bytes, total, limit - total, null);
+    if (count === 0) break;
+    total += count;
+  }
+  return bytes.subarray(0, total);
+}
 /** `process.kill(pid, 0)` throwing ESRCH is the only "not alive" case; any other outcome, including an unreadable errno, is treated as alive so a live run is never stolen from under itself. */
 function isPidAlive(pid: number): boolean {
   try {
@@ -86,19 +110,23 @@ function isPidAlive(pid: number): boolean {
  * once a stale lock is gone, or `retry` when there was nothing it could judge or remove (the lock vanished or was
  * replaced, could not be opened, or could not be removed), so the caller retries its own open. Every judged value (the
  * file's type, its age and its pid) comes from one descriptor, so all of them describe one file (CodeQL
- * js/file-system-race); it is opened without waiting on a FIFO and, where the platform has O_NOFOLLOW, without
- * following a symbolic link. Only a regular file is ever taken over: the lock is created as nothing else, so a symbolic
- * link or any other file there was put there by something else. A hard link at the lock path names the judged file
- * itself, so it is judged like any other lock, and taking it over removes only that name. A stale lock is removed only
- * after its name is found to still name the judged file, compared while the descriptor is open so that file's inode
- * cannot be reused (on Windows, where a symbolic link is followed, this comparison is what refuses one); the descriptor
- * is closed first, as Windows may keep a removed file's name until its last handle closes. A window between that
- * comparison and the removal remains: Node has no unlink-if-same.
+ * js/file-system-race); it is opened by `openLockToJudge`. Only a regular file is ever taken over: the lock is created
+ * as nothing else, so a symbolic link or any other file there was put there by something else. It is stale once its
+ * pid, the number that leads it in either format (this CLI's `<pid> <token>`, or an older CLI's pid alone), parsed and
+ * is not running, or, when no pid parsed (empty, the short window between another run's create and its write, or
+ * unparseable), once it is older than `LOCK_EMPTY_GRACE_MS`. A parsed pid that is running is busy however old the lock
+ * is: its age does not show that its owner stopped. A hard link at the lock path names the judged file itself, so it is
+ * judged like any other lock, and taking it over removes only that name. A stale lock is removed only after its name is
+ * found to still name the judged file, compared while the descriptor is open so that file's inode cannot be reused (on
+ * Windows, where a symbolic link is followed, this comparison is what refuses one); the descriptor is closed first, as
+ * Windows may keep a removed file's name until its last handle closes. A window between that comparison and the removal
+ * remains: Node has no unlink-if-same. The lock path can change in it only if another run takes over the same stale
+ * lock at that moment, or a hand replaces or removes it.
  */
 function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
   let fd: number;
   try {
-    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+    fd = openLockToJudge(path);
   } catch {
     return 'retry'; // vanished, a symbolic link O_NOFOLLOW refuses, or unopenable: the attempt bound stops the spin
   }
@@ -108,19 +136,11 @@ function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
     const ageMs = Date.now() - Number(opened.mtimeNs) / 1e6;
     let pid = Number.NaN;
     try {
-      const bytes = Buffer.alloc(LOCK_PID_BYTES);
-      let total = 0;
-      while (total < bytes.byteLength) {
-        const count = readSync(fd, bytes, total, bytes.byteLength - total, null);
-        if (count === 0) break;
-        total += count;
-      }
-      pid = Number.parseInt(bytes.toString('utf8', 0, total), 10);
+      pid = Number.parseInt(readLockHead(fd, LOCK_PID_BYTES).toString('utf8'), 10);
     } catch {
-      /* unreadable: pid stays NaN, judged on age alone below */
+      /* unreadable: pid stays NaN, judged as a pid that did not parse below */
     }
-    const parsed = Number.isInteger(pid);
-    const stale = (parsed && !isPidAlive(pid)) || ageMs > LOCK_STALE_MS || (!parsed && ageMs > LOCK_EMPTY_GRACE_MS);
+    const stale = Number.isInteger(pid) ? !isPidAlive(pid) : ageMs > LOCK_EMPTY_GRACE_MS;
     if (!stale) return 'busy';
     const named = lstatSync(path, { bigint: true });
     if (named.dev !== opened.dev || named.ino !== opened.ino) return 'retry';
@@ -138,18 +158,23 @@ function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
 }
 /**
  * Held for the lifetime of a materialize's recovery-through-swap, or of a whole `removeMarketplace`, so two
- * concurrent `ia host --user` runs cannot interleave their renames. A held lock is taken over — never trusted
- * blindly — only by `takeOverStale`, once it is a regular file whose pid has parsed and died, or that is older than
- * `LOCK_STALE_MS`, or (an empty/unparseable pid, the short window between another run's `openSync` and its pid write)
- * that is older than `LOCK_EMPTY_GRACE_MS`; otherwise this refuses INSTALL-BUSY. A symbolic link or any other
+ * concurrent `ia host --user` runs cannot interleave their renames. The lock is created exclusively and holds this
+ * run's pid, a space and a random token: the pid first, so a reader that parses a leading pid (an older CLI, and
+ * `takeOverStale`'s bounded read) still finds it, and the token, which `releaseLock` checks, tells this run's lock from
+ * any other. A held lock is taken over — never trusted blindly — only by `takeOverStale`, once it is a regular file
+ * whose pid has parsed and died, or (an empty/unparseable pid, the short window between another run's `openSync` and
+ * its write) that is older than `LOCK_EMPTY_GRACE_MS`; otherwise this refuses INSTALL-BUSY. A lock whose pid is
+ * running is never taken over however old it is, so a lock whose dead owner's pid another process has reused stays
+ * busy until it is removed by hand, as the refusal says to do when no run is active. A symbolic link or any other
  * non-regular file at the lock path is never taken over, so it refuses INSTALL-BUSY too. Bounded at
  * `LOCK_TAKEOVER_ATTEMPTS`, so a lock file that keeps coming back (removal failing, a lock replaced while it was
  * judged, or another process winning the race) fails loudly instead of spinning forever. The sweep functions below
  * must never touch this file.
  */
-function acquireLock(parent: string): string {
+function acquireLock(parent: string): HeldLock {
   mkdirSync(parent, { recursive: true });
-  const path = join(parent, LOCK_NAME);
+  const path = join(parent, LOCK_NAME),
+    owner = `${process.pid} ${randomUUID()}`;
   const busy = (): never =>
     fail(
       'INSTALL-BUSY',
@@ -159,11 +184,11 @@ function acquireLock(parent: string): string {
     try {
       const fd = openSync(path, 'wx');
       try {
-        writeFileSync(fd, String(process.pid));
+        writeFileSync(fd, owner);
       } finally {
         closeSync(fd);
       }
-      return path;
+      return { path, owner };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
       if (attempts >= LOCK_TAKEOVER_ATTEMPTS) busy();
@@ -173,11 +198,36 @@ function acquireLock(parent: string): string {
     }
   }
 }
-function releaseLock(path: string): void {
+/**
+ * Whether `lock.path` still names the lock this run created: a regular file, opened by `openLockToJudge`, holding
+ * exactly `lock.owner` (read through `LOCK_OWNER_BYTES`, past its end, so a longer file never matches), whose name is
+ * found, while that descriptor is open, to still name the judged file. Throws when it cannot tell (the lock vanished,
+ * or could not be opened, read or compared).
+ */
+function holdsLock(lock: HeldLock): boolean {
+  const fd = openLockToJudge(lock.path);
   try {
-    rmSync(path, { force: true });
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile() || !readLockHead(fd, LOCK_OWNER_BYTES).equals(Buffer.from(lock.owner))) return false;
+    const named = lstatSync(lock.path, { bigint: true });
+    return named.dev === opened.dev && named.ino === opened.ino;
+  } finally {
+    closeSync(fd); // first, as Windows may keep a removed file's name until its last handle closes
+  }
+}
+/**
+ * Removes the lock `acquireLock` returned only while `holdsLock` finds it still this run's. Any other lock at its path
+ * (another run's token, an older CLI's pid alone, a symbolic link or any other non-regular file) is left in place, as
+ * is one that cannot be judged; best effort, it never throws, so it never masks the run's own result. A window between
+ * the comparison and the removal remains, as in `takeOverStale`: Node has no unlink-if-same. Since this CLI never takes
+ * over a lock whose pid is running, and this run's pid is running while it releases, the lock path can change in it
+ * only if a hand, or an older CLI's 10-minute age rule, replaces or removes this run's lock at that moment.
+ */
+function releaseLock(lock: HeldLock): void {
+  try {
+    if (holdsLock(lock)) rmSync(lock.path, { force: true });
   } catch {
-    /* best-effort */
+    /* best-effort: left in place */
   }
 }
 /**

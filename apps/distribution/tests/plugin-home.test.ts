@@ -15,7 +15,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
@@ -44,10 +44,11 @@ afterEach(() => {
     }
   }
 });
-// Every busy/failure test overrides renameSync and/or rmSync, and the lock tests openSync, readFileSync or statSync; put each back to a plain passthrough so later tests see the real filesystem.
+// Every busy/failure test overrides renameSync and/or rmSync, and the lock tests openSync, readFileSync, statSync or mkdirSync; put each back to a plain passthrough so later tests see the real filesystem.
 afterEach(() => {
   vi.mocked(renameSync).mockImplementation((from, to) => real.renameSync(from as never, to as never));
   vi.mocked(rmSync).mockImplementation((path, options) => real.rmSync(path as never, options as never));
+  vi.mocked(mkdirSync).mockImplementation(((path: never, options: never) => real.mkdirSync(path, options)) as never);
   vi.mocked(openSync).mockImplementation((path, flags, mode) => real.openSync(path, flags, mode));
   vi.mocked(readFileSync).mockImplementation(((path: never, options: never) =>
     real.readFileSync(path, options)) as never);
@@ -56,6 +57,8 @@ afterEach(() => {
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
 /** Never a live pid here: Linux pids stay below 4194304, the largest pid_max, and macOS pids below 100000. */
 const DEAD_PID = '4194305';
+/** No run's token: what another run's lock, in the format this CLI writes, holds after its pid. */
+const OTHER_TOKEN = '00000000-0000-4000-8000-000000000000';
 /** Past this many opens of the lock path a takeover is looping: it opens it at most twice per attempt. */
 const OPEN_LIMIT = 20;
 /**
@@ -454,18 +457,23 @@ it('refuses INSTALL-BUSY after bounded takeover attempts, without hanging, when 
   expect((caught as { code?: string } | undefined)?.code).toBe('IA-DIST-INSTALL-BUSY');
   expect((caught as Error).message).toMatch(/Another ia host --user run holds/);
 }, 5000);
-// Each verdict on both sides of its bound: a dead pid at any age, 10 minutes for a live pid, and 10 seconds' grace for
-// an empty or unparseable one. Ages are set with utimesSync, never waited out.
-it('takes over a lock whose pid died, that is over 10 minutes old, or whose pid is missing past 10 seconds, and refuses any other INSTALL-BUSY untouched', () => {
+// Each verdict at every age that matters: a dead pid is taken over at any age, a live pid at none (its age does not show
+// that its owner stopped), and an empty or unparseable pid after 10 seconds' grace. A lock an older CLI wrote holds its
+// pid alone; one this CLI writes holds its pid, a space and a token. Ages are set with utimesSync, never waited out.
+it('takes over a lock whose pid died or is missing past 10 seconds, in either format, and refuses INSTALL-BUSY untouched for any other, however old', () => {
   const minutes = 60_000,
     live = String(process.pid),
-    dead = DEAD_PID;
+    dead = DEAD_PID,
+    token = ` ${OTHER_TOKEN}`;
   const cases: Record<string, readonly [text: string, ageMs: number, takenOver: boolean]> = {
     'dead pid, just written': [dead, 0, true],
     'dead pid, 20 minutes old': [dead, 20 * minutes, true],
+    'dead pid and token, just written': [dead + token, 0, true],
     'live pid, just written': [live, 0, false],
     'live pid, 9 minutes old': [live, 9 * minutes, false],
-    'live pid, 11 minutes old': [live, 11 * minutes, true],
+    'live pid, 11 minutes old': [live, 11 * minutes, false],
+    'live pid and token, 11 minutes old': [live + token, 11 * minutes, false],
+    'live pid and token, 2 days old': [live + token, 2 * 24 * 60 * minutes, false],
     'empty, 5 seconds old': ['', 5_000, false],
     'empty, 20 seconds old': ['', 20_000, true],
     'unparseable, 5 seconds old': ['not a pid', 5_000, false],
@@ -518,6 +526,117 @@ const heldBy = (lockPath: string) => ({
   code: 'IA-DIST-INSTALL-BUSY',
   message: `Another ia host --user run holds ${lockPath}; wait for it or delete the file if no run is active`,
 });
+/** What stands at `path`, read without following a symbolic link or opening a FIFO, or null when nothing does. */
+function standing(path: string): string | null {
+  const stats = real.lstatSync(path, { throwIfNoEntry: false });
+  if (!stats) return null;
+  if (stats.isSymbolicLink()) return `symbolic link to ${real.readlinkSync(path)}`;
+  if (stats.isFIFO()) return 'FIFO';
+  return `file holding ${real.readFileSync(path, 'utf8')}`;
+}
+// The sequence the live-owner rule closes, with both runs in this process, so both pids are alive. Run A holds the lock
+// and has held it for eleven minutes. Run B used to take it over by age; A's release then removed B's lock by name, and
+// a run C acquired it while B was still active. B now refuses INSTALL-BUSY, A's lock stays as A wrote it, and A goes on
+// to finish and release it, so a run after A acquires it.
+it('refuses INSTALL-BUSY for the lock of a live run however long it has been held, and leaves that run to release it', () => {
+  const home = join(temp(), '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    stage = join(home, 'claude', '.stage-'),
+    elevenMinutesAgo = new Date(Date.now() - 11 * 60_000);
+  let b: unknown, held: string | undefined, kept: string | null | undefined;
+  // A makes its stage once it holds the lock; B runs just before, so nothing of A's stage exists for B to touch.
+  vi.mocked(mkdirSync).mockImplementation(((path: never, options: never) => {
+    if (b === undefined && String(path).startsWith(stage)) {
+      b = 'running'; // so B's own stage, should B get that far, is not intercepted
+      held = real.readFileSync(lockPath, 'utf8');
+      real.utimesSync(lockPath, elevenMinutesAgo, elevenMinutesAgo);
+      b = materialized(home);
+      kept = real.existsSync(lockPath) ? real.readFileSync(lockPath, 'utf8') : null;
+    }
+    return real.mkdirSync(path, options);
+  }) as never);
+  const a = materialized(home);
+  expect({ a, b, kept }).toEqual({ a: 'materialized', b: heldBy(lockPath), kept: held });
+  expect(existsSync(lockPath)).toBe(false); // A released its own lock
+  expect(materialized(home)).toBe('materialized'); // and a run after A acquires it
+});
+// Whatever replaced run A's lock while A ran is still at the lock path when A ends: A's release removes only the lock A
+// wrote, judged through one descriptor as a held lock is. Before, A's release removed whatever held the name, so a run C
+// after A acquired a lock whose holder was still active. A pid alone is what an older CLI writes. The FIFO shows that the
+// release never waits on one: watchOpens refuses and records any open of it that could block.
+it('releases only the lock it wrote, leaving whatever replaced it for the next run to find', async () => {
+  const probe = temp(),
+    links = fileSymlink(join(probe, 'probe'), join(probe, 'probe-link')), // false where Windows denies file symbolic links
+    fifo = join(probe, 'fifo'),
+    live = String(process.pid);
+  // Each puts its replacement at the lock path once A's own lock has been moved aside to `aside`.
+  const replacements: Record<string, (lockPath: string, aside: string) => void> = {
+    'the lock of another run: this pid with another token': (lockPath) =>
+      real.writeFileSync(lockPath, `${live} ${OTHER_TOKEN}`, { flag: 'wx' }),
+    'the lock of an older CLI: this pid alone': (lockPath) => real.writeFileSync(lockPath, live, { flag: 'wx' }),
+    'nothing: removed by hand': () => {},
+  };
+  if (links)
+    replacements['a symbolic link to the lock of A'] = (lockPath, aside) => real.symlinkSync(aside, lockPath, 'file');
+  if (process.platform !== 'win32') {
+    // no FIFO can be created in a Windows directory
+    expect((await runBounded('mkfifo', [fifo], { timeoutMs: SUBPROCESS })).status).toBe(0);
+    replacements['a FIFO'] = (lockPath) => real.renameSync(fifo, lockPath);
+  }
+  const seen: Record<string, unknown> = {},
+    expected: Record<string, unknown> = {};
+  for (const [name, replace] of Object.entries(replacements)) {
+    const root = temp(),
+      home = join(root, '.ia'),
+      lockPath = join(home, 'claude', '.lock'),
+      aside = join(root, 'a.lock');
+    let placed: string | null | undefined;
+    vi.mocked(mkdirSync).mockImplementation(((path: never, options: never) => {
+      if (placed === undefined && String(path).startsWith(join(home, 'claude', '.stage-'))) {
+        real.renameSync(lockPath, aside); // moved aside rather than removed, as a run taking it over might leave it
+        replace(lockPath, aside);
+        placed = standing(lockPath);
+      }
+      return real.mkdirSync(path, options);
+    }) as never);
+    const { blocked } = watchOpens(lockPath, { fifo: name === 'a FIFO' });
+    const a = materialized(home);
+    seen[name] = { a, left: standing(lockPath), c: materialized(home), blocked };
+    expected[name] = {
+      a: 'materialized',
+      left: placed,
+      c: placed === null ? 'materialized' : heldBy(lockPath),
+      blocked: [],
+    };
+  }
+  expect(seen).toEqual(expected);
+});
+// A run writes its pid, a space and a token of its own. The pid comes first, so a reader that parses only a leading pid,
+// as an older CLI and the takeover's bounded read do, still finds it; the token tells this run's lock from that of any
+// other run, even one in the same process. Its own release removes it, after a materialize and after a removal alike.
+it('writes its pid and a token of its own to the lock, and its own release removes it', () => {
+  const home = join(temp(), '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    during: string[] = [],
+    after: boolean[] = [];
+  // Only the marketplace's own renames, made beside the lock while it is held; the IA home is written before that.
+  vi.mocked(renameSync).mockImplementation((from, to) => {
+    if (dirname(String(to)) === dirname(lockPath)) during.push(real.readFileSync(lockPath, 'utf8'));
+    return real.renameSync(from as never, to as never);
+  });
+  expect(materialized(home)).toBe('materialized'); // one rename: the stage swapped in
+  after.push(existsSync(lockPath));
+  expect(materialized(home)).toBe('materialized'); // two: the previous copy demoted, then the swap
+  after.push(existsSync(lockPath));
+  expect(removeMarketplace(home)).toBe(true); // one: the marketplace renamed away
+  after.push(existsSync(lockPath));
+  const own = new RegExp(`^${process.pid} [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`);
+  expect(during).toHaveLength(4);
+  for (const text of during) expect(text).toMatch(own);
+  expect(during[1]).toBe(during[2]); // one run, one token
+  expect(new Set([during[0], during[1], during[3]]).size).toBe(3); // each run its own
+  expect(after).toEqual([false, false, false]);
+});
 // The race CodeQL js/file-system-race flags: another run takes the stale lock over just after this run first looks at
 // it, and writes its own. This run must judge only the file it looked at, and its identity check must then keep it from
 // removing the lock that took the name. (A replacement after that check, just before the removal, is the window that
@@ -560,9 +679,9 @@ it('keeps a fresh lock that replaced the stale one while it was judged, and refu
   expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
 });
 // The other half of judging one file: the pid and the age are the opened lock's. The lock this run opens is live and
-// young, and right after the open a stale-looking lock (a dead pid, 20 minutes old) takes its name. A pid or an age read
-// by name would make the opened lock look stale; the identity check would then refuse to remove it, and the retry would
-// take the swapped-in lock over and go ahead.
+// young, and right after the open a stale-looking lock (a dead pid, 20 minutes old) takes its name. A pid read by name
+// would make the opened lock look stale; the identity check would then refuse to remove it, and the retry would take
+// the swapped-in lock over and go ahead.
 it('judges the pid and age of the lock it opened, not of a stale-looking lock swapped in at its name, and refuses INSTALL-BUSY at once', () => {
   const root = temp(),
     home = join(root, '.ia'),
