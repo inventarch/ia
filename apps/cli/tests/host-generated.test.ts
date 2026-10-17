@@ -66,9 +66,12 @@ const SETTINGS = '.claude/settings.local.json',
   PACKET = ['.claude/rules/ia-workspace.md', '.claude/skills/ia-authoring/SKILL.md'];
 const reviewer = { agent_id: 'subagent-1', agent_type: 'reviewer' };
 
-/** An `ia init` workspace with the composition fixture laid over it, by its physical path, and its IA home. */
-async function composed(legacy = false): Promise<{ root: string; env: { IA_HOST_HOME: string } }> {
-  const { root, env } = await initialized();
+/** An `ia init` workspace with the composition fixture laid over it, by its physical path, and its IA home (`home`, if given). */
+async function composed(
+  legacy = false,
+  home?: { IA_HOST_HOME: string },
+): Promise<{ root: string; env: { IA_HOST_HOME: string } }> {
+  const { root, env } = await initialized(home);
   if (legacy) legacyRegistration(root, env);
   cpSync(FIXTURE, root, { recursive: true });
   return { root: realpathSync(root), env };
@@ -1021,9 +1024,12 @@ it('reports a changed and a foreign hook group, an unregistered hook and a recei
 });
 
 it('converges after a generated-set rename apply interrupted at any of its checkpoints', async () => {
-  /** A workspace whose fixture records were applied and then renamed, and the payload its groups run from. */
-  const renamedWorkspace = async () => {
-    const { root, env } = await composed();
+  /**
+   * A workspace whose fixture records were applied and then renamed, and the payload its groups run from. Every pass
+   * after the probe reuses the probe's IA home: the cuts are inside the workspace's apply, and the payload is the same.
+   */
+  const renamedWorkspace = async (home?: { IA_HOST_HOME: string }) => {
+    const { root, env } = await composed(false, home);
     const release = (JSON.parse((await apply(root, env)).stdout) as { plan: { release: string } }).plan.release;
     edit(root, '.ia/src/hooks.ia', ['note-edits', 'doc-edits'], ['@agent-profile reviewer', '@agent-profile auditor']);
     edit(
@@ -1048,7 +1054,7 @@ it('converges after a generated-set rename apply interrupted at any of its check
   );
   expect(stages).toEqual(expect.arrayContaining(['evidence', 'guard', 'hooks', 'pending', 'complete', 'receipt']));
   for (const stage of stages) {
-    const { root, env, cache } = await renamedWorkspace();
+    const { root, env, cache } = await renamedWorkspace(probe.env);
     expect(
       () =>
         applyHostProjection(
