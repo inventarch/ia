@@ -19,6 +19,13 @@ on:
         type: choice
         options: [baseline, runner-temp, defender, dev-drive-temp]
         default: baseline
+      task-parallelism:
+        # How many tasks one test shard runs at once (nx run-many --parallel). 1 is the execution contract; more is an
+        # experiment for the 4-core runners, to dispatch with full and compare over ten runs for flakes.
+        description: 'Tasks one test shard runs at once (with full, on a branch other than main); 1 is the normal contract'
+        type: choice
+        options: ['1', '2']
+        default: '1'
   schedule:
     # Weekly full verification of all declared variants, with no task reuse at all. It skips every job after the plan
     # when main has not moved since the last successful scheduled run.
@@ -91,6 +98,13 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/next')
         run: |
           echo "::error::the windows-io arm ${{ inputs.windows-io }} needs full, on a branch other than main and release/next"
+          exit 1
+      # Running tasks at once changes their timing, so an experiment never shares results with ordinary runs, and it
+      # runs off main for the same reasons as a Windows I/O arm.
+      - name: Refuse task parallelism without a full run, or on main
+        if: github.event_name == 'workflow_dispatch' && inputs.task-parallelism != '1' && (!inputs.full || github.ref == 'refs/heads/main')
+        run: |
+          echo "::error::task-parallelism ${{ inputs.task-parallelism }} needs full, on a branch other than main"
           exit 1
       # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed
       # lookup costs minutes, never coverage.
@@ -237,7 +251,7 @@ jobs:
       # only after Nx returns.
       - name: Run assigned tasks
         timeout-minutes: 55
-        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }} ${{ inputs.task-parallelism && inputs.task-parallelism != '1' && format('--parallel {0}', inputs.task-parallelism) || '' }}
       - uses: actions/cache/save@v6
         if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:

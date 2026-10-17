@@ -28,6 +28,11 @@ export interface OrchestrationOptions {
    * publishing only the assignment keeps two jobs from claiming the same task variant at the gate.
    */
   readonly evidenceOut?: string;
+  /**
+   * How many of the requested tasks Nx may run at once. Absent, nx.json's `parallel` (1) holds and a shard runs its
+   * tasks one after another, as the execution contract states; a dispatched experiment may set 2 to 4.
+   */
+  readonly parallel?: number;
 }
 export interface OrchestrationResult {
   readonly version: number;
@@ -73,6 +78,31 @@ function readEvidenceFile(path: string): GateEvidence | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** The most tasks one shard may run at once in an experiment. */
+export const MAX_PARALLEL = 4;
+
+/** `--parallel` as given: an integer from 1 to MAX_PARALLEL, else a refusal naming the range. */
+export function parallelOf(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^[0-9]+$/.test(value) || Number(value) < 1 || Number(value) > MAX_PARALLEL)
+    throw new Error(`--parallel expects an integer from 1 to ${MAX_PARALLEL}`);
+  return Number(value);
+}
+
+/** The `nx run-many` arguments for one invocation: `--parallel` only when an experiment set it. */
+export function runManyArgs(targets: readonly string[], skipCache: boolean, parallel?: number): readonly string[] {
+  return [
+    'nx',
+    'run-many',
+    '--targets',
+    targets.join(','),
+    '--output-style',
+    'stream',
+    ...(skipCache ? ['--skip-nx-cache'] : []),
+    ...(parallel === undefined ? [] : ['--parallel', String(parallel)]),
+  ];
 }
 
 /**
@@ -122,26 +152,14 @@ export async function orchestrate(root: string, options: OrchestrationOptions): 
       delete env[CACHE_SERVER_VARIABLE];
       delete env[CACHE_TOKEN_VARIABLE];
     }
-    return runBounded(
-      'npx',
-      [
-        'nx',
-        'run-many',
-        '--targets',
-        targets.join(','),
-        '--output-style',
-        'stream',
-        ...(skipCache ? ['--skip-nx-cache'] : []),
-      ],
-      {
-        cwd: root,
-        shell: true,
-        timeoutMs: options.timeoutMs ?? 90 * 60_000,
-        env,
-        onStdout: (chunk) => process.stdout.write(chunk),
-        onStderr: (chunk) => process.stderr.write(chunk),
-      },
-    );
+    return runBounded('npx', [...runManyArgs(targets, skipCache, options.parallel)], {
+      cwd: root,
+      shell: true,
+      timeoutMs: options.timeoutMs ?? 90 * 60_000,
+      env,
+      onStdout: (chunk) => process.stdout.write(chunk),
+      onStderr: (chunk) => process.stderr.write(chunk),
+    });
   };
 
   let remote: OrchestrationResult['remote'] = remoteWanted ? 'enabled' : 'disabled';
@@ -228,15 +246,24 @@ if (isEntry(process.argv[1], import.meta.url)) {
   };
   const listed = flag('--tasks'),
     out = flag('--evidence-out');
-  const known = ['--tasks', '--evidence-out', '--full', '--remote', '--json'];
-  const valued = ['--tasks', '--evidence-out'];
+  const known = ['--tasks', '--evidence-out', '--full', '--remote', '--json', '--parallel'];
+  const valued = ['--tasks', '--evidence-out', '--parallel'];
   const stray = args.filter((arg, position) =>
     arg.startsWith('--') ? !known.includes(arg) : !(position > 0 && valued.includes(args[position - 1] ?? '')),
   );
+  let parallel: number | undefined, invalidParallel: string | undefined;
+  try {
+    parallel = parallelOf(flag('--parallel'));
+  } catch (error) {
+    invalidParallel = error instanceof Error ? error.message : String(error);
+  }
   if (!listed || stray.length) {
     console.error(
-      'Usage: pnpm tests:orchestrate --tasks "<id> <id>" [--evidence-out <directory>] [--remote] [--full] [--json]',
+      `Usage: pnpm tests:orchestrate --tasks "<id> <id>" [--evidence-out <directory>] [--remote] [--full] [--parallel 1-${MAX_PARALLEL}] [--json]`,
     );
+    process.exitCode = 2;
+  } else if (invalidParallel !== undefined) {
+    console.error(invalidParallel);
     process.exitCode = 2;
   } else {
     orchestrate(root, {
@@ -244,6 +271,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
       full: args.includes('--full'),
       remote: args.includes('--remote'),
       ...(out === undefined ? {} : { evidenceOut: out }),
+      ...(parallel === undefined ? {} : { parallel }),
     })
       .then((result) => {
         if (args.includes('--json')) console.log(JSON.stringify(result, null, 2));

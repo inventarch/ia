@@ -32,6 +32,7 @@ import {
   type Schedule,
 } from './plan.js';
 import { GATE_JOB, qualifyNeeds, qualifyRows, workflowJobs } from './workflow.js';
+import { MAX_PARALLEL, parallelOf, runManyArgs } from './orchestrate.js';
 
 const root = resolve(import.meta.dirname, '../..');
 // The profile's subprocess bound, which pnpm tests:run passes to Vitest; a direct Vitest run uses the fallback.
@@ -976,6 +977,45 @@ it('selects a Windows I/O arm only through a dispatch input, and keeps the physi
   expect(at("windows-io == 'defender'")).toBeGreaterThan(select);
   expect(at("windows-io == 'defender'")).toBeLessThan(at('pnpm install --frozen-lockfile'));
   expect(steps[at("windows-io == 'defender'")]).toContain('Get-MpComputerStatus');
+});
+
+it('runs one task at a time per shard unless a full dispatch sets task parallelism', () => {
+  // The runner passes --parallel to Nx only when given, so nx.json's parallel (1) holds for every ordinary run.
+  expect(runManyArgs(['a-test'], false)).toEqual(['nx', 'run-many', '--targets', 'a-test', '--output-style', 'stream']);
+  expect(runManyArgs(['a-test', 'b-test'], true, 2)).toEqual([
+    'nx',
+    'run-many',
+    '--targets',
+    'a-test,b-test',
+    '--output-style',
+    'stream',
+    '--skip-nx-cache',
+    '--parallel',
+    '2',
+  ]);
+  expect(parallelOf(undefined)).toBeUndefined();
+  for (const value of ['1', '2', String(MAX_PARALLEL)]) expect(parallelOf(value)).toBe(Number(value));
+  for (const value of ['0', String(MAX_PARALLEL + 1), '1.5', 'two', '', '-1'])
+    expect(() => parallelOf(value), value).toThrow(`--parallel expects an integer from 1 to ${MAX_PARALLEL}`);
+  const refused = spawnSync(
+    process.execPath,
+    ['--import', 'tsx', 'tools/testing/orchestrate.ts', '--tasks', 'thing:test', '--parallel', '9'],
+    { cwd: root, encoding: 'utf8', windowsHide: true, timeout: SUBPROCESS },
+  );
+  expect(refused).toMatchObject({ status: 2, stderr: expect.stringContaining('--parallel expects an integer') });
+  // The workflow: a dispatch input defaulting to 1, refused without full, and read only by the test lane.
+  const text = workflow().replace(/\r\n/g, '\n'),
+    jobs = workflowJobs(text);
+  expect(text).toMatch(
+    /^      task-parallelism:\n(?:        #.*\n)*        description: .*\n        type: choice\n        options: \['1', '2'\]\n        default: '1'$/m,
+  );
+  expect(jobs.get('plan')).toContain(
+    "- name: Refuse task parallelism without a full run, or on main\nif: github.event_name == 'workflow_dispatch' && inputs.task-parallelism != '1' && (!inputs.full || github.ref == 'refs/heads/main')\n",
+  );
+  expect(jobs.get('tests')).toContain(
+    "${{ inputs.task-parallelism && inputs.task-parallelism != '1' && format('--parallel {0}', inputs.task-parallelism) || '' }}",
+  );
+  for (const job of ['build', 'static', 'emitted']) expect(jobs.get(job), job).not.toContain('task-parallelism');
 });
 
 it('names every platform in the planner and gate usage messages', () => {
