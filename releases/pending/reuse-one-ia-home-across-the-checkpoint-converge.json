@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Reuse one IA home across the checkpoint convergence test passes",
+  "summary": "Test-only: the CLI's checkpoint convergence test writes the host payload once instead of on every pass. No behaviour changes for consumers.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    ".github/",
+    "apps/cli/",
+    "nx.json",
+    "package.json",
+    "tools/"
+  ]
+}

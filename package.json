@@ -30,6 +30,7 @@
     "tests:run": "node --import tsx tools/testing/run.ts",
     "tests:orchestrate": "node --import tsx tools/testing/orchestrate.ts",
     "tests:gate": "node --import tsx tools/testing/report.ts",
+    "tests:verdict": "node --import tsx tools/testing/verdict.ts",
     "system:run": "node --conditions=development --import tsx tools/systems/run.ts",
     "resources:qualify": "node tools/projections/qualify-resources.mjs",
     "projections:qualify": "node tools/projections/qualify-projections.mjs",

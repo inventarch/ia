@@ -28,7 +28,8 @@ import {
   recoverGuardRegistration,
 } from '../src/guard-registration.js';
 import type { HookRow } from '../src/guard-registration.js';
-import { doorServer, expectedHostCache, nodeCommand, recoverHost } from '../src/host.js';
+import { doorServer, expectedHostCache, nodeCommand, recoverHost, verifyHostCache } from '../src/host.js';
+import { hostVerifier } from '../src/host-observe.js';
 import { recoverLifecycleRegistration } from '../src/lifecycle-registration.js';
 import { runNative } from '../src/native-command.js';
 
@@ -59,6 +60,26 @@ function cacheV2() {
   return root;
 }
 const settings = '.claude/settings.local.json';
+it('plans hooks against a verdict the command shares, and verifies afresh when it applies them', () => {
+  const root = temp(),
+    cache = cacheV2(),
+    hook: HookRow = { identity: 'hook-authoring-system/binding/hook/owned', tools: ['Write'], paths: ['docs/'] },
+    verify = hostVerifier();
+  verify(cache);
+  // The launcher changes after the command verified the payload: only a plan through the shared verdict passes.
+  put(cache, 'scripts/ia.mjs', '// changed\n');
+  const plan = planHookRegistration(root, { cache, hooks: [hook] }, verify);
+  expect(() => planHookRegistration(root, { cache, hooks: [hook] })).toThrow(/launcher changed/);
+  // The apply re-plans under the host lock without it, so the changed payload refuses and no settings are written.
+  expect(() => applyHookRegistration(plan)).toThrow(/launcher changed/);
+  expect(existsSync(resolve(root, settings))).toBe(false);
+  // A function hostVerifier did not make is no verdict: planning verifies afresh whatever it returns.
+  const drifted = cacheV2(),
+    valid = verifyHostCache(drifted);
+  put(drifted, 'scripts/ia.mjs', '// changed\n');
+  const forged = (() => valid) as unknown as ReturnType<typeof hostVerifier>;
+  expect(() => planHookRegistration(temp(), { cache: drifted, hooks: [hook] }, forged)).toThrow(/launcher changed/);
+});
 it('refuses explicit hook removal with lost, partial or shared ownership while keeping unrelated settings', () => {
   const cache = cacheV2(),
     hook: HookRow = { identity: 'hook-authoring-system/binding/hook/owned', tools: ['Write'], paths: ['docs/'] },

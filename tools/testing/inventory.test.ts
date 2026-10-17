@@ -204,7 +204,7 @@ it('checks the actual repository manifest for shape, coverage and qualification 
   expect(validateManifest({ manifest, projects, discovery, leaves: qualificationLeaves(root), tracked: [] })).toEqual(
     [],
   );
-  expect(trackedTestFiles(root).length).toBe(290);
+  expect(trackedTestFiles(root).length).toBe(291);
 });
 
 it('exposes the declared timeout profiles and refuses a worker limit above a ceiling', () => {
@@ -243,8 +243,11 @@ it("shares the task runner with every task, but not the runner's own tests", () 
   };
   const shared = nx.namedInputs.sharedGlobals.filter((input): input is string => typeof input === 'string');
   expect(shared.filter((input) => input.startsWith('!'))).toEqual([]);
+  // The one module no task reaches: the Plan job's verdict copy, a GitHub API script that run.ts never imports.
+  // Editing it must not invalidate every task, so it is no shared input.
+  const outsideRunner = ['tools/testing/verdict.ts'];
   const modules = gitFiles(root).filter(
-    (path) => /^tools\/testing\/[^/]+\.ts$/.test(path) && !path.endsWith('.test.ts'),
+    (path) => /^tools\/testing\/[^/]+\.ts$/.test(path) && !path.endsWith('.test.ts') && !outsideRunner.includes(path),
   );
   expect(modules).toContain('tools/testing/run.ts');
   const runner = shared
@@ -308,7 +311,8 @@ const RESULT_NEUTRAL_WORKFLOW_ENV: Readonly<Record<string, string>> = {
   IA_FULL: 'selects --full, which bypasses reuse; it never reaches a task',
   HOMEBREW_NO_AUTO_UPDATE: 'Homebrew smoke step only, outside every Nx task',
   HOMEBREW_NO_INSTALL_CLEANUP: 'Homebrew smoke step only, outside every Nx task',
-  GH_TOKEN: "the Plan job's lookup of the last successful scheduled run, a gh call outside every Nx task",
+  GH_TOKEN:
+    "the Plan job's lookups of the last successful scheduled run and of a copied verdict, GitHub API calls outside every Nx task",
   IA_REVIEW_RUN_ID: 'selects an upstream run for the uncached advisory review caller, outside every Nx task',
   IA_REVIEW_API: 'API origin for the uncached advisory review caller, outside every Nx task',
   IA_REVIEW_BINDING: 'workload binding for the uncached advisory review caller, outside every Nx task',

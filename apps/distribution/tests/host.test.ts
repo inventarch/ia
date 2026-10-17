@@ -24,6 +24,7 @@ import {
   recoverHost,
   verifyHostCache,
 } from '../src/host.js';
+import { hostVerifier } from '../src/host-observe.js';
 import { findNodeAtLocation, parseTree } from 'jsonc-parser';
 import { json, sha256 } from '../src/files.js';
 import { runBounded } from '@tools/testing/subprocess.js';
@@ -178,6 +179,35 @@ it('rechecks cache and native lock immediately before committing ownership', () 
   ).toThrow(/native lock changed/);
   recoverHost(root);
   expect(readFileSync(resolve(root, '.ia/distributions.lock.json'), 'utf8')).toBe('new lock');
+});
+it('plans against a verdict the command shares, and still verifies afresh under the lock and before activation', () => {
+  const root = temp(),
+    artifact = cache('claude'),
+    verify = hostVerifier();
+  verify(artifact);
+  // The payload changes after the command verified it: a plan through the shared verdict reuses it, one without it refuses.
+  put(artifact, 'payload.txt', 'drift');
+  const plan = planHost(root, 'claude', artifact, undefined, verify);
+  expect(() => planHost(root, 'claude', artifact)).toThrow(/payload/);
+  // The apply re-plans under the host lock without the shared verdict, so it refuses before it writes anything.
+  expect(() => applyHost(plan)).toThrow(/payload/);
+  expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
+  // A payload that changes after the re-plan is caught by the check before activation, which is never shared either.
+  const clean = cache('claude'),
+    shared = hostVerifier(),
+    other = temp(),
+    planned = planHost(other, 'claude', clean, undefined, shared);
+  expect(() =>
+    applyHost(planned, (name) => {
+      if (name === 'config') put(clean, 'payload.txt', 'drift');
+    }),
+  ).toThrow(/payload/);
+  // A function hostVerifier did not make is no verdict: planning verifies afresh whatever it returns.
+  const drifted = cache('claude'),
+    valid = verifyHostCache(drifted);
+  put(drifted, 'payload.txt', 'drift');
+  const forged = (() => valid) as unknown as ReturnType<typeof hostVerifier>;
+  expect(() => planHost(temp(), 'claude', drifted, undefined, forged)).toThrow(/payload/);
 });
 it('uses the public CLI plan/apply/removal/recovery dispatch and refuses a forged explicit root', async () => {
   const root = temp(),
