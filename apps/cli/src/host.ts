@@ -887,14 +887,16 @@ export function applyHostSet(
     throw joinFailure(error);
   }
   /**
-   * ia-9: one verification of the payload for this command's plans. It is made after the last write to the payload
-   * (`materialize`), and only plans read through it: the payload itself is never written again here, and every check
-   * that guards a commit (`applyHost` and `applyHookRegistration` re-planning under the host lock, and their checks
-   * before activation and commit) verifies afresh.
+   * One verification of the payload for this command's plans before its first workspace write. It is made after the
+   * last write to the payload (`materialize`), and only the MCP plan and the projection re-plan read through it. The
+   * projection step plans its hooks afresh, so a payload that changed during the MCP apply refuses before the
+   * projection's evidence or guard retirement is written; and every check that guards a commit (`applyHost` and
+   * `applyHookRegistration` re-planning under the host lock, and their checks before activation and commit) verifies
+   * afresh.
    */
   const verify = hostVerifier();
   const project = (rendered: HostOutput | null, cache: HookCache) => (): Omit<AppliedElement, 'id'> => {
-    const { status, guard } = applyHostProjection(root, host, rendered, undefined, undefined, cache, verify);
+    const { status, guard } = applyHostProjection(root, host, rendered, undefined, undefined, cache);
     return { status, guard };
   };
   if (!view.remove) {

@@ -634,12 +634,11 @@ export function applyHostProjection(
   checkpoint: (stage: string) => void = () => {},
   previous?: PacketReceipt,
   cache: HookCache = null,
-  verify?: HostVerifier,
 ): HostProjectionApplied {
   // A pending host journal refuses every host write, as it refuses the plan (§8).
   assertHostRegistrationIdle(root);
   const retirement = planRetirement(root, host),
-    hooks = planHookStep(root, host, rendered, cache, verify),
+    hooks = planHookStep(root, host, rendered, cache),
     plan = planFiles(root, host, rendered);
   const writeEvidence = (path: string, value: unknown | null): void => {
     const unlock = acquireHostRegistrationLock(root);
@@ -665,7 +664,7 @@ export function applyHostProjection(
   // The hook groups next, through their own journal and lock; a plan that changes nothing writes nothing. A retirement
   // rewrote the settings the first plan read, so the groups are planned again against what it left: the first plan
   // only refused, before anything was written, what this one would.
-  const registration = retirement === null ? hooks : planHookStep(root, host, rendered, cache, verify);
+  const registration = retirement === null ? hooks : planHookStep(root, host, rendered, cache);
   if (registration.plan !== null) applyHookRegistration(registration.plan);
   checkpoint('hooks');
   // The last apply's receipt goes before any projection file changes.
