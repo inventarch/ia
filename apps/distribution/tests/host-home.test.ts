@@ -4,6 +4,8 @@ import { dirname, join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { json, sha256 } from '../src/files.js';
 import { assertHomeOutsideWorkspace, legacyHostHome, materializeHostPayload, readHostPin } from '../src/host-home.js';
+import { verifyHostCache } from '../src/host.js';
+import { hostVerifier } from '../src/host-observe.js';
 import { HOST_TREE_LIMITS, packTree, unpackTree } from '../src/ustar.js';
 
 vi.mock('node:fs', { spy: true });
@@ -42,6 +44,29 @@ it('keeps the per-OS directory only as the legacy location', () => {
   expect(legacyHostHome({}, 'linux', '/home/u')).toBe(join('/home/u', '.local/share', 'ia'));
   expect(legacyHostHome({}, 'darwin', '/Users/u')).toBe(join('/Users/u', 'Library/Application Support', 'ia'));
   expect(legacyHostHome({ LOCALAPPDATA: 'C:\\L' }, 'win32', 'C:\\U')).toBe(join('C:\\L', 'ia'));
+});
+it("verifies the payload through the command's shared verdict after its last write, and the stage afresh", () => {
+  const { archive, pin } = payload();
+  for (const existing of [false, true]) {
+    const home = temp();
+    if (existing) materializeHostPayload({ home, archive, pin });
+    const verify = hostVerifier(),
+      { directory } = materializeHostPayload({ home, archive, pin, verify });
+    // The verdict is the shared one: a later plan of the same command reuses it, while a fresh check sees the change.
+    writeFileSync(join(directory, 'payload.txt'), 'changed!');
+    expect(verify(directory).release).toBe(pin.release);
+    expect(() => verifyHostCache(directory)).toThrow(/Host payload changed/);
+  }
+  // A shared verdict never covers the stage, which this call writes: a bad archive still refuses before any rename.
+  const home = temp(),
+    bad = packTree(
+      new Map([...unpackTree(archive, HOST_TREE_LIMITS)].filter(([path]) => path !== 'payload.txt')),
+      HOST_TREE_LIMITS,
+    );
+  expect(() =>
+    materializeHostPayload({ home, archive: bad, pin: { ...pin, archive: sha256(bad) }, verify: hostVerifier() }),
+  ).toThrow();
+  expect(existsSync(join(home, 'hosts', pin.release))).toBe(false);
 });
 it('materializes once, reuses a verified copy and refuses a corrupt one, naming the directory, without overwriting', () => {
   const home = temp(),
