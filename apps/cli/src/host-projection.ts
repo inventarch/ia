@@ -64,8 +64,9 @@ import {
   acquireHostRegistrationLock,
   assertHostRegistrationIdle,
   HOST_REGISTRATION,
-  verifyHostCache,
 } from '@inventarch/distribution/host';
+import { verifierOf } from '@inventarch/distribution/host-observe';
+import type { HostVerifier } from '@inventarch/distribution/host-observe';
 import type { WorkspaceHost } from '@inventarch/distribution/hosts';
 import type { ProjectionPlan } from '@inventarch/distribution/projection';
 import { applyProjection, planProjection, projectionOwnable } from '@inventarch/distribution/projection';
@@ -224,8 +225,16 @@ export const HOOKS_NEED_HOST =
  * owned registration recorded; with neither, none, and each declared hook comes back unregistered. A removal
  * (`rendered` null) removes every owned group. Reads only.
  */
-export function planHooks(root: string, host: HostName, rendered: HostOutput | null, cache: HookCache): HookStep {
+export function planHooks(
+  root: string,
+  host: HostName,
+  rendered: HostOutput | null,
+  cache: HookCache,
+  shared?: HostVerifier,
+): HookStep {
   if (host !== 'claude') return { plan: null, unregistered: [] };
+  // One verdict per payload for this plan, or the command's shared one: no write to a payload happens while it plans.
+  const verify = verifierOf(shared);
   if (rendered === null) assertRemovableHooks(root);
   const rows = (rendered?.hooks ?? []).map(({ identity, tools, paths }) => ({ identity, tools, paths }));
   const prior = readHookRegistration(root);
@@ -280,11 +289,11 @@ export function planHooks(root: string, host: HostName, rendered: HostOutput | n
                 { ...cache.expected, directory: prior.cache, launcher: join(prior.cache, 'scripts/ia.mjs') },
                 kept,
               )
-            : planHookRegistration(root, { cache: prior.cache, hooks: kept }),
+            : planHookRegistration(root, { cache: prior.cache, hooks: kept }, verify),
         unregistered,
       };
     try {
-      verifyHostCache(prior.cache);
+      verify(prior.cache);
     } catch {
       return {
         plan: null,
@@ -296,7 +305,7 @@ export function planHooks(root: string, host: HostName, rendered: HostOutput | n
         ],
       };
     }
-    return { plan: planHookRegistration(root, { cache: prior.cache, hooks: kept }), unregistered };
+    return { plan: planHookRegistration(root, { cache: prior.cache, hooks: kept }, verify), unregistered };
   }
   if (cache !== null && 'expected' in cache)
     return { plan: planHooksFor(root, cache.expected, rows), unregistered: [] };
@@ -318,7 +327,7 @@ export function planHooks(root: string, host: HostName, rendered: HostOutput | n
       return { plan: null, unregistered: [] };
     }
     try {
-      verifyHostCache(directory);
+      verify(directory);
     } catch (error) {
       throw Object.assign(
         new DistributionError(
@@ -330,7 +339,7 @@ export function planHooks(root: string, host: HostName, rendered: HostOutput | n
       );
     }
   }
-  return { plan: planHookRegistration(root, { cache: directory, hooks: rows }), unregistered: [] };
+  return { plan: planHookRegistration(root, { cache: directory, hooks: rows }, verify), unregistered: [] };
 }
 /**
  * The hook groups the workspace owns now, as a receipt lists them: one row per `@hook`, keyed by identity, with the
@@ -625,11 +634,12 @@ export function applyHostProjection(
   checkpoint: (stage: string) => void = () => {},
   previous?: PacketReceipt,
   cache: HookCache = null,
+  verify?: HostVerifier,
 ): HostProjectionApplied {
   // A pending host journal refuses every host write, as it refuses the plan (§8).
   assertHostRegistrationIdle(root);
   const retirement = planRetirement(root, host),
-    hooks = planHookStep(root, host, rendered, cache),
+    hooks = planHookStep(root, host, rendered, cache, verify),
     plan = planFiles(root, host, rendered);
   const writeEvidence = (path: string, value: unknown | null): void => {
     const unlock = acquireHostRegistrationLock(root);
@@ -655,7 +665,7 @@ export function applyHostProjection(
   // The hook groups next, through their own journal and lock; a plan that changes nothing writes nothing. A retirement
   // rewrote the settings the first plan read, so the groups are planned again against what it left: the first plan
   // only refused, before anything was written, what this one would.
-  const registration = retirement === null ? hooks : planHookStep(root, host, rendered, cache);
+  const registration = retirement === null ? hooks : planHookStep(root, host, rendered, cache, verify);
   if (registration.plan !== null) applyHookRegistration(registration.plan);
   checkpoint('hooks');
   // The last apply's receipt goes before any projection file changes.
@@ -728,9 +738,15 @@ function appliedDefinitions(
   );
 }
 /** `planHooks`, a refusal it does not locate at a file located at the settings the hook groups live in. */
-export function planHookStep(root: string, host: HostName, rendered: HostOutput | null, cache: HookCache): HookStep {
+export function planHookStep(
+  root: string,
+  host: HostName,
+  rendered: HostOutput | null,
+  cache: HookCache,
+  verify?: HostVerifier,
+): HookStep {
   try {
-    return planHooks(root, host, rendered, cache);
+    return planHooks(root, host, rendered, cache, verify);
   } catch (error) {
     if (error instanceof DistributionError && 'unownedHook' in error) {
       const unowned = error.unownedHook as { hook: string; path: string };
