@@ -1,0 +1,17 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Session stores can require host admission before each durable write",
+  "summary": "A host can now make every durable session write pass its own synchronous current-authority check. `sqliteStore(root, { admit })`, `new SqliteBackend(root, { admit })`, `memoryStore({ admit })` and `new MemoryBackend({ admit })` accept an admission gate. The backend calls it inside its write transaction, after the ownership, idempotency and revision checks and after every await, immediately before the first journal event or checkpoint is written, and nothing yields between its answer and the commit. Authority revoked before the write, including while the store awaits ownership validation, is therefore refused even when every earlier host check passed. The gate receives a deeply frozen `Admission`: its kind (`commit` or `checkpoint`), session, principal, owner fence and command, the exact events, the resulting session, and the attempts whose output a commit newly stores, with the authority recorded when each was prepared; a checkpoint, which restates admitted history, offers none. Only a synchronous `true` admits. `false`, any other value, a promise or thenable, or a throw rolls the transaction back and refuses with `IA-SESSION-ADMISSION-DENIED`, whose message carries neither the payload nor the host's error. A configured `admit` that is not a function refuses at construction with `IA-SESSION-ADMISSION-UNAVAILABLE`. The new optional `admission` property of `SessionStore` and `JournalBackend` reports whether a gate runs, and an `EngineHost` that sets the new `requireAdmission` option is refused with `IA-ENGINE-ADMISSION-UNAVAILABLE`, at construction and at every later use of a store the host replaces, unless its store reports `admission: true`. `JournalBackend.commit` gains an optional fifth argument, the resulting session, which `JournalStore` supplies; a gated backend refuses a commit without it. The `@inventarch/agent-composition-system` installed-read qualification fixture adds an Engine, installed captured-read and SQLite regression for the gate. Stores configured without `admit` behave exactly as before, and writes admitted before a revocation stay in the journal. The guarantee covers authority state the gate reads synchronously in the same process; a remote authority service or another process needs its own lease or fencing protocol.",
+  "packages": [
+    "@inventarch/agent-composition-system",
+    "@inventarch/agent-system",
+    "@inventarch/session-system"
+  ],
+  "paths": [
+    ".ia/src/systems/agent-composition-system/",
+    ".ia/src/systems/agent-system/",
+    ".ia/src/systems/session-system/",
+    "tools/"
+  ]
+}

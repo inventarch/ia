@@ -38,3 +38,18 @@ export function qualifyInstalledRead(
   restart: boolean;
   result: Json;
 }>;
+export function qualifyAdmission(
+  SDK: SDK,
+  root: string,
+  directory: string,
+): Promise<{
+  revoked: boolean;
+  returnChecks: number;
+  nativeReads: number;
+  agentDisclosures: number;
+  returnedBytes: number;
+  refusal: string;
+  journalContainsSentinel: boolean;
+  recoveredWithoutDisclosure: boolean;
+  revokedRetryRefused: boolean;
+}>;

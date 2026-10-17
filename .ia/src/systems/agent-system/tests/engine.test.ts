@@ -425,6 +425,79 @@ it('does not dispatch after a required journal commit fails', async () => {
   expect(calls).toBe(0);
   expect(Object.values((await f.store.read('session')).attempts)[0]!.status).toBe('prepared');
 });
+it('refuses a host that requires write admission over a store that does not enforce it', async () => {
+  const f = fixture();
+  const unenforced: SessionStore[] = [
+    f.store,
+    {
+      read: f.store.read.bind(f.store),
+      journal: f.store.journal.bind(f.store),
+      command: f.store.command.bind(f.store),
+      checkpoint: f.store.checkpoint.bind(f.store),
+      acquire: f.store.acquire.bind(f.store),
+      release: f.store.release.bind(f.store),
+      validate: f.store.validate.bind(f.store),
+      close: f.store.close.bind(f.store),
+      admission: 'yes' as unknown as boolean,
+    },
+  ];
+  for (const store of unenforced)
+    for (const requireAdmission of [true, 'yes' as unknown as boolean])
+      expect(() => new Engine(f.manifest, { ...f.host, store, requireAdmission })).toThrow(
+        expect.objectContaining({ code: 'IA-ENGINE-ADMISSION-UNAVAILABLE' }),
+      );
+  expect(() => new Engine(f.manifest, { ...f.host, requireAdmission: false })).not.toThrow();
+  const gated = fixture(
+    scripted([{ type: 'invoke', operation: 'read', input: 'source' }, outcome]),
+    new MemoryBackend({ admit: () => true }),
+  );
+  const host: EngineHost = { ...gated.host, requireAdmission: true },
+    engine = new Engine(gated.manifest, host);
+  await start(engine);
+  expect((await engine.advance('session', 'alice')).runs['root']!.status).toBe('completed');
+  // A store the host swaps in later is checked at every use, not only at construction.
+  const ungated = new JournalStore(new MemoryBackend());
+  host.store = ungated;
+  await expect(
+    engine.start({ sessionId: 'swapped', commandId: 'start', principal: 'alice', profile: 'author', task: 'Read' }),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-ADMISSION-UNAVAILABLE' });
+  await expect(engine.advance('session', 'alice')).rejects.toMatchObject({ code: 'IA-ENGINE-ADMISSION-UNAVAILABLE' });
+  await expect(ungated.read('swapped')).rejects.toMatchObject({ code: 'IA-SESSION-NOT-FOUND' });
+});
+it('refuses an operation result whose authority is revoked before the store admits it', async () => {
+  let revoked = false;
+  const f = fixture(
+    scripted([{ type: 'invoke', operation: 'read', input: 'source' }, outcome]),
+    new MemoryBackend({
+      admit: ({ observed }) => !revoked || observed.every((attempt) => attempt.kind !== 'operation'),
+    }),
+  );
+  let reads = 0;
+  const engine = new Engine(f.manifest, {
+    ...f.host,
+    requireAdmission: true,
+    operations: {
+      'read.v1': {
+        id: 'read.v1',
+        execute: async () => {
+          reads++;
+          // The adapter's last check passed; the revocation lands before Engine journals the result.
+          queueMicrotask(() => {
+            revoked = true;
+          });
+          return { output: 'REVOKED_SOURCE_BYTES', effect: 'none' };
+        },
+      },
+    },
+  });
+  await start(engine);
+  await expect(engine.advance('session', 'alice')).rejects.toMatchObject({ code: 'IA-SESSION-ADMISSION-DENIED' });
+  expect(reads).toBe(1);
+  const state = await f.store.read('session');
+  expect(JSON.stringify(await f.store.journal('session'))).not.toContain('REVOKED_SOURCE_BYTES');
+  expect(Object.values(state.attempts).find((attempt) => attempt.kind === 'operation')!.status).toBe('dispatched');
+  expect(state.receipts.every((receipt) => receipt.target !== 'read')).toBe(true);
+});
 it('refuses arbitrary model fields and never treats a claimed approval as authority', async () => {
   const f = fixture(
     scripted([{ type: 'invoke', operation: 'write', input: {}, approved: true } as unknown as ModelAction]),

@@ -3,8 +3,18 @@ import { mkdirSync, lstatSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { canonical, copy, identifier, requireValue, SessionError } from './codec.js';
-import { assertOwner, JournalStore } from './store.js';
-import type { Checkpoint, Command, CommandResult, Event, Journal, JournalBackend, Owner } from './types.js';
+import { admissionGate, admit, assertOwner, checkpointAdmission, commitAdmission, JournalStore } from './store.js';
+import type {
+  AdmissionGate,
+  Checkpoint,
+  Command,
+  CommandResult,
+  Event,
+  Journal,
+  JournalBackend,
+  Owner,
+  Session,
+} from './types.js';
 
 interface Lease {
   owner: Owner;
@@ -32,6 +42,7 @@ export function assertDurable(settings: Durability, platform: NodeJS.Platform): 
 }
 export interface SqliteBackendOptions {
   /** Platform whose durability profile applies; defaults to process.platform. */ platform?: NodeJS.Platform;
+  /** Host admission gate run inside every commit and checkpoint transaction (see `Admission`). Present means required: anything but a function refuses (IA-SESSION-ADMISSION-UNAVAILABLE). */ admit?: AdmissionGate;
 }
 function assertDirectory(path: string): void {
   for (let current = path; ; current = dirname(current)) {
@@ -48,9 +59,13 @@ function assertDirectory(path: string): void {
 export class SqliteBackend implements JournalBackend {
   private readonly databases = new Map<string, DatabaseSync>();
   private readonly leases = new Map<string, Lease>();
+  private readonly gate: AdmissionGate | undefined;
   readonly root: string;
   readonly platform: NodeJS.Platform;
+  readonly admission: boolean;
   constructor(root: string, options: SqliteBackendOptions = {}) {
+    this.gate = admissionGate(options);
+    this.admission = this.gate !== undefined;
     this.root = resolve(root);
     this.platform = options.platform ?? process.platform;
     requireValue(
@@ -127,7 +142,7 @@ export class SqliteBackend implements JournalBackend {
       throw new SessionError('IA-SESSION-STORE-CORRUPT', 'Stored journal is not valid JSON');
     }
   }
-  async commit(command: Command, hash: string, events: Event[], owner?: Owner): Promise<CommandResult> {
+  async commit(command: Command, hash: string, events: Event[], owner?: Owner, next?: Session): Promise<CommandResult> {
     assertOwner(command, owner);
     if (owner) await this.validate(owner);
     const db = this.database(command.sessionId);
@@ -143,6 +158,8 @@ export class SqliteBackend implements JournalBackend {
       }
       const head = db.prepare('SELECT COALESCE(MAX(sequence),0) AS sequence FROM events').get() as { sequence: number };
       requireValue(head.sequence === command.expected, 'IA-SESSION-REVISION-CONFLICT', 'Session changed');
+      // Nothing yields from the gate's answer to COMMIT, so a revocation queued before the write is seen here.
+      admit(this.gate, () => commitAdmission(command, events, owner, next));
       for (const event of events) db.prepare('INSERT INTO events VALUES(?,?)').run(event.sequence, canonical(event));
       const last = events.at(-1)!,
         result: CommandResult = { id: command.id, digest: hash, sequence: last.sequence, hash: last.hash };
@@ -162,6 +179,7 @@ export class SqliteBackend implements JournalBackend {
     try {
       const head = db.prepare('SELECT MAX(sequence) AS sequence FROM events').get() as { sequence: number };
       requireValue(head.sequence === checkpoint.sequence, 'IA-SESSION-REVISION-CONFLICT', 'Session changed');
+      admit(this.gate, () => checkpointAdmission(checkpoint, owner));
       db.prepare('INSERT OR REPLACE INTO checkpoints VALUES(1,?)').run(canonical(checkpoint));
       db.exec('COMMIT');
     } catch (error) {
@@ -210,6 +228,6 @@ export class SqliteBackend implements JournalBackend {
     this.databases.clear();
   }
 }
-export function sqliteStore(root: string): JournalStore {
-  return new JournalStore(new SqliteBackend(root));
+export function sqliteStore(root: string, options: SqliteBackendOptions = {}): JournalStore {
+  return new JournalStore(new SqliteBackend(root, options));
 }

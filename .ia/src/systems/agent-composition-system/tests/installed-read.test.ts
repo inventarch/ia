@@ -1,13 +1,16 @@
 import { expect, it, afterEach, vi } from 'vitest';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import { field, text as textField } from '@inventarch/runtime/authoring-execution';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { Engine, manifestDigest } from '@inventarch/agent-system';
 import type { OperationContext } from '@inventarch/agent-system';
 import { copy, digest, memoryStore } from '@inventarch/session-system';
+import { sqliteStore } from '@inventarch/session-system/sqlite';
 import * as SDK from '../src/index.js';
 import * as code from '../src/installed-catalog.js';
-import { readFixture, readPath, qualifyInstalledRead } from './installed-read-fixture.mjs';
+import { readFixture, readPath, qualifyAdmission, qualifyInstalledRead } from './installed-read-fixture.mjs';
 
 vi.setConfig({ testTimeout: 30000 });
 const root = resolve(import.meta.dirname, '../../../../..'),
@@ -473,5 +476,56 @@ it('refuses changed installed code on retry before a second operation attempt is
     });
   } finally {
     await store.close();
+  }
+});
+it('keeps a read revoked after its final host check out of the SQLite journal, the model and the caller', async () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'ia-admission-'));
+  try {
+    expect(await qualifyAdmission(SDK, root, directory)).toEqual({
+      revoked: true,
+      returnChecks: 1,
+      nativeReads: 1,
+      agentDisclosures: 0,
+      returnedBytes: 0,
+      refusal: 'IA-SESSION-ADMISSION-DENIED',
+      journalContainsSentinel: false,
+      recoveredWithoutDisclosure: true,
+      revokedRetryRefused: true,
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+it('keeps exact receipts, recovery and replay through a gated SQLite store under current authority', async () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'ia-admission-')),
+    offers: string[] = [],
+    store = sqliteStore(directory, {
+      admit: (admission) => {
+        offers.push(admission.kind);
+        return true;
+      },
+    });
+  try {
+    expect(await qualifyInstalledRead(SDK, root, store)).toMatchObject({
+      calls: 2,
+      reads: 2,
+      attempts: 2,
+      paidProviderCalls: 0,
+      revokedRetryRefused: true,
+      restart: true,
+    });
+    expect(offers).toContain('commit');
+    expect(offers).toContain('checkpoint');
+    const state = await store.read('installed-read');
+    await store.close();
+    const reopened = sqliteStore(directory);
+    try {
+      expect(await reopened.read('installed-read')).toEqual(state);
+    } finally {
+      await reopened.close();
+    }
+  } finally {
+    await store.close();
+    rmSync(directory, { recursive: true, force: true });
   }
 });

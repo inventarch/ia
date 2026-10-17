@@ -208,6 +208,13 @@ export interface ContextBudget {
 }
 export interface EngineHost {
   store: SessionStore;
+  /**
+   * When set, Engine refuses with IA-ENGINE-ADMISSION-UNAVAILABLE, at construction and at every later use of a store
+   * the host replaces, unless `store` runs a host admission gate on every write (`SessionStore.admission`). A write
+   * the store refuses rejects `advance` with the redacted IA-SESSION-ADMISSION-DENIED and nothing more is written; a
+   * refused operation result stays dispatched and recovers under its operation's recovery contract.
+   */
+  requireAdmission?: boolean;
   model: ModelAdapter;
   operations: Readonly<Record<string, OperationAdapter>>;
   authorize(principal: string, manifest: Manifest, session: Session | null): Promise<Grant>;

@@ -719,6 +719,7 @@
       "kind": "vitest",
       "project": ".ia/src/systems/session-system",
       "files": [
+        "tests/admission.test.ts",
         "tests/contracts.test.ts",
         "tests/renewal.test.ts",
         "tests/replay.test.ts",
