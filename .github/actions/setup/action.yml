@@ -1,15 +1,58 @@
 name: Prepare workspace
 description: Installs the pinned toolchain and, on Windows, selects the physical temporary directory fixtures require.
 
+# A dispatched Public quality run may select one Windows I/O arm (its `windows-io` input) to compare test-lane times on
+# the same commit. Every other run, and every other workflow that uses this action, has no such input and runs the
+# baseline: none of the arm steps below. The physical temporary directory is selected after any arm, as always.
 runs:
   using: composite
   steps:
+    # Dev Drive arm: a ReFS Dev Drive holds the temporary directory and the pnpm store. It is made first, so the store
+    # setup-node caches and the directory canonical-temp selects are on it. The checkout stays where it is.
+    - name: 'Windows I/O arm: create a Dev Drive for the temporary directory and the pnpm store'
+      if: runner.os == 'Windows' && github.event.inputs.windows-io == 'dev-drive'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        Write-Output 'Windows I/O arm: dev-drive'
+        # diskpart rather than New-VHD: hosted runners need not carry the Hyper-V module.
+        $vhd = Join-Path $env:RUNNER_TEMP 'dev-drive.vhdx'
+        $script = Join-Path $env:RUNNER_TEMP 'dev-drive.txt'
+        "create vdisk file=`"$vhd`" maximum=25600 type=expandable", "attach vdisk", "convert gpt",
+          "create partition primary" | Set-Content -Path $script -Encoding ascii
+        diskpart /s $script
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $partition = Get-DiskImage -ImagePath $vhd | Get-Disk | Get-Partition | Where-Object Type -eq 'Basic'
+        $partition | Add-PartitionAccessPath -AssignDriveLetter
+        $partition = $partition | Get-Partition
+        $volume = $partition | Format-Volume -DevDrive -Confirm:$false -Force
+        $drive = "$($volume.DriveLetter):"
+        New-Item -ItemType Directory -Path "$drive\temp", "$drive\pnpm-store" | Out-Null
+        "TEMP=$drive\temp", "TMP=$drive\temp", "npm_config_store_dir=$drive\pnpm-store" |
+          Add-Content -Path $env:GITHUB_ENV -Encoding utf8
+        Write-Output "Dev Drive at $drive"
+    # RUNNER_TEMP arm: the runner's own temporary directory (on the work volume) instead of the profile's on C:.
+    - name: 'Windows I/O arm: use RUNNER_TEMP as the temporary directory'
+      if: runner.os == 'Windows' && github.event.inputs.windows-io == 'runner-temp'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        Write-Output "Windows I/O arm: runner-temp ($env:RUNNER_TEMP)"
+        "TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP" | Add-Content -Path $env:GITHUB_ENV -Encoding utf8
     # A third-party action runs pinned to a commit: v6.0.10, the commit its moving v6 tag named on 2026-09-25.
     - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
     - uses: actions/setup-node@v7
       with:
         node-version: '22.22.0'
         cache: pnpm
+    # The Dev Drive arm measures nothing unless pnpm really uses the store it placed there.
+    - name: 'Windows I/O arm: check the pnpm store is on the Dev Drive'
+      if: runner.os == 'Windows' && github.event.inputs.windows-io == 'dev-drive'
+      shell: pwsh
+      run: |
+        $store = (pnpm store path).Trim()
+        Write-Output "pnpm store: $store"
+        if (-not $store.StartsWith((Split-Path -Qualifier $env:npm_config_store_dir))) { throw 'The pnpm store is not on the Dev Drive' }
     # Fixtures create real files and processes; a virtualised temporary root breaks path identity.
     - name: Select physical Windows temporary directory
       if: runner.os == 'Windows'
@@ -17,6 +60,19 @@ runs:
       run: |
         node tools/testing/canonical-temp.mjs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    # Defender arm: real-time scanning skips the workspace, the temporary directory and the pnpm store. Its status is
+    # logged first, so a run shows whether scanning was on to begin with.
+    - name: 'Windows I/O arm: exclude the workspace, temporary directory and pnpm store from Defender'
+      if: runner.os == 'Windows' && github.event.inputs.windows-io == 'defender'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        Write-Output 'Windows I/O arm: defender'
+        Get-MpComputerStatus | Format-List AMServiceEnabled, AntivirusEnabled, RealTimeProtectionEnabled, OnAccessProtectionEnabled
+        $paths = @($env:GITHUB_WORKSPACE, $env:TEMP, (pnpm store path).Trim())
+        Add-MpPreference -ExclusionPath $paths
+        Write-Output "Excluded: $($paths -join ', ')"
+        (Get-MpPreference).ExclusionPath
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile

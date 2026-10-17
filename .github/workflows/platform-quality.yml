@@ -12,6 +12,13 @@ on:
         description: Bypass every local and remote task reuse
         type: boolean
         default: false
+      windows-io:
+        # Each arm changes only where Windows jobs put temporary files and the pnpm store, or Defender's scanning of
+        # them; dispatch each with full, three runs per arm on one commit, and compare per-task Windows durations.
+        description: 'Windows I/O arm to measure (with full): baseline, runner-temp, defender or dev-drive'
+        type: choice
+        options: [baseline, runner-temp, defender, dev-drive]
+        default: baseline
   schedule:
     # Weekly full verification of all declared variants, with no task reuse at all. It skips every job after the plan
     # when main has not moved since the last successful scheduled run.
@@ -72,6 +79,12 @@ jobs:
         run: pnpm release:check
       - name: Validate the test inventory
         run: pnpm tests:inventory
+      # A Windows I/O arm compares executed task times, so a run that may reuse results measures nothing.
+      - name: Refuse a Windows I/O arm without a full run
+        if: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && !inputs.full
+        run: |
+          echo "::error::the windows-io arm ${{ inputs.windows-io }} needs full: dispatch it with full checked"
+          exit 1
       # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed
       # lookup costs minutes, never coverage.
       - name: Find the commit the last scheduled run verified

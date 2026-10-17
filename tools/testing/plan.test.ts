@@ -932,6 +932,39 @@ it('makes the gate wait for every other job in the workflow and refuse unless ea
   for (const job of others) expect(jobs.get(GATE_JOB)).toContain(`needs.${job}.result`);
 });
 
+it('selects a Windows I/O arm only through a dispatch input, and keeps the physical temporary directory after it', () => {
+  const text = workflow().replace(/\r\n/g, '\n');
+  // The input defaults to the baseline, and an arm refuses unless the run executes everything.
+  expect(text).toMatch(
+    /^      windows-io:\n(?:        #.*\n)*        description: .*\n        type: choice\n        options: \[baseline, runner-temp, defender, dev-drive\]\n        default: baseline$/m,
+  );
+  expect(workflowJobs(text).get('plan')).toContain(
+    "- name: Refuse a Windows I/O arm without a full run\nif: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && !inputs.full\n",
+  );
+  const action = readFileSync(resolve(root, '.github/actions/setup/action.yml'), 'utf8').replace(/\r\n/g, '\n');
+  const steps = action.split(/^    - /m).slice(1);
+  const at = (match: string): number => steps.findIndex((step) => step.includes(match));
+  // Each arm step runs only on Windows and only for its own arm; the baseline has no step at all.
+  for (const arm of ['dev-drive', 'runner-temp', 'defender']) {
+    const own = steps.filter((step) => step.includes(`github.event.inputs.windows-io == '${arm}'`));
+    expect(own.length, arm).toBeGreaterThan(0);
+    for (const step of own)
+      expect(step).toMatch(
+        new RegExp(`^\\s*if: runner\\.os == 'Windows' && github\\.event\\.inputs\\.windows-io == '${arm}'$`, 'm'),
+      );
+  }
+  expect(action).not.toContain("== 'baseline'");
+  // The arms that move the temporary directory run before canonical-temp, which still runs on every Windows job.
+  const select = at('node tools/testing/canonical-temp.mjs');
+  expect(steps[select]).toMatch(/^\s*if: runner\.os == 'Windows'$/m);
+  expect(at("windows-io == 'dev-drive'")).toBeLessThan(select);
+  expect(at("windows-io == 'runner-temp'")).toBeLessThan(select);
+  // Defender excludes the temporary directory canonical-temp selected, so it runs after it, and before the install.
+  expect(at("windows-io == 'defender'")).toBeGreaterThan(select);
+  expect(at("windows-io == 'defender'")).toBeLessThan(at('pnpm install --frozen-lockfile'));
+  expect(steps[at("windows-io == 'defender'")]).toContain('Get-MpComputerStatus');
+});
+
 it('names every platform in the planner and gate usage messages', () => {
   const cli = (script: string, ...args: string[]) =>
     spawnSync(process.execPath, ['--import', 'tsx', `tools/testing/${script}`, ...args], {
