@@ -6,11 +6,12 @@ import { tmpdir } from 'node:os';
 import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { expect, it } from 'vitest';
-import { PLATFORMS, type Manifest, type TaskRecord } from './inventory.js';
+import { PLATFORMS, readManifest, type Manifest, type TaskRecord } from './inventory.js';
 import { buildReport, currentPlatform, readVitestResults, writeEvidence, type GateEvidence } from './report.js';
 import {
   BORROWED_PLATFORM,
   CONSERVATIVE_ESTIMATE_SECONDS,
+  MACOS_CONCURRENT_JOBS,
   PULL_REQUEST_PLATFORMS,
   RUNNERS,
   borrowedRatio,
@@ -22,9 +23,12 @@ import {
   laneOf,
   planShards,
   platformCounts,
+  readSchedule,
+  reusesVerdict,
   runNeeded,
   selectedPlatforms,
   updateSchedule,
+  upperMedian,
   type Schedule,
 } from './plan.js';
 import { GATE_JOB, qualifyNeeds, qualifyRows, workflowJobs } from './workflow.js';
@@ -34,13 +38,21 @@ const root = resolve(import.meta.dirname, '../..');
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 120_000;
 const workflow = (): string => readFileSync(resolve(root, '.github/workflows/platform-quality.yml'), 'utf8');
 /** The Plan job's planner arguments, with the GitHub expressions it passes replaced by one run's values. */
-function planArgs(run: { readonly event: string; readonly sha: string; readonly verified: string }): string[] {
+function planArgs(run: {
+  readonly event: string;
+  readonly sha: string;
+  readonly verified: string;
+  readonly action?: string;
+  readonly baseChanged?: boolean;
+}): string[] {
   const command = /pnpm --silent tests:plan (.*?) >> "\$GITHUB_OUTPUT"/.exec(workflow())?.[1];
   if (command === undefined) throw new Error('The Plan job does not run tests:plan into $GITHUB_OUTPUT');
   const filled = command
     .replaceAll('${{ github.event_name }}', run.event)
     .replaceAll('${{ github.sha }}', run.sha)
-    .replaceAll('${{ steps.verified.outputs.sha }}', run.verified);
+    .replaceAll('${{ steps.verified.outputs.sha }}', run.verified)
+    .replaceAll('${{ github.event.action }}', run.action ?? '')
+    .replaceAll("${{ github.event.changes.base && 'true' || 'false' }}", String(run.baseChanged ?? false));
   if (filled.includes('${{')) throw new Error(`Unexpected expression in the planner arguments: ${filled}`);
   return filled.split(' ').map((arg) => arg.replace(/^"(.*)"$/, '$1'));
 }
@@ -410,6 +422,102 @@ it('records executed durations and excludes restored ones from the schedule', ()
   }
 });
 
+it('takes the upper median of an observed sample, so it is always a value some run measured', () => {
+  expect(upperMedian([7])).toBe(7);
+  expect(upperMedian([1010, 611, 889, 850, 1002])).toBe(889);
+  expect(upperMedian([40, 10, 30, 20])).toBe(30);
+  expect(() => upperMedian([])).toThrow('at least one sample');
+});
+
+it('records several runs as each task’s median over the runs that executed it', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'ia-schedule-'));
+  if (!directory.startsWith(resolve(tmpdir(), 'ia-schedule-'))) throw new Error('Unexpected temporary cleanup path');
+  try {
+    const platform = currentPlatform(),
+      other = PLATFORMS.find((candidate) => candidate !== platform)!;
+    const write = (run: string, task: string, outcome: GateEvidence['outcome'], seconds: number, on = platform) => {
+      const report = buildReport(base, {
+        ...readVitestResults('.', 'packages/thing', {
+          success: true,
+          testResults: [
+            {
+              name: resolve('packages/thing', 'tests/a.test.ts'),
+              assertionResults: [{ fullName: 'holds', status: 'passed', duration: 1 }],
+            },
+          ],
+        }),
+        passed: true,
+        durationMs: seconds * 1000,
+        startedAt: 'x',
+        commit: null,
+        run: null,
+      });
+      writeEvidence(resolve(directory, run, task.replace(':', '-'), 'evidence.json'), {
+        version: 1,
+        task,
+        platform: on,
+        outcome,
+        source: outcome === 'executed' ? 'execution' : 'remote-cache',
+        hash: 'abc',
+        current: { run: null, commit: null },
+        provenanceAvailable: true,
+        report: { ...report, task },
+      });
+    };
+    // Four runs of b:test, one of them restored and so not a sample; four executed runs of a:test.
+    for (const [run, seconds] of [
+      ['r1', 50],
+      ['r2', 10],
+      ['r3', 30],
+    ] as const)
+      write(run, 'b:test', 'executed', seconds);
+    write('r4', 'b:test', 'restored', 1);
+    for (const [run, seconds] of [
+      ['r1', 4],
+      ['r2', 8],
+      ['r3', 6],
+      ['r4', 2],
+    ] as const)
+      write(run, 'a:test', 'executed', seconds);
+    // Another platform's observation lands in that platform's section only.
+    write('r1', 'a:test', 'executed', 99, other);
+    const before = {
+      version: 1,
+      platforms: { linux: {}, windows: {}, macos: {}, [platform]: { 'z:test': 5, 'b:test': 1, 'Y:test': 3 } },
+    } as Schedule;
+    const runs = ['r1', 'r2', 'r3', 'r4'].map((run) => resolve(directory, run));
+    const updated = updateSchedule(before, runs);
+    // The upper median of 2/4/6/8 is 6 and of 10/30/50 is 30; a task no run executed keeps its estimate.
+    expect(updated.platforms[platform]).toEqual({ 'a:test': 6, 'b:test': 30, 'Y:test': 3, 'z:test': 5 });
+    // Keys sort by code point, not by the machine's locale, so 'Y' comes before 'a' everywhere.
+    expect(Object.keys(updated.platforms[platform]!)).toEqual(['Y:test', 'a:test', 'b:test', 'z:test']);
+    expect(updated.platforms[other]).toEqual({ 'a:test': 99 });
+    // One directory is one run, so recording the runs one at a time keeps only the last.
+    expect(runs.reduce((schedule, run) => updateSchedule(schedule, run), before).platforms[platform]).toMatchObject({
+      'a:test': 2,
+    });
+    // The command line takes --record once per run and writes the same schedule.
+    const output = resolve(directory, 'planning/schedule.json');
+    const cli = (...args: string[]) =>
+      spawnSync(process.execPath, ['--import', 'tsx', 'tools/testing/plan.ts', ...args], {
+        cwd: root,
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: SUBPROCESS,
+      });
+    const exported = cli(...runs.flatMap((run) => ['--record', run]), '--record-out', output);
+    expect(exported.status, exported.stderr).toBe(0);
+    const recorded = JSON.parse(readFileSync(output, 'utf8')) as Schedule;
+    expect(recorded.platforms[platform]).toMatchObject({ 'a:test': 6, 'b:test': 30 });
+    expect(cli('--record', '--record-out', output)).toMatchObject({
+      status: 1,
+      stderr: expect.stringContaining('--record expects an evidence directory'),
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 it('reads gate rows and needs through comments, quotes, either key order and CRLF', () => {
   const text = [
     'jobs:',
@@ -521,8 +629,88 @@ it('skips a scheduled run only when main is the commit the last successful sched
     expect(runNeeded(event, 'abc', 'abc')).toBe(true);
 });
 
+it('copies the verdict only for a pull request edit that keeps its base', () => {
+  expect(reusesVerdict('pull_request', 'edited', false)).toBe(true);
+  // Retargeting changes the merge commit, so it runs in full; so does every other action and event.
+  expect(reusesVerdict('pull_request', 'edited', true)).toBe(false);
+  for (const action of ['opened', 'synchronize', 'reopened', '', undefined])
+    expect(reusesVerdict('pull_request', action, false)).toBe(false);
+  for (const event of ['push', 'schedule', 'workflow_dispatch', undefined])
+    expect(reusesVerdict(event, 'edited', false)).toBe(false);
+});
+
+it("emits run=reuse through the Plan job's own arguments for an edit, and runs in full when the base changed", () => {
+  const run = (action: string, baseChanged: boolean) => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--import',
+        'tsx',
+        'tools/testing/plan.ts',
+        ...planArgs({ event: 'pull_request', sha: 'abc', verified: '', action, baseChanged }),
+      ],
+      { cwd: root, encoding: 'utf8', windowsHide: true, timeout: SUBPROCESS },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    return /^run=(.*)$/m.exec(result.stdout)?.[1];
+  };
+  expect(run('edited', false)).toBe('reuse');
+  expect(run('edited', true)).toBe('true');
+  expect(run('synchronize', false)).toBe('true');
+  // Anything but true or false for --base-changed is refused rather than read as no change.
+  const refused = spawnSync(
+    process.execPath,
+    [
+      '--import',
+      'tsx',
+      'tools/testing/plan.ts',
+      '--ci-matrix',
+      '--event',
+      'pull_request',
+      '--action',
+      'edited',
+      '--base-changed',
+      '',
+    ],
+    { cwd: root, encoding: 'utf8', windowsHide: true, timeout: SUBPROCESS },
+  );
+  expect(refused).toMatchObject({ status: 1, stderr: expect.stringContaining('--base-changed expects true or false') });
+});
+
+it('gives a reuse run its own concurrency group, runs no lane in it, and never skips the gate', () => {
+  const text = workflow(),
+    jobs = workflowJobs(text);
+  // The same condition as reusesVerdict, so an edit neither cancels a running check nor is cancelled by one.
+  expect(text).toContain(
+    "group: public-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base && '-edit' || '' }}",
+  );
+  // Every lane runs only on run == 'true', so reuse, like any other value, runs none of them.
+  for (const job of ['build', 'static', 'tests', 'emitted', 'homebrew-node'])
+    expect(jobs.get(job)).toMatch(/^if: needs\.plan\.outputs\.run == 'true'/m);
+  // The Plan job copies the verdict only on reuse; the gate runs on reuse and fails unless that copy passed.
+  const plan = jobs.get('plan')!,
+    gate = jobs.get(GATE_JOB)!;
+  expect(plan).toContain(
+    "- name: Copy the verdict of this commit's last full run\nid: verdict\nif: steps.matrices.outputs.run == 'reuse'\n",
+  );
+  expect(plan).toContain('verdict: ${{ steps.verdict.outputs.verdict }}');
+  expect(plan).toContain('--head-sha ${{ github.event.pull_request.head.sha }}');
+  // The whole line: a gate that also skipped on reuse would report a pass for a commit nothing verified.
+  expect(gate).toMatch(/^if: always\(\) && needs\.plan\.outputs\.run != 'false'$/m);
+  expect(gate).toContain(
+    `if [ "\${{ needs.plan.result }}" != "success" ] || [ "\${{ needs.plan.outputs.verdict }}" != "success" ]; then`,
+  );
+  // On reuse, every other gate step is off, the refusal loop included, and the report step is the only one that runs.
+  const steps = gate.split(/^- /m).slice(1);
+  expect(steps[0]).toMatch(
+    /^name: Report the verdict of this commit's last full run\nif: needs\.plan\.outputs\.run == 'reuse'\n/,
+  );
+  for (const step of steps.slice(1))
+    expect(step).toMatch(/^(?:.*\n)*?if: (?:always\(\) && )?needs\.plan\.outputs\.run != 'reuse'$/m);
+});
+
 it('passes the planner the shard counts it accepts, with fewer on macOS than on Linux', () => {
-  // Hosted macOS minutes bill at a multiple of Linux's, and macOS is not the workflow's critical path.
+  // Every macOS job shares the organization's macOS slots with every other run, and macOS is not the critical path.
   const step = /tests:plan --ci-matrix --shards (\S+) --native-shards (\S+)/.exec(workflow());
   expect(step).not.toBeNull();
   const shards = platformCounts(step![1]!, '--shards'),
@@ -576,6 +764,54 @@ it("plans each platform with the workflow's shard counts through the command lin
   const macos = plan('--platform', 'macos', '--shards', shards, '--native-shards', native, '--json');
   expect(macos).toMatchObject({ status: 0 });
   expect((JSON.parse(macos.stdout) as { shards: readonly unknown[] }).shards).toHaveLength(counts.macos);
+});
+
+it("keeps one run's concurrent macOS jobs within the organization's macOS slots", () => {
+  // Static, emitted and test jobs all start when the build finishes and run together, and the gate runs after them. The
+  // Homebrew smoke needs only the plan and runs its own build, so it can outlast the macOS build: while it does, the run
+  // asks for one job more than the limit and that job waits for a slot. Only the smoke may overlap that way.
+  const step = /tests:plan --ci-matrix --shards (\S+) --native-shards (\S+)/.exec(workflow());
+  expect(step).not.toBeNull();
+  const jobs = workflowJobs(workflow());
+  for (const job of ['static', 'emitted', 'tests']) expect(jobs.get(job)).toMatch(/^needs: \[plan, build\]$/m);
+  expect(jobs.get('homebrew-node')).toMatch(/^needs: plan$/m);
+  const others = [...jobs].filter(
+    ([name, body]) =>
+      !['plan', 'build', 'static', 'emitted', 'tests', 'homebrew-node', GATE_JOB].includes(name) && /macos/.test(body),
+  );
+  expect(others.map(([name]) => name)).toEqual([]);
+  const matrices = ciMatrices(readManifest(root), readSchedule(root), {
+    shards: platformCounts(step![1]!, '--shards'),
+    nativeShards: platformCounts(step![2]!, '--native-shards'),
+  });
+  const macos = (['static', 'emitted', 'tests'] as const).flatMap((lane) =>
+    matrices[lane].include.filter((row) => row.platform === 'macos'),
+  );
+  expect(macos.length).toBeLessThanOrEqual(MACOS_CONCURRENT_JOBS);
+});
+
+it('exports each platform’s durations from the gate and warns on a test shard near its timeout, never failing', () => {
+  const jobs = workflowJobs(workflow());
+  const gate = jobs.get(GATE_JOB)!,
+    tests = jobs.get('tests')!;
+  // Export and upload come before the refusal step, the gate's last, so they still run after a failed comparison.
+  const exported = gate.indexOf('run: pnpm tests:plan --record artifacts/tests --record-out artifacts/schedule/');
+  expect(exported).toBeGreaterThan(gate.indexOf('id: gate'));
+  expect(gate.indexOf('name: schedule-${{ matrix.platform }}')).toBeGreaterThan(exported);
+  expect(gate.indexOf('name: Refuse an aggregate built on unfinished work')).toBeGreaterThan(
+    gate.indexOf('name: schedule-${{ matrix.platform }}'),
+  );
+  expect(gate.slice(gate.lastIndexOf('- ', exported), exported)).toContain('continue-on-error: true');
+  // The start time is taken before any other step, and the warning runs whatever the tasks did.
+  expect(tests).toMatch(/^steps:\n- name: Note when the job started\n/m);
+  expect(tests).toMatch(/- name: Warn when the shard nears its timeout\nif: always\(\)\ncontinue-on-error: true\n/);
+  expect(tests).toMatch(/^timeout-minutes: 70$/m);
+  // The task step stops itself well inside the job's timeout, so a shard out of time still reaches the warning.
+  expect(tests).toMatch(/- name: Run assigned tasks\ntimeout-minutes: 55\n/);
+  expect(tests.indexOf('name: Warn when the shard nears its timeout')).toBeGreaterThan(
+    tests.indexOf('name: Run assigned tasks'),
+  );
+  expect(tests).toContain('if [ "$minutes" -ge 40 ]; then echo "::warning::');
 });
 
 it('writes every matrix line before it exits, however slowly the Plan job reads them', async () => {
@@ -694,6 +930,52 @@ it('makes the gate wait for every other job in the workflow and refuse unless ea
   expect(others).toEqual(expect.arrayContaining(['plan', 'homebrew-node']));
   expect([...qualifyNeeds(workflow())].sort()).toEqual(others);
   for (const job of others) expect(jobs.get(GATE_JOB)).toContain(`needs.${job}.result`);
+});
+
+it('selects a Windows I/O arm only through a dispatch input, and keeps the physical temporary directory after it', () => {
+  const text = workflow().replace(/\r\n/g, '\n');
+  // The input defaults to the baseline, and an arm refuses unless the run executes everything, off main.
+  expect(text).toMatch(
+    /^      windows-io:\n(?:        #.*\n)*        description: .*\n        type: choice\n        options: \[baseline, runner-temp, defender, dev-drive-temp\]\n        default: baseline$/m,
+  );
+  expect(workflowJobs(text).get('plan')).toContain(
+    "- name: Refuse a Windows I/O arm without a full run, or on main or release/next\nif: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/next')\n",
+  );
+  // An arm run marks itself, and its gate rows report under another name than the required check.
+  const experiment = "github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline'";
+  expect(workflowJobs(text).get('plan')).toContain(`- name: Mark this run as an experiment\nif: ${experiment}\n`);
+  expect(workflowJobs(text).get(GATE_JOB)).toMatch(
+    new RegExp(
+      `^name: \\$\\{\\{ ${experiment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} && 'Experiment platform' \\|\\| 'Emitted platform' \\}\\} \\(\\$\\{\\{ matrix\\.os \\}\\}\\)$`,
+      'm',
+    ),
+  );
+  const action = readFileSync(resolve(root, '.github/actions/setup/action.yml'), 'utf8').replace(/\r\n/g, '\n');
+  const steps = action.split(/^    - /m).slice(1);
+  const at = (match: string): number => steps.findIndex((step) => step.includes(match));
+  // Every arm step, found by its name, runs only on Windows and only for its own arm; the baseline has no step.
+  const arms = steps.filter((step) => /^name: 'Windows I\/O arm: /.test(step));
+  expect(arms).toHaveLength(4);
+  const count = new Map<string, number>();
+  for (const step of arms) {
+    const arm = /^\s*if: runner\.os == 'Windows' && github\.event\.inputs\.windows-io == '([a-z-]+)'$/m.exec(step)?.[1];
+    expect(arm, step.split('\n')[0]).toBeDefined();
+    count.set(arm!, (count.get(arm!) ?? 0) + 1);
+  }
+  expect(Object.fromEntries(count)).toEqual({ 'dev-drive-temp': 2, 'runner-temp': 1, defender: 1 });
+  expect(action).not.toContain("== 'baseline'");
+  // pnpm reads pnpm_config_* settings, so the Dev Drive store is set and checked through that name.
+  expect(action).toContain('pnpm_config_store_dir=$drive\\pnpm-store');
+  expect(action).not.toMatch(/(?<!p)npm_config_store_dir/);
+  // The arms that move the temporary directory run before canonical-temp, which still runs on every Windows job.
+  const select = at('node tools/testing/canonical-temp.mjs');
+  expect(steps[select]).toMatch(/^\s*if: runner\.os == 'Windows'$/m);
+  expect(at("windows-io == 'dev-drive-temp'")).toBeLessThan(select);
+  expect(at("windows-io == 'runner-temp'")).toBeLessThan(select);
+  // Defender excludes the temporary directory canonical-temp selected, so it runs after it, and before the install.
+  expect(at("windows-io == 'defender'")).toBeGreaterThan(select);
+  expect(at("windows-io == 'defender'")).toBeLessThan(at('pnpm install --frozen-lockfile'));
+  expect(steps[at("windows-io == 'defender'")]).toContain('Get-MpComputerStatus');
 });
 
 it('names every platform in the planner and gate usage messages', () => {
