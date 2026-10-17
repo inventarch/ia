@@ -78,12 +78,13 @@ jobs:
           sha="$(gh api "repos/${{ github.repository }}/actions/workflows/platform-quality.yml/runs?event=schedule&status=success&branch=main&per_page=1" --jq '.workflow_runs[0].head_sha // empty')" || { echo "::warning::could not read the last successful scheduled run; verifying anyway"; sha=""; }
           echo "Last successful scheduled run verified ${sha:-nothing}; main is at ${{ github.sha }}."
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-      # Public source tasks use four general lanes on Linux/Windows and two on macOS.
+      # Public source tasks use four general lanes on Linux, six on Windows and three on macOS. Windows runs the
+      # slowest, so it gets the most lanes; macOS stays below Linux because its minutes bill at a multiple.
       # Pull requests targeting main and every other trigger plan Linux, Windows and macOS. The planner also
       # emits the gate's rows and, for a scheduled run on an already verified main, run=false.
       - name: Assign tasks to shards
         id: matrices
-        run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=4,macos=2 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" >> "$GITHUB_OUTPUT"
+        run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=6,macos=3 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build (${{ matrix.os }})
