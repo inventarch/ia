@@ -204,7 +204,14 @@ it('checks the actual repository manifest for shape, coverage and qualification 
   expect(validateManifest({ manifest, projects, discovery, leaves: qualificationLeaves(root), tracked: [] })).toEqual(
     [],
   );
-  expect(trackedTestFiles(root).length).toBe(290);
+  // The test files Git sees must be exactly the files the manifest assigns. Both lists are kept separately, so this
+  // catches discovery that silently shrinks as well as an unassigned test, without a count every new test must edit.
+  const assigned = new Set(
+    discovery.flatMap((entry) =>
+      entry.files.map((file) => (entry.project === '.' ? file : `${entry.project}/${file}`)),
+    ),
+  );
+  expect([...trackedTestFiles(root)].sort()).toEqual([...assigned].sort());
 });
 
 it('exposes the declared timeout profiles and refuses a worker limit above a ceiling', () => {
