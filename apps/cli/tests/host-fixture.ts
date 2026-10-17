@@ -19,11 +19,14 @@ export const read = (root: string, path: string): string => readFileSync(resolve
 /**
  * A workspace named `demo` as a default `ia init --apply` leaves it: the three starter records in
  * `.ia/src/workspace.ia` (`@workspace demo`, its participant `@agent demo` and `@mandate demo-mandate`), no local
- * system, and its capture.
+ * system, and its capture. Each call makes a new IA home unless `home` names one: a test that makes many workspaces
+ * against the same payload passes the first one's, so the host payload is written once rather than on every pass.
  */
-export async function initialized(): Promise<{ root: string; env: { IA_HOST_HOME: string } }> {
+export async function initialized(home?: {
+  IA_HOST_HOME: string;
+}): Promise<{ root: string; env: { IA_HOST_HOME: string } }> {
   const root = resolve(scratch('host'), 'demo'),
-    env = { IA_HOST_HOME: scratch('host-home') };
+    env = home ?? { IA_HOST_HOME: scratch('host-home') };
   const result = await run(['init', root, '--apply', '--yes', '--json']);
   expect(result.exitCode, result.stdout).toBe(0);
   return { root, env };

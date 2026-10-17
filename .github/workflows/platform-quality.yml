@@ -12,6 +12,20 @@ on:
         description: Bypass every local and remote task reuse
         type: boolean
         default: false
+      windows-io:
+        # Each arm changes only where Windows jobs put temporary files and the pnpm store, or Defender's scanning of
+        # them; dispatch each with full, three runs per arm on one commit, and compare per-task Windows durations.
+        description: 'Windows I/O arm to measure (with full, on a branch other than main): baseline, runner-temp, defender or dev-drive-temp'
+        type: choice
+        options: [baseline, runner-temp, defender, dev-drive-temp]
+        default: baseline
+      task-parallelism:
+        # How many tasks one test shard runs at once (nx run-many --parallel). 1 is the execution contract; more is an
+        # experiment for the 4-core runners, to dispatch with full and compare over ten runs for flakes.
+        description: 'Tasks one test shard runs at once (with full, on a branch other than main); 1 is the normal contract'
+        type: choice
+        options: ['1', '2']
+        default: '1'
   schedule:
     # Weekly full verification of all declared variants, with no task reuse at all. It skips every job after the plan
     # when main has not moved since the last successful scheduled run.
@@ -22,8 +36,9 @@ permissions:
 
 concurrency:
   # Each main commit keeps its own run: npm publication requires a passing run for the exact release commit, and a
-  # later merge must not cancel it. Branch and pull-request runs still supersede each other.
-  group: public-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  # later merge must not cancel it. Branch and pull-request runs still supersede each other. A pull request edit that
+  # keeps its base only copies a verdict (tests:plan reusesVerdict), so it has its own group and cancels no check.
+  group: public-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base && '-edit' || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Every env key here, at any level, is either an Nx { "env": … } input or listed in tools/testing/inventory.test.ts as
@@ -51,7 +66,16 @@ jobs:
       gate: ${{ steps.matrices.outputs.gate }}
       platforms: ${{ steps.matrices.outputs.platforms }}
       run: ${{ steps.matrices.outputs.run }}
+      verdict: ${{ steps.verdict.outputs.verdict }}
     steps:
+      # First, before anything that can fail: a later edit's copy then knows this run for a copy, never a full run.
+      - name: Mark this run as a copied verdict
+        if: github.event.action == 'edited' && !github.event.changes.base
+        run: echo "A pull request edit that keeps its base copies the head commit's last full verdict."
+      # An experiment's results never stand for a contract run: a later edit's copy skips a run that ran this step.
+      - name: Mark this run as an experiment
+        if: github.event_name == 'workflow_dispatch' && (inputs.windows-io != 'baseline' || inputs.task-parallelism != '1')
+        run: echo "Experiment run, windows-io ${{ inputs.windows-io }}, task-parallelism ${{ inputs.task-parallelism }}; its gate rows report as Experiment platform."
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -66,6 +90,22 @@ jobs:
         run: pnpm release:check
       - name: Validate the test inventory
         run: pnpm tests:inventory
+      # A Windows I/O arm compares executed task times, so a run that may reuse results measures nothing. It runs on a
+      # branch other than main and release/next: a main run counts as release evidence and feeds the duration
+      # re-record, a release/next run is the release pull request's check, and an arm's changed Windows environment
+      # must reach none of them.
+      - name: Refuse a Windows I/O arm without a full run, or on main or release/next
+        if: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/next')
+        run: |
+          echo "::error::the windows-io arm ${{ inputs.windows-io }} needs full, on a branch other than main and release/next"
+          exit 1
+      # Running tasks at once changes their timing, so an experiment never shares results with ordinary runs, and it
+      # runs off main and release/next for the same reasons as a Windows I/O arm.
+      - name: Refuse task parallelism without a full run, or on main or release/next
+        if: github.event_name == 'workflow_dispatch' && inputs.task-parallelism != '1' && (!inputs.full || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/next')
+        run: |
+          echo "::error::task-parallelism ${{ inputs.task-parallelism }} needs full, on a branch other than main and release/next"
+          exit 1
       # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed
       # lookup costs minutes, never coverage.
       - name: Find the commit the last scheduled run verified
@@ -78,13 +118,25 @@ jobs:
           sha="$(gh api "repos/${{ github.repository }}/actions/workflows/platform-quality.yml/runs?event=schedule&status=success&branch=main&per_page=1" --jq '.workflow_runs[0].head_sha // empty')" || { echo "::warning::could not read the last successful scheduled run; verifying anyway"; sha=""; }
           echo "Last successful scheduled run verified ${sha:-nothing}; main is at ${{ github.sha }}."
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-      # Public source tasks use four general lanes on Linux, six on Windows and three on macOS. Windows runs the
-      # slowest, so it gets the most lanes; macOS stays below Linux because its minutes bill at a multiple.
+      # Public source tasks use four general lanes on Linux, eight on Windows and three on macOS. Windows runs the
+      # slowest, so it gets the most lanes. Hosted minutes are free on this public repository; what limits macOS is
+      # the organization's five concurrent macOS jobs, shared by every run. Static, emitted and three test shards
+      # fill all five, so a second run's macOS jobs wait for a slot (tools/testing/plan.test.ts holds this). The
+      # Homebrew smoke needs only the plan and can outlast the macOS build; while it runs, one of the five waits.
       # Pull requests targeting main and every other trigger plan Linux, Windows and macOS. The planner also
-      # emits the gate's rows and, for a scheduled run on an already verified main, run=false.
+      # emits the gate's rows, run=false for a scheduled run on an already verified main, and run=reuse for a pull
+      # request edit that keeps its base.
       - name: Assign tasks to shards
         id: matrices
-        run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=6,macos=3 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" >> "$GITHUB_OUTPUT"
+        run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=8,macos=3 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" --action "${{ github.event.action }}" --base-changed ${{ github.event.changes.base && 'true' || 'false' }} >> "$GITHUB_OUTPUT"
+      # A reuse run runs no lane. This step fails unless the head commit's last full run of this workflow finished and
+      # passed, so an edit can never turn a failed or unverified commit green. Earlier copies are not full runs.
+      - name: Copy the verdict of this commit's last full run
+        id: verdict
+        if: steps.matrices.outputs.run == 'reuse'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm --silent tests:verdict --repo ${{ github.repository }} --workflow platform-quality.yml --run-id ${{ github.run_id }} --head-sha ${{ github.event.pull_request.head.sha }} >> "$GITHUB_OUTPUT"
 
   build:
     name: Build (${{ matrix.os }})
@@ -170,11 +222,17 @@ jobs:
     needs: [plan, build]
     if: needs.plan.outputs.run == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # The task step stops at 55 minutes; the rest leaves setup up to 15 minutes before it, so the step's own limit,
+    # not the job's, ends a shard that runs out of time.
+    timeout-minutes: 70
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.tests) }}
     steps:
+      # First, so the warning at the end measures every step of the job.
+      - name: Note when the job started
+        shell: bash
+        run: date +%s > "$RUNNER_TEMP/job-started"
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -188,8 +246,12 @@ jobs:
             .nx/workspace-data
           key: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
+      # Inside the job's 70 minutes, so a shard that runs out of time fails this step rather than the job: the timeout
+      # warning below still runs for it. The tasks it finished upload no evidence, because the runner collects evidence
+      # only after Nx returns.
       - name: Run assigned tasks
-        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+        timeout-minutes: 55
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }} ${{ inputs.task-parallelism && inputs.task-parallelism != '1' && format('--parallel {0}', inputs.task-parallelism) || '' }}
       - uses: actions/cache/save@v6
         if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
@@ -204,6 +266,17 @@ jobs:
           path: artifacts/evidence
           if-no-files-found: warn
           retention-days: 14
+      # A shard past 40 minutes is near the task step's 55-minute limit: re-record the schedule or split its longest
+      # task before it reaches it. A shard that hit that limit warns here too. The warning never changes the job's
+      # result.
+      - name: Warn when the shard nears its timeout
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          minutes=$(( ($(date +%s) - $(cat "$RUNNER_TEMP/job-started")) / 60 ))
+          echo "This test shard took $minutes minutes."
+          if [ "$minutes" -ge 40 ]; then echo "::warning::Test shard ${{ matrix.shard }} on ${{ matrix.platform }} took $minutes minutes, and its task step stops at 55; refresh tools/testing/schedule.json or split its longest task."; fi
 
   emitted:
     name: Emitted qualification (${{ matrix.os }})
@@ -249,7 +322,7 @@ jobs:
     # The CLI's bundled archives must still verify there: initialize, register and validate a workspace with it.
     # It uses node@22, the declared Node major, never Homebrew's floating `node`, and it refuses to run unless
     # `ia doctor` places that runtime inside the declared target and the build links the system zlib.
-    # It runs only when the plan includes macOS (never on a pull request) and the run has something to verify, and it
+    # It runs only when the plan includes macOS and the run has something to verify, and it
     # starts as soon as the plan says so; every platform's gate row waits for it.
     name: Homebrew Node smoke (macos-26)
     needs: plan
@@ -306,21 +379,33 @@ jobs:
   qualify:
     # The existing required check names. This job is the gate; it is never cached and runs whatever its prerequisites
     # did, unless the plan decided the run had nothing to verify. Every run gates all three platforms;
-    # a plan that produced none fails this job rather than skipping it.
-    name: Emitted platform (${{ matrix.os }})
+    # a plan that produced none fails this job rather than skipping it. A reuse run never skips it either, because a
+    # skipped required check reads as passed: each row reports the copied verdict instead, on Linux, since it reads
+    # nothing of its platform and a macOS slot is scarce.
+    # An experiment's rows report under another name, so they never decide a pull request's required check.
+    name: ${{ github.event_name == 'workflow_dispatch' && (inputs.windows-io != 'baseline' || inputs.task-parallelism != '1') && 'Experiment platform' || 'Emitted platform' }} (${{ matrix.os }})
     needs: [plan, build, static, tests, emitted, homebrew-node]
     if: always() && needs.plan.outputs.run != 'false'
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ needs.plan.outputs.run == 'reuse' && 'ubuntu-latest' || matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.gate) }}
     steps:
+      - name: Report the verdict of this commit's last full run
+        if: needs.plan.outputs.run == 'reuse'
+        shell: bash
+        run: |
+          echo "A pull request edit that keeps its base runs no lane; the Plan job's log names the run whose verdict this is."
+          if [ "${{ needs.plan.result }}" != "success" ] || [ "${{ needs.plan.outputs.verdict }}" != "success" ]; then echo "::error::this head commit has no passed full run to report"; exit 1; fi
       - uses: actions/checkout@v7
+        if: needs.plan.outputs.run != 'reuse'
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
+        if: needs.plan.outputs.run != 'reuse'
       - uses: actions/download-artifact@v8
+        if: needs.plan.outputs.run != 'reuse'
         with:
           pattern: evidence-${{ matrix.platform }}-*
           merge-multiple: true
@@ -328,20 +413,35 @@ jobs:
       # Reported even when it fails, so the findings are visible rather than only the exit code.
       - name: Compare received results against the required task set
         id: gate
+        if: needs.plan.outputs.run != 'reuse'
         continue-on-error: true
         run: pnpm tests:gate --evidence artifacts/tests --platform ${{ matrix.platform }}
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && needs.plan.outputs.run != 'reuse'
         with:
           name: gate-${{ matrix.platform }}
           path: artifacts/tests
           if-no-files-found: warn
           # The merged evidence tests:plan --record reads to re-record durations; the per-job uploads above only feed it.
           retention-days: 30
+      # This run's executed durations as a candidate schedule. Best effort: it never changes the gate's result.
+      - name: Export this platform's executed durations
+        if: always() && needs.plan.outputs.run != 'reuse'
+        continue-on-error: true
+        run: pnpm tests:plan --record artifacts/tests --record-out artifacts/schedule/schedule.json
+      - uses: actions/upload-artifact@v7
+        if: always() && needs.plan.outputs.run != 'reuse'
+        continue-on-error: true
+        with:
+          name: schedule-${{ matrix.platform }}
+          path: artifacts/schedule
+          if-no-files-found: warn
+          retention-days: 30
       # A skipped or cancelled prerequisite must not read as a green aggregate. The comparison
       # above catches a missing result too; this names the job that did not finish. The Homebrew smoke is required only
       # when the plan includes macOS; otherwise its skip is expected.
       - name: Refuse an aggregate built on unfinished work
+        if: needs.plan.outputs.run != 'reuse'
         shell: bash
         run: |
           failed=""
