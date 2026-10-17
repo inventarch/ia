@@ -934,30 +934,34 @@ it('makes the gate wait for every other job in the workflow and refuse unless ea
 
 it('selects a Windows I/O arm only through a dispatch input, and keeps the physical temporary directory after it', () => {
   const text = workflow().replace(/\r\n/g, '\n');
-  // The input defaults to the baseline, and an arm refuses unless the run executes everything.
+  // The input defaults to the baseline, and an arm refuses unless the run executes everything, off main.
   expect(text).toMatch(
-    /^      windows-io:\n(?:        #.*\n)*        description: .*\n        type: choice\n        options: \[baseline, runner-temp, defender, dev-drive\]\n        default: baseline$/m,
+    /^      windows-io:\n(?:        #.*\n)*        description: .*\n        type: choice\n        options: \[baseline, runner-temp, defender, dev-drive-temp\]\n        default: baseline$/m,
   );
   expect(workflowJobs(text).get('plan')).toContain(
-    "- name: Refuse a Windows I/O arm without a full run\nif: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && !inputs.full\n",
+    "- name: Refuse a Windows I/O arm without a full run, or on main\nif: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main')\n",
   );
   const action = readFileSync(resolve(root, '.github/actions/setup/action.yml'), 'utf8').replace(/\r\n/g, '\n');
   const steps = action.split(/^    - /m).slice(1);
   const at = (match: string): number => steps.findIndex((step) => step.includes(match));
-  // Each arm step runs only on Windows and only for its own arm; the baseline has no step at all.
-  for (const arm of ['dev-drive', 'runner-temp', 'defender']) {
-    const own = steps.filter((step) => step.includes(`github.event.inputs.windows-io == '${arm}'`));
-    expect(own.length, arm).toBeGreaterThan(0);
-    for (const step of own)
-      expect(step).toMatch(
-        new RegExp(`^\\s*if: runner\\.os == 'Windows' && github\\.event\\.inputs\\.windows-io == '${arm}'$`, 'm'),
-      );
+  // Every arm step, found by its name, runs only on Windows and only for its own arm; the baseline has no step.
+  const arms = steps.filter((step) => /^name: 'Windows I\/O arm: /.test(step));
+  expect(arms).toHaveLength(4);
+  const count = new Map<string, number>();
+  for (const step of arms) {
+    const arm = /^\s*if: runner\.os == 'Windows' && github\.event\.inputs\.windows-io == '([a-z-]+)'$/m.exec(step)?.[1];
+    expect(arm, step.split('\n')[0]).toBeDefined();
+    count.set(arm!, (count.get(arm!) ?? 0) + 1);
   }
+  expect(Object.fromEntries(count)).toEqual({ 'dev-drive-temp': 2, 'runner-temp': 1, defender: 1 });
   expect(action).not.toContain("== 'baseline'");
+  // pnpm reads pnpm_config_* settings, so the Dev Drive store is set and checked through that name.
+  expect(action).toContain('pnpm_config_store_dir=$drive\\pnpm-store');
+  expect(action).not.toMatch(/(?<!p)npm_config_store_dir/);
   // The arms that move the temporary directory run before canonical-temp, which still runs on every Windows job.
   const select = at('node tools/testing/canonical-temp.mjs');
   expect(steps[select]).toMatch(/^\s*if: runner\.os == 'Windows'$/m);
-  expect(at("windows-io == 'dev-drive'")).toBeLessThan(select);
+  expect(at("windows-io == 'dev-drive-temp'")).toBeLessThan(select);
   expect(at("windows-io == 'runner-temp'")).toBeLessThan(select);
   // Defender excludes the temporary directory canonical-temp selected, so it runs after it, and before the install.
   expect(at("windows-io == 'defender'")).toBeGreaterThan(select);

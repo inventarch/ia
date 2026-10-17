@@ -7,14 +7,15 @@ description: Installs the pinned toolchain and, on Windows, selects the physical
 runs:
   using: composite
   steps:
-    # Dev Drive arm: a ReFS Dev Drive holds the temporary directory and the pnpm store. It is made first, so the store
-    # setup-node caches and the directory canonical-temp selects are on it. The checkout stays where it is.
+    # Dev Drive arm (temporary directory and store only): a ReFS Dev Drive holds the temporary directory and the pnpm
+    # store. It is made first, so the store setup-node caches and the directory canonical-temp selects are on it. The
+    # checkout, with node_modules and the Nx cache, stays where it is; this arm does not measure a workspace on ReFS.
     - name: 'Windows I/O arm: create a Dev Drive for the temporary directory and the pnpm store'
-      if: runner.os == 'Windows' && github.event.inputs.windows-io == 'dev-drive'
+      if: runner.os == 'Windows' && github.event.inputs.windows-io == 'dev-drive-temp'
       shell: pwsh
       run: |
         $ErrorActionPreference = 'Stop'
-        Write-Output 'Windows I/O arm: dev-drive'
+        Write-Output 'Windows I/O arm: dev-drive-temp'
         # diskpart rather than New-VHD: hosted runners need not carry the Hyper-V module.
         $vhd = Join-Path $env:RUNNER_TEMP 'dev-drive.vhdx'
         $script = Join-Path $env:RUNNER_TEMP 'dev-drive.txt'
@@ -28,7 +29,7 @@ runs:
         $volume = $partition | Format-Volume -DevDrive -Confirm:$false -Force
         $drive = "$($volume.DriveLetter):"
         New-Item -ItemType Directory -Path "$drive\temp", "$drive\pnpm-store" | Out-Null
-        "TEMP=$drive\temp", "TMP=$drive\temp", "npm_config_store_dir=$drive\pnpm-store" |
+        "TEMP=$drive\temp", "TMP=$drive\temp", "pnpm_config_store_dir=$drive\pnpm-store" |
           Add-Content -Path $env:GITHUB_ENV -Encoding utf8
         Write-Output "Dev Drive at $drive"
     # RUNNER_TEMP arm: the runner's own temporary directory (on the work volume) instead of the profile's on C:.
@@ -47,12 +48,13 @@ runs:
         cache: pnpm
     # The Dev Drive arm measures nothing unless pnpm really uses the store it placed there.
     - name: 'Windows I/O arm: check the pnpm store is on the Dev Drive'
-      if: runner.os == 'Windows' && github.event.inputs.windows-io == 'dev-drive'
+      if: runner.os == 'Windows' && github.event.inputs.windows-io == 'dev-drive-temp'
       shell: pwsh
       run: |
         $store = (pnpm store path).Trim()
         Write-Output "pnpm store: $store"
-        if (-not $store.StartsWith((Split-Path -Qualifier $env:npm_config_store_dir))) { throw 'The pnpm store is not on the Dev Drive' }
+        # pnpm reads pnpm_config_*, not npm_config_*, settings from the environment.
+        if (-not $store.StartsWith($env:pnpm_config_store_dir)) { throw "The pnpm store $store is not on the Dev Drive" }
     # Fixtures create real files and processes; a virtualised temporary root breaks path identity.
     - name: Select physical Windows temporary directory
       if: runner.os == 'Windows'

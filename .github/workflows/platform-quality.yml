@@ -15,9 +15,9 @@ on:
       windows-io:
         # Each arm changes only where Windows jobs put temporary files and the pnpm store, or Defender's scanning of
         # them; dispatch each with full, three runs per arm on one commit, and compare per-task Windows durations.
-        description: 'Windows I/O arm to measure (with full): baseline, runner-temp, defender or dev-drive'
+        description: 'Windows I/O arm to measure (with full, on a branch other than main): baseline, runner-temp, defender or dev-drive-temp'
         type: choice
-        options: [baseline, runner-temp, defender, dev-drive]
+        options: [baseline, runner-temp, defender, dev-drive-temp]
         default: baseline
   schedule:
     # Weekly full verification of all declared variants, with no task reuse at all. It skips every job after the plan
@@ -79,11 +79,13 @@ jobs:
         run: pnpm release:check
       - name: Validate the test inventory
         run: pnpm tests:inventory
-      # A Windows I/O arm compares executed task times, so a run that may reuse results measures nothing.
-      - name: Refuse a Windows I/O arm without a full run
-        if: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && !inputs.full
+      # A Windows I/O arm compares executed task times, so a run that may reuse results measures nothing. It runs on a
+      # branch other than main: a main run counts as release evidence and feeds the duration re-record, and an arm's
+      # changed Windows environment must not reach either.
+      - name: Refuse a Windows I/O arm without a full run, or on main
+        if: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main')
         run: |
-          echo "::error::the windows-io arm ${{ inputs.windows-io }} needs full: dispatch it with full checked"
+          echo "::error::the windows-io arm ${{ inputs.windows-io }} needs full, on a branch other than main"
           exit 1
       # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed
       # lookup costs minutes, never coverage.
