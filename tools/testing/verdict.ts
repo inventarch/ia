@@ -2,8 +2,8 @@ import { isEntry } from '../entry/is-entry.mjs';
 
 /**
  * The verdict a pull request's title or description edit reports instead of re-running every lane: the result of the
- * last full run of this workflow on the same head commit, whatever event started it. The verdict is copied, never
- * invented. A copy passes only when that run finished and succeeded. While it is still running the copy waits for it,
+ * last full run of this workflow on the same head commit that tested what the pull request merges (`testsMerge`). The
+ * verdict is copied, never invented. A copy passes only when that run finished and succeeded. While it is still running the copy waits for it,
  * for a bounded time; no full run, one still running at the bound and any other conclusion all fail.
  */
 
@@ -26,6 +26,8 @@ export interface WorkflowRun {
   readonly status: string;
   readonly conclusion: string | null;
   readonly html_url: string;
+  readonly event: string;
+  readonly head_branch: string | null;
 }
 export interface RunJob {
   readonly name: string;
@@ -40,6 +42,17 @@ export interface Verdict {
 
 /** A cancelled or skipped run decided nothing; an earlier run on the same commit still did. */
 const UNDECIDED = new Set(['cancelled', 'skipped']);
+/** The branch whose dispatched runs are the release pull request's check (`.github/workflows/release-pr.yml`). */
+export const RELEASE_BRANCH = 'release/next';
+
+/**
+ * Whether a run tested what a pull request into main merges. A `pull_request` run tests the merge commit. A dispatched
+ * run tests only the head, which can pass after the merge failed, so only the release pull request's dispatched run
+ * counts: `release/next` is cut from the tip of main, so its head is that merge result, and no `pull_request` run
+ * starts for its bot-pushed head. A push runs only on main, never on a pull request's head.
+ */
+export const testsMerge = (run: WorkflowRun): boolean =>
+  run.event === 'pull_request' || (run.event === 'workflow_dispatch' && run.head_branch === RELEASE_BRANCH);
 
 /** Whether a run's Plan job ran the named step, or is running it. A step not reached yet counts as not run. */
 export function ranStep(jobs: readonly RunJob[], name: string): boolean {
@@ -56,7 +69,7 @@ export async function copiedVerdict(
   jobsOf: (run: number) => Promise<readonly RunJob[]>,
 ): Promise<Verdict> {
   const candidates = runs
-    .filter((run) => run.id !== current && !UNDECIDED.has(run.conclusion ?? ''))
+    .filter((run) => run.id !== current && testsMerge(run) && !UNDECIDED.has(run.conclusion ?? ''))
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id);
   for (const run of candidates) {
     const jobs = await jobsOf(run.id);
@@ -102,7 +115,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
       const deadline = Date.now() + WAIT_MS;
       let verdict: Verdict;
       for (;;) {
-        // Every event's runs: the release PR's required check comes from a dispatched run on its head.
+        // Every event's runs; testsMerge keeps the release PR's dispatched runs and drops other dispatches.
         const runs: WorkflowRun[] = [];
         for (let page = 1; ; page += 1) {
           if (page > MAX_RUN_PAGES) throw new Error(`more than ${MAX_RUN_PAGES * 100} runs on ${head}`);

@@ -1,16 +1,33 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { COPY_MARK, EXPERIMENT_MARK, VERDICT_STEP, copiedVerdict, type RunJob, type WorkflowRun } from './verdict.js';
+import {
+  COPY_MARK,
+  EXPERIMENT_MARK,
+  RELEASE_BRANCH,
+  VERDICT_STEP,
+  copiedVerdict,
+  type RunJob,
+  type WorkflowRun,
+} from './verdict.js';
 import { workflowJobs } from './workflow.js';
 
 const CURRENT = 100;
-const run = (id: number, created: string, status: string, conclusion: string | null): WorkflowRun => ({
+const run = (
+  id: number,
+  created: string,
+  status: string,
+  conclusion: string | null,
+  event = 'pull_request',
+  head_branch: string | null = 'feature',
+): WorkflowRun => ({
   id,
   created_at: created,
   status,
   conclusion,
   html_url: `https://github.com/inventarch/ia/actions/runs/${id}`,
+  event,
+  head_branch,
 });
 /** A full run's Plan job skips the copy mark, its first step; a copy run's Plan job runs it. */
 const plan = (mark: { status: string; conclusion: string | null }): readonly RunJob[] => [
@@ -121,6 +138,26 @@ it('counts a run whose copy step has not been decided yet as a full run, so it c
   expect(result.passed).toBe(false);
   // A run with no Plan job at all is not a copy either.
   expect((await verdict([run(1, '2026-10-16T08:00:00Z', 'completed', 'failure')], { 1: [] })).passed).toBe(false);
+});
+
+it("never copies a dispatched run on a pull request's branch: it tested the head, not the merge", async () => {
+  // Run 1, the pull request run, failed on the merge commit; run 2, a later manual baseline run on the head, passed.
+  const runs = [
+    run(1, '2026-10-16T08:00:00Z', 'completed', 'failure'),
+    run(2, '2026-10-16T09:00:00Z', 'completed', 'success', 'workflow_dispatch', 'feature'),
+  ];
+  const result = await verdict(runs, { 1: full, 2: full });
+  expect(result).toEqual({ passed: false, reason: expect.stringContaining('runs/1 finished as failure') });
+  // With only the dispatched run, there is no full run to copy.
+  expect((await verdict([runs[1]!], { 2: full })).reason).toContain('no full run');
+});
+
+it("copies the release pull request's dispatched run, its only full run", async () => {
+  const dispatched = run(1, '2026-10-16T08:00:00Z', 'completed', 'success', 'workflow_dispatch', RELEASE_BRANCH);
+  expect(await verdict([dispatched], { 1: full })).toEqual({
+    passed: true,
+    reason: expect.stringContaining('runs/1 passed'),
+  });
 });
 
 it("never copies an experiment's result, whether it passed or failed", async () => {
