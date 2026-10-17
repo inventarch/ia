@@ -15,7 +15,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
@@ -44,10 +44,11 @@ afterEach(() => {
     }
   }
 });
-// Every busy/failure test overrides renameSync and/or rmSync, and the lock tests openSync, readFileSync or statSync; put each back to a plain passthrough so later tests see the real filesystem.
+// Every busy/failure test overrides renameSync and/or rmSync, and the lock tests openSync, readFileSync, statSync or mkdirSync; put each back to a plain passthrough so later tests see the real filesystem.
 afterEach(() => {
   vi.mocked(renameSync).mockImplementation((from, to) => real.renameSync(from as never, to as never));
   vi.mocked(rmSync).mockImplementation((path, options) => real.rmSync(path as never, options as never));
+  vi.mocked(mkdirSync).mockImplementation(((path: never, options: never) => real.mkdirSync(path, options)) as never);
   vi.mocked(openSync).mockImplementation((path, flags, mode) => real.openSync(path, flags, mode));
   vi.mocked(readFileSync).mockImplementation(((path: never, options: never) =>
     real.readFileSync(path, options)) as never);
@@ -56,6 +57,8 @@ afterEach(() => {
 const SUBPROCESS = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
 /** Never a live pid here: Linux pids stay below 4194304, the largest pid_max, and macOS pids below 100000. */
 const DEAD_PID = '4194305';
+/** No run's token: what another run's lock, in the format this CLI writes, holds after its pid. */
+const OTHER_TOKEN = '00000000-0000-4000-8000-000000000000';
 /** Past this many opens of the lock path a takeover is looping: it opens it at most twice per attempt. */
 const OPEN_LIMIT = 20;
 /**
@@ -454,22 +457,37 @@ it('refuses INSTALL-BUSY after bounded takeover attempts, without hanging, when 
   expect((caught as { code?: string } | undefined)?.code).toBe('IA-DIST-INSTALL-BUSY');
   expect((caught as Error).message).toMatch(/Another ia host --user run holds/);
 }, 5000);
-// Each verdict on both sides of its bound: a dead pid at any age, 10 minutes for a live pid, and 10 seconds' grace for
-// an empty or unparseable one. Ages are set with utimesSync, never waited out.
-it('takes over a lock whose pid died, that is over 10 minutes old, or whose pid is missing past 10 seconds, and refuses any other INSTALL-BUSY untouched', () => {
+// Each verdict at every age that matters: a dead pid is taken over at any age, a live pid at none (its age does not
+// show that its owner stopped), and an empty or unparseable pid after 10 seconds' grace. So is a pid outside 1 to
+// 2147483647: on POSIX process.kill takes 0 or a negative pid for a process group or for every process, and it refuses
+// a larger one, so either would read as running whoever wrote it. A lock an older CLI wrote holds its pid alone; one
+// this CLI writes holds its pid, a space and a token. Ages are set with utimesSync, never waited out.
+it('takes over a lock whose pid died or that holds no pid from 1 to 2147483647 past 10 seconds, in either format, and refuses INSTALL-BUSY untouched for any other, however old', () => {
   const minutes = 60_000,
     live = String(process.pid),
-    dead = DEAD_PID;
+    dead = DEAD_PID,
+    token = ` ${OTHER_TOKEN}`;
   const cases: Record<string, readonly [text: string, ageMs: number, takenOver: boolean]> = {
     'dead pid, just written': [dead, 0, true],
     'dead pid, 20 minutes old': [dead, 20 * minutes, true],
+    'dead pid and token, just written': [dead + token, 0, true],
     'live pid, just written': [live, 0, false],
     'live pid, 9 minutes old': [live, 9 * minutes, false],
-    'live pid, 11 minutes old': [live, 11 * minutes, true],
+    'live pid, 11 minutes old': [live, 11 * minutes, false],
+    'live pid and token, 11 minutes old': [live + token, 11 * minutes, false],
+    'live pid and token, 2 days old': [live + token, 2 * 24 * 60 * minutes, false],
     'empty, 5 seconds old': ['', 5_000, false],
     'empty, 20 seconds old': ['', 20_000, true],
     'unparseable, 5 seconds old': ['not a pid', 5_000, false],
     'unparseable, 20 seconds old': ['not a pid', 20_000, true],
+    'pid 0, 5 seconds old': ['0', 5_000, false],
+    'pid 0, 20 seconds old': ['0', 20_000, true],
+    'pid -1, 5 seconds old': ['-1', 5_000, false],
+    'pid -1, 20 seconds old': ['-1', 20_000, true],
+    'pid 2147483648, 5 seconds old': ['2147483648', 5_000, false],
+    'pid 2147483648, 20 seconds old': ['2147483648', 20_000, true],
+    'pid 99999999999, 5 seconds old': ['99999999999', 5_000, false],
+    'pid 99999999999, 20 seconds old': ['99999999999', 20_000, true],
   };
   const seen: Record<string, unknown> = {},
     expected: Record<string, unknown> = {};
@@ -518,6 +536,174 @@ const heldBy = (lockPath: string) => ({
   code: 'IA-DIST-INSTALL-BUSY',
   message: `Another ia host --user run holds ${lockPath}; wait for it or delete the file if no run is active`,
 });
+/** What stands at `path`, read without following a symbolic link or opening a FIFO, or null when nothing does. */
+function standing(path: string): string | null {
+  const stats = real.lstatSync(path, { throwIfNoEntry: false });
+  if (!stats) return null;
+  if (stats.isSymbolicLink()) return `symbolic link to ${real.readlinkSync(path)}`;
+  if (stats.isFIFO()) return 'FIFO';
+  return `file holding ${real.readFileSync(path, 'utf8')}`;
+}
+// The sequence the live-owner rule closes, with both runs in this process, so both pids are alive. Run A holds the lock
+// and has held it for eleven minutes. Run B used to take it over by age; A's release then removed B's lock by name, and
+// a run C acquired it while B was still active. B now refuses INSTALL-BUSY, A's lock stays as A wrote it, and A goes on
+// to finish and release it, so a run after A acquires it.
+it('refuses INSTALL-BUSY for the lock of a live run however long it has been held, and leaves that run to release it', () => {
+  const home = join(temp(), '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    stage = join(home, 'claude', '.stage-'),
+    elevenMinutesAgo = new Date(Date.now() - 11 * 60_000);
+  let b: unknown, held: string | undefined, kept: string | null | undefined;
+  // A makes its stage once it holds the lock; B runs just before, so nothing of A's stage exists for B to touch.
+  vi.mocked(mkdirSync).mockImplementation(((path: never, options: never) => {
+    if (b === undefined && String(path).startsWith(stage)) {
+      b = 'running'; // so B's own stage, should B get that far, is not intercepted
+      held = real.readFileSync(lockPath, 'utf8');
+      real.utimesSync(lockPath, elevenMinutesAgo, elevenMinutesAgo);
+      b = materialized(home);
+      kept = real.existsSync(lockPath) ? real.readFileSync(lockPath, 'utf8') : null;
+    }
+    return real.mkdirSync(path, options);
+  }) as never);
+  const a = materialized(home);
+  expect({ a, b, kept }).toEqual({ a: 'materialized', b: heldBy(lockPath), kept: held });
+  expect(existsSync(lockPath)).toBe(false); // A released its own lock
+  expect(materialized(home)).toBe('materialized'); // and a run after A acquires it
+});
+/**
+ * Runs A, a materialize whose own lock is moved aside to `aside` once A holds it, after which `replace` puts something
+ * at the lock path; then runs C. Returns what A did, what A left at the lock path, what C did and any open of a FIFO
+ * there that could block (watchOpens refuses and records one), with what each should be: A goes ahead and leaves the
+ * replacement in place, and C waits for it, or goes ahead when nothing was put there.
+ */
+function releaseAfterReplacement(
+  replace: (lockPath: string, aside: string) => void,
+  fifo = false,
+): { readonly seen: unknown; readonly expected: unknown } {
+  const root = temp(),
+    home = join(root, '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    aside = join(root, 'a.lock');
+  let placed: string | null | undefined;
+  vi.mocked(mkdirSync).mockImplementation(((path: never, options: never) => {
+    if (placed === undefined && String(path).startsWith(join(home, 'claude', '.stage-'))) {
+      real.renameSync(lockPath, aside); // moved aside rather than removed, as a run taking it over might leave it
+      replace(lockPath, aside);
+      placed = standing(lockPath);
+    }
+    return real.mkdirSync(path, options);
+  }) as never);
+  const { blocked } = watchOpens(lockPath, { fifo });
+  const a = materialized(home);
+  return {
+    seen: { a, left: standing(lockPath), c: materialized(home), blocked },
+    expected: { a: 'materialized', left: placed, c: placed === null ? 'materialized' : heldBy(lockPath), blocked: [] },
+  };
+}
+// Whatever replaced run A's lock while A ran is still at the lock path when A ends: A's release removes only the lock A
+// wrote, judged through one descriptor as a held lock is. Before, A's release removed whatever held the name, so a run C
+// after A acquired a lock whose holder was still active. A pid alone is what an older CLI writes.
+it('releases only the lock it wrote, leaving whatever replaced it for the next run to find', () => {
+  const live = String(process.pid);
+  const replacements: Record<string, (lockPath: string, aside: string) => void> = {
+    'the lock of another run: this pid with another token': (lockPath) =>
+      real.writeFileSync(lockPath, `${live} ${OTHER_TOKEN}`, { flag: 'wx' }),
+    'the lock of an older CLI: this pid alone': (lockPath) => real.writeFileSync(lockPath, live, { flag: 'wx' }),
+    'the bytes of A followed by a newline': (lockPath, aside) =>
+      real.writeFileSync(lockPath, `${real.readFileSync(aside, 'utf8')}\n`, { flag: 'wx' }),
+    'nothing: removed by hand': () => {},
+  };
+  const seen: Record<string, unknown> = {},
+    expected: Record<string, unknown> = {};
+  for (const [name, replace] of Object.entries(replacements)) {
+    const result = releaseAfterReplacement(replace);
+    seen[name] = result.seen;
+    expected[name] = result.expected;
+  }
+  expect(seen).toEqual(expected);
+});
+// The release never waits on a FIFO that replaced the lock. Skipped on Windows, where no FIFO can be created in a
+// directory (a skip tools/testing/tasks.json declares).
+it.skipIf(process.platform === 'win32')(
+  'releases only the lock it wrote, leaving a FIFO that replaced it in place without waiting on it',
+  async () => {
+    const fifo = join(temp(), 'fifo');
+    expect((await runBounded('mkfifo', [fifo], { timeoutMs: SUBPROCESS })).status).toBe(0);
+    const { seen, expected } = releaseAfterReplacement((lockPath) => real.renameSync(fifo, lockPath), true);
+    expect(seen).toEqual(expected);
+  },
+);
+// The release never follows a symbolic link to this run's own lock: off Windows O_NOFOLLOW refuses it, and on Windows
+// the identity check does. Skipped only where Windows denies file symbolic link creation (EPERM), a skip
+// tools/testing/tasks.json declares.
+it('releases only the lock it wrote, leaving a symbolic link to it that replaced it in place', (context) => {
+  const probe = temp();
+  if (!fileSymlink(join(probe, 'probe'), join(probe, 'probe-link')))
+    return context.skip('Windows denied file symlink creation (EPERM)');
+  const { seen, expected } = releaseAfterReplacement((lockPath, aside) => real.symlinkSync(aside, lockPath, 'file'));
+  expect(seen).toEqual(expected);
+});
+// The release's identity check. Right after the release opens this run's lock, the lock is moved aside and a copy of it,
+// holding this run's exact bytes, takes its name. The opened file passes every other check, so only comparing the name
+// with the opened descriptor (dev and ino) keeps the release from removing the copy. Off Windows a symbolic link never
+// reaches that comparison, as O_NOFOLLOW refuses it first, so this case is what holds it there.
+it('leaves in place a file holding its own bytes that takes the lock path while its release judges the lock', () => {
+  const root = temp(),
+    home = join(root, '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    copy = join(root, 'copy.lock');
+  let swapped = false,
+    copied: bigint | undefined,
+    own = '';
+  vi.mocked(openSync).mockImplementation((path, flags, mode) => {
+    const fd = real.openSync(path, flags, mode);
+    // Only the release opens the free lock path with numeric flags: the acquire's exclusive open passes 'wx'.
+    if (!swapped && String(path) === lockPath && typeof flags === 'number') {
+      swapped = true; // set first: given options with no encoding, the real writeFileSync below opens through this stub
+      own = real.readFileSync(lockPath, 'utf8');
+      real.writeFileSync(copy, own, { flag: 'wx' });
+      // Moved aside rather than removed, so its name is free on every platform while the release still holds it open.
+      real.renameSync(lockPath, join(root, 'released.lock'));
+      real.renameSync(copy, lockPath);
+      copied = real.statSync(lockPath, { bigint: true }).ino;
+    }
+    return fd;
+  });
+  const a = materialized(home);
+  expect(swapped).toBe(true);
+  expect({
+    a,
+    named: real.statSync(lockPath, { bigint: true, throwIfNoEntry: false })?.ino === copied,
+    left: standing(lockPath),
+  }).toEqual({ a: 'materialized', named: true, left: `file holding ${own}` });
+  expect(materialized(home)).toEqual(heldBy(lockPath)); // the copy names a live pid, so the next run waits for it
+});
+// A run writes its pid, a space and a token of its own. The pid comes first, so a reader that parses only a leading pid,
+// as an older CLI and the takeover's bounded read do, still finds it; the token tells this run's lock from that of any
+// other run, even one in the same process. Its own release removes it, after a materialize and after a removal alike.
+it('writes its pid and a token of its own to the lock, and its own release removes it', () => {
+  const home = join(temp(), '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    during: string[] = [],
+    after: boolean[] = [];
+  // Only the marketplace's own renames, made beside the lock while it is held; the IA home is written before that.
+  vi.mocked(renameSync).mockImplementation((from, to) => {
+    if (dirname(String(to)) === dirname(lockPath)) during.push(real.readFileSync(lockPath, 'utf8'));
+    return real.renameSync(from as never, to as never);
+  });
+  expect(materialized(home)).toBe('materialized'); // one rename: the stage swapped in
+  after.push(existsSync(lockPath));
+  expect(materialized(home)).toBe('materialized'); // two: the previous copy demoted, then the swap
+  after.push(existsSync(lockPath));
+  expect(removeMarketplace(home)).toBe(true); // one: the marketplace renamed away
+  after.push(existsSync(lockPath));
+  const own = new RegExp(`^${process.pid} [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`);
+  expect(during).toHaveLength(4);
+  for (const text of during) expect(text).toMatch(own);
+  expect(during[1]).toBe(during[2]); // one run, one token
+  expect(new Set([during[0], during[1], during[3]]).size).toBe(3); // each run its own
+  expect(after).toEqual([false, false, false]);
+});
 // The race CodeQL js/file-system-race flags: another run takes the stale lock over just after this run first looks at
 // it, and writes its own. This run must judge only the file it looked at, and its identity check must then keep it from
 // removing the lock that took the name. (A replacement after that check, just before the removal, is the window that
@@ -559,57 +745,82 @@ it('keeps a fresh lock that replaced the stale one while it was judged, and refu
   expect(readFileSync(lockPath, 'utf8')).toBe(String(process.pid));
   expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
 });
-// The other half of judging one file: the pid and the age are the opened lock's. The lock this run opens is live and
-// young, and right after the open a stale-looking lock (a dead pid, 20 minutes old) takes its name. A pid or an age read
-// by name would make the opened lock look stale; the identity check would then refuse to remove it, and the retry would
-// take the swapped-in lock over and go ahead.
+// The other half of judging one file: the pid and the age are the opened lock's. In each row, right after this run opens
+// the held lock, a stale-looking lock takes its name. In the first, the opened lock is live and young and the
+// swapped-in one holds a dead pid, 20 minutes old, so a pid read by name would make the opened lock look stale. In the
+// second, neither holds a pid, so only their ages tell them apart: the opened lock is 5 seconds old, inside the grace,
+// and the swapped-in one 20 seconds old, past it, so an age read by name would make the opened lock look stale. Either
+// way the identity check would then refuse to remove it, and the retry would take the swapped-in lock over and go ahead.
 it('judges the pid and age of the lock it opened, not of a stale-looking lock swapped in at its name, and refuses INSTALL-BUSY at once', () => {
-  const root = temp(),
-    home = join(root, '.ia'),
-    lockPath = join(home, 'claude', '.lock');
-  mkdirSync(join(home, 'claude'), { recursive: true });
-  writeFileSync(lockPath, String(process.pid)); // live and just written: busy
-  let swapping = false,
-    swapped: bigint | undefined,
-    opened = 0;
-  const swap = (path: unknown): void => {
-    if (swapping || swapped !== undefined || String(path) !== lockPath) return;
-    swapping = true; // given options with no encoding, the real writeFileSync below opens through the openSync stub
-    try {
-      // Moved aside rather than removed, so its name is free on every platform while this run still holds it open.
-      real.renameSync(lockPath, join(root, 'opened.lock'));
-      real.writeFileSync(lockPath, DEAD_PID, { flag: 'wx' });
-      const past = new Date(Date.now() - 20 * 60_000);
-      real.utimesSync(lockPath, past, past);
-      swapped = real.statSync(lockPath, { bigint: true }).ino;
-    } finally {
-      swapping = false;
-    }
+  const rows: Record<
+    string,
+    readonly [opened: string, openedAgeMs: number, swappedIn: string, swappedInAgeMs: number]
+  > = {
+    'a live pid just written, then a dead pid 20 minutes old': [String(process.pid), 0, DEAD_PID, 20 * 60_000],
+    'no pid, 5 seconds old, then no pid, 20 seconds old': ['', 5_000, '', 20_000],
   };
-  // Whichever call makes this run's first look at the held lock, the swap comes right after it.
-  vi.mocked(openSync).mockImplementation((path, flags, mode) => {
-    const fd = real.openSync(path, flags, mode);
-    if (!swapping && String(path) === lockPath) opened++;
-    swap(path);
-    return fd;
-  });
-  vi.mocked(statSync).mockImplementation(((path: never, options: never) => {
-    const stats = real.statSync(path, options);
-    swap(path);
-    return stats;
-  }) as never);
-  const outcome = materialized(home);
-  expect(swapped).toBeDefined(); // the stale-looking lock did take the name
-  expect(outcome).toEqual(heldBy(lockPath));
-  expect(opened).toBe(1); // judged once: busy on its first look, never retried
-  expect(real.statSync(lockPath, { bigint: true }).ino).toBe(swapped);
-  expect(readFileSync(lockPath, 'utf8')).toBe(DEAD_PID);
-  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+  const seen: Record<string, unknown> = {},
+    expected: Record<string, unknown> = {};
+  for (const [name, [openedText, openedAgeMs, swappedText, swappedAgeMs]] of Object.entries(rows)) {
+    const root = temp(),
+      home = join(root, '.ia'),
+      lockPath = join(home, 'claude', '.lock');
+    mkdirSync(join(home, 'claude'), { recursive: true });
+    writeFileSync(lockPath, openedText);
+    const openedAt = new Date(Date.now() - openedAgeMs);
+    utimesSync(lockPath, openedAt, openedAt);
+    let swapping = false,
+      swapped: bigint | undefined,
+      opened = 0;
+    const swap = (path: unknown): void => {
+      if (swapping || swapped !== undefined || String(path) !== lockPath) return;
+      swapping = true; // given options with no encoding, the real writeFileSync below opens through the openSync stub
+      try {
+        // Moved aside rather than removed, so its name is free on every platform while this run still holds it open.
+        real.renameSync(lockPath, join(root, 'opened.lock'));
+        real.writeFileSync(lockPath, swappedText, { flag: 'wx' });
+        const past = new Date(Date.now() - swappedAgeMs);
+        real.utimesSync(lockPath, past, past);
+        swapped = real.statSync(lockPath, { bigint: true }).ino;
+      } finally {
+        swapping = false;
+      }
+    };
+    // Whichever call makes this run's first look at the held lock, the swap comes right after it.
+    vi.mocked(openSync).mockImplementation((path, flags, mode) => {
+      const fd = real.openSync(path, flags, mode);
+      if (!swapping && String(path) === lockPath) opened++;
+      swap(path);
+      return fd;
+    });
+    vi.mocked(statSync).mockImplementation(((path: never, options: never) => {
+      const stats = real.statSync(path, options);
+      swap(path);
+      return stats;
+    }) as never);
+    const outcome = materialized(home);
+    seen[name] = {
+      outcome,
+      opened, // judged once: busy on its first look, never retried
+      named: swapped !== undefined && real.statSync(lockPath, { bigint: true, throwIfNoEntry: false })?.ino === swapped,
+      left: standing(lockPath),
+      plugin: inspectMaterializedPlugin(home),
+    };
+    expected[name] = {
+      outcome: heldBy(lockPath),
+      opened: 1,
+      named: true,
+      left: `file holding ${swappedText}`,
+      plugin: { state: 'absent' },
+    };
+  }
+  expect(seen).toEqual(expected);
 });
 // The lock is only ever created as a regular file, so a symbolic link at its path was put there. Followed, this one would
 // read as a long-dead lock (a dead pid, 20 minutes old) and be removed. Off Windows it is never even opened through
 // (O_NOFOLLOW); on Windows the open follows it, and the identity check, which compares the link itself, refuses it.
-it('refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither the link nor its target', () => {
+// Skipped only where Windows denies file symbolic link creation (EPERM), a skip tools/testing/tasks.json declares.
+it('refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither the link nor its target', (context) => {
   const root = temp(),
     home = join(root, '.ia'),
     lockPath = join(home, 'claude', '.lock'),
@@ -618,7 +829,7 @@ it('refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither 
   writeFileSync(target, DEAD_PID);
   const past = new Date(Date.now() - 20 * 60_000);
   utimesSync(target, past, past);
-  if (!fileSymlink(target, lockPath)) return; // Windows denied file symbolic link creation (EPERM)
+  if (!fileSymlink(target, lockPath)) return context.skip('Windows denied file symlink creation (EPERM)');
   const before = real.statSync(target, { bigint: true });
   const opens = watchOpens(lockPath);
   expect(materialized(home)).toEqual(heldBy(lockPath));
@@ -632,14 +843,16 @@ it('refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither 
 });
 // The identity check compares the lock path itself, never what a symbolic link there names. Here, right after this run
 // opens a stale lock, the lock is moved aside and a symbolic link to it takes its name: a check that followed the link
-// would find the very file it judged and remove the link in its place.
-it('refuses INSTALL-BUSY when a symbolic link to the judged lock replaces it while it is judged, keeping the link', () => {
+// would find the very file it judged and remove the link in its place. Skipped only where Windows denies file symbolic
+// link creation (EPERM), a skip tools/testing/tasks.json declares.
+it('refuses INSTALL-BUSY when a symbolic link to the judged lock replaces it while it is judged, keeping the link', (context) => {
   const root = temp(),
     home = join(root, '.ia'),
     lockPath = join(home, 'claude', '.lock'),
     aside = join(root, 'judged.lock');
   mkdirSync(join(home, 'claude'), { recursive: true });
-  if (!fileSymlink(join(root, 'probe'), join(root, 'probe-link'))) return; // Windows denied file symbolic link creation (EPERM)
+  if (!fileSymlink(join(root, 'probe'), join(root, 'probe-link')))
+    return context.skip('Windows denied file symlink creation (EPERM)');
   writeFileSync(lockPath, DEAD_PID);
   const past = new Date(Date.now() - 20 * 60_000);
   utimesSync(lockPath, past, past);
@@ -663,22 +876,25 @@ it('refuses INSTALL-BUSY when a symbolic link to the judged lock replaces it whi
 // A FIFO at the lock path hung the takeover's read until a writer came. It is judged by its type alone: never read,
 // never removed, though it is old enough that a regular file there would be taken over. watchOpens refuses and records
 // any open or read of it that could block, so a regression fails at once rather than hanging the worker, even a full
-// revert to the readFileSync of the old takeover.
-it('refuses INSTALL-BUSY for a FIFO at the lock path without hanging, and leaves it in place', async () => {
-  if (process.platform === 'win32') return; // no FIFO can be created in a Windows directory
-  const home = join(temp(), '.ia'),
-    lockPath = join(home, 'claude', '.lock');
-  mkdirSync(join(home, 'claude'), { recursive: true });
-  expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
-  const past = new Date(Date.now() - 20 * 60_000);
-  utimesSync(lockPath, past, past);
-  const { blocked } = watchOpens(lockPath, { fifo: true });
-  const outcome = materialized(home);
-  expect(blocked, 'opens or reads of the FIFO that could block').toEqual([]);
-  expect(outcome).toEqual(heldBy(lockPath));
-  expect(lstatSync(lockPath).isFIFO()).toBe(true);
-  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
-});
+// revert to the readFileSync of the old takeover. Skipped on Windows, where no FIFO can be created in a directory
+// (a skip tools/testing/tasks.json declares).
+it.skipIf(process.platform === 'win32')(
+  'refuses INSTALL-BUSY for a FIFO at the lock path without hanging, and leaves it in place',
+  async () => {
+    const home = join(temp(), '.ia'),
+      lockPath = join(home, 'claude', '.lock');
+    mkdirSync(join(home, 'claude'), { recursive: true });
+    expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
+    const past = new Date(Date.now() - 20 * 60_000);
+    utimesSync(lockPath, past, past);
+    const { blocked } = watchOpens(lockPath, { fifo: true });
+    const outcome = materialized(home);
+    expect(blocked, 'opens or reads of the FIFO that could block').toEqual([]);
+    expect(outcome).toEqual(heldBy(lockPath));
+    expect(lstatSync(lockPath).isFIFO()).toBe(true);
+    expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+  },
+);
 // Run A releases its lock just as this run's exclusive open meets it, so the lock is gone by the takeover's open. That
 // is a reason to retry the exclusive open, which now succeeds, and never to refuse INSTALL-BUSY.
 it('retries and goes ahead when the held lock is released just before the takeover opens it', () => {
@@ -700,66 +916,74 @@ it('retries and goes ahead when the held lock is released just before the takeov
   expect(existsSync(lockPath)).toBe(false); // this run's own lock, released after its materialize
 });
 // Every verdict closes the descriptor it judged: whatever stands at the lock path, a materialize ends holding the
-// descriptors it began with. /dev/fd lists this process's descriptors on Linux and macOS.
-it('closes the descriptor it judged, whether the lock is a FIFO, stale, live or a symbolic link', async () => {
-  if (process.platform === 'win32') return; // no /dev/fd to count descriptors with
-  const past = new Date(Date.now() - 20 * 60_000),
-    count = () => real.readdirSync('/dev/fd').length;
-  const arrange: Record<string, (lockPath: string, root: string) => Promise<unknown> | void> = {
-    FIFO: async (lockPath) => {
-      expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
-    },
-    stale: (lockPath) => {
-      writeFileSync(lockPath, DEAD_PID);
-      utimesSync(lockPath, past, past);
-    },
-    live: (lockPath) => writeFileSync(lockPath, String(process.pid)),
-    'symbolic link': (lockPath, root) => {
-      writeFileSync(join(root, 'elsewhere.lock'), DEAD_PID);
-      symlinkSync(join(root, 'elsewhere.lock'), lockPath);
-    },
-  };
-  materialized(join(temp(), '.ia')); // a first materialize, so nothing set up once per process is counted below
-  const seen: Record<string, unknown> = {},
-    expected: Record<string, unknown> = {};
-  for (const [name, setUp] of Object.entries(arrange)) {
-    const root = temp(),
-      home = join(root, '.ia'),
+// descriptors it began with. /dev/fd lists this process's descriptors on Linux and macOS; Windows has none to count, so
+// the case is skipped there (a skip tools/testing/tasks.json declares).
+it.skipIf(process.platform === 'win32')(
+  'closes the descriptor it judged, whether the lock is a FIFO, stale, live or a symbolic link',
+  async () => {
+    const past = new Date(Date.now() - 20 * 60_000),
+      count = () => real.readdirSync('/dev/fd').length;
+    const arrange: Record<string, (lockPath: string, root: string) => Promise<unknown> | void> = {
+      FIFO: async (lockPath) => {
+        expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
+      },
+      stale: (lockPath) => {
+        writeFileSync(lockPath, DEAD_PID);
+        utimesSync(lockPath, past, past);
+      },
+      live: (lockPath) => writeFileSync(lockPath, String(process.pid)),
+      'symbolic link': (lockPath, root) => {
+        writeFileSync(join(root, 'elsewhere.lock'), DEAD_PID);
+        symlinkSync(join(root, 'elsewhere.lock'), lockPath);
+      },
+    };
+    materialized(join(temp(), '.ia')); // a first materialize, so nothing set up once per process is counted below
+    const seen: Record<string, unknown> = {},
+      expected: Record<string, unknown> = {};
+    for (const [name, setUp] of Object.entries(arrange)) {
+      const root = temp(),
+        home = join(root, '.ia'),
+        lockPath = join(home, 'claude', '.lock');
+      mkdirSync(join(home, 'claude'), { recursive: true });
+      await setUp(lockPath, root);
+      const { blocked } = watchOpens(lockPath, { fifo: name === 'FIFO' });
+      const before = count();
+      materialized(home);
+      seen[name] = { leaked: count() - before, blocked };
+      expected[name] = { leaked: 0, blocked: [] };
+    }
+    expect(seen).toEqual(expected);
+  },
+);
+// A lock this run cannot open is never judged, so never taken over however old it is: it ends INSTALL-BUSY, untouched.
+// Skipped on Windows, where a file mode only sets the read-only attribute, which does not stop its owner opening it to
+// read (a skip tools/testing/tasks.json declares).
+it.skipIf(process.platform === 'win32')(
+  'refuses INSTALL-BUSY for an old lock it cannot open, leaving it untouched',
+  () => {
+    if (process.getuid?.() === 0) return; // no mode denies root, and the skip gate has no condition for it
+    const home = join(temp(), '.ia'),
       lockPath = join(home, 'claude', '.lock');
     mkdirSync(join(home, 'claude'), { recursive: true });
-    await setUp(lockPath, root);
-    const { blocked } = watchOpens(lockPath, { fifo: name === 'FIFO' });
-    const before = count();
-    materialized(home);
-    seen[name] = { leaked: count() - before, blocked };
-    expected[name] = { leaked: 0, blocked: [] };
-  }
-  expect(seen).toEqual(expected);
-});
-// A lock this run cannot open is never judged, so never taken over however old it is: it ends INSTALL-BUSY, untouched.
-it('refuses INSTALL-BUSY for an old lock it cannot open, leaving it untouched', () => {
-  if (process.platform === 'win32' || process.getuid?.() === 0) return; // no mode denies its owner there, nor root anywhere
-  const home = join(temp(), '.ia'),
-    lockPath = join(home, 'claude', '.lock');
-  mkdirSync(join(home, 'claude'), { recursive: true });
-  writeFileSync(lockPath, DEAD_PID);
-  const past = new Date(Date.now() - 20 * 60_000);
-  utimesSync(lockPath, past, past);
-  real.chmodSync(lockPath, 0o000);
-  try {
-    const before = real.statSync(lockPath, { bigint: true });
-    watchOpens(lockPath);
-    expect(materialized(home)).toEqual(heldBy(lockPath));
-    const after = real.statSync(lockPath, { bigint: true });
-    expect([after.ino, after.size, after.mtimeNs, after.mode]).toEqual([
-      before.ino,
-      before.size,
-      before.mtimeNs,
-      before.mode,
-    ]);
-  } finally {
-    real.chmodSync(lockPath, 0o600);
-  }
-  expect(readFileSync(lockPath, 'utf8')).toBe(DEAD_PID);
-  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
-});
+    writeFileSync(lockPath, DEAD_PID);
+    const past = new Date(Date.now() - 20 * 60_000);
+    utimesSync(lockPath, past, past);
+    real.chmodSync(lockPath, 0o000);
+    try {
+      const before = real.statSync(lockPath, { bigint: true });
+      watchOpens(lockPath);
+      expect(materialized(home)).toEqual(heldBy(lockPath));
+      const after = real.statSync(lockPath, { bigint: true });
+      expect([after.ino, after.size, after.mtimeNs, after.mode]).toEqual([
+        before.ino,
+        before.size,
+        before.mtimeNs,
+        before.mode,
+      ]);
+    } finally {
+      real.chmodSync(lockPath, 0o600);
+    }
+    expect(readFileSync(lockPath, 'utf8')).toBe(DEAD_PID);
+    expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+  },
+);
