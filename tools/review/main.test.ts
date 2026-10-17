@@ -7,9 +7,9 @@ import { expect, it } from 'vitest';
 import { runBounded } from '../testing/subprocess.js';
 
 // main() runs as the workflow runs it, `node tools/review/runner.mjs` in a fresh working directory, with every GitHub,
-// OIDC and review API response supplied by main-fixture.mjs, a preload that replaces fetch and the clock.
+// OIDC and review API response supplied by fixtures/main.mjs, a preload that replaces fetch and the clock.
 const runner = realpathSync(fileURLToPath(new URL('./runner.mjs', import.meta.url)));
-const preload = pathToFileURL(realpathSync(fileURLToPath(new URL('./main-fixture.mjs', import.meta.url)))).href;
+const preload = pathToFileURL(realpathSync(fileURLToPath(new URL('./fixtures/main.mjs', import.meta.url)))).href;
 const bound = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 10_000;
 const STARTED = 'abcdef12-3456-4789-8abc-def012345678',
   OTHER = 'fedcba98-7654-4321-8fed-cba987654321',

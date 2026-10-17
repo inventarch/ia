@@ -19,11 +19,11 @@ import { gzipSync } from 'node:zlib';
 import { expect, it } from 'vitest';
 import { runBounded } from '../testing/subprocess.js';
 
-// The script runs as a release qualification runs it, against archives built here, with qualify-sdk-fixture.mjs
+// The script runs as a release qualification runs it, against archives built here, with fixtures/qualify-sdk.mjs
 // preloaded to stub its release, receipt and language manifest readers, record what it hands to tar and race one archive.
 // No network, registry or real install is involved: the pnpm launcher is a Node script that installs nothing.
 const script = realpathSync(fileURLToPath(new URL('./qualify-sdk.mjs', import.meta.url)));
-const preload = pathToFileURL(realpathSync(fileURLToPath(new URL('./qualify-sdk-fixture.mjs', import.meta.url)))).href;
+const preload = pathToFileURL(realpathSync(fileURLToPath(new URL('./fixtures/qualify-sdk.mjs', import.meta.url)))).href;
 const bound = Number(process.env['IA_TEST_SUBPROCESS_TIMEOUT_MS']) || 60_000;
 const settle = bound + 10_000;
 const version = '9.9.9';
@@ -67,7 +67,7 @@ interface Options {
   readonly manifests?: Readonly<Record<string, object>>;
   /** The db archive's name as a link to the archive moved elsewhere. */
   readonly link?: 'hard' | 'symbolic';
-  /** A change to the db archive at the named moment of its reading, as qualify-sdk-fixture.mjs makes it. */
+  /** A change to the db archive at the named moment of its reading, as fixtures/qualify-sdk.mjs makes it. */
   readonly race?: { readonly at: 'open' | 'read' | 'tar'; readonly change: string };
 }
 interface Pin {
