@@ -22,7 +22,7 @@ import type {
 } from './types.js';
 
 export interface MemoryBackendOptions {
-  /** Host admission gate run before every commit and checkpoint write (see `Admission`). Present means required: anything but a function refuses. */ admit?: AdmissionGate;
+  /** Host admission gate run before every commit and checkpoint write (see `Admission`). Present means required: anything but a function refuses (IA-SESSION-ADMISSION-UNAVAILABLE). */ admit?: AdmissionGate;
 }
 /** Deterministic conformance adapter; it makes no durability claim. */
 export class MemoryBackend implements JournalBackend {

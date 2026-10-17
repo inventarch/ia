@@ -42,7 +42,7 @@ export function assertDurable(settings: Durability, platform: NodeJS.Platform): 
 }
 export interface SqliteBackendOptions {
   /** Platform whose durability profile applies; defaults to process.platform. */ platform?: NodeJS.Platform;
-  /** Host admission gate run inside every commit and checkpoint transaction (see `Admission`). Present means required: anything but a function refuses. */ admit?: AdmissionGate;
+  /** Host admission gate run inside every commit and checkpoint transaction (see `Admission`). Present means required: anything but a function refuses (IA-SESSION-ADMISSION-UNAVAILABLE). */ admit?: AdmissionGate;
 }
 function assertDirectory(path: string): void {
   for (let current = path; ; current = dirname(current)) {

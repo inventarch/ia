@@ -1,4 +1,3 @@
-import { types } from 'node:util';
 import { copy, digest, identifier, requireValue, SessionError } from './codec.js';
 import { eventFor, replay } from './reducer.js';
 import type {
@@ -102,8 +101,12 @@ export function admit(gate: AdmissionGate | undefined, offer: () => Admission): 
   let decision: unknown;
   try {
     decision = gate(freeze(copy(offer())));
-    // A promise never admits. Observe its rejection, from any realm and without its own methods, so it cannot crash the host.
-    if (types.isPromise(decision)) Promise.prototype.then.call(decision, undefined, () => undefined);
+    // A promise never admits. Observe its rejection through the intrinsic `then`, which accepts a promise from any
+    // realm, ignores its own methods and throws for anything else, so a refused gate cannot crash the host. Not
+    // util.types.isPromise: importing node:util prints a colour warning on stderr when NO_COLOR and FORCE_COLOR are
+    // both set, and installed CLIs load this module on every command.
+    if (decision !== null && (typeof decision === 'object' || typeof decision === 'function'))
+      Promise.prototype.then.call(decision, undefined, () => undefined);
   } catch {
     decision = undefined;
   }

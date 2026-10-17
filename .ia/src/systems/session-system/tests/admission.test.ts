@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
@@ -387,6 +388,21 @@ describe.each(['memory', 'sqlite'] as const)('%s admission decisions', (kind) =>
 });
 
 describe('admission configuration', () => {
+  it('loads without writing to stderr when NO_COLOR and FORCE_COLOR are both set', () => {
+    // Installed CLIs load this package on every command, and installed-CLI qualification requires an empty stderr.
+    // Importing node:util would load Node's colour probe, which warns whenever both variables are set.
+    const env: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: '1', FORCE_COLOR: '1' };
+    delete env['NODE_OPTIONS'];
+    const entry = new URL('../dist/index.js', import.meta.url).href,
+      result = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], {
+        env,
+        encoding: 'utf8',
+        timeout: 10_000,
+        windowsHide: true,
+      });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  });
   it('reports whether a store enforces admission', () => {
     const root = temporary(),
       gated = [memoryStore({ admit: () => true }), sqliteStore(root, { admit: () => true })],

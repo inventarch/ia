@@ -377,7 +377,13 @@ export interface Admission {
 export type AdmissionGate = (admission: Readonly<Admission>) => boolean;
 /** Trusted adapter boundary, not exposed to a model or network caller. */
 export interface JournalBackend {
-  /** True when a host admission gate runs inside every commit and checkpoint transaction (see `Admission`). */
+  /**
+   * True when a host admission gate runs inside every commit and checkpoint transaction (see `Admission`). A backend
+   * that sets it calls the gate after its ownership, idempotency and revision checks and every await, immediately
+   * before writing; offers a deeply frozen copy; admits only a synchronous `true`; and refuses with the redacted
+   * IA-SESSION-ADMISSION-DENIED. A backend that cannot keep that contract leaves it unset, so a host that requires
+   * admission refuses it.
+   */
   readonly admission?: boolean;
   load(sessionId: string): Promise<Journal | null>;
   /** `next` is the session once `events` land; a backend running an admission gate refuses a commit without it. */
