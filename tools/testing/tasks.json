@@ -3440,17 +3440,19 @@
       "skips": [
         {
           "case": "tools/runtime/qualify-sdk.test.ts > refuses a symbolic link at its selection before tar is handed its bytes",
-          "reason": "Creating a file symbolic link needs a privilege on Windows; Linux and macOS run this refusal, and the hard-link and read-race cases run on every platform.",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included, to qualify the check by name that catches a link Windows followed on open.",
           "platforms": [
             "windows"
-          ]
+          ],
+          "when": "file-symlink-unavailable"
         },
         {
           "case": "tools/runtime/qualify-sdk.test.ts > refuses a symbolic link put in place after its selection before tar is handed its bytes",
-          "reason": "Creating a file symbolic link needs a privilege on Windows; Linux and macOS run this refusal, and the hard-link and read-race cases run on every platform.",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, Windows included, to qualify the check by name that catches a link Windows followed on open.",
           "platforms": [
             "windows"
-          ]
+          ],
+          "when": "file-symlink-unavailable"
         },
         {
           "case": "tools/runtime/qualify-sdk.test.ts > refuses the same bytes under a new identity once it is open before tar is handed its bytes",

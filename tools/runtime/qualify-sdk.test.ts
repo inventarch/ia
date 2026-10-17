@@ -123,7 +123,7 @@ async function qualify(options: Options = {}) {
     if (options.link) {
       renameSync(db, resolve(root, 'elsewhere.tgz'));
       if (options.link === 'hard') linkSync(resolve(root, 'elsewhere.tgz'), db);
-      else symlinkSync(resolve(root, 'elsewhere.tgz'), db);
+      else symlinkSync(resolve(root, 'elsewhere.tgz'), db, 'file');
     }
     const log = resolve(root, 'tar.jsonl');
     put(
@@ -265,8 +265,6 @@ it.each([
   settle,
 );
 
-// Windows has no FIFOs and needs a privilege to create a file symbolic link, and a rename over a name held open is not
-// tried there: these four cases are declared Windows skips in tasks.json.
 const refusesBeforeTar = async (options: Options, message: string) => {
   const run = await qualify(options);
   expect(run.status).toBe(1);
@@ -274,16 +272,47 @@ const refusesBeforeTar = async (options: Options, message: string) => {
   expect(run.tar).toEqual(names.slice(0, names.indexOf('db')).map((name) => handed(run.bytes[name] as Buffer)));
   expect(run.pins).toBeUndefined();
 };
-it.skipIf(process.platform === 'win32')(
+/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
+const fileLink = (target: string, path: string): boolean => {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+};
+/** Whether a file link can be made here, probed as the task runner probes it: with a disposable link in the temp root. */
+function fileLinks(): boolean {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-qualify-sdk-link-'));
+  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+  try {
+    writeFileSync(resolve(root, 'target'), '');
+    return fileLink(resolve(root, 'target'), resolve(root, 'link'));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+// Both link cases run wherever a file link can be made, Windows included, where the script finds a link by its name
+// after the read. Only a Windows denial (EPERM) skips them: a conditional skip tasks.json declares.
+it(
   'refuses a symbolic link at its selection before tar is handed its bytes',
-  () => refusesBeforeTar({ link: 'symbolic' }, 'isSymbolicLink()'),
+  async (context) => {
+    if (!fileLinks()) return context.skip('Windows denied file symlink creation (EPERM)');
+    await refusesBeforeTar({ link: 'symbolic' }, 'isSymbolicLink()');
+  },
   settle,
 );
-it.skipIf(process.platform === 'win32')(
+it(
   'refuses a symbolic link put in place after its selection before tar is handed its bytes',
-  () => refusesBeforeTar({ race: { at: 'open', change: 'link' } }, 'isSymbolicLink()'),
+  async (context) => {
+    if (!fileLinks()) return context.skip('Windows denied file symlink creation (EPERM)');
+    await refusesBeforeTar({ race: { at: 'open', change: 'link' } }, 'isSymbolicLink()');
+  },
   settle,
 );
+// Windows has no FIFOs, and a rename over a name held open is not tried there: these two cases are declared Windows
+// skips in tasks.json.
 it.skipIf(process.platform === 'win32')(
   'refuses the same bytes under a new identity once it is open before tar is handed its bytes',
   () => refusesBeforeTar({ race: { at: 'read', change: 'identity' } }, 'Selected archive changed while it was read'),

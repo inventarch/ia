@@ -39,7 +39,7 @@ const changes = {
   // A symbolic link at the name, to the archive moved aside.
   link: () => {
     fs.renameSync(race.path, `${race.path}.moved`);
-    fs.symlinkSync(`${race.path}.moved`, race.path);
+    fs.symlinkSync(`${race.path}.moved`, race.path, 'file');
   },
   // A FIFO at the name, with no writer.
   fifo: () => {
