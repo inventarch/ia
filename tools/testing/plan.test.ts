@@ -943,7 +943,8 @@ it('selects a Windows I/O arm only through a dispatch input, and keeps the physi
     "- name: Refuse a Windows I/O arm without a full run, or on main or release/next\nif: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/next')\n",
   );
   // An arm run marks itself, and its gate rows report under another name than the required check.
-  const experiment = "github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline'";
+  const experiment =
+    "github.event_name == 'workflow_dispatch' && (inputs.windows-io != 'baseline' || inputs.task-parallelism != '1')";
   expect(workflowJobs(text).get('plan')).toContain(`- name: Mark this run as an experiment\nif: ${experiment}\n`);
   expect(workflowJobs(text).get(GATE_JOB)).toMatch(
     new RegExp(
@@ -1020,7 +1021,7 @@ it('runs one task at a time per shard unless a full dispatch sets task paralleli
     /^      task-parallelism:\n(?:        #.*\n)*        description: .*\n        type: choice\n        options: \['1', '2'\]\n        default: '1'$/m,
   );
   expect(jobs.get('plan')).toContain(
-    "- name: Refuse task parallelism without a full run, or on main\nif: github.event_name == 'workflow_dispatch' && inputs.task-parallelism != '1' && (!inputs.full || github.ref == 'refs/heads/main')\n",
+    "- name: Refuse task parallelism without a full run, or on main or release/next\nif: github.event_name == 'workflow_dispatch' && inputs.task-parallelism != '1' && (!inputs.full || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/next')\n",
   );
   expect(jobs.get('tests')).toContain(
     "${{ inputs.task-parallelism && inputs.task-parallelism != '1' && format('--parallel {0}', inputs.task-parallelism) || '' }}",
