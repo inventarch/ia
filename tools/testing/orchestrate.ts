@@ -253,7 +253,8 @@ if (isEntry(process.argv[1], import.meta.url)) {
   );
   let parallel: number | undefined, invalidParallel: string | undefined;
   try {
-    parallel = parallelOf(flag('--parallel'));
+    // A trailing --parallel with no value is refused like a wrong one, never read as absent.
+    parallel = parallelOf(args.includes('--parallel') ? (flag('--parallel') ?? '') : undefined);
   } catch (error) {
     invalidParallel = error instanceof Error ? error.message : String(error);
   }

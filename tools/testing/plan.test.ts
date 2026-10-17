@@ -1003,6 +1003,16 @@ it('runs one task at a time per shard unless a full dispatch sets task paralleli
     { cwd: root, encoding: 'utf8', windowsHide: true, timeout: SUBPROCESS },
   );
   expect(refused).toMatchObject({ status: 2, stderr: expect.stringContaining('--parallel expects an integer') });
+  const trailing = spawnSync(
+    process.execPath,
+    ['--import', 'tsx', 'tools/testing/orchestrate.ts', '--tasks', 'thing:test', '--parallel'],
+    { cwd: root, encoding: 'utf8', windowsHide: true, timeout: SUBPROCESS },
+  );
+  expect(trailing).toMatchObject({ status: 2, stderr: expect.stringContaining('--parallel expects an integer') });
+  // The flag reaches Nx: the CLI hands it to orchestrate, which hands it to every run-many invocation.
+  const source = readFileSync(resolve(root, 'tools/testing/orchestrate.ts'), 'utf8');
+  expect(source).toContain('[...runManyArgs(targets, skipCache, options.parallel)]');
+  expect(source).toContain('...(parallel === undefined ? {} : { parallel }),');
   // The workflow: a dispatch input defaulting to 1, refused without full, and read only by the test lane.
   const text = workflow().replace(/\r\n/g, '\n'),
     jobs = workflowJobs(text);
