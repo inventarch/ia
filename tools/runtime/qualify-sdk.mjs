@@ -54,6 +54,8 @@ const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 /**
  * A selected archive's bytes, read once through the descriptor it was opened and judged by (CodeQL js/file-system-race):
  * a regular file, not a link, unchanged while it is read. Its digest, its manifest and its pin all come from these bytes.
+ * An archive over 2147483647 bytes, the most the read by name admitted, refuses before a buffer is allocated for it, and no
+ * read asks for more than that many bytes.
  */
 function archiveBytes(path) {
   let fd;
@@ -70,11 +72,13 @@ function archiveBytes(path) {
   try {
     const opened = fstatSync(fd, { bigint: true });
     assert(opened.isFile(), 'Selected archive is not a regular file');
+    // The most the read by name admitted: a larger archive refuses before a buffer is allocated for it.
+    assert(opened.size <= 0x7fffffffn, `Selected archive exceeds 2147483647 bytes: ${path}`);
     // Read at most one byte past the opened size, so a file that grows while it is read cannot pass for the one judged.
     const bytes = Buffer.alloc(Number(opened.size) + 1);
     let length = 0;
     while (length < bytes.length) {
-      const count = readSync(fd, bytes, length, bytes.length - length, null);
+      const count = readSync(fd, bytes, length, Math.min(bytes.length - length, 0x7fffffff), null);
       if (!count) break;
       length += count;
     }

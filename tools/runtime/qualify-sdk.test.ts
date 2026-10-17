@@ -68,7 +68,9 @@ interface Options {
   /** The db archive's name as a link to the archive moved elsewhere. */
   readonly link?: 'hard' | 'symbolic';
   /** A change to the db archive at the named moment of its reading, as fixtures/qualify-sdk.mjs makes it. */
-  readonly race?: { readonly at: 'open' | 'read' | 'tar'; readonly change: string };
+  readonly race?: { readonly at: 'open' | 'read' | 'tar'; readonly change: string; readonly size?: number };
+  /** Digest the db archive at its name after the run, for a case that asserts it: a sparse archive would be read in full. */
+  readonly digestAfter?: boolean;
 }
 interface Pin {
   readonly package: string;
@@ -170,8 +172,11 @@ async function qualify(options: Options = {}) {
         ?.dependencies,
       /** The digest of each archive at the path the install names, as the install read it. */
       installed: read(resolve(output, 'install.log')) as Record<string, string> | undefined,
-      /** The digest of the bytes at the db archive's name after the run, while it is a regular file. */
-      dbAfter: lstatSync(db, { throwIfNoEntry: false })?.isFile() ? sha256(readFileSync(db)) : undefined,
+      /** The digest of the bytes at the db archive's name after the run, while it is a regular file, when the case asks. */
+      dbAfter:
+        options.digestAfter && lstatSync(db, { throwIfNoEntry: false })?.isFile()
+          ? sha256(readFileSync(db))
+          : undefined,
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -217,7 +222,7 @@ it(
   async () => {
     // A known limitation, kept explicit: the digest, tar input and pin are bound to one read, but the install reopens
     // the archive by its path, so the installed bytes are not bound to the checked buffer.
-    const run = await qualify({ race: { at: 'tar', change: 'replace' } });
+    const run = await qualify({ race: { at: 'tar', change: 'replace' }, digestAfter: true });
     expect(run.status).toBe(0);
     const checked = sha256(run.bytes['db'] as Buffer);
     expect(run.tar[names.indexOf('db')]).toEqual(handed(run.bytes['db'] as Buffer));
@@ -322,6 +327,30 @@ it.skipIf(process.platform === 'win32')(
 it.skipIf(process.platform === 'win32')(
   'refuses a FIFO put in place after its selection before tar is handed its bytes',
   () => refusesBeforeTar({ race: { at: 'open', change: 'fifo' } }, 'Selected archive is not a regular file'),
+  settle,
+);
+
+// The read by name that digests every archive refuses one over 2147483647 bytes itself, so the read through the descriptor
+// meets a larger archive only if one grows after that: the fixture extends it, as a sparse file, just before its open. It
+// allocates no buffer past that size either: a longer one refuses there, naming its size, and without the bound that
+// refusal, not the script's own, is what these cases would see.
+it(
+  'refuses an archive over 2147483647 bytes before allocating a buffer for it',
+  () =>
+    refusesBeforeTar(
+      { race: { at: 'open', change: 'extend', size: 2147483648 } },
+      'Selected archive exceeds 2147483647 bytes: ',
+    ),
+  settle,
+);
+it(
+  'admits an archive of exactly 2147483647 bytes and reads at most that many bytes at a time',
+  // The fixture hands back a stand-in for its buffer, one byte longer, and ends the run at the first read into it.
+  () =>
+    refusesBeforeTar(
+      { race: { at: 'open', change: 'extend', size: 0x7fffffff } },
+      'A read of 2147483647 bytes was asked of the buffer of 2147483648 bytes',
+    ),
   settle,
 );
 

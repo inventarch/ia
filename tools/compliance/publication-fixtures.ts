@@ -26,7 +26,8 @@ export function publicationFixtureCodes(): readonly string[] {
 /**
  * A snapshot of every entry under `root`: a regular file's bytes in base64, null for anything else, a link included. Each
  * file is opened before it is judged, so the judgment and the read are of one file (CodeQL js/file-system-race), and its
- * name is checked again after the read.
+ * name is checked again after the read. A file over 2147483647 bytes, the most the read by name admitted, refuses before a
+ * buffer is allocated for it, and no read asks for more than that many bytes.
  */
 export function contents(root: string): string {
   return JSON.stringify(
@@ -49,11 +50,13 @@ function fileBytes(file: string): string | null {
   try {
     const opened = fstatSync(fd, { bigint: true });
     if (!opened.isFile()) return null;
+    // The most the read by name admitted: a larger file refuses before a buffer is allocated for it.
+    if (opened.size > 0x7fffffffn) throw new Error(`Publication fixture entry exceeds 2147483647 bytes: ${file}`);
     // Read at most one byte past the opened size, so a file that grows while it is read is caught below.
     const bytes = Buffer.alloc(Number(opened.size) + 1);
     let length = 0;
     while (length < bytes.length) {
-      const count = readSync(fd, bytes, length, bytes.length - length, null);
+      const count = readSync(fd, bytes, length, Math.min(bytes.length - length, 0x7fffffff), null);
       if (!count) break;
       length += count;
     }
