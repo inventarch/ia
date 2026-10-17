@@ -141,9 +141,9 @@ function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
     } catch {
       /* unreadable: pid stays NaN, judged as a pid that did not parse below */
     }
-    // Only a pid from 1 to 2147483647 names one owner. process.kill takes 0 or a negative pid for a process group or
-    // for every process, and refuses a larger one as an invalid argument; isPidAlive reads either as running, whoever
-    // wrote the lock, so those are judged as a pid that did not parse.
+    // Only a pid from 1 to 2147483647 names one owner. On POSIX, process.kill takes 0 or a negative pid for a process
+    // group or for every process, and it refuses a larger one as an invalid argument; isPidAlive reads either as
+    // running, whoever wrote the lock, so those are judged as a pid that did not parse.
     const owner = Number.isInteger(pid) && pid > 0 && pid <= 2147483647;
     const stale = owner ? !isPidAlive(pid) : ageMs > LOCK_EMPTY_GRACE_MS;
     if (!stale) return 'busy';

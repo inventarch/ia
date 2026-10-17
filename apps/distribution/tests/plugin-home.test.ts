@@ -457,11 +457,11 @@ it('refuses INSTALL-BUSY after bounded takeover attempts, without hanging, when 
   expect((caught as { code?: string } | undefined)?.code).toBe('IA-DIST-INSTALL-BUSY');
   expect((caught as Error).message).toMatch(/Another ia host --user run holds/);
 }, 5000);
-// Each verdict at every age that matters: a dead pid is taken over at any age, a live pid at none (its age does not show
-// that its owner stopped), and an empty or unparseable pid after 10 seconds' grace. So is a pid outside 1 to 2147483647:
-// process.kill takes 0 or a negative pid for a process group or for every process, and refuses a larger one, so either
-// would read as running whoever wrote it. A lock an older CLI wrote holds its pid alone; one this CLI writes holds its
-// pid, a space and a token. Ages are set with utimesSync, never waited out.
+// Each verdict at every age that matters: a dead pid is taken over at any age, a live pid at none (its age does not
+// show that its owner stopped), and an empty or unparseable pid after 10 seconds' grace. So is a pid outside 1 to
+// 2147483647: on POSIX process.kill takes 0 or a negative pid for a process group or for every process, and it refuses
+// a larger one, so either would read as running whoever wrote it. A lock an older CLI wrote holds its pid alone; one
+// this CLI writes holds its pid, a space and a token. Ages are set with utimesSync, never waited out.
 it('takes over a lock whose pid died or that holds no pid from 1 to 2147483647 past 10 seconds, in either format, and refuses INSTALL-BUSY untouched for any other, however old', () => {
   const minutes = 60_000,
     live = String(process.pid),
