@@ -149,7 +149,16 @@ it('reads a retained bounded binding and refuses an oversized replacement', () =
   expect(() => readContextHookBinding(root, path)).toThrow(/bounded|changed/i);
 });
 
-const posix = process.platform !== 'win32';
+/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
+const fileLink = (target: string, path: string): boolean => {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+};
 const NOT_REGULAR = { code: 'IA-LIFECYCLE-BINDING', message: 'Context binding is not a bounded regular file' },
   OUTSIDE = { code: 'IA-LIFECYCLE-BINDING', message: 'Context binding path is outside its fixed managed location' };
 /** The code and message of what `run` throws. */
@@ -176,10 +185,9 @@ it('passes on the realpath error of a missing binding', () => {
     message: `ENOENT: no such file or directory, realpath '${path}'`,
   });
 });
-it.each(['a file link', 'a junction', 'a hosts directory junction'] as const)(
+it.for(['a file link', 'a junction', 'a hosts directory junction'] as const)(
   'refuses a binding reached through %s',
-  (kind) => {
-    if (!posix && kind === 'a file link') return;
+  (kind, context) => {
     const { root, path } = fixture(),
       elsewhere = join(root, 'elsewhere');
     if (kind === 'a hosts directory junction') {
@@ -188,14 +196,16 @@ it.each(['a file link', 'a junction', 'a hosts directory junction'] as const)(
     } else {
       mkdirSync(elsewhere);
       renameSync(path, join(elsewhere, 'binding.json'));
-      if (kind === 'a file link') symlinkSync(join(elsewhere, 'binding.json'), path, 'file');
-      else symlinkSync(elsewhere, path, 'junction');
+      if (kind === 'a file link') {
+        if (!fileLink(join(elsewhere, 'binding.json'), path))
+          return context.skip('Windows denied file symlink creation (EPERM)');
+      } else symlinkSync(elsewhere, path, 'junction');
     }
     expect(refusal(() => readContextHookBinding(root, path))).toEqual(OUTSIDE);
   },
 );
-it.each(['a hard link', 'a directory', 'a FIFO', 'a socket'] as const)('refuses a binding that is %s', async (kind) => {
-  if (!posix && kind !== 'a hard link' && kind !== 'a directory') return;
+const REFUSED_BINDING = 'refuses a binding that is %s';
+async function refusedBinding(kind: 'a hard link' | 'a directory' | 'a FIFO' | 'a socket'): Promise<void> {
   const { root, path } = fixture();
   if (kind === 'a hard link') linkSync(path, join(root, 'another.json'));
   else {
@@ -217,9 +227,14 @@ it.each(['a hard link', 'a directory', 'a FIFO', 'a socket'] as const)('refuses 
   }
   expect(refusal(() => readContextHookBinding(root, path))).toEqual(NOT_REGULAR);
   expect(gate.waited).toEqual([]);
-});
-it('passes on the error of a binding it may not open', () => {
-  if (!posix || process.getuid?.() === 0) return;
+}
+it.each(['a hard link', 'a directory'] as const)(REFUSED_BINDING, (kind) => refusedBinding(kind));
+it.skipIf(process.platform === 'win32').each(['a FIFO', 'a socket'] as const)(REFUSED_BINDING, (kind) =>
+  refusedBinding(kind),
+);
+it.skipIf(process.platform === 'win32')('passes on the error of a binding it may not open', () => {
+  // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+  if (process.getuid?.() === 0) return;
   const { root, path } = fixture();
   chmodSync(path, 0o000);
   expect(refusal(() => readContextHookBinding(root, path))).toEqual({
@@ -270,14 +285,16 @@ it('refuses a binding that grows while it is read, reading no more than its open
   expect(requested).toBe(Buffer.byteLength(text) + 1);
   expect(() => fstatSync(gate.fd)).toThrow();
 });
-it('refuses a file link swapped in for the binding after its path check as not a bounded regular file', () => {
-  if (!posix) return;
-  const { root, path } = fixture();
-  gate.path = resolve(path);
-  // Between the path check and the open: an open that refuses links refuses this one.
-  gate.beforeOpen = () => {
-    renameSync(path, `${path}.retained`);
-    symlinkSync(`${path}.retained`, path, 'file');
-  };
-  expect(refusal(() => readContextHookBinding(root, path))).toEqual(NOT_REGULAR);
-});
+it.skipIf(process.platform === 'win32')(
+  'refuses a file link swapped in for the binding after its path check as not a bounded regular file',
+  () => {
+    const { root, path } = fixture();
+    gate.path = resolve(path);
+    // Between the path check and the open: an open that refuses links refuses this one.
+    gate.beforeOpen = () => {
+      renameSync(path, `${path}.retained`);
+      symlinkSync(`${path}.retained`, path, 'file');
+    };
+    expect(refusal(() => readContextHookBinding(root, path))).toEqual(NOT_REGULAR);
+  },
+);

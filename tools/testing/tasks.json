@@ -1466,6 +1466,135 @@
       ],
       "skips": [
         {
+          "case": "tests/consumer-guard.test.ts > refuses a context ownership marker that is a file link",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. The junction, hard link and directory kinds of the same table run on every platform.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses a context ownership marker that is a FIFO",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses a context ownership marker that is a socket",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > passes on the error of a context ownership marker it may not open",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > passes on the error of a 2 MiB pending journal it may not open",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses an actor map named by a file link",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. The junction, path-through-a-junction and relative-path kinds of the same table run on every platform.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses an actor map that is a FIFO",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses an actor map that is a socket",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > passes on the error of an actor map it may not open",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses a context ownership marker it may not open that is past its bound as it refuses a readable one",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses a context ownership marker it may not open that is hard-linked as it refuses a readable one",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses an actor map it may not open that is past its bound as it refuses a readable one",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/consumer-guard.test.ts > refuses an actor map it may not open that is hard-linked as it refuses a readable one",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-binding.test.ts > refuses a binding reached through a file link",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. The junction and hosts-directory-junction kinds of the same table run on every platform.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/context-binding.test.ts > refuses a binding that is a FIFO",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-binding.test.ts > refuses a binding that is a socket",
+          "reason": "Windows has no FIFO special file, and Node makes a local socket there only as a named pipe, never as a file in the tree, so the fixture cannot make either and runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-binding.test.ts > passes on the error of a binding it may not open",
+          "reason": "Windows keeps only the read-only attribute of a file's mode, so chmod 0o000 never denies a read and there is no refused open to observe; the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/context-binding.test.ts > refuses a file link swapped in for the binding after its path check as not a bounded regular file",
+          "reason": "Where the open follows a link, as on Windows, a link swapped in after the path check is refused as a changed identity, not as a file that is not a bounded regular file; the case pins the open that refuses links, so the fixture runs only on POSIX.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
           "case": "tests/context-inventory.test.ts > refuses a junction in place of a module directory, present when its parent is listed, without walking it",
           "reason": "A junction is a Windows reparse point; elsewhere symlinkSync makes a symbolic link, which the cross-platform swap cases cover, so the fixture runs only on win32.",
           "platforms": [

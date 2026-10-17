@@ -20,7 +20,7 @@ import {
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, type TestContext, vi } from 'vitest';
 import { openDatabase } from '@inventarch/runtime';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { evaluateHook } from '../src/main.js';
@@ -517,7 +517,6 @@ const MANAGED_REASON =
   UNSAFE_MARKER = 'IA-HOOK-PATH-UNSAFE: Unsafe context ownership marker',
   INVALID_ACTORS = 'IA-HOOK-STEWARD-UNAVAILABLE: Invalid actor map file',
   ALIASED_ACTORS = 'IA-HOOK-STEWARD-UNAVAILABLE: Actor map must be an absolute unaliased file';
-const posix = process.platform !== 'win32';
 const reason = (root: string, path = '.claude/settings.local.json'): string | undefined =>
   check(root, path).hookSpecificOutput?.permissionDecisionReason;
 /** A guard ownership state for the workspace at `root`: while it exists, both settings layers are managed. */
@@ -530,20 +529,31 @@ const guardState = (root: string) => ({
   group: { matcher: 'Write|Edit|MultiEdit', hooks: [] },
 });
 type Kind = 'a file link' | 'a junction' | 'a hard link' | 'a directory' | 'a FIFO' | 'a socket';
-const POSIX_ONLY: readonly Kind[] = ['a file link', 'a FIFO', 'a socket'];
+/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
+const fileLink = (target: string, path: string): boolean => {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+};
 /**
  * Puts `kind` at `path`, beside a regular `elsewhere/valid.json` holding `content`: a link to that file, a junction to its
  * directory, another name for it, or a directory, a FIFO with no writer or a socket. A socket is bound at a short name
- * first, since socket paths are short on macOS, and moved into place.
+ * first, since socket paths are short on macOS, and moved into place. A file link that Windows denies (EPERM) skips the
+ * case of the `context` passed.
  */
-async function place(root: string, path: string, kind: Kind, content: string): Promise<void> {
+async function place(root: string, path: string, kind: Kind, content: string, context?: TestContext): Promise<void> {
   const elsewhere = resolve(root, 'elsewhere'),
     valid = resolve(elsewhere, 'valid.json');
   mkdirSync(elsewhere, { recursive: true });
   writeFileSync(valid, content);
   rmSync(path, { force: true });
-  if (kind === 'a file link') symlinkSync(valid, path, 'file');
-  else if (kind === 'a junction') symlinkSync(elsewhere, path, 'junction');
+  if (kind === 'a file link') {
+    if (!fileLink(valid, path)) return context?.skip('Windows denied file symlink creation (EPERM)');
+  } else if (kind === 'a junction') symlinkSync(elsewhere, path, 'junction');
   else if (kind === 'a hard link') linkSync(valid, path);
   else if (kind === 'a directory') mkdirSync(path);
   else if (kind === 'a FIFO') expect((await runBounded('mkfifo', [path], { timeoutMs: 10_000 })).status).toBe(0);
@@ -586,16 +596,19 @@ it('admits a context ownership marker of exactly 1 MiB and a pending journal of 
   expect(reason(root)).toBe(UNSAFE_MARKER);
 });
 
-it.each(['a file link', 'a junction', 'a hard link', 'a directory', 'a FIFO', 'a socket'] as const)(
-  'refuses a context ownership marker that is %s',
-  async (kind) => {
-    if (!posix && POSIX_ONLY.includes(kind)) return;
-    const root = workspace(),
-      marker = resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json');
-    await place(root, marker, kind, JSON.stringify(guardState(root)));
-    expect(reason(root)).toBe(UNSAFE_MARKER);
-    expect(fileSeam.waited).toEqual([]);
-  },
+const REFUSED_MARKER = 'refuses a context ownership marker that is %s';
+async function refusedMarker(kind: Kind, context?: TestContext): Promise<void> {
+  const root = workspace(),
+    marker = resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json');
+  await place(root, marker, kind, JSON.stringify(guardState(root)), context);
+  expect(reason(root)).toBe(UNSAFE_MARKER);
+  expect(fileSeam.waited).toEqual([]);
+}
+it.for(['a file link', 'a junction', 'a hard link', 'a directory'] as const)(REFUSED_MARKER, (kind, context) =>
+  refusedMarker(kind, context),
+);
+it.skipIf(process.platform === 'win32').each(['a FIFO', 'a socket'] as const)(REFUSED_MARKER, (kind) =>
+  refusedMarker(kind),
 );
 
 it('refuses the context ownership markers of a hosts directory reached through a junction', () => {
@@ -615,10 +628,11 @@ it('refuses a context ownership marker named in another case on a platform that 
   expect(reason(root)).toBe(process.platform === 'darwin' || process.platform === 'win32' ? UNSAFE_MARKER : undefined);
 });
 
-it.each(['a context ownership marker', 'a 2 MiB pending journal'] as const)(
+it.skipIf(process.platform === 'win32').each(['a context ownership marker', 'a 2 MiB pending journal'] as const)(
   'passes on the error of %s it may not open',
   (kind) => {
-    if (!posix || process.getuid?.() === 0) return;
+    // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+    if (process.getuid?.() === 0) return;
     const root = workspace(),
       name = kind === 'a context ownership marker' ? 'claude-guard-workspace.json' : 'guard-pending.json',
       marker = resolve(root, '.ia/distributions/hosts', name);
@@ -689,13 +703,12 @@ it('refuses a missing actor map', () => {
   expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(INVALID_ACTORS);
 });
 
-it.each(['a file link', 'a junction', 'a path through a junction', 'a relative path'] as const)(
+it.for(['a file link', 'a junction', 'a path through a junction', 'a relative path'] as const)(
   'refuses an actor map named by %s',
-  async (kind) => {
-    if (!posix && kind === 'a file link') return;
+  async (kind, context) => {
     const { root, map, text } = actorWorkspace();
     let actors = map;
-    if (kind === 'a file link' || kind === 'a junction') await place(root, map, kind, text);
+    if (kind === 'a file link' || kind === 'a junction') await place(root, map, kind, text, context);
     else if (kind === 'a path through a junction') {
       await place(root, map, 'a junction', text);
       actors = resolve(map, 'valid.json');
@@ -707,19 +720,21 @@ it.each(['a file link', 'a junction', 'a path through a junction', 'a relative p
   },
 );
 
-it.each(['a hard link', 'a directory', 'a FIFO', 'a socket'] as const)(
-  'refuses an actor map that is %s',
-  async (kind) => {
-    if (!posix && POSIX_ONLY.includes(kind)) return;
-    const { root, map, text } = actorWorkspace();
-    await place(root, map, kind, text);
-    expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(INVALID_ACTORS);
-    expect(fileSeam.waited).toEqual([]);
-  },
+const REFUSED_ACTOR_MAP = 'refuses an actor map that is %s';
+async function refusedActorMap(kind: Kind): Promise<void> {
+  const { root, map, text } = actorWorkspace();
+  await place(root, map, kind, text);
+  expect(mapped(root, map).hookSpecificOutput?.permissionDecisionReason).toBe(INVALID_ACTORS);
+  expect(fileSeam.waited).toEqual([]);
+}
+it.each(['a hard link', 'a directory'] as const)(REFUSED_ACTOR_MAP, (kind) => refusedActorMap(kind));
+it.skipIf(process.platform === 'win32').each(['a FIFO', 'a socket'] as const)(REFUSED_ACTOR_MAP, (kind) =>
+  refusedActorMap(kind),
 );
 
-it('passes on the error of an actor map it may not open', () => {
-  if (!posix || process.getuid?.() === 0) return;
+it.skipIf(process.platform === 'win32')('passes on the error of an actor map it may not open', () => {
+  // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+  if (process.getuid?.() === 0) return;
   const { root, map, text } = actorWorkspace();
   writeFileSync(map, text);
   chmodSync(map, 0o000);
@@ -728,13 +743,14 @@ it('passes on the error of an actor map it may not open', () => {
   );
 });
 
-it.each([
+it.skipIf(process.platform === 'win32').each([
   ['a context ownership marker', 'past its bound'],
   ['a context ownership marker', 'hard-linked'],
   ['an actor map', 'past its bound'],
   ['an actor map', 'hard-linked'],
 ] as const)('refuses %s it may not open that is %s as it refuses a readable one', (reader, kind) => {
-  if (!posix || process.getuid?.() === 0) return;
+  // Root reads a file whatever its mode; the gate has no skip condition for root, so the case returns early instead.
+  if (process.getuid?.() === 0) return;
   const fixtureMap = reader === 'an actor map' ? actorWorkspace() : undefined,
     root = fixtureMap?.root ?? workspace(),
     target = fixtureMap?.map ?? resolve(root, '.ia/distributions/hosts/claude-guard-workspace.json'),
