@@ -6,10 +6,12 @@ import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
 import { PUBLIC_INPUTS, publicPackageInputs, refreshPublicPackageInputs } from '../release/public-pack.mjs';
 import { REGISTRY } from './npm-release.mjs';
-import { prepareNativeSelection } from '../release/native-selectors.mjs';
+import { cohortNativeVersions, nativeMajorAlignment, prepareNativeSelection } from '../release/native-selectors.mjs';
 import {
   RELEASE_POLICY,
+  alignmentSummary,
   changeApplies,
+  generatedChanges,
   baselineVersion,
   changesetPath,
   collectChanges,
@@ -59,17 +61,6 @@ function setNoticeVersions(root, names, from, to) {
     `${EDITOR_NOTICES}: cohort attribution still names ${from}`,
   );
   writeFileSync(file, text);
-}
-/** Areas outside every package. Package roots are claimed file by file so this entry can never cover a package. */
-function maintenancePaths(rows) {
-  return [
-    ...new Set(
-      rows.map(({ path }) => {
-        const top = path.split('/')[0];
-        return path.includes('/') && !['packages', 'apps', '.ia'].includes(top) ? top + '/' : path;
-      }),
-    ),
-  ].sort();
 }
 /** Put every file the versioner wrote or removed back to HEAD; files new since HEAD are removed. */
 function rollback(root, paths) {
@@ -134,7 +125,11 @@ export async function versionRelease(root, projects, options = {}) {
     if (!refresh) return none(`${policy.version} is prepared; pass --refresh to re-collect it`);
     try {
       releaseChanges(root, projects);
-      const selectors = prepareNativeSelection(root, policy.version);
+      const selectors = prepareNativeSelection(
+        root,
+        policy.version,
+        cohortNativeVersions(root, policy.version, policy.baseline.version),
+      );
       if ([...selectors].every(([path, bytes]) => readFileSync(resolve(root, path), 'utf8') === bytes))
         return none(`${policy.version} is prepared and current`);
     } catch {}
@@ -148,8 +143,9 @@ export async function versionRelease(root, projects, options = {}) {
   const bump = maxBump(bumps),
     version = bumpVersion(baseline.version, bump),
     action = published ? 'version' : notes.length ? 'amend' : 'refresh';
-  // Validate the complete native selector surface before any write, including explicit same-version refreshes.
-  const selectors = prepareNativeSelection(root, version),
+  // Validate the complete native selector surface before any write, including explicit same-version refreshes. Native
+  // versions move only when npm starts a new major; otherwise the native release writer selects them from content.
+  const selectors = prepareNativeSelection(root, version, cohortNativeVersions(root, version, baseline.version)),
     selectorWrites = [...selectors].filter(([path, bytes]) => readFileSync(resolve(root, path), 'utf8') !== bytes);
   const plan = {
     action,
@@ -180,7 +176,6 @@ export async function versionRelease(root, projects, options = {}) {
   const authored = [...kept, ...fromNotes],
     named = new Set(authored.flatMap((change) => change.packages)),
     directories = new Map(projects.map((project) => [project.manifest.name, project.directory])),
-    cohort = names.filter((name) => !named.has(name)),
     changes = [...authored];
   const applies = (entries, row) => {
     const owner = packageOwner(projects, row.path);
@@ -219,30 +214,9 @@ export async function versionRelease(root, projects, options = {}) {
     for (const [path, bytes] of selectorWrites) writeFileSync(resolve(root, path), bytes);
     if (removed.length) git(root, 'rm', '--quiet', '--', ...removed);
     writeFileSync(resolve(root, RELEASE_POLICY), JSON.stringify({ ...policy, version, baseline }, null, 2) + '\n');
-    const rows = trackedChanges(root, { ...policy, version, baseline });
-    const alignmentPaths = new Set(cohort.map((name) => directories.get(name) + '/package.json'));
-    for (const row of rows)
-      if (row.cohortOnly && packageOwner(projects, row.path) && !applies(authored, row)) alignmentPaths.add(row.path);
-    if (alignmentPaths.size) {
-      const paths = [...alignmentPaths].sort();
-      changes.push({
-        id: 'cohort-alignment',
-        title: 'Coordinated version alignment',
-        summary: `Package and native artifact version metadata follows the coordinated ${version} release.`,
-        packages: [...new Set(paths.map((path) => packageOwner(projects, path)))].sort(),
-        paths,
-      });
-    }
-    const unclaimed = rows.filter((row) => !applies(changes, row));
-    if (unclaimed.length)
-      changes.push({
-        id: 'repository-maintenance',
-        title: 'Repository maintenance',
-        summary: 'Tooling, workflow, documentation and release bookkeeping outside the published package contents.',
-        packages: [],
-        internal: true,
-        paths: maintenancePaths(unclaimed),
-      });
+    const rows = trackedChanges(root, { ...policy, version, baseline }),
+      alignment = selectors.size ? nativeMajorAlignment(version, baseline.version) : null;
+    changes.push(...generatedChanges(projects, authored, rows, alignmentSummary(version, alignment)));
     const released = publishedCohort(root, baseline);
     const packages = Object.fromEntries(
       names.map((name) => {
@@ -252,7 +226,7 @@ export async function versionRelease(root, projects, options = {}) {
           const summary =
             prior?.kind === 'cohort'
               ? prior.summary
-              : 'Package and native artifact version metadata aligned with the coordinated cohort.';
+              : 'Version metadata only; the package version follows the coordinated cohort.';
           return [name, { previous, kind: 'cohort', summary }];
         }
         // Keep a reviewed summary and append new note titles; otherwise summarize every change naming the package.

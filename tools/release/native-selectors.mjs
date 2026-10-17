@@ -26,6 +26,18 @@ const compare = (a, b) => {
   for (let i = 0; i < 3; i++) if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
   return 0;
 };
+const major = (version) => Number(version.split('.')[0]);
+
+/**
+ * npm's breaking-major boundary: when the npm target starts a new major, every public native archive aligns to its
+ * `x.0.0`. Within a major this returns null, and each native archive keeps its own content-driven version.
+ */
+export function nativeMajorAlignment(target, published) {
+  assert.ok(stable(target) && stable(published), 'Stable npm versions are required');
+  if (major(target) <= major(published)) return null;
+  assert.equal(target, major(target) + '.0.0', `A breaking npm release must start at ${major(target)}.0.0`);
+  return target;
+}
 
 export function readNativeReleaseTarget(root) {
   const policy = parse(root, 'releases/current.json');
@@ -141,14 +153,24 @@ const declarationPaths = (owner) => [
   'examples/public-language/contracts/' + owner.native.system + '.ia',
 ];
 
-/** Prepare every exact selector before any effect. Generic npm fixtures may omit the entire native surface. */
-export function prepareNativeSelection(root, target) {
+/**
+ * Prepare every exact selector before any effect. `target` is the npm cohort version that each owner's `npmVersion`
+ * records; `versions` gives every native identity its own selected version, which the declaration pairs, both native
+ * policies and the composition fixture's language range follow. Generic npm fixtures may omit the entire native surface.
+ */
+export function prepareNativeSelection(root, target, versions) {
   assert.ok(stable(target), 'Native release requires a stable npm target');
   const selected = selection(root),
     writes = new Map();
   if (!selected) return writes;
+  const ids = [...selected.systems.owners.map((owner) => owner.native.id), 'inventarch/language'];
+  assert.ok(keys(versions, ids), 'Native identity inventory changed');
+  assert.ok(
+    ids.every((id) => stable(versions[id])),
+    'Stable native versions are required',
+  );
   for (const owner of selected.systems.owners) {
-    assert.ok(compare(target, owner.native.version) >= 0, owner.native.id + ': native version regressed');
+    const version = versions[owner.native.id];
     for (const path of declarationPaths(owner)) {
       const text = read(root, path);
       assert.equal(
@@ -156,22 +178,45 @@ export function prepareNativeSelection(root, target) {
         owner.native.version,
         'Native declaration differs from selected policy',
       );
-      writes.set(path, declarationVersion(text, owner.native.version, target));
+      writes.set(path, declarationVersion(text, owner.native.version, version));
     }
-    owner.native.version = target;
+    owner.native.version = version;
     owner.npmVersion = target;
   }
-  assert.ok(compare(target, selected.language.language) >= 0, 'Native language version regressed');
+  const language = versions['inventarch/language'];
   if (existsSync(resolve(root, NATIVE_COMPOSITION_FIXTURE))) {
     const fixture = compositionFixture(parse(root, NATIVE_COMPOSITION_FIXTURE), selected.systems);
-    assert.ok(compare(target, fixture.dependencies[0].range.slice(1)) >= 0, 'Composition fixture version regressed');
-    fixture.dependencies[0].range = '^' + target;
+    fixture.dependencies[0].range = '^' + language;
     writes.set(NATIVE_COMPOSITION_FIXTURE, json(fixture, read(root, NATIVE_COMPOSITION_FIXTURE)));
   }
-  selected.language.language = target;
+  selected.language.language = language;
   writes.set(NATIVE_SYSTEM_POLICY, json(selected.systems, read(root, NATIVE_SYSTEM_POLICY)));
   writes.set(NATIVE_LANGUAGE_POLICY, json(selected.language, read(root, NATIVE_LANGUAGE_POLICY)));
   return writes;
+}
+
+/** The npm major alignment when this repository has a native selector surface, otherwise null. */
+export function nativeSelectionAlignment(root, target, published) {
+  return selection(root) ? nativeMajorAlignment(target, published) : null;
+}
+
+/**
+ * The npm versioner's native versions, from the published npm version it advances. A new npm major aligns every native
+ * archive to `x.0.0`; within a major each archive keeps its selected version, which only the native release writer
+ * changes, from that archive's content and impact note.
+ */
+export function cohortNativeVersions(root, target, published) {
+  const selected = selection(root);
+  if (!selected) return {};
+  const current = Object.fromEntries([
+    ...selected.systems.owners.map((owner) => [owner.native.id, owner.native.version]),
+    ['inventarch/language', selected.language.language],
+  ]);
+  const alignment = nativeMajorAlignment(target, published);
+  if (!alignment) return current;
+  for (const [id, version] of Object.entries(current))
+    assert.ok(compare(alignment, version) >= 0, id + ': native version regressed');
+  return Object.fromEntries(Object.keys(current).map((id) => [id, alignment]));
 }
 
 /** Fresh proof for one existing exact path. Stored coverage flags never substitute for this comparison. */

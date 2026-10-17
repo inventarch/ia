@@ -10,7 +10,14 @@ export interface NativeReleaseTarget {
 }
 export function readNativeReleaseTarget(root: string): NativeReleaseTarget;
 export function declarationVersion(text: string, from: string, to: string): string;
-export function prepareNativeSelection(root: string, target: string): Map<string, string>;
+export function nativeMajorAlignment(target: string, published: string): string | null;
+export function prepareNativeSelection(
+  root: string,
+  target: string,
+  versions: Readonly<Record<string, string>>,
+): Map<string, string>;
+export function cohortNativeVersions(root: string, target: string, published: string): Record<string, string>;
+export function nativeSelectionAlignment(root: string, target: string, published: string): string | null;
 export function nativeVersionOnly(
   root: string,
   path: string,
