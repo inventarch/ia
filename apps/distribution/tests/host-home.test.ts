@@ -57,7 +57,7 @@ it("verifies the payload through the command's shared verdict after its last wri
     expect(verify(directory).release).toBe(pin.release);
     expect(() => verifyHostCache(directory)).toThrow(/Host payload changed/);
   }
-  // A shared verdict never covers the stage, which this call writes: a bad archive still refuses before any rename.
+  // The stage this call writes is verified directly, never through the shared verdict: a bad archive refuses before the rename.
   const home = temp(),
     bad = packTree(
       new Map([...unpackTree(archive, HOST_TREE_LIMITS)].filter(([path]) => path !== 'payload.txt')),
@@ -65,8 +65,15 @@ it("verifies the payload through the command's shared verdict after its last wri
     );
   expect(() =>
     materializeHostPayload({ home, archive: bad, pin: { ...pin, archive: sha256(bad) }, verify: hostVerifier() }),
-  ).toThrow();
+  ).toThrow(/Host payload is incomplete/);
   expect(existsSync(join(home, 'hosts', pin.release))).toBe(false);
+  // A function hostVerifier did not make is no verdict: a damaged payload still refuses whatever it returns.
+  const damaged = temp(),
+    { directory } = materializeHostPayload({ home: damaged, archive, pin }),
+    valid = verifyHostCache(directory);
+  writeFileSync(join(directory, 'payload.txt'), 'changed!');
+  const forged = (() => valid) as unknown as ReturnType<typeof hostVerifier>;
+  expect(() => materializeHostPayload({ home: damaged, archive, pin, verify: forged })).toThrow(/Host payload changed/);
 });
 it('materializes once, reuses a verified copy and refuses a corrupt one, naming the directory, without overwriting', () => {
   const home = temp(),

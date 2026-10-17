@@ -202,6 +202,12 @@ it('plans against a verdict the command shares, and still verifies afresh under 
       if (name === 'config') put(clean, 'payload.txt', 'drift');
     }),
   ).toThrow(/payload/);
+  // A function hostVerifier did not make is no verdict: planning verifies afresh whatever it returns.
+  const drifted = cache('claude'),
+    valid = verifyHostCache(drifted);
+  put(drifted, 'payload.txt', 'drift');
+  const forged = (() => valid) as unknown as ReturnType<typeof hostVerifier>;
+  expect(() => planHost(temp(), 'claude', drifted, undefined, forged)).toThrow(/payload/);
 });
 it('uses the public CLI plan/apply/removal/recovery dispatch and refuses a forged explicit root', async () => {
   const root = temp(),
