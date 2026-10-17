@@ -458,11 +458,11 @@ it('refuses INSTALL-BUSY after bounded takeover attempts, without hanging, when 
   expect((caught as Error).message).toMatch(/Another ia host --user run holds/);
 }, 5000);
 // Each verdict at every age that matters: a dead pid is taken over at any age, a live pid at none (its age does not show
-// that its owner stopped), and an empty or unparseable pid after 10 seconds' grace. So is 0 or a negative pid, which
-// process.kill takes for a process group or for every process, so it would read as running whoever wrote it. A lock an
-// older CLI wrote holds its pid alone; one this CLI writes holds its pid, a space and a token. Ages are set with
-// utimesSync, never waited out.
-it('takes over a lock whose pid died or that holds no positive pid past 10 seconds, in either format, and refuses INSTALL-BUSY untouched for any other, however old', () => {
+// that its owner stopped), and an empty or unparseable pid after 10 seconds' grace. So is a pid outside 1 to 2147483647:
+// process.kill takes 0 or a negative pid for a process group or for every process, and refuses a larger one, so either
+// would read as running whoever wrote it. A lock an older CLI wrote holds its pid alone; one this CLI writes holds its
+// pid, a space and a token. Ages are set with utimesSync, never waited out.
+it('takes over a lock whose pid died or that holds no pid from 1 to 2147483647 past 10 seconds, in either format, and refuses INSTALL-BUSY untouched for any other, however old', () => {
   const minutes = 60_000,
     live = String(process.pid),
     dead = DEAD_PID,
@@ -484,6 +484,10 @@ it('takes over a lock whose pid died or that holds no positive pid past 10 secon
     'pid 0, 20 seconds old': ['0', 20_000, true],
     'pid -1, 5 seconds old': ['-1', 5_000, false],
     'pid -1, 20 seconds old': ['-1', 20_000, true],
+    'pid 2147483648, 5 seconds old': ['2147483648', 5_000, false],
+    'pid 2147483648, 20 seconds old': ['2147483648', 20_000, true],
+    'pid 99999999999, 5 seconds old': ['99999999999', 5_000, false],
+    'pid 99999999999, 20 seconds old': ['99999999999', 20_000, true],
   };
   const seen: Record<string, unknown> = {},
     expected: Record<string, unknown> = {};
