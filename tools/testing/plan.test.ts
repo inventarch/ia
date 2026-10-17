@@ -716,8 +716,8 @@ it('exports each platform’s durations from the gate and warns on a test shard 
   // The start time is taken before any other step, and the warning runs whatever the tasks did.
   expect(tests).toMatch(/^steps:\n- name: Note when the job started\n/m);
   expect(tests).toMatch(/- name: Warn when the shard nears its timeout\nif: always\(\)\ncontinue-on-error: true\n/);
-  expect(tests).toMatch(/^timeout-minutes: 60$/m);
-  // The task step stops itself inside the job's timeout, so a shard out of time still reaches the warning.
+  expect(tests).toMatch(/^timeout-minutes: 70$/m);
+  // The task step stops itself well inside the job's timeout, so a shard out of time still reaches the warning.
   expect(tests).toMatch(/- name: Run assigned tasks\ntimeout-minutes: 55\n/);
   expect(tests.indexOf('name: Warn when the shard nears its timeout')).toBeGreaterThan(
     tests.indexOf('name: Run assigned tasks'),

@@ -173,7 +173,9 @@ jobs:
     needs: [plan, build]
     if: needs.plan.outputs.run == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # The task step stops at 55 minutes; the rest leaves setup up to 15 minutes before it, so the step's own limit,
+    # not the job's, ends a shard that runs out of time.
+    timeout-minutes: 70
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.tests) }}
@@ -195,8 +197,9 @@ jobs:
             .nx/workspace-data
           key: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
-      # Inside the job's 60 minutes, so a shard that runs out of time fails this step rather than the job: the evidence
-      # upload and the timeout warning below then still run for it.
+      # Inside the job's 70 minutes, so a shard that runs out of time fails this step rather than the job: the timeout
+      # warning below still runs for it. The tasks it finished upload no evidence, because the runner collects evidence
+      # only after Nx returns.
       - name: Run assigned tasks
         timeout-minutes: 55
         run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
@@ -214,9 +217,9 @@ jobs:
           path: artifacts/evidence
           if-no-files-found: warn
           retention-days: 14
-      # A shard past 40 minutes is two thirds of the way to its 60-minute timeout: re-record the schedule or split
-      # its longest task before it reaches it. A shard that hit the task step's 55-minute limit warns here too. The
-      # warning never changes the job's result.
+      # A shard past 40 minutes is near the task step's 55-minute limit: re-record the schedule or split its longest
+      # task before it reaches it. A shard that hit that limit warns here too. The warning never changes the job's
+      # result.
       - name: Warn when the shard nears its timeout
         if: always()
         continue-on-error: true
@@ -224,7 +227,7 @@ jobs:
         run: |
           minutes=$(( ($(date +%s) - $(cat "$RUNNER_TEMP/job-started")) / 60 ))
           echo "This test shard took $minutes minutes."
-          if [ "$minutes" -ge 40 ]; then echo "::warning::Test shard ${{ matrix.shard }} on ${{ matrix.platform }} took $minutes minutes of its 60-minute timeout; refresh tools/testing/schedule.json or split its longest task."; fi
+          if [ "$minutes" -ge 40 ]; then echo "::warning::Test shard ${{ matrix.shard }} on ${{ matrix.platform }} took $minutes minutes, and its task step stops at 55; refresh tools/testing/schedule.json or split its longest task."; fi
 
   emitted:
     name: Emitted qualification (${{ matrix.os }})
@@ -270,7 +273,7 @@ jobs:
     # The CLI's bundled archives must still verify there: initialize, register and validate a workspace with it.
     # It uses node@22, the declared Node major, never Homebrew's floating `node`, and it refuses to run unless
     # `ia doctor` places that runtime inside the declared target and the build links the system zlib.
-    # It runs only when the plan includes macOS (never on a pull request) and the run has something to verify, and it
+    # It runs only when the plan includes macOS and the run has something to verify, and it
     # starts as soon as the plan says so; every platform's gate row waits for it.
     name: Homebrew Node smoke (macos-26)
     needs: plan
