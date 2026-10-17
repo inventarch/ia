@@ -112,16 +112,17 @@ function isPidAlive(pid: number): boolean {
  * file's type, its age and its pid) comes from one descriptor, so all of them describe one file (CodeQL
  * js/file-system-race); it is opened by `openLockToJudge`. Only a regular file is ever taken over: the lock is created
  * as nothing else, so a symbolic link or any other file there was put there by something else. It is stale once its
- * pid, the number that leads it in either format (this CLI's `<pid> <token>`, or an older CLI's pid alone), parsed and
- * is not running, or, when no pid parsed (empty, the short window between another run's create and its write, or
- * unparseable), once it is older than `LOCK_EMPTY_GRACE_MS`. A parsed pid that is running is busy however old the lock
- * is: its age does not show that its owner stopped. A hard link at the lock path names the judged file itself, so it is
- * judged like any other lock, and taking it over removes only that name. A stale lock is removed only after its name is
- * found to still name the judged file, compared while the descriptor is open so that file's inode cannot be reused (on
- * Windows, where a symbolic link is followed, this comparison is what refuses one); the descriptor is closed first, as
- * Windows may keep a removed file's name until its last handle closes. A window between that comparison and the removal
- * remains: Node has no unlink-if-same. The lock path can change in it only if another run takes over the same stale
- * lock at that moment, or a hand replaces or removes it.
+ * pid, the number that leads it in either format (this CLI's `<pid> <token>`, or an older CLI's pid alone), parsed as a
+ * positive integer and is not running, or, when no positive pid parsed (empty, the short window between another run's
+ * create and its write, unparseable, or 0 or negative), once it is older than `LOCK_EMPTY_GRACE_MS`. A positive pid
+ * that is running is busy however old the lock is: its age does not show that its owner stopped. A hard link at the
+ * lock path names the judged file itself, so it is judged like any other lock, and taking it over removes only that
+ * name. A stale lock is removed only after its name is found to still name the judged file, compared while the
+ * descriptor is open so that file's inode cannot be reused (on Windows, where a symbolic link is followed, this
+ * comparison is what refuses one); the descriptor is closed first, as Windows may keep a removed file's name until its
+ * last handle closes. A window between that comparison and the removal remains: Node has no unlink-if-same. The lock
+ * path can change in it only if another run takes over the same stale lock at that moment, or a hand replaces or
+ * removes it.
  */
 function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
   let fd: number;
@@ -140,7 +141,10 @@ function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
     } catch {
       /* unreadable: pid stays NaN, judged as a pid that did not parse below */
     }
-    const stale = Number.isInteger(pid) ? !isPidAlive(pid) : ageMs > LOCK_EMPTY_GRACE_MS;
+    // Only a positive pid names one owner: process.kill takes 0 or a negative pid for a process group or for every
+    // process, which reads as running whoever wrote it, so those are judged as a pid that did not parse.
+    const owner = Number.isInteger(pid) && pid > 0;
+    const stale = owner ? !isPidAlive(pid) : ageMs > LOCK_EMPTY_GRACE_MS;
     if (!stale) return 'busy';
     const named = lstatSync(path, { bigint: true });
     if (named.dev !== opened.dev || named.ino !== opened.ino) return 'retry';
@@ -162,13 +166,13 @@ function takeOverStale(path: string): 'busy' | 'removed' | 'retry' {
  * run's pid, a space and a random token: the pid first, so a reader that parses a leading pid (an older CLI, and
  * `takeOverStale`'s bounded read) still finds it, and the token, which `releaseLock` checks, tells this run's lock from
  * any other. A held lock is taken over — never trusted blindly — only by `takeOverStale`, once it is a regular file
- * whose pid has parsed and died, or (an empty/unparseable pid, the short window between another run's `openSync` and
- * its write) that is older than `LOCK_EMPTY_GRACE_MS`; otherwise this refuses INSTALL-BUSY. A lock whose pid is
- * running is never taken over however old it is, so a lock whose dead owner's pid another process has reused stays
- * busy until it is removed by hand, as the refusal says to do when no run is active. A symbolic link or any other
- * non-regular file at the lock path is never taken over, so it refuses INSTALL-BUSY too. Bounded at
- * `LOCK_TAKEOVER_ATTEMPTS`, so a lock file that keeps coming back (removal failing, a lock replaced while it was
- * judged, or another process winning the race) fails loudly instead of spinning forever. The sweep functions below
+ * whose positive pid has died, or whose pid is empty, unparseable, 0 or negative (the short window between another
+ * run's `openSync` and its write among them) and that is older than `LOCK_EMPTY_GRACE_MS`; otherwise this refuses
+ * INSTALL-BUSY. A lock whose pid is running is never taken over however old it is, so a lock whose dead owner's pid
+ * another process has reused stays busy until it is removed by hand, as the refusal says to do when no run is active.
+ * A symbolic link or any other non-regular file at the lock path is never taken over, so it refuses INSTALL-BUSY too.
+ * Bounded at `LOCK_TAKEOVER_ATTEMPTS`, so a lock file that keeps coming back (removal failing, a lock replaced while it
+ * was judged, or another process winning the race) fails loudly instead of spinning forever. The sweep functions below
  * must never touch this file.
  */
 function acquireLock(parent: string): HeldLock {
