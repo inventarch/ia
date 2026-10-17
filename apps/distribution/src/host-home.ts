@@ -4,6 +4,8 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { within } from '@inventarch/db';
 import { DistributionError, fail, sha256 } from './files.js';
 import { verifyHostCache } from './host.js';
+import { isMinted } from './host-verdict.js';
+import type { HostVerifier } from './host-verdict.js';
 import { ensureIaHome } from './ia-home.js';
 import { HOST_TREE_LIMITS, unpackTree } from './ustar.js';
 
@@ -14,9 +16,12 @@ export interface HostPin {
   readonly bytes: number;
 }
 /** A failed verification of an existing payload must name the directory it refuses. */
-function verifyNaming(target: string): ReturnType<typeof verifyHostCache> {
+function verifyNaming(
+  target: string,
+  verify: HostVerifier | typeof verifyHostCache,
+): ReturnType<typeof verifyHostCache> {
   try {
-    return verifyHostCache(target);
+    return verify(target);
   } catch (error) {
     if (error instanceof DistributionError)
       throw new DistributionError(error.code, `${error.message} at ${target}; delete that directory`);
@@ -89,19 +94,25 @@ export function assertHomeOutsideWorkspace(home: string, root: string): void {
   if (within(home, root)) fail('PATH-UNSAFE', `Consumer workspace cannot be inside the host home ${home}`);
   if (within(root, home)) fail('PATH-UNSAFE', `Host home cannot be inside the consumer workspace: ${home}`);
 }
-/** Verify-or-reuse, never overwrite; stage beside the target and rename into place. */
+/**
+ * Verify-or-reuse, never overwrite; stage beside the target and rename into place. The target is verified after the
+ * last write to it, through `verify` when the caller passes its command's shared `hostVerifier`, so the command's later
+ * plans reuse that verdict; the stage, which this call writes, is always verified afresh.
+ */
 export function materializeHostPayload(input: {
   readonly home: string;
   readonly archive: Buffer;
   readonly pin: HostPin;
+  readonly verify?: HostVerifier;
 }): { directory: string; release: string; reused: boolean } {
-  const { home, archive, pin } = input;
+  const { home, archive, pin } = input,
+    verify = isMinted(input.verify) ? input.verify : verifyHostCache;
   if (!/^[a-f0-9]{64}$/.test(pin.release) || !/^[a-f0-9]{64}$/.test(pin.archive))
     fail('INPUT-INVALID', 'Invalid host payload pin');
   const target = hostPayloadPath(home, pin.release);
   if (sha256(archive) !== pin.archive) fail('INTEGRITY-MISMATCH', 'Bundled host payload differs from its pin');
   if (existsSync(target)) {
-    const found = verifyNaming(target);
+    const found = verifyNaming(target, verify);
     if (found.release !== pin.release)
       fail('INTEGRITY-MISMATCH', `Host payload at ${target} differs from its release; delete that directory`);
     return { directory: found.directory, release: found.release, reused: true };
@@ -131,7 +142,7 @@ export function materializeHostPayload(input: {
   } finally {
     if (existsSync(stage)) rmSync(stage, { recursive: true, force: true });
   }
-  const found = verifyNaming(target);
+  const found = verifyNaming(target, verify);
   if (found.release !== pin.release)
     fail('INTEGRITY-MISMATCH', `Host payload at ${target} differs from its release; delete that directory`);
   return { directory: found.directory, release: found.release, reused: !won };

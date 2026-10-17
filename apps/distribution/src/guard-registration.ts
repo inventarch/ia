@@ -14,6 +14,8 @@ import {
   verifyHostCache,
 } from './host.js';
 import type { HostCacheTarget } from './host.js';
+import { isMinted } from './host-verdict.js';
+import type { HostVerifier } from './host-verdict.js';
 import {
   bytes,
   digest,
@@ -608,8 +610,12 @@ export function savedHooks(content: string | null, root: string, id: string, rem
   keptPaths(row['existing'], containers);
   return row as unknown as HookState;
 }
-/** Plan the registration of exactly `request.hooks`, or the removal of every owned group. Reads only; writes nothing. */
-export function planHookRegistration(rootInput: string, request: HookRequest): HookPlan {
+/**
+ * Plan the registration of exactly `request.hooks`, or the removal of every owned group. Reads only; writes nothing.
+ * `verify`, a command's shared `hostVerifier`, reuses a verdict it already holds; `applyHookRegistration` re-plans
+ * without one, so the commit always verifies afresh.
+ */
+export function planHookRegistration(rootInput: string, request: HookRequest, verify?: HostVerifier): HookPlan {
   const root = workspace(rootInput);
   assertHostRegistrationIdle(root);
   const remove = Object.hasOwn(plain(request), 'remove'),
@@ -619,7 +625,7 @@ export function planHookRegistration(rootInput: string, request: HookRequest): H
     return planHooksWith(root, null, [], row['remove']);
   }
   const hooks = hookRows(row['hooks']);
-  return planHooksWith(root, verifyHostCache(row['cache'] as string), hooks, null);
+  return planHooksWith(root, (isMinted(verify) ? verify : verifyHostCache)(row['cache'] as string), hooks, null);
 }
 /**
  * Explicit removal must not report that protection was lifted while an unowned IA hook still runs. Check both settings

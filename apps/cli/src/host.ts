@@ -28,6 +28,8 @@ import { existsSync, realpathSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { lifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-profile';
 import type { HostCacheTarget, HostPlan } from '@inventarch/distribution/host';
+import { hostVerifier } from '@inventarch/distribution/host-observe';
+import type { HostVerifier } from '@inventarch/distribution/host-observe';
 import { hostRow, WORKSPACE_HOSTS, workspaceRow } from '@inventarch/distribution/hosts';
 import { recoverInstallation } from '@inventarch/distribution/install';
 import { recoverGuardRegistration } from '@inventarch/distribution/guard-registration';
@@ -550,6 +552,7 @@ export function projectionElement(
   host: HostName,
   rendered: HostOutput | null,
   cache: HookCache = null,
+  verify?: HostVerifier,
 ): Element {
   const refused = (conflict: Conflict): Element => ({
     id: 'projection',
@@ -561,7 +564,7 @@ export function projectionElement(
   let guard: 'retire' | 'none', hooks: readonly HookAction[], unregistered: readonly UnsupportedRow[];
   try {
     guard = planRetirement(root, host) === null ? 'none' : 'retire';
-    const step = planHookStep(root, host, rendered, cache);
+    const step = planHookStep(root, host, rendered, cache, verify);
     hooks = step.plan?.hooks ?? [];
     unregistered = step.unregistered;
   } catch (error) {
@@ -759,15 +762,16 @@ export function replanProjection(
   rendered: HostOutput | null,
   refuse: (conflict: Conflict) => Refusal,
   cache: HookCache = null,
+  verify?: HostVerifier,
 ): void {
-  const { conflict } = projectionElement(root, host, rendered, cache);
+  const { conflict } = projectionElement(root, host, rendered, cache, verify);
   if (conflict !== null) throw refuse(conflict);
 }
 /**
  * §3.3 steps 3-4. A payload directory that fails verification is named by the mechanism and the remedy is to delete
  * it; nothing overwrites it. Any other failure is the bundled payload's own, which only a reinstall repairs.
  */
-function materialize(view: HostView, packageRoot: string): string {
+function materialize(view: HostView, packageRoot: string, verify: HostVerifier): string {
   const { pin: bundled, archive, archivePath } = bundledPin(packageRoot);
   const payload = hostPayloadPath(view.home, bundled.release);
   // Re-checked explicitly rather than inferred from a caught refusal's message: verifyNaming's own PATH-UNSAFE
@@ -777,7 +781,7 @@ function materialize(view: HostView, packageRoot: string): string {
     assertIaHomeUsable(view.home),
   );
   try {
-    return materializeHostPayload({ home: view.home, archive: archive(), pin: bundled }).directory;
+    return materializeHostPayload({ home: view.home, archive: archive(), pin: bundled, verify }).directory;
   } catch (error) {
     const refusal = refusalOf(error),
       corrupt = refusal.message.includes(payload);
@@ -882,21 +886,35 @@ export function applyHostSet(
   } catch (error) {
     throw joinFailure(error);
   }
+  /**
+   * One verification of the payload for this command's plans before its first workspace write. It is made after the
+   * last write to the payload (`materialize`), and only the MCP plan and the projection re-plan read through it. The
+   * projection step plans its hooks afresh, so a payload that changed during the MCP apply refuses before the
+   * projection's evidence or guard retirement is written; and every check that guards a commit (`applyHost` and
+   * `applyHookRegistration` re-planning under the host lock, and their checks before activation and commit) verifies
+   * afresh.
+   */
+  const verify = hostVerifier();
   const project = (rendered: HostOutput | null, cache: HookCache) => (): Omit<AppliedElement, 'id'> => {
     const { status, guard } = applyHostProjection(root, host, rendered, undefined, undefined, cache);
     return { status, guard };
   };
   if (!view.remove) {
-    const cache = materialize(view, packageRoot);
-    const mcp = replan(view, 'mcp', MCP_PATH[host], () => planHost(root, host, cache));
+    const cache = materialize(view, packageRoot, verify);
+    const mcp = replan(view, 'mcp', MCP_PATH[host], () => planHost(root, host, cache, undefined, verify));
     // The rendering the plan's gated session made, re-planned against the files as they are now.
     const { rendered } = view;
     // Only a removal's view carries no rendering (collectHost); an apply always has the one its gated plan made.
     if (rendered === null) throw new Error('A host apply view carries no rendering');
     // The hook groups run the guard in the payload just materialized and verified.
-    replanProjection(root, host, rendered, (conflict) => refusalFor(view, 'projection', conflict), {
-      verified: cache,
-    });
+    replanProjection(
+      root,
+      host,
+      rendered,
+      (conflict) => refusalFor(view, 'projection', conflict),
+      { verified: cache },
+      verify,
+    );
     step('mcp', () => ({ status: applyHost(mcp).status }));
     done.push(skipped('context'));
     step('projection', project(rendered, { verified: cache }));
