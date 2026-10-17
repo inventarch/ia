@@ -782,22 +782,25 @@ it('refuses INSTALL-BUSY when a symbolic link to the judged lock replaces it whi
 // A FIFO at the lock path hung the takeover's read until a writer came. It is judged by its type alone: never read,
 // never removed, though it is old enough that a regular file there would be taken over. watchOpens refuses and records
 // any open or read of it that could block, so a regression fails at once rather than hanging the worker, even a full
-// revert to the readFileSync of the old takeover.
-it('refuses INSTALL-BUSY for a FIFO at the lock path without hanging, and leaves it in place', async () => {
-  if (process.platform === 'win32') return; // no FIFO can be created in a Windows directory
-  const home = join(temp(), '.ia'),
-    lockPath = join(home, 'claude', '.lock');
-  mkdirSync(join(home, 'claude'), { recursive: true });
-  expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
-  const past = new Date(Date.now() - 20 * 60_000);
-  utimesSync(lockPath, past, past);
-  const { blocked } = watchOpens(lockPath, { fifo: true });
-  const outcome = materialized(home);
-  expect(blocked, 'opens or reads of the FIFO that could block').toEqual([]);
-  expect(outcome).toEqual(heldBy(lockPath));
-  expect(lstatSync(lockPath).isFIFO()).toBe(true);
-  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
-});
+// revert to the readFileSync of the old takeover. Skipped on Windows, where no FIFO can be created in a directory
+// (a skip tools/testing/tasks.json declares).
+it.skipIf(process.platform === 'win32')(
+  'refuses INSTALL-BUSY for a FIFO at the lock path without hanging, and leaves it in place',
+  async () => {
+    const home = join(temp(), '.ia'),
+      lockPath = join(home, 'claude', '.lock');
+    mkdirSync(join(home, 'claude'), { recursive: true });
+    expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
+    const past = new Date(Date.now() - 20 * 60_000);
+    utimesSync(lockPath, past, past);
+    const { blocked } = watchOpens(lockPath, { fifo: true });
+    const outcome = materialized(home);
+    expect(blocked, 'opens or reads of the FIFO that could block').toEqual([]);
+    expect(outcome).toEqual(heldBy(lockPath));
+    expect(lstatSync(lockPath).isFIFO()).toBe(true);
+    expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+  },
+);
 // Run A releases its lock just as this run's exclusive open meets it, so the lock is gone by the takeover's open. That
 // is a reason to retry the exclusive open, which now succeeds, and never to refuse INSTALL-BUSY.
 it('retries and goes ahead when the held lock is released just before the takeover opens it', () => {
@@ -819,66 +822,74 @@ it('retries and goes ahead when the held lock is released just before the takeov
   expect(existsSync(lockPath)).toBe(false); // this run's own lock, released after its materialize
 });
 // Every verdict closes the descriptor it judged: whatever stands at the lock path, a materialize ends holding the
-// descriptors it began with. /dev/fd lists this process's descriptors on Linux and macOS.
-it('closes the descriptor it judged, whether the lock is a FIFO, stale, live or a symbolic link', async () => {
-  if (process.platform === 'win32') return; // no /dev/fd to count descriptors with
-  const past = new Date(Date.now() - 20 * 60_000),
-    count = () => real.readdirSync('/dev/fd').length;
-  const arrange: Record<string, (lockPath: string, root: string) => Promise<unknown> | void> = {
-    FIFO: async (lockPath) => {
-      expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
-    },
-    stale: (lockPath) => {
-      writeFileSync(lockPath, DEAD_PID);
-      utimesSync(lockPath, past, past);
-    },
-    live: (lockPath) => writeFileSync(lockPath, String(process.pid)),
-    'symbolic link': (lockPath, root) => {
-      writeFileSync(join(root, 'elsewhere.lock'), DEAD_PID);
-      symlinkSync(join(root, 'elsewhere.lock'), lockPath);
-    },
-  };
-  materialized(join(temp(), '.ia')); // a first materialize, so nothing set up once per process is counted below
-  const seen: Record<string, unknown> = {},
-    expected: Record<string, unknown> = {};
-  for (const [name, setUp] of Object.entries(arrange)) {
-    const root = temp(),
-      home = join(root, '.ia'),
+// descriptors it began with. /dev/fd lists this process's descriptors on Linux and macOS; Windows has none to count, so
+// the case is skipped there (a skip tools/testing/tasks.json declares).
+it.skipIf(process.platform === 'win32')(
+  'closes the descriptor it judged, whether the lock is a FIFO, stale, live or a symbolic link',
+  async () => {
+    const past = new Date(Date.now() - 20 * 60_000),
+      count = () => real.readdirSync('/dev/fd').length;
+    const arrange: Record<string, (lockPath: string, root: string) => Promise<unknown> | void> = {
+      FIFO: async (lockPath) => {
+        expect((await runBounded('mkfifo', [lockPath], { timeoutMs: SUBPROCESS })).status).toBe(0);
+      },
+      stale: (lockPath) => {
+        writeFileSync(lockPath, DEAD_PID);
+        utimesSync(lockPath, past, past);
+      },
+      live: (lockPath) => writeFileSync(lockPath, String(process.pid)),
+      'symbolic link': (lockPath, root) => {
+        writeFileSync(join(root, 'elsewhere.lock'), DEAD_PID);
+        symlinkSync(join(root, 'elsewhere.lock'), lockPath);
+      },
+    };
+    materialized(join(temp(), '.ia')); // a first materialize, so nothing set up once per process is counted below
+    const seen: Record<string, unknown> = {},
+      expected: Record<string, unknown> = {};
+    for (const [name, setUp] of Object.entries(arrange)) {
+      const root = temp(),
+        home = join(root, '.ia'),
+        lockPath = join(home, 'claude', '.lock');
+      mkdirSync(join(home, 'claude'), { recursive: true });
+      await setUp(lockPath, root);
+      const { blocked } = watchOpens(lockPath, { fifo: name === 'FIFO' });
+      const before = count();
+      materialized(home);
+      seen[name] = { leaked: count() - before, blocked };
+      expected[name] = { leaked: 0, blocked: [] };
+    }
+    expect(seen).toEqual(expected);
+  },
+);
+// A lock this run cannot open is never judged, so never taken over however old it is: it ends INSTALL-BUSY, untouched.
+// Skipped on Windows, where a file mode only sets the read-only attribute, which does not stop its owner opening it to
+// read (a skip tools/testing/tasks.json declares).
+it.skipIf(process.platform === 'win32')(
+  'refuses INSTALL-BUSY for an old lock it cannot open, leaving it untouched',
+  () => {
+    if (process.getuid?.() === 0) return; // no mode denies root, and the skip gate has no condition for it
+    const home = join(temp(), '.ia'),
       lockPath = join(home, 'claude', '.lock');
     mkdirSync(join(home, 'claude'), { recursive: true });
-    await setUp(lockPath, root);
-    const { blocked } = watchOpens(lockPath, { fifo: name === 'FIFO' });
-    const before = count();
-    materialized(home);
-    seen[name] = { leaked: count() - before, blocked };
-    expected[name] = { leaked: 0, blocked: [] };
-  }
-  expect(seen).toEqual(expected);
-});
-// A lock this run cannot open is never judged, so never taken over however old it is: it ends INSTALL-BUSY, untouched.
-it('refuses INSTALL-BUSY for an old lock it cannot open, leaving it untouched', () => {
-  if (process.platform === 'win32' || process.getuid?.() === 0) return; // no mode denies its owner there, nor root anywhere
-  const home = join(temp(), '.ia'),
-    lockPath = join(home, 'claude', '.lock');
-  mkdirSync(join(home, 'claude'), { recursive: true });
-  writeFileSync(lockPath, DEAD_PID);
-  const past = new Date(Date.now() - 20 * 60_000);
-  utimesSync(lockPath, past, past);
-  real.chmodSync(lockPath, 0o000);
-  try {
-    const before = real.statSync(lockPath, { bigint: true });
-    watchOpens(lockPath);
-    expect(materialized(home)).toEqual(heldBy(lockPath));
-    const after = real.statSync(lockPath, { bigint: true });
-    expect([after.ino, after.size, after.mtimeNs, after.mode]).toEqual([
-      before.ino,
-      before.size,
-      before.mtimeNs,
-      before.mode,
-    ]);
-  } finally {
-    real.chmodSync(lockPath, 0o600);
-  }
-  expect(readFileSync(lockPath, 'utf8')).toBe(DEAD_PID);
-  expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
-});
+    writeFileSync(lockPath, DEAD_PID);
+    const past = new Date(Date.now() - 20 * 60_000);
+    utimesSync(lockPath, past, past);
+    real.chmodSync(lockPath, 0o000);
+    try {
+      const before = real.statSync(lockPath, { bigint: true });
+      watchOpens(lockPath);
+      expect(materialized(home)).toEqual(heldBy(lockPath));
+      const after = real.statSync(lockPath, { bigint: true });
+      expect([after.ino, after.size, after.mtimeNs, after.mode]).toEqual([
+        before.ino,
+        before.size,
+        before.mtimeNs,
+        before.mode,
+      ]);
+    } finally {
+      real.chmodSync(lockPath, 0o600);
+    }
+    expect(readFileSync(lockPath, 'utf8')).toBe(DEAD_PID);
+    expect(inspectMaterializedPlugin(home)).toEqual({ state: 'absent' });
+  },
+);
