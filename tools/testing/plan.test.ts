@@ -939,7 +939,16 @@ it('selects a Windows I/O arm only through a dispatch input, and keeps the physi
     /^      windows-io:\n(?:        #.*\n)*        description: .*\n        type: choice\n        options: \[baseline, runner-temp, defender, dev-drive-temp\]\n        default: baseline$/m,
   );
   expect(workflowJobs(text).get('plan')).toContain(
-    "- name: Refuse a Windows I/O arm without a full run, or on main\nif: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main')\n",
+    "- name: Refuse a Windows I/O arm without a full run, or on main or release/next\nif: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/next')\n",
+  );
+  // An arm run marks itself, and its gate rows report under another name than the required check.
+  const experiment = "github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline'";
+  expect(workflowJobs(text).get('plan')).toContain(`- name: Mark this run as an experiment\nif: ${experiment}\n`);
+  expect(workflowJobs(text).get(GATE_JOB)).toMatch(
+    new RegExp(
+      `^name: \\$\\{\\{ ${experiment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} && 'Experiment platform' \\|\\| 'Emitted platform' \\}\\} \\(\\$\\{\\{ matrix\\.os \\}\\}\\)$`,
+      'm',
+    ),
   );
   const action = readFileSync(resolve(root, '.github/actions/setup/action.yml'), 'utf8').replace(/\r\n/g, '\n');
   const steps = action.split(/^    - /m).slice(1);

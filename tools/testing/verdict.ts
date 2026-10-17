@@ -14,6 +14,8 @@ export const VERDICT_STEP = "Copy the verdict of this commit's last full run";
  * next, so a later copy never mistakes a copy that failed early (an audit or install error) for a failed full run.
  */
 export const COPY_MARK = 'Mark this run as a copied verdict';
+/** The Plan job step an experiment run takes (a dispatch with a Windows I/O arm or task parallelism): never a verdict. */
+export const EXPERIMENT_MARK = 'Mark this run as an experiment';
 /** How long a copy waits for a full run that is still going, and how often it looks again; inside the Plan job's 20 minutes. */
 export const WAIT_MS = 15 * 60_000;
 export const POLL_MS = 30_000;
@@ -57,7 +59,9 @@ export async function copiedVerdict(
     .filter((run) => run.id !== current && !UNDECIDED.has(run.conclusion ?? ''))
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id);
   for (const run of candidates) {
-    if (isCopy(await jobsOf(run.id))) continue;
+    const jobs = await jobsOf(run.id);
+    // A copy decided nothing of its own, and an experiment's environment is not the contract's.
+    if (isCopy(jobs) || ranStep(jobs, EXPERIMENT_MARK)) continue;
     if (run.status !== 'completed')
       return { passed: false, pending: true, reason: `${run.html_url} is still ${run.status}` };
     return run.conclusion === 'success'

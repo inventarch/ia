@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { COPY_MARK, VERDICT_STEP, copiedVerdict, type RunJob, type WorkflowRun } from './verdict.js';
+import { COPY_MARK, EXPERIMENT_MARK, VERDICT_STEP, copiedVerdict, type RunJob, type WorkflowRun } from './verdict.js';
 import { workflowJobs } from './workflow.js';
 
 const CURRENT = 100;
@@ -121,6 +121,30 @@ it('counts a run whose copy step has not been decided yet as a full run, so it c
   expect(result.passed).toBe(false);
   // A run with no Plan job at all is not a copy either.
   expect((await verdict([run(1, '2026-10-16T08:00:00Z', 'completed', 'failure')], { 1: [] })).passed).toBe(false);
+});
+
+it("never copies an experiment's result, whether it passed or failed", async () => {
+  const experiment = (conclusion: string): readonly RunJob[] => [
+    {
+      name: 'Plan',
+      steps: [
+        { name: COPY_MARK, status: 'completed', conclusion: 'skipped' },
+        { name: EXPERIMENT_MARK, status: 'completed', conclusion },
+      ],
+    },
+  ];
+  // Run 2, the newest, is an experiment: run 1 decides either way.
+  for (const outcome of ['success', 'failure'] as const) {
+    const result = await verdict(
+      [run(1, '2026-10-16T08:00:00Z', 'completed', 'success'), run(2, '2026-10-16T09:00:00Z', 'completed', outcome)],
+      { 1: full, 2: experiment('success') },
+    );
+    expect(result, outcome).toEqual({ passed: true, reason: expect.stringContaining('runs/1 passed') });
+  }
+  // With only an experiment on the head, there is no full run to copy.
+  expect(
+    (await verdict([run(2, '2026-10-16T09:00:00Z', 'completed', 'success')], { 2: experiment('success') })).reason,
+  ).toContain('no full run');
 });
 
 it("names the workflow's copy step and copy mark exactly as the classifier reads them, the mark first", () => {

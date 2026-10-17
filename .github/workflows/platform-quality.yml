@@ -65,6 +65,10 @@ jobs:
       - name: Mark this run as a copied verdict
         if: github.event.action == 'edited' && !github.event.changes.base
         run: echo "A pull request edit that keeps its base copies the head commit's last full verdict."
+      # An experiment's results never stand for a contract run: a later edit's copy skips a run that ran this step.
+      - name: Mark this run as an experiment
+        if: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline'
+        run: echo "Experiment run, windows-io ${{ inputs.windows-io }}; its gate rows report as Experiment platform."
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -80,12 +84,13 @@ jobs:
       - name: Validate the test inventory
         run: pnpm tests:inventory
       # A Windows I/O arm compares executed task times, so a run that may reuse results measures nothing. It runs on a
-      # branch other than main: a main run counts as release evidence and feeds the duration re-record, and an arm's
-      # changed Windows environment must not reach either.
-      - name: Refuse a Windows I/O arm without a full run, or on main
-        if: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main')
+      # branch other than main and release/next: a main run counts as release evidence and feeds the duration
+      # re-record, a release/next run is the release pull request's check, and an arm's changed Windows environment
+      # must reach none of them.
+      - name: Refuse a Windows I/O arm without a full run, or on main or release/next
+        if: github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && (!inputs.full || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/next')
         run: |
-          echo "::error::the windows-io arm ${{ inputs.windows-io }} needs full, on a branch other than main"
+          echo "::error::the windows-io arm ${{ inputs.windows-io }} needs full, on a branch other than main and release/next"
           exit 1
       # The commit the last successful scheduled run verified. If it cannot be read the run verifies anyway: a failed
       # lookup costs minutes, never coverage.
@@ -363,7 +368,8 @@ jobs:
     # a plan that produced none fails this job rather than skipping it. A reuse run never skips it either, because a
     # skipped required check reads as passed: each row reports the copied verdict instead, on Linux, since it reads
     # nothing of its platform and a macOS slot is scarce.
-    name: Emitted platform (${{ matrix.os }})
+    # An experiment's rows report under another name, so they never decide a pull request's required check.
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows-io != 'baseline' && 'Experiment platform' || 'Emitted platform' }} (${{ matrix.os }})
     needs: [plan, build, static, tests, emitted, homebrew-node]
     if: always() && needs.plan.outputs.run != 'false'
     runs-on: ${{ needs.plan.outputs.run == 'reuse' && 'ubuntu-latest' || matrix.os }}
