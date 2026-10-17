@@ -195,6 +195,11 @@ export function prepareNativeSelection(root, target, versions) {
   return writes;
 }
 
+/** The npm major alignment when this repository has a native selector surface, otherwise null. */
+export function nativeSelectionAlignment(root, target, published) {
+  return selection(root) ? nativeMajorAlignment(target, published) : null;
+}
+
 /**
  * The npm versioner's native versions, from the published npm version it advances. A new npm major aligns every native
  * archive to `x.0.0`; within a major each archive keeps its selected version, which only the native release writer

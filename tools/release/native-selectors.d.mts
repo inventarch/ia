@@ -17,6 +17,7 @@ export function prepareNativeSelection(
   versions: Readonly<Record<string, string>>,
 ): Map<string, string>;
 export function cohortNativeVersions(root: string, target: string, published: string): Record<string, string>;
+export function nativeSelectionAlignment(root: string, target: string, published: string): string | null;
 export function nativeVersionOnly(
   root: string,
   path: string,

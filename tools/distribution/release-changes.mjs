@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { manifestProblems, publicPackages } from './release-packages.mjs';
-import { BUMPS, bumpVersion, maxBump, packageOwner, pendingNotes, releaseBump } from './release-notes.mjs';
+import {
+  BUMPS,
+  GENERATED_CHANGES,
+  bumpVersion,
+  maxBump,
+  packageOwner,
+  pendingNotes,
+  releaseBump,
+} from './release-notes.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -8,7 +16,11 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
 import { publicPackageInputs } from '../release/public-pack.mjs';
-import { nativeVersionOnly, NATIVE_COMPOSITION_FIXTURE } from '../release/native-selectors.mjs';
+import {
+  nativeSelectionAlignment,
+  nativeVersionOnly,
+  NATIVE_COMPOSITION_FIXTURE,
+} from '../release/native-selectors.mjs';
 
 export const RELEASE_POLICY = 'releases/current.json';
 export const SYSTEM_PACKAGE_POLICY = 'tools/distribution/system-package-policy.json';
@@ -139,6 +151,71 @@ export function changeApplies(change, row) {
   return change.paths.some((prefix) =>
     change.id === 'cohort-alignment' ? row.cohortOnly === true && row.path === prefix : row.path.startsWith(prefix),
   );
+}
+/** Areas outside every package. Package roots are claimed file by file so this entry can never cover a package. */
+export function maintenancePaths(rows) {
+  return [
+    ...new Set(
+      rows.map(({ path }) => {
+        const top = path.split('/')[0];
+        return path.includes('/') && !['packages', 'apps', '.ia'].includes(top) ? top + '/' : path;
+      }),
+    ),
+  ].sort();
+}
+/** The generated alignment prose: a breaking npm major aligns every native artifact; otherwise each keeps its own. */
+export function alignmentSummary(version, alignment) {
+  return alignment
+    ? `Version metadata only: packages follow the coordinated ${version} release, and every native artifact aligns to ${alignment} at this breaking major.`
+    : `Version metadata only: packages follow the coordinated ${version} release; native artifact versions follow their own selection.`;
+}
+/**
+ * Generated scopes, shared by the versioner and `release:collect` so both apply one version-only rule. Package files
+ * freshly proven version-only and outside every authored scope join `cohort-alignment` at their exact paths, with the
+ * manifests of packages no authored entry names; every other unclaimed file outside the packages joins
+ * `repository-maintenance`. An existing generated entry keeps its reviewed title and summary.
+ */
+export function generatedChanges(projects, authored, rows, summary, previous = []) {
+  const named = new Set(authored.flatMap((change) => change.packages)),
+    applies = (entries, row) => {
+      const owner = packageOwner(projects, row.path);
+      return entries.some((change) => changeApplies(change, row) && (!owner || change.packages.includes(owner)));
+    },
+    prose = (id, title, summary) => {
+      const prior = previous.find((change) => change.id === id);
+      return prior ? { title: prior.title, summary: prior.summary } : { title, summary };
+    };
+  const generated = [],
+    alignment = new Set(
+      projects.filter(({ manifest }) => !named.has(manifest.name)).map(({ directory }) => directory + '/package.json'),
+    );
+  for (const row of rows)
+    if (row.cohortOnly && packageOwner(projects, row.path) && !applies(authored, row)) alignment.add(row.path);
+  if (alignment.size) {
+    const paths = [...alignment].sort();
+    generated.push({
+      id: 'cohort-alignment',
+      ...prose('cohort-alignment', 'Coordinated version alignment', summary),
+      packages: [...new Set(paths.map((path) => packageOwner(projects, path)))].sort(),
+      paths,
+    });
+  }
+  const unclaimed = rows.filter(
+    (row) => !packageOwner(projects, row.path) && !applies([...authored, ...generated], row),
+  );
+  if (unclaimed.length)
+    generated.push({
+      id: 'repository-maintenance',
+      ...prose(
+        'repository-maintenance',
+        'Repository maintenance',
+        'Tooling, workflow, documentation and release bookkeeping outside the published package contents.',
+      ),
+      packages: [],
+      internal: true,
+      paths: maintenancePaths(unclaimed),
+    });
+  return generated;
 }
 export function renderChangelog(entries) {
   return (
@@ -390,7 +467,8 @@ export function releaseStatus(root, projects) {
       [...missing]
         .map(([name, paths]) => `  ${name}: ${paths.slice(0, 3).join(', ')}${paths.length > 3 ? ', …' : ''}`)
         .join('\n') +
-      '\nRun: pnpm release:note --bump <none|patch|minor|major> --title "…" --summary "…" (none: no consumer-facing change)',
+      '\nRun: pnpm release:note --bump <none|patch|minor|major> --title "…" --summary "…" (none: no consumer-facing change)' +
+      (published ? '' : `, then pnpm release:version --write to fold it into the prepared ${policy.version} release`),
   );
   // `none` notes ride along with the next release but never start one.
   const bumps = notes.map(({ note }) => note.bump).filter((bump) => bump !== 'none');
@@ -413,22 +491,33 @@ export function releaseStatus(root, projects) {
     nextVersion: next,
   };
 }
-/** Re-derive exact coverage from the reviewed change scopes and regenerate the changelog. */
+/**
+ * Re-derive exact coverage from the reviewed change scopes and regenerate the changelog. The generated scopes are
+ * regenerated with the versioner's rule, so version-only changes made after versioning, such as a per-archive native
+ * selection, need no further step; a semantic package change still needs its own reviewed scope.
+ */
 export function collectChanges(root, projects) {
   const policy = releasePolicy(root),
     path = changesetPath(policy.version),
-    entry = json(root, path);
-  entry.coverage = trackedChanges(root, policy).map((row) => {
+    entry = json(root, path),
+    rows = trackedChanges(root, policy),
+    authored = entry.changes.filter((change) => !GENERATED_CHANGES.includes(change.id)),
+    summary = alignmentSummary(policy.version, nativeSelectionAlignment(root, policy.version, policy.baseline.version));
+  entry.changes = [...authored, ...generatedChanges(projects, authored, rows, summary, entry.changes)];
+  entry.coverage = rows.map((row) => {
     const matches = entry.changes
       .filter((change) => changeApplies(change, row))
       .flatMap((change) =>
         change.paths.filter((prefix) => row.path.startsWith(prefix)).map((prefix) => ({ change: change.id, prefix })),
       )
       .sort((a, b) => b.prefix.length - a.prefix.length || a.change.localeCompare(b.change));
-    assert.ok(matches.length, 'No reviewed change scope for ' + row.path);
+    assert.ok(
+      matches.length,
+      `No reviewed change scope for ${row.path}: describe it with pnpm release:note, then run pnpm release:version --write to fold the note into the ${policy.version} release`,
+    );
     return { ...row, change: matches[0].change };
   });
-  validateChangeset(entry, policy, projects, trackedChanges(root, policy));
+  validateChangeset(entry, policy, projects, rows);
   writeFileSync(resolve(root, path), JSON.stringify(entry, null, 2) + '\n');
   writeFileSync(resolve(root, 'CHANGELOG.md'), renderChangelog(changesetHistory(root, policy)));
   return releaseChanges(root, projects);

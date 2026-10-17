@@ -1098,7 +1098,7 @@ it('aligns every native selector at an npm major and covers a narrowly documente
   });
 }, 120_000);
 
-it('regenerates coverage for a later per-archive native selection on refresh, which collect alone refuses', async () => {
+it('collects a later per-archive native selection with no refresh, and names the fix for a semantic change', async () => {
   await withAlignedRelease(async ({ root, write, read, commit, projects, note }) => {
     await note(true, 'minor');
     await versionRelease(root, projects(), { write: true, registry: null, sealInputs: false });
@@ -1111,24 +1111,27 @@ it('regenerates coverage for a later per-archive native selection on refresh, wh
     };
     for (const [path, text] of prepareNativeSelection(root, '3.1.0', selected)) write(path, text);
     await commit('Select native versions');
-    const declaration = nativeOwner('session-system') + '/system.ia';
-    expect(() => collectChanges(root, projects())).toThrow('No reviewed change scope for ' + declaration);
-    const result = await versionRelease(root, projects(), {
-      write: true,
-      registry: null,
-      sealInputs: false,
-      refresh: true,
-    });
-    expect(result).toMatchObject({ action: 'refresh', version: '3.1.0' });
-    expect(readFileSync(resolve(root, declaration), 'utf8')).toBe(nativeDeclaration('session-system', '3.0.1'));
-    expect(read('examples/public-language/versions.json').language).toBe('3.0.1');
-    const entry = read(result.changeset!) as Changeset;
+    const declaration = nativeOwner('session-system') + '/system.ia',
+      entry = collectChanges(root, projects()).entry;
     expect(entry.changes.find(({ id }) => id === 'cohort-alignment')!.paths).toContain(declaration);
+    expect(entry.changes.find(({ id }) => id === 'repository-maintenance')!.paths).toContain('examples/');
     expect(entry.coverage.find((row) => row.path === declaration)).toMatchObject({
       cohortOnly: true,
       change: 'cohort-alignment',
     });
+    expect(readFileSync(resolve(root, declaration), 'utf8')).toBe(nativeDeclaration('session-system', '3.0.1'));
+    expect(read('examples/public-language/versions.json').language).toBe('3.0.1');
     expect(() => releaseChanges(root, projects())).not.toThrow();
+    await commit('Collect release coverage');
+    expect(() => releaseStatus(root, projects())).not.toThrow();
+    // A semantic declaration change still needs its own reviewed scope, and both checks name the fix.
+    write(declaration, nativeDeclaration('session-system', '3.0.1').replace('Retained meaning', 'Changed behavior'));
+    expect(() => collectChanges(root, projects())).toThrow(
+      `No reviewed change scope for ${declaration}: describe it with pnpm release:note, then run pnpm release:version --write to fold the note into the 3.1.0 release`,
+    );
+    expect(() => releaseStatus(root, projects())).toThrow(
+      /Run: pnpm release:note [\s\S]*, then pnpm release:version --write to fold it into the prepared 3\.1\.0 release/,
+    );
   });
 }, 120_000);
 
@@ -1254,7 +1257,7 @@ it('refuses a semantic edit under generated alignment, rejects a forged proof, a
   });
 }, 120_000);
 
-it('requires exact generated filenames even for a sibling manifest with a fresh version-only proof', async () => {
+it('lists exact generated filenames, adding a sibling manifest only by its own fresh version-only proof', async () => {
   await withAlignedRelease(async ({ root, write, read, commit, projects, note }) => {
     await note(true, 'major');
     const result = await versionRelease(root, projects(), { write: true, registry: null, sealInputs: false });
@@ -1268,7 +1271,13 @@ it('requires exact generated filenames even for a sibling manifest with a fresh 
     write(path, { name: 'fixture-only', private: true, version: '4.0.0' });
     const actual = trackedChanges(root, policy);
     expect(actual.find((row) => row.path === path)).toMatchObject({ cohortOnly: true });
-    expect(() => collectChanges(root, projects())).toThrow('No reviewed change scope for ' + path);
+    // Collect applies the versioner's rule: the sibling joins by its own exact path, not by the system.ia prefix.
+    const regenerated = collectChanges(root, projects()).entry;
+    expect(regenerated.changes.find(({ id }) => id === 'cohort-alignment')!.paths).toContain(path);
+    expect(regenerated.coverage.find((row) => row.path === path)).toMatchObject({
+      cohortOnly: true,
+      change: 'cohort-alignment',
+    });
     const fresh: Changeset = {
       ...structuredClone(entry),
       coverage: actual.map((row) => ({
@@ -1361,7 +1370,6 @@ it.each([false, true])(
         'authoring:generate',
         'native:version --write',
         'platform:qualify',
-        'release:version --write --refresh',
         'release:collect',
         'npm:inputs',
         'npm:prepare',
@@ -1371,6 +1379,7 @@ it.each([false, true])(
       expect(body).toContain('regenerate projections');
       expect(body).toContain('After all source/generated bytes are final');
       expect(body).toContain('Selector updates do not qualify archives or authorize publication.');
+      expect(body).not.toContain('--refresh');
       expect(body).toContain(`| Changeset SHA256 | \`${result.sha256}\` |`);
       expect(Buffer.byteLength(body, 'utf8')).toBeLessThanOrEqual(60_000);
       expect(files.map((path) => readFileSync(resolve(root, path)))).toEqual(before);

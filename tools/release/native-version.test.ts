@@ -1,9 +1,20 @@
 import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
-import { existsSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  copyFileSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { collectChanges, releaseChanges } from '../distribution/release-changes.mjs';
+import { versionRelease } from '../distribution/release-version.mjs';
 import * as nativeArchiveModule from './native-archives.js';
 import { declarationVersion, nativeArchives, type NativeArchive } from './native-archives.js';
 import {
@@ -644,7 +655,9 @@ function realNativeReleaseFixture(
   }
   const selected = JSON.parse(readFileSync(resolve(root, NATIVE_SYSTEM_POLICY), 'utf8'));
   for (const owner of selected.owners) {
-    const version = versions[owner.native.system] ?? '3.0.0';
+    const version = versions[owner.native.system] ?? '3.0.0',
+      manifest = owner.owner + '/package.json';
+    write(root, manifest, { ...JSON.parse(readFileSync(resolve(root, manifest), 'utf8')), version: tag });
     owner.npmVersion = tag;
     owner.native.version = version;
     for (const path of [
@@ -899,6 +912,67 @@ describe('native release writer', () => {
     expect(JSON.parse(readFileSync(resolve(root, NATIVE_CURRENT), 'utf8'))).toEqual(retained);
     expect(retained.baseline).toEqual({ tag: 'v2.9.0', commit: prior });
     expect(retained.notesSha256).toBe(historicalNotes);
+  }, 120_000);
+
+  it('restores every byte when a read-only selector refuses a write partway through', () => {
+    const { root, git, published } = realNativeReleaseFixture();
+    write(root, 'releases/current.json', releasePolicy('4.0.0', '3.0.0', published));
+    const before = nativeWriterSnapshot(root),
+      status = git('status', '--porcelain'),
+      paths = [...before.keys()];
+    // The writer moves the owners' declaration pairs first; the 13th of 26 paths fails after twelve writes.
+    expect(paths[12]).toBe('.ia/src/systems/learning-system/system.ia');
+    const locked = resolve(root, paths[12]!);
+    chmodSync(locked, 0o444);
+    try {
+      expect(() => nativeRelease(root, 'write')).toThrow(/EACCES|EPERM/);
+    } finally {
+      chmodSync(locked, 0o644);
+    }
+    expect(nativeWriterSnapshot(root)).toEqual(before);
+    expect(git('status', '--porcelain')).toBe(status);
+  }, 120_000);
+
+  it('collects a per-archive native selection after versioning, so strict and native checks pass with no refresh', async () => {
+    const { root, published } = realNativeReleaseFixture({ tag: '3.1.0' });
+    const projects = () =>
+      JSON.parse(readFileSync(resolve(root, NATIVE_SYSTEM_POLICY), 'utf8')).owners.map((owner: { owner: string }) => ({
+        directory: owner.owner,
+        manifest: JSON.parse(readFileSync(resolve(root, owner.owner + '/package.json'), 'utf8')),
+      }));
+    reviseWorkSystem(root);
+    write(root, 'releases/pending/work-system-description.json', {
+      format: 'ia.npm-change-note.v1',
+      bump: 'minor',
+      title: 'Revise the work-system description',
+      summary: 'The work-system declaration describes its contracts more precisely.',
+      packages: ['@inventarch/work-system'],
+      paths: ['.ia/src/systems/work-system/'],
+    });
+    write(root, NATIVE_NOTES, workSystemNotes('v3.1.0', published));
+    commit(root, 'Revise work-system');
+    mkdirSync(resolve(root, 'releases/changesets'), { recursive: true });
+    expect(await versionRelease(root, projects(), { write: true, registry: null, sealInputs: false })).toMatchObject({
+      action: 'version',
+      version: '3.2.0',
+    });
+    commit(root, 'Prepare 3.2.0');
+    const selection = nativeRelease(root, 'write');
+    expect(selection.versions).toEqual(workSystemVersions('3.0.0', '3.0.1', '3.1.0'));
+    commit(root, 'Select native versions');
+    const collected = collectChanges(root, projects()).entry,
+      consumers = WORK_CONSUMERS.map((id) => `.ia/src/systems/${id}/system.ia`);
+    expect(collected.changes.find(({ id }) => id === 'cohort-alignment')!.paths).toEqual(
+      expect.arrayContaining(consumers),
+    );
+    for (const path of consumers)
+      expect(collected.coverage.find((row) => row.path === path)).toMatchObject({
+        cohortOnly: true,
+        change: 'cohort-alignment',
+      });
+    commit(root, 'Collect release coverage');
+    expect(() => releaseChanges(root, projects())).not.toThrow();
+    expect(nativeRelease(root, 'check').versions).toEqual(selection.versions);
   }, 120_000);
 
   it.each([true, false])(
