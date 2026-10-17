@@ -7,11 +7,16 @@ import {
   readFileSync,
   existsSync,
   unlinkSync,
+  linkSync,
+  lstatSync,
+  readdirSync,
+  renameSync,
 } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, resolve, join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
+import { runBounded } from '../testing/subprocess.js';
 import { auditRepository } from './audit.js';
 import { checkLinks, gitFiles } from './check.js';
 import { checkStructure, generateCatalog, checkDocumentationLinks, redirectText } from './catalog.mjs';
@@ -144,6 +149,101 @@ it('refuses an aliased roadmap output directory without writing through it', () 
   expect(result.stderr).toContain('Aliased output');
   expect(existsSync(resolve(outside, 'config.json'))).toBe(false);
   expect(readFileSync(resolve(outside, 'keep.txt'), 'utf8')).toBe('operator-owned');
+});
+
+/** A repository holding the roadmap adapter beside its config and a manifest. */
+function roadmapRepository(): string {
+  return fixture({
+    'tools/docs/roadmap-sync-config.mjs': readFileSync(new URL('./roadmap-sync-config.mjs', import.meta.url), 'utf8'),
+    'docs/roadmap/config.json': JSON.stringify({
+      repositoryRoot: '../..',
+      manifestPath: 'docs/roadmap/github-manifest.json',
+    }),
+    'docs/roadmap/github-manifest.json': '{"tasks":[]}',
+  });
+}
+const prepareRoadmap = (root: string) =>
+  runBounded(process.execPath, [resolve(root, 'tools/docs/roadmap-sync-config.mjs')], {
+    cwd: tmpdir(),
+    timeoutMs: 20_000,
+  });
+
+it('replaces its own roadmap output on every run and leaves nothing else beside it', async () => {
+  const root = roadmapRepository(),
+    output = resolve(root, '.ia/work/roadmap-sync/config.json');
+  const first = await prepareRoadmap(root);
+  expect(first.status, first.stderr).toBe(0);
+  const before = JSON.parse(readFileSync(output, 'utf8'));
+  writeFileSync(resolve(root, 'docs/roadmap/github-manifest.json'), '{"tasks":[{"id":"DOC-02"}]}');
+  const rerun = await prepareRoadmap(root);
+  expect(rerun.status, rerun.stderr).toBe(0);
+  const after = JSON.parse(readFileSync(output, 'utf8'));
+  expect(after.syncAdapter.manifestSha256).not.toBe(before.syncAdapter.manifestSha256);
+  expect(JSON.parse(rerun.stdout)).toEqual({
+    output: '.ia/work/roadmap-sync/config.json',
+    manifestSha256: after.syncAdapter.manifestSha256,
+    remoteActions: 0,
+  });
+  expect(readdirSync(dirname(output))).toEqual(['config.json']);
+});
+
+it('refuses a directory, unparsable or linked roadmap output and leaves it as it was', async () => {
+  const root = roadmapRepository(),
+    output = resolve(root, '.ia/work/roadmap-sync/config.json');
+  mkdirSync(output, { recursive: true });
+  writeFileSync(resolve(output, 'keep.txt'), 'operator-owned');
+  let result = await prepareRoadmap(root);
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain('EISDIR: illegal operation on a directory');
+  expect(readdirSync(output)).toEqual(['keep.txt']);
+  rmSync(output, { recursive: true });
+  writeFileSync(output, 'not json');
+  result = await prepareRoadmap(root);
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain('SyntaxError');
+  expect(readFileSync(output, 'utf8')).toBe('not json');
+  rmSync(output);
+  // Even a link to a configuration this adapter wrote is an alias. File links need a privilege on Windows.
+  if (process.platform === 'win32') return;
+  expect((await prepareRoadmap(root)).status).toBe(0);
+  const outside = resolve(fixture({}), 'config.json'),
+    managed = readFileSync(output, 'utf8');
+  renameSync(output, outside);
+  symlinkSync(outside, output);
+  result = await prepareRoadmap(root);
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain('Aliased output');
+  expect(readFileSync(outside, 'utf8')).toBe(managed);
+  expect(lstatSync(output).isSymbolicLink()).toBe(true);
+});
+
+it('refuses a FIFO at the roadmap output as unmanaged instead of waiting to read it', async () => {
+  if (process.platform === 'win32') return; // Windows has no FIFOs.
+  const root = roadmapRepository(),
+    output = resolve(root, '.ia/work/roadmap-sync/config.json');
+  mkdirSync(dirname(output), { recursive: true });
+  expect((await runBounded('mkfifo', [output], { timeoutMs: 10_000 })).status).toBe(0);
+  const result = await prepareRoadmap(root);
+  expect(result.timedOut).toBe(false);
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain('Refusing to overwrite an unmanaged sync configuration');
+  expect(lstatSync(output).isFIFO()).toBe(true);
+  expect(readdirSync(dirname(output))).toEqual(['config.json']);
+});
+
+it('gives the roadmap output a new file rather than writing into one another name shares', async () => {
+  const root = roadmapRepository(),
+    output = resolve(root, '.ia/work/roadmap-sync/config.json'),
+    shared = resolve(root, 'shared.json');
+  expect((await prepareRoadmap(root)).status).toBe(0);
+  const before = readFileSync(output, 'utf8');
+  linkSync(output, shared);
+  writeFileSync(resolve(root, 'docs/roadmap/github-manifest.json'), '{"tasks":[{"id":"DOC-03"}]}');
+  const rerun = await prepareRoadmap(root);
+  expect(rerun.status, rerun.stderr).toBe(0);
+  expect(readFileSync(output, 'utf8')).not.toBe(before);
+  expect(readFileSync(shared, 'utf8')).toBe(before);
+  expect(lstatSync(output).nlink).toBe(1);
 });
 
 it('preserves bundle coverage, refuses duplicate identities and cannot regenerate an omitted spec away', () => {

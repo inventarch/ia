@@ -1,13 +1,28 @@
 /** Trusted default-branch caller. PR contents are data; no checkout, shell or dependency install. */
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const digest = (text) => createHash('sha256').update(text).digest('hex');
+// Spelled once, so the identifier returned is the one tested: another String(value) need not spell it the same way.
 const integer = (value) => {
-  if (!/^\d+$/.test(String(value)) || Number(value) < 1) throw new Error('Positive identifier required');
-  return String(value);
+  const text = String(value);
+  if (!/^\d+$/.test(text) || Number(text) < 1) throw new Error('Positive identifier required');
+  return text;
 };
 const repoName = (value) => {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) throw new Error('Repository required');
@@ -137,35 +152,97 @@ export function evidenceFiles(directory, omissions) {
   let bytes = 0,
     entries = 0;
   const visit = (relative = '', depth = 0) => {
-    for (const entry of readdirSync(resolve(directory, relative)).sort()) {
+    // Each entry is classified by its directory entry type; only an evidence.json listed as a file is opened.
+    const listed = readdirSync(resolve(directory, relative), { withFileTypes: true }).sort((a, b) =>
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+    );
+    for (const entry of listed) {
       if (++entries > 2000) throw new Error('Evidence inventory exceeds disclosure bound');
-      const name = relative ? `${relative}/${entry}` : entry;
-      const path = resolve(directory, name),
-        stat = lstatSync(path);
-      if (stat.isSymbolicLink()) {
+      const name = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isSymbolicLink()) {
         omissions.push(`Evidence symlink omitted: ${name}`);
         continue;
       }
-      if (stat.isDirectory()) {
+      if (entry.isDirectory()) {
         if (depth >= 3) omissions.push(`Evidence nesting omitted: ${name}`);
         else visit(name, depth + 1);
         continue;
       }
       // Public quality emits <task>/evidence.json alongside raw logs/Vitest output.
-      if (!stat.isFile() || entry !== 'evidence.json') continue;
-      if (stat.size > 600000 || bytes + stat.size > 800000) {
-        omissions.push(`Evidence omitted by disclosure bound: ${name}`);
-        continue;
-      }
-      const content = readFileSync(path, 'utf8');
-      JSON.parse(content);
-      reports.push({ name, digest: digest(content), content });
-      bytes += stat.size;
+      if (!entry.isFile() || entry.name !== 'evidence.json') continue;
+      const report = evidenceReport(resolve(directory, name), name, bytes, omissions);
+      if (!report) continue;
+      JSON.parse(report.content);
+      reports.push({ name, digest: digest(report.content), content: report.content });
+      bytes += report.size;
     }
   };
   visit();
   if (!reports.length) omissions.push('No task-level execution evidence disclosed');
   return reports;
+}
+/**
+ * One listed evidence.json, opened before it is judged so that its bounds and its text are of one file (CodeQL
+ * js/file-system-race): its text and the size it was opened at, or undefined when it is omitted or is no regular file.
+ * `disclosed` is the size of the reports already admitted.
+ */
+function evidenceReport(path, name, disclosed, omissions) {
+  let fd;
+  try {
+    // NOFOLLOW refuses a link put in place after the listing; NONBLOCK keeps a FIFO from blocking the open.
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    // A link fails the open (ELOOP), and so does a directory if the platform refuses to open one: omitted or skipped
+    // as the listing would.
+    const named = lstatSync(path);
+    if (named.isSymbolicLink()) {
+      omissions.push(`Evidence symlink omitted: ${name}`);
+      return undefined;
+    }
+    if (!named.isFile()) return undefined;
+    // A report it cannot read is still omitted past either bound before any read, as it always was; no read follows.
+    if (named.size > 600000 || disclosed + named.size > 800000) {
+      omissions.push(`Evidence omitted by disclosure bound: ${name}`);
+      return undefined;
+    }
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) return undefined;
+    const size = Number(opened.size);
+    if (size > 600000 || disclosed + size > 800000) {
+      omissions.push(`Evidence omitted by disclosure bound: ${name}`);
+      return undefined;
+    }
+    // Read at most one byte past the opened size, so a report that grows while it is read is not admitted.
+    const buffer = Buffer.alloc(size + 1);
+    let length = 0;
+    while (length < buffer.length) {
+      const count = readSync(fd, buffer, length, buffer.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    // Windows follows a link on open, so the name must still be the file that was read, unchanged.
+    const named = lstatSync(path, { bigint: true });
+    if (named.isSymbolicLink()) {
+      omissions.push(`Evidence symlink omitted: ${name}`);
+      return undefined;
+    }
+    // The size and the modification time of the opened file catch a rewrite while it was read, at any size.
+    const after = fstatSync(fd, { bigint: true });
+    if (
+      length !== size ||
+      after.size !== opened.size ||
+      after.mtimeNs !== opened.mtimeNs ||
+      named.dev !== opened.dev ||
+      named.ino !== opened.ino
+    )
+      throw new Error(`Evidence changed while it was read: ${name}`);
+    return { content: buffer.subarray(0, length).toString('utf8'), size };
+  } finally {
+    closeSync(fd);
+  }
 }
 export async function evidenceCommit(gh, repository, reports, head, base, fallback) {
   const commits = [...new Set(reports.map((r) => JSON.parse(r.content).current?.commit).filter(Boolean))];
@@ -345,6 +422,26 @@ export async function collectSubject(gh, repository, runId, evidenceDirectory, w
   return subject;
 }
 
+/** The form of a review's id: a retained result's, and every receipt's from the review API. */
+const REVIEW_ID = /^[a-f0-9-]{36}$/;
+const VERDICTS = ['APPROVE', 'CONDITIONAL', 'REQUEST_CHANGES', 'INCOMPLETE'];
+/**
+ * The review id a receipt from the review API carries, refused unless it has the review id form; an advance receipt must
+ * also name `started`, the review the first receipt started. The caller requests and reports only this id, and refuses a
+ * retained result that names another.
+ */
+export function receiptId(receipt, started) {
+  const id = receipt?.id;
+  if (typeof id !== 'string' || !REVIEW_ID.test(id) || (started !== undefined && id !== started))
+    throw new Error('Review receipt identity required');
+  return id;
+}
+/** The job summary line for a review: built only from a review id and one of the four advisory verdicts. */
+export function reviewSummary(id, verdict, delivery) {
+  if (typeof id !== 'string' || !REVIEW_ID.test(id) || !VERDICTS.includes(verdict))
+    throw new Error('Invalid retained review result');
+  return `InventArch review ${id}: ${verdict} (advisory). ${delivery.skipped ? 'Stale delivery suppressed.' : 'Review comment delivered.'}\n`;
+}
 const escapeText = (value) =>
   String(value)
     .replace(/[\\`*_{}[\]()!|~]/g, '\\$&')
@@ -353,11 +450,7 @@ const escapeText = (value) =>
     .replaceAll('>', '&gt;')
     .replaceAll('@', '@\u200b');
 export function renderReview(result) {
-  if (
-    !['APPROVE', 'CONDITIONAL', 'REQUEST_CHANGES', 'INCOMPLETE'].includes(result.verdict) ||
-    result.mode !== 'advisory' ||
-    !/^[a-f0-9-]{36}$/.test(result.id)
-  )
+  if (!VERDICTS.includes(result.verdict) || result.mode !== 'advisory' || !REVIEW_ID.test(result.id))
     throw new Error('Invalid retained review result');
   const marker = `<!-- inventarch-review:${result.id} -->`;
   // Monochrome status symbols provide scan cues; labels retain the full meaning.
@@ -527,24 +620,27 @@ async function main() {
     key: `github:${runId}:${subject.evidence.attempt}:${subject.head}`,
     digest: subjectDigest,
   });
+  const review = receiptId(receipt);
   const deadline = Date.now() + 15 * 60000;
   while (!receipt.result && Date.now() < deadline) {
-    receipt = await api(`/${receipt.id}/advance`);
+    receipt = await api(`/${review}/advance`);
+    receiptId(receipt, review);
     if (receipt.state === 'running') await pause(3000);
   }
   if (!receipt.result) {
-    await api(`/${receipt.id}/cancel`);
+    await api(`/${review}/cancel`);
     throw new Error('Review exceeded CI deadline');
   }
+  // A result that names another review is retained for inspection, then refused before anything is posted. The refusal
+  // sits in the delivery expression so that the line after the artifact write keeps the text CodeQL keys alert #31 to.
   mkdirSync('artifacts/review', { recursive: true });
   writeFileSync('artifacts/review/result.json', JSON.stringify(receipt.result, null, 2));
-  const delivery = await publishReview(gh, repository, receipt.result);
-  if (delivery.reviewId) await api(`/${receipt.id}/delivery`, { reviewId: delivery.reviewId, head: subject.head });
+  const delivery = await (receipt.result.id === review
+    ? publishReview(gh, repository, receipt.result)
+    : Promise.reject(new Error('Review result identity required')));
+  if (delivery.reviewId) await api(`/${review}/delivery`, { reviewId: delivery.reviewId, head: subject.head });
   if (process.env.GITHUB_STEP_SUMMARY)
-    appendFileSync(
-      process.env.GITHUB_STEP_SUMMARY,
-      `InventArch review ${receipt.id}: ${receipt.result.verdict} (advisory). ${delivery.skipped ? 'Stale delivery suppressed.' : 'Review comment delivered.'}\n`,
-    );
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, reviewSummary(review, receipt.result.verdict, delivery));
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href)
   main().catch((error) => {

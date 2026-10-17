@@ -1,8 +1,18 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import fs, {
+  chmodSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
-import { isAbsolute, relative, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { afterEach, expect, it, vi } from 'vitest';
 import { captureWorkspace } from '@inventarch/workspace-runtime';
 import {
   captureAuthoringManifest,
@@ -10,6 +20,8 @@ import {
   readAuthoringManifestFile,
 } from '@inventarch/workspace-runtime/authoring-manifest';
 import { resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
+import { runBounded } from '../testing/subprocess.js';
+import { authoringResources } from './generate-authoring.js';
 import { teachingLinkClasses, teachingLinkFindings } from './teaching-links.js';
 
 const temporary: string[] = [];
@@ -199,5 +211,136 @@ it('keeps adopted guide resources separate from the host kernel and resolves the
     local.assertCurrent();
   } finally {
     local.close();
+  }
+});
+
+/** A root whose explicit authoring library selects each key of `files`, written with its content unless that is undefined. */
+function library(files: Record<string, string | Buffer | undefined>): string {
+  const root = temp();
+  mkdirSync(resolve(root, '.ia/src/systems/authoring-system'), { recursive: true });
+  writeFileSync(
+    resolve(root, '.ia/src/systems/authoring-system/library.json'),
+    JSON.stringify({
+      format: 'ia.authoring-library.v1',
+      files: Object.keys(files).map((path) => ({ path })),
+      associations: [],
+      index: emptyIndex(),
+    }),
+  );
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(dirname(resolve(root, path)), { recursive: true });
+    if (content !== undefined) writeFileSync(resolve(root, path), content);
+  }
+  return root;
+}
+const mebibyte = 'x'.repeat(1024 * 1024);
+const unbounded = /^Unbounded or aliased authoring file$/;
+
+it('generates resources from each selected authoring file up to one mebibyte and refuses a byte more', () => {
+  const root = library({ '.ia/src/guide/README.md': '# Guide\n', '.ia/src/guide/large.md': mebibyte });
+  const { output, files, total } = authoringResources(root);
+  expect([files, total]).toEqual([2, 8 + mebibyte.length]);
+  expect(JSON.parse(output).files).toEqual([
+    {
+      path: '.ia/src/guide/README.md',
+      bytes: 8,
+      sha256: sha('# Guide\n'),
+      mediaType: 'text/markdown',
+      encoding: 'utf8',
+    },
+    {
+      path: '.ia/src/guide/large.md',
+      bytes: mebibyte.length,
+      sha256: sha(mebibyte),
+      mediaType: 'text/markdown',
+      encoding: 'utf8',
+    },
+  ]);
+  writeFileSync(resolve(root, '.ia/src/guide/large.md'), mebibyte + 'x');
+  expect(() => authoringResources(root)).toThrow(unbounded);
+});
+
+// Generating sixteen mebibytes of teaching text takes seconds on every platform, so this case has its own ceiling.
+it('admits sixteen mebibytes of selected authoring files in all and refuses a byte more', () => {
+  const files: Record<string, string> = {};
+  for (let index = 0; index < 16; index++) files[`.ia/src/guide/part-${String(index).padStart(2, '0')}.md`] = mebibyte;
+  expect(authoringResources(library(files)).total).toBe(16 * mebibyte.length);
+  expect(() => authoringResources(library({ ...files, '.ia/src/guide/tail.md': 'x' }))).toThrow(unbounded);
+}, 120_000);
+
+it('refuses a directory, hard-linked, missing, undecodable, FIFO, linked or unreadable selection as before', async () => {
+  const directory = library({ '.ia/src/guide/folder.md': undefined });
+  mkdirSync(resolve(directory, '.ia/src/guide/folder.md'));
+  expect(() => authoringResources(directory)).toThrow(unbounded);
+  const shared = library({ '.ia/src/guide/README.md': '# Guide\n' });
+  linkSync(resolve(shared, '.ia/src/guide/README.md'), resolve(shared, 'other.md'));
+  expect(() => authoringResources(shared)).toThrow(unbounded);
+  expect(() => authoringResources(library({ '.ia/src/guide/missing.md': undefined }))).toThrow(
+    /^ENOENT: no such file or directory, lstat /,
+  );
+  expect(() => authoringResources(library({ '.ia/src/guide/bytes.md': Buffer.from([0xff, 0xfe]) }))).toThrow(TypeError);
+  // Windows has no FIFOs, file links need a privilege there, and root reads a file whatever its mode.
+  if (process.platform === 'win32') return;
+  const fifo = library({ '.ia/src/guide/fifo.md': undefined });
+  expect((await runBounded('mkfifo', [resolve(fifo, '.ia/src/guide/fifo.md')], { timeoutMs: 10_000 })).status).toBe(0);
+  expect(() => authoringResources(fifo)).toThrow(unbounded);
+  const linked = library({ '.ia/src/guide/README.md': '# Guide\n', '.ia/src/guide/link.md': undefined });
+  symlinkSync('README.md', resolve(linked, '.ia/src/guide/link.md'));
+  expect(() => authoringResources(linked)).toThrow(/^Authoring selection crosses an alias$/);
+  if (process.getuid?.() === 0) return;
+  const locked = library({ '.ia/src/guide/README.md': '# Guide\n' });
+  chmodSync(resolve(locked, '.ia/src/guide/README.md'), 0o000);
+  expect(() => authoringResources(locked)).toThrow(/^EACCES: permission denied, open /);
+});
+
+it('refuses an unreadable authoring file past either cap as unbounded before reading it, as it always has', () => {
+  // Root reads a file whatever its mode, and Windows has no such mode.
+  if (process.platform === 'win32' || process.getuid?.() === 0) return;
+  const large = library({ '.ia/src/guide/large.md': mebibyte + 'x' });
+  chmodSync(resolve(large, '.ia/src/guide/large.md'), 0o000);
+  expect(() => authoringResources(large)).toThrow(unbounded);
+  const files: Record<string, string> = {};
+  for (let index = 0; index < 16; index++) files[`.ia/src/guide/part-${String(index).padStart(2, '0')}.md`] = mebibyte;
+  const full = library({ ...files, '.ia/src/guide/tail.md': 'x' });
+  chmodSync(resolve(full, '.ia/src/guide/tail.md'), 0o000);
+  expect(() => authoringResources(full)).toThrow(unbounded);
+});
+
+it('refuses an authoring file rewritten at the same size, within one millisecond, while it is read', () => {
+  const root = library({ '.ia/src/guide/README.md': '# Guide\n' }),
+    target = resolve(root, '.ia/src/guide/README.md');
+  // Two modification times in one millisecond: only a comparison at full precision tells them apart.
+  const before = 1_700_000_000.0001,
+    after = 1_700_000_000.0005;
+  fs.utimesSync(target, before, before);
+  const open = fs.openSync,
+    read = fs.readSync;
+  let selected: number | undefined,
+    rewritten = false;
+  const opening = vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+    const fd = Reflect.apply(open, fs, args) as number;
+    if (String(args[0]) === target) selected = fd;
+    return fd;
+  });
+  const reading = vi.spyOn(fs, 'readSync').mockImplementation((...args: Parameters<typeof fs.readSync>) => {
+    if (!rewritten && args[0] === selected) {
+      rewritten = true;
+      const was = fs.statSync(target, { bigint: true });
+      writeFileSync(target, '# GUIDE\n');
+      fs.utimesSync(target, after, after);
+      const now = fs.statSync(target, { bigint: true });
+      expect([now.mtimeMs, now.size]).toEqual([was.mtimeMs, was.size]);
+      expect(now.mtimeNs).not.toBe(was.mtimeNs);
+    }
+    return Reflect.apply(read, fs, args) as number;
+  });
+  syncBuiltinESMExports();
+  try {
+    expect(() => authoringResources(root)).toThrow(/^Authoring file changed during generation$/);
+    expect(rewritten).toBe(true);
+  } finally {
+    opening.mockRestore();
+    reading.mockRestore();
+    syncBuiltinESMExports();
   }
 });

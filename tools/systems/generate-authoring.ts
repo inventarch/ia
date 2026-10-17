@@ -1,5 +1,15 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeDistributionJson } from '@inventarch/db/distribution';
@@ -45,27 +55,60 @@ export function authoringResources(root: string): {
       current = resolve(current, part);
       if (lstatSync(current).isSymbolicLink()) throw new Error('Authoring selection crosses an alias');
     }
-    const stat = lstatSync(current);
-    if (!stat.isFile() || stat.nlink !== 1 || stat.size > 1024 * 1024 || (total += stat.size) > 16 * 1024 * 1024)
-      throw new Error('Unbounded or aliased authoring file');
-    const bytes = readFileSync(current);
-    new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-    const after = lstatSync(current);
-    if (
-      stat.ino !== after.ino ||
-      stat.dev !== after.dev ||
-      stat.size !== after.size ||
-      stat.mtimeMs !== after.mtimeMs ||
-      bytes.length !== stat.size
-    )
-      throw new Error('Authoring file changed during generation');
-    return {
-      path,
-      bytes: bytes.length,
-      sha256: createHash('sha256').update(bytes).digest('hex'),
-      mediaType: 'text/markdown',
-      encoding: 'utf8',
-    };
+    const unbounded = () => new Error('Unbounded or aliased authoring file');
+    // Judge and read the file opened, not the name (CodeQL js/file-system-race): NOFOLLOW refuses a link put in place
+    // after the walk above, and NONBLOCK keeps a FIFO from blocking the open.
+    let fd: number;
+    try {
+      fd = openSync(current, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+    } catch (error) {
+      // A link fails the open (ELOOP), and so does a directory if the platform refuses to open one: refused as the walk
+      // and lstat refused them.
+      const named = lstatSync(current);
+      if (named.isSymbolicLink()) throw new Error('Authoring selection crosses an alias');
+      // A file it cannot read is still refused past either cap before any read, as it always was; no read follows.
+      if (!named.isFile() || named.nlink !== 1 || named.size > 1024 * 1024 || (total += named.size) > 16 * 1024 * 1024)
+        throw unbounded();
+      throw error;
+    }
+    try {
+      const stat = fstatSync(fd, { bigint: true });
+      if (
+        !stat.isFile() ||
+        stat.nlink !== 1n ||
+        stat.size > BigInt(1024 * 1024) ||
+        (total += Number(stat.size)) > 16 * 1024 * 1024
+      )
+        throw unbounded();
+      // Read at most one byte past the opened size, so a file that grows while it is read is caught below.
+      const buffer = Buffer.alloc(Number(stat.size) + 1);
+      let length = 0;
+      while (length < buffer.length) {
+        const count = readSync(fd, buffer, length, buffer.length - length, null);
+        if (!count) break;
+        length += count;
+      }
+      const bytes = buffer.subarray(0, length);
+      new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      const after = lstatSync(current, { bigint: true });
+      if (
+        stat.ino !== after.ino ||
+        stat.dev !== after.dev ||
+        stat.size !== after.size ||
+        stat.mtimeNs !== after.mtimeNs ||
+        BigInt(bytes.length) !== stat.size
+      )
+        throw new Error('Authoring file changed during generation');
+      return {
+        path,
+        bytes: bytes.length,
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        mediaType: 'text/markdown',
+        encoding: 'utf8',
+      };
+    } finally {
+      closeSync(fd);
+    }
   });
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   const nativePaths = new Set<string>();

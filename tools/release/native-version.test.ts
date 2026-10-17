@@ -1,9 +1,23 @@
 import '../temp/physical-temp.mjs';
 import { execFileSync } from 'node:child_process';
-import { existsSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import fs, {
+  chmodSync,
+  existsSync,
+  copyFileSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { runBounded } from '../testing/subprocess.js';
+import { bundleSystemPackages } from './system-packages.js';
 import * as nativeArchiveModule from './native-archives.js';
 import { declarationVersion, nativeArchives, type NativeArchive } from './native-archives.js';
 import {
@@ -582,3 +596,192 @@ it('refuses a stale composition dependency even when published native versions a
   nativeRelease(root, 'write');
   expect(nativeRelease(root, 'check').changed).toEqual([]);
 }, 120_000);
+
+describe('system package input reads', () => {
+  // `bundleSystemPackages` reads each receipt-selected native source through its file reader before anything else, so a
+  // one-file receipt and an empty policy reach that read and stop at its first refusal.
+  const bundle = (root: string, path: string, sha256: string) =>
+    bundleSystemPackages(
+      root,
+      {
+        format: 'ia.public-package-inputs.v2',
+        source: { repository: 'https://github.com/inventarch/ia', commit: 'a'.repeat(40), tree: 'b'.repeat(40) },
+        files: [{ path, sha256 }],
+      },
+      { format: 'ia.system-package-policy.v2', packages: [], owners: [] },
+    );
+  const digest = (text: string) => createHash('sha256').update(text).digest('hex');
+
+  it('reads a selected regular file and refuses a missing, directory or FIFO input as it always has', async () => {
+    const root = temporary();
+    write(root, '.ia/src/a.ia', 'native source');
+    write(root, 'pnpm-workspace.yaml', 'packages: []\n');
+    // The digest matches, so the read moves on to the next input, which this receipt does not pin.
+    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(
+      /^System package input is absent or changed in public receipt: pnpm-workspace\.yaml$/,
+    );
+    expect(() => bundle(root, '.ia/src/a.ia', digest('other source'))).toThrow(
+      /^System package input is absent or changed in public receipt: \.ia\/src\/a\.ia$/,
+    );
+    expect(() => bundle(root, '.ia/src/missing.ia', digest(''))).toThrow(/^ENOENT: no such file or directory, lstat /);
+    mkdirSync(resolve(root, '.ia/src/dir.ia'));
+    expect(() => bundle(root, '.ia/src/dir.ia', digest(''))).toThrow(
+      /^System package input is not a regular file: \.ia\/src\/dir\.ia$/,
+    );
+    if (process.platform === 'win32') return; // Windows has no FIFOs.
+    expect((await runBounded('mkfifo', [resolve(root, '.ia/src/fifo.ia')], { timeoutMs: 10_000 })).status).toBe(0);
+    expect(() => bundle(root, '.ia/src/fifo.ia', digest(''))).toThrow(
+      /^System package input is not a regular file: \.ia\/src\/fifo\.ia$/,
+    );
+  });
+
+  it('refuses a linked input before reading it and rethrows the open error for one it cannot read', () => {
+    // File links need a privilege on Windows, which has no such mode either; root reads a file whatever its mode.
+    if (process.platform === 'win32') return;
+    const root = temporary();
+    write(root, '.ia/src/a.ia', 'native source');
+    symlinkSync('a.ia', resolve(root, '.ia/src/link.ia'));
+    expect(() => bundle(root, '.ia/src/link.ia', digest('native source'))).toThrow(/^Link\/junction is not allowed: /);
+    if (process.getuid?.() === 0) return;
+    chmodSync(resolve(root, '.ia/src/a.ia'), 0o000);
+    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(/^EACCES: permission denied, open /);
+  });
+
+  it('refuses an input over 2147483647 bytes before allocating a buffer for it', () => {
+    const root = temporary(),
+      big = resolve(root, '.ia/src/big.ia');
+    write(root, '.ia/src/big.ia', '');
+    // A buffer past the bound is never allocated here: the guard refuses first, and without it this spy refuses instead.
+    const allocate = Buffer.alloc;
+    const allocating = vi.spyOn(Buffer, 'alloc').mockImplementation((...args: Parameters<typeof Buffer.alloc>) => {
+      if (args[0] > 0x7fffffff) throw new Error('A buffer past 2147483647 bytes was allocated');
+      return Reflect.apply(allocate, Buffer, args) as ReturnType<typeof Buffer.alloc>;
+    });
+    try {
+      const fd = fs.openSync(big, 'r+');
+      try {
+        // A sparse file: its size is 2147483648 bytes without that much being written.
+        fs.ftruncateSync(fd, 2147483648);
+      } finally {
+        fs.closeSync(fd);
+      }
+      expect(() => bundle(root, '.ia/src/big.ia', digest(''))).toThrow(
+        /^System package input exceeds 2147483647 bytes: \.ia\/src\/big\.ia$/,
+      );
+    } finally {
+      allocating.mockRestore();
+      rmSync(big, { force: true });
+    }
+  });
+  it('reads at most 2147483647 bytes at a time, so an input reported at that size refuses as changed', () => {
+    // Its buffer is 2 ** 31 bytes: zeroed lazily on Linux and macOS, but committed in full on Windows.
+    if (process.platform === 'win32') return;
+    const root = temporary(),
+      target = resolve(root, '.ia/src/a.ia');
+    write(root, '.ia/src/a.ia', 'native source');
+    const open = fs.openSync,
+      fstat = fs.fstatSync;
+    let selected: number | undefined;
+    vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+      const fd = Reflect.apply(open, fs, args) as number;
+      if (String(args[0]) === target) selected = fd;
+      return fd;
+    });
+    // The input's descriptor reports 2147483647 bytes before and after its read: one read may ask for all of them, the
+    // read stops at the real end, and the input refuses as changed. Asking for one byte more throws ERR_OUT_OF_RANGE.
+    vi.spyOn(fs, 'fstatSync').mockImplementation(((...args: Parameters<typeof fs.fstatSync>) => {
+      const stat = Reflect.apply(fstat, fs, args);
+      if (args[0] === selected && typeof stat?.size === 'bigint') (stat as { size: bigint }).size = 0x7fffffffn;
+      return stat;
+    }) as typeof fs.fstatSync);
+    syncBuiltinESMExports();
+    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(
+      /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
+    );
+    expect(selected).toBeDefined();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    syncBuiltinESMExports();
+  });
+  /** Runs `change` once: before the first open of the selected input, or before the first read. Whatever it returns runs after that open. */
+  function around(target: string, at: 'open' | 'read', change: () => (() => void) | void): () => boolean {
+    const open = fs.openSync,
+      read = fs.readSync;
+    let changed = false;
+    vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+      if (at !== 'open' || changed || String(args[0]) !== target) return Reflect.apply(open, fs, args) as number;
+      changed = true;
+      const after = change();
+      try {
+        return Reflect.apply(open, fs, args) as number;
+      } finally {
+        after?.();
+      }
+    });
+    vi.spyOn(fs, 'readSync').mockImplementation((...args: Parameters<typeof fs.readSync>) => {
+      if (at === 'read' && !changed) {
+        changed = true;
+        change();
+      }
+      return Reflect.apply(read, fs, args) as number;
+    });
+    syncBuiltinESMExports();
+    return () => changed;
+  }
+  // The fifth entry, where there is one, says why a case runs only off Windows.
+  const changes: [string, 'open' | 'read', (target: string) => (() => void) | void, RegExp, string?][] = [
+    [
+      'a link put in place at the open as aliased, even once it is gone again',
+      'open',
+      (target) => {
+        rmSync(target);
+        symlinkSync('elsewhere.ia', target);
+        return () => rmSync(target);
+      },
+      /^System package input is aliased: \.ia\/src\/a\.ia$/,
+      'Windows has no O_NOFOLLOW, so its open follows the link and fails with ENOENT; its file links need a privilege',
+    ],
+    [
+      'an input gone before the open with the open error',
+      'open',
+      (target) => rmSync(target),
+      /^ENOENT: no such file or directory, open /,
+    ],
+    [
+      'an input gone after the open as changed',
+      'read',
+      (target) => rmSync(target),
+      /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
+    ],
+    [
+      'an input replaced by a directory during the read as not a regular file',
+      'read',
+      (target) => {
+        rmSync(target);
+        mkdirSync(target);
+      },
+      /^System package input is not a regular file: \.ia\/src\/a\.ia$/,
+      'Windows can keep the name of a file that is still open, so the directory may not take its place',
+    ],
+    [
+      'an input rewritten at the same size during the read as changed',
+      'read',
+      (target) => {
+        writeFileSync(target, 'NATIVE SOURCE');
+        fs.utimesSync(target, new Date(2000, 0, 1), new Date(2000, 0, 1));
+      },
+      /^System package input changed while it was read: \.ia\/src\/a\.ia$/,
+    ],
+  ];
+  it.each(changes)('refuses %s', (_, at, change, refusal, posixOnly) => {
+    if (posixOnly && process.platform === 'win32') return;
+    const root = temporary(),
+      target = resolve(root, '.ia/src/a.ia');
+    write(root, '.ia/src/a.ia', 'native source');
+    write(root, 'pnpm-workspace.yaml', 'packages: []\n');
+    const changed = around(target, at, () => change(target));
+    expect(() => bundle(root, '.ia/src/a.ia', digest('native source'))).toThrow(refusal);
+    expect(changed()).toBe(true);
+  });
+});

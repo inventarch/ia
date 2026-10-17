@@ -1,9 +1,20 @@
 #!/usr/bin/env node
 // Prepare the external roadmap sync tool's config-directory-relative manifest path.
 // This adapter reads/writes local files only; it never invokes the sync tool.
-import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -34,8 +45,29 @@ if (!inside(root, manifest)) throw new Error('Manifest must remain inside the re
 const manifestBytes = readFileSync(manifest);
 JSON.parse(manifestBytes); // Refuse invalid input before touching output.
 const format = 'ia-roadmap-sync-config/1';
-if (existsSync(output) && JSON.parse(readFileSync(output, 'utf8')).syncAdapter?.format !== format) {
-  throw new Error('Refusing to overwrite an unmanaged sync configuration');
+// Judge an existing output by the file opened, not by its name: no final link is followed, and a FIFO cannot block the
+// open. ENOENT means there is none yet.
+let existing;
+try {
+  existing = openSync(output, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+} catch (error) {
+  if (error.code !== 'ENOENT') {
+    // A link put in place after the ancestry check above fails the open (ELOOP); a socket, and a directory if the
+    // platform refuses to open one, fail as reading them did.
+    if (lstatSync(output).isSymbolicLink()) throw new Error(`Aliased output: ${output}`);
+    throw error;
+  }
+}
+if (existing !== undefined) {
+  try {
+    // A FIFO or device is no configuration this adapter wrote. A directory fails the read with EISDIR, as before.
+    const stat = fstatSync(existing);
+    if (!stat.isFile() && !stat.isDirectory()) throw new Error('Refusing to overwrite an unmanaged sync configuration');
+    if (JSON.parse(readFileSync(existing, 'utf8')).syncAdapter?.format !== format)
+      throw new Error('Refusing to overwrite an unmanaged sync configuration');
+  } finally {
+    closeSync(existing);
+  }
 }
 const localPath = (base, target) => relative(base, target).replaceAll('\\', '/');
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -51,5 +83,21 @@ const prepared = {
   },
 };
 mkdirSync(dirname(output), { recursive: true });
-writeFileSync(output, JSON.stringify(prepared, null, 2) + '\n');
+// Write a new file beside the output and rename it over the output: a rename replaces the name, where a write would go
+// through a link or into a file other names share, and the descriptor read above is never written. On Windows the
+// rename can fail, with EPERM, EACCES or EBUSY, while another process holds the output open, where a write in place
+// might have succeeded; the temporary file is then removed and the output is left as it was.
+const temporary = resolve(dirname(output), `.${basename(output)}.${randomUUID()}.tmp`);
+const created = openSync(temporary, 'wx');
+try {
+  try {
+    writeFileSync(created, JSON.stringify(prepared, null, 2) + '\n');
+  } finally {
+    closeSync(created);
+  }
+  renameSync(temporary, output);
+} catch (error) {
+  rmSync(temporary, { force: true });
+  throw error;
+}
 console.log(JSON.stringify({ output: localPath(root, output), manifestSha256: sha(manifestBytes), remoteActions: 0 }));

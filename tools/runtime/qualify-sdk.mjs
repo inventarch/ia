@@ -6,7 +6,19 @@ import { packageManagerCommand } from '../entry/package-manager.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  copyFileSync,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, resolve } from 'node:path';
 const args = process.argv.slice(2);
 assert(
@@ -39,17 +51,62 @@ const inventory = {
 const dependencies = {},
   pins = [];
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+/**
+ * A selected archive's bytes, read once through the descriptor it was opened and judged by (CodeQL js/file-system-race):
+ * a regular file, not a link, unchanged while it is read. Its digest, its manifest and its pin all come from these bytes.
+ */
+function archiveBytes(path) {
+  let fd;
+  try {
+    // NOFOLLOW refuses a final link; NONBLOCK keeps a FIFO from blocking the open.
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch (error) {
+    // A link fails the open (ELOOP), and so does a directory if the platform refuses to open one: refused as the check
+    // by name refused them.
+    const stat = lstatSync(path);
+    assert(stat.isFile() && !stat.isSymbolicLink());
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    assert(opened.isFile(), 'Selected archive is not a regular file');
+    // Read at most one byte past the opened size, so a file that grows while it is read cannot pass for the one judged.
+    const bytes = Buffer.alloc(Number(opened.size) + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = readSync(fd, bytes, length, bytes.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    // Windows follows a link on open, so the name must still be that file, as the check by name required.
+    const stat = lstatSync(path, { bigint: true });
+    assert(stat.isFile() && !stat.isSymbolicLink());
+    // The size and the modification time of the opened file catch a rewrite while it was read, at any size.
+    const after = fstatSync(fd, { bigint: true });
+    assert(
+      BigInt(length) === opened.size &&
+        after.size === opened.size &&
+        after.mtimeNs === opened.mtimeNs &&
+        stat.dev === opened.dev &&
+        stat.ino === opened.ino,
+      'Selected archive changed while it was read',
+    );
+    return bytes.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
+}
 for (const name of packages) {
   const matches = inventory.artifacts.filter((file) => file.name === `@inventarch/${name}`);
   assert.equal(matches.length, 1, `Select exactly one @inventarch/${name} archive`);
   assert(/^[A-Za-z0-9_.-]+\.tgz$/.test(matches[0].path), 'Unsafe selected archive path');
   const path = resolve(archives, matches[0].path),
-    stat = lstatSync(path);
-  assert(stat.isFile() && !stat.isSymbolicLink());
-  assert.equal(digest(readFileSync(path)), matches[0].sha256, 'Selected archive digest mismatch');
+    bytes = archiveBytes(path);
+  assert.equal(digest(bytes), matches[0].sha256, 'Selected archive digest mismatch');
+  // tar reads the verified bytes from stdin, not the archive by its name; a stream needs gzip named explicitly.
   const packed = JSON.parse(
-    execFileSync('tar', ['-xOf', basename(path), 'package/package.json'], {
-      cwd: archives,
+    execFileSync('tar', ['-xzOf', '-', 'package/package.json'], {
+      input: bytes,
       encoding: 'utf8',
       windowsHide: true,
       timeout: 30000,
@@ -69,11 +126,12 @@ for (const name of packages) {
         assert.equal(selected.length, 1, 'Duplicate/missing SDK closure package');
         assert.equal(version, selected[0].version, 'SDK closure version mismatch');
       }
+  // pnpm still installs the archive by this path; the pin below records the bytes verified above.
   dependencies[`@inventarch/${name}`] = `file:${path.replaceAll('\\', '/')}`;
   pins.push({
     package: `@inventarch/${name}`,
     archive: basename(path),
-    sha256: createHash('sha256').update(readFileSync(path)).digest('hex'),
+    sha256: digest(bytes),
   });
 }
 mkdirSync(output);
