@@ -1338,6 +1338,37 @@
           ]
         },
         {
+          "case": "tests/plugin-home.test.ts > refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither the link nor its target",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, and the takeover's other refusal cases remain mandatory.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/plugin-home.test.ts > refuses INSTALL-BUSY when a symbolic link to the judged lock replaces it while it is judged, keeping the link",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, and the takeover's other refusal cases remain mandatory.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
+          "case": "tests/plugin-home.test.ts > releases only the lock it wrote, leaving a FIFO that replaced it in place without waiting on it",
+          "reason": "No FIFO can be created in a Windows directory; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/plugin-home.test.ts > releases only the lock it wrote, leaving a symbolic link to it that replaced it in place",
+          "reason": "The case skips only when Windows denies file-symlink creation with EPERM; it runs wherever creation is permitted, and the release's other refusal cases remain mandatory.",
+          "platforms": [
+            "windows"
+          ],
+          "when": "file-symlink-unavailable"
+        },
+        {
           "case": "tests/host.test.ts > refuses a file symlink at host cache payload lib/inner.txt",
           "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
           "platforms": [

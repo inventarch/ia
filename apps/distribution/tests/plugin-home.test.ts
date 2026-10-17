@@ -570,16 +570,41 @@ it('refuses INSTALL-BUSY for the lock of a live run however long it has been hel
   expect(existsSync(lockPath)).toBe(false); // A released its own lock
   expect(materialized(home)).toBe('materialized'); // and a run after A acquires it
 });
+/**
+ * Runs A, a materialize whose own lock is moved aside to `aside` once A holds it, after which `replace` puts something
+ * at the lock path; then runs C. Returns what A did, what A left at the lock path, what C did and any open of a FIFO
+ * there that could block (watchOpens refuses and records one), with what each should be: A goes ahead and leaves the
+ * replacement in place, and C waits for it, or goes ahead when nothing was put there.
+ */
+function releaseAfterReplacement(
+  replace: (lockPath: string, aside: string) => void,
+  fifo = false,
+): { readonly seen: unknown; readonly expected: unknown } {
+  const root = temp(),
+    home = join(root, '.ia'),
+    lockPath = join(home, 'claude', '.lock'),
+    aside = join(root, 'a.lock');
+  let placed: string | null | undefined;
+  vi.mocked(mkdirSync).mockImplementation(((path: never, options: never) => {
+    if (placed === undefined && String(path).startsWith(join(home, 'claude', '.stage-'))) {
+      real.renameSync(lockPath, aside); // moved aside rather than removed, as a run taking it over might leave it
+      replace(lockPath, aside);
+      placed = standing(lockPath);
+    }
+    return real.mkdirSync(path, options);
+  }) as never);
+  const { blocked } = watchOpens(lockPath, { fifo });
+  const a = materialized(home);
+  return {
+    seen: { a, left: standing(lockPath), c: materialized(home), blocked },
+    expected: { a: 'materialized', left: placed, c: placed === null ? 'materialized' : heldBy(lockPath), blocked: [] },
+  };
+}
 // Whatever replaced run A's lock while A ran is still at the lock path when A ends: A's release removes only the lock A
 // wrote, judged through one descriptor as a held lock is. Before, A's release removed whatever held the name, so a run C
-// after A acquired a lock whose holder was still active. A pid alone is what an older CLI writes. The FIFO shows that the
-// release never waits on one: watchOpens refuses and records any open of it that could block.
-it('releases only the lock it wrote, leaving whatever replaced it for the next run to find', async () => {
-  const probe = temp(),
-    links = fileSymlink(join(probe, 'probe'), join(probe, 'probe-link')), // false where Windows denies file symbolic links
-    fifo = join(probe, 'fifo'),
-    live = String(process.pid);
-  // Each puts its replacement at the lock path once A's own lock has been moved aside to `aside`.
+// after A acquired a lock whose holder was still active. A pid alone is what an older CLI writes.
+it('releases only the lock it wrote, leaving whatever replaced it for the next run to find', () => {
+  const live = String(process.pid);
   const replacements: Record<string, (lockPath: string, aside: string) => void> = {
     'the lock of another run: this pid with another token': (lockPath) =>
       real.writeFileSync(lockPath, `${live} ${OTHER_TOKEN}`, { flag: 'wx' }),
@@ -588,39 +613,34 @@ it('releases only the lock it wrote, leaving whatever replaced it for the next r
       real.writeFileSync(lockPath, `${real.readFileSync(aside, 'utf8')}\n`, { flag: 'wx' }),
     'nothing: removed by hand': () => {},
   };
-  if (links)
-    replacements['a symbolic link to the lock of A'] = (lockPath, aside) => real.symlinkSync(aside, lockPath, 'file');
-  if (process.platform !== 'win32') {
-    // no FIFO can be created in a Windows directory
-    expect((await runBounded('mkfifo', [fifo], { timeoutMs: SUBPROCESS })).status).toBe(0);
-    replacements['a FIFO'] = (lockPath) => real.renameSync(fifo, lockPath);
-  }
   const seen: Record<string, unknown> = {},
     expected: Record<string, unknown> = {};
   for (const [name, replace] of Object.entries(replacements)) {
-    const root = temp(),
-      home = join(root, '.ia'),
-      lockPath = join(home, 'claude', '.lock'),
-      aside = join(root, 'a.lock');
-    let placed: string | null | undefined;
-    vi.mocked(mkdirSync).mockImplementation(((path: never, options: never) => {
-      if (placed === undefined && String(path).startsWith(join(home, 'claude', '.stage-'))) {
-        real.renameSync(lockPath, aside); // moved aside rather than removed, as a run taking it over might leave it
-        replace(lockPath, aside);
-        placed = standing(lockPath);
-      }
-      return real.mkdirSync(path, options);
-    }) as never);
-    const { blocked } = watchOpens(lockPath, { fifo: name === 'a FIFO' });
-    const a = materialized(home);
-    seen[name] = { a, left: standing(lockPath), c: materialized(home), blocked };
-    expected[name] = {
-      a: 'materialized',
-      left: placed,
-      c: placed === null ? 'materialized' : heldBy(lockPath),
-      blocked: [],
-    };
+    const result = releaseAfterReplacement(replace);
+    seen[name] = result.seen;
+    expected[name] = result.expected;
   }
+  expect(seen).toEqual(expected);
+});
+// The release never waits on a FIFO that replaced the lock. Skipped on Windows, where no FIFO can be created in a
+// directory (a skip tools/testing/tasks.json declares).
+it.skipIf(process.platform === 'win32')(
+  'releases only the lock it wrote, leaving a FIFO that replaced it in place without waiting on it',
+  async () => {
+    const fifo = join(temp(), 'fifo');
+    expect((await runBounded('mkfifo', [fifo], { timeoutMs: SUBPROCESS })).status).toBe(0);
+    const { seen, expected } = releaseAfterReplacement((lockPath) => real.renameSync(fifo, lockPath), true);
+    expect(seen).toEqual(expected);
+  },
+);
+// The release never follows a symbolic link to this run's own lock: off Windows O_NOFOLLOW refuses it, and on Windows
+// the identity check does. Skipped only where Windows denies file symbolic link creation (EPERM), a skip
+// tools/testing/tasks.json declares.
+it('releases only the lock it wrote, leaving a symbolic link to it that replaced it in place', (context) => {
+  const probe = temp();
+  if (!fileSymlink(join(probe, 'probe'), join(probe, 'probe-link')))
+    return context.skip('Windows denied file symlink creation (EPERM)');
+  const { seen, expected } = releaseAfterReplacement((lockPath, aside) => real.symlinkSync(aside, lockPath, 'file'));
   expect(seen).toEqual(expected);
 });
 // The release's identity check. Right after the release opens this run's lock, the lock is moved aside and a copy of it,
@@ -799,7 +819,8 @@ it('judges the pid and age of the lock it opened, not of a stale-looking lock sw
 // The lock is only ever created as a regular file, so a symbolic link at its path was put there. Followed, this one would
 // read as a long-dead lock (a dead pid, 20 minutes old) and be removed. Off Windows it is never even opened through
 // (O_NOFOLLOW); on Windows the open follows it, and the identity check, which compares the link itself, refuses it.
-it('refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither the link nor its target', () => {
+// Skipped only where Windows denies file symbolic link creation (EPERM), a skip tools/testing/tasks.json declares.
+it('refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither the link nor its target', (context) => {
   const root = temp(),
     home = join(root, '.ia'),
     lockPath = join(home, 'claude', '.lock'),
@@ -808,7 +829,7 @@ it('refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither 
   writeFileSync(target, DEAD_PID);
   const past = new Date(Date.now() - 20 * 60_000);
   utimesSync(target, past, past);
-  if (!fileSymlink(target, lockPath)) return; // Windows denied file symbolic link creation (EPERM)
+  if (!fileSymlink(target, lockPath)) return context.skip('Windows denied file symlink creation (EPERM)');
   const before = real.statSync(target, { bigint: true });
   const opens = watchOpens(lockPath);
   expect(materialized(home)).toEqual(heldBy(lockPath));
@@ -822,14 +843,16 @@ it('refuses INSTALL-BUSY for a symbolic link at the lock path, changing neither 
 });
 // The identity check compares the lock path itself, never what a symbolic link there names. Here, right after this run
 // opens a stale lock, the lock is moved aside and a symbolic link to it takes its name: a check that followed the link
-// would find the very file it judged and remove the link in its place.
-it('refuses INSTALL-BUSY when a symbolic link to the judged lock replaces it while it is judged, keeping the link', () => {
+// would find the very file it judged and remove the link in its place. Skipped only where Windows denies file symbolic
+// link creation (EPERM), a skip tools/testing/tasks.json declares.
+it('refuses INSTALL-BUSY when a symbolic link to the judged lock replaces it while it is judged, keeping the link', (context) => {
   const root = temp(),
     home = join(root, '.ia'),
     lockPath = join(home, 'claude', '.lock'),
     aside = join(root, 'judged.lock');
   mkdirSync(join(home, 'claude'), { recursive: true });
-  if (!fileSymlink(join(root, 'probe'), join(root, 'probe-link'))) return; // Windows denied file symbolic link creation (EPERM)
+  if (!fileSymlink(join(root, 'probe'), join(root, 'probe-link')))
+    return context.skip('Windows denied file symlink creation (EPERM)');
   writeFileSync(lockPath, DEAD_PID);
   const past = new Date(Date.now() - 20 * 60_000);
   utimesSync(lockPath, past, past);
