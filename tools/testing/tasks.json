@@ -1498,7 +1498,7 @@
         },
         {
           "case": "tests/context-inventory.test.ts > refuses a code file that is a link once its directory is listed",
-          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. The removed kind of the same table runs on every platform.",
           "platforms": [
             "windows"
           ],
@@ -1534,7 +1534,7 @@
         },
         {
           "case": "tests/context-inventory.test.ts > refuses a file it never reads that is a link once its directory is listed, as it refused a listed one",
-          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. The removed kind of the same table runs on every platform.",
           "platforms": [
             "windows"
           ],
@@ -1542,7 +1542,7 @@
         },
         {
           "case": "tests/context-inventory.test.ts > refuses a file link in place of a code file or a module directory",
-          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. The junction kind of the same table runs on every platform.",
           "platforms": [
             "windows"
           ],
@@ -1550,7 +1550,7 @@
         },
         {
           "case": "tests/context-inventory.test.ts > refuses a dangling link in place of a code file or a module directory",
-          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. Junction, hard-link and other refusal cases remain mandatory.",
+          "reason": "The fixture skips only when Windows denies file-symlink creation with EPERM; execute this guard where creation is permitted. The junction kind of the same table runs on every platform.",
           "platforms": [
             "windows"
           ],
