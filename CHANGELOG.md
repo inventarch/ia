@@ -2,6 +2,22 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.1.2
+
+Coordinated 3.1.2 release of the 23 public npm packages: Registry and archive downloads refuse URLs that are not credential-free HTTPS.
+
+### Registry and archive downloads refuse URLs that are not credential-free HTTPS
+
+`fetchBounded` (`@inventarch/distribution/internal/bounded-fetch`), the one request behind registry documents and remote archives, now checks the URL itself before any request, even when its caller did not. It parses the URL with `new URL` and refuses only a URL that does not parse, whose scheme is not `https:` or that has a username or password, as `IA-DIST-INPUT-INVALID` with the message `<label> <url> is not a credential-free HTTPS URL`. It then requests the canonical form `new URL` writes: a query or a fragment passes, and a legitimate non-canonical HTTPS spelling, such as an uppercase host, an explicit `:443` or a percent-encoded host character, is canonicalized and still accepted, with the same request as before, so a direct caller, or a hand-built `RegistryBase`, that passes an HTTPS URL sees no break. Before, an `http:` URL was requested in clear text and a `data:` or `blob:` URL was read; a URL with any other scheme, such as `file:`, `ftp:` or `wss:`, got a `TypeError` from fetch, reported as `IA-DIST-ARTIFACT-UNAVAILABLE` with `<label> <url> failed: …`, as a credentialed or malformed URL did. All of them now refuse as `IA-DIST-INPUT-INVALID`, so both the code and the message change. Refusing another scheme is a defensive patch: the supported contract already excluded it, since the registry spec (`docs/specs/registry/README.md`) says that a registry base is a credential-free HTTPS URL or a local directory and that other URL schemes refuse, and the archive check admits only HTTPS artifact URLs. URLs built on a `parseRegistryBase` base and URLs the archive check admits are already canonical and are requested unchanged. Migration: direct callers can keep passing HTTPS URLs, in any spelling, or use `parseRegistryBase` to get the canonical form up front; a direct caller passing an `http:`, `data:` or `blob:` URL moves to an HTTPS URL or, for a registry, a local directory base. This is URL-shape hygiene, not host authorization: it does not block internal or loopback hosts, DNS rebinding or other server-side request forgery. Redirects, the 30-second timeout and the byte bounds are unchanged.
+
+Packages: `@inventarch/distribution`.
+
+### Coordinated version alignment
+
+Package and native artifact version metadata follows the coordinated 3.1.2 release.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/cli`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runner`, `@inventarch/runtime`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-runtime`, `@inventarch/workspace-system`.
+
 ## 3.1.1
 
 Coordinated 3.1.1 release of the 23 public npm packages: Cite the predecessor repository's issues by name; Refresh the package READMEs for 3.1; Self-contained phase rows in generated position packets; Cite public sources in package contracts and comments; Cite public contracts in package sources.
