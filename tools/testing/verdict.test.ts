@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { VERDICT_STEP, copiedVerdict, type RunJob, type WorkflowRun } from './verdict.js';
+import { COPY_MARK, VERDICT_STEP, copiedVerdict, type RunJob, type WorkflowRun } from './verdict.js';
 import { workflowJobs } from './workflow.js';
 
 const CURRENT = 100;
@@ -12,13 +12,13 @@ const run = (id: number, created: string, status: string, conclusion: string | n
   conclusion,
   html_url: `https://github.com/inventarch/ia/actions/runs/${id}`,
 });
-/** A full run's Plan job skips the copy step; a copy run's Plan job runs it. */
-const plan = (copyStep: { status: string; conclusion: string | null }): readonly RunJob[] => [
+/** A full run's Plan job skips the copy mark, its first step; a copy run's Plan job runs it. */
+const plan = (mark: { status: string; conclusion: string | null }): readonly RunJob[] => [
   {
     name: 'Plan',
     steps: [
+      { name: COPY_MARK, ...mark },
       { name: 'Assign tasks to shards', status: 'completed', conclusion: 'success' },
-      { name: VERDICT_STEP, ...copyStep },
     ],
   },
   { name: 'Build (ubuntu-latest)', steps: [] },
@@ -63,7 +63,31 @@ it('fails while the last full run is still running, and names it', async () => {
     [run(1, '2026-10-16T08:00:00Z', 'completed', 'success'), run(2, '2026-10-16T09:00:00Z', 'in_progress', null)],
     { 1: full, 2: full },
   );
-  expect(result).toEqual({ passed: false, reason: expect.stringContaining('runs/2 is still in_progress') });
+  // Pending, so the command waits for it rather than outlive its gate rows with failed ones.
+  expect(result).toEqual({
+    passed: false,
+    pending: true,
+    reason: expect.stringContaining('runs/2 is still in_progress'),
+  });
+});
+
+it('knows a copy that failed before its copy step for a copy, never for a failed full run', async () => {
+  // Run 2 marked itself, then its audit failed, so its copy step was skipped: still a copy, and run 1 decides.
+  const early: readonly RunJob[] = [
+    {
+      name: 'Plan',
+      steps: [
+        { name: COPY_MARK, status: 'completed', conclusion: 'success' },
+        { name: 'Check dependency advisories', status: 'completed', conclusion: 'failure' },
+        { name: VERDICT_STEP, status: 'completed', conclusion: 'skipped' },
+      ],
+    },
+  ];
+  const result = await verdict(
+    [run(1, '2026-10-16T08:00:00Z', 'completed', 'success'), run(2, '2026-10-16T09:00:00Z', 'completed', 'failure')],
+    { 1: full, 2: early },
+  );
+  expect(result).toEqual({ passed: true, reason: expect.stringContaining('runs/1 passed') });
 });
 
 it('skips cancelled runs and earlier copies, so a copy never copies a copy', async () => {
@@ -99,7 +123,15 @@ it('counts a run whose copy step has not been decided yet as a full run, so it c
   expect((await verdict([run(1, '2026-10-16T08:00:00Z', 'completed', 'failure')], { 1: [] })).passed).toBe(false);
 });
 
-it("names the workflow's copy step exactly as the classifier reads it", () => {
+it("names the workflow's copy step and copy mark exactly as the classifier reads them, the mark first", () => {
   const text = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/platform-quality.yml'), 'utf8');
-  expect(workflowJobs(text).get('plan')).toContain(`- name: ${VERDICT_STEP}\n`);
+  const plan = workflowJobs(text).get('plan')!;
+  expect(plan).toContain(`- name: ${VERDICT_STEP}\n`);
+  // The mark is the Plan job's first step, on the same condition as the reuse plan and the edit concurrency group.
+  expect(plan).toMatch(
+    new RegExp(
+      `^steps:\\n- name: ${COPY_MARK}\\nif: github\\.event\\.action == 'edited' && !github\\.event\\.changes\\.base\\n`,
+      'm',
+    ),
+  );
 });

@@ -54,6 +54,10 @@ jobs:
       run: ${{ steps.matrices.outputs.run }}
       verdict: ${{ steps.verdict.outputs.verdict }}
     steps:
+      # First, before anything that can fail: a later edit's copy then knows this run for a copy, never a full run.
+      - name: Mark this run as a copied verdict
+        if: github.event.action == 'edited' && !github.event.changes.base
+        run: echo "A pull request edit that keeps its base copies the head commit's last full verdict."
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0

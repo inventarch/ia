@@ -243,8 +243,11 @@ it("shares the task runner with every task, but not the runner's own tests", () 
   };
   const shared = nx.namedInputs.sharedGlobals.filter((input): input is string => typeof input === 'string');
   expect(shared.filter((input) => input.startsWith('!'))).toEqual([]);
+  // The one module no task reaches: the Plan job's verdict copy, a GitHub API script that run.ts never imports.
+  // Editing it must not invalidate every task, so it is no shared input.
+  const outsideRunner = ['tools/testing/verdict.ts'];
   const modules = gitFiles(root).filter(
-    (path) => /^tools\/testing\/[^/]+\.ts$/.test(path) && !path.endsWith('.test.ts'),
+    (path) => /^tools\/testing\/[^/]+\.ts$/.test(path) && !path.endsWith('.test.ts') && !outsideRunner.includes(path),
   );
   expect(modules).toContain('tools/testing/run.ts');
   const runner = shared
