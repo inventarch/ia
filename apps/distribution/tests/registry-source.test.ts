@@ -2,6 +2,7 @@ import { linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } 
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
+import { acquireArtifact } from '../src/acquire.js';
 import { openRegistry, parseRegistryBase, registryBudget } from '../src/registry-source.js';
 import { serveDirectory } from './registry-fixture.js';
 
@@ -154,6 +155,75 @@ it('parses HTTPS and directory bases and refuses other schemes, credentials, que
     expect(() => parseRegistryBase(padded, from), JSON.stringify(padded)).toThrow(
       /^Registry base must not have surrounding whitespace$/,
     );
+});
+it('hands every HTTPS base it admits to the transport in serialized form, for every document and artifact path', async () => {
+  const from = temp(),
+    archive = 'a'.repeat(64);
+  // A port, IPv4 and IPv6 hosts, case and spellings `new URL` rewrites, and every character a host or path keeps.
+  const bases: readonly (readonly [string, string])[] = [
+    ['https://registry.test:8443/base', 'https://registry.test:8443/base/'],
+    ['https://registry.test:65535', 'https://registry.test:65535/'],
+    ['https://registry.test:443/base', 'https://registry.test/base/'],
+    ['HTTPS://Registry.TEST/Base/', 'https://registry.test/Base/'],
+    ['https://127.1:8443/base', 'https://127.0.0.1:8443/base/'],
+    ['https://[0:0::1]:8443/base', 'https://[::1]:8443/base/'],
+    ['https://bücher.test/base', 'https://xn--bcher-kva.test/base/'],
+    ['https://re_g!"$&\'()*+,;=`{}~istry.test', 'https://re_g!"$&\'()*+,;=`{}~istry.test/'],
+    ['https://registry.test/a b/é/"<>`{}/%7e%zz%', 'https://registry.test/a%20b/%C3%A9/%22%3C%3E%60%7B%7D/%7e%zz%/'],
+    ["https://registry.test/!$&'()*+,;=:@[]^_|~-.", "https://registry.test/!$&'()*+,;=:@[]^_|~-./"],
+    ['https://registry.test\\base\\', 'https://registry.test/base/'],
+  ];
+  for (const [value, url] of bases) {
+    const base = parseRegistryBase(value, from);
+    expect(base, value).toEqual({ kind: 'https', url });
+    const requested: string[] = [];
+    vi.stubGlobal('fetch', async (input: string | URL, init?: RequestInit) => {
+      expect(init?.redirect).toBe('error');
+      requested.push(String(input));
+      return String(input).endsWith('/ia-registry.json')
+        ? new Response(info())
+        : new Response('missing', { status: 404 });
+    });
+    const registry = await openRegistry(base);
+    expect((await registry.index('acme/tools')).releases, value).toEqual([]);
+    expect((await registry.index('kit', 'acme/kit')).releases, value).toEqual([]);
+    expect((await registry.index('workspace', 'acme/space')).releases, value).toEqual([]);
+    const artifact = registry.artifactUrl(archive);
+    expect(artifact, value).toBe(`${url}artifacts/${archive}.ia.tgz`);
+    // The artifact URL is acquired as registry resolution acquires it, through the archive check, then the transport.
+    await expect(acquireArtifact({ root: from, url: artifact, digest: archive }), value).rejects.toMatchObject({
+      code: 'IA-DIST-ARTIFACT-UNAVAILABLE',
+      message: `Artifact request ${artifact} returned 404`,
+    });
+    expect(requested, value).toEqual([
+      `${url}ia-registry.json`,
+      `${url}packages/acme/tools.json`,
+      `${url}kits/acme/kit/index.json`,
+      `${url}workspaces/acme/space/index.json`,
+      artifact,
+    ]);
+  }
+});
+it('reads a hand-built HTTPS base in a spelling new URL rewrites, requesting its canonical form', async () => {
+  // `RegistryBase` is structural, so a caller can skip parseRegistryBase; the transport canonicalizes what it requests
+  // and every message still names the URL as the caller spelled it.
+  const requested: string[] = [];
+  vi.stubGlobal('fetch', async (input: string | URL, init?: RequestInit) => {
+    expect(init?.redirect).toBe('error');
+    requested.push(String(input));
+    return String(input).endsWith('/ia-registry.json') ? new Response(info()) : new Response('gone', { status: 410 });
+  });
+  const registry = await openRegistry({ kind: 'https', url: 'https://Registry.TEST:443/Base/' });
+  await expect(registry.index('acme/tools')).rejects.toMatchObject(
+    refusal(
+      'ARTIFACT-UNAVAILABLE',
+      /^Registry request https:\/\/Registry\.TEST:443\/Base\/packages\/acme\/tools\.json returned 410$/,
+    ),
+  );
+  expect(requested).toEqual([
+    'https://registry.test/Base/ia-registry.json',
+    'https://registry.test/Base/packages/acme/tools.json',
+  ]);
 });
 it('refuses bases that are not registries and names the base', async () => {
   const dir = temp();

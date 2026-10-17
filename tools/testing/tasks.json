@@ -1233,6 +1233,7 @@
         "tests/archive.test.ts",
         "tests/authoring-assets.test.ts",
         "tests/authoring-consumers.test.ts",
+        "tests/bounded-fetch.test.ts",
         "tests/command.test.ts",
         "tests/context-launcher.test.ts",
         "tests/decisions.test.ts",

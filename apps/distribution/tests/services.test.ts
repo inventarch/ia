@@ -176,6 +176,58 @@ it('refuses acquisition before any request when the location is not an immutable
   ).toBe('IA-DIST-RESTORE-REQUIRED');
 });
 
+it('hands every artifact URL it admits to the transport as written and refuses rewritten spellings first', async () => {
+  const root = fixture.target(),
+    digest = fixture.packed.archiveDigest,
+    requested: string[] = [];
+  // A port, IPv4 and IPv6 hosts, every character a host or path keeps, percent-encoding and a mixed-case path.
+  const admitted = [
+    `https://example.invalid/${digest}.ia.tgz`,
+    `https://example.invalid:8443/releases/${digest}.ia.tgz`,
+    `https://example.invalid:65535/${digest}.ia.tgz`,
+    `https://127.0.0.1/${digest}.ia.tgz`,
+    `https://[::1]:8443/${digest}.ia.tgz`,
+    `https://[::ffff:7f00:1]/${digest}.ia.tgz`,
+    `https://xn--bcher-kva.example/${digest}.ia.tgz`,
+    `https://dist_1!"$&'()*+,;=\`{}~.example.invalid/${digest}.ia.tgz`,
+    `https://example.invalid/%C3%A9%20%7e%zz%/${digest}.ia.tgz`,
+    `https://example.invalid/!$&'()*+,;=:@[]^_|~-./${digest}.ia.tgz`,
+    `https://example.invalid/Mixed/CASE//${digest}.ia.tgz`,
+    // `URL.search` and `URL.hash` read an empty query or fragment as none, so a bare `?` or `#` passes this check.
+    `https://example.invalid/${digest}.ia.tgz?`,
+    `https://example.invalid/${digest}.ia.tgz#`,
+    `https://example.invalid/${digest}.ia.tgz?#`,
+  ];
+  try {
+    vi.stubGlobal('fetch', async (input: string | URL, init?: RequestInit) => {
+      expect(init?.redirect).toBe('error');
+      requested.push(String(input));
+      return new Response(null, { status: 503 });
+    });
+    for (const url of admitted)
+      await expect(acquireArtifact({ root, url, digest }), url).rejects.toMatchObject({
+        code: 'IA-DIST-ARTIFACT-UNAVAILABLE',
+        message: `Artifact request ${url} returned 503`,
+      });
+    expect(requested).toEqual(admitted);
+    // Spellings that `new URL` rewrites (case, a default port, IPv6 and IDN long forms, raw space, `\`, dot segments).
+    for (const url of [
+      `https://Example.invalid/${digest}.ia.tgz`,
+      `HTTPS://example.invalid/${digest}.ia.tgz`,
+      `https://example.invalid:443/${digest}.ia.tgz`,
+      `https://[0:0::1]/${digest}.ia.tgz`,
+      `https://bücher.example/${digest}.ia.tgz`,
+      `https://example.invalid/a b/${digest}.ia.tgz`,
+      `https://example.invalid/a\\b/${digest}.ia.tgz`,
+      `https://example.invalid/./${digest}.ia.tgz`,
+    ])
+      expect(await asyncRefusal(() => acquireArtifact({ root, url, digest })), url).toBe('IA-DIST-INPUT-INVALID');
+    expect(requested).toHaveLength(admitted.length);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 it('only observes hosts when the caller opts in, and reports none registered when none exist', () => {
   // Host observation walks the filesystem; a caller that never asked must not receive a fabricated `[]`.
   expect(readInstalledState({ root: fixture.target() })).toEqual({ status: 'uninstalled' });
