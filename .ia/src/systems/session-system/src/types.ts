@@ -344,10 +344,44 @@ export interface Journal {
   commands: Record<string, CommandResult>;
   checkpoint: Checkpoint | null;
 }
+/**
+ * One durable write offered to a host admission gate. The store builds it inside its write transaction, after the
+ * ownership, idempotency and revision checks and immediately before the first byte is written, and nothing awaits
+ * between the gate's answer and the commit. It is a deeply frozen copy of exactly what the store writes. Model
+ * output inside it is payload, never authority.
+ */
+export interface Admission {
+  /** `commit` appends journal events; `checkpoint` replaces the stored checkpoint with a copy of the session. */
+  kind: 'commit' | 'checkpoint';
+  sessionId: string;
+  /** The session's principal. */
+  principal: string;
+  /** The owner fence the write runs under; null for a command the inbox admits without ownership. */
+  fence: number | null;
+  /** The command a commit appends; null for a checkpoint. */
+  command: Command | null;
+  /** The exact events a commit appends; empty for a checkpoint. */
+  events: Event[];
+  /** The session as it stands once the write lands. */
+  state: Session;
+  /** The attempts whose output the write stores, as they stand once it lands: those a commit observes or reconciles, or every observed attempt in a checkpoint. */
+  observed: Attempt[];
+}
+/**
+ * A trusted host's synchronous check of its current authority over one write. Only the value `true` admits. `false`,
+ * any other value, a promise or thenable, or a throw refuses the write with IA-SESSION-ADMISSION-DENIED before
+ * anything is written; the refusal carries neither the offered bytes nor the host's error. The gate cannot change
+ * what is written or grant anything. It is atomic only against authority state the gate reads synchronously in this
+ * process; a remote or cross-process authority needs its own lease or fencing protocol.
+ */
+export type AdmissionGate = (admission: Readonly<Admission>) => boolean;
 /** Trusted adapter boundary, not exposed to a model or network caller. */
 export interface JournalBackend {
+  /** True when a host admission gate runs inside every commit and checkpoint transaction (see `Admission`). */
+  readonly admission?: boolean;
   load(sessionId: string): Promise<Journal | null>;
-  commit(command: Command, digest: string, events: Event[], owner?: Owner): Promise<CommandResult>;
+  /** `next` is the session once `events` land; a backend running an admission gate refuses a commit without it. */
+  commit(command: Command, digest: string, events: Event[], owner?: Owner, next?: Session): Promise<CommandResult>;
   checkpoint(sessionId: string, checkpoint: Checkpoint, owner: Owner): Promise<void>;
   acquire(sessionId: string): Promise<Owner>;
   release(owner: Owner): Promise<void>;
@@ -355,6 +389,8 @@ export interface JournalBackend {
   close(): Promise<void>;
 }
 export interface SessionStore {
+  /** True when every commit and checkpoint passes a host admission gate; absent or false means no gate runs. */
+  readonly admission?: boolean;
   read(sessionId: string): Promise<Session>;
   journal(sessionId: string): Promise<Journal>;
   command(command: Command, owner?: Owner): Promise<CommandResult>;

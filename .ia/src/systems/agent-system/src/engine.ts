@@ -87,6 +87,11 @@ export class Engine {
       'IA-ENGINE-MANIFEST-INVALID',
       'Manifest version/digest mismatch',
     );
+    check(
+      (host.requireAdmission ?? false) === false || host.store.admission === true,
+      'IA-ENGINE-ADMISSION-UNAVAILABLE',
+      'The host requires write admission its session store does not enforce',
+    );
     // Reactions need a qualified causal outbox consumer before they may be enabled.
     check(
       manifest.reactions.length === 0,

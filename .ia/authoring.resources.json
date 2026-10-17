@@ -38,8 +38,8 @@
     },
     {
       "path": ".ia/src/systems/agent-composition-system/references/installed-read.md",
-      "bytes": 6428,
-      "sha256": "d03adfdab048a2c65bfa6e12983bd8689d2fdba99dab3f4e2b828710c2d4e070",
+      "bytes": 7179,
+      "sha256": "0d440c9ff7e3002bcb889174849973ab978107c1920b0d12672562971737ef28",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -80,8 +80,8 @@
     },
     {
       "path": ".ia/src/systems/agent-system/SPEC.md",
-      "bytes": 249,
-      "sha256": "b938032174da02789a9b8def370b4b2ae5ae79e749aa4bf6e4873de21eb51d13",
+      "bytes": 819,
+      "sha256": "58f4091c03fc5bcb3e10706d05b7c3f1c6b733a2f19cce62879e3824ccc89d88",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -514,8 +514,8 @@
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md",
-      "bytes": 251,
-      "sha256": "e5d18545a735d2c991af04453cad1d0be06179be45e2b4743aa765e0b0589975",
+      "bytes": 2925,
+      "sha256": "4c366b99f780ec0305c18a4eaad80078cd15a674de705c23ba2869e2537e1c7b",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

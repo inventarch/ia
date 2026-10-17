@@ -381,6 +381,135 @@ export async function qualifyInstalledRead(SDK, root, store, retryFault) {
   }
 }
 
+/**
+ * Engine, the installed captured read and a SQLite store with a host admission gate. Every check up to the host
+ * wrapper's final synchronous return check passes; a revocation queued there lands before the store commits the
+ * read's result. The gate refuses that commit, so the source bytes never reach the journal, the model or a caller.
+ */
+export async function qualifyAdmission(SDK, root, directory) {
+  const f = readFixture(SDK, root),
+    sentinel = 'A supplied public read label.',
+    read = SDK.installedReadAdapters(f.capture, f.options),
+    adapter = read.operations[SDK.INSTALLED_READ.handler];
+  let revoked = false,
+    returnChecks = 0,
+    nativeReads = 0,
+    sourceBytesRead = false,
+    agentDisclosures = 0;
+  // Only payload-bearing operation observations need current authority; redacted recovery records carry none.
+  const admit = ({ kind, observed }) =>
+    kind === 'checkpoint' || !revoked || observed.every((row) => row.kind !== 'operation' || row.output === null);
+  const host = (store) => ({
+    store,
+    requireAdmission: true,
+    operations: {
+      [adapter.id]: {
+        id: adapter.id,
+        execute: async (input, context) => {
+          nativeReads++;
+          const result = await adapter.execute(input, context);
+          sourceBytesRead ||= JSON.stringify(result.output).includes(sentinel);
+          returnChecks++;
+          assert.equal(revoked, false, 'The final return check sees current authority');
+          queueMicrotask(() => {
+            revoked = true;
+          });
+          return result;
+        },
+      },
+    },
+    model: {
+      id: 'example-admission-read',
+      generate: async (request) => {
+        if (JSON.stringify(request).includes(sentinel)) agentDisclosures++;
+        return {
+          provider: 'deterministic-fake',
+          model: 'example/scripted-read',
+          usage: 1,
+          action: request.history.some((row) => row?.kind === 'action')
+            ? { type: 'outcome', kind: 'answer', message: 'The captured read completed.', continuation: 'finish' }
+            : { type: 'invoke', operation: SDK.INSTALLED_READ.operation, input: { path: readPath } },
+        };
+      },
+    },
+    authorize: async () => copy({ ...f.grant, operations: revoked ? [] : f.grant.operations }),
+    verifyManifest: async (manifest) => digest(manifest) === digest(f.manifest),
+    context: async () => ({ capture: f.capture.revision }),
+    evaluate: async () => ({ status: 'pass', evidence: [], message: 'Only the fixed captured read is authorized.' }),
+    preflight: async (definition) => definition.id === SDK.INSTALLED_READ.operation,
+  });
+  const journaled = async () => {
+    const reopened = sqliteStore(directory);
+    try {
+      return JSON.stringify(await reopened.journal('admission')).includes(sentinel);
+    } finally {
+      await reopened.close();
+    }
+  };
+  let store = sqliteStore(directory, { admit });
+  try {
+    const engine = new Engine(f.manifest, host(store));
+    await engine.start({
+      sessionId: 'admission',
+      commandId: 'start',
+      principal: f.principal,
+      profile: f.profile,
+      task: 'Read the supplied public capture label.',
+    });
+    assert.equal(JSON.stringify(await store.journal('admission')).includes(sentinel), false);
+    let returned = null,
+      refusal = null;
+    try {
+      returned = await engine.advance('admission', f.principal);
+    } catch (error) {
+      refusal = error;
+    }
+    assert.equal(refusal?.code, 'IA-SESSION-ADMISSION-DENIED');
+    assert.equal(String(refusal.message).includes(sentinel), false);
+    assert.equal(returned, null);
+    assert.deepEqual(
+      { revoked, sourceBytesRead, returnChecks, nativeReads, agentDisclosures },
+      {
+        revoked: true,
+        sourceBytesRead: true,
+        returnChecks: 1,
+        nativeReads: 1,
+        agentDisclosures: 0,
+      },
+    );
+    await store.close();
+    const journalContainsSentinel = await journaled();
+    assert.equal(journalContainsSentinel, false, 'Revoked source bytes were committed after the last host check');
+    // A restarted owner recovers the dispatched read with a redacted record and never reads again while revoked.
+    store = sqliteStore(directory, { admit });
+    const restarted = new Engine(f.manifest, host(store)),
+      recovered = await restarted.advance('admission', f.principal);
+    assert.equal(recovered.runs.root.wait?.reason, 'operation-error');
+    const attempt = Object.values(recovered.attempts).find((row) => row.kind === 'operation');
+    assert.equal(attempt.output, null);
+    await assert.rejects(restarted.retry('admission', f.principal, attempt.id, 'revoked-retry'), {
+      code: 'IA-ENGINE-OPERATION-DENIED',
+    });
+    assert.equal(nativeReads, 1);
+    await store.close();
+    assert.equal(await journaled(), false);
+    return {
+      revoked,
+      returnChecks,
+      nativeReads,
+      agentDisclosures,
+      returnedBytes: 0,
+      refusal: refusal.code,
+      journalContainsSentinel,
+      recoveredWithoutDisclosure: true,
+      revokedRetryRefused: true,
+    };
+  } finally {
+    read.close();
+    await store.close();
+  }
+}
+
 function mutateDisposableInstalledCode(root) {
   const code = resolve(
     dirname(fileURLToPath(import.meta.resolve('@inventarch/agent-composition-system'))),
@@ -414,6 +543,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
       node: process.version,
       memory: await qualifyInstalledRead(installedSDK, root, memory, retryFault),
       sqlite: await qualifyInstalledRead(installedSDK, root, sqlite, retryFault),
+      admission: await qualifyAdmission(installedSDK, root, resolve(process.argv[3], 'admission')),
     };
     await sqlite.close();
     const reopened = sqliteStore(resolve(process.argv[3]));

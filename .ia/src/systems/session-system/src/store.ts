@@ -1,6 +1,8 @@
-import { copy, digest, identifier, requireValue } from './codec.js';
+import { copy, digest, identifier, requireValue, SessionError } from './codec.js';
 import { eventFor, replay } from './reducer.js';
 import type {
+  Admission,
+  AdmissionGate,
   Checkpoint,
   Command,
   CommandResult,
@@ -40,12 +42,80 @@ export function duplicate(journal: Journal | null, command: Command, hash: strin
   );
   return result ? copy(result) : null;
 }
+/** A backend's configured gate. A configured `admit` is required, so anything but a function refuses. */
+export function admissionGate(options: { admit?: AdmissionGate }): AdmissionGate | undefined {
+  if (!('admit' in options)) return undefined;
+  requireValue(
+    typeof options.admit === 'function',
+    'IA-SESSION-ADMISSION-UNAVAILABLE',
+    'Configured admission gate is not a function',
+  );
+  return options.admit;
+}
+function freeze<T>(value: T): T {
+  if (value !== null && typeof value === 'object') {
+    for (const item of Object.values(value)) freeze(item);
+    Object.freeze(value);
+  }
+  return value;
+}
+const outputs = new Set(['attempt.observe', 'attempt.reconcile']);
+export function commitAdmission(command: Command, events: Event[], owner?: Owner, next?: Session): Admission {
+  requireValue(next, 'IA-SESSION-ADMISSION-DENIED', 'Commit offered without its resulting session');
+  const observed = new Set(
+    events.flatMap(({ mutation }) =>
+      outputs.has(mutation.type) ? [(mutation as { attemptId: string }).attemptId] : [],
+    ),
+  );
+  return {
+    kind: 'commit',
+    sessionId: command.sessionId,
+    principal: next.principal,
+    fence: owner?.fence ?? null,
+    command,
+    events,
+    state: next,
+    observed: [...observed].map((id) => next.attempts[id]!),
+  };
+}
+export function checkpointAdmission(checkpoint: Checkpoint, owner: Owner): Admission {
+  const state = checkpoint.state;
+  return {
+    kind: 'checkpoint',
+    sessionId: state.id,
+    principal: state.principal,
+    fence: owner.fence,
+    command: null,
+    events: [],
+    state,
+    observed: Object.values(state.attempts).filter((attempt) => attempt.status === 'observed'),
+  };
+}
+/**
+ * Asks the host gate synchronously, after every awaited check and before the first write; the caller writes and
+ * commits without yielding. Only `true` admits, and the refusal never carries the offer or the host's error.
+ */
+export function admit(gate: AdmissionGate | undefined, offer: () => Admission): void {
+  if (!gate) return;
+  let decision: unknown;
+  try {
+    decision = gate(freeze(copy(offer())));
+  } catch {
+    decision = undefined;
+  }
+  // A promise never admits; observe its rejection so a refused asynchronous gate cannot crash the host.
+  if (decision instanceof Promise) decision.catch(() => undefined);
+  if (decision !== true) throw new SessionError('IA-SESSION-ADMISSION-DENIED', 'Host admission refused the write');
+}
 /** Validated append-only journal with a replaceable transactional persistence adapter. */
 export class JournalStore implements SessionStore {
   constructor(
     private readonly backend: JournalBackend,
     private readonly now: () => string = () => new Date().toISOString(),
   ) {}
+  get admission(): boolean {
+    return this.backend.admission === true;
+  }
   async journal(id: string): Promise<Journal> {
     identifier(id);
     const journal = await this.backend.load(id);
@@ -96,7 +166,7 @@ export class JournalStore implements SessionStore {
         'Run journal byte budget exhausted',
       );
     }
-    return this.backend.commit(command, hash, events, owner);
+    return this.backend.commit(command, hash, events, owner, state ?? undefined);
   }
   async checkpoint(id: string, owner: Owner): Promise<Checkpoint> {
     const state = await this.read(id);

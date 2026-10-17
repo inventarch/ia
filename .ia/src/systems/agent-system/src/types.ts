@@ -208,6 +208,8 @@ export interface ContextBudget {
 }
 export interface EngineHost {
   store: SessionStore;
+  /** When set, Engine refuses at construction unless `store` runs a host admission gate on every write (`SessionStore.admission`). */
+  requireAdmission?: boolean;
   model: ModelAdapter;
   operations: Readonly<Record<string, OperationAdapter>>;
   authorize(principal: string, manifest: Manifest, session: Session | null): Promise<Grant>;
