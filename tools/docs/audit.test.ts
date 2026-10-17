@@ -21,6 +21,16 @@ import { auditRepository } from './audit.js';
 import { checkLinks, gitFiles } from './check.js';
 import { checkStructure, generateCatalog, checkDocumentationLinks, redirectText } from './catalog.mjs';
 
+/** A denied Windows file-link fixture is an explicit skip; all other setup failures still fail the test. */
+const fileLink = (target: string, path: string): boolean => {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (error) {
+    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+};
 const roots: string[] = [];
 function fixture(files: Record<string, string>): string {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-doc-audit-'));
@@ -187,7 +197,7 @@ it('replaces its own roadmap output on every run and leaves nothing else beside 
   expect(readdirSync(dirname(output))).toEqual(['config.json']);
 });
 
-it('refuses a directory, unparsable or linked roadmap output and leaves it as it was', async () => {
+it('refuses a directory or unparsable roadmap output and leaves it as it was', async () => {
   const root = roadmapRepository(),
     output = resolve(root, '.ia/work/roadmap-sync/config.json');
   mkdirSync(output, { recursive: true });
@@ -202,34 +212,40 @@ it('refuses a directory, unparsable or linked roadmap output and leaves it as it
   expect(result.status).not.toBe(0);
   expect(result.stderr).toContain('SyntaxError');
   expect(readFileSync(output, 'utf8')).toBe('not json');
-  rmSync(output);
-  // Even a link to a configuration this adapter wrote is an alias. File links need a privilege on Windows.
-  if (process.platform === 'win32') return;
+});
+
+// Even a link to a configuration this adapter wrote is an alias. File links need a privilege on Windows.
+it('refuses a link to a configuration this adapter wrote as an alias and leaves the configuration as it was', async (context) => {
+  const root = roadmapRepository(),
+    output = resolve(root, '.ia/work/roadmap-sync/config.json');
   expect((await prepareRoadmap(root)).status).toBe(0);
   const outside = resolve(fixture({}), 'config.json'),
     managed = readFileSync(output, 'utf8');
   renameSync(output, outside);
-  symlinkSync(outside, output);
-  result = await prepareRoadmap(root);
+  if (!fileLink(outside, output)) return context.skip('Windows denied file symlink creation (EPERM)');
+  const result = await prepareRoadmap(root);
   expect(result.status).not.toBe(0);
   expect(result.stderr).toContain('Aliased output');
   expect(readFileSync(outside, 'utf8')).toBe(managed);
   expect(lstatSync(output).isSymbolicLink()).toBe(true);
 });
 
-it('refuses a FIFO at the roadmap output as unmanaged instead of waiting to read it', async () => {
-  if (process.platform === 'win32') return; // Windows has no FIFOs.
-  const root = roadmapRepository(),
-    output = resolve(root, '.ia/work/roadmap-sync/config.json');
-  mkdirSync(dirname(output), { recursive: true });
-  expect((await runBounded('mkfifo', [output], { timeoutMs: 10_000 })).status).toBe(0);
-  const result = await prepareRoadmap(root);
-  expect(result.timedOut).toBe(false);
-  expect(result.status).not.toBe(0);
-  expect(result.stderr).toContain('Refusing to overwrite an unmanaged sync configuration');
-  expect(lstatSync(output).isFIFO()).toBe(true);
-  expect(readdirSync(dirname(output))).toEqual(['config.json']);
-});
+// Windows has no FIFOs.
+it.skipIf(process.platform === 'win32')(
+  'refuses a FIFO at the roadmap output as unmanaged instead of waiting to read it',
+  async () => {
+    const root = roadmapRepository(),
+      output = resolve(root, '.ia/work/roadmap-sync/config.json');
+    mkdirSync(dirname(output), { recursive: true });
+    expect((await runBounded('mkfifo', [output], { timeoutMs: 10_000 })).status).toBe(0);
+    const result = await prepareRoadmap(root);
+    expect(result.timedOut).toBe(false);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Refusing to overwrite an unmanaged sync configuration');
+    expect(lstatSync(output).isFIFO()).toBe(true);
+    expect(readdirSync(dirname(output))).toEqual(['config.json']);
+  },
+);
 
 it('gives the roadmap output a new file rather than writing into one another name shares', async () => {
   const root = roadmapRepository(),
