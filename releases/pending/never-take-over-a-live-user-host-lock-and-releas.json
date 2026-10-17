@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Never take over a live user host lock, and release only a run's own",
+  "summary": "When `ia host claude --user` finds its lock, `<IA home>/claude/.lock`, held by another run, @inventarch/distribution no longer takes it over just because it is older than 10 minutes: a lock whose pid is still running is busy however old it is, since its age does not show that its owner stopped. A lock whose pid has died is still taken over at any age, and one whose pid is empty or unparseable after 10 seconds. A lock whose dead owner's pid another process has since reused now stays busy until it is removed by hand, as the unchanged IA-DIST-INSTALL-BUSY message says to do when no run is active. A run now writes its pid, a space and a random token, and at its end removes the lock only while it is still a regular file holding exactly that text and its name still names that file, so a run whose lock was replaced no longer removes the replacement and lets another run acquire the lock while the replacement's owner is active. A lock in the earlier format, a pid alone, is still judged by its pid, and a run's release leaves it in place. Earlier releases running at the same time still take over a lock older than 10 minutes. A brief window between the release's check and its removal remains, as Node has no unlink-if-same.",
+  "packages": [
+    "@inventarch/distribution"
+  ],
+  "paths": [
+    "apps/distribution/",
+    "tools/"
+  ]
+}
