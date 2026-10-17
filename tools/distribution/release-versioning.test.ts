@@ -1111,8 +1111,14 @@ it('collects a later per-archive native selection with no refresh, and names the
     };
     for (const [path, text] of prepareNativeSelection(root, '3.1.0', selected)) write(path, text);
     await commit('Select native versions');
+    // A reviewer's edit to generated prose survives collect, while its applicability is regenerated.
+    const changeset = 'releases/changesets/3.1.0.json',
+      reviewed = read(changeset) as Changeset;
+    reviewed.changes.find(({ id }) => id === 'cohort-alignment')!.summary = 'Reviewed alignment prose.';
+    write(changeset, reviewed);
     const declaration = nativeOwner('session-system') + '/system.ia',
       entry = collectChanges(root, projects()).entry;
+    expect(entry.changes.find(({ id }) => id === 'cohort-alignment')!.summary).toBe('Reviewed alignment prose.');
     expect(entry.changes.find(({ id }) => id === 'cohort-alignment')!.paths).toContain(declaration);
     expect(entry.changes.find(({ id }) => id === 'repository-maintenance')!.paths).toContain('examples/');
     expect(entry.coverage.find((row) => row.path === declaration)).toMatchObject({
