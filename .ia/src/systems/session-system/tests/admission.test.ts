@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it } from 'vitest';
 import { digest, JournalStore, MemoryBackend, memoryStore } from '../src/index.js';
 import { SqliteBackend, sqliteStore } from '../src/sqlite.js';
@@ -125,42 +126,78 @@ describe('host admission at the SQLite write boundary', () => {
     await store.close();
     expect(await persisted(root)).toBe(false);
   });
+});
+
+describe.each(['memory', 'sqlite'] as const)('%s backend admission position', (kind) => {
   it.each(['commit', 'checkpoint'] as const)(
     'rechecks authority revoked while %s awaits ownership validation',
-    async (kind) => {
-      const root = temporary();
+    async (write) => {
+      const root = kind === 'sqlite' ? temporary() : '';
       let revoked = false,
         validations = 0,
         revokeAt = Infinity;
-      class Revoking extends SqliteBackend {
+      class RevokingSqlite extends SqliteBackend {
         override async validate(owner: Owner): Promise<void> {
           await super.validate(owner);
           if (++validations === revokeAt) revoked = true;
         }
       }
-      const store = new JournalStore(new Revoking(root, { admit: () => !revoked }));
+      class RevokingMemory extends MemoryBackend {
+        override async validate(owner: Owner): Promise<void> {
+          await super.validate(owner);
+          if (++validations === revokeAt) revoked = true;
+        }
+      }
+      const admit = (): boolean => !revoked;
+      const store = new JournalStore(
+        kind === 'sqlite' ? new RevokingSqlite(root, { admit }) : new RevokingMemory({ admit }),
+      );
       stores.push(store);
       const owner = await dispatched(store);
-      if (kind === 'checkpoint') await store.command(await next(store, 'observe', observe('read', 'admitted')), owner);
+      if (write === 'checkpoint') await store.command(await next(store, 'observe', observe('read', 'admitted')), owner);
       const before = await store.journal('s');
       // Revoke inside the backend's own awaited validation: JournalStore validates once before a commit reaches it.
       validations = 0;
-      revokeAt = kind === 'commit' ? 2 : 1;
+      revokeAt = write === 'commit' ? 2 : 1;
       await expect(
-        kind === 'commit'
+        write === 'commit'
           ? store.command(await next(store, 'observe', observe('read')), owner)
           : store.checkpoint('s', owner),
       ).rejects.toMatchObject({ code: 'IA-SESSION-ADMISSION-DENIED' });
       expect(revoked).toBe(true);
-      await store.close();
-      const reopened = sqliteStore(root);
-      stores.push(reopened);
-      const after = await reopened.journal('s');
+      let after = await store.journal('s');
+      if (kind === 'sqlite') {
+        await store.close();
+        const reopened = sqliteStore(root);
+        stores.push(reopened);
+        after = await reopened.journal('s');
+      }
       expect(after).toEqual(before);
       expect(after.checkpoint).toBeNull();
       expect(JSON.stringify(after).includes(sentinel)).toBe(false);
     },
   );
+  it('offers only the write that wins: a concurrent duplicate and a stale racer never reach the gate', async () => {
+    let calls = 0;
+    const root = kind === 'sqlite' ? temporary() : '',
+      admit = (): boolean => {
+        calls++;
+        return true;
+      };
+    const store = kind === 'memory' ? memoryStore({ admit }) : sqliteStore(root, { admit });
+    stores.push(store);
+    // All three pass JournalStore's checks against the same empty journal; only the backend can tell them apart.
+    const command = creation();
+    const results = await Promise.allSettled([
+      store.command(command),
+      store.command(command),
+      store.command({ ...command, id: 'other' }),
+    ]);
+    expect(
+      results.map((result) => (result.status === 'fulfilled' ? 'ok' : (result.reason as { code: string }).code)),
+    ).toEqual(['ok', 'ok', 'IA-SESSION-REVISION-CONFLICT']);
+    expect(calls).toBe(1);
+  });
 });
 
 describe.each(['memory', 'sqlite'] as const)('%s admission decisions', (kind) => {
@@ -179,6 +216,28 @@ describe.each(['memory', 'sqlite'] as const)('%s admission decisions', (kind) =>
     ['an object', () => ({ admit: true })],
     ['a promise of true', () => Promise.resolve(true)],
     ['a rejected promise', () => Promise.reject(new Error(sentinel))],
+    ['a rejected promise from another realm', () => runInNewContext(`Promise.reject(new Error('${sentinel}'))`)],
+    [
+      'a rejected promise whose own catch throws',
+      () =>
+        Object.assign(Promise.reject(new Error(sentinel)), {
+          catch: () => {
+            throw new Error(sentinel);
+          },
+        }),
+    ],
+    [
+      'a proxy that throws when inspected',
+      () =>
+        new Proxy(
+          {},
+          {
+            getPrototypeOf: () => {
+              throw new Error(sentinel);
+            },
+          },
+        ),
+    ],
     ['a thenable', () => ({ then: (resolve: (value: boolean) => void) => resolve(true) })],
     [
       'a throw that carries the payload',
@@ -243,7 +302,8 @@ describe.each(['memory', 'sqlite'] as const)('%s admission decisions', (kind) =>
     await store.checkpoint('s', owner);
     expect(offers.at(-1)).toMatchObject({ kind: 'checkpoint', command: null, events: [], fence: owner.fence });
     expect(offers.at(-1)!.state).toEqual(state);
-    expect(offers.at(-1)!.observed).toEqual([state.attempts['read']]);
+    // A checkpoint restates history its commits already admitted, so it offers no observed attempts.
+    expect(offers.at(-1)!.observed).toEqual([]);
     if (kind === 'sqlite') {
       await store.close();
       const reopened = sqliteStore(root);
@@ -265,10 +325,11 @@ describe.each(['memory', 'sqlite'] as const)('%s admission decisions', (kind) =>
     });
     expect(JSON.stringify(await store.journal('s'))).not.toContain('rewritten');
   });
-  it('keeps history admitted before a revocation and refuses only the later admission', async () => {
+  it('keeps history admitted before a revocation, refuses only the later admission and still checkpoints', async () => {
     let revoked = false;
+    // A per-attempt gate: once revoked, no new operation output is admitted.
     const { store, root } = make(
-      (admission) => !revoked || admission.observed.every((attempt) => attempt.id !== 'second'),
+      (admission) => !revoked || admission.observed.every((attempt) => attempt.kind !== 'operation'),
     );
     const owner = await dispatched(store, 'first');
     await store.command(await next(store, 'first-observe', observe('first', 'AUTHORIZED_BEFORE_REVOCATION')), owner);
@@ -278,9 +339,13 @@ describe.each(['memory', 'sqlite'] as const)('%s admission decisions', (kind) =>
     await expect(store.command(await next(store, 'second-observe', observe('second')), owner)).rejects.toMatchObject({
       code: 'IA-SESSION-ADMISSION-DENIED',
     });
+    await store.checkpoint('s', owner);
     const journal = JSON.stringify(await store.journal('s'));
     expect(journal).toContain('AUTHORIZED_BEFORE_REVOCATION');
     expect(journal).not.toContain(sentinel);
+    expect((await store.journal('s')).checkpoint!.state.attempts['first']!.output).toEqual({
+      text: 'AUTHORIZED_BEFORE_REVOCATION',
+    });
     if (kind === 'sqlite') {
       await store.close();
       expect(await persisted(root, 'AUTHORIZED_BEFORE_REVOCATION')).toBe(true);

@@ -397,8 +397,7 @@ export async function qualifyAdmission(SDK, root, directory) {
     sourceBytesRead = false,
     agentDisclosures = 0;
   // Only payload-bearing operation observations need current authority; redacted recovery records carry none.
-  const admit = ({ kind, observed }) =>
-    kind === 'checkpoint' || !revoked || observed.every((row) => row.kind !== 'operation' || row.output === null);
+  const admit = ({ observed }) => !revoked || observed.every((row) => row.kind !== 'operation' || row.output === null);
   const host = (store) => ({
     store,
     requireAdmission: true,

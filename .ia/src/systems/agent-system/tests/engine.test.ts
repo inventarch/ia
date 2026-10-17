@@ -451,9 +451,18 @@ it('refuses a host that requires write admission over a store that does not enfo
     scripted([{ type: 'invoke', operation: 'read', input: 'source' }, outcome]),
     new MemoryBackend({ admit: () => true }),
   );
-  const engine = new Engine(gated.manifest, { ...gated.host, requireAdmission: true });
+  const host: EngineHost = { ...gated.host, requireAdmission: true },
+    engine = new Engine(gated.manifest, host);
   await start(engine);
   expect((await engine.advance('session', 'alice')).runs['root']!.status).toBe('completed');
+  // A store the host swaps in later is checked at every use, not only at construction.
+  const ungated = new JournalStore(new MemoryBackend());
+  host.store = ungated;
+  await expect(
+    engine.start({ sessionId: 'swapped', commandId: 'start', principal: 'alice', profile: 'author', task: 'Read' }),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-ADMISSION-UNAVAILABLE' });
+  await expect(engine.advance('session', 'alice')).rejects.toMatchObject({ code: 'IA-ENGINE-ADMISSION-UNAVAILABLE' });
+  await expect(ungated.read('swapped')).rejects.toMatchObject({ code: 'IA-SESSION-NOT-FOUND' });
 });
 it('refuses an operation result whose authority is revoked before the store admits it', async () => {
   let revoked = false;

@@ -10,6 +10,7 @@ import type {
   ReviewContract,
   Run,
   Session,
+  SessionStore,
   Wait,
 } from '@inventarch/session-system';
 import { check, EngineError, parseAction, validateShape } from './action.js';
@@ -87,11 +88,7 @@ export class Engine {
       'IA-ENGINE-MANIFEST-INVALID',
       'Manifest version/digest mismatch',
     );
-    check(
-      (host.requireAdmission ?? false) === false || host.store.admission === true,
-      'IA-ENGINE-ADMISSION-UNAVAILABLE',
-      'The host requires write admission its session store does not enforce',
-    );
+    this.store();
     // Reactions need a qualified causal outbox consumer before they may be enabled.
     check(
       manifest.reactions.length === 0,
@@ -129,6 +126,16 @@ export class Engine {
         );
       }
     this.manifest = copy(manifest);
+  }
+  /** The host's current store, checked at every use because a host may replace it after construction. */
+  private store(): SessionStore {
+    const store = this.host.store;
+    check(
+      (this.host.requireAdmission ?? false) === false || store.admission === true,
+      'IA-ENGINE-ADMISSION-UNAVAILABLE',
+      'The host requires write admission its session store does not enforce',
+    );
+    return store;
   }
   private now(): number {
     return this.host.now?.() ?? Date.now();
@@ -290,8 +297,8 @@ export class Engine {
     };
     context.assertCurrent = async () => {
       context.signal.throwIfAborted();
-      await this.host.store.validate(owner);
-      const latest = await this.host.store.read(state.id),
+      await this.store().validate(owner);
+      const latest = await this.store().read(state.id),
         active = latest.runs[run.id]!,
         current = await this.grant(state.principal, latest, profile, active, context.signal);
       const attempt = latest.attempts[id];
@@ -339,7 +346,7 @@ export class Engine {
         'IA-ENGINE-DESTINATION-DENIED',
         'Current destination/binding preflight is unavailable or denied',
       );
-      const controls = await this.host.store.read(state.id);
+      const controls = await this.store().read(state.id);
       check(
         reconciling ||
           (!controls.runs[run.id]!.cancelRequested &&
@@ -349,7 +356,7 @@ export class Engine {
         'A control stopped the pending effect',
       );
       context.signal.throwIfAborted();
-      await this.host.store.validate(owner);
+      await this.store().validate(owner);
       context.signal.throwIfAborted();
       check(
         current.expiresAt > this.now(),
@@ -366,7 +373,7 @@ export class Engine {
     const grant = await this.grant(request.principal, null, profile);
     let prior: Session | null = null;
     try {
-      prior = await this.host.store.read(request.sessionId);
+      prior = await this.store().read(request.sessionId);
     } catch (error) {
       if (!(error instanceof SessionError && error.code === 'IA-SESSION-NOT-FOUND')) throw error;
     }
@@ -378,7 +385,7 @@ export class Engine {
     for (const key of Object.keys(limits) as (keyof Limits)[])
       check(limits[key] <= grant.limits[key], 'IA-ENGINE-AUTHORITY-DENIED', 'Requested budget exceeds grant');
     const contract = taskContract(profile, request.task, request.artifact);
-    await this.host.store.command({
+    await this.store().command({
       id: request.commandId,
       sessionId: request.sessionId,
       actor: request.principal,
@@ -400,7 +407,7 @@ export class Engine {
           : {}),
       },
     });
-    return this.host.store.read(request.sessionId);
+    return this.store().read(request.sessionId);
   }
   async advance(
     sessionId: string,
@@ -414,7 +421,7 @@ export class Engine {
       'IA-ENGINE-INPUT-INVALID',
       'Advance requires 1..128 scheduler actions',
     );
-    const store = this.host.store,
+    const store = this.store(),
       initial = await store.read(sessionId);
     check(initial.principal === principal, 'IA-ENGINE-AUTHORITY-DENIED', 'Session belongs to another principal');
     const owner = await store.acquire(sessionId);
@@ -699,7 +706,7 @@ export class Engine {
       () => this.host.context(profile, run.task, grant, Object.freeze({ bytes: available })),
       contextSignal,
     );
-    await this.host.store.validate(owner);
+    await this.store().validate(owner);
     contextSignal.throwIfAborted();
     const bytes = Buffer.byteLength(canonical(request));
     check(bytes <= requestBytes, 'IA-ENGINE-CONTEXT-TOO-LARGE', 'Model request exceeds the installed context limit');
@@ -722,7 +729,7 @@ export class Engine {
         cause: causes(state, run, randomUUID(), null),
       },
     });
-    const latest = await this.host.store.read(state.id),
+    const latest = await this.store().read(state.id),
       current = await this.grant(state.principal, latest, profile, run, contextSignal);
     this.dispatchBudget(latest, run, current);
     check(
@@ -731,14 +738,14 @@ export class Engine {
       'Model or disclosed source authority changed before dispatch',
     );
     await save({ type: 'attempt.dispatch', attemptId: id });
-    await this.host.store.validate(owner);
+    await this.store().validate(owner);
     let output: Json = null,
       error: string | null = null,
       usage: number | null = null;
     try {
       const timed = this.attemptSignal(latest, run, current, 60_000, signal);
       const result = await bounded(() => this.host.model.generate(request, timed), timed);
-      await this.host.store.validate(owner);
+      await this.store().validate(owner);
       timed.throwIfAborted();
       if ('deferred' in result) {
         await save({
@@ -891,7 +898,7 @@ export class Engine {
           ...(review ? { review } : {}),
         },
       });
-      const latest = await this.host.store.read(state.id),
+      const latest = await this.store().read(state.id),
         current = await this.grant(state.principal, latest, profile, run, timed);
       this.dispatchBudget(latest, run, current);
       operationAllowed(operation, profile, current);
@@ -925,14 +932,14 @@ export class Engine {
       if (currentReview) await this.reviewAuthority(latest, run, profile, currentReview, context.signal);
       context.signal.throwIfAborted();
       await save({ type: 'attempt.dispatch', attemptId: id });
-      await this.host.store.validate(owner);
+      await this.store().validate(owner);
       let output: Json = null,
         error: string | null = null,
         effect: Attempt['effect'] = operation.effects.every((v) => v === 'read') ? 'none' : 'unknown';
       try {
         const dispatchSignal = context.signal;
         const result = await bounded(() => adapter.execute(action.input, context), dispatchSignal);
-        await this.host.store.validate(owner);
+        await this.store().validate(owner);
         dispatchSignal.throwIfAborted();
         context.signal.throwIfAborted();
         check(
@@ -1110,7 +1117,7 @@ export class Engine {
     }
     const definition = this.manifest.operations[attempt.target];
     if (definition?.digest === attempt.bindingDigest && definition.effects.every((effect) => effect === 'read')) {
-      await this.host.store.validate(owner);
+      await this.store().validate(owner);
       await save({
         type: 'attempt.reconcile',
         attemptId: attempt.id,
@@ -1183,9 +1190,9 @@ export class Engine {
         output: Json = null,
         error: string | null = 'reconciliation-unavailable';
       try {
-        await this.host.store.validate(owner);
+        await this.store().validate(owner);
         const observed = await bounded(() => adapter.reconcile!(attempt.input, context), context.signal);
-        await this.host.store.validate(owner);
+        await this.store().validate(owner);
         context.signal.throwIfAborted();
         check(
           context.grant.expiresAt > this.now(),
@@ -1382,7 +1389,7 @@ export class Engine {
     options: { signal?: AbortSignal } = {},
   ): Promise<{ deadline: number }> {
     const signal = options.signal,
-      state = await this.host.store.read(sessionId),
+      state = await this.store().read(sessionId),
       grant = await this.renewalGrant(state, principal, signal);
     return { deadline: this.renewalPlan(state, grant).deadline };
   }
@@ -1393,11 +1400,11 @@ export class Engine {
     input: { commandId: string; expectedSequence: number; deadline: number; signal?: AbortSignal },
   ): Promise<Session> {
     const request = { ...input },
-      owner = await this.host.store.acquire(sessionId);
+      owner = await this.store().acquire(sessionId);
     try {
-      const state = await this.host.store.read(sessionId),
+      const state = await this.store().read(sessionId),
         grant = await this.renewalGrant(state, principal, request.signal);
-      const prior = (await this.host.store.journal(sessionId)).events.find(
+      const prior = (await this.store().journal(sessionId)).events.find(
         (event) => event.id === request.commandId,
       )?.mutation;
       if (prior) {
@@ -1417,7 +1424,7 @@ export class Engine {
       );
       const mutation = this.renewalPlan(state, grant, request.deadline);
       request.signal?.throwIfAborted();
-      await this.host.store.validate(owner);
+      await this.store().validate(owner);
       request.signal?.throwIfAborted();
       check(
         grant.expiresAt > this.now() &&
@@ -1425,20 +1432,20 @@ export class Engine {
         'IA-ENGINE-AUTHORITY-DENIED',
         'Renewal authority expired before admission',
       );
-      await this.host.store.command(
+      await this.store().command(
         { id: request.commandId, sessionId, actor: principal, expected: request.expectedSequence, mutation },
         owner,
       );
-      return this.host.store.read(sessionId);
+      return this.store().read(sessionId);
     } finally {
-      await this.host.store.release(owner);
+      await this.store().release(owner);
     }
   }
   /** Bounded repair/read retry, or an exact reviewed write after proven absence. */
   async retry(sessionId: string, principal: string, attemptId: string, commandId: string): Promise<Session> {
-    const owner = await this.host.store.acquire(sessionId);
+    const owner = await this.store().acquire(sessionId);
     try {
-      const state = await this.host.store.read(sessionId),
+      const state = await this.store().read(sessionId),
         attempt = state.attempts[attemptId];
       check(attempt && state.principal === principal, 'IA-ENGINE-AUTHORITY-DENIED', 'Attempt is unavailable');
       const run = state.runs[attempt.runId]!,
@@ -1446,7 +1453,7 @@ export class Engine {
       const grant = await this.grant(principal, state, profile, run);
       let mutation: Mutation;
       if (attempt.kind === 'model') {
-        const prior = (await this.host.store.journal(sessionId)).events.find((e) => e.id === commandId)?.mutation;
+        const prior = (await this.store().journal(sessionId)).events.find((e) => e.id === commandId)?.mutation;
         const details = prior?.type === 'model.repair' ? prior.details : run.wait?.details;
         mutation = {
           type: 'model.repair',
@@ -1490,13 +1497,13 @@ export class Engine {
           maxAttempts: profile.contract?.maxAttempts ?? 2,
         };
       }
-      await this.host.store.command(
+      await this.store().command(
         { id: commandId, sessionId, actor: principal, expected: state.sequence, mutation },
         owner,
       );
-      return this.host.store.read(sessionId);
+      return this.store().read(sessionId);
     } finally {
-      await this.host.store.release(owner);
+      await this.store().release(owner);
     }
   }
   async reply(
@@ -1508,19 +1515,19 @@ export class Engine {
     answer: Json,
     commandId: string,
   ): Promise<Session> {
-    const state = await this.host.store.read(sessionId),
+    const state = await this.store().read(sessionId),
       question = state.questions[questionId];
     check(question && question.respondent === principal, 'IA-ENGINE-AUTHORITY-DENIED', 'Question is unavailable');
     const run = state.runs[question.runId]!;
     await this.grant(principal, state, this.manifest.profiles[run.profile]!, run);
-    await this.host.store.command({
+    await this.store().command({
       id: commandId,
       sessionId,
       actor: principal,
       expected: state.sequence,
       mutation: { type: 'question.reply', questionId, revision, digest: questionDigest, answer },
     });
-    return this.host.store.read(sessionId);
+    return this.store().read(sessionId);
   }
   async review(
     sessionId: string,
@@ -1532,7 +1539,7 @@ export class Engine {
     rationale: string,
     commandId: string,
   ): Promise<Session> {
-    const state = await this.host.store.read(sessionId),
+    const state = await this.store().read(sessionId),
       proposal = state.proposals[proposalId];
     check(
       proposal && (proposal.review?.reviewer ?? state.principal) === principal,
@@ -1556,7 +1563,7 @@ export class Engine {
         'Review authority, binding or destination changed',
       );
     }
-    await this.host.store.command({
+    await this.store().command({
       id: commandId,
       sessionId,
       actor: principal,
@@ -1571,7 +1578,7 @@ export class Engine {
         decisionId: `decision-${digest(commandId)}`,
       },
     });
-    return this.host.store.read(sessionId);
+    return this.store().read(sessionId);
   }
   /** IDE host supplies one structured response to the exact persisted request; no API/model credential is needed. */
   async submitModel(
@@ -1581,7 +1588,7 @@ export class Engine {
     response: ModelResponse,
     commandId: string,
   ): Promise<Session> {
-    const state = await this.host.store.read(sessionId),
+    const state = await this.store().read(sessionId),
       attempt = state.attempts[attemptId];
     check(
       attempt && state.principal === principal && attempt.kind === 'model',
@@ -1599,9 +1606,9 @@ export class Engine {
     );
     parseAction(response.action);
     check(Buffer.byteLength(canonical(response)) <= 65_536, 'IA-ENGINE-MODEL-INVALID', 'Response too large');
-    const owner = await this.host.store.acquire(sessionId);
+    const owner = await this.store().acquire(sessionId);
     try {
-      const journal = await this.host.store.journal(sessionId);
+      const journal = await this.store().journal(sessionId);
       check(
         journal.commands[commandId] ||
           (run.wait?.reason === 'external-model' &&
@@ -1610,7 +1617,7 @@ export class Engine {
         'IA-ENGINE-MODEL-INVALID',
         'No external response is pending',
       );
-      await this.host.store.command(
+      await this.store().command(
         {
           id: commandId,
           sessionId,
@@ -1627,9 +1634,9 @@ export class Engine {
         },
         owner,
       );
-      return this.host.store.read(sessionId);
+      return this.store().read(sessionId);
     } finally {
-      await this.host.store.release(owner);
+      await this.store().release(owner);
     }
   }
 }

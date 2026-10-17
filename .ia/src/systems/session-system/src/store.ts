@@ -1,3 +1,4 @@
+import { types } from 'node:util';
 import { copy, digest, identifier, requireValue, SessionError } from './codec.js';
 import { eventFor, replay } from './reducer.js';
 import type {
@@ -78,6 +79,7 @@ export function commitAdmission(command: Command, events: Event[], owner?: Owner
     observed: [...observed].map((id) => next.attempts[id]!),
   };
 }
+/** A checkpoint restates history its commits already admitted, so it offers no observed attempts. */
 export function checkpointAdmission(checkpoint: Checkpoint, owner: Owner): Admission {
   const state = checkpoint.state;
   return {
@@ -88,7 +90,7 @@ export function checkpointAdmission(checkpoint: Checkpoint, owner: Owner): Admis
     command: null,
     events: [],
     state,
-    observed: Object.values(state.attempts).filter((attempt) => attempt.status === 'observed'),
+    observed: [],
   };
 }
 /**
@@ -100,11 +102,11 @@ export function admit(gate: AdmissionGate | undefined, offer: () => Admission): 
   let decision: unknown;
   try {
     decision = gate(freeze(copy(offer())));
+    // A promise never admits. Observe its rejection, from any realm and without its own methods, so it cannot crash the host.
+    if (types.isPromise(decision)) Promise.prototype.then.call(decision, undefined, () => undefined);
   } catch {
     decision = undefined;
   }
-  // A promise never admits; observe its rejection so a refused asynchronous gate cannot crash the host.
-  if (decision instanceof Promise) decision.catch(() => undefined);
   if (decision !== true) throw new SessionError('IA-SESSION-ADMISSION-DENIED', 'Host admission refused the write');
 }
 /** Validated append-only journal with a replaceable transactional persistence adapter. */

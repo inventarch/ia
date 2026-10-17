@@ -80,8 +80,8 @@
     },
     {
       "path": ".ia/src/systems/agent-system/SPEC.md",
-      "bytes": 819,
-      "sha256": "58f4091c03fc5bcb3e10706d05b7c3f1c6b733a2f19cce62879e3824ccc89d88",
+      "bytes": 1167,
+      "sha256": "5bd445298acb42e9e95210b035f2a6e46d84759d46f978af89dcf3250e8904e6",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -514,8 +514,8 @@
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md",
-      "bytes": 2925,
-      "sha256": "4c366b99f780ec0305c18a4eaad80078cd15a674de705c23ba2869e2537e1c7b",
+      "bytes": 3240,
+      "sha256": "1d7fcaf5f8c79b0b6e873f9bb021f6b354c47f2480cca300327ec559b10dbbae",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

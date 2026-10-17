@@ -364,7 +364,7 @@ export interface Admission {
   events: Event[];
   /** The session as it stands once the write lands. */
   state: Session;
-  /** The attempts whose output the write stores, as they stand once it lands: those a commit observes or reconciles, or every observed attempt in a checkpoint. */
+  /** The attempts whose output a commit newly stores (those it observes or reconciles), as they stand once it lands; empty for a checkpoint, which restates history its commits already admitted. */
   observed: Attempt[];
 }
 /**
