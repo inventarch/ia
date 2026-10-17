@@ -182,12 +182,15 @@ it('admits an entry of exactly 2147483647 bytes and reads at most that many byte
     vi.spyOn(Buffer, 'alloc').mockImplementation((...args: Parameters<typeof Buffer.alloc>) => {
       if (args[0] <= 0x7fffffff) return Reflect.apply(alloc, Buffer, args) as ReturnType<typeof Buffer.alloc>;
       allocated.push(args[0]);
-      return Object.defineProperty(Reflect.apply(alloc, Buffer, [1]) as Buffer, 'length', { value: args[0] });
+      const standIn = Reflect.apply(alloc, Buffer, [1]) as ReturnType<typeof Buffer.alloc>;
+      return Object.defineProperty(standIn, 'length', { value: args[0] });
     });
-    vi.spyOn(fs, 'readSync').mockImplementation(((...args: Parameters<typeof fs.readSync>) => {
+    // Parameters<typeof fs.readSync> is the three-argument overload, so the mock takes its arguments untyped: it is called
+    // as readSync(fd, buffer, offset, length, position), and only the length is recorded.
+    vi.spyOn(fs, 'readSync').mockImplementation((...args: unknown[]) => {
       asked.push(args[3] as number);
       return 0;
-    }) as typeof fs.readSync);
+    });
     syncBuiltinESMExports();
     expect(() => contents(root)).toThrow(/^Publication fixture entry changed while it was read: .*edge\.bin$/);
     // The guard let it through to its buffer, and the read asked for 2147483647 bytes, not 2147483648, which Node refuses.

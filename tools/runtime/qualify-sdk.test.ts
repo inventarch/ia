@@ -69,16 +69,13 @@ interface Options {
   readonly link?: 'hard' | 'symbolic';
   /** A change to the db archive at the named moment of its reading, as fixtures/qualify-sdk.mjs makes it. */
   readonly race?: { readonly at: 'open' | 'read' | 'tar'; readonly change: string; readonly size?: number };
+  /** Digest the db archive at its name after the run, for a case that asserts it: a sparse archive would be read in full. */
+  readonly digestAfter?: boolean;
 }
 interface Pin {
   readonly package: string;
   readonly archive: string;
   readonly sha256: string;
-}
-function dbAfter(db: string): string | undefined {
-  const stat = lstatSync(db, { throwIfNoEntry: false });
-  // A sparse archive past 2147483647 bytes is not read: readFileSync refuses it, and its digest is not asked for.
-  return stat?.isFile() && stat.size <= 0x7fffffff ? sha256(readFileSync(db)) : undefined;
 }
 async function qualify(options: Options = {}) {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-qualify-sdk-'));
@@ -175,8 +172,11 @@ async function qualify(options: Options = {}) {
         ?.dependencies,
       /** The digest of each archive at the path the install names, as the install read it. */
       installed: read(resolve(output, 'install.log')) as Record<string, string> | undefined,
-      /** The digest of the bytes at the db archive's name after the run, while it is a regular file the read by name admits. */
-      dbAfter: dbAfter(db),
+      /** The digest of the bytes at the db archive's name after the run, while it is a regular file, when the case asks. */
+      dbAfter:
+        options.digestAfter && lstatSync(db, { throwIfNoEntry: false })?.isFile()
+          ? sha256(readFileSync(db))
+          : undefined,
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -222,7 +222,7 @@ it(
   async () => {
     // A known limitation, kept explicit: the digest, tar input and pin are bound to one read, but the install reopens
     // the archive by its path, so the installed bytes are not bound to the checked buffer.
-    const run = await qualify({ race: { at: 'tar', change: 'replace' } });
+    const run = await qualify({ race: { at: 'tar', change: 'replace' }, digestAfter: true });
     expect(run.status).toBe(0);
     const checked = sha256(run.bytes['db'] as Buffer);
     expect(run.tar[names.indexOf('db')]).toEqual(handed(run.bytes['db'] as Buffer));
