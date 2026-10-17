@@ -2,7 +2,7 @@
 
 @system workspace-system
   provider "inventarch.foundation"
-  version "3.1.1"
+  version "3.1.2"
   describes "Public workspace-system vocabulary contracts"
   steward @agent public-workspace-system-steward
   requires
