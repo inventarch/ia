@@ -2,7 +2,7 @@
   "format": "ia.npm-change-note.v1",
   "bump": "patch",
   "title": "Verify the host payload once per ia host apply",
-  "summary": "ia host --apply now verifies the host payload (about 1,400 files) once for its plans instead of on each plan, so applies are faster, most on Windows. The checks that guard each commit still verify afresh, so a payload that changes during the command still refuses the apply. @inventarch/distribution: planHost, planHookRegistration and materializeHostPayload take an optional verifier from hostVerifier (./host-observe).",
+  "summary": "ia host --apply verifies the host payload (about 1,400 files) once for its plans instead of on each plan, so applies with hooks are faster. The checks that guard each commit still verify afresh, so a payload that changes during the command still refuses the apply.",
   "packages": [
     "@inventarch/cli",
     "@inventarch/distribution"
