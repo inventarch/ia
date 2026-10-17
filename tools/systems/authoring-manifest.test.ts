@@ -268,7 +268,7 @@ it('admits sixteen mebibytes of selected authoring files in all and refuses a by
   expect(() => authoringResources(library({ ...files, '.ia/src/guide/tail.md': 'x' }))).toThrow(unbounded);
 }, 120_000);
 
-it('refuses a directory, hard-linked, missing, undecodable, FIFO, linked or unreadable selection as before', () => {
+it('refuses a directory, hard-linked, missing or undecodable selection as before', () => {
   const directory = library({ '.ia/src/guide/folder.md': undefined });
   mkdirSync(resolve(directory, '.ia/src/guide/folder.md'));
   expect(() => authoringResources(directory)).toThrow(unbounded);

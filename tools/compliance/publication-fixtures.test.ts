@@ -34,7 +34,7 @@ function regularEntries(root: string): [string, string | null][] {
     ['file.txt', base64('file bytes')],
   ];
 }
-it('snapshots each regular file by its bytes and every other entry, a link included, as null', () => {
+it('snapshots each regular file by its bytes and a directory as null', () => {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-publication-snapshot-'));
   try {
     const expected = regularEntries(root);

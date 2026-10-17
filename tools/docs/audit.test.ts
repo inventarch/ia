@@ -197,7 +197,7 @@ it('replaces its own roadmap output on every run and leaves nothing else beside 
   expect(readdirSync(dirname(output))).toEqual(['config.json']);
 });
 
-it('refuses a directory, unparsable or linked roadmap output and leaves it as it was', async () => {
+it('refuses a directory or unparsable roadmap output and leaves it as it was', async () => {
   const root = roadmapRepository(),
     output = resolve(root, '.ia/work/roadmap-sync/config.json');
   mkdirSync(output, { recursive: true });

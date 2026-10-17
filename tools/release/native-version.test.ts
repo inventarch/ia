@@ -612,7 +612,7 @@ describe('system package input reads', () => {
     );
   const digest = (text: string) => createHash('sha256').update(text).digest('hex');
 
-  it('reads a selected regular file and refuses a missing, directory or FIFO input as it always has', () => {
+  it('reads a selected regular file and refuses a missing or directory input as it always has', () => {
     const root = temporary();
     write(root, '.ia/src/a.ia', 'native source');
     write(root, 'pnpm-workspace.yaml', 'packages: []\n');

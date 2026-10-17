@@ -214,7 +214,7 @@ it('runs a real native launcher directly from a path with spaces and preserves i
 
 const NOT_REGULAR_LAUNCHER = /^Package-manager launcher must be a regular file$/,
   MISSING_LAUNCHER = /^ENOENT: no such file or directory, stat /;
-it('refuses a missing or dangling launcher with its stat error and a directory or FIFO as not a regular file', () => {
+it('refuses a missing launcher with its stat error and a directory as not a regular file', () => {
   scratch((base) => {
     expect(() => packageManagerCommand(resolve(base, 'missing'), [])).toThrow(MISSING_LAUNCHER);
     expect(() => packageManagerCommand(base, [])).toThrow(NOT_REGULAR_LAUNCHER);
