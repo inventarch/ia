@@ -89,7 +89,7 @@
   },
   "files": [
     "dist",
-    "fixtures",
+    "fixtures/language",
     "README.md",
     "SPEC.md",
     "LICENSE",

@@ -11,7 +11,8 @@ import {
   evaluate,
   fixtureCoverage,
   runLanguageFixture,
-  verdict,
+  verifyKernel,
+  verifyFixtures,
 } from '../../packages/compliance/src/index.js';
 import type { Finding, LanguageFixture } from '../../packages/compliance/src/index.js';
 import { assess } from '../../packages/compliance/src/types.js';
@@ -113,8 +114,18 @@ function inventoryFindings(root: string): Finding[] {
   }
 }
 export function checkCompliance(root: string) {
+  const floor = readKernel(root);
   const native = {
-      inputs: fixtureInputs,
+      inputs: [
+        ...floor.map((source) => ({
+          ...source,
+          location: {
+            placement: { kind: 'floor' as const, band: 10 as const, reach: '' },
+            provenance: 'bootstrap' as const,
+          },
+        })),
+        ...fixtureInputs.filter((source) => !source.path.startsWith('.ia/src/floor/')),
+      ],
       folders: publicSystemNames(root),
     },
     corpus = compileNative(native.inputs);
@@ -208,10 +219,12 @@ export function checkCompliance(root: string) {
       sourceDiagnostics: corpus.diagnostics,
       folders,
       adoptionEvaluators,
-      evidence: new Map([
-        ['COMP-FIXTURES', verdict(fixtures, graph.revision)],
-        ['COMP-KERNEL', verdict(assess('COMP-KERNEL', 'floor', kernelFindings), graph.revision)],
-      ]),
+      conformance: {
+        inputs: { sources: native.inputs, kernelDigest: KERNEL_DIGEST, languageVersion: LANGUAGE_VERSION },
+        kernel: verifyKernel(floor),
+        fixtures: verifyFixtures(),
+      },
+      admission: [fixtures, assess('COMP-KERNEL', 'repository-generated', kernelFindings)],
     }),
     fixtures: results.length,
     boundaries: boundaries.length,
@@ -233,5 +246,5 @@ if (isEntry(process.argv[1], import.meta.url)) {
     for (const v of report.verdicts.filter((v) => v.outcome !== 'pass'))
       process.stdout.write(`${v.outcome} ${v.check} ${v.scope}: ${v.findings.map((f) => f.message).join('; ')}\n`);
   }
-  if (report.outcome === 'fail') process.exitCode = 1;
+  if (report.outcome !== 'pass') process.exitCode = 1;
 }
