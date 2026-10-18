@@ -35,6 +35,7 @@ function setup(
   resourceText = JSON.stringify(tree),
   profile = 'structured-v1',
   authored = false,
+  legacy = '    parameters []\n    lines []\n',
 ) {
   const base = join(temporary, String(sequence++)),
     project = join(base, 'project'),
@@ -48,7 +49,7 @@ function setup(
   );
   writeFileSync(
     join(fixture, '.ia/src/systems/fictional-review-system/template.ia'),
-    `#! ia 1.0\n\n@template structured-document\n  meaning\n    says "Produce an original fixture document."\n    answers "What is rendered?"\n  template\n    filename "${filename}"\n    parameters []\n    lines []\n    profile ${profile}\n    resource "templates/document.json"\n`,
+    `#! ia 1.0\n\n@template structured-document\n  meaning\n    says "Produce an original fixture document."\n    answers "What is rendered?"\n  template\n    filename "${filename}"\n${legacy}    profile ${profile}\n    resource "templates/document.json"\n`,
   );
   mkdirSync(join(fixture, 'templates'));
   writeFileSync(join(fixture, 'templates/document.json'), resourceText);
@@ -56,6 +57,7 @@ function setup(
     capture = captureWorkspace(project, 'project', { adopted }),
     inventory = resourceOccurrences(capture);
   const owner = inventory.occurrences.find((o) => o.identity.endsWith('/structured-document'))!;
+  expect(owner, 'The template must be admitted into the selected capture').toBeDefined();
   const key = { source: owner.source, revision: owner.revision, path: 'templates/document.json' };
   const resources = captureResources(capture, {
     roots: [{ source: owner.source, revision: owner.revision, root: fixture }],
@@ -110,6 +112,26 @@ it('renders an exact adopted template/resource through current scope with determ
     }),
   ).toEqual(result);
 });
+it.each(['', '    parameters []\n', '    lines []\n', '    parameters []\n    lines []\n'])(
+  'renders structured resources with omitted or empty legacy fields: %s',
+  (legacy) => {
+    const f = setup('docs/design.md', JSON.stringify(tree), 'structured-v1', false, legacy);
+    expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
+      status: 'rendered',
+      artifact: { text: '# Fixture design\n' },
+    });
+  },
+);
+it.each(['    parameters [title]\n', '    lines ["unexpected scalar output"]\n'])(
+  'refuses nonempty legacy fields on a structured template: %s',
+  (legacy) => {
+    const f = setup('docs/design.md', JSON.stringify(tree), 'structured-v1', false, legacy);
+    expect(renderCapturedTemplate(f.capture, f.resources, f.options)).toMatchObject({
+      status: 'refused',
+      code: 'IA-EXEC-TEMPLATE-INVALID',
+    });
+  },
+);
 it('runs every template-system case this file evaluates and matches its declared code', () => {
   const evaluator = 'packages/workspace-runtime/tests/templates.test.ts';
   const scenario = (record: CompiledRecord, key: string): string | undefined => {

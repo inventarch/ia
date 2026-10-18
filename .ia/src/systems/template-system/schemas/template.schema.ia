@@ -11,7 +11,7 @@
     must have meaning.says as text
     must have meaning.answers as text
     must have template.filename as text
-    must have template.parameters as list of id
-    must have template.lines as list of text
+    may have template.parameters as list of id "The scalar renderer requires declared parameters; structured-v1 may omit this field or retain an empty list."
+    may have template.lines as list of text "The scalar renderer requires content lines; structured-v1 may omit this field or retain an empty list."
     may have template.profile as id
     may have template.resource as text

@@ -39,7 +39,7 @@ export const descriptions: Readonly<Record<string, string>> = {
   convention: 'Declares a convention in the shared governance shape.',
   playbook:
     'Represents a procedure as phase/primitive cells. Cell delivery is generic; the authored method belongs to its author.',
-  run: 'Represents a governed run identity, declared phase, status and owner. Declaration does not start execution.',
+  run: 'Represents a governed run identity, status, owner and declared phase when known. Declaration does not start execution.',
   'authoring-guide': 'Associates a vocabulary owner and schema with an authoring reference and usage guidance.',
   operation:
     'Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations.',

@@ -1,0 +1,11 @@
+#! ia 1.0
+
+@contract scalar-template-runtime-contract
+  version "0.1.0"
+  meaning
+    says "Scalar template rendering requires exact string parameters and returns a draft without writing an artifact."
+    answers "What does render-template require and return, and how does it refuse a missing parameter?"
+  relationships
+    governs @operation render-template
+  invariants
+    REQ-SCALAR-TEMPLATE "For an admitted valid scalar template and valid substituted output, render-template accepts exactly the declared string parameters and returns one draft artifact without writing it; a missing declared parameter refuses with IA-EXEC-INPUT-INVALID."

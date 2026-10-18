@@ -1,0 +1,33 @@
+#! ia 1.0
+
+@case public-render-template-success
+  meaning
+    says "Render the scalar fixture with its exact declared parameters into one draft note."
+    answers "Does render-template return the requested note without writing an artifact?"
+  scenario
+    kind success
+    given "The admitted authored-note scalar template from tools/systems/fixtures/native, composed by the tools/systems/execute.test.ts fixture."
+    request "Run render-template for authored-note with name note and purpose A concrete note."
+    expected "Return pass and one notes/note.md draft containing a note heading and the A concrete note paragraph, with no artifact written."
+    evaluator "tools/systems/execute.test.ts"
+    operation @operation render-template
+    code pass
+  relationships
+    cites @operation render-template
+    implements @contract scalar-template-runtime-contract#REQ-SCALAR-TEMPLATE
+
+@case public-render-template-refusal
+  meaning
+    says "Refuse scalar rendering when a declared parameter is missing."
+    answers "Does render-template refuse a name-only request that omits purpose?"
+  scenario
+    kind refusal
+    given "The admitted authored-note scalar template from tools/systems/fixtures/native requires name and purpose."
+    request "Run render-template for authored-note with name only and omit purpose."
+    expected "Refuse with IA-EXEC-INPUT-INVALID because the supplied string parameters do not match the declaration."
+    evaluator "tools/systems/execute.test.ts"
+    operation @operation render-template
+    code IA-EXEC-INPUT-INVALID
+  relationships
+    cites @operation render-template
+    implements @contract scalar-template-runtime-contract#REQ-SCALAR-TEMPLATE
