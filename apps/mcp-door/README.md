@@ -54,10 +54,10 @@ The second response line carries the result as `structuredContent` (shortened he
 | `ia_traverse` | Relationships followed from start records, with typed filters and optional condition gating. |
 | `ia_read` | The body behind a locator (`<identity>`, `<identity>#<phase>/<Primitive>`, `<identity>#<REQ-ID>` or `<path>:<line>`), with the SHA-256 of its UTF-8 bytes and `certified: false`. `includeRuntime: true` reads a record at runtime placement. |
 | `ia_next` | One plan's delivery view, as `ia next` prints it: milestones and tasks in prerequisite order, each task's verdict, and `next`, the command for the first task with no declared blocker. |
-| `ia_position` | `{body, digest, hostNote}` for a scope key: `seat` (an identity or `{path}`), `shape`, `phase`, `depth` (0 to 2), `budget` (0 to 64) and `word`. No key part means the repository's `@workspace` at context, orient, depth 0, budget 0. |
+| `ia_position` | `{body, digest, hostNote}` for a scope key: `seat` (an identity or `{path}`), `shape`, `phase`, `depth` (0 to 2), `budget` (0 to 64) and `word`, plus optional `primitive`. Omitted, primitive is derived from shape; explicit primitive also supplies the default phase. No key part means the repository's `@workspace` at context, orient, depth 0, budget 0. |
 | `ia_vocabulary` | The public words and their schemas, from the catalogue shipped with the server. It reads no workspace and takes no scope token. |
 
-The first eight tools are machine-protocol version 1 and `ia_read`, `ia_next` and `ia_position` are version 2. The protocol's `report` operation has no tool; run `ia report` from the CLI.
+The first eight tools were introduced in machine-protocol version 1 and `ia_read`, `ia_next` and `ia_position` in version 2. The server uses the latest protocol, version 3, whose `ia_position` schema additionally accepts `primitive`. A runtime Door explicitly serving version 2 still refuses that parameter. The protocol's `report` operation has no tool; run `ia report` from the CLI.
 
 Every result carries its JSON as `structuredContent` and as text. A refusal sets `isError: true` and returns `ok: false` with a `code`. Refusals from the three version 2 tools can also carry `next`, the one command to run:
 

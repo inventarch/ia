@@ -186,6 +186,7 @@ it('refuses a key with its next command and keeps the three keys of the refusals
     [{ shape: 'bogus' }, shapes],
     [{ shape: 3 }, shapes],
     [{ phase: 'later' }, 'ia position --phase <orient|plan|act|learn>'],
+    [{ primitive: 'memory' }, 'ia position --primitive <Memory|Attention|Inference|Decision|Escalation|Learning>'],
     [{ depth: SCOPE_KEY_CAPS.depth + 1 }, `ia position --depth ${SCOPE_KEY_CAPS.depth}`],
     [{ depth: 1.5 }, `ia position --depth ${SCOPE_KEY_CAPS.depth}`],
     [{ budget: SCOPE_KEY_CAPS.budget + 1 }, `ia position --budget ${SCOPE_KEY_CAPS.budget}`],
@@ -277,7 +278,7 @@ it('refuses a key with its next command and keeps the three keys of the refusals
     ok: false,
     code: 'IA-RUNTIME-REQUEST-INVALID',
     message:
-      "IA-RUNTIME-REQUEST-INVALID: Unknown parameter 'text'; admitted: within, seat, shape, phase, depth, budget, word",
+      "IA-RUNTIME-REQUEST-INVALID: Unknown parameter 'text'; admitted: within, seat, shape, phase, depth, budget, word, primitive",
   });
   // A door serving version 1, as the CLI's machine routes do, knows no position operation, and reads no parameter.
   expect(positioned(door(root, { protocol: 1 }))({ depth: 9 })).toEqual({
@@ -290,9 +291,26 @@ it('refuses a key with its next command and keeps the three keys of the refusals
 
 // The position row of the machine protocol description: its example reads the loop fixture, it requires no parameter,
 // its closed sets and caps are the key's, and its refusal list is proven both ways.
+it('keeps protocol 2 position parameters frozen while protocol 3 and the default admit primitive selection', () => {
+  const root = workspace(),
+    legacy = positioned(door(root, { protocol: 2 }));
+  expect(legacy({ primitive: 'Memory' })).toEqual({
+    ok: false,
+    code: 'IA-RUNTIME-REQUEST-INVALID',
+    message:
+      "IA-RUNTIME-REQUEST-INVALID: Unknown parameter 'primitive'; admitted: within, seat, shape, phase, depth, budget, word",
+  });
+  const before = JSON.stringify(legacy({ shape: 'context' }));
+  for (const options of [{ protocol: 3 }, {}]) {
+    const read = positioned(door(root, options));
+    expect(JSON.stringify(read({ shape: 'context' }))).toBe(before);
+    expect(resultOf(read({ primitive: 'Memory' })).body.key.primitive).toBe('Memory');
+  }
+});
+
 it('holds the position row of the machine protocol table to the Door', () => {
   const row = MACHINE_PROTOCOL.operations.find((operation) => operation.name === 'position')!;
-  expect(row).toMatchObject({ since: 2, mcp: 'ia_position' });
+  expect(row).toMatchObject({ since: 2, paramsSince: 3, mcp: 'ia_position' });
   expect(MACHINE_PROTOCOL.operations.at(-1)).toBe(row);
   const params = row.params as {
     required: readonly string[];
@@ -300,9 +318,19 @@ it('holds the position row of the machine protocol table to the Door', () => {
   };
   expect(params.required).toEqual([]);
   expect(params.properties['shape']!.enum).toEqual(SHAPES);
+  expect(params.properties['primitive']!.enum).toEqual([
+    'Memory',
+    'Attention',
+    'Inference',
+    'Decision',
+    'Escalation',
+    'Learning',
+  ]);
   expect(params.properties['depth']!.maximum).toBe(SCOPE_KEY_CAPS.depth);
   expect(params.properties['budget']!.maximum).toBe(SCOPE_KEY_CAPS.budget);
   const loop = door(resolve(import.meta.dirname, '../../compliance/fixtures/loop'));
+  for (const primitive of params.properties['primitive']!.enum!)
+    expect(resultOf(positioned(loop)({ primitive })).body.key.primitive).toBe(primitive);
   const example = positioned(loop)(row.example);
   expect(example).toMatchObject({ ok: true, result: { body: { format: 'ia.position-body.v1' } } });
   expect(resultOf(example).body.loaded[0]).toMatchObject({ identity: row.example['seat'] });

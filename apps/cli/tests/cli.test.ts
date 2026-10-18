@@ -344,10 +344,12 @@ it('prints one operation description as one JSON line for --schema', async () =>
     expect(describeOperation(operation.name), operation.name).toBeUndefined();
     // The published renderers, handed such a row, describe it at the version that added it, never at version 1.
     expect(JSON.parse(renderOperationSchema(operation)), operation.name).toEqual({
-      version: operation.since,
+      version: operation.paramsSince ?? operation.since,
       ...operation,
     });
-    expect(renderOperationHelp(operation), operation.name).toContain(`Machine protocol v${operation.since}: `);
+    expect(renderOperationHelp(operation), operation.name).toContain(
+      `Machine protocol v${operation.paramsSince ?? operation.since}: `,
+    );
   }
 });
 // Help is decided before `--params -` would read stdin, so a stdin that throws is never touched.

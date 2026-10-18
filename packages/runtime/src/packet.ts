@@ -181,7 +181,7 @@ const PHASE_CHANGES = '--phase selects the playbook cell delivered and decides w
 /** The three SPEC-owned lines, `ia scope` read as `ia position`. */
 const LINES: readonly string[] = [
   'run ia position; if it refuses, run the command it names',
-  'state intent to the CLI as shape + optional phase + optional seat + optional word; the CLI never receives free text',
+  'state intent to the CLI as shape + optional phase + optional primitive + optional seat + optional word; the CLI never receives free text',
   "when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation",
 ];
 const LOWERS = /^lowers to ([a-z]+)$/;
