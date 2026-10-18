@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `8ebfaf93977468e42897cf4951025d11fab1297bacce94971a76d484aec43201`.
+This catalogue contains 44 words. Source digest: `e66d152c4e8b1e41d36f703e2524611b68bc05d6031c50c24a0a7c5aa38f1a9f`.
 
 ## @agent
 
@@ -946,7 +946,7 @@ Required sections: meaning, governance. Optional sections: relationships, subjec
 
 ## @run
 
-Represents a governed run identity, declared phase, status and owner. Declaration does not start execution.
+Represents a governed run identity, status, owner and declared phase when known. Declaration does not start execution.
 
 Owner: `session-system`. Kind: `definition`. Category: `event`. Artifact set: `operational`. Primitive: `Decision`. Move: `Execution`. Identity: `session-system/definition/<facet>/<name>`.
 
@@ -958,13 +958,13 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, execution. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| execution.status | id | yes |
-| execution.phase | id | yes |
-| execution.owner | ref | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| execution.status | id | yes |  |
+| execution.phase | id | no | The declared phase, when known; omit it when unknown. Historical id values remain valid. A declaration does not prove engine state. |
+| execution.owner | ref | yes |  |
 
 ## @schema
 
@@ -1064,7 +1064,7 @@ Required sections: meaning, work. Optional sections: relationships.
 | work.source | text | no |  |
 | work.action | text | no | What the task's owner does to complete it. |
 | work.expected-artifact | text | no | The artifact the task produces, as a path or name. |
-| work.exit-evidence | ref to observation | no | The observation whose success verdict closes the task. |
+| work.exit-evidence | ref to observation | no | An observation used to establish this task's exit evidence when its verdict is success and its subject revision matches the task's current digest; it does not change work.status. |
 | work.owner-agent | ref to agent | no | The agent that owns the task; work.owner stays the free-text owner. |
 
 Relationship: require → task; one-or-more; optional.
@@ -1086,15 +1086,15 @@ Consumer: language/schema admission; graph resolution; explicitly selected domai
 
 Required sections: meaning, template. Optional sections: relationships.
 
-| Field | Type | Required |
-|---|---|---|
-| meaning.says | text | yes |
-| meaning.answers | text | yes |
-| template.filename | text | yes |
-| template.parameters | list of id | yes |
-| template.lines | list of text | yes |
-| template.profile | id | no |
-| template.resource | text | no |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| meaning.says | text | yes |  |
+| meaning.answers | text | yes |  |
+| template.filename | text | yes |  |
+| template.parameters | list of id | no | The scalar renderer requires declared parameters; structured-v1 may omit this field or retain an empty list. |
+| template.lines | list of text | no | The scalar renderer requires content lines; structured-v1 may omit this field or retain an empty list. |
+| template.profile | id | no |  |
+| template.resource | text | no |  |
 
 ## @value-type
 

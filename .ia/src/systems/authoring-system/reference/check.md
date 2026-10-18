@@ -2,6 +2,12 @@
 
 Names a check implementation and scope. Declaring an implementation name does not install or execute it.
 
+Select when: Name an evaluator implementation and the scope it is intended to assess.
+
+Avoid when: Use @case for scenario inputs and expectations or @observation for an actual evaluation result.
+
+Before authoring: Verify that the host installs the named evaluator and that its evidence identifies the evaluated subject revision.
+
 Owner: compliance-system. Identity: compliance-system/check/\<facet>/\<name>. Facets: gate. Artifact set: evidence. Primitive: Decision. Move: Verification.
 
 Canonical schema: .ia/src/systems/compliance-system/schemas/check.schema.ia.

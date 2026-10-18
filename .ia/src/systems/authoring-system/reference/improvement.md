@@ -2,6 +2,12 @@
 
 Represents a proposed change, review metadata and publication metadata. It does not authorize or apply the proposal.
 
+Select when: Propose a change with review and publication metadata.
+
+Avoid when: Use @observation for supporting evidence or @decision for the choice to accept a proposal.
+
+Before authoring: Describe the proposed change and review basis; keep approval, application and publication evidence separate.
+
 Owner: learning-system. Identity: learning-system/definition/\<facet>/\<name>. Facets: improvement. Artifact set: inquiry. Primitive: Learning. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/learning-system/schemas/improvement.schema.ia.

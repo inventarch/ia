@@ -2,6 +2,12 @@
 
 Composes profiles and execution bindings in a workspace under a host contract.
 
+Select when: Compose profiles and execution bindings for a workspace under a host contract.
+
+Avoid when: Use @agent-profile for one participant composition or @workspace for source selection.
+
+Before authoring: Check workspace and binding compatibility and retain qualification evidence for the actual installed host.
+
 Owner: agent-composition-system. Identity: agent-composition-system/definition/\<facet>/\<name>. Facets: harness. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/harness.schema.ia.

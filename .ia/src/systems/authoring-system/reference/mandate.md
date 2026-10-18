@@ -2,6 +2,12 @@
 
 States bounded authority and conditions for a participant. Host authorization remains independent. An authority section names the participant it binds, the closed moves it allows, the workspaces it scopes, the words it excludes and the paths it covers.
 
+Select when: State bounded participant authority with allowed moves, workspace scope and exclusions.
+
+Avoid when: Use @agent for participant identity or @contract for requirements independent of a grant.
+
+Before authoring: Bind the intended participant and explicit scope; confirm host authorization before executing an allowed move.
+
 Owner: agent-system. Identity: agent-system/policy/\<facet>/\<name>. Facets: mandate. Artifact set: principle. Primitive: Escalation. Move: Delegation.
 
 Canonical schema: .ia/src/systems/agent-system/schemas/mandate.schema.ia.

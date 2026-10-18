@@ -2,6 +2,12 @@
 
 Names versioned requirements that may be adopted by other records. Requirements need explicit evaluation evidence.
 
+Select when: State versioned requirements that other records can adopt and evaluators can assess.
+
+Avoid when: Use @schema for field structure or @law for a governing rule.
+
+Before authoring: Give requirements stable identifiers and connect checks, cases and current evidence without treating adoption as proof.
+
 Owner: compliance-system. Identity: compliance-system/contract/\<facet>/\<name>. Facets: signature. Artifact set: contract. Primitive: Memory. Move: Verification.
 
 Canonical schema: .ia/src/systems/compliance-system/schemas/contract.schema.ia.

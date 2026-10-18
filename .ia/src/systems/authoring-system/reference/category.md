@@ -2,6 +2,12 @@
 
 Defines a closed concept classification used by record shapes and contextual selection.
 
+Select when: Define a concept classification used by record shapes and contextual selection.
+
+Avoid when: Use @kind for semantic role or @dimension for a condition and lookup coordinate.
+
+Before authoring: Check all registered shapes and selectors that consume the closed category set.
+
 Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: category. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.

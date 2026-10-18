@@ -2,6 +2,12 @@
 
 Represents one owner's action toward exactly one milestone. Whether it is ready to start is computed by a work evaluator, never stored on the record.
 
+Select when: Assign one owner an action toward exactly one milestone.
+
+Avoid when: Use @milestone for the resulting condition or @spec for maintained requirements.
+
+Before authoring: State expected artifacts and prerequisites; exit evidence must succeed at the current task revision and does not change work.status.
+
 Owner: work-system. Identity: work-system/definition/\<facet>/\<name>. Facets: task. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/work-system/schemas/task.schema.ia.
@@ -24,7 +30,7 @@ Section relationships: optional.
 - work.source: text; optional.
 - work.action: text; optional. — What the task's owner does to complete it.
 - work.expected-artifact: text; optional. — The artifact the task produces, as a path or name.
-- work.exit-evidence: ref to observation; optional. — The observation whose success verdict closes the task.
+- work.exit-evidence: ref to observation; optional. — An observation used to establish this task's exit evidence when its verdict is success and its subject revision matches the task's current digest; it does not change work.status.
 - work.owner-agent: ref to agent; optional. — The agent that owns the task; work.owner stays the free-text owner.
 
 Relationship require to task: one-or-more; optional.

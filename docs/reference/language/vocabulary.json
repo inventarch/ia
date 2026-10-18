@@ -2,7 +2,7 @@
   "version": 1,
   "language": "ia 1.0",
   "status": "public IA 1.0 language contract",
-  "sourceDigest": "8ebfaf93977468e42897cf4951025d11fab1297bacce94971a76d484aec43201",
+  "sourceDigest": "e66d152c4e8b1e41d36f703e2524611b68bc05d6031c50c24a0a7c5aa38f1a9f",
   "words": [
     {
       "word": "agent",
@@ -3248,7 +3248,7 @@
         "run"
       ],
       "identity": "session-system/definition/<facet>/<name>",
-      "description": "Represents a governed run identity, declared phase, status and owner. Declaration does not start execution.",
+      "description": "Represents a governed run identity, status, owner and declared phase when known. Declaration does not start execution.",
       "schema": {
         "name": "run",
         "path": ".ia/src/systems/session-system/schemas/run.schema.ia",
@@ -3286,7 +3286,8 @@
           {
             "path": "execution.phase",
             "type": "id",
-            "required": true
+            "required": false,
+            "description": "The declared phase, when known; omit it when unknown. Historical id values remain valid. A declaration does not prove engine state."
           },
           {
             "path": "execution.owner",
@@ -3629,7 +3630,7 @@
             "path": "work.exit-evidence",
             "type": "ref",
             "required": false,
-            "description": "The observation whose success verdict closes the task.",
+            "description": "An observation used to establish this task's exit evidence when its verdict is success and its subject revision matches the task's current digest; it does not change work.status.",
             "target": "observation"
           },
           {
@@ -3728,12 +3729,14 @@
           {
             "path": "template.parameters",
             "type": "list of id",
-            "required": true
+            "required": false,
+            "description": "The scalar renderer requires declared parameters; structured-v1 may omit this field or retain an empty list."
           },
           {
             "path": "template.lines",
             "type": "list of text",
-            "required": true
+            "required": false,
+            "description": "The scalar renderer requires content lines; structured-v1 may omit this field or retain an empty list."
           },
           {
             "path": "template.profile",
