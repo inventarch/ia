@@ -1,69 +1,69 @@
 {
   "format": "ia.native-release-notes.v1",
   "baseline": {
-    "tag": "v3.0.0",
-    "commit": "8f9220040d29fce02f230c2899ff284b69293ff3"
+    "tag": "v3.1.1",
+    "commit": "1363fc9c949a485448d3699ff3e2756119a8d142"
   },
   "changes": [
     {
       "id": "inventarch/agent-composition-system",
-      "bump": "minor",
-      "summary": "`@capability` gains an optional invocation section, and `@agent-profile` gains optional invocation and presentation sections and `execution.effort`, so a Claude, Codex or Grok plugin can be lowered into records and rendered back; existing records remain valid and IA syntax remains 1.0."
+      "bump": "patch",
+      "summary": "Refresh the bundled language guide to describe declared run phases only when known; exact native dependencies follow the coordinated 3.2.0 release."
     },
     {
       "id": "inventarch/agent-system",
       "bump": "patch",
-      "summary": "No content change; exact dependency versions on changed public systems, including inventarch/workspace-system, move to 3.1.0. IA syntax remains 1.0."
+      "summary": "Refresh the bundled language guide for optional declared run phases and align its native dependency selection with 3.2.0."
     },
     {
       "id": "inventarch/authoring-system",
       "bump": "minor",
-      "summary": "Reference guides for `@capability`, `@agent-profile` and `@distribution` document the new optional invocation, presentation and product fields; exact dependency versions move to 3.1.0. IA syntax remains 1.0."
+      "summary": "Replace generic guidance with selection, alternatives and cautions for all 44 words; ship executable validation and formatting cases with their contract, and document optional run phases and structured-template fields."
     },
     {
       "id": "inventarch/compliance-system",
       "bump": "patch",
-      "summary": "No content change; exact dependency versions on changed public systems, including inventarch/workspace-system, move to 3.1.0. IA syntax remains 1.0."
+      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed public systems."
     },
     {
       "id": "inventarch/governance-system",
       "bump": "patch",
-      "summary": "No content change; exact dependency versions on changed public systems, including inventarch/workspace-system, move to 3.1.0. IA syntax remains 1.0."
+      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed public systems."
     },
     {
       "id": "inventarch/hook-authoring-system",
       "bump": "patch",
-      "summary": "No content change; exact dependency versions on changed public systems, including inventarch/workspace-system, move to 3.1.0. IA syntax remains 1.0."
+      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed authoring and public systems."
     },
     {
       "id": "inventarch/language",
       "bump": "minor",
-      "summary": "Embeds the extended agent-profile, capability and distribution schemas and every public system declaration at 3.1.0. IA syntax remains 1.0."
+      "summary": "Clarify projection artifacts, cardinality aliases and explicit primitive selection in the floor; embed the updated run and template schemas, task evidence guidance, work-system governance consent, and coordinated system declarations. IA syntax remains 1.0."
     },
     {
       "id": "inventarch/learning-system",
       "bump": "patch",
-      "summary": "No content change; exact dependency versions on changed public systems, including inventarch/workspace-system, move to 3.1.0. IA syntax remains 1.0."
+      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed authoring and public systems."
     },
     {
       "id": "inventarch/session-system",
-      "bump": "patch",
-      "summary": "No content change; exact dependency versions on changed public systems, including inventarch/workspace-system, move to 3.1.0. IA syntax remains 1.0."
+      "bump": "minor",
+      "summary": "Allow a run to omit execution.phase when its live phase is unknown while retaining historical authored phase values; refresh the bundled language guide and exact dependencies."
     },
     {
       "id": "inventarch/template-system",
-      "bump": "patch",
-      "summary": "No content change; exact dependency versions on changed public systems, including inventarch/workspace-system, move to 3.1.0. IA syntax remains 1.0."
+      "bump": "minor",
+      "summary": "Permit structured-v1 templates to omit unused legacy parameters and lines while scalar rendering continues to require them; ship the scalar rendering contract and success/refusal cases, and refresh the bundled guide."
     },
     {
       "id": "inventarch/work-system",
-      "bump": "patch",
-      "summary": "No content change; exact dependency versions on changed public systems, including inventarch/workspace-system, move to 3.1.0. IA syntax remains 1.0."
+      "bump": "minor",
+      "summary": "Admit incoming law governance for plans, milestones, tasks, decisions and specifications; clarify that exit evidence does not mutate task status, and refresh the bundled guide."
     },
     {
       "id": "inventarch/workspace-system",
-      "bump": "minor",
-      "summary": "`@distribution` gains an optional product section (name, display name, version, description, author, licence, keywords, hosts, short description and category) for plugin projection; existing records remain valid and IA syntax remains 1.0."
+      "bump": "patch",
+      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed public systems."
     }
   ]
 }
