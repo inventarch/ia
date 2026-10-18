@@ -33,4 +33,5 @@ export function publishReview(
   gh: Github,
   repository: string,
   result: unknown,
+  expected: { repository: string; pr: number; head: string; subject: string },
 ): Promise<{ reviewId?: string; duplicate?: boolean; skipped?: string }>;
