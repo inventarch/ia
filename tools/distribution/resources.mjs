@@ -41,6 +41,7 @@ export const LANGUAGE_GUIDE_COPIES = [
   'packages/compliance/LANGUAGE.md',
   'packages/db/LANGUAGE.md',
   'packages/graph/LANGUAGE.md',
+  'packages/kb/LANGUAGE.md',
   'packages/language/LANGUAGE.md',
   'packages/runtime/LANGUAGE.md',
   'packages/service-contracts/LANGUAGE.md',

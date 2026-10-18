@@ -41,6 +41,8 @@ import { gatedNext, inertNext } from './profile.js';
 import type { Gate } from './profile.js';
 import { runProject } from './project.js';
 import { runRead } from './read.js';
+import { runKnowledge } from './kb.js';
+import { selectKnowledgeCommand } from './kb-commands.js';
 import { runValidate } from './validate.js';
 import { runVocabulary } from './vocabulary.js';
 import type { AdviceContext, Capabilities, Terminal, Token } from './render.js';
@@ -513,6 +515,7 @@ const wantsHelp = (argv: readonly string[]): boolean => {
 type Handler = (context: Context) => Result | Promise<Result>;
 /** The consumer verbs of §1.2 step 5. A verb with no row here is a defect in this table, not a missing feature. */
 const HANDLERS: Readonly<Record<string, Handler>> = {
+  kb: runKnowledge,
   init: runInit,
   adopt: runAdopt,
   vocabulary: runVocabulary,
@@ -564,6 +567,8 @@ function parsedInvocation(command: CommandSpec, args: Arguments): string {
 
 /** §1.2 step 5. Parse, then run; every class-2 check has already happened when a handler is entered. */
 export async function runCommand(command: CommandSpec, argv: readonly string[], host: Host): Promise<Result> {
+  const nested = command.name === 'kb' ? selectKnowledgeCommand(command, argv[0]) : undefined;
+  if (nested) command = nested;
   const preliminary = resolveCapabilities(host.stdout, {});
   if (wantsHelp(argv)) return { exitCode: 0, stdout: renderCommandHelp(command, preliminary), stderr: '' };
   // Filled by a gated command once its profile allows it; read when the command refuses.
@@ -573,6 +578,7 @@ export async function runCommand(command: CommandSpec, argv: readonly string[], 
     // leaves none, and its usage refusal names the verb's help, which takes no root.
     args: Arguments | undefined;
   try {
+    if (command.name === 'kb' && !nested) throw new UsageError('Choose a kb subcommand; see ia kb --help');
     args = parseArguments(argv, command.grammar);
     const json = args.flag('json');
     caps = resolveCapabilities(host.stdout, {

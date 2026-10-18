@@ -71,6 +71,13 @@
 
 | command | mode | move | refuses | next |
 | --- | --- | --- | --- | --- |
+| `ia kb check` | validate | Verification | unavailable selected knowledge or mandate restriction | `ia position` |
+| `ia kb search` | read | Observation | unavailable selected knowledge or mandate restriction | `ia position` |
+| `ia kb read` | read | Observation | unavailable selected knowledge or mandate restriction | `ia position` |
+| `ia kb resolve` | read | Observation | unavailable selected knowledge or mandate restriction | `ia position` |
+| `ia kb traverse` | read | Observation | unavailable selected knowledge or mandate restriction | `ia position` |
+| `ia kb pack` | validate | Verification | unavailable selected knowledge or mandate restriction | `ia position` |
+| `ia kb pack --apply` | effect | Execution | existing output or unavailable selected knowledge | `ia position` |
 | `ia init` | effect | Execution | a target already initialized; --apply writes nothing | `ia position --root <directory>` |
 | `ia validate` | validate | Verification | no .ia/src directory at the root or in any parent | `ia init` |
 | `ia preview` | validate | Verification | a move or a word the governing mandates do not allow; writes nothing | `ia position --seat <mandate> --shape governance` |
@@ -87,4 +94,4 @@
 - state intent to the CLI as shape + optional phase + optional primitive + optional seat + optional word; the CLI never receives free text
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
 
-ia-generated 3b582528b0b62cd5cbfb02e1af4546da4b9ba6c2cd1438ef79e25bd4f17cc5a3 7cd24a4025ad90e63e4ca88b2f2421a151e8fb5d611771dc7d9504e43d8c216d ia-claude
+ia-generated 3b582528b0b62cd5cbfb02e1af4546da4b9ba6c2cd1438ef79e25bd4f17cc5a3 b21ff25f09c3b0aa394013705cd45fc94f57cdd4b0dcb0287f66a5c601edba0d ia-claude

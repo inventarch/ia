@@ -6,6 +6,14 @@ import ts from 'typescript';
 export const ALLOWED: Readonly<Record<string, readonly string[]>> = {
   '@inventarch/authoring-system': ['@inventarch/db', '@inventarch/language', '@inventarch/runtime'],
   '@inventarch/template-system': ['@inventarch/language', '@inventarch/runtime'],
+  '@inventarch/kb': [
+    '@inventarch/language',
+    '@inventarch/graph',
+    '@inventarch/db',
+    '@inventarch/runtime',
+    '@inventarch/workspace-runtime',
+    '@inventarch/session-system',
+  ],
   '@inventarch/language': [],
   '@inventarch/graph': ['@inventarch/language'],
   '@inventarch/compliance': ['@inventarch/language', '@inventarch/graph'],
@@ -59,7 +67,7 @@ const HOSTS: Readonly<Record<string, readonly string[]>> = {
     '@inventarch/runtime',
     '@inventarch/db',
   ],
-  '@inventarch/mcp-door': ['@inventarch/runtime', '@inventarch/service-contracts'],
+  '@inventarch/mcp-door': ['@inventarch/runtime', '@inventarch/service-contracts', '@inventarch/kb'],
   '@inventarch/distribution': [
     '@inventarch/language',
     '@inventarch/graph',
@@ -70,6 +78,7 @@ const HOSTS: Readonly<Record<string, readonly string[]>> = {
   ],
   '@inventarch/steward-hook': ['@inventarch/runtime', '@inventarch/db', '@inventarch/workspace-runtime'],
   '@inventarch/cli': [
+    '@inventarch/kb',
     '@inventarch/runtime',
     '@inventarch/workspace-runtime',
     '@inventarch/db',

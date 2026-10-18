@@ -120,6 +120,11 @@
       "root": "apps/runner",
       "name": "@inventarch/runner",
       "private": false
+    },
+    {
+      "root": "packages/kb",
+      "name": "@inventarch/kb",
+      "private": false
     }
   ],
   "embeddedCarriers": [

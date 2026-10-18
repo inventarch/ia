@@ -223,7 +223,8 @@
         "db:build",
         "distribution:build",
         "runtime:build",
-        "workspace-runtime:build"
+        "workspace-runtime:build",
+        "kb:build"
       ],
       "outputs": [
         "apps/cli/dist",
@@ -282,7 +283,8 @@
       "mode": "source",
       "inputProfile": "workspace-records",
       "dependsOn": [
-        "runtime:build"
+        "runtime:build",
+        "kb:build"
       ],
       "outputs": [
         "apps/mcp-door/dist",
@@ -1384,7 +1386,8 @@
       "project": "apps/mcp-door",
       "files": [
         "tests/protocol.test.ts",
-        "tests/stdio.test.ts"
+        "tests/stdio.test.ts",
+        "tests/kb.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -3669,6 +3672,167 @@
       "resourceClass": "io",
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "kb:build",
+      "kind": "command",
+      "project": "packages/kb",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "language:build",
+        "graph:build",
+        "db:build",
+        "runtime:build",
+        "workspace-runtime:build",
+        "session-system:build"
+      ],
+      "outputs": [
+        "packages/kb/dist",
+        "artifacts/tests/kb-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "kb:typecheck",
+      "kind": "command",
+      "project": "packages/kb",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "kb:build"
+      ],
+      "outputs": [
+        "artifacts/tests/kb-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "kb:test",
+      "kind": "vitest",
+      "project": "packages/kb",
+      "files": [
+        "tests/legacy.test.ts",
+        "tests/foundation.test.ts",
+        "tests/installation.test.ts",
+        "tests/package.test.ts",
+        "tests/local.test.ts",
+        "tests/protocol.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "kb:build"
+      ],
+      "outputs": [
+        "artifacts/tests/kb-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-kb",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/kb.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "cli:build"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-kb"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "kb:qualify",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm kb:qualify",
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "emitted",
+      "inputProfile": "emitted",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build",
+        "kb:build"
+      ],
+      "outputs": [
+        "artifacts/tests/kb-qualify"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "node tools/distribution/qualify-kb.mjs"
       ]
     }
   ]

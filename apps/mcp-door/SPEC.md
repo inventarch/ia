@@ -1,3 +1,5 @@
 # @inventarch/mcp-door
 
 Public language mechanism. The [language reference](LANGUAGE.md) defines vocabulary and evaluation limits. Package exports describe the installed API. Curated agent methods and hosted services are supplied independently.
+
+Knowledge integration adds five tools: `ia_kb_check`, `ia_kb_search`, `ia_kb_read`, `ia_kb_resolve`, `ia_kb_traverse`. They use the public KB protocol DTOs. The original Door validates any scope token, supplies membership, and must agree with the KB native graph revision before bodies are read. Unknown/stale tokens, budget overflow and graph changes refuse without widening scope. Arguments cannot change root or select export paths. Local checks expose selected-record admission and closure; workspace compliance is explicitly not evaluated, and excluded records do not contribute diagnostics. The complete JSON-RPC KB response, including text plus structured content and request id, is bounded to 48 KiB. An oversized result returns a bounded refusal. Existing twelve tools and protocol negotiation are preserved.

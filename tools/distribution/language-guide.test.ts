@@ -35,7 +35,8 @@ it('generates every shipped LANGUAGE.md as the one public-language guide and fin
   expect(systems).toHaveLength(11);
   // A package that starts shipping the guide joins LANGUAGE_GUIDE_COPIES, so no copy is kept by hand.
   expect(copies.sort()).toEqual(shippedCopies());
-  expect(copies).toHaveLength(13);
+  expect(copies).toHaveLength(14);
+  expect(copies).toContain('packages/kb/LANGUAGE.md');
   const guide = systems[0]![1];
   expect(guide).toMatch(/^# Public IA language\n/);
   for (const [path, bytes] of guides) {

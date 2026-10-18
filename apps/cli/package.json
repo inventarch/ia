@@ -19,6 +19,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
+    "@inventarch/kb": "workspace:*",
     "@inventarch/distribution": "workspace:*",
     "@inventarch/compliance": "workspace:*",
     "@inventarch/workspace-runtime": "workspace:*",

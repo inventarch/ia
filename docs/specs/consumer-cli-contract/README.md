@@ -101,6 +101,18 @@ A refusal keeps the service's code, location and reason, and names one command t
 
 Human output is rendered from structured tokens, with terminal capability and width handling. `--no-color` (or `NO_COLOR`), `--color`, `--ascii` and `--quiet` adjust it. Every command prints a terminal state line; progress output is optional. Severity and rendering limits do not change admission.
 
-## 7 Qualification
+## 7 Knowledge commands
+
+`ia kb check|search|read|resolve|traverse` opens an immutable, in-memory knowledge view. It reads authored records under `.ia/src` and their explicitly bound UTF-8 Markdown/text bodies. A selector at `.ia/knowledge.json` is optional for local reads. No `.kb`, persistent index or database is created.
+
+`check` reports selected-record admission, reference closure and body availability. Workspace compliance checks are explicitly not evaluated by this scoped view; use native validation for the whole workspace. Missing references and excluded targets are unavailable without disclosing excluded identities or diagnostics. Local citations pin the snapshot and body and refuse after a change.
+
+`ia kb pack --commit <full-sha> --selection <committed-path> --out <workspace-file>` previews a validated immutable package. `--apply` writes it; noninteractive and JSON apply require `--yes`. The output must have existing, unlinked parents within the repository and be outside `.ia`, `.git`, selected inputs and the selector. Identical existing bytes return unchanged; different bytes refuse. Current authority and native revision are checked again after interactive confirmation.
+
+Read operations require Observation; check and pack preview require Verification; pack apply requires Execution. Nested parsing drives both enforcement and retry advice, including explicit `--actor`. The nine existing machine routes retain their protocol. Knowledge JSON uses `{version:1,ok,value}` or `{version:1,ok:false,error:{code,message}}`; existing CLI grammar, workspace and mandate refusals retain their established envelope and exit class.
+
+The public [KB library](../../../packages/kb/README.md) owns selection, packaging and citations. The application host owns audiences, storage, lifecycle and approval.
+
+## 8 Qualification
 
 [CLI tests](../../../apps/cli/tests) cover parsing, JSON envelopes, exit classes and command outcomes. Installed-consumer checks also exercise the packed binaries. Neither establishes that a host loaded or activated anything.

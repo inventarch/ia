@@ -1,0 +1,77 @@
+{
+  "name": "@inventarch/kb",
+  "version": "3.1.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./legacy": {
+      "development": "./src/legacy.ts",
+      "types": "./dist/legacy.d.ts",
+      "default": "./dist/legacy.js"
+    },
+    "./protocol": {
+      "development": "./src/protocol.ts",
+      "types": "./dist/protocol.d.ts",
+      "default": "./dist/protocol.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "NOTICE",
+    "LANGUAGE.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tests.json",
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@inventarch/workspace-runtime": "workspace:*",
+    "@inventarch/runtime": "workspace:*",
+    "@inventarch/db": "workspace:*",
+    "@inventarch/language": "workspace:*",
+    "@inventarch/graph": "workspace:*",
+    "@inventarch/session-system": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./legacy": {
+        "types": "./dist/legacy.d.ts",
+        "default": "./dist/legacy.js"
+      },
+      "./protocol": {
+        "types": "./dist/protocol.d.ts",
+        "default": "./dist/protocol.js"
+      }
+    },
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inventarch/ia.git",
+    "directory": "packages/kb"
+  }
+}

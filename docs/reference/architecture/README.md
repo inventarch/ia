@@ -16,6 +16,7 @@ IA keeps three things apart: vocabulary declarations in `.ia` files, the toolcha
 | `@inventarch/db` | Discover source trees; open scoped read handles; inspect admission, membership and snapshots; preview changes; bind checks and read or write evidence. | Root; `./editor`, `./distribution`, `./descriptors` |
 | `@inventarch/runtime` | Read records, deliver position and plan views, resolve mandates, render host packets and serve the Door protocol. | Root; `./editor`, `./authoring`, `./authoring-execution`, `./entry` |
 | `@inventarch/workspace-runtime` | Capture and adopt workspaces; resolve teaching resources, lifecycle, templates and publication; join execution bindings with installed implementations. | Root; `./bind`, and resource, authoring, lifecycle, source, template, projection and publication subpaths |
+| `@inventarch/kb` | Select committed knowledge; validate graph/resource closure; read and search immutable document views with citations. | Root; `./legacy`, `./protocol` |
 | `@inventarch/service-contracts` | Validate service request and response shapes, including sources, tenancy, sessions, source application, marketplace and installation. | Root; `./sources`, `./tenancy`, `./session-lifecycle`, `./source-apply`, `./marketplace`, `./installation` |
 
 The main dependency direction is `language → graph → compliance → db → runtime → workspace-runtime`: each package consumes the mechanisms to its left, and some also import earlier layers directly. `service-contracts` stands apart: it depends only on Zod and is browser-safe. Its schemas validate message shape; an application host supplies authentication, authorization, disclosure and native execution.
@@ -24,8 +25,8 @@ The apps consume these packages:
 
 | App | Built on | Role |
 | --- | --- | --- |
-| `ia` ([`@inventarch/cli`](../../../apps/cli/README.md)) | `db`, `runtime`, `workspace-runtime`, `compliance`, `distribution` | Plans and applies filesystem effects |
-| `ia-mcp-door` ([`@inventarch/mcp-door`](../../../apps/mcp-door/README.md)) | `runtime` | Serves scoped, read-only runtime calls over stdio |
+| `ia` ([`@inventarch/cli`](../../../apps/cli/README.md)) | `db`, `runtime`, `workspace-runtime`, `compliance`, `distribution`, `kb` | Plans and applies filesystem effects |
+| `ia-mcp-door` ([`@inventarch/mcp-door`](../../../apps/mcp-door/README.md)) | `runtime`, `kb` | Serves scoped, read-only runtime and knowledge calls over stdio |
 | [VS Code extension](../../../apps/vscode/README.md) | `runtime` | Uses the runtime editor surface |
 | `ia-distribution` ([`@inventarch/distribution`](../../../apps/distribution/README.md)) | `db`, `workspace-runtime` | Packs, installs and qualifies archives with the `db` distribution contracts |
 | `ia-runner` ([`@inventarch/runner`](../../../apps/runner/README.md)) | `db`, `runtime`, `workspace-runtime` and the executable systems | Runs one admitted agent profile with a durable journal |

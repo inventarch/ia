@@ -77,6 +77,8 @@ The `ia_position` body is a pure function of the key and the admitted records. I
 
 ## 📚 Learn more
 
+Five additional read tools—`ia_kb_check`, `ia_kb_search`, `ia_kb_read`, `ia_kb_resolve`, and `ia_kb_traverse`—read selected native records and their bound documents through [the knowledge foundation](../../packages/kb/README.md). They accept an optional `within` issued by this server. The original Door validates membership, and a matching graph revision is required before any body read. A stale, foreign or unsupported narrowed scope refuses; there is no workspace fallback. Responses are bounded to 48 KiB. Local citations resolve only while current captured bytes still match. These tools create no index or `.kb` directory.
+
 - [SPEC.md](SPEC.md): the package contract
 - [LANGUAGE.md](LANGUAGE.md): the packaged summary of the words this release ships
 - [`@inventarch/runtime`](../../packages/runtime/README.md): the Door, `MACHINE_PROTOCOL`, positions and delivery views behind these tools

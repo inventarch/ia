@@ -1,0 +1,9 @@
+#! ia 1.0
+
+@spec portable-knowledge
+  meaning
+    says "Documents and native records travel together as a bounded knowledge package."
+  work
+    title "Portable knowledge"
+    status draft
+    source "docs/architecture.md"

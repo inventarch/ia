@@ -38,6 +38,7 @@ import {
 import type { GoverningMandate, Mode, ProfileVerdict } from '@inventarch/runtime';
 import type { Context } from './consumer.js';
 import { findCommand } from './commands.js';
+import { knowledgeAdviceMode } from './kb-commands.js';
 import { Refusal, respell } from './consumer.js';
 import { commandArguments, ADVICE_COMMAND, quote, safeRootAdvice } from './render.js';
 import type { AdviceContext } from './render.js';
@@ -510,7 +511,12 @@ function judgeNext(next: string, gate: Gate | undefined): string {
   if (match === null) return next;
   const argv = commandArguments(match[1]!);
   const verb = argv[1] ?? '',
-    mode = verb === 'host' ? hostMode(argv) : GATED_MODES[verb];
+    mode =
+      verb === 'kb'
+        ? knowledgeAdviceMode(findCommand('kb')!, argv.slice(2))
+        : verb === 'host'
+          ? hostMode(argv)
+          : GATED_MODES[verb];
   if (mode === undefined) return next;
   const word =
     (verb === 'preview' || verb === 'author') && !argv.includes('--relate') && !argv.includes('--set')
