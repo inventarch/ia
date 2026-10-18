@@ -298,7 +298,12 @@ it('excludes the private service dependencies and the payload itself', async () 
       (p: { name: string }) => p.name === '@modelcontextprotocol/client' || p.name === '@inventarch/service-contracts',
     ),
   ).toBe(false);
-  expect([...files.keys()].some((path) => /@ia\/cli\/assets\/host(\/|\.json$)/.test(path))).toBe(false);
+  const hasNestedPayload = (paths: Iterable<string>) =>
+    [...paths].some((path) => /@inventarch\/cli\/assets\/host(\/|\.json$)/.test(path));
+  expect(hasNestedPayload(files.keys())).toBe(false);
+  // Prove the exclusion observes the current namespace before trusting its negative result.
+  for (const suffix of ['.json', '/payload.tgz'])
+    expect(hasNestedPayload([...files.keys(), `runtime/node_modules/@inventarch/cli/assets/host${suffix}`])).toBe(true);
   expect(
     packages.some((p) =>
       ['@inventarch/architecture-system', '@inventarch/code-quality-system', '@inventarch/monorepo-kit-host'].includes(
@@ -309,7 +314,7 @@ it('excludes the private service dependencies and the payload itself', async () 
   expect([...files.keys()].some((path) => /inventarch-development|development-native/.test(path))).toBe(false);
   expect(packages.length).toBeLessThanOrEqual(64);
 });
-it('bundles @ia manifests without the development condition, pinned by the bundled bytes', async () => {
+it('bundles @inventarch manifests without the development condition, pinned by the bundled bytes', async () => {
   const { files, packages } = await collectPayload(repository);
   for (const pkg of packages.filter((p) => p.name.startsWith('@inventarch/'))) {
     const bytes = files.get(`runtime/node_modules/${pkg.name}/package.json`) as Buffer;

@@ -18,7 +18,7 @@ The public scope is `@inventarch`. Every public npm package moves together at th
 | `pnpm npm:inputs` | Release preparation only; `release:version` runs it | Reseals `.ia/public-package-inputs.json` |
 | `pnpm npm:prepare`, `npm:consumer`, `npm:plan`, `npm:preflight` | Release preparation, in the workflow or locally | Builds, qualifies, inspects and registry-checks the exact archives |
 | `pnpm npm:setup` | Once, after adding a package, and when registry state is unclear | Inspects public readiness, authenticated package state, stages, trust and GitHub settings; `--apply` makes only supported setup writes |
-| `pnpm npm:trust-commands` | Reference | Prints the trusted-publisher commands without running them |
+| `pnpm npm:trust-commands` | Reference | Prints pinned npm 12.2.0 commands with the explicit npm registry; requires valid package identities but no current release seal, and runs no trust mutation |
 
 ## Release notes
 
@@ -94,7 +94,7 @@ The authenticated metadata helper uses the existing configuration of pinned npm 
 
 - logged in with `npm login` on an account with 2FA and write access;
 - logged in with `gh auth login` as a repository admin;
-- with Node 22.22.2 or later available, which the pinned npm 12.2.0 needs. The shell's own Node can be older: the command runs npm with the newest compatible Node that fnm has installed (`fnm install 22.22.2`), or with `--node <path>`. It installs the pinned npm into a temporary cache and uses the existing npm login without printing credentials.
+- with Node 22.22.2 or later available, which the pinned npm 12.2.0 needs. The shell's own Node can be older: the command runs npm with the newest compatible Node that fnm has installed (`fnm install 22.22.2`), or with `--node <path>`. It installs the pinned npm into a fresh private temporary directory, validates its physical files and package identity before execution, removes that installation when finished, and uses the existing npm login without printing credentials.
 
 Reading a trusted publisher can require 2FA even for a list. Ordinary inspection captures structured output, so npm cannot prompt through it: [npm 12.2.0's authentication helper](https://github.com/npm/cli/blob/v12.2.0/lib/utils/auth.js) requires both standard input and standard output to be terminals. An `EOTP` from trust inspection leaves trust unknown; being logged in does not satisfy a request-specific 2FA challenge.
 
@@ -122,7 +122,7 @@ For a confirmed new name, setup stages `0.0.0-bootstrap.0` under the `bootstrap`
 
 Keep the stage identity with the release record until the normal workflow publishes and verifies a real cohort version, including its archive integrity, `latest` tag and provenance. Only after that verification may an owner separately authorize manual cleanup of the exact retained bootstrap stage, after checking its current identity and status. Never approve a bootstrap payload or publish dummy contents as a real version. Never overwrite a published version, repurpose an existing tag, or use a 404 as proof of name ownership. Final verification requires an npm provenance attestation on every published package, which only the workflow's OIDC publication adds.
 
-**GitHub.** `--apply` restricts the `npm` environment to main and makes the code owner, or `--reviewer <login>`, its required reviewer. Approving that environment is the publication checkpoint; the prepare job's summary shows the changeset digest and archive integrity being approved. It also allows Actions to create pull requests, so the release workflow can open `release/next`. It makes the default workflow token read-only, since every workflow declares its own permissions, and it creates any ruleset in `.github/rulesets/` that is missing. The tag ruleset must keep allowing tag creation, because the release job creates `v<version>`.
+**GitHub.** `--apply` restricts the `npm` environment to main and makes the code owner, or `--reviewer <login>`, its required reviewer. Approving that environment is the publication checkpoint; the prepare job's summary shows the changeset digest and archive integrity being approved. It also enables GitHub's bundled permission for Actions to create and approve pull requests, so the release workflow can open `release/next`. The workflow itself creates a PR and does not submit an approving review. It makes the default workflow token read-only, since every workflow declares its own permissions, and it creates any ruleset in `.github/rulesets/` that is missing. The tag ruleset must keep allowing tag creation, because the release job creates `v<version>`.
 
 Pull requests and pushes made with the workflow token start no other workflows. The release workflow therefore dispatches Public quality on `release/next`, and the publish workflow dispatches the release workflow after tagging.
 

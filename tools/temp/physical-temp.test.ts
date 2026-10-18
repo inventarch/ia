@@ -196,22 +196,6 @@ const NOT_ENTRY_POINTS: Readonly<Record<string, { reason: string; loadedBy?: rea
   'tools/compliance/hook-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
   'tools/compliance/publication-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
   'tools/compliance/runtime-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
-  'tools/distribution/qualify-linux.mjs': { reason: 'runs only inside WSL Linux' },
-  'tools/quality/capture.ts': {
-    reason: 'a library',
-    loadedBy: [
-      'tools/quality/main.ts',
-      'tools/quality/scan.ts',
-      'tools/quality/test-design.ts',
-      'tools/quality/test-run.ts',
-    ],
-  },
-  'tools/quality/scan.ts': { reason: 'a library that loads capture.ts', loadedBy: ['tools/quality/main.ts'] },
-  'tools/quality/test-design.ts': { reason: 'a library', loadedBy: ['tools/quality/main.ts'] },
-  'tools/quality/test-run.ts': {
-    reason: 'a library',
-    loadedBy: ['tools/quality/main.ts', 'tools/quality/test-design.ts'],
-  },
   'tools/systems/fixture.ts': {
     reason: 'a library that creates isolated public system fixtures',
     loadedBy: ['tools/systems/scenarios.ts'],
@@ -244,6 +228,10 @@ const present = (file: string): boolean => existsSync(resolve(repo, file));
 const loaded = (file: string): string[] => loads(resolve(repo, file)).map(({ path }) => inRepo(path));
 
 it('is the first import of every script that makes a temporary root under tmpdir()', () => {
+  expect(
+    Object.keys(NOT_ENTRY_POINTS).filter((file) => !present(file)),
+    'Stale temporary-directory exclusions',
+  ).toEqual([]);
   const makers = scripts().filter(makesRoot);
   expect(makers.length).toBeGreaterThan(0);
   expect(makers.filter((file) => !(file in NOT_ENTRY_POINTS) && !selectorFirst(resolve(repo, file)))).toEqual([]);

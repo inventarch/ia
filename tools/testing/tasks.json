@@ -56,7 +56,10 @@
     "selected-tests-workspace-records": "selected-tests plus authored workspace records, teaching resources and native fixture inventories read through the filesystem.",
     "language-conformance": "workspace-records plus the compliance language fixtures read by the language formatter and conformance suites.",
     "host-adapters": "workspace-records plus this repository's committed ia-authoring skills under .claude/skills and .agents/skills, the pending mandate-resolution note and consumed changeset history read by runtime tests through the filesystem, since no import edge names them.",
-    "composition-fixture": "workspace-records plus apps/cli's composition workspace fixture, whose authored records the workspace-runtime generator tests render through the filesystem, since no import edge names them."
+    "composition-fixture": "workspace-records plus apps/cli's composition workspace fixture, whose authored records the workspace-runtime generator tests render through the filesystem, since no import edge names them.",
+    "dependency-policy": "Component package manifests and src trees scanned through filesystem discovery, including additions/removals, plus the dependency checker and execution inputs.",
+    "test-configuration": "Tooling plus each workspace project Vitest configuration read by inventory and temporary-directory policy tests.",
+    "distribution-fixtures": "Workspace records plus the distribution assets and fixtures used by distribution tests."
   },
   "tasks": [
     {
@@ -1282,7 +1285,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "workspace-records",
+      "inputProfile": "distribution-fixtures",
       "dependsOn": [
         "distribution:build"
       ],
@@ -2515,7 +2518,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "tooling",
+      "inputProfile": "dependency-policy",
       "dependsOn": [],
       "outputs": [
         "artifacts/tests/tools-test-dependencies"
@@ -2581,7 +2584,8 @@
         "distribution:build",
         "cli:build",
         "mcp-door:build",
-        "steward-hook:build"
+        "steward-hook:build",
+        "host-payload:generate"
       ],
       "outputs": [
         "artifacts/tests/tools-test-installed-views"
@@ -2799,7 +2803,8 @@
         "tools/testing/plan.test.ts",
         "tools/testing/report.test.ts",
         "tools/testing/resources.test.ts",
-        "tools/testing/subprocess.test.ts"
+        "tools/testing/subprocess.test.ts",
+        "tools/testing/cold-start.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -2808,7 +2813,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "tooling",
+      "inputProfile": "test-configuration",
       "dependsOn": [
         "runtime:build"
       ],
@@ -2836,7 +2841,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "tooling",
+      "inputProfile": "test-configuration",
       "dependsOn": [],
       "outputs": [
         "artifacts/tests/tools-test-temp"
@@ -2937,7 +2942,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "tooling",
+      "inputProfile": "dependency-policy",
       "dependsOn": [],
       "outputs": [
         "artifacts/tests/dependencies-check"
@@ -3486,7 +3491,8 @@
         "tools/distribution/release-setup-auth.test.ts",
         "tools/distribution/release-setup-metadata.test.ts",
         "tools/distribution/release-setup.test.ts",
-        "tools/distribution/release-versioning.test.ts"
+        "tools/distribution/release-versioning.test.ts",
+        "tools/distribution/release-branch.test.ts"
       ],
       "profile": "corpus",
       "platforms": [

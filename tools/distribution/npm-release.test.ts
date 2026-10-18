@@ -6,7 +6,10 @@ import {
   verifyPublicCompatibility,
 } from '../release/public-pack.mjs';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'yaml';
 import { expect, it } from 'vitest';
@@ -37,6 +40,36 @@ import {
 } from './release-fixtures.js';
 
 const checkoutVersion = JSON.parse(readFileSync(resolve(root, 'apps/cli/package.json'), 'utf8')).version;
+it('emits pinned trust references despite a stale release seal while preflight still refuses it', async () => {
+  const candidate = mkdtempSync(resolve(tmpdir(), 'ia-trust-reference-'));
+  try {
+    execFileSync('git', ['clone', '--quiet', '--no-local', root, candidate], { timeout: 120_000, windowsHide: true });
+    cpSync(resolve(root, 'tools'), resolve(candidate, 'tools'), { recursive: true });
+    const source = resolve(candidate, 'packages/language/src/index.ts');
+    writeFileSync(source, readFileSync(source, 'utf8') + '\n// Deliberately invalidate sealed source inputs.\n');
+    expect(() => publicPackageInputs(candidate)).toThrow();
+    const run = (command: string) =>
+      spawnSync(process.execPath, [resolve(candidate, 'tools/distribution/npm-release.mjs'), command], {
+        cwd: candidate,
+        encoding: 'utf8',
+        timeout: 30_000,
+        windowsHide: true,
+      });
+    const trust = run('trust-commands');
+    expect(trust.status, trust.stderr).toBe(0);
+    const lines = trust.stdout.trim().split(/\r?\n/);
+    expect(lines).toHaveLength(publicPackages(candidate).length);
+    for (const line of lines) {
+      expect(line).toMatch(/^pnpm dlx npm@12\.2\.0 trust github @inventarch\//);
+      expect(line).toContain('--registry https://registry.npmjs.org');
+    }
+    const preflight = run('preflight');
+    expect(preflight.status).toBe(1);
+    expect(preflight.stderr).toMatch(/inputs|seal/i);
+  } finally {
+    await rm(candidate, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 180_000);
 const archive = Buffer.from('qualified package bytes');
 const integrity = `sha512-${createHash('sha512').update(archive).digest('base64')}`;
 const entry = (name = '@inventarch/language') => ({

@@ -102,6 +102,25 @@
       "{workspaceRoot}/tools/**/*",
       "sharedGlobals"
     ],
+    "dependency-policy": [
+      "owner-source",
+      "{workspaceRoot}/packages/*/package.json",
+      "{workspaceRoot}/packages/*/src/**/*",
+      "{workspaceRoot}/apps/*/package.json",
+      "{workspaceRoot}/apps/*/src/**/*",
+      "{workspaceRoot}/.ia/src/systems/*/package.json",
+      "{workspaceRoot}/.ia/src/systems/*/src/**/*"
+    ],
+    "test-configuration": [
+      "tooling",
+      "{workspaceRoot}/packages/*/vitest.config.*",
+      "{workspaceRoot}/apps/*/vitest.config.*",
+      "{workspaceRoot}/.ia/src/systems/*/vitest.config.*"
+    ],
+    "distribution-fixtures": [
+      "workspace-records",
+      "{workspaceRoot}/distributions/**/*"
+    ],
     "repository-inventory": [
       "{workspaceRoot}/**/*",
       "sharedGlobals"

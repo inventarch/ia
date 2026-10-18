@@ -10,10 +10,13 @@ import { readInputs } from '../../packages/db/dist/index.js';
 
 const root = resolve(import.meta.dirname, '../..'),
   pnpm = process.env.npm_execpath;
+if (process.argv.length !== 2) {
+  console.error('Public projection qualification accepts no optional private or live-host modes');
+  process.exit(2);
+}
 if (!pnpm) throw new Error('Build first, then run pnpm projections:qualify');
 const temporary = mkdtempSync(resolve(tmpdir(), 'ia-packed-projections-'));
 // Supported public qualification accepts no optional modes, so its temporary consumer is always removed.
-const keep = process.argv.includes('--keep');
 const run = (args, cwd) => {
   const invocation = packageManagerCommand(pnpm, args);
   return execFileSync(invocation.command, invocation.args, { cwd, encoding: 'utf8', stdio: 'pipe' });
@@ -27,8 +30,6 @@ const folders = [
   'packages/workspace-runtime',
   ...compiledSystemFolders(root),
 ];
-if (process.argv.length !== 2)
-  throw new Error('Public projection qualification accepts no optional private or live-host modes');
 try {
   const archives = resolve(temporary, 'archives'),
     consumer = resolve(temporary, 'consumer with spaces');
@@ -84,13 +85,7 @@ try {
     }),
   );
 } finally {
-  if (keep)
-    console.log(
-      JSON.stringify({ retainedProjectionFixture: temporary, consumer: resolve(temporary, 'consumer with spaces') }),
-    );
-  else {
-    if (dirname(temporary) !== resolve(tmpdir()) || !temporary.startsWith(resolve(tmpdir(), 'ia-packed-projections-')))
-      throw new Error('Unsafe qualification cleanup');
-    rmSync(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-  }
+  if (dirname(temporary) !== resolve(tmpdir()) || !temporary.startsWith(resolve(tmpdir(), 'ia-packed-projections-')))
+    throw new Error('Unsafe qualification cleanup');
+  rmSync(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }
