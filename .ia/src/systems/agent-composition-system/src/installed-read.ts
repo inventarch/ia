@@ -140,6 +140,7 @@ export function installedReadAdapters(
         closed ||
         typeof context.assertCurrent !== 'function' ||
         context.principal !== principal ||
+        context.grant == null ||
         context.grant.principal !== principal ||
         digest(context.manifest) !== digest(manifest) ||
         manifestDigest(context.manifest) !== manifest.digest ||
@@ -160,8 +161,17 @@ export function installedReadAdapters(
     check();
     await context.assertCurrent!();
     check();
-    if (verifyCapture(await currentCapture()).revision !== capture.revision)
-      denied('Captured native source selection changed');
+    // Host callback failures retain their identity; only capture verification is normalized.
+    const selectedCapture = await currentCapture();
+    context.signal.throwIfAborted();
+    let revision: string;
+    try {
+      revision = verifyCapture(selectedCapture).revision;
+    } catch {
+      context.signal.throwIfAborted();
+      denied('Captured native source verification failed');
+    }
+    if (revision !== capture.revision) denied('Captured native source selection changed');
     check();
     checkInstalled();
   };
