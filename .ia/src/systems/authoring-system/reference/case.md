@@ -2,6 +2,12 @@
 
 Declares scenario inputs, expected behavior and evaluator attribution. A declaration is not an observed test result.
 
+Select when: Describe reproducible scenario inputs, a request and its expected success or refusal.
+
+Avoid when: Use @check to name an evaluator or @observation to record an observed result.
+
+Before authoring: Bind the case to an executable assertion and expected code where relevant; declaring a case does not run it.
+
 Owner: compliance-system. Identity: compliance-system/definition/\<facet>/\<name>. Facets: scenario. Artifact set: evidence. Primitive: Learning. Move: Verification.
 
 Canonical schema: .ia/src/systems/compliance-system/schemas/case.schema.ia.

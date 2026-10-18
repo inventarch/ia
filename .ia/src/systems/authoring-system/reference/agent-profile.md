@@ -2,6 +2,12 @@
 
 Composes an agent, capabilities, optional mandate/voice/delegates and installed execution contracts.
 
+Select when: Compose a participant with capabilities and optional voice, mandate or delegates.
+
+Avoid when: Use @agent for identity or @harness for workspace-level execution composition.
+
+Before authoring: Resolve every selected capability and binding; composition does not establish that the host installed them.
+
 Owner: agent-composition-system. Identity: agent-composition-system/binding/\<facet>/\<name>. Facets: agent-profile. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/agent-profile.schema.ia.

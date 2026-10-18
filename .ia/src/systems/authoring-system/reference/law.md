@@ -2,6 +2,12 @@
 
 Declares a rule with severity. Structural admission cannot establish the truth or suitability of its prose.
 
+Select when: State a rule whose violations have a declared severity.
+
+Avoid when: Use @principle for governing rationale or @convention for an agreed practice.
+
+Before authoring: Connect the rule to intended subjects with operative relationships or path scope and verify delivery from their seats.
+
 Owner: governance-system. Identity: governance-system/governance/\<facet>/\<name>. Facets: law. Artifact set: principle. Primitive: Inference. Move: Verification.
 
 Canonical schema: .ia/src/systems/governance-system/schemas/law.schema.ia.

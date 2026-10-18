@@ -2,6 +2,12 @@
 
 Groups operations, procedures, templates, checks and included capabilities with declared execution bounds.
 
+Select when: Group related operations, procedures, templates and checks under declared execution bounds.
+
+Avoid when: Use @operation for one executable contract or @agent-profile to select capabilities for a participant.
+
+Before authoring: Resolve included capabilities and their limits; test effect and authority bounds at the execution boundary.
+
 Owner: agent-composition-system. Identity: agent-composition-system/definition/\<facet>/\<name>. Facets: capability. Artifact set: product-definition. Primitive: Inference. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/capability.schema.ia.

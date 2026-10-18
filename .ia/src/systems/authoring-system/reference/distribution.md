@@ -2,6 +2,12 @@
 
 Declares root records from which a distributable closure is selected.
 
+Select when: Select root records whose dependency closure is to be packaged.
+
+Avoid when: Use @workspace for a working source boundary or @template for rendering structure.
+
+Before authoring: Choose roots that exclude repository-only maintenance records; qualification must inspect the resulting archive bytes.
+
 Owner: workspace-system. Identity: workspace-system/definition/\<facet>/\<name>. Facets: distribution. Artifact set: projection. Primitive: Attention. Move: Observation.
 
 Canonical schema: .ia/src/systems/workspace-system/schemas/distribution.schema.ia.

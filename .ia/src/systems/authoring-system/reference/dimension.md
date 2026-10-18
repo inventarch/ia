@@ -2,6 +2,12 @@
 
 Defines a supported record dimension used by conditions and lookup.
 
+Select when: Define a record coordinate supported by conditions and lookup.
+
+Avoid when: Use @axis for a closed selection axis or an ordinary field for data with no selector semantics.
+
+Before authoring: Confirm that a consumer actually interprets the dimension; naming it alone does not implement a condition.
+
 Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: dimension. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.

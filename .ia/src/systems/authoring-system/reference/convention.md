@@ -2,6 +2,12 @@
 
 Declares a convention in the shared governance shape.
 
+Select when: Record a shared practice that keeps authoring or operation consistent.
+
+Avoid when: Use @law for a rule with severity or @principle for the rationale behind a practice.
+
+Before authoring: Describe a concrete practice and its intended subjects; cite an existing rule instead of restating it.
+
 Owner: governance-system. Identity: governance-system/governance/\<facet>/\<name>. Facets: convention. Artifact set: principle. Primitive: Inference. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/governance-system/schemas/convention.schema.ia.

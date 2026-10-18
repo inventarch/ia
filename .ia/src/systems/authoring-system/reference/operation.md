@@ -2,6 +2,12 @@
 
 Binds a declared operation to an implementation/input/output/effect contract; the host installs implementations.
 
+Select when: Declare an implementation contract with inputs, outputs and effects for host execution.
+
+Avoid when: Use @playbook for procedure text or @template for bounded rendering inputs.
+
+Before authoring: Define success and refusal behavior and test the installed adapter; naming an implementation does not install it.
+
 Owner: authoring-system. Identity: authoring-system/binding/\<facet>/\<name>. Facets: operation. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/authoring-system/schemas/operation.schema.ia.

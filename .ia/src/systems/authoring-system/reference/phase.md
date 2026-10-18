@@ -2,6 +2,12 @@
 
 Defines a cognitive phase coordinate: orient, plan, act or learn.
 
+Select when: Name a cognitive stage used to select procedure cells.
+
+Avoid when: Use @primitive for the cognitive operation or @run for an execution instance.
+
+Before authoring: Use orient, plan, act or learn; a declared phase does not prove that execution reached it.
+
 Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: phase. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.

@@ -2,6 +2,12 @@
 
 Defines a cognitive primitive coordinate; a cell is selected using its phase and primitive.
 
+Select when: Name the cognitive operation paired with a phase to select a procedure cell.
+
+Avoid when: Use @move for an action classification or @intent-shape for request framing.
+
+Before authoring: Check cell coverage for explicit primitive selection and preserve intent-shape defaults when no override is given.
+
 Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: primitive. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.
