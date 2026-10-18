@@ -185,6 +185,10 @@ export function generateKernel(input: readonly KernelSource[]): GeneratedKernel 
   for (const record of records) {
     const assessment = validateSchema(record, registry, records);
     if (assessment.outcome !== 'pass') throw new Error(JSON.stringify(assessment));
+    if (record.discriminator !== 'system' && record.discriminator !== 'schema')
+      for (const key of ['says', 'answers'])
+        if (scalar(record, 'meaning', key).trim() === '')
+          throw new Error(`${record.identity}: meaning.${key} must not be blank`);
   }
   const emitted: Record<string, unknown> = {};
   const families: readonly [string, string][] = [
@@ -265,6 +269,8 @@ export function generateKernel(input: readonly KernelSource[]): GeneratedKernel 
   equal(emitted['BAND_OF'], CLOSED_CONTRACT.BAND_OF, 'BAND_OF');
   emitted['KIND_LANES'] = Object.fromEntries(
     family('kind').map((r) => {
+      if (r.name !== 'contract' && field(r, 'data', 'authority-lane') !== undefined)
+        throw new Error(`${r.identity}: authority-lane is only defined for contract`);
       const lane = scalar(r, 'data', 'lane');
       belongs([lane], CLOSED_CONTRACT.LANES, 'kind lane');
       return [r.name, lane];
@@ -288,10 +294,13 @@ export function generateKernel(input: readonly KernelSource[]): GeneratedKernel 
     const primitive = scalar(r, 'routing', 'primitive');
     belongs([primitive], CLOSED_CONTRACT.PRIMITIVES, 'shape primitive');
     const kinds = values(r, 'routing', 'kind-focus');
+    if (kinds.length === 0) throw new Error(`${r.identity}: shape kind-focus must not be empty`);
     belongs(kinds, CLOSED_CONTRACT.KINDS, 'shape kind-focus');
     const lanes = values(r, 'routing', 'lane-focus');
+    if (lanes.length === 0) throw new Error(`${r.identity}: shape lane-focus must not be empty`);
     belongs(lanes, CLOSED_CONTRACT.LANES, 'shape lane-focus');
     const focus = values(r, 'routing', 'predicate-focus');
+    if (focus.length === 0) throw new Error(`${r.identity}: shape predicate-focus must not be empty`);
     belongs(
       focus,
       pairs.map((p) => p[0]!),

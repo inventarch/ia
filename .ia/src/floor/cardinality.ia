@@ -16,8 +16,8 @@
 
 @cardinality optional
   meaning
-    says "Zero or one distinct target, including when the schema row uses must."
-    answers "May the row have no target even when it says must?"
+    says "A compatibility spelling for zero or one distinct target, including when the schema row uses must. Prefer may with one for new zero-or-one rows; both optional spellings remain admitted."
+    answers "Does this existing row allow zero or one target, even when it says must?"
   data
     order 2
 

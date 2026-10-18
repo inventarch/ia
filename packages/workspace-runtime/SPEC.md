@@ -1,5 +1,7 @@
 # Workspace runtime specification
 
+Captured `structured-v1` templates render their selected JSON resource. Legacy `parameters` and `lines` may be omitted or present as empty lists; nonempty, repeated or conditional legacy fields are refused. Scalar rendering still requires both fields through its own renderer contract. Resource disclosure, current scope and output validation remain mandatory in either form.
+
 ## Boundary
 
 `@inventarch/workspace-runtime` is the generic workspace runtime. It owns workspace capture and adoption, captured resources, projections, publication and candidates, templates, lifecycle, authoring index and manifest, installed catalog and source policy, sources, the local store and adapters, and the host files and definitions generated from authored records (W01 to W04), the host plugin rendered from a product `@distribution` (W05) and the lowering of a host plugin into records (W06). The composition compiler (catalog, compile, compiled, execution, fields, inputs, installed read, task capture, task context declaration, task teaching closure, draft tools) stays in `@inventarch/agent-composition-system`, which depends on this package. There is no reverse edge: no module here imports `@inventarch/agent-composition-system`, and `tests/boundary.test.ts` fails if one appears.

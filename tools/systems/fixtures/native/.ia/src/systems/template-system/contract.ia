@@ -8,7 +8,7 @@
   relationships
     governs @operation render-captured-template
   inputs
-    REQ-TMPL-SCOPE "Render only a structured-v1 @template occurrence in the selected capture and the explicit current scope, with a fixed portable filename, empty parameters and lines, and one required captured JSON template resource that the caller permits and the expected resources digest pins."
+    REQ-TMPL-SCOPE "Render only a structured-v1 @template occurrence in the selected capture and the explicit current scope, with a fixed portable filename, omitted or empty parameters and lines, and one required captured JSON template resource that the caller permits and the expected resources digest pins."
     REQ-TMPL-VALUES "Accept values as a JSON object, or JSON text without duplicate fields, that supplies every required declared input with its declared type, no unknown input or item field, within TEMPLATE_LIMITS."
   outputs
     REQ-TMPL-DRAFT "Return the draft path, text, byte count and sha256 with the capture, view and resources pins and a metadata digest; check .json output as JSON and .ia output by contextual preview in a complete scope; write nothing."

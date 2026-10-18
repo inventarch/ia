@@ -41,12 +41,36 @@ describe('native kernel generation', () => {
   it.each([
     ['kind.ia', '    lane authority', '    lane [authority]', 'IA-COMP-FIELD-TYPE'],
     ['kind.ia', '    lane authority', '    lane unknown', 'kind lane'],
+    [
+      'kind.ia',
+      '    lane authority',
+      '    lane authority\n    authority-lane bindings',
+      'authority-lane is only defined for contract',
+    ],
     ['kind.ia', '    order 0', '    order 1', 'kind order'],
     ['kind.ia', '    order 0', '    order 0\n    order 0', 'IA-COMP-FIELD-DUPLICATE'],
     ['kind.ia', '    order 0', '    order 0\n    ready true', 'IA-COMP-FIELD-UNKNOWN'],
     ['kind.ia', '@kind governance', '@kind extra', 'KINDS'],
     ['kind.ia', '  meaning', '  unexpected', 'IA-COMP-SECTION'],
     ['intent-shape.ia', '    category relation', '    category unknown', 'shape category'],
+    [
+      'intent-shape.ia',
+      '    kind-focus [definition, contract]',
+      '    kind-focus []',
+      'shape kind-focus must not be empty',
+    ],
+    [
+      'intent-shape.ia',
+      '    lane-focus [definitions, contracts]',
+      '    lane-focus []',
+      'shape lane-focus must not be empty',
+    ],
+    [
+      'intent-shape.ia',
+      '    predicate-focus [cite, ground, require]',
+      '    predicate-focus []',
+      'shape predicate-focus must not be empty',
+    ],
     ['intent-shape.ia', '    tie-precedence 4', '    tie-precedence 0', 'shape tie precedence'],
     [
       'axis.ia',
@@ -73,6 +97,17 @@ describe('native kernel generation', () => {
   ])('refuses %s mutation of %s before output', (file, before, after, error) => {
     expect(() => generateKernel(change(file!, before!, after!))).toThrow(error);
   });
+  it.each(['says', 'answers'])(
+    'requires nonblank kernel meaning.%s while ordinary text still admits empty text',
+    (key) => {
+      const source = sources.find((item) => item.path.endsWith('/category.ia'))!;
+      const before = source.text.split('\n').find((line) => line.trimStart().startsWith(`${key} `))!;
+      for (const value of ['""', '"   "'])
+        expect(() => generateKernel(change('category.ia', before, `    ${key} ${value}`))).toThrow(
+          `meaning.${key} must not be blank`,
+        );
+    },
+  );
   it('refuses extra unenrolled schemas and cross-file identity duplicates', () => {
     expect(() =>
       generateKernel([
