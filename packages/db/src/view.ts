@@ -25,6 +25,7 @@ import type { Assessment, Report, SystemFolder } from '@inventarch/compliance';
 import type { InputSnapshot } from './inputs.js';
 import { EVIDENCE_DIRECTORY, evidenceSource, systemMember } from './inputs.js';
 import { bindChecks } from './checks.js';
+import { conformanceOf } from './conformance.js';
 import { reproducesEvidence } from './evidence.js';
 import { runnerEvidenceSources } from './runner-evidence.js';
 import { declaredRoots, membershipOf } from './membership.js';
@@ -104,6 +105,11 @@ export interface View {
    */
   readonly authoredRevision: string;
   readonly report: Report;
+  /**
+   * D10a: the report as a view that does not verify conformance has it, `report` itself when this one does not. D14
+   * evidence is admitted from it, so the option never changes which evidence, and so which graph, a view reads.
+   */
+  readonly unverified: Report;
   readonly refused: readonly RefusedRecord[];
   /** Every record occurrence of the view's sources it does not admit, `refused` among them, by path then line. */
   readonly unadmitted: readonly UnadmittedRecord[];
@@ -288,35 +294,46 @@ export interface ViewOptions {
    * checks against a host's catalog.
    */
   readonly checks?: 'strict' | 'structural';
+  /**
+   * D10: `verify` runs compliance's `package-v1` conformance profile in-process (C31) and binds its COMP-KERNEL and
+   * COMP-FIXTURES evidence to each view's graph, so their verdicts are verified instead of not-evaluated; without it,
+   * as for every existing reader, nothing runs. Only the report differs: D14 evidence is admitted from the unverified
+   * report (`View.unverified`), so admission, the evidence read and the graph are the same.
+   */
+  readonly conformance?: 'verify';
 }
 /**
  * D14: the evidence file at `source` when it is exactly what the writer makes for the checks `root` admits
  * (`reproducesEvidence`): their bindings derived again from `root`'s own records and report, the times taken from the
  * file itself. A forged verdict, reason or record, an observation for a check not evaluated, a relationship, another
  * locator or revision, any byte the writer would not write, and anything written for another view, is not evidence.
- * Only built-in evaluators produce evidence, so no catalog takes part.
+ * Only built-in evaluators produce evidence, so no catalog takes part. The checks are bound from the unverified report
+ * (D10a), as the validate request binds them.
  */
 function writerEvidence(source: RevisionSource, root: View): RevisionSource | undefined {
   // The validate request records nothing for a refused admission, so no file is evidence for one.
-  if (root.report.findings.some((finding) => finding.severity === 'error')) return undefined;
+  if (root.unverified.findings.some((finding) => finding.severity === 'error')) return undefined;
   const records = [...root.graph.nodes.values()];
   return reproducesEvidence({
     authoredRevision: root.authoredRevision,
-    bindings: bindChecks(records, root.report, { status: 'unavailable', reason: 'no catalog takes part' }),
+    bindings: bindChecks(records, root.unverified, { status: 'unavailable', reason: 'no catalog takes part' }),
     records,
     text: source.text,
   })
     ? source
     : undefined;
 }
-/** What `view` admits of everything but the evidence at `path`: its findings, verdicts and refusals, revisions aside. */
+/**
+ * What `view` admits of everything but the evidence at `path`: its unverified findings, verdicts and refusals,
+ * revisions aside.
+ */
 function authoredAdmission(view: View, paths: ReadonlySet<string>): string {
   const evidence = new Set(
     [...view.graph.nodes.values()].filter((node) => paths.has(node.source.path)).map((node) => node.identity),
   );
   return stableSerialize({
-    findings: view.report.findings.filter((finding) => !paths.has(finding.path)),
-    verdicts: view.report.verdicts
+    findings: view.unverified.findings.filter((finding) => !paths.has(finding.path)),
+    verdicts: view.unverified.verdicts
       .filter((verdict) => !evidence.has(verdict.scope))
       .map((verdict) => ({
         check: verdict.check,
@@ -383,8 +400,8 @@ export function viewBuilder(
     }
   }
   // Runner evidence adds only generated journal claims. D14 validation reproduction above is unchanged and stands
-  // independently.
-  if (!root.report.findings.some((finding) => finding.severity === 'error')) {
+  // independently. Like it, it is decided from the unverified reports (D10a).
+  if (!root.unverified.findings.some((finding) => finding.severity === 'error')) {
     const runner = runnerEvidenceSources(input, root.authoredRevision, evidenced.graph);
     if (runner.length > 0) {
       const candidate = views(input, options, metadata, [...sources, ...runner]),
@@ -393,7 +410,7 @@ export function viewBuilder(
       if (
         authoredAdmission(result, paths) === authoredAdmission(evidenced, paths) &&
         !result.unadmitted.some((entry) => paths.has(entry.path)) &&
-        !result.report.findings.some((finding) => paths.has(finding.path) && finding.severity === 'error')
+        !result.unverified.findings.some((finding) => paths.has(finding.path) && finding.severity === 'error')
       ) {
         build = candidate;
         evidenced = result;
@@ -452,7 +469,9 @@ function views(
   const duplicates = requirementCollisions([...requirements.values()]);
   const duplicatePaths = new Set(duplicates.diagnostics.map((d) => d.path));
   const revisionSources = [...inputSources, metadata],
-    revisionInputs = { sources: revisionSources, languageVersion: LANGUAGE_VERSION, kernelDigest: KERNEL_DIGEST };
+    revisionInputs = { sources: revisionSources, languageVersion: LANGUAGE_VERSION, kernelDigest: KERNEL_DIGEST },
+    // D10: the graph's own revision inputs and the process's evidence, which compliance binds to each view's graph.
+    conformance = options.conformance === 'verify' ? conformanceOf(revisionInputs) : undefined;
   // D02a: the capture declares roots once, by the @workspace records the root view admits, and every view seats its
   // records by them, so a narrower root or phase never re-roots an occurrence. D02b decides the repository's own
   // @workspace at the same moment, for every view's path seats.
@@ -699,12 +718,15 @@ function views(
         repository = repositoryWorkspace(graph, declared);
       }
     } else if (declared === undefined) build();
-    const report = evaluate(graph, {
-      sourceDiagnostics,
-      folders: folders.filter((f) => !blockedFolders.has(f.path)),
-      admission: observations,
-      ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
-    });
+    const evaluated = {
+        sourceDiagnostics,
+        folders: folders.filter((f) => !blockedFolders.has(f.path)),
+        admission: observations,
+        ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
+      },
+      unverified = evaluate(graph, evaluated),
+      // D10a: the verified report is evaluated beside the unverified one, which D14 evidence is admitted from.
+      report = conformance === undefined ? unverified : evaluate(graph, { ...evaluated, conformance });
     const occurrence = (record: CompiledRecord, finding: UnadmittedFinding): UnadmittedRecord => ({
       identity: record.identity,
       word: record.discriminator,
@@ -736,6 +758,7 @@ function views(
       // Over the inputs and registry the graph's revision hashes, so the two differ only by runtime-placed sources.
       authoredRevision: authoredRevisionOf(registry, revisionInputs, [metadata.path]),
       report,
+      unverified,
       boundary,
       refused: Object.freeze(
         [...excluded.values()].sort((a, b) => compare(a.path, b.path) || a.line - b.line).map((r) => Object.freeze(r)),

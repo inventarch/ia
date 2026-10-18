@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Database readers can verify COMP-KERNEL and COMP-FIXTURES when asked",
+  "summary": "`open(root, options)`, `EditorDatabase` and `EditorSnapshot` accept `conformance: 'verify'`. With it, each view's report binds evidence from `@inventarch/compliance`'s `verifyKernel` and `verifyFixtures` (the in-process `package-v1` profile) to the opened graph, so COMP-KERNEL and COMP-FIXTURES carry real verdicts with `basis: 'verified'` and the report carries `conformance`, instead of both staying not-evaluated. The kernel is verified against the floor the workspace actually selected (embedded, explicit or local), so a local floor that differs from the embedded one by a single byte fails COMP-KERNEL and the report with it. The evidence is built once per process for the fixtures and once per floor for the kernel. Handle drafts and refreshes, and editor candidates, updates and refreshes, keep the option. Only reports change: admission, the graph, both revisions, membership, retention, the capture pair and the cache are the same with or without it, and `ia validate` evidence is admitted from the report the reader would have without it, so a verifying reader reads the same evidence as any other. Readers that do not pass it see no change at all: no producer runs and every report is as it was. The database specification's D10 is amended accordingly (D10a).",
+  "packages": [
+    "@inventarch/db"
+  ],
+  "paths": [
+    "packages/db/"
+  ]
+}

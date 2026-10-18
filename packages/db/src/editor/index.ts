@@ -18,14 +18,19 @@ export type { InputOptions } from '../inputs.js';
  * default for every caller that does not ask, admits a `@check` only when its runner is built in, as every released
  * reader has it; `structural` admits one naming any single evaluator, for the authoring paths that judge a candidate as
  * `ia validate` admits the workspace. The snapshot, its `preview` drafts, its candidates and every update or refresh
- * admit alike. Evidence is listed only when `evidence` asks for it, which the authoring paths never do.
+ * admit alike. Evidence is listed only when `evidence` asks for it, which the authoring paths never do. D10
+ * `conformance: 'verify'` verifies COMP-KERNEL and COMP-FIXTURES for the snapshot, its drafts, its candidates and every
+ * update or refresh alike; without it nothing runs.
  */
 export interface EditorOptions extends InputOptions {
   readonly checks?: 'strict' | 'structural';
+  readonly conformance?: 'verify';
 }
-/** The view options `options` selects: `structural` only when asked, else every existing reader's defaults. */
-const viewOf = (options: EditorOptions): ViewOptions =>
-  options.checks === 'structural' ? { checks: 'structural' } : {};
+/** The view options `options` selects: each only when asked, else every existing reader's defaults. */
+const viewOf = (options: EditorOptions): ViewOptions => ({
+  ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
+  ...(options.conformance === 'verify' ? { conformance: 'verify' as const } : {}),
+});
 
 export interface Overlay {
   readonly path: string;

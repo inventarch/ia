@@ -46,6 +46,11 @@ export interface OpenOptions extends InputOptions {
    * `.ia/.iadb/graph.json` only ever holds a strict, evidence-free graph.
    */
   readonly checks?: 'strict' | 'structural';
+  /**
+   * D10: `verify` binds verified COMP-KERNEL and COMP-FIXTURES evidence to every view's report, `preview` drafts and
+   * refreshes included (`ViewOptions.conformance`). The graph is the same either way, so the cache is too.
+   */
+  readonly conformance?: 'verify';
 }
 export interface ReadOptions {
   readonly root?: string;
@@ -537,6 +542,7 @@ export class Handle extends Reader {
       ...inputOptions(options),
       cache: options.checks === 'structural' || options.evidence === true ? false : (options.cache ?? true),
       ...(options.checks === 'structural' ? { checks: 'structural' as const } : {}),
+      ...(options.conformance === 'verify' ? { conformance: 'verify' as const } : {}),
     });
     const state = stableState(() => readInputs(root, selected), selected.cache, selected),
       canonical = state.inputs.root,
@@ -553,7 +559,10 @@ export class Handle extends Reader {
         },
       },
       selected.locations,
-      selected.checks === 'structural' ? { checks: 'structural' } : {},
+      {
+        ...(selected.checks === 'structural' ? { checks: 'structural' as const } : {}),
+        ...(selected.conformance === 'verify' ? { conformance: 'verify' as const } : {}),
+      },
     );
     this.#options = selected;
     Object.freeze(this);
