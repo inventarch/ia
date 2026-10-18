@@ -34,6 +34,28 @@ const result = {
   coverage: { stages: ['grounding'], filesRead: 1, fullUnchangedFiles: [] },
 };
 const expected = { repository: result.repository, pr: result.pr, head: result.head, subject: result.subject };
+it('refuses evidence replaced between inspection and reading, including a parent-directory junction', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-review-race-'));
+  if (dirname(root) !== resolve(tmpdir())) throw new Error('Unsafe fixture cleanup');
+  try {
+    const probe = `import fs from 'node:fs'; import assert from 'node:assert/strict'; import {syncBuiltinESMExports} from 'node:module'; import {resolve} from 'node:path';
+const root=process.argv[2], task=resolve(root,'task'), outside=resolve(root,'outside'), target=resolve(task,'evidence.json');
+fs.mkdirSync(task); fs.mkdirSync(outside); fs.writeFileSync(target,'{}'); fs.writeFileSync(resolve(outside,'evidence.json'),'{"outside":true}');
+const original=fs.lstatSync; let changed=false;
+fs.lstatSync=function(path,...args){const stat=original.call(fs,path,...args); if(!changed&&resolve(String(path))===target){changed=true;fs.renameSync(task,resolve(root,'retained'));fs.symlinkSync(outside,task,'junction');}return stat;};
+syncBuiltinESMExports(); const {evidenceFiles}=await import(process.argv[1]);
+assert.throws(()=>evidenceFiles(root,[]),/alias|link|changed/i); assert.equal(changed,true); console.log('race refused');`;
+    const child = spawnSync(
+      process.execPath,
+      ['--input-type=module', '-e', probe, new URL('./subject.mjs', import.meta.url).href, root],
+      { encoding: 'utf8', timeout: 30000, windowsHide: true },
+    );
+    expect(child.status, child.stdout + child.stderr).toBe(0);
+    expect(child.stdout).toContain('race refused');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 it.each([{ repository: 'other/repo' }, { pr: 8 }, { head: 'f'.repeat(40) }, { subject: 'f'.repeat(64) }])(
   'refuses a returned result bound to another subject: %j',
   async (replacement) => {

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync } from 'node:fs';
+import { readRegular } from '../shared/paths.mjs';
 import { dirname, resolve } from 'node:path';
 import { resolveRun, pages, integer, pinnedSha, DEFAULT_UPSTREAM_WORKFLOW } from './github.mjs';
 
@@ -51,14 +52,15 @@ export function evidenceFiles(directory, omissions) {
         omissions.push(`Evidence omitted by disclosure bound: ${name}`);
         continue;
       }
-      const content = readFileSync(path, 'utf8');
+      const buffer = readRegular(directory, name, Math.min(600000, 800000 - bytes));
+      const content = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
       try {
         JSON.parse(content);
       } catch {
         throw new Error(`Invalid JSON in gate evidence: ${name}`);
       }
       reports.push({ name, digest: digest(content), content });
-      bytes += stat.size;
+      bytes += buffer.length;
     }
   };
   visit();
