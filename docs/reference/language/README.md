@@ -195,3 +195,11 @@ A requirement or check has three outcomes: `pass` means its evaluator observed t
 - [Language](../../../packages/language/SPEC.md), [graph](../../../packages/graph/SPEC.md) and [compliance](../../../packages/compliance/SPEC.md) package contracts
 - [Public-language examples](../../../examples/public-language/README.md) and the [architecture reference](../architecture/README.md)
 - [Root README](../../../README.md) and the [CLI guide](../../../apps/cli/README.md)
+
+## Compatibility guidance for floor vocabulary
+
+For a new optional singleton relationship, write `may cite <word> one` (or the needed predicate). Both `may … optional` and `must … optional` remain valid compatibility spellings for zero or one target; `must … optional` does not require presence. No existing schema needs rewriting.
+
+The `projection` artifact set includes an authored rendering or packaging specification, such as a template or distribution, as well as its generated output. The authored sources remain authoritative over the output. A registration's artifact-set describes its role; it does not assert that the record was generated or that rendering or packaging ran.
+
+A position may explicitly select any kernel primitive with `--primitive`, including Memory and Escalation. Without it, shape supplies the primitive; an omitted phase follows the selected primitive's anchor. Legacy coordinate-based context and select requests still declare the primitive themselves.
