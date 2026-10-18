@@ -1,7 +1,7 @@
 import { renderScalarTemplate, TemplateError } from '@inventarch/template-system';
-import { draftPath, evidence, fail, object, preview, string } from '../../../../tools/systems/shared.js';
-import { ExecutionError } from '../../../../tools/systems/types.js';
-import type { Context, Product } from '../../../../tools/systems/types.js';
+import { draftPath, evidence, fail, object, preview, string } from '@inventarch/runtime/authoring-execution';
+import { ExecutionError } from '@inventarch/runtime/authoring-execution';
+import type { Context, Product } from '@inventarch/runtime/authoring-execution';
 
 export function renderTemplate(context: Context, input: unknown): Product {
   const args = object(input, ['template', 'values']),

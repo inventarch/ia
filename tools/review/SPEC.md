@@ -1,4 +1,50 @@
-# InventArch advisory PR review caller
+# review tooling contract
+
+## Purpose
+
+Collect an advisory review subject, call the review service, validate its identity and render/deliver results.
+
+## Modules
+
+- [github.mjs](github.mjs).
+- [render.mjs](render.mjs).
+- [result.mjs](result.mjs).
+- [runner.d.mts](runner.d.mts) — interface declaration; implementation checking is tracked separately.
+- [runner.mjs](runner.mjs).
+- [runner.test.ts](runner.test.ts) — behavior and refusal coverage.
+- [subject.mjs](subject.mjs).
+
+## Commands
+
+No public pnpm entry; callers import the modules or use the manual contract below.
+
+Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
+
+## Inputs
+
+Pinned repository/PR/head, source blobs, gate evidence, independent GitHub protection/ruleset reads and service responses.
+
+## Outputs
+
+Preparation writes a bounded packet; service invocation writes its bound result; delivery writes only its explicitly selected GitHub advisory outputs.
+
+## Prerequisites
+
+Bare Node with built-ins and relative modules; credentials and network are needed only by invoked external operations.
+
+## Validation
+
+Task ownership: `tools:test-review`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
+
+## Invariants
+
+All four result identity fields match the original packet before persistence/delivery. Invalid UTF-8 is explicitly omitted; malformed gate evidence refuses. Partial policy reads never imply complete checks.
+
+## Limits
+
+Advisory output cannot approve or merge a PR. Truncation, missing evidence and denied policy reads remain visible limitations.
+
+## Detailed behavior
 
 This owner contains the dependency-free Node 22 caller, its TypeScript declarations and behavioral tests. The [workflow](../../.github/workflows/inventarch-review.yml) loads the caller from the default branch after a completed Public quality pull-request run, or through manual dispatch with that run's ID. Repository configuration explicitly enables it; [README.md](README.md) describes the API binding and activation variables.
 

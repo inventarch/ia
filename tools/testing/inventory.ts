@@ -3,7 +3,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
 import ts from 'typescript';
-import { gitFiles } from '../docs/check.js';
+import { gitFiles } from '../../packages/runtime/src/authoring-execution/inventory.js';
 
 export const SCHEMA_VERSION = 1;
 export const PLATFORMS = ['linux', 'windows', 'macos'] as const;

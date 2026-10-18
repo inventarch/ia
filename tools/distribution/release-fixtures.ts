@@ -10,7 +10,7 @@ import { readInputs } from '@inventarch/db';
 import { distributionSnapshot } from '../../apps/distribution/src/snapshot.js';
 import { systemArchivePartitions, type NativeSystemOwner } from '../release/system-partitions.js';
 import { COMPATIBILITY, PUBLIC_SYSTEM_POLICY, publicPackageInputs } from '../release/public-pack.mjs';
-import { runBounded } from '../testing/subprocess.js';
+import { runBounded } from '@tools/testing/subprocess.js';
 import { publicPackages, type PackageManifest } from './npm-release.mjs';
 import { committedChanges, type Changeset, type ReleasePolicy } from './release-changes.mjs';
 

@@ -1,4 +1,106 @@
-# Public emitted qualification
+# distribution tooling contract
+
+## Purpose
+
+Generate public and authoring resources, assemble host payloads, qualify installed packages and currently host npm automation.
+
+## Modules
+
+- [generate-public.d.mts](generate-public.d.mts) — interface declaration; implementation checking is tracked separately.
+- [generate-public.mjs](generate-public.mjs).
+- [github-release.d.mts](github-release.d.mts) — interface declaration; implementation checking is tracked separately.
+- [github-release.mjs](github-release.mjs).
+- [github-release.test.ts](github-release.test.ts) — behavior and refusal coverage.
+- [host-payload.d.mts](host-payload.d.mts) — interface declaration; implementation checking is tracked separately.
+- [host-payload.mjs](host-payload.mjs).
+- [host-payload.test.ts](host-payload.test.ts) — behavior and refusal coverage.
+- [installed-consumer.d.mts](installed-consumer.d.mts) — interface declaration; implementation checking is tracked separately.
+- [installed-consumer.mjs](installed-consumer.mjs).
+- [installed-views.d.mts](installed-views.d.mts) — interface declaration; implementation checking is tracked separately.
+- [installed-views.mjs](installed-views.mjs).
+- [installed-views.test.ts](installed-views.test.ts) — behavior and refusal coverage.
+- [language-guide.test.ts](language-guide.test.ts) — behavior and refusal coverage.
+- [npm-consumer.mjs](npm-consumer.mjs).
+- [npm-registry-consumer.mjs](npm-registry-consumer.mjs).
+- [npm-release.d.mts](npm-release.d.mts) — interface declaration; implementation checking is tracked separately.
+- [npm-release.mjs](npm-release.mjs).
+- [npm-release.test.ts](npm-release.test.ts) — behavior and refusal coverage.
+- [public-content-policy.json](public-content-policy.json) — explicit policy or execution data.
+- [qualify-packages.mjs](qualify-packages.mjs).
+- [qualify-public.mjs](qualify-public.mjs).
+- [release-branch.mjs](release-branch.mjs).
+- [release-branch.test.ts](release-branch.test.ts) — behavior and refusal coverage.
+- [release-changes.d.mts](release-changes.d.mts) — interface declaration; implementation checking is tracked separately.
+- [release-changes.mjs](release-changes.mjs).
+- [release-fixtures.ts](release-fixtures.ts).
+- [release-graph.d.mts](release-graph.d.mts) — interface declaration; implementation checking is tracked separately.
+- [release-graph.mjs](release-graph.mjs).
+- [release-hygiene.test.ts](release-hygiene.test.ts) — behavior and refusal coverage.
+- [release-notes.d.mts](release-notes.d.mts) — interface declaration; implementation checking is tracked separately.
+- [release-notes.mjs](release-notes.mjs).
+- [release-packages.d.mts](release-packages.d.mts) — interface declaration; implementation checking is tracked separately.
+- [release-packages.mjs](release-packages.mjs).
+- [release-refusals.test.ts](release-refusals.test.ts) — behavior and refusal coverage.
+- [release-setup-auth.d.mts](release-setup-auth.d.mts) — interface declaration; implementation checking is tracked separately.
+- [release-setup-auth.mjs](release-setup-auth.mjs).
+- [release-setup-auth.test.ts](release-setup-auth.test.ts) — behavior and refusal coverage.
+- [release-setup-metadata.d.mts](release-setup-metadata.d.mts) — interface declaration; implementation checking is tracked separately.
+- [release-setup-metadata.mjs](release-setup-metadata.mjs).
+- [release-setup-metadata.test.ts](release-setup-metadata.test.ts) — behavior and refusal coverage.
+- [release-setup.d.mts](release-setup.d.mts) — interface declaration; implementation checking is tracked separately.
+- [release-setup.mjs](release-setup.mjs).
+- [release-setup.test.ts](release-setup.test.ts) — behavior and refusal coverage.
+- [release-version.d.mts](release-version.d.mts) — interface declaration; implementation checking is tracked separately.
+- [release-version.mjs](release-version.mjs).
+- [release-versioning.test.ts](release-versioning.test.ts) — behavior and refusal coverage.
+- [resources.mjs](resources.mjs).
+- [system-package-policy.json](system-package-policy.json) — explicit policy or execution data.
+
+## Commands
+
+- `pnpm host-payload:generate`: `node tools/distribution/host-payload.mjs --write`.
+- `pnpm public:qualify`: `node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs && pnpm packages:qualify`.
+- `pnpm public:generate`: `node tools/distribution/generate-public.mjs --write`.
+- `pnpm packages:qualify`: `node tools/distribution/qualify-packages.mjs`.
+- `pnpm npm:prepare`: `node tools/distribution/release-changes.mjs check --strict && pnpm native:release:check && pnpm build && node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs && pnpm packages:qualify --pack-destination artifacts/npm`.
+- `pnpm npm:plan`: `node tools/distribution/npm-release.mjs plan`.
+- `pnpm npm:consumer`: `node tools/distribution/npm-consumer.mjs`.
+- `pnpm npm:trust-commands`: `node tools/distribution/npm-release.mjs trust-commands`.
+- `pnpm npm:setup`: `node tools/distribution/release-setup.mjs`.
+- `pnpm release:check`: `node tools/distribution/release-changes.mjs check`.
+- `pnpm release:note`: `node tools/distribution/release-notes.mjs add`.
+- `pnpm release:version`: `node tools/distribution/release-version.mjs`.
+- `pnpm release:collect`: `node tools/distribution/release-changes.mjs collect`.
+- `pnpm npm:preflight`: `node tools/distribution/npm-release.mjs preflight`.
+- `pnpm npm:verify-registry`: `node tools/distribution/npm-release.mjs verify-registry`.
+
+Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
+
+## Inputs
+
+Public package manifests/exports, authored resource guides, policy JSON, built host closures, release receipts and selected archives.
+
+## Outputs
+
+Explicit generators write public resources and CLI host assets. Qualifiers write only owned installations/evidence. Release/setup mutations require their explicit modes and authorization.
+
+## Prerequisites
+
+Host payload needs built closure packages. Ordinary qualification and sealed release preparation have different trust predicates. Workflow-loaded release entries keep a built-in/relative-module closure.
+
+## Validation
+
+Task ownership: `tools:test-distribution`, `tools:test-installed-views`, `host-payload:generate`, `public:qualify`, `tools:test-npm-release`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
+
+## Invariants
+
+Current package namespace assertions test actual forbidden payload entries. Only trust-command emission bypasses fresh seals. Release branches refuse foreign commits and lease the inspected head; setup uses validated private npm installation.
+
+## Limits
+
+Npm automation moves to an intermediate owner after recipe parity work. Live registry/settings/publication results cannot be inferred from local mocks.
+
+## Detailed behavior
 
 Exercises built authoring/resource APIs, public guide resolution and host projection success/refusal against the public native tree.
 

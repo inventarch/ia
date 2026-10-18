@@ -53,3 +53,5 @@ The tooling establishes completeness and freshness, not accuracy. A reviewer jud
 - [Release tooling contract](../tools/release/SPEC.md): coordinated and native versioning rules
 - [Contributing guide](../CONTRIBUTING.md#release-notes) and the [changelog](../CHANGELOG.md)
 - [Root README](../README.md)
+
+The maintained [publishing guide](../tools/distribution/NPM-PUBLISHING.md) owns the release sequence. [Setup](../tools/distribution/SETUP.md) covers account and repository readiness separately. Ordinary tooling validation does not authorize a new release seal, publication or a release-branch amendment.

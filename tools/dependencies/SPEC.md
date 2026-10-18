@@ -1,4 +1,45 @@
-# Package dependency check
+# dependencies tooling contract
+
+## Purpose
+
+Discover component imports and enforce the explicit package/host dependency policy.
+
+## Modules
+
+- [check.test.ts](check.test.ts) — behavior and refusal coverage.
+- [check.ts](check.ts).
+
+## Commands
+
+- `pnpm dependencies:check`: `node --import tsx tools/dependencies/check.ts`.
+
+Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
+
+## Inputs
+
+Package/app/native-system manifests and every scanned source file, including new files; TypeScript syntax trees resolve literal imports and require forms.
+
+## Outputs
+
+Read-only findings and nonzero status; never rewrites package manifests.
+
+## Prerequisites
+
+Pinned TypeScript installation, source tree only.
+
+## Validation
+
+Task ownership: `tools:test-dependencies`, `dependencies:check`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
+
+## Invariants
+
+Unlisted component policy and prohibited imports refuse. Adding a file or changing a dependency manifest invalidates the gate through dependency-policy inputs.
+
+## Limits
+
+This repository architecture policy is not a generic language restriction; dynamic loading requires the explicit supported patterns.
+
+## Detailed behavior
 
 PT5 adds `@inventarch/authoring-system` with public db/language/runtime dependencies. Composition imports that owner for scoped engine draft tools. Distribution has an explicit additional host dependency on authoring-system for identical contextual formatting; no foundation package imports this upper owner. Source-relative Stage E wrappers remain repository tooling and delegate to the public package.
 

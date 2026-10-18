@@ -26,6 +26,59 @@ export interface OwnerAudit {
   readonly surface?: Surface;
   readonly folders: readonly { path: string; spec: string }[];
 }
+const TOOL_SECTIONS = [
+  'Purpose',
+  'Modules',
+  'Commands',
+  'Inputs',
+  'Outputs',
+  'Prerequisites',
+  'Validation',
+  'Invariants',
+  'Limits',
+];
+/** Structural minimum; semantic accuracy still requires an independent review. */
+export function toolContractFindings(
+  owner: string,
+  source: string,
+  members: readonly string[],
+  references: { scripts: ReadonlySet<string>; tasks: ReadonlySet<string> } = { scripts: new Set(), tasks: new Set() },
+): string[] {
+  const findings = TOOL_SECTIONS.filter((section) => !source.split(/\r?\n/).includes(`## ${section}`)).map(
+    (section) => `${owner}/SPEC.md: missing ${section} contract section`,
+  );
+  for (const member of members.filter(
+    (path) => dirname(path).replaceAll('\\', '/') === owner && /\.(?:[cm]?[jt]s|json)$/.test(path),
+  )) {
+    const name = member.slice(owner.length + 1);
+    if (!source.includes(`](${name})`)) findings.push(`${owner}/SPEC.md: module map omits ${name}`);
+  }
+  // These sections declare executable references. Examples and historical prose elsewhere are not commands.
+  const sections = source.split(/^## /m).filter((section) => /^(?:Commands|Validation)\r?\n/.test(section));
+  for (const section of sections) {
+    for (const [, span] of section.matchAll(/`([^`\n]+)`/g))
+      for (const [, body] of span!.matchAll(/\bpnpm\b(?:\s+([^&;|]*))?/g)) {
+        const args = (body ?? '').trim().split(/\s+/).filter(Boolean);
+        let index = 0;
+        while (['--silent', '-s'].includes(args[index] ?? '')) index += 1;
+        const explicitRun = args[index] === 'run';
+        if (explicitRun) index += 1;
+        while (['--silent', '-s'].includes(args[index] ?? '')) index += 1;
+        const script = args[index];
+        if (!script || script.startsWith('-'))
+          findings.push(`${owner}/SPEC.md: unsupported pnpm root-script reference ${script ?? '(missing script)'}`);
+        else if ((explicitRun || !['exec', 'install', 'store'].includes(script)) && !references.scripts.has(script))
+          findings.push(`${owner}/SPEC.md: unknown pnpm script ${script}`);
+      }
+    for (const [, row] of section.matchAll(/^Task ownership:\s*(.+)$/gm)) {
+      const declared = row!.match(/^((?:`[^`]+`(?:,\s*)?)+)\./)?.[1];
+      if (!declared) findings.push(`${owner}/SPEC.md: malformed task ownership declaration`);
+      for (const [, task] of (declared ?? '').matchAll(/`([^`]+)`/g))
+        if (!references.tasks.has(task!)) findings.push(`${owner}/SPEC.md: unknown task ${task}`);
+    }
+  }
+  return [...new Set(findings)];
+}
 export function auditRepository(root: string, inventory: readonly string[] = gitFiles(root)) {
   const files = [...new Set(inventory)].sort(),
     present = new Set(files),
@@ -69,10 +122,29 @@ export function auditRepository(root: string, inventory: readonly string[] = git
     if (!/^#\s+\S/m.test(readFileSync(resolve(root, path), 'utf8')))
       failures.push(`${path}: empty or untitled contract`);
   }
+  const references = { scripts: new Set<string>(), tasks: new Set<string>() };
+  for (const path of ['package.json', 'tools/testing/tasks.json']) {
+    if (!safe.has(path)) continue;
+    try {
+      const value = JSON.parse(readFileSync(resolve(root, path), 'utf8')) as {
+        scripts?: Record<string, unknown>;
+        tasks?: { id?: unknown }[];
+      };
+      if (path === 'package.json') {
+        for (const script of Object.keys(value.scripts ?? {})) references.scripts.add(script);
+      } else if (Array.isArray(value.tasks)) {
+        for (const task of value.tasks) if (typeof task.id === 'string') references.tasks.add(task.id);
+      }
+    } catch {
+      failures.push(`${path}: unreadable command reference manifest`);
+    }
+  }
   const owners: OwnerAudit[] = [];
   for (const [owner, members] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
     const spec = owner === '.' ? 'SPEC.md' : `${owner}/SPEC.md`;
     if (!present.has(spec) || !safe.has(spec)) failures.push(`${owner}: missing colocated SPEC.md`);
+    else if (/^tools\/[^/]+$/.test(owner))
+      failures.push(...toolContractFindings(owner, readFileSync(resolve(root, spec), 'utf8'), members, references));
     const directories = new Set<string>([owner]);
     for (const member of members) {
       let directory = normalize(dirname(member));

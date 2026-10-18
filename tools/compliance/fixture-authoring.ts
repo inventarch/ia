@@ -1,8 +1,8 @@
 import { FLOOR_SYSTEM, KERNEL_DIGEST, LANGUAGE_VERSION } from '../../packages/language/src/index.js';
 import { revisionOf } from '../../packages/graph/src/index.js';
 import type { ClauseResult } from '../../packages/compliance/src/index.js';
-import { checkNative } from './check.js';
-import type { NativeInput } from './compile.js';
+import { checkNative } from '../native/check.js';
+import type { NativeInput } from '../native/compile.js';
 
 export const FOUNDATION_ADOPTER = 'workspace-system/definition/workspace/foundation-workspace';
 export const FOUNDATION_CONTRACT = 'compliance-system/contract/signature/foundation-authoring-contract';

@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "allowJs": true, "checkJs": true },
+  "include": ["tools/shared/**/*.mjs", "tools/entry/*.mjs"]
+}

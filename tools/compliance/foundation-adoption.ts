@@ -1,6 +1,6 @@
 import type { AdoptionEvaluators, ClauseEvaluator, ClauseResult } from '../../packages/compliance/src/index.js';
-import { FOUNDATION_ADOPTER, FOUNDATION_CONTRACT } from '../native/fixture-authoring.js';
-import type { FoundationEvidence, FoundationObservationId } from '../native/fixture-authoring.js';
+import { FOUNDATION_ADOPTER, FOUNDATION_CONTRACT } from './fixture-authoring.js';
+import type { FoundationEvidence, FoundationObservationId } from './fixture-authoring.js';
 
 const requirements: Readonly<Record<string, readonly FoundationObservationId[]>> = {
   'REQ-FOUNDATION-INPUT': ['input'],

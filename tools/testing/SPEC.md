@@ -1,4 +1,67 @@
-# Modular test execution tooling
+# testing tooling contract
+
+## Purpose
+
+Own the explicit task inventory, scheduling, execution, evidence and resource lifecycle.
+
+## Modules
+
+- [check-declarations.mjs](check-declarations.mjs) — checks entry JavaScript and emits its declarations in memory; explicit `--write` validates all output paths and replaces changed declarations atomically.
+- [cache.test.ts](cache.test.ts) — behavior and refusal coverage.
+- [cold-start.test.ts](cold-start.test.ts) — behavior and refusal coverage.
+- [inventory.test.ts](inventory.test.ts) — behavior and refusal coverage.
+- [inventory.ts](inventory.ts).
+- [nx-plugin.mjs](nx-plugin.mjs).
+- [orchestrate.ts](orchestrate.ts).
+- [plan.test.ts](plan.test.ts) — behavior and refusal coverage.
+- [plan.ts](plan.ts).
+- [report.test.ts](report.test.ts) — behavior and refusal coverage.
+- [report.ts](report.ts).
+- [resources.test.ts](resources.test.ts) — behavior and refusal coverage.
+- [resources.ts](resources.ts).
+- [run.ts](run.ts).
+- [schedule.json](schedule.json) — explicit policy or execution data.
+- [subprocess.test.ts](subprocess.test.ts) — behavior and refusal coverage.
+- [subprocess.ts](subprocess.ts).
+- [tasks.json](tasks.json) — explicit policy or execution data.
+- [timeouts.ts](timeouts.ts).
+- [workflow.ts](workflow.ts).
+
+## Commands
+
+- `pnpm tests:inventory`: `node --import tsx tools/testing/inventory.ts`.
+- `pnpm tests:plan`: `node --import tsx tools/testing/plan.ts`.
+- `pnpm tests:run`: `node --import tsx tools/testing/run.ts`.
+- `pnpm tests:orchestrate`: `node --import tsx tools/testing/orchestrate.ts`.
+- `pnpm tests:gate`: `node --import tsx tools/testing/report.ts`.
+
+Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
+
+## Inputs
+
+tasks.json, schedule.json, workspace package and Vitest configurations, actual Vitest discovery, Nx named inputs, runtime/environment coordinates and evidence files.
+
+## Outputs
+
+Inventory/planning read source. Execution writes only declared products/evidence and owned temporary fixtures. Schedule recording writes its explicit output.
+
+## Prerequisites
+
+Pinned pnpm dependencies; inventory and planning work without built output. Selected orchestration produces declared build and payload prerequisites.
+
+## Validation
+
+Task ownership: `tools:test-testing`, `tools:test-cache`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
+
+## Invariants
+
+Every test belongs to one task; IDs, timeout profiles, dependencies, input profiles and output ownership are validated. Restored evidence is labelled and a missing task cannot count as a pass.
+
+## Limits
+
+Scheduling history estimates cost, not correctness. Cache validity depends on complete inputs; cache bypass is not a clean checkout.
+
+## Detailed behavior
 
 Owns the task manifest, the inventory and planning commands, the report and gate schema, and the reusable execution primitives named in the modular test execution contract. These are read-only developer tools plus one runner; they schedule and report work, and they neither weaken an assertion nor establish that a cached result was computed from complete inputs.
 

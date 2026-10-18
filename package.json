@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm language-base:generate && pnpm kernel:check && pnpm public-language:check && pnpm vocabulary:check && pnpm -r build && pnpm host-payload:generate",
-    "typecheck": "pnpm -r typecheck && tsc -p tsconfig.tools.json",
+    "typecheck": "pnpm -r typecheck && tsc -p tsconfig.tools.json && pnpm tools:typecheck-js",
     "test": "pnpm build && pnpm --workspace-concurrency=1 -r test --maxWorkers=1 && vitest run --config vitest.tools.config.mts --maxWorkers=1",
     "docs:structure": "node tools/docs/catalog.mjs",
     "docs:links": "node tools/docs/catalog.mjs --links",
@@ -60,7 +60,8 @@
     "npm:preflight": "node tools/distribution/npm-release.mjs preflight",
     "npm:verify-registry": "node tools/distribution/npm-release.mjs verify-registry",
     "native:version": "node --conditions=development --import tsx tools/release/native-version.ts",
-    "native:release:check": "node --conditions=development --import tsx tools/release/native-version.ts --check"
+    "native:release:check": "node --conditions=development --import tsx tools/release/native-version.ts --check",
+    "tools:typecheck-js": "tsc -p tsconfig.tools-js.json"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

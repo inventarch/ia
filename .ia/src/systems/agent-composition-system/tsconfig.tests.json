@@ -1,1 +1,1 @@
-{ "extends": "../../../../tsconfig.base.json", "compilerOptions": { "noEmit": true }, "include": ["src/**/*.ts", "tests/**/*.ts"] }
+{ "extends": "../../../../tsconfig.base.json", "compilerOptions": { "noEmit": true, "paths": { "@tools/testing/*": ["../../../../tools/testing/*"] } }, "include": ["src/**/*.ts", "tests/**/*.ts"] }

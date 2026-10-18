@@ -57,3 +57,5 @@ Pull requests from forks run the public workflow without any privileged cache or
 This repository is licensed under [Apache-2.0](LICENSE). Under section 5 of that licence, any contribution you intentionally submit for inclusion is licensed under Apache-2.0, without additional terms, unless you explicitly state otherwise. There is currently no separate contributor licence agreement or developer certificate of origin. Section 6 of the licence grants no trademark permission; the InventArch name and marks remain with their owner.
 
 Keep [NOTICE](NOTICE) and the package-local licence files intact, and add third-party attribution where you introduce third-party material.
+
+Tooling owners document their module map, command behavior, input/output contract, prerequisites and limits in each `tools/<owner>/SPEC.md`. `pnpm tools:typecheck-js` checks no-install JavaScript implementations; `pnpm tests:inventory` and the cold-start/cache suites verify declared execution contracts. Release setup is described in [SETUP.md](tools/distribution/SETUP.md); the release sequence is in [NPM-PUBLISHING.md](tools/distribution/NPM-PUBLISHING.md).

@@ -1,5 +1,5 @@
+import { gitText } from '../shared/git.mjs';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -29,8 +29,7 @@ import { publicPackages } from './release-packages.mjs';
 export const EDITOR_MANIFEST = 'apps/vscode/package.json';
 export const EDITOR_NOTICES = 'apps/vscode/THIRD_PARTY_NOTICES.txt';
 const json = (root, path) => JSON.parse(readFileSync(resolve(root, path), 'utf8'));
-const git = (root, ...args) =>
-  execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024 }).trim();
+const git = (root, ...args) => gitText(root, args);
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const sentence = (text) => text.trim().replace(/\.?$/, '.');
 const generatedSummary = (version, count, titles) =>

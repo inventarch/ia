@@ -1,5 +1,16 @@
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "allowJs": true },
-  "include": ["tools/**/*.ts"]
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "paths": {
+      "@tools/testing/*": [
+        "./tools/testing/*"
+      ]
+    }
+  },
+  "include": [
+    "tools/**/*.ts",
+    "packages/workspace-runtime/tests/support/**/*.ts"
+  ]
 }

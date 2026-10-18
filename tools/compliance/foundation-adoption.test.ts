@@ -5,8 +5,8 @@ import { validateAdoption } from '../../packages/compliance/src/index.js';
 import { inputs as fixtureInputs } from '../../packages/compliance/tests/native.js';
 import { compileNative } from '../native/compile.js';
 import type { NativeInput } from '../native/compile.js';
-import { observeFoundationAuthoring } from '../native/fixture-authoring.js';
-import type { FoundationEvidence } from '../native/fixture-authoring.js';
+import { observeFoundationAuthoring } from './fixture-authoring.js';
+import type { FoundationEvidence } from './fixture-authoring.js';
 import { foundationAdoptionEvaluators } from './foundation-adoption.js';
 
 const native = {

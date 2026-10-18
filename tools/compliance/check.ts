@@ -18,7 +18,7 @@ import type { Finding, LanguageFixture } from '../../packages/compliance/src/ind
 import { assess } from '../../packages/compliance/src/types.js';
 import { inputs as fixtureInputs } from '../../packages/compliance/tests/native.js';
 import { compileNative } from '../native/compile.js';
-import { observeFoundationAuthoring } from '../native/fixture-authoring.js';
+import { observeFoundationAuthoring } from './fixture-authoring.js';
 import { foundationAdoptionEvaluators } from './foundation-adoption.js';
 import { generateKernel, readKernel } from '../kernel/generate.js';
 import { runRefusalFixtures } from '../../packages/compliance/fixtures/refusals.js';
@@ -33,8 +33,8 @@ import {
 import { runEvidenceFixtures } from './evidence-fixtures.js';
 import { INVENTORY_PATH, checkInventory } from './inventory.js';
 import { runHookFixtures } from './hook-fixtures.js';
-import { EXEC_CODES } from '../systems/types.js';
-import { executionFixtureCodes, runExecutionFixtures } from '../systems/refusal-fixtures.js';
+import { EXEC_CODES } from '@inventarch/runtime/authoring-execution';
+import { executionFixtureCodes, runExecutionFixtures } from './execution-fixtures.js';
 import { publicationFixtureCodes, runPublicationFixtures } from './publication-fixtures.js';
 
 export function readFixtures(root: string): { fixtures: LanguageFixture[]; strays: string[] } {

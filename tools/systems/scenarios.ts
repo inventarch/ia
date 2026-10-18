@@ -4,8 +4,8 @@ import { resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
 import { open } from '../../packages/db/src/index.js';
 import { execute, OPERATION_NAMES } from './execute.js';
-import { field, text, object, string } from './shared.js';
-import type { Result } from './types.js';
+import { field, text, object, string } from '@inventarch/runtime/authoring-execution';
+import type { Result } from '@inventarch/runtime/authoring-execution';
 
 /** Test-only composition of real read-only operations. Production dispatch never recognizes this envelope. */
 export function prepareScenario(

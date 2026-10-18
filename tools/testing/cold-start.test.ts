@@ -27,7 +27,7 @@ it(
       execFileSync('git', ['clone', '--no-local', '--quiet', source, root], { timeout: 120_000, windowsHide: true });
       const changed = new Set(
         [
-          ...execFileSync('git', ['diff', 'HEAD', '--name-only', '-z'], {
+          ...execFileSync('git', ['diff', 'HEAD', '--no-renames', '--name-only', '-z'], {
             cwd: source,
             encoding: 'utf8',
             timeout: 30_000,

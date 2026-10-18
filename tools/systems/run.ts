@@ -3,7 +3,7 @@ import { isAbsolute, resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
 import { execute, refusal } from './execute.js';
 import { publish } from './publish.js';
-import { ExecutionError } from './types.js';
+import { ExecutionError } from '@inventarch/runtime/authoring-execution';
 
 export function run(
   args: readonly string[],

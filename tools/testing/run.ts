@@ -1,4 +1,5 @@
 import '../temp/physical-temp.mjs';
+import { parseOptions } from '../shared/args.mjs';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
@@ -165,10 +166,13 @@ export async function runTask(root: string, id: string): Promise<GateEvidence> {
 }
 
 if (isEntry(process.argv[1], import.meta.url)) {
-  const args = process.argv.slice(2),
-    index = args.indexOf('--task');
-  const id = index < 0 ? undefined : args[index + 1];
-  if (!id || args.length !== 2) {
+  let id: string | undefined;
+  try {
+    id = parseOptions(process.argv.slice(2), { values: ['task'], required: ['task'] }).value('task');
+  } catch {
+    /* usage below */
+  }
+  if (!id) {
     console.error('Usage: pnpm tests:run --task <id>');
     process.exitCode = 2;
   } else {

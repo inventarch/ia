@@ -1,4 +1,64 @@
-# Product distribution packing
+# release tooling contract
+
+## Purpose
+
+Select, stage, scan and pack public/native artifacts and maintain their compatibility evidence.
+
+## Modules
+
+- [distribution.d.mts](distribution.d.mts) — interface declaration; implementation checking is tracked separately.
+- [distribution.mjs](distribution.mjs).
+- [native-archives.ts](native-archives.ts).
+- [native-selectors.d.mts](native-selectors.d.mts) — interface declaration; implementation checking is tracked separately.
+- [native-selectors.mjs](native-selectors.mjs).
+- [native-version.test.ts](native-version.test.ts) — behavior and refusal coverage.
+- [native-version.ts](native-version.ts).
+- [pack-manifest.mjs](pack-manifest.mjs).
+- [packed-content.d.mts](packed-content.d.mts) — interface declaration; implementation checking is tracked separately.
+- [packed-content.mjs](packed-content.mjs).
+- [product-structure.d.mts](product-structure.d.mts) — interface declaration; implementation checking is tracked separately.
+- [product-structure.mjs](product-structure.mjs).
+- [public-content.test.ts](public-content.test.ts) — behavior and refusal coverage.
+- [public-pack.d.mts](public-pack.d.mts) — interface declaration; implementation checking is tracked separately.
+- [public-pack.mjs](public-pack.mjs).
+- [scan-packed.d.mts](scan-packed.d.mts) — interface declaration; implementation checking is tracked separately.
+- [scan-packed.mjs](scan-packed.mjs).
+- [system-packages.ts](system-packages.ts).
+- [system-partitions.ts](system-partitions.ts).
+
+## Commands
+
+- `pnpm npm:inputs`: `node tools/release/public-pack.mjs refresh-inputs`.
+- `pnpm native:version`: `node --conditions=development --import tsx tools/release/native-version.ts`.
+- `pnpm native:release:check`: `node --conditions=development --import tsx tools/release/native-version.ts --check`.
+
+Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
+
+## Inputs
+
+Explicit package/content policies, tracked source selection, native selectors, release input seal, source revision and platform/runtime coordinates.
+
+## Outputs
+
+Packing writes owned staging/archives/receipts. Input resealing and native version --write are explicit release preparation effects.
+
+## Prerequisites
+
+Pinned package manager and build dependencies; sealed release consumers require current source/input evidence.
+
+## Validation
+
+Task ownership: `native:release-check`, `tools:test-public-release`, `tools:test-native-release`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
+
+## Invariants
+
+Consumers verify archive digests and receipt identity. Public content scans remain mandatory. No changed recipe is silently interpreted as an older receipt.
+
+## Limits
+
+This remains the packing owner during the approved intermediate migration. The final packing/release rename and fresh release seals require the separate maintainer checkpoint.
+
+## Detailed behavior
 
 The public packer creates candidate archives from the reviewed source selection. It does not publish them.
 

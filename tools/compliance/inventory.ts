@@ -11,7 +11,7 @@ import { companionSuffixes, fileDigest, inventoryDigest } from '../../packages/c
 import type { ConformanceInventory, InventoryFixture } from '../../packages/compliance/src/conformance/inventory.js';
 import { runRefusalFixtures } from '../../packages/compliance/src/conformance/refusals.js';
 import { HOOK_CODES, PUBLICATION_CODES, RUNTIME_CODES, RUNTIME_ESCALATIONS } from '../../packages/runtime/src/index.js';
-import { EXEC_CODES } from '../systems/types.js';
+import { EXEC_CODES } from '@inventarch/runtime/authoring-execution';
 import { runEvidenceFixtures } from '../../packages/compliance/src/conformance/evidence-fixtures.js';
 
 export const INVENTORY_PATH = 'packages/compliance/src/conformance/inventory.generated.ts';
