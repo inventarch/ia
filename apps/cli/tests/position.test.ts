@@ -126,6 +126,8 @@ it("prints the Door's position as one --json value, for K0 and for each flag", a
     [['--seat', LAW_PATH, '--depth', '0', '--budget', '0'], { seat: { path: LAW_PATH }, depth: 0, budget: 0 }],
     [['--seat', absolute], { seat: { path: absolute } }],
     [['--shape', 'sequence', '--depth', '2'], { shape: 'sequence', depth: 2 }],
+    [['--primitive', 'Memory'], { primitive: 'Memory' }],
+    [['--shape', 'governance', '--primitive', 'Escalation'], { shape: 'governance', primitive: 'Escalation' }],
     [['--seat', '.'], { seat: { path: '.' } }],
   ];
   for (const [flags, params] of rows) {
@@ -251,6 +253,16 @@ it('names the two widening keys as ia position commands that run, with the root 
   expect(deepest.stdout.split('\n→')).toHaveLength(2);
 });
 
+it('prints and preserves an explicit primitive in both widening commands', async () => {
+  const root = conformance(),
+    result = await run(['position', '--primitive', 'Escalation', '--root', root]);
+  expect(result.exitCode).toBe(0);
+  expect(flat(result.stdout)).toContain('primitive Escalation');
+  const commands = commandsIn(result.stdout).filter((command) => command.startsWith('ia position'));
+  expect(commands).toHaveLength(2);
+  for (const command of commands) expect(command).toContain('--primitive Escalation');
+});
+
 it('reads --seat as an identity when it spells one, else as a path, the absolute root as the workspace root', async () => {
   const root = conformance(),
     real = realpathSync(root);
@@ -310,6 +322,13 @@ it('refuses a key or seat with the runtime code and message, naming one command 
     readonly identity?: string;
   }[] = [
     // The key's form, refused before the workspace is read: the same call with the closed set or the cap.
+    {
+      flags: ['--primitive', 'memory'],
+      params: { primitive: 'memory' },
+      exit: 2,
+      command: `ia position --primitive <Memory|Attention|Inference|Decision|Escalation|Learning> ${rooted(root)}`,
+      fill: ['<Memory|Attention|Inference|Decision|Escalation|Learning>', 'Memory'],
+    },
     {
       flags: ['--shape', 'bogus', '--word', 'law'],
       params: { shape: 'bogus', word: 'law' },

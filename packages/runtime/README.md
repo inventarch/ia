@@ -41,14 +41,16 @@ ia position --seat work-system/definition/task/write-schema --shape sequence
 
 `position` completes a partial scope key (the `sequence` shape implies the `plan` phase, with depth 1 and budget 16 by default) and returns `{body, digest, hostNote}`. The body and its digest are a pure function of the key and the admitted records; the host note carries the revisions and capture freshness outside the digest. `deliveryView` returns `{ok: true, view}`, or a refusal that names the one command to run next.
 
+An optional `primitive` selects any of Memory, Attention, Inference, Decision, Escalation or Learning without changing the shape's focus. For example, `position(workspace, token, { primitive: 'Escalation' })` defaults to phase `act`; an explicit phase wins. Omit `primitive` to retain existing keys and shape-derived behavior. Legacy `context` and `select` requests still declare their primitive explicitly.
+
 ## 🧭 What it does
 
 | Export | Use it for |
 | --- | --- |
-| `position`, `positionBody`, `normalizeScopeKey`, `resolveScopeKey`, `K0`, `SCOPE_KEY_CAPS` | The body `ia position` prints for a scope key of seat, shape, phase, depth, budget and word. |
+| `position`, `positionBody`, `normalizeScopeKey`, `resolveScopeKey`, `K0`, `SCOPE_KEY_CAPS` | The body `ia position` prints for a scope key of seat, shape, phase, depth, budget and word, with an optional primitive override. |
 | `deliveryView`, `NEXT_CODES` | The plan view `ia next` prints: tasks in prerequisite order, each with a verdict from recorded exit evidence, and the next `ia position` command. |
 | `readBody`, `parseLocator` | The body behind an identity, cell, requirement or source locator, with its SHA-256, as `ia read` prints it. |
-| `Door`, `MACHINE_PROTOCOL` | The structured read protocol behind the CLI's machine commands and the MCP server: nine version 1 operations, plus `read`, `next` and `position` since version 2. |
+| `Door`, `MACHINE_PROTOCOL` | The structured read protocol behind the CLI's machine commands and the MCP server: nine version 1 operations, plus `read`, `next` and `position` since version 2; version 3 adds optional primitive selection to `position`. |
 | `context`, `select`, `prepareCoordinate`, `classify` | Coordinate-based context packets that reserve blocking governance first, and selection among explicit candidates. |
 | `renderPacket`, `renderHost`, `PACKET_MARKER` | Build the host-neutral position packet and render it for `claude` or `codex` as files and a receipt. |
 | `governingMandates`, `defaultActor`, `profileRefusal`, `evaluateMandateGuard`, `MOVES`, `MODE_MOVES` | Resolve the `@mandate` records that govern an actor, and judge a command mode or a guarded edit against them. |

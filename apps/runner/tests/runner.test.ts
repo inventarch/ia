@@ -8,6 +8,8 @@ import { open } from '@inventarch/db';
 import type { EngineHost, Grant, ModelAction, ModelRequest } from '@inventarch/agent-system';
 import { replay } from '@inventarch/session-system';
 import { openRunner, runnerCatalog } from '../src/index.js';
+import { normalizeScopeKey } from '@inventarch/runtime';
+import { RunnerContext } from '../src/context.js';
 
 const repository = resolve(import.meta.dirname, '../../..');
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -35,6 +37,15 @@ function scripted(actions: ModelAction[], seen: ModelRequest[]) {
     },
   };
 }
+it('delivers explicit Memory and Escalation primitives through the current Door protocol', () => {
+  const options = fixture();
+  const context = new RunnerContext(options.root, { ...options.inputs });
+  cleanups.push(() => context.close());
+  for (const primitive of ['Memory', 'Escalation'] as const) {
+    const key = normalizeScopeKey({ primitive });
+    expect(context.position(key)).toMatchObject({ key: { primitive }, packet: { body: { key: { primitive } } } });
+  }
+});
 const done: ModelAction = { type: 'outcome', kind: 'answer', message: 'Captured source read.', continuation: 'finish' };
 function read(root: ReturnType<typeof openRunner>): ModelAction {
   return {

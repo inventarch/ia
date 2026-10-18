@@ -6,6 +6,7 @@ import { readInputs } from '@inventarch/db';
 import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
 import type { Location } from '@inventarch/language';
+import { PRIMITIVES } from '@inventarch/language';
 import { normalizeScopeKey, positionBody, readBody, resolveScopeKey } from '../src/index.js';
 import type { PositionBody, ScopeKey } from '../src/index.js';
 import { database, declare, law, lawId, lawPath, methodPath, playbook, put, workspace } from './workspace.js';
@@ -61,6 +62,59 @@ function mandateOf(name: string, authority: string): string {
 /** A mandate whose `authority.scope` names the foundation workspace. */
 const SCOPED =
   '#! ia 1.0\n@mandate scoped-mandate\n  meaning\n    says "A mandate scoped to the foundation workspace."\n    answers "Where does it apply?"\n  governance\n    requires "Fixture statement."\n  authority\n    participant @agent agent-steward\n    scope [@workspace foundation-workspace]\n';
+
+it('delivers every explicitly selected primitive and preserves it on widening and re-seat keys', () => {
+  const root = workspace(),
+    name = 'all-primitives',
+    identity = `governance-system/definition/procedure/${name}`;
+  put(
+    root,
+    `${records}/${name}.ia`,
+    playbook(
+      name,
+      '  subject\n    subject-kind definition\n',
+      '    orient\n      primary Attention\n' +
+        PRIMITIVES.map((primitive) => `      ${primitive} means "${primitive} selected."\n`).join(''),
+    ),
+  );
+  const db = database(root);
+  expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+  for (const primitive of PRIMITIVES) {
+    const body = bodyOf(db, { primitive, phase: 'orient' });
+    expect(body.cells).toContainEqual({
+      playbook: identity,
+      address: `${identity}#orient/${primitive}`,
+      text: `${primitive} selected.`,
+    });
+    expect(body.widening.deeper?.primitive).toBe(primitive);
+    expect(body.widening.reseat.primitive).toBe(primitive);
+    expect(body.appliesByWord.find((entry) => entry.identity === identity)?.reseat.primitive).toBe(primitive);
+  }
+});
+
+it('uses the explicit primitive for conditional relations and nearest-cell advice', () => {
+  const root = workspace(),
+    name = 'memory-only',
+    identity = `governance-system/definition/procedure/${name}`;
+  put(
+    root,
+    `${records}/${name}.ia`,
+    procedureOf(name, { orient: 'Memory' }) +
+      '  relationships\n    cites @contract foundation-authoring-contract when primitive is Memory\n',
+  );
+  const db = database(root);
+  expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+  const derived = bodyOf(db, { seat: identity, phase: 'learn' }),
+    explicit = bodyOf(db, { seat: identity, primitive: 'Memory', phase: 'learn' });
+  expect(ids(derived.loaded)).not.toContain(contract);
+  expect(ids(explicit.loaded)).toContain(contract);
+  expect(explicit.cells).toContainEqual({
+    playbook: identity,
+    missing: `${identity}#learn/Memory`,
+    nearest: 'orient',
+    message: 'no cell; nearest phase with a cell: orient',
+  });
+});
 /**
  * A root adopting the conformance corpus at band 90 from `vendor/foundation`, `edit` applied to that copy before it is
  * pinned, with a local workspace capturing `.ia/src`.

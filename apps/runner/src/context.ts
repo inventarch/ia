@@ -1,4 +1,4 @@
-import { Door } from '@inventarch/runtime';
+import { Door, MACHINE_PROTOCOL } from '@inventarch/runtime';
 import type { DoorOptions, ScopeKey } from '@inventarch/runtime';
 import { canonical } from '@inventarch/session-system';
 import type { Json } from '@inventarch/session-system';
@@ -9,7 +9,7 @@ import { RunnerError } from './errors.js';
 export class RunnerContext {
   private readonly door: Door;
   constructor(root: string, options: DoorOptions) {
-    this.door = new Door(root, { ...options, protocol: 2 });
+    this.door = new Door(root, { ...options, protocol: MACHINE_PROTOCOL.version });
   }
   position(key: ScopeKey, budget?: ContextBudget): Json {
     const result = this.door.request({ operation: 'position', params: key as unknown as Record<string, unknown> });
