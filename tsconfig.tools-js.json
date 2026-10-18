@@ -11,6 +11,7 @@
     "tools/docs/teaching-links.mjs",
     "tools/distribution/authoring-resources.mjs",
     "tools/native/public-manifest.mjs",
-    "tools/distribution/consumer.mjs"
+    "tools/distribution/consumer.mjs",
+    "tools/release/recipe.mjs"
   ]
 }

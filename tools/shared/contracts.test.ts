@@ -126,6 +126,8 @@ it('refuses aliased declaration outputs before changing any declared output or f
         cpSync(join(repository, 'tools', owner), join(root, 'tools', owner), { recursive: true });
       mkdirSync(join(root, 'tools/native'));
       cpSync(join(repository, 'tools/native/public-manifest.mjs'), join(root, 'tools/native/public-manifest.mjs'));
+      mkdirSync(join(root, 'tools/release'));
+      cpSync(join(repository, 'tools/release/recipe.mjs'), join(root, 'tools/release/recipe.mjs'));
       cpSync(
         join(repository, 'tools/testing/check-declarations.mjs'),
         join(root, 'tools/testing/check-declarations.mjs'),

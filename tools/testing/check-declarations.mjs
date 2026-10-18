@@ -10,6 +10,7 @@ const declaredSources = [
   'shared/args.mjs',
   'shared/paths.mjs',
   'native/public-manifest.mjs',
+  'release/recipe.mjs',
 ];
 
 /** Emit in memory so package consumers can keep allowJs disabled without hand-maintained interfaces. */

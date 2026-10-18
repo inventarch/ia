@@ -10,6 +10,7 @@ import { readInputs } from '@inventarch/db';
 import { distributionSnapshot } from '../../apps/distribution/src/snapshot.js';
 import { systemArchivePartitions, type NativeSystemOwner } from '../release/system-partitions.js';
 import { COMPATIBILITY, PUBLIC_SYSTEM_POLICY, publicPackageInputs } from '../release/public-pack.mjs';
+import { recipeFiles } from '../release/recipe.mjs';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { publicPackages, type PackageManifest } from './npm-release.mjs';
 import { committedChanges, type Changeset, type ReleasePolicy } from './release-changes.mjs';
@@ -233,9 +234,7 @@ export function compatibilityFixture(directory: string) {
       node: process.version,
       pnpm: JSON.parse(readFileSync(resolve(checkout, 'package.json'), 'utf8')).packageManager.slice(5),
       lockSha256: sha(readFileSync(resolve(checkout, 'pnpm-lock.yaml'))),
-      files: source.receipt.files.filter(
-        (row) => row.path.startsWith('tools/release/') || row.path === PUBLIC_SYSTEM_POLICY,
-      ),
+      files: recipeFiles(source.receipt.files),
     },
     packages: manifests.map((manifest) => ({
       package: { name: manifest.name, version: manifest.version },

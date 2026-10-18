@@ -6,7 +6,7 @@ Own the explicit task inventory, scheduling, execution, evidence and resource li
 
 ## Modules
 
-- [check-declarations.mjs](check-declarations.mjs) — checks package-facing entry, argument, path and public-manifest JavaScript and emits declarations in memory; explicit `--write` validates all output paths and replaces changed declarations atomically.
+- [check-declarations.mjs](check-declarations.mjs) — checks package-facing entry, argument, path, public-manifest and packing-recipe JavaScript and emits declarations in memory; explicit `--write` validates all output paths and replaces changed declarations atomically.
 - [cache.test.ts](cache.test.ts) — behavior and refusal coverage.
 - [cold-start.test.ts](cold-start.test.ts) — behavior and refusal coverage.
 - [inventory.test.ts](inventory.test.ts) — behavior and refusal coverage.

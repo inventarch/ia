@@ -3756,7 +3756,8 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/release/public-content.test.ts"
+        "tools/release/public-content.test.ts",
+        "tools/release/recipe.test.ts"
       ],
       "profile": "corpus",
       "platforms": [

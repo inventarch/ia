@@ -21,6 +21,9 @@ Select, stage, scan and pack public/native artifacts and maintain their compatib
 - [public-content.test.ts](public-content.test.ts) — behavior and refusal coverage.
 - [public-pack.d.mts](public-pack.d.mts) — interface declaration; implementation checking is tracked separately.
 - [public-pack.mjs](public-pack.mjs).
+- [recipe.mjs](recipe.mjs) — explicit versioned compatibility selection and reviewed tooling import closure.
+- [recipe.d.mts](recipe.d.mts) — generated from the checked implementation.
+- [recipe.test.ts](recipe.test.ts) and [fixtures/recipe-v2.json](fixtures/recipe-v2.json) — frozen membership/digest parity, import-closure mutation and altered-companion refusals.
 - [scan-packed.d.mts](scan-packed.d.mts) — interface declaration; implementation checking is tracked separately.
 - [scan-packed.mjs](scan-packed.mjs).
 - [system-packages.ts](system-packages.ts).
@@ -53,6 +56,10 @@ Task ownership: `native:release-check`, `tools:test-public-release`, `tools:test
 ## Invariants
 
 Consumers verify archive digests and receipt identity. Public content scans remain mandatory. No changed recipe is silently interpreted as an older receipt.
+
+`ia.packing-recipe.v1` preserves the existing v2 companion's explicit 26-file selection, including its historical documentation/test entries. Producer, verifier and archive fixtures call the same selector. Selection preserves source-row order, refuses missing or duplicate inputs and invalid digests, and never grows because a file was added to a directory. The full-source input descriptor still binds every tracked implementation, including the recipe module itself and helpers outside this selection; extraction does not weaken or replace that binding. A frozen pre-extraction row fixture proves byte and digest parity. The recipe test walks tooling import syntax transitively and requires exact agreement with the separate reviewed implementation list; new side-effect imports, re-exports, aliases or dynamic imports must be accounted for explicitly. The current guard is incomplete for file-URL imports, createRequire loaders and relative helpers outside tools; these paths and production companion-generation coverage require repair before this draft is considered complete. Runtime package sources remain bound by the full-source descriptor.
+
+The companion format stays `ia.system-package-compatibility.v2`. A different recipe membership or final directory rename requires the release-boundary migration and new qualification; this extraction neither reseals existing inputs nor treats old evidence as current.
 
 ## Limits
 

@@ -1,0 +1,109 @@
+{
+  "digest": "0a5401cd46dc23f045b1048f35ebc0cc9b2fb3881794c0a19a5e9856888776f9",
+  "files": [
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "1a0d9c1c59801abffcd46e4d123063bdd915e47c6035dbe3fde7694a302123df"
+    },
+    {
+      "path": "tools/release/SPEC.md",
+      "sha256": "0f3500ab12e6aca53e2cf3fcd170d314bf1bf6fc5cd1d89a2dad3f9d656844fe"
+    },
+    {
+      "path": "tools/release/distribution.d.mts",
+      "sha256": "0f07f57908cdace01b0724c602a032be65a807275730195d912c1ed9160c7345"
+    },
+    {
+      "path": "tools/release/distribution.mjs",
+      "sha256": "9dff77c7197123d6608add19e8ec2ee501d7b77879e8e2284dbf23da153c9f57"
+    },
+    {
+      "path": "tools/release/native-archives.ts",
+      "sha256": "35111e9ee14e3a53bad70dfff932bb627fd456ae88b2ca86fcff4b0b67e90d8f"
+    },
+    {
+      "path": "tools/release/native-selectors.d.mts",
+      "sha256": "39ba6e21b171f5d987b1414a62d52af8fb6d26d3754367a5f1744f19fd9c9cde"
+    },
+    {
+      "path": "tools/release/native-selectors.mjs",
+      "sha256": "f858f1cf138d357c0c6c875f506a450d6a04ed8671e4c48c50c2251087405a55"
+    },
+    {
+      "path": "tools/release/native-version.test.ts",
+      "sha256": "84ad69682c7c387c0ac6cffaf2a516a82dccd01da539ff83c88ccb16fcd02e66"
+    },
+    {
+      "path": "tools/release/native-version.ts",
+      "sha256": "f84bef373ca0c4e9badc7a132bd9ba6743bc7f033d88f50829c947952b63c48b"
+    },
+    {
+      "path": "tools/release/pack-manifest.mjs",
+      "sha256": "cf5a0acf5e1ec5d0b9ae5ea0a760dd86e73e3d8b8cd5c5fff62fb9694d887cce"
+    },
+    {
+      "path": "tools/release/packed-content.d.mts",
+      "sha256": "dd724f8ee0cdfa7272b3dddfe351b6b3d9e8ba3c258d86307059d57d9700b158"
+    },
+    {
+      "path": "tools/release/packed-content.mjs",
+      "sha256": "a8107ad033eeb6aaae7baf725426c2692e588ae4bd937b2ef0dec57faf55aa27"
+    },
+    {
+      "path": "tools/release/product-structure.d.mts",
+      "sha256": "9722dcaa6897bf057c50c574156cc3839cef2ffd50c4fc352cfdcfdad789a83f"
+    },
+    {
+      "path": "tools/release/product-structure.mjs",
+      "sha256": "19d8e2bc101a58054c77215d70b64a0c714c69861d2c14a6e9baea23ac154139"
+    },
+    {
+      "path": "tools/release/public-content.test.ts",
+      "sha256": "a2497fc5ef5e02704a79d155f7532cfd6528d38040e72501b4c1063f88f8f38e"
+    },
+    {
+      "path": "tools/release/public-pack.d.mts",
+      "sha256": "ae7fece87be0886c9b0e96f00c5c286bc7b7d26182c48607a2661a0661af98a2"
+    },
+    {
+      "path": "tools/release/public-pack.mjs",
+      "sha256": "28ad3e3f3621e500436e711dc81515cd2d55bb2a345fe9b062a98bee8306356f"
+    },
+    {
+      "path": "tools/release/public/content-scan.d.mts",
+      "sha256": "e9a849a3a3bd2204058dd5ef62a6a64eca315695a81ae48c29a09909cd76ae6d"
+    },
+    {
+      "path": "tools/release/public/content-scan.mjs",
+      "sha256": "e06be3e730e5caa3bb793a9c32bdace7a943e0c4304e10f741221abaccfce36c"
+    },
+    {
+      "path": "tools/release/scan-packed.d.mts",
+      "sha256": "5a42ebf6622eba9f78620d21fdd7ca725486e1d2f1d694a593d095ff4709b737"
+    },
+    {
+      "path": "tools/release/scan-packed.mjs",
+      "sha256": "f28f1dfa3d8ee13d3f3a599023518fe342b95ab144ead6f8ce5a6db5c78ea91c"
+    },
+    {
+      "path": "tools/release/shared/pack-inputs.mjs",
+      "sha256": "b5ab441b96a84c9461f6a95032ecb6dc8293bb42f254fdc7f51a09c46900d743"
+    },
+    {
+      "path": "tools/release/shared/paths.d.mts",
+      "sha256": "082052b7487dee079a5d19a78ef37ce0c80cf279d9f2c3845948d9e5a0afd58f"
+    },
+    {
+      "path": "tools/release/shared/paths.mjs",
+      "sha256": "2c0c3509b1bdde2ea5626ab4e464deddc976605c7a3859f6c556b2d152ebae38"
+    },
+    {
+      "path": "tools/release/system-packages.ts",
+      "sha256": "da4898250484aec64e67b6b5fc5fc5b55bc260ada7a0fd30918d3a399a412d7d"
+    },
+    {
+      "path": "tools/release/system-partitions.ts",
+      "sha256": "11f5ba5d28d704b1474fe3196d09d23da5b84e9e6dc500a03821b753ef47a389"
+    }
+  ]
+}
