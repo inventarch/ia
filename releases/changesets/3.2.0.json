@@ -1,0 +1,729 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.2.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "1363fc9c949a485448d3699ff3e2756119a8d142",
+    "version": "3.1.1"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 3.2.0 release of the 23 public npm packages: Registry and archive downloads refuse URLs that are not credential-free HTTPS; Read the steward hook's ownership markers, actor map, binding and code files through the opened file; Session stores can require host admission before each durable write; Verify host cache, runtime and system package files through the file that is read.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Session stores can require host admission before each durable write."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Session stores can require host admission before each durable write."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/cli": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/db": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Registry and archive downloads refuse URLs that are not credential-free HTTPS. Verify host cache, runtime and system package files through the file that is read."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/graph": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/language": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/runner": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Session stores can require host admission before each durable write."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Read the steward hook's ownership markers, actor map, binding and code files through the opened file."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.1.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    }
+  },
+  "changes": [
+    {
+      "id": "bounded-fetch-https-only",
+      "title": "Registry and archive downloads refuse URLs that are not credential-free HTTPS",
+      "summary": "`fetchBounded` (`@inventarch/distribution/internal/bounded-fetch`), the one request behind registry documents and remote archives, now checks the URL itself before any request, even when its caller did not. It parses the URL with `new URL` and refuses only a URL that does not parse, whose scheme is not `https:` or that has a username or password, as `IA-DIST-INPUT-INVALID` with the message `<label> <url> is not a credential-free HTTPS URL`. It then requests the canonical form `new URL` writes: a query or a fragment passes, and a legitimate non-canonical HTTPS spelling, such as an uppercase host, an explicit `:443` or a percent-encoded host character, is canonicalized and still accepted, with the same request as before, so a direct caller, or a hand-built `RegistryBase`, that passes an HTTPS URL sees no break. Before, an `http:` URL was requested in clear text and a `data:` or `blob:` URL was read; a URL with any other scheme, such as `file:`, `ftp:` or `wss:`, got a `TypeError` from fetch, reported as `IA-DIST-ARTIFACT-UNAVAILABLE` with `<label> <url> failed: …`, as a credentialed or malformed URL did. All of them now refuse as `IA-DIST-INPUT-INVALID`, so both the code and the message change. Refusing another scheme is a defensive patch: the supported contract already excluded it, since the registry spec (`docs/specs/registry/README.md`) says that a registry base is a credential-free HTTPS URL or a local directory and that other URL schemes refuse, and the archive check admits only HTTPS artifact URLs. URLs built on a `parseRegistryBase` base and URLs the archive check admits are already canonical and are requested unchanged. Migration: direct callers can keep passing HTTPS URLs, in any spelling, or use `parseRegistryBase` to get the canonical form up front; a direct caller passing an `http:`, `data:` or `blob:` URL moves to an HTTPS URL or, for a registry, a local directory base. This is URL-shape hygiene, not host authorization: it does not block internal or loopback hosts, DNS rebinding or other server-side request forgery. Redirects, the 30-second timeout and the byte bounds are unchanged.",
+      "packages": [
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/distribution/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "read-the-steward-hook-s-ownership-markers-actor",
+      "title": "Read the steward hook's ownership markers, actor map, binding and code files through the opened file",
+      "summary": "The steward hook now opens each context ownership marker, the --actors map, the context hook binding and each code file of its implementation inventory before judging it, and reads through that descriptor, so a file swapped after its check is never read (CodeQL js/file-system-race). Admission is unchanged: markers and the actor map remain regular, single-link, unaliased files of at most 1 MiB (8 MiB for a pending journal), the binding at most 64 KiB, and inventory code files at most 8 MiB each and 32 MiB in all, with hard links still admitted there. A missing --actors map now refuses with IA-HOOK-STEWARD-UNAVAILABLE: Invalid actor map file instead of a raw ENOENT error. A FIFO swapped in is refused without blocking the hook, and a marker removed after its directory is listed, or an inventory file that changes while it is read, is refused.",
+      "packages": [
+        "@inventarch/steward-hook"
+      ],
+      "paths": [
+        "apps/steward-hook/"
+      ]
+    },
+    {
+      "id": "session-write-admission",
+      "title": "Session stores can require host admission before each durable write",
+      "summary": "A host can now make every durable session write pass its own synchronous current-authority check. `sqliteStore(root, { admit })`, `new SqliteBackend(root, { admit })`, `memoryStore({ admit })` and `new MemoryBackend({ admit })` accept an admission gate. The backend calls it inside its write transaction, after the ownership, idempotency and revision checks and after every await, immediately before the first journal event or checkpoint is written, and nothing yields between its answer and the commit. Authority revoked before the write, including while the store awaits ownership validation, is therefore refused even when every earlier host check passed. The gate receives a deeply frozen `Admission`: its kind (`commit` or `checkpoint`), session, principal, owner fence and command, the exact events, the resulting session, and the attempts whose output a commit newly stores, with the authority recorded when each was prepared; a checkpoint, which restates admitted history, offers none. Only a synchronous `true` admits. `false`, any other value, a promise or thenable, or a throw rolls the transaction back and refuses with `IA-SESSION-ADMISSION-DENIED`, whose message carries neither the payload nor the host's error. A configured `admit` that is not a function refuses at construction with `IA-SESSION-ADMISSION-UNAVAILABLE`. The new optional `admission` property of `SessionStore` and `JournalBackend` reports whether a gate runs, and an `EngineHost` that sets the new `requireAdmission` option is refused with `IA-ENGINE-ADMISSION-UNAVAILABLE`, at construction and at every later use of a store the host replaces, unless its store reports `admission: true`. `JournalBackend.commit` gains an optional fifth argument, the resulting session, which `JournalStore` supplies; a gated backend refuses a commit without it. The `@inventarch/agent-composition-system` installed-read qualification fixture adds an Engine, installed captured-read and SQLite regression for the gate. Stores configured without `admit` behave exactly as before, and writes admitted before a revocation stay in the journal. The guarantee covers authority state the gate reads synchronously in the same process; a remote authority service or another process needs its own lease or fencing protocol.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/session-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/session-system/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "verify-host-cache-runtime-and-system-package-fil",
+      "title": "Verify host cache, runtime and system package files through the file that is read",
+      "summary": "The host cache launcher (`scripts/ia.mjs`, which verifies the cache before every mode), `installedDistributionDigest` and `verifySystemPackage` now open each file before judging it, read it through that descriptor, and check afterwards that its name still holds the same file. A file replaced while they verify by a link, FIFO, socket or other special file is refused: where the platform has `O_NOFOLLOW` and `O_NONBLOCK`, at the open, before anything is read, so the launcher no longer waits forever on a FIFO swapped into the cache; on Windows, which has neither, a link swapped in is opened and read, then refused by the check of its name. The launcher reports such a change with its own message rather than a system error such as `Unknown system error -102`; of the failures that keep a file from opening, it prints the system error only for a pinned file it may not read. A pinned cache file removed during verification reports `Plugin cache payload is missing`, and any other entry whose listed name no longer reaches it, such as a file Linux lists under a name that is not UTF-8, refuses as `Plugin cache payload differs: <path>`, where it failed with a system error before. Outside such races, which files are admitted is unchanged. Some refusals are new: `installedDistributionDigest` refuses a runtime file it cannot open, an unreadable one included, and an entry its listed name no longer reaches with `Installed distribution runtime is missing, mixed or aliased` instead of a system error; the launcher refuses a pinned file that fails to open for a reason other than permissions, such as too many open files or a lock another Windows process holds, as `Plugin cache payload differs: <path>`; `verifySystemPackage` refuses an input replaced or changed while it is read with `System package input changed while it was read: <path>`; and both refuse a file of more than 2147483647 bytes before reading it, `installedDistributionDigest` with its usual message and `verifySystemPackage` as `System package input exceeds 2147483647 bytes: <path>`, where Node's own error for a file that large was thrown.",
+      "packages": [
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/distribution/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package and native artifact version metadata follows the coordinated 3.2.0 release.",
+      "packages": [
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runner",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-runtime",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/authoring-system/package.json",
+        ".ia/src/systems/authoring-system/system.ia",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/compliance-system/system.ia",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/governance-system/system.ia",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/hook-authoring-system/system.ia",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/learning-system/system.ia",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/template-system/system.ia",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/work-system/system.ia",
+        ".ia/src/systems/workspace-system/package.json",
+        ".ia/src/systems/workspace-system/system.ia",
+        "apps/cli/package.json",
+        "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
+        "apps/mcp-door/package.json",
+        "apps/runner/package.json",
+        "packages/compliance/package.json",
+        "packages/db/package.json",
+        "packages/graph/package.json",
+        "packages/language/package.json",
+        "packages/runtime/package.json",
+        "packages/service-contracts/package.json",
+        "packages/workspace-runtime/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        ".github/",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "examples/",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/platform-quality.yml",
+      "sha256": "cf5c700814f4fdc8067ed615f25efb8f4984902ff09eab644fb6689e99fd8330",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "f17bf6b8b752df3e99652c5f81bf72e132e07d9a908de4062ba330bf912dac05",
+      "cohortOnly": true,
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/system.ia",
+      "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a",
+      "cohortOnly": true,
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.d.mts",
+      "sha256": "d578bdba2db668b5af76b5b0319bf88d9a9d674b718a175b75b527051882a2b8",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.mjs",
+      "sha256": "2dfbef67ba20364b064165a22302af9eacd3d612400391626cc3164171d1839b",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read.test.ts",
+      "sha256": "b51dd40a638b214bb8a4d07e33a1605d0cf16eed76d9938812e744d47288db3d",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "2246c2ecd57bd1a042bbaec3eab5bf3a816137516e7737664f038d48efd51b1e",
+      "cohortOnly": true,
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/engine.ts",
+      "sha256": "0786a84ce3f0f576aa5092e9bdb530e8063faacac9269d73223019dac51a76ba",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/types.ts",
+      "sha256": "17441109a1ab1c6d8a8967b2cab2d148f5c9339bb1764f57bd3b77418dd18c9d",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/system.ia",
+      "sha256": "5e69c24d3fd629e5c817d8c83a6b763e4a1a5f14438938c0a3ecc68791965508",
+      "cohortOnly": true,
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/tests/engine.test.ts",
+      "sha256": "5297b3ecd0f42d738a8ae47dd76910dd4fc02410a18192d2a1fb446b1cdd62ac",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "bdf645d926441c6e31637a8961ebf317dd5e2629ddce776a88bc3364b37127f9",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/system.ia",
+      "sha256": "a214234b1827a77ce46186d9f490f6e8b01783dd18b00c0d4ce5aab5640b07ac",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "3ba902ef42ef219685af52e00c3395379426db0db3aea6fea5e40751709a618f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/system.ia",
+      "sha256": "1db34863ee0154d8a680c47aca053ef01bbd2a94036b6427da0554717655a502",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "73a4ff2f26f01ac23038bb4e9fc191fb9f95fde35139d82bbebce9dae5629349",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/system.ia",
+      "sha256": "53c04221dc9fbd2c383ea966d149c04ec9a497af6712e9519fffc3bd0c36d1de",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "2b09deb52d981524e774534d88b1ffb74570e65b6ec1df84d1939496ccaf8c3f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/system.ia",
+      "sha256": "7d7911907a2215064628c1bf9f276f2be93a1701f92fd53e817601c06f48916c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "9b80b115f4ab79bec9b57449b70a641b0758caecfbec28064d3365cc0f0bf359",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/system.ia",
+      "sha256": "c3e7ec257b60e5f40d14993facb48dc3c540ba0eb8b49f13d1b6fa3aa1693bb0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "5fd3ffc3ed033fb75d96e1d2f9670d99b848d94360a707b9e0e785918f2ea689",
+      "cohortOnly": true,
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/index.ts",
+      "sha256": "ac5e0ee2c51acc84cc935ee805f266b69036e0fdc5a1e206d11407d93b860ade",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/memory.ts",
+      "sha256": "491dc5103a7b7d8657c073db5ecb4e2c0f1e4589e29891b13702c0bfb37999ef",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/sqlite.ts",
+      "sha256": "a0f8f431c4b29c1c03b396d9d3e46187b4d4317aa8284348af8b3106a11b3f79",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/store.ts",
+      "sha256": "96c4bf190bfbe6d973a2cf17e6ea95a4e2dcced93d986a7fdb308de2a6dd3768",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/types.ts",
+      "sha256": "710124a9800bc7300f938e316632c80d8ebd3462ac3e0d1f2cc9a9c8b44bd126",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/session-system/system.ia",
+      "sha256": "bea0eb0933d8c0b7fdc7eacead8a9afdf66f1bab6ca625000fad6066c8b919cc",
+      "cohortOnly": true,
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/session-system/tests/admission.test.ts",
+      "sha256": "8694653629a42428addcbb932ea93757448bcdf1939cb0e66ad1ddb3ee54a6e0",
+      "change": "session-write-admission"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "d9129008e07c58f334609024d4bacedd1d5a8bec6818a4ec3437318420437a73",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/system.ia",
+      "sha256": "6b69d413163992b628c114cfb6d4b98820b22df8275fbc1c685049cb8071cd51",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "5bbc39adf2887e5d7c20ad7313f6426f9872a63e1d42181a72426f00631de3d7",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/system.ia",
+      "sha256": "1468018ec5c731333a5dfd6f99a34038104c168b920aa0cb67c2ef77af223696",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "fbfb3fdc6259a05442bc240ed8ab8a971d6859b47e4d787c55725470d264ceb1",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/system.ia",
+      "sha256": "b61a4f57bab19e31e5c3575f30d1ba364d8ae408363998299db5a648bc34f477",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "10cd867424e557d6716965b6d5322803f20392ef8d7a961ced9d91e3a2617b6a",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
+      "sha256": "6f0f252443a4eec3bed7756caaa0cde9b85b84ad87b289e108c9ee33565654ef",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "d2bef9b64c7739d4566c8ac06056a5b225a2366e7fb102c7b83371404c4740df",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/assets/host-launcher.mjs",
+      "sha256": "a6ebe6b4fa6e0bc66fc964ab57dfaf7f3655226430f216bbfafbb047b8797606",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "ec1b9a5ad9415c8c46e041f0e06a2aaeaa3cae683ea00fd8f859f253d501784b",
+      "cohortOnly": true,
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/src/bounded-fetch.ts",
+      "sha256": "08e11643c7f6414f22e5283ca97dc97d75a0c784f4121f6cc8dece5bfd3f8b9e",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/src/inventory.ts",
+      "sha256": "1ef71f30c4ccbb261909c8660acdb283b124e5e10a8ce390496411d4cb87b473",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/src/system-package.ts",
+      "sha256": "be55f122897cc78d2fad0a9f29bd166e98c7b741ef908d0381d0edeb2d720070",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/bounded-fetch.test.ts",
+      "sha256": "35e3c1cf6fbfc0320d4288f266a0161918e780f7b07680df01c18d9307c84239",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/context-launcher.test.ts",
+      "sha256": "b3227fc67290a5440522ae7f4185723cf63eb831a089bf89f5a4ef75ad842977",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/inventory.test.ts",
+      "sha256": "9956bdeabe27a53b68c342bbb487d3a16cb56fe8ad8d5f5277da10944d9ff3c6",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/race-fixture.ts",
+      "sha256": "f502d2c6ba7ece78269fb7ac130e688311ac5e1e9a1efb7eadbffabf24fb1c13",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/registry-source.test.ts",
+      "sha256": "1225af4fc53f1456d7d4ee7685c6ae9be262d095aa5a665d4ba15cbbf10cf002",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/services.test.ts",
+      "sha256": "7b9d8be55ac53ce5d5708af58d6593cd8c508c35bb2b9c5e44dd28bae5f44ed3",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/system-package.test.ts",
+      "sha256": "d2149c774b56fcb8e8ca3834aac3420d6facccc226fc9aa55598888838792d65",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "0e63cb84df49f9bddeda8c0cb687cca986f23251d73d493425553f43a1589b7e",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "d4f9979039fb99de1c7ad1abb31f9dfd209a7bd76ee8539149668e1e5bb92819",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/steward-hook/SPEC.md",
+      "sha256": "8247a27060d6ab61a982175b31bcdd3653df3a5ca7c7f0ede5d9e9513e0e2e6f",
+      "change": "read-the-steward-hook-s-ownership-markers-actor"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "048912a5c359ed6241275890dfdc87db30f08d5c7dec0cfa3ce12c087ff39455",
+      "cohortOnly": true,
+      "change": "read-the-steward-hook-s-ownership-markers-actor"
+    },
+    {
+      "path": "apps/steward-hook/src/context.ts",
+      "sha256": "c7e26dec6d6ddf9c013237b5b9ef2f5b26f8760331ac1cf3f7369e882ff11185",
+      "change": "read-the-steward-hook-s-ownership-markers-actor"
+    },
+    {
+      "path": "apps/steward-hook/src/main.ts",
+      "sha256": "b3abe25ff992010587999ca15ad3e6f632f069fed262deafbc7514e66117762e",
+      "change": "read-the-steward-hook-s-ownership-markers-actor"
+    },
+    {
+      "path": "apps/steward-hook/tests/consumer-guard.test.ts",
+      "sha256": "061a5ec712f2c5ea44c59807ceaae95a260d47ffd29eb16517a44745029d9709",
+      "change": "read-the-steward-hook-s-ownership-markers-actor"
+    },
+    {
+      "path": "apps/steward-hook/tests/context-binding.test.ts",
+      "sha256": "9d93ba53a79c0dc92ccb1b8c150fb1f979c2087c609251600458bcaada504ddb",
+      "change": "read-the-steward-hook-s-ownership-markers-actor"
+    },
+    {
+      "path": "apps/steward-hook/tests/context-inventory.test.ts",
+      "sha256": "3ff848740f83f00c2c158238ef56d4dbd6b413e2f531295c8834d1706a060e0a",
+      "change": "read-the-steward-hook-s-ownership-markers-actor"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "f7012deda0d01440cb77d3657f4b21200135defd5ccf1b9cb56f90f22bfeea82",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "9840e22b3c1a186f14165188c30defde32e7f570dabb4c00cfdf03578fc5d51e",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-composition-system.ia",
+      "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-system.ia",
+      "sha256": "5e69c24d3fd629e5c817d8c83a6b763e4a1a5f14438938c0a3ecc68791965508",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/authoring-system.ia",
+      "sha256": "a214234b1827a77ce46186d9f490f6e8b01783dd18b00c0d4ce5aab5640b07ac",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/compliance-system.ia",
+      "sha256": "1db34863ee0154d8a680c47aca053ef01bbd2a94036b6427da0554717655a502",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/governance-system.ia",
+      "sha256": "53c04221dc9fbd2c383ea966d149c04ec9a497af6712e9519fffc3bd0c36d1de",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/hook-authoring-system.ia",
+      "sha256": "7d7911907a2215064628c1bf9f276f2be93a1701f92fd53e817601c06f48916c",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/learning-system.ia",
+      "sha256": "c3e7ec257b60e5f40d14993facb48dc3c540ba0eb8b49f13d1b6fa3aa1693bb0",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/session-system.ia",
+      "sha256": "bea0eb0933d8c0b7fdc7eacead8a9afdf66f1bab6ca625000fad6066c8b919cc",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/template-system.ia",
+      "sha256": "6b69d413163992b628c114cfb6d4b98820b22df8275fbc1c685049cb8071cd51",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/work-system.ia",
+      "sha256": "1468018ec5c731333a5dfd6f99a34038104c168b920aa0cb67c2ef77af223696",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/contracts/workspace-system.ia",
+      "sha256": "b61a4f57bab19e31e5c3575f30d1ba364d8ae408363998299db5a648bc34f477",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "examples/public-language/versions.json",
+      "sha256": "636569a92cf2d25de637d4e626022acb07ff622a170e0ce06df9e9437313d3ba",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "4ab7ec903564b6959f20480a4e6e6e94767d9d6d204f334b81b71695974b8ba5",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "3139bd262d8c9ea36a8203eb7447464b2b145afd1598f33029fa7694e41e7548",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "f968765a662465feb675ffdb5f5fc8231bf53dc538b7ac44933fd03a3e951884",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "f938d03fd72feb38955c3c541f653be0636c43af634d43349b614bdc44b183a4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "225050c2407dd87c89011d47fdb1d7366ff4b50e6225b51b2bfee78c3c5049d9",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "e9695b0669ea07ed0a020791c4fc91fad7099e0f178d10e6f50b8258b10d819b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "0d768b978f4a849b281003b4930655d762922b2ce1c43c620b3425080aa42dc4",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "8f5ab8ec2e6ebddcb9baa4732ef6a8561eaf43a89d8dbd2eeb961402607527c4",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "8909c56931c1a2cbfbcad7af264dbe335263a919d0fc36e357d7831b7b5f00cc",
+      "cohortOnly": true,
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/testing/SPEC.md",
+      "sha256": "2fd4e482dc1b17c860cecbba1b5897878d9d7ae2612f8373ea4873347df92da3",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/testing/inventory.test.ts",
+      "sha256": "d1a2bee3e14800fd4da176b935a21dd660212298e65b378204c39c2149bd9925",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/testing/schedule.json",
+      "sha256": "4e6749ae5f67b4fdb217164ad614b2e15952f60e7876b66cf9b466320ddeaa7a",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "16b4f0521e14e3ea1481fa936ff0d703dbb2b0d684a897bdb7bdc901107c1bb4",
+      "change": "bounded-fetch-https-only"
+    }
+  ]
+}
