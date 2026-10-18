@@ -86,7 +86,7 @@ If the file changed since the preview, `ia author` refuses with `IA-CLI-EDIT-STA
 
 | Command | What it does |
 | --- | --- |
-| `ia position` | Prints the position body for a scope key: `--seat <id\|path>`, `--shape` (`context`, `governance`, `execution`, `sequence` or `learning`), `--phase` (`orient`, `plan`, `act` or `learn`), `--depth` (0 to 2), `--budget` (0 to 64) and `--word`. With no flag it prints the repository's `@workspace` with its pointers only. It needs no capture and writes nothing. |
+| `ia position` | Prints the position body for a scope key: `--seat <id\|path>`, `--shape` (`context`, `governance`, `execution`, `sequence` or `learning`), `--phase` (`orient`, `plan`, `act` or `learn`), `--depth` (0 to 2), `--budget` (0 to 64) and `--word`, plus optional `--primitive` (Memory, Attention, Inference, Decision, Escalation or Learning). The primitive defaults from shape; an explicit primitive supplies the default phase unless `--phase` is given. With no flag it prints the repository's `@workspace` with its pointers only. It needs no capture and writes nothing. |
 | `ia next` | Prints one plan's delivery view: its milestones, then its tasks in prerequisite order, each with a verdict of `exit evidence recorded (…)`, `no declared blocker` or `blocked (…)`. `--seat` names a `@plan`, `@milestone` or `@task`; without it, the workspace's only `@plan`. |
 | `ia read <locator>` | Prints the body behind a locator with its `sha256` and the line `body not certified by this read`. |
 | `ia inspect [<identity>]` | Shows a workspace overview, or one record (by identity or `--path <file>`) with its edges, `--edges in\|out\|both` and `--depth` 0 to 3. |

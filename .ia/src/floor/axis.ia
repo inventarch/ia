@@ -26,8 +26,8 @@
 
 @axis primitive
   meaning
-    says "The cognitive operation the actor declares it is performing."
-    answers "Should selection depend on the cognitive operation the actor declares, rather than the action mode?"
+    says "The cognitive operation of the request: declared on legacy coordinates; on a position key, explicitly selected or derived from its shape when omitted."
+    answers "Should selection depend on the request's cognitive operation, whether explicitly selected or derived from its shape, rather than its action mode?"
   data
     order 3
     values [Memory, Attention, Inference, Decision, Escalation, Learning]

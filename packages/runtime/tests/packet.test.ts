@@ -548,7 +548,7 @@ it('tables the five shapes and the four phases, each shape with the registered w
   ]);
   expect(packet.lines).toEqual([
     'run ia position; if it refuses, run the command it names',
-    'state intent to the CLI as shape + optional phase + optional seat + optional word; the CLI never receives free text',
+    'state intent to the CLI as shape + optional phase + optional primitive + optional seat + optional word; the CLI never receives free text',
     "when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation",
   ]);
 });

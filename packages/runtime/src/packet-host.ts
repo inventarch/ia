@@ -286,6 +286,7 @@ const keyText = (key: ScopeKey): string =>
     `depth ${key.depth}`,
     `budget ${key.budget}`,
     ...(key.word === undefined ? [] : [`word ${key.word}`]),
+    ...(key.primitive === undefined ? [] : [`primitive ${key.primitive}`]),
   ].join(', ');
 
 /**

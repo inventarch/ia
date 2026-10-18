@@ -458,6 +458,14 @@ it('renders each bare IA word token in free text as a code span, the packet and 
 });
 
 it("prints the host note's key as ia position prints it, and pads a code span a backtick touches", () => {
+  const explicit = renderHost(
+    'claude',
+    HAND,
+    digest(HAND),
+    { ...NOTE, key: { ...NOTE.key, primitive: 'Escalation' } },
+    'consumer',
+  );
+  expect(explicit.files[0]!.text).toContain('primitive Escalation');
   const key = (seat: NonNullable<PacketHostNote['key']['seat']>, word?: string): string =>
     renderHost(
       'claude',

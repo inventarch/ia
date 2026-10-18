@@ -117,7 +117,7 @@ export interface AppliesByWord extends PositionRecord {
   readonly reseat: ScopeKey;
 }
 /**
- * A playbook's cell at (P, primitive(H)): the text of its cells at that address, as `ia read <address>` reads it, or,
+ * A playbook's cell at (P, the explicit primitive or primitive(H)): the text of its cells at that address, as `ia read <address>` reads it, or,
  * when it has none there, the nearest phase whose cells include that primitive's.
  */
 export type PositionCell =
@@ -183,7 +183,7 @@ export interface PositionWidening {
   /** (S, H, P, d + 1, n, w); absent at the depth cap. */
   readonly deeper?: ScopeKey;
   /** (x, H, P, 1, 16, no word): seat it at any pointer x; with no seat it is the repository's workspace. */
-  readonly reseat: Pick<ScopeKey, 'shape' | 'phase' | 'depth' | 'budget'>;
+  readonly reseat: Pick<ScopeKey, 'shape' | 'phase' | 'depth' | 'budget' | 'primitive'>;
 }
 export interface PositionBody {
   readonly format: 'ia.position-body.v1';
@@ -212,7 +212,7 @@ export interface PositionBody {
   readonly appliesByWord: readonly AppliesByWord[];
   /** The applies-by-word entries past the listed ones, per (word, owner system). */
   readonly appliesByWordTallies: readonly PointerTally[];
-  /** The cells at (P, primitive(H)) of the first four playbooks that apply by word. */
+  /** The cells at (P, the explicit primitive or primitive(H)) of the first four playbooks that apply by word. */
   readonly cells: readonly PositionCell[];
   /**
    * The @mandate records that claim a location seat or whose `authority.scope` names the seat's workspace, whatever w
@@ -638,11 +638,11 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     .filter((entry) => entry.matches.length > 0)
     .sort((a, b) => byBand(a.identity, b.identity));
 
-  // The cells at (P, primitive(H)) of the first c playbooks that apply by word: the text `ia read`
+  // The cells at (P, the explicit primitive or primitive(H)) of the first c playbooks that apply by word: the text `ia read`
   // reads at the address, every cell there in source order, conditions unevaluated; else the nearest phase with a cell
   // of that primitive, by distance in the cycle orient, plan, act, learn, a tie going to the phase that order lists
   // first.
-  const primitive = SHAPE_ROWS[key.shape].primitive,
+  const primitive = key.primitive ?? SHAPE_ROWS[key.shape].primitive,
     phaseAt = PHASES.indexOf(key.phase);
   const cellOf = (identity: string): PositionCell => {
     const node = nodes.get(identity)!,
@@ -824,7 +824,13 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       return {
         ...record(identity, { hop: 0, via }),
         via,
-        reseat: { seat: identity, shape: key.shape, phase: key.phase, ...RESEAT },
+        reseat: {
+          seat: identity,
+          shape: key.shape,
+          phase: key.phase,
+          ...RESEAT,
+          ...(key.primitive === undefined ? {} : { primitive: key.primitive }),
+        },
       };
     }),
     appliesByWordTallies: wordTallies(applies.slice(LISTED).map((entry) => entry.identity)),
@@ -851,7 +857,12 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     },
     widening: {
       ...(key.depth < SCOPE_KEY_CAPS.depth ? { deeper: { ...key, depth: key.depth + 1 } } : {}),
-      reseat: { shape: key.shape, phase: key.phase, ...RESEAT },
+      reseat: {
+        shape: key.shape,
+        phase: key.phase,
+        ...RESEAT,
+        ...(key.primitive === undefined ? {} : { primitive: key.primitive }),
+      },
     },
   };
   return freeze(body);

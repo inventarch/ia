@@ -233,6 +233,8 @@ it('serves ia_position through the door: body(K) as runtime position reads it, a
     for (const [id, key] of [
       [2, {}],
       [3, { seat: PROCEDURE, shape: 'governance' }],
+      [30, { seat: PROCEDURE, primitive: 'Memory' }],
+      [31, { seat: PROCEDURE, primitive: 'Escalation' }],
     ] as const) {
       const got = call(id, key);
       expect(got.isError).toBe(false);
@@ -266,7 +268,7 @@ it('serves ia_position through the door: body(K) as runtime position reads it, a
     ok: false,
     code: 'IA-RUNTIME-REQUEST-INVALID',
     message:
-      "IA-RUNTIME-REQUEST-INVALID: Unknown parameter 'text'; admitted: within, seat, shape, phase, depth, budget, word",
+      "IA-RUNTIME-REQUEST-INVALID: Unknown parameter 'text'; admitted: within, seat, shape, phase, depth, budget, word, primitive",
   });
 });
 it("serves ia_next through the door: one plan's delivery view inside the scope, and a refusal naming its next command", () => {

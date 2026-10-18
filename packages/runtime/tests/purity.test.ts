@@ -19,6 +19,8 @@ const governanceSystem = 'floor/definition/system/governance-system',
   records = '.ia/src/systems/governance-system/records';
 const KEYS: Readonly<Record<string, Partial<ScopeKey>>> = {
   k0: {},
+  memory: { primitive: 'Memory' },
+  escalation: { shape: 'governance', primitive: 'Escalation' },
   'governance-at-law': { seat: lawId, shape: 'governance' },
   'sequence-depth-2': { shape: 'sequence', depth: 2 },
   'word-law': { seat: governanceSystem, shape: 'governance', word: 'law' },

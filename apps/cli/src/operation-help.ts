@@ -17,9 +17,9 @@ const PLAIN: Capabilities = { color: false, ascii: true, width: MAX_WIDTH };
 const ROUTE_VERSION = 1;
 /**
  * The protocol version that describes `operation`: version 1 for a route, and for a row a later version adds, which the
- * published renderers below may also be handed, that row's own `since`.
+ * published renderers below may also be handed, its latest parameter revision or initial `since`.
  */
-const versionOf = (operation: ProtocolOperation): number => operation.since ?? ROUTE_VERSION;
+const versionOf = (operation: ProtocolOperation): number => operation.paramsSince ?? operation.since ?? ROUTE_VERSION;
 /** Asks for the operation's description as JSON rather than as help text. */
 export const SCHEMA_TOKEN = '--schema';
 export const describeOperation = (name: string): ProtocolOperation | undefined =>

@@ -28,6 +28,7 @@ export interface DoorOptions extends OpenOptions {
    * The MACHINE_PROTOCOL version the door serves, by default the table's: an operation a later version adds (its row's
    * `since`) is refused as an unknown operation, and that refusal names only the operations served, so a door serving
    * version 1, as the CLI's machine routes do, refuses `read`, `next` and `position` with the bytes 1.1.0's door did.
+   * Version 2 keeps position's original parameter set; version 3 additionally admits an explicit primitive.
    */
   readonly protocol?: number;
 }
@@ -81,8 +82,9 @@ function reference(value: unknown): EdgeReference {
 }
 const BINDINGS = ['within', 'root', 'phase', 'revision'];
 const CONTEXT = ['within', 'text', 'coordinate', 'subject', 'follow', 'revision'];
-/** `position`: the scope token and the six parts of the scope key K, which normalizeScopeKey completes (R14). */
+/** `position`: the scope token, scope key and optional primitive override, completed by normalizeScopeKey (R14). */
 const POSITION = ['within', 'seat', 'shape', 'phase', 'depth', 'budget', 'word'];
+const POSITION_V3 = [...POSITION, 'primitive'];
 /** The bound on one document `read` returns: the CLI's workspace file reader's, so the two readers agree. */
 const READ_LIMIT = DISTRIBUTION_LIMITS.metadata;
 /**
@@ -310,7 +312,7 @@ export class Door {
           // and the host note (R12, R16). The parameters are closed and the token the Door's, as for every operation;
           // a refusal of the key itself names the one command to run.
           if (this.#protocol < 2) this.#unknown(operation);
-          keys(params, POSITION);
+          keys(params, this.#protocol >= 3 ? POSITION_V3 : POSITION);
           const within = this.#within(params),
             { within: _within, ...partial } = params;
           try {

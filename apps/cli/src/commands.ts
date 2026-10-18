@@ -399,7 +399,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
     syntax: [
       'ia position [--seat <id|path>] [--shape <H>] [--phase <P>] [--depth <d>]',
-      '            [--budget <n>] [--word <w>] [--json]',
+      '            [--budget <n>] [--word <w>] [--primitive <primitive>] [--json]',
     ],
     grammar: grammar([
       option({
@@ -419,7 +419,13 @@ export const COMMANDS: readonly CommandSpec[] = [
         name: 'phase',
         kind: 'value',
         placeholder: '<P>',
-        summary: "orient, plan, act or learn (default: the anchor phase of the shape's primitive)",
+        summary: 'orient, plan, act or learn (default: the anchor of the selected primitive)',
+      }),
+      option({
+        name: 'primitive',
+        kind: 'value',
+        placeholder: '<primitive>',
+        summary: 'Memory, Attention, Inference, Decision, Escalation or Learning (default: derived from shape)',
       }),
       option({
         name: 'depth',

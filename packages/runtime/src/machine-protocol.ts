@@ -7,7 +7,7 @@
  * are projections of this table. It describes the frozen wire format and changes none of it: the Door validates every
  * request itself, and tests/select-door.test.ts, tests/door-read.test.ts, tests/next.test.ts,
  * tests/door-position.test.ts and apps/cli/tests/cli.test.ts hold this table to what the Door admits and refuses. A
- * later version only appends operations (`since`), so the version 1 rows stay byte-identical to 1.1.0's
+ * later version appends operations (`since`) or revises later operations' parameters (`paramsSince`); version 1 rows stay byte-identical to 1.1.0's
  * (tests/golden/machine-protocol-v1.json).
  */
 import { COORDINATE_DOMAINS } from './coordinate.js';
@@ -36,6 +36,8 @@ export interface ProtocolOperation {
    * CLI's machine routes are the version 1 operations; a later one is served by the Door and the MCP door.
    */
   readonly since?: number;
+  /** The version that introduced the current parameter schema, when later than the operation itself. */
+  readonly paramsSince?: number;
 }
 export interface ProtocolDifference {
   readonly topic: string;
@@ -185,7 +187,7 @@ const EXAMPLE_IDENTITY = 'governance-system/definition/procedure/sample-procedur
 
 /** Frozen deeply, so a projection that shares its schema objects (the MCP tools) cannot change it. */
 export const MACHINE_PROTOCOL: MachineProtocol = freeze({
-  version: 2,
+  version: 3,
   flow: [
     'scope issues a token that bounds later reads by phase or identities, and by root only where sources declare a reach. It is optional: without within, a call reads the initial boundary.',
     'context delivers the cited procedure cells and governance that apply to a coordinate; select chooses exactly one binding among candidates, or refuses.',
@@ -195,6 +197,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
     'Version 2 adds read: the body behind one locator inside the scope, with its digest. The Door and the MCP door serve it; on the CLI the consumer verb ia read returns the same body and digest, and the machine routes stay the version 1 operations.',
     "Version 2 also adds next: one plan's delivery view inside the scope, its tasks in prerequisite order with their verdicts, computed per call and never stored. The Door and the MCP door serve it, and on the CLI the consumer verb ia next prints the same view. Its refusals carry next, the one command to run, and the plans or the cycle they name.",
     'Version 2 also adds position: body(K), what a scope key (seat, shape, phase, depth, budget, word) loads inside the scope, with its digest and a host note beside it. The body is a pure function of the key and the admitted revision, so one key reads one body and digest wherever the workspace is, and nothing text-driven runs. The Door and the MCP door serve it, and the machine routes stay the version 1 operations. A refusal of the key carries next, the one command to run.',
+    'Version 3 adds an optional primitive parameter to position. Its absence retains version 2 keys and behavior; a Door explicitly serving version 2 still refuses that parameter. The current position schema is marked paramsSince: 3 while the operation retains since: 2.',
   ],
   operations: [
     {
@@ -490,7 +493,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       name: 'position',
       summary: 'Read body(K), what a scope key loads inside the scope, with its digest and host note.',
       description:
-        "Read the position a scope key K = (seat, shape, phase, depth, budget, word) names inside the scope: body(K), the seat, the records the key loads in the shape's order, the blocking governance reserved outside the budget, pointers and their tallies, the rules and playbooks that apply by word with their tallies and the playbook cells they deliver, the mandates that govern the seat, the frontier one hop past it, what is unknown and the keys that widen it; its digest; and the host note beside it. A key naming no part is K0 (the repository's @workspace, context, orient, depth 0, budget 0); one naming any part takes context, the anchor phase of its shape's primitive, depth 1 and budget 16 for the rest. A relation row with a condition is followed only where the condition holds at the key's coordinate. The body is a pure function of the key and the admitted records the scope reads: it names no root path, token, time or capture, nothing text-driven runs, and no record body enters it, only the cells delivered; read fetches a body. A refusal of the key carries next, the one command to run.",
+        "Read the position a scope key K = (seat, shape, phase, depth, budget, word), with an optional primitive override, names inside the scope: body(K), the seat, the records the key loads in the shape's order, the blocking governance reserved outside the budget, pointers and their tallies, the rules and playbooks that apply by word with their tallies and the playbook cells they deliver, the mandates that govern the seat, the frontier one hop past it, what is unknown and the keys that widen it; its digest; and the host note beside it. A key naming no part is K0 (the repository's @workspace, context, orient, depth 0, budget 0); one naming any part takes context, the anchor phase of its explicit primitive or shape-derived primitive, depth 1 and budget 16 for the rest. An explicit primitive selects cells and conditional rows without changing the shape focus; omitted, the key and behavior retain their existing defaults. A relation row with a condition is followed only where the condition holds at the key's coordinate. The body is a pure function of the key and the admitted records the scope reads: it names no root path, token, time or capture, nothing text-driven runs, and no record body enters it, only the cells delivered; read fetches a body. A refusal of the key carries next, the one command to run.",
       params: object({
         within: read.within,
         seat: {
@@ -513,7 +516,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
         phase: {
           type: 'string',
           enum: COORDINATE_DOMAINS.phase,
-          description: "P; omitted, the anchor phase of the shape's primitive.",
+          description: 'P; omitted, the anchor of the explicit primitive or the shape-derived primitive.',
         },
         depth: {
           type: 'integer',
@@ -532,13 +535,19 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
         word: text(
           'w, a word the closure registers: only records of it load, are pointers or are tallied as pointers or frontier; the reserved rules, the rules and playbooks that apply by word with their tallies and cells, and the mandates are listed whatever their word. Omitted, none.',
         ),
+        primitive: {
+          type: 'string',
+          enum: COORDINATE_DOMAINS.primitive,
+          description:
+            'An optional cognitive primitive override. Omitted, derive it from shape; supplied, use it for cells and conditions, retaining the shape focus.',
+        },
       }),
       result:
         "The position: {body, digest, hostNote}. body is body(K) in the format ia.position-body.v1, its key the one resolved and its revision that of the view the scope reads; digest is the SHA-256 of the body's canonical JSON text; hostNote is {revision, capturedRevision?, previousRevision?, freshness, key}, host state never digested, freshness current, stale or no-capture against the last capture and key the key as completed.",
       refusals: [
         {
           code: 'IA-RUNTIME-REQUEST-INVALID',
-          when: 'A parameter is unknown or within is not a string, or the key breaks a bound: a shape or phase outside its closed set, a depth outside 0..2 or a budget outside 0..64, a seat that is neither an identity nor {path}, one the scope does not admit or at runtime placement, a path outside the workspace, or a word the closure does not register.',
+          when: 'A parameter is unknown or within is not a string, or the key breaks a bound: a shape, phase or primitive outside its closed set, a depth outside 0..2 or a budget outside 0..64, a seat that is neither an identity nor {path}, one the scope does not admit or at runtime placement, a path outside the workspace, or a word the closure does not register.',
           next: "Run the command a refusal of the key names as next: the part's closed set or cap, ia vocabulary for a word, or the position without the seat. Otherwise match the parameters to this operation's schema.",
         },
         SCOPE_UNAVAILABLE,
@@ -546,6 +555,7 @@ export const MACHINE_PROTOCOL: MachineProtocol = freeze({
       example: { seat: EXAMPLE_IDENTITY, shape: 'governance' },
       mcp: 'ia_position',
       since: 2,
+      paramsSince: 3,
     },
   ],
   differences: [
