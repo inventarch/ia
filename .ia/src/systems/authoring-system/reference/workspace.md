@@ -2,6 +2,12 @@
 
 Groups systems into an explicit work boundary; relationships can describe dependencies between boundaries. Its sources name the roots and placement bands its records are captured from, and its steward the agent that directs it by default.
 
+Select when: Select systems and source roots for an explicit work boundary.
+
+Avoid when: Use @system to own vocabulary or @distribution to select packaging roots.
+
+Before authoring: Declare source placements and an appropriate steward; validate the selected closure before using it.
+
 Owner: workspace-system. Identity: workspace-system/definition/\<facet>/\<name>. Facets: workspace. Artifact set: product-definition. Primitive: Attention. Move: Observation.
 
 Canonical schema: .ia/src/systems/workspace-system/schemas/workspace.schema.ia.

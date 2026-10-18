@@ -43,7 +43,7 @@ Spec source locators do not load documents. Resource capture and disclosure requ
 | @predicate | taxonomy | Defines a directed relationship and its inverse spelling. |
 | @primitive | taxonomy | Defines a cognitive primitive coordinate; a cell is selected using its phase and primitive. |
 | @principle | governance-system | Declares a governing rationale in the shared governance shape. |
-| @run | session-system | Represents a governed run identity, declared phase, status and owner. Declaration does not start execution. |
+| @run | session-system | Represents a governed run identity, status, owner and declared phase when known. Declaration does not start execution. |
 | @schema | floor | Declares the structural contract for exactly one registered discriminator. |
 | @spec | work-system | Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality. |
 | @system | floor | Registers vocabulary, direct system dependencies, a local steward and consent for relationships. |

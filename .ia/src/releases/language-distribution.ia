@@ -1,4 +1,5 @@
 #! ia 1.0
+# Generated from workspace.ia composition.systems by pnpm release-roots:generate.
 
 @distribution language-distribution
   meaning

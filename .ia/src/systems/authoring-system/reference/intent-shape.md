@@ -2,6 +2,12 @@
 
 Defines a request framing and its retrieval defaults.
 
+Select when: Frame a request with retrieval defaults for its purpose.
+
+Avoid when: Use @primitive to select a cognitive operation explicitly or @playbook to supply a procedure.
+
+Before authoring: Document default phase, primitive and delivery bounds; retain explicit caller overrides.
+
 Owner: taxonomy. Identity: taxonomy/definition/\<facet>/\<name>. Facets: intent-shape. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/floor/kernel.schema.ia.

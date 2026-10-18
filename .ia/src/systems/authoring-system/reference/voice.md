@@ -2,6 +2,12 @@
 
 Declares communication attributes separate from authority and procedure.
 
+Select when: Specify communication attributes to compose into an agent profile.
+
+Avoid when: Use @mandate for authority or @playbook for procedure; tone does not supply either.
+
+Before authoring: Make attributes actionable for the intended audience and check they do not smuggle in execution permissions.
+
 Owner: agent-composition-system. Identity: agent-composition-system/definition/\<facet>/\<name>. Facets: voice. Artifact set: product-definition. Primitive: Attention. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/voice.schema.ia.

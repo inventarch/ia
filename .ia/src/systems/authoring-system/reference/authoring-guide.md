@@ -2,6 +2,12 @@
 
 Associates a vocabulary owner and schema with an authoring reference and usage guidance.
 
+Select when: Link a registered word and its schema to advice for selecting and authoring that word.
+
+Avoid when: Use @playbook for a procedure or @schema for the structural contract itself.
+
+Before authoring: Explain nearest alternatives and minimum useful content; keep document references and resource pins synchronized.
+
 Owner: authoring-system. Identity: authoring-system/definition/\<facet>/\<name>. Facets: authoring-guide. Artifact set: product-definition. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/systems/authoring-system/schemas/authoring-guide.schema.ia.

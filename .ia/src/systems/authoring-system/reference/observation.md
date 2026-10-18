@@ -2,6 +2,12 @@
 
 Represents an attributed evidence account with interpretation and retention metadata. Evidence claims are not verified by field typing.
 
+Select when: Record an attributed account of evidence, its interpretation and retention.
+
+Avoid when: Use @case for an expectation or @improvement for a proposed change based on evidence.
+
+Before authoring: Identify the evaluated subject revision, verdict and concrete evidence; distinguish an unavailable check from a pass.
+
 Owner: learning-system. Identity: learning-system/definition/\<facet>/\<name>. Facets: observation. Artifact set: evidence. Primitive: Learning. Move: Observation.
 
 Canonical schema: .ia/src/systems/learning-system/schemas/observation.schema.ia.

@@ -2,6 +2,12 @@
 
 Represents an outcome with an exit criterion inside exactly one plan; it names a condition, not the work toward it.
 
+Select when: Name an outcome and exit criterion within exactly one plan.
+
+Avoid when: Use @task for the action toward that outcome or @plan for the overarching arrangement.
+
+Before authoring: Make exit observable and keep it aligned with the evidence required of its tasks.
+
 Owner: work-system. Identity: work-system/definition/\<facet>/\<name>. Facets: milestone. Artifact set: product-definition. Primitive: Inference. Move: Verification.
 
 Canonical schema: .ia/src/systems/work-system/schemas/milestone.schema.ia.

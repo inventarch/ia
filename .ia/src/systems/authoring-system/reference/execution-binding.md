@@ -2,6 +2,12 @@
 
 Connects a native target to a host-installed entry or operation descriptor.
 
+Select when: Connect a native target to an entry or descriptor installed by a host.
+
+Avoid when: Use @operation for the implementation contract or @harness to compose bindings.
+
+Before authoring: Qualify against the actual host catalog; absent installations are unavailable evidence, not successful bindings.
+
 Owner: agent-composition-system. Identity: agent-composition-system/binding/\<facet>/\<name>. Facets: execution-binding. Artifact set: execution. Primitive: Decision. Move: Execution.
 
 Canonical schema: .ia/src/systems/agent-composition-system/schemas/execution-binding.schema.ia.

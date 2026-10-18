@@ -2,6 +2,12 @@
 
 Represents an arrangement of milestones toward an intent; it heads the work hierarchy and has no parent. Plans do not nest.
 
+Select when: Arrange milestones toward an intent at the top of the work hierarchy.
+
+Avoid when: Use @milestone for one outcome or @task for an owned action; plans do not nest.
+
+Before authoring: State intent and status, connect milestones and reference maintained sources instead of copying mutable release values.
+
 Owner: work-system. Identity: work-system/definition/\<facet>/\<name>. Facets: plan. Artifact set: product-definition. Primitive: Inference. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/work-system/schemas/plan.schema.ia.

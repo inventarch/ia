@@ -441,9 +441,10 @@ describe('evaluate binds conformance evidence to the graph (C31)', () => {
   });
   const digest = (value: unknown) => createHash('sha256').update(stableSerialize(value)).digest('hex');
   it('keeps the outcome and digest of reports that pass neither option', () => {
-    expect(digest(evaluate(graph))).toBe('bcd876192996ee18ee686daa86e92a3de6f793b1bc5dab1c2cc57cf7262a0a5b');
+    // These snapshots bind the current kernel digest through every report revision.
+    expect(digest(evaluate(graph))).toBe('223f0321cc0f05a0cc19fc604035a9d843c1c2e3a0f23a055ab182842a69119f');
     expect(digest(evaluate(graph, { sourceDiagnostics: [], folders }))).toBe(
-      'b812ebfc0077593993a594328195fcd2cd416f10de1839dc53ecd350704ac32c',
+      '54b002ee23d811e4e5166b27fe55b580cc342ee82a7478bec460caded4402653',
     );
     const report = evaluate(embedded.graph);
     expect(report.conformance).toBeUndefined();

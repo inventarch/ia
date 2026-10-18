@@ -2,6 +2,12 @@
 
 Represents a maintained specification with explicit status and at most one same-word supersession. Contents and document membership belong to its author; a source locator does not load a body or prove semantic quality.
 
+Select when: Maintain a specification with explicit status and optional same-word supersession.
+
+Avoid when: Use @contract for evaluable requirement adoption or @task for work implementing the specification.
+
+Before authoring: Keep at most one supersession and identify maintained content; a source locator neither loads nor verifies its document body.
+
 Owner: work-system. Identity: work-system/contract/\<facet>/\<name>. Facets: spec. Artifact set: contract. Primitive: Memory. Move: Observation.
 
 Canonical schema: .ia/src/systems/work-system/schemas/spec.schema.ia.

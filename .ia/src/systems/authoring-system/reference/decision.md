@@ -2,6 +2,12 @@
 
 Represents a choice that is needed or has been made: the question, options and decider, and once made, the choice and rationale.
 
+Select when: Record a question, options and decider, then the selected choice and rationale when made.
+
+Avoid when: Use @task for implementation work or @improvement for a proposal awaiting review.
+
+Before authoring: Keep status consistent with the choice; pin historical evidence while current policy decisions refer to maintained sources.
+
 Owner: work-system. Identity: work-system/definition/\<facet>/\<name>. Facets: decision. Artifact set: decision. Primitive: Decision. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/work-system/schemas/decision.schema.ia.

@@ -2,6 +2,12 @@
 
 Represents a procedure as phase/primitive cells. Cell delivery is generic; the authored method belongs to its author.
 
+Select when: Provide a procedure whose cells are selected by phase and primitive.
+
+Avoid when: Use @operation for an executable implementation or @authoring-guide for choosing and writing records.
+
+Before authoring: Cover the intended phase and primitive combinations, including refusal or escalation where needed; cell delivery is not execution.
+
 Owner: governance-system. Identity: governance-system/definition/\<facet>/\<name>. Facets: procedure. Artifact set: principle. Primitive: Inference. Move: Synthesis.
 
 Canonical schema: .ia/src/systems/governance-system/schemas/playbook.schema.ia.
