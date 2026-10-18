@@ -81,7 +81,8 @@ function declaredReadCase(name: string, capture: SDK.Capture): string {
 
 function setup() {
   const fixture = readFixture(SDK, root),
-    bound = SDK.installedReadAdapters(fixture.capture, fixture.options);
+    currentCapture = vi.fn<SDK.InstalledReadOptions['currentCapture']>(fixture.options.currentCapture),
+    bound = SDK.installedReadAdapters(fixture.capture, { ...fixture.options, currentCapture });
   close.push(bound.close);
   const context: OperationContext = {
     sessionId: 's',
@@ -94,7 +95,7 @@ function setup() {
     signal: new AbortController().signal,
     assertCurrent: vi.fn(async () => {}),
   };
-  return { ...fixture, bound, context, adapter: bound.operations[SDK.INSTALLED_READ.handler]! };
+  return { ...fixture, bound, context, currentCapture, adapter: bound.operations[SDK.INSTALLED_READ.handler]! };
 }
 
 it('describes and binds a fixed first-party read without invoking source or grant callbacks', () => {
@@ -285,6 +286,65 @@ it('refuses missing authority and wrong, expired or revoked grants before source
   ])
     await expect(f.adapter.execute({ path: readPath }, context)).rejects.toMatchObject({ code: refusalCode });
   expect(f.context.assertCurrent).not.toHaveBeenCalled();
+});
+it.each([undefined, null])('refuses an absent grant (%s) before invoking host callbacks', async (grant) => {
+  const f = setup(),
+    context = { ...f.context, grant } as unknown as OperationContext;
+  await expect(f.adapter.execute({ path: readPath }, context)).rejects.toMatchObject({
+    code: declaredReadCase('read-captured-source-authority-refusal', f.capture),
+    message: 'Read exceeds current host authority',
+  });
+  expect(f.context.assertCurrent).not.toHaveBeenCalled();
+  expect(f.currentCapture).not.toHaveBeenCalled();
+});
+it.each([
+  { at: 1, malformed: 'null' },
+  { at: 2, malformed: 'null' },
+  { at: 1, malformed: 'changed bytes' },
+  { at: 2, malformed: 'changed bytes' },
+])('normalizes malformed current captures ($malformed) at verification $at', async ({ at, malformed }) => {
+  const f = setup(),
+    changed = {
+      ...f.capture,
+      sources: f.capture.sources.map((source) =>
+        source.path === readPath ? { ...source, text: source.text + '# private drift\n' } : source,
+      ),
+    };
+  let calls = 0;
+  f.currentCapture.mockImplementation(() =>
+    ++calls === at ? (malformed === 'null' ? (null as unknown as SDK.Capture) : changed) : f.capture,
+  );
+  await expect(f.adapter.execute({ path: readPath }, f.context)).rejects.toMatchObject({
+    code: 'IA-INSTALLED-READ-DENIED',
+    message: 'Captured native source verification failed',
+  });
+  expect(f.currentCapture).toHaveBeenCalledTimes(at);
+  expect(f.context.assertCurrent).toHaveBeenCalledTimes(at);
+});
+it.each(['currentCapture', 'assertCurrent'] as const)(
+  'preserves programming errors from the %s host callback',
+  async (callback) => {
+    const f = setup(),
+      failure = new Error('Host callback failed');
+    const fail = async () => {
+      throw failure;
+    };
+    if (callback === 'currentCapture') f.currentCapture.mockImplementation(fail);
+    else f.context.assertCurrent = fail;
+    await expect(f.adapter.execute({ path: readPath }, f.context)).rejects.toBe(failure);
+  },
+);
+it.each([1, 2])('preserves cancellation during current capture callback %s', async (at) => {
+  const f = setup(),
+    controller = new AbortController(),
+    reason = new Error('Host cancelled the read');
+  let calls = 0;
+  f.currentCapture.mockImplementation(() => {
+    if (++calls !== at) return f.capture;
+    controller.abort(reason);
+    return null as unknown as SDK.Capture;
+  });
+  await expect(f.adapter.execute({ path: readPath }, { ...f.context, signal: controller.signal })).rejects.toBe(reason);
 });
 it('rechecks revocation across current-authority callbacks and after reading', async () => {
   for (const at of [1, 2]) {
