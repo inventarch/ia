@@ -1468,7 +1468,7 @@
     },
     {
       "path": "tools/testing/inventory.test.ts",
-      "sha256": "63ba92630468c9e02444e11c01ae4018c61a882a1dbbbd3b489e32137f1de661",
+      "sha256": "d1a2bee3e14800fd4da176b935a21dd660212298e65b378204c39c2149bd9925",
       "change": "bounded-fetch-https-only"
     },
     {

@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "990b862c91f43a48f9c263159350fe280a5bbd8c",
-    "tree": "cac5acce0e8cc25a37528e326755733e83096b8a",
+    "commit": "611d380d3f50556645ad88e6b26a89979eb141d4",
+    "tree": "eb2f1856c682045d1335018f34a97d045df422e9",
     "dirty": true
   },
   "membership": {
@@ -6815,7 +6815,7 @@
     },
     {
       "path": "releases/changesets/3.2.0.json",
-      "sha256": "120eed9f7c846d7d82895e9c89292660ecf954731941e02b0cd673d3b1c406dc"
+      "sha256": "6ff8a66cd51d875f922a201ed52e64c573226c2e15d621b085857dc4c84f2cf5"
     },
     {
       "path": "releases/current.json",
@@ -7667,7 +7667,7 @@
     },
     {
       "path": "tools/testing/inventory.test.ts",
-      "sha256": "63ba92630468c9e02444e11c01ae4018c61a882a1dbbbd3b489e32137f1de661"
+      "sha256": "d1a2bee3e14800fd4da176b935a21dd660212298e65b378204c39c2149bd9925"
     },
     {
       "path": "tools/testing/inventory.ts",
@@ -7746,5 +7746,5 @@
       "sha256": "291a1735a1bdf4a85d3baafef644f0bffe0d9bfbada49d63c648311ff4429ed1"
     }
   ],
-  "inputDigest": "b82eaf993b382eeec21bcc0cc7a7df5d8a76a04d857277195239fab2a86dc875"
+  "inputDigest": "9980a7bf360638b31cdc50824b2d1f7f67ceb4175d046c190dc3dc025dcfb71b"
 }
