@@ -14,7 +14,7 @@ Parse Markdown once and enforce documentation ownership, links, catalog identity
 - [link-parity.test.ts](link-parity.test.ts) — behavior and refusal coverage.
 - [markdown.d.mts](markdown.d.mts) — interface declaration; implementation checking is tracked separately.
 - [markdown.mjs](markdown.mjs).
-- [teaching-links.ts](teaching-links.ts).
+- [teaching-links.mjs](teaching-links.mjs).
 
 ## Commands
 

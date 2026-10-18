@@ -1,0 +1,21 @@
+{
+  "format": "iakb.portable.v1",
+  "provenance": {
+    "sourceId": "fixture",
+    "commit": "1111111111111111111111111111111111111111",
+    "verification": "unverified"
+  },
+  "files": [
+    {
+      "path": ".ia/src/notes.ia",
+      "text": "#! ia 1.0\n\n@spec alpha\n  meaning\n    says \"Portable alpha knowledge.\"\n  work\n    title \"Alpha\"\n    status draft\n    source \"docs/alpha.md\"\n",
+      "sha256": "7b628affb219251274bc7ffc145bc5e854884db74ab932b3e083086fb758d52e"
+    },
+    {
+      "path": "docs/alpha.md",
+      "text": "# Alpha\n\nExact portable knowledge.\n",
+      "sha256": "b417c1767a446316304a281b8a1475993574b1660a8ae2d1c7da123ae4a195fa"
+    }
+  ],
+  "digest": "e50a076dfc4e12ab4d52438eef5caf06cad35ce614b84caec71f64a8e919822d"
+}

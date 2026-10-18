@@ -59,7 +59,8 @@
     "composition-fixture": "workspace-records plus apps/cli's composition workspace fixture, whose authored records the workspace-runtime generator tests render through the filesystem, since no import edge names them.",
     "dependency-policy": "Component package manifests and src trees scanned through filesystem discovery, including additions/removals, plus the dependency checker and execution inputs.",
     "test-configuration": "Tooling plus each workspace project Vitest configuration read by inventory and temporary-directory policy tests.",
-    "distribution-fixtures": "Workspace records plus the distribution assets and fixtures used by distribution tests."
+    "distribution-fixtures": "Workspace records plus the distribution assets and fixtures used by distribution tests.",
+    "qualification-source": "The complete tracked source selection used by public package receipts, toolchain and source revision. Ordinary receipts and archives are verified during every consumer execution."
   },
   "tasks": [
     {
@@ -226,7 +227,8 @@
         "db:build",
         "distribution:build",
         "runtime:build",
-        "workspace-runtime:build"
+        "workspace-runtime:build",
+        "kb:build"
       ],
       "outputs": [
         "apps/cli/dist",
@@ -285,7 +287,8 @@
       "mode": "source",
       "inputProfile": "workspace-records",
       "dependsOn": [
-        "runtime:build"
+        "runtime:build",
+        "kb:build"
       ],
       "outputs": [
         "apps/mcp-door/dist",
@@ -1387,7 +1390,8 @@
       "project": "apps/mcp-door",
       "files": [
         "tests/protocol.test.ts",
-        "tests/stdio.test.ts"
+        "tests/stdio.test.ts",
+        "tests/kb.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -2536,7 +2540,11 @@
       "project": ".",
       "files": [
         "tools/distribution/host-payload.test.ts",
-        "tools/distribution/language-guide.test.ts"
+        "tools/distribution/language-guide.test.ts",
+        "tools/distribution/consumer.test.ts",
+        "tools/distribution/authoring-manifest.test.ts",
+        "tools/distribution/authoring-guides.test.ts",
+        "tools/distribution/generation-order.test.ts"
       ],
       "profile": "corpus",
       "platforms": [
@@ -2545,7 +2553,7 @@
         "macos"
       ],
       "mode": "source",
-      "inputProfile": "workspace-records",
+      "inputProfile": "repository-inventory",
       "dependsOn": [
         "agent-composition-system:build",
         "language-base:generate",
@@ -2744,8 +2752,6 @@
       "kind": "vitest",
       "project": ".",
       "files": [
-        "tools/systems/authoring-manifest.test.ts",
-        "tools/systems/authoring-guides.test.ts",
         "tools/systems/execute.test.ts"
       ],
       "profile": "installed",
@@ -2804,7 +2810,8 @@
         "tools/testing/report.test.ts",
         "tools/testing/resources.test.ts",
         "tools/testing/subprocess.test.ts",
-        "tools/testing/cold-start.test.ts"
+        "tools/testing/cold-start.test.ts",
+        "tools/testing/manifest.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -2999,7 +3006,7 @@
       "workerLimit": 1,
       "resourceClass": "io",
       "covers": [
-        "node --conditions=development --import tsx tools/systems/generate-authoring.ts --check"
+        "node --conditions=development --import tsx tools/distribution/generate-authoring.ts --check"
       ]
     },
     {
@@ -3185,7 +3192,7 @@
         "macos"
       ],
       "mode": "emitted",
-      "inputProfile": "emitted",
+      "inputProfile": "qualification-source",
       "dependsOn": [
         "agent-composition-system:build",
         "agent-system:build",
@@ -3202,17 +3209,19 @@
         "graph:build",
         "language:build",
         "runtime:build",
-        "service-contracts:build"
+        "service-contracts:build",
+        "packages:pack"
       ],
       "outputs": [
         "artifacts/tests/resources-qualify"
       ],
-      "cache": true,
+      "cache": false,
       "workerLimit": 1,
       "resourceClass": "subprocess",
       "covers": [
         "node tools/projections/qualify-resources.mjs"
-      ]
+      ],
+      "reason": "Exact archive provenance is rechecked on every run; restored test evidence cannot replace this verification."
     },
     {
       "id": "projections:qualify",
@@ -3226,7 +3235,7 @@
         "macos"
       ],
       "mode": "emitted",
-      "inputProfile": "emitted",
+      "inputProfile": "qualification-source",
       "dependsOn": [
         "agent-composition-system:build",
         "agent-system:build",
@@ -3243,17 +3252,19 @@
         "graph:build",
         "language:build",
         "runtime:build",
-        "service-contracts:build"
+        "service-contracts:build",
+        "packages:pack"
       ],
       "outputs": [
         "artifacts/tests/projections-qualify"
       ],
-      "cache": true,
+      "cache": false,
       "workerLimit": 1,
       "resourceClass": "subprocess",
       "covers": [
         "node tools/projections/qualify-projections.mjs"
-      ]
+      ],
+      "reason": "Exact archive provenance is rechecked on every run; restored test evidence cannot replace this verification."
     },
     {
       "id": "public-language:check",
@@ -3400,7 +3411,7 @@
         "macos"
       ],
       "mode": "emitted",
-      "inputProfile": "repository-inventory",
+      "inputProfile": "qualification-source",
       "dependsOn": [
         "agent-composition-system:build",
         "agent-system:build",
@@ -3417,19 +3428,21 @@
         "session-system:build",
         "steward-hook:build",
         "template-system:build",
-        "vscode:build"
+        "vscode:build",
+        "packages:pack"
       ],
       "outputs": [
         "artifacts/tests/public-qualify"
       ],
-      "cache": true,
+      "cache": false,
       "workerLimit": 1,
       "resourceClass": "subprocess",
       "covers": [
         "node tools/distribution/generate-public.mjs --check",
         "node tools/distribution/qualify-public.mjs",
         "node tools/distribution/qualify-packages.mjs"
-      ]
+      ],
+      "reason": "Exact archive provenance is rechecked on every run; restored test evidence cannot replace this verification."
     },
     {
       "id": "source:lint",
@@ -3725,6 +3738,218 @@
       "resourceClass": "pure",
       "covers": [
         "tsc -p tsconfig.tools-js.json"
+      ]
+    },
+    {
+      "id": "kb:build",
+      "kind": "command",
+      "project": "packages/kb",
+      "command": "pnpm build",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "language:build",
+        "graph:build",
+        "db:build",
+        "runtime:build",
+        "workspace-runtime:build",
+        "session-system:build"
+      ],
+      "outputs": [
+        "packages/kb/dist",
+        "artifacts/tests/kb-build"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r build"
+      ]
+    },
+    {
+      "id": "kb:typecheck",
+      "kind": "command",
+      "project": "packages/kb",
+      "command": "pnpm typecheck",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "kb:build"
+      ],
+      "outputs": [
+        "artifacts/tests/kb-typecheck"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "pnpm -r typecheck"
+      ]
+    },
+    {
+      "id": "kb:test",
+      "kind": "vitest",
+      "project": "packages/kb",
+      "files": [
+        "tests/legacy.test.ts",
+        "tests/foundation.test.ts",
+        "tests/installation.test.ts",
+        "tests/package.test.ts",
+        "tests/local.test.ts",
+        "tests/protocol.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "kb:build"
+      ],
+      "outputs": [
+        "artifacts/tests/kb-test"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "cli:test-kb",
+      "kind": "vitest",
+      "project": "apps/cli",
+      "files": [
+        "tests/kb.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "workspace-records",
+      "dependsOn": [
+        "cli:build"
+      ],
+      "outputs": [
+        "artifacts/tests/cli-test-kb"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "kb:qualify",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm kb:qualify",
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "emitted",
+      "inputProfile": "qualification-source",
+      "dependsOn": [
+        "agent-composition-system:build",
+        "agent-system:build",
+        "authoring-system:build",
+        "session-system:build",
+        "template-system:build",
+        "cli:build",
+        "distribution:build",
+        "mcp-door:build",
+        "steward-hook:build",
+        "vscode:build",
+        "compliance:build",
+        "db:build",
+        "graph:build",
+        "language:build",
+        "runtime:build",
+        "service-contracts:build",
+        "kb:build",
+        "packages:pack"
+      ],
+      "outputs": [
+        "artifacts/tests/kb-qualify"
+      ],
+      "cache": false,
+      "workerLimit": 1,
+      "resourceClass": "subprocess",
+      "covers": [
+        "node tools/distribution/qualify-kb.mjs"
+      ],
+      "reason": "Exact archive provenance is rechecked on every run; restored test evidence cannot replace this verification."
+    },
+    {
+      "id": "packages:pack",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm packages:pack",
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "emitted",
+      "inputProfile": "qualification-source",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/qualification/packed",
+        "artifacts/tests/packages-pack"
+      ],
+      "cache": false,
+      "reason": "Produces a manifest for the current orchestration identity; every consumer revalidates exact archives.",
+      "workerLimit": 1,
+      "resourceClass": "subprocess"
+    },
+    {
+      "id": "tools:test-sdk-consumer",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/distribution/sdk-consumer.test.ts"
+      ],
+      "profile": "installed",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-sdk-consumer"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
       ]
     }
   ]

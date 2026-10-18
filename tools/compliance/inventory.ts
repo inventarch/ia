@@ -1,7 +1,10 @@
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isEntry } from '../entry/is-entry.mjs';
+import { checkWrite } from '../shared/check-write.mjs';
+import { generationMode } from '../shared/args.mjs';
+import { conformanceSources } from './corpus.js';
 import { publicSystemNames } from '../native/public-systems.mjs';
 import { LANG_CODES } from '../../packages/language/src/index.js';
 import { GRAPH_CODES } from '../../packages/graph/src/index.js';
@@ -49,27 +52,9 @@ function fixtures(root: string): InventoryFixture[] {
   }
   return listed.sort((a, b) => compare(a.path, b.path));
 }
-function corpus(root: string): { path: string; text: string }[] {
-  const base = resolve(root, 'examples/conformance/native');
-  const walk = (path: string): string[] =>
-    readdirSync(path, { withFileTypes: true }).flatMap((entry) =>
-      entry.isDirectory()
-        ? walk(resolve(path, entry.name))
-        : entry.name.endsWith('.ia')
-          ? [resolve(path, entry.name)]
-          : [],
-    );
-  return walk(base)
-    .map((path) => ({
-      path: '.ia/src/' + relative(base, path).replaceAll('\\', '/'),
-      text: readFileSync(path, 'utf8'),
-    }))
-    .sort((a, b) => compare(a.path, b.path));
-}
-
 /** The package-v1 inventory of this tree: what verifyFixtures runs, and what it reports as out of profile. */
 export function generateInventory(root: string): { text: string; digest: string; inventory: ConformanceInventory } {
-  const sources = corpus(root),
+  const sources = conformanceSources(root),
     folders = publicSystemNames(root) as string[],
     loaded = loadCorpus(sources, folders);
   const boundaries = [
@@ -119,18 +104,29 @@ export function generateInventory(root: string): { text: string; digest: string;
 }
 /** The inventory gate: regenerate and compare with the checked-in module, or write it. */
 export function checkInventory(root: string, write = false): { digest: string; fixtures: number } {
-  const result = generateInventory(root),
-    path = resolve(root, INVENTORY_PATH);
-  if (write) writeFileSync(path, result.text);
-  else if (readFileSync(path, 'utf8').replaceAll('\r\n', '\n') !== result.text)
+  const result = generateInventory(root);
+  const compared = checkWrite(root, new Map([[INVENTORY_PATH, result.text]]), { write, normalizeNewlines: true });
+  if (!write && compared.changed.length)
     throw new Error(
       'Inventory drift: run node --conditions=development --import tsx tools/compliance/inventory.ts --write and review the result',
     );
   return { digest: result.digest, fixtures: result.inventory.fixtures.length };
 }
 if (isEntry(process.argv[1], import.meta.url)) {
-  const flag = process.argv[2] ?? '--check';
-  if (!['--check', '--write'].includes(flag)) throw new Error('Usage: inventory.ts [--check|--write]');
-  const result = checkInventory(fileURLToPath(new URL('../../', import.meta.url)), flag === '--write');
-  process.stdout.write(`Inventoried ${result.fixtures} language fixtures; digest ${result.digest}.\n`);
+  let mode: 'check' | 'write' | undefined;
+  try {
+    mode = generationMode(process.argv.slice(2));
+  } catch (error) {
+    console.error('Usage: inventory.ts [--check|--write]');
+    console.error(String(error));
+    process.exitCode = 2;
+  }
+  if (mode)
+    try {
+      const result = checkInventory(fileURLToPath(new URL('../../', import.meta.url)), mode === 'write');
+      process.stdout.write(`Inventoried ${result.fixtures} language fixtures; digest ${result.digest}.\n`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
 }

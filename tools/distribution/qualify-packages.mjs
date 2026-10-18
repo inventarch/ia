@@ -1,3 +1,4 @@
+import { ensureQualification, installConsumer } from './consumer.mjs';
 import '../temp/physical-temp.mjs';
 import { packageManagerCommand } from '../entry/package-manager.mjs';
 import { packPublicPackages, COMPATIBILITY } from '../release/public-pack.mjs';
@@ -27,7 +28,11 @@ import { REPOSITORY_URL, REGISTRY, writeReleaseManifest } from './npm-release.mj
 const root = resolve(import.meta.dirname, '../..'),
   pnpm = process.env.npm_execpath;
 if (!pnpm) throw new Error('Build first, then run pnpm packages:qualify');
-const { values } = parseArgs({ options: { 'pack-destination': { type: 'string' } } });
+const { values } = parseArgs({ options: { 'pack-destination': { type: 'string' }, manifest: { type: 'string' } } });
+assert(
+  !(values.manifest && values['pack-destination']),
+  'Qualification manifest conflicts with sealed release preparation',
+);
 const destination = values['pack-destination'] ? resolve(root, values['pack-destination']) : undefined;
 if (destination && existsSync(destination))
   assert.equal(readdirSync(destination).length, 0, 'Pack destination must be empty');
@@ -35,7 +40,7 @@ const temporaryRoot = realpathSync(tmpdir()),
   temporary = mkdtempSync(resolve(temporaryRoot, 'ia-release-packages-')),
   consumer = resolve(temporary, 'consumer with spaces'),
   cliConsumer = resolve(temporary, 'cli consumer with spaces'),
-  archives = resolve(temporary, 'archives'),
+  ownArchives = resolve(temporary, 'archives'),
   home = resolve(temporary, 'home'),
   workspace = resolve(temporary, 'workspace with spaces');
 const run = (args, cwd = root, env = process.env, command = process.execPath) =>
@@ -56,14 +61,17 @@ const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const releasedVersion = json(resolve(root, 'apps/cli/package.json')).version,
   supportedNode = json(resolve(root, 'package.json')).engines.node;
 try {
-  for (const path of [consumer, cliConsumer, archives, home]) mkdirSync(path);
+  for (const path of [consumer, cliConsumer, ownArchives, home]) mkdirSync(path);
   const projects = JSON.parse(packageManager(['list', '-r', '--depth', '-1', '--json']))
     .map(({ path }) => ({ path, manifest: json(resolve(path, 'package.json')) }))
     .filter(({ manifest }) => !manifest.private);
   assert.ok(projects.length > 0, 'No public packages discovered');
   // Release preparation (a pack destination) requires the committed seal; ordinary qualification packs the selection
   // this checkout would seal, so a pull request need not rewrite the descriptor.
-  const bundled = packPublicPackages(root, archives, pnpm, { sealed: Boolean(destination) });
+  const bundled = destination
+    ? packPublicPackages(root, ownArchives, pnpm)
+    : ensureQualification(root, pnpm, values.manifest);
+  const archives = destination ? ownArchives : bundled.archivesDirectory;
   const packed = bundled.packed;
   const contentScan = scanPackedPublicContent(root, packed);
   assert.equal(packed.length, projects.length);
@@ -81,26 +89,7 @@ try {
     policy.version,
     policy.cycles,
   );
-  const dependencies = Object.fromEntries(
-    packed.map(({ name, filename }) => [name, 'file:' + filename.replaceAll('\\', '/')]),
-  );
-  // The release is not in a registry yet. Overrides resolve each already-validated package version to its tarball.
-  // Prefer the contributor cache; a clean frozen install may have tarballs without registry metadata, so allow
-  // metadata retrieval here. The installed CLI commands below run separately with all fetch calls refused.
-  writeFileSync(
-    resolve(consumer, 'package.json'),
-    JSON.stringify({
-      name: 'ia-release-consumer',
-      private: true,
-      type: 'module',
-      dependencies,
-    }),
-  );
-  writeFileSync(
-    resolve(consumer, 'pnpm-workspace.yaml'),
-    JSON.stringify({ packages: ['.'], overrides: dependencies }, null, 2),
-  );
-  packageManager(['install', '--prefer-offline', '--ignore-scripts', '--lockfile=false'], consumer);
+  installConsumer(consumer, bundled.packed, pnpm, { name: 'ia-release-consumer' });
   const verification = resolve(consumer, 'verify-installed.mjs');
   const verificationCode = systemVerificationProgram;
   writeFileSync(verification, verificationCode);
@@ -127,7 +116,10 @@ try {
         `${source.name}: unsupported dependency source ${name}`,
       );
       if (name.startsWith('@inventarch/')) {
-        assert.ok(dependencies[name], `${source.name}: dependency ${name} is missing from the release`);
+        assert.ok(
+          packed.some((entry) => entry.name === name),
+          `${source.name}: dependency ${name} is missing from the release`,
+        );
         assert.equal(
           version,
           projects.find((row) => row.manifest.name === name)?.manifest.version,
@@ -187,20 +179,7 @@ try {
   );
   // A second installation exposes only the CLI as a direct dependency. Other public packages at the consumer's
   // top level must not accidentally satisfy an undeclared CLI dependency.
-  writeFileSync(
-    resolve(cliConsumer, 'package.json'),
-    JSON.stringify({
-      name: 'ia-cli-release-consumer',
-      private: true,
-      type: 'module',
-      dependencies: { '@inventarch/cli': dependencies['@inventarch/cli'] },
-    }),
-  );
-  writeFileSync(
-    resolve(cliConsumer, 'pnpm-workspace.yaml'),
-    JSON.stringify({ packages: ['.'], overrides: dependencies }, null, 2),
-  );
-  packageManager(['install', '--prefer-offline', '--ignore-scripts', '--lockfile=false'], cliConsumer);
+  installConsumer(cliConsumer, bundled.packed, pnpm, { name: 'ia-cli-release-consumer', names: ['@inventarch/cli'] });
   writeFileSync(
     resolve(cliConsumer, 'offline.mjs'),
     "globalThis.fetch = () => { throw new Error('Installed CLI qualification must not use the network'); };\n",
@@ -219,7 +198,7 @@ try {
     run([resolve(consumer, 'node_modules/@inventarch/distribution/dist/cli.js'), '--help'], consumer, env),
     /ia-distribution/,
   );
-  const vsix = resolve(archives, `inventarch-ia-${releasedVersion}.vsix`);
+  const vsix = resolve(ownArchives, `inventarch-ia-${releasedVersion}.vsix`);
   packageManager(['exec', 'vsce', 'package', '--no-dependencies', '--out', vsix], resolve(root, 'apps/vscode'));
   assert.ok(existsSync(vsix));
   if (destination) {

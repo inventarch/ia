@@ -1,13 +1,51 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { packageManagerCommand } from '../entry/package-manager.mjs';
 import { runBounded } from './subprocess.js';
+import { materializeSource } from './fixtures/source.js';
 
 const source = resolve(import.meta.dirname, '../..');
+
+it('materializes candidate additions and relocations in the scratch Git index', async () => {
+  const parent = realpathSync(tmpdir()),
+    root = mkdtempSync(resolve(parent, 'ia-source-copy-'));
+  const original = resolve(root, 'original'),
+    copy = resolve(root, 'copy');
+  mkdirSync(original);
+  const git = (cwd: string, ...args: string[]) =>
+    execFileSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
+  try {
+    git(original, 'init', '--quiet');
+    writeFileSync(resolve(original, 'old.test.ts'), 'export {};\n');
+    git(original, 'add', 'old.test.ts');
+    git(
+      original,
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '--quiet',
+      '-m',
+      'fixture',
+    );
+    renameSync(resolve(original, 'old.test.ts'), resolve(original, 'moved.test.ts'));
+    writeFileSync(resolve(original, 'new.test.ts'), 'export {};\n');
+    materializeSource(original, copy);
+    expect(git(copy, 'ls-files').trim().split(/\r?\n/)).toEqual(['moved.test.ts', 'new.test.ts']);
+    expect(existsSync(resolve(copy, 'old.test.ts'))).toBe(false);
+    expect(git(original, 'ls-files').trim()).toBe('old.test.ts');
+  } finally {
+    if (dirname(root) !== parent) throw new Error('Unsafe source fixture cleanup');
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  }
+});
 
 it(
   'plans before build and produces every installed-view prerequisite in a source-only checkout',
@@ -24,28 +62,7 @@ it(
       return result.stdout;
     };
     try {
-      execFileSync('git', ['clone', '--no-local', '--quiet', source, root], { timeout: 120_000, windowsHide: true });
-      const changed = new Set(
-        [
-          ...execFileSync('git', ['diff', 'HEAD', '--no-renames', '--name-only', '-z'], {
-            cwd: source,
-            encoding: 'utf8',
-            timeout: 30_000,
-          }).split('\0'),
-          ...execFileSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], {
-            cwd: source,
-            encoding: 'utf8',
-            timeout: 30_000,
-          }).split('\0'),
-        ].filter(Boolean),
-      );
-      for (const file of changed) {
-        const target = resolve(root, file);
-        if (existsSync(resolve(source, file))) {
-          mkdirSync(dirname(target), { recursive: true });
-          cpSync(resolve(source, file), target);
-        } else rmSync(target, { force: true });
-      }
+      materializeSource(source, root);
       const launcher = process.env['npm_execpath'];
       if (!launcher) throw new Error('Run cold-start qualification through pinned pnpm');
       const install = packageManagerCommand(launcher, [

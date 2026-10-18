@@ -17,11 +17,19 @@ Evaluate repository compliance using subject-bound evidence and concrete success
 - [inventory.ts](inventory.ts).
 - [publication-fixtures.test.ts](publication-fixtures.test.ts) — behavior and refusal coverage.
 - [publication-fixtures.ts](publication-fixtures.ts).
-- [runtime-fixtures.ts](runtime-fixtures.ts).
+- [runtime-fixtures.ts](runtime-fixtures.ts) — compatibility exports for the named runners.
+- [corpus.ts](corpus.ts) — root-relative conformance source selection shared by the gate and inventory.
+- [door-fixtures.ts](door-fixtures.ts) — runtime door boundaries.
+- [actor-fixtures.ts](actor-fixtures.ts) — actor evidence.
+- [mandate-fixtures.ts](mandate-fixtures.ts) — mandate evidence.
+- [read-fixtures.ts](read-fixtures.ts) — read evidence.
+- [next-fixtures.ts](next-fixtures.ts) — next-step evidence.
 
 ## Commands
 
 - `pnpm compliance:check`: `node --conditions=development --import tsx tools/compliance/check.ts`.
+
+`compliance:check` accepts only optional `--json`; inventory accepts mutually exclusive `--check` and `--write`, defaulting to check. Parsing refuses unknown or duplicate flags before evaluation. Shared inventory writes preserve unchanged bytes and validate the complete output set.
 
 Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
 

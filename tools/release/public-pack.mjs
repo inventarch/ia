@@ -1,7 +1,17 @@
 import { packageManagerCommand } from '../entry/package-manager.mjs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, dirname, resolve } from 'node:path';
 import { copyPackInputs } from './shared/pack-inputs.mjs';
 import { child, separate } from './shared/paths.mjs';
@@ -198,11 +208,16 @@ export function packPublicPackages(root, target, pnpm = process.env.npm_execpath
   if (rootManifest.packageManager !== 'pnpm@' + pnpmVersion)
     throw new Error('Package manager differs from the emitted toolchain policy');
   if (existsSync(target) && readdirSync(target).length) throw new Error('Public package destination must be empty');
-  const parent = dirname(root),
+  const parent = realpathSync(tmpdir()),
     staging = mkdtempSync(resolve(parent, '.ia-public-npm-pack-'));
   const run = (args, cwd = staging) => {
     const invocation = packageManagerCommand(pnpm, args);
-    return execFileSync(invocation.command, invocation.args, { cwd, windowsHide: true, stdio: 'inherit' });
+    return execFileSync(invocation.command, invocation.args, {
+      cwd,
+      windowsHide: true,
+      stdio: 'inherit',
+      timeout: 15 * 60_000,
+    });
   };
   try {
     copyPackInputs(root, staging, source.receipt);

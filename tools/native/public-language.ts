@@ -1,3 +1,4 @@
+import { parseOptions } from '../shared/args.mjs';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,13 +12,8 @@ import type { Capture } from '../../packages/workspace-runtime/src/corpus.js';
 import { checkNative } from './check.js';
 import type { NativeInput } from './compile.js';
 import { isEntry } from '../entry/is-entry.mjs';
+import { readPublicManifest } from './public-manifest.mjs';
 
-interface Manifest {
-  version: 1;
-  floor: string[];
-  systems: { name: string; declaration: string; schemas: string[] }[];
-  examples: { file: string; system: string }[];
-}
 /** The file whose `@distribution language-distribution` roots the bundled `inventarch/language` package. */
 export const LANGUAGE_ROOT = 'records/language.ia';
 /** Floor, contracts, schemas and the language root only: packing whole system folders must not ship the examples. */
@@ -27,11 +23,11 @@ export function languagePackageInputs(root: string): { inputs: NativeInput[]; fo
 export function publicLanguageInputs(
   root: string,
   examples?: readonly string[],
-  read: (path: string) => string = (path) => readFileSync(path, 'utf8'),
+  read?: (path: string) => string,
 ): { inputs: NativeInput[]; folders: string[] } {
   const base = resolve(root, 'examples/public-language');
-  const manifest = JSON.parse(read(resolve(base, 'manifest.json'))) as Manifest;
-  if (manifest.version !== 1) throw new Error('Unsupported public language manifest');
+  const manifest = readPublicManifest(root, read);
+  const source = read ?? ((path: string) => readFileSync(path, 'utf8'));
   const inputs: NativeInput[] = [],
     paths = new Set<string>();
   const add = (path: string, file: string, floor = false): void => {
@@ -39,7 +35,7 @@ export function publicLanguageInputs(
     paths.add(path);
     inputs.push({
       path,
-      text: read(file).replace(/\r\n/g, '\n'),
+      text: source(file).replace(/\r\n/g, '\n'),
       location: floor
         ? { placement: { kind: 'floor', band: 10, reach: '' }, provenance: 'bootstrap' }
         : { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' },
@@ -138,22 +134,35 @@ export function compilePublicLanguage(inputs: readonly NativeInput[], folders: r
   };
 }
 if (isEntry(process.argv[1], import.meta.url)) {
-  const result = checkPublicLanguage(fileURLToPath(new URL('../../', import.meta.url)));
-  if (!result.ok)
-    console.log(
-      JSON.stringify(
-        {
-          diagnostics: result.native.diagnostics,
-          findings: result.native.assessments.flatMap((a) => a.findings),
-          graph: result.graph.diagnostics,
-          harness: result.harness,
-        },
-        null,
-        2,
-      ),
-    );
-  console.log(
-    `${result.ok ? 'PASS' : 'FAIL'}: ${result.native.records.length} public-example records; ${result.native.registry.registrations.size} words; harness ${result.harness.ok ? 'compiled' : 'refused'}`,
-  );
-  process.exitCode = result.ok ? 0 : 1;
+  let options: ReturnType<typeof parseOptions> | undefined;
+  try {
+    options = parseOptions(process.argv.slice(2), {});
+  } catch (error) {
+    console.error(String(error));
+    process.exitCode = 2;
+  }
+  if (options)
+    try {
+      const result = checkPublicLanguage(fileURLToPath(new URL('../../', import.meta.url)));
+      if (!result.ok)
+        console.log(
+          JSON.stringify(
+            {
+              diagnostics: result.native.diagnostics,
+              findings: result.native.assessments.flatMap((a) => a.findings),
+              graph: result.graph.diagnostics,
+              harness: result.harness,
+            },
+            null,
+            2,
+          ),
+        );
+      console.log(
+        `${result.ok ? 'PASS' : 'FAIL'}: ${result.native.records.length} public-example records; ${result.native.registry.registrations.size} words; harness ${result.harness.ok ? 'compiled' : 'refused'}`,
+      );
+      process.exitCode = result.ok ? 0 : 1;
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
 }

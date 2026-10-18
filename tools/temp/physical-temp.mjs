@@ -15,5 +15,5 @@ if (process.platform !== 'win32') {
   } catch {
     physical = selected;
   }
-  if (physical !== selected) process.env.TMPDIR = physical;
+  if (physical !== selected) process.env['TMPDIR'] = physical;
 }

@@ -2,13 +2,15 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateSchema, validateSystems } from '../../packages/compliance/src/index.js';
-import type { CompiledRecord } from '../../packages/language/src/index.js';
+import { checkMeaning } from './meaning.js';
+export { checkMeaning, CIRCULAR_ANSWERS, type MeaningFinding } from './meaning.js';
 import { compileNative } from './compile.js';
 import type { NativeInput } from './compile.js';
 import { checkReleaseWork } from './release-work.js';
 import { checkRepositoryArchitecture } from './repository-architecture.js';
 import { releaseRootFindings } from './release-roots.js';
 import { isEntry } from '../entry/is-entry.mjs';
+import { parseOptions } from '../shared/args.mjs';
 
 export function readNative(root: string): { inputs: readonly NativeInput[]; folders: readonly string[] } {
   const inputs: NativeInput[] = [];
@@ -58,66 +60,6 @@ export function checkNative(inputs: readonly NativeInput[], folders: readonly st
     ok: !corpus.diagnostics.some((d) => d.severity === 'error') && assessments.every((a) => a.outcome === 'pass'),
   };
 }
-/**
- * `answers` templates that ask about the record's own name instead of the need it serves. Removing the name leaves
- * one identical sentence per template, so the phrase cannot tell its record apart.
- */
-export const CIRCULAR_ANSWERS: readonly RegExp[] = [
-  /^What does .+ designate in the .+ domain\?$/,
-  /^Does this node lower into the .+ lane\?$/,
-  /^What cognitive operation does .+ name\?$/,
-];
-export interface MeaningFinding {
-  readonly code: 'IA-NATIVE-ANSWERS-DUPLICATE' | 'IA-NATIVE-ANSWERS-CIRCULAR';
-  readonly identity: string;
-  readonly path: string;
-  readonly line: number;
-  readonly message: string;
-}
-
-function answersOf(record: CompiledRecord): string | undefined {
-  for (const section of record.sections)
-    if (section.name === 'meaning')
-      for (const field of section.fields) {
-        if (
-          'key' in field &&
-          field.key === 'answers' &&
-          (field.value.kind === 'string' || field.value.kind === 'prose')
-        )
-          return field.value.text;
-      }
-  return undefined;
-}
-/** Refuse repeated selection questions and known circular templates without exceptions. */
-export function checkMeaning(records: readonly CompiledRecord[]): readonly MeaningFinding[] {
-  const phrases = records.flatMap((record) => {
-    const answers = answersOf(record);
-    return answers === undefined ? [] : [{ record, answers }];
-  });
-  const byText = new Map<string, CompiledRecord[]>();
-  for (const { record, answers } of phrases) byText.set(answers, [...(byText.get(answers) ?? []), record]);
-  const findings: MeaningFinding[] = [];
-  for (const { record, answers } of phrases) {
-    const others = byText
-      .get(answers)!
-      .filter((other) => other !== record)
-      .map((other) => other.identity);
-    const source = { identity: record.identity, path: record.source.path, line: record.source.line };
-    if (others.length > 0)
-      findings.push({
-        ...source,
-        code: 'IA-NATIVE-ANSWERS-DUPLICATE',
-        message: `answers "${answers}" repeats ${others.join(', ')}; ask the question only this record answers`,
-      });
-    if (CIRCULAR_ANSWERS.some((pattern) => pattern.test(answers)))
-      findings.push({
-        ...source,
-        code: 'IA-NATIVE-ANSWERS-CIRCULAR',
-        message: `answers "${answers}" asks about the record's own name; ask the question a requester has when this is the right record`,
-      });
-  }
-  return findings;
-}
 export function nativeOutcome(result: ReturnType<typeof checkNative>) {
   const meaning = checkMeaning(result.records);
   const release = checkReleaseWork(result.records);
@@ -126,17 +68,45 @@ export function nativeOutcome(result: ReturnType<typeof checkNative>) {
     findings: [...result.diagnostics, ...result.assessments.flatMap((a) => a.findings), ...meaning, ...release],
   };
 }
-if (isEntry(process.argv[1], import.meta.url)) {
-  const root = fileURLToPath(new URL('../../', import.meta.url));
-  const { inputs, folders } = readNative(root);
-  const result = checkNative(inputs, folders);
-  const evaluated = nativeOutcome(result);
+/** The repository entry point has one complete result, including architecture and release-root policy. */
+export function checkRepositoryNative(root: string) {
+  const { inputs, folders } = readNative(root),
+    result = checkNative(inputs, folders),
+    evaluated = nativeOutcome(result);
   const architecture = [...checkRepositoryArchitecture(result.records), ...releaseRootFindings(root)];
-  const ok = evaluated.ok && architecture.length === 0;
-  const findings = [...evaluated.findings, ...architecture];
-  if (findings.length > 0) process.stdout.write(`${JSON.stringify(findings, null, 2)}\n`);
-  process.stdout.write(
-    `${ok ? 'PASS' : 'FAIL'}: ${result.records.length} native records; ${result.assessments.length} structural assessments; order ${result.registry.order.join(', ')}.\n`,
-  );
-  if (!ok) process.exitCode = 1;
+  return {
+    ...result,
+    ok: evaluated.ok && architecture.length === 0,
+    findings: [...evaluated.findings, ...architecture],
+  };
+}
+if (isEntry(process.argv[1], import.meta.url)) {
+  let valid = false;
+  try {
+    parseOptions(process.argv.slice(2), {});
+    valid = true;
+  } catch (error) {
+    console.error('Usage: check.ts');
+    console.error(String(error));
+    process.exitCode = 2;
+  }
+  if (valid)
+    try {
+      const result = checkRepositoryNative(fileURLToPath(new URL('../../', import.meta.url)));
+      if (result.findings.length) process.stdout.write(JSON.stringify(result.findings, null, 2) + '\n');
+      process.stdout.write(
+        (result.ok ? 'PASS' : 'FAIL') +
+          ': ' +
+          result.records.length +
+          ' native records; ' +
+          result.assessments.length +
+          ' structural assessments; order ' +
+          result.registry.order.join(', ') +
+          '.\n',
+      );
+      if (!result.ok) process.exitCode = 1;
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
 }

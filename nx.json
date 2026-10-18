@@ -38,7 +38,11 @@
       {
         "env": "RUNNER_OS"
       },
-      "{workspaceRoot}/tsconfig.tools-js.json"
+      "{workspaceRoot}/tsconfig.tools-js.json",
+      "{workspaceRoot}/tools/testing/manifest.ts",
+      "{workspaceRoot}/tools/testing/prerequisites.ts",
+      "{workspaceRoot}/tools/testing/evidence.ts",
+      "{workspaceRoot}/tools/testing/gate.ts"
     ],
     "default": [
       "{projectRoot}/**/*",
@@ -134,6 +138,12 @@
       "{workspaceRoot}/.ia/authoring.resources.json",
       "{workspaceRoot}/LICENSE",
       "sharedGlobals"
+    ],
+    "qualification-source": [
+      "repository-inventory",
+      {
+        "runtime": "git rev-parse HEAD"
+      }
     ]
   },
   "targetDefaults": {},

@@ -79,7 +79,7 @@ function reading(): { readonly root: string; readonly target: string } {
   symlinkSync(target, resolve(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
   return { root, target: realpathSync(target) };
 }
-it('negotiates the pinned profile, discovers twelve tools and enforces initialization order', () => {
+it('negotiates the pinned profile, preserves twelve tools and adds five knowledge tools', () => {
   const value = protocol();
   expect(value.request(message(1, 'tools/list'))?.error?.code).toBe(-32000);
   expect(value.request(message(1, 'initialize', {}))?.error?.code).toBe(-32602);
@@ -108,9 +108,9 @@ it('negotiates the pinned profile, discovers twelve tools and enforces initializ
     tools: { name: string; annotations: { readOnlyHint: boolean } }[];
   };
   // The eight version 1 door tools, ia_read, ia_next and ia_position from protocol version 2, and ia_vocabulary.
-  expect(listed.tools).toHaveLength(12);
+  expect(listed.tools).toHaveLength(17);
   expect(listed.tools.map((tool) => tool.name).slice(8, 11)).toEqual(['ia_read', 'ia_next', 'ia_position']);
-  expect(listed.tools.at(-1)?.name).toBe('ia_vocabulary');
+  expect(listed.tools[11]?.name).toBe('ia_vocabulary');
   expect(listed.tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
   expect(listed.tools.some((t) => t.name === 'ia_report')).toBe(false);
   expect(value.request(message(4, 'initialize'))?.error?.code).toBe(-32600);
@@ -488,7 +488,15 @@ it('serves the door operations as the machine protocol table describes them', ()
   };
   const tools = listed.tools;
   const served = MACHINE_PROTOCOL.operations.filter((operation) => operation.mcp !== null);
-  expect(tools.map((tool) => tool.name)).toEqual([...served.map((operation) => operation.mcp), 'ia_vocabulary']);
+  expect(tools.map((tool) => tool.name)).toEqual([
+    ...served.map((operation) => operation.mcp),
+    'ia_vocabulary',
+    'ia_kb_check',
+    'ia_kb_search',
+    'ia_kb_read',
+    'ia_kb_resolve',
+    'ia_kb_traverse',
+  ]);
   expect(
     MACHINE_PROTOCOL.operations.filter((operation) => operation.mcp === null).map((operation) => operation.name),
   ).toEqual(['report']);

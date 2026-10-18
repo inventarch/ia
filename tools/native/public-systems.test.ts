@@ -11,7 +11,16 @@ it('derives the selected systems and compiled subset, refusing duplicate and uns
       mkdirSync(resolve(root, path, '..'), { recursive: true });
       writeFileSync(resolve(root, path), JSON.stringify(value));
     };
-    const manifest = (names: string[]) => ({ version: 1, systems: names.map((name) => ({ name })) });
+    const manifest = (names: string[]) => ({
+      version: 1,
+      floor: ['.ia/src/floor/kernel.schema.ia'],
+      examples: [],
+      systems: names.map((name) => ({
+        name,
+        declaration: 'contracts/' + name + '.ia',
+        schemas: ['.ia/src/systems/' + name + '/schemas/item.schema.ia'],
+      })),
+    });
     put('examples/public-language/manifest.json', manifest(['one-system', 'two-system']));
     put('.ia/src/systems/one-system/package.json', { scripts: { build: 'tsc' } });
     put('.ia/src/systems/two-system/package.json', {});

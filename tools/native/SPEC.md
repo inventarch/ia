@@ -9,7 +9,10 @@ Compile and validate native corpora, repository architecture/work policy, public
 - [check.test.ts](check.test.ts) — behavior and refusal coverage.
 - [check.ts](check.ts).
 - [compile.ts](compile.ts).
-- [fixture-instances.ts](fixture-instances.ts).
+- [fixtures/instances.ts](fixtures/instances.ts) — repository test instance data.
+- [meaning.ts](meaning.ts) — native record meaning constraints.
+- [public-manifest.mjs](public-manifest.mjs) — bounded complete public-selection validation before selected paths are read.
+- [public-manifest.d.mts](public-manifest.d.mts) — generated from the checked implementation for package test consumers.
 - [language-base.test.ts](language-base.test.ts) — behavior and refusal coverage.
 - [language-base.ts](language-base.ts).
 - [public-fixture.test.ts](public-fixture.test.ts) — behavior and refusal coverage.
@@ -58,6 +61,8 @@ Task ownership: `tools:test-native`, `native:check`, `public-language:check`, `v
 ## Invariants
 
 System payloads exclude repository maintenance work and neutral examples. Root lists come from the declared workspace composition; semantic schema admission and repository policy remain distinct.
+
+Public source selection validates all manifest keys, unique systems and paths, system ownership and portable relative paths before any selected source read. Vocabulary generation computes the complete output set before shared guarded check/write. Language-base generation verifies archive identity, refuses aliases and foreign files, publishes an archive before its pin and removes obsolete owned archives only after pin publication; unchanged bytes retain their timestamps. Native checking aggregates schema, meaning, repository architecture and release-root policy outcomes once.
 
 ## Limits
 

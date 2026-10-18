@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { validateAdoption } from '../../packages/compliance/src/index.js';
 import type { ClauseEvaluator } from '../../packages/compliance/src/adoption.js';
@@ -12,6 +14,7 @@ import {
   exampleCatalog,
   languagePackageInputs,
   publicCapture,
+  publicLanguageInputs,
 } from './public-language.js';
 import { vocabularyOutputs } from './public-vocabulary.js';
 import { compileNative } from './compile.js';
@@ -20,6 +23,62 @@ import { publicFixtureInputs } from './public-fixture.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const baseline = checkPublicLanguage(root);
+
+it('bounds disk manifest reads before eager decoding across public entry points', () => {
+  const scratch = mkdtempSync(resolve(realpathSync(tmpdir()), 'ia-manifest-read-test-'));
+  const manifest = resolve(scratch, 'examples/public-language/manifest.json');
+  mkdirSync(resolve(scratch, 'examples/public-language'), { recursive: true });
+  writeFileSync(manifest, ' '.repeat(3 * 1024 * 1024));
+  try {
+    const code = `import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';
+import {readPublicManifest} from ${JSON.stringify(pathToFileURL(resolve(root, 'tools/native/public-manifest.mjs')).href)};
+import {publicLanguageInputs} from ${JSON.stringify(pathToFileURL(resolve(root, 'tools/native/public-language.ts')).href)};
+import {vocabularyOutputs} from ${JSON.stringify(pathToFileURL(resolve(root, 'tools/native/public-vocabulary.ts')).href)};
+const original=fs.readFileSync; fs.readFileSync=(path,...args)=>{if(String(path)===${JSON.stringify(manifest)})throw Error('eager manifest read');return original(path,...args)};syncBuiltinESMExports();
+for(const read of [readPublicManifest,publicLanguageInputs,vocabularyOutputs]){try{read(${JSON.stringify(scratch)});throw Error('unexpected acceptance')}catch(error){console.log(error.message)}}`;
+    const result = spawnSync(
+      process.execPath,
+      ['--conditions=development', '--import', 'tsx', '--input-type=module', '--eval', code],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 30000,
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout.trim().split(/\r?\n/)).toEqual(
+      Array(3).fill('Unbounded file: examples/public-language/manifest.json'),
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+it.each([
+  'floor-traversal',
+  'declaration-traversal',
+  'schema-owner',
+  'duplicate-system',
+  'unknown-example-owner',
+  'duplicate-example',
+])('validates the complete public manifest before reading selected inputs: %s', (kind) => {
+  const manifest = JSON.parse(readFileSync(resolve(root, 'examples/public-language/manifest.json'), 'utf8'));
+  if (kind === 'floor-traversal') manifest.floor[0] = '../outside.ia';
+  else if (kind === 'declaration-traversal') manifest.systems[0].declaration = '../../outside.ia';
+  else if (kind === 'schema-owner') manifest.systems[0].schemas[0] = '.ia/src/systems/foreign-system/schema.ia';
+  else if (kind === 'duplicate-system') manifest.systems.push(manifest.systems[0]);
+  else if (kind === 'unknown-example-owner') manifest.examples[0].system = 'foreign-system';
+  else manifest.examples.push(manifest.examples[0]);
+  const reads: string[] = [];
+  expect(() =>
+    publicLanguageInputs(root, undefined, (path) => {
+      reads.push(path);
+      return reads.length === 1 ? JSON.stringify(manifest) : '#! ia 1.0\n';
+    }),
+  ).toThrow();
+  expect(reads).toHaveLength(1);
+});
 function changed(file: string, before: string, after: string) {
   let count = 0;
   const inputs = baseline.inputs.map((input) => {

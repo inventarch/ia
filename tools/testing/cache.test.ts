@@ -18,7 +18,7 @@ import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import * as subprocess from './subprocess.js';
 import { orchestrate } from './orchestrate.js';
 import { artifactDirectory } from './run.js';
-import { readManifest } from './inventory.js';
+import { readManifest } from './manifest.js';
 import { looksLikeCacheTransportFailure } from './orchestrate.js';
 import { runBounded } from './subprocess.js';
 
@@ -336,11 +336,41 @@ it('reexecutes after Nx reports unpack failure with success status and preserves
     expect(invoke.mock.calls[1]![1]).toContain('--skip-nx-cache');
     expect(invoke.mock.calls[1]![2].env).not.toHaveProperty('NX_SELF_HOSTED_REMOTE_CACHE_SERVER');
     expect(invoke.mock.calls[1]![2].env).not.toHaveProperty('NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN');
+    const firstEnvironment = invoke.mock.calls[0]![2].env!;
+    expect(firstEnvironment['IA_TEST_ORCHESTRATION']).toMatch(/^[a-f0-9-]{36}$/);
+    expect(firstEnvironment['IA_QUALIFICATION_MANIFEST']).toBe(
+      resolve(
+        root,
+        'artifacts/qualification/packed',
+        process.platform,
+        firstEnvironment['IA_TEST_ORCHESTRATION']!,
+        'qualification.json',
+      ),
+    );
+    expect(invoke.mock.calls[1]![2].env?.['IA_QUALIFICATION_MANIFEST']).toBe(
+      firstEnvironment['IA_QUALIFICATION_MANIFEST'],
+    );
     expect(outcome.status).toBe('failed');
   } finally {
     invoke.mockRestore();
   }
 });
+
+it('hashes source fixtures only for their reader tasks', async () => {
+  const ids = ['language:build', 'graph:build', 'tools:test-testing', 'tools:test-distribution'];
+  const baseline = await taskHashes(ids);
+  const path = resolve(root, 'tools/testing/fixtures/source.ts'),
+    original = readFileSync(path);
+  try {
+    writeInput(path, Buffer.concat([original, Buffer.from('\n// fixture-only mutation\n')]));
+    const changed = await taskHashes(ids);
+    for (const id of ['language:build', 'graph:build']) expect(changed[id], id).toBe(baseline[id]);
+    for (const id of ['tools:test-testing', 'tools:test-distribution']) expect(changed[id], id).not.toBe(baseline[id]);
+  } finally {
+    writeInput(path, original);
+    expect(await taskHashes(ids)).toEqual(baseline);
+  }
+}, 120000);
 
 let installation: Promise<void> | undefined;
 /** Query the installed hasher, including project expansion and discovered inputs. */

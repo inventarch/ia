@@ -10,7 +10,7 @@ import {
   readAuthoringManifestFile,
 } from '@inventarch/workspace-runtime/authoring-manifest';
 import { resolveAuthoring } from '@inventarch/workspace-runtime/authoring';
-import { teachingLinkClasses, teachingLinkFindings } from '../docs/teaching-links.js';
+import { teachingLinkClasses, teachingLinkFindings } from '../docs/teaching-links.mjs';
 
 const temporary: string[] = [];
 it('refuses a guide dependency omitted from the installed resource closure', () => {

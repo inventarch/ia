@@ -6,6 +6,16 @@ Generate public and authoring resources, assemble host payloads, qualify install
 
 ## Modules
 
+- [consumer.mjs](consumer.mjs) — exact ordinary artifact receipts, separate sealed verification and shared installation.
+- [consumer.test.ts](consumer.test.ts) — identity, mode and substitution refusals.
+- [sdk-consumer.test.ts](sdk-consumer.test.ts) — sealed fixture receipts and SDK refusal boundaries.
+- [qualify-sdk.mjs](qualify-sdk.mjs) — manual sealed SDK journeys.
+- [qualify-kb.mjs](qualify-kb.mjs) — installed knowledge package, CLI and MCP journeys.
+- [authoring-resources.mjs](authoring-resources.mjs) — sole guarded manifest computation for both generators.
+- [generate-authoring.ts](generate-authoring.ts) — standalone authoring command adapter.
+- [authoring-manifest.test.ts](authoring-manifest.test.ts) — installed manifest contracts.
+- [authoring-guides.test.ts](authoring-guides.test.ts) — guide admission and role guidance.
+- [generation-order.test.ts](generation-order.test.ts) — shared refusals and generation convergence.
 - [generate-public.d.mts](generate-public.d.mts) — interface declaration; implementation checking is tracked separately.
 - [generate-public.mjs](generate-public.mjs).
 - [github-release.d.mts](github-release.d.mts) — interface declaration; implementation checking is tracked separately.
@@ -58,10 +68,15 @@ Generate public and authoring resources, assemble host payloads, qualify install
 
 ## Commands
 
+- `pnpm authoring:check`: `node --conditions=development --import tsx tools/distribution/generate-authoring.ts --check`.
+- `pnpm authoring:generate`: `node --conditions=development --import tsx tools/distribution/generate-authoring.ts --write`.
 - `pnpm host-payload:generate`: `node tools/distribution/host-payload.mjs --write`.
 - `pnpm public:qualify`: `node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs && pnpm packages:qualify`.
 - `pnpm public:generate`: `node tools/distribution/generate-public.mjs --write`.
 - `pnpm packages:qualify`: `node tools/distribution/qualify-packages.mjs`.
+- `pnpm packages:pack`: `node tools/distribution/consumer.mjs pack`.
+- `pnpm sdk:qualify`: `node tools/distribution/qualify-sdk.mjs` followed by five positional paths: public tree, archives, new output, pnpm launcher and offline store.
+- `pnpm kb:qualify`: `node tools/distribution/qualify-kb.mjs`.
 - `pnpm npm:prepare`: `node tools/distribution/release-changes.mjs check --strict && pnpm native:release:check && pnpm build && node tools/distribution/generate-public.mjs --check && node tools/distribution/qualify-public.mjs && pnpm packages:qualify --pack-destination artifacts/npm`.
 - `pnpm npm:plan`: `node tools/distribution/npm-release.mjs plan`.
 - `pnpm npm:consumer`: `node tools/distribution/npm-consumer.mjs`.
@@ -98,15 +113,25 @@ Current package namespace assertions test actual forbidden payload entries. Only
 
 ## Limits
 
+Shared installation rechecks every archive SHA-256, with a 256 MiB per-archive and 512 MiB aggregate ceiling, before creating installation files. It writes exclusive copies of those verified bytes under the owned consumer and gives pnpm only those copies. Replacing an original archive during installation cannot change the consumed snapshot. KB argument and evidence refusals precede allocation; later failures remove only its identity-checked temporary directory, while success retains its report and workspace.
+
+Ordinary archive preparation writes immutable cohorts and a qualification pointer under `artifacts/qualification/packed/<platform>/`. The receipt names the current source/input digest, platform, architecture, toolchain, compatibility companion and each archive SHA-256. Orchestration uses one run-specific pointer shared by all ordinary consumers; the producer and consumer commands execute uncached so restored task evidence cannot replace current artifact verification. Their input profile still declares the complete source selection that the receipt actually hashes.
+
+`packages:qualify`, `resources:qualify`, `projections:qualify` and `kb:qualify` accept `--manifest <path>` (or `IA_QUALIFICATION_MANIFEST`). A supplied or existing receipt must verify; refusal never silently repacks. Without any receipt, standalone commands announce and run the ordinary producer. Run `packages:pack` explicitly to replace a stale pointer. Prior immutable cohorts remain available as evidence. `kb:qualify --artifacts <directory>` is a compatibility spelling for that directory's `qualification.json`.
+
+`packages:qualify --pack-destination <directory>` retains sealed release preparation and conflicts with `--manifest`. The manual SDK command requires the committed input seal, `npm-release.json`, compatibility companion and exact archive integrities. Ordinary qualification cannot satisfy it. It creates a new separate consumer, runs the existing onboarding, installed-read and specification fixtures, and removes its owned output if execution fails. No provider call or publication is performed. Fixture receipt tests are the normal `tools:test-sdk-consumer` task; they do not claim live sealed release qualification.
+
 Npm automation moves to an intermediate owner after recipe parity work. Live registry/settings/publication results cannot be inferred from local mocks.
 
 ## Detailed behavior
+
+`authoring-resources.mjs` owns manifest computation. The public generator supplies pending outputs; standalone authoring reads disk. Both validate existing physical inputs, portable paths, alias/hardlink refusal, fatal UTF-8, per-file/aggregate/metadata ceilings, explicit selection and installed teaching links. `resources.mjs` renders and selects content without writing a second manifest. Both entries use the shared full-set check/write guards. The convergence fixture changes a schema description and native target in scratch, runs vocabulary → public → authoring → native selectors/archives within three passes, renders projections, then proves a complete repeat changes no output.
 
 Exercises built authoring/resource APIs, public guide resolution and host projection success/refusal against the public native tree.
 
 `resources.mjs` maintains one selection-advice entry per public word. It generates both native authoring-guide records and installed reference documents from that advice, alongside canonical schema fields. Each entry explains when to select the word, its nearest alternatives and what to establish before authoring. An unreviewed word fails generation rather than receiving generic fallback advice. Run `pnpm vocabulary:generate`, `pnpm public:generate` and the authoring/projection generators after changing the schema or guidance; resource pins are derived from the final bytes.
 
-`pnpm packages:qualify` packs every public npm package and installs the archives into a temporary consumer outside the repository. Dependency installation prefers the local package cache and may retrieve missing registry metadata. It verifies release versions, runtime policy, dependency pins, license notices and every exported target, then imports all exports with the development condition enabled. A second consumer installs only the CLI and its declared dependencies. With network fetches refused and home/configuration paths isolated, that installed CLI initializes and validates a workspace and registers both supported hosts, then meets the installed-view expectations of `installed-views.mjs`. Its `qualifyInit` holds what `ia init --apply --json` printed and left to the CLI contract's `init` row: exactly three authored records (a `@workspace`, its participant `@agent` and that `@mandate`) in `.ia/src/workspace.ia`, no distribution, `.ia/.gitignore` holding `work/` and `distributions/`, the capture effect matching `.ia/work/snapshot/current.json`, and project skipped without `--host`. The scenarios are the three-record position, packet and format (K0 names the participant's one mandate, each host's receipt renders that one participant and no agent file, and `ia format --check` takes the starter file), the pack refusal without a distribution, naming `ia vocabulary distribution`, capture idempotence, read bodies and digests, next order and self-declared status, live edits, no writes, refusals and the removed `ia compile` refusal and workspace preservation. `installed-views.test.ts` runs the same expectations against the repository's built CLI in the tools suite, so a gate that runs without packing holds them too. It is its own task, `tools:test-installed-views`, whose `installed-cli` input profile hashes every app, package and distribution source and the native generators, because the test reaches the CLI only through the built `apps/cli/dist/main.js` path, which no import edge names, so a cached pass cannot outlive a CLI change. The same check packages the editor VSIX. Run the root build first; `pnpm public:qualify` includes this artifact check.
+`pnpm packages:qualify` verifies the selected ordinary cohort and installs its archives into a temporary consumer outside the repository. Dependency installation prefers the local package cache and may retrieve missing registry metadata. It verifies release versions, runtime policy, dependency pins, license notices and every exported target, then imports all exports with the development condition enabled. A second consumer installs only the CLI and its declared dependencies. With network fetches refused and home/configuration paths isolated, that installed CLI initializes and validates a workspace and registers both supported hosts, then meets the installed-view expectations of `installed-views.mjs`. Its `qualifyInit` holds what `ia init --apply --json` printed and left to the CLI contract's `init` row: exactly three authored records (a `@workspace`, its participant `@agent` and that `@mandate`) in `.ia/src/workspace.ia`, no distribution, `.ia/.gitignore` holding `work/` and `distributions/`, the capture effect matching `.ia/work/snapshot/current.json`, and project skipped without `--host`. The scenarios are the three-record position, packet and format (K0 names the participant's one mandate, each host's receipt renders that one participant and no agent file, and `ia format --check` takes the starter file), the pack refusal without a distribution, naming `ia vocabulary distribution`, capture idempotence, read bodies and digests, next order and self-declared status, live edits, no writes, refusals and the removed `ia compile` refusal and workspace preservation. `installed-views.test.ts` runs the same expectations against the repository's built CLI in the tools suite, so a gate that runs without packing holds them too. It is its own task, `tools:test-installed-views`, whose `installed-cli` input profile hashes every app, package and distribution source and the native generators, because the test reaches the CLI only through the built `apps/cli/dist/main.js` path, which no import edge names, so a cached pass cannot outlive a CLI change. The same check packages the editor VSIX. Run the root build first; `pnpm public:qualify` includes this artifact check.
 
 This establishes local installed-artifact behavior on the executing platform. It does not publish artifacts, establish registry ownership, or qualify a live editor or fresh agent session.
 

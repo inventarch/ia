@@ -6,12 +6,9 @@ Host repository authoring operations, publication boundaries and system scenario
 
 ## Modules
 
-- [authoring-guides.test.ts](authoring-guides.test.ts) — behavior and refusal coverage.
-- [authoring-manifest.test.ts](authoring-manifest.test.ts) — behavior and refusal coverage.
 - [execute.test.ts](execute.test.ts) — behavior and refusal coverage.
 - [execute.ts](execute.ts).
 - [fixture.ts](fixture.ts).
-- [generate-authoring.ts](generate-authoring.ts).
 - [publish.ts](publish.ts).
 - [run.ts](run.ts).
 - [scenarios.ts](scenarios.ts).
@@ -19,8 +16,6 @@ Host repository authoring operations, publication boundaries and system scenario
 ## Commands
 
 - `pnpm system:run`: `node --conditions=development --import tsx tools/systems/run.ts`.
-- `pnpm authoring:check`: `node --conditions=development --import tsx tools/systems/generate-authoring.ts --check`.
-- `pnpm authoring:generate`: `node --conditions=development --import tsx tools/systems/generate-authoring.ts --write`.
 - `pnpm systems:check`: `node --conditions=development --import tsx tools/systems/scenarios.ts`.
 
 Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.

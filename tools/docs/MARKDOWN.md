@@ -1,6 +1,5 @@
 # Markdown link parsing reference
-
-This is the maintained parsing and reader-policy reference for [documentation tooling](SPEC.md). [markdown.mjs](markdown.mjs) owns syntax extraction and URI decomposition. [check.ts](check.ts), [catalog.mjs](catalog.mjs) and [teaching-links.ts](teaching-links.ts) apply their own target and access policies to that result. Downstream consumers may vendor the fixtures and implement the same contract without a sibling checkout.
+This is the maintained parsing and reader-policy reference for [documentation tooling](SPEC.md). [markdown.mjs](markdown.mjs) owns syntax extraction and URI decomposition. [check.ts](check.ts), [catalog.mjs](catalog.mjs) and [teaching-links.mjs](teaching-links.mjs) apply their own target and access policies to that result. Downstream consumers may vendor the fixtures and implement the same contract without a sibling checkout.
 
 ## Grammar and extraction
 
@@ -50,7 +49,7 @@ Run the portable suite from the repository root:
 pnpm exec vitest run --config vitest.tools.config.mts tools/docs/link-parity.test.ts --maxWorkers=1
 ```
 
-The suite exercises both documentation readers and the teaching reader against the same syntax expectations. [audit.test.ts](audit.test.ts) retains repository-boundary and linked-entry checks. [authoring-manifest.test.ts](../systems/authoring-manifest.test.ts) retains installed-closure and private-citation controls. This repository maintains the parser, this reference, both fixture files and their tests; its dependency closure must pass a frozen install.
+The suite exercises both documentation readers and the teaching reader against the same syntax expectations. [audit.test.ts](audit.test.ts) retains repository-boundary and linked-entry checks. [authoring-manifest.test.ts](../distribution/authoring-manifest.test.ts) retains installed-closure and private-citation controls. This repository maintains the parser, this reference, both fixture files and their tests; its dependency closure must pass a frozen install.
 
 For a parser or policy update:
 

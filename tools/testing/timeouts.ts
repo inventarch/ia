@@ -1,4 +1,4 @@
-import { readManifest, type TimeoutProfile } from './inventory.js';
+import { readManifest, type TimeoutProfile } from './manifest.js';
 
 /**
  * Named execution bounds. These are correctness ceilings derived from the allowances the suites

@@ -6,17 +6,23 @@ Own the explicit task inventory, scheduling, execution, evidence and resource li
 
 ## Modules
 
-- [check-declarations.mjs](check-declarations.mjs) — checks entry JavaScript and emits its declarations in memory; explicit `--write` validates all output paths and replaces changed declarations atomically.
+- [check-declarations.mjs](check-declarations.mjs) — checks package-facing entry, argument, path and public-manifest JavaScript and emits declarations in memory; explicit `--write` validates all output paths and replaces changed declarations atomically.
 - [cache.test.ts](cache.test.ts) — behavior and refusal coverage.
 - [cold-start.test.ts](cold-start.test.ts) — behavior and refusal coverage.
 - [inventory.test.ts](inventory.test.ts) — behavior and refusal coverage.
-- [inventory.ts](inventory.ts).
+- [inventory.ts](inventory.ts) — repository/project discovery and inventory checks; retained export compatibility.
+- [manifest.ts](manifest.ts) — built-in-only contract types, strict decoding and graph/coverage rules.
+- [manifest.test.ts](manifest.test.ts) — malformed contracts, options and isolated imports.
+- [prerequisites.ts](prerequisites.ts) — compiler import analysis and workspace prerequisites.
+- [evidence.ts](evidence.ts) — versioned evidence types and persistence.
+- [gate.ts](gate.ts) — expected-set evaluation and aggregation.
+- [fixtures/source.ts](fixtures/source.ts) — test-only candidate source plus additions/deletions without ignored products; hashed by its test readers, outside shared runner globals.
 - [nx-plugin.mjs](nx-plugin.mjs).
 - [orchestrate.ts](orchestrate.ts).
 - [plan.test.ts](plan.test.ts) — behavior and refusal coverage.
 - [plan.ts](plan.ts).
 - [report.test.ts](report.test.ts) — behavior and refusal coverage.
-- [report.ts](report.ts).
+- [report.ts](report.ts) — report construction, runtime provenance and stable gate CLI adapter.
 - [resources.test.ts](resources.test.ts) — behavior and refusal coverage.
 - [resources.ts](resources.ts).
 - [run.ts](run.ts).
@@ -62,6 +68,10 @@ Every test belongs to one task; IDs, timeout profiles, dependencies, input profi
 Scheduling history estimates cost, not correctness. Cache validity depends on complete inputs; cache bypass is not a clean checkout.
 
 ## Detailed behavior
+
+Manifest readers do not load inventory, compiler discovery or Markdown parsing. Each execution consumer receives shape and graph validation before using tasks and timeouts. Inventory retains old exports while lightweight readers import manifest directly. Evidence I/O, gate evaluation and report construction have one-way dependencies; report retains its public API. Inventory/planner/gate share strict options with runners; empty CI SHA coordinates remain supported.
+
+Workspace-glob and workflow readers retain distinct supported grammars. Existing fixtures characterize quotes/comments/CRLF and unsupported forms; neither is broadened to another YAML interpretation without parity evidence. Cold and generation fixtures share candidate materialization, retaining additions/deletions and excluding ignored products.
 
 Owns the task manifest, the inventory and planning commands, the report and gate schema, and the reusable execution primitives named in the modular test execution contract. These are read-only developer tools plus one runner; they schedule and report work, and they neither weaken an assertion nor establish that a cached result was computed from complete inputs.
 

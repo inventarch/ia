@@ -7,7 +7,7 @@ Start from the reviewed public candidate with its committed v2 `.ia/public-packa
 The public packages retain the qualified Node profile `>=22.22.0 <23`. Current installed qualification used Node 22.22.0 on Windows, including `node:sqlite` under ordinary Node without additional flags. This does not qualify every platform or matching runtime. See the [versioned SQLite API reference](https://nodejs.org/download/release/v22.22.0/docs/api/sqlite.html).
 
 ```sh
-node tools/runtime/qualify-sdk.mjs <public-tree> <archives-directory> <new-output-directory> <pnpm-launcher> <populated-offline-store>
+node tools/distribution/qualify-sdk.mjs <public-tree> <archives-directory> <new-output-directory> <pnpm-launcher> <populated-offline-store>
 ```
 
 The helper verifies the public input seal, release receipt, compatibility companion and archive hashes, records their public source identity, and installs offline with lifecycle scripts disabled. The launcher may be a Node entry file or a native pnpm executable. It then runs `tests/sdk-runtime/recipe.mjs` under ordinary Node without tsx or development conditions. `qualification.json` is local candidate evidence, not registry provenance or acceptance of unexamined archive contents. The packaging owner retains archive safety and public selection responsibility. The helper accepts the current archive namespace; renamed published packages require the corresponding qualified recipe.

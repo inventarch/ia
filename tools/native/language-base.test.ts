@@ -1,17 +1,59 @@
 import { fileURLToPath } from 'node:url';
-import { mkdtempSync, readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, mkdirSync, rmSync, writeFileSync, statSync, utimesSync, linkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { verifyArchive } from '../../apps/distribution/src/archive.js';
 import { DISTRIBUTION_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
-import { BASE_ID, buildLanguageBase, languageVersion, languageBaseFindings } from './language-base.js';
+import {
+  BASE_ID,
+  buildLanguageBase,
+  languageVersion,
+  languageBaseFindings,
+  writeLanguageBase,
+  archivePath,
+} from './language-base.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const version = languageVersion(root);
 const base = buildLanguageBase(root);
 const checked = (overrides: Partial<Parameters<typeof languageBaseFindings>[0]> = {}) =>
   languageBaseFindings({ ...base, languageVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION, ...overrides });
+
+it.each(['unchanged', 'foreign-file', 'aliased-pin'])(
+  'publishes language base idempotently with owned outputs: %s',
+  (kind) => {
+    const scratch = mkdtempSync(resolve(tmpdir(), 'ia-base-write-'));
+    try {
+      writeLanguageBase(scratch, base);
+      const archive = resolve(scratch, 'apps/cli', archivePath(base.pin.archive));
+      const pin = resolve(scratch, 'apps/cli/assets/base.json'),
+        before = readFileSync(pin);
+      if (kind === 'unchanged') {
+        const date = new Date('2000-01-01T00:00:00Z');
+        utimesSync(archive, date, date);
+        utimesSync(pin, date, date);
+        writeLanguageBase(scratch, base);
+        expect(statSync(archive).mtimeMs).toBe(date.getTime());
+        expect(statSync(pin).mtimeMs).toBe(date.getTime());
+      } else {
+        if (kind === 'foreign-file') writeFileSync(resolve(scratch, 'apps/cli/assets/base/retain.txt'), 'foreign');
+        else linkSync(pin, resolve(scratch, 'foreign-pin.json'));
+        expect(() => writeLanguageBase(scratch, base)).toThrow();
+        expect(readFileSync(pin)).toEqual(before);
+        expect(
+          readFileSync(
+            kind === 'foreign-file'
+              ? resolve(scratch, 'apps/cli/assets/base/retain.txt')
+              : resolve(scratch, 'foreign-pin.json'),
+          ),
+        ).toEqual(kind === 'foreign-file' ? Buffer.from('foreign') : before);
+      }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  },
+);
 
 // docs/specs/workspace-initialization-apply/README.md §2 “Base artifact” and §8 “Acceptance evidence”.
 describe('bundled language base', () => {

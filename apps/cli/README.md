@@ -232,6 +232,8 @@ Mandates are cooperative restrictions, not authentication or a sandbox. Anyone w
 
 ## 📚 Learn more
 
+Use `ia kb check|search|read|resolve|traverse` for admitted records and bound documents. `ia kb pack` previews an explicit committed selection; `--apply --yes` creates a package at `--out` without overwriting it. Read commands use Observation, check and pack preview use Verification, and applied pack uses Execution. Every subcommand supports `--actor`. See the [knowledge guide](../../packages/kb/README.md). No `.kb` directory is required.
+
 - [Package contract](SPEC.md): every command's behavior, refusals and JSON shapes
 - [Packaged language summary](LANGUAGE.md): the words this package ships
 - [IA README](https://github.com/inventarch/ia/blob/main/README.md): the quick start, concepts and what a result means

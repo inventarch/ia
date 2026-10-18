@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -20,8 +21,82 @@ import { parseOptions } from './args.mjs';
 import { gitText } from './git.mjs';
 import { stableVersion, compareVersions } from './semver.mjs';
 import { packageManagerCommand } from '../entry/package-manager.mjs';
+import { checkWrite } from './check-write.mjs';
+import { containedFile, readRegular } from './paths.mjs';
 
-it('keeps generated package-facing entry declarations synchronized with checked implementations', () => {
+it.each([
+  'kernel/generate.ts',
+  'compliance/inventory.ts',
+  'native/public-vocabulary.ts',
+  'native/check.ts',
+  'compliance/check.ts',
+  'native/public-language.ts',
+  'native/language-base.ts',
+])(
+  'refuses invalid native/generator options before evaluation: %s',
+  (script) => {
+    const root = resolve(import.meta.dirname, '../..');
+    const child = spawnSync(
+      process.execPath,
+      ['--conditions=development', '--import', 'tsx', 'tools/' + script, '--check', '--unknown'],
+      { cwd: root, encoding: 'utf8', timeout: 60000, windowsHide: true },
+    );
+    expect(child.status, child.stdout + child.stderr).toBe(2);
+  },
+  90000,
+);
+
+it('preflights every output before writing and leaves stable bytes and timestamps untouched', async () => {
+  await withTemporaryDirectory('idempotent outputs ', async (root) => {
+    const outputs = new Map([
+      ['nested/a.txt', 'alpha'],
+      ['nested/b.txt', 'beta'],
+    ]);
+    expect(checkWrite(root, outputs)).toEqual({ changed: [...outputs.keys()], written: [] });
+    expect(existsSync(join(root, 'nested'))).toBe(false);
+    expect(checkWrite(root, outputs, { write: true }).written).toEqual([...outputs.keys()]);
+    const before = statSync(join(root, 'nested/a.txt')).mtimeMs;
+    expect(checkWrite(root, outputs, { write: true })).toEqual({ changed: [], written: [] });
+    expect(statSync(join(root, 'nested/a.txt')).mtimeMs).toBe(before);
+    const invalid = new Map([
+      ['nested/a.txt', 'changed'],
+      ['../escape', 'no'],
+    ]);
+    expect(() => checkWrite(root, invalid, { write: true })).toThrow('Unsafe');
+    expect(readRegular(root, 'nested/a.txt', 5).toString()).toBe('alpha');
+    expect(() => readRegular(root, 'nested/a.txt', 4)).toThrow('Unbounded');
+    expect(() =>
+      checkWrite(
+        root,
+        new Map([
+          ['A.txt', 'a'],
+          ['a.txt', 'b'],
+        ]),
+        { write: true },
+      ),
+    ).toThrow('Duplicate');
+    expect(existsSync(join(root, 'A.txt'))).toBe(false);
+  });
+});
+
+it('refuses missing outputs beneath aliased parents and nonportable file names', async () => {
+  await withTemporaryDirectory('output aliases ', async (root) => {
+    mkdirSync(join(root, 'foreign'));
+    symlinkSync(join(root, 'foreign'), join(root, 'alias'), 'junction');
+    expect(() => checkWrite(root, new Map([['alias/new.txt', 'no']]), { write: true })).toThrow(/alias|link/i);
+    expect(existsSync(join(root, 'foreign/new.txt'))).toBe(false);
+    for (const path of ['/absolute', '../escape', 'a/../b', 'a//b', 'nul.txt', 'a./b', 'a\\b', 'e\u0301.txt'])
+      expect(() => containedFile(root, path, { allowMissing: true }), path).toThrow();
+  });
+});
+
+it('allows an explicit empty option only when its contract names that option', () => {
+  expect(parseOptions(['--sha', ''], { values: ['sha'], allowEmpty: ['sha'] }).value('sha')).toBe('');
+  expect(() => parseOptions(['--sha'], { values: ['sha'], allowEmpty: ['sha'] })).toThrow('Missing');
+  expect(() => parseOptions(['--out', ''], { values: ['out'], allowEmpty: ['sha'] })).toThrow('Missing');
+});
+
+it('keeps generated package-facing declarations synchronized with checked implementations', () => {
   const root = resolve(import.meta.dirname, '../..');
   const checked = spawnSync(process.execPath, [join(root, 'tools/testing/check-declarations.mjs'), '--check'], {
     cwd: root,
@@ -49,6 +124,8 @@ it('refuses aliased declaration outputs before changing any declared output or f
       mkdirSync(foreign);
       for (const owner of ['entry', 'shared'])
         cpSync(join(repository, 'tools', owner), join(root, 'tools', owner), { recursive: true });
+      mkdirSync(join(root, 'tools/native'));
+      cpSync(join(repository, 'tools/native/public-manifest.mjs'), join(root, 'tools/native/public-manifest.mjs'));
       cpSync(
         join(repository, 'tools/testing/check-declarations.mjs'),
         join(root, 'tools/testing/check-declarations.mjs'),
@@ -100,7 +177,7 @@ it('keeps cold inventory and native execution independent of tooling shims', () 
   ])
     expect(existsSync(join(root, old)), old).toBe(false);
   for (const current of [
-    'tools/docs/teaching-links.ts',
+    'tools/docs/teaching-links.mjs',
     'tools/compliance/fixture-authoring.ts',
     'tools/compliance/execution-fixtures.ts',
     'tools/temp/canonical-temp.mjs',

@@ -1,3 +1,4 @@
+import { parseOptions } from '../shared/args.mjs';
 /**
  * The bundled `inventarch/language` base package: docs/specs/workspace-initialization-apply/README.md
  * §2, producing what docs/specs/workspace-initialization/README.md §3 ships.
@@ -6,7 +7,7 @@
  * `records/language.ia`, never the public examples (workspace initialization §3 “Bundled language”) — with the same `distributionSnapshot` and
  * `packSnapshot` calls `public-language.test.ts` exercises. `--write` emits the archive bytes at
  * `apps/cli/assets/base/<archive digest>.ia.tgz` and the pin `{ id, version, archive, manifest }` at
- * `apps/cli/assets/base.json`, after removing every other file under `assets/base/` so exactly one archive ships.
+ * `apps/cli/assets/base.json`, before retiring obsolete verified archives under `assets/base/`; foreign entries refuse before writing.
  * Both are gitignored build output: the root `build` runs this before `pnpm -r build`. Public release
  * preparation regenerates the archive from public sources (apply contract §2 “Base artifact”).
  *
@@ -14,8 +15,8 @@
  * produce the same bytes and the same pin. The “Base artifact” build-time checks are `languageBaseFindings`; the generator refuses to write while
  * any of them fails, so a CLI whose engine the bundled range rejects never ships.
  */
-import { createHash } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyArchive } from '../../apps/distribution/src/archive.js';
@@ -23,6 +24,7 @@ import { distributionSnapshot, packSnapshot } from '../../apps/distribution/src/
 import { DISTRIBUTION_ENGINE_VERSION, satisfies } from '../../packages/db/src/distribution/index.js';
 import { languagePackageInputs } from './public-language.js';
 import { isEntry } from '../entry/is-entry.mjs';
+import { containedFile, readRegular } from '../shared/paths.mjs';
 
 export const BASE_ID = 'inventarch/language';
 /** The pin and the one archive it names, relative to the `@inventarch/cli` package root (workspace initialization §3 “Bundled language”). */
@@ -132,36 +134,83 @@ export function languageBaseFindings(input: {
   return findings;
 }
 
-/** Writes the archive before the pin, so an interrupted write never leaves a pin naming an absent archive. */
+/** Preflight the complete output set; publish the archive before its pin, then retire only owned archives. */
 export function writeLanguageBase(root: string, base: LanguageBase): void {
-  const cli = resolve(root, 'apps/cli'),
-    directory = resolve(cli, ARCHIVE_DIRECTORY),
-    name = `${base.pin.archive}.ia.tgz`;
-  mkdirSync(directory, { recursive: true });
-  for (const entry of readdirSync(directory))
-    if (entry !== name) rmSync(resolve(directory, entry), { recursive: true, force: true });
-  writeFileSync(resolve(cli, archivePath(base.pin.archive)), base.bytes);
-  writeFileSync(resolve(cli, PIN_PATH), JSON.stringify(base.pin, null, 2) + '\n');
+  if (
+    !/^[a-f0-9]{64}$/.test(base.pin.archive) ||
+    createHash('sha256').update(base.bytes).digest('hex') !== base.pin.archive
+  )
+    throw new Error('Language base bytes do not match their archive pin');
+  const archive = 'apps/cli/' + archivePath(base.pin.archive),
+    pin = 'apps/cli/' + PIN_PATH;
+  const outputs = new Map([
+    [archive, base.bytes],
+    [pin, Buffer.from(JSON.stringify(base.pin, null, 2) + '\n')],
+  ]);
+  for (const path of outputs.keys()) containedFile(root, path, { allowMissing: true });
+  const directory = resolve(root, 'apps/cli', ARCHIVE_DIRECTORY),
+    obsolete: string[] = [];
+  if (existsSync(directory))
+    for (const name of readdirSync(directory)) {
+      if (!/^[a-f0-9]{64}\.ia\.tgz$/.test(name)) throw new Error('Unowned language base output: ' + name);
+      const path = 'apps/cli/' + ARCHIVE_DIRECTORY + '/' + name;
+      const bytes = readRegular(root, path, 64 * 1024 * 1024);
+      if (createHash('sha256').update(bytes).digest('hex') !== name.slice(0, 64))
+        throw new Error('Changed language base archive: ' + name);
+      if (path !== archive) obsolete.push(path);
+    }
+  const changed = [...outputs].filter(
+    ([path, bytes]) => !existsSync(resolve(root, path)) || !readRegular(root, path, 64 * 1024 * 1024).equals(bytes),
+  );
+  for (const [path, bytes] of changed) {
+    const target = containedFile(root, path, { allowMissing: true });
+    mkdirSync(resolve(target, '..'), { recursive: true });
+    const temporary = path + '.' + randomUUID() + '.tmp',
+      temp = containedFile(root, temporary, { allowMissing: true });
+    let created = false;
+    try {
+      writeFileSync(temp, bytes, { flag: 'wx' });
+      created = true;
+      for (const output of outputs.keys()) containedFile(root, output, { allowMissing: true });
+      renameSync(temp, containedFile(root, path, { allowMissing: true }));
+    } finally {
+      if (created) rmSync(temp, { force: true });
+    }
+  }
+  // If pin publication fails, all earlier archives remain; no retained pin can name a removed archive.
+  for (const path of obsolete) rmSync(containedFile(root, path));
 }
 
 if (isEntry(process.argv[1], import.meta.url)) {
-  if (process.argv.length !== 3 || process.argv[2] !== '--write') throw new Error('Usage: language-base.ts --write');
-  const root = fileURLToPath(new URL('../../', import.meta.url));
-  const base = buildLanguageBase(root);
-  const findings = languageBaseFindings({
-    ...base,
-    languageVersion: languageVersion(root),
-    engineVersion: DISTRIBUTION_ENGINE_VERSION,
-  });
-  if (findings.length > 0) {
-    process.stderr.write(
-      `Refusing to write the bundled base package:\n${findings.map((finding) => `  ${finding}`).join('\n')}\n`,
-    );
-    process.exitCode = 1;
-  } else {
-    writeLanguageBase(root, base);
-    process.stdout.write(
-      `Bundled ${base.pin.id}@${base.pin.version}: ${base.bytes.length} bytes, sha256 ${base.pin.archive}.\n`,
-    );
+  let options: ReturnType<typeof parseOptions> | undefined;
+  try {
+    options = parseOptions(process.argv.slice(2), { booleans: ['write'], required: ['write'] });
+  } catch (error) {
+    console.error(String(error));
+    process.exitCode = 2;
   }
+  if (options)
+    try {
+      const root = fileURLToPath(new URL('../../', import.meta.url));
+      const base = buildLanguageBase(root);
+      const findings = languageBaseFindings({
+        ...base,
+        languageVersion: languageVersion(root),
+        engineVersion: DISTRIBUTION_ENGINE_VERSION,
+      });
+      if (findings.length > 0) {
+        process.stderr.write(
+          `Refusing to write the bundled base package:\n${findings.map((finding) => `  ${finding}`).join('\n')}\n`,
+        );
+        process.exitCode = 1;
+      } else {
+        writeLanguageBase(root, base);
+        process.stdout.write(
+          `Bundled ${base.pin.id}@${base.pin.version}: ${base.bytes.length} bytes, sha256 ${base.pin.archive}.\n`,
+        );
+      }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
 }

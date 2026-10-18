@@ -1,11 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { publicLanguageInputs } from './public-language.js';
 import { checkNative } from './check.js';
 import { fieldTypeText } from '../../packages/language/src/index.js';
 import { isEntry } from '../entry/is-entry.mjs';
+import { checkWrite } from '../shared/check-write.mjs';
+import { generationMode } from '../shared/args.mjs';
 
 export const descriptions: Readonly<Record<string, string>> = {
   system: 'Registers vocabulary, direct system dependencies, a local steward and consent for relationships.',
@@ -211,25 +211,34 @@ export const SHIPPED_CATALOGUE = 'apps/cli/assets/vocabulary.json';
  */
 export const DOOR_CATALOGUE = 'apps/mcp-door/assets/vocabulary.json';
 if (isEntry(process.argv[1], import.meta.url)) {
-  const mode = process.argv[2];
-  if (!['--write', '--check'].includes(mode ?? '') || process.argv.length !== 3)
-    throw new Error('Use --write or --check');
-  const root = fileURLToPath(new URL('../../', import.meta.url));
-  const outputs = vocabularyOutputs(root);
-  const targets: readonly (readonly [string, string])[] = [
-    ...Object.entries(outputs).map(([name, text]) => [`docs/reference/language/${name}`, text] as const),
-    [SHIPPED_CATALOGUE, outputs['vocabulary.json']],
-    [DOOR_CATALOGUE, outputs['vocabulary.json']],
-  ];
-  for (const [name, text] of targets) {
-    const path = resolve(root, name);
-    if (mode === '--write') {
-      mkdirSync(dirname(path), { recursive: true });
-      writeFileSync(path, text);
-    } else if (!existsSync(path) || readFileSync(path, 'utf8').replace(/\r\n/g, '\n') !== text)
-      throw new Error(`Public vocabulary drift: ${name}`);
+  let mode: 'check' | 'write' | undefined;
+  try {
+    mode = generationMode(process.argv.slice(2), { defaultCheck: false });
+  } catch (error) {
+    console.error('Usage: public-vocabulary.ts --check|--write');
+    console.error(String(error));
+    process.exitCode = 2;
   }
-  console.log(
-    'Public vocabulary: 44 documented words; schema, reference projection and shipped CLI and door catalogues verified.',
-  );
+  if (mode)
+    try {
+      const root = fileURLToPath(new URL('../../', import.meta.url)),
+        outputs = vocabularyOutputs(root);
+      const targets = new Map([
+        ...Object.entries(outputs).map(([name, text]) => ['docs/reference/language/' + name, text] as const),
+        [SHIPPED_CATALOGUE, outputs['vocabulary.json']],
+        [DOOR_CATALOGUE, outputs['vocabulary.json']],
+      ]);
+      const compared = checkWrite(root, targets, { write: mode === 'write', normalizeNewlines: true });
+      if (mode === 'check' && compared.changed.length)
+        throw new Error('Public vocabulary drift: ' + compared.changed.join(', '));
+      const words = JSON.parse(outputs['vocabulary.json']).words.length;
+      console.log(
+        'Public vocabulary: ' +
+          words +
+          ' documented words; schema, reference projection and shipped CLI and door catalogues verified.',
+      );
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
 }

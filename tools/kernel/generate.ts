@@ -1,9 +1,11 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateKernel } from '../../packages/compliance/src/kernel.js';
 import type { KernelSource } from '../../packages/compliance/src/kernel.js';
 import { isEntry } from '../entry/is-entry.mjs';
+import { checkWrite } from '../shared/check-write.mjs';
+import { generationMode } from '../shared/args.mjs';
 
 export { generateKernel };
 export type { KernelSource };
@@ -21,15 +23,29 @@ export function readKernel(root: string): readonly KernelSource[] {
 
 export function checkKernel(root: string, write = false): { digest: string; records: number } {
   const result = generateKernel(readKernel(root));
-  const path = resolve(root, 'packages/language/src/kernel.generated.ts');
-  if (write) writeFileSync(path, result.text);
-  else if (readFileSync(path, 'utf8').replaceAll('\r\n', '\n') !== result.text)
+  const compared = checkWrite(root, new Map([['packages/language/src/kernel.generated.ts', result.text]]), {
+    write,
+    normalizeNewlines: true,
+  });
+  if (!write && compared.changed.length)
     throw new Error('Kernel output drift: run pnpm kernel:generate and review the result');
   return result;
 }
 if (isEntry(process.argv[1], import.meta.url)) {
-  const flag = process.argv[2] ?? '--check';
-  if (!['--check', '--write'].includes(flag)) throw new Error('Usage: generate.ts [--check|--write]');
-  const result = checkKernel(fileURLToPath(new URL('../../', import.meta.url)), flag === '--write');
-  process.stdout.write(`Validated ${result.records} kernel records; digest ${result.digest}.\n`);
+  let mode: 'check' | 'write' | undefined;
+  try {
+    mode = generationMode(process.argv.slice(2));
+  } catch (error) {
+    console.error('Usage: generate.ts [--check|--write]');
+    console.error(String(error));
+    process.exitCode = 2;
+  }
+  if (mode)
+    try {
+      const result = checkKernel(fileURLToPath(new URL('../../', import.meta.url)), mode === 'write');
+      process.stdout.write(`Validated ${result.records} kernel records; digest ${result.digest}.\n`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
 }

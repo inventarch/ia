@@ -118,7 +118,11 @@ const AWAITING_RELEASE: ReadonlyMap<string, number> = new Map([
 ]);
 
 /** Each private reference in `files` (path to text), as `path:line`. */
-function privateReferences(files: ReadonlyMap<string, string>, pins: readonly Pin[]): string[] {
+function privateReferences(
+  files: ReadonlyMap<string, string>,
+  pins: readonly Pin[],
+  publicPackages: ReadonlySet<string> = new Set(),
+): string[] {
   const widest = Math.max(...pins.map((pin) => pin.words)),
     pinned = new Map<string, Set<string>>(),
     found: string[] = [];
@@ -136,7 +140,14 @@ function privateReferences(files: ReadonlyMap<string, string>, pins: readonly Pi
           last = words[index + width - 1]!,
           length = last.index + last[0].length - start,
           hashes = pinned.get(`${width}:${length}`);
-        if (hashes?.has(sha256(text.slice(start, start + length).toLowerCase()))) found.push(at(start));
+        const spelling = text.slice(start, start + length);
+        // A declared scoped npm package is public; the same bare repository path remains denied.
+        const publicPackage =
+          text[start - 1] === '@' &&
+          !/[\w@.+-]/.test(text[start - 2] ?? '') &&
+          !/[\w.-]/.test(text[start + length] ?? '') &&
+          publicPackages.has('@' + spelling);
+        if (!publicPackage && hashes?.has(sha256(spelling.toLowerCase()))) found.push(at(start));
       }
   }
   return found;
@@ -162,6 +173,23 @@ it('finds a pinned name in any case and a knowledge-base pointer, by line', () =
       ['c.md', 'roughly 360 KB of payload\n'],
     ]);
   expect(privateReferences(files, [pin])).toEqual(['a.md:2', 'b.ts:1']);
+});
+
+it('allows exact declared scoped npm tokens while retaining bare repository and URL refusals', () => {
+  const name = 'sample/knowledge',
+    pin = { words: 2, length: name.length, sha256: sha256(name) },
+    files = new Map([
+      ['public.ts', `import '@${name}'; import '@${name}/protocol';`],
+      ['private.md', `${name}\nhttps://github.com/${name}\n@${name}-private\nuser@${name}\nuser+@${name}`],
+    ]);
+  expect(privateReferences(files, [pin], new Set(['@' + name]))).toEqual([
+    'private.md:1',
+    'private.md:2',
+    'private.md:3',
+    'private.md:4',
+    'private.md:5',
+  ]);
+  expect(privateReferences(new Map([['unlisted.ts', `import '@${name}';`]]), [pin])).toEqual(['unlisted.ts:1']);
 });
 
 it('finds every knowledge-base pointer in each file', () => {
@@ -208,7 +236,12 @@ it('keeps tracked files free of pointers to private planning material', () => {
     if (!bytes.includes(0)) files.set(path, bytes.toString('utf8'));
   }
   expect(files.size).toBeGreaterThan(1000);
-  const found = [...privateReferences(files, PRIVATE_REFERENCES), ...planningIds(files)],
+  const policy = JSON.parse(readFileSync(resolve(root, 'tools/distribution/public-content-policy.json'), 'utf8'));
+  validateContentPolicy(policy);
+  const publicPackages = new Set<string>(
+    policy.packageNames.filter((row: { private: boolean }) => !row.private).map((row: { name: string }) => row.name),
+  );
+  const found = [...privateReferences(files, PRIVATE_REFERENCES, publicPackages), ...planningIds(files)],
     pathOf = (row: string): string => row.slice(0, row.indexOf(':'));
   expect(found.filter((row) => !AWAITING_RELEASE.has(pathOf(row)))).toEqual([]);
   for (const [path, count] of AWAITING_RELEASE)

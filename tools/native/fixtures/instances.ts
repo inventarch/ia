@@ -1,4 +1,4 @@
-import type { NativeInput } from './compile.js';
+import type { NativeInput } from '../compile.js';
 export const fixtureInstances: readonly NativeInput[] = [
   {
     path: '.ia/src/systems/hook-authoring-system/records/minimal-hook.ia',

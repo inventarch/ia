@@ -1,9 +1,10 @@
+import { qualificationPath } from '../distribution/consumer.mjs';
 import { parseOptions } from '../shared/args.mjs';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
 import { randomUUID } from 'node:crypto';
-import { readManifest, type TaskRecord } from './inventory.js';
+import { readManifest, type TaskRecord } from './manifest.js';
 import { currentPlatform, headCommit, type EvidenceSource, type GateEvidence } from './report.js';
 import { runBounded } from './subprocess.js';
 import { artifactDirectory } from './run.js';
@@ -118,6 +119,7 @@ export async function orchestrate(root: string, options: OrchestrationOptions): 
       ...process.env,
       CI: process.env['CI'] ?? '1',
       IA_TEST_ORCHESTRATION: orchestration,
+      IA_QUALIFICATION_MANIFEST: qualificationPath(root, orchestration),
     };
     if (!withRemote) {
       delete env[CACHE_SERVER_VARIABLE];

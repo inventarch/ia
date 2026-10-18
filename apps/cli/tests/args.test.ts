@@ -3,6 +3,7 @@ import type { PacketCatalogRow } from '@inventarch/runtime';
 import { none, parseArguments, positionals, UsageError } from '../src/args.js';
 import type { Grammar, OptionSpec } from '../src/args.js';
 import { COMMANDS, commandNames, findCommand, nearestTokens, packetCatalog } from '../src/commands.js';
+import { KB_COMMANDS, selectKnowledgeCommand } from '../src/kb-commands.js';
 
 const option = (spec: OptionSpec): OptionSpec => spec;
 const OPTIONS: readonly OptionSpec[] = [
@@ -90,13 +91,18 @@ it('enforces required options, dependent options and positional arity before any
 
 it('gives every shipped command a grammar that admits its own documented syntax', () => {
   for (const command of COMMANDS) {
-    expect(command.syntax[0]).toContain(`ia ${command.name}`);
-    const names = command.grammar.options.map((row) => row.name);
-    expect(new Set(names).size).toBe(names.length);
-    expect(names).toContain('help');
-    expect(names).toContain('json');
-    // Every flag the syntax line names has to exist in the grammar, or the help would document a refusal.
-    for (const flag of command.syntax.join(' ').matchAll(/--([a-z-]+)/g)) expect(names).toContain(flag[1]);
+    // KB dispatch selects the subcommand grammar before parsing, so check every documented form against that grammar.
+    const forms =
+      command.name === 'kb' ? KB_COMMANDS.map((row) => selectKnowledgeCommand(command, row.name)!) : [command];
+    for (const form of forms) {
+      expect(form.syntax[0]).toContain(`ia ${command.name}`);
+      const names = form.grammar.options.map((row) => row.name);
+      expect(new Set(names).size).toBe(names.length);
+      expect(names).toContain('help');
+      expect(names).toContain('json');
+      // Every flag the syntax line names has to exist in the grammar, or the help would document a refusal.
+      for (const flag of form.syntax.join(' ').matchAll(/--([a-z-]+)/g)) expect(names).toContain(flag[1]);
+    }
   }
   // Every surface is implemented: no row carries a refusal note, and init's --host names what it does.
   expect(COMMANDS.filter((command) => 'unimplemented' in command).map((command) => command.name)).toEqual([]);
@@ -144,6 +150,13 @@ it('tags the agent commands for the packet catalog in table order, each naming o
   // The catalog table: each command's mode and the kernel move that mode maps to (CatalogTag holds a row's move to
   // its mode at typecheck; this pins which mode each command is).
   expect(rows.map((row) => [row.command, row.mode, row.move])).toEqual([
+    ['ia kb check', 'validate', 'Verification'],
+    ['ia kb search', 'read', 'Observation'],
+    ['ia kb read', 'read', 'Observation'],
+    ['ia kb resolve', 'read', 'Observation'],
+    ['ia kb traverse', 'read', 'Observation'],
+    ['ia kb pack', 'validate', 'Verification'],
+    ['ia kb pack --apply', 'effect', 'Execution'],
     ['ia init', 'effect', 'Execution'],
     ['ia validate', 'validate', 'Verification'],
     // The eighth row added to the catalog.
@@ -177,13 +190,14 @@ it('tags the agent commands for the packet catalog in table order, each naming o
   });
   // A row whose next names a command the table does not hold fails here: the reserved token is no command.
   expect(catalogDefects([...rows, { ...rows[0]!, next: 'ia agent plan' }])).toEqual([
-    'ia init: ia agent plan names no command of COMMANDS',
+    'ia kb check: ia agent plan names no command of COMMANDS',
   ]);
-  // The builder reads the rows it is given; a row without `catalog` is no catalog row.
+  // The builder reads the rows it is given; KB contributes its nested rows instead of a top-level catalog tag.
   expect(packetCatalog(COMMANDS.filter((command) => command.name !== 'next')).map((row) => row.command)).not.toContain(
     'ia next',
   );
   expect(COMMANDS.filter((command) => command.catalog === undefined).map((command) => command.name)).toEqual([
+    'kb',
     'format',
     'inspect',
     'vocabulary',

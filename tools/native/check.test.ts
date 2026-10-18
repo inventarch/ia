@@ -11,7 +11,7 @@ import { observeFoundationAuthoring } from '../compliance/fixture-authoring.js';
 import { inputs as fixtureInputs } from '../../packages/compliance/tests/native.js';
 import { publicLanguageInputs } from './public-language.js';
 
-import { fixtureInstances } from './fixture-instances.js';
+import { fixtureInstances } from './fixtures/instances.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const native = {

@@ -1,4 +1,5 @@
 import { MACHINE_PROTOCOL } from '@inventarch/runtime';
+import { KB_OPERATIONS } from '@inventarch/kb/protocol';
 import type { JsonSchema } from '@inventarch/runtime';
 import { LIMITS } from './vocabulary.js';
 
@@ -70,7 +71,16 @@ const vocabulary = {
     },
   }),
 };
-const definitions = [...served, vocabulary];
+const definitions = [
+  ...served,
+  vocabulary,
+  ...KB_OPERATIONS.map((row) => ({
+    name: 'ia_kb_' + row.name,
+    operation: 'kb:' + row.name,
+    description: row.description,
+    inputSchema: row.inputSchema,
+  })),
+];
 export const TOOLS = definitions.map(({ name, description, inputSchema }) => ({
   name,
   description,

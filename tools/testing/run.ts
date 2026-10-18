@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
-import { readManifest, type TaskRecord } from './inventory.js';
+import { readManifest, type TaskRecord } from './manifest.js';
 import {
   buildReport,
   currentPlatform,

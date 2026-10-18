@@ -1,14 +1,21 @@
-import { lstatSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
-import { join, resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
+import { checkWrite } from '../shared/check-write.mjs';
 import ts from 'typescript';
 import { isEntry } from '../entry/is-entry.mjs';
 
+const declaredSources = [
+  'entry/is-entry.mjs',
+  'entry/package-manager.mjs',
+  'shared/args.mjs',
+  'shared/paths.mjs',
+  'native/public-manifest.mjs',
+];
+
 /** Emit in memory so package consumers can keep allowJs disabled without hand-maintained interfaces. */
 export function entryDeclarations(root) {
-  const files = ['is-entry.mjs', 'package-manager.mjs'].map((file) => resolve(root, 'tools/entry', file));
-  const program = ts.createProgram(files, {
+  const files = declaredSources.map((file) => resolve(root, 'tools', file));
+  const options = {
     allowJs: true,
     checkJs: true,
     strict: true,
@@ -19,7 +26,14 @@ export function entryDeclarations(root) {
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     types: ['node'],
-  });
+  };
+  const host = ts.createCompilerHost(options);
+  const canonical = (path) => (process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path));
+  const generated = new Set(files.map((file) => canonical(file.replace(/\.mjs$/, '.d.mts'))));
+  const fileExists = host.fileExists;
+  // Generated siblings must never mask the implementations or become inputs to their own next emission.
+  host.fileExists = (path) => !generated.has(canonical(path)) && fileExists(path);
+  const program = ts.createProgram(files, options, host);
   const outputs = new Map();
   const emitted = program.emit(undefined, (path, text) =>
     outputs.set(
@@ -50,54 +64,16 @@ export function entryDeclarations(root) {
   return outputs;
 }
 
-/** Validate the complete, fixed output set before any write, including every existing ancestor. */
-function declarationTargets(root, outputs) {
-  const canonical = (path) => (process.platform === 'win32' ? path.toLowerCase() : path);
-  if (canonical(realpathSync(root)) !== canonical(resolve(root)) || lstatSync(root).isSymbolicLink())
-    throw new Error('Declaration root crosses an alias');
-  const expected = new Set(
-    ['is-entry.d.mts', 'package-manager.d.mts'].map((name) => resolve(root, 'tools/entry', name)),
-  );
-  if (outputs.size !== expected.size || [...outputs.keys()].some((path) => !expected.has(resolve(path))))
-    throw new Error('Declaration output escapes its explicit contained set');
-  for (const path of outputs.keys()) {
-    for (const directory of [root, join(root, 'tools'), join(root, 'tools/entry')]) {
-      const stat = lstatSync(directory);
-      if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error('Declaration directory crosses an alias');
-    }
-    try {
-      const stat = lstatSync(path);
-      if (stat.isSymbolicLink() || !stat.isFile() || stat.nlink !== 1)
-        throw new Error('Declaration output is aliased or hardlinked');
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
-    }
-  }
-}
-
+/** Keep compiler output membership explicit; shared output validation owns all filesystem effects. */
 function checkDeclarations(root, mode) {
   const outputs = entryDeclarations(root);
-  declarationTargets(root, outputs);
-  for (const [path, text] of outputs) {
-    let existing;
-    try {
-      existing = readFileSync(path, 'utf8').replaceAll('\r\n', '\n');
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
-    }
-    if (existing === text) continue;
-    if (mode === '--check') throw new Error('Stale generated declaration: ' + path);
-    const temporary = path + '.' + randomUUID() + '.tmp';
-    let created = false;
-    try {
-      writeFileSync(temporary, text, { flag: 'wx' });
-      created = true;
-      declarationTargets(root, outputs);
-      renameSync(temporary, path);
-    } finally {
-      if (created) rmSync(temporary, { force: true });
-    }
-  }
+  const expected = new Set(declaredSources.map((name) => resolve(root, 'tools', name.replace(/\.mjs$/, '.d.mts'))));
+  if (outputs.size !== expected.size || [...outputs.keys()].some((path) => !expected.has(resolve(path))))
+    throw new Error('Declaration output escapes its explicit contained set');
+  const generated = new Map([...outputs].map(([path, text]) => [relative(root, path).replaceAll('\\', '/'), text]));
+  const result = checkWrite(root, generated, { write: mode === '--write', normalizeNewlines: true });
+  if (mode === '--check' && result.changed.length)
+    throw new Error('Stale generated declaration: ' + result.changed.join(', '));
 }
 
 if (isEntry(process.argv[1], import.meta.url)) {
@@ -108,7 +84,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
   } else
     try {
       checkDeclarations(resolve(import.meta.dirname, '../..'), args[0]);
-      console.log('Entry declarations match checked implementations.');
+      console.log('Package-facing declarations match checked implementations.');
     } catch (error) {
       console.error(error.message);
       process.exitCode = 1;

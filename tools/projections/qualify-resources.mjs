@@ -1,9 +1,9 @@
+import { ensureQualification, installConsumer } from '../distribution/consumer.mjs';
+import { parseOptions } from '../shared/args.mjs';
 import '../temp/physical-temp.mjs';
 import { compiledSystemFolders } from '../native/public-systems.mjs';
 // Build first. This qualification installs emitted packages in a disposable consumer.
-import { packageManagerCommand } from '../entry/package-manager.mjs';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -13,11 +13,16 @@ import { readInputs } from '../../packages/db/dist/index.js';
 const root = resolve(import.meta.dirname, '../..'),
   pnpm = process.env.npm_execpath;
 if (!pnpm) throw new Error('Run through pnpm resources:qualify');
+let options;
+try {
+  options = parseOptions(process.argv.slice(2), { values: ['manifest'] });
+} catch (error) {
+  console.error(String(error));
+  process.exit(2);
+}
+const selected = ensureQualification(root, pnpm, options.value('manifest'));
 const temporary = mkdtempSync(resolve(tmpdir(), 'ia-packed-resources-'));
-const run = (args, cwd) => {
-  const invocation = packageManagerCommand(pnpm, args);
-  return execFileSync(invocation.command, invocation.args, { cwd, encoding: 'utf8', stdio: 'pipe' });
-};
+
 const folders = [
   'packages/language',
   'packages/graph',
@@ -28,32 +33,12 @@ const folders = [
   ...compiledSystemFolders(root),
 ];
 try {
-  const archives = resolve(temporary, 'archives');
-  mkdirSync(archives);
-  const dependencies = {},
-    packageDigests = {};
-  for (const folder of folders) {
-    const path = resolve(root, folder),
-      manifest = JSON.parse(readFileSync(resolve(path, 'package.json'), 'utf8'));
-    run(['pack', '--pack-destination', archives], path);
-    const archive = resolve(
-      archives,
-      manifest.name.replace('@', '').replace('/', '-') + '-' + manifest.version + '.tgz',
-    );
-    dependencies[manifest.name] = 'file:' + archive.replaceAll('\\', '/');
-    packageDigests[manifest.name] = createHash('sha256').update(readFileSync(archive)).digest('hex');
-  }
-  const consumer = resolve(temporary, 'consumer');
-  mkdirSync(consumer);
-  writeFileSync(
-    resolve(consumer, 'package.json'),
-    JSON.stringify({ name: 'independent-resource-consumer', private: true, type: 'module', dependencies }, null, 2),
-  );
-  writeFileSync(
-    resolve(consumer, 'pnpm-workspace.yaml'),
-    JSON.stringify({ packages: ['.'], overrides: dependencies }, null, 2),
-  );
-  run(['install', '--prefer-offline', '--ignore-scripts'], consumer);
+  const consumer = resolve(temporary, 'consumer with spaces');
+  const names = folders.map((folder) => JSON.parse(readFileSync(resolve(root, folder, 'package.json'), 'utf8')).name);
+  const packed = selected.packed.filter((row) => names.includes(row.name));
+  installConsumer(consumer, packed, pnpm, { name: 'independent-resources-consumer', names });
+  const packageDigests = Object.fromEntries(packed.map((row) => [row.name, row.sha256]));
+
   for (const source of readInputs(root, { adopted: [] }).sources) {
     if (source.path.startsWith('.ia/src/floor/')) continue;
     const target = resolve(consumer, 'fixture', 'foundation', source.path);

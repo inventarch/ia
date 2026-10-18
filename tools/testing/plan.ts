@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
-import { PLATFORMS, readManifest, type Manifest, type Platform, type TaskRecord } from './inventory.js';
-import { readEvidence } from './report.js';
+import { PLATFORMS, readManifest, type Manifest, type Platform, type TaskRecord } from './manifest.js';
+import { readEvidence } from './evidence.js';
+import { parseOptions } from '../shared/args.mjs';
 
 /**
  * Deterministic shard assignment. Placement uses historical duration, which is scheduling metadata:
@@ -348,39 +349,35 @@ export function updateSchedule(schedule: Schedule, evidenceDirectory: string): S
 }
 
 if (isEntry(process.argv[1], import.meta.url)) {
-  const args = process.argv.slice(2),
-    root = resolve(import.meta.dirname, '../..');
-  const flag = (name: string): string | undefined => {
-    const index = args.indexOf(name);
-    return index < 0 ? undefined : args[index + 1];
-  };
-  const known = [
-    '--platform',
-    '--shards',
-    '--native-shards',
-    '--matrix',
-    '--ci-matrix',
-    '--event',
-    '--head-sha',
-    '--verified-sha',
-    '--json',
-    '--record',
-    '--record-out',
-  ];
-  const stray = args.filter((arg, index) =>
-    arg.startsWith('--') ? !known.includes(arg) : !(index > 0 && known.includes(args[index - 1]!)),
-  );
-  if (stray.length) {
+  const root = resolve(import.meta.dirname, '../..');
+  let options: ReturnType<typeof parseOptions> | undefined;
+  try {
+    options = parseOptions(process.argv.slice(2), {
+      values: ['platform', 'shards', 'native-shards', 'event', 'head-sha', 'verified-sha', 'record', 'record-out'],
+      booleans: ['matrix', 'ci-matrix', 'json'],
+      exclusive: [
+        ['matrix', 'ci-matrix', 'json'],
+        ['record', 'matrix', 'ci-matrix'],
+      ],
+      allowEmpty: ['head-sha', 'verified-sha'],
+    });
+    if (options.has('record-out') && !options.has('record')) throw new Error('--record-out requires --record');
+  } catch (error) {
     console.error(
-      `Usage: pnpm tests:plan [--platform <${PLATFORMS.join('|')}>] [--shards N|${PLATFORMS.map((platform) => `${platform}=N`).join(',')}] [--native-shards (the same)] [--matrix|--ci-matrix [--event <GitHub event> --head-sha <sha> --verified-sha <sha>]|--json] [--record <evidence directory> [--record-out <output file>]]`,
+      'Usage: pnpm tests:plan [--platform <' +
+        PLATFORMS.join('|') +
+        '>] [--shards N|platform=N,...] [--native-shards N|platform=N,...] [--matrix|--ci-matrix|--json] [--event <event> --head-sha <sha> --verified-sha <sha>] [--record <directory> [--record-out <file>]]',
     );
+    console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 2;
-  } else
+  }
+  const flag = (name: string): string | undefined => options?.value(name.slice(2));
+  if (options)
     try {
       const record = flag('--record');
-      if (args.includes('--record-out') && (!record || !flag('--record-out')))
+      if (options.has('record-out') && (!record || !flag('--record-out')))
         throw new Error('--record-out requires --record <evidence directory> and an output file');
-      if (args.includes('--ci-matrix')) {
+      if (options.has('ci-matrix')) {
         // The triggering event selects the platforms, and for a scheduled run whether there is anything new to verify.
         const event = flag('--event'),
           platforms = eventPlatforms(event);
@@ -415,7 +412,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
             ? {}
             : { nativeShards: platformCounts(flag('--native-shards')!, '--native-shards')[platform] }),
         });
-        if (args.includes('--matrix'))
+        if (options.has('matrix'))
           console.log(
             JSON.stringify({
               include: plan.shards.map((shard) => ({
@@ -425,7 +422,7 @@ if (isEntry(process.argv[1], import.meta.url)) {
               })),
             }),
           );
-        else if (args.includes('--json')) console.log(JSON.stringify(plan, null, 2));
+        else if (options.has('json')) console.log(JSON.stringify(plan, null, 2));
         else {
           console.log(
             `Plan for ${platform}: ${plan.lanes.build.length} build, ${plan.lanes.static.length} static, ${plan.lanes.tests.length} test and ${plan.lanes.emitted.length} emitted tasks.`,

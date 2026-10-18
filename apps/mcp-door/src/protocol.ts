@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { Door } from '@inventarch/runtime';
+import type { DoorResponse } from '@inventarch/runtime';
 import { OPERATIONS, TOOLS } from './tools.js';
 import { compactContext } from './presentation.js';
 import { vocabulary } from './vocabulary.js';
+import { knowledgeTool } from './kb.js';
+import type { KnowledgeOperation } from '@inventarch/kb/protocol';
 
 export const PROTOCOL_VERSION = '2025-11-25';
 const PACKAGE_VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -21,9 +24,11 @@ export const rpcError = (id: Id, code: number, message: string): Response => ({
 const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 export class Protocol {
+  #root: string;
   #door: Door;
   #state: 'new' | 'negotiated' | 'ready' | 'closed' = 'new';
   constructor(root: string) {
+    this.#root = root;
     this.#door = new Door(root, { cache: false });
   }
   line(line: string): Response | undefined {
@@ -96,13 +101,36 @@ export class Protocol {
         if (format !== undefined && format !== 'full' && format !== 'compact')
           return rpcError(requestId, -32602, 'context format must be full or compact');
         if (operation === 'context') delete args['format'];
-        const raw = operation === 'vocabulary' ? vocabulary(args) : this.#door.request({ operation, params: args });
-        const result = format === 'compact' ? compactContext(raw) : raw;
-        return success({
+        const raw = operation.startsWith('kb:')
+          ? knowledgeTool(this.#root, this.#door, operation.slice(3) as KnowledgeOperation, args)
+          : operation === 'vocabulary'
+            ? vocabulary(args)
+            : this.#door.request({ operation, params: args });
+        const result = format === 'compact' ? compactContext(raw as DoorResponse) : raw;
+        const response = success({
           content: [{ type: 'text', text: JSON.stringify(result) }],
           structuredContent: result,
           isError: !result.ok,
         });
+        if (operation.startsWith('kb:') && Buffer.byteLength(JSON.stringify(response)) > 48 * 1024) {
+          const refusal = {
+            version: 1,
+            ok: false,
+            error: {
+              code: 'IA-KB-RESPONSE-LIMIT',
+              message: 'Knowledge transport response exceeds 48 KiB; narrow the request',
+            },
+          };
+          const bounded = success({
+            content: [{ type: 'text', text: JSON.stringify(refusal) }],
+            structuredContent: refusal,
+            isError: true,
+          });
+          return Buffer.byteLength(JSON.stringify(bounded)) <= 48 * 1024
+            ? bounded
+            : rpcError(null, -32600, 'Knowledge request id exceeds response budget');
+        }
+        return response;
       }
       return rpcError(requestId, -32601, `Unknown method '${method}'`);
     } catch {
