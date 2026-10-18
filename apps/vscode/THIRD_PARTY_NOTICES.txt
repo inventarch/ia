@@ -1,6 +1,6 @@
 Bundled dependency inventory. No license for InventArch source is granted by this inventory.
 
-@inventarch/compliance@3.1.1
+@inventarch/compliance@3.2.0
 Declared license: Apache-2.0
 
                                  Apache License
@@ -214,7 +214,7 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 
 ----------------------------------------
 
-@inventarch/db@3.1.1
+@inventarch/db@3.2.0
 Declared license: Apache-2.0
 
                                  Apache License
@@ -428,7 +428,7 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 
 ----------------------------------------
 
-@inventarch/graph@3.1.1
+@inventarch/graph@3.2.0
 Declared license: Apache-2.0
 
                                  Apache License
@@ -642,7 +642,7 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 
 ----------------------------------------
 
-@inventarch/language@3.1.1
+@inventarch/language@3.2.0
 Declared license: Apache-2.0
 
                                  Apache License
@@ -856,7 +856,7 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 
 ----------------------------------------
 
-@inventarch/runtime@3.1.1
+@inventarch/runtime@3.2.0
 Declared license: Apache-2.0
 
                                  Apache License

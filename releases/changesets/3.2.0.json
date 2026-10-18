@@ -1,0 +1,1485 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.2.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "1363fc9c949a485448d3699ff3e2756119a8d142",
+    "version": "3.1.1"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 3.2.0 release of the 23 public npm packages: Registry and archive downloads refuse URLs that are not credential-free HTTPS; Complete native authoring and consumer contracts; Read the steward hook's ownership markers, actor map, binding and code files through the opened file; Session stores can require host admission before each durable write; Verify host cache, runtime and system package files through the file that is read.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts. Session stores can require host admission before each durable write."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts. Session stores can require host admission before each durable write."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/cli": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/db": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Registry and archive downloads refuse URLs that are not credential-free HTTPS. Complete native authoring and consumer contracts. Verify host cache, runtime and system package files through the file that is read."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/graph": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/language": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/runner": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts. Session stores can require host admission before each durable write."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts. Read the steward hook's ownership markers, actor map, binding and code files through the opened file."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.1.1",
+      "kind": "changed",
+      "summary": "Complete native authoring and consumer contracts."
+    }
+  },
+  "changes": [
+    {
+      "id": "bounded-fetch-https-only",
+      "title": "Registry and archive downloads refuse URLs that are not credential-free HTTPS",
+      "summary": "`fetchBounded` (`@inventarch/distribution/internal/bounded-fetch`), the one request behind registry documents and remote archives, now checks the URL itself before any request, even when its caller did not. It parses the URL with `new URL` and refuses only a URL that does not parse, whose scheme is not `https:` or that has a username or password, as `IA-DIST-INPUT-INVALID` with the message `<label> <url> is not a credential-free HTTPS URL`. It then requests the canonical form `new URL` writes: a query or a fragment passes, and a legitimate non-canonical HTTPS spelling, such as an uppercase host, an explicit `:443` or a percent-encoded host character, is canonicalized and still accepted, with the same request as before, so a direct caller, or a hand-built `RegistryBase`, that passes an HTTPS URL sees no break. Before, an `http:` URL was requested in clear text and a `data:` or `blob:` URL was read; a URL with any other scheme, such as `file:`, `ftp:` or `wss:`, got a `TypeError` from fetch, reported as `IA-DIST-ARTIFACT-UNAVAILABLE` with `<label> <url> failed: …`, as a credentialed or malformed URL did. All of them now refuse as `IA-DIST-INPUT-INVALID`, so both the code and the message change. Refusing another scheme is a defensive patch: the supported contract already excluded it, since the registry spec (`docs/specs/registry/README.md`) says that a registry base is a credential-free HTTPS URL or a local directory and that other URL schemes refuse, and the archive check admits only HTTPS artifact URLs. URLs built on a `parseRegistryBase` base and URLs the archive check admits are already canonical and are requested unchanged. Migration: direct callers can keep passing HTTPS URLs, in any spelling, or use `parseRegistryBase` to get the canonical form up front; a direct caller passing an `http:`, `data:` or `blob:` URL moves to an HTTPS URL or, for a registry, a local directory base. This is URL-shape hygiene, not host authorization: it does not block internal or loopback hosts, DNS rebinding or other server-side request forgery. Redirects, the 30-second timeout and the byte bounds are unchanged.",
+      "packages": [
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/distribution/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "native-record-repairs",
+      "title": "Complete native authoring and consumer contracts",
+      "summary": "Add explicit primitive selection with protocol-2 compatibility, actionable per-word authoring guidance and executable native operation cases. Normalize captured-read refusals, allow structured templates to omit unused legacy fields, and omit unknown journal phases while retaining legacy schemas and record identities. Release qualification and publication remain separate.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/cli",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runner",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-runtime",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/authoring.resources.json",
+        ".ia/src/floor/artifact-set.ia",
+        ".ia/src/floor/axis.ia",
+        ".ia/src/floor/cardinality.ia",
+        ".ia/src/records/npm-release.ia",
+        ".ia/src/records/repository-policy.ia",
+        ".ia/src/releases/language-distribution.ia",
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/authoring-system/",
+        ".ia/src/systems/compliance-system/",
+        ".ia/src/systems/governance-system/",
+        ".ia/src/systems/hook-authoring-system/",
+        ".ia/src/systems/learning-system/",
+        ".ia/src/systems/session-system/",
+        ".ia/src/systems/template-system/",
+        ".ia/src/systems/work-system/",
+        ".ia/src/systems/workspace-system/",
+        "CLAUDE.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/mcp-door/",
+        "apps/runner/",
+        "apps/steward-hook/",
+        "apps/vscode/LANGUAGE.md",
+        "docs/",
+        "examples/",
+        "package.json",
+        "packages/compliance/",
+        "packages/db/",
+        "packages/graph/",
+        "packages/language/",
+        "packages/runtime/",
+        "packages/service-contracts/",
+        "packages/workspace-runtime/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "read-the-steward-hook-s-ownership-markers-actor",
+      "title": "Read the steward hook's ownership markers, actor map, binding and code files through the opened file",
+      "summary": "The steward hook now opens each context ownership marker, the --actors map, the context hook binding and each code file of its implementation inventory before judging it, and reads through that descriptor, so a file swapped after its check is never read (CodeQL js/file-system-race). Admission is unchanged: markers and the actor map remain regular, single-link, unaliased files of at most 1 MiB (8 MiB for a pending journal), the binding at most 64 KiB, and inventory code files at most 8 MiB each and 32 MiB in all, with hard links still admitted there. A missing --actors map now refuses with IA-HOOK-STEWARD-UNAVAILABLE: Invalid actor map file instead of a raw ENOENT error. A FIFO swapped in is refused without blocking the hook, and a marker removed after its directory is listed, or an inventory file that changes while it is read, is refused.",
+      "packages": [
+        "@inventarch/steward-hook"
+      ],
+      "paths": [
+        "apps/steward-hook/"
+      ]
+    },
+    {
+      "id": "session-write-admission",
+      "title": "Session stores can require host admission before each durable write",
+      "summary": "A host can now make every durable session write pass its own synchronous current-authority check. `sqliteStore(root, { admit })`, `new SqliteBackend(root, { admit })`, `memoryStore({ admit })` and `new MemoryBackend({ admit })` accept an admission gate. The backend calls it inside its write transaction, after the ownership, idempotency and revision checks and after every await, immediately before the first journal event or checkpoint is written, and nothing yields between its answer and the commit. Authority revoked before the write, including while the store awaits ownership validation, is therefore refused even when every earlier host check passed. The gate receives a deeply frozen `Admission`: its kind (`commit` or `checkpoint`), session, principal, owner fence and command, the exact events, the resulting session, and the attempts whose output a commit newly stores, with the authority recorded when each was prepared; a checkpoint, which restates admitted history, offers none. Only a synchronous `true` admits. `false`, any other value, a promise or thenable, or a throw rolls the transaction back and refuses with `IA-SESSION-ADMISSION-DENIED`, whose message carries neither the payload nor the host's error. A configured `admit` that is not a function refuses at construction with `IA-SESSION-ADMISSION-UNAVAILABLE`. The new optional `admission` property of `SessionStore` and `JournalBackend` reports whether a gate runs, and an `EngineHost` that sets the new `requireAdmission` option is refused with `IA-ENGINE-ADMISSION-UNAVAILABLE`, at construction and at every later use of a store the host replaces, unless its store reports `admission: true`. `JournalBackend.commit` gains an optional fifth argument, the resulting session, which `JournalStore` supplies; a gated backend refuses a commit without it. The `@inventarch/agent-composition-system` installed-read qualification fixture adds an Engine, installed captured-read and SQLite regression for the gate. Stores configured without `admit` behave exactly as before, and writes admitted before a revocation stay in the journal. The guarantee covers authority state the gate reads synchronously in the same process; a remote authority service or another process needs its own lease or fencing protocol.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/session-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/",
+        ".ia/src/systems/agent-system/",
+        ".ia/src/systems/session-system/",
+        "tools/"
+      ]
+    },
+    {
+      "id": "verify-host-cache-runtime-and-system-package-fil",
+      "title": "Verify host cache, runtime and system package files through the file that is read",
+      "summary": "The host cache launcher (`scripts/ia.mjs`, which verifies the cache before every mode), `installedDistributionDigest` and `verifySystemPackage` now open each file before judging it, read it through that descriptor, and check afterwards that its name still holds the same file. A file replaced while they verify by a link, FIFO, socket or other special file is refused: where the platform has `O_NOFOLLOW` and `O_NONBLOCK`, at the open, before anything is read, so the launcher no longer waits forever on a FIFO swapped into the cache; on Windows, which has neither, a link swapped in is opened and read, then refused by the check of its name. The launcher reports such a change with its own message rather than a system error such as `Unknown system error -102`; of the failures that keep a file from opening, it prints the system error only for a pinned file it may not read. A pinned cache file removed during verification reports `Plugin cache payload is missing`, and any other entry whose listed name no longer reaches it, such as a file Linux lists under a name that is not UTF-8, refuses as `Plugin cache payload differs: <path>`, where it failed with a system error before. Outside such races, which files are admitted is unchanged. Some refusals are new: `installedDistributionDigest` refuses a runtime file it cannot open, an unreadable one included, and an entry its listed name no longer reaches with `Installed distribution runtime is missing, mixed or aliased` instead of a system error; the launcher refuses a pinned file that fails to open for a reason other than permissions, such as too many open files or a lock another Windows process holds, as `Plugin cache payload differs: <path>`; `verifySystemPackage` refuses an input replaced or changed while it is read with `System package input changed while it was read: <path>`; and both refuse a file of more than 2147483647 bytes before reading it, `installedDistributionDigest` with its usual message and `verifySystemPackage` as `System package input exceeds 2147483647 bytes: <path>`, where Node's own error for a file that large was thrown.",
+      "packages": [
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/distribution/"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        ".github/",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/platform-quality.yml",
+      "sha256": "cf5c700814f4fdc8067ed615f25efb8f4984902ff09eab644fb6689e99fd8330",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".ia/authoring.resources.json",
+      "sha256": "55cb71af5e59e427de4a10e11abfb277b25b45d0776e4950f328195b022a1632",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/floor/artifact-set.ia",
+      "sha256": "b313b155228887c0d35522ad8d659a39e06bd99d6a2dbcadb8060003a357ca65",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/floor/axis.ia",
+      "sha256": "d521acfaa0ebfff13a32cd5d3ce6b6e5c43d2f62a3c663e96d946e19b2a6269c",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/floor/cardinality.ia",
+      "sha256": "25577d83370b9401b35588fbba9b14d113ae1c406429dbf7192c88dfaa13b558",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/records/npm-release.ia",
+      "sha256": "3251e36770f3eedfad6c41bb74cc0566b0e28c503d5a82d92db2136943b46c65",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/records/repository-policy.ia",
+      "sha256": "34f85e814edfef10f6d080c44c283a4282a1715fdafc0162d01be10409637804",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/releases/language-distribution.ia",
+      "sha256": "75872601846882f9afaab8b0c600f26a87f4aa8bbcad3e4c5dbd56f6bb8d187c",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "f17bf6b8b752df3e99652c5f81bf72e132e07d9a908de4062ba330bf912dac05",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/src/installed-read.ts",
+      "sha256": "5049350f9e00d5ae3ae8c81c7e6387218db296f7f53228decf2bc33ebc3e1cfa",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/system.ia",
+      "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.d.mts",
+      "sha256": "d578bdba2db668b5af76b5b0319bf88d9a9d674b718a175b75b527051882a2b8",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read-fixture.mjs",
+      "sha256": "2dfbef67ba20364b064165a22302af9eacd3d612400391626cc3164171d1839b",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/tests/installed-read.test.ts",
+      "sha256": "437e43d6410891767459bc9c7fe5232bb4b3ca40816d1610e9e90884238367fa",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "2246c2ecd57bd1a042bbaec3eab5bf3a816137516e7737664f038d48efd51b1e",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/engine.ts",
+      "sha256": "0786a84ce3f0f576aa5092e9bdb530e8063faacac9269d73223019dac51a76ba",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/src/types.ts",
+      "sha256": "17441109a1ab1c6d8a8967b2cab2d148f5c9339bb1764f57bd3b77418dd18c9d",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/system.ia",
+      "sha256": "5e69c24d3fd629e5c817d8c83a6b763e4a1a5f14438938c0a3ecc68791965508",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/tests/engine.test.ts",
+      "sha256": "5297b3ecd0f42d738a8ae47dd76910dd4fc02410a18192d2a1fb446b1cdd62ac",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/SPEC.md",
+      "sha256": "7588d39b5daa149a57146dce00e4e15b05e8f767d26a49df20f23f577a11caca",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/cases/format-ia.ia",
+      "sha256": "b6665614b0eabd9d13e8c2957fb367ffa3e153318a4aba4eeba7e3cc8fba1695",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/cases/validate-ia.ia",
+      "sha256": "c0a63dfc708ba45d2ccbde223d38298999392f4c08cb18b231740c265906dae9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/contracts/draft-authoring.ia",
+      "sha256": "fe4777d93e1516431c0e4cf294a067918b88a552d9628d879b2b83cfd0ca734a",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "bdf645d926441c6e31637a8961ebf317dd5e2629ddce776a88bc3364b37127f9",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/records/public-guides.ia",
+      "sha256": "3610b869c3bcdd9b88c0ddb15ce9cc5b71c28281b9d81b2af66103c93f50e5de",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/agent-profile.md",
+      "sha256": "83a32e3cba9bb11c013865005ca9816fa05a862902826e5122949dec5a0c0178",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/agent.md",
+      "sha256": "90dc7a0708edfe4426b72083e0b0b5e225c2c371cfaa58a91487e90431f05f95",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/artifact-set.md",
+      "sha256": "a532e696bb806a27f5402b87076b347e39b230f81223914122d728300f51d5d4",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/authoring-guide.md",
+      "sha256": "53584e8eb3a07f76c06e45528b2345610ebb9f096f13b93615d864d97f53b223",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/axis.md",
+      "sha256": "e0bdc1c4ab7a7ac3ef94afcc7988a92ca6e4cc2767f51a42ffe6272d01c39aed",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/capability.md",
+      "sha256": "8e987bf77fdf26653787f54d41dbc6bd8970d1e9f58ff1b5eeb255b87e91d565",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/cardinality.md",
+      "sha256": "43fdf2d0708f53dfd5b9fbec1d66a2edb7a1ef44fe0d63061dcbb19c32435856",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/case.md",
+      "sha256": "456c116ddfc28bf1f7ab3683e223cef9dbc2a6e9d2aa37df92dee93dfcbe79ad",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/category.md",
+      "sha256": "b3f65491aeb40db3aa97725ffa8370ebf59b6a05300c05b4a60449e81ad31800",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/check.md",
+      "sha256": "54973a54c22bd33aebd37c3e117ef0ad13b54a324f2faabf1f7d53f6483198d6",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/contract.md",
+      "sha256": "a5e8deceb01870db5b5ff9cfd209515531c5d7b46c0b1e72c829261adc72dcc7",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/convention.md",
+      "sha256": "382c496b94960e9c90ca326cb09b091c44e5e82d413ec06e5445a2b1deef3b9c",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/decision.md",
+      "sha256": "3ba3b6e878c3330849614f4fa60010f54fde20602fe43a7c32b715ddaf611ce3",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/dimension.md",
+      "sha256": "00633bd4a2b61aae437af46882ce1041e5300723fa8d031fb599435715c25b11",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/distribution.md",
+      "sha256": "c6fd2d7af1d46f1c3ad82a145be35915ee9ad21f2f35eabfb5ffa2f5ca1706d8",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/execution-binding.md",
+      "sha256": "fe96b1ed660ec81f6d5d6efa74788fecb2c08f4cd3bb139816a1ce4b541a84db",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/harness.md",
+      "sha256": "b86832726482bb3f206aaec219f16cb6f8bca07a1c5f17bb15b2f000d8681aa8",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/hook.md",
+      "sha256": "9cc85bf5c147f57206a7647a83ded5cd4d3d3ef43a872d53404606c671f19748",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/improvement.md",
+      "sha256": "1cfe4094e3254841ad69cce543e9427f4f7957060c6114c5e0e0b61e1b65358b",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/intent-shape.md",
+      "sha256": "cdbc76a24191df800f6addebab75b9f079538a8768ea8257b0be7013941b88c2",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/kind.md",
+      "sha256": "968954b49f4ce4f75bb4c9896fac3792f9fa31e56c2c79073f88cb3c0d42515d",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/lane.md",
+      "sha256": "6953848683bfd2e92e5c9a0e8dfda51375a902d96f690a039386ec52536b21a1",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/law.md",
+      "sha256": "bbf05d6bbae9ab95561ed9839d05019a4adf4a2db680c8bf4b055f87f9ae2a07",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/mandate.md",
+      "sha256": "287e8ca92426c510001fe844a1aaf66d3fba76459c17faeffdde8123bd7b3d95",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/milestone.md",
+      "sha256": "2e0092804438bae460a502209f995d74e4026ebc125a4811c7c4df6fa8fff995",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/move.md",
+      "sha256": "692ea1d2ce038e157dc5b367d76f0879636cd91fa8f91c6e76ae49bb35fe4d54",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/observation.md",
+      "sha256": "bc3d27a6bc6336b6fde4bbd3fa73d8de7872f7ac6cdd7c328fd5b3cad24b9c28",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/operation.md",
+      "sha256": "69c9a67e3c0c8050d5ce50700d27dedf91f0ad5c825472fbbe878b1a45299ad0",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/phase.md",
+      "sha256": "a74c34b54e63e1444dd1e1c6980da8c1df4bc1c4c4275c249c1624d8e6737980",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/placement.md",
+      "sha256": "9874c2cf0a70722cd338071915cfa82195347465a77b70cbcde28fd708d37ea5",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/plan.md",
+      "sha256": "c981a25dd133ac15facc5805c1eb25d4c7f41d5eb45ab78b058b237169c47bf7",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/playbook.md",
+      "sha256": "731fae11e9a0a5aa1f5f6ca69dd7059c2e011a33d04f12dd95c673fe8e916e4e",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/predicate.md",
+      "sha256": "acc2db2f400cb816b450b27acfb5df455e78be234cfd95a9b98469bde06aa3df",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/primitive.md",
+      "sha256": "89cf8dc6f8d0f18c687425009f36de96d23aa09540aab707621346a2bf276fad",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/principle.md",
+      "sha256": "1b8bc9d95ba438301627de43e4734408fc3033b5da0fa9a22eacf1f707ee81b2",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/run.md",
+      "sha256": "3f4637d3b6f1e94ef5f2ffaf818b959bb4496ffd233c289f232ebad59ebb9e26",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/schema.md",
+      "sha256": "57aaaebd746334c053673a8c177ce40ad2f3feeb324da4a677fdedfa67a1bd87",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/spec.md",
+      "sha256": "b00c65c5c03c2d029b01f37fa37d5dc6e1640c45b2071793a9e6d327be2eda13",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/system.md",
+      "sha256": "6429c39aef03cec61bde452d925dbe1446a8e36438c24af1f6240aa21f5627f4",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/task.md",
+      "sha256": "168b64b38fa6e595041a791304966d75a4065370d9471d249a0557cae2741503",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/template.md",
+      "sha256": "a05ecffd1af7fec7fff74740868cd2b3c55f0ee282de486aede53e1779669fbd",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/value-type.md",
+      "sha256": "64369f8417c6fb5440daebd3d8a07b23c36f05477a252cb288370309e79a3c00",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/voice.md",
+      "sha256": "4843164328aa83fc51ffe2242e1c9ec41d48d8a3fdd7cc2f1da70da3c750fa46",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/reference/workspace.md",
+      "sha256": "cba0fd1df1d7f36b368da60af000b04594c901aa01f1d33ed76a56775366c044",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/system.ia",
+      "sha256": "a214234b1827a77ce46186d9f490f6e8b01783dd18b00c0d4ce5aab5640b07ac",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "3ba902ef42ef219685af52e00c3395379426db0db3aea6fea5e40751709a618f",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/system.ia",
+      "sha256": "1db34863ee0154d8a680c47aca053ef01bbd2a94036b6427da0554717655a502",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "73a4ff2f26f01ac23038bb4e9fc191fb9f95fde35139d82bbebce9dae5629349",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/system.ia",
+      "sha256": "53c04221dc9fbd2c383ea966d149c04ec9a497af6712e9519fffc3bd0c36d1de",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "2b09deb52d981524e774534d88b1ffb74570e65b6ec1df84d1939496ccaf8c3f",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/system.ia",
+      "sha256": "7d7911907a2215064628c1bf9f276f2be93a1701f92fd53e817601c06f48916c",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "9b80b115f4ab79bec9b57449b70a641b0758caecfbec28064d3365cc0f0bf359",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/system.ia",
+      "sha256": "c3e7ec257b60e5f40d14993facb48dc3c540ba0eb8b49f13d1b6fa3aa1693bb0",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/SPEC.md",
+      "sha256": "ef6542a9564a3ef0e9e796928eea76caecd740b55b1c361357521ffdccf5ede4",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "5fd3ffc3ed033fb75d96e1d2f9670d99b848d94360a707b9e0e785918f2ea689",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/schemas/run.schema.ia",
+      "sha256": "3fdee6fe6f8997cf87998ab3cedccf4bcb66f9fc3f5d2fed4ae831e4435fce42",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/index.ts",
+      "sha256": "ac5e0ee2c51acc84cc935ee805f266b69036e0fdc5a1e206d11407d93b860ade",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/memory.ts",
+      "sha256": "491dc5103a7b7d8657c073db5ecb4e2c0f1e4589e29891b13702c0bfb37999ef",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/sqlite.ts",
+      "sha256": "a0f8f431c4b29c1c03b396d9d3e46187b4d4317aa8284348af8b3106a11b3f79",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/store.ts",
+      "sha256": "96c4bf190bfbe6d973a2cf17e6ea95a4e2dcced93d986a7fdb308de2a6dd3768",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/src/types.ts",
+      "sha256": "710124a9800bc7300f938e316632c80d8ebd3462ac3e0d1f2cc9a9c8b44bd126",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/system.ia",
+      "sha256": "bea0eb0933d8c0b7fdc7eacead8a9afdf66f1bab6ca625000fad6066c8b919cc",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/session-system/tests/admission.test.ts",
+      "sha256": "8694653629a42428addcbb932ea93757448bcdf1939cb0e66ad1ddb3ee54a6e0",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/template-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/template-system/SPEC.md",
+      "sha256": "de45191b65ec44f25ed694bac4ed451500718180c8a81e516f08c7a1826080cf",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/template-system/cases/render-template.ia",
+      "sha256": "538aac444cc2307cdf36b45921fb7b263c56f2b67ab6142fb1c9c6377cdcd14a",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/template-system/contracts/scalar-rendering.ia",
+      "sha256": "dfa74d24b83190647313c837c41d200c742a8eb3c11a67a5315b7ff83e3caf94",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "d9129008e07c58f334609024d4bacedd1d5a8bec6818a4ec3437318420437a73",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/template-system/schemas/template.schema.ia",
+      "sha256": "530331ee8e4a2ec72a8586843e28b0e3ff1027585d2cfce7805cbe6e33fa8d0b",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/template-system/system.ia",
+      "sha256": "6b69d413163992b628c114cfb6d4b98820b22df8275fbc1c685049cb8071cd51",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/work-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "5bbc39adf2887e5d7c20ad7313f6426f9872a63e1d42181a72426f00631de3d7",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/work-system/schemas/task.schema.ia",
+      "sha256": "416176972f2b80b6de2da51734d5e3f0c822d26b1feb89e05d4701bf39153b30",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/work-system/system.ia",
+      "sha256": "f9b4c8ad1458c1ce742291db9780ca5c83d0579a8d36b2adc05dfe9da5857487",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "fbfb3fdc6259a05442bc240ed8ab8a971d6859b47e4d787c55725470d264ceb1",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/system.ia",
+      "sha256": "b61a4f57bab19e31e5c3575f30d1ba364d8ae408363998299db5a648bc34f477",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "bc72bd57bfd3c461cedd0356ddbb8176f2037da26780dd7d01b2133a1c065da2",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/README.md",
+      "sha256": "ca6ac508888b9107b3f644e269093d3acb9a27baee8598f7733fbf80cd5a5855",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "4783d2ab8acc2a367590117321a7b15bdf639d0e866e3bbf3fd82ab4c2563310",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/assets/vocabulary.json",
+      "sha256": "f74062348a7de5ef53be945c9b68adfbab62cf4da8610b5bf414c249890d5f43",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "10cd867424e557d6716965b6d5322803f20392ef8d7a961ced9d91e3a2617b6a",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/src/commands.ts",
+      "sha256": "94140e1b29c9a6e871135afd34acd9e043238ab0d723f0d390c8d40be4cd6b7f",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/src/operation-help.ts",
+      "sha256": "ddf68bec31104cf8d5492db2dcd18b3b56734704db988681b3bb60ca02a62e81",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/src/position.ts",
+      "sha256": "d5ca3996edd2e0ef694790d5e9eabc6c8a26ac6a28e5f54f09a63b4084cd739a",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/tests/cli.test.ts",
+      "sha256": "9da38921a82c64a83c57328d3e82b1f1213b6cf0a27e9f2bffcb71c7bf09335f",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
+      "sha256": "6f0f252443a4eec3bed7756caaa0cde9b85b84ad87b289e108c9ee33565654ef",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/cli/tests/position.test.ts",
+      "sha256": "987aee05ee5f5af3a7403cfda4b80f3b46417a7cf8b429f781605c9681d8ee83",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/distribution/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "d2bef9b64c7739d4566c8ac06056a5b225a2366e7fb102c7b83371404c4740df",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/assets/host-launcher.mjs",
+      "sha256": "a6ebe6b4fa6e0bc66fc964ab57dfaf7f3655226430f216bbfafbb047b8797606",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "ec1b9a5ad9415c8c46e041f0e06a2aaeaa3cae683ea00fd8f859f253d501784b",
+      "cohortOnly": true,
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/src/bounded-fetch.ts",
+      "sha256": "08e11643c7f6414f22e5283ca97dc97d75a0c784f4121f6cc8dece5bfd3f8b9e",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/src/inventory.ts",
+      "sha256": "1ef71f30c4ccbb261909c8660acdb283b124e5e10a8ce390496411d4cb87b473",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/src/system-package.ts",
+      "sha256": "be55f122897cc78d2fad0a9f29bd166e98c7b741ef908d0381d0edeb2d720070",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/bounded-fetch.test.ts",
+      "sha256": "35e3c1cf6fbfc0320d4288f266a0161918e780f7b07680df01c18d9307c84239",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/context-launcher.test.ts",
+      "sha256": "b3227fc67290a5440522ae7f4185723cf63eb831a089bf89f5a4ef75ad842977",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/inventory.test.ts",
+      "sha256": "9956bdeabe27a53b68c342bbb487d3a16cb56fe8ad8d5f5277da10944d9ff3c6",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/race-fixture.ts",
+      "sha256": "f502d2c6ba7ece78269fb7ac130e688311ac5e1e9a1efb7eadbffabf24fb1c13",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/registry-source.test.ts",
+      "sha256": "1225af4fc53f1456d7d4ee7685c6ae9be262d095aa5a665d4ba15cbbf10cf002",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/services.test.ts",
+      "sha256": "7b9d8be55ac53ce5d5708af58d6593cd8c508c35bb2b9c5e44dd28bae5f44ed3",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/system-package.test.ts",
+      "sha256": "d2149c774b56fcb8e8ca3834aac3420d6facccc226fc9aa55598888838792d65",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/distribution/tests/system-partitions.test.ts",
+      "sha256": "551f26098215452a09ba69c8cbb6da4b7e904fc26c9c3df734dd73194f5dfed6",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "apps/mcp-door/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/mcp-door/README.md",
+      "sha256": "3d8bf16402e4e047214e24b78b7dfffa0cb4d666a04fc896c6ce73d3328c387b",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/mcp-door/assets/vocabulary.json",
+      "sha256": "f74062348a7de5ef53be945c9b68adfbab62cf4da8610b5bf414c249890d5f43",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "0e63cb84df49f9bddeda8c0cb687cca986f23251d73d493425553f43a1589b7e",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/mcp-door/tests/protocol.test.ts",
+      "sha256": "1e558d464df01148e069f2079965a7b5fda14376acbe78db54ea8d8ababe06d6",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/runner/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "d4f9979039fb99de1c7ad1abb31f9dfd209a7bd76ee8539149668e1e5bb92819",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/runner/src/context.ts",
+      "sha256": "6c0bb73dd4a03a014ffb07260ec4202b4a96f735e2132fe488e7aca41dacf0f8",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/runner/tests/runner.test.ts",
+      "sha256": "c1c193df4067ee030eab70738821be2499516728a1ad57ba88fa2be2102069d1",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/steward-hook/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/steward-hook/SPEC.md",
+      "sha256": "8247a27060d6ab61a982175b31bcdd3653df3a5ca7c7f0ede5d9e9513e0e2e6f",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "048912a5c359ed6241275890dfdc87db30f08d5c7dec0cfa3ce12c087ff39455",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/steward-hook/src/context.ts",
+      "sha256": "c7e26dec6d6ddf9c013237b5b9ef2f5b26f8760331ac1cf3f7369e882ff11185",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/steward-hook/src/main.ts",
+      "sha256": "b3abe25ff992010587999ca15ad3e6f632f069fed262deafbc7514e66117762e",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/steward-hook/tests/consumer-guard.test.ts",
+      "sha256": "061a5ec712f2c5ea44c59807ceaae95a260d47ffd29eb16517a44745029d9709",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/steward-hook/tests/context-binding.test.ts",
+      "sha256": "9d93ba53a79c0dc92ccb1b8c150fb1f979c2087c609251600458bcaada504ddb",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/steward-hook/tests/context-inventory.test.ts",
+      "sha256": "3ff848740f83f00c2c158238ef56d4dbd6b413e2f531295c8834d1706a060e0a",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/vscode/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "f7012deda0d01440cb77d3657f4b21200135defd5ccf1b9cb56f90f22bfeea82",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "9840e22b3c1a186f14165188c30defde32e7f570dabb4c00cfdf03578fc5d51e",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/reference/language/README.md",
+      "sha256": "cd907f79509ed03417c97f858336e730ed583579c04a536e6771fbcf7002dacd",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.json",
+      "sha256": "f74062348a7de5ef53be945c9b68adfbab62cf4da8610b5bf414c249890d5f43",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "docs/reference/language/vocabulary.md",
+      "sha256": "d9d077995a967a16a03b02ccfd2f5138f11ba6c9143f95954e8734f9cb840304",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-composition-system.ia",
+      "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/agent-system.ia",
+      "sha256": "5e69c24d3fd629e5c817d8c83a6b763e4a1a5f14438938c0a3ecc68791965508",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/authoring-system.ia",
+      "sha256": "a214234b1827a77ce46186d9f490f6e8b01783dd18b00c0d4ce5aab5640b07ac",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/compliance-system.ia",
+      "sha256": "1db34863ee0154d8a680c47aca053ef01bbd2a94036b6427da0554717655a502",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/governance-system.ia",
+      "sha256": "53c04221dc9fbd2c383ea966d149c04ec9a497af6712e9519fffc3bd0c36d1de",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/hook-authoring-system.ia",
+      "sha256": "7d7911907a2215064628c1bf9f276f2be93a1701f92fd53e817601c06f48916c",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/learning-system.ia",
+      "sha256": "c3e7ec257b60e5f40d14993facb48dc3c540ba0eb8b49f13d1b6fa3aa1693bb0",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/session-system.ia",
+      "sha256": "bea0eb0933d8c0b7fdc7eacead8a9afdf66f1bab6ca625000fad6066c8b919cc",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/template-system.ia",
+      "sha256": "6b69d413163992b628c114cfb6d4b98820b22df8275fbc1c685049cb8071cd51",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/work-system.ia",
+      "sha256": "f9b4c8ad1458c1ce742291db9780ca5c83d0579a8d36b2adc05dfe9da5857487",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/contracts/workspace-system.ia",
+      "sha256": "b61a4f57bab19e31e5c3575f30d1ba364d8ae408363998299db5a648bc34f477",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/public-language/versions.json",
+      "sha256": "636569a92cf2d25de637d4e626022acb07ff622a170e0ce06df9e9437313d3ba",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "package.json",
+      "sha256": "6477b0022d833ce470f5581a9f1b3775ba25022b53b983d84ffef8a2dfbce410",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/compliance/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/compliance/SPEC.md",
+      "sha256": "f153921d39b4abfa3de9dd50073840c2c459cc79db33d8240d6c69e591ace43c",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "4ab7ec903564b6959f20480a4e6e6e94767d9d6d204f334b81b71695974b8ba5",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/compliance/src/kernel.ts",
+      "sha256": "847148c969a48f06411d27e29d007c0a81d62e8306b88736bc1fffea1c72ac72",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/compliance/tests/report.test.ts",
+      "sha256": "db77e5323a02bc0f094b6ee256a96aa8ea9d1ae888f2ad2813760785fb13bcca",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/db/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/db/SPEC.md",
+      "sha256": "619c6d4940c798823643c5d08f12f9541bdf0c1db0bd5fa1b8c919a5ef6b8acc",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "3139bd262d8c9ea36a8203eb7447464b2b145afd1598f33029fa7694e41e7548",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/db/src/runner-evidence.ts",
+      "sha256": "6c03eb69519a53b29d867767480beea596d3e6343abac0d2a5eb9aca21c9c1cb",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/db/tests/runner-evidence.test.ts",
+      "sha256": "eef906e963b7346fd596418b4857b7b0693031d0490c39692b7ca08dc464d3fb",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/graph/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "f968765a662465feb675ffdb5f5fc8231bf53dc538b7ac44933fd03a3e951884",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/language/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "f938d03fd72feb38955c3c541f653be0636c43af634d43349b614bdc44b183a4",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/language/src/kernel.generated.ts",
+      "sha256": "1431517dd7a52d777cee40daa44048f3c531a076fbf0fc33d0672c2fd77fa6a0",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/README.md",
+      "sha256": "d330c162cd3b6be4da100cf171984daa702ff26410e5879fe7ca9f2751ee8f85",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/SPEC.md",
+      "sha256": "29cecc175eae212ef43410bbe2fa132bc90fbc6a5c0d3ec691c0ffb314b2addf",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "225050c2407dd87c89011d47fdb1d7366ff4b50e6225b51b2bfee78c3c5049d9",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/src/coordinate.ts",
+      "sha256": "a8639b58dd999f32b20bbf9d08c9c6d99a0bc428f9336371bbca066724c84fe6",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/src/door.ts",
+      "sha256": "9ae18e2104082da3946fb62300780cc99f12eb8044da8fc066d4d5fb979c3f18",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/src/machine-protocol.ts",
+      "sha256": "f2ebf954b7e1608c3b664eafb37fcaca5083158f99a2e02d2a1c8c277bb2de95",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/src/packet-host.ts",
+      "sha256": "cb4d4911c5eb4eaee9545dbe89fe122bb8bff4eafed83057f8f789416058421d",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/src/packet.ts",
+      "sha256": "8a53ed6cd90cf351c56bedba23457328c7f9dc3857ec6d40ba418e8a21e0dc32",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/src/position.ts",
+      "sha256": "a8bfa0bff6015c8cedf44c26e294c784bc53dbd894b1a8197f545470ce472d17",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/src/scope-key.ts",
+      "sha256": "93d57f601acdb8380e6c9ed8c306deb3107fc416f47ba1561cc058dec162541f",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/tests/applies.test.ts",
+      "sha256": "471a177f9db88b6d02a290cf6b3c11218916e58048546c08d3ca9c65077b1a33",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/tests/door-position.test.ts",
+      "sha256": "aa0b9373ac2a193efa80907bf1716439765a81bbcc63109578d67cf9f0669bd7",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/tests/golden/packet-fresh-init.json",
+      "sha256": "d7144a7d9ad27a241f767b74b766797a12f9c8a3485c95b3542bfe455993372b",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/tests/packet-host.test.ts",
+      "sha256": "ea48b0886b8a6897408c7865aadb9a2824684fd415b54cb124bcc9aa9c41ceae",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/tests/packet.test.ts",
+      "sha256": "7dd2b695b5015b9b51cc71fa761cb48a431fb78ed789989fa23fae864e8ba588",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/tests/purity.test.ts",
+      "sha256": "aaebd6c2050fc4b55194d3aa760a79ebbdf7a029c8341e3652f5a1f042e21cf4",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/tests/scope-key.test.ts",
+      "sha256": "c47b9d9b62a4132a48c3e91ad301e005139c50397bd5d8032ce4c4a0609c0162",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/runtime/tests/select-door.test.ts",
+      "sha256": "012ee5fd6ff90e4082c33e8b22559984acea3e5b40780044e402cf83bf3bb7f5",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/service-contracts/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "e9695b0669ea07ed0a020791c4fc91fad7099e0f178d10e6f50b8258b10d819b",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/workspace-runtime/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/workspace-runtime/SPEC.md",
+      "sha256": "dc1117a46ee819a61264296ba829ad996d9d5f2eb1f42543dd5a7653f2e65e46",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "0d768b978f4a849b281003b4930655d762922b2ce1c43c620b3425080aa42dc4",
+      "cohortOnly": true,
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/workspace-runtime/src/templates.ts",
+      "sha256": "dcacc4fc912c2a75f7ec144a7d0fb314418e4071acd6c10b5bf1e7e8128466ef",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/templates.test.ts",
+      "sha256": "0262ff94c9735a1e15cdf7309fdfd13c44c6ce8e6d2b0c0ed64ddc0002cb214f",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "8f5ab8ec2e6ebddcb9baa4732ef6a8561eaf43a89d8dbd2eeb961402607527c4",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/current.json",
+      "sha256": "3517c598960cdae5191d2852d5ab6ed4f16958883e19688c5bc149a5a31326da",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/notes.json",
+      "sha256": "49b01fd3b140452cf234fd82bfa85177467b60c0c1a7a56941af26ec3a35e328",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/NPM-PUBLISHING.md",
+      "sha256": "3bee8a43417e6838fbdebe5d835a1674e791ab804fefa2175607124ccb42e701",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/distribution/SPEC.md",
+      "sha256": "84eac74b46483882bbc5cf030e5aa09f5aa1574bcf49e7e616594881b8eb146d",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/distribution/language-guide.test.ts",
+      "sha256": "bdc6a2ebf89ffec83d60df22096180ce6b321e058a981395e773829d4f165544",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/distribution/resources.mjs",
+      "sha256": "d7bf5e77a28e5c4d43e5723c59d18d447fc51802b341ef195507140b34185b08",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "8909c56931c1a2cbfbcad7af264dbe335263a919d0fc36e357d7831b7b5f00cc",
+      "cohortOnly": true,
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/kernel/generate.test.ts",
+      "sha256": "918ec2def73bd721127d5d4d8543dee26b124f8e6d6f59426b5e23565d40d4f8",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/native/SPEC.md",
+      "sha256": "0ae5528cc29694d3afea8018a6ab8ba53716aa52c5dfe0d9f849eed039e3d819",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/native/check.ts",
+      "sha256": "3d38c49137b31ba4a32b918a558e81f9c98ad65ead9dc3584188eb73201358be",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/native/public-vocabulary.ts",
+      "sha256": "715de7a0ca78a554d6d20c71ee1d75829fc0a1893fa20a102c767f7950539361",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/native/release-roots.ts",
+      "sha256": "803576f6ebf0ed957ab52889fc416e8efb475ec95408b06dcc8fdb8d7b18e210",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/native/repository-architecture.test.ts",
+      "sha256": "00b2edbf76b55b9eae885ab9a56e811523fe1cdefb129348bbac2029789bb833",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/native/repository-architecture.ts",
+      "sha256": "f25f5e1f063cb927e213c4bc9800dd309be511ffd0b529669a2d93a32ca433a8",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/systems/execute.test.ts",
+      "sha256": "c86c369033292e5aa2fa091cb330e34f124e2200e0c689d5670d7e91b8352bcc",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/systems/fixtures/native/.ia/src/systems/template-system/contract.ia",
+      "sha256": "f1faef83bbe70cdf6a750bebb47b8bb24933d01e15bf061df9efe24184db5747",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/testing/SPEC.md",
+      "sha256": "2fd4e482dc1b17c860cecbba1b5897878d9d7ae2612f8373ea4873347df92da3",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/testing/inventory.test.ts",
+      "sha256": "63ba92630468c9e02444e11c01ae4018c61a882a1dbbbd3b489e32137f1de661",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/testing/schedule.json",
+      "sha256": "4e6749ae5f67b4fdb217164ad614b2e15952f60e7876b66cf9b466320ddeaa7a",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "16b4f0521e14e3ea1481fa936ff0d703dbb2b0d684a897bdb7bdc901107c1bb4",
+      "change": "bounded-fetch-https-only"
+    }
+  ]
+}
