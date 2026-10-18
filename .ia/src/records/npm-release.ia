@@ -63,7 +63,7 @@
     owner "Release maintainer"
     source "tools/distribution/NPM-PUBLISHING.md"
     action "Run the release coverage and package qualification commands against the policy-selected source; retain exact receipts and report every refusal or unavailable prerequisite."
-    expected-artifact "Exact source-bound package qualification and archive receipts"
+    expected-artifact "artifacts/npm/npm-release.json, its exact archives and compatibility manifest, source-bound platform qualification evidence and the npm-consumer result for those archives. Partial checks do not close this task."
   relationships
     requires @decision npm-release-policy
 
@@ -77,6 +77,6 @@
     owner "Release reviewer"
     source "tools/distribution/NPM-PUBLISHING.md"
     action "Review the qualification receipts, trusted publication setup and remaining blockers without treating preparation as publication."
-    expected-artifact "Review of publication prerequisites and explicit remaining blockers"
+    expected-artifact "A retained review naming the exact source, npm-release.json and archive receipts reviewed, registry setup evidence and every unresolved publication prerequisite. Qualification alone does not close this review."
   relationships
     requires @task npm-release-hygiene-checks
