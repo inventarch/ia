@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Read the steward hook's ownership markers, actor map, binding and code files through the opened file",
+  "summary": "The steward hook now opens each context ownership marker, the --actors map, the context hook binding and each code file of its implementation inventory before judging it, and reads through that descriptor, so a file swapped after its check is never read (CodeQL js/file-system-race). Admission is unchanged: markers and the actor map remain regular, single-link, unaliased files of at most 1 MiB (8 MiB for a pending journal), the binding at most 64 KiB, and inventory code files at most 8 MiB each and 32 MiB in all, with hard links still admitted there. A missing --actors map now refuses with IA-HOOK-STEWARD-UNAVAILABLE: Invalid actor map file instead of a raw ENOENT error. A FIFO swapped in is refused without blocking the hook, and a marker removed after its directory is listed, or an inventory file that changes while it is read, is refused.",
+  "packages": [
+    "@inventarch/steward-hook"
+  ],
+  "paths": [
+    "apps/steward-hook/"
+  ]
+}

@@ -6,7 +6,6 @@ import {
   openSync,
   readSync,
   readdirSync,
-  readFileSync,
   realpathSync,
   type BigIntStats,
 } from 'node:fs';
@@ -172,13 +171,16 @@ function legacySteward(target: string): boolean {
     closeSync(fd);
   }
 }
+/** The bound of an ownership state, the actor map and a context ownership marker other than a pending journal. */
+const STATE_LIMIT = 1024 * 1024;
 /**
- * The bytes of the ownership state at the absolute `path`, or undefined when there is none. A state must be a plain,
- * unaliased, single-link file within 1 MiB. It is opened before it is judged, so the checks and the read are of one
- * file (CodeQL js/file-system-race), and it must still be that file after the read. Anything else throws `unsafe`, and
- * the caller fails closed.
+ * The bytes of the ownership state, context ownership marker or actor map at the absolute `path`, or undefined when there
+ * is none. It must be a plain, unaliased, single-link file within `limit` bytes. It is opened before it is judged, so the
+ * checks and the read are of one file (CodeQL js/file-system-race), and it must still be that file after the read.
+ * Anything else throws `unsafe`, and the caller fails closed; an open that fails other than for a missing file throws its
+ * own error.
  */
-function readState(path: string, unsafe: string): Buffer | undefined {
+function readState(path: string, unsafe: string, limit = STATE_LIMIT): Buffer | undefined {
   let fd: number;
   try {
     fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
@@ -187,8 +189,7 @@ function readState(path: string, unsafe: string): Buffer | undefined {
     throw error;
   }
   try {
-    const stat = fstatSync(fd, { bigint: true }),
-      limit = 1024 * 1024;
+    const stat = fstatSync(fd, { bigint: true });
     const same = (value: BigIntStats): boolean =>
       value.isFile() &&
       value.nlink === 1n &&
@@ -204,7 +205,8 @@ function readState(path: string, unsafe: string): Buffer | undefined {
       !unaliased(path, physical(path))
     )
       throw new Error(unsafe);
-    const content = Buffer.alloc(limit + 1);
+    // The opened size plus one byte: growth during the read shows, and nothing past the bound is ever read.
+    const content = Buffer.alloc(Number(stat.size) + 1);
     let size = 0;
     for (;;) {
       const count = readSync(fd, content, size, content.length - size, null);
@@ -221,6 +223,22 @@ function readState(path: string, unsafe: string): Buffer | undefined {
     return content.subarray(0, size);
   } finally {
     closeSync(fd);
+  }
+}
+/**
+ * `readState` for a reader that refuses as `unsafe` whatever is not a plain single-link file within `limit` bytes, also
+ * when the open fails on it: a failed open has the name examined, so a link (`O_NOFOLLOW`), a socket or anything else
+ * the open refuses that is not such a file gets the refusal an opened one does. A failed open of such a file throws its
+ * own error, as before.
+ */
+function stateBytes(path: string, unsafe: string, limit = STATE_LIMIT): Buffer | undefined {
+  try {
+    return readState(path, unsafe, limit);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).syscall !== 'open') throw error;
+    const named = lstatSync(path, { bigint: true });
+    if (!named.isFile() || named.nlink !== 1n || named.size > BigInt(limit)) throw new Error(unsafe);
+    throw error;
   }
 }
 
@@ -397,19 +415,15 @@ function contextSettingsManaged(root: string, includeContext = true): GuardContr
       guardPending = fold(name) === 'guard-pending.json',
       hooks = /^claude-hooks-([a-z][a-z0-9-]{0,63})\.json$/.exec(fold(name));
     if (!guard && !guardPending && !hooks && (!includeContext || (!match && !pending))) continue;
-    const path = resolve(directory, name),
-      stat = lstatSync(path),
-      limit = pending || guardPending ? 8 * 1024 * 1024 : 1024 * 1024;
-    if (
-      name !== name.toLowerCase() ||
-      !stat.isFile() ||
-      stat.nlink !== 1 ||
-      stat.size > limit ||
-      !unaliased(path, physical(path))
-    )
-      throw new Error('Unsafe context ownership marker');
-    const content = readFileSync(path);
-    if (content.length > limit) throw new Error('Context ownership marker exceeds its bound');
+    // A marker is a plain, unaliased, single-link file of at most 1 MiB, or 8 MiB for a pending journal, read through
+    // the descriptor that judged it; one named in another case, or gone since the listing, is as unsafe.
+    if (name !== name.toLowerCase()) throw new Error('Unsafe context ownership marker');
+    const content = stateBytes(
+      resolve(directory, name),
+      'Unsafe context ownership marker',
+      pending || guardPending ? 8 * 1024 * 1024 : STATE_LIMIT,
+    );
+    if (content === undefined) throw new Error('Unsafe context ownership marker');
     const row: unknown = decodeDistributionJson(new TextDecoder('utf-8', { fatal: true }).decode(content));
     if (!object(row) || typeof row['id'] !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(row['id']))
       throw new Error('Invalid context ownership marker');
@@ -617,10 +631,9 @@ function sourceGuardRegistered(root: string): boolean {
 function actorMap(path: string, revision: string): ReadonlyMap<string, string> {
   if (!isAbsolute(path) || !unaliased(path, physical(path)))
     throw new Error('Actor map must be an absolute unaliased file');
-  const stat = lstatSync(path);
-  if (!stat.isFile() || stat.nlink !== 1 || stat.size > 1024 * 1024) throw new Error('Invalid actor map file');
-  const content = readFileSync(path);
-  if (content.length > 1024 * 1024) throw new Error('Actor map exceeds 1 MiB');
+  // A plain single-link file of at most 1 MiB, read through the descriptor that judged it; a missing map is as invalid.
+  const content = stateBytes(path, 'Invalid actor map file');
+  if (content === undefined) throw new Error('Invalid actor map file');
   const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(content));
   if (
     !object(value) ||
