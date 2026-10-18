@@ -4,7 +4,7 @@ Generated from reviewed release changesets. Entries describe intended releases; 
 
 ## 3.2.0
 
-Coordinated 3.2.0 release of the 23 public npm packages: Registry and archive downloads refuse URLs that are not credential-free HTTPS; Complete native authoring and consumer contracts; Read the steward hook's ownership markers, actor map, binding and code files through the opened file; Session stores can require host admission before each durable write; Verify host cache, runtime and system package files through the file that is read.
+Coordinated 3.2.0 release of the 24 public npm packages: Registry and archive downloads refuse URLs that are not credential-free HTTPS; Complete native authoring and consumer contracts; Read the steward hook's ownership markers, actor map, binding and code files through the opened file; Session stores can require host admission before each durable write; Verify host cache, runtime and system package files through the file that is read; Add reusable knowledge packages and local CLI/MCP readers.
 
 ### Registry and archive downloads refuse URLs that are not credential-free HTTPS
 
@@ -35,6 +35,12 @@ Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@
 The host cache launcher (`scripts/ia.mjs`, which verifies the cache before every mode), `installedDistributionDigest` and `verifySystemPackage` now open each file before judging it, read it through that descriptor, and check afterwards that its name still holds the same file. A file replaced while they verify by a link, FIFO, socket or other special file is refused: where the platform has `O_NOFOLLOW` and `O_NONBLOCK`, at the open, before anything is read, so the launcher no longer waits forever on a FIFO swapped into the cache; on Windows, which has neither, a link swapped in is opened and read, then refused by the check of its name. The launcher reports such a change with its own message rather than a system error such as `Unknown system error -102`; of the failures that keep a file from opening, it prints the system error only for a pinned file it may not read. A pinned cache file removed during verification reports `Plugin cache payload is missing`, and any other entry whose listed name no longer reaches it, such as a file Linux lists under a name that is not UTF-8, refuses as `Plugin cache payload differs: <path>`, where it failed with a system error before. Outside such races, which files are admitted is unchanged. Some refusals are new: `installedDistributionDigest` refuses a runtime file it cannot open, an unreadable one included, and an entry its listed name no longer reaches with `Installed distribution runtime is missing, mixed or aliased` instead of a system error; the launcher refuses a pinned file that fails to open for a reason other than permissions, such as too many open files or a lock another Windows process holds, as `Plugin cache payload differs: <path>`; `verifySystemPackage` refuses an input replaced or changed while it is read with `System package input changed while it was read: <path>`; and both refuse a file of more than 2147483647 bytes before reading it, `installedDistributionDigest` with its usual message and `verifySystemPackage` as `System package input exceeds 2147483647 bytes: <path>`, where Node's own error for a file that large was thrown.
 
 Packages: `@inventarch/distribution`.
+
+### Add reusable knowledge packages and local CLI/MCP readers
+
+Read admitted records and bound documents without a .kb folder. Export explicitly selected committed knowledge, preserve legacy portable validation, and expose bounded reads through ia kb and five MCP tools. Central policy and lifecycle remain host owned. Add KB package membership and installed-consumer qualification to the shared tooling and task registry.
+
+Packages: `@inventarch/cli`, `@inventarch/kb`, `@inventarch/mcp-door`.
 
 ## 3.1.1
 

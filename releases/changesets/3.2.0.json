@@ -7,7 +7,7 @@
     "version": "3.1.1"
   },
   "bump": "minor",
-  "summary": "Coordinated 3.2.0 release of the 23 public npm packages: Registry and archive downloads refuse URLs that are not credential-free HTTPS; Complete native authoring and consumer contracts; Read the steward hook's ownership markers, actor map, binding and code files through the opened file; Session stores can require host admission before each durable write; Verify host cache, runtime and system package files through the file that is read.",
+  "summary": "Coordinated 3.2.0 release of the 24 public npm packages: Registry and archive downloads refuse URLs that are not credential-free HTTPS; Complete native authoring and consumer contracts; Read the steward hook's ownership markers, actor map, binding and code files through the opened file; Session stores can require host admission before each durable write; Verify host cache, runtime and system package files through the file that is read; Add reusable knowledge packages and local CLI/MCP readers.",
   "packages": {
     "@inventarch/agent-composition-system": {
       "previous": "3.1.1",
@@ -27,7 +27,7 @@
     "@inventarch/cli": {
       "previous": "3.1.1",
       "kind": "changed",
-      "summary": "Complete native authoring and consumer contracts."
+      "summary": "Complete native authoring and consumer contracts. Add reusable knowledge packages and local CLI/MCP readers."
     },
     "@inventarch/compliance": {
       "previous": "3.1.1",
@@ -64,6 +64,11 @@
       "kind": "changed",
       "summary": "Complete native authoring and consumer contracts."
     },
+    "@inventarch/kb": {
+      "previous": null,
+      "kind": "changed",
+      "summary": "Add reusable knowledge packages and local CLI/MCP readers."
+    },
     "@inventarch/language": {
       "previous": "3.1.1",
       "kind": "changed",
@@ -77,7 +82,7 @@
     "@inventarch/mcp-door": {
       "previous": "3.1.1",
       "kind": "changed",
-      "summary": "Complete native authoring and consumer contracts."
+      "summary": "Complete native authoring and consumer contracts. Add reusable knowledge packages and local CLI/MCP readers."
     },
     "@inventarch/runner": {
       "previous": "3.1.1",
@@ -242,6 +247,26 @@
       ],
       "paths": [
         "apps/distribution/"
+      ]
+    },
+    {
+      "id": "kb-foundation",
+      "title": "Add reusable knowledge packages and local CLI/MCP readers",
+      "summary": "Read admitted records and bound documents without a .kb folder. Export explicitly selected committed knowledge, preserve legacy portable validation, and expose bounded reads through ia kb and five MCP tools. Central policy and lifecycle remain host owned. Add KB package membership and installed-consumer qualification to the shared tooling and task registry.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/kb",
+        "@inventarch/mcp-door"
+      ],
+      "paths": [
+        "apps/cli/",
+        "apps/mcp-door/",
+        "examples/",
+        "packages/kb/",
+        "pnpm-lock.yaml",
+        "tools/distribution/public-content-policy.json",
+        "tools/distribution/qualify-kb.mjs",
+        "tools/testing/tasks.json"
       ]
     },
     {
@@ -832,65 +857,109 @@
     },
     {
       "path": "CLAUDE.md",
-      "sha256": "bc72bd57bfd3c461cedd0356ddbb8176f2037da26780dd7d01b2133a1c065da2",
+      "sha256": "af9d8ab7a22f04fd267e4b1d0f60b7868e9512704d2f5ba575e0fb44b490a8e4",
       "change": "native-record-repairs"
     },
     {
       "path": "apps/cli/LANGUAGE.md",
       "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/README.md",
-      "sha256": "ca6ac508888b9107b3f644e269093d3acb9a27baee8598f7733fbf80cd5a5855",
-      "change": "native-record-repairs"
+      "sha256": "690438d5fec37c93bc2bad5d04b8c1d48cf48702ab496938788143f35f4b2581",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/SPEC.md",
-      "sha256": "4783d2ab8acc2a367590117321a7b15bdf639d0e866e3bbf3fd82ab4c2563310",
-      "change": "native-record-repairs"
+      "sha256": "52eb891f3c3f6df408140d5314acd95f768b4e11c3a96407d279be1968202b44",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/assets/vocabulary.json",
       "sha256": "f74062348a7de5ef53be945c9b68adfbab62cf4da8610b5bf414c249890d5f43",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/package.json",
-      "sha256": "10cd867424e557d6716965b6d5322803f20392ef8d7a961ced9d91e3a2617b6a",
-      "cohortOnly": true,
-      "change": "native-record-repairs"
+      "sha256": "924cdad3cb7b1abe1b3ef9497a2ce3ef0fc95c7a19009aca1f23f8331b9f6daf",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/src/commands.ts",
-      "sha256": "94140e1b29c9a6e871135afd34acd9e043238ab0d723f0d390c8d40be4cd6b7f",
-      "change": "native-record-repairs"
+      "sha256": "ec8c05b63f1c965cb7da7389daf6c284ce6b9896dcfa9cf3a5bca426045db101",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/src/consumer.ts",
+      "sha256": "ecd138ea2328bef1c931979b45d7e9c5614eed062e2668908b8deab2e9b828cd",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/src/kb-commands.ts",
+      "sha256": "3bb29725c584eb09db8ac0899cf303a9dff4d283e0b92e2572d415ae588b1bb9",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/src/kb-output.ts",
+      "sha256": "8c896fddfedbaf0ad4ca64b75544b85cc778ca68d320e43a4b20dfb43cc9290d",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/src/kb.ts",
+      "sha256": "cc1e17e6b66846c07b0a9451711d0736403fb74b5051242fe787c5f22f4fb8a2",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/src/operation-help.ts",
       "sha256": "ddf68bec31104cf8d5492db2dcd18b3b56734704db988681b3bb60ca02a62e81",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/src/position.ts",
       "sha256": "d5ca3996edd2e0ef694790d5e9eabc6c8a26ac6a28e5f54f09a63b4084cd739a",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/src/profile.ts",
+      "sha256": "c8682976609fc1be0eb815035dd075ced55272c4df505cef678e4329d78fb508",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/tests/args.test.ts",
+      "sha256": "8a3a4f1d0c5533ae137090e96413ba7a3a8b30c824c834d7ea7f70bcb7faf744",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/tests/cli.test.ts",
       "sha256": "9da38921a82c64a83c57328d3e82b1f1213b6cf0a27e9f2bffcb71c7bf09335f",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/tests/fixtures/composition-workspace/.ia/release.json",
       "sha256": "6f0f252443a4eec3bed7756caaa0cde9b85b84ad87b289e108c9ee33565654ef",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/tests/host-projection.test.ts",
+      "sha256": "966aab7200c9505d142a91bf636ab701ed8b20dfab5c78cf5104472b4d6da8f2",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/tests/kb.test.ts",
+      "sha256": "646f7d0bea78927d9753607f809c3388e24110ea7541fc548e130766bd8974ef",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/cli/tests/position.test.ts",
       "sha256": "987aee05ee5f5af3a7403cfda4b80f3b46417a7cf8b429f781605c9681d8ee83",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/cli/tests/project.test.ts",
+      "sha256": "afe0d16192fb8a924e0433aee97047ae3afd94123e1391f0beeecd14b2b1b1e8",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/distribution/LANGUAGE.md",
@@ -971,28 +1040,52 @@
     {
       "path": "apps/mcp-door/LANGUAGE.md",
       "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "apps/mcp-door/README.md",
-      "sha256": "3d8bf16402e4e047214e24b78b7dfffa0cb4d666a04fc896c6ce73d3328c387b",
-      "change": "native-record-repairs"
+      "sha256": "c5bf3dae91b274cebb00456d94c08d57850696842fa49bcba922b71141202d05",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/mcp-door/SPEC.md",
+      "sha256": "a394bce0fcfd641da22f01f5ff18181a575fa3fe34d128fa5904023d78afd6b7",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/mcp-door/assets/vocabulary.json",
       "sha256": "f74062348a7de5ef53be945c9b68adfbab62cf4da8610b5bf414c249890d5f43",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "apps/mcp-door/package.json",
-      "sha256": "0e63cb84df49f9bddeda8c0cb687cca986f23251d73d493425553f43a1589b7e",
-      "cohortOnly": true,
-      "change": "native-record-repairs"
+      "sha256": "1471c3297de6260942d3d97b5f86a7d4c441a7cddca0b67875cc2f63e8f66184",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/mcp-door/src/kb.ts",
+      "sha256": "2704a12991401e9f81a1b64a490dd676fbc3c6bd33f24a7f027ee256e0a37610",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/mcp-door/src/protocol.ts",
+      "sha256": "536337987ff672bb3c624f919f104ba7aef5188d241558aef38df7a695537799",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/mcp-door/src/tools.ts",
+      "sha256": "10b01b38ba5d40ad34e74ea91968ff885e0bd5b9b2d8b9bd8d355001f66ad3e7",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "apps/mcp-door/tests/kb.test.ts",
+      "sha256": "708b46c1d68321c14949764a1009bc774079dccfc79e3d065f63b68f8c58a096",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/mcp-door/tests/protocol.test.ts",
-      "sha256": "1e558d464df01148e069f2079965a7b5fda14376acbe78db54ea8d8ababe06d6",
-      "change": "native-record-repairs"
+      "sha256": "37b87f1f82dcda31a8514c5b25a582130cddfea4b55128ee4d08bc6b08fba7ba",
+      "change": "kb-foundation"
     },
     {
       "path": "apps/runner/LANGUAGE.md",
@@ -1073,6 +1166,16 @@
       "change": "repository-maintenance"
     },
     {
+      "path": "docs/catalog.json",
+      "sha256": "49b73c79fa0808884add17c8058f2708b89348a4bf1e0827336418805303b714",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "docs/reference/architecture/README.md",
+      "sha256": "28071e28ff9d7aaea5289fcafbbc58a6f96f5b0cd8992e5c5afce574e8b28949",
+      "change": "native-record-repairs"
+    },
+    {
       "path": "docs/reference/language/README.md",
       "sha256": "cd907f79509ed03417c97f858336e730ed583579c04a536e6771fbcf7002dacd",
       "change": "native-record-repairs"
@@ -1088,79 +1191,109 @@
       "change": "native-record-repairs"
     },
     {
+      "path": "docs/specs/consumer-cli-contract/README.md",
+      "sha256": "108f65ee3237502bc40091a9b5b46da6fdb8c5d01ce60aeece7d879c9d0297d8",
+      "change": "native-record-repairs"
+    },
+    {
+      "path": "examples/knowledge/.ia/src/knowledge.ia",
+      "sha256": "36e58f65b5d3d855a83da4f9e73711e7d815a2971522e9c140aed79dc99fc7e3",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "examples/knowledge/README.md",
+      "sha256": "63f50e7f514f3139c1cf82e64f98c0c5339023a0fc20e022f156391d2ac0d514",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "examples/knowledge/SPEC.md",
+      "sha256": "4ee5c5eb5ff2ace07a8e52b86f35baeb956dd501e7120c38815361c17f85f4d4",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "examples/knowledge/docs/architecture.md",
+      "sha256": "91769dc8cd09a6b87109f02b1c076d1055ad2de0f1f39e645b8dadb69839b81d",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "examples/knowledge/selection.json",
+      "sha256": "bbe368375857bc5bf6139d0dab28d7dd9e739788f57f38fc165e75f40efaaea4",
+      "change": "kb-foundation"
+    },
+    {
       "path": "examples/public-language/contracts/agent-composition-system.ia",
       "sha256": "2aae72c78768633f7edba8c2d01fdebc14448db6f4528120b568a0dd02c1719a",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/agent-system.ia",
       "sha256": "5e69c24d3fd629e5c817d8c83a6b763e4a1a5f14438938c0a3ecc68791965508",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/authoring-system.ia",
       "sha256": "a214234b1827a77ce46186d9f490f6e8b01783dd18b00c0d4ce5aab5640b07ac",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/compliance-system.ia",
       "sha256": "1db34863ee0154d8a680c47aca053ef01bbd2a94036b6427da0554717655a502",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/governance-system.ia",
       "sha256": "53c04221dc9fbd2c383ea966d149c04ec9a497af6712e9519fffc3bd0c36d1de",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/hook-authoring-system.ia",
       "sha256": "7d7911907a2215064628c1bf9f276f2be93a1701f92fd53e817601c06f48916c",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/learning-system.ia",
       "sha256": "c3e7ec257b60e5f40d14993facb48dc3c540ba0eb8b49f13d1b6fa3aa1693bb0",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/session-system.ia",
       "sha256": "bea0eb0933d8c0b7fdc7eacead8a9afdf66f1bab6ca625000fad6066c8b919cc",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/template-system.ia",
       "sha256": "6b69d413163992b628c114cfb6d4b98820b22df8275fbc1c685049cb8071cd51",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/work-system.ia",
       "sha256": "f9b4c8ad1458c1ce742291db9780ca5c83d0579a8d36b2adc05dfe9da5857487",
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/contracts/workspace-system.ia",
       "sha256": "b61a4f57bab19e31e5c3575f30d1ba364d8ae408363998299db5a648bc34f477",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "examples/public-language/versions.json",
       "sha256": "636569a92cf2d25de637d4e626022acb07ff622a170e0ce06df9e9437313d3ba",
       "cohortOnly": true,
-      "change": "native-record-repairs"
+      "change": "kb-foundation"
     },
     {
       "path": "package.json",
-      "sha256": "6477b0022d833ce470f5581a9f1b3775ba25022b53b983d84ffef8a2dfbce410",
+      "sha256": "f52d841742872a355bfe67d2ccb2144633a57bb85e971f1444a6304e434a3852",
       "change": "native-record-repairs"
     },
     {
@@ -1225,6 +1358,151 @@
       "sha256": "f968765a662465feb675ffdb5f5fc8231bf53dc538b7ac44933fd03a3e951884",
       "cohortOnly": true,
       "change": "native-record-repairs"
+    },
+    {
+      "path": "packages/kb/LANGUAGE.md",
+      "sha256": "a7ae2d3e13e747d13e7e9a09cd4715e9c87efb4433a29013b8a6ca8bad589ab9",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/NOTICE",
+      "sha256": "6e0c20ac50ad924c178e12f09e01c736b865d39e7543f15ebba05842b33d8a1d",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/README.md",
+      "sha256": "e8cae2e2055bbfafcff11a906681a1b65dd75419956c97160ad975580ed575db",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/SPEC.md",
+      "sha256": "8c7e96a22620bc52cc7c522cb35dc9b6ac9ddfbfc1a1396460a70a47246d6394",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/package.json",
+      "sha256": "1d580171fd993d7f33a49a13afea590923f4d4bb54843db481d1401f536a3367",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/edges.ts",
+      "sha256": "d5628d7ca23c8efb0036874c4dd6c4ad8fe5d3b482c6367d2905da54453ce349",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/format.ts",
+      "sha256": "3e12cd8ca534d80ca0f3f8cce0ada0bb236d26095fc99dad4f23152d5a550e5e",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/foundation.ts",
+      "sha256": "e14315b1969c235c8fa07f2e554540b7a76c2b6efa3c69c2523c259e251104ed",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/git.ts",
+      "sha256": "9e900365c58fa0aa73929325ef26f788214848703930d9c11eff6825420fe5ef",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/index.ts",
+      "sha256": "24a321e459c59df68826b77cdf1dcf1825134b839857b34a1f1e2a12f79c4a5b",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/legacy.ts",
+      "sha256": "5a17a662a50095638a5b83cc0e3972bfcc667b9a0a495a270e20e7b349acc80f",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/local.ts",
+      "sha256": "7f793f0f28b5d5ea211e2b4fa62972caa8d44a5869b4c724b507fbde012e93c3",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/package.ts",
+      "sha256": "d2af8b3c64f8d2686ff8be2a1235931b0ffa599a26087b500a1e93577fefa29e",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/protocol.ts",
+      "sha256": "6f3b110d0c43b5f4ef6b74930db9359a230274564431b541098b4564363d5e4c",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/validate.ts",
+      "sha256": "2ddf5bfc4e920cfffb5816240009252529d3113a7d6217421b097c039fc939ed",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/src/view.ts",
+      "sha256": "ea89e1d4a06970d584e1dab097f2021ef75f2267655f70c2eb77b50d4496e5b6",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/fixtures/legacy-foundation.json",
+      "sha256": "6f0cdd20f0ee49a6a6eadfdb07e859a7599599709553c0339b562ebdfaafcf0f",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/fixtures/legacy-package.json",
+      "sha256": "9d5053361d0d1f9aa848d48e804a4d120e7772bc93a2c06150dc50eefb528f41",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/fixtures/public-installation.json",
+      "sha256": "2d81ee18a93a7052696ab8d8b900aa9d1d242b0f0fb3a34bba50f2a74518b5b2",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/foundation.test.ts",
+      "sha256": "58801b80a72219ce60494ddf0eb91176eb7f286f1440b61ac4d0f73d60b15336",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/installation.test.ts",
+      "sha256": "7a4fa6c081bcd0cd20a40eb6a153b0f6d68f1e1d7412c05af8d29d95ae417d0c",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/legacy.test.ts",
+      "sha256": "f166432c00f18247fcd70accd015d68189dccfcaa4e8af4adf7632df066ff6a3",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/local.test.ts",
+      "sha256": "244227dd6473584ee26409a6c388da1f8b86e9b30c5e92f035ab131eff0092bd",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/package.test.ts",
+      "sha256": "fca72ac9be4afd6cb0b9c163d29b33a9ebbc9fa1300ce43594fe57eaeb6d827a",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tests/protocol.test.ts",
+      "sha256": "6990cae892ccddf2137f17c0f860fb5d2d03afd9cc40c116f2ea64c325716f30",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tsconfig.json",
+      "sha256": "cebd74e1d7b5ca27c391ec10f73f5959faf52b65d057366a67d6a91f03a07803",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/tsconfig.tests.json",
+      "sha256": "cc782708a84b618cdf5d6c86a0b6ed12e24f0be299f5328ee7f3c9ef2472dc0a",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "packages/kb/vitest.config.mts",
+      "sha256": "575a8b940da494ea3b5f666c2eb90369e6ab6fa38d043265f3b42ea15e8c4d18",
+      "change": "kb-foundation"
     },
     {
       "path": "packages/language/LANGUAGE.md",
@@ -1376,6 +1654,11 @@
       "change": "native-record-repairs"
     },
     {
+      "path": "pnpm-lock.yaml",
+      "sha256": "ca6e7d29d7de2c9d08708e4a559ebea6e27adf60d20046367ba6a15ec705545c",
+      "change": "kb-foundation"
+    },
+    {
       "path": "releases/current.json",
       "sha256": "8f5ab8ec2e6ebddcb9baa4732ef6a8561eaf43a89d8dbd2eeb961402607527c4",
       "change": "repository-maintenance"
@@ -1391,6 +1674,11 @@
       "change": "repository-maintenance"
     },
     {
+      "path": "tools/dependencies/check.ts",
+      "sha256": "586aea152c47fe7b4643148c17b229c6d61814cfafbedd049ea6cc58754ef71d",
+      "change": "bounded-fetch-https-only"
+    },
+    {
       "path": "tools/distribution/NPM-PUBLISHING.md",
       "sha256": "3bee8a43417e6838fbdebe5d835a1674e791ab804fefa2175607124ccb42e701",
       "change": "bounded-fetch-https-only"
@@ -1402,12 +1690,22 @@
     },
     {
       "path": "tools/distribution/language-guide.test.ts",
-      "sha256": "bdc6a2ebf89ffec83d60df22096180ce6b321e058a981395e773829d4f165544",
+      "sha256": "69b99f61507c025a9e3d96870a69db67491856cc02bc58b7240e331dbf7c171e",
       "change": "bounded-fetch-https-only"
     },
     {
+      "path": "tools/distribution/public-content-policy.json",
+      "sha256": "691cc00a0c41392292f273fff1cfe6a86c3bc9ebae77545c666d0bb3eff4bac2",
+      "change": "kb-foundation"
+    },
+    {
+      "path": "tools/distribution/qualify-kb.mjs",
+      "sha256": "cda166178b9d08d44bec7974e4c0147d35afea0385573bf1a16738f1bfdf1b65",
+      "change": "kb-foundation"
+    },
+    {
       "path": "tools/distribution/resources.mjs",
-      "sha256": "d7bf5e77a28e5c4d43e5723c59d18d447fc51802b341ef195507140b34185b08",
+      "sha256": "49f6ed64f169b408102e5abfbcacf28b40e670a9168b119bd86707ef226321ad",
       "change": "bounded-fetch-https-only"
     },
     {
@@ -1452,6 +1750,16 @@
       "change": "bounded-fetch-https-only"
     },
     {
+      "path": "tools/projections/generate.test.ts",
+      "sha256": "c2cbdcae558b816a80eb13eb5cd7cd766ef5570dab0c5809106a999d95da6235",
+      "change": "bounded-fetch-https-only"
+    },
+    {
+      "path": "tools/release/public-content.test.ts",
+      "sha256": "a2497fc5ef5e02704a79d155f7532cfd6528d38040e72501b4c1063f88f8f38e",
+      "change": "bounded-fetch-https-only"
+    },
+    {
       "path": "tools/systems/execute.test.ts",
       "sha256": "c86c369033292e5aa2fa091cb330e34f124e2200e0c689d5670d7e91b8352bcc",
       "change": "bounded-fetch-https-only"
@@ -1468,7 +1776,7 @@
     },
     {
       "path": "tools/testing/inventory.test.ts",
-      "sha256": "d1a2bee3e14800fd4da176b935a21dd660212298e65b378204c39c2149bd9925",
+      "sha256": "f0395e6a612415265c50bda29038fb9c38bbe52e5f26e3c7c260cb8dde12088c",
       "change": "bounded-fetch-https-only"
     },
     {
@@ -1478,8 +1786,8 @@
     },
     {
       "path": "tools/testing/tasks.json",
-      "sha256": "16b4f0521e14e3ea1481fa936ff0d703dbb2b0d684a897bdb7bdc901107c1bb4",
-      "change": "bounded-fetch-https-only"
+      "sha256": "58a150a52d76dabeb966cb18aa62dfb01332d33f9e8e64d220387b2f0f2b35e8",
+      "change": "kb-foundation"
     }
   ]
 }
