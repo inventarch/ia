@@ -16,6 +16,8 @@
     "kernel:check": "node --conditions=development --import tsx tools/kernel/generate.ts --check",
     "kernel:generate": "node --conditions=development --import tsx tools/kernel/generate.ts --write",
     "native:check": "node --conditions=development --import tsx tools/native/check.ts",
+    "release-roots:generate": "node --conditions=development --import tsx tools/native/release-roots.ts --write",
+    "release-roots:check": "node --conditions=development --import tsx tools/native/release-roots.ts --check",
     "compliance:check": "node --conditions=development --import tsx tools/compliance/check.ts",
     "public-language:check": "node --conditions=development --import tsx tools/native/public-language.ts",
     "vocabulary:check": "node --conditions=development --import tsx tools/native/public-vocabulary.ts --check",

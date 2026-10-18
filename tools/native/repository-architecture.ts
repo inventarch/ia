@@ -7,6 +7,7 @@ export interface ArchitectureFinding {
     | 'IA-NATIVE-WORK-PLACEMENT'
     | 'IA-NATIVE-RELEASE-POLICY-SOURCE'
     | 'IA-NATIVE-RELEASE-POLICY-STATUS'
+    | 'IA-NATIVE-RELEASE-GOVERNANCE'
     | 'IA-NATIVE-RELEASE-WORKFLOW';
   readonly severity: 'error';
   readonly identity: string;
@@ -15,7 +16,7 @@ export interface ArchitectureFinding {
   readonly message: string;
 }
 
-const WORK_INSTANCES = new Set(['plan', 'milestone', 'task', 'decision']);
+const WORK_INSTANCES = new Set(['plan', 'milestone', 'task', 'decision', 'spec']);
 function value(record: CompiledRecord, key: string) {
   const field = record.sections
     .filter((section) => section.name === 'work')
@@ -59,10 +60,42 @@ export function checkRepositoryArchitecture(records: readonly CompiledRecord[]):
         ...location,
         code: 'IA-NATIVE-WORK-PLACEMENT',
         message:
-          'Repository plans, milestones, tasks and decisions belong in workspace-authored records, outside reusable vocabulary system payloads.',
+          'Repository plans, milestones, tasks, decisions and specifications belong in workspace-authored records, outside reusable vocabulary system payloads.',
       });
   }
   const policy = records.find((record) => record.discriminator === 'decision' && record.name === 'npm-release-policy');
+  const lawIdentity = 'governance-system/governance/law/repository-release-selection';
+  const law = records.find((record) => record.identity === lawIdentity);
+  const releaseTargets = [
+    'decision/coordinated-npm-release',
+    'decision/npm-release-policy',
+    'plan/npm-release-hygiene',
+    'milestone/npm-release-prepared',
+    'task/npm-release-hygiene-checks',
+    'task/npm-release-publication-review',
+  ].map((target) => `work-system/definition/${target}`);
+  if (
+    law === undefined ||
+    releaseTargets.some(
+      (target) =>
+        !law.edges.some(
+          (edge) =>
+            edge.predicate === 'govern' &&
+            edge.direction === 'out' &&
+            edge.target === target &&
+            (edge.condition === undefined || edge.condition.length === 0),
+        ),
+    )
+  )
+    findings.push({
+      code: 'IA-NATIVE-RELEASE-GOVERNANCE',
+      severity: 'error',
+      identity: lawIdentity,
+      path: law?.source.path ?? '.ia/src/records/repository-policy.ia',
+      line: law?.source.line ?? 1,
+      message:
+        'The maintained release law must unconditionally govern all six release work records so identity seats receive it.',
+    });
   if (policy === undefined || source(policy) !== 'releases/current.json')
     findings.push({
       code: 'IA-NATIVE-RELEASE-POLICY-SOURCE',

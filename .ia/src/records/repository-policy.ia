@@ -6,12 +6,18 @@
     answers "How do release records remain current across cohort changes?"
   governance
     severity blocking
-    applies [decision, plan, milestone, task]
-    requires "Keep repository work outside vocabulary system payloads. Read active npm versions and package membership from the maintained policy and manifests; do not copy them into live release intent. Pin historical decisions to versioned evidence."
+    applies [decision, plan, milestone, task, spec]
+    requires "Keep repository plans, milestones, tasks, decisions and specification instances outside vocabulary system payloads. Read active npm versions and package membership from the maintained policy and manifests; do not copy them into live release intent. Pin historical decisions to versioned evidence."
   subject
     covers [".ia/src/records/**"]
   relationships
     cites @contract repository-architecture-boundary
+    governs @decision coordinated-npm-release
+    governs @decision npm-release-policy
+    governs @plan npm-release-hygiene
+    governs @milestone npm-release-prepared
+    governs @task npm-release-hygiene-checks
+    governs @task npm-release-publication-review
 
 @contract repository-architecture-boundary
   version "1.0.0"
@@ -19,7 +25,7 @@
     says "The public repository separates reusable vocabulary, examples and maintenance work, and keeps active release work independent of copied cohort values."
     answers "Which repository architecture invariants do the native qualification tools check?"
   invariants
-    REQ-REPOSITORY-WORK-BOUNDARY "Repository work and neutral examples are excluded from the live vocabulary system payloads."
+    REQ-REPOSITORY-WORK-BOUNDARY "Repository plans, milestones, tasks, decisions, specification instances and neutral examples are excluded from the live vocabulary system payloads."
     REQ-REPOSITORY-RELEASE-SELECTION "Active release work uses maintained policy and derived cohort membership; immutable historical release records may retain their original choices."
   relationships
     governs @workspace language-workspace
@@ -59,6 +65,19 @@
     request "Run the repository architecture lint."
     expected "IA-NATIVE-WORK-PLACEMENT is reported."
     evaluator "tools/native/repository-architecture.test.ts | refuses moving repository work into its vocabulary owner even when references still resolve"
+  relationships
+    implements @contract repository-architecture-boundary#REQ-REPOSITORY-WORK-BOUNDARY
+
+@case repository-spec-boundary-refusal
+  meaning
+    says "A specification instance inside a vocabulary system is refused regardless of whether its optional source locator is absent, a document or current release policy."
+    answers "Which refusal keeps repository specifications outside reusable system payloads?"
+  scenario
+    kind refusal
+    given "An admitted repository-maintenance specification under systems/work-system/records."
+    request "Run the repository architecture lint with each source-locator variant."
+    expected "IA-NATIVE-WORK-PLACEMENT is reported; the same instance under src/records is allowed."
+    evaluator "tools/native/repository-architecture.test.ts | refuses system-owned specification instances regardless of source %s"
   relationships
     implements @contract repository-architecture-boundary#REQ-REPOSITORY-WORK-BOUNDARY
 
