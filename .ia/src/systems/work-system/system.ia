@@ -47,6 +47,7 @@
       move Observation
   edges
     cite * using *
+    govern plan, milestone, task, decision, spec using law
     require task, milestone, decision using task, milestone, any-adopter
     require contract, spec using spec
     supersede plan using plan

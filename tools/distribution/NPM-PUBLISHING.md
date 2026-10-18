@@ -22,6 +22,10 @@ The public scope is `@inventarch`. Every public npm package moves together at th
 
 ## Release notes
 
+The native tasks in `.ia/src/records/npm-release.ia` track two distinct outcomes. `npm-release-hygiene-checks` requires `artifacts/npm/npm-release.json`, the exact archives it names, `system-compatibility.json`, platform qualification evidence and the npm-consumer result for those archives. `npm-release-publication-review` requires a retained review identifying those receipts and source revision, inspected registry setup and every unresolved publication prerequisite. Partial unit checks, local structural admission or an unavailable host catalog cannot close either task. Keep status open until the complete exit evidence exists; a success observation must match the task's current revision and does not mutate its authored status.
+
+Audit and repair validation is retained separately with commands, source revision, outcomes and limitations. A repository-only check can establish the repository architecture boundary without establishing release readiness. Installed binding checks require an actual selected catalog, and kernel conformance evidence must match the evaluated floor revision; missing evidence remains unavailable or inconclusive.
+
 A note is one JSON file under `releases/pending/`. The file name is the change id:
 
 ```json

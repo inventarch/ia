@@ -113,6 +113,14 @@ it('atomically admits eleven separate native owners with one shared floor and on
   expect(generation.systems.every((row) => row.bundles.length === 1)).toBe(true);
   expect(packed.every((row) => row.manifest.systems.length === 1)).toBe(true);
   for (const archive of packed) {
+    expect(
+      archive.manifest.files.filter(
+        (file) =>
+          file.path.startsWith('.ia/src/records/') ||
+          file.path === '.ia/src/workspace.ia' ||
+          file.path === '.ia/src/participant.ia',
+      ),
+    ).toEqual([]);
     const path = archive.manifest.systems[0]!.path + '/';
     const expected = input.snapshot.sources
       .filter((source) => source.path.startsWith(path))
