@@ -1,0 +1,33 @@
+#! ia 1.0
+
+@case public-validate-ia-success
+  meaning
+    says "Validate an admissible generated-expert agent draft in the complete fixture workspace without returning artifacts."
+    answers "Does validate-ia admit the agent draft while leaving its source unpublished?"
+  scenario
+    kind success
+    given "The complete authored workspace composed by tools/systems/execute.test.ts admits agent-system and the generated-expert agent source supplied by its agent fixture."
+    request "Run validate-ia with the agent fixture text at .ia/src/systems/agent-system/records/generated-expert.ia."
+    expected "Return pass and no artifacts, with no source written."
+    evaluator "tools/systems/execute.test.ts"
+    operation @operation validate-ia
+    code pass
+  relationships
+    cites @operation validate-ia
+    implements @contract draft-authoring-runtime-contract#REQ-DRAFT-VALIDATE
+
+@case public-validate-ia-refusal
+  meaning
+    says "Refuse malformed source at an otherwise permitted authored agent-record target."
+    answers "Does validate-ia refuse malformed text before returning an admitted draft?"
+  scenario
+    kind refusal
+    given "The complete authored workspace composed by tools/systems/execute.test.ts permits the target .ia/src/systems/agent-system/records/generated-expert.ia."
+    request "Run validate-ia at that target with the literal source text malformed."
+    expected "Refuse with IA-EXEC-VALIDATION-FAILED because the source is not an admissible IA record, with no source written."
+    evaluator "tools/systems/execute.test.ts"
+    operation @operation validate-ia
+    code IA-EXEC-VALIDATION-FAILED
+  relationships
+    cites @operation validate-ia
+    implements @contract draft-authoring-runtime-contract#REQ-DRAFT-VALIDATE

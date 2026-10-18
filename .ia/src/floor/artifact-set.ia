@@ -51,8 +51,8 @@
 
 @artifact-set projection
   meaning
-    says "A generated rendering whose authored source remains authoritative."
-    answers "Is the artifact mainly there to render another source, which stays authoritative over it?"
+    says "An authored rendering or packaging specification, such as a template or distribution, or its generated output. The authored sources remain authoritative over generated outputs."
+    answers "Is the artifact mainly there to specify or materialize a rendering or package from authored sources?"
   data
     order 7
 

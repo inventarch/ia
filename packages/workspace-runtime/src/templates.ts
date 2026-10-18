@@ -46,15 +46,21 @@ export type CapturedTemplateResult =
 function invalid(message: string): never {
   throw new TemplateError('IA-EXEC-TEMPLATE-INVALID', message);
 }
-function field(record: CompiledRecord, key: string): CompiledValue {
+function optionalField(record: CompiledRecord, key: string): CompiledValue | undefined {
   const fields = record.sections
       .filter((s) => s.name === 'template')
       .flatMap((s) => s.fields)
       .filter((f) => 'key' in f && f.key === key),
     value = fields.length === 1 ? fields[0] : undefined;
+  if (fields.length === 0) return undefined;
   if (!value || !('value' in value) || value.when !== undefined || value.fields !== undefined)
     invalid(`Template needs one unconditional template.${key}`);
   return value.value;
+}
+function field(record: CompiledRecord, key: string): CompiledValue {
+  const value = optionalField(record, key);
+  if (value === undefined) invalid(`Template needs one unconditional template.${key}`);
+  return value;
 }
 function text(value: CompiledValue): string {
   if (!('text' in value)) invalid('Expected compiled template text');
@@ -83,9 +89,9 @@ export function renderCapturedTemplate(
       invalid('Template occurrence is outside the current scope');
     if (text(field(record, 'profile')) !== 'structured-v1') invalid('Unsupported template profile');
     for (const key of ['parameters', 'lines']) {
-      const value = field(record, key);
-      if (value.kind !== 'list' || value.items.length)
-        invalid('Structured templates require empty legacy parameters/lines');
+      const value = optionalField(record, key);
+      if (value !== undefined && (value.kind !== 'list' || value.items.length))
+        invalid('Structured templates require absent or empty legacy parameters/lines');
     }
     const filename = portableDraftPath(text(field(record, 'filename'))),
       resource = portablePath(text(field(record, 'resource')));

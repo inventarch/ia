@@ -1,0 +1,13 @@
+#! ia 1.0
+
+@contract draft-authoring-runtime-contract
+  version "0.1.0"
+  meaning
+    says "Draft validation and formatting require contextual admission and leave source publication to the caller."
+    answers "What do validate-ia and format-ia return for admitted drafts and refuse for malformed source?"
+  relationships
+    governs @operation validate-ia
+    governs @operation format-ia
+  invariants
+    REQ-DRAFT-VALIDATE "For a safe target in the current complete authored workspace, validate-ia admits valid source without returning artifacts; malformed source refuses with IA-EXEC-VALIDATION-FAILED and no source is written."
+    REQ-DRAFT-FORMAT "For a safe target in the current complete authored workspace, format-ia returns one normalized draft only after formatting and contextual admission succeed; malformed source refuses with IA-EXEC-VALIDATION-FAILED and no source is written."

@@ -70,6 +70,37 @@ function journal(root: string): { authoredRevision: string; events: Event[] } {
 }
 const runtime = (root: string) => using(root, true, (db) => db.records().filter((node) => node.band === 0));
 
+it.each(['current', 'legacy'])('projects journal-only runs without a live phase under the %s schema', (version) => {
+  const root = workspace();
+  const path = '.ia/src/systems/session-system/schemas/run.schema.ia';
+  if (version === 'current') put(root, path, readFileSync(resolve(import.meta.dirname, '../../..', path), 'utf8'));
+  const input = journal(root);
+  writeRunnerEvidence(root, input);
+  const run = runtime(root).find((record) => record.discriminator === 'run');
+  expect(run).toBeDefined();
+  const phase = run!.sections
+    .find((section) => section.name === 'execution')!
+    .fields.find((field) => 'key' in field && field.key === 'phase');
+  if (version === 'current') expect(phase).toBeUndefined();
+  else expect(phase).toMatchObject({ value: { text: 'recorded' } });
+  using(root, true, (db) => expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]));
+});
+
+it.each(['recorded', 'orient'])('keeps historical declared run phase %s admitted under the current schema', (phase) => {
+  const root = workspace();
+  const path = '.ia/src/systems/session-system/schemas/run.schema.ia';
+  put(root, path, readFileSync(resolve(import.meta.dirname, '../../..', path), 'utf8'));
+  put(
+    root,
+    '.ia/src/systems/session-system/records/historical-run.ia',
+    `#! ia 1.0\n@run historical-run\n  meaning\n    says "Historical authored execution."\n    answers "Which execution retains a historical phase?"\n  execution\n    status recorded\n    phase ${phase}\n    owner @agent agent-steward\n`,
+  );
+  using(root, false, (db) => {
+    expect(db.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+    expect(db.records().some((record) => record.name === 'historical-run')).toBe(true);
+  });
+});
+
 it('admits contiguous atomic command consequences with the same command id', () => {
   const root = workspace(),
     input = journal(root);

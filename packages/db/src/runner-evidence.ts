@@ -303,6 +303,10 @@ function project(value: Receipt, path: string, graph: Graph): string | undefined
       records.filter((node) => ['run', 'observation'].includes(node.discriminator)).map((node) => node.name),
     );
   if (names.has(run)) return undefined;
+  const registration = graph.registry.registrations.get('run')!;
+  const requiresPhase = graph.registry.schemas
+    .get(registration.schema)
+    ?.fields.some((field) => field.section === 'execution' && field.key === 'phase' && field.must);
   const blocks = [
     [
       `@run ${run}`,
@@ -311,7 +315,8 @@ function project(value: Receipt, path: string, graph: Graph): string | undefined
       '    answers "Which local runner journal does this record describe?"',
       '  execution',
       '    status recorded',
-      '    phase recorded',
+      // Legacy selected schemas require this historical sentinel; current schemas can omit an unknown live phase.
+      ...(requiresPhase ? ['    phase recorded'] : []),
       `    owner @agent ${agent.name}`,
     ].join('\n'),
   ];

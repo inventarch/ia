@@ -1,0 +1,33 @@
+#! ia 1.0
+
+@case public-format-ia-success
+  meaning
+    says "Format and contextually admit the generated-expert agent source as one draft artifact."
+    answers "Does format-ia return one normalized agent draft while leaving its source unpublished?"
+  scenario
+    kind success
+    given "The complete authored workspace composed by tools/systems/execute.test.ts admits agent-system and the generated-expert agent source supplied by its agent fixture."
+    request "Run format-ia with the agent fixture text at .ia/src/systems/agent-system/records/generated-expert.ia."
+    expected "Return pass and one normalized draft at that target containing @agent generated-expert, with no source written."
+    evaluator "tools/systems/execute.test.ts"
+    operation @operation format-ia
+    code pass
+  relationships
+    cites @operation format-ia
+    implements @contract draft-authoring-runtime-contract#REQ-DRAFT-FORMAT
+
+@case public-format-ia-refusal
+  meaning
+    says "Refuse malformed source before a formatted agent draft can be returned."
+    answers "Does format-ia refuse malformed text at a permitted authored target?"
+  scenario
+    kind refusal
+    given "The complete authored workspace composed by tools/systems/execute.test.ts permits the target .ia/src/systems/agent-system/records/generated-expert.ia."
+    request "Run format-ia at that target with the literal source text malformed."
+    expected "Refuse with IA-EXEC-VALIDATION-FAILED because the formatter cannot accept the malformed source, with no source written."
+    evaluator "tools/systems/execute.test.ts"
+    operation @operation format-ia
+    code IA-EXEC-VALIDATION-FAILED
+  relationships
+    cites @operation format-ia
+    implements @contract draft-authoring-runtime-contract#REQ-DRAFT-FORMAT
