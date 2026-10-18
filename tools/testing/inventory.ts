@@ -218,6 +218,8 @@ export interface ValidationInput {
   readonly leaves: readonly string[];
   /** Repository-relative test files visible to Git, including nonignored untracked additions. */
   readonly tracked: readonly string[];
+  /** Actual Nx definitions, supplied by repository inventory rather than inferred from descriptions. */
+  readonly namedInputs?: Readonly<Record<string, readonly unknown[]>>;
 }
 
 /**
@@ -233,6 +235,46 @@ export function validateManifest(input: ValidationInput): readonly string[] {
     inputProfiles = Object.keys(manifest.inputProfiles ?? {});
   if (!profiles.length) findings.push('tasks.json: no timeout profiles declared');
   if (!inputProfiles.length) findings.push('tasks.json: no input profiles declared');
+  if (input.namedInputs !== undefined) {
+    const named = input.namedInputs;
+    const visit = (name: string, stack: readonly string[]): void => {
+      if (stack.includes(name)) {
+        findings.push(`cyclic Nx input profile: ${[...stack, name].join(' -> ')}`);
+        return;
+      }
+      if (!Object.hasOwn(named, name) || !Array.isArray(named[name])) {
+        findings.push(
+          stack.length ? `${stack.at(-1)}: unknown Nx input profile ${name}` : `${name}: missing Nx input profile`,
+        );
+        return;
+      }
+      for (const entry of named[name]!) {
+        if (typeof entry === 'string') {
+          if (entry.startsWith('^')) findings.push(`${name}: namedInputs definitions cannot start with ^`);
+          else if (!entry.startsWith('{') && !entry.startsWith('!')) visit(entry, [...stack, name]);
+        } else if (typeof entry === 'object' && entry !== null) {
+          const value = entry as Record<string, unknown>;
+          if (value['projects'] || value['dependencies'])
+            findings.push(`${name}: namedInputs may only refer to definitions within the same project`);
+          else if (
+            ![
+              'fileset',
+              'env',
+              'runtime',
+              'externalDependencies',
+              'dependentTasksOutputFiles',
+              'workingDirectory',
+              'json',
+            ].some((key) => value[key])
+          ) {
+            if (typeof value['input'] === 'string') visit(value['input'], [...stack, name]);
+            else findings.push(`${name}: invalid Nx input reference`);
+          }
+        } else findings.push(`${name}: invalid Nx input definition`);
+      }
+    };
+    for (const name of inputProfiles) visit(name, []);
+  }
   for (const [name, profile] of Object.entries(manifest.profiles ?? {})) {
     for (const field of [
       'taskTimeoutMs',
@@ -590,7 +632,19 @@ export function takeInventory(root: string, options: { readonly cases?: boolean 
   const leaves = qualificationLeaves(root),
     manifest = readManifest(root);
   const findings = [
-    ...validateManifest({ manifest, projects, discovery, leaves, tracked: trackedTestFiles(root) }),
+    ...validateManifest({
+      manifest,
+      projects,
+      discovery,
+      leaves,
+      tracked: trackedTestFiles(root),
+      namedInputs:
+        (
+          JSON.parse(readFileSync(resolve(root, 'nx.json'), 'utf8')) as {
+            namedInputs: Record<string, readonly unknown[]>;
+          }
+        ).namedInputs ?? {},
+    }),
     ...validateBuildDependencies(root, manifest),
     ...validateTestPrerequisites(root, manifest),
   ];

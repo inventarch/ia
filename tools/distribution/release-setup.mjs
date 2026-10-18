@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -200,7 +201,7 @@ export function githubSetupPlan(state, rulesets, { everyWorkflowDeclaresPermissi
       issues.push({ setting: 'environment-branches', fix: 'main only' });
   }
   if (!state.workflow?.can_approve_pull_request_reviews)
-    issues.push({ setting: 'actions-create-pull-requests', fix: 'allow' });
+    issues.push({ setting: 'actions-create-pull-requests', fix: 'allow creation and approval of pull requests' });
   if (everyWorkflowDeclaresPermissions && state.workflow?.default_workflow_permissions !== 'read')
     issues.push({ setting: 'default-token-permissions', fix: 'read' });
   for (const name of rulesets)
@@ -370,6 +371,7 @@ function run(command, args, options = {}) {
     encoding: 'utf8',
     windowsHide: true,
     maxBuffer: 16 * 1024 * 1024,
+    timeout: 120_000,
     ...options,
   });
 }
@@ -409,25 +411,67 @@ function npmNode(override) {
   return null;
 }
 /** The pinned publishing CLI. Trust and staged publishing need a newer npm than Node 22 bundles. */
-function pinnedNpm(override, node) {
-  const prefix = resolve(realpathSync(tmpdir()), `ia-npm-cli-${NPM_VERSION}`);
-  const cli = override ? resolve(override) : resolve(prefix, 'node_modules/npm/bin/npm-cli.js');
-  if (!override && !existsSync(cli)) {
-    mkdirSync(prefix, { recursive: true });
-    run(process.execPath, [
-      bundledNpm(),
-      'install',
-      '--prefix',
-      prefix,
-      '--no-save',
-      '--package-lock=false',
-      '--ignore-scripts',
-      `npm@${NPM_VERSION}`,
-    ]);
+export function pinnedNpm(
+  override,
+  node,
+  {
+    install = (prefix) =>
+      run(
+        process.execPath,
+        [
+          bundledNpm(),
+          'install',
+          '--prefix',
+          prefix,
+          '--no-save',
+          '--package-lock=false',
+          '--ignore-scripts',
+          '--registry',
+          REGISTRY,
+          `npm@${NPM_VERSION}`,
+        ],
+        { timeout: 5 * 60_000 },
+      ),
+  } = {},
+) {
+  const parent = realpathSync(tmpdir());
+  // Fresh mkdtemp directories are private on POSIX. Never execute a pre-existing shared cache.
+  const prefix = override ? null : mkdtempSync(resolve(parent, `ia-npm-cli-${NPM_VERSION}-`));
+  const cli = override ? realpathSync(resolve(override)) : resolve(prefix, 'node_modules/npm/bin/npm-cli.js');
+  const dispose = () => {
+    if (prefix) {
+      assert.equal(dirname(prefix), parent, 'Unsafe npm installation cleanup');
+      rmSync(prefix, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
+  };
+  try {
+    if (prefix) install(prefix);
+    const inspect = (path, recursive = true) => {
+      const stat = lstatSync(path);
+      assert.ok(!stat.isSymbolicLink(), 'Aliased npm installation refused');
+      assert.ok(stat.isFile() || stat.isDirectory(), 'Unexpected npm installation entry');
+      if (prefix && process.platform !== 'win32') {
+        assert.equal(stat.uid, process.getuid(), 'Foreign npm installation owner');
+        assert.equal(stat.mode & 0o022, 0, 'Writable npm installation refused');
+      }
+      if (recursive && stat.isDirectory()) for (const name of readdirSync(path)) inspect(resolve(path, name));
+    };
+    if (prefix) {
+      inspect(prefix, false);
+      inspect(resolve(prefix, 'node_modules'), false);
+    }
+    inspect(resolve(cli, '../..'));
+    const manifest = JSON.parse(readFileSync(resolve(cli, '../../package.json'), 'utf8'));
+    assert.equal(manifest.name, 'npm', 'Expected an npm installation');
+    assert.equal(manifest.version, NPM_VERSION, 'Pinned npm package version differs');
+    assert.equal(realpathSync(cli), cli, 'Aliased npm entry refused');
+    const version = run(node, [cli, '--version'], { timeout: 30_000 }).trim();
+    assert.equal(version, NPM_VERSION, `Expected npm ${NPM_VERSION}, found ${version}`);
+    return { cli, dispose };
+  } catch (error) {
+    dispose();
+    throw error;
   }
-  const version = run(node, [cli, '--version']).trim();
-  assert.equal(version, NPM_VERSION, `Expected npm ${NPM_VERSION}, found ${version}`);
-  return cli;
 }
 function ghCommand() {
   for (const candidate of ['gh', 'C:\\Program Files\\GitHub CLI\\gh.exe'])
@@ -512,7 +556,9 @@ function applyGithub(gh, issues, reviewer) {
     };
     try {
       put(`repos/${REPOSITORY}/actions/permissions/workflow`, next);
-      console.log(`Actions may create pull requests; default workflow token: ${next.default_workflow_permissions}`);
+      console.log(
+        `Actions may create and approve pull requests; default workflow token: ${next.default_workflow_permissions}`,
+      );
     } catch (error) {
       console.error(
         `Could not update Actions workflow permissions: ${String(error.stderr ?? error.message).trim()}\n` +
@@ -660,43 +706,50 @@ if (isEntry(process.argv[1], import.meta.url)) {
       assert.ok(!values.apply, message);
       console.log(message + `; reading with ${process.version}.`);
     } else if (node !== process.execPath) console.log(`Running npm ${NPM_VERSION} with ${node}`);
-    const nodeBin = node ?? process.execPath,
-      cli = pinnedNpm(values['npm-cli'], nodeBin),
-      npm = npmWithInteractiveAuth(
-        (args, options = {}) => run(nodeBin, [cli, ...args, '--registry', REGISTRY], options),
-        (name) =>
-          interactiveTrustResult(
-            spawnSync(nodeBin, [resolve(import.meta.dirname, 'release-setup-auth.mjs'), cli, name], {
-              cwd: root,
-              encoding: 'utf8',
-              stdio: ['inherit', 'inherit', 'inherit', 'pipe'],
-              windowsHide: true,
-              timeout: 5 * 60 * 1000,
-              maxBuffer: 1024 * 1024,
-            }),
-          ),
-        { enabled: values['interactive-auth'] },
-      );
-    const readMetadata = (name) =>
-      run(nodeBin, [resolve(import.meta.dirname, 'release-setup-metadata.mjs'), cli, name], {
-        stdio: 'pipe',
-        timeout: 40_000,
-        maxBuffer: 1024 * 1024,
-      });
-    let user = null;
+    const nodeBin = node ?? process.execPath;
+    const prepared = pinnedNpm(values['npm-cli'], nodeBin);
     try {
-      user = npm(['whoami'], { stdio: 'pipe' }).trim();
-    } catch {}
-    const state = await inspectNpm(npm, names, registryPackage, readMetadata);
-    const plan = npmSetupPlan(names, state, values['bootstrap-name']);
-    reportNpm(plan);
-    console.log(
-      user ? 'npm: logged in as ' + user + '.' : 'npm: authentication unavailable; owner login required before setup.',
-    );
-    if (values.apply) {
-      assert.ok(user, 'npm login is required to apply');
-      await applyNpm(npm, names, { bootstrapNames: values['bootstrap-name'], readMetadata });
-    } else if (!user || !plan.every((row) => row.ready)) process.exitCode = 1;
+      const cli = prepared.cli,
+        npm = npmWithInteractiveAuth(
+          (args, options = {}) => run(nodeBin, [cli, ...args, '--registry', REGISTRY], options),
+          (name) =>
+            interactiveTrustResult(
+              spawnSync(nodeBin, [resolve(import.meta.dirname, 'release-setup-auth.mjs'), cli, name], {
+                cwd: root,
+                encoding: 'utf8',
+                stdio: ['inherit', 'inherit', 'inherit', 'pipe'],
+                windowsHide: true,
+                timeout: 5 * 60 * 1000,
+                maxBuffer: 1024 * 1024,
+              }),
+            ),
+          { enabled: values['interactive-auth'] },
+        );
+      const readMetadata = (name) =>
+        run(nodeBin, [resolve(import.meta.dirname, 'release-setup-metadata.mjs'), cli, name], {
+          stdio: 'pipe',
+          timeout: 40_000,
+          maxBuffer: 1024 * 1024,
+        });
+      let user = null;
+      try {
+        user = npm(['whoami'], { stdio: 'pipe' }).trim();
+      } catch {}
+      const state = await inspectNpm(npm, names, registryPackage, readMetadata);
+      const plan = npmSetupPlan(names, state, values['bootstrap-name']);
+      reportNpm(plan);
+      console.log(
+        user
+          ? 'npm: logged in as ' + user + '.'
+          : 'npm: authentication unavailable; owner login required before setup.',
+      );
+      if (values.apply) {
+        assert.ok(user, 'npm login is required to apply');
+        await applyNpm(npm, names, { bootstrapNames: values['bootstrap-name'], readMetadata });
+      } else if (!user || !plan.every((row) => row.ready)) process.exitCode = 1;
+    } finally {
+      prepared.dispose();
+    }
   }
   if (!values['skip-github']) {
     const gh = ghCommand();

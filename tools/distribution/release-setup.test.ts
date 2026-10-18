@@ -1,4 +1,14 @@
-import { readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ENVIRONMENT, NPM_VERSION, publicationPlan, REPOSITORY, WORKFLOW } from './npm-release.mjs';
@@ -16,6 +26,7 @@ import {
   inspectNpm,
   interactiveTrustResult,
   npmEngineSupported,
+  pinnedNpm,
   npmSetupPlan,
   npmWithInteractiveAuth,
   stageState,
@@ -24,6 +35,74 @@ import {
 } from './release-setup.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
+it('ignores a preseeded shared npm executable and uses an owned private installation', () => {
+  const temporary = realpathSync(mkdtempSync(resolve(tmpdir(), 'ia-private-npm-test-')));
+  const marker = resolve(temporary, 'executed-untrusted');
+  const legacy = resolve(temporary, `ia-npm-cli-${NPM_VERSION}/node_modules/npm/bin/npm-cli.js`);
+  mkdirSync(resolve(legacy, '..'), { recursive: true });
+  writeFileSync(
+    legacy,
+    `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'executed'); console.log('${NPM_VERSION}');`,
+  );
+  for (const name of ['TMP', 'TEMP', 'TMPDIR']) vi.stubEnv(name, temporary);
+  const install = (prefix: string) => {
+    const npm = resolve(prefix, 'node_modules/npm');
+    mkdirSync(resolve(npm, 'bin'), { recursive: true });
+    writeFileSync(resolve(npm, 'package.json'), JSON.stringify({ name: 'npm', version: NPM_VERSION }));
+    writeFileSync(resolve(npm, 'bin/npm-cli.js'), `console.log('${NPM_VERSION}');`);
+  };
+  try {
+    const prepared = pinnedNpm(undefined, process.execPath, { install });
+    expect(existsSync(marker)).toBe(false);
+    expect(prepared.cli).not.toBe(legacy);
+    expect(existsSync(prepared.cli)).toBe(true);
+    prepared.dispose();
+    expect(existsSync(prepared.cli)).toBe(false);
+    expect(existsSync(legacy)).toBe(true);
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(temporary, { recursive: true, force: true });
+  }
+});
+it.each(['alias', 'wrong-package'])(
+  'refuses an npm %s before executing it and cleans only its own installation',
+  (mode) => {
+    const temporary = realpathSync(mkdtempSync(resolve(tmpdir(), 'ia-private-npm-refusal-')));
+    const foreign = resolve(temporary, 'foreign'),
+      marker = resolve(temporary, 'executed');
+    let allocated = '';
+    mkdirSync(resolve(foreign, 'bin'), { recursive: true });
+    writeFileSync(resolve(foreign, 'package.json'), JSON.stringify({ name: 'npm', version: NPM_VERSION }));
+    writeFileSync(
+      resolve(foreign, 'bin/npm-cli.js'),
+      `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'executed'); console.log('${NPM_VERSION}');`,
+    );
+    for (const name of ['TMP', 'TEMP', 'TMPDIR']) vi.stubEnv(name, temporary);
+    try {
+      expect(() =>
+        pinnedNpm(undefined, process.execPath, {
+          install(prefix) {
+            allocated = prefix;
+            mkdirSync(resolve(prefix, 'node_modules'));
+            const npm = resolve(prefix, 'node_modules/npm');
+            if (mode === 'alias') symlinkSync(foreign, npm, 'junction');
+            else {
+              mkdirSync(resolve(npm, 'bin'), { recursive: true });
+              writeFileSync(resolve(npm, 'package.json'), JSON.stringify({ name: 'foreign', version: NPM_VERSION }));
+              writeFileSync(resolve(npm, 'bin/npm-cli.js'), readFileSync(resolve(foreign, 'bin/npm-cli.js')));
+            }
+          },
+        }),
+      ).toThrow(mode === 'alias' ? 'Aliased npm installation refused' : 'Expected an npm installation');
+      expect(existsSync(marker)).toBe(false);
+      expect(existsSync(allocated)).toBe(false);
+      expect(existsSync(resolve(foreign, 'bin/npm-cli.js'))).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  },
+);
 const name = '@inventarch/runner';
 const stageId = '13816920-8c62-4e6e-ae8f-cfc61f12fb71';
 const otherStageId = 'bc61464c-63ad-48de-a66e-f42c0143b626';
@@ -424,6 +503,10 @@ it('requires a reviewed main-only environment, pull-request creation and every d
     rulesets: ['main', 'tags'],
   };
   expect(githubSetupPlan(ready, ['main', 'tags'])).toEqual([]);
+  expect(githubSetupPlan({ ...ready, workflow: {} }, ['main', 'tags'])).toContainEqual({
+    setting: 'actions-create-pull-requests',
+    fix: 'allow creation and approval of pull requests',
+  });
   expect(githubSetupPlan({ ...ready, environment: null }, ['main'])).toEqual([
     { setting: 'environment', fix: 'create' },
   ]);

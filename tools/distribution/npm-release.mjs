@@ -378,16 +378,17 @@ async function main() {
   const root = resolve(import.meta.dirname, '../..');
   const version = values.version ?? json(resolve(root, 'apps/cli/package.json')).version;
   const projects = publicPackages(root);
-  validatePackages(projects, version, releaseVersions(root));
   assert.equal(values.tag, releasePolicy(root).tag, 'Requested release tag differs');
   if (positionals[0] === 'trust-commands') {
+    validatePackages(projects, version);
     for (const { manifest } of projects) {
       console.log(
-        `npm trust github ${manifest.name} --repo ${REPOSITORY} --file ${WORKFLOW} --environment ${ENVIRONMENT} --allow-publish`,
+        `pnpm dlx npm@${NPM_VERSION} trust github ${manifest.name} --registry ${REGISTRY} --repo ${REPOSITORY} --file ${WORKFLOW} --environment ${ENVIRONMENT} --allow-publish`,
       );
     }
     return;
   }
+  validatePackages(projects, version, releaseVersions(root));
   const directory = resolve(root, values.directory);
   const release = verifyRelease(root, directory, version);
   if (positionals[0] === 'plan') {

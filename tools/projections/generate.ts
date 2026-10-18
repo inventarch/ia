@@ -190,26 +190,28 @@ export function renderProjections(root: string): readonly HostFile[] {
 export const generateProjections = (root: string, write: boolean): readonly string[] =>
   publishArtifacts(root, renderProjections(root), write);
 if (isEntry(process.argv[1], import.meta.url)) {
-  try {
-    if (process.argv.length !== 3 || !['--check', '--write'].includes(process.argv[2]!))
-      throw new Error(`Usage: generate.ts --check|--write; ${GENERATE}`);
-    const write = process.argv[2] === '--write',
-      changed = generateProjections(resolve(import.meta.dirname, '../..'), write);
-    if (write && changed.includes(GUARD_SETTINGS)) process.stdout.write('guard retired\n');
-    process.stdout.write(
-      `${write ? 'Updated' : 'Drifted'} projections: ${changed.length}${changed.length ? '\n' + changed.join('\n') : ''}\n`,
-    );
-    if (!write && changed.length) {
-      // A failed check names the one command that brings the files back in line.
-      process.stdout.write(`To update them, ${GENERATE}.\n`);
+  if (process.argv.length !== 3 || !['--check', '--write'].includes(process.argv[2]!)) {
+    process.stderr.write('Usage: generate.ts --check|--write\n');
+    process.exitCode = 2;
+  } else
+    try {
+      const write = process.argv[2] === '--write',
+        changed = generateProjections(resolve(import.meta.dirname, '../..'), write);
+      if (write && changed.includes(GUARD_SETTINGS)) process.stdout.write('guard retired\n');
+      process.stdout.write(
+        `${write ? 'Updated' : 'Drifted'} projections: ${changed.length}${changed.length ? '\n' + changed.join('\n') : ''}\n`,
+      );
+      if (!write && changed.length) {
+        // A failed check names the one command that brings the files back in line.
+        process.stdout.write(`To update them, ${GENERATE}.\n`);
+        process.exitCode = 1;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // Every refusal raised here names its next command; one raised beneath the generator (the db open, the file system)
+      // names none, so it gains the regeneration that follows its repair.
+      const named = [GENERATE, SHOW_FINDINGS, SHOW_RENDERER].some((next) => message.includes(next));
+      process.stderr.write(`${message}${named ? '' : `; once that is repaired, ${GENERATE}`}\n`);
       process.exitCode = 1;
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    // Every refusal raised here names its next command; one raised beneath the generator (the db open, the file system)
-    // names none, so it gains the regeneration that follows its repair.
-    const named = [GENERATE, SHOW_FINDINGS, SHOW_RENDERER].some((next) => message.includes(next));
-    process.stderr.write(`${message}${named ? '' : `; once that is repaired, ${GENERATE}`}\n`);
-    process.exitCode = 1;
-  }
 }

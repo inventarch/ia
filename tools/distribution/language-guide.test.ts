@@ -4,7 +4,6 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { publicOutputs } from './generate-public.mjs';
-// @ts-expect-error The resource generator is JavaScript.
 import { authoringGuidanceFor } from './resources.mjs';
 
 const root = resolve(import.meta.dirname, '../..');

@@ -343,6 +343,114 @@ it('reexecutes after Nx reports unpack failure with success status and preserves
 });
 
 let installation: Promise<void> | undefined;
+/** Query the installed hasher, including project expansion and discovered inputs. */
+async function taskHashes(ids: readonly string[]): Promise<Record<string, string>> {
+  const source = `
+    const { createProjectGraphAsync } = require('nx/src/project-graph/project-graph');
+    const { createTaskGraph } = require('nx/src/tasks-runner/create-task-graph');
+    const { createTaskHasher } = require('nx/src/hasher/create-task-hasher');
+    const { readNxJson } = require('nx/src/config/nx-json');
+    (async () => {
+      const { nxTaskFor } = await import('./tools/testing/nx-plugin.mjs');
+      const manifest = require(process.cwd() + '/tools/testing/tasks.json');
+      const ids = ${JSON.stringify(ids)};
+      const refs = ids.map(id => nxTaskFor(process.cwd(), manifest.tasks, id));
+      const coordinates = refs.map(ref => ref.split(':'));
+      const graph = await createProjectGraphAsync();
+      const taskGraph = createTaskGraph(graph, {}, [...new Set(coordinates.map(row => row[0]))], coordinates.map(row => row[1]), undefined, {}, true);
+      const tasks = refs.map(ref => taskGraph.tasks[ref]);
+      const hashes = await createTaskHasher(graph, readNxJson(), {}).hashTasks(tasks, taskGraph, process.env);
+      console.log(JSON.stringify(Object.fromEntries(ids.map((id, i) => [id, hashes[i].value]))));
+      process.exit(0);
+    })().catch(error => { console.error(error); process.exit(1); });
+  `;
+  const result = await runBounded(process.execPath, ['-e', source], {
+    cwd: root,
+    timeoutMs: 120_000,
+    env: { ...process.env, NX_DAEMON: 'false' },
+  });
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  return JSON.parse(result.stdout.trim()) as Record<string, string>;
+}
+
+it(
+  'invalidates dependency scanners when filesystem-discovered imports or manifests change',
+  async () => {
+    await installWorkspace();
+    const ids = ['dependencies:check', 'tools:test-dependencies'];
+    const baseline = await taskHashes(ids);
+    for (const file of [
+      'packages/graph/src/index.ts',
+      'packages/graph/src/cache-added.ts',
+      'packages/graph/package.json',
+      'apps/runner/src/context.ts',
+      '.ia/src/systems/session-system/src/index.ts',
+    ]) {
+      const path = resolve(root, file),
+        original = existsSync(path) ? readFileSync(path) : null;
+      try {
+        writeInput(
+          path,
+          Buffer.concat([
+            original ?? Buffer.from(''),
+            Buffer.from(file.endsWith('.json') ? '\n ' : '\nimport "@inventarch/runtime";\n'),
+          ]),
+        );
+        const changed = await taskHashes(ids);
+        for (const id of ids) expect(changed[id], `${id}: ${file}`).not.toBe(baseline[id]);
+        if (file === 'packages/graph/src/index.ts') {
+          const checked = await runBounded(process.execPath, ['--import', 'tsx', 'tools/dependencies/check.ts'], {
+            cwd: root,
+            timeoutMs: 30_000,
+          });
+          expect(checked.status).toBe(1);
+          expect(checked.stdout + checked.stderr).toContain('@inventarch/graph may not depend on @inventarch/runtime');
+        }
+      } finally {
+        if (original === null) rmSync(path);
+        else writeInput(path, original);
+        expect(await taskHashes(ids), `Restored ${file}`).toEqual(baseline);
+      }
+    }
+  },
+  20 * 60_000,
+);
+
+it(
+  'invalidates configuration readers and distribution fixtures without invalidating unrelated builds',
+  async () => {
+    await installWorkspace();
+    const ids = ['tools:test-testing', 'tools:test-temp', 'distribution:test', 'language:build'];
+    const baseline = await taskHashes(ids);
+    for (const [file, affected] of [
+      ['apps/vscode/vitest.config.mts', ['tools:test-testing', 'tools:test-temp']],
+      ['apps/runner/vitest.config.mts', ['tools:test-testing', 'tools:test-temp']],
+      ['distributions/product-structure/README.md', ['distribution:test']],
+    ] as const) {
+      const path = resolve(root, file),
+        original = readFileSync(path);
+      try {
+        writeInput(path, Buffer.concat([original, Buffer.from('\n ')]));
+        const changed = await taskHashes(ids);
+        for (const id of affected) expect(changed[id], `${id}: ${file}`).not.toBe(baseline[id]);
+        expect(changed['language:build'], file).toBe(baseline['language:build']);
+      } finally {
+        writeInput(path, original);
+        expect(await taskHashes(ids), `Restored ${file}`).toEqual(baseline);
+      }
+    }
+    const schedule = resolve(root, 'tools/testing/schedule.json'),
+      original = readFileSync(schedule);
+    try {
+      writeInput(schedule, Buffer.concat([original, Buffer.from('\n ')]));
+      expect((await taskHashes(ids))['language:build']).toBe(baseline['language:build']);
+    } finally {
+      writeInput(schedule, original);
+    }
+  },
+  20 * 60_000,
+);
+
 /**
  * Replaces the shared root junction with a real install of the clone. Workspace packages resolve one
  * another by name through links a junction does not carry, and a real install is also necessary for

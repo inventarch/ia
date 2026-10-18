@@ -133,6 +133,45 @@ it('fails unknown profiles, a worker limit above the profile ceiling and an unre
   expect(check([task({ cache: true, outputs: [] })]).join('\n')).toContain('a cacheable task must declare its outputs');
 });
 
+it('refuses input profiles whose Nx definition is missing, cyclic or refers to an unknown profile', () => {
+  expect(check([task()], { namedInputs: {} }).join('\n')).toContain('owner-source: missing Nx input profile');
+  expect(check([task()], { namedInputs: { 'owner-source': ['missing'] } }).join('\n')).toContain(
+    'unknown Nx input profile missing',
+  );
+  expect(
+    check([task()], { namedInputs: { 'owner-source': ['nested'], nested: ['owner-source'] } }).join('\n'),
+  ).toContain('cyclic Nx input profile');
+  expect(check([task()], { namedInputs: { 'owner-source': ['{projectRoot}/**/*', { env: 'CI' }] } })).toEqual([]);
+});
+it('validates object references using the same project boundary as Nx named inputs', () => {
+  expect(check([task()], { namedInputs: { 'owner-source': [{ input: 'missing' }] } }).join('\n')).toContain(
+    'unknown Nx input profile missing',
+  );
+  expect(
+    check([task()], {
+      namedInputs: { 'owner-source': [{ input: 'nested' }], nested: [{ input: 'owner-source' }] },
+    }).join('\n'),
+  ).toContain('cyclic Nx input profile');
+  expect(
+    check([task()], { namedInputs: { 'owner-source': ['^nested'], nested: ['{projectRoot}/**/*'] } }).join('\n'),
+  ).toContain('cannot start with ^');
+  for (const entry of [
+    { input: 'nested', dependencies: true },
+    { input: 'nested', projects: ['other'] },
+  ])
+    expect(
+      check([task()], { namedInputs: { 'owner-source': [entry], nested: ['{projectRoot}/**/*'] } }).join('\n'),
+    ).toContain('within the same project');
+  expect(
+    check([task()], {
+      namedInputs: {
+        'owner-source': [{ input: 'nested' }],
+        nested: [{ fileset: '{projectRoot}/**/*' }, { env: 'CI' }],
+      },
+    }),
+  ).toEqual([]);
+});
+
 it('fails overlapping outputs, unknown and cyclic dependencies, and a duplicate identity', () => {
   const nested = check([
     task(),
@@ -204,7 +243,7 @@ it('checks the actual repository manifest for shape, coverage and qualification 
   expect(validateManifest({ manifest, projects, discovery, leaves: qualificationLeaves(root), tracked: [] })).toEqual(
     [],
   );
-  expect(trackedTestFiles(root).length).toBe(291);
+  expect(trackedTestFiles(root).length).toBe(293);
 });
 
 it('exposes the declared timeout profiles and refuses a worker limit above a ceiling', () => {

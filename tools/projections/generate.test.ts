@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
   statSync,
@@ -441,22 +442,39 @@ it('refuses generating a partial corpus with admission errors, naming the comman
   );
 });
 
-it('names one next command in every refusal the generator raises', () => {
+it('names one next command in every operational refusal the generator raises', () => {
   // Every construction site in the source, so a refusal added later without a next command fails here.
   const source = readFileSync(resolve(import.meta.dirname, 'generate.ts'), 'utf8');
   const messages = [...source.matchAll(/throw new Error\(\s*`([^`]*)`/g)].map((match) => match[1]!);
   expect(source.match(/throw new Error\(/g)).toHaveLength(messages.length);
-  expect(messages).toHaveLength(10);
+  expect(messages).toHaveLength(9);
   for (const message of messages)
     expect(message.match(/\$\{(?:GENERATE|SHOW_FINDINGS|SHOW_RENDERER)\}/g), message).toHaveLength(1);
 });
-it('names the next command for a usage refusal of the generator run as a program', () => {
+it('rejects usage without recommending a source-writing command', () => {
   const result = spawnSync(
     process.execPath,
     ['--conditions=development', '--import', 'tsx', resolve(import.meta.dirname, 'generate.ts')],
     { cwd: root, encoding: 'utf8', timeout: 15000 },
   );
-  expect(result.status, result.stderr).toBe(1);
+  expect(result.status, result.stderr).toBe(2);
   expect(result.stdout).toBe('');
-  expect(result.stderr.split(/\r?\n/)).toContain('Usage: generate.ts --check|--write; run "pnpm projections:generate"');
+  expect(result.stderr.split(/\r?\n/)).toContain('Usage: generate.ts --check|--write');
+  expect(result.stderr).not.toContain('projections:generate');
+});
+it.each(['--keep', '--typo'])('rejects qualifier %s before allocating a consumer directory', (flag) => {
+  const parent = realpathSync(mkdtempSync(join(tmpdir(), 'ia-qualifier-args-')));
+  try {
+    const result = spawnSync(process.execPath, [resolve(import.meta.dirname, 'qualify-projections.mjs'), flag], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 15_000,
+      env: { ...process.env, TEMP: parent, TMP: parent, TMPDIR: parent },
+    });
+    expect(result.status, result.stderr).toBe(2);
+    expect(result.stderr).toContain('accepts no optional');
+    expect(readdirSync(parent)).toEqual([]);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
 });
