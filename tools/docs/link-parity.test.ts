@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { checkLinks } from './check.js';
 import { checkDocumentationLinks } from './catalog.mjs';
 import { localTarget, parseMarkdown } from './markdown.mjs';
-import { teachingLinkFindings } from '../systems/teaching-links.js';
+import { teachingLinkFindings } from './teaching-links.js';
 
 interface ParityCase {
   name: string;

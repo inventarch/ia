@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { dirname, posix, resolve } from 'node:path';
-import { localTarget, parseMarkdown } from '../docs/markdown.mjs';
+import { localTarget, parseMarkdown } from './markdown.mjs';
 
 /** Absolute URLs and in-page anchors are not local teaching targets. */
 const NOT_LOCAL = /^[a-z][a-z0-9+.-]*:|^[#/]/i;

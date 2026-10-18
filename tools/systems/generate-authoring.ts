@@ -3,7 +3,7 @@ import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeDistributionJson } from '@inventarch/db/distribution';
-import { teachingLinkClasses, teachingLinkFindings } from './teaching-links.js';
+import { teachingLinkClasses, teachingLinkFindings } from '../docs/teaching-links.js';
 
 import { isEntry } from '../entry/is-entry.mjs';
 

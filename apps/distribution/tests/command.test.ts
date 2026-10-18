@@ -1,6 +1,6 @@
 import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.js';
 import { pathToFileURL } from 'node:url';
-import { runBounded } from '../../../tools/testing/subprocess.js';
+import { runBounded } from '@tools/testing/subprocess.js';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';

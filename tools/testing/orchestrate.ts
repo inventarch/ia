@@ -1,3 +1,4 @@
+import { parseOptions } from '../shared/args.mjs';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isEntry } from '../entry/is-entry.mjs';
@@ -220,20 +221,20 @@ export async function orchestrate(root: string, options: OrchestrationOptions): 
 }
 
 if (isEntry(process.argv[1], import.meta.url)) {
-  const args = process.argv.slice(2),
-    root = resolve(import.meta.dirname, '../..');
-  const flag = (name: string): string | undefined => {
-    const position = args.indexOf(name);
-    return position < 0 ? undefined : args[position + 1];
-  };
-  const listed = flag('--tasks'),
-    out = flag('--evidence-out');
-  const known = ['--tasks', '--evidence-out', '--full', '--remote', '--json'];
-  const valued = ['--tasks', '--evidence-out'];
-  const stray = args.filter((arg, position) =>
-    arg.startsWith('--') ? !known.includes(arg) : !(position > 0 && valued.includes(args[position - 1] ?? '')),
-  );
-  if (!listed || stray.length) {
+  const root = resolve(import.meta.dirname, '../..');
+  let options: ReturnType<typeof parseOptions> | undefined;
+  try {
+    options = parseOptions(process.argv.slice(2), {
+      values: ['tasks', 'evidence-out'],
+      booleans: ['full', 'remote', 'json'],
+      required: ['tasks'],
+    });
+  } catch {
+    /* usage below */
+  }
+  const listed = options?.value('tasks'),
+    out = options?.value('evidence-out');
+  if (!options || !listed) {
     console.error(
       'Usage: pnpm tests:orchestrate --tasks "<id> <id>" [--evidence-out <directory>] [--remote] [--full] [--json]',
     );
@@ -241,12 +242,12 @@ if (isEntry(process.argv[1], import.meta.url)) {
   } else {
     orchestrate(root, {
       tasks: listed.split(/\s+/).filter(Boolean),
-      full: args.includes('--full'),
-      remote: args.includes('--remote'),
+      full: options.has('full'),
+      remote: options.has('remote'),
       ...(out === undefined ? {} : { evidenceOut: out }),
     })
       .then((result) => {
-        if (args.includes('--json')) console.log(JSON.stringify(result, null, 2));
+        if (options.has('json')) console.log(JSON.stringify(result, null, 2));
         else
           console.log(
             `Orchestration ${result.status}: ${result.executed.length} executed, ${result.restored.length} restored, remote ${result.remote}.${result.missing.length ? ` Missing: ${result.missing.join(', ')}` : ''}`,

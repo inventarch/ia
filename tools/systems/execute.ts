@@ -1,6 +1,6 @@
 import { validateIA, formatIA } from '../../.ia/src/systems/authoring-system/execute.js';
 import { renderTemplate } from '../../.ia/src/systems/template-system/execute.js';
-import type { Context, Handler, Result, Success } from './types.js';
+import type { Context, Handler, Result, Success } from '@inventarch/runtime/authoring-execution';
 import { executeOwned, executeCatalog } from '@inventarch/runtime/authoring-execution';
 
 const catalog: Readonly<

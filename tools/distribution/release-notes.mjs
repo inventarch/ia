@@ -1,5 +1,6 @@
+import { stableVersion } from '../shared/semver.mjs';
+import { gitText } from '../shared/git.mjs';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -17,13 +18,11 @@ export const GENERATED_CHANGES = ['cohort-alignment', 'repository-maintenance'];
 /** Release bookkeeping that is sealed separately and never needs a note. */
 export const RELEASE_MANAGED = ['.ia/public-package-inputs.json', 'CHANGELOG.md', 'releases/'];
 const ID = /^[a-z][a-z0-9-]*$/;
-const STABLE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const NOTE_KEYS = ['bump', 'format', 'packages', 'paths', 'summary', 'title'];
-const git = (root, ...args) =>
-  execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024 }).trim();
+const git = (root, ...args) => gitText(root, args);
 
 export function bumpVersion(version, bump) {
-  assert.match(version, STABLE, 'A stable version is required');
+  assert.ok(stableVersion(version), 'A stable version is required');
   assert.ok(BUMPS.includes(bump), 'Bump must be patch, minor or major');
   const [major, minor, patch] = version.split('.').map(Number);
   if (bump === 'major') return `${major + 1}.0.0`;

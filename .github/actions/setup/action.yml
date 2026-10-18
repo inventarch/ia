@@ -15,7 +15,7 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        node tools/testing/canonical-temp.mjs
+        node tools/temp/canonical-temp.mjs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Install dependencies
       shell: bash

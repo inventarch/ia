@@ -1,4 +1,4 @@
-import { runBounded } from '../../../../../../tools/testing/subprocess.js';
+import { runBounded } from '@tools/testing/subprocess.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';

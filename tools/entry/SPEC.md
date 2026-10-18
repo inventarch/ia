@@ -1,4 +1,50 @@
-# Tool entry check
+# entry tooling contract
+
+## Purpose
+
+Identify real executable entries and construct argv-safe package-manager invocations.
+
+## Modules
+
+- [is-entry.d.mts](is-entry.d.mts) — generated from the checked JavaScript implementation.
+- [package-manager.d.mts](package-manager.d.mts) — generated from the checked JavaScript implementation.
+- [is-entry.mjs](is-entry.mjs).
+- [is-entry.test.ts](is-entry.test.ts) — behavior and refusal coverage.
+- [package-manager.mjs](package-manager.mjs).
+
+## Commands
+
+No public pnpm entry; callers import the modules or use the manual contract below.
+
+Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
+
+## Inputs
+
+An invoked path, module URL, launcher bytes and argv; filesystem identity and Node executable.
+
+## Outputs
+
+Returns identity/invocation data; it does not spawn, install or write files.
+
+## Prerequisites
+
+Node built-ins only; no installation or dist output.
+
+## Validation
+
+`node tools/testing/check-declarations.mjs --check` compares generated declarations with checked implementations; `--write` regenerates them. The shared contract suite runs this drift check. Package test configurations may keep JavaScript inference disabled and consume these generated declarations.
+
+Task ownership: `tools:test-entry`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
+
+## Invariants
+
+Missing entry paths return false; other resolution failures throw. Native binary and Node script launchers are accepted; shell/batch wrappers refuse. Paths with spaces remain individual arguments.
+
+## Limits
+
+Header recognition establishes executable format, not executable trust. Callers choose trusted launchers and own timeouts.
+
+## Detailed behavior
 
 `is-entry.mjs` exports `isEntry(argv1, moduleUrl)`, which every tool with a command-line entry block calls as
 `isEntry(process.argv[1], import.meta.url)`. It is the same function as `isEntry` in `@inventarch/runtime/entry`, which the
@@ -8,7 +54,7 @@ that names no file (missing, through a file, or a name too long) is not the entr
 throws.
 
 It imports only Node built-ins and lives in its own directory, so a tool that imports it gains this directory's production
-files as task inputs, not the runtime and its dependencies. `is-entry.d.mts` types it for TypeScript tools;
+files as task inputs, not the runtime and its dependencies. JSDoc and `tsconfig.tools-js.json` check its implementation for TypeScript consumers;
 `tools/distribution/host-payload.mjs` imports it directly.
 
 `is-entry.test.ts` (task `tools:test-entry`) covers the function and fails while any source file under `apps/`,

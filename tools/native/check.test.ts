@@ -6,7 +6,7 @@ import { position } from '../../packages/runtime/src/index.js';
 import { checkNative, nativeOutcome, readNative } from './check.js';
 import { compileNative } from './compile.js';
 import type { NativeInput } from './compile.js';
-import { observeFoundationAuthoring } from './fixture-authoring.js';
+import { observeFoundationAuthoring } from '../compliance/fixture-authoring.js';
 
 import { inputs as fixtureInputs } from '../../packages/compliance/tests/native.js';
 import { publicLanguageInputs } from './public-language.js';

@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { withScope } from '../testing/resources.js';
-import type { ResourceScope } from '../testing/resources.js';
+import { withScope } from '@tools/testing/resources.js';
+import type { ResourceScope } from '@tools/testing/resources.js';
 import { classifyLink, fileLinks, linkCounts, linkProblems } from './fixtures/link-walk.mjs';
 import type { LinkKind } from './fixtures/link-walk.mjs';
 

@@ -14,7 +14,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { runBounded } from '../../../tools/testing/subprocess.js';
+import { runBounded } from '@tools/testing/subprocess.js';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, posix, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,7 +42,7 @@ import { clearNativeContexts } from '../src/resource-context.js';
 import type { ResourceAssociation, ResourceFilePin, ResourceOccurrence, ResourceUse } from '../src/resources.js';
 import { inert } from '../src/projection-host.js';
 import { resourceVerifier } from '../src/projection-routine.js';
-import { assignFeatures, featureFiles, resourcesResolve } from '../../../tools/projections/live-features.mjs';
+import { assignFeatures, featureFiles, resourcesResolve } from './support/live-features.js';
 // The one link rule for projected Markdown, shared with the isolated packed consumer.
 import { linkCounts, linkProblems } from '../../../tools/projections/fixtures/link-walk.mjs';
 

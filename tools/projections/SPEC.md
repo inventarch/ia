@@ -1,4 +1,53 @@
-# Public projection fixtures
+# projections tooling contract
+
+## Purpose
+
+Generate repository host projections and retain supported legacy cleanup and installed projection/resource qualifiers.
+
+## Modules
+
+- [generate.test.ts](generate.test.ts) — behavior and refusal coverage.
+- [generate.ts](generate.ts).
+- [legacy-stewards.ts](legacy-stewards.ts).
+- [link-walk.test.ts](link-walk.test.ts) — behavior and refusal coverage.
+- [membership.test.ts](membership.test.ts) — behavior and refusal coverage.
+- [qualify-projections.mjs](qualify-projections.mjs).
+- [qualify-resources.mjs](qualify-resources.mjs).
+
+## Commands
+
+- `pnpm resources:qualify`: `node tools/projections/qualify-resources.mjs`.
+- `pnpm projections:qualify`: `node tools/projections/qualify-projections.mjs`.
+- `pnpm projections:check`: `node --conditions=development --import tsx tools/projections/generate.ts --check`.
+- `pnpm projections:generate`: `node --conditions=development --import tsx tools/projections/generate.ts --write`.
+
+Commands report success as exit 0 and evaluated failure as exit 1. Corrected strict parsers use exit 2 for usage errors. Existing command-specific defaults, flags and refusal behavior are described below; a check never implies a write.
+
+## Inputs
+
+Authored native records, authoring resource manifests, host projection policy and retained compatibility fixtures.
+
+## Outputs
+
+generate --check compares without writes; --write applies admitted managed projections. Qualifiers allocate and clean owned consumer fixtures.
+
+## Prerequisites
+
+Source-aware generator or built-in Node qualification adapters with pinned pnpm; resource generation precedes projection generation.
+
+## Validation
+
+Task ownership: `tools:test-projections`, `projections:check`, `resources:qualify`, `projections:qualify`. `tools/testing/tasks.json` declares platform, timeout, prerequisite, output and input-profile contracts; `nx.json` defines their actual file/runtime inputs. Live discovery and mutation tests validate coverage and caching.
+
+## Invariants
+
+Unknown generator options exit 2 without suggesting mutation. Qualifier arguments are checked before allocation. Legacy marker literals and 1.x retirement fixtures remain supported.
+
+## Limits
+
+Installed qualification is distinct from repository source checks. Exact archive reuse is established by the distribution consumer milestone.
+
+## Detailed behavior
 
 Original synthetic native records and inert resources exercise public host projection, template rendering and distribution commands. Generated output does not establish live agent qualification.
 

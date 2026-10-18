@@ -1,3 +1,4 @@
+import { gitText } from '../shared/git.mjs';
 import assert from 'node:assert/strict';
 import { manifestProblems, publicPackages } from './release-packages.mjs';
 import { BUMPS, bumpVersion, maxBump, packageOwner, pendingNotes, releaseBump } from './release-notes.mjs';
@@ -13,20 +14,12 @@ import { nativeVersionOnly, NATIVE_COMPOSITION_FIXTURE } from '../release/native
 export const RELEASE_POLICY = 'releases/current.json';
 export const SYSTEM_PACKAGE_POLICY = 'tools/distribution/system-package-policy.json';
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
-export const stableVersion = (version) =>
-  typeof version === 'string' && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version);
-export function compareVersions(left, right) {
-  assert.ok(stableVersion(left) && stableVersion(right), 'Stable package versions are required');
-  const a = left.split('.').map(Number),
-    b = right.split('.').map(Number);
-  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
-  return 0;
-}
+export { stableVersion, compareVersions } from '../shared/semver.mjs';
+import { stableVersion, compareVersions } from '../shared/semver.mjs';
 export const changesetPath = (version) => `releases/changesets/${version}.json`;
 export const releaseTag = (version) => `v${version}`;
 const json = (root, path) => JSON.parse(readFileSync(resolve(root, path), 'utf8'));
-const git = (root, ...args) =>
-  execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024 }).trim();
+const git = (root, ...args) => gitText(root, args);
 export function releasePolicy(root) {
   const policy = json(root, RELEASE_POLICY);
   assert.equal(policy.format, 'ia.npm-cohort.v1');

@@ -1,6 +1,12 @@
 import { closeSync, fstatSync, openSync, readSync, statSync } from 'node:fs';
 
-/** Select an argv-safe invocation of a trusted installed package-manager entry. Never invoke a shell. */
+/**
+ * Select an argv-safe invocation of a trusted installed package-manager entry. Never invoke a shell.
+ * @param {string} launcher
+ * @param {readonly string[]} args
+ * @param {string} [nodePath]
+ * @returns {{command: string, args: string[]}}
+ */
 export function packageManagerCommand(launcher, args, nodePath = process.execPath) {
   if (typeof launcher !== 'string' || !launcher || !Array.isArray(args) || args.some((arg) => typeof arg !== 'string'))
     throw new Error('Invalid package-manager invocation');
@@ -29,7 +35,7 @@ export function packageManagerCommand(launcher, args, nodePath = process.execPat
       'bfbafeca',
     ].includes(magic);
   if (native) return { command: launcher, args: [...args] };
-  const firstLine = header.toString('utf8').split(/\r?\n/, 1)[0];
+  const firstLine = header.toString('utf8').split(/\r?\n/, 1)[0] ?? '';
   const nodeScript =
     /^#![^\r\n]*[/\s]node(?:[ \t]|$)/.test(firstLine) ||
     (!firstLine.startsWith('#!') && /\.[cm]?js$/i.test(launcher) && !header.includes(0));

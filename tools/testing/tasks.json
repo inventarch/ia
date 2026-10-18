@@ -3676,6 +3676,56 @@
       "covers": [
         "vitest run --config vitest.tools.config.mts --maxWorkers=1"
       ]
+    },
+    {
+      "id": "tools:test-shared",
+      "kind": "vitest",
+      "project": ".",
+      "files": [
+        "tools/shared/contracts.test.ts"
+      ],
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "repository-inventory",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-test-shared"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "io",
+      "covers": [
+        "vitest run --config vitest.tools.config.mts --maxWorkers=1"
+      ]
+    },
+    {
+      "id": "tools:typecheck-js",
+      "kind": "command",
+      "project": ".",
+      "command": "pnpm tools:typecheck-js",
+      "profile": "unit",
+      "platforms": [
+        "linux",
+        "windows",
+        "macos"
+      ],
+      "mode": "source",
+      "inputProfile": "tooling",
+      "dependsOn": [],
+      "outputs": [
+        "artifacts/tests/tools-typecheck-js"
+      ],
+      "cache": true,
+      "workerLimit": 1,
+      "resourceClass": "pure",
+      "covers": [
+        "tsc -p tsconfig.tools-js.json"
+      ]
     }
   ]
 }

@@ -1,6 +1,6 @@
 # Markdown link parsing reference
 
-This is the maintained parsing and reader-policy reference for [documentation tooling](SPEC.md). [markdown.mjs](markdown.mjs) owns syntax extraction and URI decomposition. [check.ts](check.ts), [catalog.mjs](catalog.mjs) and [teaching-links.ts](../systems/teaching-links.ts) apply their own target and access policies to that result. Downstream consumers may vendor the fixtures and implement the same contract without a sibling checkout.
+This is the maintained parsing and reader-policy reference for [documentation tooling](SPEC.md). [markdown.mjs](markdown.mjs) owns syntax extraction and URI decomposition. [check.ts](check.ts), [catalog.mjs](catalog.mjs) and [teaching-links.ts](teaching-links.ts) apply their own target and access policies to that result. Downstream consumers may vendor the fixtures and implement the same contract without a sibling checkout.
 
 ## Grammar and extraction
 

@@ -200,7 +200,7 @@ const NOT_ENTRY_POINTS: Readonly<Record<string, { reason: string; loadedBy?: rea
     reason: 'a library that creates isolated public system fixtures',
     loadedBy: ['tools/systems/scenarios.ts'],
   },
-  'tools/systems/refusal-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
+  'tools/compliance/execution-fixtures.ts': { reason: 'a library', loadedBy: ['tools/compliance/check.ts'] },
 };
 // The scripts Node runs directly: every module under tools/, whatever its flavour, and the plain-JavaScript files
 // beside the apps' and packages' tests, which package scripts and tests start with node. Tests and fixtures are left out.

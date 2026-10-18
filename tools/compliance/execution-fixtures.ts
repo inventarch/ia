@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Finding, FixtureResult } from '../../packages/compliance/src/index.js';
 import { assess } from '../../packages/compliance/src/types.js';
-import { execute } from './execute.js';
-import { publish } from './publish.js';
-import { EXEC_CODES, ExecutionError } from './types.js';
-import type { Result } from './types.js';
+import { execute } from '../systems/execute.js';
+import { publish } from '../systems/publish.js';
+import { EXEC_CODES, ExecutionError } from '@inventarch/runtime/authoring-execution';
+import type { Result } from '@inventarch/runtime/authoring-execution';
 
 /** Diagnostics reachable through the current platform's real publication boundary. */
 export function executionFixtureCodes(): readonly string[] {

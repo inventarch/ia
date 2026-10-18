@@ -37,7 +37,8 @@
       },
       {
         "env": "RUNNER_OS"
-      }
+      },
+      "{workspaceRoot}/tsconfig.tools-js.json"
     ],
     "default": [
       "{projectRoot}/**/*",

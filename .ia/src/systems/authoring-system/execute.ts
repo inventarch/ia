@@ -1,6 +1,6 @@
 import { DraftError, formatDraft, validateDraft } from '@inventarch/authoring-system';
-import { ExecutionError } from '../../../../tools/systems/types.js';
-import type { Context, Product } from '../../../../tools/systems/types.js';
+import { ExecutionError } from '@inventarch/runtime/authoring-execution';
+import type { Context, Product } from '@inventarch/runtime/authoring-execution';
 
 export function validateIA(context: Context, input: unknown): Product {
   return draft(context, input, false);
