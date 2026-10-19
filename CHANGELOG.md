@@ -2,6 +2,34 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.2.2
+
+Coordinated 3.2.2 release of the 23 public npm packages: Judge a held user host lock from one opened file; Reuse one IA home across the checkpoint convergence test passes; Verify the host payload once per ia host apply.
+
+### Judge a held user host lock from one opened file
+
+When `ia host claude --user` finds its lock, `<IA home>/claude/.lock`, held by another run, @inventarch/distribution now judges whether that lock is stale from one opened file: its type, age and pid all come from a single descriptor, and a stale lock is removed only after its name is found, while that descriptor is open, to still name the judged file (CodeQL js/file-system-race). A lock that replaced the judged file before that check is therefore no longer removed; a brief window between the check and the removal remains, as Node has no unlink-if-same. A symbolic link or other non-regular file at the lock path now counts as busy and is not taken over, and a FIFO at the lock path no longer hangs the takeover; each refuses IA-DIST-INSTALL-BUSY, as does a lock file the run cannot open. Locks the CLI writes are judged as before: taken over once their pid has died, after 10 minutes, or after 10 seconds when their pid is empty or unparseable. The IA-DIST-INSTALL-BUSY message is unchanged.
+
+Packages: `@inventarch/distribution`.
+
+### Reuse one IA home across the checkpoint convergence test passes
+
+Test-only: the CLI's checkpoint convergence test writes the host payload once instead of on every pass. No behaviour changes for consumers.
+
+Packages: `@inventarch/cli`.
+
+### Verify the host payload once per ia host apply
+
+ia host --apply shares one verification of the host payload (about 1,400 files) between its MCP plan and its projection pre-check, so an apply scans the payload fewer times. Each step that writes still verifies afresh, so a payload that changes during the command still refuses the apply. In @inventarch/distribution, planHost, planHookRegistration and materializeHostPayload take an optional verify parameter for that shared verification: only a verifier from hostVerifier (./host-observe) is shared, and any other function is ignored in favour of a fresh check.
+
+Packages: `@inventarch/cli`, `@inventarch/distribution`.
+
+### Coordinated version alignment
+
+Package and native artifact version metadata follows the coordinated 3.2.2 release.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/db`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runner`, `@inventarch/runtime`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-runtime`, `@inventarch/workspace-system`.
+
 ## 3.2.1
 
 Coordinated 3.2.1 release of the 23 public npm packages: Refuse a coordinate value whose text conversion throws as an unknown value.

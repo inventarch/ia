@@ -1,0 +1,533 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.2.2",
+  "state": "consumed",
+  "baseline": {
+    "commit": "59ffc30ae41f02f3acdf5dab4efbe4a00717a471",
+    "version": "3.2.1"
+  },
+  "bump": "patch",
+  "summary": "Coordinated 3.2.2 release of the 23 public npm packages: Judge a held user host lock from one opened file; Reuse one IA home across the checkpoint convergence test passes; Verify the host payload once per ia host apply.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/cli": {
+      "previous": "3.2.1",
+      "kind": "changed",
+      "summary": "Reuse one IA home across the checkpoint convergence test passes. Verify the host payload once per ia host apply."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/db": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.2.1",
+      "kind": "changed",
+      "summary": "Judge a held user host lock from one opened file. Verify the host payload once per ia host apply."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/graph": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/language": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/runner": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.2.1",
+      "kind": "cohort",
+      "summary": "Package and native artifact version metadata aligned with the coordinated cohort."
+    }
+  },
+  "changes": [
+    {
+      "id": "judge-a-held-user-host-lock-from-one-opened-file",
+      "title": "Judge a held user host lock from one opened file",
+      "summary": "When `ia host claude --user` finds its lock, `<IA home>/claude/.lock`, held by another run, @inventarch/distribution now judges whether that lock is stale from one opened file: its type, age and pid all come from a single descriptor, and a stale lock is removed only after its name is found, while that descriptor is open, to still name the judged file (CodeQL js/file-system-race). A lock that replaced the judged file before that check is therefore no longer removed; a brief window between the check and the removal remains, as Node has no unlink-if-same. A symbolic link or other non-regular file at the lock path now counts as busy and is not taken over, and a FIFO at the lock path no longer hangs the takeover; each refuses IA-DIST-INSTALL-BUSY, as does a lock file the run cannot open. Locks the CLI writes are judged as before: taken over once their pid has died, after 10 minutes, or after 10 seconds when their pid is empty or unparseable. The IA-DIST-INSTALL-BUSY message is unchanged.",
+      "packages": [
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/distribution/"
+      ]
+    },
+    {
+      "id": "reuse-one-ia-home-across-the-checkpoint-converge",
+      "title": "Reuse one IA home across the checkpoint convergence test passes",
+      "summary": "Test-only: the CLI's checkpoint convergence test writes the host payload once instead of on every pass. No behaviour changes for consumers.",
+      "packages": [
+        "@inventarch/cli"
+      ],
+      "paths": [
+        "apps/cli/tests/"
+      ]
+    },
+    {
+      "id": "verify-the-host-payload-once-per-ia-host-apply",
+      "title": "Verify the host payload once per ia host apply",
+      "summary": "ia host --apply shares one verification of the host payload (about 1,400 files) between its MCP plan and its projection pre-check, so an apply scans the payload fewer times. Each step that writes still verifies afresh, so a payload that changes during the command still refuses the apply. In @inventarch/distribution, planHost, planHookRegistration and materializeHostPayload take an optional verify parameter for that shared verification: only a verifier from hostVerifier (./host-observe) is shared, and any other function is ignored in favour of a fresh check.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/distribution"
+      ],
+      "paths": [
+        "apps/cli/",
+        "apps/distribution/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package and native artifact version metadata follows the coordinated 3.2.2 release.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/compliance",
+        "@inventarch/compliance-system",
+        "@inventarch/db",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/mcp-door",
+        "@inventarch/runner",
+        "@inventarch/runtime",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-runtime",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/package.json",
+        ".ia/src/systems/agent-system/package.json",
+        ".ia/src/systems/authoring-system/package.json",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/workspace-system/package.json",
+        "apps/mcp-door/package.json",
+        "apps/runner/package.json",
+        "apps/steward-hook/package.json",
+        "packages/compliance/package.json",
+        "packages/db/package.json",
+        "packages/graph/package.json",
+        "packages/language/package.json",
+        "packages/runtime/package.json",
+        "packages/service-contracts/package.json",
+        "packages/workspace-runtime/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        ".github/",
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "package.json",
+        "releases/",
+        "tools/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".github/actions/setup/action.yml",
+      "sha256": "955f89377c5d21084d5290c60177af261c30c80b0dd322d7cdbaac330213e755",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".github/workflows/platform-quality.yml",
+      "sha256": "23d0c5bb400bdb1b18de16f59bd02ae1da43dfffd7a21a3f37f6ef0ccb9babbb",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "7ed2c0aefa482e0cd128a61bb1a8bbf100ccaa24a7936cce54d4ae7b19df9bdd",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "b0a4147fcf23907307280148700e4256bdd54d34cf9009ce1fb725c521951422",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "d4c7d03c56baa77db83f0379ad7a0021a2843ff92199c7c256e359dd8f80c395",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "a7ef147863131766554ae0ab4cbd0a3fa830062bfc35d299816548ffeca45fd2",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "0e91b2ec6d8ea08e95eed1ebfe7dc689233d1716dd9fc41d23e80c43d70cc22b",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "9e30482d21076eb06b771950d1efe07251e02fc0c64049be077f2fd824ad4573",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "59d45924dccbc99d7cf817fe8b545931442e85aa11691bee335964d8e4d73b3e",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "e946275d96e9f3573d86872b3b9d0b5fb8e04c5287d83f3ff74fca5300abfb60",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "68a9e5c8f2f27c4b0524737de78134d2e0cb94bc6bc0bf3267c47af519b269f9",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "eefe581a572a545b80b83f747a314c5260273444174253144ccd046070c9e9ac",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "d92e4111765a6d257e2eb7153a5d5737c2c49e9dadcb198bb13afc2e28652672",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "103038931c5f6a24dc308ce1d434a386605c17081a8bdfad84eddc2edc78f6a2",
+      "change": "verify-the-host-payload-once-per-ia-host-apply"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "54a9429761f964c4d8c6cf470e7537918fcdc38fa23cc4fc02c32a472695498c",
+      "cohortOnly": true,
+      "change": "verify-the-host-payload-once-per-ia-host-apply"
+    },
+    {
+      "path": "apps/cli/src/host-projection.ts",
+      "sha256": "51730b4d1cd3ea9a0e8fc4ec94b5b26c9977dc1d61f17007bed0217bc65eb44a",
+      "change": "verify-the-host-payload-once-per-ia-host-apply"
+    },
+    {
+      "path": "apps/cli/src/host.ts",
+      "sha256": "372dca792158a93c5ef250c43527e6c5d35cac97e8054fa491d806a4f8279b5c",
+      "change": "verify-the-host-payload-once-per-ia-host-apply"
+    },
+    {
+      "path": "apps/cli/tests/host-fixture.ts",
+      "sha256": "b7e4bbf3a0f1e2ecd584a64fade232e9ae9a6f7061375493446772eae22724a0",
+      "change": "reuse-one-ia-home-across-the-checkpoint-converge"
+    },
+    {
+      "path": "apps/cli/tests/host-generated.test.ts",
+      "sha256": "6e8fe91c59243cce8cd175856a929195668bc97abe2deccc1d3c69bf25512316",
+      "change": "reuse-one-ia-home-across-the-checkpoint-converge"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "7147cf610d38d4b04b178e88543c512df3f7c657a27b96957c28abed1c812cf6",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "d31dcbf629bf06f459dcff487977a90be7464fde299d316b05bbdb533859b7f2",
+      "cohortOnly": true,
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/src/guard-registration.ts",
+      "sha256": "3efc861e4fac0f4c139bc9843e53c95288238853040515dc4222ce41839648b7",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/src/host-home.ts",
+      "sha256": "fee45d411d04e17068c22ff56b9e31eb1713c534fbd353750b3c62f1611bfcb5",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/src/host-observe.ts",
+      "sha256": "11566b2467b0c08496a3774cd13daa2839baf27a83edfa7dd68fc3f298a9b12d",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/src/host-verdict.ts",
+      "sha256": "574e43238d8e4b2213c8217770029511f5760816fcda8efa871ef5cf38d34723",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/src/host.ts",
+      "sha256": "d8e4adb68336476578571f5f6f79ab4d4e5dadeb15a5176a86eb1463ee09697c",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/src/plugin-home.ts",
+      "sha256": "9eb1b2d2f6edc4317e9cb004d64c8c1c5af589aebd5969c6ed3c4958b2fcd615",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/tests/guard-registration.test.ts",
+      "sha256": "065e51bb3f26a4d0bd9b503e68268acbb6276a8d42c3c4d2d587553099718c40",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/tests/host-home.test.ts",
+      "sha256": "b32c49aa3c7abee34bc681f93829d05951dde510846e024eb8da6af6c6770a71",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/tests/host.test.ts",
+      "sha256": "a7b444b8ab0f69460e93e65d5d57bacbc200cd74d1ccf3350f12d195f5d7541d",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/distribution/tests/plugin-home.test.ts",
+      "sha256": "47dd8577a95bbc00256e5b82ecfcf7230f9798b4c13599d3e22ab6ede35b56d1",
+      "change": "judge-a-held-user-host-lock-from-one-opened-file"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "2c200162a147168af55e12b16fd2f003d2a2a2799b2eeda65988ecfeb9a4d11e",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "6da3b168f9b02346bc20783ffe78019d1ae32f53448e71f4e14ec1137a35f9e7",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "f29401f15404718d0d5e1a5a41356b830b3da7b338acf713f6a8283900085e3c",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "fde6542f6fd32d84de9313d55bc9cf317ce611f9014eb39df657abbca8295359",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "eafc3f5fff2e5301ea4188ac6dc60350cdcc8ee9d447655d5c3485818952badd",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "package.json",
+      "sha256": "0641d67ac8f71be7872bfcc3a0e8e85fbe2d296aecae7e11326a1069b8565d10",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "d2f63e4e472cb9ad5502d0f30f5bb9549683d99efe4552ad824898ef11da1523",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "473e5104b36f5b586f6ebca42d94e41fa973628e0eb3a04d6407633f3e3c0556",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "37a0488ad3104739181d00dca8ef2ff498d2fc259dbede0ba6b9c7675263df19",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "74187ec941417fb1706d489ce8a224834e63b4aaef1305636739e03d610721cf",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "86814dc2e2769cd937a884fb09a93b7b033869f56c0c435de23e1dbd2a8a04b0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "34854c1e5dc9f46dce5fd5166085a6156581eb53481892bec046eeada18d6417",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "8ab2e18b996403f2bf282b28aa5e146206e4bbafd5e9f9e5bca0750e0ccca0ca",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "4e38f35b1288e619e52caeb54ed75699cc8f4efc7eb3aea59dc015ac25d147a9",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "558da6c7f7fdd55c418ea3cfb48548caacd5d4c87e7abddb36bbaa2331464421",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/SPEC.md",
+      "sha256": "865c6f8f8f001e2bae266e851fd6cbcb872aeb5554b96e2fb06719b87a47a78c",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/inventory.test.ts",
+      "sha256": "bfe99958f46a239126f1bfd784f5dce9e7b408f40d6d4cc0b9c2c8e9fabc842a",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/orchestrate.ts",
+      "sha256": "4cf7f2227276da10ef8e45efab2f7186124fd8ba50313bc4cc25537104bc5137",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/plan.test.ts",
+      "sha256": "2a384c0ca9b36864177630080d5f912b0441384898a466dbbc35b9a50cff6a31",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/plan.ts",
+      "sha256": "6e4498c78915ef1a6dbc64de28fb94ae93f46a2a52b8e31dc1738bb01117a23d",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/schedule.json",
+      "sha256": "005c36f39221d93d86607cb9db525c315be7f57fc46abfb8ca604b9f941df179",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "d6bb4a8731bb04b46aafe0c7774b92cccb597c91408738ae1669cf0500558d3d",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/verdict.test.ts",
+      "sha256": "65f36f281f7f25a0a94609def8faa6651240a8ce18cf49351e05b0b786c5a997",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/testing/verdict.ts",
+      "sha256": "6b8e42d3cbf7a0bdcfb5db799c99d4c6ae1956fb28847d0c6cd42fb6a80f80cd",
+      "change": "repository-maintenance"
+    }
+  ]
+}

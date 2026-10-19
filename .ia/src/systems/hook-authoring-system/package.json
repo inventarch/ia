@@ -1,6 +1,6 @@
 {
   "name": "@inventarch/hook-authoring-system",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "type": "module",
   "exports": {
     "./native.ia.tgz": "./dist/native.ia.tgz",
