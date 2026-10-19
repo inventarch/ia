@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, rmSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { verifyFixtures, verifyKernel } from '@inventarch/compliance';
 import type { Report } from '@inventarch/compliance';
 import { KERNEL_SOURCES } from '@inventarch/language';
 import { bindChecks, EVIDENCE_DIRECTORY, evidenceText, open, readEvidence, writeEvidence } from '../src/index.js';
@@ -9,9 +8,21 @@ import { EditorDatabase } from '../src/editor/index.js';
 import { methodId, methodPath, put, workspace } from './workspace.js';
 
 // D10: the conformance producers, wrapped but unchanged, so a test can count the runs a reader starts.
+// The wrapper keeps the count, not mock history, which Vitest 5 clears before every test.
+const produced = vi.hoisted(() => ({ kernel: 0, fixtures: 0 }));
 vi.mock('@inventarch/compliance', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@inventarch/compliance')>();
-  return { ...actual, verifyKernel: vi.fn(actual.verifyKernel), verifyFixtures: vi.fn(actual.verifyFixtures) };
+  return {
+    ...actual,
+    verifyKernel: (...args: Parameters<typeof actual.verifyKernel>) => {
+      produced.kernel += 1;
+      return actual.verifyKernel(...args);
+    },
+    verifyFixtures: (...args: Parameters<typeof actual.verifyFixtures>) => {
+      produced.fixtures += 1;
+      return actual.verifyFixtures(...args);
+    },
+  };
 });
 
 describe('cache-free editor capture', () => {
@@ -95,10 +106,7 @@ describe('cache-free editor capture', () => {
 describe('conformance verification (D10)', () => {
   const draft = { path: '.ia/src/draft.ia', text: '#! ia 1.0\n' };
   /** How many times this process has run each producer. */
-  const runs = () => ({
-    kernel: vi.mocked(verifyKernel).mock.calls.length,
-    fixtures: vi.mocked(verifyFixtures).mock.calls.length,
-  });
+  const runs = () => ({ ...produced });
   /** The report's COMP-KERNEL and COMP-FIXTURES verdicts, with their basis when they carry one. */
   const conformance = (report: Report) =>
     report.verdicts
