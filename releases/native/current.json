@@ -1,10 +1,10 @@
 {
   "format": "ia.native-release.v1",
   "baseline": {
-    "tag": "v3.2.2",
-    "commit": "2ed82f0d889cdd060ee6ee3f7dd345ab4d751c2b"
+    "tag": "v3.3.0",
+    "commit": "420213b86beac453c9547da7a12b2822d7888f62"
   },
-  "notesSha256": "e7fc047429ca30db907a47cb50d6ccb0b46474d28b0328a9b345261559d5a93e",
+  "notesSha256": "a780c1576f23ecad3d6f9eff0537c9bc534dfdf045459b5923021ba1875d83c5",
   "archives": [
     {
       "id": "inventarch/agent-composition-system",
