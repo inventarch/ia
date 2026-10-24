@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Describe the user host lock's busy-create waits as they run, and pin its day-old takeover at the ends of the owner range",
+  "summary": "Docs and tests only. The package's SPEC.md now describes how an exclusive create of the user host lock, `<IA home>/claude/.lock`, waits while a busy code refuses it: the waits start at 1 millisecond and double to at most 50, each begins less than 250 milliseconds after the create's first try began, and the create after each takeover attempt starts over. It said the create was retried for up to 250 milliseconds. New tests pin that a lock naming pid 1 or 2147483647, the ends of the owner range, whose pid is running is still busy 23 hours old and is taken over 25 hours old. The package's code, behavior and API are unchanged.",
+  "packages": [
+    "@inventarch/distribution"
+  ],
+  "paths": [
+    "apps/distribution/SPEC.md",
+    "apps/distribution/src/plugin-home.ts",
+    "apps/distribution/tests/plugin-home.test.ts"
+  ]
+}

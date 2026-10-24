@@ -540,6 +540,48 @@ it.each([1, 2147483647])(
     }
   },
 );
+// The day backstop at both ends of the owner range: a lock naming pid 1 or 2147483647 whose pid runs (here it does, as
+// process.kill answers when asked about that pid) is still busy 23 hours old and taken over 25 hours old, as the live
+// pids' locks in the table above are. Past a day the backstop decides before process.kill would be asked, so whether
+// it was is pinned only under a day. Ages are set with utimesSync, never waited out.
+it('takes over a lock naming pid 1 or 2147483647, which process.kill answers is running, past a day, and refuses INSTALL-BUSY untouched under one', () => {
+  const minutes = 60_000,
+    token = ` ${OTHER_TOKEN}`;
+  const cases: Record<string, readonly [pid: number, ageMs: number, takenOver: boolean]> = {
+    'pid 1 and token, 23 hours old': [1, 23 * 60 * minutes, false],
+    'pid 1 and token, 25 hours old': [1, 25 * 60 * minutes, true],
+    'pid 2147483647 and token, 23 hours old': [2147483647, 23 * 60 * minutes, false],
+    'pid 2147483647 and token, 25 hours old': [2147483647, 25 * 60 * minutes, true],
+  };
+  const seen: Record<string, unknown> = {},
+    expected: Record<string, unknown> = {};
+  const kill = vi.spyOn(process, 'kill').mockReturnValue(true);
+  try {
+    for (const [name, [pid, ageMs, takenOver]] of Object.entries(cases)) {
+      const home = join(temp(), '.ia'),
+        lockPath = join(home, 'claude', '.lock'),
+        text = `${pid}${token}`;
+      mkdirSync(join(home, 'claude'), { recursive: true });
+      writeFileSync(lockPath, text);
+      const when = new Date(Date.now() - ageMs);
+      utimesSync(lockPath, when, when);
+      kill.mockClear();
+      seen[name] = {
+        outcome: materialized(home),
+        lock: existsSync(lockPath) ? readFileSync(lockPath, 'utf8') : null,
+        version: readMaterializedPlugin(home)?.version ?? null,
+        askedKill: kill.mock.calls.some(([target, signal]) => target === pid && signal === 0),
+      };
+      expected[name] = takenOver
+        ? { outcome: 'materialized', lock: null, version: '0.1.0+aaa', askedKill: expect.any(Boolean) }
+        : { outcome: heldBy(lockPath), lock: text, version: null, askedKill: true };
+    }
+  } finally {
+    kill.mockRestore();
+  }
+  // One comparison, so a changed verdict shows every case it moves, not only the first.
+  expect(seen).toEqual(expected);
+});
 // Only ESRCH from process.kill means the pid is not running: any other error, such as the EPERM another user's or a
 // protected process answers, leaves the lock busy until it is a day old, so a live run is not taken over.
 it('refuses INSTALL-BUSY untouched for a lock under a day old whose pid process.kill answers with EPERM', () => {

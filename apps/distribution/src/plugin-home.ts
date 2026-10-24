@@ -76,7 +76,11 @@ const LOCK_NAME = '.lock',
    */
   LOCK_LIVE_BACKSTOP_MS = 24 * 60 * 60 * 1000,
   LOCK_TAKEOVER_ATTEMPTS = 5,
-  /** How long the exclusive create waits out a lock name another run is still removing (on Windows, under 1 ms). */
+  /**
+   * How long from a `createLock` call's first try it may still begin a wait before retrying a busy create, as for a
+   * lock name another run is still removing (on Windows, under 1 ms); each call starts over. The last wait can end
+   * after it: a call's waits total at most 263 ms, if each ends on time.
+   */
   LOCK_PENDING_WAIT_MS = 250,
   /** A pid is at most 10 decimal digits on every platform and leads the lock; no more is read to judge one. */
   LOCK_PID_BYTES = 32,
@@ -279,10 +283,11 @@ function acquireLock(parent: string): HeldLock {
 /**
  * Creates the lock exclusively and writes `owner` to it: true once created, false while its name is taken. On Windows
  * a name another run is removing stays delete-pending for well under a millisecond, and the exclusive create refuses
- * it with a busy code (`BUSY_CODES`); that is waited out for up to `LOCK_PENDING_WAIT_MS`. A busy code that outlasts
- * the wait while a file still holds the name is judged like any held lock; once nothing holds the name, one more
- * create is tried, and a busy code from it, or a permission code off Windows (`PERMISSION_CODES`), is a permission
- * problem and refuses INPUT-INVALID, naming the directory. Any other error is rethrown.
+ * it with a busy code (`BUSY_CODES`); that is retried after waits that start at 1 ms and double to at most 50 ms, each
+ * begun less than `LOCK_PENDING_WAIT_MS` after this call's first try began (each call starts over). A busy code after
+ * that while a file still holds the name is judged like any held lock; once nothing holds the name, one more create
+ * is tried, and a busy code from it, or a permission code off Windows (`PERMISSION_CODES`), refuses INPUT-INVALID,
+ * naming the directory and saying to check its permissions. Any other error is rethrown.
  */
 function createLock(path: string, owner: string): boolean {
   const deadline = Date.now() + LOCK_PENDING_WAIT_MS;
