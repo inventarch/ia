@@ -1035,8 +1035,9 @@ describe('native release writer', () => {
       message:
         'Prepared release 3.2.0 does not cover 13 native version file(s): ' +
         '.ia/src/systems/agent-composition-system/system.ia, .ia/src/systems/authoring-system/system.ia, ' +
-        '.ia/src/systems/hook-authoring-system/system.ia and 10 more. On the release branch, run pnpm ' +
-        'release:version --write --refresh. On any other branch, wait for v3.2.0 to be tagged, then update from main, retarget native notes to that tag, and regenerate native selections.',
+        '.ia/src/systems/hook-authoring-system/system.ia and 10 more. On the release branch, commit the native ' +
+        'changes, then run pnpm release:version --write --refresh and commit its changes, giving each of those new ' +
+        'commits the message line "IA-Release-Preparation: v1". On any other branch, wait for v3.2.0 to be tagged, then update from main, retarget native notes to that tag, and regenerate native selections.',
     });
     expect(() => releaseChanges(root, projects())).toThrow(
       expect.objectContaining({

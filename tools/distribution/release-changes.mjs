@@ -10,6 +10,7 @@ import { parseArgs } from 'node:util';
 import { isEntry } from '../entry/is-entry.mjs';
 import { publicPackageInputs } from '../release/public-pack.mjs';
 import { nativeVersionOnly, NATIVE_COMPOSITION_FIXTURE } from '../release/native-selectors.mjs';
+import { PREPARATION_MARKER } from './release-branch.mjs';
 
 export const RELEASE_POLICY = 'releases/current.json';
 export const SYSTEM_PACKAGE_POLICY = 'tools/distribution/system-package-policy.json';
@@ -391,7 +392,8 @@ export function releaseStatus(root, projects) {
       !uncovered.length,
       `Prepared release ${policy.version} does not cover ${uncovered.length} native version file(s): ` +
         `${uncovered.slice(0, 3).join(', ')}${uncovered.length > 3 ? ` and ${uncovered.length - 3} more` : ''}. ` +
-        'On the release branch, run pnpm release:version --write --refresh. ' +
+        'On the release branch, commit the native changes, then run pnpm release:version --write --refresh and commit ' +
+        `its changes, giving each of those new commits the message line "${PREPARATION_MARKER}". ` +
         `On any other branch, wait for ${releaseTag(policy.version)} to be tagged, then update from main, retarget native notes to that tag, and regenerate native selections.`,
     );
   }
