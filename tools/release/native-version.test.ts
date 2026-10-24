@@ -622,6 +622,20 @@ describe('published native evidence and candidate ledger', () => {
     git('tag', 'v3.2.4');
     expect(nativeBaseline(root).archives.find((row) => row.id === 'inventarch/core')!.version).toBe('3.2.4');
   });
+  it('refuses a published tag that lacks a native archive ledger, though a later commit adds one', () => {
+    const root = temporary(),
+      git = init(root),
+      previous = commit(root, 'Earlier published source');
+    write(root, 'releases/current.json', releasePolicy('3.0.0', '2.9.0', previous));
+    commit(root, 'Published without a native ledger');
+    git('tag', 'v3.0.0');
+    write(root, NATIVE_CURRENT, { format: 'ia.native-release.v1', archives });
+    commit(root, 'Ledger added after publication');
+    expect(refusal(() => nativeBaseline(root))).toEqual({
+      code: 'ERR_ASSERTION',
+      message: 'Published tag lacks a native archive ledger',
+    });
+  });
   it('retains the unchanged published ledger but refuses stale baseline and notes on an npm-only future target', () => {
     const { root, retained, published } = realNativeReleaseFixture();
     expect(nativeRelease(root, 'check').changed).toEqual([]);
@@ -1081,6 +1095,38 @@ describe('native release writer', () => {
     expect(Object.values(result.versions)).toEqual(Array(12).fill('4.0.0'));
     expectNativeWriterSelection(root, before, '4.0.0');
     expect(nativeRelease(root, 'check').archives).toEqual(result.archives);
+  }, 120_000);
+
+  it('plans without writing: refuses a stale npm baseline as the check does, then returns the 4.0.0 selection the writer writes', () => {
+    const { root, git, prior, retained, published } = realNativeReleaseFixture();
+    // Plan refuses a stale npm baseline as check does.
+    write(root, 'releases/current.json', releasePolicy('4.0.0', '2.9.0', prior));
+    const stale = { code: 'ERR_ASSERTION', message: 'Native published baseline differs from npm published baseline' };
+    expect(refusal(() => nativeRelease(root, 'check'))).toEqual(stale);
+    expect(refusal(() => nativeRelease(root, 'plan'))).toEqual(stale);
+    write(root, 'releases/current.json', releasePolicy('4.0.0', '3.0.0', published));
+    commit(root, 'Prepare 4.0.0');
+    const before = nativeWriterSnapshot(root),
+      planned = nativeRelease(root, 'plan');
+    // Nothing moved: not one of the 26 selector and ledger paths the writer would write, nor any other file Git sees.
+    expect(nativeWriterSnapshot(root)).toEqual(before);
+    expect(git('status', '--porcelain')).toBe('');
+    expect(planned).toMatchObject({
+      target: '4.0.0',
+      baseline: { tag: 'v3.0.0', commit: published },
+      direct: [],
+      changed: [],
+    });
+    expect(planned.versions).toEqual(Object.fromEntries(retained.archives.map((row) => [row.id, '4.0.0'])));
+    // The writer then writes exactly that plan: its selection, and a fresh ledger of the planned archives.
+    expect(nativeRelease(root, 'write')).toEqual(planned);
+    expectNativeWriterSelection(root, before, '4.0.0');
+    expect(JSON.parse(readFileSync(resolve(root, NATIVE_CURRENT), 'utf8'))).toEqual({
+      format: 'ia.native-release.v1',
+      baseline: { tag: 'v3.0.0', commit: published },
+      notesSha256: null,
+      archives: planned.archives,
+    });
   }, 120_000);
 
   it('moves only a changed archive and its consumers by their notes, keeping the rest published', () => {
