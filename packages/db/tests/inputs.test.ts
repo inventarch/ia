@@ -38,6 +38,7 @@ import {
 } from '../src/index.js';
 import type { InputSnapshot } from '../src/index.js';
 import { readInstalledGeneration } from '../src/distribution/index.js';
+import { OPENED_READ_FLAGS } from '../src/named.js';
 import {
   blockingOpens,
   coarseTimes,
@@ -47,6 +48,7 @@ import {
   linkedWhileRead,
   otherDevice,
   outcome,
+  replacedAtOpen,
   shrinkWhileRead,
   socket,
   vanishAtRecheck,
@@ -60,6 +62,7 @@ vi.mock('node:fs', async (importOriginal) => {
     fstatSync: vi.fn(actual.fstatSync),
     lstatSync: vi.fn(actual.lstatSync),
     readSync: vi.fn(actual.readSync),
+    readFileSync: vi.fn(actual.readFileSync),
     closeSync: vi.fn(actual.closeSync),
   };
 });
@@ -133,6 +136,7 @@ afterEach(() => {
   vi.mocked(fstatSync).mockReset();
   vi.mocked(lstatSync).mockReset();
   vi.mocked(readSync).mockReset();
+  vi.mocked(readFileSync).mockReset();
   vi.mocked(closeSync).mockClear();
   for (const path of temporary.splice(0)) {
     const subpath = relative(resolve(tmpdir()), resolve(path));
@@ -728,7 +732,8 @@ it.skipIf(!constants.O_NOCTTY)(
       .mocked(openSync)
       .mock.calls.filter(([path]) => String(path) === state)
       .map(([, flags]) => Number(flags));
-    expect(flags).toHaveLength(1);
+    // The flags every reader that opens a name before it judges it shares, so no open can drift from the others.
+    expect(flags).toEqual([OPENED_READ_FLAGS]);
     expect(flags[0]! & constants.O_NOCTTY).toBe(constants.O_NOCTTY);
   },
 );
@@ -810,6 +815,146 @@ it('closes the installation file it opens, when it reads it and when it refuses 
 });
 
 // Authored package source capture (`readInputs` with `authoredRoots`).
+const CORPUS = '.ia/src/a.ia';
+const corpusWorkspace = (): string => {
+  const root = workspace();
+  put(root, CORPUS, '#! ia 1.0\n# a\n');
+  return root;
+};
+const corpus = (root: string): unknown => outcome(() => readInputs(root));
+const corpusText = (root: string): string | undefined =>
+  (corpus(root) as InputSnapshot).sources.find((source) => source.path === CORPUS)?.text;
+const irregularSource = {
+  code: 'IA-DB-SOURCE-UNAVAILABLE',
+  message: `IA-DB-SOURCE-UNAVAILABLE: Cannot read exact UTF-8 source ${CORPUS}: not a regular file`,
+};
+it('reads a corpus source through the descriptor it opens, and closes it when it reads it and when its read fails', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = corpusWorkspace(),
+    file = resolve(root, CORPUS),
+    opened = await descriptors(file);
+  expect(corpusText(root)).toBe('#! ia 1.0\n# a\n');
+  expect(opened).toHaveLength(1);
+  expect(readFileSync).toHaveBeenCalledWith(opened[0]);
+  expect(vi.mocked(readFileSync).mock.calls.filter(([path]) => String(path) === file)).toEqual([]);
+  expect(closeSync).toHaveBeenCalledWith(opened[0]);
+  // A read of that descriptor fails; the walk refuses it as it refuses any failed read.
+  vi.mocked(readFileSync).mockImplementation((...args: Parameters<typeof readFileSync>) => {
+    if (args[0] === opened.at(-1)) throw Object.assign(new Error('EIO: i/o error, read'), { code: 'EIO' });
+    return actual.readFileSync(...args);
+  });
+  vi.mocked(closeSync).mockClear();
+  expect(corpus(root)).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Cannot read exact UTF-8 source ${CORPUS}: Error: EIO: i/o error, read`,
+  });
+  expect(opened).toHaveLength(2);
+  expect(closeSync).toHaveBeenCalledWith(opened[1]);
+});
+it('refuses a corpus source a directory replaces after it is listed, and closes what it opened', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = corpusWorkspace(),
+    file = resolve(root, CORPUS);
+  // The name is replaced as the walk opens it, after the listing and safePath judged it a regular file.
+  const { opened } = await replacedAtOpen(
+    new Map([
+      [
+        file,
+        () => {
+          actual.rmSync(file);
+          actual.mkdirSync(file);
+        },
+      ],
+    ]),
+  );
+  vi.mocked(closeSync).mockClear();
+  expect(corpus(root)).toMatchObject(irregularSource);
+  expect(opened.get(file)).toEqual(expect.any(Number));
+  expect(closeSync).toHaveBeenCalledWith(opened.get(file));
+});
+it.skipIf(process.platform === 'win32')(
+  'refuses a corpus source a FIFO or a socket replaces after it is listed, without waiting for a writer',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const pipe = corpusWorkspace(),
+      socketed = corpusWorkspace(),
+      piped = resolve(pipe, CORPUS),
+      socketName = resolve(socketed, CORPUS);
+    await fifo(resolve(pipe, 'pipe'));
+    await socket(socketed, resolve(socketed, 'socket'));
+    // Each name is replaced as the walk opens it, after the listing and safePath judged it a regular file.
+    const replacements = new Map([
+        [piped, () => actual.renameSync(resolve(pipe, 'pipe'), piped)],
+        [socketName, () => actual.renameSync(resolve(socketed, 'socket'), socketName)],
+      ]),
+      { blocking, opened } = await replacedAtOpen(replacements);
+    vi.mocked(closeSync).mockClear();
+    expect(corpus(pipe)).toMatchObject(irregularSource);
+    expect(opened.get(piped)).toEqual(expect.any(Number));
+    expect(closeSync).toHaveBeenCalledWith(opened.get(piped));
+    // A socket does not open, so it leaves no descriptor to close.
+    expect(corpus(socketed)).toMatchObject(irregularSource);
+    expect(opened.has(socketName)).toBe(false);
+    expect(replacements.size).toBe(0);
+    expect(blocking).toEqual([]);
+  },
+);
+it.skipIf(process.platform === 'win32')(
+  'refuses a corpus source a link replaces after it is listed, without following it',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = corpusWorkspace(),
+      file = resolve(root, CORPUS);
+    put(root, 'outside.ia', '#! ia 1.0\n# outside\n');
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      if (String(args[0]) === file && !actual.lstatSync(file).isSymbolicLink()) {
+        actual.rmSync(file);
+        actual.symlinkSync(resolve(root, 'outside.ia'), file);
+      }
+      return actual.openSync(...args);
+    });
+    expect(corpus(root)).toMatchObject({
+      code: 'IA-DB-PATH-UNSAFE',
+      message: `IA-DB-PATH-UNSAFE: Source alias is not admitted: ${CORPUS}`,
+    });
+    expect(actual.lstatSync(file).isSymbolicLink()).toBe(true);
+  },
+);
+it.runIf(constants.O_NOFOLLOW)(
+  'keeps the bytes of a corpus source whose name passes to another file once it is opened, where the open refuses links',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = corpusWorkspace(),
+      file = resolve(root, CORPUS),
+      other = resolve(root, 'other.ia');
+    put(root, 'other.ia', '#! ia 1.0\n# other\n');
+    // The open refuses a link put at the name, so the walk never checks the name again: as before, it keeps what it read.
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      const fd = actual.openSync(...args);
+      if (String(args[0]) === file && actual.existsSync(other)) actual.renameSync(other, file);
+      return fd;
+    });
+    expect(corpus(root)).toMatchObject({
+      sources: expect.arrayContaining([expect.objectContaining({ path: CORPUS, text: '#! ia 1.0\n# a\n' })]),
+    });
+    expect(actual.readFileSync(file, 'utf8')).toBe('#! ia 1.0\n# other\n');
+  },
+);
+it.skipIf(!constants.O_NOCTTY)(
+  'opens a corpus source with the no-controlling-terminal flag where the platform has it',
+  () => {
+    const root = corpusWorkspace(),
+      file = resolve(root, CORPUS);
+    vi.mocked(openSync).mockClear();
+    expect(corpusText(root)).toBe('#! ia 1.0\n# a\n');
+    const flags = vi
+      .mocked(openSync)
+      .mock.calls.filter(([path]) => String(path) === file)
+      .map(([, flags]) => Number(flags));
+    expect(flags).toEqual([OPENED_READ_FLAGS]);
+    expect(flags[0]! & constants.O_NOCTTY).toBe(constants.O_NOCTTY);
+  },
+);
 const PACKAGE = 'packages/example',
   RECORDS = `${PACKAGE}/.ia/src/systems/demo/records`,
   SOURCE = `${RECORDS}/a.ia`;

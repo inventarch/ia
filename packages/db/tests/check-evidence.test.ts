@@ -32,6 +32,7 @@ import {
 } from '../src/index.js';
 import type { CheckCatalog, Handle } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
+import { OPENED_READ_FLAGS } from '../src/named.js';
 import { methodId, put, workspace } from './workspace.js';
 
 // Every node:fs export calls through; a test can make one unlink fail as a file the process may not remove would.
@@ -795,7 +796,8 @@ it.skipIf(!constants.O_NOCTTY)(
       .mocked(openSync)
       .mock.calls.filter(([target]) => String(target) === file)
       .map(([, flags]) => Number(flags));
-    expect(flags).toHaveLength(1);
+    // The flags every reader that opens a name before it judges it shares, so no open can drift from the others.
+    expect(flags).toEqual([OPENED_READ_FLAGS]);
     expect(flags[0]! & constants.O_NOCTTY).toBe(constants.O_NOCTTY);
   },
 );

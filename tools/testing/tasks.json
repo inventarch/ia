@@ -2144,6 +2144,7 @@
         "tests/handle.test.ts",
         "tests/inputs.test.ts",
         "tests/membership.test.ts",
+        "tests/open-follows-links.test.ts",
         "tests/preview.test.ts",
         "tests/retention.test.ts",
         "tests/runner-evidence.test.ts",
@@ -2181,6 +2182,20 @@
           ]
         },
         {
+          "case": "tests/inputs.test.ts > keeps the bytes of a corpus source whose name passes to another file once it is opened, where the open refuses links",
+          "reason": "Windows defines no O_NOFOLLOW flag, so there the reader checks the name again once it has read the file, as tests/open-follows-links.test.ts covers; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > opens a corpus source with the no-controlling-terminal flag where the platform has it",
+          "reason": "Windows defines no O_NOCTTY flag, as it has no controlling terminal; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
           "case": "tests/inputs.test.ts > opens installation state with the no-controlling-terminal flag where the platform has it",
           "reason": "Windows defines no O_NOCTTY flag, as it has no controlling terminal; Linux and macOS run the case.",
           "platforms": [
@@ -2197,6 +2212,20 @@
         {
           "case": "tests/inputs.test.ts > refuses a FIFO or a socket as installation state without waiting for a writer, and throws a path through a file",
           "reason": "FIFOs and Unix socket files have no Windows equivalent, and Windows reports a path through a file as ENOENT rather than ENOTDIR; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses a corpus source a FIFO or a socket replaces after it is listed, without waiting for a writer",
+          "reason": "FIFOs and Unix socket files have no Windows equivalent; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/inputs.test.ts > refuses a corpus source a link replaces after it is listed, without following it",
+          "reason": "Swapping in a file symbolic link needs a privilege on Windows; Linux and macOS run the case, and the cases that pass the name to another file cover its identity comparison (tests/open-follows-links.test.ts).",
           "platforms": [
             "windows"
           ]
@@ -2246,6 +2275,48 @@
         {
           "case": "tests/inputs.test.ts > throws an unreadable installation file as its read fails, once its bound and link count admit it",
           "reason": "POSIX file modes have no Windows equivalent, so the case cannot make a file unreadable there; Linux and macOS run it as a non-root user.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/open-follows-links.test.ts > refuses a capture a link replaces after it is checked, once it has read through it, and seeds nothing from it",
+          "reason": "Swapping in a file symbolic link needs a privilege on Windows; Linux and macOS run the case, and the cases that pass the name to another file cover its identity comparison (tests/open-follows-links.test.ts).",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/open-follows-links.test.ts > refuses a corpus source a link replaces after it is listed, once it has read through it",
+          "reason": "Swapping in a file symbolic link needs a privilege on Windows; Linux and macOS run the case, and the cases that pass the name to another file cover its identity comparison (tests/open-follows-links.test.ts).",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/retention.test.ts > keeps the capture read from a file whose name passes to another file once it is opened, where the open refuses links",
+          "reason": "Windows defines no O_NOFOLLOW flag, so there the reader checks the name again once it has read the file, as tests/open-follows-links.test.ts covers; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/retention.test.ts > opens a capture with the no-controlling-terminal flag where the platform has it",
+          "reason": "Windows defines no O_NOCTTY flag, as it has no controlling terminal; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/retention.test.ts > refuses a capture a FIFO or a socket replaces after it is checked, without waiting for a writer, writing nothing, and seeds nothing from it",
+          "reason": "FIFOs and Unix socket files have no Windows equivalent; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/retention.test.ts > refuses a capture a link replaces after it is checked, and seeds nothing from the file it names",
+          "reason": "Swapping in a file symbolic link needs a privilege on Windows; Linux and macOS run the case, and the cases that pass the name to another file cover its identity comparison (tests/open-follows-links.test.ts).",
           "platforms": [
             "windows"
           ]

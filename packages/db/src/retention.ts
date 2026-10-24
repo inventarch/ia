@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   closeSync,
+  fstatSync,
   fsyncSync,
   lstatSync,
   mkdirSync,
@@ -17,6 +18,7 @@ import { DbError } from './errors.js';
 import { safePath } from './inputs.js';
 import { authoredRows } from './membership.js';
 import type { MembershipRow } from './membership.js';
+import { OPENED_READ_FLAGS, OPENS_THROUGH_LINKS, lstatNamed } from './named.js';
 
 /** D08: an admitted root snapshot (location '', no phase) as retained: its revisions and D02a membership rows. */
 export interface RetainedSnapshot {
@@ -126,6 +128,8 @@ function capturedOf(bytes: Buffer): Captured | string {
   }
   return Object.freeze({ bytes, revision, authoredRevision, membership: Object.freeze(membership) });
 }
+/** The refusal of an entry at `path` that is not a regular file. */
+const irregular = (path: string): DbError => new DbError('IA-DB-PATH-UNSAFE', `${path} is not a regular file`, path);
 /**
  * The entry at `path`, contained the D01 way: undefined when nothing is there, refused as IA-DB-PATH-UNSAFE when the
  * path runs through a link or junction or the entry is not a regular file, so nothing is read or written through one.
@@ -134,7 +138,7 @@ export function entryAt(root: string, path: string): string | undefined {
   const target = safePath(root, path),
     stat = lstatSync(target, { throwIfNoEntry: false });
   if (stat === undefined) return undefined;
-  if (!stat.isFile()) throw new DbError('IA-DB-PATH-UNSAFE', `${path} is not a regular file`, path);
+  if (!stat.isFile()) throw irregular(path);
   return target;
 }
 /**
@@ -149,10 +153,54 @@ function directories(root: string): void {
     if (!stat.isDirectory()) throw new DbError('IA-DB-PATH-UNSAFE', `${path} is not a directory`, path);
   }
 }
-/** The capture at `path`: null when there is none, or why the file there is no capture. */
+/**
+ * The capture at `path`: null when there is none, or why the file there is no capture. The name `entryAt` admits is
+ * opened before what it names is judged, with `OPENED_READ_FLAGS`, and read through that descriptor as `readFileSync`
+ * reads a file, so the bytes are of the file judged: a FIFO put at the name since is not waited on, a terminal there does
+ * not become the process's controlling terminal, and a final link is not followed where the platform has the no-follow
+ * flag. What opens is read only if it is a regular file, refused as `entryAt` refuses one that is not; when the open
+ * fails, `entryAt` judges the name again, and a name that is gone, or a regular file that does not open, answers with
+ * the open's error, as a failed read does. Where the open follows a final link (`OPENS_THROUGH_LINKS`, Windows), the
+ * name must still name the file read once it is read: otherwise `entryAt` judges it, refusing a link or an entry that
+ * is not a regular file as it does, and a name that names nothing or another file is IA-DB-PATH-UNSAFE. There, what
+ * opens that is not a regular file is judged by `entryAt` first too, so a link to one is refused as a link.
+ */
 function readCaptured(root: string, path: string): Captured | string | null {
   const target = entryAt(root, path);
-  return target === undefined ? null : capturedOf(readFileSync(target));
+  if (target === undefined) return null;
+  // `entryAt`'s judgment of what the name names now: only its own refusals replace the error at hand.
+  const judgeName = (): void => {
+    try {
+      entryAt(root, path);
+    } catch (refusal) {
+      if (refusal instanceof DbError) throw refusal;
+    }
+  };
+  let fd: number;
+  try {
+    fd = openSync(target, OPENED_READ_FLAGS);
+  } catch (error) {
+    judgeName();
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) {
+      if (OPENS_THROUGH_LINKS) judgeName();
+      throw irregular(path);
+    }
+    const bytes = readFileSync(fd);
+    if (OPENS_THROUGH_LINKS) {
+      const named = lstatNamed(target);
+      if (named?.isFile() !== true || named.dev !== opened.dev || named.ino !== opened.ino) {
+        judgeName();
+        throw new DbError('IA-DB-PATH-UNSAFE', `${path} changed while it was read`, path);
+      }
+    }
+    return capturedOf(bytes);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** D08a: what the capture pair seeds a handle with. */

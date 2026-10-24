@@ -1,5 +1,15 @@
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
 import type { BigIntStats, Stats } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { BAND_OF, KERNEL_SOURCES, isPlacementKind, isProvenance } from '@inventarch/language';
@@ -7,7 +17,7 @@ import type { Location } from '@inventarch/language';
 import { canonicalRoot, stableSerialize } from '@inventarch/graph';
 import type { RevisionSource } from '@inventarch/graph';
 import { DbError } from './errors.js';
-import { lstatNamed, readOpened } from './named.js';
+import { OPENED_READ_FLAGS, OPENS_THROUGH_LINKS, lstatNamed, readOpened } from './named.js';
 import { pathKey, sameFile } from './paths.js';
 import { decodeActivationPointer } from './distribution/contracts.js';
 import type { ActivationPointer, LockedPackage } from './distribution/contracts.js';
@@ -583,6 +593,56 @@ function workspaceRoot(root: string): string {
     throw new DbError('IA-DB-ROOT-INVALID', `Cannot open workspace ${root}: ${String(error)}`);
   }
 }
+/**
+ * The bytes of the corpus source the walk listed at `child` as a regular file. Its name is opened before what it names
+ * is judged, with `OPENED_READ_FLAGS`, and read through that descriptor as `readFileSync` reads a file, so the bytes are
+ * of the file judged: a FIFO put at the name since the listing is not waited on, a terminal there does not become the
+ * process's controlling terminal, and a final link is not followed where the platform has the no-follow flag. What
+ * opens is read only if it is a regular file; when the open fails, the name is judged instead, a link as the listing
+ * refuses one and anything else but a regular file as one that opens. A name that is gone, a regular file that does not
+ * open, and a read that fails answer with the filesystem's error, which the walk refuses as before. Where the open
+ * follows a final link (`OPENS_THROUGH_LINKS`, Windows), the name must still name the file read once it is read, as
+ * package source capture checks: a link there is refused as the listing refuses one, a link to what is not a regular
+ * file included, and a name that names nothing or another file is IA-DB-SOURCE-CHANGED.
+ */
+function readSource(root: string, child: string): Buffer {
+  const file = safePath(root, child),
+    irregular = () =>
+      new DbError('IA-DB-SOURCE-UNAVAILABLE', `Cannot read exact UTF-8 source ${child}: not a regular file`),
+    alias = () => new DbError('IA-DB-PATH-UNSAFE', `Source alias is not admitted: ${child}`);
+  let fd: number;
+  try {
+    fd = openSync(file, OPENED_READ_FLAGS);
+  } catch (error) {
+    let named: Stats | undefined;
+    try {
+      named = lstatSync(file, { throwIfNoEntry: false });
+    } catch {
+      throw error;
+    }
+    if (named?.isSymbolicLink()) throw alias();
+    if (named !== undefined && !named.isFile()) throw irregular();
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) {
+      // Where the open follows a final link, what opened may be what a link at the name names: refuse the link.
+      if (OPENS_THROUGH_LINKS && lstatNamed(file)?.isSymbolicLink()) throw alias();
+      throw irregular();
+    }
+    const bytes = readFileSync(fd);
+    if (OPENS_THROUGH_LINKS) {
+      const named = lstatNamed(file);
+      if (named?.isSymbolicLink()) throw alias();
+      if (named?.isFile() !== true || named.dev !== opened.dev || named.ino !== opened.ino)
+        throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
+    }
+    return bytes;
+  } finally {
+    closeSync(fd);
+  }
+}
 function discover(root: string, supplied: InputOptions): InputSnapshot {
   const canonical = workspaceRoot(root);
   const options = inputOptions({ ...supplied, adopted: supplied.adopted ?? workspaceSources(canonical) }),
@@ -624,9 +684,7 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
         try {
           add({
             path: child,
-            text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
-              readFileSync(safePath(canonical, child)),
-            ),
+            text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(readSource(canonical, child)),
           });
         } catch (error) {
           if (error instanceof DbError) throw error;

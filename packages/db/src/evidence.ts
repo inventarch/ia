@@ -1,6 +1,5 @@
 import {
   closeSync,
-  constants,
   fstatSync,
   lstatSync,
   mkdirSync,
@@ -16,6 +15,7 @@ import type { Node } from '@inventarch/graph';
 import type { CheckBinding } from './checks.js';
 import { DbError } from './errors.js';
 import { EVIDENCE_DIRECTORY, EVIDENCE_FILE, safePath } from './inputs.js';
+import { OPENED_READ_FLAGS } from './named.js';
 import { discard, entryAt, staged, syncDirectory } from './retention.js';
 
 /**
@@ -215,12 +215,9 @@ export function readEvidence(root: string, path: string): string | null {
     const target = entryAt(root, path);
     if (target === undefined) return null;
     // Open before judging the link count, so the check and the read are of one file (CodeQL js/file-system-race), and
-    // read nothing whose name moved to another file meanwhile. A terminal opened there does not become the process's
-    // controlling terminal; a flag a platform lacks is zero.
-    const fd = openSync(
-      target,
-      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0) | (constants.O_NOCTTY ?? 0),
-    );
+    // read nothing whose name moved to another file meanwhile. It opens with the flags `readOpened` uses, so a terminal
+    // opened there does not become the process's controlling terminal.
+    const fd = openSync(target, OPENED_READ_FLAGS);
     try {
       const opened = fstatSync(fd, { bigint: true });
       if (!opened.isFile() || opened.nlink !== 1n) return null;

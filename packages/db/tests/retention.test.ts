@@ -1,6 +1,17 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import {
   CAPTURE_CURRENT,
   CAPTURE_DIRECTORY,
@@ -13,11 +24,14 @@ import {
 import type { Snapshot } from '../src/index.js';
 import type { Location } from '@inventarch/language';
 import { EditorDatabase } from '../src/editor/index.js';
+import { OPENED_READ_FLAGS } from '../src/named.js';
+import { descriptors, fifo, outcome, replacedAtOpen, socket } from './file-races.js';
 import { methodId, methodPath, put, workspace } from './workspace.js';
 
 /**
  * Seams on node:fs: the renames a capture makes, so a test can fail one of them, and the paths every stat or read
- * touches, so a test can show that a handle opens no capture file until it is asked. Every call passes through.
+ * touches, so a test can show that a handle opens no capture file until it is asked. Every call passes through; the
+ * opens, reads and closes are mocks a test can replace or inspect (file-races.ts).
  */
 const hooks = vi.hoisted(() => ({
   rename: undefined as ((from: string, to: string) => void) | undefined,
@@ -38,9 +52,15 @@ vi.mock('node:fs', async (importOriginal) => {
     },
     lstatSync: touching(actual.lstatSync),
     statSync: touching(actual.statSync),
-    readFileSync: touching(actual.readFileSync),
-    openSync: touching(actual.openSync),
+    readFileSync: vi.fn(touching(actual.readFileSync)),
+    openSync: vi.fn(touching(actual.openSync)),
+    closeSync: vi.fn(actual.closeSync),
   };
+});
+afterEach(() => {
+  vi.mocked(openSync).mockReset();
+  vi.mocked(readFileSync).mockReset();
+  vi.mocked(closeSync).mockClear();
 });
 
 const otherId = 'governance-system/governance/law/sample-rule';
@@ -907,6 +927,171 @@ it('refuses a snapshot directory, or .ia/work, that is not a directory, before a
   rmSync(resolve(root, '.ia/work'));
   expect(writeCapture(root, text)).toMatchObject({ prior: null, rotated: false });
 });
+
+/** A capture of no records at revision `letter` x 64, as `ia capture` writes one. */
+const captureText = (letter: string): string =>
+  `${JSON.stringify({ format: CAPTURE_FORMAT, revision: letter.repeat(64), membership: [] })}\n`;
+/** A workspace of no sources whose current.json holds the capture at revision a x 64. */
+const pairRoot = (): string => {
+  const root = workspace(false);
+  put(root, CAPTURE_CURRENT, captureText('a'));
+  return root;
+};
+const planned = (root: string): unknown => outcome(() => planCapture(root, captureText('b')));
+/** The revision a handle opened at `root` seeds as captured, read through the capture pair. */
+const seededCapture = (root: string): string | undefined => {
+  const db = open(root, { cache: false });
+  try {
+    return db.capturedRevision;
+  } finally {
+    db.close();
+  }
+};
+const irregularCapture = {
+  code: 'IA-DB-PATH-UNSAFE',
+  message: `IA-DB-PATH-UNSAFE: ${CAPTURE_CURRENT} is not a regular file`,
+  path: CAPTURE_CURRENT,
+};
+it('reads a capture through the descriptor it opens, and closes it when it reads it and when its read fails', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = pairRoot(),
+    file = resolve(root, CAPTURE_CURRENT),
+    opened = await descriptors(file);
+  expect(planned(root)).toMatchObject({ prior: 'a'.repeat(64), ignored: null });
+  expect(opened).toHaveLength(1);
+  expect(readFileSync).toHaveBeenCalledWith(opened[0]);
+  expect(vi.mocked(readFileSync).mock.calls.filter(([path]) => String(path) === file)).toEqual([]);
+  expect(closeSync).toHaveBeenCalledWith(opened[0]);
+  // A read of that descriptor fails: a plan throws the error as it is, and a handle seeds nothing from the file.
+  const failure = Object.assign(new Error('EIO: i/o error, read'), { code: 'EIO' });
+  vi.mocked(readFileSync).mockImplementation((...args: Parameters<typeof readFileSync>) => {
+    if (args[0] === opened.at(-1)) throw failure;
+    return actual.readFileSync(...args);
+  });
+  vi.mocked(closeSync).mockClear();
+  expect(planned(root)).toBe(failure);
+  expect(opened).toHaveLength(2);
+  expect(closeSync).toHaveBeenCalledWith(opened[1]);
+  expect(seededCapture(root)).toBeUndefined();
+  expect(opened).toHaveLength(3);
+  expect(closeSync).toHaveBeenCalledWith(opened[2]);
+});
+/**
+ * Plans, writes and seeds from a capture whose current.json `replace` replaces as it is opened, after entryAt judged it
+ * a regular file, and checks each is refused, writes nothing and seeds nothing, and closes each descriptor it opened.
+ */
+const replacedCapture = async (replace: (root: string, file: string) => Promise<() => void>, opens: boolean) => {
+  const [planning, writing, seeding] = [pairRoot(), pairRoot(), pairRoot()],
+    files = [planning, writing, seeding].map((root) => resolve(root, CAPTURE_CURRENT)),
+    replacements = new Map<string, () => void>();
+  for (const [index, root] of [planning, writing, seeding].entries())
+    replacements.set(files[index]!, await replace(root, files[index]!));
+  const { blocking, opened } = await replacedAtOpen(replacements);
+  const reads: [string, () => void][] = [
+    [files[0]!, () => expect(planned(planning)).toMatchObject(irregularCapture)],
+    [
+      files[1]!,
+      () => {
+        expect(outcome(() => writeCapture(writing, captureText('b')))).toMatchObject(irregularCapture);
+        expect(readdirSync(resolve(writing, CAPTURE_DIRECTORY))).toEqual(['current.json']);
+      },
+    ],
+    [files[2]!, () => expect(seededCapture(seeding)).toBeUndefined()],
+  ];
+  for (const [file, read] of reads) {
+    // Each read closes what it opened before it returns; what does not open (a socket) leaves no descriptor.
+    vi.mocked(closeSync).mockClear();
+    read();
+    expect(opened.has(file)).toBe(opens);
+    expect(vi.mocked(closeSync).mock.calls.some(([fd]) => opened.has(file) && fd === opened.get(file))).toBe(opens);
+  }
+  expect(replacements.size).toBe(0);
+  expect(blocking).toEqual([]);
+};
+it('refuses a capture a directory replaces after it is checked, writing nothing, closing what it opened, and seeds nothing from it', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  await replacedCapture(
+    async (_root, file) => () => {
+      actual.rmSync(file);
+      actual.mkdirSync(file);
+    },
+    true,
+  );
+});
+it.skipIf(process.platform === 'win32')(
+  'refuses a capture a FIFO or a socket replaces after it is checked, without waiting for a writer, writing nothing, and seeds nothing from it',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const standIn = (root: string, file: string) => () => actual.renameSync(resolve(root, 'stand-in'), file);
+    await replacedCapture(async (root, file) => {
+      await fifo(resolve(root, 'stand-in'));
+      return standIn(root, file);
+    }, true);
+    await replacedCapture(async (root, file) => {
+      await socket(root, resolve(root, 'stand-in'));
+      return standIn(root, file);
+    }, false);
+  },
+);
+it.skipIf(process.platform === 'win32')(
+  'refuses a capture a link replaces after it is checked, and seeds nothing from the file it names',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const planning = pairRoot(),
+      seeding = pairRoot(),
+      roots = [planning, seeding];
+    // The link names a capture at another revision, which a handle would trust as written.
+    for (const root of roots) put(root, 'outside.json', captureText('c'));
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      const root = roots.find((candidate) => String(args[0]) === resolve(candidate, CAPTURE_CURRENT));
+      if (root !== undefined && !actual.lstatSync(String(args[0])).isSymbolicLink()) {
+        actual.rmSync(String(args[0]));
+        actual.symlinkSync(resolve(root, 'outside.json'), String(args[0]));
+      }
+      return actual.openSync(...args);
+    });
+    expect(planned(planning)).toMatchObject({
+      code: 'IA-DB-PATH-UNSAFE',
+      message: `IA-DB-PATH-UNSAFE: Symlink/junction traversal is not admitted: ${resolve(planning, CAPTURE_CURRENT)}`,
+      path: CAPTURE_CURRENT,
+    });
+    expect(seededCapture(seeding)).toBeUndefined();
+    for (const root of roots) expect(actual.lstatSync(resolve(root, CAPTURE_CURRENT)).isSymbolicLink()).toBe(true);
+  },
+);
+it.runIf(constants.O_NOFOLLOW)(
+  'keeps the capture read from a file whose name passes to another file once it is opened, where the open refuses links',
+  async () => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const root = pairRoot(),
+      file = resolve(root, CAPTURE_CURRENT),
+      other = resolve(root, 'other.json');
+    put(root, 'other.json', captureText('d'));
+    // The open refuses a link put at the name, so the reader never checks the name again: as before, it keeps what it read.
+    vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
+      const fd = actual.openSync(...args);
+      if (String(args[0]) === file && actual.existsSync(other)) actual.renameSync(other, file);
+      return fd;
+    });
+    expect(planned(root)).toMatchObject({ prior: 'a'.repeat(64), ignored: null });
+    expect(actual.readFileSync(file, 'utf8')).toBe(captureText('d'));
+  },
+);
+it.skipIf(!constants.O_NOCTTY)(
+  'opens a capture with the no-controlling-terminal flag where the platform has it',
+  () => {
+    const root = pairRoot(),
+      file = resolve(root, CAPTURE_CURRENT);
+    vi.mocked(openSync).mockClear();
+    expect(planned(root)).toMatchObject({ prior: 'a'.repeat(64), ignored: null });
+    const flags = vi
+      .mocked(openSync)
+      .mock.calls.filter(([path]) => String(path) === file)
+      .map(([, flags]) => Number(flags));
+    expect(flags).toEqual([OPENED_READ_FLAGS]);
+    expect(flags[0]! & constants.O_NOCTTY).toBe(constants.O_NOCTTY);
+  },
+);
 
 it('retains nothing in the cache-free editor reader', () => {
   const root = workspace(),

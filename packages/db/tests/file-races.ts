@@ -37,8 +37,12 @@ export const socket = async (root: string, path: string): Promise<void> => {
 /**
  * Lets `openSync` run as it does, after `before`, except an open that would wait for a FIFO's writer: that one is recorded
  * and refused instead, so a reader that opens a FIFO without O_NONBLOCK fails its test rather than blocking the runner.
+ * `opened` sees each descriptor an open returns, with its path.
  */
-export const blockingOpens = async (before: (path: string) => void = () => {}): Promise<readonly string[]> => {
+export const blockingOpens = async (
+  before: (path: string) => void = () => {},
+  opened: (path: string, fd: number) => void = () => {},
+): Promise<readonly string[]> => {
   const actual = await vi.importActual<typeof import('node:fs')>('node:fs'),
     blocking: string[] = [];
   vi.mocked(openSync).mockImplementation((...args: Parameters<typeof openSync>) => {
@@ -53,9 +57,31 @@ export const blockingOpens = async (before: (path: string) => void = () => {}): 
         code: 'EAGAIN',
       });
     }
-    return actual.openSync(...args);
+    const fd = actual.openSync(...args);
+    opened(String(path), fd);
+    return fd;
   });
   return blocking;
+};
+/**
+ * Replaces each name `replacements` keys as a reader opens it, once, after the reader's own checks of the name, and
+ * records the descriptor each open of one of those names returns (`blockingOpens`, so a FIFO is never waited on).
+ */
+export const replacedAtOpen = async (
+  replacements: Map<string, () => void>,
+): Promise<{ readonly blocking: readonly string[]; readonly opened: ReadonlyMap<string, number> }> => {
+  const names = new Set(replacements.keys()),
+    opened = new Map<string, number>();
+  const blocking = await blockingOpens(
+    (path) => {
+      replacements.get(path)?.();
+      replacements.delete(path);
+    },
+    (path, fd) => {
+      if (names.has(path)) opened.set(path, fd);
+    },
+  );
+  return { blocking, opened };
 };
 /**
  * After the reader's first `readSync` returns, moves `directory` away and puts a regular file at its name, so the lstat

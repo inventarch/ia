@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Stop waiting on a FIFO, or following a link, put in place of a corpus source or capture file",
+  "summary": "`@inventarch/db` checks each `.ia` source it lists under `.ia/src`, and the capture files `.ia/work/snapshot/current.json` and `previous.json`, before it reads them. A FIFO put at one of those names after that check could make `readInputs`, `open`, `planCapture`, `writeCapture` or a handle reading its capture pair wait indefinitely for a writer; a terminal there could, on some POSIX systems, become the process's controlling terminal; and a symbolic link put there was followed. Now nothing waits. A source that is now a directory, FIFO, socket or device is refused as `IA-DB-SOURCE-UNAVAILABLE` (`Cannot read exact UTF-8 source <path>: not a regular file`), and one that is now a link as `IA-DB-PATH-UNSAFE` (`Source alias is not admitted: <path>`). A capture file that is now a directory, FIFO, socket, device or link is refused as `IA-DB-PATH-UNSAFE`, as one already was when the check found it, and a handle seeds nothing from it. On Windows, where the open cannot refuse a link, the link is refused once the file is read, and so is a name that passes to another file, or is removed, while it is read (`IA-DB-SOURCE-CHANGED` for a source, `IA-DB-PATH-UNSAFE` for a capture file). Regular files are read exactly as before, and every other result and refusal keeps its code and message.",
+  "packages": [
+    "@inventarch/db"
+  ],
+  "paths": [
+    "packages/db/"
+  ]
+}
