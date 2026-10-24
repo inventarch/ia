@@ -1,69 +1,8 @@
 {
   "format": "ia.native-release-notes.v1",
   "baseline": {
-    "tag": "v3.2.2",
-    "commit": "2ed82f0d889cdd060ee6ee3f7dd345ab4d751c2b"
+    "tag": "v3.3.0",
+    "commit": "420213b86beac453c9547da7a12b2822d7888f62"
   },
-  "changes": [
-    {
-      "id": "inventarch/agent-composition-system",
-      "bump": "patch",
-      "summary": "Refresh the bundled language guide to describe declared run phases only when known; exact native dependencies follow the coordinated 3.3.0 release."
-    },
-    {
-      "id": "inventarch/agent-system",
-      "bump": "patch",
-      "summary": "Refresh the bundled language guide for optional declared run phases and align its native dependency selection with 3.3.0."
-    },
-    {
-      "id": "inventarch/authoring-system",
-      "bump": "minor",
-      "summary": "Replace generic guidance with selection, alternatives and cautions for all 44 words; ship executable validation and formatting cases with their contract, and document optional run phases and structured-template fields."
-    },
-    {
-      "id": "inventarch/compliance-system",
-      "bump": "patch",
-      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed public systems."
-    },
-    {
-      "id": "inventarch/governance-system",
-      "bump": "patch",
-      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed public systems."
-    },
-    {
-      "id": "inventarch/hook-authoring-system",
-      "bump": "patch",
-      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed authoring and public systems."
-    },
-    {
-      "id": "inventarch/language",
-      "bump": "minor",
-      "summary": "Clarify projection artifacts, cardinality aliases and explicit primitive selection in the floor; embed the updated run and template schemas, task evidence guidance, work-system governance consent, and coordinated system declarations. IA syntax remains 1.0."
-    },
-    {
-      "id": "inventarch/learning-system",
-      "bump": "patch",
-      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed authoring and public systems."
-    },
-    {
-      "id": "inventarch/session-system",
-      "bump": "minor",
-      "summary": "Allow a run to omit execution.phase when its live phase is unknown while retaining historical authored phase values; refresh the bundled language guide and exact dependencies."
-    },
-    {
-      "id": "inventarch/template-system",
-      "bump": "minor",
-      "summary": "Permit structured-v1 templates to omit unused legacy parameters and lines while scalar rendering continues to require them; ship the scalar rendering contract and success/refusal cases, and refresh the bundled guide."
-    },
-    {
-      "id": "inventarch/work-system",
-      "bump": "minor",
-      "summary": "Admit incoming law governance for plans, milestones, tasks, decisions and specifications; clarify that exit evidence does not mutate task status, and refresh the bundled guide."
-    },
-    {
-      "id": "inventarch/workspace-system",
-      "bump": "patch",
-      "summary": "Refresh the bundled language guide for optional declared run phases and align exact dependencies on the changed public systems."
-    }
-  ]
+  "changes": []
 }
