@@ -1,0 +1,28 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Point the package guides at the user guide's walkthrough",
+  "summary": "Docs and tests only. The README examples of @inventarch/cli, @inventarch/mcp-door, @inventarch/db, @inventarch/runtime and @inventarch/workspace-runtime now read the Pantry workspace from the new user guide's walkthrough instead of the removed root README quick start, and the CLI guide says that ia validate records evidence only for the checks that passed. A new CLI test pins the walkthrough's example records. The tsconfig files of @inventarch/distribution are reformatted; the parsed configuration is unchanged. Code, behavior and APIs are unchanged.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/mcp-door",
+    "@inventarch/runtime",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    "CONTRIBUTING.md",
+    "README.md",
+    "apps/cli/",
+    "apps/distribution/",
+    "apps/mcp-door/",
+    "apps/vscode/README.md",
+    "docs/",
+    "examples/",
+    "packages/db/",
+    "packages/runtime/",
+    "packages/workspace-runtime/",
+    "tools/"
+  ]
+}
