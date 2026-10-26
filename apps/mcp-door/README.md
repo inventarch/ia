@@ -24,20 +24,20 @@ npm install --global @inventarch/mcp-door
 ia-mcp-door --root path/to/your-project
 ```
 
-Without `--root` it serves the current directory. It speaks MCP `2025-11-25` as UTF-8 JSON-RPC, one message per line on stdin and stdout. A client sends `initialize` and `notifications/initialized` before `tools/list` or `tools/call`. In the project from the [root quick start](../../README.md#-quick-start), this session reads the authored `@decision`:
+Without `--root` it serves the current directory. It speaks MCP `2025-11-25` as UTF-8 JSON-RPC, one message per line on stdin and stdout. A client sends `initialize` and `notifications/initialized` before `tools/list` or `tools/call`. In the Pantry workspace from the [walkthrough](../../docs/guide/walkthrough.md), this session reads the authored `@decision`:
 
 ```sh
 printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"demo","version":"1"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ia_read","arguments":{"locator":"work-system/definition/decision/api-response-format"}}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ia_read","arguments":{"locator":"work-system/definition/decision/list-format"}}}' \
   | ia-mcp-door --root .
 ```
 
 The second response line carries the result as `structuredContent` (shortened here):
 
 ```text
-{"jsonrpc":"2.0","id":2,"result":{"content":[…],"structuredContent":{"ok":true,"result":{…,"kind":"record","digest":"dae12679…","body":"Choose a response format for the public API.","certified":false}},"isError":false}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[…],"structuredContent":{"ok":true,"result":{…,"kind":"record","digest":"f417f9f3…","body":"Choose the file format of an exported shopping list.","certified":false}},"isError":false}}
 ```
 
 ## 🧭 What it does

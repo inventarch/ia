@@ -38,7 +38,7 @@ Use package entry points rather than the `./internal/*` subpaths. Those are publ
 
 ### Read a workspace
 
-This script reads the [quick start](../../../README.md#-quick-start) project: the position for one task and the delivery view of its plan. Save it as `read-workspace.mjs` and run it from the project root with `@inventarch/db` and `@inventarch/runtime` installed:
+This script reads the Pantry workspace from the [walkthrough](../../guide/walkthrough.md): the position for one task and the delivery view of its plan. Save it as `read-workspace.mjs` and run it from the project root with `@inventarch/db` and `@inventarch/runtime` installed:
 
 ```js
 import { open } from '@inventarch/db';
@@ -48,10 +48,10 @@ const workspace = open('.', { cache: false });
 try {
   const scope = workspace.resolveScope();
   const context = position(workspace, scope.token, {
-    seat: 'work-system/definition/task/write-schema',
+    seat: 'work-system/definition/task/write-exporter',
     shape: 'sequence',
   });
-  const delivery = deliveryView(workspace, scope.token, 'work-system/definition/plan/public-api');
+  const delivery = deliveryView(workspace, scope.token, 'work-system/definition/plan/shopping-list');
   console.log(context.digest, delivery.ok);
 } finally {
   workspace.close();

@@ -11,7 +11,7 @@ ia vocabulary decision --schema
 ia preview decision
 ```
 
-The first prints the word's sections, fields, allowed values and relationships, and works anywhere. The second runs inside an initialized workspace and adds the file a new record goes to and the consent rows that let it relate to other records. Write records by hand and run `ia validate`, or preview one with `ia preview` and write it with `ia author --digest`, as the [quick start](../../../README.md#3-author-your-first-record) shows. If the file changed since the preview, `ia author` refuses with `IA-CLI-EDIT-STALE`; preview again.
+The first prints the word's sections, fields, allowed values and relationships, and works anywhere. The second runs inside an initialized workspace and adds the file a new record goes to and the consent rows that let it relate to other records. Write records by hand and run `ia validate`, or preview one with `ia preview` and write it with `ia author --digest`, as the [walkthrough](../../guide/walkthrough.md#5-make-the-decision) shows. The [guide](../../guide/README.md) explains each part of the language in plainer terms; this reference is the exact grammar. If the file changed since the preview, `ia author` refuses with `IA-CLI-EDIT-STALE`; preview again.
 
 ## Syntax and identity
 

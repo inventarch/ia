@@ -10,21 +10,21 @@
 npm install @inventarch/db @inventarch/runtime
 ```
 
-Read a position and a plan's delivery view from the workspace in the [root README quick start](../../README.md#-quick-start). These reads do not execute the task:
+Read a position and a plan's delivery view from the Pantry workspace in the [walkthrough](../../docs/guide/walkthrough.md). These reads do not execute the task:
 
 ```js
 import { open } from '@inventarch/db';
 import { deliveryView, position } from '@inventarch/runtime';
 
-const workspace = open('path/to/your-project', { cache: false });
+const workspace = open('path/to/pantry', { cache: false });
 try {
   const { token } = workspace.resolveScope();
   const { body } = position(workspace, token, {
-    seat: 'work-system/definition/task/write-schema',
+    seat: 'work-system/definition/task/write-exporter',
     shape: 'sequence',
   });
   console.log(body.key.phase, body.loaded.map(({ identity }) => identity));
-  const delivery = deliveryView(workspace, token, 'work-system/definition/plan/public-api');
+  const delivery = deliveryView(workspace, token, 'work-system/definition/plan/shopping-list');
   if (delivery.ok) console.log(delivery.view.next);
 } finally {
   workspace.close();
@@ -33,10 +33,10 @@ try {
 
 ```text
 plan [
-  'work-system/definition/task/write-schema',
-  'work-system/definition/task/review-schema'
+  'work-system/definition/task/write-exporter',
+  'work-system/definition/task/add-export-button'
 ]
-ia position --seat work-system/definition/task/write-schema --shape sequence
+ia position --seat work-system/definition/task/add-export-button --shape sequence
 ```
 
 `position` completes a partial scope key (the `sequence` shape implies the `plan` phase, with depth 1 and budget 16 by default) and returns `{body, digest, hostNote}`. The body and its digest are a pure function of the key and the admitted records; the host note carries the revisions and capture freshness outside the digest. `deliveryView` returns `{ok: true, view}`, or a refusal that names the one command to run next. `open` admits `@check` records strictly by default, as `ia position` and `ia next` do, so the script reads what those commands print.

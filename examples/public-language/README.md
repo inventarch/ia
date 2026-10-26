@@ -39,4 +39,4 @@ ia next --seat work-system/definition/plan/example-plan
 
 Admission checks structure. The observation's fields show the shape of evidence: schema conformance does not verify timestamps, content digests, provenance, retention transitions or that external evidence exists, and the placeholder digest is not an attestation. Declared cases and observations never manufacture execution evidence, and the toy requirements endorse no architecture or quality method.
 
-See the [examples contract](SPEC.md), the [language guide](../../docs/reference/language/README.md), the [quick start](../../README.md#-quick-start) and the [architecture reference](../../docs/reference/architecture/README.md).
+See the [examples contract](SPEC.md), the [language guide](../../docs/reference/language/README.md), the [walkthrough](../../docs/guide/walkthrough.md) and the [architecture reference](../../docs/reference/architecture/README.md).

@@ -10,27 +10,27 @@
 npm install @inventarch/db
 ```
 
-Read the workspace from the [root README quick start](../../README.md#-quick-start) without writing to it:
+Read the Pantry workspace from the [walkthrough](../../docs/guide/walkthrough.md) without writing to it:
 
 ```js
 import { open } from '@inventarch/db';
 
-const workspace = open('path/to/your-project', { cache: false });
+const workspace = open('path/to/pantry', { cache: false });
 try {
   const { token } = workspace.resolveScope();
-  const decision = workspace.get('work-system/definition/decision/api-response-format', { within: token });
+  const decision = workspace.get('work-system/definition/decision/list-format', { within: token });
   console.log(decision.band, decision.source.path);
-  console.log(workspace.resolveSeat('.ia/src/decision.ia', { within: token }));
+  console.log(workspace.resolveSeat('.ia/src/shopping-list.ia', { within: token }));
 } finally {
   workspace.close();
 }
 ```
 
 ```text
-100 .ia/src/decision.ia
+100 .ia/src/shopping-list.ia
 {
-  path: '.ia/src/decision.ia',
-  seat: 'workspace-system/definition/workspace/my-project',
+  path: '.ia/src/shopping-list.ia',
+  seat: 'workspace-system/definition/workspace/pantry',
   by: 'root',
   claimants: []
 }

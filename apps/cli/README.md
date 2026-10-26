@@ -36,7 +36,9 @@ ia validate
 ia position
 ```
 
-Each project keeps its own records in its own `.ia/` directory. The [main quick start](https://github.com/inventarch/ia#-quick-start) continues with a first record, a plan and host setup. To run from a source checkout, build it as the [contributing section](https://github.com/inventarch/ia#-contributing-and-verification) describes and use `node /path/to/ia/apps/cli/dist/main.js` in place of `ia`.
+Each project keeps its own records in its own `.ia/` directory. The [walkthrough](https://github.com/inventarch/ia/blob/main/docs/guide/walkthrough.md) continues with records, a plan, rules, a check, evidence and an agent host, and the [guide](https://github.com/inventarch/ia/blob/main/docs/guide/README.md) explains each part. To run from a source checkout, build it as the [contributing guide](https://github.com/inventarch/ia/blob/main/CONTRIBUTING.md#build-from-source) describes and use `node /path/to/ia/apps/cli/dist/main.js` in place of `ia`.
+
+The examples below use the walkthrough's Pantry workspace.
 
 ## ⌨️ Commands
 
@@ -70,8 +72,8 @@ Automation should read the exit value together with the diagnostic code:
 
 ```sh
 ia preview decision
-ia preview --set @plan public-api work.source=docs/api.md
-ia author --set @plan public-api work.source=docs/api.md --digest <sha256-from-the-preview>
+ia preview --set @plan shopping-list work.source=docs/shopping-list.md
+ia author --set @plan shopping-list work.source=docs/shopping-list.md --digest <sha256-from-the-preview>
 ia validate
 ia capture --preview
 ia capture
@@ -95,11 +97,11 @@ If the file changed since the preview, `ia author` refuses with `IA-CLI-EDIT-STA
 
 ```sh
 ia position
-ia position --seat work-system/definition/task/write-schema --shape sequence
+ia position --seat work-system/definition/task/write-exporter --shape sequence
 ia next
-ia read work-system/definition/decision/api-response-format
-ia read .ia/src/work.ia:12
-ia inspect work-system/definition/task/review-schema
+ia read work-system/definition/decision/list-format
+ia read .ia/src/shopping-list.ia:13
+ia inspect work-system/definition/task/add-export-button
 ia vocabulary decision --schema
 ```
 
@@ -110,13 +112,13 @@ ia vocabulary decision --schema
 `ia read` accepts four locators: a record identity, `<identity>#<phase>/<Primitive>` for a playbook cell, `<identity>#<REQ-ID>` for one requirement, and `<path>:<line>` for the record whose source spans that line. A record that names a document (`work.source` on a `@spec`, `@plan`, `@milestone`, `@task` or `@decision`, `reference.document` on an `@authoring-guide`, `template.resource` on a `@template`) reads that file, and a markdown anchor such as `docs/api.md#response-format` reads only that section. Any other record reads its `meaning.says`:
 
 ```text
-Read  work-system/definition/decision/api-response-format
+Read  work-system/definition/decision/list-format
 
   •  record
-     sha256 dae126797f0f…  44 bytes
+     sha256 f417f9f38b88…  52 bytes
      body not certified by this read
 
-Choose a response format for the public API.
+Choose the file format of an exported shopping list.
 ```
 
 ### 🔌 Hosts
@@ -188,8 +190,8 @@ ia recover --root .
 
 ```sh
 ia kb check --root . --json
-ia kb search "response format" --root . --json
-ia kb read work-system/definition/decision/api-response-format --root . --json
+ia kb search "shopping list" --root . --json
+ia kb read work-system/definition/decision/list-format --root . --json
 ```
 
 `resolve` checks a citation and `traverse` follows native relationships. `ia kb pack --commit <full-sha> --selection .ia/knowledge.json --out knowledge.json` previews a committed export; add `--apply --yes` to write it. Existing identical output is unchanged; different bytes refuse. Read commands require Observation, check and pack preview require Verification, and applied pack requires Execution. Every subcommand supports `--actor`. See the [knowledge guide](https://github.com/inventarch/ia/blob/main/packages/kb/README.md) for selectors, citations, bounds and foundation ownership.
@@ -199,8 +201,8 @@ ia kb read work-system/definition/decision/api-response-format --root . --json
 `scope`, `context`, `select`, `get`, `records`, `resolve`, `search`, `traverse` and `report` are frozen operations for programs. Each takes JSON through `--params <JSON>`, or `--params -` for stdin, and prints one JSON line with no color. `ia <operation> --help` lists its parameters, refusals and an example, and `ia <operation> --schema` prints its parameter schema.
 
 ```sh
-ia search --params '{"text":"response"}'
-echo '{"identity":"work-system/definition/task/write-schema"}' | ia get --params -
+ia search --params '{"text":"shopping"}'
+echo '{"identity":"work-system/definition/task/write-exporter"}' | ia get --params -
 ia report --params '{}'
 ia get --schema
 ```

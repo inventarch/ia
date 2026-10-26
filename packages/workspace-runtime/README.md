@@ -10,17 +10,17 @@
 npm install @inventarch/workspace-runtime
 ```
 
-Capture the workspace from the [root README quick start](../../README.md#-quick-start) and read its records back from the captured bytes:
+Capture the Pantry workspace from the [walkthrough](../../docs/guide/walkthrough.md) and read its records back from the captured bytes:
 
 ```js
 import { captureWorkspace, Corpus } from '@inventarch/workspace-runtime';
 
-const capture = captureWorkspace('path/to/your-project');
+const capture = captureWorkspace('path/to/pantry');
 console.log(capture.sources.filter(({ path }) => /^\.ia\/src\/[^/]+\.ia$/.test(path)).map(({ path }) => path));
 
 const corpus = new Corpus(capture);
 try {
-  const plan = corpus.records().find(({ identity }) => identity === 'work-system/definition/plan/public-api');
+  const plan = corpus.records().find(({ identity }) => identity === 'work-system/definition/plan/shopping-list');
   console.log(plan.band, plan.source.path);
 } finally {
   corpus.close();
@@ -28,8 +28,14 @@ try {
 ```
 
 ```text
-[ '.ia/src/decision.ia', '.ia/src/work.ia', '.ia/src/workspace.ia' ]
-100 .ia/src/work.ia
+[
+  '.ia/src/checks.ia',
+  '.ia/src/evidence.ia',
+  '.ia/src/rules.ia',
+  '.ia/src/shopping-list.ia',
+  '.ia/src/workspace.ia'
+]
+100 .ia/src/shopping-list.ia
 ```
 
 `captureWorkspace` reads the exact source bytes, including the language floor and installed distributions, into an in-memory capture whose `revision` digests its `id` and every source with its placement; `verifyCapture` refuses one whose bytes no longer match that digest. `Corpus` admits records from those bytes alone. This capture writes nothing and is separate from the `.ia/work/snapshot/` pair that `ia capture` writes.

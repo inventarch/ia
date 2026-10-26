@@ -10,7 +10,7 @@
 
 1. Download the `inventarch-ia-<version>.vsix` asset from the [latest release](https://github.com/inventarch/ia/releases/latest).
 2. In VS Code 1.138.0 or later, run **Extensions: Install from VSIX…** from the Command Palette and select the file.
-3. Open the project folder that contains `.ia/`, then open a file under `.ia/src/`, such as `.ia/src/decision.ia` from the [root quick start](https://github.com/inventarch/ia#-quick-start).
+3. Open the project folder that contains `.ia/`, then open a file under `.ia/src/`, such as `.ia/src/shopping-list.ia` from the [walkthrough](https://github.com/inventarch/ia/blob/main/docs/guide/walkthrough.md).
 
 The extension activates on the first `.ia` file and starts one language server per workspace folder; in a multi-root workspace each folder gets its own, with an **IA language (*folder*)** output channel.
 

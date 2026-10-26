@@ -8,20 +8,68 @@ Thank you for considering a contribution. This document explains how the reposit
 - For a security problem, follow [SECURITY.md](SECURITY.md) instead of opening an issue.
 - Everyone taking part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
 
-## Prerequisites
+## Build from source
 
-The declared support target is Linux x64, Windows x64 and macOS arm64, on Node.js `>=22.22.0 <23`, with the pnpm version pinned in `packageManager` in [package.json](package.json) for contributors. `ia doctor` reports whether your machine matches that target.
+The declared support target is Linux x64, Windows x64 and macOS arm64, on Node.js `>=22.22.0 <23`, with the pnpm version pinned in `packageManager` in [package.json](package.json) (currently `12.9.0`). `ia doctor` reports whether your machine matches that target.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm build
-pnpm typecheck
-pnpm test
+node apps/cli/dist/main.js --version
 ```
 
-`pnpm platform:qualify` runs the full qualification gate that continuous integration runs. The [README](README.md#-contributing-and-verification) lists what each command checks.
+To use that build in another project, run `node /path/to/ia/apps/cli/dist/main.js` wherever the [guide](docs/guide/README.md) says `ia`.
+
+## Checks
+
+All commands below are root [package.json](package.json) scripts. Run focused checks while working; `pnpm platform:qualify` runs the full qualification gate that continuous integration runs.
+
+| Command | What it checks |
+| --- | --- |
+| `pnpm build` | Bundled language base, kernel and public vocabulary checks, package builds and host payload |
+| `pnpm test` | Builds first, then runs package and repository-tool test suites |
+| `pnpm typecheck` | Package and tool TypeScript |
+| `pnpm lint` / `pnpm format:check` | Biome lint and formatting checks |
+| `pnpm docs:audit` | Documentation structure, link integrity and owner contract coverage |
+| `pnpm platform:qualify` | Tests, types, static checks, native validation, documentation and emitted-resource qualification |
+
+<details>
+<summary>More checks: native records, generated files, installed packages and releases</summary>
+
+| Command | What it checks |
+| --- | --- |
+| `pnpm native:check` | Native source closure and repository lints |
+| `pnpm public-language:check` | Public schema and reference closure and harness compilation |
+| `pnpm compliance:check` / `pnpm systems:check` | Compliance fixtures and local system scenarios |
+| `pnpm dependencies:check` | Package dependency direction |
+| `pnpm tests:inventory` | Test ownership and qualification task coverage |
+| `pnpm docs:check --all` | Local link targets across tracked Markdown files |
+| `pnpm vocabulary:check` / `pnpm vocabulary:generate` | Check or regenerate the vocabulary catalogue |
+| `pnpm authoring:check` / `pnpm authoring:generate` | Check or regenerate authoring resources |
+| `pnpm projections:check` / `pnpm projections:generate` | Check or regenerate `CLAUDE.md` (this repository's position packet) and the `ia-authoring` skills |
+| `pnpm public:qualify` | Public records, guides and host artifacts, plus package qualification |
+| `pnpm packages:qualify` | Package exports, installed CLI consumers and VSIX packaging |
+| `pnpm resources:qualify` / `pnpm projections:qualify` | Emitted resource and projection behavior |
+| `pnpm release:note` / `pnpm release:check` / `pnpm release:version` | Add a pending release note, check that changed packages have notes, and compute the next coordinated version |
+| `pnpm npm:setup` | Report, and with `--apply` fix, the npm names, trusted publishers and GitHub settings publication needs |
+| `pnpm npm:prepare` / `pnpm npm:consumer` / `pnpm npm:plan` | Prepare and check npm release archives; see the [publishing guide](tools/distribution/NPM-PUBLISHING.md) |
+
+</details>
+
+Tie every validation claim to the checks that ran and the environment they exercised.
 
 ## How the repository is organised
+
+| Folder | Holds | Start at |
+| --- | --- | --- |
+| `packages/` | Compiler, graph, compliance, database, knowledge, runtimes and service contracts | [Package reference](docs/reference/packages/README.md) |
+| `apps/` | CLI, MCP server, runner, edit-guard hook, distribution tooling and VS Code extension | [Architecture reference](docs/reference/architecture/README.md) |
+| `.ia/src/floor/` | The closed language kernel: domains, predicate pairs and routing vocabulary | [Kernel README](.ia/src/floor/README.md) · [contract](.ia/src/floor/SPEC.md) |
+| `.ia/src/systems/` | The eleven public vocabulary owners, their canonical schemas and system implementations | [Architecture reference](docs/reference/architecture/README.md#native-systems-and-executable-owners) |
+| `docs/` | The user guide, the language, architecture and package references, and implemented specifications | [Documentation](docs/README.md) |
+| `examples/` | Authoring examples, the walkthrough's finished records, and the public language corpus | [Examples](docs/guide/examples.md) |
+| `distributions/` | The optional product-structure distribution | [Distribution README](distributions/product-structure/README.md) |
+| `releases/`, `tools/` | Release inputs, and the build, generation, documentation and qualification tools | [Release process](releases/README.md) · [repository contract](SPEC.md) |
 
 - [SPEC.md](SPEC.md) is the repository contract. Every package, app, tool directory and native system has its own colocated `SPEC.md`, and `pnpm docs:audit` fails when a file has no owning contract. Read the nearest contract before changing behaviour, and update it in the same change.
 - Native records live under `.ia/src/`. The language reference is [docs/reference/language/README.md](docs/reference/language/README.md) and the vocabulary catalogue is [vocabulary.md](docs/reference/language/vocabulary.md). Choose the word before writing the record, satisfy its canonical schema, and run `ia validate`.
