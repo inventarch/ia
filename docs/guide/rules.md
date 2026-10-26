@@ -40,9 +40,9 @@ The `governance` section also accepts free clauses for longer statements, such a
 
 IA does not run rules against your code. It delivers them, so the person or agent working on a matching record cannot miss them. When an agent asks for a [position](agents-and-authority.md#positions), it gets:
 
-- **Blocking rules, always.** A rule with `severity blocking` that applies to the seat goes into a section of its own, outside the budget. However small a context an agent asks for, it still gets the blocking rules.
+- **Blocking rules that apply by word.** A rule with `severity blocking` whose `subject-word` or `subject-kind` matches the seat, or another record the position reaches, goes into a section of its own, outside the budget. However small a context an agent asks for, it still gets these rules.
 - **Other rules that apply by word.** Rules whose `subject-word` matches the seat's word are listed under *Applies by word*.
-- **Rules linked by a relationship.** A rule that `governs`, `constrains` or `forbids` the seat appears among its pointers, with the link that put it there.
+- **Rules linked by a relationship.** A rule that `governs` the seat appears among its pointers, with the link that put it there. A blocking rule linked this way is reserved outside the budget only when the agent asks with `--shape governance`.
 
 In Pantry, both rules apply to every task:
 
@@ -54,7 +54,7 @@ Rules (reserved outside the budget)
   •  governance-system/governance/law/lists-stay-local
 ```
 
-To aim a rule at specific records rather than a whole word, link it:
+To aim a rule at specific records rather than a whole word, link it. Rules may `govern` records, but not `constrain` or `forbid` them; those links are refused with `IA-GRAPH-EDGE-UNCONSENTED`:
 
 ```ia
 @law lists-stay-local
@@ -89,7 +89,7 @@ A playbook is a procedure split into **cells**. Each cell is the text for one **
     subject-word task
 ```
 
-An agent receives the cell that matches where it is. The phase comes from `--phase`; the primitive comes from `--primitive`, or else from the shape it asked for:
+An agent receives the cell that matches where it is. The primitive comes from `--primitive`, or else from the shape it asked for. The phase comes from `--phase`, or else from the primitive when `--primitive` is given, or else from the shape:
 
 | Shape | Primitive it selects | Phase it implies |
 | --- | --- | --- |
@@ -131,5 +131,5 @@ A check can say which rule or requirement it stands for with `enforces`. That re
 | You see | Because |
 | --- | --- |
 | `IA-GRAPH-DIMENSION-UNKNOWN` | `severity` is not `blocking`, `advisory` or `informational` |
-| A rule missing from a position | Its `subject-word` does not match the seat's word, and nothing links it to the seat. Only blocking rules are reserved outside the budget |
+| A rule missing from a position | Its `subject-word` does not match the seat's word, and nothing links it to the seat. Only blocking rules that apply by word are reserved outside the budget in every shape |
 | `no cell` under *Cells* | The playbook has no text at that phase and primitive. Ask with the matching `--phase` and `--primitive` |

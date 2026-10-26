@@ -41,7 +41,7 @@ Make the decision, and the task can start. Record a passing test against the tas
 
 - **One source for people and agents.** Requirements, decisions, plans and rules live in git with the code. They are reviewed in pull requests and checked in CI, not scattered across tickets and chat.
 - **Records are checked, not just stored.** Every record follows its word's schema and every reference must resolve. A typo, a missing field or a link to something deleted is caught, with the file and line.
-- **Agents start from the right context.** `ia position` gives an agent a short, ordered view of what bears on its task, including every blocking rule. The same question always gets the same answer.
+- **Agents start from the right context.** `ia position` gives an agent a short, ordered view of what bears on its task, including the blocking rules that apply to it. The same question always gets the same answer.
 - **"Done" means evidence.** A task is done when a recorded result covers that exact version of it, not when someone sets its status.
 - **Honest about what it knows.** IA keeps declared, checked, executed and authorized apart. A check that did not run reports `not-evaluated`, never a pass.
 

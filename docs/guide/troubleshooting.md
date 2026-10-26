@@ -80,13 +80,16 @@ Codes start with where the problem was found:
 | --- | --- | --- |
 | `IA-RUNTIME-MANDATE-MOVE` | The acting participant's mandate does not grant this command's move | Run the `ia position` command it names to see the mandates |
 | `IA-RUNTIME-MANDATE-WORD` | The mandate excludes this word | Have another participant write it |
-| `IA-RUNTIME-MANDATE-ACTOR` | `--actor` names no participant, or there are several and no steward | Name an authored `@agent`, or set a steward |
-| `IA-RUNTIME-REQUEST-INVALID` on every command | A mandate is broken, so everything governed by mandates is closed | `ia report` shows why; fix the mandate by hand |
+| `IA-RUNTIME-MANDATE-ACTOR` | `--actor` names no participant, there are several and no steward, or no governing mandate binds the acting participant | Name an authored `@agent`, set a steward, or add a mandate for the participant |
+| `IA-RUNTIME-REQUEST-INVALID` on every mandate-checked command | A mandate is broken, so everything governed by mandates is closed | `ia report` shows why; fix the mandate by hand |
+| `IA-RUNTIME-REQUEST-INVALID` from `ia position` | A scope-key value is out of range, such as `--depth 5` | Run the corrected command it names |
 | `IA-CLI-EDIT-STALE` | The file changed after `ia preview` | Preview again; use the new digest |
-| `IA-CLI-EDIT-UNCLEAN` | The change would add an error | The preview shows it |
+| `IA-CLI-EDIT-INVALID` | `ia preview` or `ia author` was given a field or value the word's schema does not allow | `ia preview <word>` lists the fields and values |
+| `IA-CLI-EDIT-UNCLEAN` | The change would add an admission error | The preview shows it |
 | `IA-CLI-EDIT-AUTHORITY` | `ia author` does not write this word | Edit by hand |
 | `IA-CLI-EDIT-MANDATE` | A participant tried to change its own mandate | A person edits it by hand |
 | `IA-HOOK-NOT-MANDATED` | The edit guard stopped an edit: no mandate grants Synthesis on that path | Act as a participant whose mandate allows it, or change the mandate |
+| `IA-HOOK-IDENTITY-UNAVAILABLE` | The edit guard stopped a subagent that matches no `@agent-profile`, such as a built-in Claude Code subagent | Edit from the main session, or describe that subagent with an `@agent-profile` |
 | `IA-HOOK-PROJECTION-MANAGED` | The edit guard protects a file IA generates | Change the records and rerun `ia project` |
 
 ## Hosts
@@ -99,11 +102,23 @@ Codes start with where the problem was found:
 | `ia doctor` shows a registration stale | The Node binary it was registered with is gone | Rerun `ia host <host> --apply --yes` |
 | The agent does not see IA | The packet was not generated, or the host was not restarted | `ia doctor`, then restart the agent |
 
+## Knowledge
+
+| Code | Because | Do |
+| --- | --- | --- |
+| `IA-KB-INVALID` | Malformed input, such as a bad selection file, or a pack selection that names only part of an `.ia` file | The message names the problem; select whole files when packing |
+| `IA-KB-UNAVAILABLE` | The identity is not in the selected knowledge | `ia kb search` to find one that is |
+| `IA-KB-RESPONSE-LIMIT` | The answer would exceed 48 KiB | Narrow the request, such as a lower `--limit` or `--steps` |
+| `IA-KB-SNAPSHOT-UNAVAILABLE` | A citation's snapshot is no longer available | Read the identity again for a current citation |
+| `IA-KB-SCOPE-STALE`, `IA-KB-SNAPSHOT-CHANGED` | Files changed while the command was reading them | Retry once the workspace stops changing |
+| `IA-KB-SOURCE-UNAVAILABLE` | The repository or commit `ia kb pack` reads could not be read | `ia doctor`; check the commit exists |
+
 ## Distributions
 
 | Code | Because | Do |
 | --- | --- | --- |
 | `IA-DIST-REGISTRY-UNMAPPED` | No registry or catalog for a provider | Map it in `.ia/registries.json`, or pass `--registry` or `--catalog` |
+| `IA-DIST-INPUT-INVALID` | A `registries.json`, catalog or other input is malformed, such as a folder registry outside the workspace | The message names the file and entry |
 | `IA-DIST-ARTIFACT-UNAVAILABLE` | A registry or archive could not be reached (exit 4) | Check the network or path |
 | `IA-DIST-CONFLICT` | No set of versions satisfies every request, or a catalog lacks an archive | Widen a range, or add the archive |
 | `IA-DIST-RELEASE-WITHDRAWN` | The locked version was withdrawn | `ia update` to another version, or `--allow-withdrawn` |

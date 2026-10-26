@@ -6,7 +6,7 @@ Read each result for exactly what it establishes.
 
 | Question | What answers it | What does not |
 | --- | --- | --- |
-| Are the records well formed, and do their references resolve? | `ia validate` reports **Admitted** with **0 errors** | |
+| Are the records well formed, and do their references resolve? | `ia validate` reports **Admitted** with **0 errors**, and no check names an evaluator that is not built in | A workspace with such a check, which `ia validate` admits with a warning but `ia capture`, `ia host` and `ia project` count as an error |
 | Are the records true, complete and wise? | Nothing in IA. People and reviews decide that. | Admission. A well-formed spec can still be the wrong spec. |
 | Did a requirement pass? | A `@check` with a built-in evaluator reporting **pass**, and the evidence written under `.ia/work/evidence/` | A `@case`, which describes a scenario but runs nothing. A check that reports **not-evaluated**. |
 | Was a task done? | `ia next` reporting **exit evidence recorded**: a successful `@observation` about that version of the task | The task's `work.status`, which IA prints as self-declared and never relies on |

@@ -152,7 +152,7 @@ The archive holds the system folder only: the word and its schema, not records t
 
 ## Rules and limits
 
-- **A word's spelling** is lowercase letters, digits and hyphens, starting with a letter. `system`, `schema` and `any-adopter` are reserved.
+- **A word's spelling** is lowercase letters, digits and hyphens, starting with a letter. `system`, `schema` and `any-adopter` are reserved, and the retired words `interface`, `protocol` and `shape` are refused too.
 - **One owner per word.** Each word is registered by one system. A word two systems register at the same band is refused for both.
 - **Records inside a system folder** may use only that system's words, `@system`, `@schema` and the words of the systems it `requires`. Anything else is refused with `IA-COMP-DISCRIMINATOR-FOREIGN`. Records outside system folders may use any word.
 - **New words never extend the closed lists.** Kinds, categories, predicates, moves and phases are fixed; a new word picks from them.

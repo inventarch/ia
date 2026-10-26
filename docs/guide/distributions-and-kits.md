@@ -4,7 +4,7 @@
 
 ## The language is a distribution
 
-Every workspace already uses one distribution: `inventarch/language`, which holds the eleven public systems and their 44 words. The CLI carries a copy, and `ia init` installs it from there, with no network.
+Every workspace already uses one distribution: `inventarch/language`, which holds the eleven public systems and the floor that defines the language, 44 words in all. The CLI carries a copy, and `ia init` installs it from there, with no network.
 
 That explains the version numbers you will see:
 
@@ -36,7 +36,7 @@ ia install <provider/name> --apply --yes   # do it
 | `ia update <id> [--to <range>]` | Moves one installed distribution to the newest version in its range, or a new range |
 | `ia remove <id>` | Removes one |
 | `ia restore --apply` | Reinstalls exactly what the lock says |
-| `ia recover` | Finishes or undoes an install that was interrupted; IA tells you when it is needed |
+| `ia recover --root .` | Finishes or undoes an install that was interrupted; IA tells you when it is needed. `--root` is required. |
 
 `install`, `update` and `remove` plan first and change nothing without `--apply`. They never touch your records in `.ia/src/`. These commands are not checked against mandates.
 
@@ -63,7 +63,7 @@ Changes
   1 added, 0 removed, 0 updated, 0 shadowed.
 ```
 
-Pantry can now write `@allergen` records. A teammate's fresh clone restores with the same catalog. Without it, IA does not know where `local/kitchen` comes from and refuses with `IA-DIST-REGISTRY-UNMAPPED`:
+Pantry can now write `@allergen` records. Commit `vendor/` and `catalog.json`. The language entry points into the ignored `.ia/distributions/cache/`, but that does not matter for a teammate: restore takes the language from the CLI's own bundled copy when the lock pins the version it carries. A teammate's fresh clone restores with the same catalog. Without it, IA does not know where `local/kitchen` comes from and refuses with `IA-DIST-REGISTRY-UNMAPPED`:
 
 ```sh
 ia restore --catalog catalog.json --apply --yes
@@ -78,16 +78,16 @@ A **registry** is a folder or an HTTPS site with a fixed layout of index files a
 1. `--registry <url-or-folder>` on the command line;
 2. the `IA_REGISTRY` environment variable;
 3. `.ia/registries.json` in the workspace;
-4. `registries.json` in your user configuration folder;
+4. `registries.json` in your user configuration folder: `IA_CONFIG_HOME` if set, otherwise `%APPDATA%\ia` on Windows, `~/Library/Preferences/ia` on macOS and `~/.config/ia` (or `$XDG_CONFIG_HOME/ia`) on Linux;
 5. the built-in default for the `inventarch` provider, `https://api.inventarch.dev/registry`.
 
 `registries.json` maps providers to registries:
 
 ```json
-{ "format": "ia.registries.v1", "registries": { "acme": "https://ia.example.com/registry", "*": "../shared-registry" } }
+{ "format": "ia.registries.v1", "registries": { "acme": "https://ia.example.com/registry", "*": "vendor/registry" } }
 ```
 
-Registry URLs must be HTTPS, with no credentials, query or fragment. A folder registry in `.ia/registries.json` must be a relative path inside the workspace. A provider with no registry refuses with `IA-DIST-REGISTRY-UNMAPPED`.
+`*` matches any provider not named. Registry URLs must be HTTPS, with no credentials, query or fragment. A folder registry must be a relative path inside the workspace in `.ia/registries.json`, and an absolute path in your user `registries.json`; anything else refuses with `IA-DIST-INPUT-INVALID`. A provider with no registry refuses with `IA-DIST-REGISTRY-UNMAPPED`.
 
 The [registry specification](../specs/registry/README.md) describes the layout. To build a folder registry, use `ia-distribution registry add` from [`@inventarch/distribution`](../../apps/distribution/README.md). A registry lists only archives that record where their source lives: `source.repository` and `source.commit` in `.ia/release.json`.
 

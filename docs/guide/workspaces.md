@@ -18,7 +18,7 @@ ia init . --id local/my-project --host none --apply --yes
 | `--host claude\|codex\|none` | Also connect an agent host when done, as `ia host` would. Defaults to `none`. |
 | `--system` | Also create a system folder, for a repository that will define words of its own. See [Your own vocabulary](your-own-vocabulary.md). |
 | `--from <plugin-folder>` | Turn an existing Claude Code, Codex or Grok plugin into a workspace. See [Distributions and kits](distributions-and-kits.md#plugins-as-kits). |
-| `--migrate` | Move a workspace created by IA 1.0 or 1.1 to the current layout. See [Upgrading](upgrading.md). |
+| `--migrate` | Move an unedited starter workspace created by IA 1.0 or 1.1 to the current layout. See [Upgrading](upgrading.md). |
 | `--apply` | Do it. Without it, `ia init` only prints its plan. |
 | `--yes` | Do not ask for confirmation. Needed with `--apply` when there is no terminal, as in CI. |
 
@@ -26,7 +26,7 @@ ia init . --id local/my-project --host none --apply --yes
 
 It refuses some targets:
 
-- a folder that is already a workspace, with `IA-CLI-CONFLICT`. It names `ia position` instead;
+- a folder that is already a workspace. The preview lists the conflict, and `--apply` refuses with `IA-CLI-CONFLICT` and names `ia position` instead;
 - a folder that is, contains or sits inside IA's home folder (`~/.ia`, or `IA_HOME` if set), with `IA-DIST-PATH-UNSAFE`. This includes your user home folder itself, because it contains `~/.ia`. Create workspaces in project folders.
 
 ## What it writes
@@ -100,9 +100,9 @@ Capture  ia-snapshot-1                            revision b100b4bdbc58…
      new, 0 removed.
 ```
 
-The snapshot is how IA tells what changed. Positions report their **freshness** against it, `current` or `stale`, and `ia next` uses the previous snapshot to explain why evidence went stale. Run `ia capture` after a batch of edits, or let CI do it. Each clone captures for itself, and the same records always capture to the same revision.
+The snapshot is how IA tells what changed. Positions report their **freshness** against it, `current` or `stale`, and `ia next` uses the previous snapshot to explain why evidence went stale. Run `ia capture` after a batch of edits. The snapshot lives in the ignored `.ia/work/`, so each clone captures for itself; a capture in CI checks the records but does not update anyone else's clone. The same files always capture to the same revision.
 
-The **revision** that appears in most output (`revision 5778ce880732…`) is a digest of every authored record. It changes whenever any record in `.ia/src/` changes, and only then.
+The **revision** that appears in most output (`revision 5778ce880732…`) is a digest of the authored files under `.ia/src/`. Any change to them changes it, including comments, layout and moving a record to another file.
 
 ## Working in a team
 
@@ -128,13 +128,13 @@ npx ia restore --apply --yes
 npx ia validate --verify-conformance
 ```
 
-`ia validate` exits `0` when the workspace is admitted and `1` when it is refused. It writes evidence under `.ia/work/evidence/`, so the job needs a writable `.ia/work/`.
+`ia validate` exits `0` when the workspace is admitted, `1` when it is refused, and `3` when it cannot read the workspace at all, for example in a clone nobody restored. It writes evidence under `.ia/work/evidence/`, so the job needs a writable `.ia/work/`.
 
-**Agent host files.** `ia host` and `ia project` write files with paths for one machine. Each person runs them in their own clone; do not commit them. See [Connecting agents](connecting-agents.md).
+**Agent host files.** `ia host` registers entries with absolute paths for one machine (`.mcp.json`, `.claude/settings.local.json`, `.codex/config.toml`). The files `ia project` writes hold no paths, but the packet ends with a note about this clone's state. Each person runs them in their own clone; do not commit them. See [Connecting agents](connecting-agents.md).
 
 ## One workspace per repository
 
-Most repositories have one `@workspace`, and IA treats it as the default for commands that take no `--seat`. You can author more, for example to describe parts of a large repository, but then IA cannot pick a default and asks you to name one. A workspace grants no account or file permission; it is a boundary for records, not for access.
+Most repositories have one `@workspace`, and IA treats it as the default for commands that take no `--seat`. Keep it that way. With two or more, no workspace is the default, and IA does not warn you: `ia position` with no `--seat` returns only the repository location, and mandates scoped to a workspace stop restricting IA's commands. A workspace grants no account or file permission; it is a boundary for records, not for access.
 
 ## Checking the installation
 

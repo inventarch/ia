@@ -10,7 +10,7 @@
     observed-at "2026-10-26T09:12:00Z"
     captured-at "2026-10-26T09:12:00Z"
     workspace "pantry"
-    locator "src/export.test.mjs"
+    locator "work-system/definition/task/write-exporter"
     revision "2b3f89bec1dd33f5d44e6b1cb56678ecd7a20bc5288e3a27dee732e4a48f59c2"
     bundle "test-results/export.txt"
     digest "cae0526cbea5cfb44d6d1fdffe7bfdec2171b75814f2670e494bab187cc88d4d"

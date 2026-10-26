@@ -73,7 +73,7 @@ Every word has one **schema**. It lists:
 - each field, its type and, for identifiers, the allowed values;
 - the relationships the word may have, and how many.
 
-Every public schema is **closed**: a field or section it does not list is refused with `IA-COMP-FIELD-UNKNOWN` or `IA-COMP-SECTION-UNKNOWN`. This is what lets IA catch a misspelled field instead of silently ignoring it.
+Every public schema except `@system`'s is **closed**: a field or section it does not list is refused with `IA-COMP-FIELD-UNKNOWN` or `IA-COMP-SECTION-UNKNOWN`. This is what lets IA catch a misspelled field instead of silently ignoring it.
 
 Here is part of the `@task` schema, as `ia preview task` prints it:
 
@@ -93,7 +93,7 @@ Edges
   may supersede task one
 ```
 
-Each system also says which relationships its words accept from other systems, under **Consent** in the same output. A relationship that neither side consents to is refused.
+Each system also says which relationships its words accept from other systems, under **Consent** in the same output. A relationship is refused unless both the source's and the target's systems consent to it.
 
 ## Stewards
 

@@ -73,7 +73,7 @@ The same checker runs in the VS Code extension as you type, and in CI.
 
 ### Plans and evidence
 
-Plans, milestones and tasks link to each other and to the decisions they wait on. `ia next` reads those links and tells you, for each task, whether it is **done**, **ready** or **blocked**, and why:
+Plans, milestones and tasks link to each other and to the decisions they wait on. `ia next` reads those links and tells you, for each task, whether it is **done** (`exit evidence recorded`), **ready** (`no declared blocker`) or **blocked**, and why:
 
 ```text
   ▲  work-system/definition/task/add-export-button
@@ -84,9 +84,9 @@ A task counts as done only when an `@observation` records a successful check of 
 
 ### Rules and checks
 
-Rules (`@law`, `@principle`, `@convention`) say what must hold. IA does not run your code to enforce them. It makes sure they reach whoever works on a matching record. A blocking law is always part of an agent's starting context.
+Rules (`@law`, `@principle`, `@convention`) say what must hold. IA does not run your code to enforce them. It makes sure they reach whoever works on a matching record. A blocking law that applies to a record's word is always part of the starting context of an agent working on it.
 
-Checks are different: a `@check` names an **evaluator** that IA runs during `ia validate`. The built-in evaluators check records: schemas, references, coverage. A passing check writes its result to disk as evidence. A check whose evaluator did not run reports **not-evaluated**, and IA never counts that as a pass. See [Rules](rules.md) and [Checks and evidence](checks-and-evidence.md).
+Checks are different: a `@check` names an **evaluator**, and `ia validate` reports its result. The evaluators IA has built in check records: schemas, references, coverage. A passing check writes its result to disk as evidence. A check whose evaluator did not run reports **not-evaluated**, and IA never counts that as a pass. See [Rules](rules.md) and [Checks and evidence](checks-and-evidence.md).
 
 ### Agents, mandates and positions
 
@@ -98,7 +98,7 @@ ia position --seat work-system/definition/task/write-exporter --shape sequence
 
 The answer is a short, ordered summary of what bears on that task: the task, what depends on it, the decision it rests on, the rules that apply and the mandate the agent works under. It is computed from the records alone, so the same question always gets the same answer, with a digest to prove it.
 
-A `@mandate` lists the **moves** an agent may make: observe, verify, write records, delegate, change things. IA's own commands refuse a move the mandate does not allow. This is a guard rail for well-behaved agents, not security: anyone who can edit `.ia/src/` can change a mandate. Agents write records through `ia preview` and `ia author`, which show an edit first and then apply exactly that edit, signed with who made it. See [Agents and authority](agents-and-authority.md).
+A `@mandate` lists the **moves** an agent may make: observe, verify, write records, delegate, change things. IA's own commands refuse a move the mandate does not allow. This is a guard rail for well-behaved agents, not security: anyone who can edit `.ia/src/` can change a mandate. Agents write records through `ia preview` and `ia author`, which show an edit first, then apply exactly that edit and add a comment naming the participant and mandate it was made under. See [Agents and authority](agents-and-authority.md).
 
 ### Hosts
 
@@ -135,7 +135,7 @@ Read it as one loop:
 
 ## What IA does not do
 
-- **It is not a task tracker or a CI system.** It has no server or user interface. It reads files and prints results; you run it on your machine or in CI.
+- **It is not a task tracker or a CI system.** It has no hosted service or web interface. It reads files and prints results; you run it on your machine or in CI.
 - **It does not run your tests or inspect your code.** It records results you give it and checks records.
 - **It is not a sandbox or an access control system.** Mandates restrict IA's own commands and, optionally, an agent's file edits through a hook. Real permissions come from your host, your operating system and your repository settings.
 - **It ships no method.** IA defines what records mean and what a result establishes. How your team plans, reviews or designs is yours to write down, as playbooks, rules and checks in your own words.

@@ -16,7 +16,9 @@
     applies []
 ```
 
-`ia init` creates one participant, named after the workspace, and makes it the workspace's **steward**: the participant that acts when no other is named. You can add more, such as a reviewer.
+`ia init` creates one participant, named after the workspace, and makes it the workspace's **steward**: the participant that acts when no other is named. You can add more, such as a reviewer, each with its own mandate.
+
+"Steward" also has a second use. Each *system* names a steward too, the participant accountable for that system's words (see [Words and systems](words-and-systems.md#stewards)). A workspace's steward is its default actor; a system's steward is who owns a vocabulary.
 
 ## Mandates
 
@@ -63,7 +65,9 @@ Some commands are never checked against mandates, so they always run:
 
 ### When a mandate applies
 
-A mandate governs a command when its `scope` names the workspace, or its `covers` includes the path being changed. A mandate with neither governs wherever its participant acts. A participant with no mandate at all is not restricted, because mandates only take things away.
+A mandate governs a command when its `scope` names the workspace, or its `covers` includes the path being changed; either is enough. A mandate with neither governs wherever its participant acts.
+
+Where no mandate governs, nothing is restricted. Once one does, which is always true after `ia init`, every acting participant needs a governing mandate that binds it. A participant that none of them binds is refused every mandate-checked command with `IA-RUNTIME-MANDATE-ACTOR`. So when you add a participant, add its mandate too.
 
 ### Which participant is acting
 
@@ -73,7 +77,7 @@ Commands act as the workspace's steward unless you say otherwise. With one parti
 ia validate --actor reviewer
 ```
 
-`--actor` takes `@agent reviewer`, `reviewer` or the full identity. An unknown participant, or several participants and no steward, refuses with `IA-RUNTIME-MANDATE-ACTOR`. `--actor` does not lift a restriction; it changes whose mandates are checked.
+`--actor` takes `@agent reviewer`, `reviewer` or the full identity. An unknown participant, several participants and no steward, or a participant no governing mandate binds, refuses with `IA-RUNTIME-MANDATE-ACTOR`. `--actor` does not lift a restriction; it changes whose mandates are checked.
 
 ### An example: a read-only reviewer
 
@@ -127,9 +131,9 @@ These rules keep an agent from widening its own authority through IA. They do no
 
 ### Covered paths and the edit guard
 
-`authority.covers` limits a mandate to certain files. `ia preview` and `ia author` check a new record's target file against it.
+`authority.covers` adds file paths where a mandate applies. Because `scope` or `covers` alone is enough, `covers` narrows a mandate to those files only when the mandate states no `scope`. `ia preview` and `ia author` check a new record's target file against it.
 
-To stop an agent editing those files with its ordinary tools, declare a `@hook` and register it with `ia host claude`. The hook runs before each matching edit in Claude Code, and refuses it unless the mandate governing the acting agent there grants Synthesis. It sees file-tool edits only, not shell commands, and only Claude Code supports it. See [Connecting agents](connecting-agents.md#edit-guards). `ia doctor` warns when a mandate restricts something but no hook protects `.ia/src/`.
+To stop an agent editing files with its ordinary tools, declare a `@hook` and register it with `ia host claude`. The hook runs before each matching edit in Claude Code, and refuses it unless the mandate governing the acting agent there grants Synthesis. A subagent with no matching `@agent-profile`, including Claude Code's built-in ones, is refused at every path the hook selects. It sees file-tool edits only, not shell commands, and only Claude Code supports it. See [Connecting agents](connecting-agents.md#edit-guards). `ia doctor` warns when a mandate restricts something but no hook protects `.ia/src/`.
 
 ## Positions
 
@@ -149,7 +153,7 @@ You ask for a position with a **scope key**. There is no free-text question; eve
 | Phase | `--phase` | `orient`, `plan`, `act`, `learn` | Set by the shape |
 | Primitive | `--primitive` | `Memory`, `Attention`, `Inference`, `Decision`, `Escalation`, `Learning` | Set by the shape |
 | Depth | `--depth` | `0` to `2`: how many links to follow | `1` |
-| Budget | `--budget` | `0` to `64`: how many records to load in full | `16` |
+| Budget | `--budget` | `0` to `64`: how many records beyond the seat to load | `16` |
 | Word | `--word` | A word, to focus on records of that word | none |
 
 With no flags at all, `ia position` returns the workspace at depth 0 and budget 0: pointers only.
@@ -164,16 +168,16 @@ The **shape** says what kind of context the agent needs:
 | `sequence` | Order, blockers and versions: what comes before and after |
 | `learning` | Outputs, evidence and where things came from |
 
-The **phase** says where in the work the agent is: `orient` (understand), `plan` (decide an approach), `act` (do it) or `learn` (compare the result with the intent). It selects which [playbook](rules.md#playbooks) step is delivered.
+The **phase** says where in the work the agent is: `orient` (understand), `plan` (decide an approach), `act` (do it) or `learn` (compare the result with the intent). Together with the **primitive**, the kind of thinking the step needs, it selects which [playbook](rules.md#playbooks) step is delivered. The primitives are Memory (recall), Attention (notice what matters), Inference (reason), Decision (choose), Escalation (hand up) and Learning (compare and adjust).
 
-A position lists:
+The [walkthrough](walkthrough.md#6-set-the-rules) shows a complete position. A position lists:
 
 - **Loaded**: the seat and nearby records, up to the budget;
 - **Pointers**: more records, by identity, to read if needed;
 - **Applies by word**: rules and playbooks that apply to the seat's word;
 - **Cells**: the playbook steps for this phase;
 - **Rules**: blocking rules, always included, outside the budget;
-- **Mandates**: the mandates that govern the actor here;
+- **Mandates**: the mandates that govern here, for every participant;
 - **Frontier** and **Unknowns**: what lies beyond this view, and what IA could not decide;
 - two commands to widen the view: one hop deeper, or re-seat at a pointer.
 
@@ -206,7 +210,8 @@ ia author --set "@task add-export-button" "work.owner=Priya" --digest <sha256-fr
 It writes only if:
 
 - the file still has that digest. If someone changed it in between, it refuses with `IA-CLI-EDIT-STALE` and writes nothing;
-- the result has no new errors, or it refuses with `IA-CLI-EDIT-UNCLEAN`;
+- the field and value are ones the word's schema allows. Otherwise `ia preview` and `ia author` both refuse with `IA-CLI-EDIT-INVALID`;
+- the result adds no admission error, or it refuses with `IA-CLI-EDIT-UNCLEAN`;
 - the actor's mandates allow Synthesis there.
 
 It adds one comment above the record, replacing any earlier one:
@@ -216,7 +221,7 @@ It adds one comment above the record, replacing any earlier one:
 @decision list-format
 ```
 
-The comment records who wrote the record, under which mandate and from which revision. It does not change the record's digest.
+The comment names the participant `ia author` acted as (the steward unless you pass `--actor`), its mandate and the revision the edit started from. It is a plain comment, not a signature, and it does not change the record's digest.
 
 You can always edit records by hand instead, then run `ia validate`. The governed path matters most for agents. It makes their edits visible before they happen, refuses edits based on a stale read, and leaves a trail.
 
@@ -226,8 +231,9 @@ You can always edit records by hand instead, then run `ia validate`. The governe
 | --- | --- | --- |
 | `IA-RUNTIME-MANDATE-MOVE` | The actor's mandate does not grant the move this command needs | Run the position the refusal names, or act as another participant |
 | `IA-RUNTIME-MANDATE-WORD` | The mandate excludes this word | Have a participant without that exclusion write it |
-| `IA-RUNTIME-MANDATE-ACTOR` | `--actor` names an unknown participant, or several exist and none is the steward | Name an authored `@agent`, or set the workspace's `steward` |
+| `IA-RUNTIME-MANDATE-ACTOR` | `--actor` names an unknown participant, several exist and none is the steward, or no governing mandate binds the acting participant | Name an authored `@agent`, set the workspace's `steward`, or add a mandate for the participant |
 | `IA-CLI-EDIT-STALE` | The file changed after the preview | Preview again and use the new digest |
-| `IA-CLI-EDIT-UNCLEAN` | The change would add an error | Fix the arguments; the preview shows the error |
+| `IA-CLI-EDIT-INVALID` | A field or value the word's schema does not allow | `ia preview <word>` lists the fields and values |
+| `IA-CLI-EDIT-UNCLEAN` | The change would add an admission error | Fix the arguments; the preview shows the error |
 | `IA-CLI-EDIT-AUTHORITY` | `ia author` does not write this word | Edit the file by hand |
 | `IA-CLI-EDIT-MANDATE` | A participant tried to change its own mandate | A person edits mandates by hand |

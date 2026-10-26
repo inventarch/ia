@@ -37,7 +37,7 @@
 | **Governed write path** | Changing records with `ia preview`, then `ia author --digest` | [Agents and authority](agents-and-authority.md#the-governed-write-path) |
 | **Host** | The program running a coding agent, such as Claude Code or Codex | [Connecting agents](connecting-agents.md) |
 | **Identity** | A record's full name: `system/kind/facet/name` | [Records](records.md#identity) |
-| **IA home** | `~/.ia`, or `IA_HOME`: where IA keeps host programs and user settings; never a workspace | [Workspaces](workspaces.md#creating-a-workspace) |
+| **IA home** | `~/.ia`, or `IA_HOME`: where `ia host` installs host programs and IA keeps machine state; never a workspace. User configuration such as `registries.json` lives elsewhere (see [Distributions and kits](distributions-and-kits.md#from-a-registry)) | [Workspaces](workspaces.md#creating-a-workspace) |
 | **Kind** | The second part of an identity: one of seven broad roles a word lowers to | [Words and systems](words-and-systems.md#the-languages-own-words) |
 | **Kit** | A registry entry that installs several distributions together; also a workspace made from a plugin | [Distributions and kits](distributions-and-kits.md#kits) |
 | **Law** | A `@law` record: a rule that must hold | [Rules](rules.md) |

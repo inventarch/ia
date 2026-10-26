@@ -75,7 +75,7 @@ The [CLI guide](../../apps/cli/README.md) and the [consumer CLI contract](../spe
 | `ia update <id>` | Changes one distribution's version |
 | `ia remove <id>` | Removes one |
 | `ia restore --apply` | Reinstalls what the lock pins |
-| `ia recover` | Repairs an interrupted install, host, guard or lifecycle change |
+| `ia recover --root <directory>` | Repairs an interrupted install, host, guard or lifecycle change. `--root` is required. |
 | `ia adopt <id>[@version]` | Mounts another workspace's records as pinned source |
 
 These commands are not checked against mandates.

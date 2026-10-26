@@ -91,7 +91,7 @@ A **reference** points at another record by word and name:
     milestone @milestone export-ready
 ```
 
-IA checks that the record exists and is the right word. A reference to a record that does not exist is reported when you validate.
+IA checks that the record exists and is the right word. A reference to a record that does not exist is reported as a warning: the workspace is still admitted, so read the warnings, not just the exit code.
 
 Some records have named parts, and a reference can point at one of them with `#`:
 
@@ -133,7 +133,21 @@ Each row is a **predicate** and a target. There are 18 predicates, and each can 
 | grant-access-to | `grants access to` / `access-granted-by` | Declares that reaching the target is permitted |
 | land | `lands at` / `landed-by` | Published content arrives at the target |
 
-Not every word may use every predicate with every other word. Each system says which links its words accept: a task may `require` another task, milestone or decision, for example. A link no system allows is refused with `IA-LANG-EDGE-UNCONSENTED` or `IA-GRAPH-EDGE-UNCONSENTED`. `ia preview <word>` lists the links a word may take under **Edges** and **Consent**.
+Not every word may use every predicate with every other word. Each system says which links its words accept: a task may `require` another task, milestone or decision, for example. A relationship is refused with `IA-LANG-EDGE-UNCONSENTED` or `IA-GRAPH-EDGE-UNCONSENTED` unless both the source's system and the target's system allow it. `ia preview <word>` lists the links a word may take under **Edges** and **Consent**.
+
+The links you will use most:
+
+| From | Link | To |
+| --- | --- | --- |
+| `@task` | `requires` | another `@task`, a `@milestone` or a `@decision` |
+| `@milestone` | `requires` | another `@milestone`, a `@task` or a `@decision` |
+| `@task`, `@milestone`, `@plan`, `@spec` | `grounded-by` | a `@decision` |
+| `@spec` | `supersedes` | an older `@spec` |
+| `@spec` | `requires` | a `@contract`, adopting its requirements |
+| `@law`, `@principle`, `@convention` | `governs` | a `@plan`, `@milestone`, `@task`, `@decision` or `@spec` |
+| `@case` | `implements` | a contract requirement, `@contract <name>#REQ-…` |
+| `@check` | `enforces` | a contract requirement, or a rule |
+| `@contract` | `governs` | the `@workspace` or record it applies to |
 
 A row can also carry a condition, such as `governs @playbook review when phase is act`. The [language reference](../reference/language/README.md) covers conditions.
 
@@ -150,7 +164,7 @@ Every record has a full **identity** of four parts: `system/kind/facet/name`.
 
 - **system** is the system that owns the word.
 - **kind** is one of seven broad roles, such as `definition`, `contract` or `governance`. IA uses it to decide where a record fits in an agent's context.
-- **facet** is usually the word itself. A few words use another facet: `@check` is `gate`, `@contract` is `signature`, `@case` is `scenario` and `@playbook` is `procedure`.
+- **facet** is usually the word itself. A few words use another facet: `@check` is `gate`, `@contract` is `signature`, `@case` is `scenario`, `@playbook` is `procedure` and `@schema` is `head`.
 - **name** is the record's name, lowercased.
 
 Inside records you always write the short form, `@decision list-format`. Commands such as `ia position`, `ia read` and `ia inspect` show and take the full identity. Moving a record to another file does not change its identity.
@@ -167,7 +181,7 @@ You can write records three ways:
   ```sh
   ia preview decision api-version "meaning.says=Choose how the API is versioned." "work.title=API versioning" "work.status=open" "decision.question=How is the API versioned?"
   ia preview --set "@decision api-version" "decision.choice=URL prefix"
-  ia preview --relate "@task write-exporter" grounded-by "@decision list-format"
+  ia preview --relate "@task add-export-button" grounded-by "@decision list-format"
   ```
 
   Each preview prints the target file's `sha256`. Running `ia author` with the same arguments and `--digest <sha256>` writes the change, and only if the file has not changed since. A new record goes to `.ia/src/<word>.ia` unless you add `--at <path>`. See [Agents and authority](agents-and-authority.md#the-governed-write-path).
@@ -185,7 +199,7 @@ You can write records three ways:
 | `IA-COMP-FIELD-MISSING` / `IA-COMP-SECTION-MISSING` | A required field or section is missing |
 | `IA-COMP-FIELD-UNKNOWN` / `IA-COMP-SECTION-UNKNOWN` | A field or section the word does not have |
 | `IA-COMP-FIELD-VALUE` | A value outside the allowed set, such as `status done` |
-| `IA-GRAPH-TARGET-MISSING` | A relationship points at a record that does not exist |
-| `IA-COMP-FIELD-REF-MISSING` | A reference field points at a record that does not exist |
+| `IA-GRAPH-TARGET-MISSING` (warning) | A relationship points at a record that does not exist |
+| `IA-COMP-FIELD-REF-MISSING` (warning) | A reference field points at a record that does not exist |
 
 [Troubleshooting](troubleshooting.md) has a longer list.

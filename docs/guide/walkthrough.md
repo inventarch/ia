@@ -125,7 +125,7 @@ Warnings
 
 **Admitted** with **0 errors** means every record is well formed and every reference resolves. The 174 records are mostly the language's own definitions, which `ia init` installed.
 
-The two warnings are IA being honest. `COMP-KERNEL` and `COMP-FIXTURES` are self-tests of the language itself, and nobody ran them, so the result is `not-evaluated`. IA never counts something that did not run as a pass. You will clear them in step 7.
+The two warnings are IA being honest. `COMP-KERNEL` and `COMP-FIXTURES` are self-tests of the language itself, and nobody ran them, so the result is `not-evaluated`. IA never counts something that did not run as a pass. Step 7 shows how to run them.
 
 Commit `.ia/src/`, `.ia/release.json`, `.ia/distributions.lock.json` and `.ia/.gitignore`. A teammate who clones the repository runs `ia restore --apply --yes` to rebuild the ignored folders.
 
@@ -249,9 +249,13 @@ Add a plan, one milestone and three tasks:
 Records connect in two ways:
 
 - A **field** can hold a reference, like `plan @plan shopping-list`.
-- A **relationship** row in the `relationships` section links two records with a verb: `requires`, `grounded-by`, `supersedes` and so on. Here the milestone cannot be finished before the format is decided, the button needs the exporter, and the docs need the button.
+- A **relationship** row in the `relationships` section links two records with a verb: `requires`, `grounded-by`, `supersedes` and so on. Here every task in the milestone waits for the format to be decided, the button needs the exporter, and the docs need the button.
 
 Validate again. IA now checks 181 records, including your seven:
+
+```sh
+ia validate
+```
 
 ```text
   ✔  Admitted. 181 records, 0 errors, 2 warnings.
@@ -325,7 +329,7 @@ After
 →  Preview writes nothing.
 ```
 
-Apply it with the same arguments plus the `sha256` the preview printed. Your digest will differ from this one:
+Apply it with the same arguments plus the `sha256` the preview printed. If your file differs from this page by even one byte, for example because your editor saves Windows line endings, your digest will differ too:
 
 ```sh
 ia author --set "@decision list-format" "decision.choice=Markdown checklist" \
@@ -344,9 +348,18 @@ Record
   …
 ```
 
-`ia author` added one comment line saying who made the edit and under which mandate. If the file had changed since the preview, it would have refused with `IA-CLI-EDIT-STALE` and written nothing.
+`ia author` added one comment line naming the participant it acted as and that participant's mandate. Unless you pass `--actor`, that is the workspace's steward, `@agent pantry`, even when you run the command yourself. The comment is a plain record of the edit, not a signature: anyone can edit it, and the next `ia author` on this record replaces it. If the file had changed since the preview, `ia author` would have refused with `IA-CLI-EDIT-STALE` and written nothing.
 
-Set `work.status` to `made` and add a `decision.rationale` the same way: one preview, then one author per field. The decision now reads:
+Set `work.status` to `made` and add a `decision.rationale` the same way, one preview and one author per field:
+
+```sh
+ia preview --set "@decision list-format" "work.status=made"
+ia author --set "@decision list-format" "work.status=made" --digest <sha256-from-that-preview>
+ia preview --set "@decision list-format" "decision.rationale=Cooks tick items off on their phones, and Markdown renders as a checklist almost everywhere."
+ia author --set "@decision list-format" "decision.rationale=Cooks tick items off on their phones, and Markdown renders as a checklist almost everywhere." --digest <sha256-from-that-preview>
+```
+
+The decision now reads:
 
 ```ia
 # authored-by @agent pantry under @mandate pantry-mandate at 9887869d6626…
@@ -451,8 +464,10 @@ This is the agent's starting context for the task, called its **position**. It i
 - the task and what depends on it;
 - pointers to the decision and the milestone;
 - the convention, because it applies to tasks;
-- the law, in a section of its own. A blocking rule is always delivered, however small the budget an agent asks for;
+- the law, in a section of its own. A blocking rule that applies to the task's word is always delivered, however small the budget an agent asks for;
 - the mandate that says what the agent may do.
+
+Each entry names the record, its word and owning system, and how it got there. `band 100` means you wrote it; records the language installed are band 90. `hop 0` is the seat itself or something attached to it directly, `hop 1` is one link away. *Loaded* records are inside the budget of 16; *pointers* are identities to read if needed. [Agents and authority](agents-and-authority.md#positions) explains every section and flag.
 
 The same question always gets the same answer: the `digest` line identifies this exact context, so two agents asking it read the same thing.
 
@@ -463,7 +478,7 @@ The position reported `freshness current` because you captured first. The positi
 
 ## 7. Add a check
 
-A **check** is a requirement IA can evaluate itself. The checks IA runs on its own are about records: schemas, references, coverage. Priya wants every Pantry record to stay well formed, with evidence of it. Create `.ia/src/checks.ia`:
+A **check** asks IA to evaluate a requirement itself and keep the result. The evaluators IA runs on its own are about records: schemas, references, coverage. Priya wants every Pantry record to stay well formed, with evidence of it. Create `.ia/src/checks.ia`:
 
 ```ia
 #! ia 1.0
@@ -563,7 +578,7 @@ Checks
 
 The error names the file, line, record, rule and the value it found. The check fails and no evidence is written. Put `status open` back.
 
-Finally, clear the two warnings from step 1 by running the language's self-tests:
+Finally, run the language's self-tests behind the two warnings from step 1. They pass for this run; a plain `ia validate` reports them as not-evaluated again, so use the flag wherever you want them evaluated, such as in CI:
 
 ```sh
 ia validate --verify-conformance
@@ -587,9 +602,10 @@ Conformance
 
 ## 8. Hand a task to an agent
 
-To work with IA, an agent needs two things: to know the workspace exists, and a way to ask it questions. For Claude Code:
+To work with IA, an agent needs two things: to know the workspace exists, and a way to ask it questions. Capture the records you added in step 7, then generate the files Claude Code reads:
 
 ```sh
+ia capture
 ia project claude --apply --yes
 ```
 
@@ -601,16 +617,16 @@ Files
 →  Run "ia doctor" for the observed projection state.
 ```
 
-`.claude/rules/ia-workspace.md` is the **position packet**: a generated summary that Claude Code loads at startup. It lists the workspace, its participant and mandate, the systems and their words, the record counts and the `ia` commands with what each needs. It tells the agent to start every task with `ia position`. `ia host claude --apply --yes` writes the same files and also registers IA's read-only MCP server in `.mcp.json`, so the agent can ask questions without a shell. For Codex, use `codex` instead of `claude`.
+`.claude/rules/ia-workspace.md` is the **position packet**: a generated summary that Claude Code loads at startup. It lists the workspace, its participant and mandate, the systems and their words, the record counts and the `ia` commands with what each needs. It tells the agent to start every task with `ia position`. `ia host claude --apply --yes` writes the same files, installs IA's host programs under `~/.ia/hosts/`, and registers IA's read-only MCP server in `.mcp.json`, so the agent can ask questions without a shell. For Codex, use `codex` instead of `claude`.
 
 > [!NOTE]
-> These files hold absolute paths for your machine. Do not commit them. Each person runs `ia project` or `ia host` in their own clone.
+> These files are machine-local. The packet ends with a note about this clone's state, and the entries `ia host` registers point at your Node and your IA home. Do not commit them. Each person runs `ia project` or `ia host` in their own clone.
 
 From here the agent works the way you have been working:
 
 1. `ia next` names `write-exporter` as the next task and gives the command for its position.
 2. `ia position --seat work-system/definition/task/write-exporter --shape sequence` returns what you saw in step 6: the task, the decision it rests on, the law and convention, and its mandate.
-3. It looks closer where it needs to: `ia inspect <identity>` shows where a record lives and how it connects, and `ia read <identity>` prints its text.
+3. It looks closer where it needs to: `ia inspect <identity>` shows where a record lives and how it connects, and `ia read <identity>` prints its body (for most records, the `meaning.says` sentence; for a record with `work.source`, that document) with a digest.
 4. It changes records through `ia preview` and `ia author`, and code with its normal tools.
 
 The mandate decides which IA commands the agent may run. With the starter mandate it may run all of them. Remove `Synthesis` from `pantry-mandate`'s moves, and `ia author` refuses that agent with `IA-RUNTIME-MANDATE-MOVE`. This is a guard rail, not security: anyone who can edit `.ia/src/` can change the mandate. See [Agents and authority](agents-and-authority.md).
@@ -629,26 +645,52 @@ export function shoppingList(recipes) {
 }
 ```
 
-It also writes a test, `src/export.test.mjs`, and runs it:
+It also writes a test, `src/export.test.mjs`:
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { shoppingList } from './export.mjs';
+
+test('merges repeated ingredients into one item', () => {
+  const list = shoppingList([
+    {
+      ingredients: [
+        { name: 'flour', quantity: '200 g' },
+        { name: 'eggs', quantity: '2' },
+      ],
+    },
+    { ingredients: [{ name: 'eggs', quantity: '3' }] },
+  ]);
+  assert.equal(list, '- [ ] flour (200 g)\n- [ ] eggs (2 + 3)\n');
+});
+```
+
+and runs it, keeping the output:
 
 ```sh
+mkdir -p test-results
 node --test src/export.test.mjs > test-results/export.txt
 ```
 
+The output file ends with:
+
 ```text
 # tests 1
+# suites 0
 # pass 1
 # fail 0
+…
 ```
 
 Saying "the test passed" in a chat is a claim. To make it evidence, record it as an `@observation` about the task. It must name:
 
 - the task, as `subject`;
-- the exact version of the task it is about, as `subject-revision`. This is the 64-character digest `ia next` prints on the task's `definition admitted` line (`2b3f89be…` here; yours will differ);
+- the exact version of the task it is about, as `subject-revision`. This is the 64-character digest `ia next` prints on the task's `definition admitted` line, also available as `records[0].digest` from `ia inspect work-system/definition/task/write-exporter --json`: `2b3f89be…` here, and the same for you only if your task record matches this page byte for byte;
 - the result, as `verdict success`;
 - what it covers and what it does not, as `applies` and `limits`.
 
-Create `.ia/src/evidence.ia`:
+Create `.ia/src/evidence.ia`. Use your own task digest, your own timestamps, and as `digest` the sha256 of your own `test-results/export.txt` (`sha256sum test-results/export.txt`, or `Get-FileHash` in PowerShell). The test output includes timings, so its digest changes on every run; the values below are from ours:
 
 ```ia
 #! ia 1.0
@@ -663,7 +705,7 @@ Create `.ia/src/evidence.ia`:
     observed-at "2026-10-26T09:12:00Z"
     captured-at "2026-10-26T09:12:00Z"
     workspace "pantry"
-    locator "src/export.test.mjs"
+    locator "work-system/definition/task/write-exporter"
     revision "2b3f89bec1dd33f5d44e6b1cb56678ecd7a20bc5288e3a27dee732e4a48f59c2"
     bundle "test-results/export.txt"
     digest "cae0526cbea5cfb44d6d1fdffe7bfdec2171b75814f2670e494bab187cc88d4d"
@@ -685,6 +727,11 @@ Create `.ia/src/evidence.ia`:
 `digest` is the `sha256` of the test output file, so anyone can tell whether `test-results/export.txt` is the file this record describes. IA does not rerun the test or recompute that digest. What it gives you is a claim that is specific, tied to one version of the task, and visible to everyone.
 
 Validate, then ask what is next:
+
+```sh
+ia validate
+ia next
+```
 
 ```text
   •  1 of 3 tasks have exit evidence; next:
@@ -729,7 +776,7 @@ If the task changed, the old evidence may no longer prove it. Record new evidenc
 | You wrote | IA established | IA did not establish |
 | --- | --- | --- |
 | A spec, a decision, a plan and three tasks | They are well formed and every reference resolves | That the spec is the right requirement |
-| A made decision | The tasks it blocked can start, and who made the edit, under which mandate | That Markdown was the best choice |
+| A made decision | The tasks it blocked can start, and which participant `ia author` acted as, under which mandate | That Markdown was the best choice, or who really typed the command |
 | A law and a convention | They reach every agent working on a task | That the code obeys them |
 | A contract, two cases and a check | All Pantry records conform to their schemas, with evidence on disk | Anything about the app's behavior |
 | A test result as an observation | `write-exporter` has exit evidence for its current version | That the test was run as described, or is enough |

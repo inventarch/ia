@@ -12,7 +12,7 @@ The [walkthrough](walkthrough.md#4-plan-the-work) builds a small plan step by st
 | `@decision` | A question, and once made, its answer | the above, plus `decision.question` | `open`, `made`, `superseded`, `withdrawn` |
 | `@plan` | A body of work toward one outcome | `meaning.says`, `work.title`, `work.status` | `proposed`, `open`, `held`, `closed`, `dropped`, `superseded` |
 | `@milestone` | An outcome inside one plan, with an exit condition | the above, plus `work.plan` and `work.exit` | as for plans |
-| `@task` | One action toward one milestone | the above, plus `work.milestone` | as for plans |
+| `@task` | One action toward one milestone | `meaning.says`, `work.title`, `work.status`, `work.milestone` | as for plans |
 
 All five may also have `work.owner`, `work.start`, `work.due` and `work.ended` (dates as `"2026-11-01"`) and `work.source`, a pointer to a document.
 
@@ -99,7 +99,7 @@ A task inherits its milestone's requirements, so a decision the milestone requir
 ia next
 ```
 
-With one plan in the workspace, `ia next` reads it. With several, name one: `ia next --seat work-system/definition/plan/<name>`. A milestone or task identity works too.
+With one plan in the workspace, and one `@workspace`, `ia next` reads it. With several, name one: `ia next --seat work-system/definition/plan/<name>`. A milestone or task identity works too.
 
 The output lists milestones, then tasks in an order that puts prerequisites first. Each task gets one verdict:
 
@@ -119,7 +119,7 @@ The summary line names the next task that can start, and the output ends with th
 | A milestone | It has its own successful observation, or every one of its tasks has exit evidence |
 | A decision | `decision.choice` is filled in |
 
-`work.status` plays no part, on anything. `ia next` prints it as `status open (self-declared)` so you can see it, but a decision marked `made` with no `choice` still blocks, and a task marked `closed` without evidence is still not done. Statuses are for people; IA follows the content.
+`work.status` plays no part in whether work is ready or done. `ia next` prints it as `status open (self-declared)` so you can see it, but a decision marked `made` with no `choice` still blocks, and a task marked `closed` without evidence is still not done. Statuses are for people; IA follows the content.
 
 ### The state lines
 
@@ -146,13 +146,13 @@ A task is done when an `@observation` exists that:
 2. has `evidence.verdict success`;
 3. has `evidence.subject-revision` equal to the task's current digest.
 
-The third rule is what makes evidence trustworthy over time. The digest is a fingerprint of the task record. Change the task, even its title or status, and the digest changes. Old evidence then shows as `worked stale` and the task is no longer done. Either record new evidence for the new version, or make all your edits to the task before you record its evidence.
+The third rule is what makes evidence trustworthy over time. The digest is a fingerprint of the task record. Change the task, even its title or status, and the digest changes. Old evidence then no longer counts and the task is no longer done. It shows as `worked stale` if a capture recorded the old version, otherwise as `worked unknown`. Either record new evidence for the new version, or make all your edits to the task before you record its evidence.
 
-To find the digest, run `ia next` and copy the 64 characters after `definition admitted: db admission at digest`. Adding other records never changes it. The [walkthrough](walkthrough.md#9-do-the-work-and-record-evidence) shows a complete observation. [Checks and evidence](checks-and-evidence.md#observations) explains every field.
+To find the digest, run `ia next` and copy the 64 characters after `definition admitted: db admission at digest`, or read `records[0].digest` from `ia inspect <task identity> --json`. Adding other records never changes it. The [walkthrough](walkthrough.md#9-do-the-work-and-record-evidence) shows a complete observation. [Checks and evidence](checks-and-evidence.md#observations) explains the fields.
 
 Two more rules:
 
-- **Who recorded it.** If the task names an agent in `work.owner-agent` and the observation's `evidence.evaluator` is that same agent, `ia next` marks the evidence as self-attributed. Someone checking their own work is weaker evidence than a reviewer or CI checking it.
+- **Who recorded it.** If the task names an agent in `work.owner-agent` and the observation's `evidence.evaluator` is that agent's full identity (`agent-system/binding/agent/<name>`), `ia next` marks the evidence as self-attributed. A short name is not matched, and an observation with no evaluator is marked `self-attribution unknown`. Someone checking their own work is weaker evidence than a reviewer or CI checking it.
 - **Check evidence is separate.** `ia validate` writes observations for passing checks under `.ia/work/evidence/`. Those are about the check, not a task, and `ia next` does not read them. Exit evidence for a task is always an observation you or an agent writes into `.ia/src/`.
 
 ## Refusals

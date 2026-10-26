@@ -47,6 +47,8 @@ ia init . --migrate --apply --yes
 
 The migration keeps the workspace's identity and every record's identity. It records its progress in `.ia/migration.json`, so an interrupted run can resume.
 
+It recognizes only the unedited starter layout that IA 1.x wrote. If you changed the starter `@workspace` or `@distribution`, or the layout is anything else, it refuses with `IA-CLI-CONFLICT` and writes nothing; carry those edits across by hand.
+
 ## If something goes wrong
 
 | You see | Do |

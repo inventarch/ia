@@ -28,7 +28,7 @@ ia host claude --apply --yes
 `ia host` also installs a copy of IA's host programs under `~/.ia/hosts/` (or `$IA_HOME/hosts/`); the registered entries run them with your Node binary and the project's absolute path. Claude Code asks for approval before it starts a project MCP server.
 
 > [!WARNING]
-> These files are machine-local: they contain absolute paths. Do not commit them. Each person runs `ia host` or `ia project` in their own clone. If a file with the same name already exists and IA did not generate it, such as a hand-written `AGENTS.md`, the plan says so and `--apply` refuses with `IA-DIST-LOCAL-MODIFICATION` rather than overwrite it.
+> These files are machine-local. The entries `ia host` registers contain absolute paths to your Node binary, your IA home and your project, and the packet ends with a note about this clone's state. Do not commit them. Each person runs `ia host` or `ia project` in their own clone. If a file with the same name already exists and IA did not generate it, such as a hand-written `AGENTS.md`, the plan says so and `--apply` refuses with `IA-DIST-LOCAL-MODIFICATION` rather than overwrite it.
 
 `ia host claude --remove --apply --yes` removes the registration and its files. Run `ia project` or `ia host` again after you change the records they generate from; `ia doctor` reports when the generated files are out of date (`outdated`) or a registration points at a Node binary that no longer exists.
 
@@ -45,7 +45,7 @@ The packet is a generated Markdown file the host loads at startup. In Pantry, `.
 - each system, its words and steward, and the `ia position` command to reach it;
 - how many records of each word the workspace holds;
 - the five shapes and four phases, and what each selects;
-- every `ia` command, the move it needs, what it refuses and what to run next;
+- the commands an agent uses (`init`, `validate`, `preview`, `author`, `capture`, `read`, `position`, `next`, `project` and the `kb` commands), each with a move, what it refuses and what to run next. The table also lists a move for `position` and `init`, although IA never checks those two against a mandate;
 - three standing instructions: start with `ia position` and follow any command a refusal names; state intent as a scope key, never as free text; and ask the owning system about another system's words.
 
 It ends with a host note giving the snapshot's freshness, which is not part of the packet's digest. Do not edit the packet: change the records and run `ia project` again.
@@ -162,7 +162,7 @@ A `@hook` asks the host to check certain edits before they happen:
     message "Edits to .ia/src need a mandate that grants Synthesis."
 ```
 
-Write it by hand (`ia author` does not write hooks), then run `ia host claude --apply --yes`. Claude Code then runs IA's guard before every `Write`, `Edit` or `MultiEdit` on a matching path. The guard refuses the edit with `IA-HOOK-NOT-MANDATED` when a mandate governs that path and none grants the acting agent Synthesis. A subagent acts as its `@agent-profile`'s agent; the main session acts as the workspace steward. The guard also protects the files IA generates.
+Write it by hand (`ia author` does not write hooks), then run `ia host claude --apply --yes`. Claude Code then runs IA's guard before every `Write`, `Edit` or `MultiEdit` on a matching path. The guard refuses the edit with `IA-HOOK-NOT-MANDATED` when a mandate governs that path and none grants the acting agent Synthesis. A subagent acts as the agent of the `@agent-profile` with its name; the main session acts as the workspace steward. Any other subagent, including Claude Code's built-in ones such as Explore, is refused at every path the hook selects with `IA-HOOK-IDENTITY-UNAVAILABLE`. The guard also protects the files IA generates.
 
 Know its limits:
 

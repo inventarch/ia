@@ -24,7 +24,7 @@ The record stays short, with an identity, a status and relationships, and the do
 
 ## Reading
 
-All `ia kb` commands print JSON.
+Each `ia kb` command prints a `Knowledge ready` line and then its result as JSON. Add `--json` to get one machine-readable value and nothing else.
 
 | Command | Does |
 | --- | --- |
@@ -35,8 +35,10 @@ All `ia kb` commands print JSON.
 | `ia kb resolve --citation <file>` | Checks that a saved citation still points at the same content |
 
 ```sh
-ia kb read work-system/contract/spec/shopping-list-export
+ia kb read work-system/contract/spec/shopping-list-export --json
 ```
+
+The result, formatted here for reading:
 
 ```text
 {
@@ -83,7 +85,9 @@ ia kb pack --commit <full-commit-sha> --selection selection.json --out knowledge
 ia kb pack --commit <full-commit-sha> --selection selection.json --out knowledge.json --apply --yes
 ```
 
-The first command checks and previews; the second writes. The output must be outside `.ia/` and `.git/`. If the file already exists with different contents, it refuses. Packing with `--apply` needs the Execution move.
+The first command checks and previews; the second writes. The output must be outside `.ia/` and `.git/`. If the file already exists with the same contents, nothing changes; with different contents, it refuses. Packing with `--apply` needs the Execution move.
+
+A selection to pack must name every record in each `.ia` file it draws from. Packing part of a file refuses with `IA-KB-INVALID` ("Mixed native file includes unselected records"), so keep records you want to pack in files of their own. Local reads do not have this rule.
 
 The [knowledge example](../../examples/knowledge/README.md) is a one-record workspace to try this on, and the [knowledge package guide](../../packages/kb/README.md) covers the formats and the library.
 

@@ -60,7 +60,7 @@ Keep your records under `.ia/src/`, outside `.ia/src/floor/`, which replaces the
 Each word's schema states which sections and fields a record needs:
 
 - `must have` means exactly once and `may have` at most once. Only a `list of T` field may be written more than once.
-- Every public schema except `@system` is closed: it refuses a body section or field it does not declare. Head fields are not checked against the schema, so a misspelled optional head field is kept without a finding.
+- Every public schema except `@system` is closed: it refuses a body section or field it does not declare. Head fields the schema declares are checked, so a contract without `version` fails with `IA-COMP-FIELD-MISSING`. A head field it does not declare is not refused, so a misspelled optional head field is kept without a finding.
 - A field type may carry one narrowing. `id in [open, made]` admits only those ids, `ref to plan` requires a reference to a `@plan`, and `text form iso-date` requires a `YYYY-MM-DD` date.
 - `governance.severity`, on `@law`, `@principle` and `@convention`, is read as a kernel dimension and takes `blocking`, `advisory` or `informational`; any other value is `IA-GRAPH-DIMENSION-UNKNOWN`.
 - Relationship rows and contract `REQ-*` clauses follow shared language rules, not schema field rows.
@@ -190,7 +190,7 @@ The code's prefix names the layer that raised it:
 
 Fix the source the finding names, or supply the missing record, then validate again.
 
-A requirement or check has three outcomes: `pass` means its evaluator observed the requirement satisfied, `fail` means it observed a violation, and `not-evaluated` means no supported observation was made. A missing or throwing evaluator gives `not-evaluated`, and admission never turns it into a pass. A new workspace reports two `IA-COMP-NOT-EVALUATED` warnings, `COMP-KERNEL` and `COMP-FIXTURES`, because no verification evidence was supplied, so its run outcome is `not-evaluated`. `ia validate` binds each `@check` to a built-in or installed-catalog evaluator and records the checks that passed or failed as `@observation` evidence under `.ia/work/evidence/`; when none passed or failed, or admission was refused, it records nothing.
+A requirement or check has three outcomes: `pass` means its evaluator observed the requirement satisfied, `fail` means it observed a violation, and `not-evaluated` means no supported observation was made. A missing or throwing evaluator gives `not-evaluated`, and admission never turns it into a pass. A new workspace reports two `IA-COMP-NOT-EVALUATED` warnings, `COMP-KERNEL` and `COMP-FIXTURES`, because no verification evidence was supplied, so its run outcome is `not-evaluated`; `ia validate --verify-conformance` verifies both. `ia validate` binds each `@check` to a built-in or installed-catalog evaluator. Only built-in evaluators run in this release; a catalog evaluator stays `not-evaluated`. When admission succeeds, it records the checks that passed as `@observation` evidence under `.ia/work/evidence/`. A failing built-in check refuses admission, and a refused admission records nothing.
 
 ## Learn more
 

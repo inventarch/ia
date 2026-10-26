@@ -109,10 +109,10 @@ IA runs these evaluators itself, in every `ia validate`. A check that names one 
 | `COMP-PARSE` | Every file parses | `sources` |
 | `COMP-SELECTOR`, `COMP-VARIANT` | Selectors and variant clauses in records | Each record's identity |
 | `COMP-CHECK` | Each check names an evaluator IA knows | Each check's identity |
-| `COMP-SYSTEM`, `COMP-STEWARD`, `COMP-CONSENT-DECLARED` | System folders you define (see [Your own vocabulary](your-own-vocabulary.md)) | The system folder |
+| `COMP-SYSTEM`, `COMP-STEWARD`, `COMP-CONSENT-DECLARED` | Every system folder, the installed language's and [your own](your-own-vocabulary.md) | The folder's path, such as `.ia/src/systems/<name>` |
 | `COMP-SCHEMA-ENROLLED`, `COMP-BOOTSTRAP` | Word registrations and system dependency order | `registry` |
 | `COMP-ADOPTION` | Contracts a record adopts, with evaluators a host supplies | `<adopter>-><contract>` |
-| `COMP-KERNEL`, `COMP-FIXTURES` | The language's self-tests | `floor`, `package-v1` |
+| `COMP-KERNEL`, `COMP-FIXTURES` | The language's self-tests | `graph` |
 
 Two examples:
 
@@ -166,7 +166,7 @@ To bring in results from your own tools, record them as observations, as the nex
 
 ### Adopting a contract
 
-A record can adopt a contract with `requires @contract <name>`, which makes the contract's requirements apply to it. `ia validate` reports each adopted requirement through `COMP-ADOPTION`. It supplies no evaluators for adopted requirements, so they report `not-evaluated` with "No structural evaluator is supplied". Programs built on IA's packages can supply their own; see the [compliance package](../../packages/compliance/README.md).
+A record whose system allows it, such as a `@spec` (a `@task` may not), can adopt a contract with `requires @contract <name>`, which makes the contract's requirements apply to it. `ia validate` reports each adopted requirement through `COMP-ADOPTION`. It supplies no evaluators for adopted requirements, so they report `not-evaluated` with "No structural evaluator is supplied". Programs built on IA's packages can supply their own; see the [compliance package](../../packages/compliance/README.md).
 
 ## Observations
 
@@ -183,7 +183,7 @@ An `@observation` is a piece of evidence: something was looked at, by someone, w
     observed-at "2026-10-26T09:12:00Z"
     captured-at "2026-10-26T09:12:00Z"
     workspace "pantry"
-    locator "src/export.test.mjs"
+    locator "work-system/definition/task/write-exporter"
     revision "2b3f89bec1dd33f5d44e6b1cb56678ecd7a20bc5288e3a27dee732e4a48f59c2"
     bundle "test-results/export.txt"
     digest "cae0526cbea5cfb44d6d1fdffe7bfdec2171b75814f2670e494bab187cc88d4d"
@@ -208,21 +208,24 @@ An `@observation` is a piece of evidence: something was looked at, by someone, w
 | `evidence.actor` | Who or what produced it, in words |
 | `evidence.observed-at`, `captured-at` | When it was observed, and when it was recorded |
 | `evidence.workspace` | Which workspace it belongs to |
-| `evidence.locator` | What was looked at: a file, a record, a URL |
-| `evidence.revision` | Which version of that thing |
+| `evidence.locator` | What the evidence is about, as text: the same record as `subject` when there is one, otherwise a file or URL |
+| `evidence.revision` | Which version of that thing, as free text; for a record, the same digest as `subject-revision` |
 | `evidence.bundle` | Where the raw evidence is kept, such as a log file |
 | `evidence.digest` | The sha256 of that raw evidence |
 | `evidence.availability` | `available` if the raw evidence can be read, `unavailable` if not |
 | `evidence.subject` | The record it is about, as a reference |
 | `evidence.subject-revision` | That record's digest at the time; `ia next` compares it with the current one |
-| `evidence.evaluator` | Who judged the result, as a name or `<tool>@<version>` |
+| `evidence.snapshot-revision` | Optional: the workspace revision the subject was read at |
+| `evidence.evaluator` | Who produced the result: a record identity such as `agent-system/binding/agent/reviewer`, or `<tool>@<version>` |
 | `evidence.move` | The kind of action, usually `Verification` |
 | `evidence.verdict` | `success`, `refusal` or `inconclusive` |
+| `evidence.implementation`, `evidence.target` | Optional: the `<id>@<version>` of the check implementation, and the host it ran on |
 | `interpretation.applies` | What the result covers |
 | `interpretation.limits` | What it does not cover. Be honest here; it is the most useful field for a reader. |
 | `interpretation.reason` | Why the result means what it says |
 | `interpretation.basis` | `evaluation` if something was run or inspected, `inference` if it was reasoned |
 | `retention.status` | Usually `retained` |
+| `retention.explanation` | Optional: why it is kept or released |
 
 **IA checks an observation's shape, not its truth.** It does not rerun the test, read the log, recompute the digest or check the timestamps. An observation is a specific, attributable, versioned claim that a person or tool can verify. That is far more than "the agent said it passed", but it is still a claim. For stronger assurance, have CI or a reviewer write the observation rather than the agent that did the work.
 
