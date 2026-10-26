@@ -1,0 +1,47 @@
+#! ia 1.0
+
+@contract pantry-records
+  version "1.0.0"
+  meaning
+    says "What Pantry's own records must satisfy."
+    answers "Which requirement do Pantry's records adopt?"
+  outputs
+    REQ-RECORDS-CONFORM "Every Pantry record conforms to its word's schema."
+  relationships
+    governs @workspace pantry
+
+@case records-conform-case
+  meaning
+    says "A workspace whose records all match their schemas."
+    answers "What does a passing run look like?"
+  scenario
+    kind success
+    given "Every record in .ia/src uses only the fields its word's schema allows."
+    request "Run ia validate."
+    expected "The records-conform check passes."
+    evaluator "COMP-SCHEMA"
+  relationships
+    implements @contract pantry-records#REQ-RECORDS-CONFORM
+
+@case records-conform-failure
+  meaning
+    says "A workspace with a record that breaks its schema."
+    answers "What does a failing run look like?"
+  scenario
+    kind failure
+    given "A task in .ia/src has a work.status its schema does not allow."
+    request "Run ia validate."
+    expected "The records-conform check fails and ia validate refuses the workspace."
+    evaluator "COMP-SCHEMA"
+  relationships
+    implements @contract pantry-records#REQ-RECORDS-CONFORM
+
+@check records-conform
+  meaning
+    says "Every record in the workspace conforms to its schema."
+    answers "Do the Pantry records conform?"
+  check
+    runs COMP-SCHEMA
+    scope "*"
+  relationships
+    enforces @contract pantry-records#REQ-RECORDS-CONFORM

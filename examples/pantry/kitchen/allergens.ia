@@ -1,0 +1,9 @@
+#! ia 1.0
+
+@allergen peanuts
+  meaning
+    says "Peanuts and anything made from them."
+  allergen
+    label "Peanuts"
+    severity life-threatening
+    also-called ["groundnuts"]

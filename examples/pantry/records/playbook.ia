@@ -1,0 +1,18 @@
+#! ia 1.0
+
+@playbook small-change
+  meaning
+    says "How Pantry makes a small code change."
+    answers "What steps does a small change follow?"
+  cognition
+    orient
+      primary Attention
+      Attention means "Read the task, the decision it rests on and every rule in the position before touching code."
+    act
+      primary Decision
+      Decision means "Change only the files the task names; write or update a test for the behavior."
+    learn
+      primary Learning
+      Learning means "Run the tests and record the result as an observation on the task."
+  subject
+    subject-word task

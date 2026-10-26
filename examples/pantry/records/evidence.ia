@@ -1,0 +1,29 @@
+#! ia 1.0
+
+@observation write-exporter-tests-pass
+  meaning
+    says "The exporter's unit test passed after the exporter was written."
+    answers "Is the write-exporter task finished?"
+  evidence
+    origin test
+    actor "node --test"
+    observed-at "2026-10-26T09:12:00Z"
+    captured-at "2026-10-26T09:12:00Z"
+    workspace "pantry"
+    locator "src/export.test.mjs"
+    revision "2b3f89bec1dd33f5d44e6b1cb56678ecd7a20bc5288e3a27dee732e4a48f59c2"
+    bundle "test-results/export.txt"
+    digest "cae0526cbea5cfb44d6d1fdffe7bfdec2171b75814f2670e494bab187cc88d4d"
+    availability available
+    subject @task write-exporter
+    subject-revision "2b3f89bec1dd33f5d44e6b1cb56678ecd7a20bc5288e3a27dee732e4a48f59c2"
+    evaluator "node@22.22.2"
+    move Verification
+    verdict success
+  interpretation
+    applies "src/export.mjs as tested by src/export.test.mjs."
+    limits "One unit test on one machine; the export button and the README are not covered."
+    reason "The test feeds two recipes that share an ingredient and compares the exact list."
+    basis evaluation
+  retention
+    status retained

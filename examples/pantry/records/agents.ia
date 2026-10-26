@@ -1,0 +1,26 @@
+#! ia 1.0
+
+@capability review-changes
+  meaning
+    says "Review a change against its task, decision and rules."
+    answers "Which procedure does a reviewer follow?"
+  composition
+    playbooks [@playbook small-change]
+    operations []
+  execution
+    input change-request
+    outcomes review-notes
+    effects [read]
+
+@agent-profile change-reviewer
+  meaning
+    says "Reviews Pantry changes without editing them."
+    answers "Which profile reviews changes?"
+  composition
+    agent @agent reviewer
+    capabilities [@capability review-changes]
+    mandate @mandate reviewer-mandate
+  execution
+    role reviewer
+    outcomes review-notes
+    mandate-contract reviewer-mandate

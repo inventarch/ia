@@ -1,0 +1,74 @@
+#! ia 1.0
+
+@spec shopping-list-export
+  meaning
+    says "A cook can export the ingredients of the recipes they picked as one shopping list."
+    answers "What must the shopping-list export do?"
+  work
+    title "Shopping-list export"
+    status accepted
+    owner "Priya"
+
+# authored-by @agent pantry under @mandate pantry-mandate at 9887869d66262843283c10eecb2fd96d96c85df468877d9e752bd057243d5f28
+@decision list-format
+  meaning
+    says "Choose the file format of an exported shopping list."
+  work
+    title "Shopping-list file format"
+    status made
+    owner "Priya"
+  decision
+    question "Which file format does the export produce?"
+    options ["Markdown checklist", "CSV", "PDF"]
+    choice "Markdown checklist"
+    rationale "Cooks tick items off on their phones, and Markdown renders as a checklist almost everywhere."
+
+@plan shopping-list
+  meaning
+    says "Ship the shopping-list export."
+  work
+    title "Shopping-list export"
+    status open
+    owner "Priya"
+
+@milestone export-ready
+  meaning
+    says "A cook can export a shopping list from the recipe page."
+  work
+    title "Export ready"
+    status open
+    plan @plan shopping-list
+    exit "Every task in the milestone has exit evidence."
+  relationships
+    requires @decision list-format
+
+@task write-exporter
+  meaning
+    says "Write the function that merges the picked recipes' ingredients into one list."
+  work
+    title "Write the exporter"
+    status open
+    milestone @milestone export-ready
+    expected-artifact "src/export.mjs"
+  relationships
+    grounded-by @decision list-format
+
+@task add-export-button
+  meaning
+    says "Add an Export shopping list button to the recipe page."
+  work
+    title "Add the export button"
+    status open
+    milestone @milestone export-ready
+  relationships
+    requires @task write-exporter
+
+@task document-export
+  meaning
+    says "Explain the export in the README."
+  work
+    title "Document the export"
+    status open
+    milestone @milestone export-ready
+  relationships
+    requires @task add-export-button

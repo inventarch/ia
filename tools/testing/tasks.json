@@ -1126,6 +1126,7 @@
         "tests/read.test.ts",
         "tests/refusal-next.test.ts",
         "tests/validate-checks.test.ts",
+        "tests/walkthrough.test.ts",
         "tests/workspace-verbs.test.ts"
       ],
       "profile": "installed",

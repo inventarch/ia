@@ -1,0 +1,20 @@
+#! ia 1.0
+
+@law lists-stay-local
+  meaning
+    says "An exported shopping list is built on the cook's device and never sent to another service."
+    answers "Where may a shopping list go?"
+  governance
+    severity blocking
+  subject
+    subject-word task
+    covers ["src/export.mjs"]
+
+@convention plain-ingredient-names
+  meaning
+    says "Write each item with the ingredient's name as the recipe spells it."
+    answers "How is an item named on the list?"
+  governance
+    severity advisory
+  subject
+    subject-word task

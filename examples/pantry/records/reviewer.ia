@@ -1,0 +1,19 @@
+#! ia 1.0
+
+@agent reviewer
+  meaning
+    says "A review agent that reads and checks, and never writes."
+    answers "Which participant reviews Pantry's work?"
+  governance
+    applies []
+
+@mandate reviewer-mandate
+  meaning
+    says "The reviewer may read and verify, nothing else."
+    answers "What may the reviewer do?"
+  governance
+    requires "Claim no host permission or execution from this mandate."
+  authority
+    participant @agent reviewer
+    moves [Observation, Verification]
+    scope [@workspace pantry]

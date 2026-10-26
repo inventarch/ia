@@ -1,0 +1,14 @@
+#! ia 1.0
+
+@schema allergen
+  lowers to definition
+  sections
+    must have meaning
+    must have allergen
+    may have relationships
+    closed
+  fields
+    must have meaning.says as text
+    must have allergen.label as text
+    must have allergen.severity as id in [mild, serious, life-threatening]
+    may have allergen.also-called as list of text

@@ -1,0 +1,25 @@
+#! ia 1.0
+
+@system kitchen
+  provider "local"
+  version "0.1.0"
+  describes "Kitchen words for Pantry: the allergens a recipe can contain."
+  steward @agent kitchen-steward
+  requires
+    - agent-system
+    - work-system
+    - workspace-system
+  discriminators
+    allergen lowers to definition
+      category state
+      facets [allergen]
+      schema @schema allergen
+  edges
+    cite * using *
+
+@agent kitchen-steward
+  meaning
+    says "Owns the kitchen system and its records."
+    answers "Who owns this system?"
+  governance
+    applies [allergen]
