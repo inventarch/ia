@@ -69,7 +69,7 @@ The user-level plugin is owned and removed independently of any workspace regist
 
 ### 7.3 Doctor
 
-These rows exist with or without a workspace: install channel, IA home, Claude plugin and updates. With a workspace, doctor adds a local language compatibility row; without one, it adds the initialization decision. `ia doctor --host <host> --json` adds `session`, the briefing, and `nextActions`, each with its argument vector and the host's own invocation where it has one (`/ia:init` for Claude). Doctor repairs nothing, never runs `claude`, and makes no registry or update request.
+These rows exist with or without a workspace: install channel, IA home, Claude plugin and updates. With a workspace, doctor adds a local language compatibility row; without one, it adds the initialization decision. `ia doctor --host <host> --json` adds `session`, the briefing, and `nextActions`, each with its argument vector and the host's own invocation where it has one (`/ia:init` for Claude). The Claude plugin row reads the rendered plugin, or else the marketplace install record: `ok` when the ia that wrote it is this one, `warn` naming that ia when it is another, and `warn` when either cannot be read, each stale or unreadable case naming `ia host claude --user --apply`; the briefing's plugin notice follows the same ia. Doctor repairs nothing, never runs `claude`, and makes no registry or update request.
 
 ## 8 Session hook
 

@@ -9,7 +9,7 @@
  * code and message (consumer CLI contract §4 “Refusals”) and gains the next action the CLI can supply, as `ia host` does.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { renderClaudePlugin } from '@inventarch/compliance';
 import type { PluginFile } from '@inventarch/compliance';
@@ -31,13 +31,8 @@ import type { Context, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf } from './consumer.js';
 import { homeSrcRemedy, hostHome, located } from './home-remedy.js';
 import type { Capabilities } from './render.js';
+import { PUBLIC_MARKETPLACE, removeMarketplaceRecord, writeMarketplaceRecord } from './marketplace-record.js';
 import { blockSymbolWidth, commandFacts, document, entry, headerLine, indentOf, quote, words } from './render.js';
-
-/** The public marketplace `ia host claude --user` installs from, as Claude's `owner/repo` source. */
-export const PUBLIC_MARKETPLACE = 'inventarch/marketplace';
-/** The IA home's record of a marketplace install, which the workspace plan reads as the user-level plugin. */
-export const MARKETPLACE_RECORD = 'claude/marketplace-install.json';
-export const marketplaceRecorded = (home: string): boolean => existsSync(join(home, MARKETPLACE_RECORD));
 
 export interface UserHostView {
   readonly host: 'claude';
@@ -212,14 +207,9 @@ export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHos
     }
   if (view.remove) {
     marketplaceStep(view, () => removeMarketplace(view.home));
-    rmSync(join(view.home, MARKETPLACE_RECORD), { force: true });
+    removeMarketplaceRecord(view.home);
   } else if (view.source === 'marketplace' && view.claude) {
-    mkdirSync(join(view.home, 'claude'), { recursive: true });
-    writeFileSync(
-      join(view.home, MARKETPLACE_RECORD),
-      `${JSON.stringify({ marketplace: PUBLIC_MARKETPLACE, plugin: PLUGIN_ID, cli: view.plugin.cli }, null, 2)}
-`,
-    );
+    writeMarketplaceRecord(view.home, PLUGIN_ID, view.plugin.cli);
   }
   const status = view.remove
     ? view.claude

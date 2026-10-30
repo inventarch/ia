@@ -86,7 +86,8 @@ import {
   truncateDigest,
   words,
 } from './render.js';
-import { marketplaceRecorded, runUserHost } from './user-host.js';
+import { runUserHost } from './user-host.js';
+import { marketplaceRecorded } from './marketplace-record.js';
 import { runCommitHost } from './committed-host.js';
 
 /** The installation, not the workspace, is at fault; `ia doctor` names the channel a reinstall goes through. */

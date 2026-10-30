@@ -420,3 +420,30 @@ it('installs ia@inventarch from the public marketplace by default, writing no pl
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace-install.json'))).toBe(false);
   expect((await run(['host', 'claude', '--local'], { env })).exitCode).toBe(2);
 });
+it('reports a marketplace install in ia doctor, with the ia that recorded it and its staleness', async () => {
+  const { env } = setup();
+  expect((await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env })).exitCode).toBe(0);
+  const plugin = async () => {
+    const result = await run(['doctor', '--host', 'claude', '--json'], { env });
+    const body = JSON.parse(result.stdout) as { checks: { id: string }[] };
+    return { row: body.checks.find((check) => check.id === 'plugin-claude'), text: result.stdout };
+  };
+  expect((await plugin()).row).toMatchObject({
+    status: 'ok',
+    detail: 'ia@inventarch, installed from inventarch/marketplace; registration with Claude is not checked',
+  });
+  const record = resolve(env.IA_HOME, 'claude/marketplace-install.json');
+  writeFileSync(
+    record,
+    JSON.stringify({ marketplace: 'inventarch/marketplace', plugin: 'ia@inventarch', cli: '0.0.1' }),
+  );
+  const stale = await plugin();
+  expect(stale.row).toMatchObject({
+    status: 'warn',
+    detail: expect.stringContaining('was installed from inventarch/marketplace by ia 0.0.1; this is ia '),
+    remedy: 'ia host claude --user --apply',
+  });
+  expect(stale.text).toContain('the plugin was installed by ia 0.0.1');
+  writeFileSync(record, '{');
+  expect((await plugin()).row).toMatchObject({ status: 'warn', detail: expect.stringContaining('(it is not JSON)') });
+});
