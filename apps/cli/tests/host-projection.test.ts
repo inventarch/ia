@@ -75,10 +75,10 @@ it('renders a consumer workspace for claude as its position packet, with no agen
   expect(receipt.files.map((file) => file.path)).toEqual(files.map((file) => file.path));
   // On a fresh init: P = M = 1, the seat, N systems, T = 3 tallies, 5 intents, 4 phases, C catalog
   // rows, provenance and 3 SPEC lines.
-  expect(receipt.entries).toBe(1 + 1 + 1 + systems.length + 3 + 5 + 4 + packetCatalog().length + 1 + 3);
-  // The seven KB mode rows make C = 16, so a fresh init renders 35 + N = 46.
+  expect(receipt.entries).toBe(1 + 1 + 1 + systems.length + 3 + 5 + 4 + packetCatalog().length + 1 + 4);
+  // The seven KB mode rows make C = 16, so a fresh init renders 36 + N = 47.
   expect(packetCatalog()).toHaveLength(16);
-  expect(receipt.entries).toBe(46);
+  expect(receipt.entries).toBe(47);
 });
 
 it('admits the composition fixture over the bundled base, and renders its generated set beside the packet', async () => {
