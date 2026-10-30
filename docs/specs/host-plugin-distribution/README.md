@@ -24,13 +24,16 @@ A relative home refuses with `IA-DIST-INPUT-INVALID`. A home that contains `src/
 
 One row per host decides what each command accepts:
 
-| Host | Status | Workspace registration | User-level entry point | Hooks |
-| --- | --- | --- | --- | --- |
-| `claude` | supported | yes | the Claude plugin | yes |
-| `codex` | partial | yes | none | no |
-| `cursor` | planned; refuses | no | none | no |
+| Host | Status | Workspace registration | User-level entry point | Hooks | Committed bootstrap (`ia host <host> --commit`) |
+| --- | --- | --- | --- | --- | --- |
+| `claude` | supported | yes | the Claude plugin | yes | `CLAUDE.md`; `.mcp.json` |
+| `codex` | partial | yes | none | yes | `AGENTS.md`; `.codex/config.toml` |
+| `copilot` | partial | no | none | no | `.github/copilot-instructions.md` and `AGENTS.md`; `.vscode/mcp.json` (VS Code, `servers`) and `.github/mcp.json` (Copilot CLI, `mcpServers`, `type: "local"`) |
+| `cursor` | planned; refuses | no | none | no | none |
 
-`ia host cursor` and `ia host codex --user` refuse with `IA-DIST-HOST-UNSUPPORTED` and write nothing. `ia doctor --host` accepts all three; for a host with no workspace registration, the briefing says so and never suggests `ia host`.
+`ia host cursor`, `ia host copilot` without `--commit`, and `ia host codex --user` refuse with `IA-DIST-HOST-UNSUPPORTED` and write nothing. Codex hooks are supported by the host; IA registers no Codex hook group yet, and Claude's guard observation stays Claude's. `ia doctor --host` accepts `claude`, `codex` and `cursor`; for a host with no workspace registration, the briefing says so and never suggests `ia host`.
+
+The committed bootstrap is the one set of host files meant for source control. Each instruction file gains one block between `<!-- BEGIN IA BOOTSTRAP ... -->` and `<!-- END IA BOOTSTRAP -->`, and each MCP file one server named `ia` whose launch is `npx -y @inventarch/mcp-door@<version>`, the CLI's own version; every other byte is kept, a rerun updates only the block and the server, and `--remove` takes out exactly them. A server named `ia` that is not such a launch, a repeated block, or an instruction file that is a generated position packet refuses with `IA-DIST-LOCAL-MODIFICATION`. The plan writes nothing; `--apply` is judged as Execution like a workspace apply, and `--remove` is not judged.
 
 ## 5 Install channel
 
