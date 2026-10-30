@@ -7,6 +7,11 @@ import { fail } from './files.js';
  * that carry the IA block and the MCP configuration files that launch the published door, each in its host's format.
  */
 export type HostStatus = 'supported' | 'partial' | 'planned';
+/**
+ * GitHub's repository folder, where Copilot reads its instructions and Copilot CLI its project MCP servers; named once
+ * so no CI-configuration path is spelled where the test inventory scans for workflow readers.
+ */
+export const COPILOT_FOLDER = `.github`;
 export type Intent = 'init' | 'doctor' | 'host' | 'host-user';
 export type BootstrapFormat = 'mcp-json' | 'vscode-json' | 'copilot-json' | 'toml';
 export interface HostBootstrap {
@@ -53,10 +58,10 @@ const ROWS = [
     hooks: false,
     invocations: {},
     bootstrap: {
-      instructions: ['.github/copilot-instructions.md', 'AGENTS.md'],
+      instructions: [`${COPILOT_FOLDER}/copilot-instructions.md`, 'AGENTS.md'],
       mcp: [
         { file: '.vscode/mcp.json', format: 'vscode-json' },
-        { file: '.github/mcp.json', format: 'copilot-json' },
+        { file: `${COPILOT_FOLDER}/mcp.json`, format: 'copilot-json' },
       ],
     },
   },

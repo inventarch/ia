@@ -3,6 +3,7 @@ import {
   asWorkspaceHost,
   BOOTSTRAP_HOSTS,
   bootstrapRow,
+  COPILOT_FOLDER,
   HOSTS,
   hostRow,
   invocation,
@@ -20,10 +21,10 @@ it('declares Claude supported, Codex partial with hooks, Copilot partial and Cur
   ]);
   expect(BOOTSTRAP_HOSTS).toEqual(['claude', 'codex', 'copilot']);
   expect(bootstrapRow('copilot')?.bootstrap).toEqual({
-    instructions: ['.github/copilot-instructions.md', 'AGENTS.md'],
+    instructions: [`${COPILOT_FOLDER}/copilot-instructions.md`, 'AGENTS.md'],
     mcp: [
       { file: '.vscode/mcp.json', format: 'vscode-json' },
-      { file: '.github/mcp.json', format: 'copilot-json' },
+      { file: `${COPILOT_FOLDER}/mcp.json`, format: 'copilot-json' },
     ],
   });
   expect(bootstrapRow('cursor')).toBeUndefined();

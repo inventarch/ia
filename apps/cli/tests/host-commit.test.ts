@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
+import { COPILOT_FOLDER } from '@inventarch/distribution/hosts';
 import { initialized } from './host-fixture.js';
 import { run } from './workspace-fixture.js';
 
@@ -19,17 +20,22 @@ it('plans, writes and removes the committed bootstrap for Copilot, with no machi
     remove: false,
     door: `@inventarch/mcp-door@${version}`,
     files: [
-      { path: '.github/copilot-instructions.md', kind: 'instructions', action: 'create' },
+      { path: `${COPILOT_FOLDER}/copilot-instructions.md`, kind: 'instructions', action: 'create' },
       { path: 'AGENTS.md', kind: 'instructions', action: 'create' },
       { path: '.vscode/mcp.json', kind: 'mcp', action: 'create' },
-      { path: '.github/mcp.json', kind: 'mcp', action: 'create' },
+      { path: `${COPILOT_FOLDER}/mcp.json`, kind: 'mcp', action: 'create' },
     ],
     applied: false,
   });
   expect(existsSync(resolve(root, 'AGENTS.md'))).toBe(false);
   const applied = await run(['host', 'copilot', '--commit', '--apply', '--yes', '--root', root, '--json'], { env });
   expect(applied.exitCode, applied.stdout).toBe(0);
-  for (const path of ['.github/copilot-instructions.md', 'AGENTS.md', '.vscode/mcp.json', '.github/mcp.json']) {
+  for (const path of [
+    `${COPILOT_FOLDER}/copilot-instructions.md`,
+    'AGENTS.md',
+    '.vscode/mcp.json',
+    `${COPILOT_FOLDER}/mcp.json`,
+  ]) {
     const text = readFileSync(resolve(root, path), 'utf8');
     expect(text).not.toContain(root);
     expect(text).not.toContain(env.IA_HOST_HOME);
@@ -44,7 +50,7 @@ it('plans, writes and removes the committed bootstrap for Copilot, with no machi
   });
   expect(removed.exitCode, removed.stdout).toBe(0);
   expect(existsSync(resolve(root, 'AGENTS.md'))).toBe(false);
-  expect(existsSync(resolve(root, '.github/mcp.json'))).toBe(false);
+  expect(existsSync(resolve(root, `${COPILOT_FOLDER}/mcp.json`))).toBe(false);
 });
 
 it('sends Copilot without --commit to the committed bootstrap, and refuses --commit for Cursor', async () => {

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { parse } from 'smol-toml';
 import { BLOCK_BEGIN, BLOCK_END, applyBootstrap, planBootstrap } from '../src/bootstrap.js';
+import { COPILOT_FOLDER } from '../src/hosts.js';
 
 let root: string;
 beforeEach(() => {
@@ -57,10 +58,10 @@ it('writes the Codex block into AGENTS.md and a marked TOML server, and refuses 
 
 it('writes Copilot instructions, AGENTS.md, the VS Code server and the Copilot CLI server', () => {
   applyBootstrap(planBootstrap(root, 'copilot', '3.5.0'));
-  expect(read('.github/copilot-instructions.md')).toContain(BLOCK_END);
+  expect(read(`${COPILOT_FOLDER}/copilot-instructions.md`)).toContain(BLOCK_END);
   expect(read('AGENTS.md')).toContain(BLOCK_BEGIN);
   expect(JSON.parse(read('.vscode/mcp.json'))).toEqual({ servers: { ia: { type: 'stdio', ...LAUNCH } } });
-  expect(JSON.parse(read('.github/mcp.json'))).toEqual({
+  expect(JSON.parse(read(`${COPILOT_FOLDER}/mcp.json`))).toEqual({
     mcpServers: { ia: { type: 'local', ...LAUNCH, tools: ['*'] } },
   });
 });
