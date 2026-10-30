@@ -86,7 +86,7 @@ import {
   truncateDigest,
   words,
 } from './render.js';
-import { runUserHost } from './user-host.js';
+import { marketplaceRecorded, runUserHost } from './user-host.js';
 import { runCommitHost } from './committed-host.js';
 
 /** The installation, not the workspace, is at fault; `ia doctor` names the channel a reinstall goes through. */
@@ -703,7 +703,12 @@ export function collectHost(context: Context): HostView {
     owned,
     rooted: context.args.value('root') !== undefined,
     userPlugin:
-      row.user === 'plugin' ? { installed: readMaterializedPlugin(home) !== null, command: USER_PLUGIN_COMMAND } : null,
+      row.user === 'plugin'
+        ? {
+            installed: readMaterializedPlugin(home) !== null || marketplaceRecorded(home),
+            command: USER_PLUGIN_COMMAND,
+          }
+        : null,
     rendered,
   };
 }
@@ -1162,6 +1167,7 @@ const REMOVAL_CONFIRMATION = 'Remove this host registration? [y/N] ';
 export async function runHost(context: Context): Promise<Result> {
   const { args, caps, host, json } = context;
   // Host plugin distribution spec §6.3: `--user` is the user-level entry point, which needs no workspace.
+  if (args.flag('local') && !args.flag('user')) throw new UsageError('--local applies with --user only');
   if (args.flag('user')) return runUserHost(context);
   if (args.flag('commit')) return runCommitHost(context);
   let view: HostView;

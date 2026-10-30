@@ -775,7 +775,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     summary: "Plan or apply this workspace's host registration",
     syntax: [
       'ia host <claude|codex|cursor> [--remove] [--context <identity>] [--apply] [--actor <agent>] [--json] [--yes]',
-      'ia host claude --user [--remove] [--apply] [--json] [--yes]',
+      'ia host claude --user [--local] [--remove] [--apply] [--json] [--yes]',
       'ia host <claude|codex|copilot> --commit [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
     ],
     grammar: grammar(
@@ -785,6 +785,13 @@ export const COMMANDS: readonly CommandSpec[] = [
           kind: 'boolean',
           conflicts: ['context'],
           summary: 'Claude only: user-level plugin; needs no workspace',
+        }),
+        option({
+          name: 'local',
+          kind: 'boolean',
+          conflicts: ['context', 'commit'],
+          summary:
+            'With --user: render the plugin into the IA home instead of installing it from inventarch/marketplace',
         }),
         option({
           name: 'commit',

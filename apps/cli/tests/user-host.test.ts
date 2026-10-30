@@ -40,7 +40,7 @@ const registration = (home: string): string[][] => [
 
 it('plans without writing, then materializes and registers through claude', async () => {
   const { log, env } = setup();
-  const planned = JSON.parse((await run(['host', 'claude', '--user', '--json'], { env })).stdout);
+  const planned = JSON.parse((await run(['host', 'claude', '--user', '--local', '--json'], { env })).stdout);
   expect(planned).toMatchObject({
     version: 1,
     command: 'host',
@@ -52,30 +52,30 @@ it('plans without writing, then materializes and registers through claude', asyn
   expect(planned.plan.commands).toEqual(registration(env.IA_HOME));
   expect(existsSync(env.IA_HOME)).toBe(false);
   expect(calls(log)).toEqual([]);
-  const applied = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
+  const applied = await run(['host', 'claude', '--user', '--local', '--apply', '--yes', '--json'], { env });
   expect(applied.exitCode, applied.stdout).toBe(0);
   expect(JSON.parse(applied.stdout).applied).toMatchObject({ status: 'plugin-registered', ran: planned.plan.commands });
   expect(calls(log)).toEqual(planned.plan.commands);
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace/plugins/ia/hooks/session-start.mjs'))).toBe(true);
   // A second plan reads the materialized plugin back.
-  const again = JSON.parse((await run(['host', 'claude', '--user', '--json'], { env })).stdout);
+  const again = JSON.parse((await run(['host', 'claude', '--user', '--local', '--json'], { env })).stdout);
   expect(again.plan.installed).toEqual({ version: planned.plan.plugin.version });
 });
 it('registers with the same two idempotent commands when already installed (registration contract)', async () => {
   const { env } = setup(INSTALLED);
-  const planned = JSON.parse((await run(['host', 'claude', '--user', '--json'], { env })).stdout);
+  const planned = JSON.parse((await run(['host', 'claude', '--user', '--local', '--json'], { env })).stdout);
   expect(planned.plan.commands).toEqual(registration(env.IA_HOME));
 });
 it('prints each claude command in the human plan', async () => {
   const { env } = setup();
-  const planned = await run(['host', 'claude', '--user'], { env });
+  const planned = await run(['host', 'claude', '--user', '--local'], { env });
   expect(planned.exitCode).toBe(0);
   // commandFacts breaks a long command with a trailing backslash; joined back, each command reads whole.
   const text = planned.stdout.replace(/ \\\n\s*/g, ' ');
   for (const command of registration(env.IA_HOME)) expect(text).toContain(`claude ${command.map(quote).join(' ')}`);
   expect(text).toContain('This is a preview. Nothing has been written.');
   const removal = (
-    await run(['host', 'claude', '--user', '--remove'], { env: { ...env, ...INSTALLED } })
+    await run(['host', 'claude', '--user', '--local', '--remove'], { env: { ...env, ...INSTALLED } })
   ).stdout.replace(/ \\\n\s*/g, ' ');
   expect(removal).toContain('claude plugin uninstall ia@inventarch --scope user');
   expect(removal).toContain('claude plugin marketplace remove inventarch');
@@ -83,17 +83,19 @@ it('prints each claude command in the human plan', async () => {
 });
 it('prints the commands when claude is not available', async () => {
   const { env } = setup({ IA_CLAUDE: resolve(scratch('none'), 'missing.mjs') });
-  const applied = JSON.parse((await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env })).stdout);
+  const applied = JSON.parse(
+    (await run(['host', 'claude', '--user', '--local', '--apply', '--yes', '--json'], { env })).stdout,
+  );
   expect(applied.plan.claude).toBe(false);
   expect(applied.plan.commands).toEqual(registration(env.IA_HOME));
   expect(applied.applied).toMatchObject({ status: 'plugin-materialized', ran: [] });
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace/plugins/ia/.claude-plugin/plugin.json'))).toBe(true);
   // Removal without claude deletes only the directory, says so in its status, and keeps the warning.
-  const removed = await run(['host', 'claude', '--user', '--remove', '--apply', '--yes', '--json'], { env });
+  const removed = await run(['host', 'claude', '--user', '--local', '--remove', '--apply', '--yes', '--json'], { env });
   expect(removed.exitCode, removed.stdout).toBe(0);
   expect(JSON.parse(removed.stdout).applied).toMatchObject({ status: 'plugin-directory-removed', ran: [] });
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace'))).toBe(false);
-  const human = await run(['host', 'claude', '--user', '--remove', '--apply', '--yes'], { env });
+  const human = await run(['host', 'claude', '--user', '--local', '--remove', '--apply', '--yes'], { env });
   expect(human.exitCode).toBe(0);
   expect(human.stdout).toContain('Deleted the plugin directory; not removed from Claude.');
   expect(human.stdout.replace(/\s+/g, ' ')).toContain(
@@ -102,29 +104,29 @@ it('prints the commands when claude is not available', async () => {
 });
 it('refuses a claude command that fails, naming it', async () => {
   const { env } = setup({ IA_CLAUDE_EXIT: '1' });
-  const result = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
+  const result = await run(['host', 'claude', '--user', '--local', '--apply', '--yes', '--json'], { env });
   expect(result.exitCode).toBe(3);
   const refusal = JSON.parse(result.stdout);
   expect(refusal).toMatchObject({ ok: false, code: 'IA-CLI-HOST-COMMAND-FAILED' });
   expect(refusal.message).toContain('claude plugin marketplace add');
-  expect(refusal.next).toContain('ia host claude --user --apply');
+  expect(refusal.next).toContain('ia host claude --user --local --apply');
 });
 it('refuses an install that fails after the marketplace was added, keeping the directory', async () => {
   const { log, env } = setup({ IA_CLAUDE_FAIL_ON: 'plugin install' });
-  const result = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
+  const result = await run(['host', 'claude', '--user', '--local', '--apply', '--yes', '--json'], { env });
   expect(result.exitCode, result.stdout).toBe(3);
   const refusal = JSON.parse(result.stdout);
   expect(refusal).toMatchObject({ ok: false, code: 'IA-CLI-HOST-COMMAND-FAILED' });
   expect(refusal.message).toContain('claude plugin install ia@inventarch --scope user exited 1');
-  expect(refusal.next).toBe('Fix what claude reported above, then rerun "ia host claude --user --apply".');
+  expect(refusal.next).toBe('Fix what claude reported above, then rerun "ia host claude --user --local --apply".');
   expect(calls(log)).toEqual(registration(env.IA_HOME));
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace/plugins/ia/.claude-plugin/plugin.json'))).toBe(true);
 });
 it('refuses an uninstall that fails during removal, keeping the directory', async () => {
   const { log, env } = setup();
-  expect((await run(['host', 'claude', '--user', '--apply', '--yes'], { env })).exitCode).toBe(0);
+  expect((await run(['host', 'claude', '--user', '--local', '--apply', '--yes'], { env })).exitCode).toBe(0);
   writeFileSync(log, '');
-  const result = await run(['host', 'claude', '--user', '--remove', '--apply', '--yes', '--json'], {
+  const result = await run(['host', 'claude', '--user', '--local', '--remove', '--apply', '--yes', '--json'], {
     env: { ...env, ...INSTALLED, IA_CLAUDE_FAIL_ON: 'plugin uninstall' },
   });
   expect(result.exitCode, result.stdout).toBe(3);
@@ -140,7 +142,7 @@ it('passes the fake only the variables this invocation was given', async () => {
   const inherited = process.env['IA_CLAUDE_FAIL_ON'];
   process.env['IA_CLAUDE_FAIL_ON'] = 'plugin';
   try {
-    const result = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
+    const result = await run(['host', 'claude', '--user', '--local', '--apply', '--yes', '--json'], { env });
     expect(result.exitCode, result.stdout).toBe(0);
   } finally {
     if (inherited === undefined) delete process.env['IA_CLAUDE_FAIL_ON'];
@@ -268,7 +270,7 @@ it('refuses a marketplace held by another run as IA-DIST-INSTALL-BUSY, naming wh
   // A lock naming a live process (this one) is never taken over (plugin-home.ts acquireLock).
   mkdirSync(resolve(env.IA_HOME, 'claude'), { recursive: true });
   writeFileSync(resolve(env.IA_HOME, 'claude/.lock'), String(process.pid));
-  const result = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
+  const result = await run(['host', 'claude', '--user', '--local', '--apply', '--yes', '--json'], { env });
   expect(result.exitCode).toBe(3);
   const refusal = JSON.parse(result.stdout);
   expect(refusal).toMatchObject({ ok: false, code: 'IA-DIST-INSTALL-BUSY' });
@@ -295,8 +297,8 @@ it('refuses planned and partial hosts, and --root or --context with --user', asy
     message: 'Cursor support is planned; nothing was written',
   });
   expect((await run(['host', 'nope', '--user', '--json'], { env })).exitCode).toBe(2);
-  expect((await run(['host', 'claude', '--user', '--root', scratch('r')], { env })).exitCode).toBe(2);
-  expect((await run(['host', 'claude', '--user', '--context', 'x'], { env })).exitCode).toBe(2);
+  expect((await run(['host', 'claude', '--user', '--local', '--root', scratch('r')], { env })).exitCode).toBe(2);
+  expect((await run(['host', 'claude', '--user', '--local', '--context', 'x'], { env })).exitCode).toBe(2);
   expect(existsSync(env.IA_HOME)).toBe(false);
 });
 it('refuses usage and unsupported hosts before running claude at all, the --version probe included (consumer exit classes)', async () => {
@@ -304,7 +306,7 @@ it('refuses usage and unsupported hosts before running claude at all, the --vers
   const recorded = resolve(scratch('user-host-calls'), 'calls.log');
   writeFileSync(recorded, '');
   const recording = { ...env, IA_CLAUDE_CALLS: recorded };
-  const root = await run(['host', 'claude', '--user', '--root', scratch('r'), '--json'], { env: recording });
+  const root = await run(['host', 'claude', '--user', '--local', '--root', scratch('r'), '--json'], { env: recording });
   expect(root.exitCode, root.stdout).toBe(2);
   const unknown = await run(['host', 'vim', '--user', '--json'], { env: recording });
   expect(unknown.exitCode, unknown.stdout).toBe(2);
@@ -312,13 +314,13 @@ it('refuses usage and unsupported hosts before running claude at all, the --vers
     expect((await run(['host', name, '--user', '--json'], { env: recording })).exitCode).toBe(3);
   expect(calls(recorded)).toEqual([]);
   // The recorder works: a plan that passes every check probes claude once.
-  expect((await run(['host', 'claude', '--user', '--json'], { env: recording })).exitCode).toBe(0);
+  expect((await run(['host', 'claude', '--user', '--local', '--json'], { env: recording })).exitCode).toBe(0);
   expect(calls(recorded)).toEqual([['--version']]);
 });
 it('refuses an IA home that looks like a workspace at plan time', async () => {
   const { env } = setup();
   mkdirSync(resolve(env.IA_HOME, 'src'), { recursive: true });
-  const result = await run(['host', 'claude', '--user', '--json'], { env });
+  const result = await run(['host', 'claude', '--user', '--local', '--json'], { env });
   expect(result.exitCode).toBe(3);
   expect(JSON.parse(result.stdout)).toMatchObject({
     code: 'IA-DIST-PATH-UNSAFE',
@@ -327,9 +329,9 @@ it('refuses an IA home that looks like a workspace at plan time', async () => {
 });
 it('removes only what claude lists, then the directory (uninstall and remove exit 1 when absent, registration contract)', async () => {
   const { log, env } = setup();
-  expect((await run(['host', 'claude', '--user', '--apply', '--yes'], { env })).exitCode).toBe(0);
+  expect((await run(['host', 'claude', '--user', '--local', '--apply', '--yes'], { env })).exitCode).toBe(0);
   writeFileSync(log, '');
-  const removed = await run(['host', 'claude', '--user', '--remove', '--apply', '--yes', '--json'], {
+  const removed = await run(['host', 'claude', '--user', '--local', '--remove', '--apply', '--yes', '--json'], {
     env: { ...env, ...INSTALLED },
   });
   expect(removed.exitCode, removed.stdout).toBe(0);
@@ -340,14 +342,18 @@ it('removes only what claude lists, then the directory (uninstall and remove exi
   ]);
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace'))).toBe(false);
   writeFileSync(log, '');
-  expect((await run(['host', 'claude', '--user', '--remove', '--apply', '--yes'], { env })).exitCode).toBe(0);
+  expect((await run(['host', 'claude', '--user', '--local', '--remove', '--apply', '--yes'], { env })).exitCode).toBe(
+    0,
+  );
   expect(calls(log)).toEqual([]);
 });
 it('removes nothing and runs no claude command when nothing is registered or materialized', async () => {
   const { log, env } = setup();
-  const planned = JSON.parse((await run(['host', 'claude', '--user', '--remove', '--json'], { env })).stdout);
+  const planned = JSON.parse(
+    (await run(['host', 'claude', '--user', '--local', '--remove', '--json'], { env })).stdout,
+  );
   expect(planned.plan.commands).toEqual([]);
-  const removed = await run(['host', 'claude', '--user', '--remove', '--apply', '--yes', '--json'], { env });
+  const removed = await run(['host', 'claude', '--user', '--local', '--remove', '--apply', '--yes', '--json'], { env });
   expect(removed.exitCode, removed.stdout).toBe(0);
   expect(JSON.parse(removed.stdout).applied).toMatchObject({ status: 'plugin-removed', ran: [] });
   expect(calls(log)).toEqual([]);
@@ -358,7 +364,9 @@ it('does not uninstall a plugin claude lists at another scope', async () => {
     FAKE_CLAUDE_PLUGINS: JSON.stringify([{ id: 'ia@inventarch', version: '0.1.0', scope: 'project', enabled: true }]),
     FAKE_CLAUDE_MARKETPLACES: INSTALLED.FAKE_CLAUDE_MARKETPLACES,
   });
-  const planned = JSON.parse((await run(['host', 'claude', '--user', '--remove', '--json'], { env })).stdout);
+  const planned = JSON.parse(
+    (await run(['host', 'claude', '--user', '--local', '--remove', '--json'], { env })).stdout,
+  );
   expect(planned.plan.commands).toEqual([['plugin', 'marketplace', 'remove', 'inventarch']]);
 });
 it('names the missing user-level plugin in a workspace plan, and stops once it is materialized (spec §7.1)', async () => {
@@ -380,11 +388,35 @@ it('names the missing user-level plugin in a workspace plan, and stops once it i
   ).toBeUndefined();
   // The workspace plan only names the command; claude was never asked anything.
   expect(calls(log)).toEqual([]);
-  expect((await run(['host', 'claude', '--user', '--apply', '--yes'], { env })).exitCode).toBe(0);
+  expect((await run(['host', 'claude', '--user', '--local', '--apply', '--yes'], { env })).exitCode).toBe(0);
   expect(JSON.parse((await run(['host', 'claude', '--root', root, '--json'], { env })).stdout).plan.userPlugin).toEqual(
     { installed: true, command: 'ia host claude --user --apply' },
   );
   expect((await run(['host', 'claude', '--root', root], { env })).stdout.replace(/\s+/g, ' ')).not.toContain(
     'The user-level plugin is not installed',
   );
+});
+it('installs ia@inventarch from the public marketplace by default, writing no plugin and recording the install', async () => {
+  const { log, env } = setup();
+  const planned = JSON.parse((await run(['host', 'claude', '--user', '--json'], { env })).stdout);
+  expect(planned.plan).toMatchObject({ source: 'marketplace', marketplace: 'inventarch/marketplace' });
+  expect(planned.plan.commands).toEqual([
+    ['plugin', 'marketplace', 'add', 'inventarch/marketplace'],
+    ['plugin', 'install', 'ia@inventarch', '--scope', 'user'],
+  ]);
+  const applied = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(JSON.parse(applied.stdout).applied).toEqual({ status: 'plugin-registered', ran: planned.plan.commands });
+  expect(calls(log)).toEqual(planned.plan.commands);
+  expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace'))).toBe(false);
+  expect(JSON.parse(readFileSync(resolve(env.IA_HOME, 'claude/marketplace-install.json'), 'utf8'))).toMatchObject({
+    marketplace: 'inventarch/marketplace',
+    plugin: 'ia@inventarch',
+  });
+  const removed = await run(['host', 'claude', '--user', '--remove', '--apply', '--yes', '--json'], {
+    env: { ...env, ...INSTALLED },
+  });
+  expect(removed.exitCode, removed.stdout).toBe(0);
+  expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace-install.json'))).toBe(false);
+  expect((await run(['host', 'claude', '--local'], { env })).exitCode).toBe(2);
 });

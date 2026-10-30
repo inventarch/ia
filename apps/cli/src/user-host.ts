@@ -1,13 +1,15 @@
 /**
  * `ia host <host> --user`: docs/specs/host-plugin-distribution/README.md §6.3 “Apply” and §7.1 “Registration”.
  *
- * Needs no workspace. Plans by default and writes nothing while planning; `--apply` renders the plugin, swaps it into
- * the IA home's marketplace directory, then runs Claude's own `claude plugin …` commands. Without `claude` it
- * materializes and prints the commands. It never reads or edits Claude's settings files. A service refusal keeps its
+ * Needs no workspace. Plans by default and writes nothing while planning; `--apply` adds the public marketplace
+ * `inventarch/marketplace` (catalogue `inventarch`) and installs `ia@inventarch` from it through Claude's own
+ * `claude plugin …` commands, and records that install in the IA home (kit discovery decision 5). `--local` keeps the
+ * offline path: it renders the plugin, swaps it into the IA home's marketplace directory, then registers that directory.
+ * Without `claude` the local path materializes, and either path prints the commands. It never reads or edits Claude's settings files. A service refusal keeps its
  * code and message (consumer CLI contract §4 “Refusals”) and gains the next action the CLI can supply, as `ia host` does.
  */
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { renderClaudePlugin } from '@inventarch/compliance';
 import type { PluginFile } from '@inventarch/compliance';
@@ -24,16 +26,24 @@ import { UsageError } from './args.js';
 import { detectChannel, updateInstruction } from './channel.js';
 import type { Channel } from './channel.js';
 import type { ClaudeRunner } from './claude-cli.js';
-import { claudeRunner, observeClaude, registrationCommands, removalCommands } from './claude-cli.js';
+import { claudeRunner, observeClaude, PLUGIN_ID, registrationCommands, removalCommands } from './claude-cli.js';
 import type { Context, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf } from './consumer.js';
 import { homeSrcRemedy, hostHome, located } from './home-remedy.js';
 import type { Capabilities } from './render.js';
 import { blockSymbolWidth, commandFacts, document, entry, headerLine, indentOf, quote, words } from './render.js';
 
+/** The public marketplace `ia host claude --user` installs from, as Claude's `owner/repo` source. */
+export const PUBLIC_MARKETPLACE = 'inventarch/marketplace';
+/** The IA home's record of a marketplace install, which the workspace plan reads as the user-level plugin. */
+export const MARKETPLACE_RECORD = 'claude/marketplace-install.json';
+export const marketplaceRecorded = (home: string): boolean => existsSync(join(home, MARKETPLACE_RECORD));
+
 export interface UserHostView {
   readonly host: 'claude';
   readonly remove: boolean;
+  /** `marketplace`: installed from `PUBLIC_MARKETPLACE`; `local`: rendered into the IA home (`--local`). */
+  readonly source: 'marketplace' | 'local';
   readonly home: string;
   readonly marketplace: string;
   readonly plugin: { readonly version: string; readonly cli: string; readonly channel: Channel['kind'] };
@@ -75,7 +85,8 @@ export function buildClaudePlugin(input: {
 }
 
 /** The rerun a next action names; the only user-level host is Claude. */
-const rerunOf = (remove: boolean): string => `ia host claude --user${remove ? ' --remove' : ''} --apply`;
+const rerunOf = (remove: boolean, local = false): string =>
+  `ia host claude --user${remove ? ' --remove' : ''}${local ? ' --local' : ''} --apply`;
 /** A Claude command as a reader can paste it back. */
 export const claudeCommand = (command: readonly string[]): string => ['claude', ...command].map(quote).join(' ');
 
@@ -118,13 +129,15 @@ export function collectUserHost(
     entry: resolve(host.packageRoot, 'dist/main.js'),
     node: nodeCommand(),
   });
-  const marketplace = resolve(home, MARKETPLACE_DIR);
-  const remove = args.flag('remove');
+  const remove = args.flag('remove'),
+    local = args.flag('local');
+  const marketplace = local || remove ? resolve(home, MARKETPLACE_DIR) : PUBLIC_MARKETPLACE;
   const installed = readMaterializedPlugin(home);
   const runner = runnerFor(host.env);
   const view: UserHostView = {
     host: 'claude',
     remove,
+    source: local ? 'local' : 'marketplace',
     home,
     marketplace,
     plugin: { version: plugin.version, cli: host.version, channel: channel.kind },
@@ -132,7 +145,7 @@ export function collectUserHost(
     claude: runner.available,
     // §6.3: registration is idempotent and needs no observation; removal asks claude what exists.
     commands: remove ? removalCommands(observeClaude(runner)) : registrationCommands(marketplace),
-    files: plugin.files,
+    files: local ? plugin.files : [],
   };
   return { view, runner };
 }
@@ -181,7 +194,8 @@ export interface UserHostApplied {
  * removal asks claude again what is left (the “Registration” contract).
  */
 export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHostApplied {
-  if (!view.remove) marketplaceStep(view, () => materializeMarketplace(view.home, view.files));
+  if (!view.remove && view.source === 'local')
+    marketplaceStep(view, () => materializeMarketplace(view.home, view.files));
   const ran: string[][] = [];
   if (view.claude)
     for (const command of view.commands) {
@@ -192,11 +206,21 @@ export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHos
           `${claudeCommand(command)} exited ${result.status ?? 'without a status'}: ${result.output || 'no output'}`,
           3,
           null,
-          `Fix what claude reported above, then rerun "${rerunOf(view.remove)}".`,
+          `Fix what claude reported above, then rerun "${rerunOf(view.remove, view.source === 'local' && !view.remove)}".`,
         );
       ran.push([...command]);
     }
-  if (view.remove) marketplaceStep(view, () => removeMarketplace(view.home));
+  if (view.remove) {
+    marketplaceStep(view, () => removeMarketplace(view.home));
+    rmSync(join(view.home, MARKETPLACE_RECORD), { force: true });
+  } else if (view.source === 'marketplace' && view.claude) {
+    mkdirSync(join(view.home, 'claude'), { recursive: true });
+    writeFileSync(
+      join(view.home, MARKETPLACE_RECORD),
+      `${JSON.stringify({ marketplace: PUBLIC_MARKETPLACE, plugin: PLUGIN_ID, cli: view.plugin.cli }, null, 2)}
+`,
+    );
+  }
   const status = view.remove
     ? view.claude
       ? 'plugin-removed'
@@ -216,6 +240,7 @@ const envelope = (view: UserHostView, applied: UserHostApplied | null): unknown 
   apply: applied !== null,
   plan: {
     remove: view.remove,
+    source: view.source,
     home: view.home,
     marketplace: view.marketplace,
     plugin: view.plugin,
@@ -246,7 +271,7 @@ const summary = (view: UserHostView, context: Context, applied = false): readonl
       ...headerLine('Home', view.home, [], caps),
     ],
     [
-      ...(view.remove
+      ...(view.remove || view.source === 'marketplace'
         ? []
         : entry(
             [words(`Write the plugin ${view.plugin.version} to ${view.marketplace}`)],
@@ -278,7 +303,13 @@ function render(view: UserHostView, applied: UserHostApplied | null, context: Co
       ...(applied === null
         ? [
             entry(
-              commandFacts('Apply with "', `${rerunOf(view.remove)} --yes`, '".', 3, caps),
+              commandFacts(
+                'Apply with "',
+                `${rerunOf(view.remove, view.source === 'local' && !view.remove)} --yes`,
+                '".',
+                3,
+                caps,
+              ),
               { depth: 0, symbol: 'step' },
               caps,
             ),

@@ -124,7 +124,7 @@ Choose a response format for the public API.
 | Command | What it does |
 | --- | --- |
 | `ia project <claude\|codex>` | Plans the position packet files for one host. `--apply` writes them and a receipt. It registers no MCP server. With `--product plugin` it renders the host plugin a lowered workspace describes instead (see [host plugins](#-host-plugins)). |
-| `ia host <claude\|codex>` | Plans the host registration: the MCP server, the same projection and the skills generated from your authored `@playbook` records, plus, for Claude, the agents and edit guards generated from `@agent-profile` and `@hook` records. `--apply` writes it; `--remove` plans removing what it owns. `ia host claude --user` registers a user-level plugin that needs no workspace. |
+| `ia host <claude\|codex>` | Plans the host registration: the MCP server, the same projection and the skills generated from your authored `@playbook` records, plus, for Claude, the agents and edit guards generated from `@agent-profile` and `@hook` records. `--apply` writes it; `--remove` plans removing what it owns. `ia host claude --user` installs the public `ia@inventarch` plugin from `inventarch/marketplace`, which needs no workspace; `--local` renders it into the IA home instead. `ia host <claude\|codex\|copilot> --commit` writes the committable bootstrap. |
 | `ia doctor` | Reports runtime, workspace, installation and host state, and suggests repairs without making them. `--host claude` or `--host codex` adds that host's session briefing. |
 
 | Host | Position packet | Skill | MCP registration (`ia host` only) |
