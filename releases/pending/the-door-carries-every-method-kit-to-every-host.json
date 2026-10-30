@@ -1,0 +1,27 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "The door carries every method kit to every host",
+  "summary": "`@inventarch/runtime/method` reads method kits (releases format 1 and 2, bundled and IA home kits), selects a repository binding and resolves the method packet in process: the packet and digest the `ia` plugin prints. `ia-mcp-door` adds `ia_session`, `ia_catalogue` and `ia_method`, reads kits from `--kits` or `IA_KITS_DIR` and the IA home, acts at its root or a root the format 2 `workspace-locations.json` registry lists (both earlier formats are read), and restores a kit in process with the language base it now carries. `ia host <claude|codex|copilot> --commit` writes a committable bootstrap: an instruction block naming `ia_session` and the three lanes, and an `ia` MCP server running `npx -y @inventarch/mcp-door@<version>`. The position packet gains the session line. A GitHub Copilot host row is added and Codex hooks are marked supported. Workspace projections render one skill per invocable `@capability`, not one per `@playbook`. `ia host claude --user` installs `ia@inventarch` from `inventarch/marketplace`; `--local` keeps the rendered plugin. `config.json` names `accountOffer` beside `updateCheck`.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/distribution",
+    "@inventarch/mcp-door",
+    "@inventarch/runtime",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "apps/cli/",
+    "apps/distribution/",
+    "apps/mcp-door/",
+    "docs/",
+    "packages/runtime/",
+    "packages/workspace-runtime/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}
