@@ -394,7 +394,7 @@ export const skillFolderOf = (error: unknown): string | undefined =>
     : undefined;
 /** The repair for a generated skill refused at a folder that holds the user's files: those files go, or the name changes. */
 export const folderRepair = (folder: string, rerun: string): string =>
-  `Move the files out of ${folder}, or rename the @playbook that renders it, then run "${rerun}".`;
+  `Move the files out of ${folder}, or rename the @capability that renders it, then run "${rerun}".`;
 /** The hook refusal an error carries (`hookRefusal`), if any. */
 export const hookRefusalOf = (error: unknown): HookRefusal | undefined =>
   error !== null && typeof error === 'object' && 'hookRefusal' in error

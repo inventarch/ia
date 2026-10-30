@@ -3,7 +3,7 @@
  * position packet's consumer rendering (runtime R19 and R20): the target is initialized from the bundled base, so
  * every system line comes from the base's systems.
  */
-import { cpSync } from 'node:fs';
+import { cpSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
 import { PACKET_MARKER } from '@inventarch/runtime';
@@ -90,12 +90,20 @@ it('admits the composition fixture over the bundled base, and renders its genera
   for (const path of ['.ia/src/workspace.ia', '.ia/release.json'])
     expect(read(fixture, path), path).toBe(read(root, path));
   cpSync(fixture, root, { recursive: true });
+  // The capability made invocable under the playbook's name: its skill is the one generated skill (C′).
+  const composition = resolve(root, '.ia/src/composition.ia');
+  writeFileSync(
+    composition,
+    read(root, '.ia/src/composition.ia')
+      .replaceAll('@capability note-reading', '@capability note-review')
+      .replace('    effects [read]\n', '    effects [read]\n  invocation\n    mode model\n'),
+  );
   const validated = await run(['validate', '--root', root, '--json']);
   expect(validated.exitCode, validated.stdout).toBe(0);
   expect(JSON.parse(validated.stdout)).toMatchObject({ status: 'admitted', counts: { errors: 0 } });
   const claude = renderProjectionFor(root, 'claude'),
     profile = 'agent-composition-system/binding/agent-profile/reviewer',
-    playbook = 'governance-system/definition/procedure/note-review',
+    capability = 'agent-composition-system/definition/capability/note-review',
     hook = 'hook-authoring-system/binding/hook/note-edits';
   expect(claude.files.map((file) => file.path)).toEqual([
     '.claude/rules/ia-workspace.md',
@@ -114,8 +122,8 @@ it('admits the composition fixture over the bundled base, and renders its genera
       sha256: digestOf('.claude/agents/reviewer.md'),
     },
     {
-      identity: playbook,
-      word: 'playbook',
+      identity: capability,
+      word: 'capability',
       path: '.claude/skills/note-review/SKILL.md',
       sha256: digestOf('.claude/skills/note-review/SKILL.md'),
     },
