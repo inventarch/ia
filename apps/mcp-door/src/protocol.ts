@@ -7,6 +7,8 @@ import { vocabulary } from './vocabulary.js';
 import { knowledgeTool } from './kb.js';
 import type { KnowledgeOperation } from '@inventarch/kb/protocol';
 import { LIMITS } from '@inventarch/kb';
+import { MethodTools } from './method.js';
+import type { MethodHost, MethodOperation } from './method.js';
 
 export const PROTOCOL_VERSION = '2025-11-25';
 const PACKAGE_VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -27,10 +29,12 @@ const object = (value: unknown): value is Record<string, unknown> =>
 export class Protocol {
   #root: string;
   #door: Door;
+  #method: MethodTools;
   #state: 'new' | 'negotiated' | 'ready' | 'closed' = 'new';
-  constructor(root: string) {
+  constructor(root: string, options: Omit<MethodHost, 'root'> = {}) {
     this.#root = root;
     this.#door = new Door(root, { cache: false });
+    this.#method = new MethodTools({ root, ...options });
   }
   line(line: string): Response | undefined {
     let message: unknown;
@@ -81,7 +85,7 @@ export class Protocol {
           capabilities: { tools: {} },
           serverInfo: { name: 'ia-mcp-door', version: PACKAGE_VERSION },
           instructions:
-            'Declare phase and primitive for context/selection. Scope tokens live only in this server process. These tools read; selection grants no execution permission.',
+            'Declare phase and primitive for context/selection. Scope tokens live only in this server process. These tools read; selection grants no execution permission. Start a session with ia_session, list a lane with ia_catalogue and resolve one key with ia_method; those three write only under the IA home.',
         });
       }
       if (this.#state !== 'ready')
@@ -98,6 +102,14 @@ export class Protocol {
         if (params['arguments'] !== undefined && !object(params['arguments']))
           return rpcError(requestId, -32602, 'Tool arguments must be an object');
         const args = { ...((params['arguments'] as Record<string, unknown> | undefined) ?? {}) };
+        if (operation.startsWith('method:')) {
+          const answer = this.#method.call(operation as MethodOperation, args);
+          return success({
+            content: [{ type: 'text', text: JSON.stringify(answer.value) }],
+            structuredContent: answer.value,
+            isError: !answer.ok,
+          });
+        }
         const format = operation === 'context' ? args['format'] : undefined;
         if (format !== undefined && format !== 'full' && format !== 'compact')
           return rpcError(requestId, -32602, 'context format must be full or compact');

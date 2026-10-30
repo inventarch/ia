@@ -1533,7 +1533,8 @@
       "files": [
         "tests/protocol.test.ts",
         "tests/stdio.test.ts",
-        "tests/kb.test.ts"
+        "tests/kb.test.ts",
+        "tests/method.test.ts"
       ],
       "profile": "installed",
       "platforms": [

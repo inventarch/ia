@@ -1,0 +1,184 @@
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+  copyFileSync,
+  existsSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { gunzipSync } from 'node:zlib';
+import { afterAll, beforeAll, expect, it } from 'vitest';
+import { packetDigest, registerWorkspace } from '@inventarch/runtime/method';
+import { MethodTools } from '../src/method.js';
+import { Protocol } from '../src/protocol.js';
+
+/**
+ * The method tools against `fixtures/method`: `plugin.json.gz` holds the public `ia` plugin's scripts and support files
+ * and its `ia-kb` kit (provenance in `fixtures/method/PROVENANCE.json`), and each `golden-*.json` is the packet that
+ * plugin's `resolve.mjs` printed for the same consumer, bindings, task and subject hash, with the temporary root as
+ * `<ROOT>`, its digest taken over that content by the plugin's own `packetDigest`, and the envelope, which no digest
+ * covers, left out.
+ */
+const fixture = new URL('./fixtures/method/', import.meta.url);
+const golden = (name: string): unknown => JSON.parse(readFileSync(new URL(name, fixture), 'utf8'));
+let root: string, consumer: string, kits: string, env: NodeJS.ProcessEnv;
+
+beforeAll(() => {
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'ia-door-method-')));
+  const files = JSON.parse(gunzipSync(readFileSync(new URL('plugin.json.gz', fixture))).toString('utf8')) as Record<
+    string,
+    string
+  >;
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, 'plugin', path)), { recursive: true });
+    writeFileSync(join(root, 'plugin', path), text);
+  }
+  consumer = join(root, 'consumer');
+  mkdirSync(join(consumer, '.ia', 'src'), { recursive: true });
+  copyFileSync(new URL('bindings.json', fixture), join(consumer, '.ia', 'bindings.json'));
+  kits = join(root, 'plugin', 'config', 'kits');
+  env = { ...process.env, IA_HOME: join(root, 'home') };
+  mkdirSync(join(root, 'cache'));
+  delete env['IA_KITS_DIR'];
+  delete env['IA_CORE_RUN_ROOT'];
+  delete env['IA_CORE_CLOSURES_DIR'];
+  delete env['IA_CORE_HOST_ENFORCES_CHECKS'];
+});
+afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+const normalized = (value: unknown): unknown => {
+  if (typeof value === 'string')
+    return value.includes(root) ? value.split(root).join('<ROOT>').replaceAll('\\', '/') : value;
+  if (Array.isArray(value)) return value.map(normalized);
+  if (value !== null && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalized(item)]));
+  return value;
+};
+const tools = (): MethodTools => new MethodTools({ root: consumer, kits, env, cache: join(root, 'cache') });
+
+it('resolves the packet resolve.mjs prints, field for field, and writes the same pin', () => {
+  const door = tools();
+  for (const activity of ['find', 'check']) {
+    const answer = door.call('method:method', {
+      key: `knowledge.${activity}`,
+      subject: 'the decision records',
+      task: 'golden',
+    });
+    expect(answer.ok).toBe(true);
+    const { envelope, ...packet } = answer.value as Record<string, unknown>;
+    expect(envelope).toMatchObject({ host: 'mcp-door', cliSource: 'in-process', kitInstalled: false });
+    expect(packet['digest']).toBe(packetDigest(packet));
+    // The digest covers the workspace root, so each side's is compared over the same `<ROOT>` content.
+    const same = normalized(packet) as Record<string, unknown>;
+    expect({ ...same, digest: packetDigest(same) }).toEqual(golden(`golden-${activity}.json`));
+  }
+  const { createdAt, ...pin } = JSON.parse(
+    readFileSync(join(root, 'home', 'work-v1', 'consumer', 'golden', 'binding.json'), 'utf8'),
+  ) as Record<string, unknown>;
+  expect(typeof createdAt).toBe('string');
+  expect(normalized(pin)).toEqual(golden('golden-pin.json'));
+}, 120_000);
+
+it('refuses an unbound key with the resolver payload and the kits that recommend it', () => {
+  const answer = tools().call('method:method', { key: 'knowledge.review' });
+  expect(answer.ok).toBe(false);
+  expect(answer.value).toMatchObject({
+    error: {
+      code: 'IA-CORE-NO-METHOD',
+      key: 'knowledge.review',
+      candidates: [{ kit: 'inventarch/ia-kb-kit', capability: 'kb-review', key: 'knowledge.review' }],
+    },
+  });
+});
+
+it('lists a lane from kit recommendations and workspace bindings, bound before installed', () => {
+  const answer = tools().call('method:catalogue', { lane: 'knowledge' });
+  expect(answer.ok).toBe(true);
+  const { lane, items } = answer.value as { lane: string; items: Record<string, unknown>[] };
+  expect(lane).toBe('knowledge');
+  expect(items.find((item) => item['key'] === 'knowledge.find')).toMatchObject({
+    display: 'ia-knowledge:find',
+    kit: 'inventarch/ia-kb-kit',
+    version: '0.9.0',
+    capability: 'kb-retrieve',
+    state: 'bound',
+  });
+  expect(items.find((item) => item['key'] === 'knowledge.*')).toMatchObject({
+    display: 'ia-knowledge',
+    capability: 'kb-knowledge',
+    state: 'installed',
+  });
+  for (const item of items) expect(String(item['description']).length).toBeLessThanOrEqual(200);
+  const orient = tools().call('method:catalogue', { lane: 'knowledge', phase: 'plan' }).value as {
+    items: { key: string }[];
+  };
+  expect(orient.items.map((item) => item.key)).toEqual(['knowledge.*', 'knowledge.place']);
+  expect(tools().call('method:catalogue', { lane: 'work' }).value).toEqual({ lane: 'work', items: [] });
+  expect(tools().call('method:catalogue', { lane: 'design' }).value).toMatchObject({
+    error: { code: 'IA-CORE-USAGE' },
+  });
+});
+
+it('opens a session with a bounded briefing, the kits and the current pin, and logs it under the IA home', () => {
+  const answer = tools().call('method:session', { claim: { path: 'docs', mode: 'write' } });
+  expect(answer.ok).toBe(true);
+  const session = answer.value as Record<string, unknown> & { sessionId: string; briefing: string };
+  expect(session).toMatchObject({
+    root: consumer,
+    workspace: null,
+    kits: [{ kit: 'inventarch/ia-kb-kit', version: '0.9.0', source: 'bundled' }],
+    lanes: ['work', 'knowledge', 'delivery'],
+    pin: { task: 'consumer/golden', key: 'knowledge.check', revision: 2 },
+  });
+  expect(session.briefing.length).toBeLessThanOrEqual(2500);
+  expect(session.briefing).toContain('ia_catalogue');
+  const log = join(root, 'home', 'sessions-v1', `${session.sessionId}.jsonl`);
+  const line = JSON.parse(readFileSync(log, 'utf8').trim()) as Record<string, unknown>;
+  expect(line).toMatchObject({ event: 'start', claim: { path: 'docs', mode: 'write', advisory: true } });
+});
+
+it('acts only at its own root or a registered one', () => {
+  const other = join(root, 'other');
+  mkdirSync(join(other, '.ia', 'src'), { recursive: true });
+  expect(tools().call('method:session', { root: other }).value).toMatchObject({
+    error: { code: 'IA-CORE-ROOT-UNREGISTERED' },
+  });
+  registerWorkspace(join(root, 'home'), { id: 'other', root: other });
+  expect(tools().call('method:session', { root: other }).value).toMatchObject({ root: other });
+  expect(tools().call('method:session', { root: 'relative' }).value).toMatchObject({
+    error: { code: 'IA-CORE-USAGE' },
+  });
+  expect(existsSync(join(root, 'home', 'workspace-locations.json'))).toBe(true);
+});
+
+it('serves the three method tools after the seventeen read tools', () => {
+  const protocol = new Protocol(consumer, { kits, env });
+  protocol.request({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'initialize',
+    params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 't', version: '1' } },
+  });
+  protocol.request({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
+  const listed = protocol.request({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })?.result as {
+    tools: { name: string; annotations: { readOnlyHint: boolean } }[];
+  };
+  expect(listed.tools.slice(17).map((tool) => [tool.name, tool.annotations.readOnlyHint])).toEqual([
+    ['ia_session', false],
+    ['ia_catalogue', true],
+    ['ia_method', false],
+  ]);
+  const called = protocol.request({
+    jsonrpc: '2.0',
+    id: 3,
+    method: 'tools/call',
+    params: { name: 'ia_catalogue', arguments: { lane: 'knowledge', word: 'find' } },
+  })?.result as { structuredContent: { items: { key: string }[] }; isError: boolean };
+  expect(called.isError).toBe(false);
+  expect(called.structuredContent.items.map((item) => item.key)).toEqual(['knowledge.find']);
+  protocol.close();
+});

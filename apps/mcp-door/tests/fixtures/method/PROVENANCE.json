@@ -1,0 +1,15 @@
+{
+  "format": "ia.fixture-provenance.v1",
+  "license": "Apache-2.0",
+  "source": {
+    "repository": "https://github.com/inventarch/marketplace",
+    "commit": "e8a6ac79de27191513a01accad80f1cb3cee9185"
+  },
+  "files": {
+    "plugin.json.gz": "A gzipped JSON object from each path to its UTF-8 text: plugins/ia/scripts/** as scripts/**, plugins/ia/.claude-plugin/plugin.json, plugins/ia/config/qualified-process-tools.json, and kits/ia-kb/** (inventarch/ia-kb-kit 0.9.0, releases format 2) as config/kits/ia-kb/**, unchanged.",
+    "bindings.json": "The consumer workspace's .ia/bindings.json: knowledge.find to kb-retrieve and knowledge.check to kb-check.",
+    "golden-find.json": "node plugins/ia/scripts/resolve.mjs --entry knowledge --activity find --root <ROOT>/consumer --project consumer --task golden --subject sha256:<sha256 of 'the decision records'>, run from the extracted plugin with IA_HOME=<ROOT>/home, IA_CORE_KITS_DIR=<ROOT>/plugin/config/kits and IA_CLI_PATH at @inventarch/cli 3.4.1 built from this repository; the temporary root written as <ROOT> with forward slashes, the envelope removed, and the digest recomputed over that content with the plugin's own packetDigest.",
+    "golden-check.json": "As golden-find.json, then --activity check in the same task (pin revision 2).",
+    "golden-pin.json": "<ROOT>/home/work-v1/consumer/golden/binding.json after both runs, without createdAt, the root written as for the packets."
+  }
+}

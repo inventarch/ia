@@ -1,0 +1,71 @@
+{
+  "format": 3,
+  "revision": 2,
+  "workspace": {
+    "root": "<ROOT>/consumer",
+    "revision": "59fce9308817004dd9637c7be4e66dad61005c8491096e24e54178b93ad1c261"
+  },
+  "task": "golden",
+  "kits": {
+    "inventarch/ia-kb-kit": {
+      "version": "0.9.0",
+      "archive": "c953541b41974b0ed9f78fa34ee3dc83f54ee7d7ce0e9c40cec4ca8d82507925",
+      "sources": "d34c033e766cd105439a920eefe9ac121e863ac688ec13a51f6e8b0e576f93e9",
+      "implementation": "7206e9f4b98e97a86f8f9264210393fd40a69c0c5b934c6d56239ee2d17d649c",
+      "retained": "88d652078daa268d562f829d0475d3b9ce4f6098c41df7c03b002fb058f4b498"
+    }
+  },
+  "keys": {
+    "knowledge.find": {
+      "kit": "inventarch/ia-kb-kit",
+      "capability": "kb-retrieve",
+      "profile": null,
+      "records": [
+        "agent-composition-system/definition/capability/kb-retrieve",
+        "governance-system/definition/procedure/kb-retrieval",
+        "agent-composition-system/binding/agent-profile/kb-librarian-profile",
+        "agent-system/policy/mandate/ia-kb-reader-mandate",
+        "compliance-system/check/gate/kb-check-decisions",
+        "compliance-system/check/gate/kb-check-locators",
+        "compliance-system/check/gate/kb-check-task-locators",
+        "compliance-system/check/gate/kb-check-validate"
+      ],
+      "scopeKey": {
+        "shape": "context",
+        "phase": "orient",
+        "seat": null,
+        "word": null
+      },
+      "intent": {
+        "entry": "knowledge",
+        "activity": "find",
+        "subject": "sha256:7492747a0f15b473ed303eb1d1f65ff60e2738a835dc0f2817757df4d2758e14"
+      }
+    },
+    "knowledge.check": {
+      "kit": "inventarch/ia-kb-kit",
+      "capability": "kb-check",
+      "profile": null,
+      "records": [
+        "agent-composition-system/definition/capability/kb-check",
+        "governance-system/definition/procedure/kb-check",
+        "compliance-system/check/gate/kb-check-decisions",
+        "compliance-system/check/gate/kb-check-locators",
+        "compliance-system/check/gate/kb-check-task-locators",
+        "compliance-system/check/gate/kb-check-validate"
+      ],
+      "scopeKey": {
+        "shape": "context",
+        "phase": "orient",
+        "seat": null,
+        "word": null
+      },
+      "intent": {
+        "entry": "knowledge",
+        "activity": "check",
+        "subject": "sha256:7492747a0f15b473ed303eb1d1f65ff60e2738a835dc0f2817757df4d2758e14"
+      }
+    }
+  },
+  "supersedes": 1
+}

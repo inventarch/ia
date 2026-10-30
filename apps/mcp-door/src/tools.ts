@@ -2,6 +2,7 @@ import { MACHINE_PROTOCOL } from '@inventarch/runtime';
 import { KB_OPERATIONS } from '@inventarch/kb/protocol';
 import type { JsonSchema } from '@inventarch/runtime';
 import { LIMITS } from './vocabulary.js';
+import { METHOD_TOOLS } from './method.js';
 
 const text = { type: 'string' };
 const object = (properties: Record<string, unknown>, required: readonly string[] = []) => ({
@@ -81,10 +82,22 @@ const definitions = [
     inputSchema: row.inputSchema,
   })),
 ];
-export const TOOLS = definitions.map(({ name, description, inputSchema }) => ({
-  name,
-  description,
-  inputSchema,
-  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-}));
-export const OPERATIONS = new Map(definitions.map(({ name, operation }) => [name, operation]));
+/** The read tools, then the three method tools, which are not read-only: a session log line and a task pin under the IA home. */
+export const TOOLS = [
+  ...definitions.map(({ name, description, inputSchema }) => ({
+    name,
+    description,
+    inputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  })),
+  ...METHOD_TOOLS.map(({ name, description, inputSchema, annotations }) => ({
+    name,
+    description,
+    inputSchema,
+    annotations,
+  })),
+];
+export const OPERATIONS = new Map<string, string>([
+  ...definitions.map(({ name, operation }) => [name, operation] as const),
+  ...METHOD_TOOLS.map(({ name, operation }) => [name, operation] as const),
+]);

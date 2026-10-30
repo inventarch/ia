@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@inventarch/mcp-door?label=npm)](https://www.npmjs.com/package/@inventarch/mcp-door) [![Public quality](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml/badge.svg?branch=main)](https://github.com/inventarch/ia/actions/workflows/platform-quality.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE) [![Node](https://img.shields.io/badge/node-22.x-brightgreen)](package.json)
 
-> `ia-mcp-door` is a local MCP server that gives an agent host read-only access to one IA workspace over stdio. It serves seventeen tools: eleven Door operations from [`@inventarch/runtime`](../../packages/runtime/README.md), the same reads the `ia` CLI performs, `ia_vocabulary`, and five scoped `ia_kb_*` knowledge readers.
+> `ia-mcp-door` is a local MCP server that gives an agent host access to IA workspaces over stdio. It serves twenty tools: eleven read-only Door operations from [`@inventarch/runtime`](../../packages/runtime/README.md), the same reads the `ia` CLI performs, `ia_vocabulary`, five scoped `ia_kb_*` knowledge readers, and three method tools, `ia_session`, `ia_catalogue` and `ia_method`, which carry a method kit's procedure to any host.
 >
 > `ia host claude` and `ia host codex` register it for you. Any other MCP client can launch it directly.
 
@@ -24,7 +24,7 @@ npm install --global @inventarch/mcp-door
 ia-mcp-door --root path/to/your-project
 ```
 
-Without `--root` it serves the current directory. It speaks MCP `2025-11-25` as UTF-8 JSON-RPC, one message per line on stdin and stdout. A client sends `initialize` and `notifications/initialized` before `tools/list` or `tools/call`. In the project from the [root quick start](../../README.md#-quick-start), this session reads the authored `@decision`:
+Without `--root` it serves the current directory. `--kits <folder>` (or the `IA_KITS_DIR` environment variable) names a folder of method kits, such as the `ia` plugin's `config/kits`; the method tools also read the kits installed under `<IA home>/kits/<folder>/<version>/`. It speaks MCP `2025-11-25` as UTF-8 JSON-RPC, one message per line on stdin and stdout. A client sends `initialize` and `notifications/initialized` before `tools/list` or `tools/call`. In the project from the [root quick start](../../README.md#-quick-start), this session reads the authored `@decision`:
 
 ```sh
 printf '%s\n' \
@@ -56,6 +56,9 @@ The second response line carries the result as `structuredContent` (shortened he
 | `ia_next` | One plan's delivery view, as `ia next` prints it: milestones and tasks in prerequisite order, each task's verdict, and `next`, the command for the first task with no declared blocker. |
 | `ia_position` | `{body, digest, hostNote}` for a scope key: `seat` (an identity or `{path}`), `shape`, `phase`, `depth` (0 to 2), `budget` (0 to 64) and `word`, plus optional `primitive`. Omitted, primitive is derived from shape; explicit primitive also supplies the default phase. No key part means the repository's `@workspace` at context, orient, depth 0, budget 0. |
 | `ia_vocabulary` | The public words and their schemas, from the catalogue shipped with the server. It reads no workspace and takes no scope token. |
+| `ia_session` | `{sessionId, root, workspace, kits, lanes, pin?, briefing}`: the kits found (`bundled` or `home`), the lanes `work`, `knowledge` and `delivery`, the task pin last written for the workspace, and a briefing of at most 2,500 characters. It appends a line to `<IA home>/sessions-v1/<sessionId>.jsonl`. `claim: {path, mode}` is recorded as advisory; nothing is fenced. |
+| `ia_catalogue` | `{lane, items}` for `lane` (`work`, `knowledge` or `delivery`), optionally narrowed by `word` and `phase`. Each item has a `key` such as `work.brainstorm`, its `display` name (`ia-work:brainstorm`, or `ia-work` for `work.*`), its kit, version, capability and profile, a one-line description and its `state`, `bound` or `installed`. |
+| `ia_method` | The method packet for one `key`, exactly as the `ia` plugin's `resolve.mjs` prints it, with the same digest; a refusal is `{error: {code, message, candidates?, key?}}`, such as `IA-CORE-NO-METHOD`. With `task`, it writes the task pin under `<IA home>/work-v1/<project>/<task>/`. `subject` is kept only as its SHA-256. |
 
 The first eight tools were introduced in machine-protocol version 1 and `ia_read`, `ia_next` and `ia_position` in version 2. The server uses the latest protocol, version 3, whose `ia_position` schema additionally accepts `primitive`. A runtime Door explicitly serving version 2 still refuses that parameter. The protocol's `report` operation has no tool; run `ia report` from the CLI.
 
@@ -69,8 +72,8 @@ The `ia_position` body is a pure function of the key and the admitted records. I
 
 ## ⚖️ What it does not do
 
-- **It never writes.** Every tool is annotated `readOnlyHint: true`, and the workspace files are unchanged after a session. Authoring, validation and capture stay with the CLI (`ia preview`, `ia author`, `ia validate`, `ia capture`).
-- **It checks no `@mandate`.** The CLI's mandate-checked commands, the edit guard and `ia-runner` check mandates; these tools do not. Mandates are cooperative restrictions, not authentication or a sandbox.
+- **It never writes a workspace.** The read tools are annotated `readOnlyHint: true`, and the workspace files are unchanged after a session. The method tools write only outside it: the session log and the task pin under the IA home, retained method bytes under its `method-closures-v1`, and a kit's restored read copy in the temporary folder. Authoring, validation and capture stay with the CLI (`ia preview`, `ia author`, `ia validate`, `ia capture`).
+- **It checks mandates only for the method tools.** A method tool acts at the server's `--root` or at a root the IA home's `workspace-locations.json` lists, and only when that workspace's governing mandates admit Observation for its default actor. The read tools check no `@mandate`; the CLI's mandate-checked commands, the edit guard and `ia-runner` do. Mandates are cooperative restrictions, not authentication or a sandbox.
 - **It grants nothing.** `ia_select` and `ia_context` choose and deliver records; they execute nothing. A read certifies nothing: the digest identifies bytes, not whether they are true.
 - **Scope tokens are process-local.** A token from `ia_scope` lasts as long as the server process. Narrowing a token limits what later calls read through it.
 - **Bounded transport.** Stdio only, with no network listener. A line over 4 MiB or invalid UTF-8 ends the session, and `tools/list` issues no pagination cursor.

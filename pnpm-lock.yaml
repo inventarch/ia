@@ -443,6 +443,9 @@ importers:
 
   apps/mcp-door:
     dependencies:
+      '@inventarch/distribution':
+        specifier: workspace:*
+        version: link:../distribution
       '@inventarch/kb':
         specifier: workspace:*
         version: link:../../packages/kb
