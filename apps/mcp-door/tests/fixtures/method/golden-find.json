@@ -19,10 +19,10 @@
   "closure": {
     "kit": "inventarch/ia-kb-kit",
     "version": "0.9.0",
-    "archive": "e14a4647253f1f5683fe2f65660311e3aaf881c66bff796f74af9ae277afac82",
-    "sources": "3033b703ffebc85c9b87562dd303c7218654874ff4c4cf6fcad0ad7d5da21cb3",
-    "implementation": "cd216fbc6b443a53c8985c195e98a3ab79a28f1e93aaa0e1469ab2f7c006cd96",
-    "retained": "0a29f059a2b390a13fcc174d346a36c8656baa2ce57dba8ec72e68dc4e561ad5",
+    "archive": "3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c",
+    "sources": "e06a6bddabe5a91bb02277c17745cc00a3be49a11e3b04f9bff85c08b94ac07f",
+    "implementation": "093ddc93f9e239f215a77758d42711f550685beb28a3da2c2fee488a27238671",
+    "retained": "5a696a50fe09449dedb630725ece4fa642954f0f4a9f4ae945e881940007f286",
     "records": [
       "agent-composition-system/definition/capability/kb-retrieve",
       "governance-system/definition/procedure/kb-retrieval",
@@ -231,5 +231,5 @@
     ]
   },
   "kitUpdateAvailable": null,
-  "digest": "84559cf0477fa939d31372f91ef5e90c5894a90805eb8e721f084bdeac6600c9"
+  "digest": "39e1e0c5464079aef2c6aa56f2c2c9897cb2ce800a2436723e6ae7def8238682"
 }

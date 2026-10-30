@@ -3,13 +3,13 @@
   "license": "Apache-2.0",
   "source": {
     "repository": "https://github.com/inventarch/marketplace",
-    "commit": "0ac4947192b1772f6f4d8afcceda09f55f7ea7bb",
+    "commit": "63f5d75b57b4218c633b56f85f25db28f0ebd4ba",
     "paths": ["plugins/ia", "kits/ia-kb"]
   },
   "generator": {
     "script": "generate.mjs",
     "steps": [
-      "git -C <marketplace> archive 0ac4947192b1772f6f4d8afcceda09f55f7ea7bb plugins/ia kits/ia-kb | tar -x -C <folder>",
+      "git -C <marketplace> archive 63f5d75b57b4218c633b56f85f25db28f0ebd4ba plugins/ia kits/ia-kb | tar -x -C <folder>",
       "pnpm build (for apps/cli/dist/main.js)",
       "node apps/mcp-door/tests/fixtures/method/generate.mjs <folder> apps/cli/dist/main.js"
     ]
