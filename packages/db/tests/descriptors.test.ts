@@ -22,6 +22,7 @@ import type {
   DescriptorRegistry,
   DescriptorResult,
 } from '../src/descriptors/index.js';
+import { refuseExecutableKeys } from '../src/descriptors/codec.js';
 
 // The pure descriptor producer (packages/db/src/descriptors/SPEC.md): DESC-Q02, DESC-Q03, DESC-Q08.
 const repository = resolve(import.meta.dirname, '../../..');
@@ -688,6 +689,38 @@ describe('DESC-Q03 unknown validator/view/operation, module URL or expression', 
       compileAppComposition({ ...password, registry: registry() }),
       'DESC-SECRET-REFUSED',
       'configuration[1].password',
+    );
+  });
+  it('refuses a url key as code and a token key as a secret, in any letter case, and leaves other keys alone', () => {
+    expect(() => refuseExecutableKeys({ link: 'x', ticket: 'x' })).not.toThrow();
+    for (const key of ['url', 'URL'])
+      expect(() => refuseExecutableKeys({ [key]: 'x' }), key).toThrow(
+        expect.objectContaining({ code: 'DESC-EXECUTABLE-REFUSED', field: key }),
+      );
+    for (const key of ['token', 'Token'])
+      expect(() => refuseExecutableKeys({ [key]: 'x' }), key).toThrow(
+        expect.objectContaining({ code: 'DESC-SECRET-REFUSED', field: key }),
+      );
+  });
+  it('refuses a mixed-case url key and token key through the exported compiler, with each diagnostic', () => {
+    const compiled = (change: (value: Json) => void) =>
+      compileAppComposition({
+        ...rebound(emitted['orders-desk']!, edit('orders-desk.app.json', change)),
+        registry: registry(),
+      });
+    refused(
+      compiled((value) => {
+        value['screens'][0]['Url'] = 'https://cdn.example/list-view.js';
+      }),
+      'DESC-EXECUTABLE-REFUSED',
+      'screens[0].Url',
+    );
+    refused(
+      compiled((value) => {
+        value['configuration'][1]['Token'] = 'tok_live_123';
+      }),
+      'DESC-SECRET-REFUSED',
+      'configuration[1].Token',
     );
   });
   it('keeps inspection of an unsupported target but refuses its activation (APPD-03)', () => {

@@ -2,8 +2,10 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
+import { KERNEL_SOURCES } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import { open, readInputs } from '../src/index.js';
+import type { InputOptions } from '../src/index.js';
 import { viewBuilder } from '../src/view.js';
 
 const repository = resolve(import.meta.dirname, '../../..'),
@@ -229,6 +231,36 @@ it('retains a malformed empty folder in revision and admission evidence', () => 
   const after = viewBuilder(readInputs(root))();
   expect(after.graph.revision).not.toBe(before.graph.revision);
   expect(after.report.findings.filter((f) => f.code === 'IA-COMP-SYSTEM-MALFORMED')).toHaveLength(1);
+});
+/** The revisions `open` gives `root` under `options`, and the sources it reads under them. */
+const revisions = (root: string, options: InputOptions) => {
+  const db = open(root, { ...options, cache: false });
+  try {
+    return {
+      sources: readInputs(root, options).sources,
+      revision: db.revision,
+      authoredRevision: db.authoredRevision,
+    };
+  } finally {
+    db.close();
+  }
+};
+it('moves both revisions with the floor origin alone, the floor bytes being the same', () => {
+  const root = workspace(false),
+    embedded = revisions(root, {}),
+    explicit = revisions(root, { floor: KERNEL_SOURCES });
+  expect(explicit.sources).toEqual(embedded.sources);
+  expect(explicit.revision).not.toBe(embedded.revision);
+  expect(explicit.authoredRevision).not.toBe(embedded.authoredRevision);
+});
+it('moves both revisions with a selected package root that adds no source', () => {
+  const root = workspace(false);
+  mkdirSync(resolve(root, 'packages/example/.ia/src/systems'), { recursive: true });
+  const plain = revisions(root, {}),
+    selected = revisions(root, { authoredRoots: ['packages/example'] });
+  expect(selected.sources).toEqual(plain.sources);
+  expect(selected.revision).not.toBe(plain.revision);
+  expect(selected.authoredRevision).not.toBe(plain.authoredRevision);
 });
 it('admits a record authored outside every system folder under its word’s owner at band 100', () => {
   const root = workspace(),
