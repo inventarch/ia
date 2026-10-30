@@ -9,6 +9,8 @@ import {
   canonicalDistributionJson as json,
   generationDigest,
   installationWorkspace,
+  readExpandedBundle,
+  readInstalledGeneration,
   DISTRIBUTION_ENGINE_VERSION,
 } from '@inventarch/db/distribution';
 import type { ActivationPointer } from '@inventarch/db/distribution';
@@ -209,6 +211,16 @@ it('preserves old handles and invalidates scope tokens after activation and roll
     reader.close();
   }
 });
+it('reads a generation and its bundles through a root reached by a link', () => {
+  const root = install(),
+    link = join(mkdtempSync(join(temporary, 'linked-')), 'root');
+  symlinkSync(root, link, process.platform === 'win32' ? 'junction' : 'dir');
+  const generation = readInstalledGeneration(link)!;
+  expect(generation).toEqual(readInstalledGeneration(root));
+  const selected = generation.lock.packages[0]!;
+  expect(readExpandedBundle(link, selected).files.size).toBeGreaterThan(0);
+});
+
 it('refuses missing activation, lock drift, pending recovery and mutated source/assets without repair', () => {
   for (const mode of ['missing', 'drift', 'pending', 'source', 'extra']) {
     const root = install();

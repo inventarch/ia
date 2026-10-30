@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { join, parse, resolve } from 'node:path';
 import type { RevisionSource } from '@inventarch/graph';
 import { lstatNamed, readOpened } from '../named.js';
@@ -44,6 +44,15 @@ function requireEngine(declared: string, subject: string, lock = false): void {
       'engine-incompatible',
       `${subject} requires distribution engine ${declared}; this reader is ${DISTRIBUTION_ENGINE_VERSION}. Use a compatible IA installation; preserve the lock and archive engine ranges.`,
     );
+}
+/** The root as `open` takes it: a link above the workspace is not a link inside the installation. */
+function canonical(root: string): string {
+  try {
+    return realpathSync(root);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return resolve(root);
+    throw error;
+  }
 }
 function safe(root: string, path: string): string {
   portablePath(path);
@@ -201,11 +210,12 @@ export function generationSources(
 }
 /** Complete immutable payload verification; no execution, writes or network. */
 export function readExpandedBundle(
-  root: string,
+  workspace: string,
   pkg: LockedPackage,
   maximumBytes: number = DISTRIBUTION_LIMITS.expanded,
 ): ExpandedBundle {
-  const directory = `${INSTALL_PATHS.store}/${pkg.archive}`,
+  const root = canonical(workspace),
+    directory = `${INSTALL_PATHS.store}/${pkg.archive}`,
     manifestBytes = required(root, `${directory}/distribution.json`);
   if (sha256(manifestBytes) !== pkg.manifest) corrupt(`Manifest digest differs for ${pkg.id}`);
   const manifest = decode(manifestBytes, decodeBundleManifest);
@@ -253,7 +263,11 @@ export interface InstalledGeneration {
   readonly sources: readonly RevisionSource[];
   readonly fingerprint: string;
 }
-export function readInstalledGeneration(root: string, candidate?: ActivationPointer): InstalledGeneration | undefined {
+export function readInstalledGeneration(
+  workspace: string,
+  candidate?: ActivationPointer,
+): InstalledGeneration | undefined {
+  const root = canonical(workspace);
   if (!candidate && read(root, INSTALL_PATHS.pending))
     throw new InstallationError('recovery-required', 'Run explicit distribution recovery before reading');
   const activeBytes = read(root, INSTALL_PATHS.active),

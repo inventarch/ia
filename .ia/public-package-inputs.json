@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "05e41c67bd25fe82fefe7e8b9b6dfe147ac3d435",
-    "tree": "ea41c24678d98230025c239414a319e45aeb9c96",
+    "commit": "3ae68623fb990a096763368d2342d099dbc7b8e3",
+    "tree": "dc3e4bb27a4c4415a09daadfa2533f417e4dabf4",
     "dirty": true
   },
   "membership": {
@@ -1536,7 +1536,7 @@
     },
     {
       "path": "apps/cli/src/init.ts",
-      "sha256": "e4ea35b2125383e4af8a222c0f3e14a9739e009849a13effd5bebb6c8ede1285"
+      "sha256": "a3dea7660e44fe2f8102b1c0febc74b8520845d21428cab7936cd8bb189a7753"
     },
     {
       "path": "apps/cli/src/inspect.ts",
@@ -1628,7 +1628,7 @@
     },
     {
       "path": "apps/cli/tests/adopt.test.ts",
-      "sha256": "db79805db293c0fd239b2c4d344ed4dab7cc75636ee532afd5d6e14d3f4dd2f4"
+      "sha256": "2509a0c335c08ad53256114fcacc2187ae041f0c2ee07ba7848bad0f9d8cd2e5"
     },
     {
       "path": "apps/cli/tests/args.test.ts",
@@ -1892,7 +1892,7 @@
     },
     {
       "path": "apps/distribution/references/registry-collections.md",
-      "sha256": "bd29b7ca26af8f4103813e1d122d815444c056b778cdfb1b8cca1042a7e6abaf"
+      "sha256": "7ba5f6de7a8d6cc4b7284d68ff4249c2ecc149088d4730beb7a35cca8f944510"
     },
     {
       "path": "apps/distribution/references/system-package.md",
@@ -1904,7 +1904,7 @@
     },
     {
       "path": "apps/distribution/src/adoption.ts",
-      "sha256": "b40b4745f4505baa6c26d35d0bb68262c96465e0512d84978c68c15f4097b951"
+      "sha256": "53b3cebb0b9858faea45596d6ddeb69cb1439602d75efc93b6a78f9696a56881"
     },
     {
       "path": "apps/distribution/src/archive.ts",
@@ -2052,7 +2052,7 @@
     },
     {
       "path": "apps/distribution/src/registry.ts",
-      "sha256": "1d92383a03c992c858eb68af850a181fd70f9623aef1f7a4dab3cadab78cc9b5"
+      "sha256": "6647acf07e920d569fca613a464222e494a63d5f50ed735f8d7e3b53d27436e6"
     },
     {
       "path": "apps/distribution/src/resolve.ts",
@@ -2148,7 +2148,7 @@
     },
     {
       "path": "apps/distribution/tests/installed.test.ts",
-      "sha256": "f9cd2bff1f2ba136b2f83b52e430dc7402b2af0ad0b80ca1ea9aacb883000b33"
+      "sha256": "8c3b7b3ec13d788324bcfe49777f44fe82d302dc73db6bbe73b1de79f6a59699"
     },
     {
       "path": "apps/distribution/tests/inventory.test.ts",
@@ -2200,7 +2200,7 @@
     },
     {
       "path": "apps/distribution/tests/registry-collections.test.ts",
-      "sha256": "74e24412d7737d4480de025b2ced7b98809d5afaa249bb66e6c8e6bdf58b2d2d"
+      "sha256": "c6e4d2221e55cc1e3cb212e4a5331de96b4dd42681d23eed5fa6fa4e27067bba"
     },
     {
       "path": "apps/distribution/tests/registry-config.test.ts",
@@ -5252,7 +5252,7 @@
     },
     {
       "path": "packages/db/SPEC.md",
-      "sha256": "4aa0b9391c6ec68ca15f5328a5066d621fc30e791bc5a4a0bbc7990e47692e9e"
+      "sha256": "3190af756276a5fc078d7783df5ce14a2b3e4d39e49559385485461fa9436361"
     },
     {
       "path": "packages/db/fixtures/descriptors/consumer.mjs",
@@ -5408,7 +5408,7 @@
     },
     {
       "path": "packages/db/src/distribution/reader.ts",
-      "sha256": "32ed0b1ebc729c34b94db3c36176de85d6d476c651ddda9813668a426238fde0"
+      "sha256": "2d693a58fd1279018f9d374b7e05843fcf412438bbf57aaff40fc8b24c4f5456"
     },
     {
       "path": "packages/db/src/distribution/release-control.ts",
@@ -5436,7 +5436,7 @@
     },
     {
       "path": "packages/db/src/inputs.ts",
-      "sha256": "f3228771b7f81666a239d4408201a90239f04bea9f280753f814dc74d257bd7a"
+      "sha256": "1f586a3024cb9e1e9ea486988404dc3c43fd448d5afa06869e851ab3822174a6"
     },
     {
       "path": "packages/db/src/json.ts",
@@ -5508,7 +5508,7 @@
     },
     {
       "path": "packages/db/tests/inputs.test.ts",
-      "sha256": "9280a62abb9dfb211bb555cac7261736162a9c5804d7a711733f186c38aba694"
+      "sha256": "bc22aafba51276e99971b99c76eeb39e702d62a22bb17eb7fb980be512d89218"
     },
     {
       "path": "packages/db/tests/membership.test.ts",
@@ -5544,7 +5544,7 @@
     },
     {
       "path": "packages/db/tests/workspace-config.test.ts",
-      "sha256": "67a85c331d84230705ee39c5ef4d56bd2914facab1210ce6a9496d50723855d1"
+      "sha256": "bdeab31dd96ecb86a7ecb6c6f6d0102fb0f3e3d569571c567b1621ad08d6a3dc"
     },
     {
       "path": "packages/db/tests/workspace.ts",
@@ -5804,7 +5804,7 @@
     },
     {
       "path": "packages/kb/tests/local.test.ts",
-      "sha256": "460f9a0d616f8ba441a6a3c4d750d3654c908fd651ce3415a164dca999d05c42"
+      "sha256": "3441e57fc0260dbceddcfa62feb11a5768aabd0fcfd4ff6a2211f36a809ce0e1"
     },
     {
       "path": "packages/kb/tests/package.test.ts",
@@ -7059,6 +7059,10 @@
       "sha256": "09f3bfb89d8c4cab7ac8d1f827e81e60404dc6b5dbc8f139a2f1505e7d9bcc86"
     },
     {
+      "path": "releases/pending/read-an-installation-through-a-linked-root-and-k.json",
+      "sha256": "c30a5abb151fd0261374da4cd83bb2afdde197ec76b8c98a0118a8c7c8a5973e"
+    },
+    {
       "path": "tools/compliance/SPEC.md",
       "sha256": "71e7a9766163f986048861fa7890cf757a8b479283bbe7e25885bd3da43d1d39"
     },
@@ -8147,5 +8151,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "ecbe6116f2f71361b83b648dc95dcdcac23810dc324cbe70109ba76919b90ccd"
+  "inputDigest": "c6d9945e7cdee5494998a516b9f1e5e4bad4ce1707bf97d461ace3e11ae43943"
 }

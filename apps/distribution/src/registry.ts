@@ -21,5 +21,5 @@ export type {
   WorkspaceFile,
   WorkspaceRelease,
 } from './registry-collections.js';
-export { adoptionId, applyAdoption, planAdoption } from './adoption.js';
+export { adoptionId, applyAdoption, OPEN_ATTRIBUTES, planAdoption } from './adoption.js';
 export type { AdoptionPlan } from './adoption.js';

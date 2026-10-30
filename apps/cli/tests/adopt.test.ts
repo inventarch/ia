@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { adoptedBindings, open, readInputs } from '@inventarch/db';
@@ -60,6 +60,17 @@ it('init --adopt previews without writes, pins an offline source mount and admit
   } finally {
     local.close();
   }
+});
+
+it('init --adopt reports an attributes path it could not keep before installing anything', async () => {
+  const fixture = registry(),
+    root = join(scratch('adoption-attributes'), 'demo');
+  mkdirSync(join(root, '.ia/open/.gitattributes'), { recursive: true });
+  const args = ['init', root, '--adopt', 'example/reference@1.0.0', '--registry', fixture.root, '--json'];
+  const preview = JSON.parse((await run(args)).stdout) as { plan: { conflicts: unknown[] } };
+  expect(preview.plan.conflicts).toContainEqual({ path: '.ia/open/.gitattributes', reason: 'Not a regular file' });
+  expect((await run([...args, '--apply', '--yes'])).exitCode).not.toBe(0);
+  expect(existsSync(join(root, '.ia/distributions'))).toBe(false);
 });
 
 it('adopt refreshes the registered packet and refuses a changed input after planning', async () => {

@@ -99,6 +99,18 @@ it('shares declared foundation admission between disk and editor without copied 
     editor.close();
   }
 });
+it('names line-ending conversion only when the bytes match the pin once CRLF becomes LF', () => {
+  const { root } = fixture(),
+    text = '#! ia 1.0\n# pinned source\n';
+  put(root, `${path}/${source}`, text.replaceAll('\n', '\r\n'));
+  expect(() => readInputs(root)).toThrow(
+    'Pinned source revision differs for foundation: checkout converted its line endings to CRLF',
+  );
+  put(root, `${path}/${source}`, text + '# changed\r\n');
+  expect(() => readInputs(root)).toThrow(
+    'Pinned source revision differs for foundation; refresh the binding with the intended source bytes',
+  );
+});
 it('refuses changed dependencies, retains the old view, then retires it after an explicit repin', () => {
   const { root } = fixture(),
     editor = new EditorDatabase(root),

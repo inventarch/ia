@@ -1,0 +1,18 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Read an installation through a linked root and keep adopted trees' line endings",
+  "summary": "readInstalledGeneration and readExpandedBundle now canonicalize the root as open does, so the ia_kb_* tools and other readers work when --root reaches the workspace through a link; a link inside the installation is still refused. ia adopt and ia init --adopt write .ia/open/.gitattributes with * -text -filter -ident -working-tree-encoding unless a regular file is already there, which keeps checkouts from converting pinned bytes unless a higher-precedence git attribute says otherwise. A bound tree that matches its pin once CRLF becomes LF is now refused with the conversion named, instead of a plain revision mismatch.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/kb"
+  ],
+  "paths": [
+    "apps/cli/",
+    "apps/distribution/",
+    "packages/db/",
+    "packages/kb/"
+  ]
+}
