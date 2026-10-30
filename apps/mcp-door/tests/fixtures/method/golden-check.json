@@ -21,8 +21,8 @@
     "version": "0.9.0",
     "archive": "c953541b41974b0ed9f78fa34ee3dc83f54ee7d7ce0e9c40cec4ca8d82507925",
     "sources": "d34c033e766cd105439a920eefe9ac121e863ac688ec13a51f6e8b0e576f93e9",
-    "implementation": "7206e9f4b98e97a86f8f9264210393fd40a69c0c5b934c6d56239ee2d17d649c",
-    "retained": "88d652078daa268d562f829d0475d3b9ce4f6098c41df7c03b002fb058f4b498",
+    "implementation": "a08d76ecfa3745d6571478abab6ce3b08c9cab4690ac99bc95f3440e84c9eedd",
+    "retained": "f916a9ba520787384f6e23a9e900daecd52a5b85e4b311d62deeda02a29a75fa",
     "records": [
       "agent-composition-system/definition/capability/kb-check",
       "governance-system/definition/procedure/kb-check",
@@ -238,5 +238,5 @@
     ]
   },
   "kitUpdateAvailable": null,
-  "digest": "599e6b1031f037f0e6d311898ae9c6232fca4c9aad4ae07c87b766606adeaf65"
+  "digest": "0a1abafb4890a147824bb57151fb743cfed4b3aff2aef5c7f0f5120714e8c37f"
 }
