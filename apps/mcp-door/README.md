@@ -15,7 +15,7 @@ ia host claude
 ia host claude --apply --yes
 ```
 
-Claude Code gets an `ia-workspace` server in `.mcp.json`; `ia host codex --apply --yes` adds `[mcp_servers."ia-workspace"]` to `.codex/config.toml`. Both entries start the copy of this server bundled in the host payload that `ia host` installs under `~/.ia/hosts/` (or `$IA_HOME/hosts/`), with your Node binary and the project's absolute path as `--root`. The files are machine-local; do not commit them. Claude Code asks for approval before it starts a project MCP server.
+Claude Code gets an `ia-workspace` server in `.mcp.json`; `ia host codex --apply --yes` adds `[mcp_servers."ia-workspace"]` to `.codex/config.toml`. Both entries start the copy of this server bundled in the host payload that `ia host` installs under `~/.ia/hosts/` (or `$IA_HOME/hosts/`), with your Node binary and the project's absolute path as `--root`. The files are machine-local; do not commit them. To commit a door entry instead, run `ia host claude --commit` (or `codex` or `copilot`): it adds an `ia` server that runs `npx -y @inventarch/mcp-door@<version>` from the project folder, with no local path, beside an instruction block that names `ia_session`. Claude Code asks for approval before it starts a project MCP server.
 
 **With any MCP client.** Install the package and point the server at a workspace:
 
@@ -58,7 +58,7 @@ The second response line carries the result as `structuredContent` (shortened he
 | `ia_vocabulary` | The public words and their schemas, from the catalogue shipped with the server. It reads no workspace and takes no scope token. |
 | `ia_session` | `{sessionId, root, workspace, kits, lanes, pin?, briefing}`: the kits found (`bundled` or `home`), the lanes `work`, `knowledge` and `delivery`, the task pin last written for the workspace, and a briefing of at most 2,500 characters. It appends a line to `<IA home>/sessions-v1/<sessionId>.jsonl`. `claim: {path, mode}` is recorded as advisory; nothing is fenced. |
 | `ia_catalogue` | `{lane, items}` for `lane` (`work`, `knowledge` or `delivery`), optionally narrowed by `word` and `phase`. Each item has a `key` such as `work.brainstorm`, its `display` name (`ia-work:brainstorm`, or `ia-work` for `work.*`), its kit, version, capability and profile, a one-line description and its `state`, `bound` or `installed`. |
-| `ia_method` | The method packet for one `key`, exactly as the `ia` plugin's `resolve.mjs` prints it, with the same digest; a refusal is `{error: {code, message, candidates?, key?}}`, such as `IA-CORE-NO-METHOD`. With `task`, it writes the task pin under `<IA home>/work-v1/<project>/<task>/`. `subject` is kept only as its SHA-256. |
+| `ia_method` | The method packet for one `key`, exactly as the `ia` plugin's `resolve.mjs` prints it, with the same digest; a refusal is `{error: {code, message, candidates?, key?}}`, such as `IA-CORE-NO-METHOD`. With `task`, it writes the task pin under `<IA home>/work-v1/<project>/<task>/`, `<project>` being the workspace folder's name as a slug. `subject` is kept only as its SHA-256. |
 
 The first eight tools were introduced in machine-protocol version 1 and `ia_read`, `ia_next` and `ia_position` in version 2. The server uses the latest protocol, version 3, whose `ia_position` schema additionally accepts `primitive`. A runtime Door explicitly serving version 2 still refuses that parameter. The protocol's `report` operation has no tool; run `ia report` from the CLI.
 

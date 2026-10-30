@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { packetDigest, registerWorkspace } from '@inventarch/runtime/method';
+import { packetDigest, projectOf, registerWorkspace } from '@inventarch/runtime/method';
 import { MethodTools } from '../src/method.js';
 import { Protocol } from '../src/protocol.js';
 
@@ -61,6 +61,9 @@ const normalized = (value: unknown): unknown => {
 const tools = (): MethodTools => new MethodTools({ root: consumer, kits, env, cache: join(root, 'cache') });
 
 it('resolves the packet resolve.mjs prints, field for field, and writes the same pin', () => {
+  // The lanes pass a task and no project: the pin folder's project is the workspace folder's name, the one the golden
+  // run named with --project.
+  expect(projectOf(consumer)).toBe('consumer');
   const door = tools();
   for (const activity of ['find', 'check']) {
     const answer = door.call('method:method', {

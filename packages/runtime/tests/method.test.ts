@@ -16,6 +16,7 @@ import {
   listKits,
   methodRefusal,
   readRegistry,
+  projectOf,
   readReleases,
   registerWorkspace,
   releaseRecords,
@@ -169,6 +170,16 @@ describe('workspace registry', () => {
     expect(() => registerWorkspace(home(), { id: 'x', root: 'x' })).toThrow(/absolute/);
     write(join(home(), 'workspace-locations.json'), { format: 9 });
     expect(() => readRegistry(home())).toThrow(/unknown format/);
+  });
+});
+
+describe('pin folders', () => {
+  it('names the project of a task pin from the workspace folder', () => {
+    expect(projectOf(join(dir, 'consumer'))).toBe('consumer');
+    expect(projectOf(join(dir, 'IA Music'))).toBe('IA-Music');
+    expect(projectOf(join(dir, '.hidden'))).toBe('hidden');
+    expect(projectOf(join(dir, '...'))).toBe('workspace');
+    expect(projectOf(join(dir, 'x'.repeat(200)))).toHaveLength(128);
   });
 });
 

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import {
   ENTRIES,
@@ -11,6 +11,7 @@ import {
   listKits,
   methodRefusal,
   openSession,
+  projectOf,
   readRegistry,
   resolveMethod,
   samePath,
@@ -240,10 +241,7 @@ export class MethodTools {
     if (task !== undefined && !SLUG.test(task)) usage(`task must be a slug: ${task}`);
     const subject = optional(args, 'subject', 4096);
     const { root } = this.#root(optional(args, 'root', 4096));
-    const project =
-      basename(root)
-        .replace(/[^A-Za-z0-9._-]/g, '-')
-        .replace(/^[^A-Za-z0-9]+/, '') || 'workspace';
+    const project = projectOf(root);
     return resolveMethod(
       {
         entry: matched[1]!,

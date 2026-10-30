@@ -48,7 +48,7 @@ export {
   selectBinding,
 } from './bindings.js';
 export type { Binding, Bindings, Entry, SelectedBinding } from './bindings.js';
-export { PIN_FORMAT, kitUpdate, pinRootFor, readPin, writePin } from './pin.js';
+export { PIN_FORMAT, kitUpdate, pinRootFor, projectOf, readPin, writePin } from './pin.js';
 export type { Pin, PinnedKey, PinnedKit } from './pin.js';
 export { DIGESTED, EVIDENCE_STATES, PACKET_CONTRACT, assemblePacket, canonical, packetDigest } from './packet.js';
 export type { MethodPacket } from './packet.js';

@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { MethodError } from './errors.js';
 import { iaHome } from './kits.js';
 
@@ -67,6 +67,20 @@ export function pinRootFor(
       'IA-CORE-USAGE',
     );
   return join(iaHome(env), 'work-v1', options.project, options.task);
+}
+
+/**
+ * The project a pin folder is named by when the caller names a task but no project: the workspace root's folder name,
+ * each character outside `[A-Za-z0-9._-]` as `-`, leading characters that cannot open a slug dropped, cut to 128, and
+ * `workspace` when nothing is left. The `ia` plugin's `lib/pin.mjs` takes `--project` from its caller and derives none;
+ * the door's callers name a task only, so the door's pins sit under the folder this names.
+ */
+export function projectOf(root: string): string {
+  const slug = basename(resolve(root))
+    .replace(/[^A-Za-z0-9._-]/g, '-')
+    .replace(/^[^A-Za-z0-9]+/, '')
+    .slice(0, 128);
+  return SLUG.test(slug) ? slug : 'workspace';
 }
 
 const same = (a: string, b: string): boolean =>
