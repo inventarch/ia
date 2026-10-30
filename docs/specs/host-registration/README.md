@@ -54,7 +54,7 @@ A workspace `host --apply` writes the projection, so it is judged as Execution a
 
 After `install`, `update`, `remove` or `adopt` changes the workspace, each projection the workspace owns, including one `ia project` wrote, is re-rendered; `restore` re-renders none, and the MCP entry is not touched. `--apply` refuses before it writes when an owned projection file was edited by hand. A refresh that fails after the change committed refuses at exit 3 and says the installation, or for `adopt` the adoption (`IA-CLI-ADOPTION-APPLIED`), is applied.
 
-Every file these commands write is machine-local. Do not commit them.
+Every file these commands write is machine-local. Do not commit them; commit the bootstrap `ia host <host> --commit` writes instead: an instruction block that names `ia_session` and the lanes `ia:work`, `ia:knowledge` and `ia:delivery`, and an `ia` MCP server that runs `npx -y @inventarch/mcp-door@<this CLI's exact version>` from the project folder, with no machine-local path (host plugin distribution spec §4).
 
 ## 5 Plan safety
 

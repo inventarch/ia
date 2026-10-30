@@ -30,7 +30,7 @@ import { lifecycleProfile } from '@inventarch/workspace-runtime/lifecycle-profil
 import type { HostCacheTarget, HostPlan } from '@inventarch/distribution/host';
 import { hostVerifier } from '@inventarch/distribution/host-observe';
 import type { HostVerifier } from '@inventarch/distribution/host-observe';
-import { hostRow, WORKSPACE_HOSTS, workspaceRow } from '@inventarch/distribution/hosts';
+import { bootstrapRow, hostRow, WORKSPACE_HOSTS, workspaceRow } from '@inventarch/distribution/hosts';
 import { recoverInstallation } from '@inventarch/distribution/install';
 import { recoverGuardRegistration } from '@inventarch/distribution/guard-registration';
 import { recoverLifecycleRegistration } from '@inventarch/distribution/lifecycle-registration';
@@ -87,6 +87,7 @@ import {
   words,
 } from './render.js';
 import { runUserHost } from './user-host.js';
+import { runCommitHost } from './committed-host.js';
 
 /** The installation, not the workspace, is at fault; `ia doctor` names the channel a reinstall goes through. */
 const DAMAGED =
@@ -166,9 +167,9 @@ export const USER_PLUGIN_MISSING = `The user-level plugin is not installed; run 
 /** §4's machine-local sentence, per host. Every element — the projection included — is machine-local. */
 export const MACHINE_LOCAL: Readonly<Record<HostName, string>> = {
   claude:
-    'These files are machine-local: .mcp.json, .claude/settings.local.json, .claude/rules/ia-workspace.md, .claude/skills/ia-authoring/, the agents and skills generated from authored records under .claude/agents/ and .claude/skills/, and .ia/distributions/. Do not commit them.',
+    'These files are machine-local: .mcp.json, .claude/settings.local.json, .claude/rules/ia-workspace.md, .claude/skills/ia-authoring/, the agents and skills generated from authored records under .claude/agents/ and .claude/skills/, and .ia/distributions/. Do not commit them; commit the bootstrap "ia host claude --commit" writes instead.',
   codex:
-    'These files are machine-local: .codex/config.toml, AGENTS.md, .agents/skills/ia-authoring/, the skills generated from authored records under .agents/skills/, and .ia/distributions/. Do not commit them.',
+    'These files are machine-local: .codex/config.toml, AGENTS.md, .agents/skills/ia-authoring/, the skills generated from authored records under .agents/skills/, and .ia/distributions/. Do not commit them; commit the bootstrap "ia host codex --commit" writes instead.',
 };
 /** The MCP element's one fixed addition, from the host's facts. */
 export const MCP_APPROVAL = 'Claude Code asks for approval before starting a project MCP server.';
@@ -617,11 +618,20 @@ export function collectHost(context: Context): HostView {
   // Host plugin distribution spec §4: the adapter table decides. An unknown host is usage, and so is --context with
   // Codex; both precede every read (contract §1.2). A known row without the workspace set (Cursor, planned) refuses.
   const given = args.positionals[0] ?? '';
-  if (hostRow(given) === undefined) throw new UsageError(`ia host takes claude, codex or cursor; got ${given}`);
+  if (hostRow(given) === undefined)
+    throw new UsageError(`ia host takes claude, codex, copilot or cursor; got ${given}`);
   const row = workspaceRow(given);
   if (row === undefined) {
     // Raised before the root is resolved, so the command names the root as it was typed.
     const typed = args.value('root');
+    if (bootstrapRow(given) !== undefined)
+      throw new Refusal(
+        'IA-DIST-HOST-UNSUPPORTED',
+        `${hostRow(given)!.label} takes only the committed bootstrap; nothing was written`,
+        3,
+        null,
+        `Run "ia host ${given} --commit${typed === undefined ? '' : ` --root ${quote(typed)}`}" to plan it.`,
+      );
     throw new Refusal(
       'IA-DIST-HOST-UNSUPPORTED',
       `${hostRow(given)!.label} support is planned; nothing was written`,
@@ -1153,6 +1163,7 @@ export async function runHost(context: Context): Promise<Result> {
   const { args, caps, host, json } = context;
   // Host plugin distribution spec §6.3: `--user` is the user-level entry point, which needs no workspace.
   if (args.flag('user')) return runUserHost(context);
+  if (args.flag('commit')) return runCommitHost(context);
   let view: HostView;
   try {
     view = collectHost(context);

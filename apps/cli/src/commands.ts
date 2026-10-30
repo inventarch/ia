@@ -776,6 +776,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     syntax: [
       'ia host <claude|codex|cursor> [--remove] [--context <identity>] [--apply] [--actor <agent>] [--json] [--yes]',
       'ia host claude --user [--remove] [--apply] [--json] [--yes]',
+      'ia host <claude|codex|copilot> --commit [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
     ],
     grammar: grammar(
       [
@@ -784,6 +785,12 @@ export const COMMANDS: readonly CommandSpec[] = [
           kind: 'boolean',
           conflicts: ['context'],
           summary: 'Claude only: user-level plugin; needs no workspace',
+        }),
+        option({
+          name: 'commit',
+          kind: 'boolean',
+          conflicts: ['user', 'context'],
+          summary: 'Write the committable bootstrap: the IA instruction block and the published door entry',
         }),
         option({
           name: 'remove',

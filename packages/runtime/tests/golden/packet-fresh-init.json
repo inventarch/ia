@@ -465,7 +465,8 @@
   "lines": [
     "run ia position; if it refuses, run the command it names",
     "state intent to the CLI as shape + optional phase + optional primitive + optional seat + optional word; the CLI never receives free text",
-    "when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation"
+    "when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation",
+    "start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key"
   ],
   "provenance": {
     "revision": "<revision>",

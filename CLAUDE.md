@@ -93,5 +93,6 @@
 - run ia position; if it refuses, run the command it names
 - state intent to the CLI as shape + optional phase + optional primitive + optional seat + optional word; the CLI never receives free text
 - when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation
+- start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key
 
-ia-generated 3d9e3f2e6612118722e64c9005b2a57fb8f0e17c0a97f0f8fb1b21302606a5c9 4ac456c7e8d00726dd609119eb7a522edb50b1f03d873cbef0c3a857daf81c92 ia-claude
+ia-generated 3d9e3f2e6612118722e64c9005b2a57fb8f0e17c0a97f0f8fb1b21302606a5c9 3a1b8cbedd20642c79ac81b0e88bfa9968954e58e5fe0059e80caa1417b923df ia-claude
