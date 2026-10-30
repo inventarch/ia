@@ -403,6 +403,84 @@ it.skipIf(process.platform === 'win32')(
     expect(outcome(() => adoptedBindings(root))).toMatchObject(irregular);
   },
 );
+const pinOf = (sources: readonly { path: string; text: string }[]): string =>
+  createHash('sha256').update(stableSerialize(sources)).digest('hex');
+it('refuses a floor source in an explicit host capture', () => {
+  const sources = [{ path: '.ia/src/floor/override.ia', text: '#! ia 1.0\n' }],
+    adopted = [{ id: 'host', revision: pinOf(sources), sources }];
+  expect(outcome(() => readInputs(workspace(false), { adopted }))).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    message: 'IA-DB-PATH-UNSAFE: Unsafe adopted source path/bytes',
+  });
+});
+it('takes an explicit host capture only at the revision of its exact bytes', () => {
+  const root = workspace(false),
+    sources = [{ path: source, text: '#! ia 1.0\n' }],
+    revision = pinOf(sources);
+  expect(readInputs(root, { adopted: [{ id: 'host', revision, sources }] }).sources.map((s) => s.path)).toContain(
+    `.ia/adopted/host/${revision}/${source}`,
+  );
+  expect(
+    outcome(() => readInputs(root, { adopted: [{ id: 'host', revision: '0'.repeat(64), sources }] })),
+  ).toMatchObject({
+    code: 'IA-DB-SOURCE-CHANGED',
+    message: 'IA-DB-SOURCE-CHANGED: Adopted source revision does not match exact bytes',
+  });
+});
+it('takes 16 bindings in a manifest and refuses a seventeenth', () => {
+  const root = workspace(false),
+    entries = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        id: `b${index}`,
+        path: `vendor/b${index}`,
+        revision: 'a'.repeat(64),
+      }));
+  put(root, MANIFEST, JSON.stringify({ version: 1, adopted: entries(16) }));
+  expect(adoptedBindings(root)).toHaveLength(16);
+  put(root, MANIFEST, JSON.stringify({ version: 1, adopted: entries(17) }));
+  expect(outcome(() => adoptedBindings(root))).toMatchObject(
+    refused('Expected version 1 and at most 16 adopted bindings'),
+  );
+});
+it('refuses an adopted binding of a tree inside .ia, though it holds the pinned bytes', () => {
+  const { root, entry } = fixture(),
+    tree = `.ia/open/foundation/${entry.revision}`;
+  put(root, `${tree}/${source}`, '#! ia 1.0\n# pinned source\n');
+  put(root, MANIFEST, JSON.stringify({ version: 1, adopted: [{ ...entry, path: tree }] }));
+  expect(outcome(() => readInputs(root))).toMatchObject(
+    refused('Source roots must be canonical workspace-relative directories outside .ia'),
+  );
+});
+/** A workspace with one open binding at its exact `.ia/open/<id>/<revision>` tree, `extra` merged into the entry. */
+function openFixture(extra: Record<string, unknown> = {}) {
+  const { root, entry } = fixture(),
+    tree = `.ia/open/${entry.id}/${entry.revision}`;
+  put(root, `${tree}/${source}`, '#! ia 1.0\n# pinned source\n');
+  put(root, MANIFEST, JSON.stringify({ version: 1, open: [{ ...entry, path: tree, ...extra }] }));
+  return { root, entry, tree };
+}
+it('refuses an open binding outside its exact .ia/open/<id>/<revision> tree, though it holds the pinned bytes', () => {
+  const { root, entry } = fixture();
+  put(root, MANIFEST, JSON.stringify({ version: 1, open: [entry] }));
+  expect(outcome(() => readInputs(root))).toMatchObject(
+    refused('Open sources must use their exact .ia/open/<id>/<revision> tree'),
+  );
+});
+it('places an open binding at open band 50 with its declared reach', () => {
+  const { root, tree } = openFixture({ reach: 'area' });
+  expect(readInputs(root).sources.find((s) => s.path === `${tree}/${source}`)?.location).toEqual({
+    placement: { kind: 'open', band: 50, reach: 'area' },
+    provenance: 'methodology',
+  });
+});
+it('refuses an open binding whose reach is not canonical', () => {
+  const { root } = openFixture({ reach: './area' });
+  expect(outcome(() => readInputs(root))).toMatchObject(refused('Invalid open source reach'));
+});
+it('names an open binding with its placement, its reach and its tree on disk', () => {
+  const { root, entry, tree } = openFixture({ reach: 'area' });
+  expect(adoptedBindings(root)).toEqual([{ ...entry, path: tree, placement: 'open', reach: 'area', tree }]);
+});
 it('refuses a manifest whose name names nothing, or another device, after the read', async () => {
   const text = JSON.stringify({ version: 1, adopted: [] });
   const gone = workspace(false);

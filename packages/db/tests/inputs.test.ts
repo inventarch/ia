@@ -28,6 +28,7 @@ import type { Location } from '@inventarch/language';
 import {
   caseFold,
   linked,
+  open,
   pathKey,
   readInputs,
   readWorkspaceBytes,
@@ -37,7 +38,21 @@ import {
   within,
 } from '../src/index.js';
 import type { InputSnapshot } from '../src/index.js';
-import { readInstalledGeneration } from '../src/distribution/index.js';
+import {
+  canonicalDistributionJson,
+  decodeActivationPointer,
+  decodeBundleManifest,
+  decodeDistributionLock,
+  deriveGenerationInputs,
+  DISTRIBUTION_ENGINE_VERSION,
+  generationDigest,
+  installationWorkspace,
+  readInstalledGeneration,
+  sha256,
+} from '../src/distribution/index.js';
+import type { InstalledGeneration } from '../src/distribution/index.js';
+import { EditorDatabase } from '../src/editor/index.js';
+import { inputOptions } from '../src/inputs.js';
 import { OPENED_READ_FLAGS } from '../src/named.js';
 import {
   blockingOpens,
@@ -563,6 +578,43 @@ it('refuses a workspace document that gains a link while it is read, though the 
   await linkedWhileRead(resolve(root, 'docs/body.md'), resolve(root, 'second.md'));
   expect(outcome(() => readWorkspaceBytes(root, 'docs/body.md', 16))).toMatchObject(changedDocument);
 });
+it('refuses a workspace document rewritten in place with as many bytes while it is read, as changed', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = workspace(),
+    file = resolve(root, 'docs/body.md');
+  put(root, 'docs/body.md', 'body');
+  // An old modification time, so the rewrite stamps another one whatever the clock's resolution.
+  utimesSync(file, new Date(2000, 0, 1), new Date(2000, 0, 1));
+  let calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    if (++calls === 1) actual.writeFileSync(file, 'BODY');
+    return count;
+  });
+  expect(outcome(() => readWorkspaceBytes(root, 'docs/body.md', 16))).toMatchObject(changedDocument);
+});
+it('refuses a byte limit that is not a safe integer', () => {
+  const root = workspace();
+  put(root, 'docs/body.md', 'body');
+  for (const limit of [1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 53]) {
+    const refused = outcome(() => readWorkspaceBytes(root, 'docs/body.md', limit));
+    expect(refused, String(limit)).toBeInstanceOf(TypeError);
+    expect(refused, String(limit)).toMatchObject({ message: 'A byte limit is a nonnegative safe integer' });
+  }
+});
+it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+  'refuses a workspace document it may not read by its path and error code alone, naming no absolute path',
+  () => {
+    const root = workspace();
+    put(root, 'docs/body.md', 'body');
+    chmodSync(resolve(root, 'docs/body.md'), 0o000);
+    expect(outcome(() => readWorkspaceBytes(root, 'docs/body.md', 16))).toMatchObject({
+      code: 'IA-DB-SOURCE-UNAVAILABLE',
+      message: 'IA-DB-SOURCE-UNAVAILABLE: Cannot read docs/body.md (EACCES)',
+      path: 'docs/body.md',
+    });
+  },
+);
 
 it('keeps full-width file identities when two inode numbers round to the same JavaScript number', async () => {
   const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
@@ -812,6 +864,181 @@ it('closes the installation file it opens, when it reads it and when it refuses 
   expect(installation(root)).toMatchObject(unaliasedState);
   expect(closeSync).toHaveBeenCalledWith(opened.at(-1));
   expect(opened).toHaveLength(2);
+});
+
+// A complete installed generation of one bundle holding one system, as an installation leaves it on disk.
+const ACTIVE = '.ia/distributions/active.json',
+  ARCHIVE = 'c'.repeat(64),
+  STORE = `.ia/distributions/store/${ARCHIVE}`,
+  SYSTEM_SOURCE = '.ia/src/systems/fixture-system/system.ia',
+  SYSTEM_TEXT = '#! ia 1.0\n',
+  ENGINE = `^${DISTRIBUTION_ENGINE_VERSION}`,
+  /** A range this reader does not satisfy. */
+  FUTURE_ENGINE = '^99.0.0';
+const install = (
+  root: string,
+  change: { readonly manifest?: Record<string, unknown>; readonly lock?: Record<string, unknown> } = {},
+) => {
+  const manifest = decodeBundleManifest({
+    formatVersion: 1,
+    id: 'test/foundation',
+    version: '0.1.0',
+    distribution: 'workspace-system/binding/distribution/foundation-distribution',
+    engine: ENGINE,
+    language: ['1.0'],
+    source: { repository: 'https://example.com/foundation', commit: 'a'.repeat(40), recipe: 'ustar-v1', epoch: 0 },
+    license: 'UNLICENSED',
+    description: 'Original test fixture',
+    roots: ['workspace-system/binding/workspace/foundation-workspace'],
+    systems: [
+      { name: 'fixture-system', provider: 'example.test', version: '0.1.0', path: '.ia/src/systems/fixture-system' },
+    ],
+    dependencies: [],
+    files: [
+      { path: SYSTEM_SOURCE, bytes: Buffer.byteLength(SYSTEM_TEXT), sha256: sha256(SYSTEM_TEXT), role: 'source' },
+    ],
+    ...change.manifest,
+  });
+  const manifestText = canonicalDistributionJson(manifest),
+    manifestDigest = sha256(manifestText);
+  const lock = decodeDistributionLock({
+    formatVersion: 1,
+    engine: ENGINE,
+    requests: [{ id: manifest.id, range: '^0.1.0' }],
+    packages: [
+      {
+        id: manifest.id,
+        version: manifest.version,
+        archive: ARCHIVE,
+        manifest: manifestDigest,
+        location: `sha256:${ARCHIVE}`,
+        dependencies: [],
+      },
+    ],
+    ...change.lock,
+  });
+  const bundles = new Map([[manifest.id, { manifest, archiveDigest: ARCHIVE, manifestDigest }]]),
+    inputs = deriveGenerationInputs(lock, bundles),
+    workspaceText = installationWorkspace(lock, inputs, bundles)!,
+    generation = generationDigest(lock, inputs, workspaceText),
+    directory = `.ia/distributions/generations/${generation}`,
+    lockText = canonicalDistributionJson(lock),
+    pointerText = (counter: number): string =>
+      canonicalDistributionJson(decodeActivationPointer({ formatVersion: 1, generation, previous: null, counter }));
+  put(root, '.ia/distributions.lock.json', lockText);
+  put(root, ACTIVE, pointerText(1));
+  put(root, `${directory}/lock.json`, lockText);
+  put(root, `${directory}/inputs.json`, canonicalDistributionJson(inputs));
+  put(root, `${directory}/workspace.ia`, workspaceText);
+  put(root, `${STORE}/distribution.json`, manifestText);
+  put(root, `${STORE}/${SYSTEM_SOURCE}`, SYSTEM_TEXT);
+  return { directory, generation, lockText, pointerText };
+};
+const extraGenerationFiles = distribution('corrupt-state', 'Extra generation files');
+it('reads a complete installed generation with the exact text and placement of its sources', () => {
+  const root = workspace(),
+    { directory, generation } = install(root),
+    read = installation(root) as InstalledGeneration;
+  expect(read.pointer.generation).toBe(generation);
+  expect(read.sources).toEqual([
+    {
+      path: `${STORE}/${SYSTEM_SOURCE}`,
+      text: SYSTEM_TEXT,
+      location: { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' },
+    },
+    {
+      path: `${directory}/workspace.ia`,
+      text: '#! ia 1.0\n\n@workspace installed-distributions\n  meaning\n    says "The exact installed native distribution closure."\n    answers "Which distributions and systems are active?"\n  composition\n    systems [@system fixture-system]\n  relationships\n    uses @distribution foundation-distribution\n',
+      location: { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' },
+    },
+  ]);
+});
+it('refuses a portable lock that differs from the lock of the active generation', () => {
+  const root = workspace(),
+    { lockText } = install(root);
+  put(root, '.ia/distributions.lock.json', `${lockText}\n`);
+  expect(installation(root)).toMatchObject(
+    distribution('lock-drift', 'Portable lock differs from the active generation; restore explicitly'),
+  );
+});
+it('refuses an extra file in the generation directory', () => {
+  const root = workspace(),
+    { directory } = install(root);
+  put(root, `${directory}/extra.json`, '{}');
+  expect(installation(root)).toMatchObject(extraGenerationFiles);
+});
+it('refuses a directory in the generation directory, though its name is one a platform writes as a file', () => {
+  const root = workspace(),
+    { directory } = install(root);
+  mkdirSync(resolve(root, `${directory}/.DS_Store`));
+  expect(installation(root)).toMatchObject(extraGenerationFiles);
+});
+it('refuses an unpinned dot file in a bundle that is not one a platform writes', () => {
+  const root = workspace();
+  install(root);
+  put(root, `${STORE}/.hidden`, 'x');
+  expect(installation(root)).toMatchObject(distribution('corrupt-state', 'Extra installed file: .hidden'));
+});
+it('refuses an installed path reached through another case of a directory name, on any volume', () => {
+  const root = workspace();
+  install(root);
+  renameSync(resolve(root, '.ia/distributions/generations'), resolve(root, '.ia/distributions/Generations'));
+  expect(installation(root)).toMatchObject(distribution('corrupt-state', 'Installed path has a case alias'));
+});
+it('refuses a lock whose engine range this reader does not satisfy', () => {
+  const root = workspace();
+  install(root, { lock: { engine: FUTURE_ENGINE } });
+  expect(installation(root)).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    reason: 'engine-incompatible',
+    message: expect.stringContaining(`Installation lock requires distribution engine ${FUTURE_ENGINE}`),
+  });
+});
+it('refuses a bundle whose engine range this reader does not satisfy', () => {
+  const root = workspace();
+  install(root, { manifest: { engine: FUTURE_ENGINE } });
+  expect(installation(root)).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    reason: 'engine-incompatible',
+    message: expect.stringContaining(`Bundle test/foundation@0.1.0 requires distribution engine ${FUTURE_ENGINE}`),
+  });
+});
+it('refuses a read during which the activation pointer is replaced', async () => {
+  const root = workspace(),
+    { directory, pointerText } = install(root);
+  await replacedAtOpen(new Map([[resolve(root, `${directory}/inputs.json`), () => put(root, ACTIVE, pointerText(2))]]));
+  expect(installation(root)).toMatchObject(
+    distribution('recovery-required', 'Activation changed during read; reopen after transaction completion'),
+  );
+});
+it('moves the revision with an activation that differs only in its counter', () => {
+  const root = workspace(),
+    { pointerText } = install(root),
+    revision = (): string => {
+      const db = open(root, { cache: false });
+      try {
+        return db.revision;
+      } finally {
+        db.close();
+      }
+    };
+  const first = revision();
+  put(root, ACTIVE, pointerText(2));
+  expect(revision()).not.toBe(first);
+});
+it('gives an editor the generated installation workspace as read-only', () => {
+  const root = workspace(),
+    { directory } = install(root),
+    editor = new EditorDatabase(root);
+  try {
+    expect(editor.current.sources.find((source) => source.path === `${directory}/workspace.ia`)).toMatchObject({
+      origin: 'installed',
+      location: { provenance: 'workspace' },
+      writable: false,
+    });
+  } finally {
+    editor.close();
+  }
 });
 
 // Authored package source capture (`readInputs` with `authoredRoots`).
@@ -1211,5 +1438,54 @@ it('refuses a package source rewritten in place with as many bytes while it is r
   expect(captured(root)).toMatchObject({
     code: 'IA-DB-SOURCE-CHANGED',
     message: `IA-DB-SOURCE-CHANGED: Package source changed during read: ${SOURCE}`,
+  });
+});
+const selecting = (root: string, ...authoredRoots: string[]): unknown =>
+  outcome(() => readInputs(root, { authoredRoots }));
+const unsafeRoots = {
+  code: 'IA-DB-PATH-UNSAFE',
+  message: 'IA-DB-PATH-UNSAFE: Authored package roots must be distinct nonoverlapping portable directories outside .ia',
+};
+it('refuses a package root under a dot directory, though the same package is admitted elsewhere', () => {
+  const root = packageWorkspace();
+  put(root, `vendor/${SOURCE}`, '#! ia 1.0\n');
+  put(root, `.vendor/${SOURCE}`, '#! ia 1.0\n');
+  expect((selecting(root, `vendor/${PACKAGE}`) as InputSnapshot).sources.map((s) => s.path)).toContain(
+    `vendor/${SOURCE}`,
+  );
+  expect(selecting(root, `.vendor/${PACKAGE}`)).toMatchObject(unsafeRoots);
+});
+it('refuses nested package roots, each of which is admitted alone', () => {
+  const root = packageWorkspace(),
+    child = `${PACKAGE}/child`;
+  put(root, `${child}/.ia/src/systems/demo/records/b.ia`, '#! ia 1.0\n');
+  expect(selecting(root, PACKAGE)).toMatchObject({ authoredRoots: [PACKAGE] });
+  expect(selecting(root, child)).toMatchObject({ authoredRoots: [child] });
+  expect(selecting(root, PACKAGE, child)).toMatchObject(unsafeRoots);
+});
+it('takes 1000 package roots and refuses one more', () => {
+  const roots = (count: number): readonly string[] =>
+    Array.from({ length: count }, (_, index) => `packages/p${String(index).padStart(4, '0')}`);
+  expect(inputOptions({ authoredRoots: roots(1000) }).authoredRoots).toHaveLength(1000);
+  expect(outcome(() => inputOptions({ authoredRoots: roots(1001) }))).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    message: 'IA-DB-PATH-UNSAFE: At most 1000 authored package roots are supported',
+  });
+});
+it('refuses a package source tree entry other than systems, even one that holds no source', () => {
+  const root = packageWorkspace();
+  put(root, `${PACKAGE}/.ia/src/notes/readme.md`, 'notes\n');
+  expect(captured(root)).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    message: `IA-DB-PATH-UNSAFE: Package sources must be instances under root-owned systems: ${PACKAGE}/.ia/src`,
+  });
+});
+it('refuses a package that carries its own system declaration, though the root declares that system', () => {
+  const root = packageWorkspace(),
+    declaration = `${PACKAGE}/.ia/src/systems/demo/system.ia`;
+  put(root, declaration, '#! ia 1.0\n');
+  expect(captured(root)).toMatchObject({
+    code: 'IA-DB-PATH-UNSAFE',
+    message: `IA-DB-PATH-UNSAFE: Package instance lacks a root-owned system declaration: ${declaration}`,
   });
 });

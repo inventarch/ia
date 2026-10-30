@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { open, pathKey } from '../src/index.js';
-import { methodPath, put, workspace } from './workspace.js';
+import { outcome } from './file-races.js';
+import { methodId, methodPath, put, workspace } from './workspace.js';
 
 const path = '.ia/src/systems/agent-system/records/draft-agent.ia';
 const source =
@@ -107,6 +108,62 @@ it('rejects malformed paths, duplicates, floor edits and malformed Unicode befor
     db.close();
   }
   expect(() => db.preview([])).toThrow(expect.objectContaining({ code: 'IA-DB-CLOSED' }));
+});
+it('refuses a draft with a key other than path and text', () => {
+  const db = open(workspace(), { cache: false });
+  try {
+    expect(outcome(() => db.preview([{ path, text: source, extra: true } as never]))).toMatchObject({
+      code: 'IA-DB-DRAFT-INVALID',
+      message: 'IA-DB-DRAFT-INVALID: Each draft needs only path and text',
+    });
+  } finally {
+    db.close();
+  }
+});
+/** Runs `read` as on `platform`, wherever this runs: a preview touches no file and its keys read the platform. */
+const onPlatform = <T>(platform: NodeJS.Platform, read: () => T): T => {
+  const actual = Object.getOwnPropertyDescriptor(process, 'platform') as PropertyDescriptor;
+  Object.defineProperty(process, 'platform', { ...actual, value: platform });
+  try {
+    return read();
+  } finally {
+    Object.defineProperty(process, 'platform', actual);
+  }
+};
+const respelled = methodPath.replace('sample-procedure', 'Sample-Procedure');
+/** A law its system admits, so that only its path at `respelled` can refuse the draft. */
+const respelledLaw =
+  '#! ia 1.0\n@law respelled-rule\n  meaning\n    says "A law whose file differs from another only in case."\n    answers "What does it require?"\n  governance\n    severity advisory\n';
+it.each(['darwin', 'win32'] as const)(
+  'refuses a draft that respells an existing source as on %s, which folds case, wherever it runs',
+  (platform) => {
+    const db = open(workspace(), { cache: false });
+    try {
+      expect(
+        outcome(() => onPlatform(platform, () => db.preview([{ path: respelled, text: respelledLaw }]))),
+      ).toMatchObject({
+        code: 'IA-DB-DRAFT-INVALID',
+        message: `IA-DB-DRAFT-INVALID: Duplicate or aliased draft path: ${respelled}`,
+      });
+    } finally {
+      db.close();
+    }
+  },
+);
+it('admits a draft that respells an existing source as another file as on linux, which keeps case apart, wherever it runs', () => {
+  const db = open(workspace(), { cache: false });
+  try {
+    const draft = onPlatform('linux', () => db.preview([{ path: respelled, text: respelledLaw }]));
+    expect(draft.baseRevision).toBe(db.revision);
+    expect(draft.revision).not.toBe(db.revision);
+    expect(draft.records.find((record) => record.name === 'respelled-rule')).toMatchObject({
+      identity: 'governance-system/governance/law/respelled-rule',
+      source: { path: respelled },
+    });
+    expect(draft.records.find((record) => record.identity === methodId)?.source.path).toBe(methodPath);
+  } finally {
+    db.close();
+  }
 });
 it('preserves explicit placement/provenance and admits new folders only through system checks', () => {
   const root = workspace(),

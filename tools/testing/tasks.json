@@ -2182,6 +2182,13 @@
           ]
         },
         {
+          "case": "tests/check-evidence.test.ts > prunes no FIFO named like an evidence file (D14)",
+          "reason": "FIFOs have no Windows equivalent; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
           "case": "tests/inputs.test.ts > keeps the bytes of a corpus source whose name passes to another file once it is opened, where the open refuses links",
           "reason": "Windows defines no O_NOFOLLOW flag, so there the reader checks the name again once it has read the file, as tests/open-follows-links.test.ts covers; Linux and macOS run the case.",
           "platforms": [
@@ -2252,6 +2259,13 @@
           ]
         },
         {
+          "case": "tests/inputs.test.ts > refuses a workspace document it may not read by its path and error code alone, naming no absolute path",
+          "reason": "POSIX file modes have no Windows equivalent, so the case cannot make a file unreadable there; Linux and macOS run the case.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
           "case": "tests/inputs.test.ts > refuses an unreadable package source as its open fails, once its link count and bound admit it",
           "reason": "POSIX file modes have no Windows equivalent, so the case cannot make a file unreadable there; Linux and macOS run it as a non-root user.",
           "platforms": [
@@ -2317,6 +2331,13 @@
         {
           "case": "tests/retention.test.ts > refuses a capture a link replaces after it is checked, and seeds nothing from the file it names",
           "reason": "Swapping in a file symbolic link needs a privilege on Windows; Linux and macOS run the case, and the cases that pass the name to another file cover its identity comparison (tests/open-follows-links.test.ts).",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/retention.test.ts > writes a capture owner-only",
+          "reason": "POSIX file modes have no Windows equivalent, so the case cannot observe an owner-only mode there; Linux and macOS run the case.",
           "platforms": [
             "windows"
           ]
