@@ -132,9 +132,9 @@ jobs:
       # the organization's five concurrent macOS jobs, shared by every run. Static, emitted and three test shards
       # fill all five, so a second run's macOS jobs wait for a slot (tools/testing/plan.test.ts holds this). The
       # Homebrew smoke needs only the plan and can outlast the macOS build; while it runs, one of the five waits.
-      # Pull requests targeting main and every other trigger plan Linux, Windows and macOS. The planner also
-      # emits the gate's rows, run=false for a scheduled run on an already verified main, and run=reuse for a pull
-      # request edit that keeps its base.
+      # The event selects the platforms: a pull request plans Linux alone, every other event all three, so Windows and
+      # macOS run only once a change reaches main. The planner also emits the gate's rows, run=false for a scheduled
+      # run on an already verified main, and run=reuse for a pull request edit that keeps its base.
       - name: Assign tasks to shards
         id: matrices
         run: pnpm --silent tests:plan --ci-matrix --shards linux=4,windows=8,macos=3 --native-shards linux=0,windows=0,macos=0 --event ${{ github.event_name }} --head-sha ${{ github.sha }} --verified-sha "${{ steps.verified.outputs.sha }}" --action "${{ github.event.action }}" --base-changed ${{ github.event.changes.base && 'true' || 'false' }} >> "$GITHUB_OUTPUT"
@@ -419,10 +419,10 @@ jobs:
 
   qualify:
     # The existing required check names. This job is the gate; it is never cached and runs whatever its prerequisites
-    # did, unless the plan decided the run had nothing to verify. Every run gates all three platforms;
-    # a plan that produced none fails this job rather than skipping it. A reuse run never skips it either, because a
-    # skipped required check reads as passed: each row reports the copied verdict instead, on Linux, since it reads
-    # nothing of its platform and a macOS slot is scarce.
+    # did, unless the plan decided the run had nothing to verify. Its rows are the planned platforms (Linux alone on a
+    # pull request); a plan that produced none fails this job rather than skipping it. A reuse run never skips it
+    # either, because a skipped required check reads as passed: each row reports the copied verdict instead, on Linux,
+    # since it reads nothing of its platform and a macOS slot is scarce.
     # An experiment's rows report under another name, so they never decide a pull request's required check.
     name: ${{ github.event_name == 'workflow_dispatch' && (inputs.windows-io != 'baseline' || inputs.task-parallelism != '1') && 'Experiment platform' || 'Emitted platform' }} (${{ matrix.os }})
     needs: [plan, build, static, tests, emitted, homebrew-node]
