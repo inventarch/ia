@@ -2,10 +2,17 @@ import { createHash } from 'node:crypto';
 import { stableSerialize } from '@inventarch/graph';
 import { portablePath } from '@inventarch/workspace-runtime/resource-format';
 
+/** Packages and legacy envelopes keep the format limits their readers enforce; `capture*` bounds one local read. */
 export const LIMITS = Object.freeze({
+  records: 1000,
   files: 100,
   fileBytes: 1024 * 1024,
   selectedBytes: 8 * 1024 * 1024,
+  selectionBytes: 64 * 1024,
+  captureRecords: 5000,
+  captureFiles: 1000,
+  captureBytes: 40 * 1024 * 1024,
+  captureSelectionBytes: 512 * 1024,
   query: 200,
   results: 100,
   steps: 64,

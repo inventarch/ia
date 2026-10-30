@@ -235,7 +235,10 @@ function membership(root: string) {
     door.close();
   }
 }
-it('counts only selectable authored records against the 1000-record membership budget', () => {
+it('pins the membership budget', () => {
+  expect(MEMBERSHIP).toEqual({ records: 5000, bytes: 40 * 1024 * 1024 });
+});
+it('counts only selectable authored records against the membership record budget', () => {
   const { root } = fixture(),
     { total, authored } = membership(root);
   // Floor records are in the Door's membership but never selectable, so they spend no budget.
@@ -259,7 +262,7 @@ it('counts only selectable authored records against the 1000-record membership b
   };
   write(MEMBERSHIP.records - authored.length);
   expect(membership(root).authored).toHaveLength(MEMBERSHIP.records);
-  expect(check()).not.toMatchObject({ error: { code: 'IA-KB-SCOPE-LIMIT' } });
+  expect(check()).toMatchObject({ ok: true });
   write(MEMBERSHIP.records - authored.length + 1);
   expect(check()).toMatchObject({ ok: false, error: { code: 'IA-KB-SCOPE-LIMIT' } });
 }, 120000);

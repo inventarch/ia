@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Let the local knowledge tools read up to 5,000 records and 1,000 files",
+  "summary": "One local capture, which backs the ia kb commands and the MCP door's ia_kb_* tools, now reads up to 1,000 files (was 100) totalling 40 MiB (was 8 MiB). A .ia/knowledge.json selection may list up to 5,000 records and 1,000 resources in 512 KiB (was 1,000, 100 and 64 KiB). A capture without a selection had no record limit; it now refuses past 5,000 records, the limit selections and door scopes share. A record whose body falls past the file or byte limit is reported unavailable and is not served, so the file limit is what lets a large workspace serve its records; capturing a whole selection instead refuses when a resource it lists was not read. @inventarch/kb exports these limits as LIMITS.captureRecords, captureFiles, captureBytes and captureSelectionBytes. The door refuses with IA-KB-SCOPE-LIMIT only past 5,000 selectable authored records or 40 MiB of their membership rows (was 1,000 records and 8 MiB). Packages and legacy envelopes keep their limits: ia kb pack refuses a selection of more than 1,000 records or 100 resources that the local tools accept, and now says so in its message. Capture splits and hashes each source file once instead of once per record, and records bound to one document share its text. A local snapshot digest now pins bodies by their hashes, so a citation saved from an earlier version stops resolving until the record is read again. The 1 MiB per-file and 48 KiB response limits are unchanged.",
+  "packages": [
+    "@inventarch/kb",
+    "@inventarch/mcp-door"
+  ],
+  "paths": [
+    "apps/mcp-door/",
+    "packages/kb/"
+  ]
+}

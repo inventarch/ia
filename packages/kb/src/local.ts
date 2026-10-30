@@ -44,11 +44,11 @@ export function requireSnapshot(value: KnowledgeSnapshot): void {
 /** Reads only bound resources of admitted, selected authored records; no index or directory creation. */
 export function captureKnowledge(root: string, options: KnowledgeOptions = {}): KnowledgeSnapshot {
   const selector = options.selection ?? readKnowledgeSelection(root);
-  const selection = selector === undefined ? undefined : verifySelection(selector);
+  const selection = selector === undefined ? undefined : verifySelection(selector, true);
   if (
     options.identities !== undefined &&
     (!Array.isArray(options.identities) ||
-      options.identities.length > 1000 ||
+      options.identities.length > LIMITS.captureRecords ||
       options.identities.some((id) => typeof id !== 'string'))
   )
     fail('Invalid knowledge scope');
@@ -58,17 +58,22 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
     if (options.expectedRevision !== undefined && reader.revision !== options.expectedRevision)
       fail('Native scope revision changed', 'IA-KB-SCOPE-STALE');
     const all = reader.records(),
-      nodes = all.filter(
-        (n) =>
-          selectableKnowledgeRecord(n, selection) &&
-          (options.identities === undefined || options.identities.includes(n.identity)),
-      );
-    if (selection?.records.some((id) => !all.some((n) => n.identity === id)))
-      fail('Knowledge selection contains unavailable records');
+      known = new Set(all.map((n) => n.identity)),
+      scoped = options.identities && new Set(options.identities),
+      nodes = all.filter((n) => selectableKnowledgeRecord(n, selection) && (scoped?.has(n.identity) ?? true));
+    if (selection?.records.some((id) => !known.has(id))) fail('Knowledge selection contains unavailable records');
     const nativePaths = new Set(nodes.map((n) => n.source.path));
     let total = c.sources.filter((s) => nativePaths.has(s.path)).reduce((sum, s) => sum + Buffer.byteLength(s.text), 0);
-    if (nativePaths.size > LIMITS.files || total > LIMITS.selectedBytes)
+    if (nodes.length > LIMITS.captureRecords || nativePaths.size > LIMITS.captureFiles || total > LIMITS.captureBytes)
       fail('Knowledge selection exceeds capture budget');
+    // One file can hold thousands of records: split and hash it once, not once per record.
+    const sources = new Map<
+      string,
+      { readonly path: string; readonly lines: readonly string[]; readonly sha256: string }
+    >();
+    for (const s of c.sources)
+      if (nativePaths.has(s.path) && !sources.has(s.path))
+        sources.set(s.path, { path: s.path, lines: s.text.split('\n'), sha256: hash(s.text) });
     const files = new Map<string, Uint8Array>(),
       scope = reader.resolveScope({ identities: nodes.map((n) => n.identity) }).token;
     const selectedIds = new Set(nodes.map((n) => n.identity));
@@ -79,13 +84,12 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
       identities: all.filter((n) => selectedIds.has(n.identity) || foundationNode(n)).map((n) => n.identity),
     }).token;
     const unavailable: { identity: string; code: string }[] = [],
-      records: KnowledgeRecord[] = [];
+      records: KnowledgeRecord[] = [],
+      // Records bound to one document hold one string, however many of them there are.
+      bodies = new Map<string, string>();
     for (const node of nodes) {
-      const source = c.sources.find((s) => s.path === node.source.path)!;
-      const recordText = source.text
-        .split('\n')
-        .slice(node.source.line - 1, node.source.endLine)
-        .join('\n');
+      const source = sources.get(node.source.path)!;
+      const recordText = source.lines.slice(node.source.line - 1, node.source.endLine).join('\n');
       const closure = references(parse('#! ia 1.0\n' + recordText, node.source.path).ast).every((use) => {
         try {
           const resolved = reader.resolve(use.reference, { within: closureScope });
@@ -110,11 +114,11 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
             return fail('Body resource is outside selection');
           const prior = files.get(path);
           if (prior) return prior;
-          if (nativePaths.size + files.size >= LIMITS.files) return fail('Knowledge file limit exceeded');
+          if (nativePaths.size + files.size >= LIMITS.captureFiles) return fail('Knowledge file limit exceeded');
           const raw = readWorkspaceBytes(root, path, LIMITS.fileBytes);
           new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(raw);
           total += raw.length;
-          if (total > LIMITS.selectedBytes) return fail('Knowledge byte limit exceeded');
+          if (total > LIMITS.captureBytes) return fail('Knowledge byte limit exceeded');
           files.set(path, raw);
           return raw;
         },
@@ -123,6 +127,8 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
         unavailable.push({ identity: node.identity, code: result.code });
         continue;
       }
+      const body = bodies.get(result.body.digest) ?? result.body.body;
+      bodies.set(result.body.digest, body);
       records.push({
         identity: node.identity,
         word: node.discriminator,
@@ -130,8 +136,8 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
         line: node.source.line,
         endLine: node.source.endLine,
         recordText,
-        recordSha256: hash(source.text),
-        body: result.body.body,
+        recordSha256: source.sha256,
+        body,
         bodySha256: result.body.digest,
         bodyPath: result.body.path ?? null,
         certified: false,
@@ -167,7 +173,9 @@ export function captureKnowledge(root: string, options: KnowledgeOptions = {}): 
       edges,
       unavailable,
     };
-    const value = frozen({ ...base, digest: digest(base), capture: c, admission });
+    // bodySha256 pins each body: the serialized digest input must not repeat a document per record.
+    const pinned = { ...base, records: records.map(({ body: _body, ...record }) => record) };
+    const value = frozen({ ...base, digest: digest(pinned), capture: c, admission });
     snapshots.add(value);
     return value;
   } finally {
