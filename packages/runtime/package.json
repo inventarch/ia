@@ -30,6 +30,11 @@
       "types": "./dist/authoring-execution/index.d.ts",
       "default": "./dist/authoring-execution/index.js"
     },
+    "./method": {
+      "development": "./src/method/index.ts",
+      "types": "./dist/method/index.d.ts",
+      "default": "./dist/method/index.js"
+    },
     "./internal/authoring-execution/execution": {
       "types": "./dist/authoring-execution/execution.d.ts",
       "default": "./dist/authoring-execution/execution.js"
@@ -211,6 +216,10 @@
       "./authoring-execution": {
         "types": "./dist/authoring-execution/index.d.ts",
         "default": "./dist/authoring-execution/index.js"
+      },
+      "./method": {
+        "types": "./dist/method/index.d.ts",
+        "default": "./dist/method/index.js"
       },
       "./internal/authoring-execution/execution": {
         "types": "./dist/authoring-execution/execution.d.ts",
