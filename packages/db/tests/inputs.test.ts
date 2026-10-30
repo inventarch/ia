@@ -644,6 +644,19 @@ it('reads installation state from a single-link regular file within 4 MiB, a mis
   symlinkSync(resolve(way, 'elsewhere'), resolve(way, '.ia/distributions'), LINK);
   expect(installation(way)).toMatchObject(distribution('corrupt-state', 'Installed path traverses a link/junction'));
 });
+it('reads installation state through a root reached by a link and still refuses a link inside it', () => {
+  const root = workspace(),
+    link = resolve(workspace(), 'linked-root');
+  symlinkSync(root, link, LINK);
+  expect(installation(link)).toBeUndefined();
+  put(root, 'elsewhere/pending.json', '{}');
+  mkdirSync(resolve(root, '.ia/distributions'), { recursive: true });
+  symlinkSync(resolve(root, 'elsewhere'), resolve(root, PENDING), LINK);
+  expect(installation(link)).toMatchObject(distribution('corrupt-state', 'Installed path traverses a link/junction'));
+});
+it('reads a root that does not exist as no installation', () => {
+  expect(installation(resolve(workspace(), 'absent'))).toBeUndefined();
+});
 it.skipIf(process.platform === 'win32')(
   'refuses a FIFO or a socket as installation state without waiting for a writer, and throws a path through a file',
   async () => {
