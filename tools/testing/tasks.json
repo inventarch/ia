@@ -2555,6 +2555,7 @@
         "tests/door-read.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
+        "tests/kits-package.test.ts",
         "tests/locator.test.ts",
         "tests/loop.test.ts",
         "tests/mandate-modes.test.ts",

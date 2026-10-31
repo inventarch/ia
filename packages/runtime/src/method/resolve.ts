@@ -17,6 +17,8 @@ import {
   sourcesDigest,
 } from './kits.js';
 import type { Kit, KitSources } from './kits.js';
+import { packageOf, workspaceKits } from './kits-package.js';
+import type { KitsPackageReport } from './kits-package.js';
 import { assemblePacket } from './packet.js';
 import type { MethodPacket } from './packet.js';
 import { kitUpdate, pinRootFor, readPin, writePin } from './pin.js';
@@ -149,7 +151,6 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
   const started = Date.now();
   const env = context.env ?? process.env;
   const store = context.store ?? closureStore(env);
-  const kits = (): Kit[] => listKits(context.kits);
   if (!request.entry || !request.activity)
     throw new MethodError('resolve needs --entry <work|delivery|knowledge> and --activity <activity>', 'IA-CORE-USAGE');
   if (RENAMED[request.entry]) throw new MethodError(renamedMessage(request.entry), 'IA-CORE-USAGE');
@@ -167,6 +168,10 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
     throw new MethodError('--pin needs a task folder: IA_CORE_RUN_ROOT, or --project and --task', 'IA-CORE-USAGE');
   const startRoot = request.root ?? realpathSync.native(context.cwd ?? process.cwd());
   const workspaceRoot = findWorkspace(startRoot);
+  // A workspace's kits include those of the npm kits package its lock records, verified first; outside one, listKits.
+  let listed: { readonly kits: Kit[]; readonly packages: readonly KitsPackageReport[] } | undefined;
+  const at = (): NonNullable<typeof listed> => (listed ??= workspaceKits(context.kits, workspaceRoot, env));
+  const kits = (): Kit[] => (workspaceRoot === null ? listKits(context.kits) : at().kits);
   if (!workspaceRoot && !unbound)
     throw new MethodError(
       `${startRoot} is not inside an IA workspace (no .ia/src at or above it); a capability its kit resolves outside one (kit.mjs list: its unbound list, or any when the kit declares none) resolves with --kit <kit> --capability <capability>`,
@@ -210,13 +215,17 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
   const keyPin = pin?.keys?.[activityKey] ?? null;
   const savedKit = pin?.kits?.[binding.kit] ?? null;
   let carried: Kit | undefined;
+  // A kit the lock's package entry names is that package's: missing or drifted, it refuses, never read from another copy.
+  const packaged = workspaceRoot === null ? undefined : packageOf(at().packages, binding.kit);
   try {
+    if (packaged?.error) throw packaged.error;
     carried = findKit(binding.kit, kits());
   } catch (error) {
     if (!savedKit?.retained || request.rebind) throw error;
   }
   const kit =
     savedKit?.retained && !request.rebind ? retainedKit(savedKit.retained, store) : retainKit(carried!, store);
+  // `installed`: the repository vendored the kit as a locked release, so its laws are the repository's own position's.
   const installed = workspaceRoot ? installedKit(workspaceRoot, kit.id) : null;
   const available = carried
     ? { version: carried.latest?.version ?? carried.version ?? null, archive: carried.latest?.archive ?? null }
@@ -510,7 +519,8 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
         cliVersion: readerInfo.version,
         cliSource: readerInfo.source,
         kitRoot,
-        kitInstalled: Boolean(installed),
+        kitInstalled: Boolean(installed) || packaged?.status === 'installed',
+        ...(packaged?.status === 'installed' ? { kitPackage: `${packaged.entry.name}@${packaged.entry.version}` } : {}),
         run: request.run ?? null,
         latencyMs: 0,
       },

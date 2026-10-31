@@ -35,6 +35,19 @@ export {
 } from './kits.js';
 export type { Kit, KitCheck, KitOrigin, KitRecordName, KitSources, LockedPackage, Recommendation } from './kits.js';
 export {
+  DEFAULT_KITS_MISSING,
+  DEFAULT_KITS_PACKAGE,
+  KITS_PACKAGE_ENV,
+  installedIntegrity,
+  kitsPackageLocation,
+  lockedKitPackages,
+  packageOf,
+  verifyKitsPackage,
+  workspaceKits,
+  workspaceKitsPackages,
+} from './kits-package.js';
+export type { KitsPackageEntry, KitsPackageReport, KitsPackageStatus, PackageKit } from './kits-package.js';
+export {
   ENTRIES,
   PHASES,
   RENAMED,
@@ -81,7 +94,8 @@ export {
   currentPin,
   openSession,
   sessionKits,
+  sessionPackages,
 } from './session.js';
-export type { Session, SessionClaim, SessionKit, SessionPin } from './session.js';
+export type { Session, SessionClaim, SessionKit, SessionPackage, SessionPin } from './session.js';
 export { checkRoot } from './root.js';
 export type { RootCheck } from './root.js';

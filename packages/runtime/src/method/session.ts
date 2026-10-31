@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statS
 import { join } from 'node:path';
 import { MethodError } from './errors.js';
 import type { Kit, KitOrigin } from './kits.js';
+import type { KitsPackageReport, KitsPackageStatus } from './kits-package.js';
 import { samePath } from './registry.js';
 
 /**
@@ -27,6 +28,15 @@ export interface SessionPin {
   readonly key: string;
   readonly revision: number;
 }
+/** A package of kits the workspace lock records, and whether this door found and verified it. */
+export interface SessionPackage {
+  readonly name: string;
+  readonly version: string;
+  readonly kits: readonly string[];
+  readonly state: KitsPackageStatus;
+  /** Why it is not installed: `default kits not installed: …`, or the drift. */
+  readonly message?: string;
+}
 export interface SessionClaim {
   readonly path: string;
   readonly mode: 'read' | 'write';
@@ -38,9 +48,19 @@ export interface Session {
   readonly kits: readonly SessionKit[];
   readonly lanes: readonly string[];
   readonly pin?: SessionPin;
+  /** Present only when the workspace lock records a package of kits. */
+  readonly packages?: readonly SessionPackage[];
   readonly briefing: string;
 }
 
+export const sessionPackages = (reports: readonly KitsPackageReport[]): SessionPackage[] =>
+  reports.map((report) => ({
+    name: report.entry.name,
+    version: report.entry.version,
+    kits: report.entry.kits.map((kit) => kit.id),
+    state: report.status,
+    ...(report.error === undefined ? {} : { message: report.error.message }),
+  }));
 export const sessionKits = (kits: readonly Kit[]): SessionKit[] =>
   kits.map((kit) => ({ kit: kit.id, version: kit.latest?.version ?? kit.version ?? null, source: kit.origin }));
 
@@ -76,6 +96,14 @@ export function briefing(session: Omit<Session, 'briefing' | 'sessionId'>): stri
   const lines = [
     `IA workspace ${session.workspace ?? '(no @workspace)'} at ${session.root}.`,
     `Kits: ${session.kits.length ? session.kits.map((kit) => `${kit.kit}@${kit.version ?? '?'} (${kit.source})`).join(', ') : 'none found'}.`,
+    // A package the lock records but this door did not find is said before the lanes, never left as a shorter list.
+    ...(session.packages ?? [])
+      .filter((row) => row.state !== 'installed')
+      .map((row) =>
+        row.state === 'not-installed'
+          ? `Default kits not installed: the lock records ${row.name}@${row.version} (${row.kits.join(', ')}), which this door did not find, so ia_method refuses their keys. ${row.message ?? ''}`.trimEnd()
+          : `Kits package drift: ${row.message ?? `${row.name}@${row.version} differs from the lock`}`,
+      ),
     `Lanes: ${session.lanes.map((lane) => `ia:${lane}`).join(', ')}. For a task, pick the lane, call ia_catalogue {lane} and map the request to one item's key, then call ia_method {key} and follow the packet it returns.`,
     session.pin
       ? `Current pin: task ${session.pin.task}, ${session.pin.key}, revision ${session.pin.revision}. After a context loss, call ia_method {key: "${session.pin.key}"} with that task to re-read it.`
@@ -92,6 +120,8 @@ export function openSession(
     readonly root: string;
     readonly workspace: string | null;
     readonly kits: readonly Kit[];
+    /** The workspace lock's packages of kits, as `workspaceKits` reported them. */
+    readonly packages?: readonly KitsPackageReport[];
     readonly parent?: string;
     readonly claim?: SessionClaim;
   },
@@ -109,6 +139,9 @@ export function openSession(
     kits: sessionKits(context.kits),
     lanes: [...LANES],
     ...(pin === undefined ? {} : { pin }),
+    ...(context.packages === undefined || context.packages.length === 0
+      ? {}
+      : { packages: sessionPackages(context.packages) }),
   };
   const session: Session = { sessionId, ...body, briefing: briefing(body) };
   appendSessionEvent(home, sessionId, {
