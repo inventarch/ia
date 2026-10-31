@@ -4,7 +4,6 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import {
   ENTRIES,
-  KITS_PACKAGE_ENV,
   MethodError,
   checkRoot,
   iaHome,
@@ -13,28 +12,28 @@ import {
   methodRefusal,
   openSession,
   projectOf,
+  RESTORE_NEEDED,
+  sessionRestore,
   readRegistry,
   resolveMethod,
   samePath,
 } from '@inventarch/runtime/method';
-import type { Kit, KitSources, KitsPackageReport } from '@inventarch/runtime/method';
+import type { Kit, KitSources, LockedKit } from '@inventarch/runtime/method';
 
 /**
  * The door's method tools: `ia_session`, `ia_catalogue` and `ia_method`. They take structured input only; `subject`
  * is never read as a request and is stored only as its hash. Each acts at the door's launch root or at a root the
  * IA home's workspace registry lists, and only after that workspace's mandates admit the read (Observation). Kits are
  * read from the bundled folder (`--kits`, else `IA_KITS_DIR`) and then the IA home's `kits/`; at a workspace whose lock
- * records an npm package of kits, from that package too, once it is verified against the entry: the folder
- * `--kits-package` resolved, else `IA_KITS_PACKAGE`, else `node_modules/<name>` above the workspace. A kit's read root
- * is restored in process with the language base this package carries; nothing spawns the CLI.
+ * installs kits from an npm package of kits (contract C7b), from its store too, as ordinary installed releases. A
+ * session at a workspace whose store lacks them, a fresh clone, says to run `ia restore`. A kit's read root is restored
+ * in process with the language base this package carries; nothing spawns the CLI.
  */
 export interface MethodHost {
   /** The door's launch root. */
   readonly root: string;
   /** The bundled kit folder, `--kits` or `IA_KITS_DIR`. */
   readonly kits?: string;
-  /** The folder of the npm package of kits, as `--kits-package` resolved it; `IA_KITS_PACKAGE` otherwise. */
-  readonly kitsPackage?: string;
   readonly env?: NodeJS.ProcessEnv;
   /** The parent of the per-user kit read-root cache; `<IA home>/kit-roots-v1` by default. */
   readonly cache?: string;
@@ -172,15 +171,16 @@ export class MethodTools {
     const env = this.#env;
     const bundled = this.#host.kits ?? env['IA_KITS_DIR'];
     const home = env['IA_CORE_NO_HOME_KITS'] === '1' ? null : join(this.#home, 'kits');
-    const kitsPackage = this.#host.kitsPackage ?? env[KITS_PACKAGE_ENV];
-    return {
-      ...(bundled ? { bundled: resolve(bundled) } : {}),
-      home,
-      ...(kitsPackage ? { package: kitsPackage } : {}),
-    };
+    return { ...(bundled ? { bundled: resolve(bundled) } : {}), home };
   }
-  /** The root a call names: the launch root, or a registered one, once its mandates admit the read. */
-  #root(value: string | undefined): { readonly root: string; readonly workspace: string | null } {
+  /**
+   * The root a call names: the launch root, or a registered one, once its mandates admit the read. With `restorable`, a
+   * workspace whose installation needs restoring (a fresh clone of a committed lock) opens with no workspace and says so.
+   */
+  #root(
+    value: string | undefined,
+    restorable = false,
+  ): { readonly root: string; readonly workspace: string | null; readonly unrestored?: string } {
     let root = resolve(this.#host.root);
     if (value !== undefined) {
       if (!isAbsolute(value)) usage(`root must be an absolute path: ${value}`);
@@ -193,10 +193,16 @@ export class MethodTools {
       root = resolve(value);
     }
     if (!existsSync(join(root, '.ia', 'src'))) return { root, workspace: null };
-    return { root, workspace: checkRoot(root, 'read').workspace };
+    try {
+      return { root, workspace: checkRoot(root, 'read').workspace };
+    } catch (error) {
+      const reason = (error as { reason?: unknown } | null)?.reason;
+      if (!restorable || (reason !== 'restore-required' && reason !== 'lock-drift')) throw error;
+      return { root, workspace: null, unrestored: (error as Error).message };
+    }
   }
-  /** The kits at a root: a workspace's include its lock's verified package of kits, which is reported either way. */
-  #kits(root: string): { readonly kits: Kit[]; readonly packages: readonly KitsPackageReport[] } {
+  /** The kits at a root: a workspace's include those its lock installs from a package, and those its store lacks. */
+  #kits(root: string): { readonly kits: Kit[]; readonly missing: readonly LockedKit[] } {
     return workspaceKits(this.#sources, existsSync(join(root, '.ia', 'src')) ? root : null, this.#env);
   }
   call(operation: MethodOperation, input: unknown): Result {
@@ -219,13 +225,21 @@ export class MethodTools {
         usage('claim.path must be a workspace-relative path');
       if (claim['mode'] !== 'read' && claim['mode'] !== 'write') usage('claim.mode is read or write');
     }
-    const { root, workspace } = this.#root(optional(args, 'root', 4096));
-    const { kits, packages } = this.#kits(root);
+    const { root, workspace, unrestored } = this.#root(optional(args, 'root', 4096), true);
+    const { kits, missing } = this.#kits(root);
+    const restore =
+      unrestored === undefined
+        ? undefined
+        : (sessionRestore(missing) ?? {
+            kits: [],
+            message: `This workspace's installation is not restored (${unrestored}): ${RESTORE_NEEDED} in this workspace.`,
+          });
     return openSession(this.#home, {
       root,
       workspace,
       kits,
-      packages,
+      missing,
+      ...(restore === undefined ? {} : { restore }),
       ...(parent === undefined ? {} : { parent }),
       ...(claim === undefined
         ? {}

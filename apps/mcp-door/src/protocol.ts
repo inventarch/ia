@@ -28,12 +28,20 @@ const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 export class Protocol {
   #root: string;
-  #door: Door;
+  /** The workspace Door, or undefined when the workspace does not open yet (a fresh clone needs `ia restore`). */
+  #door: Door | undefined;
+  #unopened: Error | undefined;
   #method: MethodTools;
   #state: 'new' | 'negotiated' | 'ready' | 'closed' = 'new';
   constructor(root: string, options: Omit<MethodHost, 'root'> = {}) {
     this.#root = root;
-    this.#door = new Door(root, { cache: false });
+    // A workspace whose installation needs restoring does not open, yet the method tools still serve it, so ia_session
+    // can say to run ia restore; the read tools answer that same refusal until it is restored.
+    try {
+      this.#door = new Door(root, { cache: false });
+    } catch (error) {
+      this.#unopened = error instanceof Error ? error : new Error(String(error));
+    }
     this.#method = new MethodTools({ root, ...options });
   }
   line(line: string): Response | undefined {
@@ -110,6 +118,23 @@ export class Protocol {
             isError: !answer.ok,
           });
         }
+        if (this.#door === undefined) {
+          const reason = this.#unopened as (Error & { code?: string }) | undefined;
+          const value = {
+            version: 1,
+            ok: false,
+            error: {
+              code: reason?.code ?? 'IA-DB-SOURCE-UNAVAILABLE',
+              message: reason?.message ?? 'workspace unavailable',
+            },
+          };
+          return success({
+            content: [{ type: 'text', text: JSON.stringify(value) }],
+            structuredContent: value,
+            isError: true,
+          });
+        }
+        const door = this.#door;
         const format = operation === 'context' ? args['format'] : undefined;
         if (format !== undefined && format !== 'full' && format !== 'compact')
           return rpcError(requestId, -32602, 'context format must be full or compact');
@@ -133,10 +158,10 @@ export class Protocol {
         if (knowledge && size(bounded) > LIMITS.responseBytes)
           return rpcError(requestId, -32600, 'Knowledge request id exceeds response budget');
         const raw = knowledge
-          ? knowledgeTool(this.#root, this.#door, operation.slice(3) as KnowledgeOperation, args)
+          ? knowledgeTool(this.#root, door, operation.slice(3) as KnowledgeOperation, args)
           : operation === 'vocabulary'
             ? vocabulary(args)
-            : this.#door.request({ operation, params: args });
+            : door.request({ operation, params: args });
         const result = format === 'compact' ? compactContext(raw as DoorResponse) : raw;
         const envelope = (value: typeof result) =>
           success({
@@ -162,6 +187,6 @@ export class Protocol {
   }
   close(): void {
     this.#state = 'closed';
-    this.#door.close();
+    this.#door?.close();
   }
 }

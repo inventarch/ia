@@ -1,4 +1,5 @@
 import {
+  copyFileSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -6,155 +7,170 @@ import {
   renameSync,
   rmSync,
   writeFileSync,
-  copyFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { applyInstallation, planInstallation } from '@inventarch/distribution/install';
-import { readReleases, sourcesDigest } from '@inventarch/runtime/method';
-import { packageBeside } from '../src/main.js';
-import { MethodTools } from '../src/method.js';
+import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
+import { packDistribution } from '@inventarch/distribution/pack';
+import { folderKits, readReleases } from '@inventarch/runtime/method';
+import { MethodTools, restoreKit } from '../src/method.js';
+import { Protocol } from '../src/protocol.js';
 
 /**
- * The door at a workspace whose lock records the npm package of default kits as one `package` entry (contract C7). The
- * package is a local stand-in for the unpublished `@inventarch/public-kits`: `fixtures/kits-package/package.template.json`
- * with the ia-kb kit of `fixtures/method/plugin.json.gz` copied into its `kits/ia-kb/` (provenance in
- * `fixtures/kits-package/PROVENANCE.json`), installed under the workspace's `node_modules`.
+ * The door at a workspace whose lock installs kits from an npm package of kits (contract C7b, ia-kb `dec-133`). npm is
+ * transport only: the engine installs the package entry's kits as ordinary releases in the workspace store, and the
+ * door reads them from there. The kit is the ia-kb kit of `fixtures/method/plugin.json.gz` (marketplace 63f5d75,
+ * Apache-2.0; `fixtures/method/PROVENANCE.json`), packed here with this package's language base into exactly the
+ * archive its `releases.json` names for 0.9.0, so the entry pins the published release.
  */
 const fixtures = new URL('./fixtures/', import.meta.url);
-const NAME = '@inventarch/public-kits';
-const INTEGRITY = `sha512-${'D'.repeat(86)}==`;
-let root: string, consumer: string, plugin: string, location: string, env: NodeJS.ProcessEnv;
-let manifest: Record<string, unknown>;
+const BASE = JSON.parse(readFileSync(new URL('../assets/base.json', import.meta.url), 'utf8')) as {
+  id: string;
+  version: string;
+  archive: string;
+  manifest: string;
+};
+let root: string, consumer: string, plugin: string, env: NodeJS.ProcessEnv;
+let kit: { id: string; version: string; archive: string; manifest: string; bytes: Buffer };
 
 beforeAll(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'ia-door-kits-package-')));
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'ia-door-installed-kits-')));
   const files = JSON.parse(
     gunzipSync(readFileSync(new URL('method/plugin.json.gz', fixtures))).toString('utf8'),
   ) as Record<string, string>;
   plugin = join(root, 'plugin');
-  consumer = join(root, 'consumer');
-  location = join(consumer, 'node_modules', '@inventarch', 'public-kits');
   for (const [path, text] of Object.entries(files)) {
-    const targets = [join(plugin, path)];
-    if (path.startsWith('config/kits/ia-kb/')) targets.push(join(location, 'kits', path.slice('config/kits/'.length)));
-    for (const target of targets) {
+    mkdirSync(dirname(join(plugin, path)), { recursive: true });
+    writeFileSync(join(plugin, path), text);
+  }
+  // `ia pack` of the fixture kit, in a copy restored with the language base it locks.
+  const source = join(root, 'kits', 'ia-kb');
+  for (const [path, text] of Object.entries(files))
+    if (path.startsWith('config/kits/ia-kb/')) {
+      const target = join(source, path.slice('config/kits/ia-kb/'.length));
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, text);
     }
-  }
-  const kitDir = join(location, 'kits', 'ia-kb');
-  const releases = readReleases(kitDir);
-  const latest = releases.releases.find((row) => row.version === releases.latest)!;
-  const template = JSON.parse(readFileSync(new URL('kits-package/package.template.json', fixtures), 'utf8')) as {
-    ia: { kits: Record<string, unknown>[] };
+  restoreKit(source, folderKits(join(root, 'kits'))[0]!);
+  const packed = packDistribution(source, readFileSync(join(source, '.ia', 'release.json'), 'utf8'));
+  const released = readReleases(source).releases.find((row) => row.version === '0.9.0')!;
+  kit = {
+    id: packed.manifest.id,
+    version: packed.manifest.version,
+    archive: packed.archiveDigest,
+    manifest: packed.manifestDigest,
+    bytes: packed.bytes,
   };
-  manifest = {
-    ...template,
-    ia: {
-      ...template.ia,
-      kits: [{ ...template.ia.kits[0], archive: latest.archive, sources: sourcesDigest(kitDir) }],
-    },
-  };
-  writeFileSync(join(location, 'package.json'), JSON.stringify(manifest, null, 2) + '\n');
-  // An installed generation whose lock holds only the package entry: nothing is vendored.
+  expect([kit.archive, kit.manifest]).toEqual([released.archive, released['manifest']]);
+  // A workspace that installs the language base by request and the kit through one package entry.
+  consumer = join(root, 'consumer');
   mkdirSync(join(consumer, '.ia', 'src'), { recursive: true });
   copyFileSync(new URL('method/bindings.json', fixtures), join(consumer, '.ia', 'bindings.json'));
-  const lock = {
-    formatVersion: 1,
-    engine: '^0.1.2',
-    requests: [],
-    packages: [],
-    entries: [
+  cacheArchive(consumer, readFileSync(new URL(`../assets/base/${BASE.archive}.ia.tgz`, import.meta.url)), BASE.archive);
+  cacheArchive(consumer, kit.bytes, kit.archive);
+  applyInstallation(
+    planInstallation(
+      consumer,
       {
-        kind: 'package',
-        name: NAME,
-        version: '1.0.0',
-        integrity: INTEGRITY,
-        kits: [{ id: releases.kit, version: latest.version, archive: latest.archive }],
+        formatVersion: 1,
+        engine: '^0.1.2',
+        requests: [{ id: BASE.id, range: `^${BASE.version}` }],
+        packages: [
+          {
+            id: BASE.id,
+            version: BASE.version,
+            archive: BASE.archive,
+            manifest: BASE.manifest,
+            location: `sha256:${BASE.archive}`,
+            dependencies: [],
+          },
+        ],
+        entries: [
+          {
+            kind: 'package',
+            name: '@inventarch/public-kits',
+            version: '1.0.0',
+            integrity: `sha512-${'D'.repeat(86)}==`,
+            kits: [
+              {
+                id: kit.id,
+                version: kit.version,
+                archive: kit.archive,
+                manifest: kit.manifest,
+                dependencies: [BASE.id],
+              },
+            ],
+          },
+        ],
       },
-    ],
-  };
-  applyInstallation(planInstallation(consumer, lock, 'install'));
+      'install',
+    ),
+  );
   env = { ...process.env, IA_HOME: join(root, 'home') };
-  for (const name of ['IA_KITS_DIR', 'IA_KITS_PACKAGE', 'IA_CORE_RUN_ROOT', 'IA_CORE_CLOSURES_DIR']) delete env[name];
+  for (const name of ['IA_KITS_DIR', 'IA_CORE_RUN_ROOT', 'IA_CORE_CLOSURES_DIR']) delete env[name];
   mkdirSync(join(root, 'cache'));
-});
+}, 120_000);
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 const tools = (kits?: string): MethodTools =>
   new MethodTools({ root: consumer, env, cache: join(root, 'cache'), ...(kits === undefined ? {} : { kits }) });
 
-it('resolves a binding to a kit the lock names through its package, as installed', () => {
+it('reads a kit the package entry installs from the workspace store, as an installed release', () => {
   const door = tools();
   const session = door.call('method:session', {}).value as Record<string, unknown>;
-  expect(session).toMatchObject({
-    kits: [{ kit: 'inventarch/ia-kb-kit', version: '0.9.0', source: 'package' }],
-    packages: [{ name: NAME, version: '1.0.0', kits: ['inventarch/ia-kb-kit'], state: 'installed' }],
+  expect(session, JSON.stringify(session)).toMatchObject({
+    kits: [{ kit: 'inventarch/ia-kb-kit', version: '0.9.0', source: 'installed' }],
   });
-  expect(String(session['briefing'])).not.toContain('Default kits not installed');
-  const catalogue = door.call('method:catalogue', { lane: 'knowledge', word: 'find' }).value as {
-    items: Record<string, unknown>[];
-  };
-  expect(catalogue.items).toMatchObject([{ key: 'knowledge.find', kit: 'inventarch/ia-kb-kit', state: 'bound' }]);
+  expect(session).not.toHaveProperty('restore');
+  expect(door.call('method:catalogue', { lane: 'knowledge', word: 'find' }).value).toMatchObject({
+    items: [{ key: 'knowledge.find', kit: 'inventarch/ia-kb-kit', state: 'bound' }],
+  });
   const answer = door.call('method:method', { key: 'knowledge.find' });
   expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
   const packet = answer.value as { closure: Record<string, unknown>; envelope: Record<string, unknown> };
-  expect(packet.closure).toMatchObject({ kit: 'inventarch/ia-kb-kit', version: '0.9.0' });
-  expect(packet.envelope).toMatchObject({ kitInstalled: true, kitPackage: `${NAME}@1.0.0` });
+  expect(packet.closure).toMatchObject({ kit: 'inventarch/ia-kb-kit', version: '0.9.0', archive: kit.archive });
+  expect(packet.envelope).toMatchObject({ kitInstalled: true });
+  // The bundled copy of the same kit is never read in its place.
+  const bundled = tools(join(plugin, 'config', 'kits')).call('method:session', {}).value as { kits: unknown[] };
+  expect(bundled.kits).toEqual([{ kit: 'inventarch/ia-kb-kit', version: '0.9.0', source: 'installed' }]);
 }, 120_000);
 
-it('refuses a drifted package by the field, and never falls back to the bundled copy', () => {
-  writeFileSync(join(location, 'package.json'), JSON.stringify({ ...manifest, version: '1.0.1' }, null, 2) + '\n');
-  try {
-    const door = tools(join(plugin, 'config', 'kits'));
-    expect(door.call('method:method', { key: 'knowledge.find' }).value).toMatchObject({
-      error: {
-        code: 'IA-CORE-KITS-PACKAGE-DRIFT',
-        message: expect.stringContaining('differs from .ia/distributions.lock.json in version: it has 1.0.1'),
-      },
-    });
-    expect(door.call('method:session', {}).value).toMatchObject({
-      kits: [],
-      packages: [{ state: 'drift' }],
-      briefing: expect.stringContaining('Kits package drift'),
-    });
-  } finally {
-    writeFileSync(join(location, 'package.json'), JSON.stringify(manifest, null, 2) + '\n');
-  }
-});
-
-it('reports default kits not installed in ia_session when the package the lock names is absent', () => {
-  const moved = join(root, 'moved');
-  renameSync(location, moved);
+it('tells a fresh clone to run ia restore, and never answers the kit from another copy', () => {
+  const installed = join(consumer, '.ia', 'distributions');
+  const moved = join(root, 'distributions');
+  renameSync(installed, moved);
   try {
     const door = tools(join(plugin, 'config', 'kits'));
     const session = door.call('method:session', {}).value as Record<string, unknown>;
-    expect(session).toMatchObject({
+    expect(session, JSON.stringify(session)).toMatchObject({
+      workspace: null,
       kits: [],
-      packages: [{ name: NAME, version: '1.0.0', state: 'not-installed' }],
+      restore: { kits: ['inventarch/ia-kb-kit@0.9.0'] },
     });
-    expect(String(session['briefing'])).toContain(`Default kits not installed: the lock records ${NAME}@1.0.0`);
-    expect(door.call('method:method', { key: 'knowledge.find' }).value).toMatchObject({
-      error: { code: 'IA-CORE-KITS-PACKAGE-MISSING', message: expect.stringContaining('default kits not installed') },
+    expect((session['restore'] as { message: string }).message).toContain('run ia restore');
+    expect(String(session['briefing'])).toContain('Kits not restored:');
+    expect(door.call('method:method', { key: 'knowledge.find' }).ok).toBe(false);
+    // The protocol still starts, as a door launched in a fresh clone does: the method tools answer, the read tools refuse.
+    const protocol = new Protocol(consumer, { kits: join(plugin, 'config', 'kits'), env, cache: join(root, 'cache') });
+    protocol.request({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 't', version: '1' } },
     });
-    // The folder the door's --kits-package resolved, or IA_KITS_PACKAGE, is read instead of node_modules.
-    const named = new MethodTools({ root: consumer, env, cache: join(root, 'cache'), kitsPackage: moved });
-    expect(named.call('method:session', {}).value).toMatchObject({ packages: [{ state: 'installed' }] });
+    protocol.request({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
+    const call = (name: string) =>
+      protocol.request({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name, arguments: name === 'ia_session' ? {} : { operation: 'x' } },
+      })?.result as { structuredContent: Record<string, unknown>; isError: boolean };
+    expect(call('ia_session').structuredContent).toMatchObject({ restore: { kits: ['inventarch/ia-kb-kit@0.9.0'] } });
+    protocol.close();
   } finally {
-    renameSync(moved, location);
+    renameSync(moved, installed);
   }
-});
-
-it('finds the kits package npx installs beside the door', () => {
-  const door = join(root, 'npx', 'node_modules', '@inventarch', 'mcp-door', 'dist');
-  const kits = join(root, 'npx', 'node_modules', '@inventarch', 'public-kits');
-  mkdirSync(door, { recursive: true });
-  mkdirSync(kits, { recursive: true });
-  writeFileSync(join(kits, 'package.json'), JSON.stringify({ name: NAME }));
-  expect(packageBeside(NAME, door)).toBe(kits);
-  expect(packageBeside('@inventarch/absent', door)).toBeUndefined();
-  expect(packageBeside('../escape', door)).toBeUndefined();
 });
