@@ -21,6 +21,7 @@ import {
   readReleases,
   registerWorkspace,
   releaseRecords,
+  samePath,
   scopeKey,
   selectBinding,
   userCache,
@@ -172,6 +173,11 @@ describe('workspace registry', () => {
     expect(() => registerWorkspace(home(), { id: 'x', root: 'x' })).toThrow(/absolute/);
     write(join(home(), 'workspace-locations.json'), { format: 9 });
     expect(() => readRegistry(home())).toThrow(/unknown format/);
+  });
+  it('names one folder whatever its trailing or repeated slashes', () => {
+    expect(samePath(join(dir, 'a'), join(dir, 'a') + '///')).toBe(true);
+    expect(samePath(dir + '/'.repeat(10_000) + 'x', join(dir, 'x'))).toBe(true);
+    expect(samePath(join(dir, 'a'), join(dir, 'b'))).toBe(false);
   });
 });
 

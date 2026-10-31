@@ -200,10 +200,14 @@ export function writePin(
     writeFileSync(temporary, JSON.stringify(pin, null, 2) + '\n', { flag: 'wx' });
     if (previous) {
       const history = join(pinRoot, `binding.${previous.revision}.json`);
-      if (existsSync(history)) {
+      // Created exclusively and never checked first: a history that already exists must hold the same bytes.
+      try {
+        writeFileSync(history, currentBytes ?? '', { flag: 'wx' });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
         if (readFileSync(history, 'utf8') !== currentBytes)
           throw new MethodError('task pin history already contains different bytes', 'IA-CORE-PIN-CONFLICT');
-      } else writeFileSync(history, currentBytes ?? '', { flag: 'wx' });
+      }
     }
     renameSync(temporary, path);
     return { ...pin, path };

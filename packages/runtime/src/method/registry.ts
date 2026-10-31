@@ -121,8 +121,14 @@ export function registerWorkspace(
   return row;
 }
 
+/** The text without its trailing slashes, in one pass: a pattern anchored only at its end backtracks on a run of them. */
+const trimSlashes = (text: string): string => {
+  let end = text.length;
+  while (end > 0 && text[end - 1] === '/') end -= 1;
+  return text.slice(0, end);
+};
 const key = (path: string): string => {
-  const plain = resolve(path).replace(/\\/g, '/').replace(/\/+$/, '');
+  const plain = trimSlashes(resolve(path).replace(/\\/g, '/'));
   return process.platform === 'win32' || process.platform === 'darwin' ? plain.toLowerCase() : plain;
 };
 /** Whether two paths name one folder, case folded where the platform folds it. */

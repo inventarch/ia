@@ -1,7 +1,11 @@
 import { createHash } from 'node:crypto';
 import {
+  closeSync,
+  constants,
   existsSync,
+  fstatSync,
   lstatSync,
+  openSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -32,6 +36,34 @@ const fail = (message: string): never => {
 export const closureStore = (env: NodeJS.ProcessEnv = process.env): string =>
   env['IA_CORE_CLOSURES_DIR'] ? env['IA_CORE_CLOSURES_DIR'] : join(iaHome(env), 'method-closures-v1');
 
+/** Read-only: NOFOLLOW refuses a final link and NONBLOCK keeps a FIFO from blocking the open; Windows has neither (zero). */
+const READ = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
+/**
+ * The bytes of the regular file at `path`, of at most `limit` bytes, judged and read through one descriptor (CodeQL
+ * js/file-system-race). Where the open follows a final link (Windows), the name must still name the file that was read.
+ */
+function readRegular(path: string, label: string, limit: number, tooLarge: string): Buffer {
+  let fd: number;
+  try {
+    fd = openSync(path, READ);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ELOOP') fail(`method symlink is unsupported: ${label}`);
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd, { bigint: true });
+    if (!opened.isFile()) fail(`method content is not a file: ${label}`);
+    if (opened.size > BigInt(limit)) fail(tooLarge);
+    const data = readFileSync(fd);
+    const named = lstatSync(path, { bigint: true });
+    if (BigInt(data.length) !== opened.size || !named.isFile() || named.dev !== opened.dev || named.ino !== opened.ino)
+      fail(`method content changed while it was read: ${label}`);
+    return data;
+  } finally {
+    closeSync(fd);
+  }
+}
+
 interface Entry {
   readonly path: string;
   readonly sha256: string;
@@ -47,25 +79,27 @@ function files(root: string): Loaded[] {
   const visit = (dir: string): void => {
     const stat = lstatSync(dir);
     if (!stat.isDirectory() || stat.isSymbolicLink()) fail(`method directory is not regular: ${dir}`);
-    for (const name of readdirSync(dir).sort()) {
+    const listed = readdirSync(dir, { withFileTypes: true }),
+      types = new Map(listed.map((dirent) => [dirent.name, dirent]));
+    for (const name of [...types.keys()].sort()) {
       if (name.includes('\\') || name.includes(':') || name.includes('\0')) fail('unsafe retained path');
       const path = join(dir, name),
         rel = relative(root, path).replace(/\\/g, '/');
       if (rel === '.ia/distributions' || rel === '.ia/work') continue;
-      const entry = lstatSync(path);
       const key = rel.normalize('NFC').toLowerCase();
       if (folded.has(key)) fail(`case-fold collision in method: ${rel}`);
       folded.add(key);
-      if (entry.isSymbolicLink()) fail(`method symlink is unsupported: ${rel}`);
-      if (entry.isDirectory()) {
+      // The entry's type is the listing's; a file's is judged again on the descriptor its bytes are read through.
+      const entry = types.get(name);
+      if (entry?.isSymbolicLink()) fail(`method symlink is unsupported: ${rel}`);
+      if (entry?.isDirectory()) {
         visit(path);
         continue;
       }
-      if (!entry.isFile()) fail(`method content is not a file: ${rel}`);
-      const data = readFileSync(path);
+      if (!entry?.isFile()) fail(`method content is not a file: ${rel}`);
+      const data = readRegular(path, rel, 16 * 1024 * 1024, 'retained method resource limit exceeded');
       bytes += data.length;
-      if (data.length > 16 * 1024 * 1024 || bytes > 128 * 1024 * 1024 || found.length >= 10000)
-        fail('retained method resource limit exceeded');
+      if (bytes > 128 * 1024 * 1024 || found.length >= 10000) fail('retained method resource limit exceeded');
       found.push({ path: rel, sha256: sha(data), bytes: data.length, data });
     }
   };
@@ -80,16 +114,10 @@ const inventory = (root: string): Entry[] =>
 
 function supportFiles(carrier: string): Loaded[] {
   return SUPPORT.map((path) => {
-    let current = carrier;
-    for (const [index, part] of path.split('/').entries()) {
-      current = join(current, part);
-      const stat = lstatSync(current);
-      if (stat.isSymbolicLink() || (index === 0 ? !stat.isDirectory() : !stat.isFile()))
-        fail(`core support input is not regular: ${path}`);
-      if (index === 1 && stat.size > 256 * 1024) fail(`core support input is too large: ${path}`);
-    }
-    const data = readFileSync(current);
-    if (data.length > 256 * 1024) fail(`core support input is too large: ${path}`);
+    const [folder, file] = path.split('/') as [string, string];
+    const stat = lstatSync(join(carrier, folder));
+    if (stat.isSymbolicLink() || !stat.isDirectory()) fail(`core support input is not regular: ${path}`);
+    const data = readRegular(join(carrier, folder, file), path, 256 * 1024, `core support input is too large: ${path}`);
     return { path, sha256: sha(data), bytes: data.length, data };
   });
 }
