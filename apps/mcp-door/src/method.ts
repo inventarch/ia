@@ -4,11 +4,12 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import {
   ENTRIES,
+  KITS_PACKAGE_ENV,
   MethodError,
   checkRoot,
   iaHome,
   laneCatalogue,
-  listKits,
+  workspaceKits,
   methodRefusal,
   openSession,
   projectOf,
@@ -16,20 +17,24 @@ import {
   resolveMethod,
   samePath,
 } from '@inventarch/runtime/method';
-import type { Kit, KitSources } from '@inventarch/runtime/method';
+import type { Kit, KitSources, KitsPackageReport } from '@inventarch/runtime/method';
 
 /**
  * The door's method tools: `ia_session`, `ia_catalogue` and `ia_method`. They take structured input only; `subject`
  * is never read as a request and is stored only as its hash. Each acts at the door's launch root or at a root the
  * IA home's workspace registry lists, and only after that workspace's mandates admit the read (Observation). Kits are
- * read from the bundled folder (`--kits`, else `IA_KITS_DIR`) and then the IA home's `kits/`. A kit's read root is
- * restored in process with the language base this package carries; nothing spawns the CLI.
+ * read from the bundled folder (`--kits`, else `IA_KITS_DIR`) and then the IA home's `kits/`; at a workspace whose lock
+ * records an npm package of kits, from that package too, once it is verified against the entry: the folder
+ * `--kits-package` resolved, else `IA_KITS_PACKAGE`, else `node_modules/<name>` above the workspace. A kit's read root
+ * is restored in process with the language base this package carries; nothing spawns the CLI.
  */
 export interface MethodHost {
   /** The door's launch root. */
   readonly root: string;
   /** The bundled kit folder, `--kits` or `IA_KITS_DIR`. */
   readonly kits?: string;
+  /** The folder of the npm package of kits, as `--kits-package` resolved it; `IA_KITS_PACKAGE` otherwise. */
+  readonly kitsPackage?: string;
   readonly env?: NodeJS.ProcessEnv;
   /** The parent of the per-user kit read-root cache; `<IA home>/kit-roots-v1` by default. */
   readonly cache?: string;
@@ -167,7 +172,12 @@ export class MethodTools {
     const env = this.#env;
     const bundled = this.#host.kits ?? env['IA_KITS_DIR'];
     const home = env['IA_CORE_NO_HOME_KITS'] === '1' ? null : join(this.#home, 'kits');
-    return { ...(bundled ? { bundled: resolve(bundled) } : {}), home };
+    const kitsPackage = this.#host.kitsPackage ?? env[KITS_PACKAGE_ENV];
+    return {
+      ...(bundled ? { bundled: resolve(bundled) } : {}),
+      home,
+      ...(kitsPackage ? { package: kitsPackage } : {}),
+    };
   }
   /** The root a call names: the launch root, or a registered one, once its mandates admit the read. */
   #root(value: string | undefined): { readonly root: string; readonly workspace: string | null } {
@@ -185,8 +195,9 @@ export class MethodTools {
     if (!existsSync(join(root, '.ia', 'src'))) return { root, workspace: null };
     return { root, workspace: checkRoot(root, 'read').workspace };
   }
-  #kits(): Kit[] {
-    return listKits(this.#sources);
+  /** The kits at a root: a workspace's include its lock's verified package of kits, which is reported either way. */
+  #kits(root: string): { readonly kits: Kit[]; readonly packages: readonly KitsPackageReport[] } {
+    return workspaceKits(this.#sources, existsSync(join(root, '.ia', 'src')) ? root : null, this.#env);
   }
   call(operation: MethodOperation, input: unknown): Result {
     try {
@@ -209,10 +220,12 @@ export class MethodTools {
       if (claim['mode'] !== 'read' && claim['mode'] !== 'write') usage('claim.mode is read or write');
     }
     const { root, workspace } = this.#root(optional(args, 'root', 4096));
+    const { kits, packages } = this.#kits(root);
     return openSession(this.#home, {
       root,
       workspace,
-      kits: this.#kits(),
+      kits,
+      packages,
       ...(parent === undefined ? {} : { parent }),
       ...(claim === undefined
         ? {}
@@ -230,7 +243,7 @@ export class MethodTools {
     const { root } = this.#root(optional(args, 'root', 4096));
     return laneCatalogue(
       { lane, ...(word === undefined ? {} : { word }), ...(phase === undefined ? {} : { phase }) },
-      { root: existsSync(join(root, '.ia', 'src')) ? root : null, kits: this.#kits() },
+      { root: existsSync(join(root, '.ia', 'src')) ? root : null, kits: this.#kits(root).kits },
     );
   }
   #method(args: Record<string, unknown>): unknown {

@@ -1,0 +1,13 @@
+{
+  "format": "ia.fixture-provenance.v1",
+  "license": "Apache-2.0",
+  "source": {
+    "repository": "https://github.com/inventarch/marketplace",
+    "commit": "63f5d75b57b4218c633b56f85f25db28f0ebd4ba",
+    "paths": ["kits/ia-kb"]
+  },
+  "files": {
+    "package.template.json": "The package.json of a local stand-in for the unpublished @inventarch/public-kits (contract C7): name, version, license, files and ia.format 1 with one ia.kits row. Written by hand. kits-package.test.ts fills the row's archive from the kit's releases.json and its sources with runtime sourcesDigest; it is private, so it is never published.",
+    "kits/ia-kb": "Not stored here: kits-package.test.ts copies config/kits/ia-kb/** of ../method/plugin.json.gz (kits/ia-kb of the marketplace commit above, inventarch/ia-kb-kit 0.9.0, releases format 2) into the package's kits/ia-kb/, unchanged."
+  }
+}
