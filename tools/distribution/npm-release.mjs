@@ -347,15 +347,37 @@ export async function registryPackage(name, request = fetch) {
   return response.json();
 }
 
-/** Downloads each verified archive from the registry and checks its size and integrity against the release receipt. */
-export async function verifyRegistryArchives(plan, registryPackages, request = fetch) {
+/**
+ * Downloads each verified archive from the registry and checks its size and integrity against the release receipt.
+ * With `wait`, a download that answers 404, 429 or 5xx, or fails on the network, is tried again every `intervalMs`
+ * until `timeoutMs` has passed since the first: npm can list a version before its CDN serves the archive. Without
+ * `wait`, one failed download refuses. Different bytes always refuse at once.
+ */
+export async function verifyRegistryArchives(plan, registryPackages, request = fetch, wait) {
+  const start = wait?.now();
   for (const entry of plan) {
     const dist = registryPackages[entry.name].versions[entry.version].dist;
-    const response = await request(dist.tarball, { signal: AbortSignal.timeout(30000) });
-    assert.ok(response.ok, `${entry.name}: archive download returned ${response.status}`);
-    const bytes = Buffer.from(await response.arrayBuffer());
-    assert.equal(bytes.length, entry.bytes);
-    assert.equal(integrity(bytes), entry.integrity, 'Downloaded registry bytes differ');
+    for (let attempt = 1; ; attempt++) {
+      let response, failure;
+      try {
+        response = await request(dist.tarball, { signal: AbortSignal.timeout(30000) });
+        if (!response.ok) failure = `archive download returned ${response.status}`;
+      } catch (error) {
+        failure = `archive download failed: ${error.message}`;
+      }
+      const transient =
+        failure && (!response || response.status === 404 || response.status === 429 || response.status >= 500);
+      if (transient && wait && wait.now() - start < wait.timeoutMs) {
+        wait.log(`Archive ${attempt} of ${entry.name}@${entry.version}: ${failure}; trying again`);
+        await wait.sleep(wait.intervalMs);
+        continue;
+      }
+      assert.ok(!failure, `${entry.name}: ${failure}`);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      assert.equal(bytes.length, entry.bytes);
+      assert.equal(integrity(bytes), entry.integrity, 'Downloaded registry bytes differ');
+      break;
+    }
   }
 }
 
@@ -419,7 +441,7 @@ async function main() {
   }
   if (positionals[0] === 'verify-registry') {
     const { plan: checked, registryPackages } = await waitForRegistryCohort(release, registryPackage, REGISTRY_WAIT);
-    await verifyRegistryArchives(checked, registryPackages);
+    await verifyRegistryArchives(checked, registryPackages, fetch, REGISTRY_WAIT);
     console.log(
       JSON.stringify(
         {

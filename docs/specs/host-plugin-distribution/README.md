@@ -24,13 +24,16 @@ A relative home refuses with `IA-DIST-INPUT-INVALID`. A home that contains `src/
 
 One row per host decides what each command accepts:
 
-| Host | Status | Workspace registration | User-level entry point | Hooks |
-| --- | --- | --- | --- | --- |
-| `claude` | supported | yes | the Claude plugin | yes |
-| `codex` | partial | yes | none | no |
-| `cursor` | planned; refuses | no | none | no |
+| Host | Status | Workspace registration | User-level entry point | Hooks | Committed bootstrap (`ia host <host> --commit`) |
+| --- | --- | --- | --- | --- | --- |
+| `claude` | supported | yes | the Claude plugin | yes | `CLAUDE.md`; `.mcp.json` |
+| `codex` | partial | yes | none | yes | `AGENTS.md`; `.codex/config.toml` |
+| `copilot` | partial | no | none | no | `.github/copilot-instructions.md` and `AGENTS.md`; `.vscode/mcp.json` (VS Code, `servers`) and `.github/mcp.json` (Copilot CLI, `mcpServers`, `type: "local"`) |
+| `cursor` | planned; refuses | no | none | no | none |
 
-`ia host cursor` and `ia host codex --user` refuse with `IA-DIST-HOST-UNSUPPORTED` and write nothing. `ia doctor --host` accepts all three; for a host with no workspace registration, the briefing says so and never suggests `ia host`.
+`ia host cursor`, `ia host copilot` without `--commit`, and `ia host codex --user` refuse with `IA-DIST-HOST-UNSUPPORTED` and write nothing. Codex hooks are supported by the host; IA registers no Codex hook group yet, and Claude's guard observation stays Claude's. `ia doctor --host` accepts `claude`, `codex` and `cursor`; for a host with no workspace registration, the briefing says so and never suggests `ia host`.
+
+The committed bootstrap is the one set of host files meant for source control. Each instruction file gains one block between `<!-- BEGIN IA BOOTSTRAP ... -->` and `<!-- END IA BOOTSTRAP -->`, and each MCP file one server named `ia` whose launch is `npx -y @inventarch/mcp-door@<version>`, the CLI's own version; every other byte is kept, a rerun updates only the block and the server, and `--remove` takes out exactly them. A server named `ia` that is not such a launch, a repeated block, or an instruction file that is a generated position packet refuses with `IA-DIST-LOCAL-MODIFICATION`. The plan writes nothing; `--apply` is judged as Execution like a workspace apply, and `--remove` is not judged.
 
 ## 5 Install channel
 
@@ -50,7 +53,7 @@ The plugin version is `<cli version>+<12 hex digits>`. The digits come from a di
 
 ### 6.3 Apply
 
-`ia host claude --user` needs no workspace, refuses `--root`, and plans by default. `--apply` writes the plugin to `<IA home>/claude/marketplace`, then runs Claude's own `claude plugin marketplace add <that directory>` and `claude plugin install ia@inventarch --scope user`. The plan prints both commands. If `claude` cannot be run, the apply writes the plugin and says to run them by hand. `claude` is looked up only on fully qualified `PATH` entries. The apply never reads or edits Claude's settings files. `--remove --apply` runs Claude's removal commands first and deletes the plugin directory last.
+`ia host claude --user` needs no workspace, refuses `--root`, and plans by default. `--apply` runs Claude's own `claude plugin marketplace add inventarch/marketplace` and `claude plugin install ia@inventarch --scope user`, installing the one public `ia` plugin from the public catalogue `inventarch` (kit discovery decision 5), renders nothing, and records the install in `<IA home>/claude/marketplace-install.json`, which a workspace plan reads as the user-level plugin being present. `--local` keeps the offline path: `--apply` writes the rendered plugin to `<IA home>/claude/marketplace`, then runs `claude plugin marketplace add <that directory>` and the same install. The plan prints both commands and says which source (`marketplace` or `local`) it uses. If `claude` cannot be run, a local apply writes the plugin, and either apply says to run the commands by hand. `claude` is looked up only on fully qualified `PATH` entries. The apply never reads or edits Claude's settings files. `--remove --apply` runs Claude's removal commands first and deletes the plugin directory last.
 
 The plan runs `claude --version` to learn whether `claude` can be run, and a removal plan reads `claude plugin list --json` and `claude plugin marketplace list --json`. Removal runs `claude plugin uninstall ia@inventarch --scope user` and `claude plugin marketplace remove inventarch` only for what those lists report, or cannot rule out.
 
@@ -66,7 +69,7 @@ The user-level plugin is owned and removed independently of any workspace regist
 
 ### 7.3 Doctor
 
-These rows exist with or without a workspace: install channel, IA home, Claude plugin and updates. With a workspace, doctor adds a local language compatibility row; without one, it adds the initialization decision. `ia doctor --host <host> --json` adds `session`, the briefing, and `nextActions`, each with its argument vector and the host's own invocation where it has one (`/ia:init` for Claude). Doctor repairs nothing, never runs `claude`, and makes no registry or update request.
+These rows exist with or without a workspace: install channel, IA home, Claude plugin and updates. With a workspace, doctor adds a local language compatibility row; without one, it adds the initialization decision. `ia doctor --host <host> --json` adds `session`, the briefing, and `nextActions`, each with its argument vector and the host's own invocation where it has one (`/ia:init` for Claude). The Claude plugin row reads the rendered plugin, or else the marketplace install record: `ok` when the ia that wrote it is this one, `warn` naming that ia when it is another, and `warn` when either cannot be read, each stale or unreadable case naming `ia host claude --user --apply`; the briefing's plugin notice follows the same ia. Doctor repairs nothing, never runs `claude`, and makes no registry or update request.
 
 ## 8 Session hook
 
@@ -92,7 +95,7 @@ A decisions file that cannot be read is a doctor `warn` row naming the file and 
 
 ## 11 Updates and evidence
 
-Doctor reads update state only from the cache in the IA home; it never asks npm or git. When a refresh is due, doctor returns the refresh command as data and the session hook starts it in the background. `IA_NO_UPDATE_CHECK=1`, a non-empty `CI`, or `"updateCheck": false` in the IA home's `config.json` turns update checks off.
+Doctor reads update state only from the cache in the IA home; it never asks npm or git. When a refresh is due, doctor returns the refresh command as data and the session hook starts it in the background. `IA_NO_UPDATE_CHECK=1`, a non-empty `CI`, or `"updateCheck": false` in the IA home's `config.json` turns update checks off. The same file's `"accountOffer"` (boolean, default `true`) says whether the `ia` plugin makes its once-per-session account offer; `false` suppresses it for that IA home. Readers take both keys with `readIaConfig` and ignore any other.
 
 [User host tests](../../../apps/cli/tests/user-host.test.ts) and [briefing tests](../../../apps/cli/tests/briefing.test.ts) cover state reporting and command behavior. Live plugin activation in Claude Code needs separate evidence.
 

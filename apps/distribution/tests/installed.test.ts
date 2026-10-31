@@ -131,6 +131,63 @@ it('admits installed physical sources, native install edges and immutable editor
     reader.close();
   }
 });
+it('installs the kits of a package entry as ordinary releases, restores them by digest, and keeps a plain lock 0.1.1', () => {
+  // The release a package entry names is installed exactly as a locked release is: the same store payload, systems and
+  // admission, located by its digest.
+  const kit = {
+    id: packed.manifest.id,
+    version: packed.manifest.version,
+    archive: packed.archiveDigest,
+    manifest: packed.manifestDigest,
+    dependencies: [],
+  };
+  const entry = {
+    kind: 'package' as const,
+    name: '@inventarch/public-kits',
+    version: '1.0.0',
+    integrity: `sha512-${'E'.repeat(86)}==`,
+    kits: [kit],
+  };
+  const root = install();
+  cacheArchive(root, packed.bytes);
+  const lock = { formatVersion: 1 as const, engine: '^0.1.2', requests: [], packages: [], entries: [entry] };
+  const plan = planInstallation(root, lock, 'update');
+  expect(plan.changes).toMatchObject({ added: [], removed: [], updated: [] });
+  applyInstallation(plan);
+  expect(JSON.parse(readFileSync(join(root, '.ia/distributions.lock.json'), 'utf8'))).toEqual(lock);
+  expect(existsSync(join(root, `.ia/distributions/store/${packed.archiveDigest}/distribution.json`))).toBe(true);
+  const reader = open(root, { cache: false });
+  try {
+    expect(reader.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+    expect(reader.records().some((record) => record.name === 'installed-distributions')).toBe(true);
+  } finally {
+    reader.close();
+  }
+  // A restore reinstates the entry's kit from its archive in the workspace cache, as it does a release's; collection
+  // keeps the archive the entry names.
+  rmSync(join(root, '.ia/distributions/active.json'));
+  applyInstallation(planInstallation(root, lock, 'restore'));
+  collectInstallationGarbage(root);
+  expect(existsSync(join(root, `.ia/distributions/cache/${packed.archiveDigest}.ia.tgz`))).toBe(true);
+  // Without its archive, a restore of the entry is refused as a release's is.
+  rmSync(join(root, `.ia/distributions/cache/${packed.archiveDigest}.ia.tgz`));
+  rmSync(join(root, '.ia/distributions/active.json'));
+  expect(() => planInstallation(root, lock, 'restore')).toThrow(/Missing cached archive/);
+  cacheArchive(root, packed.bytes);
+  // A solve from that lock keeps its entry and the engine it needs; one from a lock without entries writes the 0.1.1
+  // marker every released 0.1.1 engine reads, as before the package entry.
+  const candidates = [{ release: packed, location: `sha256:${packed.archiveDigest}`, withdrawn: false }];
+  const requests = [{ id: 'test/foundation', range: '^0.1.0' }];
+  const other = { ...entry, kits: [{ ...kit, id: 'test/kit' }] };
+  const carried = resolveReleases(requests, candidates, DISTRIBUTION_ENGINE_VERSION, {
+    ...lock,
+    entries: [other],
+  }).lock;
+  expect(carried).toMatchObject({ engine: '^0.1.2', entries: [other] });
+  const plain = resolveReleases(requests, candidates, DISTRIBUTION_ENGINE_VERSION, selected.lock).lock;
+  expect(plain.engine).toBe('0.1.1');
+  expect('entries' in plain).toBe(false);
+});
 it('opens and restores an exact legacy 0.1.0 lock without rewriting pins, while keeping actual archive engine ranges strict', () => {
   expect(selected.lock.engine).toBe('0.1.0');
   expect(packed.manifest.engine).toBe('^0.1.0');
@@ -147,7 +204,8 @@ it('opens and restores an exact legacy 0.1.0 lock without rewriting pins, while 
   } finally {
     reader.close();
   }
-  for (const engine of ['0.1.2', '0.2.0'])
+  // An exact marker no released solver wrote is an exact range: 0.1.3 and 0.2.0 admit no other engine.
+  for (const engine of ['0.1.3', '0.2.0'])
     expect(() => planInstallation(root, { ...selected.lock, engine }, 'restore')).toThrow(
       /Lock engine compatibility differs/,
     );

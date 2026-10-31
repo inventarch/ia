@@ -288,7 +288,8 @@
       "inputProfile": "workspace-records",
       "dependsOn": [
         "runtime:build",
-        "kb:build"
+        "kb:build",
+        "distribution:build"
       ],
       "outputs": [
         "apps/mcp-door/dist",
@@ -877,6 +878,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/host-commit.test.ts",
         "tests/host-registration.test.ts"
       ],
       "profile": "installed",
@@ -1236,7 +1238,8 @@
         "tests/distribution-verbs.test.ts",
         "tests/equivalence.test.ts",
         "tests/host-plugin.test.ts",
-        "tests/host-projection.test.ts"
+        "tests/host-projection.test.ts",
+        "tests/install-package.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -1330,6 +1333,7 @@
         "tests/archive.test.ts",
         "tests/authoring-assets.test.ts",
         "tests/authoring-consumers.test.ts",
+        "tests/bootstrap.test.ts",
         "tests/bounded-fetch.test.ts",
         "tests/command.test.ts",
         "tests/context-launcher.test.ts",
@@ -1533,7 +1537,9 @@
       "files": [
         "tests/protocol.test.ts",
         "tests/stdio.test.ts",
-        "tests/kb.test.ts"
+        "tests/kb.test.ts",
+        "tests/method.test.ts",
+        "tests/kits-package.test.ts"
       ],
       "profile": "installed",
       "platforms": [
@@ -1544,7 +1550,8 @@
       "mode": "source",
       "inputProfile": "workspace-records",
       "dependsOn": [
-        "mcp-door:build"
+        "mcp-door:build",
+        "language-base:generate"
       ],
       "outputs": [
         "artifacts/tests/mcp-door-test"
@@ -2550,10 +2557,12 @@
         "tests/door-read.test.ts",
         "tests/editor.test.ts",
         "tests/entry.test.ts",
+        "tests/kits-package.test.ts",
         "tests/locator.test.ts",
         "tests/loop.test.ts",
         "tests/mandate-modes.test.ts",
         "tests/mandate-resolution.test.ts",
+        "tests/method.test.ts",
         "tests/next.test.ts",
         "tests/packet-host.test.ts",
         "tests/packet.test.ts",
@@ -4089,6 +4098,8 @@
       "outputs": [
         "apps/cli/assets/base",
         "apps/cli/assets/base.json",
+        "apps/mcp-door/assets/base",
+        "apps/mcp-door/assets/base.json",
         "artifacts/tests/language-base-generate"
       ],
       "cache": true,

@@ -79,7 +79,7 @@ it('plans the claude projection and writes nothing: the entry count, the packet 
     apply: false,
     plan: {
       // A fresh init with sixteen catalog rows, including seven KB modes: 35 + N, N = 11.
-      entries: 46,
+      entries: 47,
       packetDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       files: [
         { path: RULES, action: 'create' },
@@ -96,7 +96,7 @@ it('plans the claude projection and writes nothing: the entry count, the packet 
   expect(text.exitCode).toBe(0);
   const shown = flat(text.stdout);
   expect(shown).toContain('This is a preview. Nothing has been written.');
-  expect(shown).toContain(`46 entries, digest ${envelope.plan.packetDigest.slice(0, 12)}`);
+  expect(shown).toContain(`47 entries, digest ${envelope.plan.packetDigest.slice(0, 12)}`);
   expect(shown).toContain(`${RULES} create`);
   expect(shown).toContain('no steward guard to retire');
   // A long command breaks with a backslash continuation; joined, it is the apply of this plan.
@@ -115,14 +115,14 @@ it('applies the packet and its receipt, which doctor reads with no drift until a
   const applied = await project(root, env, 'claude', '--apply', '--yes');
   expect(applied.exitCode, applied.stdout).toBe(0);
   const envelope = JSON.parse(applied.stdout);
-  expect(envelope).toMatchObject({ command: 'project', host: 'claude', apply: true, plan: { entries: 46 } });
+  expect(envelope).toMatchObject({ command: 'project', host: 'claude', apply: true, plan: { entries: 47 } });
   // `applied` is the receipt written beside the projection state, and its digests are the bytes on disk.
   const receipt = JSON.parse(read(root, RECEIPT));
   expect(envelope.applied).toEqual(receipt);
   expect(receipt).toMatchObject({
     format: 'ia.packet-receipt.v1',
     host: 'claude',
-    entries: 46,
+    entries: 47,
     packetDigest: envelope.plan.packetDigest,
     removed: [],
     foreign: [],
@@ -182,7 +182,7 @@ it('applies the packet and its receipt, which doctor reads with no drift until a
   const again = await human(root, env, 'claude', '--apply', '--yes');
   expect(again.exitCode).toBe(0);
   const shown = flat(again.stdout);
-  expect(shown).toContain('Projected 46 entries for claude: written; not observed being read.');
+  expect(shown).toContain('Projected 47 entries for claude: written; not observed being read.');
   expect(shown).toContain(RECEIPT);
   expect(shown).toContain(`${RULES} sha256 ${sha(readFileSync(resolve(root, RULES))).slice(0, 12)}`);
   expect(shown).toContain(`Run "${rooted('ia doctor', root)}" for the observed projection state.`);

@@ -1,0 +1,40 @@
+{
+  "format": 1,
+  "checks": {
+    "kb-check-validate": {
+      "argv": [
+        "${IA}",
+        "validate",
+        "--json"
+      ],
+      "cwd": "workspace"
+    },
+    "kb-check-locators": {
+      "argv": [
+        "${NODE}",
+        "${KIT}/scripts/check-locators.mjs",
+        "${KIT}/assets/examples/split-body/locators.json"
+      ],
+      "cwd": "kit"
+    },
+    "kb-check-task-locators": {
+      "argv": [
+        "${NODE}",
+        "${KIT}/scripts/check-locators.mjs",
+        "${ARG:manifest}"
+      ],
+      "cwd": "workspace",
+      "arguments": {
+        "manifest": "workspace-file"
+      }
+    },
+    "kb-check-decisions": {
+      "argv": [
+        "${NODE}",
+        "${KIT}/scripts/check-decisions.mjs",
+        "${IA}"
+      ],
+      "cwd": "workspace"
+    }
+  }
+}

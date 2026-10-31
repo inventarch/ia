@@ -228,9 +228,9 @@ export function observeHosts(
         stale('mcp-modified');
       }
     }
-    // The steward guard is a hooks element, so it is observed only for a host whose row declares hooks (host plugin
-    // distribution spec §4).
-    if (workspaceRow(host)?.hooks) {
+    // The steward guard is a hooks element registered in Claude's settings, so it is observed only for Claude, whose row
+    // declares hooks (host plugin distribution spec §4); Codex hooks are supported but no guard was ever registered there.
+    if (host === 'claude' && workspaceRow(host)?.hooks) {
       const guard = guardRow(root);
       if (guard !== ABSENT) {
         elements.push('hooks');

@@ -85,6 +85,7 @@ import {
   readExpandedBundle,
   DISTRIBUTION_ENGINE_VERSION,
   INSTALL_PATHS,
+  RELEASE_ENGINE_VERSION,
   sha256,
 } from '@inventarch/db/distribution';
 import type { DistributionLock, ReleaseDescriptor } from '@inventarch/db/distribution';
@@ -748,7 +749,7 @@ export function starterDescriptor(
     id,
     version: STARTER_VERSION,
     ...(distribution === undefined ? {} : { distribution }),
-    engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
+    engine: `^${RELEASE_ENGINE_VERSION}`,
     language: ['1.0'],
     dependencies: baseDependencies(base),
     assets,

@@ -97,7 +97,8 @@ export function brief(input: BriefInput): { readonly session: Session; readonly 
   const first = (text: string): void => {
     if (notice === null) notice = text;
   };
-  // §8.2: the plugin the user runs was rendered by another ia; re-rendering it is the whole remedy.
+  // §8.2: the plugin the user runs was installed by another ia, rendered or from the public marketplace; installing
+  // it again is the remedy.
   if (hostRow(input.host)?.user === 'plugin' && input.plugin !== null && input.plugin.cli !== input.version) {
     const user = ['ia', 'host', input.host, '--user', '--apply'];
     first(`IA: the plugin was installed by ia ${input.plugin.cli} but ia is ${input.version}; run ${command(user)}`);
