@@ -484,7 +484,11 @@ it('serves the door operations as the machine protocol table describes them', ()
   const value = protocol();
   initialize(value);
   const listed = value.request(message(2, 'tools/list'))?.result as {
-    tools: { name: string; description: string; inputSchema: { properties: Record<string, unknown> } }[];
+    tools: {
+      name: string;
+      description: string;
+      inputSchema: { properties: Record<string, { description: string }> };
+    }[];
   };
   const tools = listed.tools;
   const served = MACHINE_PROTOCOL.operations.filter((operation) => operation.mcp !== null);
@@ -503,9 +507,72 @@ it('serves the door operations as the machine protocol table describes them', ()
   for (const operation of served) {
     const tool = tools.find((candidate) => candidate.name === operation.mcp)!;
     expect(tool.description.startsWith(operation.description), operation.name).toBe(true);
-    const { format, ...properties } = tool.inputSchema.properties;
+    const { format, within, ...properties } = tool.inputSchema.properties;
     // M04a: format is the one transport-only parameter, and only ia_context takes it.
     expect(format !== undefined, operation.name).toBe(operation.name === 'context');
-    expect({ ...tool.inputSchema, properties }, operation.name).toEqual(operation.params);
+    // within is the table's, with how a token expires after it: the frozen rows cannot say so.
+    const row = (operation.params['properties'] as Record<string, { description: string }>)['within']!;
+    expect(within!.description.startsWith(`${row.description} `), operation.name).toBe(true);
+    expect({ ...tool.inputSchema, properties: { ...properties, within: row } }, operation.name).toEqual(
+      operation.params,
+    );
   }
+});
+// A token can expire within this process, and a client reads about tokens in these places, not in the protocol's prose.
+it('tells a client wherever it reads about tokens that one can expire and how to recover', () => {
+  const value = protocol(),
+    { instructions } = initialize(value)?.result as { instructions: string },
+    { tools } = value.request(message(2, 'tools/list'))?.result as {
+      tools: {
+        name: string;
+        description: string;
+        inputSchema: { properties: Record<string, { description: string } | undefined> };
+      }[];
+    };
+  const recovers = (text: string, label: string): void => {
+    expect(text, label).toMatch(/expire/);
+    expect(text, label).toContain('ia_scope');
+  };
+  recovers(instructions, 'instructions');
+  recovers(tools.find((tool) => tool.name === 'ia_scope')!.description, 'ia_scope');
+  const within = tools.flatMap((tool) => {
+    const parameter = tool.inputSchema.properties['within'];
+    return parameter === undefined ? [] : [[tool.name, parameter.description] as const];
+  });
+  expect(within.map(([name]) => name)).toEqual(
+    tools.map((tool) => tool.name).filter((name) => name !== 'ia_vocabulary'),
+  );
+  for (const [name, description] of within) recovers(description, name);
+  const lifetime = MACHINE_PROTOCOL.differences.find((row) => row.topic === 'Token lifetime')!;
+  recovers(lifetime.mcp, 'differences');
+  expect(lifetime.mcp).not.toContain('until the server exits');
+  const flow = MACHINE_PROTOCOL.flow.find((line) => line.startsWith('A token lives'))!;
+  expect(flow).toContain('at most as long as the process');
+  expect(flow).toContain('IA-DB-STALE');
+});
+// The token a client passes fails here, so the refusal itself has to say what to do next.
+it('says in the refusal of a door tool and of a knowledge tool how to recover from an expired token', () => {
+  const value = protocol();
+  initialize(value);
+  const call = (name: string, args: object) =>
+    (
+      value.request(message(3, 'tools/call', { name, arguments: args }))?.result as {
+        structuredContent: { ok: boolean; result: { token: string }; message: string; error: { message: string } };
+      }
+    ).structuredContent;
+  const expired = call('ia_scope', {}).result.token;
+  for (let newer = 0; newer < 4096; newer++) call('ia_scope', {});
+  expect(call('ia_records', { within: expired })).toMatchObject({
+    ok: false,
+    code: 'IA-DB-STALE',
+    message: expect.stringContaining('issue a new scope'),
+  });
+  expect(call('ia_kb_check', { within: expired })).toMatchObject({
+    ok: false,
+    error: { code: 'IA-KB-SCOPE-UNAVAILABLE', message: expect.stringMatching(/expired.*ia_scope/) },
+  });
+  expect(call('ia_kb_check', { within: 'forged' })).toMatchObject({
+    ok: false,
+    error: { code: 'IA-KB-SCOPE-UNAVAILABLE', message: 'Knowledge scope unavailable' },
+  });
 });

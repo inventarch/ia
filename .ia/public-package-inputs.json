@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "05e41c67bd25fe82fefe7e8b9b6dfe147ac3d435",
-    "tree": "ea41c24678d98230025c239414a319e45aeb9c96",
+    "commit": "f401753ceb9c118add31b9af25b620c05c7a6ff9",
+    "tree": "d0456925748404b7996e5b81f2cc74e649847d4f",
     "dirty": true
   },
   "membership": {
@@ -2236,7 +2236,7 @@
     },
     {
       "path": "apps/distribution/tests/services.test.ts",
-      "sha256": "7b9d8be55ac53ce5d5708af58d6593cd8c508c35bb2b9c5e44dd28bae5f44ed3"
+      "sha256": "4f0608cd9da7ba9c891d298db3bc904ba603bb38977d9f090a3be970169f16a4"
     },
     {
       "path": "apps/distribution/tests/snapshot-fixture.ts",
@@ -2300,11 +2300,11 @@
     },
     {
       "path": "apps/mcp-door/README.md",
-      "sha256": "a080057a0e51b77d3c810b2f346ca0556c2ce5bd1c110d3a922fc6386bdfb006"
+      "sha256": "9cef1bfa562d985042166ca2708cc63be03dfbdb7cf59829165d0deb43cd7dba"
     },
     {
       "path": "apps/mcp-door/SPEC.md",
-      "sha256": "92361abc4bf92ea8e9c182e6f46c071ab5c1a10eee6cf5a56c74b8d96d0337b0"
+      "sha256": "786cae32a4446cf5b64e5a4e12f646ac8d6ba1140b32f33de97dc7f7dfae7407"
     },
     {
       "path": "apps/mcp-door/assets/vocabulary.json",
@@ -2316,7 +2316,7 @@
     },
     {
       "path": "apps/mcp-door/src/kb.ts",
-      "sha256": "2ae2cffeb15344492000218d4c20b61f7764d9629f610888be9a5420a690ac2f"
+      "sha256": "162ed5f4e47ebd31f085fb3ec874158b78d9f9ee0b2a6a9dc19764d756106f0a"
     },
     {
       "path": "apps/mcp-door/src/main.ts",
@@ -2328,11 +2328,11 @@
     },
     {
       "path": "apps/mcp-door/src/protocol.ts",
-      "sha256": "ab13bfdd9653d91a102ac16118cfa267b41d74dc75d8ea90f25a3ff53cbaf0c3"
+      "sha256": "e65f254e41d4c01747150cf83ae11dc3279f72f5c5e815de2c8168c5c6dbfadf"
     },
     {
       "path": "apps/mcp-door/src/tools.ts",
-      "sha256": "10b01b38ba5d40ad34e74ea91968ff885e0bd5b9b2d8b9bd8d355001f66ad3e7"
+      "sha256": "cbb3e87d43e3ed384b429e8a1f46af8cc930e2d0f3571d65299d4c6c1fafc1cc"
     },
     {
       "path": "apps/mcp-door/src/vocabulary.ts",
@@ -2344,7 +2344,7 @@
     },
     {
       "path": "apps/mcp-door/tests/protocol.test.ts",
-      "sha256": "37b87f1f82dcda31a8514c5b25a582130cddfea4b55128ee4d08bc6b08fba7ba"
+      "sha256": "6cd435d7b174621eda751b4242883557cb35878ba99f81b9ee7d5bffd9232ddc"
     },
     {
       "path": "apps/mcp-door/tests/stdio.test.ts",
@@ -5248,11 +5248,11 @@
     },
     {
       "path": "packages/db/README.md",
-      "sha256": "9fb8ff4f5a8a9869b1446fc7b9234603a463278807bb551da947af6434582382"
+      "sha256": "8d4339e4dfbd9bf759131f21620843370effc6414811387c27ad1326729726f6"
     },
     {
       "path": "packages/db/SPEC.md",
-      "sha256": "4aa0b9391c6ec68ca15f5328a5066d621fc30e791bc5a4a0bbc7990e47692e9e"
+      "sha256": "c08b8465b09066b2858c18cd5582ee5d3a54b19102521b8654babef06e88de2e"
     },
     {
       "path": "packages/db/fixtures/descriptors/consumer.mjs",
@@ -5416,7 +5416,7 @@
     },
     {
       "path": "packages/db/src/editor/index.ts",
-      "sha256": "14b76d631c7e1db94b96baf93b8482beb9d9171478134cf83f193ad9d2b15a11"
+      "sha256": "4914fa9527d401f0a0fc6db3d9bbc80f4a4bec36f99117073dbb1c670ce44bb4"
     },
     {
       "path": "packages/db/src/errors.ts",
@@ -5428,7 +5428,7 @@
     },
     {
       "path": "packages/db/src/handle.ts",
-      "sha256": "a1f6f284f16e938e4420a57058131ad87b7ac103fc2d911a9cea902987b8d1c3"
+      "sha256": "36c1a08c6e4864c81fb217d562b7e4cd08278bb6411b780e627182d5dac94b06"
     },
     {
       "path": "packages/db/src/index.ts",
@@ -5472,7 +5472,7 @@
     },
     {
       "path": "packages/db/src/view.ts",
-      "sha256": "f598a7087fece74b56e545f63c531275da36c5564efd6f25d7c026a75407812d"
+      "sha256": "7fb51790fc4de138b719a9cf45dda54a13f52765be31d2c7813d737f42fca777"
     },
     {
       "path": "packages/db/tests/acceptance.test.ts",
@@ -5523,6 +5523,10 @@
       "sha256": "5614b8a474ed709d6efec8dcb17e846c53c760e51d68378231623efa71ad84ca"
     },
     {
+      "path": "packages/db/tests/release-child.ts",
+      "sha256": "60262d00d60958544a59b0672cc9b588e878d6c3cc2ba3aec8732a8f432166fa"
+    },
+    {
       "path": "packages/db/tests/retention.test.ts",
       "sha256": "10d5e439bddd908a20d57cbbddfb987518e611fc8c092e7564e0190bbcfb494f"
     },
@@ -5532,7 +5536,7 @@
     },
     {
       "path": "packages/db/tests/scope.test.ts",
-      "sha256": "db286527d2a52970b1cbfad4894530aaaf14cb23820bb05f2d689fd695464366"
+      "sha256": "78564959f69b7e7f4cd658fb6088013b928b4c5353e280f54f9ba4c319b7c51a"
     },
     {
       "path": "packages/db/tests/seat.test.ts",
@@ -5540,7 +5544,7 @@
     },
     {
       "path": "packages/db/tests/view.test.ts",
-      "sha256": "aafc0f0416951a8d19a5282e67fbe5a0ed652597cb091e74137d26e3f88dad20"
+      "sha256": "ed0ca2a62ebc8c040a8a22b9889fd091a2eb6b56bd256160891031ccf3a2acd2"
     },
     {
       "path": "packages/db/tests/workspace-config.test.ts",
@@ -6236,7 +6240,7 @@
     },
     {
       "path": "packages/runtime/SPEC.md",
-      "sha256": "7ff3d2e844f41bed9044501cc5e38db300134cb413b34341859a5b213ae59282"
+      "sha256": "8fc869691c01a39f61edb0132b4e5d9ee970dfd4e3cbbe31ea11b0ee89486b1c"
     },
     {
       "path": "packages/runtime/package.json",
@@ -6288,7 +6292,7 @@
     },
     {
       "path": "packages/runtime/src/door.ts",
-      "sha256": "9ae18e2104082da3946fb62300780cc99f12eb8044da8fc066d4d5fb979c3f18"
+      "sha256": "638e52f52d101753ca13e8b1d510c2989271c6f127c0932a3041fd4f40451472"
     },
     {
       "path": "packages/runtime/src/editor/index.ts",
@@ -6320,7 +6324,7 @@
     },
     {
       "path": "packages/runtime/src/machine-protocol.ts",
-      "sha256": "b78c8dad15bd74e97a1339034ba4c9b65038438b189f80d7e347f0ebe387b928"
+      "sha256": "7927235add89f3a4195b62576848f1d7343fe08a5140c08520a63e4d404f6f40"
     },
     {
       "path": "packages/runtime/src/mandate-guard.ts",
@@ -6512,7 +6516,7 @@
     },
     {
       "path": "packages/runtime/tests/select-door.test.ts",
-      "sha256": "612e5b0abc03a548cd08a4569d432deeb2ffb72dc07e179489803fbbba7ffb45"
+      "sha256": "989a26fd7a6f3fe5df933e13360c93550ff604cc23b2b3d855b5c0d9faa49658"
     },
     {
       "path": "packages/runtime/tests/steward.test.ts",
@@ -7057,6 +7061,10 @@
     {
       "path": "releases/native/notes.json",
       "sha256": "09f3bfb89d8c4cab7ac8d1f827e81e60404dc6b5dbc8f139a2f1505e7d9bcc86"
+    },
+    {
+      "path": "releases/pending/scope-tokens-can-now-expire-within-a-process-and.json",
+      "sha256": "cbfaa32f9f9474e87a9d63587edcb7522daea2d49b439795d3c6534c265c6f28"
     },
     {
       "path": "tools/compliance/SPEC.md",
@@ -8147,5 +8155,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "ecbe6116f2f71361b83b648dc95dcdcac23810dc324cbe70109ba76919b90ccd"
+  "inputDigest": "5afc45b331563e470b19d1a8136bf0aa211686873028a1075d12a8f01eee435b"
 }

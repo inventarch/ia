@@ -21,6 +21,26 @@ const withFormat = (schema: JsonSchema): JsonSchema => ({
   properties: { ...(schema['properties'] as Record<string, unknown>), format: FORMAT },
 });
 /**
+ * A token can expire while the server runs (database D08c), which the frozen version 1 rows cannot say. So the tools do:
+ * in full on the one that issues tokens, and in brief on every `within`, where a client chooses what to pass.
+ */
+const EXPIRY =
+  'A token can expire while the server runs: once 4,096 newer scopes are issued or read before it is read again, it refuses and reads nothing. Call ia_scope for a new one, with the same narrowing.';
+const WITHIN_EXPIRY =
+  'It can expire: on IA-DB-STALE, or IA-KB-SCOPE-UNAVAILABLE from an ia_kb tool, call ia_scope for a new one.';
+const withExpiry = (schema: JsonSchema): JsonSchema => {
+  const properties = schema['properties'] as Record<string, JsonSchema>,
+    within = properties['within'];
+  if (within === undefined) return schema;
+  return {
+    ...schema,
+    properties: {
+      ...properties,
+      within: { ...within, description: `${String(within['description'])} ${WITHIN_EXPIRY}` },
+    },
+  };
+};
+/**
  * The door operations whose row names a tool, described once in @inventarch/runtime's MACHINE_PROTOCOL (runtime R12):
  * the eight of version 1 (report is CLI-only), and read, next and position, which version 2 adds.
  */
@@ -34,7 +54,9 @@ const served = MACHINE_PROTOCOL.operations.flatMap((operation) =>
           description:
             operation.name === 'context'
               ? `${operation.description} Prefer format=compact for model context; full includes per-record omission diagnostics.`
-              : operation.description,
+              : operation.name === 'scope'
+                ? `${operation.description} ${EXPIRY}`
+                : operation.description,
           inputSchema: operation.name === 'context' ? withFormat(operation.params) : operation.params,
         },
       ],
@@ -84,7 +106,7 @@ const definitions = [
 export const TOOLS = definitions.map(({ name, description, inputSchema }) => ({
   name,
   description,
-  inputSchema,
+  inputSchema: withExpiry(inputSchema),
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 }));
 export const OPERATIONS = new Map(definitions.map(({ name, operation }) => [name, operation]));

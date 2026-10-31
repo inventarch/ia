@@ -72,7 +72,7 @@ The `ia_position` body is a pure function of the key and the admitted records. I
 - **It never writes.** Every tool is annotated `readOnlyHint: true`, and the workspace files are unchanged after a session. Authoring, validation and capture stay with the CLI (`ia preview`, `ia author`, `ia validate`, `ia capture`).
 - **It checks no `@mandate`.** The CLI's mandate-checked commands, the edit guard and `ia-runner` check mandates; these tools do not. Mandates are cooperative restrictions, not authentication or a sandbox.
 - **It grants nothing.** `ia_select` and `ia_context` choose and deliver records; they execute nothing. A read certifies nothing: the digest identifies bytes, not whether they are true.
-- **Scope tokens are process-local.** A token from `ia_scope` lasts as long as the server process. Narrowing a token limits what later calls read through it.
+- **Scope tokens are process-local and can expire.** A token from `ia_scope` lasts at most as long as the server process. Once 4,096 newer scopes are issued or read before it is read again, it refuses with `IA-DB-STALE` (`IA-KB-SCOPE-UNAVAILABLE` from an `ia_kb` tool) and reads nothing. Call `ia_scope` for a new one, with the same narrowing. Calls that omit `within` read the initial boundary, which never expires. Narrowing a token limits what later calls read through it.
 - **Bounded transport.** Stdio only, with no network listener. A line over 4 MiB or invalid UTF-8 ends the session, and `tools/list` issues no pagination cursor.
 
 ## 📚 Learn more

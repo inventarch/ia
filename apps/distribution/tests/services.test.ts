@@ -485,19 +485,18 @@ it('mints a scope token per call so one session can draft more than one file', (
   try {
     const first = session.within();
     // refresh() builds a new view even when the sources are unchanged, and formatSource refreshes on every
-    // call. A token minted once is still admitted by the handle — the generation did not change — but it stays
-    // bound to the records of the view it was minted against.
+    // call. A token minted once is still admitted by the handle, as the generation did not change.
     session.reader.refresh();
     const second = session.within();
     expect(second).not.toBe(first);
     // The check the draft gate performs is object identity against the live records
-    // (.ia/src/systems/authoring-system/src/index.ts:26). The older token fails it; the fresh one passes.
+    // (.ia/src/systems/authoring-system/src/index.ts:26). A scope holds no view (db D08c), so both tokens pass it.
     const live = (token: string): boolean => {
       const selected = session.reader.snapshot({ within: token }).records,
         all = session.reader.records();
       return selected.length === all.length && selected.every((node, index) => node === all[index]);
     };
-    expect(live(first)).toBe(false);
+    expect(live(first)).toBe(true);
     expect(live(second)).toBe(true);
     // The observable the defect produced: every file after the first refused, with no diagnostics at all.
     // Three authored record files, taken from whichever corpus the copy holds, so the public tree runs it too.

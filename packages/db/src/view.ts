@@ -135,6 +135,18 @@ interface Context {
 export const occurrenceKey = (record: CompiledRecord): string =>
   JSON.stringify([record.identity, record.source.path, record.source.line]);
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/**
+ * D08c: the reaches `sources` declare, the workspace root among them, shallowest first: the only places where the
+ * sources in view can change (D03).
+ */
+export const declaredReaches = (sources: readonly Pick<RevisionSource, 'location'>[]): readonly string[] =>
+  [...new Set(['', ...sources.map((s) => canonicalRoot(s.location.placement.reach))])].sort(compare);
+/**
+ * D08c: the reach that decides what `location` reads. The reaches above a location nest, so the deepest selects every
+ * source any of them does, and a view built there differs from one built at `location` only in the location it names.
+ */
+export const reachAt = (declared: readonly string[], location: string): string =>
+  declared.filter((reach) => reaches(reach, location)).at(-1)!;
 /** A diagnostic as an unadmitted occurrence carries it. */
 const findingOf = (diagnostic: {
   readonly code: string;
@@ -452,8 +464,8 @@ function views(
   };
   // Registry visibility can change only at a declared reach. Inspect those
   // finite contexts before authority so bands cannot conceal duplicate REQ ids.
-  for (const reach of [...new Set(['', ...inputSources.map((s) => s.location.placement.reach)])].sort(compare))
-    analyze(reach);
+  const reachList = declaredReaches(inputSources);
+  for (const reach of reachList) analyze(reach);
   const requirements = new Map<string, { id: string; identity: string; path: string; line: number }>();
   for (const context of contexts.values())
     for (const record of context.records)
@@ -478,7 +490,7 @@ function views(
   let declared: readonly DeclaredRoot[] | undefined, repository: string | undefined;
   const build = (requested = '', phase?: Phase): View => {
     const location = canonicalRoot(requested),
-      context = analyze(location),
+      context = analyze(reachAt(reachList, location)),
       registry = context.registry;
     // Independent-file compilation cannot decide external targets. Graph owns
     // those final findings; refused owners retain their primary source fault.
