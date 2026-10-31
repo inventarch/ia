@@ -131,6 +131,38 @@ it('admits installed physical sources, native install edges and immutable editor
     reader.close();
   }
 });
+it('installs, restores and re-solves a lock with a package entry beside its releases, and keeps a plain lock 0.1.1', () => {
+  const entry = {
+    kind: 'package' as const,
+    name: '@inventarch/public-kits',
+    version: '1.0.0',
+    integrity: `sha512-${'E'.repeat(86)}==`,
+    kits: [{ id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: 'c'.repeat(64) }],
+  };
+  const root = install();
+  cacheArchive(root, packed.bytes);
+  const lock = { ...selected.lock, engine: '^0.1.2', entries: [entry] };
+  applyInstallation(planInstallation(root, lock, 'update'));
+  expect(JSON.parse(readFileSync(join(root, '.ia/distributions.lock.json'), 'utf8'))).toEqual(lock);
+  const reader = open(root, { cache: false });
+  try {
+    expect(reader.report.findings.filter((finding) => finding.severity === 'error')).toEqual([]);
+  } finally {
+    reader.close();
+  }
+  // A restore reinstates the releases; the package entry needs no archive.
+  rmSync(join(root, '.ia/distributions/active.json'));
+  applyInstallation(planInstallation(root, lock, 'restore'));
+  // A solve from that lock keeps its entry and the engine it needs; one from a lock without entries writes the 0.1.1
+  // marker every released 0.1.1 engine reads, as before the package entry.
+  const candidates = [{ release: packed, location: `sha256:${packed.archiveDigest}`, withdrawn: false }];
+  const requests = [{ id: 'test/foundation', range: '^0.1.0' }];
+  const carried = resolveReleases(requests, candidates, DISTRIBUTION_ENGINE_VERSION, lock).lock;
+  expect(carried).toMatchObject({ engine: '^0.1.2', entries: [entry] });
+  const plain = resolveReleases(requests, candidates, DISTRIBUTION_ENGINE_VERSION, selected.lock).lock;
+  expect(plain.engine).toBe('0.1.1');
+  expect('entries' in plain).toBe(false);
+});
 it('opens and restores an exact legacy 0.1.0 lock without rewriting pins, while keeping actual archive engine ranges strict', () => {
   expect(selected.lock.engine).toBe('0.1.0');
   expect(packed.manifest.engine).toBe('^0.1.0');
@@ -147,7 +179,8 @@ it('opens and restores an exact legacy 0.1.0 lock without rewriting pins, while 
   } finally {
     reader.close();
   }
-  for (const engine of ['0.1.2', '0.2.0'])
+  // An exact marker no released solver wrote is an exact range: 0.1.3 and 0.2.0 admit no other engine.
+  for (const engine of ['0.1.3', '0.2.0'])
     expect(() => planInstallation(root, { ...selected.lock, engine }, 'restore')).toThrow(
       /Lock engine compatibility differs/,
     );

@@ -20,7 +20,11 @@ import { contained, portable } from '../../apps/distribution/src/files.ts';
 import { registryAddCollection } from '../../apps/distribution/src/registry-build.ts';
 import { languagePackageInputs } from '../native/public-language.ts';
 import { buildLanguageBase } from '../native/language-base.ts';
-import { DISTRIBUTION_ENGINE_VERSION, DISTRIBUTION_LIMITS } from '../../packages/db/src/distribution/index.js';
+import {
+  DISTRIBUTION_ENGINE_VERSION,
+  DISTRIBUTION_LIMITS,
+  RELEASE_ENGINE_VERSION,
+} from '../../packages/db/src/distribution/index.js';
 
 const sameFile = (before, after) =>
   after.isFile() &&
@@ -101,7 +105,7 @@ export function packOptionalDistribution(root, options) {
   const verified = verifyArchive(language.bytes);
   const descriptor = {
     ...options.descriptor,
-    engine: options.descriptor.engine ?? `^${DISTRIBUTION_ENGINE_VERSION}`,
+    engine: options.descriptor.engine ?? `^${RELEASE_ENGINE_VERSION}`,
     language: ['1.0'],
     dependencies: [{ id: verified.manifest.id, range: verified.manifest.version, systems: [...base.folders].sort() }],
     assets: [...assets.keys()].sort().map((path) => ({

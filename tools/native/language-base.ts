@@ -22,7 +22,11 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyArchive } from '../../apps/distribution/src/archive.js';
 import { distributionSnapshot, packSnapshot } from '../../apps/distribution/src/snapshot.js';
-import { DISTRIBUTION_ENGINE_VERSION, satisfies } from '../../packages/db/src/distribution/index.js';
+import {
+  DISTRIBUTION_ENGINE_VERSION,
+  RELEASE_ENGINE_VERSION,
+  satisfies,
+} from '../../packages/db/src/distribution/index.js';
 import { languagePackageInputs } from './public-language.js';
 import { isEntry } from '../entry/is-entry.mjs';
 import { containedFile, readRegular } from '../shared/paths.mjs';
@@ -45,7 +49,7 @@ export interface LanguageBase {
 }
 
 /** The base artifact descriptor. `version` and `engine` are parameters so compatibility refusals can be exercised. */
-export function languageBaseDescriptor(version: string, engine = `^${DISTRIBUTION_ENGINE_VERSION}`) {
+export function languageBaseDescriptor(version: string, engine = `^${RELEASE_ENGINE_VERSION}`) {
   return {
     formatVersion: 1,
     id: BASE_ID,

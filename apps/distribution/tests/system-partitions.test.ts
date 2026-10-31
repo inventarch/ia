@@ -16,6 +16,7 @@ import {
   generationSources,
   installationWorkspace,
   DISTRIBUTION_ENGINE_VERSION,
+  RELEASE_ENGINE_VERSION,
   satisfies,
 } from '@inventarch/db/distribution';
 import { EditorSnapshot } from '@inventarch/db/editor';
@@ -159,7 +160,8 @@ it('retains standalone refusal for root release controls and dependent authoring
 
 it('requires the root-control engine capability while retaining compatibility with legacy archive ranges', () => {
   const archive = packed.find((row) => row.manifest.id === 'fixture/workspace-system')!;
-  expect(archive.manifest.engine).toBe(`^${DISTRIBUTION_ENGINE_VERSION}`);
+  // Archives keep declaring the 0.1.1 marker, so the package entry's engine bump leaves their bytes unchanged.
+  expect(archive.manifest.engine).toBe(`^${RELEASE_ENGINE_VERSION}`);
   expect(satisfies('0.1.0', archive.manifest.engine)).toBe(false);
   expect(satisfies(DISTRIBUTION_ENGINE_VERSION, archive.manifest.engine)).toBe(true);
   expect(satisfies(DISTRIBUTION_ENGINE_VERSION, '^0.1.0')).toBe(true);
