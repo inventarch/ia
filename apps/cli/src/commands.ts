@@ -776,7 +776,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     syntax: [
       'ia host <claude|codex|cursor> [--remove] [--context <identity>] [--apply] [--actor <agent>] [--json] [--yes]',
       'ia host claude --user [--local] [--remove] [--apply] [--json] [--yes]',
-      'ia host <claude|codex|copilot> --commit [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
+      'ia host <claude|codex|copilot> --commit [--kits-package-version <version>] [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
     ],
     grammar: grammar(
       [
@@ -797,7 +797,16 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'commit',
           kind: 'boolean',
           conflicts: ['user', 'context'],
-          summary: 'Write the committable bootstrap: the IA instruction block and the published door entry',
+          summary:
+            'Write the committable bootstrap: the IA instruction block, the published door entry with the default kits package, and its lock entry',
+        }),
+        option({
+          name: 'kits-package-version',
+          kind: 'value',
+          placeholder: '<version>',
+          conflicts: ['user', 'context', 'remove'],
+          summary:
+            'With --commit: the exact @inventarch/public-kits version to pin (default: the pinned one, else latest)',
         }),
         option({
           name: 'remove',

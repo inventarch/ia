@@ -60,6 +60,7 @@ import { sessionGate } from './profile.js';
 import type { SessionGate } from './profile.js';
 import { codeOf, openSession, VALIDATING } from './session.js';
 import type { Session } from './session.js';
+import { kitsPackages, packageLines, packageRows } from './kits-package.js';
 
 type Admission = ReturnType<Session['admission']>;
 type Finding = Admission['findings'][number];
@@ -711,8 +712,19 @@ export function runValidate(context: Context): Result {
     severity: (args.value('severity') ?? 'warning') as Severity,
     limit: args.integer('max-findings', 50),
   };
-  const exitCode = validationExit(view);
+  // Contract C7: the lock's packages of kits are verified where the host put them. Drift is an error; an absent
+  // package is reported as default kits not installed. A lock that records none changes nothing below.
+  const packages = kitsPackages(root, context.host.env);
+  const exitCode = Math.max(validationExit(view), packages.some((report) => report.status === 'drift') ? 1 : 0);
   return json
-    ? { exitCode, stdout: JSON.stringify(validationEnvelope(view, options)) + '\n', stderr: '' }
-    : { exitCode, stdout: renderValidation(view, options, caps), stderr: '' };
+    ? {
+        exitCode,
+        stdout:
+          JSON.stringify({
+            ...(validationEnvelope(view, options) as Record<string, unknown>),
+            ...(packages.length === 0 ? {} : { kitsPackages: packageRows(packages) }),
+          }) + '\n',
+        stderr: '',
+      }
+    : { exitCode, stdout: renderValidation(view, options, caps) + packageLines(packages, caps), stderr: '' };
 }

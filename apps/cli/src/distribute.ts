@@ -96,6 +96,7 @@ import {
   SETTINGS,
 } from './host.js';
 import { codeOf } from './session.js';
+import { driftRefusal, kitsPackages, packageLines, packageRows } from './kits-package.js';
 import type { AdviceContext, Capabilities, SymbolName } from './render.js';
 import {
   atom,
@@ -1202,10 +1203,27 @@ export function runDistribute(operation: Operation): (context: Context) => Promi
       refresh,
       choose,
     });
+    // Contract C7: a restore reinstates the releases and treats the lock's packages of kits as installed, verifying
+    // each where the host put it. Drift refuses by the field; a package that is absent is said, never fetched.
+    const packages = operation === 'restore' ? kitsPackages(root, host.env) : [];
+    const drifted = packages.find((report) => report.status === 'drift');
+    if (drifted !== undefined) throw driftRefusal(drifted, rerunsOf(context, operation).again);
     const rendered = (view: PlanView): Result =>
       json
-        ? { exitCode: 0, stdout: JSON.stringify(planEnvelope(view)) + '\n', stderr: '' }
-        : { exitCode: 0, stdout: renderPlan(view, caps, args.value('root'), host), stderr: '' };
+        ? {
+            exitCode: 0,
+            stdout:
+              JSON.stringify({
+                ...(planEnvelope(view) as Record<string, unknown>),
+                ...(packages.length === 0 ? {} : { kitsPackages: packageRows(packages) }),
+              }) + '\n',
+            stderr: '',
+          }
+        : {
+            exitCode: 0,
+            stdout: renderPlan(view, caps, args.value('root'), host) + packageLines(packages, caps),
+            stderr: '',
+          };
     host.signal?.throwIfAborted();
     if (!args.flag('apply')) return rendered(planned);
     // §2.0. Parsing has already refused every `--apply` whose question could not be asked or answered —

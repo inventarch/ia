@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { parse } from 'smol-toml';
-import { BLOCK_BEGIN, BLOCK_END, applyBootstrap, planBootstrap } from '../src/bootstrap.js';
+import { BLOCK_BEGIN, BLOCK_END, applyBootstrap, isDoorLaunch, planBootstrap } from '../src/bootstrap.js';
 import { COPILOT_FOLDER } from '../src/hosts.js';
 
 let root: string;
@@ -73,4 +73,48 @@ it('refuses a foreign ia server, a repeated block and a version that is not exac
   put('CLAUDE.md', `${BLOCK_BEGIN}\n${BLOCK_END}\n${BLOCK_BEGIN}\n${BLOCK_END}\n`);
   expect(() => planBootstrap(root, 'claude', '3.5.0')).toThrow(/repeated/);
   expect(() => planBootstrap(root, 'copilot', 'latest')).toThrow(/exact door version/);
+});
+
+const KITS = { name: '@inventarch/public-kits', version: '1.2.0' };
+const KITS_LAUNCH = {
+  command: 'npx',
+  args: [
+    '-y',
+    '-p',
+    '@inventarch/mcp-door@3.5.0',
+    '-p',
+    '@inventarch/public-kits@1.2.0',
+    'ia-mcp-door',
+    '--kits-package',
+    '@inventarch/public-kits',
+  ],
+};
+it('starts the kits package beside the door in every host format, and moves between the two launches', () => {
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', false, KITS));
+  expect(JSON.parse(read('.mcp.json')).mcpServers.ia).toEqual(KITS_LAUNCH);
+  expect(read('.mcp.json')).not.toContain(root);
+  expect(planBootstrap(root, 'claude', '3.5.0', false, KITS).files.every((file) => file.action === 'unchanged')).toBe(
+    true,
+  );
+  // A door-only plan replaces the kits launch, which is still the IA door; removal takes either.
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  expect(JSON.parse(read('.mcp.json')).mcpServers.ia).toEqual(LAUNCH);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', false, KITS));
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(existsSync(join(root, '.mcp.json'))).toBe(false);
+  applyBootstrap(planBootstrap(root, 'codex', '3.5.0', false, KITS));
+  expect((parse(read('.codex/config.toml')) as { mcp_servers: Record<string, unknown> }).mcp_servers['ia']).toEqual(
+    KITS_LAUNCH,
+  );
+  applyBootstrap(planBootstrap(root, 'copilot', '3.5.0', false, KITS));
+  expect(JSON.parse(read('.vscode/mcp.json'))).toEqual({ servers: { ia: { type: 'stdio', ...KITS_LAUNCH } } });
+  expect(() => planBootstrap(root, 'claude', '3.5.0', false, { ...KITS, version: 'latest' })).toThrow(/exact version/);
+});
+it('recognises only the two door launches it writes', () => {
+  expect(isDoorLaunch(LAUNCH)).toBe(true);
+  expect(isDoorLaunch(KITS_LAUNCH)).toBe(true);
+  const swapped = (at: number, value: string) => KITS_LAUNCH.args.map((arg, index) => (index === at ? value : arg));
+  expect(isDoorLaunch({ ...KITS_LAUNCH, args: swapped(4, '@other/kits@1.0.0') })).toBe(false);
+  expect(isDoorLaunch({ ...KITS_LAUNCH, args: swapped(5, 'node') })).toBe(false);
+  expect(isDoorLaunch({ command: 'npx', args: ['-y', 'other@1.0.0'] })).toBe(false);
 });
