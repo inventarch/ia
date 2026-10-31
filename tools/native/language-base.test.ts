@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { verifyArchive } from '../../apps/distribution/src/archive.js';
-import { DISTRIBUTION_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
+import { DISTRIBUTION_ENGINE_VERSION, RELEASE_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
 import {
   BASE_ID,
   buildLanguageBase,
@@ -95,7 +95,8 @@ describe('bundled language base', () => {
     for (const path of ['LICENSE', 'NOTICE']) {
       expect(verified.files.get(path)).toEqual(readFileSync(resolve(root, path)));
     }
-    expect(verified.manifest.engine).toBe(`^${DISTRIBUTION_ENGINE_VERSION}`);
+    // The base keeps the 0.1.1 marker, so lock engine 0.1.2 changes neither its bytes nor its pin.
+    expect(verified.manifest.engine).toBe(`^${RELEASE_ENGINE_VERSION}`);
     expect(verified.manifest.source).toEqual({ repository: null, commit: null, recipe: 'ustar-v1', epoch: 0 });
     expect(verified.manifest.roots).toEqual(['workspace-system/definition/workspace/language-workspace']);
     expect(verified.manifest.systems).toHaveLength(11);
@@ -120,7 +121,7 @@ describe('bundled language base', () => {
       languageBaseFindings({ ...foreign, languageVersion: version, engineVersion: DISTRIBUTION_ENGINE_VERSION }),
     ).toEqual([`Bundled engine range ^99.0.0 rejects the CLI engine ${DISTRIBUTION_ENGINE_VERSION}`]);
     expect(checked({ engineVersion: '99.0.0' })).toEqual([
-      `Bundled engine range ^${DISTRIBUTION_ENGINE_VERSION} rejects the CLI engine 99.0.0`,
+      `Bundled engine range ^${RELEASE_ENGINE_VERSION} rejects the CLI engine 99.0.0`,
     ]);
   });
   it('fails when the pinned version differs from native policy', () => {
