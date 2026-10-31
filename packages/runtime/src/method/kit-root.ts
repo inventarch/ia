@@ -13,10 +13,10 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir, userInfo } from 'node:os';
+import { userInfo } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { MethodError } from './errors.js';
-import { declaredAssets, isText, lf, sourcesDigest, walk } from './kits.js';
+import { declaredAssets, iaHome, isText, lf, sourcesDigest, walk } from './kits.js';
 import type { Kit } from './kits.js';
 
 /**
@@ -28,9 +28,19 @@ export type KitRestore = (root: string, kit: Kit) => void;
 
 const NUL = String.fromCharCode(0);
 
-/** The folder that holds this user's restored copies, refused when another user owns it. */
-export function userCache(base?: string): string {
-  const at0 = base === undefined ? realpathSync(tmpdir()) : resolve(base);
+/**
+ * The default parent of the read-root cache: `kit-roots-v1` under the IA home, which is this user's, never the shared
+ * system temporary folder. The IA home is created when missing and named through its links.
+ */
+export function kitCache(env: NodeJS.ProcessEnv = process.env): string {
+  const home = iaHome(env);
+  mkdirSync(home, { recursive: true, mode: 0o700 });
+  return join(realpathSync(home), 'kit-roots-v1');
+}
+
+/** The folder under `base` that holds this user's restored copies, refused when another user owns it. */
+export function userCache(base: string): string {
+  const at0 = resolve(base);
   for (let at = at0; ; at = dirname(at)) {
     const stat = lstatSync(at, { throwIfNoEntry: false });
     if (stat && (!stat.isDirectory() || stat.isSymbolicLink()))
@@ -47,7 +57,7 @@ export function userCache(base?: string): string {
     throw new MethodError('Aliased or non-directory cache', 'IA-CORE-KIT');
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   if (typeof process.getuid === 'function' && statSync(dir).uid !== process.getuid())
-    throw new MethodError(`${dir} belongs to another user; set TMPDIR to a private folder`, 'IA-CORE-KIT');
+    throw new MethodError(`${dir} belongs to another user; set IA_HOME to a private folder`, 'IA-CORE-KIT');
   return dir;
 }
 
@@ -93,9 +103,16 @@ export function assertReadable(
     );
 }
 
-/** The restored read root of a kit, restoring a fresh copy when the cache holds no complete one. */
-export function kitReadRoot(kit: Kit, restore: KitRestore, options: { readonly base?: string } = {}): string {
-  const cache = userCache(options.base);
+/**
+ * The restored read root of a kit, restoring a fresh copy when the cache holds no complete one. The cache's parent is
+ * `options.base`, else `kitCache(options.env)`.
+ */
+export function kitReadRoot(
+  kit: Kit,
+  restore: KitRestore,
+  options: { readonly base?: string; readonly env?: NodeJS.ProcessEnv } = {},
+): string {
+  const cache = userCache(options.base ?? kitCache(options.env));
   const target = join(
     cache,
     `kit-${basename(kit.folder)}-${createHash('sha256')

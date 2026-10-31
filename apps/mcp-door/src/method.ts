@@ -31,7 +31,7 @@ export interface MethodHost {
   /** The bundled kit folder, `--kits` or `IA_KITS_DIR`. */
   readonly kits?: string;
   readonly env?: NodeJS.ProcessEnv;
-  /** The parent of the per-user kit read-root cache; the system temporary folder by default. */
+  /** The parent of the per-user kit read-root cache; `<IA home>/kit-roots-v1` by default. */
   readonly cache?: string;
 }
 export type MethodOperation = 'method:session' | 'method:catalogue' | 'method:method';

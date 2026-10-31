@@ -13,6 +13,7 @@ import {
   findKit,
   folderKits,
   homeKits,
+  kitCache,
   listKits,
   methodRefusal,
   readRegistry,
@@ -22,6 +23,7 @@ import {
   releaseRecords,
   scopeKey,
   selectBinding,
+  userCache,
 } from '../src/method/index.js';
 import type { Bindings } from '../src/method/index.js';
 
@@ -170,6 +172,15 @@ describe('workspace registry', () => {
     expect(() => registerWorkspace(home(), { id: 'x', root: 'x' })).toThrow(/absolute/);
     write(join(home(), 'workspace-locations.json'), { format: 9 });
     expect(() => readRegistry(home())).toThrow(/unknown format/);
+  });
+});
+
+describe('kit read roots', () => {
+  it('cache under the IA home, named through its links, and never in the system temporary folder', () => {
+    const home = join(dir, 'home');
+    expect(kitCache({ IA_HOME: home })).toBe(join(realpathSync(home), 'kit-roots-v1'));
+    const cache = userCache(kitCache({ IA_HOME: home }));
+    expect(cache.startsWith(join(realpathSync(home), 'kit-roots-v1', 'inventarch-core-'))).toBe(true);
   });
 });
 

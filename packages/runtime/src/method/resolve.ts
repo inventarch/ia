@@ -63,7 +63,7 @@ export interface MethodContext {
   readonly env?: NodeJS.ProcessEnv;
   /** The closure store; `closureStore(env)` by default. */
   readonly store?: string;
-  /** The parent of the per-user read-root cache; the system temporary folder by default. */
+  /** The parent of the per-user read-root cache; `<IA home>/kit-roots-v1` (`kitCache(env)`) by default. */
   readonly cache?: string;
   readonly cwd?: string;
 }
@@ -300,7 +300,7 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
 
   const readerInfo = { version: VERSION, source: 'in-process' };
   assertReadable(kit, readerInfo);
-  const kitRoot = kitReadRoot(kit, context.restore, context.cache === undefined ? {} : { base: context.cache });
+  const kitRoot = kitReadRoot(kit, context.restore, context.cache === undefined ? { env } : { base: context.cache });
   const key = scopeKey(request.entry, request.activity, { shape: request.shape, phase: request.phase });
   if (request.seat)
     note(

@@ -1,6 +1,7 @@
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -186,3 +187,13 @@ it('serves the three method tools after the seventeen read tools', () => {
   expect(called.structuredContent.items.map((item) => item.key)).toEqual(['knowledge.find']);
   protocol.close();
 });
+
+it('restores a kit read root under the IA home when the host names no cache', () => {
+  const answer = new MethodTools({ root: consumer, kits, env }).call('method:method', { key: 'knowledge.find' });
+  expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
+  const roots = join(realpathSync(join(root, 'home')), 'kit-roots-v1');
+  const [user, ...others] = readdirSync(roots);
+  expect(others).toEqual([]);
+  expect(user).toMatch(/^inventarch-core-/);
+  expect(readdirSync(join(roots, user!)).filter((name) => name.startsWith('kit-'))).toHaveLength(1);
+}, 120_000);

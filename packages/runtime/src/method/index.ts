@@ -53,7 +53,7 @@ export type { Pin, PinnedKey, PinnedKit } from './pin.js';
 export { DIGESTED, EVIDENCE_STATES, PACKET_CONTRACT, assemblePacket, canonical, packetDigest } from './packet.js';
 export type { MethodPacket } from './packet.js';
 export { closureStore, retainKit, retainedKit } from './retained.js';
-export { assertReadable, kitReadRoot, userCache } from './kit-root.js';
+export { assertReadable, kitCache, kitReadRoot, userCache } from './kit-root.js';
 export type { KitRestore } from './kit-root.js';
 export { WorkspaceReader } from './reader.js';
 export type { JsonRecord, PositionAnswer } from './reader.js';
