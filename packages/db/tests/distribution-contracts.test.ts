@@ -11,6 +11,7 @@ import {
   decodeReleaseDescriptor,
   generationDigest,
   lockEngineMarker,
+  lockedReleases,
   PACKAGE_ENTRY_ENGINE_VERSION,
   RELEASE_ENGINE_VERSION,
   requiredRelease,
@@ -273,8 +274,8 @@ const kitsPackage = {
   version: '1.0.0',
   integrity: `sha512-${'A'.repeat(86)}==`,
   kits: [
-    { id: 'inventarch/ia-authoring-kit', version: '0.4.0', archive: other },
-    { id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: hash },
+    { id: 'inventarch/ia-authoring-kit', version: '0.4.0', archive: other, manifest: hash, dependencies: [] },
+    { id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: hash, manifest: other, dependencies: [common.id] },
   ],
 };
 const packaged = { ...lock, engine: `^${PACKAGE_ENTRY_ENGINE_VERSION}`, entries: [kitsPackage] };
@@ -293,6 +294,23 @@ it('reads and writes a lock without entries byte for byte as before, and one wit
   expect(requiredRelease('0.1.1')).toBe('ia >= 3.0.0');
   expect(requiredRelease('^0.2.0')).toBeNull();
 });
+it('installs each kit a package entry names as a release row located by its digest', () => {
+  expect(lockedReleases(decodeDistributionLock(lock))).toEqual(lock.packages);
+  expect(lockedReleases(decodeDistributionLock(packaged)).map((row) => [row.id, row.location, row.manifest])).toEqual([
+    ['inventarch/ia-authoring-kit', `sha256:${other}`, hash],
+    ['inventarch/ia-kb-kit', `sha256:${hash}`, other],
+    [common.id, selected.location, selected.manifest],
+  ]);
+});
+it('reaches a release only a packaged kit depends on, as the language base is beside a package row', () => {
+  // `lock` requests common.id; the entry's kit depends on it, so a lock with no request of its own still reaches it.
+  const viaKit = { ...packaged, requests: [], entries: [{ ...kitsPackage, kits: [kitsPackage.kits[1]] }] };
+  expect(decodeDistributionLock(viaKit).packages).toHaveLength(1);
+  // A release nothing requests and no packaged kit depends on is still unreachable.
+  expect(() =>
+    decodeDistributionLock({ ...viaKit, entries: [{ ...kitsPackage, kits: [kitsPackage.kits[0]] }] }),
+  ).toThrow('Unreachable');
+});
 it('refuses a package entry that is malformed, empty, doubly named or under an engine an older reader admits', () => {
   for (const patch of [
     { name: 'Public Kits' },
@@ -300,7 +318,9 @@ it('refuses a package entry that is malformed, empty, doubly named or under an e
     { integrity: 'sha1-abc' },
     { kits: [] },
     { kits: [...kitsPackage.kits].reverse() },
-    { kits: [{ id: 'inventarch/ia-kb-kit', version: '0.9.0' }] },
+    { kits: [{ id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: hash, dependencies: [] }] },
+    { kits: [{ id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: hash, manifest: 'x', dependencies: [] }] },
+    { kits: [{ ...kitsPackage.kits[1], dependencies: ['test/missing'] }] },
     { extra: true },
   ])
     expect(() => decodeDistributionLock({ ...packaged, entries: [{ ...kitsPackage, ...patch }] })).toThrow(
@@ -312,7 +332,10 @@ it('refuses a package entry that is malformed, empty, doubly named or under an e
   );
   for (const engine of ['^0.1.0', '^0.1.1', '0.1.1', '>=0.1.0'])
     expect(() => decodeDistributionLock({ ...packaged, engine })).toThrow(/declares distribution engine >=0\.1\.2/);
-  const vendored = { ...kitsPackage, kits: [{ id: common.id, version: '0.1.0', archive: hash }] };
+  const vendored = {
+    ...kitsPackage,
+    kits: [{ id: common.id, version: '0.1.0', archive: hash, manifest: hash, dependencies: [] }],
+  };
   expect(() => decodeDistributionLock({ ...packaged, entries: [vendored] })).toThrow(/named twice/);
 });
 it('refuses a lock an older reader cannot read by naming the ia that reads it, before any field it does not know', () => {

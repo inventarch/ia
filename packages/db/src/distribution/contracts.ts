@@ -89,16 +89,22 @@ export interface LockedPackage {
   readonly location: string;
   readonly dependencies: readonly string[];
 }
-/** One kit a package entry names: the kit release the package carries, by id, version and archive digest. */
+/**
+ * One kit a package entry names: the IA release the package carries, by id, version, archive and manifest digest, and
+ * the ids its manifest depends on, as a release row names them.
+ */
 export interface PackageKit {
   readonly id: string;
   readonly version: string;
   readonly archive: string;
+  readonly manifest: string;
+  readonly dependencies: readonly string[];
 }
 /**
- * A lock entry of kind `package` (engine 0.1.2): an npm package of kits, such as `@inventarch/public-kits`, recorded by
- * its exact version and npm `dist.integrity`, and the kits it carries. Nothing is vendored: a reader finds the package
- * where the host put it and verifies its `package.json` against this entry before it treats the kits as installed.
+ * A lock entry of kind `package` (engine 0.1.2, ia-kb `dec-133`): an npm package of kits, such as
+ * `@inventarch/public-kits`, recorded by its exact version and npm `dist.integrity`, and the IA releases it carries.
+ * npm is transport only: the engine installs each kit as an ordinary release, expanded under
+ * `.ia/distributions/store/<archive>/` at band 90 (`lockedReleases`), and a restore refetches the archives by digest.
  */
 export interface PackageEntry {
   readonly kind: 'package';
@@ -336,6 +342,27 @@ function admitExtension(row: Record<string, unknown>, reader: string): void {
       );
   }
 }
+/**
+ * Every release the lock installs: its `packages` and each kit its package entries name, the latter as a release row
+ * located by digest (`sha256:<archive>`), sorted by id. Membership, closures, the store, restore and collection read
+ * this, so a packaged kit is an installed release like any other.
+ */
+export function lockedReleases(lock: DistributionLock): readonly LockedPackage[] {
+  if (lock.entries === undefined) return lock.packages;
+  const kits = lock.entries.flatMap((entry) =>
+    entry.kits.map(
+      (kit): LockedPackage => ({
+        id: kit.id,
+        version: kit.version,
+        archive: kit.archive,
+        manifest: kit.manifest,
+        location: `sha256:${kit.archive}`,
+        dependencies: kit.dependencies,
+      }),
+    ),
+  );
+  return [...lock.packages, ...kits].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
 function lockEntries(value: unknown, engine: string, packages: readonly LockedPackage[]): readonly LockEntry[] {
   const rows = array(value, DISTRIBUTION_LIMITS.bundles);
   if (!rows.length) refuse('A lock with no entries omits the entries field');
@@ -353,8 +380,14 @@ function lockEntries(value: unknown, engine: string, packages: readonly LockedPa
       if (!NPM_INTEGRITY.test(integrity)) refuse('Expected the npm sha512 integrity of the package');
       const kits = sorted(
         array(r['kits'], DISTRIBUTION_LIMITS.bundles).map((k): PackageKit => {
-          const kit = object(k, ['id', 'version', 'archive']);
-          return { id: packageId(kit['id']), version: version(kit['version']), archive: hash(kit['archive']) };
+          const kit = object(k, ['id', 'version', 'archive', 'manifest', 'dependencies']);
+          return {
+            id: packageId(kit['id']),
+            version: version(kit['version']),
+            archive: hash(kit['archive']),
+            manifest: hash(kit['manifest']),
+            dependencies: names(kit['dependencies'], packageId),
+          };
         }),
         (kit) => kit.id,
       );
@@ -369,6 +402,10 @@ function lockEntries(value: unknown, engine: string, packages: readonly LockedPa
       if (named.has(kit.id)) refuse(`Kit ${kit.id} is named twice: by package ${entry.name} and by another lock row`);
       named.add(kit.id);
     }
+  // A packaged kit's dependencies are installed releases too, as a release row's are.
+  for (const entry of entries)
+    for (const kit of entry.kits)
+      if (kit.dependencies.some((id) => id === kit.id || !named.has(id))) refuse('Missing/self locked dependency');
   return entries;
 }
 /** The portable lock. `reader` is the engine judging it: this one, unless a test plays an older reader. */
@@ -409,22 +446,20 @@ export function decodeDistributionLock(input: unknown, reader: string = DISTRIBU
   }
   for (const p of packages)
     if (p.dependencies.some((id) => id === p.id || !byId.has(id))) refuse('Missing/self locked dependency');
+  const entries = row['entries'] === undefined ? undefined : lockEntries(row['entries'], engine, packages);
+  // The roots are the direct requests and each kit a package entry names: a release a packaged kit depends on, such as
+  // the language base, is reachable through that kit.
   const reached = new Set<string>();
   const visit = (id: string): void => {
     if (reached.has(id)) return;
     reached.add(id);
-    byId.get(id)!.dependencies.forEach(visit);
+    byId.get(id)?.dependencies.forEach(visit);
   };
   requests.forEach((r) => visit(r.id));
-  if (reached.size !== packages.length) refuse('Unreachable locked package');
-  if (row['entries'] === undefined) return frozen({ formatVersion: 1, engine, requests, packages });
-  return frozen({
-    formatVersion: 1,
-    engine,
-    requests,
-    packages,
-    entries: lockEntries(row['entries'], engine, packages),
-  });
+  for (const kit of (entries ?? []).flatMap((entry) => entry.kits)) kit.dependencies.forEach(visit);
+  if ([...reached].filter((id) => byId.has(id)).length !== packages.length) refuse('Unreachable locked package');
+  if (entries === undefined) return frozen({ formatVersion: 1, engine, requests, packages });
+  return frozen({ formatVersion: 1, engine, requests, packages, entries });
 }
 export function decodeGenerationInputs(input: unknown): GenerationInputs {
   const row = object(data(input), ['formatVersion', 'bundles', 'systems']);

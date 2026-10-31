@@ -20,6 +20,7 @@ import {
   decodeDistributionLock,
   decodeGenerationInputs,
   generationDigest,
+  lockedReleases,
 } from './contracts.js';
 import type { ActivationPointer, DistributionLock, GenerationInputs, LockedPackage } from './contracts.js';
 import { deriveGenerationInputs, installationWorkspace } from './membership.js';
@@ -290,7 +291,7 @@ export function readInstalledGeneration(root: string, candidate?: ActivationPoin
     corrupt('Extra generation files');
   const bundles = new Map<string, ExpandedBundle>();
   let remaining = DISTRIBUTION_LIMITS.expanded as number;
-  for (const pkg of lock.packages) {
+  for (const pkg of lockedReleases(lock)) {
     const bundle = readExpandedBundle(root, pkg, remaining);
     remaining -= bundle.manifest.files.reduce((sum, file) => sum + file.bytes, 0);
     bundles.set(pkg.id, bundle);

@@ -43,6 +43,7 @@ export {
   decodeActivationPointer,
   generationDigest,
   LOCK_ENTRY_KINDS,
+  lockedReleases,
 } from './contracts.js';
 export type {
   Dependency,
