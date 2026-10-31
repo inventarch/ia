@@ -1,0 +1,242 @@
+{
+  "contract": 1,
+  "resolver": "inventarch/resolve 0.1.0",
+  "binding": {
+    "key": "knowledge.check",
+    "via": "exact",
+    "kit": "inventarch/ia-kb-kit",
+    "capability": "kb-check",
+    "revision": 2,
+    "supersedes": 1,
+    "pin": {
+      "root": "<ROOT>/home/work-v1/consumer/golden",
+      "path": "<ROOT>/home/work-v1/consumer/golden/binding.json",
+      "key": "knowledge.check"
+    },
+    "run": null,
+    "rebound": false
+  },
+  "closure": {
+    "kit": "inventarch/ia-kb-kit",
+    "version": "0.9.0",
+    "archive": "3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c",
+    "sources": "e06a6bddabe5a91bb02277c17745cc00a3be49a11e3b04f9bff85c08b94ac07f",
+    "implementation": "093ddc93f9e239f215a77758d42711f550685beb28a3da2c2fee488a27238671",
+    "retained": "5a696a50fe09449dedb630725ece4fa642954f0f4a9f4ae945e881940007f286",
+    "records": [
+      "agent-composition-system/definition/capability/kb-check",
+      "governance-system/definition/procedure/kb-check",
+      "compliance-system/check/gate/kb-check-decisions",
+      "compliance-system/check/gate/kb-check-locators",
+      "compliance-system/check/gate/kb-check-task-locators",
+      "compliance-system/check/gate/kb-check-validate"
+    ]
+  },
+  "scope": {
+    "entry": "knowledge",
+    "activity": "check",
+    "subject": "sha256:7492747a0f15b473ed303eb1d1f65ff60e2738a835dc0f2817757df4d2758e14",
+    "key": {
+      "shape": "context",
+      "phase": "orient",
+      "depth": 1,
+      "budget": 16
+    },
+    "seat": null,
+    "word": null,
+    "mapped": false,
+    "workspace": {
+      "root": "<ROOT>/consumer",
+      "revision": "59fce9308817004dd9637c7be4e66dad61005c8491096e24e54178b93ad1c261"
+    }
+  },
+  "instructions": [
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#orient/Attention",
+      "text": "Read IA through the pinned CLI (convention kb-ia-reads). Discover the actual CLI and corpus and kit tools. Run ia position --root <root> for the task scope, following any refusal's repair, then ia validate --root <root> (the declared check kb-check-validate); validation always goes through the CLI. Inspect findings, not exit status alone: zero errors and not-evaluated is admission without a full compliance pass. Report the revision, tool provenance, checks run, passed, failed and not-evaluated requirements and missing evaluators.",
+      "digest": "f4f30145c5a1d2b1c775b491c8834017aa8fd370d82ac5a9aac597b593f93a9f",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#orient/Inference",
+      "text": "When the root is the repository the session's ia-workspace MCP server was registered for, its ia_position tool returns the same body as ia position; the server serves no other root. A host that ia host does not cover adds the server by hand with the repository's IA version and an absolute root (the command npx, npx.cmd on Windows); never install @inventarch/mcp-door into the repository's node_modules, which would add an unpinned @inventarch package.",
+      "digest": "d84b664b1cc03072b718898f5ecd1e4e1ea5553cc5021e9fea30e6ffde56a09f",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#orient/Decision",
+      "text": "When the KB supplies its own corpus tools, inspect their help and run their index and check workflow using the project's configuration.",
+      "digest": "8f03339471b116e0eab79d415f288c050347a5c7f55cd9b524b21146b3a3e1a9",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#orient/Learning",
+      "text": "An index refresh writes files: use it for authorized maintenance, or check existing index bytes during a read-only audit.",
+      "digest": "a4e2892c81f085f0fc9865784dacffc4a7e3f2a0fdcc448bffee01562c7b6a28",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#plan/Attention",
+      "text": "Check document-to-spec coverage, source resolution, frontmatter, lifecycle evidence, links and current navigation according to the kit's actual requirements. The decision lifecycle is the declared check kb-check-decisions: a made @decision names a non-empty decider, choice and rationale, and a superseded one keeps them and has a successor that supersedes it. The accepted revision (decision.effective-revision) is not required yet, because no current decision records one; requiring it is a follow-up.",
+      "digest": "d6299cb9137df03faefda89500a524fd53571a364c68fe2de9cf4ab48859e7d6",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#plan/Inference",
+      "text": "Run relevant existing kit tests when kit behavior changed.",
+      "digest": "0e97e5ff685bb74bc04cf2606d22fff5563045bd4829a350b111f70f70edf14c",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#plan/Decision",
+      "text": "Do not substitute the locator checker for native admission or the kit corpus evaluator: kb-check-locators checks locator metadata only.",
+      "digest": "908c8f0b780c43f2fa5eed8f6384f67de33e4effdaaf0192222e6d8b63d27e5c",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#plan/Learning",
+      "text": "Capture or host projection is a separate effect and needs the task's applicable scope.",
+      "digest": "6d376d634e3df0fc5b3c993fd17b44ad4ac2faeb68c715f3e227812c4ffbda25",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#act/Attention",
+      "text": "Delegate the kit's declared gates to the kb-gate-runner (kb-gate-runner-profile, the checker role, capability kb-gates), which runs them through the core's checker runner and reports them verbatim: kb-check-validate (ia validate --json in the workspace), kb-check-decisions (the decision lifecycle over the workspace's admitted records) and kb-check-locators (the kit's locator checker over its own worked example). The corpus check itself (the position, the KB's own workflow and tests, coverage and navigation) stays with you. Delegate a workspace companion manifest to kb-check-task-locators through check.mjs with --manifest <workspace-relative-file>; missing input is not run, never a pass. Byte verification with --checkout remains a separate direct invocation and must not be claimed from this metadata-only check.",
+      "digest": "76732d58c52d35909df5b569c89502d6038e5502e5c816b78c6b183cc0c8a6c5",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#act/Inference",
+      "text": "A missing tool means the check is unavailable, never passed.",
+      "digest": "cd96fcf56112250a522cdadf63b52cb7f2a9fc3bf10785f57bcf5107dd773c21",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#act/Decision",
+      "text": "Keep each check's result apart: admission, coverage, navigation, kit evaluators and locator metadata.",
+      "digest": "d99314a6f8481a40e9b8ea6e162e41aa265fe942161c1064290551288261f6d0",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#act/Learning",
+      "text": "Name the exact revision each result was taken at; a result from another revision is not evidence for this one.",
+      "digest": "3bfad0a4de965e576752fcf00437b20f14d022d744a9f021f3f6788085aea8bb",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#learn/Attention",
+      "text": "Report the revision, tool provenance, checks run, passed, failed and not-evaluated requirements and missing evaluators.",
+      "digest": "a6eabe95f6a48cb89e1600a6706803fc68594e8508c1cd83f582132df4a8fe6f",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#learn/Inference",
+      "text": "Report admission, evaluator evidence and host results separately.",
+      "digest": "26e041d54fb75cd03167ce966d1e04dfa8e2910217d97da0f776caebb9fe0a3e",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#learn/Decision",
+      "text": "Route a failure to its owner: documents, anchors, bindings and navigation to kb-curator, and a record the kit does not own to that record's source owner.",
+      "digest": "aa4ff6842a35e79a0984708347cea0567bfb599b200305db2205ab5c1e7356e9",
+      "source": "playbook"
+    },
+    {
+      "playbook": "governance-system/definition/procedure/kb-check",
+      "address": "governance-system/definition/procedure/kb-check#learn/Learning",
+      "text": "When acceptance depends on the results, hand them to kb-review rather than accepting them yourself.",
+      "digest": "0859a3400da613d4c12abe1600c59beccadf976de521f3cb637e0444354b3d78",
+      "source": "playbook"
+    }
+  ],
+  "references": [
+    {
+      "identity": "governance-system/governance/law/kb-disclosure-boundary",
+      "digest": "b6c447ac5b298a2061c9beb82eef5f6ef5012cd60258898f543434b99eeb2212",
+      "when": "always"
+    },
+    {
+      "identity": "governance-system/governance/law/kb-exact-pins",
+      "digest": "65a52488ce7d11a6d90468df0e704780cb7bbe4d659ee71f5b2f8f0596ffa6eb",
+      "when": "always"
+    },
+    {
+      "identity": "governance-system/governance/law/kb-not-evaluated-is-not-pass",
+      "digest": "f6907b5eb1d1ee050bda62af3ec2427310aeb9e4df63716a1c1405f6c594af7e",
+      "when": "always"
+    },
+    {
+      "identity": "governance-system/governance/law/kb-one-canonical-writer",
+      "digest": "8b405365a2c4c62aabd6942fcce50a794dd1a938d525b1244a2a10567e49bbdd",
+      "when": "always"
+    },
+    {
+      "identity": "governance-system/governance/law/kb-reviewer-independence",
+      "digest": "3be4c71121188d22cd6c39ef6e96ed7ae2540ba4be385160002fdb714572e522",
+      "when": "always"
+    },
+    {
+      "identity": "agent-system/policy/mandate/ia-kb-kit-mandate",
+      "digest": null,
+      "when": "seat"
+    }
+  ],
+  "role": {
+    "profile": null,
+    "brief": "Check a KB: record admission, document-to-spec coverage, the decision lifecycle, navigation and kit evaluator results, without conflating not-evaluated with pass. Run ia position for the task scope, then ia validate (the declared check kb-check-validate, which the kb-gate-runner can run) and the decision lifecycle (the declared check kb-check-decisions: a made @decision names its decider, choice and rationale, and a superseded one keeps them and has a successor; the accepted revision is not required yet), the KB's own index and check workflow and tests when it supplies them, and report the revision, tool provenance, checks run, passed, failed and not-evaluated requirements and missing evaluators. Use for checking the KB or after KB maintenance."
+  },
+  "requestedOperations": [
+    "read"
+  ],
+  "effectiveOperations": {
+    "status": "host-determined",
+    "runner": [
+      "kb-check-decisions",
+      "kb-check-locators",
+      "kb-check-task-locators",
+      "kb-check-validate"
+    ]
+  },
+  "missing": [
+    {
+      "kind": "enforcement",
+      "requirement": "constrained-checks",
+      "via": "scripts/check.mjs",
+      "checks": [
+        "kb-check-decisions",
+        "kb-check-validate"
+      ],
+      "message": "the capability requires that checks run only as kb-check-validate, kb-check-decisions; this host does not enforce it, so run them only through node scripts/check.mjs <check-name> (the checker agent is restricted to it)"
+    }
+  ],
+  "evidence": {
+    "required": [
+      "kb-check-decisions",
+      "kb-check-validate"
+    ],
+    "states": [
+      "proposed",
+      "attempted",
+      "executed",
+      "verified",
+      "accepted"
+    ]
+  },
+  "kitUpdateAvailable": null,
+  "digest": "a12a670a6bb8a98d9d5eacb69d0d924479b8343eee137007e3fbf3ab22672d22"
+}

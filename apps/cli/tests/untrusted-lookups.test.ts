@@ -151,7 +151,7 @@ it('ia host claude --user never starts a claude planted in the working directory
   expect(windows ? cwd!.toLowerCase() : cwd).toBe(windows ? homedir().toLowerCase() : realpathSync(homedir()));
 });
 
-it('ia host claude --user --apply records the Node running it, by absolute path, for the plugin hook on macOS and Linux (crowncodes/ia#436)', async () => {
+it('ia host claude --user --local --apply records the Node running it, by absolute path, for the plugin hook on macOS and Linux (crowncodes/ia#436)', async () => {
   const project = scratch('lookup-record');
   const env = cliEnv(['bin', ''], { IA_CLAUDE: FAKE_CLAUDE, IA_CLAUDE_LOG: resolve(project, 'claude.log') });
   // A version-manager shim (asdf, nodenv, Volta) starts the real Node, whose own path is what gets recorded: the shim,
@@ -163,7 +163,12 @@ it('ia host claude --user --apply records the Node running it, by absolute path,
     writeFileSync(node, `#!/bin/sh\nexec '${process.execPath}' "$@"\n`);
     chmodSync(node, 0o755);
   }
-  const result = await runCli(['host', 'claude', '--user', '--apply', '--yes', '--json'], project, env, node);
+  const result = await runCli(
+    ['host', 'claude', '--user', '--local', '--apply', '--yes', '--json'],
+    project,
+    env,
+    node,
+  );
   expect(result.status, result.stderr || result.stdout).toBe(0);
   const hooks = JSON.parse(
     readFileSync(resolve(env['IA_HOME']!, 'claude/marketplace/plugins/ia/hooks/hooks.json'), 'utf8'),

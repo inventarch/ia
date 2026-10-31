@@ -77,7 +77,7 @@ afterAll(cleanup);
 
 const FIXTURE = resolve(cli, 'tests/fixtures/composition-workspace');
 const PROFILE = 'agent-composition-system/binding/agent-profile/reviewer',
-  PLAYBOOK = 'governance-system/definition/procedure/note-review',
+  CAPABILITY = 'agent-composition-system/definition/capability/note-review',
   HOOK = 'hook-authoring-system/binding/hook/note-edits',
   RENAMED = 'hook-authoring-system/binding/hook/doc-edits';
 const RECEIPT_PATH = '.ia/distributions/hosts/claude-receipt.json';
@@ -97,7 +97,24 @@ async function composed(
   const { root, env } = await initialized(home);
   if (legacy) legacyRegistration(root, env);
   cpSync(FIXTURE, root, { recursive: true });
+  invocable(root);
   return { root: realpathSync(root), env };
+}
+/**
+ * The fixture's capability made invocable under the playbook's name, so its one generated skill (decision
+ * `generated-skill-unit`) sits at `SKILL` and renaming `note-review` renames it.
+ */
+function invocable(root: string): void {
+  const path = resolve(root, '.ia/src/composition.ia'),
+    text = readFileSync(path, 'utf8');
+  if (!text.includes('@capability note-reading') || !text.includes('    effects [read]\n'))
+    throw new Error('fixture lacks the note-reading capability');
+  writeFileSync(
+    path,
+    text
+      .replaceAll('@capability note-reading', '@capability note-review')
+      .replace('    effects [read]\n', '    effects [read]\n  invocation\n    mode model\n'),
+  );
 }
 /** `text` with each `from` replaced by its `to`, every one of which must be there. */
 const edited = (text: string, ...edits: readonly (readonly [string, string])[]): string =>
@@ -324,7 +341,7 @@ it('applies the packet, one agent, one skill and one hook group through the one 
   expect(written.files.map((file) => file.path).sort()).toEqual([...PACKET, AGENT, SKILL].sort());
   expect(written.generated).toEqual([
     { identity: PROFILE, word: 'agent-profile', path: AGENT, sha256: sha256(read(root, AGENT)) },
-    { identity: PLAYBOOK, word: 'playbook', path: SKILL, sha256: sha256(read(root, SKILL)) },
+    { identity: CAPABILITY, word: 'capability', path: SKILL, sha256: sha256(read(root, SKILL)) },
   ]);
   expect(written.hooks).toEqual([
     { identity: HOOK, tools: ['Write', 'Edit', 'MultiEdit'], sha256: hookGroupDigest(group) },
@@ -342,7 +359,7 @@ it('applies the packet, one agent, one skill and one hook group through the one 
   });
   expect(written.definitions[1]!.definition['registrations']).toEqual({
     agents: [{ identity: PROFILE, path: AGENT }],
-    skills: [{ identity: PLAYBOOK, path: SKILL }],
+    skills: [{ identity: CAPABILITY, path: SKILL }],
     hooks: [expect.objectContaining({ identity: HOOK, paths: ['docs/**', 'restricted/**'] })],
   });
 
@@ -650,7 +667,7 @@ it('applies the packet and the skill for codex, and reports the agent and the ho
     ['hook', HOOK],
   ]);
   expect(written.generated.map((row) => [row.word, row.path])).toEqual([
-    ['playbook', '.agents/skills/note-review/SKILL.md'],
+    ['capability', '.agents/skills/note-review/SKILL.md'],
   ]);
   expect(written.hooks).toBeUndefined();
   expect(written.definitions[0]!.definition).toMatchObject({ handler: 'read-note-v1' });
@@ -949,7 +966,7 @@ it('applies the generated set through ia project: hooks unregistered without ia 
   expect(receipt(root).unsupported.map((row) => row.identity)).toEqual([HOOK]);
   expect(harnessRegistrations(root)).toEqual({
     agents: [{ identity: PROFILE, path: AGENT }],
-    skills: [{ identity: PLAYBOOK, path: SKILL }],
+    skills: [{ identity: CAPABILITY, path: SKILL }],
     hooks: [],
   });
   // After ia host registers the hook, ia project keeps its group in step with the records and renames the agent.
@@ -1183,7 +1200,7 @@ it('refuses a generated skill at a populated folder it does not own, naming the 
     expect(body.code).toBe('IA-DIST-LOCAL-MODIFICATION');
     expect(body.where.path).toBe('.claude/skills/note-review');
     expect(body.next).toBe(
-      `Move the files out of .claude/skills/note-review, or rename the @playbook that renders it, then run "ia host claude --root ${quote(root)} --apply".`,
+      `Move the files out of .claude/skills/note-review, or rename the @capability that renders it, then run "ia host claude --root ${quote(root)} --apply".`,
     );
     // The plans print the conflict as code, path and reason only.
     const conflict = {
@@ -1202,7 +1219,7 @@ it('refuses a generated skill at a populated folder it does not own, naming the 
     // ia project names the same files to move.
     const project = await run(['project', 'claude', '--root', root, '--apply', '--yes', '--json'], { env });
     expect(JSON.parse(project.stdout).next).toBe(
-      `Move the files out of .claude/skills/note-review, or rename the @playbook that renders it, then run "ia project claude --root ${quote(root)}".`,
+      `Move the files out of .claude/skills/note-review, or rename the @capability that renders it, then run "ia project claude --root ${quote(root)}".`,
     );
     // Follow it: the files go elsewhere, and the rerun it names writes the skill.
     const moved = resolve(root, '..', `kept-${folder.endsWith('Review') ? 'variant' : 'lower'}.md`);
@@ -1375,11 +1392,11 @@ it("converges in one hop when the user's skill folder holds its own SKILL.md and
 it('refuses an install before any install write when its refresh would refuse a generated skill at a populated folder', async () => {
   const { root, env } = await composed();
   await apply(root, env);
-  // A new playbook whose skill folder already holds the user's files.
+  // A new invocable capability whose skill folder already holds the user's files.
   put(
     root,
-    '.ia/src/other-playbook.ia',
-    read(root, '.ia/src/playbook.ia').replace('@playbook note-review', '@playbook other-review'),
+    '.ia/src/other-capability.ia',
+    '#! ia 1.0\n\n@capability other-review\n  meaning\n    says "Reviews other notes."\n    answers "Which capability reviews other notes?"\n  composition\n    playbooks [@playbook note-review]\n  execution\n    effects [read]\n  invocation\n    mode model\n',
   );
   put(root, '.claude/skills/other-review/reference.md', 'my own notes\n');
   const install = baseInstall(root),
@@ -1390,7 +1407,7 @@ it('refuses an install before any install write when its refresh would refuse a 
   expect(body).toMatchObject({
     code: 'IA-DIST-LOCAL-MODIFICATION',
     where: { path: '.claude/skills/other-review' },
-    next: `Move the files out of .claude/skills/other-review, or rename the @playbook that renders it, then run "ia host claude --root ${quote(root)} --apply".`,
+    next: `Move the files out of .claude/skills/other-review, or rename the @capability that renders it, then run "ia host claude --root ${quote(root)} --apply".`,
   });
   expect(read(root, '.ia/distributions.lock.json')).toBe(lock);
   rmSync(resolve(root, '.claude/skills/other-review/reference.md'));

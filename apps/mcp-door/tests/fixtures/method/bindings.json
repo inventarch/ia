@@ -1,0 +1,7 @@
+{
+  "format": 1,
+  "bindings": {
+    "knowledge.find": { "kit": "inventarch/ia-kb-kit", "capability": "kb-retrieve" },
+    "knowledge.check": { "kit": "inventarch/ia-kb-kit", "capability": "kb-check" }
+  }
+}

@@ -30,7 +30,7 @@ import {
 
 import { dirname, resolve } from 'node:path';
 import { afterAll, afterEach, expect, it, vi } from 'vitest';
-import { INSTALL_PATHS, DISTRIBUTION_ENGINE_VERSION } from '@inventarch/db/distribution';
+import { INSTALL_PATHS, DISTRIBUTION_ENGINE_VERSION, RELEASE_ENGINE_VERSION } from '@inventarch/db/distribution';
 import {
   applyInstallation,
   cacheArchive,
@@ -270,7 +270,8 @@ it('initializes an empty directory offline with no fetch and no cache, into exac
     formatVersion: 1,
     id: 'local/demo',
     version: '0.1.0',
-    engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
+    // The 0.1.1 marker every released 3.x engine reads: the package entry's engine bump leaves a starter unchanged.
+    engine: `^${RELEASE_ENGINE_VERSION}`,
     language: ['1.0'],
     dependencies: [{ id: BASE_ID, range: `^${pin.version}`, systems: base.systems }],
     assets: [],
