@@ -1171,8 +1171,6 @@ export async function runHost(context: Context): Promise<Result> {
   if (args.flag('local') && !args.flag('user')) throw new UsageError('--local applies with --user only');
   if (args.flag('user')) return runUserHost(context);
   if (args.flag('commit')) return runCommitHost(context);
-  if (args.value('kits-package-version') !== undefined)
-    throw new UsageError('--kits-package-version goes with --commit, whose lock entry it pins');
   let view: HostView;
   try {
     view = collectHost(context);

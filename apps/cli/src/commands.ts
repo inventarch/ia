@@ -624,9 +624,19 @@ export const COMMANDS: readonly CommandSpec[] = [
       'ia install <id>[@<range>]... [--requests <file>] [--registry <url|dir>]',
       '           [--catalog <file>] [--offline] [--plan-out <file>]',
       '           [--apply] [--yes] [--json]',
+      'ia install --package <name>[@<version>] [--offline] [--plan-out <file>] [--apply] [--yes] [--json]',
     ],
     grammar: grammar(
       [
+        // Contract C7b (dec-133): an npm package of kits, recorded as one lock entry; npm is transport only.
+        option({
+          name: 'package',
+          kind: 'value',
+          excludesPositionals: true,
+          conflicts: ['requests', 'registry', 'catalog'],
+          placeholder: '<name>[@<version>]',
+          summary: 'An npm package of IA kit archives, such as @inventarch/public-kits, installed as one lock entry',
+        }),
         option({
           name: 'requests',
           kind: 'value',
@@ -781,7 +791,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     syntax: [
       'ia host <claude|codex|cursor> [--remove] [--context <identity>] [--apply] [--actor <agent>] [--json] [--yes]',
       'ia host claude --user [--local] [--remove] [--apply] [--json] [--yes]',
-      'ia host <claude|codex|copilot> --commit [--kits-package-version <version>] [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
+      'ia host <claude|codex|copilot> --commit [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
     ],
     grammar: grammar(
       [
@@ -802,16 +812,7 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'commit',
           kind: 'boolean',
           conflicts: ['user', 'context'],
-          summary:
-            'Write the committable bootstrap: the IA instruction block, the published door entry with the default kits package, and its lock entry',
-        }),
-        option({
-          name: 'kits-package-version',
-          kind: 'value',
-          placeholder: '<version>',
-          conflicts: ['user', 'context', 'remove'],
-          summary:
-            'With --commit: the exact @inventarch/public-kits version to pin (default: the pinned one, else latest)',
+          summary: 'Write the committable bootstrap: the IA instruction block and the published door entry',
         }),
         option({
           name: 'remove',

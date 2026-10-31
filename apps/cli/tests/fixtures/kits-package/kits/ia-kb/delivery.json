@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "whole": [
+    "kb-knowledge",
+    "kb-place-content",
+    "kb-bind-document",
+    "kb-maintain-document",
+    "kb-check",
+    "kb-migrate",
+    "kb-retrieve",
+    "kb-review"
+  ]
+}

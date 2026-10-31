@@ -64,7 +64,6 @@ import { sessionGate } from './profile.js';
 import type { SessionGate } from './profile.js';
 import { codeOf, openSession, VALIDATING } from './session.js';
 import type { Session } from './session.js';
-import { kitsPackages, packageLines, packageRows } from './kits-package.js';
 
 type Admission = ReturnType<Session['admission']>;
 type Finding = Admission['findings'][number];
@@ -732,31 +731,21 @@ export function runValidate(context: Context): Result {
     severity: (args.value('severity') ?? 'warning') as Severity,
     limit: args.integer('max-findings', 50),
   };
-  // Contract C7: the lock's packages of kits are verified where the host put them. Drift is an error; an absent
-  // package is reported as default kits not installed. A lock that records none changes nothing below.
-  const packages = kitsPackages(root, context.host.env);
   const unverified = required ? unverifiedConformance(view) : [];
-  const exitCode = Math.max(
-    validationExit(view),
-    packages.some((report) => report.status === 'drift') || unverified.length > 0 ? 1 : 0,
-  );
+  const exitCode = Math.max(validationExit(view), unverified.length > 0 ? 1 : 0);
   return json
     ? {
         exitCode,
         stdout:
           JSON.stringify({
             ...(validationEnvelope(view, options) as Record<string, unknown>),
-            ...(packages.length === 0 ? {} : { kitsPackages: packageRows(packages) }),
             ...(required ? { requireVerified: { satisfied: unverified.length === 0, unverified } } : {}),
           }) + '\n',
         stderr: '',
       }
     : {
         exitCode,
-        stdout:
-          renderValidation(view, options, caps) +
-          packageLines(packages, caps) +
-          (required ? requiredLine(unverified, caps) : ''),
+        stdout: renderValidation(view, options, caps) + (required ? requiredLine(unverified, caps) : ''),
         stderr: '',
       };
 }
