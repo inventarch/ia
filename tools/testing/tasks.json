@@ -1548,7 +1548,8 @@
       "mode": "source",
       "inputProfile": "workspace-records",
       "dependsOn": [
-        "mcp-door:build"
+        "mcp-door:build",
+        "language-base:generate"
       ],
       "outputs": [
         "artifacts/tests/mcp-door-test"
@@ -4094,6 +4095,8 @@
       "outputs": [
         "apps/cli/assets/base",
         "apps/cli/assets/base.json",
+        "apps/mcp-door/assets/base",
+        "apps/mcp-door/assets/base.json",
         "artifacts/tests/language-base-generate"
       ],
       "cache": true,

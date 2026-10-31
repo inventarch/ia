@@ -71,7 +71,8 @@ it('resolves the packet resolve.mjs prints, field for field, and writes the same
       subject: 'the decision records',
       task: 'golden',
     });
-    expect(answer.ok).toBe(true);
+    // A refusal names its code: IA-CORE-CLI-MISSING when `language-base:generate` has not written assets/base.
+    expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
     const { envelope, ...packet } = answer.value as Record<string, unknown>;
     expect(envelope).toMatchObject({ host: 'mcp-door', cliSource: 'in-process', kitInstalled: false });
     expect(packet['digest']).toBe(packetDigest(packet));
@@ -128,7 +129,7 @@ it('lists a lane from kit recommendations and workspace bindings, bound before i
 
 it('opens a session with a bounded briefing, the kits and the current pin, and logs it under the IA home', () => {
   const answer = tools().call('method:session', { claim: { path: 'docs', mode: 'write' } });
-  expect(answer.ok).toBe(true);
+  expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
   const session = answer.value as Record<string, unknown> & { sessionId: string; briefing: string };
   expect(session).toMatchObject({
     root: consumer,
