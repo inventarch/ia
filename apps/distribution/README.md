@@ -60,7 +60,7 @@ A `plan` command returns reviewable data, saved with `--out`; `apply` rechecks e
 
 ## Distribution engine compatibility
 
-The distribution engine has its own version, separate from the npm package and native archive versions. The 2.x CLI reads engine 0.1.0. IA 3.0 uses engine 0.1.1, which verifies pinned release-control sources outside system folders. IA 3.5 uses engine 0.1.2, which reads a lock's package entries: the npm package of default kits that `ia host <host> --commit` records (contract C7).
+The distribution engine has its own version, separate from the npm package and native archive versions. The 2.x CLI reads engine 0.1.0. IA 3.0 uses engine 0.1.1, which verifies pinned release-control sources outside system folders. IA 3.5 uses engine 0.1.2, which reads a lock's package entries: an npm package of kits that `ia install --package` records, whose kits it installs as ordinary releases (contract C7b).
 
 - **Old locks.** IA 3.0 reads an exact 0.1.0 lock without rewriting its pins when the selected archives support the new engine. That is forward compatibility only.
 - **What migrates a workspace.** An applied `ia init`, and every applied `ia install` or `ia update`, including one that changes nothing, writes an engine 0.1.1 lock, which the 2.x CLI refuses to read. `ia remove` keeps the existing engine marker, though its host refresh can still write newer host state.
