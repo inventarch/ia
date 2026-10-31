@@ -17,8 +17,8 @@ import {
   sourcesDigest,
 } from './kits.js';
 import type { Kit, KitSources } from './kits.js';
-import { packageOf, workspaceKits } from './kits-package.js';
-import type { KitsPackageReport } from './kits-package.js';
+import { restoreRefusal, workspaceKits } from './installed-kits.js';
+import type { LockedKit } from './installed-kits.js';
 import { assemblePacket } from './packet.js';
 import type { MethodPacket } from './packet.js';
 import { kitUpdate, pinRootFor, readPin, writePin } from './pin.js';
@@ -168,8 +168,8 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
     throw new MethodError('--pin needs a task folder: IA_CORE_RUN_ROOT, or --project and --task', 'IA-CORE-USAGE');
   const startRoot = request.root ?? realpathSync.native(context.cwd ?? process.cwd());
   const workspaceRoot = findWorkspace(startRoot);
-  // A workspace's kits include those of the npm kits package its lock records, verified first; outside one, listKits.
-  let listed: { readonly kits: Kit[]; readonly packages: readonly KitsPackageReport[] } | undefined;
+  // A workspace's kits include those its lock's package entries install, read from its store; outside one, listKits.
+  let listed: { readonly kits: Kit[]; readonly missing: readonly LockedKit[] } | undefined;
   const at = (): NonNullable<typeof listed> => (listed ??= workspaceKits(context.kits, workspaceRoot, env));
   const kits = (): Kit[] => (workspaceRoot === null ? listKits(context.kits) : at().kits);
   if (!workspaceRoot && !unbound)
@@ -215,10 +215,10 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
   const keyPin = pin?.keys?.[activityKey] ?? null;
   const savedKit = pin?.kits?.[binding.kit] ?? null;
   let carried: Kit | undefined;
-  // A kit the lock's package entry names is that package's: missing or drifted, it refuses, never read from another copy.
-  const packaged = workspaceRoot === null ? undefined : packageOf(at().packages, binding.kit);
+  // A kit a package entry installs is read from the store: one the store lacks refuses, never read from another copy.
+  const unrestored = workspaceRoot === null ? undefined : at().missing.find((row) => row.id === binding.kit);
   try {
-    if (packaged?.error) throw packaged.error;
+    if (unrestored !== undefined) throw restoreRefusal(unrestored);
     carried = findKit(binding.kit, kits());
   } catch (error) {
     if (!savedKit?.retained || request.rebind) throw error;
@@ -519,8 +519,7 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
         cliVersion: readerInfo.version,
         cliSource: readerInfo.source,
         kitRoot,
-        kitInstalled: Boolean(installed) || packaged?.status === 'installed',
-        ...(packaged?.status === 'installed' ? { kitPackage: `${packaged.entry.name}@${packaged.entry.version}` } : {}),
+        kitInstalled: Boolean(installed),
         run: request.run ?? null,
         latencyMs: 0,
       },

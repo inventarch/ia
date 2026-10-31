@@ -1,29 +1,32 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import {
-  DEFAULT_KITS_MISSING,
-  MethodError,
+  INSTALLED_KITS_DIRECTORY,
   briefing,
+  installedKit,
+  installedPackageKits,
   listKits,
+  lockedPackageKits,
   methodRefusal,
   openSession,
   resolveMethod,
-  sourcesDigest,
   workspaceKits,
-  workspaceKitsPackages,
 } from '../src/method/index.js';
 
 /**
- * The npm package of kits a workspace lock records as one `package` entry (contract C7): found under the workspace's
- * `node_modules` or `IA_KITS_PACKAGE`, verified against the entry, and the only source of the kits it names.
+ * Kits a workspace lock installs from an npm package of kits (contract C7b, ia-kb `dec-133`): the engine expands them
+ * into `.ia/distributions/store/<archive>/` as ordinary releases, and the runtime reads them from there, materialized
+ * once under the IA home; a kit the store lacks needs `ia restore`, and is never answered by another copy.
  */
-let dir: string, root: string, bundled: string;
+let dir: string, root: string, bundled: string, home: string;
 beforeEach(() => {
-  dir = realpathSync(mkdtempSync(join(tmpdir(), 'ia-kits-package-')));
+  dir = realpathSync(mkdtempSync(join(tmpdir(), 'ia-installed-kits-')));
   root = join(dir, 'repo');
   bundled = join(dir, 'bundled');
+  home = join(dir, 'home');
   mkdirSync(join(root, '.ia', 'src'), { recursive: true });
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -31,187 +34,103 @@ const write = (path: string, value: unknown): void => {
   mkdirSync(join(path, '..'), { recursive: true });
   writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n');
 };
-const archive = (version: string): string => version.replaceAll('.', '').padStart(64, 'a');
-/** A format 2 kit folder `inventarch/<name>-kit` at `at`. */
-function kit(at: string, name: string, version: string): string {
-  const id = `inventarch/${name}-kit`;
-  write(join(at, '.ia', 'release.json'), { id, version });
-  write(join(at, '.ia', 'src', 'workspace.ia'), `@workspace ${name}\n`);
+const sha256 = (bytes: string | Buffer): string => createHash('sha256').update(bytes).digest('hex');
+const BASE = { id: 'inventarch/language', version: '3.2.0', archive: 'b'.repeat(64), manifest: 'c'.repeat(64) };
+/** A bundled kit folder `inventarch/<name>-kit`. */
+function folderKit(at: string, name: string, version: string): void {
+  write(join(at, '.ia', 'release.json'), { id: `inventarch/${name}-kit`, version });
   write(join(at, 'releases.json'), {
-    format: 2,
-    kit: id,
-    latest: version,
-    releases: [
-      {
-        version,
-        archive: archive(version),
-        manifest: 'm'.repeat(64),
-        sources: 's'.repeat(64),
-        language: 'inventarch/language ^3.2.0',
-        cli: '@inventarch/cli 3.4.1',
-        file: `releases/${version}.json`,
-      },
-    ],
+    kit: `inventarch/${name}-kit`,
+    releases: [{ version, archive: 'a'.repeat(64), records: [] }],
   });
-  write(join(at, 'releases', `${version}.json`), {
-    format: 2,
-    kit: id,
-    version,
-    archive: archive(version),
-    records: [],
-  });
-  return at;
 }
-const INTEGRITY = `sha512-${'B'.repeat(86)}==`;
-/** The package at `<root>/node_modules/@inventarch/public-kits`, carrying ia-kb 0.9.0, and the lock entry naming it. */
-function kitsPackage(location = join(root, 'node_modules', '@inventarch', 'public-kits')): string {
-  const kb = kit(join(location, 'kits', 'ia-kb'), 'ia-kb', '0.9.0');
-  write(join(location, 'package.json'), {
-    name: '@inventarch/public-kits',
-    version: '1.0.0',
-    license: 'Apache-2.0',
-    ia: {
-      format: 1,
-      kits: [
-        {
-          id: 'inventarch/ia-kb-kit',
-          version: '0.9.0',
-          archive: archive('0.9.0'),
-          sources: sourcesDigest(kb),
-          folder: 'ia-kb',
-        },
-      ],
-    },
+/** An installed store payload of `inventarch/ia-kb-kit`, and the lock row that pins it. */
+function storeKit(): { id: string; version: string; archive: string; manifest: string; dependencies: string[] } {
+  const record = '#! ia 1.0\n\n@workspace kb\n';
+  const manifest = JSON.stringify({
+    id: 'inventarch/ia-kb-kit',
+    version: '0.9.0',
+    dependencies: [{ id: BASE.id, range: '^3.2.0' }],
+    files: [{ path: '.ia/src/workspace.ia', bytes: record.length, sha256: sha256(record), role: 'source' }],
   });
-  return location;
+  const archive = 'd'.repeat(64);
+  write(join(root, '.ia', 'distributions', 'store', archive, 'distribution.json'), manifest);
+  write(join(root, '.ia', 'distributions', 'store', archive, '.ia', 'src', 'workspace.ia'), record);
+  return { id: 'inventarch/ia-kb-kit', version: '0.9.0', archive, manifest: sha256(manifest), dependencies: [BASE.id] };
 }
-const entry = {
-  kind: 'package',
-  name: '@inventarch/public-kits',
-  version: '1.0.0',
-  integrity: INTEGRITY,
-  kits: [{ id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: archive('0.9.0') }],
-};
-const lock = (entries: unknown[] | undefined): void =>
+const lock = (kits: unknown[]): void =>
   write(join(root, '.ia', 'distributions.lock.json'), {
     formatVersion: 1,
-    engine: entries === undefined ? '0.1.1' : '^0.1.2',
+    engine: '^0.1.2',
+    requests: [{ id: BASE.id, range: '^3.2.0' }],
+    packages: [{ ...BASE, location: `sha256:${BASE.archive}`, dependencies: [] }],
+    entries: [
+      {
+        kind: 'package',
+        name: '@inventarch/public-kits',
+        version: '1.0.0',
+        integrity: `sha512-${'E'.repeat(86)}==`,
+        kits,
+      },
+    ],
+  });
+const env = (): NodeJS.ProcessEnv => ({ IA_HOME: home });
+
+it('reads kits as before when the lock records no package entry', () => {
+  folderKit(join(bundled, 'ia-kb'), 'ia-kb', '0.8.0');
+  write(join(root, '.ia', 'distributions.lock.json'), {
+    formatVersion: 1,
+    engine: '0.1.1',
     requests: [],
     packages: [],
-    ...(entries === undefined ? {} : { entries }),
   });
-const env = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({ IA_HOME: join(dir, 'home'), ...extra });
-
-it('reads kits as before when the lock records no package', () => {
-  kit(join(bundled, 'ia-kb'), 'ia-kb', '0.8.0');
-  lock(undefined);
-  const listed = workspaceKits({ bundled, home: null }, root, env());
-  expect(listed.packages).toEqual([]);
-  expect(listed.kits).toEqual(listKits({ bundled, home: null }));
+  expect(lockedPackageKits(root)).toEqual([]);
+  expect(workspaceKits({ bundled, home: null }, root, env())).toEqual({
+    kits: listKits({ bundled, home: null }),
+    missing: [],
+  });
 });
 
-it("treats a verified package's kits as installed and reads them only from it", () => {
-  kit(join(bundled, 'ia-kb'), 'ia-kb', '0.8.0');
-  kit(join(bundled, 'ia-authoring'), 'ia-authoring', '0.4.0');
-  const location = kitsPackage();
-  lock([entry]);
+it('reads an installed kit from the store, materialized with its release and dependency lock, and never another copy', () => {
+  folderKit(join(bundled, 'ia-kb'), 'ia-kb', '0.8.0');
+  folderKit(join(bundled, 'ia-authoring'), 'ia-authoring', '0.4.0');
+  const row = storeKit();
+  lock([row]);
   const listed = workspaceKits({ bundled, home: null }, root, env());
-  expect(listed.packages.map((report) => [report.status, report.dir, report.integrity])).toEqual([
-    ['installed', location, 'unchecked'],
-  ]);
-  expect(listed.kits.map((k) => [k.id, k.version, k.origin])).toEqual([
+  expect(listed.missing).toEqual([]);
+  expect(listed.kits.map((kit) => [kit.id, kit.latest?.version, kit.origin])).toEqual([
     ['inventarch/ia-authoring-kit', '0.4.0', 'bundled'],
-    ['inventarch/ia-kb-kit', '0.9.0', 'package'],
+    ['inventarch/ia-kb-kit', '0.9.0', 'installed'],
   ]);
-  // npm's record of the install, beside it, must hold the entry's integrity.
-  const record = join(root, 'node_modules', '.package-lock.json');
-  write(record, { packages: { 'node_modules/@inventarch/public-kits': { version: '1.0.0', integrity: INTEGRITY } } });
-  expect(workspaceKitsPackages(root, { env: env() })[0]!.integrity).toBe('verified');
-  write(record, {
-    packages: { 'node_modules/@inventarch/public-kits': { version: '1.0.0', integrity: `sha512-${'C'.repeat(86)}==` } },
+  const materialized = join(realpathSync(home), INSTALLED_KITS_DIRECTORY, row.archive);
+  expect(listed.kits[1]!.dir).toBe(materialized);
+  expect(listed.kits[1]!.latest).toMatchObject({ archive: row.archive, manifest: row.manifest });
+  // Its own lock pins the dependency exactly as the workspace lock does.
+  expect(JSON.parse(readFileSync(join(materialized, '.ia', 'distributions.lock.json'), 'utf8'))).toMatchObject({
+    requests: [{ id: BASE.id, range: '^3.2.0' }],
+    packages: [{ id: BASE.id, archive: BASE.archive, manifest: BASE.manifest }],
   });
-  expect(workspaceKitsPackages(root, { env: env() })[0]).toMatchObject({ status: 'drift', field: 'integrity' });
+  expect(installedKit(root, 'inventarch/ia-kb-kit')).toMatchObject({ archive: row.archive });
+  // A store payload that is not the manifest the lock pins refuses.
+  write(join(root, '.ia', 'distributions', 'store', row.archive, 'distribution.json'), '{}');
+  expect(() => installedPackageKits(root, env())).toThrow(/not the manifest the lock pins/);
 });
 
-it('names the field a drifted package differs in, and never falls back to another copy', () => {
-  kit(join(bundled, 'ia-kb'), 'ia-kb', '0.8.0');
-  const location = kitsPackage();
-  const drifts: [unknown, string][] = [
-    [{ ...entry, version: '1.0.1' }, 'version'],
-    [{ ...entry, kits: [{ ...entry.kits[0], archive: archive('0.9.1') }] }, 'ia.kits[inventarch/ia-kb-kit].archive'],
-    [{ ...entry, kits: [{ ...entry.kits[0], version: '0.9.1' }] }, 'ia.kits[inventarch/ia-kb-kit].version'],
-    [
-      {
-        ...entry,
-        kits: [...entry.kits, { id: 'inventarch/ia-method-kit', version: '1.0.0', archive: archive('1.0.0') }],
-      },
-      'ia.kits',
-    ],
-  ];
-  for (const [row, field] of drifts) {
-    lock([row]);
-    const [report] = workspaceKitsPackages(root, { env: env() });
-    expect(report).toMatchObject({ status: 'drift', field, kits: [] });
-    expect(report!.error?.code).toBe('IA-CORE-KITS-PACKAGE-DRIFT');
-    expect(report!.error?.message).toContain(`differs from .ia/distributions.lock.json in ${field}`);
-    expect(workspaceKits({ bundled, home: null }, root, env()).kits.map((k) => k.id)).toEqual([]);
-  }
-  lock([entry]);
-  write(join(location, 'kits', 'ia-kb', '.ia', 'src', 'workspace.ia'), '@workspace changed\n');
-  expect(workspaceKitsPackages(root, { env: env() })[0]).toMatchObject({
-    status: 'drift',
-    field: 'ia.kits[inventarch/ia-kb-kit].sources',
-  });
-});
-
-it('reports default kits not installed when the lock names a package that is not present', () => {
-  kit(join(bundled, 'ia-kb'), 'ia-kb', '0.8.0');
-  lock([entry]);
+it('says to run ia restore when the store lacks a kit the lock installs, and refuses a binding to it', () => {
+  folderKit(join(bundled, 'ia-kb'), 'ia-kb', '0.8.0');
+  const row = storeKit();
+  rmSync(join(root, '.ia', 'distributions'), { recursive: true });
+  lock([row]);
   const listed = workspaceKits({ bundled, home: null }, root, env());
   expect(listed.kits).toEqual([]);
-  const [report] = listed.packages;
-  expect(report).toMatchObject({ status: 'not-installed', dir: null });
-  expect(report!.error?.code).toBe('IA-CORE-KITS-PACKAGE-MISSING');
-  expect(
-    report!.error?.message.startsWith(`${DEFAULT_KITS_MISSING}: the lock names @inventarch/public-kits@1.0.0`),
-  ).toBe(true);
-  const session = openSession(join(dir, 'home'), {
-    root,
-    workspace: null,
-    kits: listed.kits,
-    packages: listed.packages,
-  });
-  expect(session.packages).toEqual([
-    {
-      name: '@inventarch/public-kits',
-      version: '1.0.0',
-      kits: ['inventarch/ia-kb-kit'],
-      state: 'not-installed',
-      message: report!.error!.message,
-    },
+  expect(listed.missing.map((kit) => [kit.id, kit.package])).toEqual([
+    ['inventarch/ia-kb-kit', '@inventarch/public-kits@1.0.0'],
   ]);
-  expect(session.briefing).toContain('Default kits not installed: the lock records @inventarch/public-kits@1.0.0');
-  // A session at a workspace without a package entry briefs as before.
-  const plain = { root, workspace: null, kits: [], lanes: ['work'] };
-  expect(briefing(plain)).not.toContain('Default kits');
-});
-
-it('reads the package IA_KITS_PACKAGE names, and refuses a relative one', () => {
-  const elsewhere = kitsPackage(join(dir, 'npx', 'node_modules', '@inventarch', 'public-kits'));
-  lock([entry]);
-  expect(workspaceKitsPackages(root, { env: env({ IA_KITS_PACKAGE: elsewhere }) })[0]).toMatchObject({
-    status: 'installed',
-    dir: elsewhere,
-  });
-  expect(workspaceKitsPackages(root, { explicit: elsewhere })[0]!.status).toBe('installed');
-  expect(() => workspaceKitsPackages(root, { env: env({ IA_KITS_PACKAGE: 'kits' }) })).toThrow(MethodError);
-  // The folder it names is the one read, even when the workspace has another copy.
-  expect(workspaceKitsPackages(root, { explicit: join(dir, 'absent') })[0]!.status).toBe('not-installed');
-});
-
-it('refuses a binding to a package kit that is not installed, and still one to a kit nothing provides', () => {
-  kit(join(bundled, 'ia-kb'), 'ia-kb', '0.8.0');
-  lock([entry]);
+  const session = openSession(home, { root, workspace: null, kits: listed.kits, missing: listed.missing });
+  expect(session.restore).toMatchObject({ kits: ['inventarch/ia-kb-kit@0.9.0'] });
+  expect(session.restore!.message).toContain('run ia restore');
+  expect(session.briefing).toContain('Kits not restored:');
+  expect(briefing({ root, workspace: null, kits: [], lanes: ['work'] })).not.toContain('Kits not restored');
   write(join(root, '.ia', 'bindings.json'), {
     format: 1,
     bindings: {
@@ -219,26 +138,28 @@ it('refuses a binding to a package kit that is not installed, and still one to a
       'knowledge.check': { kit: 'inventarch/ia-method-kit', capability: 'check' },
     },
   });
-  const context = {
-    kits: { bundled, home: null },
-    restore: () => {
-      throw new Error('no read root is restored for a refused binding');
-    },
-    env: env(),
-    store: join(dir, 'store'),
-  };
   const refused = (activity: string): unknown => {
     try {
-      resolveMethod({ entry: 'knowledge', activity, root }, context);
+      resolveMethod(
+        { entry: 'knowledge', activity, root },
+        {
+          kits: { bundled, home: null },
+          restore: () => {
+            throw new Error('no read root is restored for a refused binding');
+          },
+          env: env(),
+          store: join(dir, 'store'),
+        },
+      );
     } catch (error) {
       return methodRefusal(error).error;
     }
     return 'resolved';
   };
   expect(refused('find')).toMatchObject({
-    code: 'IA-CORE-KITS-PACKAGE-MISSING',
-    message: expect.stringContaining(DEFAULT_KITS_MISSING),
+    code: 'IA-CORE-KIT-RESTORE-REQUIRED',
+    message: expect.stringContaining('run ia restore'),
   });
-  // dec-117: a kit neither vendored, bundled, in the IA home nor named by a package entry is refused.
+  // dec-117: a kit nothing installs, bundles or carries is still refused.
   expect(refused('check')).toMatchObject({ code: 'IA-CORE-KIT-UNKNOWN' });
 });

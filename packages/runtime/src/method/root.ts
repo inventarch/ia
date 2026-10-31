@@ -18,9 +18,14 @@ export function checkRoot(root: string, mode: Mode): RootCheck {
   try {
     handle = open(root, { cache: false });
   } catch (error) {
-    throw new MethodError(
-      `the workspace at ${root} does not open: ${error instanceof Error ? error.message : String(error)}`,
-      'IA-CORE-ROOT-UNAVAILABLE',
+    // The installation's reason (`restore-required`, `lock-drift`, …) travels on, so a host can say what to run.
+    const reason = (error as { reason?: unknown } | null)?.reason;
+    throw Object.assign(
+      new MethodError(
+        `the workspace at ${root} does not open: ${error instanceof Error ? error.message : String(error)}`,
+        'IA-CORE-ROOT-UNAVAILABLE',
+      ),
+      typeof reason === 'string' ? { reason } : {},
     );
   }
   try {

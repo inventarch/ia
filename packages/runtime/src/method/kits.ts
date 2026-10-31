@@ -12,10 +12,10 @@ import type { ReleaseRow } from './releases.js';
  * `.ia/distributions.lock.json` (the language base it pins), `releases.json` (format 1 or 2) and optionally the
  * sidecars `checks.json`, `delivery.json`, `bindings.json` and `onwrite.json`. Files `.ia/release.json` declares under
  * `assets` sit beside `.ia/`. Kits are found in two places: a bundled folder of kit folders, then the IA home's
- * `kits/<folder>/<version>/`. A workspace whose lock records an npm package of kits also reads that package's
- * `kits/<folder>/` (kits-package.ts), origin `package`.
+ * `kits/<folder>/<version>/`. A workspace whose lock installs kits from an npm package of kits also reads them from its
+ * store (installed-kits.ts), origin `installed`.
  */
-export type KitOrigin = 'bundled' | 'home' | 'package';
+export type KitOrigin = 'bundled' | 'home' | 'installed';
 export interface Kit {
   readonly folder: string;
   readonly dir: string;
@@ -34,8 +34,6 @@ export interface KitSources {
   readonly bundled?: string;
   /** The IA home's kit store, `<IA home>/kits`; null reads none. */
   readonly home?: string | null;
-  /** The folder of the npm package of kits a workspace lock names: the door's `--kits-package`, else `IA_KITS_PACKAGE`. */
-  readonly package?: string;
 }
 
 const TEXT = /\.(?:ia|json|md|mjs|txt)$/i;
@@ -437,7 +435,7 @@ export interface LockedPackage {
   readonly archive?: string;
   readonly dependencies?: readonly string[];
 }
-/** The distribution lock of the IA workspace at root, or undefined; `entries` holds its non-release rows (kits-package.ts). */
+/** The distribution lock of the IA workspace at root, or undefined; `entries` holds its non-release rows (installed-kits.ts). */
 export function readLock(
   root: string,
 ): { readonly packages?: readonly LockedPackage[]; readonly entries?: readonly unknown[] } | undefined {
@@ -445,9 +443,22 @@ export function readLock(
   if (!existsSync(lockPath)) return undefined;
   return JSON.parse(readFileSync(lockPath, 'utf8')) as { packages?: LockedPackage[]; entries?: unknown[] };
 }
-/** The installed kit: the lock entry for the kit's id. */
-export const installedKit = (root: string, kitId: string): LockedPackage | undefined =>
-  (readLock(root)?.packages ?? []).find((pkg) => pkg.id === kitId);
+/**
+ * The installed kit: the lock's release row for the kit's id, or the kit row of a package entry that names it, which the
+ * engine installs as an ordinary release (contract C7b).
+ */
+export function installedKit(root: string, kitId: string): LockedPackage | undefined {
+  const lock = readLock(root);
+  const row = (lock?.packages ?? []).find((pkg) => pkg.id === kitId);
+  if (row !== undefined) return row;
+  for (const entry of Array.isArray(lock?.entries) ? lock.entries : []) {
+    const kits = (entry as { kind?: unknown; kits?: unknown }).kits;
+    if ((entry as { kind?: unknown }).kind !== 'package' || !Array.isArray(kits)) continue;
+    const kit = (kits as LockedPackage[]).find((candidate) => candidate?.id === kitId);
+    if (kit !== undefined) return kit;
+  }
+  return undefined;
+}
 
 /**
  * A pin is usable only while the kit's release, source digest and implementation still match it; historical release
