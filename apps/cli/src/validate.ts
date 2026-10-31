@@ -30,6 +30,9 @@
  * exit, and a Conformance section. Checks, evidence and bindings stay the first session's, bound from the report without
  * verification, so the evidence recorded is what a validation without the flag records, and every reader admits it.
  * Without the flag nothing new runs and the output is unchanged.
+ *
+ * `--require-verified` (contract C7, opt-in) goes with `--verify-conformance`: the run exits 1 unless COMP-KERNEL and
+ * COMP-FIXTURES are both verified passes, and says which is not. Without it the exit is as before.
  */
 import { EVIDENCE_DIRECTORY } from '@inventarch/db';
 import type { EvidenceWrite } from '@inventarch/db';
@@ -38,6 +41,7 @@ import { installationTrust } from '@inventarch/distribution/implementations';
 import type { HostTrust } from '@inventarch/distribution/implementations';
 import { recordValidation } from '@inventarch/distribution/services';
 import type { ValidationBindings, ValidationChecks } from '@inventarch/distribution/services';
+import { UsageError } from './args.js';
 import type { Context, Host, Result } from './consumer.js';
 import { iaHomeOf, Refusal, requireRoot } from './consumer.js';
 import type { Capabilities, ErrorElements, SymbolName, Token } from './render.js';
@@ -90,6 +94,19 @@ const conformanceOf = (report: Report): ValidationConformance => ({
   ...report.conformance,
 });
 
+/**
+ * Under `--require-verified`, the conformance checks that are not a verified pass: COMP-FIXTURES and COMP-KERNEL each
+ * need `basis: 'verified'` and outcome `pass`. Empty when both are; both when the view was not verified.
+ */
+export function unverifiedConformance(view: Pick<ValidationView, 'conformance'>): readonly string[] {
+  const verdicts = view.conformance?.verdicts ?? [];
+  return CONFORMANCE_CHECKS.filter(
+    (check) =>
+      !verdicts.some(
+        (verdict) => verdict.check === check && verdict.basis === 'verified' && verdict.outcome === 'pass',
+      ),
+  );
+}
 /** §2.5: `fail` on any error, else `not-evaluated` on an unresolved or unevaluated check, else `pass`. */
 export type ReportOutcome = 'pass' | 'fail' | 'not-evaluated';
 export const NOT_EVALUATED: ReadonlySet<string> = new Set(['IA-COMP-EDGE-UNRESOLVED', 'IA-COMP-NOT-EVALUATED']);
@@ -698,6 +715,9 @@ export function renderValidation(view: ValidationView, options: ValidationOption
 
 export function runValidate(context: Context): Result {
   const { args, caps, json } = context;
+  const required = args.flag('require-verified');
+  if (required && !args.flag('verify-conformance'))
+    throw new UsageError('--require-verified goes with --verify-conformance, whose verdicts it requires');
   const root = requireRoot(context);
   // The validate mode (Verification) under the participant's mandate profile, judged on the validation's own session
   // before it reads anything or records evidence.
@@ -715,7 +735,11 @@ export function runValidate(context: Context): Result {
   // Contract C7: the lock's packages of kits are verified where the host put them. Drift is an error; an absent
   // package is reported as default kits not installed. A lock that records none changes nothing below.
   const packages = kitsPackages(root, context.host.env);
-  const exitCode = Math.max(validationExit(view), packages.some((report) => report.status === 'drift') ? 1 : 0);
+  const unverified = required ? unverifiedConformance(view) : [];
+  const exitCode = Math.max(
+    validationExit(view),
+    packages.some((report) => report.status === 'drift') || unverified.length > 0 ? 1 : 0,
+  );
   return json
     ? {
         exitCode,
@@ -723,8 +747,35 @@ export function runValidate(context: Context): Result {
           JSON.stringify({
             ...(validationEnvelope(view, options) as Record<string, unknown>),
             ...(packages.length === 0 ? {} : { kitsPackages: packageRows(packages) }),
+            ...(required ? { requireVerified: { satisfied: unverified.length === 0, unverified } } : {}),
           }) + '\n',
         stderr: '',
       }
-    : { exitCode, stdout: renderValidation(view, options, caps) + packageLines(packages, caps), stderr: '' };
+    : {
+        exitCode,
+        stdout:
+          renderValidation(view, options, caps) +
+          packageLines(packages, caps) +
+          (required ? requiredLine(unverified, caps) : ''),
+        stderr: '',
+      };
+}
+/** The line `--require-verified` adds: both checks verified, or which are not and that the run fails for it. */
+function requiredLine(unverified: readonly string[], caps: Capabilities): string {
+  return document(
+    [
+      entry(
+        [
+          words(
+            unverified.length === 0
+              ? 'Required verified: COMP-KERNEL and COMP-FIXTURES are verified passes.'
+              : `Required verified: ${listed(unverified)} ${unverified.length === 1 ? 'is' : 'are'} not a verified pass, so this run fails.`,
+          ),
+        ],
+        { depth: 0, symbol: unverified.length === 0 ? 'success' : 'error' },
+        caps,
+      ),
+    ],
+    { leadingBlank: true },
+  );
 }

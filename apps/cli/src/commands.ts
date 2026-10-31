@@ -219,7 +219,7 @@ export const COMMANDS: readonly CommandSpec[] = [
       next: 'ia init',
     },
     syntax: [
-      'ia validate [<path>...] [--severity error|warning] [--max-findings <n>] [--verify-conformance] [--actor <agent>] [--json]',
+      'ia validate [<path>...] [--severity error|warning] [--max-findings <n>] [--verify-conformance [--require-verified]] [--actor <agent>] [--json]',
     ],
     grammar: grammar(
       [
@@ -235,6 +235,11 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'verify-conformance',
           kind: 'boolean',
           summary: 'Verify COMP-KERNEL and COMP-FIXTURES in-process (package-v1 profile)',
+        }),
+        option({
+          name: 'require-verified',
+          kind: 'boolean',
+          summary: 'With --verify-conformance: exit 1 unless COMP-KERNEL and COMP-FIXTURES are verified passes',
         }),
         ACTOR,
       ],
