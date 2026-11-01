@@ -2,6 +2,46 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.5.1
+
+Coordinated 3.5.1 release of the 24 public npm packages: Check current authority before returning an agent session; Check publication recovery when session authority expires; Keep the repository workspace resolvable beside domain roots; Pin more of the database contract with tests; Read an installation through a linked root and keep adopted trees' line endings.
+
+### Check current authority before returning an agent session
+
+Engine.advance now checks the current grant for the session root profile before returning session state, including terminal, paused, waiting and cancelled advances. Revoked or expired authority is refused even when no scheduler step runs.
+
+Packages: `@inventarch/agent-system`.
+
+### Check publication recovery when session authority expires
+
+The publication recovery regression now expects expired authority to deny the returned session while checking that recovery evidence remains persisted.
+
+Packages: `@inventarch/agent-system`, `@inventarch/workspace-runtime`.
+
+### Keep the repository workspace resolvable beside domain roots
+
+A unique admitted workspace in .ia/src/workspace.ia is now the repository default even when it declares no sources and another workspace does. Multiple workspaces at that entry point remain ambiguous; repositories without an admitted entry-point workspace retain the previous selection fallback. Domain workspaces can declare their own sources without making the repository default ambiguous. Source membership and mandate restrictions are unchanged.
+
+Packages: `@inventarch/db`, `@inventarch/runtime`.
+
+### Pin more of the database contract with tests
+
+Tests only: pins refusals, limits and read-only rules that @inventarch/db already applies. No package behaviour changes.
+
+Packages: `@inventarch/db`.
+
+### Read an installation through a linked root and keep adopted trees' line endings
+
+readInstalledGeneration and readExpandedBundle now canonicalize the root as open does, so the ia_kb_* tools and other readers work when --root reaches the workspace through a link; a link inside the installation is still refused. ia adopt and ia init --adopt write .ia/open/.gitattributes with * -text -filter -ident -working-tree-encoding unless a regular file is already there, which keeps checkouts from converting pinned bytes unless a higher-precedence git attribute says otherwise. A bound tree that matches its pin once CRLF becomes LF is now refused with the conversion named, instead of a plain revision mismatch.
+
+Packages: `@inventarch/cli`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/kb`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.5.1 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/authoring-system`, `@inventarch/compliance`, `@inventarch/compliance-system`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/mcp-door`, `@inventarch/runner`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
+
 ## 3.5.0
 
 Coordinated 3.5.0 release of the 24 public npm packages: Close the conformance gaps runtime/local leaves; The door carries every method kit to every host.
