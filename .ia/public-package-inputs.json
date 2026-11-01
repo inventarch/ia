@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "00f70763782924ad74f60a9fe92334de68f10171",
-    "tree": "3bd89782fbc73ced0aece3e787c9c2fd06e085d1",
+    "commit": "bb129fef5ed9b0426cc4d6ab937d485841f3193b",
+    "tree": "1bbfad3369734b8522cd88c52b1c6748dc95e7c3",
     "dirty": true
   },
   "membership": {
@@ -7288,7 +7288,7 @@
     },
     {
       "path": "releases/pending/bound-what-one-capture-reads-and-what-its-source.json",
-      "sha256": "caf85076b575dd4140ef154204cfc944e8cfc48997f6102a411667c497b93573"
+      "sha256": "fcb48e8c76a1f29c9540cf768a59c0ccf02bd3af19909c396649fb294f1df068"
     },
     {
       "path": "tools/compliance/SPEC.md",
@@ -8379,5 +8379,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "34cff4fbe3b4ead1f2dcdc0ec5135d55a1e117c8f1520cdf7964785a060fe4ea"
+  "inputDigest": "f07e590ae8e26dc7b99d69490a082185ba15b2c5e9cf0cb14aa593caf17b11ca"
 }
