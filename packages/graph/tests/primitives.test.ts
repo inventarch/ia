@@ -5,6 +5,7 @@ import {
   authoredRevisionOf,
   canonicalRoot,
   dimensionsOf,
+  frozen,
   reaches,
   revisionOf,
   stableSerialize,
@@ -87,8 +88,40 @@ describe('immutable structured snapshots', () => {
     expect(() => stableSerialize(undefined)).toThrow();
   });
 });
+describe('read-only collections', () => {
+  const map = snapshot(new Map([['a', 1]])),
+    set = snapshot(new Set(['a']));
+  it('share prototypes nothing can change', () => {
+    for (const view of [map, set]) {
+      const prototype = Object.getPrototypeOf(view) as { has: unknown };
+      expect(Object.isFrozen(prototype)).toBe(true);
+      expect(() => {
+        prototype.has = () => true;
+      }).toThrow(TypeError);
+      expect(view.has('b')).toBe(false);
+    }
+  });
+  it('read their receiver, so a method taken off one throws until it is called on one', () => {
+    const { get } = map,
+      { has } = set;
+    expect(() => get('a')).toThrow(TypeError);
+    expect(() => has('a')).toThrow(TypeError);
+    expect(get.call(map, 'a')).toBe(1);
+    expect(has.call(set, 'a')).toBe(true);
+  });
+});
 describe('corpus revision', () => {
   const metadata = { languageVersion: LANGUAGE_VERSION, kernelDigest: KERNEL_DIGEST };
+  it('tells every list of derived paths apart, from frozen inputs too', () => {
+    const location = { placement: { kind: 'runtime', band: 0, reach: '' }, provenance: 'runtime' } as const,
+      sources = frozen(['a b', 'c', 'a', 'b c'].map((path) => ({ path, text: path, location }))),
+      vocabulary = frozen(registry),
+      revision = (derived: readonly string[]) => authoredRevisionOf(vocabulary, { ...metadata, sources }, derived),
+      first = revision(['a b', 'c']);
+    expect(revision(['a', 'b c'])).not.toBe(first);
+    expect(revision(['c', 'a b'])).toBe(first);
+    expect(revision(['a b', 'c'])).toBe(first);
+  });
   const baseline = revisionOf(registry, { ...metadata, sources: inputs });
   it('uses all native source inputs independent of their order or map insertion order', () => {
     expect(baseline).toMatch(/^[a-f0-9]{64}$/);

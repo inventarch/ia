@@ -1,4 +1,5 @@
 import type { Span } from '../ast.js';
+import { listed, others } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import type { Band } from '../taxonomy.js';
@@ -13,6 +14,8 @@ interface Named {
 }
 
 const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/** Where a declaration stands, which orders what a collision lists whatever order its sources were read in. */
+const byPlace = (a: Named, b: Named): number => byName(a.path, b.path) || a.span.line - b.span.line;
 
 /**
  * Band merge of declarations sharing a name: the highest band wins and lower bands are shadowed
@@ -31,24 +34,21 @@ export function mergeByName<T extends Named>(
   const winners = new Map<string, T>();
   const diagnostics: Diagnostic[] = [];
   for (const [name, group] of [...groups.entries()].sort(([a], [b]) => byName(a, b))) {
-    const top = Math.max(...group.map((item) => item.band));
+    const top = group.reduce((highest, item) => Math.max(highest, item.band), -Infinity);
     const atTop = group.filter((item) => item.band === top);
     const winner = atTop[0];
     if (atTop.length === 1 && winner !== undefined) {
       winners.set(name, winner);
       continue;
     }
+    atTop.sort(byPlace);
     for (const item of atTop) {
-      const others = atTop
-        .filter((o) => o !== item)
-        .map((o) => `${o.path}:${o.span.line}`)
-        .join(', ');
       diagnostics.push(
         diag(
           'IA-LANG-IDENTITY-COLLISION',
           item.path,
           item.span.line,
-          `${item.path}:${item.span.line}: ${label} ${item.displayName} collides with ${others} at band ${top}`,
+          `${item.path}:${item.span.line}: ${label} ${item.displayName} collides with ${others(atTop, item, (o) => `${o.path}:${o.span.line}`)} at band ${top}`,
         ),
       );
     }
@@ -98,7 +98,7 @@ export function mergeRegistrations(
   for (const [keyword, list] of [...candidates.entries()].sort(([a], [b]) => byName(a, b))) {
     // Extraction owns the reserved-keyword diagnostic; preserve the supplied floor here.
     if (registrations.has(keyword)) continue;
-    const top = Math.max(...list.map((c) => c.registration.band));
+    const top = list.reduce((highest, c) => Math.max(highest, c.registration.band), -Infinity);
     const atTop = list.filter((c) => c.registration.band === top);
     const winner = atTop[0];
     if (atTop.length === 1 && winner !== undefined) {
@@ -106,7 +106,7 @@ export function mergeRegistrations(
       continue;
     }
     blocked.add(keyword);
-    const names = atTop.map((c) => c.system.displayName).join(', ');
+    const names = listed(atTop, (c) => c.system.displayName);
     for (const c of atTop) {
       diagnostics.push(
         diag(

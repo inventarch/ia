@@ -9,6 +9,8 @@ import type {
   TriviaNode,
   Value,
 } from '../ast.js';
+import { append, meter, metered } from '../bounded.js';
+import type { WorkBudget } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic, LangCode } from '../diagnostics.js';
 import { scan } from '../scanner/index.js';
@@ -161,7 +163,7 @@ class Parser {
   field(line: Line, depth: number, nested: RecordNode[]): FieldNode | undefined {
     this.index++;
     const split = splitField(line.tokens, this.path, line.line);
-    this.diagnostics.push(...split.diagnostics);
+    append(this.diagnostics, split.diagnostics);
     // A value with no key is refused with its block, unjudged; nothing beneath it can leak into `nested`.
     if (split.key === '') {
       this.skipDeeper(depth);
@@ -187,6 +189,7 @@ class Parser {
   }
 
   record(line: Line, depth: number): RecordNode | undefined {
+    meter()?.record();
     this.index++;
     const header = this.header(line);
     // A refused header takes its whole body with it, unjudged: one refusal, one diagnostic.
@@ -243,8 +246,9 @@ class Parser {
       if (sawSection) {
         // Refused before its block is read. A key-less line is refused for its missing key, not for its position.
         const split = splitField(next.tokens, this.path, next.line);
-        if (split.key === '') this.diagnostics.push(...split.diagnostics);
-        else
+        if (split.key === '') {
+          this.diagnostics.push(...split.diagnostics);
+        } else
           this.refuse('IA-LANG-HEAD-FIELD-AFTER-SECTION', next, `head field '${split.key}' must precede every section`);
         this.index++;
         this.skipDeeper(depth + 1);
@@ -318,9 +322,12 @@ function attachTrivia(
   return out.sort((a, b) => a.line - b.line);
 }
 
-/** Parse one file. Spec sections 1, 2, 9 and 11. */
-export function parse(source: string, path: string): ParseResult {
-  const scanned = scan(source, path);
+/** Parse one file. Spec sections 1, 2, 9 and 11. `budget` stops it where it is spent (spec L35). */
+export function parse(source: string, path: string, budget?: WorkBudget): ParseResult {
+  return metered(budget, () => parsed(source, path));
+}
+function parsed(source: string, path: string): ParseResult {
+  const scanned = scan(source, path, meter());
   const empty: FileNode = { kind: 'file', path, version: scanned.version ?? '', records: [], trivia: [] };
   // A refused file reports only its refusal: nothing after line 1 is judged by this version's rules.
   if (scanned.version === undefined) {
@@ -340,14 +347,12 @@ export function parse(source: string, path: string): ParseResult {
   }
   const diagnostics: Diagnostic[] = [...scanned.diagnostics];
   const { lines, trailing } = linesOf(scanned.tokens);
-  const fileEnd = Math.max(
-    1,
-    ...lines.map((line) => line.endLine),
-    ...diagnostics.map((diagnostic) => diagnostic.endLine ?? diagnostic.line),
-  );
+  let fileEnd = 1;
+  for (const line of lines) fileEnd = Math.max(fileEnd, line.endLine);
+  for (const diagnostic of diagnostics) fileEnd = Math.max(fileEnd, diagnostic.endLine ?? diagnostic.line);
   const parser = new Parser(lines, path, fileEnd);
   const records = parser.file();
-  diagnostics.push(...parser.diagnostics);
+  append(diagnostics, parser.diagnostics);
   const trivia = attachTrivia(scanned.trivia, trailing, records);
   diagnostics.sort((a, b) => a.line - b.line);
   const ast: FileNode = {

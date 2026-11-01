@@ -1,4 +1,5 @@
 import type { ChildNode, FieldNode, RecordNode } from '../ast.js';
+import { append, meter } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { PHASES, PRIMITIVES } from '../taxonomy.js';
@@ -45,7 +46,7 @@ export function readCells(record: RecordNode, path: string): CellsResult {
             path,
           );
     if (phaseConditions.length) {
-      diagnostics.push(...phaseConditions);
+      append(diagnostics, phaseConditions);
       continue;
     }
     if (node.value.kind !== 'block' && node.value.kind !== 'none') {
@@ -63,7 +64,7 @@ export function readCells(record: RecordNode, path: string): CellsResult {
     if (primary) {
       const misplaced = misplacedIn([primary], path);
       if (misplaced.length) {
-        diagnostics.push(...misplaced);
+        append(diagnostics, misplaced);
         continue;
       }
       if (
@@ -81,9 +82,9 @@ export function readCells(record: RecordNode, path: string): CellsResult {
       primaryName = primary.words[1];
     }
     const means = fields.filter((field) => field.words[1] === 'means' && isPrimitive(field.words[0]));
-    const duplicateMeans = new Set(
-      means.filter((field) => means.filter((other) => other.words[0] === field.words[0]).length > 1),
-    );
+    const meansOf = new Map<string, number>();
+    for (const field of means) meansOf.set(field.words[0]!, (meansOf.get(field.words[0]!) ?? 0) + 1);
+    const duplicateMeans = new Set(means.filter((field) => meansOf.get(field.words[0]!)! > 1));
     const phaseCells: Cell[] = [];
     for (const field of node.children) {
       if (field.kind === 'record' || field === primary) continue;
@@ -110,7 +111,7 @@ export function readCells(record: RecordNode, path: string): CellsResult {
       const unsupported = field.children.filter((c) => c.kind !== 'record' && !(isField(c) && c.words[0] === 'when'));
       if (unsupported.length) {
         const misplaced = misplacedIn(unsupported, path);
-        if (misplaced.length) diagnostics.push(...misplaced);
+        if (misplaced.length) append(diagnostics, misplaced);
         else malformed(field, 'A means line admits only a direct child when.');
         continue;
       }
@@ -119,6 +120,7 @@ export function readCells(record: RecordNode, path: string): CellsResult {
         diagnostics.push(condition.diagnostic);
         continue;
       }
+      meter()?.product();
       phaseCells.push({
         phase,
         primitive: field.words[0],

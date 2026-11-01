@@ -1,0 +1,26 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Bound what one capture reads and what its sources may cost, refusing one source without losing the workspace",
+  "summary": "This bounds what one capture reads and what its sources may cost, so that a source past a bound is refused with its path while the rest stay readable. It holds for the shapes and heaps measured, 2 GiB and 1.5 GiB; a shape nobody has measured can still exhaust a heap. The measured sources of more lines or tokens than a call can take as arguments no longer throw RangeError. New limits, which a workspace that opens today can pass. One capture reads at most 20,000 sources, 100,000 directory entries, folders 32 deep, 1 MiB per source and 64 MiB in all, across the root, every binding, authored package roots and the sources an installed generation selects, and declares at most 64 reaches. Past one of these the workspace does not open: IA-DB-SOURCE-UNAVAILABLE names the source or folder. One exception: an installed source past 1 MiB does not refuse the capture. Its generation is verified whole, so its bytes are read and open returns, and the view refuses that source alone. A capture's sources may spend at most 3,145,728 units of work through parsing, registry extraction, the joins that read every source together and compilation, in one budget across every reach: a token or physical line is one unit, a value once more for every eight characters, a diagnostic 12, a record 24, a compiled field, list item, cell, selector, variant or requirement 4, an edge 12. A record whose identity is past 1 KiB also pays an edge for each KiB, for each thing it holds. A real-shaped tree of 5,006 records spent 47.7% of that when measured; records unlike those measured can spend more. A source that exhausts it, whose parse or compile throws, or that is past 1 MiB without being walked, such as a draft, is refused alone as IA-DB-SOURCE-UNAVAILABLE, and every other source stays readable, though the report fails. An authored source fails mandate gates closed; a refused floor or adopted source admits nothing but does not by itself block a gate. Sources are charged lowest band first, and when compilation or a join runs out the sources of the highest band that spent most go first, so a workspace's own sources cannot refuse what it builds on. When a join exhausts the budget, which no one source did, the views are built again without those sources, or without those whose requirement ids collide. Which source of one size goes depends on its path alone, not on the order a reader lists sources in, but a file's size includes its line endings. A system says one line of the requirements it is missing, however many it lists. A source that grows or changes while it is read is now IA-DB-SOURCE-CHANGED. Admission stops after 16,777,216 units of rebuilding: what it has not reached stays readable, the report fails and names the source, and mandate gates fail closed. What a check reports is now listed, not all held: one record's schema check lists 64 entries and up to two that decide its outcome, one contract's coverage 64, an adoption 64 and a report's adoptions 16,384, each counting the rest and keeping the worst outcome; a diagnostic names at most eight other occurrences or thirty-two systems; the db unadmitted listing holds 1,024 occurrences of a file and 65,536 of a view, then one with no word; a message from graph or compliance holds at most 4,096 characters in all. A directory past a capture bound is now named by its folder, not the entry read past it. Search builds its index when first read, for each view, and holds at most 1,048,576 postings, a new word costing eight; past that a search answers from what the index took and finds nothing of what it did not. The cache is skipped for a graph that serializing counts past 216,000,000, a string's length and 32 for every item; the cache state is then unavailable, with a warning. Not covered: what a long-lived handle keeps of the views and scopes it is asked for. language adds an optional WorkBudget to parse, scan, buildRegistry, compile, requirementCollisions and identityOf, and exports clipped. graph adds frozen: only values so made are remembered between loads, so a record, registry or source array changed in place is read by graph as it is now, and serialize and stableSerialize take a limit. A method taken off a read-only collection now throws until it is called on one. Registry, schema and declared list inputs to language and compliance must stay unchanged once read: a caller that changes one in place can get stale answers and should build a new one.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/compliance",
+    "@inventarch/db",
+    "@inventarch/graph",
+    "@inventarch/language",
+    "@inventarch/mcp-door",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/cli/",
+    "apps/mcp-door/",
+    "apps/vscode/src/server.ts",
+    "apps/vscode/tests/server.test.ts",
+    "packages/compliance/",
+    "packages/db/",
+    "packages/graph/",
+    "packages/language/",
+    "packages/runtime/"
+  ]
+}

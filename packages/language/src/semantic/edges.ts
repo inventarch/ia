@@ -1,7 +1,8 @@
 import type { FieldNode, RecordNode } from '../ast.js';
+import { listed, meter } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic, LangCode } from '../diagnostics.js';
-import { consentFor } from '../registry/consent.js';
+import { consentFor, largestLedger } from '../registry/consent.js';
 import type { FrozenRegistry } from '../registry/types.js';
 import { KINDS } from '../taxonomy.js';
 import { conditionOf } from './conditions.js';
@@ -19,8 +20,10 @@ export interface EdgesResult {
   readonly refusedBindings: ReadonlySet<'govern' | 'implement'>;
 }
 
+/** How many words the longest verb phrase holds: a line's words past those cannot begin one. */
+const VERB_WORDS = VERB_PHRASES.reduce((longest, phrase) => Math.max(longest, phrase.split(' ').length), 0);
 export function verbPrefix(words: readonly string[]): { readonly verb: Verb; readonly length: number } | undefined {
-  for (let length = words.length; length > 0; length--) {
+  for (let length = Math.min(words.length, VERB_WORDS); length > 0; length--) {
     const verb = verbOf(words.slice(0, length).join(' '));
     if (verb) return { verb, length };
   }
@@ -43,20 +46,28 @@ export function targetOf(field: FieldNode, verbLength: number): EdgeReference | 
   return { kind: 'identity', identity, ...(match[5] === undefined ? {} : { fragment: match[5] }) };
 }
 
-function equivalentGround(reference: EdgeReference, generated: CompiledEdge): boolean {
-  if (
-    reference.fragment !== undefined ||
-    generated.predicate !== 'ground' ||
-    generated.direction !== 'out' ||
-    generated.condition !== undefined ||
-    generated.fragment !== undefined
-  )
-    return false;
+/** The references a generated `ground` edge already states, each under the key `groundKey` reads a reference at. */
+function groundKeys(generated: readonly CompiledEdge[]): ReadonlySet<string> {
+  const keys = new Set<string>();
+  for (const edge of generated) {
+    if (
+      edge.predicate !== 'ground' ||
+      edge.direction !== 'out' ||
+      edge.condition !== undefined ||
+      edge.fragment !== undefined
+    )
+      continue;
+    if (edge.target !== null) keys.add(`identity ${edge.target}`);
+    if (edge.reference.kind === 'ref')
+      keys.add(`ref ${edge.reference.discriminator} ${edge.reference.name.toLowerCase()}`);
+  }
+  return keys;
+}
+function groundKey(reference: EdgeReference): string | undefined {
+  if (reference.fragment !== undefined) return undefined;
   return reference.kind === 'identity'
-    ? reference.identity === generated.target
-    : generated.reference.kind === 'ref' &&
-        reference.discriminator === generated.reference.discriminator &&
-        reference.name.toLowerCase() === generated.reference.name.toLowerCase();
+    ? `identity ${reference.identity}`
+    : `ref ${reference.discriminator} ${reference.name.toLowerCase()}`;
 }
 
 export function readEdges(
@@ -68,6 +79,7 @@ export function readEdges(
 ): EdgesResult {
   validatePool(registry, typeof pool === 'function' ? [source] : [source, ...pool]);
   const edges: CompiledEdge[] = [...generated];
+  const groundStated = groundKeys(generated);
   const diagnostics: Diagnostic[] = [];
   const refusedBindings = new Set<'govern' | 'implement'>();
   const path = source.source.path;
@@ -75,6 +87,10 @@ export function readEdges(
     if (section.name !== 'relationships') continue;
     for (const field of section.children) {
       if (field.kind === 'record') continue;
+      // Every stage after this reads consent rows for it; a ledger of ordinary size costs nothing more.
+      const work = meter();
+      work?.edge();
+      work?.scan(largestLedger(registry));
       const parsed = field.kind === 'field' ? verbPrefix(field.words) : undefined;
       const refuseDiagnostic = (diagnostic: Diagnostic): void => {
         diagnostics.push(diagnostic);
@@ -129,14 +145,14 @@ export function readEdges(
         predicate === 'ground' &&
         direction === 'out' &&
         condition.condition === undefined &&
-        generated.some((edge) => equivalentGround(reference, edge))
+        groundStated.has(groundKey(reference) ?? '')
       )
         continue;
       const resolution = typeof pool === 'function' ? pool(reference) : resolveTarget(reference, registry, pool);
       if (resolution.kind === 'ambiguous') {
         refuse(
           'IA-LANG-EDGE-TARGET-AMBIGUOUS',
-          `Target matches multiple occurrences: ${resolution.candidates.map((c) => `${c.identity} at ${c.source.path}:${c.source.line}`).join(', ')}.`,
+          `Target matches multiple occurrences: ${listed(resolution.candidates, (c) => `${c.identity} at ${c.source.path}:${c.source.line}`)}.`,
         );
         continue;
       }

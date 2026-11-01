@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { logicalLines, trailingCommentIndex } from '../../src/scanner/lines.js';
+import { logicalLines, trailingCommentIndex, walk } from '../../src/scanner/lines.js';
 
 const codes = (r: ReturnType<typeof logicalLines>) => r.diagnostics.map((d) => d.code);
 
@@ -239,6 +239,193 @@ describe('logicalLines', () => {
   it('accepts CRLF line endings, including inside a prose span', () => {
     const r = logicalLines('#! ia 1.0\r\n@law x\r\n  meaning\r\n    says """a\r\n      b"""\r\n', 'a.ia');
     expect(r.lines.map((l) => l.text)).toEqual(['@law x', 'meaning', 'says """a\n      b"""']);
+  });
+
+  // What one walk over the whole joined span read, taken from that implementation: a span is now walked from its state.
+  it.each([
+    [
+      'a closer alone',
+      '@a b\n  k """\n    x\n  """\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 5, depth: 1, text: 'k """\n    x\n  """' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a closer then a comment',
+      '@a b\n  k """\n    x\n  """ # note\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 5, depth: 1, text: 'k """\n    x\n  """', trailingComment: '# note' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a comment right after a closer',
+      '@a b\n  k """\n    x\n  """# note\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 5, depth: 1, text: 'k """\n    x\n  """', trailingComment: '# note' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a closer then a new prose value',
+      '@a b\n  k """\n  """ """\n  """\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 5, depth: 1, text: 'k """\n  """ """\n  """' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a closer that opens a string',
+      '@a b\n  k """\n  """"\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 4, depth: 1, text: 'k """\n  """"' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a closer that opens a list',
+      '@a b\n  k """\n  """ [\n    a\n  ]\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 4, depth: 1, text: 'k """\n  """ [' },
+        { line: 5, endLine: 5, depth: 2, text: 'a' },
+        { line: 6, endLine: 6, depth: 1, text: ']' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a list before the prose',
+      '@a b\n  k [ """\n  """ ]\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 4, depth: 1, text: 'k [ """\n  """ ]' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'quotes inside the prose',
+      '@a b\n  k """\n    "q" ""\n  """\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 5, depth: 1, text: 'k """\n    "q" ""\n  """' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a hash inside the prose',
+      '@a b\n  k """\n    # not a comment\n  """\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 5, depth: 1, text: 'k """\n    # not a comment\n  """' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a backslash at a line end',
+      '@a b\n  k """\n    a\\\n  """\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 5, depth: 1, text: 'k """\n    a\\\n  """' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'prose that never closes',
+      '@a b\n  k """\n    x\n',
+      [{ line: 2, endLine: 2, depth: 0, text: '@a b' }],
+      [],
+      [['IA-LANG-PROSE-UNTERMINATED', 3]],
+    ],
+    [
+      'CRLF',
+      '@a b\r\n  k """\r\n    x\r\n  """ # note\r\n',
+      [
+        { line: 2, endLine: 2, depth: 0, text: '@a b' },
+        { line: 3, endLine: 5, depth: 1, text: 'k """\n    x\n  """', trailingComment: '# note' },
+      ],
+      [],
+      [],
+    ],
+    [
+      'a dropped span that opens a list',
+      '\tx\n\t\tk """\n\t\t  y\n\t\t""" [\n\t\t  a\n\t\t]\n@a b\n',
+      [{ line: 8, endLine: 8, depth: 0, text: '@a b' }],
+      [],
+      [['IA-LANG-INDENT-TAB', 2]],
+    ],
+    [
+      'a dropped span closing with a comment',
+      '\tx\n\t\tk """\n\t\t""" # note\n@a b\n',
+      [{ line: 5, endLine: 5, depth: 0, text: '@a b' }],
+      [{ kind: 'comment', line: 4, text: '# note' }],
+      [['IA-LANG-INDENT-TAB', 2]],
+    ],
+    [
+      'a dropped span whose closer opens a list of shallow lines',
+      '\tx\n\t\tk """\n\t\t  y\n\t\t""" [\na\n]\n@a b\n',
+      [{ line: 8, endLine: 8, depth: 0, text: '@a b' }],
+      [],
+      [['IA-LANG-INDENT-TAB', 2]],
+    ],
+    [
+      'a dropped span inside a list of shallow lines',
+      '\tx\n\t\tk [ """\n\t\t  y\n\t\t"""\na\n]\n@a b\n',
+      [{ line: 8, endLine: 8, depth: 0, text: '@a b' }],
+      [],
+      [['IA-LANG-INDENT-TAB', 2]],
+    ],
+    [
+      'brackets inside a dropped span',
+      '\tx\n\t\tk """\n\t\t  [ [\n\t\t"""\na\n@a b\n',
+      [
+        { line: 6, endLine: 6, depth: 0, text: 'a' },
+        { line: 7, endLine: 7, depth: 0, text: '@a b' },
+      ],
+      [],
+      [['IA-LANG-INDENT-TAB', 2]],
+    ],
+    [
+      'a dropped span that closes what it opens',
+      '\tx\n\t\tk [ """\n\t\t""" ]\na\n@a b\n',
+      [
+        { line: 5, endLine: 5, depth: 0, text: 'a' },
+        { line: 6, endLine: 6, depth: 0, text: '@a b' },
+      ],
+      [],
+      [['IA-LANG-INDENT-TAB', 2]],
+    ],
+  ] as const)('reads %s as one walk over the joined span reads it', (_name, body, lines, trivia, diagnostics) => {
+    const r = logicalLines(`#! ia 1.0\n${body}`, 'a.ia');
+    expect(r.lines).toEqual(lines);
+    expect(r.trivia).toEqual(trivia);
+    expect(r.diagnostics.map((d) => [d.code, d.line])).toEqual(diagnostics);
+  });
+
+  it('walks from inside prose when told it starts there', () => {
+    expect(walk('still prose', true)).toEqual({
+      commentAt: -1,
+      bracketDelta: 0,
+      endsInString: false,
+      endsInProse: true,
+    });
+    expect(walk('""" [ # c', true)).toEqual({ commentAt: 6, bracketDelta: 1, endsInString: false, endsInProse: false });
+    expect(walk('""" """', true).endsInProse).toBe(true);
   });
 });
 

@@ -1,4 +1,5 @@
 import type { RecordNode, Span } from '../ast.js';
+import { meter } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { readTerms } from './conditions.js';
@@ -40,6 +41,7 @@ export function readSelectors(record: RecordNode, path: string): SelectorsResult
       const result = readTerms(child.when, 'selector', path, child.span);
       if (!result.ok) diagnostics.push(result.diagnostic);
       else {
+        meter()?.product();
         selectors.push(result.terms);
         spans.push(child.span);
       }

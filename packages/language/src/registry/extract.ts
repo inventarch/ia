@@ -18,7 +18,7 @@ import {
 import type { Band, Category } from '../taxonomy.js';
 import { fieldOf, fieldsOf, restAfter, spelledAs, stringOf } from './fields.js';
 import { ANY_ADOPTER, RESERVED_KEYWORDS } from './floor.js';
-import { conditionsIn, recordsIn } from './records.js';
+import { conditionsIn, errorWithin, recordsIn } from './records.js';
 import type { ConsentRow, Entry, RequiredSystem, Steward, SystemDeclaration } from './types.js';
 
 /** Class checks, like the header class checks in parser.ts: a keyword spells like a discriminator; a version is semver with no leading zeros. */
@@ -44,7 +44,7 @@ export function extractSystems(ast: FileNode, band: Band, parserDiagnostics: rea
   const diagnostics: Diagnostic[] = [];
   for (const { record, endLine, errors } of recordsIn(ast, parserDiagnostics)) {
     if (record.discriminator !== 'system') continue;
-    const refused: Refused = (span) => errors.some((d) => d.line >= span.line && d.line <= span.endLine);
+    const refused: Refused = (span) => errorWithin(errors, span);
     const system = systemOf(record, endLine, ast.path, band, diagnostics, refused);
     if (system !== undefined) systems.push(system);
   }

@@ -87,7 +87,7 @@ function overlayInputs(
         : { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' });
     sources.set(key, Object.freeze({ path, text: change.text, location }));
   }
-  const ordered = Object.freeze([...sources.values()].sort((a, b) => a.path.localeCompare(b.path)));
+  const ordered = Object.freeze([...sources.values()].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)));
   // A buffer may add a file to an existing or new system folder; disk refresh owns removal of empty directories.
   const folders = Object.freeze(
     [

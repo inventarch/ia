@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { RecordNode } from '../../src/ast.js';
+import { BudgetExceeded, WORK_COST, WorkBudget } from '../../src/bounded.js';
 import { parse } from '../../src/parser/index.js';
-import { consentFor } from '../../src/registry/consent.js';
+import { admits, consentFor } from '../../src/registry/consent.js';
 import { buildRegistry } from '../../src/registry/index.js';
 import type { Location } from '../../src/registry/types.js';
 
@@ -318,6 +320,48 @@ describe('buildRegistry', () => {
     expect(registry.registrations.has('agent')).toBe(true);
   });
 
+  it('can give stale consent for a registry changed in place; a new registry reads the change', () => {
+    const system = (name: string, word: string, rows: string, requires = '') =>
+        `@system ${name}\n  provider "p"\n  version "1.0.0"\n${requires}  discriminators\n    ${word} lowers to definition\n      category process\n      facets [head]\n      schema @schema ${word}\n  edges\n    ${rows}\n@schema ${word}\n  lowers to definition\n  sections\n    open\n`,
+      { registry } = buildRegistry([
+        source(
+          `#! ia 1.0\n${system('base', 'task', 'require task using task, any-adopter')}${system('adopter', 'note', 'require * using *', '  requires\n    - base\n')}`,
+          'a.ia',
+        ),
+      ]);
+    expect(consentFor(registry, 'require', 'note', 'task')).toBeUndefined();
+    (registry.systems.get('adopter')!.requires as unknown[]).length = 0;
+    expect(consentFor(registry, 'require', 'note', 'task')).toBeUndefined();
+    expect(consentFor({ ...registry }, 'require', 'note', 'task')).toBe('target');
+  });
+
+  it('can give stale membership for a long list changed in place; a new list reads the change', () => {
+    const words = Array.from({ length: 32 }, (_, index) => `w${index}`),
+      row = { predicate: 'cite' as const, sources: words, targets: '*' as const, span: { line: 1, endLine: 1 } };
+    expect(admits([row], 'cite', 'w0', 'x')).toBe(true);
+    words[0] = 'other';
+    expect(admits([row], 'cite', 'w0', 'x')).toBe(true);
+    expect(admits([{ ...row, sources: [...words] }], 'cite', 'w0', 'x')).toBe(false);
+  });
+
+  it('charges what its joins say, message length included', () => {
+    const missing = AGENT_SYSTEM.replace('    - taxonomy', `    - ${'g'.repeat(640)}`),
+      budget = new WorkBudget(1_000_000),
+      { diagnostics } = buildRegistry([source(missing, 'a.ia')], budget);
+    expect(diagnostics.map((d) => d.code)).toEqual(['IA-LANG-SYSTEM-MISSING']);
+    expect(budget.spent()).toBe(WORK_COST.diagnostic + (diagnostics[0]!.message.length >>> 6));
+  });
+
+  it('leaves to its caller what exhausts the budget in a join, which is no one source', () => {
+    const missing = AGENT_SYSTEM.replace('    - taxonomy', '    - ghost'),
+      refused: string[] = [],
+      budget = new WorkBudget(WORK_COST.diagnostic);
+    expect(() => buildRegistry([source(missing, 'a.ia')], budget, (s) => refused.push(s.ast.path))).toThrow(
+      BudgetExceeded,
+    );
+    expect(refused).toEqual([]);
+  });
+
   it('removes systems and their ledgers transitively when a requirement is missing', () => {
     const missing = AGENT_SYSTEM.replace('    - taxonomy', '    - ghost');
     const { registry, diagnostics } = buildRegistry([
@@ -431,5 +475,84 @@ describe('consentFor', () => {
   ])('leaves an unregistered endpoint to its record diagnostic: %s -> %s', (from, to) => {
     const { registry } = buildRegistry([source(AGENT_SYSTEM, 'agent.ia')]);
     expect(consentFor(registry, 'cite', from, to)).toBeUndefined();
+  });
+});
+
+describe("buildRegistry of a source beyond one call's arguments", () => {
+  it.each([
+    ['diagnostics of its parse', (n: number) => 'x\n'.repeat(n)],
+    ['refused systems', (n: number) => '@system s\n'.repeat(n)],
+    ['refused schemas', (n: number) => '@schema s\n'.repeat(n)],
+  ])('joins a source of more %s than one call can take as arguments', (_name, text) => {
+    const n = 150_000;
+    const { diagnostics } = buildRegistry([source(`#! ia 1.0\n${text(n)}`, 'a.ia')]);
+    expect(diagnostics.length).toBeGreaterThanOrEqual(n);
+  });
+
+  it('reads more conditions of one schema block than one call can take as arguments', () => {
+    const n = 150_000;
+    const text = `#! ia 1.0\n@schema s\n  lowers to binding\n  sections\n    k\n${'      f "v" when phase is act\n'.repeat(n)}`;
+    const { registry, diagnostics } = buildRegistry([source(text, 'a.ia')]);
+    expect(registry.schemas.has('s')).toBe(false);
+    expect(diagnostics.length).toBeGreaterThan(0);
+  });
+
+  // Parsing this many declarations is what costs memory, and no part of what these pin: one parsed declaration is
+  // repeated under other names, which reaches the same lists in far less heap.
+  const repeated = (count: number, name: (index: number) => string) => {
+    const parsed = parse(
+      '#! ia 1.0\n@system s\n  provider "p"\n  version "1.0.0"\n@schema z\n  lowers to binding\n  sections\n    closed\n',
+      'a.ia',
+    );
+    const [system, schema] = parsed.ast.records as [RecordNode, RecordNode];
+    const records = [system, schema].flatMap((record) =>
+      Array.from({ length: count }, (_, index) => ({ ...record, name: `${record.name}${name(index)}` })),
+    );
+    return { ...source('#! ia 1.0\n', 'a.ia'), ast: { ...parsed.ast, records } };
+  };
+
+  it('joins a source of more systems and schemas than one call can take as arguments', () => {
+    const n = 130_000;
+    const { registry, diagnostics } = buildRegistry([repeated(n, (index) => String(index))]);
+    expect(diagnostics).toEqual([]);
+    expect(registry.order).toHaveLength(n + 2);
+    expect(registry.schemas.size).toBeGreaterThanOrEqual(n);
+  });
+
+  it('refuses every occurrence of a name more repeated than one call can take as arguments', () => {
+    const n = 130_000;
+    const { registry, diagnostics } = buildRegistry([repeated(n, () => '')]);
+    expect(registry.schemas.has('z')).toBe(false);
+    expect(registry.systems.has('s')).toBe(false);
+    expect(diagnostics.filter((d) => d.code === 'IA-LANG-IDENTITY-COLLISION')).toHaveLength(2 * n);
+  });
+});
+describe('what extraction charges', () => {
+  const malformed = (count: number) =>
+    `#! ia 1.0\n@schema refused\n  lowers to binding\n  sections\n    closed\n  fields\n${'    nothing a row can be\n'.repeat(count)}`;
+  const kept = '#! ia 1.0\n@schema kept\n  lowers to binding\n  sections\n    closed\n';
+  it('refuses alone the source that exhausts it, which declares nothing and gives back what it spent', () => {
+    const budget = new WorkBudget(1_000),
+      refused: string[] = [],
+      { registry } = buildRegistry([source(malformed(1_000), 'a.ia'), source(kept, 'b.ia')], budget, (held) =>
+        refused.push(held.ast.path),
+      );
+    expect(refused).toEqual(['a.ia']);
+    expect(budget.spent()).toBe(0);
+    expect(registry.schemas.has('kept')).toBe(true);
+    expect(registry.schemas.has('refused')).toBe(false);
+  });
+  it('throws when nothing can be told of a refusal', () => {
+    expect(() => buildRegistry([source(malformed(1_000), 'a.ia')], new WorkBudget(1_000))).toThrow(BudgetExceeded);
+  });
+  it('spends nothing on a source at runtime placement', () => {
+    const budget = new WorkBudget(1_000),
+      runtime = { placement: { kind: 'runtime', band: 0, reach: '' }, provenance: 'runtime' } as const;
+    buildRegistry([{ ...source(malformed(1_000), 'a.ia'), location: runtime }], budget);
+    expect(budget.spent()).toBe(0);
+  });
+  it('joins what an unbudgeted join does', () => {
+    const sources = [source(malformed(3), 'a.ia'), source(kept, 'b.ia')];
+    expect(buildRegistry(sources, new WorkBudget(1_000)).diagnostics).toEqual(buildRegistry(sources).diagnostics);
   });
 });

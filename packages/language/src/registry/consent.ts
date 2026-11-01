@@ -1,3 +1,4 @@
+import { member } from '../bounded.js';
 import type { Predicate } from '../taxonomy.js';
 import { ANY_ADOPTER, BUILTIN_SYSTEMS, FLOOR_CONSENT, FLOOR_SYSTEM } from './floor.js';
 import type { ConsentRow, FrozenRegistry } from './types.js';
@@ -10,7 +11,7 @@ function onSide(side: readonly string[] | '*', keyword: string, adopter: Adopter
   if (side === '*') return true;
   // The marker names no word, so a keyword spelled like it is never a listed member.
   if (keyword === ANY_ADOPTER) return false;
-  return side.includes(keyword) || (side.includes(ANY_ADOPTER) && adopter(keyword));
+  return member(side, keyword) || (member(side, ANY_ADOPTER) && adopter(keyword));
 }
 
 /**
@@ -52,10 +53,34 @@ function requires(registry: FrozenRegistry, name: string, system: string): boole
 export function adopterOf(registry: FrozenRegistry, system: string): AdopterTest {
   return (keyword) => {
     const owner = registry.registrations.get(keyword)?.system;
-    return (
-      owner !== undefined && owner !== system && !BUILTIN_SYSTEMS.includes(owner) && requires(registry, owner, system)
-    );
+    if (owner === undefined || owner === system || BUILTIN_SYSTEMS.includes(owner)) return false;
+    let known = requirements.get(registry);
+    if (known === undefined) {
+      known = new Map();
+      requirements.set(registry, known);
+    }
+    const key = `${owner} ${system}`;
+    let required = known.get(key);
+    if (required === undefined) {
+      required = requires(registry, owner, system);
+      known.set(key, required);
+    }
+    return required;
   };
+}
+/** Which system requires which, as each is first asked: every row naming adopters asks, for every edge. */
+const requirements = new WeakMap<FrozenRegistry, Map<string, boolean>>();
+
+const largest = new WeakMap<FrozenRegistry, number>();
+/** How many rows the longest consent ledger holds: what deciding one edge may read, on each of its two sides. */
+export function largestLedger(registry: FrozenRegistry): number {
+  let rows = largest.get(registry);
+  if (rows === undefined) {
+    rows = 0;
+    for (const ledger of registry.consent.values()) rows = Math.max(rows, ledger.length);
+    largest.set(registry, rows);
+  }
+  return rows;
 }
 
 /**

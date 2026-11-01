@@ -1,3 +1,4 @@
+import { meter } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { foldProse } from '../fold.js';
@@ -15,6 +16,7 @@ const WORD_END_IN_LIST: ReadonlySet<string> = new Set([',', ']']);
 
 /** Tokenize one logical line. `line` is the line's first source line. */
 export function tokenizeLine(text: string, path: string, line: number): TokenizeResult {
+  const budget = meter();
   const tokens: Token[] = [];
   const diagnostics: Diagnostic[] = [];
   const n = text.length;
@@ -56,6 +58,7 @@ export function tokenizeLine(text: string, path: string, line: number): Tokenize
         return { tokens, diagnostics };
       }
       const raw = text.slice(i, close + 3);
+      budget?.value(raw.length);
       tokens.push({ kind: 'prose', value: foldProse(text.slice(i + 3, close)), raw, line: lineNo, column: col });
       advancePastNewlines(raw, i);
       i = close + 3;
@@ -108,6 +111,7 @@ export function tokenizeLine(text: string, path: string, line: number): Tokenize
         );
         return { tokens, diagnostics };
       }
+      budget?.value(value.length);
       tokens.push({ kind: 'string', value, raw: text.slice(i, j), line: lineNo, column: col });
       i = j;
       continue;
@@ -115,17 +119,20 @@ export function tokenizeLine(text: string, path: string, line: number): Tokenize
 
     if (ch === '[') {
       depth++;
+      budget?.token();
       tokens.push({ kind: 'list-open', line: lineNo, column: col });
       i++;
       continue;
     }
     if (depth > 0 && ch === ']') {
       depth--;
+      budget?.token();
       tokens.push({ kind: 'list-close', line: lineNo, column: col });
       i++;
       continue;
     }
     if (depth > 0 && ch === ',') {
+      budget?.token();
       tokens.push({ kind: 'list-sep', line: lineNo, column: col });
       i++;
       continue;
@@ -138,6 +145,7 @@ export function tokenizeLine(text: string, path: string, line: number): Tokenize
       j++;
     }
     const word = text.slice(i, j);
+    budget?.value(word.length);
     tokens.push(
       word.startsWith('@')
         ? { kind: 'sigil', value: word, line: lineNo, column: col }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parse, buildRegistry } from '../../src/index.js';
+import { compile, parse, buildRegistry } from '../../src/index.js';
 import type { Location } from '../../src/index.js';
 import { validateCase } from '../../src/semantic/cases.js';
 import type { CompiledEdge } from '../../src/semantic/types.js';
@@ -54,6 +54,12 @@ function read(
   return validateCase(parsed.ast.records[0]!, 'a.ia', registry, edges, refusedBindings);
 }
 describe('case shape', () => {
+  it('compiles a scenario that repeats a field more often than one call can take as arguments', () => {
+    const n = 130_000,
+      parsed = parse(`#! ia 1.0\n@case repeated\n  scenario\n${'    kind\n'.repeat(n)}`, 'a.ia'),
+      { diagnostics } = compile(parsed.ast, registry, location, []);
+    expect(diagnostics.filter((d) => d.message === 'Scenario kind must be written once.')).toHaveLength(n);
+  });
   it('uses an admitted vocabulary', () => expect(built.diagnostics).toEqual([]));
   it.each(['success', 'failure', 'refusal', 'resumption', 'escalation'])(
     'accepts %s with a retained dangling binding',

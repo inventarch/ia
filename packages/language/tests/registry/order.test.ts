@@ -140,6 +140,25 @@ describe('orderSystems', () => {
     ]);
   });
 
+  it('says one line for a system at its first missing requirement, and counts the rest', () => {
+    const repeated = Array.from({ length: 100_000 }, () => 'x'),
+      result = orderSystems(winners(system('a', ['b', ...repeated]), system('b', []), system('c', ['y', 'z'])));
+    expect(result.order).toEqual(['b']);
+    expect(result.diagnostics.map((d) => [d.code, d.path, d.line])).toEqual([
+      ['IA-LANG-SYSTEM-MISSING', 'a.ia', 11],
+      ['IA-LANG-SYSTEM-MISSING', 'c.ia', 10],
+    ]);
+    expect(result.diagnostics[0]!.message).toContain(
+      "@system a requires 'x', which has no @system in force, and 99999 more that have none; visible: ",
+    );
+    expect(result.diagnostics[1]!.message).toContain(', and 1 more that have none; visible: ');
+  });
+
+  it('says of one missing requirement what it always said', () => {
+    const [only] = orderSystems(winners(system('a', ['ghost']))).diagnostics;
+    expect(only!.message).toMatch(/^a\.ia:10: @system a requires 'ghost', which has no @system in force; visible: /);
+  });
+
   it('reports a cycle even if a member also requires a nonexistent system', () => {
     const result = orderSystems(winners(system('a', ['b', 'ghost']), system('b', ['a'])));
     expect(result.order).toEqual([]);
@@ -193,5 +212,54 @@ describe('orderSystems', () => {
       FLOOR_REGISTRATIONS,
     );
     expect([...registrations.registrations.keys()]).toEqual(['system', 'schema']);
+  });
+  it('names thirty-two systems a missing requirement could have been and counts the rest', () => {
+    const others = Array.from({ length: 40 }, (_, i) => system(`s${String(i).padStart(2, '0')}`, []));
+    const { diagnostics } = orderSystems(winners(system('zz', ['absent']), ...others));
+    expect(diagnostics).toHaveLength(1);
+    const visible = ['floor', 'taxonomy', ...others.slice(0, 30).map((s) => s.name)];
+    expect(diagnostics[0]?.message).toBe(
+      `zz.ia:10: @system zz requires 'absent', which has no @system in force; visible: ${visible.join(', ')} and 10 more`,
+    );
+  });
+  it('orders a chain of requirements deeper than the call stack', () => {
+    const count = 30_000;
+    const name = (i: number) => `s${String(i).padStart(5, '0')}`;
+    const chain = Array.from({ length: count }, (_, i) => system(name(i), i + 1 < count ? [name(i + 1)] : []));
+    const { order, diagnostics } = orderSystems(winners(...chain));
+    expect(diagnostics).toEqual([]);
+    expect(order).toEqual(chain.map((s) => s.name).reverse());
+  });
+  it('still orders the first ready name first when each step readies another', () => {
+    const r = orderSystems(
+      winners(system('a', ['z']), system('b', ['y']), system('c', []), system('y', []), system('z', [])),
+    );
+    expect(r.order).toEqual(['c', 'y', 'b', 'z', 'a']);
+  });
+  it('names a cycle of up to thirty-two systems by its path', () => {
+    const name = (i: number) => `s${String(i).padStart(2, '0')}`;
+    const cycle = Array.from({ length: 32 }, (_, i) => system(name(i), [name((i + 1) % 32)]));
+    const { order, diagnostics } = orderSystems(winners(...cycle));
+    expect(order).toEqual([]);
+    expect(diagnostics.filter((d) => d.code === 'IA-LANG-SYSTEM-CYCLE')).toHaveLength(32);
+    const path = [...cycle.map((s) => s.name), name(0)].join(' -> ');
+    expect(diagnostics[0]?.message).toBe(`s00.ia:2: requires cycle ${path}`);
+  });
+  it('names thirty-two members of a longer cycle and counts the rest', () => {
+    const name = (i: number) => `s${String(i).padStart(2, '0')}`;
+    const cycle = Array.from({ length: 40 }, (_, i) => system(name(i), [name((i + 1) % 40)]));
+    const { diagnostics } = orderSystems(winners(...cycle));
+    expect(diagnostics.filter((d) => d.code === 'IA-LANG-SYSTEM-CYCLE')).toHaveLength(40);
+    const members = cycle.slice(0, 32).map((s) => s.name);
+    expect(diagnostics[0]?.message).toBe(`s00.ia:2: requires cycle through ${members.join(', ')} and 8 more`);
+  });
+  it('refuses a cycle longer than the call stack', () => {
+    const count = 30_000;
+    const name = (i: number) => `s${String(i).padStart(5, '0')}`;
+    const cycle = Array.from({ length: count }, (_, i) => system(name(i), [name((i + 1) % count)]));
+    const { order, dropped, diagnostics } = orderSystems(winners(...cycle));
+    expect(order).toEqual([]);
+    expect(dropped.size).toBe(count);
+    expect(diagnostics.filter((d) => d.code === 'IA-LANG-SYSTEM-CYCLE')).toHaveLength(count);
   });
 });

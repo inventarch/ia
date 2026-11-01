@@ -33,7 +33,8 @@ export function repositoryWorkspace(graph: Graph, declared: readonly DeclaredRoo
   const own = (graph.byDiscriminator.get('workspace') ?? []).filter((identity) =>
     graph.nodes.get(identity)!.source.path.startsWith('.ia/src/'),
   );
-  const declaring = own.filter((identity) => declared.some((root) => root.workspace === identity));
+  const workspaces = new Set(declared.map((root) => root.workspace)),
+    declaring = own.filter((identity) => workspaces.has(identity));
   const candidates = declaring.length > 0 ? declaring : own;
   return candidates.length === 1 ? candidates[0] : undefined;
 }

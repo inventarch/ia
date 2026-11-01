@@ -33,6 +33,24 @@ export function compiledValue(value: Value): CompiledValue {
 /** The words of a spelled key: `['lowers', 'to']`. */
 export type Spelling = readonly string[];
 
+const byFirstWord = new WeakMap<readonly Spelling[], ReadonlyMap<string | undefined, readonly Spelling[]>>();
+/** The spellings that start with `word`, in their order: a list of spellings is read for every field it spells. */
+function spellingsFrom(spellings: readonly Spelling[], word: string | undefined): readonly Spelling[] {
+  let index = byFirstWord.get(spellings);
+  if (index === undefined) {
+    const grouped = new Map<string | undefined, Spelling[]>();
+    for (const spelling of spellings) {
+      if (spelling.length === 0) continue;
+      const group = grouped.get(spelling[0]);
+      if (group === undefined) grouped.set(spelling[0], [spelling]);
+      else group.push(spelling);
+    }
+    index = grouped;
+    byFirstWord.set(spellings, index);
+  }
+  return index.get(word) ?? [];
+}
+
 /**
  * The key rule (spec 2.1) resolved against spelled keys (spec 10.2). A line whose value is not a
  * bare scalar keeps the parser's key: every word before the value. On an all-words line the longest
@@ -46,8 +64,8 @@ export function resolveKey(
   if (field.assertive === true || field.value.kind !== 'scalar')
     return { key: field.key, value: compiledValue(field.value) };
   let best: Spelling | undefined;
-  for (const spelling of spellings) {
-    if (spelling.length === 0 || spelling.length > field.words.length) continue;
+  for (const spelling of spellingsFrom(spellings, field.words[0])) {
+    if (spelling.length > field.words.length) continue;
     if (!spelling.every((word, index) => field.words[index] === word)) continue;
     if (best === undefined || spelling.length > best.length) best = spelling;
   }

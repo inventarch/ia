@@ -375,3 +375,61 @@ it('lets the first help or schema token decide', () => {
   });
   expect(runCli(['get', '--help', 'x', '--schema']).stdout).toContain('ia get  Read one admitted record');
 });
+it('reports sources whose compilation makes the diagnostics in a small heap, naming each it refused', async () => {
+  const workspace = mkdtempSync(resolve(tmpdir(), 'ia-cli-verbs-'));
+  try {
+    mkdirSync(resolve(workspace, '.ia/src'), { recursive: true });
+    for (let index = 0; index < 2; index++)
+      writeFileSync(
+        resolve(workspace, `.ia/src/s${index}.ia`),
+        `#! ia 1.0\n@schema s${index}\n  lowers to binding\n  sections\n    closed\n  relationships\n${'    x\n'.repeat(170_000)}`,
+      );
+    const got = await runBounded(
+      process.execPath,
+      ['--max-old-space-size=384', resolve(root, 'apps/cli/dist/main.js'), 'report', '--root', workspace],
+      { cwd: root, timeoutMs: 60_000 },
+    );
+    expect(got.signal).toBeNull();
+    expect(got.stderr + got.stdout).toContain('.ia/src/s1.ia is past 3145728 units of work in all');
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+}, 90_000);
+it('reports systems that list a missing requirement 100,000 times in a small heap, a line for each system', async () => {
+  const workspace = mkdtempSync(resolve(tmpdir(), 'ia-cli-joins-'));
+  try {
+    mkdirSync(resolve(workspace, '.ia/src'), { recursive: true });
+    for (let index = 0; index < 3; index++)
+      writeFileSync(
+        resolve(workspace, `.ia/src/s${index}.ia`),
+        `#! ia 1.0\n@system s${index}\n  provider "p"\n  version "0.1.0"\n  requires\n${'    - x\n'.repeat(100_000)}`,
+      );
+    const got = await runBounded(
+      process.execPath,
+      ['--max-old-space-size=256', resolve(root, 'apps/cli/dist/main.js'), 'report', '--root', workspace],
+      { cwd: root, timeoutMs: 60_000 },
+    );
+    expect(got.signal).toBeNull();
+    // Each stands in the report's own list and in its check's verdict.
+    expect((got.stderr + got.stdout).match(/and 99999 more that have none/g)).toHaveLength(6);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+}, 90_000);
+it('reads dense malformed sources in a small heap, naming each it refused', async () => {
+  const workspace = mkdtempSync(resolve(tmpdir(), 'ia-cli-dense-'));
+  try {
+    mkdirSync(resolve(workspace, '.ia/src'), { recursive: true });
+    const text = `#! ia 1.0\n@schema x\n  k [${','.repeat(1_048_000)}]\n`;
+    for (let index = 0; index < 4; index++) writeFileSync(resolve(workspace, `.ia/src/s${index}.ia`), text);
+    const got = await runBounded(
+      process.execPath,
+      ['--max-old-space-size=160', resolve(root, 'apps/cli/dist/main.js'), 'report', '--root', workspace],
+      { cwd: root, timeoutMs: 60_000 },
+    );
+    expect(got.signal).toBeNull();
+    expect(got.stderr + got.stdout).toContain('.ia/src/s3.ia is past 3145728 units of work in all');
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+}, 90_000);

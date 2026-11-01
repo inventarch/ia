@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
-import type { CompiledRecord, FrozenRegistry, SchemaEdge } from '@inventarch/language';
+import type { CompiledEdge, CompiledRecord, FrozenRegistry, SchemaEdge } from '@inventarch/language';
 import { load } from '@inventarch/graph';
 import type { Node } from '@inventarch/graph';
 import {
@@ -17,7 +17,9 @@ import {
   validateIdentity,
   validateParse,
   validateSelectors,
+  validateSystems,
 } from '../src/index.js';
+import { LISTED_FINDINGS } from '../src/schema.js';
 import { inputs, records, registry } from './native.js';
 
 const options = { sources: inputs, languageVersion: LANGUAGE_VERSION, kernelDigest: KERNEL_DIGEST, location: '' };
@@ -613,5 +615,119 @@ describe("agent-system's mandate moves (C05)", () => {
   });
   it('leaves an empty list of another word, or of another mandate field, as valid as C05 says', () => {
     expect(findings(probe(['moves [Observation]', 'excluded-words []', 'covers []'])).graph).toEqual([]);
+  });
+});
+describe('checks that read one graph once', () => {
+  const edge = (line: number, reference: CompiledEdge['reference'], fragment?: string): CompiledEdge => ({
+    predicate: 'cite',
+    direction: 'out',
+    spelling: 'cites',
+    reference,
+    target: reference.kind === 'identity' ? reference.identity : null,
+    ...(fragment === undefined ? {} : { fragment }),
+    span: { line, endLine: line },
+  });
+  it('finds a fragment of a record that holds many, for every edge that names one', () => {
+    const count = 120_000,
+      contract = records.find((record) => record.identity === contractId)!,
+      law = records.find((record) => record.name === 'sample-rule')!,
+      requirements = Array.from({ length: count }, (_, index) => ({
+        id: `REQ-A${index}`,
+        kind: 'inputs' as const,
+        text: 'x',
+        span: { line: index + 1, endLine: index + 1 },
+      })),
+      edges = requirements.map((requirement, index) =>
+        edge(index + 1, { kind: 'identity', identity: contractId, fragment: requirement.id }, requirement.id),
+      );
+    const graph = view(
+      records.map((record) =>
+        record === contract
+          ? { ...record, requirements: [...record.requirements, ...requirements] }
+          : record === law
+            ? { ...record, edges }
+            : record,
+      ),
+    );
+    expect(graph.edges.filter((candidate) => candidate.fragment !== undefined).length).toBeGreaterThanOrEqual(count);
+    expect(validateFragments(graph).outcome).toBe('pass');
+  }, 60_000);
+  it('still names a fragment no record holds', () => {
+    const law = records.find((record) => record.name === 'sample-rule')!,
+      missing = edge(1, { kind: 'identity', identity: contractId, fragment: 'REQ-NONE' }, 'REQ-NONE');
+    const graph = view(records.map((record) => (record === law ? { ...record, edges: [missing] } : record)));
+    expect(validateFragments(graph).findings.map((finding) => finding.code)).toEqual(['IA-COMP-FRAGMENT-MISSING']);
+  });
+});
+describe('system checks over many declarations', () => {
+  const place = { path: 's.ia', band: 100 as const, span: { line: 1, endLine: 1 } };
+  const schema = (name: string) =>
+    ({
+      ...place,
+      name,
+      displayName: name,
+      kind: 'definition',
+      sections: [],
+      closed: true,
+      fields: [],
+      edges: [],
+    }) as const;
+  it('counts the registrations of each of many schemas once', () => {
+    const count = 60_000,
+      schemas = new Map(Array.from({ length: count }, (_, index) => [`s${index}`, schema(`s${index}`)])),
+      registrations = new Map<string, { schema: string }>([
+        ...Array.from({ length: count - 1 }, (_, index): [string, { schema: string }] => [
+          `w${index}`,
+          { schema: `s${index}` },
+        ]),
+        ['w-again', { schema: 's0' }],
+      ]);
+    const vocabulary = { ...registry, schemas, registrations } as unknown as FrozenRegistry;
+    const enrolled = validateSystems([], vocabulary, []).find((entry) => entry.check === 'COMP-SCHEMA-ENROLLED')!;
+    expect(enrolled.findings.map((finding) => finding.code).sort()).toEqual([
+      'IA-COMP-SCHEMA-MULTIPLE',
+      'IA-COMP-SCHEMA-UNREFERENCED',
+    ]);
+  });
+  it('orders many systems by one reading of the order', () => {
+    const count = 200_000,
+      order = Array.from({ length: count }, (_, index) => `s${index}`),
+      systems = new Map(
+        order.map((name, index) => [
+          name,
+          { name, path: 's.ia', requires: index === 0 ? [] : [{ name: `s${index - 1}`, span: place.span }] },
+        ]),
+      );
+    const vocabulary = { ...registry, schemas: new Map(), registrations: new Map(), order, systems };
+    const bootstrap = validateSystems([], vocabulary as unknown as FrozenRegistry, []).find(
+      (entry) => entry.check === 'COMP-BOOTSTRAP',
+    )!;
+    expect(bootstrap.outcome).toBe('pass');
+  });
+});
+describe('what a contract lists of its coverage', () => {
+  const contract = records.find((record) => record.identity === contractId)!,
+    uncovered = (count: number) => {
+      const requirements = Array.from({ length: count }, (_, index) => ({
+        id: `REQ-A${index}`,
+        kind: 'inputs' as const,
+        text: 'x',
+        span: { line: index + 1, endLine: index + 1 },
+      }));
+      const graph = view(records.map((record) => (record === contract ? { ...record, requirements } : record)));
+      return validateCoverage(graph.nodes.get(contractId)!, graph);
+    };
+  it('lists every requirement no case covers up to its limit', () => {
+    expect(uncovered(LISTED_FINDINGS).findings.map((finding) => finding.code)).toEqual(
+      new Array(LISTED_FINDINGS).fill('IA-COMP-COVERAGE-MISSING'),
+    );
+  });
+  it('counts the requirements past its limit in one entry, failing as they would', () => {
+    const assessment = uncovered(LISTED_FINDINGS + 5);
+    expect(assessment.findings).toHaveLength(LISTED_FINDINGS + 1);
+    expect(assessment.findings.map((finding) => finding.message).join('\n')).toContain(
+      '5 more requirements have no unconditional implementing case',
+    );
+    expect(assessment.outcome).toBe('fail');
   });
 });

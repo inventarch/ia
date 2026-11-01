@@ -47,8 +47,19 @@ export function spellingsFor(
 ): readonly Spelling[] {
   const floor = registration.system === FLOOR_SYSTEM ? FLOOR.get(registration.keyword) : undefined;
   if (floor !== undefined) return section === 'head' ? HEAD_SPELLINGS : (floor.get(section) ?? []);
-  const spelled = (schema?.fields ?? [])
-    .filter((field) => field.section === section)
-    .map((field) => field.key.split(' '));
-  return section === 'head' ? [...HEAD_SPELLINGS, ...spelled] : spelled;
+  if (schema === undefined) return section === 'head' ? HEAD_SPELLINGS : [];
+  let bySection = spelledBy.get(schema);
+  if (bySection === undefined) {
+    bySection = new Map();
+    for (const field of schema.fields) {
+      const spellings = bySection.get(field.section) ?? [];
+      spellings.push(field.key.split(' '));
+      bySection.set(field.section, spellings);
+    }
+    bySection.set('head', [...HEAD_SPELLINGS, ...(bySection.get('head') ?? [])]);
+    spelledBy.set(schema, bySection);
+  }
+  return bySection.get(section) ?? [];
 }
+/** A schema's spellings by section, read once: a schema of many fields is read for every field that uses it. */
+const spelledBy = new WeakMap<SchemaDeclaration, Map<string, Spelling[]>>();

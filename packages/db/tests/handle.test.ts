@@ -581,3 +581,62 @@ it('closes idempotently and refuses all subsequent reads and refreshes', () => {
     expect(read).toThrow(expect.objectContaining({ code: 'IA-DB-CLOSED' }));
   }
 });
+it('lists the first 1,024 occurrences of a file, then one with no word that fails a word gate closed', () => {
+  const root = workspace(),
+    path = '.ia/src/systems/governance-system/records/many.ia';
+  put(root, path, `${'@law x\n'.repeat(1_500)}@mandate last\n`);
+  const db = open(root, { cache: false }),
+    listed = db.unadmitted.filter((entry) => entry.path === path);
+  expect(listed).toHaveLength(1_025);
+  expect(listed.slice(0, 1_024).every((entry) => entry.word === 'law')).toBe(true);
+  expect(listed[1_024]).toEqual({
+    band: 100,
+    path,
+    line: 1_025,
+    endLine: 1_025,
+    finding: {
+      code: 'IA-DB-SOURCE-UNAVAILABLE',
+      path,
+      line: 1_025,
+      message: `${path}: occurrences past the first 1024 of this file are not listed`,
+    },
+  });
+  expect(Object.isFrozen(listed[1_024])).toBe(true);
+  db.close();
+});
+it('lists every occurrence of a file at the bound', () => {
+  const root = workspace(),
+    path = '.ia/src/systems/governance-system/records/many.ia';
+  put(root, path, '@law x\n'.repeat(1_024));
+  const db = open(root, { cache: false });
+  expect(db.unadmitted.filter((entry) => entry.path === path).map((entry) => entry.word)).toEqual(
+    Array.from({ length: 1_024 }, () => 'law'),
+  );
+  db.close();
+});
+it('lists 65,536 occurrences of a workspace, then one with no word per file past them', () => {
+  const root = workspace(),
+    file = (index: number) => `.ia/src/systems/governance-system/records/m${String(index).padStart(2, '0')}.ia`;
+  for (let index = 0; index < 66; index++) put(root, file(index), '@law x\n'.repeat(1_024));
+  const db = open(root, { cache: false }),
+    named = db.unadmitted.filter((entry) => entry.word === 'law'),
+    unnamed = db.unadmitted.filter((entry) => entry.word === undefined);
+  expect(named).toHaveLength(65_536);
+  expect(unnamed.map((entry) => entry.path)).toEqual([file(64), file(65)]);
+  expect(unnamed[1]!.finding.message).toBe(
+    `${file(65)}: occurrences past the first 65536 of this workspace are not listed`,
+  );
+  db.close();
+});
+it('lists a file of 65,535 lines of refused records, each with the error inside its own lines', () => {
+  const root = workspace(),
+    path = '.ia/src/systems/governance-system/records/lines.ia',
+    records = Array.from({ length: 32_767 }, (_, index) => `@law l${index}\n  k [,]\n`);
+  put(root, path, `#! ia 1.0\n${records.join('')}`);
+  const db = open(root, { cache: false }),
+    listed = db.unadmitted.filter((entry) => entry.path === path);
+  expect(listed).toHaveLength(1_025);
+  expect(listed[0]).toMatchObject({ word: 'law', name: 'l0', finding: { code: 'IA-LANG-LIST-MALFORMED', line: 3 } });
+  expect(listed[1_023]).toMatchObject({ word: 'law', name: 'l1023', finding: { line: 2_049 } });
+  db.close();
+});

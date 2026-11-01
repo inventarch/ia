@@ -1,4 +1,5 @@
 import type { ChildNode, RecordNode } from '../ast.js';
+import { append } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { REQUIREMENT_KINDS } from './types.js';
@@ -14,7 +15,7 @@ export function misplacedIn(children: readonly ChildNode[], path: string): Diagn
           endLine: child.span.endLine,
         }),
       );
-    } else diagnostics.push(...misplacedIn(child.children, path));
+    } else append(diagnostics, misplacedIn(child.children, path));
   }
   return diagnostics;
 }
@@ -42,7 +43,7 @@ export function misplacedConditions(record: RecordNode, path: string): readonly 
           endLine: section.span.endLine,
         }),
       );
-    else diagnostics.push(...misplacedIn(section.children, path));
+    else append(diagnostics, misplacedIn(section.children, path));
   }
   return diagnostics;
 }

@@ -77,7 +77,13 @@ function diagnostic(f: EditorFinding): Diagnostic {
     range: f.range,
     severity: severity[f.severity],
     code: f.code,
-    source: f.code.startsWith('IA-LANG') ? 'IA language' : f.code.startsWith('IA-GRAPH') ? 'IA graph' : 'IA compliance',
+    source: f.code.startsWith('IA-LANG')
+      ? 'IA language'
+      : f.code.startsWith('IA-GRAPH')
+        ? 'IA graph'
+        : f.code.startsWith('IA-DB')
+          ? 'IA database'
+          : 'IA compliance',
     message: f.message,
   };
 }

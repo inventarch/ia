@@ -1,4 +1,6 @@
-import type { ChildNode, FieldNode, FileNode, RecordNode, Span } from '../ast.js';
+import type { ChildNode, FieldNode, FileNode, RecordNode, Span, Value } from '../ast.js';
+import { NAMED_SYSTEMS, append, listed, meter, metered } from '../bounded.js';
+import type { WorkBudget } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { collisions, identityOf, renderIdentity } from '../identity.js';
@@ -111,8 +113,18 @@ interface Context {
 /**
  * Lower one parsed file at a location (spec 10.1). Pure: no I/O, no clock, no default vocabulary.
  * pool contains external admitted occurrences and must exclude this canonical source path.
+ * `budget` is spent on each product and diagnostic as it is made, and stops the compile where it runs out (spec L35).
  */
 export function compile(
+  ast: FileNode,
+  registry: FrozenRegistry,
+  location: Location,
+  pool: readonly CompiledRecord[],
+  budget?: WorkBudget,
+): CompileResult {
+  return metered(budget, () => lowered(ast, registry, location, pool));
+}
+function lowered(
   ast: FileNode,
   registry: FrozenRegistry,
   location: Location,
@@ -135,7 +147,7 @@ export function compile(
   for (const record of ast.records) compileRecord(record, undefined, ctx);
   // One identity twice in this file is a collision on both (spec 3.2); across files the caller and the graph decide.
   const found = collisions(ctx.drafts.map((draft) => draft.occurrence));
-  ctx.diagnostics.push(...found.diagnostics);
+  append(ctx.diagnostics, found.diagnostics);
   // Parents precede their descendants in source order. Follow actual occurrences, not names:
   // a refused enclosing record cannot leave compiled children with a dangling parent.
   const refused = new Set(found.refused);
@@ -158,10 +170,11 @@ export function compile(
     })),
   );
   const duplicateRequirements = requirementCollisions(occurrences);
-  ctx.diagnostics.push(...duplicateRequirements.diagnostics);
+  append(ctx.diagnostics, duplicateRequirements.diagnostics);
   const refusedRequirements = new Set([...duplicateRequirements.refused].map((occurrence) => occurrence.requirement));
   const final = related.map((draft) => {
     const requirements = draft.record.requirements.filter((requirement) => !refusedRequirements.has(requirement));
+    meter()?.repeated(holdings(draft.record), draft.record.identity.length);
     return {
       ...draft,
       record: { ...draft.record, requirements },
@@ -173,6 +186,24 @@ export function compile(
     diagnostics: sortDiagnostics(ctx.diagnostics),
     sourceMap: final.map((draft) => draft.map),
   };
+}
+
+/** What a record holds that a later stage names it for: each field and list item, each edge and semantic product. */
+function holdings(record: CompiledRecord): number {
+  const held = (children: readonly CompiledChild[]): number =>
+    children.reduce((sum, child) => {
+      if ('item' in child) return sum + 1;
+      return sum + (child.value.kind === 'list' ? 1 + child.value.items.length : 1) + held(child.fields ?? []);
+    }, 0);
+  return (
+    held(record.head) +
+    record.sections.reduce((sum, section) => sum + held(section.fields), 0) +
+    record.edges.length +
+    record.cells.length +
+    record.selectors.length +
+    record.variants.length +
+    record.requirements.length
+  );
 }
 
 /** Schema extraction owns all of that dialect's conditions, including extra field blocks. */
@@ -194,12 +225,10 @@ function lowerProducts(draft: Draft, ctx: Context): Draft {
     ctx.path,
     spellingsFor(registration, ctx.registry.schemas.get(registration.schema), 'governance'),
   );
-  ctx.diagnostics.push(
-    ...misplacedConditions(draft.node, ctx.path),
-    ...cells.diagnostics,
-    ...selectors.diagnostics,
-    ...variants.diagnostics,
-  );
+  append(ctx.diagnostics, misplacedConditions(draft.node, ctx.path));
+  append(ctx.diagnostics, cells.diagnostics);
+  append(ctx.diagnostics, selectors.diagnostics);
+  append(ctx.diagnostics, variants.diagnostics);
   return {
     ...draft,
     record: { ...draft.record, cells: cells.cells, selectors: selectors.selectors, variants: variants.variants },
@@ -217,7 +246,9 @@ function lowerRelationships(draft: Draft, pool: ReturnType<typeof indexedResolve
   const edges = readEdges(draft.node, draft.record, ctx.registry, pool, draft.record.edges);
   const contract = readContract(draft.node, ctx.path, ctx.registry, edges.edges, edges.refusedBindings);
   const scenario = validateCase(draft.node, ctx.path, ctx.registry, edges.edges, edges.refusedBindings);
-  ctx.diagnostics.push(...edges.diagnostics, ...contract.diagnostics, ...scenario.diagnostics);
+  append(ctx.diagnostics, edges.diagnostics);
+  append(ctx.diagnostics, contract.diagnostics);
+  append(ctx.diagnostics, scenario.diagnostics);
   return {
     ...draft,
     record: { ...draft.record, edges: edges.edges, requirements: contract.requirements },
@@ -239,7 +270,7 @@ function compileRecord(record: RecordNode, parent: IdentityOccurrence | undefine
         'IA-LANG-DISCRIMINATOR-UNREGISTERED',
         path,
         line,
-        `${path}:${line}: discriminator '${record.discriminator}' ${why}; visible systems: ${registry.order.join(', ')}`,
+        `${path}:${line}: discriminator '${record.discriminator}' ${why}; visible systems: ${listed(registry.order, (name) => name, NAMED_SYSTEMS)}`,
       ),
     );
     return; // nothing beneath a refused record compiles: a nested record would have no parent identity
@@ -251,17 +282,13 @@ function compileRecord(record: RecordNode, parent: IdentityOccurrence | undefine
   const occurrence: IdentityOccurrence = { identity: identity.identity, path, line, band: ctx.location.placement.band };
 
   const schema = registry.schemas.get(registration.schema);
+  // Every check of this record reads its schema's rules once.
+  meter()?.scan((schema?.fields.length ?? 0) + (schema?.sections.length ?? 0) + (schema?.edges.length ?? 0));
   const fieldSpans: { path: string; span: Span }[] = [];
   const head: CompiledField[] = [];
+  const headSpellings = spellingsFor(registration, schema, 'head');
   for (const field of record.head) {
-    const compiled = compileField(
-      field,
-      spellingsFor(registration, schema, 'head'),
-      'head',
-      occurrence,
-      fieldSpans,
-      ctx,
-    );
+    const compiled = compileField(field, headSpellings, 'head', occurrence, fieldSpans, ctx);
     if (!spelledAs(field, ['facet'])) head.push(compiled); // facet is consumed; its source span and nested records survive
   }
   const sections: CompiledSection[] = record.sections.map((section) => ({
@@ -318,6 +345,9 @@ function compileRecord(record: RecordNode, parent: IdentityOccurrence | undefine
   });
 }
 
+/** What compiling a value makes: itself, and each item of a list. */
+const valueProducts = (value: Value): number => (value.kind === 'list' ? 1 + value.items.length : 1);
+
 function compileChildren(
   children: readonly ChildNode[],
   spellings: readonly Spelling[],
@@ -333,6 +363,7 @@ function compileChildren(
       continue;
     } // containment is structural, not a field (spec 2.5)
     if (child.kind === 'item') {
+      meter()?.product(valueProducts(child.value));
       out.push({ item: compiledValue(child.value), span: child.span });
       continue;
     }
@@ -349,6 +380,7 @@ function compileField(
   fieldSpans: { path: string; span: Span }[],
   ctx: Context,
 ): CompiledField {
+  meter()?.product(valueProducts(field.value));
   const { key, value } = resolveKey(field, spellings);
   const fieldPath = `${prefix}.${key}`;
   fieldSpans.push({ path: fieldPath, span: field.span });

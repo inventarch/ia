@@ -1,4 +1,5 @@
 import type { RecordNode } from '../ast.js';
+import { WORK_COST, meter, others } from '../bounded.js';
 import { resolveKey } from '../compile/values.js';
 import type { Spelling } from '../compile/values.js';
 import { diag } from '../diagnostics.js';
@@ -38,6 +39,7 @@ export function readVariants(record: RecordNode, path: string, spellings: readon
         diagnostics.push(misplaced);
         continue;
       }
+      meter()?.product();
       variants.push({
         key,
         value,
@@ -53,6 +55,10 @@ export function readVariants(record: RecordNode, path: string, spellings: readon
     if (group) group.push(variant);
     else groups.set(key, [variant]);
   }
+  // A family of clauses is judged pair by pair (compliance COMP-VARIANT), which each pair pays for here.
+  const families = new Map<string, number>();
+  for (const variant of variants) families.set(variant.key, (families.get(variant.key) ?? 0) + 1);
+  for (const clauses of families.values()) meter()?.charge((clauses * (clauses - 1) * WORK_COST.clausePair) / 2);
   const refused = new Set<Variant>();
   for (const group of groups.values()) {
     if (group.length < 2) continue;
@@ -63,10 +69,7 @@ export function readVariants(record: RecordNode, path: string, spellings: readon
           'IA-LANG-VARIANT-DUPLICATE',
           path,
           variant.span.line,
-          `Duplicate ${variant.key} condition; other occurrences at ${group
-            .filter((v) => v !== variant)
-            .map((v) => `${path}:${v.span.line}`)
-            .join(', ')}.`,
+          `Duplicate ${variant.key} condition; other occurrences at ${others(group, variant, (v) => `${path}:${v.span.line}`)}.`,
           { endLine: variant.span.endLine },
         ),
       );

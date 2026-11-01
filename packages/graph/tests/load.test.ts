@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { KERNEL_DIGEST, LANGUAGE_VERSION, compile, parse } from '@inventarch/language';
 import type { CompiledRecord, FrozenRegistry, Location, Placement } from '@inventarch/language';
-import { load, resolve, serialize, stableSerialize } from '../src/index.js';
+import { frozen, load, resolve, revisionOf, serialize, stableSerialize } from '../src/index.js';
 import type { Graph, LoadOptions, RevisionSource } from '../src/index.js';
 import { inputs, instance, loop, records, registry } from './native.js';
 
@@ -84,6 +84,168 @@ describe('native graph load and ownership', () => {
     expect(() => load([changed], registry, options)).toThrow('disagrees');
   });
 });
+describe('edges of one shape', () => {
+  it('holds every assertion of an edge in order, however many repeat it', () => {
+    const count = 120_000,
+      target = records.find((r) => r.name === 'sample-procedure')!,
+      author = records.find((r) => r.name === 'sample-rule')!,
+      repeated = Array.from({ length: count }, (_, index) => ({
+        predicate: 'cite' as const,
+        direction: 'out' as const,
+        spelling: index % 2 === 0 ? 'cite' : 'cites',
+        reference: { kind: 'identity' as const, identity: target.identity },
+        target: target.identity,
+        span: { line: index + 1, endLine: index + 1 },
+      }));
+    const graph = load(
+      records.map((record) => (record === author ? { ...record, edges: repeated } : record)),
+      registry,
+      options,
+    );
+    const edge = graph.edges.find((candidate) => candidate.from === author.identity && candidate.predicate === 'cite')!;
+    expect(edge.assertions).toHaveLength(count);
+    expect(edge.assertions.map((assertion) => assertion.source.line)).toEqual(repeated.map((row) => row.span.line));
+    expect(edge.assertions.map((assertion) => assertion.spelling).slice(0, 3)).toEqual(['cite', 'cites', 'cite']);
+    expect(Object.isFrozen(edge.assertions)).toBe(true);
+  }, 10_000);
+  it('holds one node for a frozen record and one registry when it is frozen, however many graphs load them', () => {
+    const kept = records.map(frozen),
+      vocabulary = frozen(registry),
+      root = load(kept, vocabulary, options),
+      phased = load(kept, vocabulary, { ...options, phase: 'act' }),
+      identity = kept[0]!.identity;
+    expect(phased.nodes.get(identity)).toBe(root.nodes.get(identity));
+    expect(Object.isFrozen(phased.nodes.get(identity)?.head)).toBe(true);
+    // What the record holds is what the node holds, not another copy of it.
+    expect(root.nodes.get(identity)?.head).toBe(kept[0]!.head);
+    expect(phased.registry).toBe(vocabulary);
+    expect(root.registry).toBe(vocabulary);
+  });
+  it('reads a record, a registry and a declaration that are not frozen again each time, as they are now', () => {
+    const name = 'governance-system',
+      declared = registry.systems.get(name)!,
+      declaration = { ...declared, entries: [...declared.entries] },
+      vocabulary: FrozenRegistry = {
+        ...registry,
+        systems: new Map(registry.systems).set(name, declaration),
+        schemas: new Map(registry.schemas),
+      },
+      schema = records.find((record) => record.discriminator === 'schema' && record.name === 'law')!,
+      system = records.find((record) => record.discriminator === 'system' && record.name === name)!,
+      stray = {
+        predicate: 'ground' as const,
+        direction: 'out' as const,
+        spelling: 'ground',
+        reference: { kind: 'identity' as const, identity: schema.identity },
+        target: schema.identity,
+        span: { line: 9_999, endLine: 9_999 },
+      },
+      changing = { ...system, displayName: 'first', edges: [...system.edges, stray] },
+      mine = records.map((record) => (record === system ? changing : record)),
+      refused = (graph: Graph) => graph.diagnostics.some((diagnostic) => diagnostic.line === 9_999);
+    const before = load(mine, vocabulary, options);
+    expect(before.nodes.get(system.identity)?.displayName).toBe('first');
+    expect(refused(before)).toBe(true);
+    changing.displayName = 'second';
+    declaration.entries.push({ ...declared.entries[0]!, schema: schema.name, span: { line: 9_999, endLine: 9_999 } });
+    (vocabulary.schemas as Map<string, unknown>).set('marker', vocabulary.schemas.values().next().value);
+    const after = load(mine, vocabulary, options);
+    expect(after.nodes.get(system.identity)?.displayName).toBe('second');
+    expect(refused(after)).toBe(false);
+    expect(after.registry.schemas.has('marker')).toBe(true);
+    // What the first graph made of them is its own.
+    expect(before.nodes.get(system.identity)?.displayName).toBe('first');
+    expect(before.registry.schemas.has('marker')).toBe(false);
+  });
+  it('builds its text index when first read, and serializes with it', () => {
+    const graph = load(records, registry, options);
+    expect(Object.getOwnPropertyDescriptor(graph, 'text')?.get).toBeDefined();
+    expect(graph.text.lengths.size).toBe(graph.nodes.size);
+    expect(graph.text).toBe(graph.text);
+    expect(serialize(graph)).toBe(serialize(native));
+  });
+  it('takes a ground edge for a declaration only at the line of an entry of it', () => {
+    const system = records.find((record) => record.discriminator === 'system' && record.name === 'governance-system')!,
+      schema = records.find((record) => record.discriminator === 'schema' && record.name === 'law')!,
+      stray = {
+        predicate: 'ground' as const,
+        direction: 'out' as const,
+        spelling: 'ground',
+        reference: { kind: 'identity' as const, identity: schema.identity },
+        target: schema.identity,
+        span: { line: 9_999, endLine: 9_999 },
+      };
+    const graph = load(
+      records.map((record) => (record === system ? { ...record, edges: [...record.edges, stray] } : record)),
+      registry,
+      options,
+    );
+    expect(graph.diagnostics.map((diagnostic) => [diagnostic.code, diagnostic.line])).toContainEqual([
+      'IA-GRAPH-EDGE-UNCONSENTED',
+      9_999,
+    ]);
+  });
+  it('hashes sources and a registry again unless both are frozen', () => {
+    const sources: RevisionSource[] = [...inputs],
+      plain: FrozenRegistry = { ...registry, schemas: new Map(registry.schemas) },
+      kept = frozen(registry),
+      first = revisionOf(plain, { ...options, sources });
+    expect(revisionOf(plain, { ...options, sources })).toBe(first);
+    const changed = { ...sources[0]!, text: `${sources[0]!.text}\n# changed\n` };
+    sources[0] = changed;
+    const second = revisionOf(plain, { ...options, sources });
+    expect(second).not.toBe(first);
+    (changed as { text: string }).text += '# again\n';
+    const third = revisionOf(plain, { ...options, sources });
+    expect(third).not.toBe(second);
+    (plain.schemas as Map<string, unknown>).delete(plain.schemas.keys().next().value!);
+    expect(revisionOf(plain, { ...options, sources })).not.toBe(third);
+    // A frozen registry changes nothing about a source array that is not.
+    const before = revisionOf(kept, { ...options, sources });
+    sources[0] = inputs[0]!;
+    expect(revisionOf(kept, { ...options, sources })).not.toBe(before);
+    const held = frozen([...inputs]),
+      beforeRegistry = revisionOf(plain, { ...options, sources: held });
+    // Nor frozen sources anything about a registry that is not.
+    (plain.schemas as Map<string, unknown>).delete(plain.schemas.keys().next().value!);
+    expect(revisionOf(plain, { ...options, sources: held })).not.toBe(beforeRegistry);
+    expect(revisionOf(kept, { ...options, sources: held })).toBe(revisionOf(registry, options));
+    expect(revisionOf(kept, { ...options, sources: held, languageVersion: '0.0' })).not.toBe(
+      revisionOf(kept, { ...options, sources: held }),
+    );
+    // What is remembered of frozen sources is remembered for each registry.
+    const another = frozen({ ...registry, order: [...registry.order, 'another'] });
+    expect(revisionOf(another, { ...options, sources: held })).not.toBe(
+      revisionOf(kept, { ...options, sources: held }),
+    );
+  });
+  it('writes nothing past a limit on what it serializes, and reads no field past it', () => {
+    const text = serialize(native);
+    expect(serialize(native, 10 * text.length)).toBe(text);
+    expect(() => serialize(native, 1_000)).toThrow(new RangeError('Past 1000 to serialize'));
+    const read: string[] = [],
+      value = {
+        get first() {
+          read.push('first');
+          return 'x'.repeat(100);
+        },
+        get second() {
+          read.push('second');
+          return 1;
+        },
+      };
+    expect(() => stableSerialize(value, 128)).toThrow(RangeError);
+    expect(read).toEqual(['first']);
+    // What it holds of a value is its items as well as its strings.
+    expect(() => stableSerialize(new Array<number>(100).fill(1), 1_000)).toThrow(RangeError);
+    expect(() => stableSerialize('x'.repeat(1_000), 1_000)).toThrow(RangeError);
+    expect(stableSerialize(new Array<number>(100).fill(1), 4_000)).toHaveLength(201);
+  });
+  it('shares one edge between every list that holds it', () => {
+    const edge = native.edges[0]!;
+    expect(native.out.get(edge.from!)?.get(edge.predicate)).toContain(edge);
+  });
+});
 describe('authority before indexing', () => {
   const original = records.find((r) => r.name === 'sample-procedure')!;
   const floor = placed(original, 'overlay/floor.ia', { kind: 'floor', band: 10, reach: '' });
@@ -111,6 +273,39 @@ describe('authority before indexing', () => {
     expect(graph.diagnostics.filter((d) => d.code === 'IA-GRAPH-IDENTITY-TIE')).toHaveLength(2);
     expect(graph.occurrences.find((o) => o.node.band === 10)!.status).toBe('blocked');
   });
+  it('names eight tied occurrences and counts the rest', () => {
+    const rivals = Array.from({ length: 12 }, (_, i) =>
+      placed(original, `overlay/r${String(i).padStart(2, '0')}.ia`, { kind: 'authored', band: 100, reach: '' }),
+    );
+    const graph = view(rivals);
+    const named = rivals.slice(0, 8).map((rival) => `${rival.record.source.path}:${rival.record.source.line}`);
+    expect(graph.diagnostics.filter((d) => d.code === 'IA-GRAPH-IDENTITY-TIE')).toHaveLength(12);
+    expect(graph.diagnostics.find((d) => d.code === 'IA-GRAPH-IDENTITY-TIE')?.message).toBe(
+      `${named[0]}: ${original.identity} ties at band 100: ${named.join(', ')} and 4 more`,
+    );
+  });
+  it('ties an identity across more occurrences than one call can take as arguments', () => {
+    const small = probe('@schema small\n  lowers to binding\n  sections\n    closed').records[0]!;
+    const rivals = Array.from({ length: 130_000 }, (_, i) =>
+      placed(small, `overlay/r${i}.ia`, { kind: 'authored', band: 100, reach: '' }),
+    );
+    const graph = view(rivals);
+    expect(graph.ties).toHaveLength(1);
+    expect(graph.diagnostics.filter((d) => d.code === 'IA-GRAPH-IDENTITY-TIE')).toHaveLength(rivals.length);
+  }, 60_000);
+  it('indexes more records of one word than a scan of each posting could reach in a test', () => {
+    const small = probe('@schema small\n  lowers to binding\n  sections\n    closed').records[0]!;
+    const all = Array.from({ length: 60_000 }, (_, i) =>
+      placed(
+        { ...small, identity: `floor/contract/head/s${i}`, name: `s${i}`, displayName: `s${i}` },
+        `overlay/r${i}.ia`,
+        { kind: 'authored', band: 100, reach: '' },
+      ),
+    );
+    const graph = view(all);
+    expect(graph.nodes.size).toBe(all.length);
+    expect(graph.byDiscriminator.get('schema')).toHaveLength(all.length);
+  }, 60_000);
   it('does not collide disjoint reaches', () => {
     const other = placed(original, 'overlay/other.ia', { kind: 'authored', band: 100, reach: 'another' });
     expect(view([high, other], { location: 'team' }).ties).toEqual([]);

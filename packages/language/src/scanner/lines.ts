@@ -1,3 +1,4 @@
+import { meter } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 
@@ -43,12 +44,13 @@ export interface Walk {
 }
 
 /**
- * One quote-aware pass over a line, or over a joined span. This is the only place in the
- * package that knows how `"`, `"""`, `[`, `]` and `#` interact.
+ * One quote-aware pass over a line, from outside any value or, with `startsInProse`, from inside `"""` as a continuation
+ * line of a span starts: the `\n` that joins two lines ends no quote, so a span is walked line by line, once. This is the
+ * only place in the package that knows how `"`, `"""`, `[`, `]` and `#` interact.
  */
-export function walk(text: string): Walk {
+export function walk(text: string, startsInProse = false): Walk {
   let inString = false;
-  let inProse = false;
+  let inProse = startsInProse;
   let bracketDelta = 0;
   let commentAt = -1;
   for (let i = 0; i < text.length; i++) {
@@ -99,6 +101,8 @@ type Span =
       readonly line: number;
       readonly depth: number;
       readonly parts: string[];
+      /** Net `[` minus `]` of the span so far, which a closing line of a dropped span carries into a list. */
+      balance: number;
       readonly dropped: boolean;
     }
   | {
@@ -111,6 +115,7 @@ type Span =
     };
 
 export function logicalLines(source: string, path: string): LinesResult {
+  const budget = meter();
   const diagnostics: Diagnostic[] = [];
   const lines: LogicalLine[] = [];
   const trivia: Trivia[] = [];
@@ -136,28 +141,31 @@ export function logicalLines(source: string, path: string): LinesResult {
   for (let index = pragma === null ? 0 : 1; index < raw.length; index++) {
     const lineNo = index + 1;
     const rawLine = raw[index] ?? '';
+    budget?.token();
 
     if (span !== null && span.kind === 'prose') {
       span.parts.push(rawLine);
-      const joined = span.parts.join('\n');
-      const w = walk(joined);
+      // Every line of an open span starts inside its prose, so each is walked once and the span joined once, at its end.
+      const w = walk(rawLine, true);
+      span.balance += w.bracketDelta;
       if (!w.endsInProse) {
+        const joined = span.parts.join('\n'),
+          commentAt = w.commentAt < 0 ? -1 : joined.length - rawLine.length + w.commentAt;
         if (span.dropped) {
           // A dropped prose value's closer line: its comment stays trivia, and a list it opens is dropped too.
-          if (w.commentAt >= 0)
-            trivia.push({ kind: 'comment', line: lineNo, text: joined.slice(w.commentAt).trimEnd() });
+          if (commentAt >= 0) trivia.push({ kind: 'comment', line: lineNo, text: joined.slice(commentAt).trimEnd() });
           span =
-            !w.endsInString && w.bracketDelta > 0
-              ? { kind: 'list', line: lineNo, depth: 0, parts: [], balance: w.bracketDelta, dropped: true }
+            !w.endsInString && span.balance > 0
+              ? { kind: 'list', line: lineNo, depth: 0, parts: [], balance: span.balance, dropped: true }
               : null;
         } else {
-          const text = (w.commentAt >= 0 ? joined.slice(0, w.commentAt) : joined).trimEnd();
+          const text = (commentAt >= 0 ? joined.slice(0, commentAt) : joined).trimEnd();
           lines.push({
             line: span.line,
             endLine: lineNo,
             depth: span.depth,
             text,
-            ...(w.commentAt >= 0 ? { trailingComment: joined.slice(w.commentAt) } : {}),
+            ...(commentAt >= 0 ? { trailingComment: joined.slice(commentAt) } : {}),
           });
           span = null;
         }
@@ -215,7 +223,15 @@ export function logicalLines(source: string, path: string): LinesResult {
         const dropped = walk(content);
         if (dropped.commentAt >= 0)
           trivia.push({ kind: 'comment', line: lineNo, text: content.slice(dropped.commentAt) });
-        if (dropped.endsInProse) span = { kind: 'prose', line: lineNo, depth: 0, parts: [content], dropped: true };
+        if (dropped.endsInProse)
+          span = {
+            kind: 'prose',
+            line: lineNo,
+            depth: 0,
+            parts: [content],
+            balance: dropped.bracketDelta,
+            dropped: true,
+          };
         else if (!dropped.endsInString && dropped.bracketDelta > 0)
           span = { kind: 'list', line: lineNo, depth: 0, parts: [], balance: dropped.bracketDelta, dropped: true };
         continue;
@@ -255,7 +271,7 @@ export function logicalLines(source: string, path: string): LinesResult {
 
     // The walk stopped at the comment, so a `"""` inside the comment cannot open a span.
     if (w.endsInProse) {
-      span = { kind: 'prose', line: lineNo, depth, parts: [content], dropped: false };
+      span = { kind: 'prose', line: lineNo, depth, parts: [content], balance: w.bracketDelta, dropped: false };
       continue;
     }
 

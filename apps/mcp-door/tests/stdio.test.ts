@@ -1,5 +1,15 @@
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -341,4 +351,76 @@ it(
       }
     }),
   90_000,
+);
+it(
+  'starts and answers on sources whose compilation makes the diagnostics in a small heap',
+  () =>
+    withScope(async (scope) => {
+      const workspace = mkdtempSync(resolve(tmpdir(), 'ia-mcp-verbs-'));
+      scope.defer('verbs workspace', () => rmSync(workspace, { recursive: true, force: true }));
+      mkdirSync(resolve(workspace, '.ia/src'), { recursive: true });
+      for (let index = 0; index < 2; index++)
+        writeFileSync(
+          resolve(workspace, `.ia/src/s${index}.ia`),
+          `#! ia 1.0\n@schema s${index}\n  lowers to binding\n  sections\n    closed\n  relationships\n${'    x\n'.repeat(170_000)}`,
+        );
+      const got = await runBounded(process.execPath, ['--max-old-space-size=384', entrypoint, '--root', workspace], {
+        cwd: root,
+        input: line(initialize),
+        timeoutMs: SUBPROCESS,
+      });
+      expect(got.status, got.stderr.slice(0, 2_000)).toBe(0);
+      expect(JSON.parse(got.stdout.split('\n')[0]!)).toMatchObject({
+        id: 1,
+        result: { protocolVersion: '2025-11-25' },
+      });
+    }),
+  SUBPROCESS + 10_000,
+);
+it(
+  'starts and answers on systems that list a missing requirement 100,000 times in a small heap',
+  () =>
+    withScope(async (scope) => {
+      const workspace = mkdtempSync(resolve(tmpdir(), 'ia-mcp-joins-'));
+      scope.defer('joins workspace', () => rmSync(workspace, { recursive: true, force: true }));
+      mkdirSync(resolve(workspace, '.ia/src'), { recursive: true });
+      for (let index = 0; index < 3; index++)
+        writeFileSync(
+          resolve(workspace, `.ia/src/s${index}.ia`),
+          `#! ia 1.0\n@system s${index}\n  provider "p"\n  version "0.1.0"\n  requires\n${'    - x\n'.repeat(100_000)}`,
+        );
+      const got = await runBounded(process.execPath, ['--max-old-space-size=256', entrypoint, '--root', workspace], {
+        cwd: root,
+        input: line(initialize),
+        timeoutMs: SUBPROCESS,
+      });
+      expect(got.status, got.stderr.slice(0, 2_000)).toBe(0);
+      expect(JSON.parse(got.stdout.split('\n')[0]!)).toMatchObject({
+        id: 1,
+        result: { protocolVersion: '2025-11-25' },
+      });
+    }),
+  SUBPROCESS + 10_000,
+);
+it(
+  'starts and answers on dense malformed sources in a small heap, as what db refuses it does not hold',
+  () =>
+    withScope(async (scope) => {
+      const workspace = mkdtempSync(resolve(tmpdir(), 'ia-mcp-dense-'));
+      scope.defer('dense workspace', () => rmSync(workspace, { recursive: true, force: true }));
+      mkdirSync(resolve(workspace, '.ia/src'), { recursive: true });
+      const text = `#! ia 1.0\n@schema x\n  k [${','.repeat(1_048_000)}]\n`;
+      for (let index = 0; index < 4; index++) writeFileSync(resolve(workspace, `.ia/src/s${index}.ia`), text);
+      const got = await runBounded(process.execPath, ['--max-old-space-size=160', entrypoint, '--root', workspace], {
+        cwd: root,
+        input: line(initialize),
+        timeoutMs: SUBPROCESS,
+      });
+      expect(got.status, got.stderr.slice(0, 2_000)).toBe(0);
+      expect(JSON.parse(got.stdout.split('\n')[0]!)).toMatchObject({
+        id: 1,
+        result: { protocolVersion: '2025-11-25' },
+      });
+    }),
+  SUBPROCESS + 10_000,
 );

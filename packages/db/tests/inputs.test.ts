@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
@@ -14,6 +15,8 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  opendirSync,
+  readdirSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -25,6 +28,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { KERNEL_SOURCES, buildRegistry, compile, parse } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
+import { stableSerialize } from '@inventarch/graph';
 import {
   caseFold,
   linked,
@@ -38,6 +42,9 @@ import {
 } from '../src/index.js';
 import type { InputSnapshot } from '../src/index.js';
 import { readInstalledGeneration } from '../src/distribution/index.js';
+import { canonicalDistributionJson as json, sha256 } from '../src/distribution/codec.js';
+import { decodeBundleManifest, decodeDistributionLock, generationDigest } from '../src/distribution/contracts.js';
+import { deriveGenerationInputs, installationWorkspace } from '../src/distribution/membership.js';
 import { OPENED_READ_FLAGS } from '../src/named.js';
 import {
   blockingOpens,
@@ -63,6 +70,8 @@ vi.mock('node:fs', async (importOriginal) => {
     lstatSync: vi.fn(actual.lstatSync),
     readSync: vi.fn(actual.readSync),
     readFileSync: vi.fn(actual.readFileSync),
+    readdirSync: vi.fn(actual.readdirSync),
+    opendirSync: vi.fn(actual.opendirSync),
     closeSync: vi.fn(actual.closeSync),
   };
 });
@@ -137,6 +146,8 @@ afterEach(() => {
   vi.mocked(lstatSync).mockReset();
   vi.mocked(readSync).mockReset();
   vi.mocked(readFileSync).mockReset();
+  vi.mocked(readdirSync).mockReset();
+  vi.mocked(opendirSync).mockReset();
   vi.mocked(closeSync).mockClear();
   for (const path of temporary.splice(0)) {
     const subpath = relative(resolve(tmpdir()), resolve(path));
@@ -815,6 +826,17 @@ it('closes the installation file it opens, when it reads it and when it refuses 
 });
 
 // Authored package source capture (`readInputs` with `authoredRoots`).
+/** The reads of the descriptor last opened at `file`, by the mocks' own record, as a descriptor's number is reused. */
+const readsOf = (file: string): readonly unknown[] => {
+  const opens = vi.mocked(openSync).mock,
+    reads = vi.mocked(readSync).mock,
+    at = opens.calls.map(([path]) => String(path)).lastIndexOf(file);
+  if (at < 0) return [];
+  return reads.calls.filter(
+    ([fd], index) =>
+      fd === opens.results[at]!.value && reads.invocationCallOrder[index]! > opens.invocationCallOrder[at]!,
+  );
+};
 const CORPUS = '.ia/src/a.ia';
 const corpusWorkspace = (): string => {
   const root = workspace();
@@ -835,13 +857,13 @@ it('reads a corpus source through the descriptor it opens, and closes it when it
     opened = await descriptors(file);
   expect(corpusText(root)).toBe('#! ia 1.0\n# a\n');
   expect(opened).toHaveLength(1);
-  expect(readFileSync).toHaveBeenCalledWith(opened[0]);
+  expect(vi.mocked(readSync).mock.calls.some(([fd]) => fd === opened[0])).toBe(true);
   expect(vi.mocked(readFileSync).mock.calls.filter(([path]) => String(path) === file)).toEqual([]);
   expect(closeSync).toHaveBeenCalledWith(opened[0]);
   // A read of that descriptor fails; the walk refuses it as it refuses any failed read.
-  vi.mocked(readFileSync).mockImplementation((...args: Parameters<typeof readFileSync>) => {
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
     if (args[0] === opened.at(-1)) throw Object.assign(new Error('EIO: i/o error, read'), { code: 'EIO' });
-    return actual.readFileSync(...args);
+    return actual.readSync(...args);
   });
   vi.mocked(closeSync).mockClear();
   expect(corpus(root)).toMatchObject({
@@ -955,6 +977,38 @@ it.skipIf(!constants.O_NOCTTY)(
     expect(flags[0]! & constants.O_NOCTTY).toBe(constants.O_NOCTTY);
   },
 );
+it('reads at most one byte past a corpus source that grows while it is read, and refuses it as changed', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const root = corpusWorkspace(),
+    file = resolve(root, CORPUS);
+  let read = 0,
+    calls = 0;
+  vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
+    const count = actual.readSync(...args);
+    read += count;
+    if (++calls === 1) appendFileSync(file, 'x'.repeat(2 * 1048576));
+    return count;
+  });
+  expect(corpus(root)).toMatchObject({
+    code: 'IA-DB-SOURCE-CHANGED',
+    message: `IA-DB-SOURCE-CHANGED: Source changed during read: ${CORPUS}`,
+    path: CORPUS,
+  });
+  expect(read).toBe('#! ia 1.0\n# a\n'.length + 1);
+});
+it('refuses a corpus source that shrinks while it is read, though its times do not show it', async () => {
+  const changed = {
+    code: 'IA-DB-SOURCE-CHANGED',
+    message: `IA-DB-SOURCE-CHANGED: Source changed during read: ${CORPUS}`,
+  };
+  await coarseTimes();
+  const short = corpusWorkspace();
+  await shrinkWhileRead(resolve(short, CORPUS), 'before');
+  expect(corpus(short)).toMatchObject(changed);
+  const cut = corpusWorkspace();
+  await shrinkWhileRead(resolve(cut, CORPUS), 'after');
+  expect(corpus(cut)).toMatchObject(changed);
+});
 const PACKAGE = 'packages/example',
   RECORDS = `${PACKAGE}/.ia/src/systems/demo/records`,
   SOURCE = `${RECORDS}/a.ia`;
@@ -972,21 +1026,20 @@ it('captures a package source of at most 1 MiB with one name, walks a directory,
   put(bounded, SOURCE, '#'.repeat(1048576));
   expect((captured(bounded) as InputSnapshot).sources.find((s) => s.path === SOURCE)?.text).toHaveLength(1048576);
   put(bounded, SOURCE, '#'.repeat(1048577));
-  vi.mocked(readSync).mockClear();
   expect(captured(bounded)).toMatchObject({
     code: 'IA-DB-SOURCE-UNAVAILABLE',
-    message: 'IA-DB-SOURCE-UNAVAILABLE: Authored package source capture limit exceeded',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${SOURCE} is over 1048576 bytes`,
+    path: SOURCE,
   });
   // The bound is met before any byte is read.
-  expect(readSync).not.toHaveBeenCalled();
+  expect(readsOf(resolve(bounded, SOURCE))).toEqual([]);
   const named = packageWorkspace();
   linkSync(resolve(named, SOURCE), resolve(named, 'second.ia'));
-  vi.mocked(readSync).mockClear();
   expect(captured(named)).toMatchObject({
     code: 'IA-DB-PATH-UNSAFE',
     message: `IA-DB-PATH-UNSAFE: Hard-linked package source: ${SOURCE}`,
   });
-  expect(readSync).not.toHaveBeenCalled();
+  expect(readsOf(resolve(named, SOURCE))).toEqual([]);
   const folder = packageWorkspace();
   put(folder, `${RECORDS}/folder.ia/b.ia`, '#! ia 1.0\n');
   expect(packaged(folder)).toEqual([SOURCE, `${RECORDS}/folder.ia/b.ia`]);
@@ -1046,7 +1099,7 @@ it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
     chmodSync(oversized, 0o000);
     expect(captured(large)).toMatchObject({
       code: 'IA-DB-SOURCE-UNAVAILABLE',
-      message: 'IA-DB-SOURCE-UNAVAILABLE: Authored package source capture limit exceeded',
+      message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${SOURCE} is over 1048576 bytes`,
     });
   },
 );
@@ -1072,11 +1125,13 @@ it('refuses a package source removed after it is listed, as the lstat of its nam
 it('reads at most one byte past a package source that grows while it is read, and refuses it as changed', async () => {
   const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
   const root = packageWorkspace(),
-    file = resolve(root, SOURCE);
+    file = resolve(root, SOURCE),
+    opened = await descriptors(file);
   let read = 0,
     calls = 0;
   vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
     const count = actual.readSync(...args);
+    if (args[0] !== opened.at(-1)) return count;
     read += count;
     if (++calls === 1) appendFileSync(file, 'x'.repeat(1_000));
     return count;
@@ -1126,13 +1181,12 @@ it.skipIf(process.platform === 'win32')(
     const blocking = await blockingOpens((path) => {
       if (path === file && actual.existsSync(pipe)) actual.renameSync(pipe, file);
     });
-    vi.mocked(readSync).mockClear();
     expect(captured(root)).toMatchObject({
       code: 'IA-DB-SOURCE-CHANGED',
       message: `IA-DB-SOURCE-CHANGED: Package source replaced during read: ${SOURCE}`,
     });
     expect(blocking).toEqual([]);
-    expect(readSync).not.toHaveBeenCalled();
+    expect(readsOf(file)).toEqual([]);
   },
 );
 it.skipIf(process.platform === 'win32')(
@@ -1149,19 +1203,18 @@ it.skipIf(process.platform === 'win32')(
       }
       return actual.openSync(...args);
     });
-    vi.mocked(readSync).mockClear();
     expect(captured(root)).toMatchObject({
       code: 'IA-DB-SOURCE-CHANGED',
       message: `IA-DB-SOURCE-CHANGED: Package source replaced during read: ${SOURCE}`,
     });
-    expect(readSync).not.toHaveBeenCalled();
+    expect(readsOf(file)).toEqual([]);
   },
 );
 it.skipIf(process.platform === 'win32')(
   'refuses a package source whose directory becomes a file while it is read, as replaced',
   async () => {
     const root = packageWorkspace();
-    await directoryBecomesFile(resolve(root, RECORDS));
+    await directoryBecomesFile(resolve(root, RECORDS), resolve(root, SOURCE));
     expect(captured(root)).toMatchObject({
       code: 'IA-DB-SOURCE-CHANGED',
       message: `IA-DB-SOURCE-CHANGED: Package source replaced during read: ${SOURCE}`,
@@ -1199,17 +1252,305 @@ it('closes each package source it opens, when it captures it and when it refuses
 it('refuses a package source rewritten in place with as many bytes while it is read, as changed', async () => {
   const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
   const root = packageWorkspace(),
-    file = resolve(root, SOURCE);
+    file = resolve(root, SOURCE),
+    opened = await descriptors(file);
   // An old modification time, so the rewrite stamps another one whatever the clock's resolution.
   utimesSync(file, new Date(2000, 0, 1), new Date(2000, 0, 1));
   let calls = 0;
   vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
     const count = actual.readSync(...args);
-    if (++calls === 1) actual.writeFileSync(file, '#! ia 2.0\n');
+    if (args[0] === opened.at(-1) && ++calls === 1) actual.writeFileSync(file, '#! ia 2.0\n');
     return count;
   });
   expect(captured(root)).toMatchObject({
     code: 'IA-DB-SOURCE-CHANGED',
     message: `IA-DB-SOURCE-CHANGED: Package source changed during read: ${SOURCE}`,
   });
+});
+const FOLDER = '.ia/src/systems/demo/records';
+/** Directory entries as a listing returns them, for a folder no file of which exists. */
+const listing = (count: number, name: (index: number) => string) =>
+  Array.from({ length: count }, (_, index) => ({
+    name: name(index),
+    isDirectory: () => false,
+    isFile: () => true,
+    isSymbolicLink: () => false,
+  }));
+/** The workspace's `records` folder lists `entries` instead of what it holds. */
+const listed = async (root: string, entries: ReturnType<typeof listing>, path = FOLDER) => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs'),
+    folder = realpathSync(resolve(root, path)),
+    read = { entries: 0 };
+  vi.mocked(opendirSync).mockImplementation(((...args: Parameters<typeof actual.opendirSync>) => {
+    if (resolve(String(args[0])) !== folder) return actual.opendirSync(...args);
+    return {
+      readSync: () => (read.entries < entries.length ? entries[read.entries++] : null),
+      closeSync: () => undefined,
+    };
+  }) as typeof opendirSync);
+  return read;
+};
+const walked = () => {
+  const root = workspace();
+  put(root, '.ia/src/systems/demo/system.ia', '#! ia 1.0\n');
+  put(root, `${FOLDER}/a.ia`, '#! ia 1.0\n');
+  return root;
+};
+it('captures a corpus source of at most 1 MiB and refuses one byte more before reading it, naming it', () => {
+  const root = walked(),
+    path = `${FOLDER}/a.ia`;
+  put(root, path, '#'.repeat(1048576));
+  expect(readInputs(root).sources.find((source) => source.path === path)?.text).toHaveLength(1048576);
+  put(root, path, '#'.repeat(1048577));
+  vi.mocked(readFileSync).mockClear();
+  expect(outcome(() => readInputs(root))).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${path} is over 1048576 bytes`,
+    path,
+  });
+  expect(readFileSync).not.toHaveBeenCalled();
+});
+it('refuses a capture past 64 MiB at the source that passes it, before reading that source', () => {
+  const root = walked(),
+    name = (index: number) => `${FOLDER}/b${String(index).padStart(2, '0')}.ia`;
+  for (let index = 0; index < 63; index++) put(root, name(index), '#'.repeat(1048576));
+  put(root, `${FOLDER}/g.ia`, '#'.repeat(1048576 - 20));
+  expect(readInputs(root).sources.some((source) => source.path === `${FOLDER}/g.ia`)).toBe(true);
+  put(root, `${FOLDER}/h.ia`, '#'.repeat(11));
+  expect(outcome(() => readInputs(root))).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${FOLDER}/h.ia is past 67108864 bytes in all`,
+    path: `${FOLDER}/h.ia`,
+  });
+  expect(readsOf(resolve(root, `${FOLDER}/h.ia`))).toEqual([]);
+});
+it('refuses a listing past 20,000 sources or 100,000 entries, naming the folder and opening none', async () => {
+  const root = walked();
+  const sources = await listed(
+    root,
+    listing(40_000, (index) => `n${String(index).padStart(6, '0')}.ia`),
+  );
+  vi.mocked(openSync).mockClear();
+  const pastSources = {
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${FOLDER} is past 20000 sources`,
+    path: FOLDER,
+  };
+  expect(outcome(() => readInputs(root))).toMatchObject(pastSources);
+  // The folder is read no further than the entry past the bound, which is why nothing of the rest is ever held.
+  expect(sources.entries).toBeLessThanOrEqual(20_001);
+  // A folder lists in no fixed order, and the refusal does not depend on it.
+  await listed(root, listing(40_000, (index) => `n${String(index).padStart(6, '0')}.ia`).reverse());
+  expect(outcome(() => readInputs(root))).toMatchObject(pastSources);
+  const entries = await listed(
+    root,
+    listing(200_000, (index) => `n${String(index).padStart(6, '0')}.md`),
+  );
+  expect(outcome(() => readInputs(root))).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${FOLDER} is past 100000 entries`,
+    path: FOLDER,
+  });
+  expect(entries.entries).toBeLessThanOrEqual(100_001);
+  expect(vi.mocked(openSync).mock.calls.filter(([path]) => String(path).includes('/n0'))).toEqual([]);
+});
+it('refuses a folder it reads for itself past a capture of entries, reading no further', async () => {
+  const root = walked();
+  put(root, 'packages/example/.ia/src/systems/x/a.ia', '#! ia 1.0\n');
+  const entries = await listed(
+    root,
+    listing(200_000, (index) => `n${String(index).padStart(6, '0')}`),
+    'packages',
+  );
+  expect(outcome(() => readInputs(root, { authoredRoots: ['packages/example'] }))).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: 'IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: packages is past 100000 entries',
+    path: 'packages',
+  });
+  expect(entries.entries).toBeLessThanOrEqual(100_001);
+});
+it('walks a folder 32 below the source root and refuses one deeper, naming it', () => {
+  const root = walked(),
+    folders = (count: number) => Array.from({ length: count }, (_, index) => `d${index}`).join('/');
+  put(root, `.ia/src/${folders(32)}/a.ia`, '#! ia 1.0\n');
+  expect(readInputs(root).sources.some((source) => source.path === `.ia/src/${folders(32)}/a.ia`)).toBe(true);
+  put(root, `.ia/src/${folders(33)}/a.ia`, '#! ia 1.0\n');
+  expect(outcome(() => readInputs(root))).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: .ia/src/${folders(33)} is deeper than 32 folders`,
+    path: `.ia/src/${folders(33)}`,
+  });
+});
+it('holds a bound binding walk to the capture bounds, naming the source from the workspace root', () => {
+  const root = walked(),
+    vendor = workspace(),
+    path = '.ia/src/systems/demo/records/big.ia';
+  cpSync(resolve(root, '.ia'), resolve(vendor, '.ia'), { recursive: true });
+  put(vendor, path, '#'.repeat(1048577));
+  cpSync(vendor, resolve(root, 'vendor'), { recursive: true });
+  put(
+    root,
+    '.ia/workspace.json',
+    JSON.stringify({ version: 1, adopted: [{ id: 'lib', path: 'vendor', revision: 'a'.repeat(64) }] }),
+  );
+  expect(outcome(() => readInputs(root))).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: vendor/${path} is over 1048576 bytes`,
+    path: `vendor/${path}`,
+  });
+});
+it('spends one byte budget across the root walk, every binding and the selected packages', () => {
+  const root = walked(),
+    vendor = workspace(),
+    megabyte = '#'.repeat(1048576),
+    packaged = `packages/example/.ia/src/systems/demo/records`;
+  cpSync(resolve(root, '.ia'), resolve(vendor, '.ia'), { recursive: true });
+  for (let index = 0; index < 30; index++) put(vendor, `${FOLDER}/v${index}.ia`, megabyte);
+  cpSync(vendor, resolve(root, 'vendor'), { recursive: true });
+  const revision = createHash('sha256')
+    .update(
+      stableSerialize(
+        readInputs(resolve(root, 'vendor'), { adopted: [], candidateInstallation: null })
+          .sources.filter((source) => !source.path.startsWith('.ia/src/floor/'))
+          .map(({ path, text }) => ({ path, text })),
+      ),
+    )
+    .digest('hex');
+  put(root, '.ia/workspace.json', JSON.stringify({ version: 1, adopted: [{ id: 'lib', path: 'vendor', revision }] }));
+  for (let index = 0; index < 13; index++) put(root, `${FOLDER}/r${index}.ia`, megabyte);
+  for (let index = 0; index < 20; index++) put(root, `${packaged}/p${String(index).padStart(2, '0')}.ia`, megabyte);
+  const capture = () => readInputs(root, { authoredRoots: ['packages/example'] });
+  // Each contribution alone, and any two of them, stay well below the bound; only the three together reach it.
+  expect(capture().sources.filter((source) => source.text === megabyte)).toHaveLength(63);
+  put(root, `${packaged}/p20.ia`, megabyte);
+  expect(outcome(capture)).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${packaged}/p20.ia is past 67108864 bytes in all`,
+    path: `${packaged}/p20.ia`,
+  });
+}, 60_000);
+const ARCHIVE = 'a'.repeat(64),
+  SYSTEM = '.ia/src/systems/fixture-system';
+/** A complete generation, pinned as an installation pins one, holding `files` beside its system's declaration. */
+const pinned = (root: string, files: ReadonlyMap<string, Buffer>, packaged = false): void => {
+  const bytes = new Map([
+    [`${SYSTEM}/system.ia`, Buffer.from('#! ia 1.0\n@system fixture-system\n  provider "p"\n  version "0.1.0"\n')],
+    ...files,
+  ]);
+  const manifest = decodeBundleManifest({
+    formatVersion: 1,
+    id: 'test/foundation',
+    version: '0.1.0',
+    distribution: 'workspace-system/binding/distribution/foundation-distribution',
+    engine: '^0.1.0',
+    language: ['1.0'],
+    source: { repository: 'https://example.com/foundation', commit: 'a'.repeat(40), recipe: 'ustar-v1', epoch: 0 },
+    license: 'UNLICENSED',
+    description: 'Fixture',
+    roots: ['workspace-system/binding/workspace/foundation-workspace'],
+    systems: [{ name: 'fixture-system', provider: 'p', version: '0.1.0', path: SYSTEM }],
+    dependencies: [],
+    files: [...bytes]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([path, content]) => ({ path, bytes: content.length, sha256: sha256(content), role: 'source' })),
+  });
+  const metadata = { manifest, archiveDigest: ARCHIVE, manifestDigest: sha256(json(manifest)) };
+  const lock = decodeDistributionLock({
+    formatVersion: 1,
+    engine: packaged ? '^0.1.2' : '^0.1.0',
+    requests: packaged ? [] : [{ id: manifest.id, range: '^0.1.0' }],
+    packages: packaged
+      ? []
+      : [
+          {
+            id: manifest.id,
+            version: manifest.version,
+            archive: ARCHIVE,
+            manifest: metadata.manifestDigest,
+            location: `sha256:${ARCHIVE}`,
+            dependencies: [],
+          },
+        ],
+    ...(packaged
+      ? {
+          entries: [
+            {
+              kind: 'package',
+              name: '@example/kits',
+              version: '1.0.0',
+              integrity: `sha512-${Buffer.alloc(64).toString('base64')}`,
+              kits: [
+                {
+                  id: manifest.id,
+                  version: manifest.version,
+                  archive: ARCHIVE,
+                  manifest: metadata.manifestDigest,
+                  dependencies: [],
+                },
+              ],
+            },
+          ],
+        }
+      : {}),
+  });
+  const bundles = new Map([[manifest.id, metadata]]),
+    inputs = deriveGenerationInputs(lock, bundles),
+    workspaceText = installationWorkspace(lock, inputs, bundles),
+    generation = generationDigest(lock, inputs, workspaceText),
+    pointer = { formatVersion: 1, generation, previous: null, counter: 1 };
+  for (const [path, content] of bytes) put(root, `.ia/distributions/store/${ARCHIVE}/${path}`, content);
+  put(root, `.ia/distributions/store/${ARCHIVE}/distribution.json`, json(manifest));
+  put(root, '.ia/distributions.lock.json', json(lock));
+  put(root, '.ia/distributions/active.json', json(pointer));
+  put(root, `.ia/distributions/generations/${generation}/lock.json`, json(lock));
+  put(root, `.ia/distributions/generations/${generation}/inputs.json`, json(inputs));
+  if (workspaceText !== null) put(root, `.ia/distributions/generations/${generation}/workspace.ia`, workspaceText);
+};
+const STORE = `.ia/distributions/store/${ARCHIVE}`;
+/** Whether a capture opened any `.ia` file of the store, which it must not have before it refuses. */
+const openedOfStore = (root: string): readonly string[] =>
+  vi
+    .mocked(openSync)
+    .mock.calls.map(([path]) => String(path))
+    .filter((path) => path.startsWith(resolve(root, STORE)) && path.endsWith('.ia'));
+it.each([false, true])('spends generation sources before reading payload (package entry: %s)', (packaged) => {
+  const root = workspace(),
+    files = new Map(
+      Array.from({ length: 65 }, (_, index) => [
+        `${SYSTEM}/records/s${String(index).padStart(2, '0')}.ia`,
+        Buffer.from(`#! ia 1.0\n#${'c'.repeat(1048576 - 11)}`),
+      ]),
+    );
+  pinned(root, files, packaged);
+  vi.mocked(openSync).mockClear();
+  expect(outcome(() => readInputs(root))).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${STORE}/${SYSTEM}/records/s64.ia is past 67108864 bytes in all`,
+    path: `${STORE}/${SYSTEM}/records/s64.ia`,
+  });
+  expect(openedOfStore(root)).toEqual([]);
+});
+it('holds a selected installed source to the folder depth of a walk, and captures one at it', () => {
+  const folders = (count: number) => Array.from({ length: count }, (_, index) => `d${index}`).join('/'),
+    // The system's own folder is the second below the source root.
+    at = `${SYSTEM}/${folders(30)}/a.ia`,
+    past = `${SYSTEM}/${folders(31)}/a.ia`;
+  const kept = workspace();
+  pinned(kept, new Map([[at, Buffer.from('#! ia 1.0\n')]]));
+  expect(readInputs(kept).sources.some((source) => source.path === `${STORE}/${at}`)).toBe(true);
+  const refused = workspace();
+  pinned(refused, new Map([[past, Buffer.from('#! ia 1.0\n')]]));
+  vi.mocked(openSync).mockClear();
+  expect(outcome(() => readInputs(refused))).toMatchObject({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Source capture limit exceeded: ${STORE}/${past} is deeper than 32 folders`,
+    path: `${STORE}/${past}`,
+  });
+  expect(openedOfStore(refused)).toEqual([]);
+});
+it('leaves a generation source past the per-source bound for the view to refuse alone', () => {
+  const root = workspace(),
+    path = `${SYSTEM}/big.ia`;
+  pinned(root, new Map([[path, Buffer.from(`#! ia 1.0\n#${'c'.repeat(2 * 1048576)}`)]]));
+  expect(readInputs(root).sources.some((source) => source.path === `${STORE}/${path}`)).toBe(true);
 });

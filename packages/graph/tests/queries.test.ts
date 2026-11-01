@@ -29,6 +29,23 @@ function fixture(body: string) {
   return graph;
 }
 const id = (name: string) => `governance-system/definition/procedure/${name}`;
+describe("variants of a record beyond one call's arguments", () => {
+  it('selects among more variants of one key than one call can take as arguments', () => {
+    const graph = load(records, registry, options),
+      node = [...graph.nodes.values()][0]!,
+      span = { line: 1, endLine: 1 },
+      value = { kind: 'scalar', text: 'x' },
+      others = Array.from({ length: 130_000 }, () => ({ key: 'severity', value, span })),
+      chosen = {
+        key: 'severity',
+        value: { kind: 'scalar', text: 'chosen' },
+        span,
+        condition: [{ axis: 'phase', value: 'act' }],
+      },
+      selection = variants({ ...node, variants: [...others, chosen] } as unknown as typeof node, { phase: 'act' });
+    expect(selection.selected.get('severity')?.value).toEqual(chosen.value);
+  });
+});
 describe('conditions and subject dimensions', () => {
   const subject = { severity: 'advisory' as const, provenance: 'workspace' as const, artifactSet: 'evidence' as const };
   it('uses a conjunction and requires each routing value', () => {

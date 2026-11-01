@@ -185,4 +185,30 @@ describe('mergeRegistrations', () => {
     expect(result.diagnostics).toHaveLength(3);
     expect(result.diagnostics.every((d) => d.code === 'IA-LANG-DISCRIMINATOR-CONFLICT')).toBe(true);
   });
+  it('names eight other occurrences of a repeated name and counts the rest', () => {
+    const items = Array.from({ length: 12 }, (_, i) => ({
+      name: 'same',
+      displayName: 'same',
+      band: 100 as Band,
+      path: 'a.ia',
+      span: span(i + 1),
+    }));
+    const { winners, diagnostics } = mergeByName(items, '@schema');
+    expect(winners.size).toBe(0);
+    expect(diagnostics).toHaveLength(12);
+    const others = [2, 3, 4, 5, 6, 7, 8, 9].map((line) => `a.ia:${line}`).join(', ');
+    expect(diagnostics[0]?.message).toBe(`a.ia:1: @schema same collides with ${others} and 3 more at band 100`);
+  });
+  it('names eight systems of a contested keyword and counts the rest', () => {
+    const names = Array.from({ length: 12 }, (_, i) => `s${String(i).padStart(2, '0')}`);
+    const { blocked, diagnostics } = mergeRegistrations(
+      names.map((name) => system(name, 100, [entry('word', 7)])),
+      FLOOR_REGISTRATIONS,
+    );
+    expect(blocked.has('word')).toBe(true);
+    expect(diagnostics).toHaveLength(12);
+    expect(diagnostics[0]?.message).toBe(
+      `s00.ia:7: 'word' is registered by ${names.slice(0, 8).join(', ')} and 4 more at band 100; the keyword is blocked at that band`,
+    );
+  });
 });

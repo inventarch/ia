@@ -1,7 +1,7 @@
-import { AXES, canonicalValue, resolveTarget } from '@inventarch/language';
-import type { CompiledField, Diagnostic } from '@inventarch/language';
+import { AXES, canonicalValue, clipped, resolveTarget } from '@inventarch/language';
+import type { CompiledEdge, CompiledField, Diagnostic } from '@inventarch/language';
 import type { Edge, Graph, Node } from '@inventarch/graph';
-import { couldMatch, matchesTarget, poolLookup, schemaReporter, schemaStructure } from './schema.js';
+import { LISTED_FINDINGS, couldMatch, matchesTarget, poolLookup, schemaReporter, schemaStructure } from './schema.js';
 import type { ReferenceLookup } from './schema.js';
 import { assess } from './types.js';
 import type { Assessment, CompCode, EvidenceCode, Finding } from './types.js';
@@ -23,7 +23,7 @@ export function finding(
     path: node.source.path,
     line,
     identity: node.identity,
-    message: `${node.source.path}:${line}: ${node.identity}: ${message}`,
+    message: clipped(`${node.source.path}:${line}: ${node.identity}: ${message}`),
   };
 }
 export function fields(node: Node, section: string, key: string): readonly CompiledField[] {
@@ -38,31 +38,57 @@ export function textField(node: Node, section: string, key: string): string | un
   const value = matches[0]!.value;
   return value.kind === 'scalar' || value.kind === 'string' || value.kind === 'prose' ? value.text : undefined;
 }
+/** The edges graph refused, by what a schema rule asks of them, read once however many records ask. */
+interface RefusedEdges {
+  /** `predicate direction identity` of each author that wrote one. */
+  readonly authored: ReadonlySet<string>;
+  /** Each refused edge by `predicate direction` and each way its reference can name a record. */
+  readonly aimed: ReadonlyMap<string, readonly { readonly author: Node; readonly edge: CompiledEdge }[]>;
+}
+const refusedEdges = new WeakMap<Graph, RefusedEdges>();
+const REFUSED_EDGE: readonly string[] = ['IA-GRAPH-EDGE-UNCONSENTED', 'IA-GRAPH-TARGET-AMBIGUOUS'];
+const aimedAt = (predicate: string, direction: string, name: string): string => `${predicate} ${direction} ${name}`;
+function refusedIn(graph: Graph): RefusedEdges {
+  let refused = refusedEdges.get(graph);
+  if (refused === undefined) {
+    const lines = new Set<string>();
+    for (const d of graph.diagnostics)
+      if (d.severity === 'error' && REFUSED_EDGE.includes(d.code)) lines.add(`${d.line} ${d.path}`);
+    const authored = new Set<string>(),
+      aimed = new Map<string, { readonly author: Node; readonly edge: CompiledEdge }[]>();
+    if (lines.size > 0)
+      for (const author of graph.nodes.values())
+        for (const edge of author.edges) {
+          if (!lines.has(`${edge.span.line} ${author.source.path}`)) continue;
+          authored.add(aimedAt(edge.predicate, edge.direction, author.identity));
+          const name =
+            edge.reference.kind === 'identity'
+              ? edge.reference.identity
+              : `${edge.reference.discriminator} ${edge.reference.name.toLowerCase()}`;
+          const key = aimedAt(edge.predicate, edge.direction, name),
+            same = aimed.get(key);
+          if (same === undefined) aimed.set(key, [{ author, edge }]);
+          else same.push({ author, edge });
+        }
+    refused = { authored, aimed };
+    refusedEdges.set(graph, refused);
+  }
+  return refused;
+}
 export function validateGraphSchema(record: Node, graph: Graph): Assessment {
   const { findings, schema } = schemaStructure(record, graph.registry, graphLookup(graph)),
-    add = schemaReporter(record, findings);
+    add = schemaReporter(record, findings),
+    edgesRefused = refusedIn(graph);
   let unavailable = false;
   for (const rule of schema?.edges ?? []) {
+    const opposite = rule.direction === 'out' ? 'in' : 'out';
+    // Another record's refused edge reaches this rule only when that record is a target the rule counts.
     const refused =
-      graph.diagnostics.some(
-        (d) => d.severity === 'error' && ['IA-GRAPH-EDGE-UNCONSENTED', 'IA-GRAPH-TARGET-AMBIGUOUS'].includes(d.code),
-      ) &&
-      [...graph.nodes.values()].some((author) =>
-        author.edges.some(
-          (edge) =>
-            edge.predicate === rule.predicate &&
-            // Another record's refused edge reaches this rule only when that record is a target the rule counts.
-            (edge.direction === rule.direction
-              ? author.identity === record.identity
-              : matchesTarget(author, rule) &&
-                resolveTarget(edge.reference, graph.registry, [record]).kind === 'resolved') &&
-            graph.diagnostics.some(
-              (d) =>
-                d.severity === 'error' &&
-                ['IA-GRAPH-EDGE-UNCONSENTED', 'IA-GRAPH-TARGET-AMBIGUOUS'].includes(d.code) &&
-                d.path === author.source.path &&
-                d.line === edge.span.line,
-            ),
+      edgesRefused.authored.has(aimedAt(rule.predicate, rule.direction, record.identity)) ||
+      [record.identity, `${record.discriminator} ${record.name}`].some((name) =>
+        (edgesRefused.aimed.get(aimedAt(rule.predicate, opposite, name)) ?? []).some(
+          ({ author, edge }) =>
+            matchesTarget(author, rule) && resolveTarget(edge.reference, graph.registry, [record]).kind === 'resolved',
         ),
       );
     // Admission already owns the fault. Its refused edge is neither a target nor
@@ -127,13 +153,17 @@ export function fragmentTarget(edge: Edge, graph: Graph): Node | undefined {
   const identity = edge.fragmentEndpoint === 'from' ? edge.from : edge.to;
   return identity === null ? undefined : graph.nodes.get(identity);
 }
+/** The fragments a record holds, read once: a record of many clauses is read for every edge that names one. */
+const fragmentsHeld = new WeakMap<Node, ReadonlySet<string>>();
 export function fragmentExists(edge: Edge, graph: Graph): boolean {
   const node = fragmentTarget(edge, graph);
-  return (
-    node !== undefined &&
-    (node.requirements.some((r) => r.id === edge.fragment) ||
-      node.cells.some((c) => `${c.phase}/${c.primitive}` === edge.fragment))
-  );
+  if (node === undefined || edge.fragment === undefined) return false;
+  let held = fragmentsHeld.get(node);
+  if (held === undefined) {
+    held = new Set([...node.requirements.map((r) => r.id), ...node.cells.map((c) => `${c.phase}/${c.primitive}`)]);
+    fragmentsHeld.set(node, held);
+  }
+  return held.has(edge.fragment);
 }
 export function validateFragments(graph: Graph): Assessment {
   const findings: Finding[] = [];
@@ -170,14 +200,23 @@ export function validateCoverage(contract: Node, graph: Graph): Assessment {
     const kind = textField(scenario, 'scenario', 'kind');
     if (kind !== undefined) kinds.add(kind);
   }
-  const findings = contract.requirements
-    .filter((r) => !coverage.has(r.id))
-    .map((r) =>
+  const uncovered = contract.requirements.filter((r) => !coverage.has(r.id)),
+    findings = uncovered
+      .slice(0, LISTED_FINDINGS)
+      .map((r) =>
+        finding(
+          'IA-COMP-COVERAGE-MISSING',
+          contract,
+          `Requirement ${r.id} has no unconditional implementing case`,
+          r.span.line,
+        ),
+      );
+  if (uncovered.length > LISTED_FINDINGS)
+    findings.push(
       finding(
         'IA-COMP-COVERAGE-MISSING',
         contract,
-        `Requirement ${r.id} has no unconditional implementing case`,
-        r.span.line,
+        `${uncovered.length - LISTED_FINDINGS} more requirements have no unconditional implementing case`,
       ),
     );
   if (findings.length === 0 && (!kinds.has('success') || (!kinds.has('failure') && !kinds.has('refusal'))))

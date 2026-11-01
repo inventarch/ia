@@ -1,4 +1,5 @@
 import type { FieldNode, RecordNode } from '../ast.js';
+import { meter } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic, LangCode } from '../diagnostics.js';
 import type { FrozenRegistry } from '../registry/types.js';
@@ -88,6 +89,7 @@ export function readContract(
         diagnostics.push(condition.diagnostic);
         continue;
       }
+      meter()?.product();
       requirements.push({
         id: field.words[0]!,
         kind: section.name as RequirementKind,

@@ -25,6 +25,7 @@ import {
   projectSource,
   recordsIn,
   SourceEditError,
+  unparsedProjection,
 } from '@inventarch/language/editor';
 import type { Position, Range, SourceProjection } from '@inventarch/language/editor';
 import { cell, conditionHolds, reaches, stableSerialize, validateCoordinate } from '@inventarch/graph';
@@ -121,10 +122,14 @@ export class EditorWorkspace {
     if (source === undefined) throw new EditorError('unavailable', 'Source is no longer in this workspace');
     return source;
   }
+  #unparsed(path: string): boolean {
+    return this.#db.current.inspect().unparsed.has(path);
+  }
   #project(path: string): SourceProjection {
     let projected = this.#projections.get(path);
     if (projected === undefined) {
-      projected = projectSource(this.#source(path).text, path);
+      // What db refused unparsed (D03a) is not parsed here: the refusal stands for every request about it.
+      projected = this.#unparsed(path) ? unparsedProjection(path) : projectSource(this.#source(path).text, path);
       this.#projections.set(path, projected);
     }
     return projected;
@@ -476,7 +481,7 @@ export class EditorWorkspace {
   }
   formatting(path: string): string | null {
     const source = this.#source(path);
-    if (!source.writable) return null;
+    if (!source.writable || this.#unparsed(path)) return null;
     const result = format(source.text, path).text;
     return result === null
       ? null

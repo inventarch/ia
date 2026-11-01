@@ -3,6 +3,7 @@ import { KERNEL_DIGEST, LANGUAGE_VERSION, PHASES, PRIMITIVES, compile, parse } f
 import type { ConditionAxis, Variant } from '@inventarch/language';
 import { load, variants } from '@inventarch/graph';
 import type { Coordinate, Node } from '@inventarch/graph';
+import { ADOPTION_LISTED } from '../src/adoption.js';
 import { validateAdoption, validateVariants } from '../src/index.js';
 import type { ClauseEvaluator } from '../src/index.js';
 import { inputs, records, registry } from './native.js';
@@ -264,4 +265,84 @@ describe('structural adoption evaluator boundary', () => {
     expect(validateAdoption(clauseGraph, supplied)[0]!.outcome).toBe('not-evaluated');
     expect(validateAdoption(clauseGraph, supplied, { phase: 'act' })[0]!.outcome).toBe('pass');
   });
+});
+describe('what an adoption lists', () => {
+  const contractId = 'compliance-system/contract/signature/foundation-authoring-contract';
+  /** The native corpus with `clauses` requirements on its contract and `adopters` more records adopting it. */
+  const adopted = (clauses: number, adopters = 0) => {
+    const contract = records.find((record) => record.identity === contractId)!,
+      law = records.find((record) => record.name === 'sample-rule')!,
+      requirements = Array.from({ length: clauses }, (_, index) => ({
+        id: `REQ-A${index}`,
+        kind: 'inputs' as const,
+        text: 'x',
+        span: { line: index + 1, endLine: index + 1 },
+      })),
+      adopting = Array.from({ length: adopters }, (_, index) => ({
+        ...law,
+        name: `a${index}`,
+        identity: law.identity.replace('sample-rule', `a${index}`),
+        source: { ...law.source, line: 1_000 + index, endLine: 1_000 + index },
+        edges: [
+          {
+            predicate: 'require' as const,
+            direction: 'out' as const,
+            spelling: 'requires',
+            reference: { kind: 'identity' as const, identity: contractId },
+            target: contractId,
+            span: { line: 1_000 + index, endLine: 1_000 + index },
+          },
+        ],
+      }));
+    return load(
+      [...records.map((record) => (record === contract ? { ...record, requirements } : record)), ...adopting],
+      registry,
+      options,
+    );
+  };
+  const every = (assessments: ReturnType<typeof validateAdoption>) => assessments.flatMap((entry) => entry.findings);
+  it('lists every clause up to its limit', () => {
+    const [assessment] = validateAdoption(adopted(ADOPTION_LISTED.adoption));
+    expect(assessment!.findings).toHaveLength(ADOPTION_LISTED.adoption);
+    expect(assessment!.outcome).toBe('not-evaluated');
+  });
+  it('counts the clauses past its limit in one entry', () => {
+    const [assessment] = validateAdoption(adopted(ADOPTION_LISTED.adoption + 1));
+    expect(assessment!.findings).toHaveLength(ADOPTION_LISTED.adoption + 1);
+    expect(assessment!.findings.map((finding) => finding.message).join('\n')).toContain(
+      `${contractId}: 1 more clauses are not listed`,
+    );
+    expect(assessment!.outcome).toBe('not-evaluated');
+  });
+  it('keeps a failure it does not list', () => {
+    const graph = adopted(ADOPTION_LISTED.adoption + 1),
+      last = `REQ-A${ADOPTION_LISTED.adoption}`,
+      supplied = new Map([
+        [
+          contractId,
+          new Map<string, ClauseEvaluator>(
+            graph.nodes
+              .get(contractId)!
+              .requirements.map((requirement) => [
+                requirement.id,
+                () =>
+                  requirement.id === last
+                    ? { outcome: 'fail', message: 'broken' }
+                    : { outcome: 'not-evaluated', message: 'unknown' },
+              ]),
+          ),
+        ],
+      ]);
+    const [assessment] = validateAdoption(graph, supplied);
+    expect(assessment!.outcome).toBe('fail');
+    expect(assessment!.findings.filter((finding) => finding.code === 'IA-COMP-ADOPTION-FAILED')).toHaveLength(1);
+  });
+  it('lists no more of a report than its limit, whatever adopters times clauses comes to', () => {
+    const adopters = 12_000,
+      result = validateAdoption(adopted(12_000, adopters));
+    expect(result).toHaveLength(adopters + 1);
+    expect(every(result).length).toBeLessThanOrEqual(ADOPTION_LISTED.report + adopters + 1);
+    expect(result.every((entry) => entry.outcome === 'not-evaluated')).toBe(true);
+    expect(result.every((entry) => entry.findings.length > 0)).toBe(true);
+  }, 10_000);
 });

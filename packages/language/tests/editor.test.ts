@@ -3,6 +3,40 @@ import { parse, references, scan } from '../src/index.js';
 import { cursorContext, draftSource, projectSource, SourceEditError } from '../src/editor/index.js';
 
 describe('editor source projection', () => {
+  it('projects a list of many references in time that grows with it', () => {
+    const count = 60_000,
+      source = `#! ia 1.0\n@playbook sample\n  peers [${'@agent a, '.repeat(count)}@agent b]\n`,
+      { references } = projectSource(source, 'sample.ia');
+    expect(references).toHaveLength(count + 1);
+    expect(references.at(-1)).toMatchObject({ reference: { name: 'b' }, range: { start: { line: 2 } } });
+    expect(references[1]!.range.start.character).toBe(references[0]!.range.start.character + 10);
+  });
+  it('projects a reference spread over the lines of a multi-line list, each at its own line', () => {
+    const source =
+        '#! ia 1.0\n@playbook sample\n  peers [\n    @agent a,\n    @agent b,\n    @agent c\n  ]\n  other @agent d\n',
+      { references } = projectSource(source, 'sample.ia');
+    expect(references.map((use) => [(use.reference as { name: string }).name, use.range.start.line])).toEqual([
+      ['a', 3],
+      ['b', 4],
+      ['c', 5],
+      ['d', 7],
+    ]);
+  });
+  it('finds an identity reference among many on a line', () => {
+    const count = 5_000,
+      identity = 'agent-system/binding/head/x',
+      source = `#! ia 1.0\n@playbook sample\n  relationships\n${`    cites ${identity}\n`.repeat(count)}`,
+      { references } = projectSource(source, 'sample.ia');
+    expect(references).toHaveLength(count);
+    expect(references.at(-1)!.range.start.line).toBe(count + 2);
+  });
+  it('finds a reference on a line of more tokens than one call can take as arguments', () => {
+    const items = Array.from({ length: 150_000 }, () => 'w').join(', ');
+    const source = `#! ia 1.0\n@playbook sample\n  peers [${items}, @agent Alpha]\n`;
+    const { references } = projectSource(source, 'sample.ia');
+    expect(references).toHaveLength(1);
+    expect(references[0]).toMatchObject({ reference: { name: 'Alpha' } });
+  });
   it('serializes schema-backed text without changing quotes, backslashes, tabs or Unicode', () => {
     const schema = {
       sections: [{ name: 'meaning', must: true }],
