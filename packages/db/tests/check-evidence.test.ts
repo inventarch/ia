@@ -7,6 +7,7 @@ import {
   constants,
   existsSync,
   linkSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -33,6 +34,7 @@ import {
 import type { CheckCatalog, Handle } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
 import { OPENED_READ_FLAGS } from '../src/named.js';
+import { fifo } from './file-races.js';
 import { methodId, put, workspace } from './workspace.js';
 
 // Every node:fs export calls through; a test can make one unlink fail as a file the process may not remove would.
@@ -645,6 +647,51 @@ it('prunes best effort, never refusing with nothing to record or for a file it m
   mkdirSync(resolve(root, `${EVIDENCE_DIRECTORY}/${revision}.ia`), { recursive: true });
   expect(writeEvidence(root, revision, null)).toEqual({ path: null, written: false, pruned: [] });
   expect(() => writeEvidence(root, revision, '#! ia 1.0\n')).toThrow(code('IA-DB-PATH-UNSAFE'));
+});
+
+it('records no observation under a name an authored observation already holds (D14)', () => {
+  const root = workspace(),
+    authoredRevision = 'a'.repeat(64),
+    name = `whole-schema-check-${authoredRevision.slice(0, 12)}`;
+  fixture(root, check('whole-schema-check', 'COMP-SCHEMA', WHOLE_WORKSPACE_SCOPE));
+  const observe = () =>
+    using(structural(root), (db) =>
+      evidenceText({
+        authoredRevision,
+        bindings: bindChecks(db.records(), db.report, NONE),
+        records: db.records(),
+        prior: null,
+      }),
+    );
+  const first = observe();
+  expect(first.observations.map((observation) => observation.name)).toContain(name);
+  put(root, '.ia/src/systems/learning-system/records/authored-observation.ia', first.text!);
+  expect(observe().observations.map((observation) => observation.name)).not.toContain(name);
+});
+
+it('binds no check placed at runtime band (D13)', () => {
+  const root = workspace();
+  fixture(root, check('runtime-check', 'COMP-SCHEMA', WHOLE_WORKSPACE_SCOPE));
+  using(structural(root), (db) => expect(byName(db)).toHaveProperty('runtime-check'));
+  using(
+    open(root, {
+      cache: false,
+      checks: 'structural',
+      locations: { [CHECKS]: { placement: { kind: 'runtime', band: 0, reach: '' }, provenance: 'runtime' } },
+    }),
+    (db) => {
+      expect(db.records().some((record) => record.name === 'runtime-check' && record.band === 0)).toBe(true);
+      expect(byName(db)).not.toHaveProperty('runtime-check');
+    },
+  );
+});
+
+it.skipIf(process.platform === 'win32')('prunes no FIFO named like an evidence file (D14)', async () => {
+  const root = workspace(false),
+    stale = resolve(root, EVIDENCE_DIRECTORY, `${'b'.repeat(64)}.ia`);
+  await fifo(stale);
+  expect(writeEvidence(root, 'a'.repeat(64), null).pruned).toEqual([]);
+  expect(lstatSync(stale).isFIFO()).toBe(true);
 });
 
 it('previews a draft as the handle admits it, never with evidence, and caches no structural graph (D13)', () => {

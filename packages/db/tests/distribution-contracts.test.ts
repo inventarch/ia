@@ -9,17 +9,22 @@ import {
   decodeDistributionLock,
   decodeGenerationInputs,
   decodeReleaseDescriptor,
+  deriveGenerationInputs,
   generationDigest,
   lockEngineMarker,
   lockedReleases,
   PACKAGE_ENTRY_ENGINE_VERSION,
   RELEASE_ENGINE_VERSION,
   requiredRelease,
+  portablePath,
   satisfies,
   supportsDistributionLockEngine,
   DISTRIBUTION_ENGINE_VERSION,
   sha256,
+  verifyReleaseControl,
 } from '../src/distribution/index.js';
+import { parseStrictJson } from '../src/json.js';
+import type { StrictJsonLimits } from '../src/json.js';
 
 const hash = 'a'.repeat(64),
   other = 'b'.repeat(64);
@@ -71,6 +76,13 @@ const inputs = {
     },
   ],
 };
+
+/** A contract refusal, with its exact message. */
+const contractInvalid = (message: string) =>
+  expect.objectContaining({
+    reason: 'contract-invalid',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Distribution contract-invalid: ${message}`,
+  });
 
 it('permits only the exact protected authoring manifest/document roles while retaining hidden/build refusals', () => {
   const assets = [
@@ -203,6 +215,88 @@ it('refuses source traversal, floor payloads, aliases, missing declarations and 
       ],
     }),
   ).toThrow();
+});
+it('refuses a source repository URL with a query or a fragment', () => {
+  for (const repository of ['https://example.com/foundation?ref=main', 'https://example.com/foundation#main'])
+    expect(() => decodeBundleManifest({ ...manifest, source: { ...common.source, repository } }), repository).toThrow(
+      contractInvalid('Expected canonical credential-free HTTPS URL without query/fragment'),
+    );
+});
+it('refuses an inventory of two files that differ only in case, or of a file and a directory of one name', () => {
+  const inventory = (...names: string[]) =>
+    names.map((name) => ({ ...manifest.files[0], path: `.ia/src/systems/fixture-system/${name}` }));
+  expect(() => decodeBundleManifest({ ...manifest, files: inventory('A.ia', 'a.ia', 'system.ia') })).toThrow(
+    contractInvalid('Case-alias file inventory'),
+  );
+  expect(() => decodeBundleManifest({ ...manifest, files: inventory('system.ia', 'x.ia', 'x.ia/y.ia') })).toThrow(
+    contractInvalid('File/directory inventory collision'),
+  );
+});
+it('refuses a reserved device name or a colon in a portable path', () => {
+  expect(portablePath('auxiliary/x')).toBe('auxiliary/x');
+  for (const path of ['aux/x', 'a:b'])
+    expect(() => portablePath(path), path).toThrow(contractInvalid('Unsafe portable path'));
+});
+it('refuses a release control that names another distribution, or other system roots', () => {
+  const released = decodeBundleManifest({
+    ...manifest,
+    distribution: 'workspace-system/definition/distribution/foundation-distribution',
+    roots: ['floor/definition/system/fixture-system'],
+  });
+  const control = (name: string, system: string) =>
+    `#! ia 1.0\n@distribution ${name}\n  meaning\n    says "The release control."\n    answers "Which roots does it select?"\n  distribution\n    records [@system ${system}]\n`;
+  const reject = (message: string): never => {
+    throw new Error(message);
+  };
+  const differs = 'Root release control differs from its exact declaration and system roots';
+  expect(() =>
+    verifyReleaseControl(released, control('foundation-distribution', 'fixture-system'), reject),
+  ).not.toThrow();
+  expect(() => verifyReleaseControl(released, control('other-distribution', 'fixture-system'), reject)).toThrow(
+    differs,
+  );
+  expect(() => verifyReleaseControl(released, control('foundation-distribution', 'other-system'), reject)).toThrow(
+    differs,
+  );
+});
+it('refuses two bundles that give one system different bytes', () => {
+  const bundle = (id: string, text: string) => {
+    const pinned = decodeBundleManifest({
+      ...manifest,
+      id,
+      distribution: `workspace-system/binding/distribution/${id.split('/')[1]}-distribution`,
+      files: [{ ...manifest.files[0], bytes: Buffer.byteLength(text), sha256: sha256(text) }],
+    });
+    return { manifest: pinned, archiveDigest: sha256(id), manifestDigest: sha256(canonicalDistributionJson(pinned)) };
+  };
+  const one = bundle('test/one', '#! ia 1.0\n'),
+    two = bundle('test/two', '#! ia 1.0\n# other bytes\n');
+  const locked = decodeDistributionLock({
+    ...lock,
+    requests: [one, two].map((release) => ({ id: release.manifest.id, range: '^0.1.0' })),
+    packages: [one, two].map((release) => ({
+      ...selected,
+      id: release.manifest.id,
+      archive: release.archiveDigest,
+      manifest: release.manifestDigest,
+      location: `sha256:${release.archiveDigest}`,
+    })),
+  });
+  expect(() =>
+    deriveGenerationInputs(
+      locked,
+      new Map([
+        [one.manifest.id, one],
+        [two.manifest.id, two],
+      ]),
+    ),
+  ).toThrow(
+    expect.objectContaining({
+      reason: 'conflict',
+      message:
+        'IA-DB-SOURCE-UNAVAILABLE: Distribution conflict: Different provider/version/source bytes for fixture-system',
+    }),
+  );
 });
 it('admits only the release control source whose name matches the selected distribution', () => {
   const source = { ...manifest.files[0]!, path: '.ia/src/releases/foundation-distribution.ia' };
@@ -359,6 +453,26 @@ it('refuses a lock an older reader cannot read by naming the ia that reads it, b
   expect(() => decodeDistributionLock({ ...lock, registry: {} })).toThrow(/Unknown, missing or accessor field/);
   // A lock of the four 0.1.1 fields whose engine this reader does not support still decodes; its reader refuses it.
   expect(decodeDistributionLock({ ...lock, engine: '^0.2.0' }).engine).toBe('^0.2.0');
+});
+
+/** `parseStrictJson` with each refusal thrown as `<fault>: <message>`. */
+const strictJson = (text: string, limits: StrictJsonLimits): unknown =>
+  parseStrictJson(text, limits, (fault, message) => {
+    throw new Error(`${fault}: ${message}`);
+  });
+it.each([
+  ['byte', '"ab"', '"abc"', { bytes: 4, depth: 4, nodes: 10 }, 'size: Metadata byte limit/encoding'],
+  ['depth', '[1]', '[[1]]', { bytes: 100, depth: 1, nodes: 10 }, 'depth: Metadata nesting/node limit'],
+  ['node', '[1,2]', '[1,2,3]', { bytes: 100, depth: 4, nodes: 3 }, 'nodes: Metadata nesting/node limit'],
+])('reads strict JSON at its %s limit and refuses it one past', (_limit, within, past, limits, refusal) => {
+  expect(strictJson(within, limits)).toEqual(JSON.parse(within));
+  expect(() => strictJson(past, limits)).toThrow(refusal);
+});
+it('refuses a duplicated __proto__ key as it refuses any other duplicate key', () => {
+  for (const text of ['{"a":1,"a":2}', '{"__proto__":1,"__proto__":2}'])
+    expect(() => strictJson(text, { bytes: 100, depth: 4, nodes: 10 }), text).toThrow(
+      'duplicate-key: Duplicate JSON key',
+    );
 });
 
 it('shapes an installed-implementation catalog once for its reader and its binders', () => {

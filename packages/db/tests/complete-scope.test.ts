@@ -26,3 +26,13 @@ it('proves only complete current scopes, including their narrowing ancestry', ()
     other.close();
   }
 });
+it('proves no scope narrowed to a root complete, nor any child of one', () => {
+  const reader = open(root, { cache: false });
+  try {
+    const narrow = reader.resolveScope({ root: '.ia/src/systems' }).token;
+    expect(reader.isCompleteScope(narrow)).toBe(false);
+    expect(reader.isCompleteScope(reader.resolveScope({ within: narrow }).token)).toBe(false);
+  } finally {
+    reader.close();
+  }
+});

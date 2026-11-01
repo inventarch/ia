@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "none",
+  "title": "Pin more of the database contract with tests",
+  "summary": "Tests only: pins refusals, limits and read-only rules that @inventarch/db already applies. No package behaviour changes.",
+  "packages": [
+    "@inventarch/db"
+  ],
+  "paths": [
+    "packages/db/",
+    "tools/"
+  ]
+}
