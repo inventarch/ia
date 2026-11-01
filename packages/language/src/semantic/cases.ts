@@ -1,4 +1,5 @@
 import type { FieldNode, RecordNode, SectionNode } from '../ast.js';
+import { append } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import type { FrozenRegistry } from '../registry/types.js';
@@ -113,7 +114,7 @@ export function validateCase(
           'A case requires exactly one scenario block; every duplicate is refused.',
         ),
       );
-  else diagnostics.push(...scenarioDiagnostics(sections[0]!, path));
+  else append(diagnostics, scenarioDiagnostics(sections[0]!, path));
   if (!refusedBindings.has('implement') && !edges.some((edge) => bindsRequirement(edge, registry)))
     diagnostics.push(
       diag(

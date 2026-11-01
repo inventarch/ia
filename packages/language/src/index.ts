@@ -79,6 +79,7 @@ export type {
 export type { Severity as KernelSeverity } from './taxonomy.js';
 export { canonicalPath } from './paths.js';
 export { collisions, identityOf, renderIdentity } from './identity.js';
+export { BudgetExceeded, MESSAGE_LENGTH, WORK_COST, WorkBudget, clipped, listed, member } from './bounded.js';
 export type { Identity, IdentityOccurrence } from './identity.js';
 export {
   admits,

@@ -1,4 +1,5 @@
-import type { ChildNode, FieldNode, FileNode, RecordNode } from '../ast.js';
+import type { ChildNode, FieldNode, FileNode, RecordNode, Span } from '../ast.js';
+import { append } from '../bounded.js';
 import type { Diagnostic } from '../diagnostics.js';
 
 export interface RecordSource {
@@ -9,31 +10,54 @@ export interface RecordSource {
   readonly errors: readonly Diagnostic[];
 }
 
+const byLine = (a: { readonly line: number }, b: { readonly line: number }): number => a.line - b.line;
+/** The index of the first item at or past `line`, in items in line order. */
+function firstAt(items: readonly { readonly line: number }[], line: number): number {
+  let low = 0,
+    high = items.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (items[middle]!.line < line) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+/** Whether an error in `errors`, in line order, falls on the lines of `span`. */
+export const errorWithin = (errors: readonly Diagnostic[], span: Span): boolean =>
+  (errors[firstAt(errors, span.line)]?.line ?? Number.POSITIVE_INFINITY) <= span.endLine;
+/** The errors on a record's lines that no span opened below its header covers; `errors` and `spans` are in line order. */
+function ownErrors(
+  errors: readonly Diagnostic[],
+  spans: readonly Span[],
+  line: number,
+  endLine: number,
+): readonly Diagnostic[] {
+  const own: Diagnostic[] = [];
+  let next = firstAt(spans, line + 1),
+    covered = 0;
+  for (let at = firstAt(errors, line); at < errors.length && errors[at]!.line <= endLine; at++) {
+    const error = errors[at]!;
+    for (; next < spans.length && spans[next]!.line <= error.line; next++)
+      covered = Math.max(covered, spans[next]!.endLine);
+    if (error.line > covered) own.push(error);
+  }
+  return own;
+}
+
 /** Every record once in source order, with its own parser faults. Structural children alias `nested`. */
 export function recordsIn(ast: FileNode, parserDiagnostics: readonly Diagnostic[]): readonly RecordSource[] {
   const errors = parserDiagnostics.filter((d) => d.path === ast.path && d.severity === 'error');
-  const fileEnd = Math.max(1, ...ast.records.map((r) => r.span.endLine), ...errors.map((d) => d.endLine ?? d.line));
+  let fileEnd = 1;
+  for (const record of ast.records) fileEnd = Math.max(fileEnd, record.span.endLine);
+  for (const error of errors) fileEnd = Math.max(fileEnd, error.endLine ?? error.line);
   const limits = recordLimits(ast.records, fileEnd);
   if (ast.syntaxRecordSpans !== undefined) {
     const ends = new Map(ast.syntaxRecordSpans.map((span) => [span.line, span.endLine]));
+    const ordered = [...errors].sort(byLine),
+      spans = [...ast.syntaxRecordSpans].sort(byLine);
     return [...limits].map(([record, fallback]) => {
       const endLine = ends.get(record.span.line) ?? fallback;
-      return {
-        record,
-        endLine,
-        errors: errors.filter(
-          (d) =>
-            d.line >= record.span.line &&
-            d.line <= endLine &&
-            !ast.syntaxRecordSpans!.some(
-              (nested) =>
-                nested.line > record.span.line &&
-                nested.line <= endLine &&
-                d.line >= nested.line &&
-                d.line <= nested.endLine,
-            ),
-        ),
-      };
+      return { record, endLine, errors: ownErrors(ordered, spans, record.span.line, endLine) };
     });
   }
   // JSON serialization copies the derived `nested` entries, so ownership cannot depend on aliases.
@@ -41,12 +65,14 @@ export function recordsIn(ast: FileNode, parserDiagnostics: readonly Diagnostic[
   return [...limits].map(([record, endLine]) => ({
     record,
     endLine,
-    errors: errors.filter(
-      (d) =>
-        d.line >= record.span.line &&
-        d.line <= endLine &&
-        !record.nested.some((nested) => d.line >= nested.span.line && d.line <= endsByLine.get(nested.span.line)!),
-    ),
+    errors: errors
+      .filter(
+        (d) =>
+          d.line >= record.span.line &&
+          d.line <= endLine &&
+          !record.nested.some((nested) => d.line >= nested.span.line && d.line <= endsByLine.get(nested.span.line)!),
+      )
+      .sort(byLine),
   }));
 }
 
@@ -77,7 +103,7 @@ export function conditionsIn(children: readonly ChildNode[]): FieldNode[] {
   for (const child of children) {
     if (child.kind !== 'field') continue;
     if (child.when !== undefined || child.words[0] === 'when') found.push(child);
-    found.push(...conditionsIn(child.children));
+    append(found, conditionsIn(child.children));
   }
   return found;
 }

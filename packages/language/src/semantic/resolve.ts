@@ -1,3 +1,4 @@
+import { member } from '../bounded.js';
 import type { CompiledRecord } from '../compile/compile.js';
 import { renderIdentity } from '../identity.js';
 import { canonicalPath } from '../paths.js';
@@ -28,7 +29,7 @@ export function validatePool(
       registry.blocked.has(candidate.discriminator) ||
       registration.system !== candidate.system ||
       registration.kind !== candidate.kind ||
-      !registration.facets.includes(candidate.facet) ||
+      !member(registration.facets, candidate.facet) ||
       !/^[a-z][a-z0-9-]*$/.test(candidate.name) ||
       candidate.identity !== renderIdentity(candidate.system, candidate.kind, candidate.facet, candidate.name)
     ) {
@@ -85,19 +86,22 @@ export function indexedResolver<T extends ResolutionCandidate>(
   validatePool(registry, pool);
   const identities = new Map<string, T[]>(),
     names = new Map<string, T[]>();
+  const named = (discriminator: string, name: string): string => `${discriminator} ${name}`;
   for (const candidate of pool) {
     const sameIdentity = identities.get(candidate.identity) ?? [];
     sameIdentity.push(candidate);
     identities.set(candidate.identity, sameIdentity);
-    const sameName = names.get(candidate.name) ?? [];
+    const key = named(candidate.discriminator, candidate.name),
+      sameName = names.get(key) ?? [];
     sameName.push(candidate);
-    names.set(candidate.name, sameName);
+    names.set(key, sameName);
   }
   return (reference) =>
     resolveTarget(
       reference,
       registry,
-      (reference.kind === 'identity' ? identities.get(reference.identity) : names.get(reference.name.toLowerCase())) ??
-        [],
+      (reference.kind === 'identity'
+        ? identities.get(reference.identity)
+        : names.get(named(reference.discriminator, reference.name.toLowerCase()))) ?? [],
     );
 }

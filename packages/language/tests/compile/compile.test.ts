@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { BudgetExceeded, WORK_COST, WorkBudget } from '../../src/bounded.js';
+import { VERB_PHRASES } from '../../src/semantic/vocabulary.js';
 import { compile } from '../../src/compile/compile.js';
 import type { CompiledChild } from '../../src/compile/compile.js';
 import { parse } from '../../src/parser/index.js';
 import { buildRegistry } from '../../src/registry/index.js';
 import { compile as exportedCompile } from '../../src/compile/index.js';
 import type { Location } from '../../src/registry/types.js';
+import { PHASES } from '../../src/taxonomy.js';
 
 const AUTHORED: Location = { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };
 const FLOOR_TEXT = `#! ia 1.0
@@ -508,5 +511,157 @@ describe('generated ground edges', () => {
     expect(built.diagnostics).toEqual([]);
     expect(compile(lower.ast, built.registry, AUTHORED, []).records[0]?.edges).toHaveLength(1);
     expect(compile(lower.ast, built.registry, low, []).records[0]?.edges).toEqual([]);
+  });
+});
+
+describe('compile diagnostics of repeated declarations', () => {
+  const lines = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => `records/a.ia:${from + i}`).join(', ');
+  it('names up to eight other occurrences of an identity exactly as written', () => {
+    const r = run(`#! ia 1.0\n${'@agent same\n'.repeat(9)}`);
+    expect(r.diagnostics).toHaveLength(9);
+    expect(r.diagnostics[0]?.message).toBe(
+      `records/a.ia:2: identity agent-system/binding/head/same is also declared at ${lines(3, 10)} (band 100)`,
+    );
+  });
+  it('names eight other occurrences of a more repeated identity and counts the rest', () => {
+    const r = run(`#! ia 1.0\n${'@agent same\n'.repeat(12)}`);
+    expect(r.diagnostics).toHaveLength(12);
+    expect(r.diagnostics[0]?.message).toBe(
+      `records/a.ia:2: identity agent-system/binding/head/same is also declared at ${lines(3, 10)} and 3 more (band 100)`,
+    );
+    expect(r.diagnostics[11]?.message).toBe(
+      `records/a.ia:13: identity agent-system/binding/head/same is also declared at ${lines(2, 9)} and 3 more (band 100)`,
+    );
+  });
+  it('names thirty-two visible systems of an unregistered word and counts the rest', () => {
+    const systems = Array.from(
+      { length: 40 },
+      (_, i) => `@system s${String(i).padStart(2, '0')}\n  provider "p"\n  version "1.0.0"\n`,
+    );
+    const built = buildRegistry([{ ...parse(`#! ia 1.0\n${systems.join('')}`, 'many.ia'), location: AUTHORED }]);
+    expect(built.diagnostics).toEqual([]);
+    const result = compile(parse('#! ia 1.0\n@agent a\n', 'a.ia').ast, built.registry, AUTHORED, []);
+    const named = ['floor', 'taxonomy', ...Array.from({ length: 30 }, (_, i) => `s${String(i).padStart(2, '0')}`)];
+    expect(result.diagnostics[0]?.message).toBe(
+      `a.ia:2: discriminator 'agent' is not registered at this location; visible systems: ${named.join(', ')} and 10 more`,
+    );
+  });
+});
+
+describe("compile of a source beyond one call's arguments", () => {
+  it('refuses every occurrence of an identity more repeated than one call can take as arguments', () => {
+    const n = 130_000;
+    const r = run(`#! ia 1.0\n${'@agent same\n'.repeat(n)}`);
+    expect(r.records).toEqual([]);
+    expect(r.diagnostics.filter((d) => d.code === 'IA-LANG-IDENTITY-COLLISION')).toHaveLength(n);
+  });
+
+  it('reports more misplaced conditions of one record than one call can take as arguments', () => {
+    const n = 130_000;
+    const r = run(`#! ia 1.0\n@agent a\n  meaning\n    block\n${'      k "v" when phase is act\n'.repeat(n)}`);
+    expect(r.diagnostics.filter((d) => d.code === 'IA-LANG-CONDITION-MISPLACED')).toHaveLength(n);
+  });
+
+  it('reports more refused relationships of one record than one call can take as arguments', () => {
+    const n = 130_000;
+    const r = run(`#! ia 1.0\n@agent a\n  relationships\n${'    nosuchverb @agent other\n'.repeat(n)}`);
+    expect(r.diagnostics.filter((d) => d.code === 'IA-LANG-VERB-UNKNOWN')).toHaveLength(n);
+  });
+});
+describe('what a compile charges', () => {
+  const record = (body: string) => `#! ia 1.0\n@agent subject\n  meaning\n${body}`;
+  const charged = (body: string, vocabulary = registry) => {
+    const parsed = parse(record(body), 'a.ia'),
+      budget = new WorkBudget(Number.MAX_SAFE_INTEGER);
+    compile(parsed.ast, vocabulary, AUTHORED, [], budget);
+    return budget.spent();
+  };
+  const empty = charged('    says "s"\n');
+  it('charges a compiled field and each item of its list', () => {
+    expect(charged('    says "s"\n    a "b"\n') - empty).toBe(WORK_COST.product);
+    expect(charged('    says "s"\n    a [b, c, d]\n') - empty).toBe(4 * WORK_COST.product);
+  });
+  it('charges nothing for a name under 1 KiB, and past it an edge for each KiB of it, for each thing the record holds', () => {
+    const named = (name: string, body: string) => {
+      const parsed = parse(`#! ia 1.0\n@agent ${name}\n  meaning\n${body}`, 'a.ia'),
+        budget = new WorkBudget(Number.MAX_SAFE_INTEGER),
+        { records } = compile(parsed.ast, registry, AUTHORED, [], budget);
+      expect(records).toHaveLength(1);
+      return { spent: budget.spent(), length: records[0]!.identity.length };
+    };
+    // A field, a list of two and each of its items, and a field in that field's block.
+    const body = '    says "s"\n    a [b, c]\n    d "e"\n      f "g"\n',
+      short = named('subject', body),
+      under = named('s'.repeat(1_023 - short.length + 'subject'.length), body),
+      past = named('s'.repeat(3_000), body);
+    expect(under.length).toBe(1_023);
+    expect(under.spent).toBe(short.spent);
+    expect(past.spent - short.spent).toBe(6 * (past.length >>> 10) * WORK_COST.edge);
+  });
+  it('charges a relationship line, and what compilation says of it', () => {
+    const line = '  relationships\n    x\n',
+      spent = charged(`    says "s"\n${line}`) - empty,
+      message = `Unknown relationship verb x; expected ${VERB_PHRASES.join(', ')}.`;
+    expect(spent).toBe(WORK_COST.product + WORK_COST.edge + WORK_COST.diagnostic + (message.length >>> 6));
+  });
+  it('charges a cell and a selector beside the fields that state them', () => {
+    expect(charged('    says "s"\n  cognition\n    act\n      Memory means "m"\n') - empty).toBe(3 * WORK_COST.product);
+    expect(charged('    says "s"\n  activation\n    activate when phase is act\n') - empty).toBe(2 * WORK_COST.product);
+  });
+  it('charges a requirement beside the field that states it', () => {
+    const vocabulary = buildRegistry([
+      {
+        ...parse(
+          '#! ia 1.0\n@system compliance\n  provider "p"\n  version "1.0.0"\n  discriminators\n    contract lowers to contract\n      category thing\n      facets [signature]\n      schema @schema contract\n  edges\n    govern * using *\n@schema contract\n  lowers to contract\n  sections\n    closed\n',
+          'c.ia',
+        ),
+        location: AUTHORED,
+      },
+    ]).registry;
+    const spent = (clauses: number) => {
+      const lines = Array.from({ length: clauses }, (_, index) => `    REQ-A-${index} "text"\n`).join(''),
+        parsed = parse(`#! ia 1.0\n@contract c\n  inputs\n${lines}`, 'a.ia'),
+        budget = new WorkBudget(Number.MAX_SAFE_INTEGER);
+      compile(parsed.ast, vocabulary, AUTHORED, [], budget);
+      return budget.spent();
+    };
+    expect(spent(3) - spent(2)).toBe(2 * WORK_COST.product);
+  });
+  it('charges a record for a schema of more rules than a check reads for nothing', () => {
+    const vocabulary = (rules: number) => {
+      const fields = Array.from({ length: rules }, (_, index) => `    may have meaning.k${index} as text\n`).join(''),
+        text = `#! ia 1.0\n@system agent-system\n  provider "p"\n  version "0.1.0"\n  requires\n    - taxonomy\n  discriminators\n    agent lowers to binding\n      category capability\n      facets [head, steward]\n      schema @schema agent\n  edges\n    cite * using agent\n@schema agent\n  lowers to binding\n  sections\n    must have meaning\n    closed\n  fields\n${fields}`;
+      return buildRegistry([{ ...parse(text, 'systems/agent-system/system.ia'), location: AUTHORED }]).registry;
+    };
+    expect(charged('    says "s"\n', vocabulary(640)) - charged('    says "s"\n', vocabulary(1))).toBe(10);
+  });
+  it('charges each pair of a family of clauses, which a check reads pair by pair', () => {
+    const spent = (clauses: number) => {
+      const lines = Array.from({ length: clauses }, (_, index) => `    k "v" when phase is ${PHASES[index]}\n`);
+      return charged(`    says "s"\n  governance\n${lines.join('')}`);
+    };
+    // The field, the variant it lowers to, and its pair with each of the two before it.
+    expect(spent(3) - spent(2)).toBe(2 * WORK_COST.product + 2 * WORK_COST.clausePair);
+  });
+  it('charges an edge for the longest consent ledger, once that is past what a step reads', () => {
+    const rows = (count: number) =>
+      Array.from({ length: count }, (_, index) => `    cite w${index} using w${index}\n`).join('');
+    const vocabulary = (count: number) => {
+      const text = `#! ia 1.0\n@system agent-system\n  provider "p"\n  version "0.1.0"\n  requires\n    - taxonomy\n  discriminators\n    agent lowers to binding\n      category capability\n      facets [head, steward]\n      schema @schema agent\n  edges\n${rows(count)}@schema agent\n  lowers to binding\n  sections\n    must have meaning\n    closed\n`;
+      return buildRegistry([{ ...parse(text, 'systems/agent-system/system.ia'), location: AUTHORED }]).registry;
+    };
+    const line = '    says "s"\n  relationships\n    cites @agent other\n';
+    expect(charged(line, vocabulary(1_024)) - charged(line, vocabulary(63))).toBe(1_024 >>> 6);
+  });
+  it('stops at its budget, whatever it was making', () => {
+    const parsed = parse(record(`    says "s"\n  relationships\n${'    x\n'.repeat(1_000)}`), 'a.ia');
+    expect(() => compile(parsed.ast, registry, AUTHORED, [], new WorkBudget(1_000))).toThrow(BudgetExceeded);
+  });
+  it('compiles what an unbudgeted compile does', () => {
+    const parsed = parse(record('    says "s"\n    a [b, c]\n  relationships\n    x\n'), 'a.ia');
+    expect(compile(parsed.ast, registry, AUTHORED, [], new WorkBudget(1_000_000))).toEqual(
+      compile(parsed.ast, registry, AUTHORED, []),
+    );
   });
 });

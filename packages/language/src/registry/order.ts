@@ -1,3 +1,4 @@
+import { NAMED_SYSTEMS, listed } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { BUILTIN_SYSTEMS } from './floor.js';
@@ -36,32 +37,43 @@ export function orderSystems(winners: ReadonlyMap<string, SystemDeclaration>): O
   const stack: string[] = [];
   const active = new Set<string>();
   const cycleOf = new Map<string, ReadonlySet<string>>();
-  const visit = (name: string): void => {
+  const enter = (name: string, frames: { readonly name: string; next: number }[]): void => {
     const index = indices.size;
     indices.set(name, index);
     low.set(name, index);
     stack.push(name);
     active.add(name);
-    for (const required of dependencies.get(name)!) {
-      if (!indices.has(required)) {
-        visit(required);
-        low.set(name, Math.min(low.get(name)!, low.get(required)!));
-      } else if (active.has(required)) {
-        low.set(name, Math.min(low.get(name)!, indices.get(required)!));
+    frames.push({ name, next: 0 });
+  };
+  // An explicit stack: a chain of requirements is as deep as the systems declared, which a call stack is not.
+  const visit = (root: string): void => {
+    const frames: { readonly name: string; next: number }[] = [];
+    enter(root, frames);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1]!,
+        name = frame.name,
+        required = dependencies.get(name)![frame.next++];
+      if (required !== undefined) {
+        if (!indices.has(required)) enter(required, frames);
+        else if (active.has(required)) low.set(name, Math.min(low.get(name)!, indices.get(required)!));
+        continue;
       }
-    }
-    if (low.get(name) !== index) return;
-    const members = new Set<string>();
-    let member: string;
-    do {
-      member = stack.pop()!;
-      active.delete(member);
-      members.add(member);
-    } while (member !== name);
-    if (members.size > 1 || dependencies.get(name)!.includes(name)) {
-      for (const member of members) {
-        cycleOf.set(member, members);
-        dropped.add(member);
+      frames.pop();
+      const parent = frames[frames.length - 1];
+      if (parent !== undefined) low.set(parent.name, Math.min(low.get(parent.name)!, low.get(name)!));
+      if (low.get(name) !== indices.get(name)) continue;
+      const members = new Set<string>();
+      let member: string;
+      do {
+        member = stack.pop()!;
+        active.delete(member);
+        members.add(member);
+      } while (member !== name);
+      if (members.size > 1 || dependencies.get(name)!.includes(name)) {
+        for (const member of members) {
+          cycleOf.set(member, members);
+          dropped.add(member);
+        }
       }
     }
   };
@@ -96,7 +108,22 @@ export function orderSystems(winners: ReadonlyMap<string, SystemDeclaration>): O
     return walk(start)!; // Every member of a cyclic component lies on a cycle.
   };
 
-  const visible = [...new Set([...BUILTIN_SYSTEMS, ...names.filter((name) => !dropped.has(name))])].join(', ');
+  // A path is found per member and written into each member's message, so a longer cycle is named once, by its members.
+  const longCycles = new Map<ReadonlySet<string>, string>();
+  const described = (name: string, members: ReadonlySet<string>): string => {
+    if (members.size <= NAMED_SYSTEMS) return cycleThrough(name, members).join(' -> ');
+    const known = longCycles.get(members);
+    if (known !== undefined) return known;
+    const through = `through ${listed([...members].sort(), (member) => member, NAMED_SYSTEMS)}`;
+    longCycles.set(members, through);
+    return through;
+  };
+
+  const visible = listed(
+    [...new Set([...BUILTIN_SYSTEMS, ...names.filter((name) => !dropped.has(name))])],
+    (name) => name,
+    NAMED_SYSTEMS,
+  );
   for (const name of names) {
     const system = winners.get(name)!;
     const cycle = cycleOf.get(name);
@@ -106,23 +133,28 @@ export function orderSystems(winners: ReadonlyMap<string, SystemDeclaration>): O
           'IA-LANG-SYSTEM-CYCLE',
           system.path,
           system.span.line,
-          `${system.path}:${system.span.line}: requires cycle ${cycleThrough(name, cycle).join(' -> ')}`,
+          `${system.path}:${system.span.line}: requires cycle ${described(name, cycle)}`,
         ),
       );
     }
-    for (const required of system.requires) {
-      if (BUILTIN_SYSTEMS.includes(required.name)) continue;
-      if (winners.has(required.name) && !dropped.has(required.name)) continue;
-      if (cycle !== undefined && cycle === cycleOf.get(required.name)) continue;
-      diagnostics.push(
-        diag(
-          'IA-LANG-SYSTEM-MISSING',
-          system.path,
-          required.span.line,
-          `${system.path}:${required.span.line}: @system ${system.displayName} requires '${required.name}', which has no @system in force; visible: ${visible}`,
-        ),
-      );
-    }
+    // One line for the system, at the first requirement it is missing, however many it lists.
+    const missing = system.requires.filter(
+      (required) =>
+        !BUILTIN_SYSTEMS.includes(required.name) &&
+        !(winners.has(required.name) && !dropped.has(required.name)) &&
+        !(cycle !== undefined && cycle === cycleOf.get(required.name)),
+    );
+    const first = missing[0];
+    if (first === undefined) continue;
+    const rest = missing.length > 1 ? `, and ${missing.length - 1} more that have none` : '';
+    diagnostics.push(
+      diag(
+        'IA-LANG-SYSTEM-MISSING',
+        system.path,
+        first.span.line,
+        `${system.path}:${first.span.line}: @system ${system.displayName} requires '${first.name}', which has no @system in force${rest}; visible: ${visible}`,
+      ),
+    );
   }
   diagnostics.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line));
 
@@ -131,6 +163,16 @@ export function orderSystems(winners: ReadonlyMap<string, SystemDeclaration>): O
     names.filter((name) => !dropped.has(name)).map((name) => [name, dependencies.get(name)!.length]),
   );
   const ready = names.filter((name) => remaining.get(name) === 0);
+  const queue = (name: string): void => {
+    let from = 0,
+      to = ready.length;
+    while (from < to) {
+      const middle = (from + to) >>> 1;
+      if (ready[middle]! < name) from = middle + 1;
+      else to = middle;
+    }
+    ready.splice(from, 0, name);
+  };
   const order: string[] = [];
   while (ready.length > 0) {
     const name = ready.shift()!;
@@ -139,9 +181,8 @@ export function orderSystems(winners: ReadonlyMap<string, SystemDeclaration>): O
       const count = remaining.get(dependent);
       if (count === undefined) continue;
       remaining.set(dependent, count - 1);
-      if (count === 1) ready.push(dependent);
+      if (count === 1) queue(dependent);
     }
-    ready.sort();
   }
   return { order, dropped, diagnostics };
 }

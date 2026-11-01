@@ -1,4 +1,6 @@
 import type { RecordNode } from './ast.js';
+import { member, meter, metered, others } from './bounded.js';
+import type { WorkBudget } from './bounded.js';
 import { diag } from './diagnostics.js';
 import type { Diagnostic } from './diagnostics.js';
 import { fieldOf } from './registry/fields.js';
@@ -19,8 +21,19 @@ export function renderIdentity(system: string, kind: string, facet: string, name
   return `${system}/${kind}/${facet}/${name}`;
 }
 
-/** Spec 3.1: the facet is the `facet` head field or the registration's first facet; the name is lowercased; the authored spelling is kept. */
+/**
+ * Spec 3.1: the facet is the `facet` head field or the registration's first facet; the name is lowercased; the authored
+ * spelling is kept. What it says spends `budget`, the one in force unless another is given.
+ */
 export function identityOf(
+  record: RecordNode,
+  registration: Registration,
+  path: string,
+  budget: WorkBudget | undefined = meter(),
+): { readonly identity: Identity | undefined; readonly diagnostics: readonly Diagnostic[] } {
+  return metered(budget, () => identified(record, registration, path));
+}
+function identified(
   record: RecordNode,
   registration: Registration,
   path: string,
@@ -30,7 +43,7 @@ export function identityOf(
   if (facetField !== undefined) {
     const value = facetField.value;
     const named = value.kind === 'scalar' || value.kind === 'string' ? value.text : '';
-    if (!registration.facets.includes(named)) {
+    if (!member(registration.facets, named)) {
       const line = facetField.span.line;
       return {
         identity: undefined,
@@ -85,16 +98,12 @@ export function collisions(occurrences: readonly IdentityOccurrence[]): {
     if (group.length < 2) continue;
     for (const occurrence of group) {
       refused.add(occurrence);
-      const others = group
-        .filter((other) => other !== occurrence)
-        .map((other) => `${other.path}:${other.line}`)
-        .join(', ');
       diagnostics.push(
         diag(
           'IA-LANG-IDENTITY-COLLISION',
           occurrence.path,
           occurrence.line,
-          `${occurrence.path}:${occurrence.line}: identity ${occurrence.identity} is also declared at ${others} (band ${occurrence.band})`,
+          `${occurrence.path}:${occurrence.line}: identity ${occurrence.identity} is also declared at ${others(group, occurrence, (other) => `${other.path}:${other.line}`)} (band ${occurrence.band})`,
           { identity: occurrence.identity },
         ),
       );

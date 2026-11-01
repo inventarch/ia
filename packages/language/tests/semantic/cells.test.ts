@@ -142,4 +142,29 @@ describe('cognition cells', () => {
     expect(result.cells.map((c) => c.text)).toEqual(['parent']);
     expect(result.diagnostics).toEqual([]);
   });
+  it('refuses every occurrence of a means line repeated more than one call can take as arguments', () => {
+    const n = 130_000;
+    const { cells, diagnostics } = underAct('      Decision means "do"\n'.repeat(n).trimEnd());
+    expect(cells).toEqual([]);
+    expect(diagnostics.filter((d) => d.code === 'IA-LANG-CELL-MALFORMED')).toHaveLength(n);
+  });
+  it('reports more conditions of one phase than one call can take as arguments', () => {
+    const n = 130_000;
+    const { diagnostics } = underAct('      when phase is act\n'.repeat(n).trimEnd());
+    expect(diagnostics).toHaveLength(n);
+  });
+  it('reports more conditions beneath one primary than one call can take as arguments', () => {
+    const n = 130_000;
+    const { diagnostics } = underAct(
+      `      primary Decision\n${'        k "v" when phase is act\n'.repeat(n)}`.trimEnd(),
+    );
+    expect(diagnostics).toHaveLength(n);
+  });
+  it('reports more conditions beneath one means line than one call can take as arguments', () => {
+    const n = 130_000;
+    const { diagnostics } = underAct(
+      `      Decision means "do"\n${'        k "v" when phase is act\n'.repeat(n)}`.trimEnd(),
+    );
+    expect(diagnostics).toHaveLength(n);
+  });
 });

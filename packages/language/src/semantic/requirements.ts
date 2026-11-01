@@ -1,3 +1,5 @@
+import { meter, metered, others } from '../bounded.js';
+import type { WorkBudget } from '../bounded.js';
 import { diag } from '../diagnostics.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { sortDiagnostics } from '../registry/index.js';
@@ -13,8 +15,17 @@ export interface RequirementOccurrence {
   readonly line: number;
 }
 
-/** All admitted tree occurrences must be supplied before publication; bands do not exempt duplicates. */
+/**
+ * All admitted tree occurrences must be supplied before publication; bands do not exempt duplicates. What it says spends
+ * `budget`, the one in force unless another is given, and may exhaust it (`BudgetExceeded`).
+ */
 export function requirementCollisions<T extends RequirementOccurrence>(
+  occurrences: readonly T[],
+  budget: WorkBudget | undefined = meter(),
+): { readonly refused: ReadonlySet<T>; readonly diagnostics: readonly Diagnostic[] } {
+  return metered(budget, () => collidingRequirements(occurrences));
+}
+function collidingRequirements<T extends RequirementOccurrence>(
   occurrences: readonly T[],
 ): { readonly refused: ReadonlySet<T>; readonly diagnostics: readonly Diagnostic[] } {
   const groups = new Map<string, T[]>();
@@ -27,18 +38,18 @@ export function requirementCollisions<T extends RequirementOccurrence>(
   const diagnostics: Diagnostic[] = [];
   for (const group of groups.values()) {
     if (group.length < 2) continue;
+    const place = new Map(group.map((other) => [other, `${other.path}:${other.line} (${other.identity})`]));
+    const ordered = [...group].sort((a, b) =>
+      place.get(a)! < place.get(b)! ? -1 : place.get(a)! > place.get(b)! ? 1 : 0,
+    );
     for (const occurrence of group) {
       refused.add(occurrence);
-      const others = group
-        .filter((other) => other !== occurrence)
-        .map((other) => `${other.path}:${other.line} (${other.identity})`)
-        .sort();
       diagnostics.push(
         diag(
           'IA-LANG-REQUIREMENT-DUPLICATE',
           occurrence.path,
           occurrence.line,
-          `Requirement ${occurrence.id} is also declared at ${others.join(', ')}.`,
+          `Requirement ${occurrence.id} is also declared at ${others(ordered, occurrence, (other) => place.get(other)!)}.`,
           { identity: occurrence.identity },
         ),
       );

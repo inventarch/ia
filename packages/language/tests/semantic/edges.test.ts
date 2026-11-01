@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parse, buildRegistry, compile } from '../../src/index.js';
 import type { CompiledRecord, FrozenRegistry, Location } from '../../src/index.js';
 import { PREDICATES, PREDICATE_PAIRS } from '../../src/taxonomy.js';
-import { readEdges } from '../../src/semantic/edges.js';
+import { readEdges, verbPrefix } from '../../src/semantic/edges.js';
 
 const location: Location = { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };
 const allRows = PREDICATES.map((p) => `${p} * using *`);
@@ -29,6 +29,10 @@ function read(line: string, registry: FrozenRegistry = base.registry, pool: read
 }
 
 describe('relationship lowering', () => {
+  it('reads a line of half a million words no further than a verb can reach', () => {
+    expect(verbPrefix(new Array<string>(500_000).fill('x'))).toBeUndefined();
+    expect(verbPrefix(['grants', 'access', 'to', ...new Array<string>(500_000).fill('x')])?.length).toBe(3);
+  });
   it.each(PREDICATE_PAIRS)('lowers active %s and inverse %s with consent', (predicate, inverse) => {
     for (const [phrase, direction] of [
       [predicate, 'out'],

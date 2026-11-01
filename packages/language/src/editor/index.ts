@@ -92,6 +92,26 @@ export function recordsIn(ast: FileNode): readonly RecordNode[] {
   });
 }
 
+/** What an editor reads of a source that was refused without being parsed: nothing, whatever its text holds. */
+export function unparsedProjection(path: string): SourceProjection {
+  return {
+    ast: { kind: 'file', path, version: '', records: [], trivia: [] },
+    tokens: [],
+    references: [],
+    supported: false,
+  };
+}
+/** The index of the first of `items`, which stand in line order, on `line` or past it. */
+function firstOn<T>(items: readonly T[], line: number, lineOf: (item: T) => number): number {
+  let from = 0,
+    to = items.length;
+  while (from < to) {
+    const middle = (from + to) >>> 1;
+    if (lineOf(items[middle]!) < line) from = middle + 1;
+    else to = middle;
+  }
+  return from;
+}
 /** Scanner columns exclude layout; restore physical UTF-16 positions without lexing again. */
 export function projectSource(source: string, path: string): SourceProjection {
   const parsed = parse(source, path),
@@ -109,27 +129,28 @@ export function projectSource(source: string, path: string): SourceProjection {
     };
     return [{ token, range: { start, end } }];
   });
-  const byLine = new Map<number, SourceToken[]>(),
-    indexes = new Map<SourceToken, number>();
+  // Tokens stand in line order, so each reference finds its token from these, once, by line.
+  const sigils: { readonly token: SourceToken; readonly next: SourceToken | undefined }[] = [],
+    words = new Map<string, SourceToken[]>();
   tokens.forEach((t, index) => {
-    const row = byLine.get(t.token.line) ?? [];
-    row.push(t);
-    byLine.set(t.token.line, row);
-    indexes.set(t, index);
+    if (t.token.kind === 'sigil') sigils.push({ token: t, next: tokens[index + 1] });
+    else if (t.token.kind === 'word') {
+      const row = words.get(t.token.value);
+      if (row === undefined) words.set(t.token.value, [t]);
+      else row.push(t);
+    }
   });
   const uses = references(parsed.ast).flatMap((use): SourceReference[] => {
-    const candidates: SourceToken[] = [];
-    for (let line = use.span.line; line <= use.span.endLine; line++) candidates.push(...(byLine.get(line) ?? []));
     if (use.reference.kind === 'identity') {
-      const value = use.reference.identity + (use.reference.fragment === undefined ? '' : `#${use.reference.fragment}`);
-      const found = candidates.find((t) => t.token.kind === 'word' && t.token.value === value);
-      return found === undefined ? [] : [{ ...use, range: found.range }];
+      const value = use.reference.identity + (use.reference.fragment === undefined ? '' : `#${use.reference.fragment}`),
+        row = words.get(value) ?? [],
+        found = row[firstOn(row, use.span.line, (t) => t.token.line)];
+      return found === undefined || found.token.line > use.span.endLine ? [] : [{ ...use, range: found.range }];
     }
-    const sigils = candidates.filter((t) => t.token.kind === 'sigil');
-    const sigil = sigils[use.index];
-    if (sigil === undefined) return [];
-    const next = tokens[indexes.get(sigil)! + 1];
-    return next?.token.kind === 'word' ? [{ ...use, range: { start: sigil.range.start, end: next.range.end } }] : [];
+    const sigil = sigils[firstOn(sigils, use.span.line, (s) => s.token.token.line) + use.index];
+    if (sigil === undefined || sigil.token.token.line > use.span.endLine) return [];
+    const { token: start, next } = sigil;
+    return next?.token.kind === 'word' ? [{ ...use, range: { start: start.range.start, end: next.range.end } }] : [];
   });
   return {
     ast: parsed.ast,

@@ -34,13 +34,13 @@ function narrowingOf(type: FieldType, words: readonly string[], value: Value): N
     if (scalar !== 'id') return '`in [...]` narrows id or list of id only';
     if (words.length !== 1 || value.kind !== 'list' || value.items.length === 0)
       return '`in` must be followed by a nonempty bracketed list of distinct ids: `as id in [a, b]`';
-    const values: string[] = [];
+    const values = new Set<string>();
     for (const item of value.items) {
-      if (item.kind !== 'scalar' || !isId(item.text) || values.includes(item.text))
+      if (item.kind !== 'scalar' || !isId(item.text) || values.has(item.text))
         return '`in` must be followed by a nonempty bracketed list of distinct ids: `as id in [a, b]`';
-      values.push(item.text);
+      values.add(item.text);
     }
-    return { values };
+    return { values: [...values] };
   }
   if (word === 'to') {
     if (scalar !== 'ref') return '`to <word>` narrows ref or list of ref only';
@@ -150,7 +150,8 @@ function schemaOf(
     }
   }
 
-  const sections: SchemaSection[] = [];
+  const sections: SchemaSection[] = [],
+    sectionNames = new Set<string>();
   let closed: boolean | undefined;
   const sectionsBlock = blocks('sections')[0];
   if (sectionsBlock === undefined)
@@ -185,9 +186,11 @@ function schemaOf(
         child.value.kind === 'scalar'
       ) {
         lastSectionAt = index;
-        if (sections.some((section) => section.name === name))
-          malformed('sections', child.span.line, `lists '${name}' twice`);
-        else sections.push({ name, must: first === 'must', span: child.span });
+        if (sectionNames.has(name)) malformed('sections', child.span.line, `lists '${name}' twice`);
+        else {
+          sectionNames.add(name);
+          sections.push({ name, must: first === 'must', span: child.span });
+        }
         return;
       }
       rowFault = true;
@@ -208,7 +211,8 @@ function schemaOf(
         malformed('sections', duplicate.field.span.line, 'must end with exactly one of `closed` or `open`');
   }
 
-  const fields: SchemaField[] = [];
+  const fields: SchemaField[] = [],
+    fieldKeys = new Set<string>();
   for (const child of rows('fields')) {
     const line = child.span.line;
     if (!flatRow(child, 'fields')) continue;
@@ -262,10 +266,12 @@ function schemaOf(
       malformed('fields', line, 'may carry only a quoted description after the type');
       continue;
     }
-    if (fields.some((field) => field.section === section && field.key === key)) {
+    const fieldKey = JSON.stringify([section, key]);
+    if (fieldKeys.has(fieldKey)) {
       malformed('fields', line, `lists '${pathWord}' twice`);
       continue;
     }
+    fieldKeys.add(fieldKey);
     const description = child.value.kind === 'string' ? child.value.text : undefined;
     fields.push({
       section,
@@ -278,7 +284,8 @@ function schemaOf(
     });
   }
 
-  const edges: SchemaEdge[] = [];
+  const edges: SchemaEdge[] = [],
+    edgeKeys = new Set<string>();
   for (const child of rows('edges')) {
     const line = child.span.line;
     if (!flatRow(child, 'edges')) continue;
@@ -321,10 +328,12 @@ function schemaOf(
       malformed('edges', line, `target '${target}' must spell a kind or discriminator: [a-z][a-z0-9-]*`);
       continue;
     }
-    if (edges.some((edge) => edge.predicate === predicate && edge.direction === direction && edge.target === target)) {
+    const edgeKey = JSON.stringify([predicate, direction, target]);
+    if (edgeKeys.has(edgeKey)) {
       malformed('edges', line, `states '${spelling} ${target}' twice`);
       continue;
     }
+    edgeKeys.add(edgeKey);
     edges.push({ predicate, direction, spelling, target, must: first === 'must', cardinality, span: child.span });
   }
 

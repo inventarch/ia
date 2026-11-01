@@ -130,4 +130,10 @@ describe('governance variants', () => {
     expect(result.variants.map((v) => v.value)).toEqual([{ kind: 'string', text: 'parent' }]);
     expect(result.diagnostics).toEqual([]);
   });
+  it('names eight other occurrences of a repeated clause and counts the rest', () => {
+    const { diagnostics } = read('    requires "same"\n'.repeat(12).trimEnd());
+    expect(diagnostics).toHaveLength(12);
+    const others = [5, 6, 7, 8, 9, 10, 11, 12].map((line) => `a.ia:${line}`).join(', ');
+    expect(diagnostics[0]?.message).toBe(`Duplicate requires condition; other occurrences at ${others} and 3 more.`);
+  });
 });
