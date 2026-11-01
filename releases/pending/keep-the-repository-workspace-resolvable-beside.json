@@ -1,0 +1,14 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Keep the repository workspace resolvable beside domain roots",
+  "summary": "A unique admitted workspace in .ia/src/workspace.ia is now the repository default even when it declares no sources and another workspace does. Multiple workspaces at that entry point remain ambiguous; repositories without an admitted entry-point workspace retain the previous selection fallback. Domain workspaces can declare their own sources without making the repository default ambiguous. Source membership and mandate restrictions are unchanged.",
+  "packages": [
+    "@inventarch/db",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "packages/db/",
+    "packages/runtime/"
+  ]
+}

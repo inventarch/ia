@@ -242,6 +242,49 @@ it('falls back to the repository workspace only for a path in no .ia tree', () =
   }
 });
 
+it.each([true, false])(
+  'keeps the init entry point (declaring sources: %s) when a domain declares sources',
+  (declaringSources) => {
+    const root = workspace();
+    put(
+      root,
+      '.ia/src/workspace.ia',
+      `#! ia 1.0\n@workspace repository-workspace\n  meaning\n    says "The repository entry point."\n    answers "Which workspace owns this repository?"\n  composition\n    systems [@system governance-system]\n${declaringSources ? '    sources [".ia/src @authored"]\n' : ''}`,
+    );
+    second(root, 'domain-workspace', ['.ia/src/systems/governance-system @authored']);
+    const db = open(root, { cache: false });
+    try {
+      expect(errors(db)).toEqual([]);
+      expect(db.resolveSeat('')).toMatchObject({
+        seat: 'workspace-system/definition/workspace/repository-workspace',
+        by: 'repository',
+      });
+      const within = db.resolveScope({ identities: [foundation] }).token;
+      expect(db.resolveSeat('', { within })).toMatchObject({ unknown: 'undeclared' });
+    } finally {
+      db.close();
+    }
+  },
+);
+
+it('does not choose between several workspaces at the init entry point', () => {
+  const root = workspace();
+  second(root, 'domain-workspace', ['.ia/src/systems/governance-system @authored']);
+  const entry = readFileSync(resolve(root, workspacePath), 'utf8');
+  put(
+    root,
+    '.ia/src/workspace.ia',
+    `${entry.replaceAll('foundation-workspace', 'first-workspace')}\n${entry.replace('#! ia 1.0', '').replaceAll('foundation-workspace', 'second-workspace')}`,
+  );
+  const db = open(root, { cache: false });
+  try {
+    expect(errors(db)).toEqual([]);
+    expect(db.resolveSeat('')).toMatchObject({ unknown: 'undeclared' });
+  } finally {
+    db.close();
+  }
+});
+
 it('chooses the repository workspace in its own tree, preferring the one that declares a root', () => {
   const root = workspace(),
     billing = second(root, 'billing-workspace', ['src/billing @authored']);
