@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { canonicalPath } from '@inventarch/language';
 import type { CompiledChild, CompiledRecord, FrozenRegistry, Location } from '@inventarch/language';
 import { digest } from './codec.js';
+import { isFrozen } from './immutable.js';
 import { assertLocation, canonicalRoot } from './paths.js';
 
 export interface RevisionSource {
@@ -16,9 +17,16 @@ export interface RevisionInputs {
 }
 export const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
-/** Stable structured-data encoding. Collection tags keep maps, sets and arrays distinct. */
-export function stableSerialize(value: unknown): string {
+/**
+ * Stable structured-data encoding. Collection tags keep maps, sets and arrays distinct. It counts what it holds as it
+ * goes, a string its length and every item 32 more, for the ordered copy of it, and past `limit` of that it throws a
+ * RangeError, having written nothing.
+ */
+export function stableSerialize(value: unknown, limit = Number.POSITIVE_INFINITY): string {
+  let size = 0;
   const ordered = (item: unknown): unknown => {
+    size += typeof item === 'string' ? item.length + 32 : 32;
+    if (size > limit) throw new RangeError(`Past ${limit} to serialize`);
     if (item instanceof Map)
       return {
         $map: [...item]
@@ -29,11 +37,14 @@ export function stableSerialize(value: unknown): string {
       return { $set: [...item].map(ordered).sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b))) };
     if (Array.isArray(item)) return item.map(ordered);
     if (item !== null && typeof item === 'object')
+      // Each field is read as its turn comes, so that a limit is reached before an accessor later in the order is read.
       return {
-        $object: Object.entries(item)
-          .filter(([, v]) => v !== undefined)
-          .sort(([a], [b]) => compare(a, b))
-          .map(([k, v]) => [k, ordered(v)]),
+        $object: Object.keys(item)
+          .sort(compare)
+          .flatMap((key) => {
+            const field = (item as Record<string, unknown>)[key];
+            return field === undefined ? [] : [[key, ordered(field)]];
+          }),
       };
     if (typeof item === 'number' && !Number.isFinite(item)) throw new TypeError('Cannot serialize a non-finite number');
     if (item === undefined || typeof item === 'function' || typeof item === 'symbol' || typeof item === 'bigint')
@@ -72,8 +83,33 @@ const hashOf = (registry: FrozenRegistry, inputs: RevisionInputs, sources: reado
       }),
     )
     .digest('hex');
+/**
+ * A revision by the inputs it hashed, so that a view rebuilt pass by pass, phase by phase, hashes its sources once. Only
+ * for an array and a registry `frozen` made, which cannot change: of anything else it hashes what it is given each time.
+ */
+const revisions = new WeakMap<readonly RevisionSource[], WeakMap<FrozenRegistry, Map<string, string>>>();
+function known(registry: FrozenRegistry, inputs: RevisionInputs, kind: unknown, hash: () => string): string {
+  if (!isFrozen(inputs.sources) || !isFrozen(registry)) return hash();
+  let byRegistry = revisions.get(inputs.sources);
+  if (byRegistry === undefined) {
+    byRegistry = new WeakMap();
+    revisions.set(inputs.sources, byRegistry);
+  }
+  let held = byRegistry.get(registry);
+  if (held === undefined) {
+    held = new Map();
+    byRegistry.set(registry, held);
+  }
+  const key = JSON.stringify([kind, inputs.languageVersion, inputs.kernelDigest]);
+  let revision = held.get(key);
+  if (revision === undefined) {
+    revision = hash();
+    held.set(key, revision);
+  }
+  return revision;
+}
 export function revisionOf(registry: FrozenRegistry, inputs: RevisionInputs): string {
-  return hashOf(registry, inputs, canonicalSources(inputs));
+  return known(registry, inputs, 'whole', () => hashOf(registry, inputs, canonicalSources(inputs)));
 }
 /**
  * The authored revision (G01a): `revisionOf` over the same inputs without the sources at runtime placement (band 0),
@@ -91,10 +127,14 @@ export function authoredRevisionOf(
   derived: readonly string[] = [],
 ): string {
   const kept = new Set(derived.map(canonicalPath));
-  return hashOf(
-    registry,
-    inputs,
-    canonicalSources(inputs).filter((source) => source.location.placement.kind !== 'runtime' || kept.has(source.path)),
+  return known(registry, inputs, ['authored', ...kept], () =>
+    hashOf(
+      registry,
+      inputs,
+      canonicalSources(inputs).filter(
+        (source) => source.location.placement.kind !== 'runtime' || kept.has(source.path),
+      ),
+    ),
   );
 }
 /**

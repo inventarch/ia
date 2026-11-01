@@ -1,3 +1,4 @@
+import { clipped } from '@inventarch/language';
 import type { Diagnostic } from '@inventarch/language';
 export const GRAPH_CODES = [
   'IA-GRAPH-IDENTITY-TIE',
@@ -31,5 +32,5 @@ export function graphDiagnostic(
   message: string,
   warning = false,
 ): GraphDiagnostic {
-  return { code, path, line, severity: warning ? 'warning' : 'error', message: `${path}:${line}: ${message}` };
+  return { code, path, line, severity: warning ? 'warning' : 'error', message: clipped(`${path}:${line}: ${message}`) };
 }

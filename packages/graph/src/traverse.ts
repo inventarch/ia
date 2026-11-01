@@ -80,9 +80,10 @@ export function traverse(graph: Graph, options: TraverseOptions): Traversal {
     truncated = true;
   }
   for (const id of frontier) depths.set(id, 0);
-  const edges = new Map<string, Edge>(),
-    gated = new Map<string, Edge>(),
-    dangling = new Map<string, Edge>(),
+  // A graph holds one object for each edge, however many lists hold it.
+  const edges = new Set<Edge>(),
+    gated = new Set<Edge>(),
+    dangling = new Set<Edge>(),
     via = new Map<string, Via>();
   walk: for (let level = 1; level <= depth && frontier.length > 0; level++) {
     const next = new Set<string>();
@@ -112,19 +113,18 @@ export function traverse(graph: Graph, options: TraverseOptions): Traversal {
               truncated = true;
               continue;
             }
-            const key = stableSerialize(edge);
             if (
               coordinate !== undefined &&
               !conditionHolds(edge.condition, graph.nodes.get(edge.conditionSubject)!.dimensions, coordinate)
             ) {
-              gated.set(key, edge);
+              gated.add(edge);
               continue;
             }
             if (target === null) {
-              dangling.set(key, edge);
+              dangling.add(edge);
               continue;
             }
-            edges.set(key, edge);
+            edges.add(edge);
             if (depths.has(target) && depths.get(target) !== level) continue;
             const hop: Via = { from: id, predicate, direction: dir, target };
             via.set(stableSerialize(hop), hop);
@@ -148,9 +148,9 @@ export function traverse(graph: Graph, options: TraverseOptions): Traversal {
         compare(a.direction, b.direction) ||
         compare(a.target, b.target),
     ),
-    edges: [...edges.values()].sort(edgeOrder),
-    gated: [...gated.values()].sort(edgeOrder),
-    dangling: [...dangling.values()].sort(edgeOrder),
+    edges: [...edges].sort(edgeOrder),
+    gated: [...gated].sort(edgeOrder),
+    dangling: [...dangling].sort(edgeOrder),
     ...(options.maxNodes === undefined && options.maxEdges === undefined ? {} : { truncated }),
   });
 }

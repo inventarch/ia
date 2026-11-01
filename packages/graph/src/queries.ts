@@ -74,7 +74,7 @@ export function variants(record: Node, input: Coordinate): VariantSelection {
   const selected = new Map<string, Variant>(),
     diagnostics: GraphDiagnostic[] = [];
   for (const [key, family] of [...families].sort(([a], [b]) => compare(a, b))) {
-    const maximum = Math.max(...family.map((v) => v.condition?.length ?? 0));
+    const maximum = family.reduce((most, v) => Math.max(most, v.condition?.length ?? 0), 0);
     const best = family.filter((v) => (v.condition?.length ?? 0) === maximum).sort((a, b) => a.span.line - b.span.line);
     if (best.length === 1) selected.set(key, best[0]!);
     else

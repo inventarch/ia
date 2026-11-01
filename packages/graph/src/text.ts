@@ -74,16 +74,31 @@ function recordText(record: CompiledRecord): string {
   }
   return parts.join(' ');
 }
+/**
+ * G11a: what the index holds, in postings, one word of one record. A word it has not seen costs `WORD_POSTINGS` of them,
+ * for its posting and that posting's view: measured, either way this is about 36 bytes of heap a unit. One token can hold
+ * a megabyte of words and every record the same words, so neither tokens nor words bound it; past this it takes no new
+ * posting, and a search finds nothing of what it did not take.
+ */
+export const INDEXED_POSTINGS = 1_048_576;
+const WORD_POSTINGS = 8;
 export function buildTextIndex(records: Iterable<CompiledRecord>): TextIndex {
   const postings = new Map<string, Map<string, number>>(),
     lengths = new Map<string, number>();
+  let held = 0;
   for (const record of records) {
     const tokens = tokenize(recordText(record));
     lengths.set(record.identity, tokens.length);
     for (const token of tokens) {
-      const posting = postings.get(token) ?? new Map<string, number>();
-      posting.set(record.identity, (posting.get(record.identity) ?? 0) + 1);
-      postings.set(token, posting);
+      const posting = postings.get(token),
+        count = posting?.get(record.identity);
+      if (count === undefined) {
+        const cost = posting === undefined ? WORD_POSTINGS : 1;
+        if (held + cost > INDEXED_POSTINGS) continue;
+        held += cost;
+      }
+      if (posting === undefined) postings.set(token, new Map([[record.identity, 1]]));
+      else posting.set(record.identity, (count ?? 0) + 1);
     }
   }
   return { postings, lengths }; // load snapshots this internal construction product

@@ -7,6 +7,7 @@ export { CodecError, canonical, copy, digest } from './codec.js';
 export type { Json } from './codec.js';
 export { validateCoordinate, dimensionsOf } from './coordinate.js';
 export type { Coordinate, Dimensions } from './coordinate.js';
+export { frozen } from './immutable.js';
 export { load, serialize } from './load.js';
 export { resolve } from './resolve.js';
 export type { Resolution } from './resolve.js';
