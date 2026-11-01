@@ -1,11 +1,15 @@
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
-import type { Location } from '@inventarch/language';
+import { afterEach, expect, it, vi } from 'vitest';
+import { stableSerialize } from '@inventarch/graph';
+import { buildRegistry } from '@inventarch/language';
+import type { Location, Phase } from '@inventarch/language';
 import { open, readInputs } from '../src/index.js';
 import { viewBuilder } from '../src/view.js';
 
+// Spied so a test can count compiles: every implementation stays the real one.
+vi.mock('@inventarch/language', { spy: true });
 const repository = resolve(import.meta.dirname, '../../..'),
   temporary: string[] = [];
 function workspace(native = true) {
@@ -180,6 +184,48 @@ it('selects reach and phase before authority without compiler ambiguity between 
   expect(build('team', 'act').graph.nodes.get(methodId)?.source.path).toBe(overlay);
   expect(build('team', 'orient').graph.nodes.get(methodId)?.source.path).toBe(methodPath);
   expect(build('team', 'act').report.findings.some((f) => f.code === 'IA-LANG-EDGE-TARGET-AMBIGUOUS')).toBe(false);
+});
+it('compiles once per declared reach, however many locations a reader asks for', () => {
+  const root = workspace(),
+    overlay = '.ia/src/override.ia';
+  put(root, overlay, readFileSync(resolve(root, methodPath), 'utf8'));
+  const locations: Record<string, Location> = {
+    [methodPath]: { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' },
+    [overlay]: { placement: { kind: 'authored', band: 100, reach: 'team' }, provenance: 'workspace' },
+  };
+  vi.mocked(buildRegistry).mockClear();
+  const build = viewBuilder(readInputs(root, { locations }));
+  // The workspace root and `team`, the only places where the sources in view can change.
+  expect(buildRegistry).toHaveBeenCalledTimes(2);
+  const winner = (location: string) => build(location).graph.nodes.get(methodId)?.source.path;
+  for (const location of ['one', 'two/deep', 'team-other', 'area/1', 'area/2'])
+    expect(winner(location)).toBe(methodPath);
+  for (const location of ['team', 'team/deep', 'team/deep/er']) expect(winner(location)).toBe(overlay);
+  expect(buildRegistry).toHaveBeenCalledTimes(2);
+});
+it('builds the same view at every location below one reach, but for the location it names', () => {
+  const root = workspace(),
+    overlay = '.ia/src/override.ia';
+  put(root, overlay, readFileSync(resolve(root, methodPath), 'utf8'));
+  // A file refused whole and a record a reach refuses, so the report and the refusals have something to differ by.
+  put(root, '.ia/src/broken.ia', '#! ia 1.0\n\n@agent broken\n  meaning\n    says "unfinished\n');
+  const locations: Record<string, Location> = {
+    [methodPath]: { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' },
+    [overlay]: { placement: { kind: 'authored', band: 100, reach: 'team' }, provenance: 'workspace' },
+  };
+  const build = viewBuilder(readInputs(root, { locations }));
+  const body = (location: string, phase?: Phase) => {
+    const view = build(location, phase);
+    expect(view.graph.location).toBe(location);
+    return stableSerialize({ ...view, graph: { ...view.graph, location: 'the location' } });
+  };
+  for (const phase of [undefined, 'act'] as const) {
+    const atRoot = body('', phase),
+      atTeam = body('team', phase);
+    expect(atTeam).not.toBe(atRoot);
+    for (const location of ['two/deep', 'team-other']) expect(body(location, phase)).toBe(atRoot);
+    expect(body('team/deep', phase)).toBe(atTeam);
+  }
 });
 it('checks physical requirement duplicates across bands and disjoint reaches before authority', () => {
   const root = workspace(),

@@ -7,7 +7,7 @@ import { Reader } from '../handle.js';
 import type { ReadOptions } from '../handle.js';
 import { inputOptions, pathKey, readInputs, safePath } from '../inputs.js';
 import type { InputOptions, InputSnapshot } from '../inputs.js';
-import { viewBuilder } from '../view.js';
+import { declaredReaches, viewBuilder } from '../view.js';
 import type { View, ViewOptions } from '../view.js';
 import type { LockedPackage } from '../distribution/contracts.js';
 export type { ReadOptions, ReadHandle } from '../handle.js';
@@ -130,6 +130,7 @@ export class EditorSnapshot extends Reader {
         rootView,
         cache: { state: 'disabled', observations: [] },
         views: new Map([['["",null]', rootView]]),
+        reaches: declaredReaches(captured.sources),
       },
       options.locations,
       view,
