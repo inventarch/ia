@@ -128,6 +128,34 @@ it("resolves a fresh init's participant as the default actor, its mandate as gov
   for (const mode of MODES) expect(profileAt(unstewarded, mode), mode).toEqual({});
 });
 
+it('keeps repository capture authority distinct from a source-declaring domain', () => {
+  const root = freshInit(records.replace(ALL_MOVES, 'moves [Observation, Verification, Delegation]'));
+  put(
+    root,
+    '.ia/src/scopes/domain/workspace.ia',
+    `#! ia 1.0
+@workspace domain
+  meaning
+    says "A domain with explicit shared sources."
+    answers "Where does the domain read?"
+  composition
+    systems [@system governance-system]
+    sources [".ia/src @authored"]
+    steward @agent verifier
+${agent('verifier')}${authorized('verifier-mandate', ['participant @agent verifier', 'moves [Observation, Verification, Execution]', 'scope [@workspace demo, @workspace domain]'])}`,
+  );
+  const db = database(root),
+    within = token(db);
+  expect(errors(db)).toEqual([]);
+  expect(seatedWorkspace(db, within, '')).toBe(demo);
+  expect(defaultActor(db, within, demo).actor).toBe(participant);
+  const rootMandates = governingMandates(db, within, { workspace: demo, actor: participant });
+  expect(profileRefusal(rootMandates, 'effect').refusal).toMatchObject({ code: 'IA-RUNTIME-MANDATE-MOVE' });
+  const verifier = 'agent-system/binding/agent/verifier';
+  const explicit = governingMandates(db, within, { workspace: demo, actor: verifier });
+  expect(profileRefusal(explicit, 'effect')).toEqual({});
+});
+
 it("refuses effect (ia capture) without Execution, naming the mandate's governance position, whose key resolves", () => {
   const db = database(
     freshInit(records.replace(ALL_MOVES, 'moves [Observation, Verification, Synthesis, Delegation]')),
