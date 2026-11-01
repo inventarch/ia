@@ -219,7 +219,8 @@ it('runs a real native launcher directly from a path with spaces and preserves i
     expect(result.status, result.stderr).toBe(17);
     expect(result.stdout).toBe('literal & argument');
   } finally {
-    rmSync(base, { recursive: true, force: true });
+    // Windows can hold the executable it just ran for a moment after the child exits.
+    rmSync(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
 
