@@ -84,8 +84,11 @@ const PRIVATE_REFERENCES: readonly Pin[] = [
   { words: 2, length: 9, sha256: '80ffa34bf0ab27c650272b557cdb4077bfc6f0dbaacb94a3fea2a67a49783694' },
   { words: 2, length: 9, sha256: '63bb155f4e8b0363d1f39d8fcdc49f7fbc103b979ae1df74bee0124e01919ea5' },
 ];
-/** Phrasing that points at a private knowledge base's tasks or decisions, whatever their names. */
-const PRIVATE_PHRASE = /\bkb[ -](?:task|decision|plan|spec|document)s?\b/gi;
+/**
+ * Phrasing that points at a private knowledge base's tasks or decisions, whatever their names. A hyphenated identifier
+ * that only starts with it, such as the public ia-kb kit's `kb-document-binding` convention, is a name, not a pointer.
+ */
+const PRIVATE_PHRASE = /\bkb[ -](?:task|decision|plan|spec|document)s?\b(?!-)/gi;
 /**
  * Ids that only planning material kept outside this repository defines: a plan's amendments and their letters, the
  * rows, items and sections of a design document, review-finding ids, operator design rows, review notes and milestone
@@ -197,8 +200,9 @@ it('finds every knowledge-base pointer in each file', () => {
   const files = new Map([
     ['a.md', [['KB', 'task'].join(' '), ['kb', 'decision'].join(' ')].join('\n')],
     ['b.md', ['Kb', 'plan'].join(' ')],
+    ['c.json', [['"kb', 'document', 'binding"'].join('-'), ['kb', 'document.'].join('-')].join('\n')],
   ]);
-  expect(privateReferences(files, [])).toEqual(['a.md:1', 'a.md:2', 'b.md:1']);
+  expect(privateReferences(files, [])).toEqual(['a.md:1', 'a.md:2', 'b.md:1', 'c.json:2']);
 });
 
 it('finds planning ids by line and leaves public clause ids, sections and numbers alone', () => {

@@ -4,6 +4,7 @@ import {
   decodeDistributionRequests,
   deriveGenerationInputs,
   DISTRIBUTION_LIMITS,
+  lockEngineMarker,
   satisfies,
 } from '@inventarch/db/distribution';
 import type { BundleMetadata, Dependency, DistributionLock, GenerationInputs } from '@inventarch/db/distribution';
@@ -139,9 +140,12 @@ export function resolveReleases<R extends BundleMetadata = VerifiedArchive>(
   searchChoices(requests, unique, archiveChoice, engine, pins, (selected, assignments) => {
     const entries = [...selected].sort(([a], [b]) => (a < b ? -1 : 1)),
       releases = new Map(entries.map(([id, c]) => [id, c.release]));
-    const lock = decodeDistributionLock({
+    // A lock's package entries (`ia install --package`) are no release the search chose; the existing lock's carry
+    // over, and the engine marker is the one every released 0.1.1 engine reads unless an entry needs ^0.1.2. Their kits
+    // install from the workspace cache, so the installation plan checks them; the search checks the releases it chose.
+    const releasesOnly = {
       formatVersion: 1,
-      engine,
+      engine: lockEngineMarker(engine, false),
       requests,
       packages: entries.map(([id, c]) => ({
         id,
@@ -151,9 +155,18 @@ export function resolveReleases<R extends BundleMetadata = VerifiedArchive>(
         location: c.location,
         dependencies: c.release.manifest.dependencies.map((d) => d.id),
       })),
-    });
+    };
+    const chosen = decodeDistributionLock(releasesOnly);
     try {
-      built = { lock, releases, inputs: generationInputs(lock, releases), assignments };
+      const lock =
+        existing?.entries === undefined
+          ? chosen
+          : decodeDistributionLock({
+              ...releasesOnly,
+              engine: lockEngineMarker(engine, true),
+              entries: existing.entries,
+            });
+      built = { lock, releases, inputs: generationInputs(chosen, releases), assignments };
       return true;
     } catch (error) {
       return String(error);

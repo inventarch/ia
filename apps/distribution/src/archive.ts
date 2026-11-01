@@ -3,6 +3,7 @@ import {
   canonicalDistributionJson,
   decodeBundleManifest,
   decodeDistributionLock,
+  lockedReleases,
   deriveGenerationInputs,
   DISTRIBUTION_LIMITS,
   portablePath,
@@ -171,11 +172,12 @@ export function verifySelectedArchiveClosure(
   input: ReadonlyMap<string, Uint8Array>,
 ): ReadonlyMap<string, VerifiedArchive> {
   const lock = decodeDistributionLock(lockInput);
-  if (!(input instanceof Map) || input.size !== new Set(lock.packages.map((pkg) => pkg.archive)).size)
+  const installed = lockedReleases(lock);
+  if (!(input instanceof Map) || input.size !== new Set(installed.map((pkg) => pkg.archive)).size)
     fail('RESTORE-REQUIRED', 'Supply the exact selected archive inventory');
   const pending = new Map<string, ArchiveContent>();
   let total = 0;
-  for (const pkg of lock.packages) {
+  for (const pkg of installed) {
     const content: unknown = input.get(pkg.archive);
     if (!(content instanceof Uint8Array)) fail('RESTORE-REQUIRED', `Missing exact archive ${pkg.archive}`);
     total += content.length;

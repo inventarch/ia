@@ -15,7 +15,7 @@ import {
 } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import { GRAPH_CODES, load, stableSerialize } from '@inventarch/graph';
-import type { RevisionInputs, RevisionSource } from '@inventarch/graph';
+import type { Graph, RevisionInputs, RevisionSource } from '@inventarch/graph';
 import {
   COMP_CODES,
   EVIDENCE_CODES,
@@ -69,6 +69,34 @@ it('accepts supplied matching evidence, refuses stale evidence and reports failu
     'not-evaluated',
   );
   expect(evaluate(graph, { sourceDiagnostics: parse('bad', 'bad.ia').diagnostics }).outcome).toBe('fail');
+});
+it('takes caller-asserted evidence only for its own check, and never labels it verified', () => {
+  const kernel = evidence!.get('COMP-KERNEL')!,
+    fixtures = evidence!.get('COMP-FIXTURES')!;
+  // Each check's verdict filed under the other: neither is that check's evidence, so neither is a pass.
+  const swapped = evaluate(graph, {
+    evidence: new Map([
+      ['COMP-KERNEL', fixtures],
+      ['COMP-FIXTURES', kernel],
+    ] as const),
+  });
+  for (const check of ['COMP-KERNEL', 'COMP-FIXTURES']) {
+    const unevaluated = swapped.verdicts.find((v) => v.check === check);
+    expect(unevaluated?.outcome, check).toBe('not-evaluated');
+    expect(unevaluated, check).not.toHaveProperty('basis');
+  }
+  // A verdict that claims to be verified is still the caller's assertion, and no conformance summary is made of it.
+  const claimed = evaluate(graph, {
+    sourceDiagnostics: [],
+    folders,
+    evidence: new Map([...evidence!].map(([check, v]) => [check, { ...v, basis: 'verified' as const }])),
+  });
+  for (const check of ['COMP-KERNEL', 'COMP-FIXTURES'])
+    expect(claimed.verdicts.find((v) => v.check === check)).toMatchObject({
+      outcome: 'pass',
+      basis: 'caller-asserted',
+    });
+  expect(claimed.conformance).toBeUndefined();
 });
 it('includes refused dimensions, uses stable ordering and freezes all report state', () => {
   const first = records.find((r) => r.name === 'sample-procedure')!;
@@ -761,6 +789,46 @@ describe('evaluate binds conformance evidence to the graph (C31)', () => {
       toolchain: kernel.toolchain,
       kernel: { floorDigest: KERNEL_DIGEST },
     });
+  });
+  it('never reports a pass while either check is not evaluated, whatever the other verified', () => {
+    const observed = { sourceDiagnostics: [], folders: [] },
+      bound = (graph: Graph, inputs: RevisionInputs, k = kernel, f = fixtures) =>
+        evaluate(graph, { ...observed, conformance: { inputs, kernel: k, fixtures: f } });
+    // The control: both verified for the embedded floor, and nothing else short of a pass.
+    expect(bound(embedded.graph, embedded.inputs).outcome).toBe('pass');
+    const version = Object.getOwnPropertyDescriptor(process, 'version')!;
+    const underOtherNode = <T>(produce: () => T): T => {
+      Object.defineProperty(process, 'version', { ...version, value: 'v0.0.0' });
+      try {
+        return produce();
+      } finally {
+        Object.defineProperty(process, 'version', version);
+      }
+    };
+    const ambiguous = floorGraph(KERNEL_SOURCES, [
+      { path: '.ia/src/notes.ia', text: '#! ia 1.0\n', location: floorAt },
+    ]);
+    for (const [name, report, unbound] of [
+      ['no evidence', evaluate(embedded.graph, observed), ['COMP-FIXTURES', 'COMP-KERNEL']],
+      ["another graph's evidence", bound(graph, embedded.inputs), ['COMP-FIXTURES', 'COMP-KERNEL']],
+      ['a stale kernel', bound(embedded.graph, embedded.inputs, underOtherNode(verifyKernel)), ['COMP-KERNEL']],
+      [
+        'stale fixtures',
+        bound(embedded.graph, embedded.inputs, kernel, underOtherNode(verifyFixtures)),
+        ['COMP-FIXTURES'],
+      ],
+      ['an ambiguous floor', bound(ambiguous.graph, ambiguous.inputs), ['COMP-KERNEL']],
+    ] as const) {
+      expect(report.outcome, name).toBe('not-evaluated');
+      for (const check of unbound) {
+        const unevaluated = report.verdicts.find((v) => v.check === check);
+        expect(unevaluated?.outcome, `${name}: ${check}`).toBe('not-evaluated');
+        expect(unevaluated, `${name}: ${check}`).not.toHaveProperty('basis');
+      }
+      const missing = new Set<string>(unbound);
+      if (missing.has('COMP-KERNEL')) expect(report.conformance?.kernel, name).toBeUndefined();
+      if (missing.has('COMP-FIXTURES')) expect(report.conformance?.fixtures, name).toBeUndefined();
+    }
   });
   it('neither labels nor summarises fixture evidence that was not evaluated', async () => {
     const root = resolve(fileURLToPath(new URL('../fixtures/language/', import.meta.url)));

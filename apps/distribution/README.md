@@ -60,10 +60,11 @@ A `plan` command returns reviewable data, saved with `--out`; `apply` rechecks e
 
 ## Distribution engine compatibility
 
-The distribution engine has its own version, separate from the npm package and native archive versions. The 2.x CLI reads engine 0.1.0. IA 3.0 uses engine 0.1.1, which verifies pinned release-control sources outside system folders.
+The distribution engine has its own version, separate from the npm package and native archive versions. The 2.x CLI reads engine 0.1.0. IA 3.0 uses engine 0.1.1, which verifies pinned release-control sources outside system folders. IA 3.5 uses engine 0.1.2, which reads a lock's package entries: an npm package of kits that `ia install --package` records, whose kits it installs as ordinary releases (contract C7b).
 
 - **Old locks.** IA 3.0 reads an exact 0.1.0 lock without rewriting its pins when the selected archives support the new engine. That is forward compatibility only.
 - **What migrates a workspace.** An applied `ia init`, and every applied `ia install` or `ia update`, including one that changes nothing, writes an engine 0.1.1 lock, which the 2.x CLI refuses to read. `ia remove` keeps the existing engine marker, though its host refresh can still write newer host state.
+- **Package entries.** A lock with an `entries` row declares `^0.1.2`. A lock without one is written and read exactly as 3.0 to 3.4 write and read it, under the 0.1.1 marker, and archives keep declaring `^0.1.1`, so a repository that records no package stays readable by every 3.x CLI. An engine from 0.1.2 on refuses a lock it cannot read with the `ia` release that reads it, such as "It needs ia >= 3.5.0"; a 3.4 or earlier CLI refuses a lock with entries as a contract error ("Unknown, missing or accessor field"), never ignoring the entry.
 - **Refusals.** An incompatible lock is not corruption. IA 3.0 names the required and current engine: `IA-DB-SOURCE-UNAVAILABLE` with reason `engine-incompatible` for an installed lock or archive, and `IA-DIST-CONFLICT` for an installation plan. An older CLI may report a generic engine refusal.
 - **Strict archives.** Never lower an archive's engine range, edit a lock's engine marker or delete a lock to silence a refusal.
 

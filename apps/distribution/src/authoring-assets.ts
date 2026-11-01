@@ -2,6 +2,7 @@ import { KERNEL_SOURCES, parse } from '@inventarch/language';
 import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   decodeDistributionJson,
+  lockedReleases,
   deriveGenerationInputs,
   generationDigest,
   generationSources,
@@ -148,12 +149,13 @@ export function verifySelectedAuthoringAssetClosure(
     }
   >,
 ): void {
-  for (const pkg of lock.packages) {
+  const installed = lockedReleases(lock);
+  for (const pkg of installed) {
     const needed = new Set<string>();
     const visit = (id: string): void => {
       if (needed.has(id)) return;
       needed.add(id);
-      const selected = lock.packages.find((row) => row.id === id);
+      const selected = installed.find((row) => row.id === id);
       if (!selected) fail('CLOSURE-INVALID', 'Missing selected dependency');
       selected.dependencies.forEach(visit);
     };
@@ -161,9 +163,10 @@ export function verifySelectedAuthoringAssetClosure(
     // An unrelated requested package must not satisfy an undeclared guide/schema dependency.
     verifyAuthoringSelection(
       {
-        ...lock,
+        formatVersion: lock.formatVersion,
+        engine: lock.engine,
         requests: [{ id: pkg.id, range: pkg.version }],
-        packages: lock.packages.filter((row) => needed.has(row.id)),
+        packages: installed.filter((row) => needed.has(row.id)),
       },
       new Map([...releases].filter(([id]) => needed.has(id))),
     );

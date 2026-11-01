@@ -1432,7 +1432,7 @@ it('spends one byte budget across the root walk, every binding and the selected 
 const ARCHIVE = 'a'.repeat(64),
   SYSTEM = '.ia/src/systems/fixture-system';
 /** A complete generation, pinned as an installation pins one, holding `files` beside its system's declaration. */
-const pinned = (root: string, files: ReadonlyMap<string, Buffer>): void => {
+const pinned = (root: string, files: ReadonlyMap<string, Buffer>, packaged = false): void => {
   const bytes = new Map([
     [`${SYSTEM}/system.ia`, Buffer.from('#! ia 1.0\n@system fixture-system\n  provider "p"\n  version "0.1.0"\n')],
     ...files,
@@ -1457,18 +1457,41 @@ const pinned = (root: string, files: ReadonlyMap<string, Buffer>): void => {
   const metadata = { manifest, archiveDigest: ARCHIVE, manifestDigest: sha256(json(manifest)) };
   const lock = decodeDistributionLock({
     formatVersion: 1,
-    engine: '^0.1.0',
-    requests: [{ id: manifest.id, range: '^0.1.0' }],
-    packages: [
-      {
-        id: manifest.id,
-        version: manifest.version,
-        archive: ARCHIVE,
-        manifest: metadata.manifestDigest,
-        location: `sha256:${ARCHIVE}`,
-        dependencies: [],
-      },
-    ],
+    engine: packaged ? '^0.1.2' : '^0.1.0',
+    requests: packaged ? [] : [{ id: manifest.id, range: '^0.1.0' }],
+    packages: packaged
+      ? []
+      : [
+          {
+            id: manifest.id,
+            version: manifest.version,
+            archive: ARCHIVE,
+            manifest: metadata.manifestDigest,
+            location: `sha256:${ARCHIVE}`,
+            dependencies: [],
+          },
+        ],
+    ...(packaged
+      ? {
+          entries: [
+            {
+              kind: 'package',
+              name: '@example/kits',
+              version: '1.0.0',
+              integrity: `sha512-${Buffer.alloc(64).toString('base64')}`,
+              kits: [
+                {
+                  id: manifest.id,
+                  version: manifest.version,
+                  archive: ARCHIVE,
+                  manifest: metadata.manifestDigest,
+                  dependencies: [],
+                },
+              ],
+            },
+          ],
+        }
+      : {}),
   });
   const bundles = new Map([[manifest.id, metadata]]),
     inputs = deriveGenerationInputs(lock, bundles),
@@ -1490,7 +1513,7 @@ const openedOfStore = (root: string): readonly string[] =>
     .mocked(openSync)
     .mock.calls.map(([path]) => String(path))
     .filter((path) => path.startsWith(resolve(root, STORE)) && path.endsWith('.ia'));
-it('spends the sources a generation selects before reading any of them', () => {
+it.each([false, true])('spends generation sources before reading payload (package entry: %s)', (packaged) => {
   const root = workspace(),
     files = new Map(
       Array.from({ length: 65 }, (_, index) => [
@@ -1498,7 +1521,7 @@ it('spends the sources a generation selects before reading any of them', () => {
         Buffer.from(`#! ia 1.0\n#${'c'.repeat(1048576 - 11)}`),
       ]),
     );
-  pinned(root, files);
+  pinned(root, files, packaged);
   vi.mocked(openSync).mockClear();
   expect(outcome(() => readInputs(root))).toMatchObject({
     code: 'IA-DB-SOURCE-UNAVAILABLE',

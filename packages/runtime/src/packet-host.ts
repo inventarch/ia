@@ -39,7 +39,7 @@ export interface HostFile {
  * The words authored host generation renders files of, the word it registers hook groups for, and the words it
  * defines, each union stated once here for the generators, the receipt and their consumers.
  */
-export type GeneratedFileWord = 'agent-profile' | 'playbook';
+export type GeneratedFileWord = 'agent-profile' | 'capability' | 'playbook';
 export type GeneratedRecordWord = GeneratedFileWord | 'hook';
 export type DefinitionWord = 'operation' | 'harness';
 /** The edit tools a hook can declare, in canonical order. */

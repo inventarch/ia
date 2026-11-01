@@ -209,6 +209,54 @@ describe('conformance verification (D10)', () => {
     embedded.close();
     plain.close();
   });
+  it('verifies an edited local floor again, so a byte changed after a verified pass fails COMP-KERNEL', () => {
+    // The embedded floor's exact bytes as a local floor, which verifies to a pass.
+    const root = workspace(false);
+    for (const source of KERNEL_SOURCES) put(root, source.path, source.text);
+    const editor = new EditorDatabase(root, { conformance: 'verify' }),
+      disk = open(root, { conformance: 'verify', cache: false });
+    expect(conformance(editor.current.report)).toEqual(verified('pass'));
+    expect(conformance(disk.report)).toEqual(verified('pass'));
+    const passed = editor.current.report.conformance?.kernel?.floorDigest,
+      [changed] = KERNEL_SOURCES.filter((source) => source.text.includes('says "')),
+      at = changed!.text.indexOf('says "') + 'says "'.length,
+      text = changed!.text.slice(0, at) + (changed!.text[at] === 'w' ? 'y' : 'w') + changed!.text.slice(at + 1);
+    // An unsaved edit, then the same edit on disk: neither keeps the evidence the earlier floor earned.
+    editor.update([{ path: changed!.path, text, version: 1 }]);
+    expect(conformance(editor.current.report)).toEqual(verified('fail'));
+    expect(editor.current.report.outcome).toBe('fail');
+    expect(editor.current.report.conformance?.kernel?.floorDigest).not.toBe(passed);
+    put(root, changed!.path, text);
+    disk.refresh();
+    expect(conformance(disk.report)).toEqual(verified('fail'));
+    expect(disk.report.conformance?.kernel?.floorDigest).not.toBe(passed);
+    editor.close();
+    disk.close();
+  });
+  it('leaves COMP-KERNEL not evaluated, and the report short of a pass, for a floor a verifying reader cannot bind', () => {
+    // A source outside .ia/src/floor/ placed at the floor: compliance cannot tell which floor was verified.
+    const root = workspace(false),
+      path = '.ia/src/notes.ia';
+    put(root, path, '#! ia 1.0\n');
+    const editor = new EditorDatabase(root, {
+        conformance: 'verify',
+        locations: { [path]: { placement: { kind: 'floor', band: 10, reach: '' }, provenance: 'bootstrap' } },
+      }),
+      report = editor.current.report;
+    expect(conformance(report)).toEqual([
+      { check: 'COMP-FIXTURES', outcome: 'pass', basis: 'verified' },
+      { check: 'COMP-KERNEL', outcome: 'not-evaluated' },
+    ]);
+    expect(report.outcome).not.toBe('pass');
+    expect(report.conformance?.kernel).toBeUndefined();
+    expect(report.findings).toContainEqual(
+      expect.objectContaining({
+        code: 'IA-COMP-NOT-EVALUATED',
+        message: `COMP-KERNEL: floor source ${path} has a floor path or a floor placement, not both`,
+      }),
+    );
+    editor.close();
+  });
   it('runs no producer and changes nothing for a reader that does not ask', () => {
     const before = runs(),
       root = workspace(),

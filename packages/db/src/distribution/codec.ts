@@ -136,9 +136,45 @@ export function range(value: unknown): string {
   return v;
 }
 export const satisfies = (v: string, r: string): boolean => semver.satisfies(version(v), range(r));
-/** Released 0.1.0 solvers wrote their exact producer marker; retain those locks within the 0.1 compatibility line. */
+/**
+ * The distribution engine this reader is. 0.1.2 reads a lock's `entries`, whose one kind is the npm package of kits
+ * (`package`); every lock and archive an earlier 0.1 engine reads, it reads unchanged.
+ */
+export const DISTRIBUTION_ENGINE_VERSION = '0.1.2';
+/**
+ * The engine marker an archive descriptor, and a lock with no `entries`, still declares: what 3.x CLIs before the
+ * package entry wrote, so such a lock or archive keeps its bytes and every released 0.1.1 engine still reads it.
+ */
+export const RELEASE_ENGINE_VERSION = '0.1.1';
+/** First engine that reads a lock's `entries`; a lock holding one declares a range no earlier engine satisfies. */
+export const PACKAGE_ENTRY_ENGINE_VERSION = '0.1.2';
+/** The first `@inventarch/cli` release of each engine, for the version a refusal tells an older reader to install. */
+export const ENGINE_RELEASES: Readonly<Record<string, string>> = Object.freeze({
+  '0.1.0': '2.0.0',
+  '0.1.1': '3.0.0',
+  '0.1.2': '3.5.0',
+});
+/** Released solvers wrote their exact producer marker (0.1.0 in 2.x, 0.1.1 in 3.x); each reads as its 0.1 line. */
+const RELEASED_LOCK_MARKERS: ReadonlySet<string> = new Set(['0.1.0', '0.1.1']);
 export const supportsDistributionLockEngine = (engine: string, declared: string): boolean =>
-  satisfies(engine, declared === '0.1.0' ? '^0.1.0' : declared);
+  satisfies(engine, RELEASED_LOCK_MARKERS.has(declared) ? `^${declared}` : declared);
+/**
+ * The engine a lock written by an engine-`reader` solver declares: the marker every released 0.1.1 engine reads, or,
+ * when the lock holds `entries`, the package entry's range. A reader other than this one keeps its own marker.
+ */
+export const lockEngineMarker = (reader: string, entries: boolean): string =>
+  entries
+    ? `^${PACKAGE_ENTRY_ENGINE_VERSION}`
+    : reader === DISTRIBUTION_ENGINE_VERSION
+      ? RELEASE_ENGINE_VERSION
+      : reader;
+/** The `ia` release that first reads `declared`, as `ia >= <version>`, or null when no engine this reader knows does. */
+export function requiredRelease(declared: string): string | null {
+  const first = Object.keys(ENGINE_RELEASES)
+    .sort(semver.compare)
+    .find((engine) => supportsDistributionLockEngine(engine, declared));
+  return first === undefined ? null : `ia >= ${ENGINE_RELEASES[first]}`;
+}
 /** First engine capability that can read a pinned root release-control source. */
 export const ROOT_RELEASE_CONTROL_ENGINE_VERSION = '0.1.1';
 /** Every engine a control archive advertises must support its source profile, including disjoint range branches. */

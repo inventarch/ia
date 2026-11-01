@@ -1,6 +1,6 @@
 {
   "name": "@inventarch/mcp-door",
-  "version": "3.4.1",
+  "version": "3.5.0",
   "type": "module",
   "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
@@ -19,6 +19,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
+    "@inventarch/distribution": "workspace:*",
     "@inventarch/kb": "workspace:*",
     "@inventarch/runtime": "workspace:*"
   },

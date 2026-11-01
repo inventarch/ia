@@ -9,7 +9,7 @@ import type { RevisionSource } from '@inventarch/graph';
 import { DbError } from './errors.js';
 import { OPENS_THROUGH_LINKS, lstatNamed, readOpened } from './named.js';
 import { pathKey, sameFile } from './paths.js';
-import { decodeActivationPointer } from './distribution/contracts.js';
+import { decodeActivationPointer, lockedReleases } from './distribution/contracts.js';
 import type { ActivationPointer, LockedPackage } from './distribution/contracts.js';
 import { readInstalledGeneration } from './distribution/reader.js';
 
@@ -958,7 +958,7 @@ function discover(root: string, supplied: InputOptions, spent: Spent, mount = ''
     ...activation,
     ...authored,
     ...evidence,
-    ...(installed ? { installed: installed.lock.packages } : {}),
+    ...(installed ? { installed: lockedReleases(installed.lock) } : {}),
     fingerprint: createHash('sha256')
       .update(stableSerialize({ sources, folders, floorOrigin, ...activation, ...authored, ...evidence }))
       .digest('hex'),
