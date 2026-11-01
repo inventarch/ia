@@ -1,0 +1,24 @@
+{
+  "format": "ia.fixture-provenance.v1",
+  "license": "Apache-2.0",
+  "source": {
+    "repository": "https://github.com/inventarch/marketplace",
+    "commit": "63f5d75b57b4218c633b56f85f25db28f0ebd4ba",
+    "paths": [
+      "kits/ia-kb"
+    ]
+  },
+  "generator": {
+    "script": "generate.mjs",
+    "steps": [
+      "pnpm build (for apps/cli/dist/main.js)",
+      "node apps/cli/tests/fixtures/kits-package/generate.mjs apps/cli/dist/main.js"
+    ]
+  },
+  "files": {
+    "archives/3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c.ia.tgz": "ia pack of kits/ia-kb (inventarch/ia-kb-kit 0.9.0, from apps/mcp-door/tests/fixtures/method/plugin.json.gz, whose PROVENANCE.json names the marketplace commit above), restored with the CLI's bundled language base: archive 3e9c2330 and manifest b5d85ef3, the digests the kit's releases.json records for 0.9.0.",
+    "archives/3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c.distribution.json": "That archive's manifest, as ia stores it; its file sha256 is the manifest digest (the layout of inventarch/marketplace c3256c2 packages/public-kits).",
+    "kits/ia-kb/": "The kit's sidecars (bindings, checks, delivery), releases.json and releases/*.json, copied unchanged: what the archive lacks.",
+    "package.json.txt": "The package.json of a local stand-in for the unpublished @inventarch/public-kits: name, version 1.0.0, license, files and ia.format 1 with the kit's id, version, archive, manifest, sources (runtime sourcesDigest) and folder. Private, so never published; stored as .txt so no package tooling reads it. install-package.test.ts packs it with the archives into an npm-style tarball."
+  }
+}

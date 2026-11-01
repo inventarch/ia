@@ -1,0 +1,92 @@
+{
+  "format": 2,
+  "kit": "inventarch/ia-kb-kit",
+  "latest": "0.9.0",
+  "releases": [
+    {
+      "version": "0.1.0",
+      "archive": "ff112fdfee5b0cadf230668dc3a637eb73894f83b586855de6ad882e23d12688",
+      "manifest": "2cd16763acc72b42dc8d6868e4add9547fc268aaddd39b1e19fd1a9c69f424a4",
+      "sources": "593c0cd0ccba116c0ef8a07510efbfa276b173afca30782aae1ace2fb1f3bf80",
+      "language": "inventarch/language ^1.2.0",
+      "cli": "@inventarch/cli 2.0.0",
+      "file": "releases/0.1.0.json"
+    },
+    {
+      "version": "0.2.0",
+      "archive": "96b02dcbd87516a34717854fa3d68cfdc423ce1ad8fcefa919ec6c839ff93ee9",
+      "manifest": "21d5fee2e1fb52e16d154f8c98e3f74e187ae9640b29f4397968c49e9f2afbf2",
+      "sources": "1a9bd1c4ef7aca0a23bd77ebcb9c218dda2a4243facc180cd47adb621de37440",
+      "language": "inventarch/language ^3.1.1",
+      "cli": "@inventarch/cli 3.1.1",
+      "file": "releases/0.2.0.json"
+    },
+    {
+      "version": "0.3.0",
+      "archive": "43f88a28c558367403e628e0710d7c9266aa6b63a019bd2e3f0f9adc895a87d6",
+      "manifest": "c095efe845575bcc05edbbdd1aa35daa2aefe3fe92c9fa3db7956f071c4e7f1f",
+      "sources": "2096212ddd7b2d52f37c89889429a9b2805173405a990f95d5722cd7ea2781ba",
+      "language": "inventarch/language ^3.1.1",
+      "cli": "@inventarch/cli 3.1.1",
+      "file": "releases/0.3.0.json"
+    },
+    {
+      "version": "0.4.0",
+      "archive": "607da232894d77a5906c1bb119980e8eeddfdcfb15462ea4de78e98f36e2be49",
+      "manifest": "58ff84f9e63d30d3429aa0558e738f597ee31da0a645f4909859965c68f3a558",
+      "sources": "8b81df24343a0a27c584fb4a7b2e6e938ba4b869fbc6760a60f5a7ad0f30d510",
+      "language": "inventarch/language ^3.1.2",
+      "cli": "@inventarch/cli 3.2.2",
+      "file": "releases/0.4.0.json"
+    },
+    {
+      "version": "0.5.0",
+      "archive": "f2449c51060fde1b78250db67c9d4894bedce4a3e84c8c8864e3bc14363e6c01",
+      "manifest": "47487512681ede06c87f7a2ea636c596d06ed205a91fd7330311b40ea6156623",
+      "sources": "b2ead8f938119d350163c8eb57f3deea1c5a7dc936c0d2baab8488e3a695be6e",
+      "language": "inventarch/language ^3.2.0",
+      "cli": "@inventarch/cli 3.3.0",
+      "file": "releases/0.5.0.json"
+    },
+    {
+      "version": "0.6.0",
+      "archive": "36eae9ebcb1600b64458a655914e26afb1e3612418dc4dcaeafbf52626e15a77",
+      "manifest": "ed09e3684b0acff38c4d29e0775b9fae3dd65cfe71e5239cc3382f3c0de3bfd9",
+      "sources": "2b9f3c73fd63298f1959f33ef5baaf749e423b10395e78d2aa61eb4e1f877aa8",
+      "language": "inventarch/language ^3.2.0",
+      "cli": "@inventarch/cli 3.3.0",
+      "file": "releases/0.6.0.json"
+    },
+    {
+      "version": "0.7.0",
+      "archive": "02e5d8b425d8492334ca5e926d9f613c57c55bc189f61d62a3f97d70178a1484",
+      "manifest": "ebe5e75617c4607c7938681205dd234ebac1a8b337b53e263eb49b65a7cdb7cf",
+      "sources": "4a58207edb75183b3f4aca2baf603c7a8c433e928fc63d159c6a1b0831641796",
+      "language": "inventarch/language ^3.2.0",
+      "cli": "@inventarch/cli 3.3.0",
+      "file": "releases/0.7.0.json"
+    },
+    {
+      "version": "0.8.0",
+      "archive": "627ad953702f64700353cd1324f51369179be6fc2b4d9a114e952668cf4c649a",
+      "manifest": "e01f5399f825385820678e1f9c9098866ecc8daf417c7d0f1dea02ae9c4eb9a1",
+      "sources": "f7acda650e36de13652deedaaba609346d1af87ff472b52dcc6846deedbaf35d",
+      "language": "inventarch/language ^3.2.0",
+      "cli": "@inventarch/cli 3.4.0",
+      "file": "releases/0.8.0.json"
+    },
+    {
+      "version": "0.9.0",
+      "archive": "3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c",
+      "manifest": "b5d85ef321c0ae5cce4dce66e5b51183661d9cf8f863941436df7c77816f8a43",
+      "sources": "e06a6bddabe5a91bb02277c17745cc00a3be49a11e3b04f9bff85c08b94ac07f",
+      "language": "inventarch/language ^3.2.0",
+      "cli": "@inventarch/cli 3.4.1",
+      "file": "releases/0.9.0.json",
+      "source": {
+        "repository": "https://github.com/inventarch/marketplace.git",
+        "commit": "b3f25d39b72abd2350aece52082fba0cd706aad2"
+      }
+    }
+  ]
+}

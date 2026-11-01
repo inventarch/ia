@@ -1106,7 +1106,8 @@ describe('mandate release note evidence', () => {
 it('names the consumers the code has: the CLI mandate profile and the edit guard, and no Door operation (R21)', () => {
   const read = (path: string) => readFileSync(resolve(repository, path), 'utf8');
   const RESOLVER = /\b(?:governingMandates|defaultActor|profileRefusal|evaluateMandateGuard)\(/;
-  // The edit guard calls all three; no other runtime module but the resolver's own does, so no Door operation does.
+  // The edit guard calls all three; besides the resolver's own module only the method tools' per-root check does
+  // (method/root.ts, which the MCP door's ia_session, ia_catalogue and ia_method run), so no Door operation does.
   const guard = read('packages/runtime/src/mandate-guard.ts');
   for (const name of ['governingMandates', 'defaultActor', 'profileRefusal'])
     expect(guard, name).toMatch(new RegExp(`\\b${name}\\(`));
@@ -1116,6 +1117,7 @@ it('names the consumers the code has: the CLI mandate profile and the edit guard
   expect(sources.filter((path) => RESOLVER.test(read(`packages/runtime/src/${path}`))).sort()).toEqual([
     'mandate-guard.ts',
     'mandate-modes.ts',
+    'method/root.ts',
   ]);
   // SPEC R21 and the note, pending or consumed into release history, say so.
   const spec = read('packages/runtime/SPEC.md')

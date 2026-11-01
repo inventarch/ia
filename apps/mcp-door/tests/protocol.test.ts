@@ -107,11 +107,13 @@ it('negotiates the pinned profile, preserves twelve tools and adds five knowledg
   const listed = value.request(message(3, 'tools/list'))?.result as {
     tools: { name: string; annotations: { readOnlyHint: boolean } }[];
   };
-  // The eight version 1 door tools, ia_read, ia_next and ia_position from protocol version 2, and ia_vocabulary.
-  expect(listed.tools).toHaveLength(17);
+  // The eight version 1 door tools, ia_read, ia_next and ia_position from protocol version 2, ia_vocabulary, the five
+  // knowledge tools, then the three method tools.
+  expect(listed.tools).toHaveLength(20);
   expect(listed.tools.map((tool) => tool.name).slice(8, 11)).toEqual(['ia_read', 'ia_next', 'ia_position']);
   expect(listed.tools[11]?.name).toBe('ia_vocabulary');
-  expect(listed.tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
+  expect(listed.tools.slice(0, 17).every((tool) => tool.annotations.readOnlyHint)).toBe(true);
+  expect(listed.tools.slice(17).map((tool) => tool.name)).toEqual(['ia_session', 'ia_catalogue', 'ia_method']);
   expect(listed.tools.some((t) => t.name === 'ia_report')).toBe(false);
   expect(value.request(message(4, 'initialize'))?.error?.code).toBe(-32600);
 });
@@ -500,6 +502,9 @@ it('serves the door operations as the machine protocol table describes them', ()
     'ia_kb_read',
     'ia_kb_resolve',
     'ia_kb_traverse',
+    'ia_session',
+    'ia_catalogue',
+    'ia_method',
   ]);
   expect(
     MACHINE_PROTOCOL.operations.filter((operation) => operation.mcp === null).map((operation) => operation.name),
@@ -540,7 +545,9 @@ it('tells a client wherever it reads about tokens that one can expire and how to
     return parameter === undefined ? [] : [[tool.name, parameter.description] as const];
   });
   expect(within.map(([name]) => name)).toEqual(
-    tools.map((tool) => tool.name).filter((name) => name !== 'ia_vocabulary'),
+    tools
+      .map((tool) => tool.name)
+      .filter((name) => !['ia_vocabulary', 'ia_session', 'ia_catalogue', 'ia_method'].includes(name)),
   );
   for (const [name, description] of within) recovers(description, name);
   const lifetime = MACHINE_PROTOCOL.differences.find((row) => row.topic === 'Token lifetime')!;

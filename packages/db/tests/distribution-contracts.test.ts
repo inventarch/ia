@@ -10,6 +10,11 @@ import {
   decodeGenerationInputs,
   decodeReleaseDescriptor,
   generationDigest,
+  lockEngineMarker,
+  lockedReleases,
+  PACKAGE_ENTRY_ENGINE_VERSION,
+  RELEASE_ENGINE_VERSION,
+  requiredRelease,
   satisfies,
   supportsDistributionLockEngine,
   DISTRIBUTION_ENGINE_VERSION,
@@ -250,12 +255,110 @@ it('binds generation identity to every byte and keeps activation counters separa
     decodeGenerationInputs({ ...inputs, systems: [{ ...inputs.systems[0], selected: 'test/other' }] }),
   ).toThrow();
 });
-it('retains only the released exact lock marker as a legacy 0.1 compatibility line', () => {
-  expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, '0.1.0')).toBe(true);
+it('retains only the released exact lock markers as legacy 0.1 compatibility lines', () => {
+  expect(DISTRIBUTION_ENGINE_VERSION).toBe('0.1.2');
+  for (const marker of ['0.1.0', '0.1.1'])
+    expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, marker)).toBe(true);
+  expect(supportsDistributionLockEngine('0.1.1', '0.1.0')).toBe(true);
   expect(supportsDistributionLockEngine('0.2.0', '0.1.0')).toBe(false);
-  for (const declared of ['0.1.2', '0.2.0', '=0.1.0'])
+  expect(supportsDistributionLockEngine('0.1.0', '0.1.1')).toBe(false);
+  for (const declared of ['0.1.3', '0.2.0', '=0.1.0'])
     expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, declared)).toBe(false);
   expect(supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, '^0.1.0')).toBe(true);
+  expect(supportsDistributionLockEngine(RELEASE_ENGINE_VERSION, `^${PACKAGE_ENTRY_ENGINE_VERSION}`)).toBe(false);
+});
+
+const kitsPackage = {
+  kind: 'package',
+  name: '@inventarch/public-kits',
+  version: '1.0.0',
+  integrity: `sha512-${'A'.repeat(86)}==`,
+  kits: [
+    { id: 'inventarch/ia-authoring-kit', version: '0.4.0', archive: other, manifest: hash, dependencies: [] },
+    { id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: hash, manifest: other, dependencies: [common.id] },
+  ],
+};
+const packaged = { ...lock, engine: `^${PACKAGE_ENTRY_ENGINE_VERSION}`, entries: [kitsPackage] };
+it('reads and writes a lock without entries byte for byte as before, and one with a package entry beside its releases', () => {
+  expect(canonicalDistributionJson(decodeDistributionLock(lock))).toBe(canonicalDistributionJson(lock));
+  expect('entries' in decodeDistributionLock(lock)).toBe(false);
+  expect(decodeDistributionLock(packaged)).toEqual(packaged);
+  expect(canonicalDistributionJson(decodeDistributionLock(canonicalDistributionJson(packaged)))).toBe(
+    canonicalDistributionJson(packaged),
+  );
+  // A solver keeps writing the marker every released 0.1.1 engine reads, unless the lock holds an entry.
+  expect(lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, false)).toBe('0.1.1');
+  expect(lockEngineMarker(DISTRIBUTION_ENGINE_VERSION, true)).toBe('^0.1.2');
+  expect(lockEngineMarker('0.1.0', false)).toBe('0.1.0');
+  expect(requiredRelease('^0.1.2')).toBe('ia >= 3.5.0');
+  expect(requiredRelease('0.1.1')).toBe('ia >= 3.0.0');
+  expect(requiredRelease('^0.2.0')).toBeNull();
+});
+it('installs each kit a package entry names as a release row located by its digest', () => {
+  expect(lockedReleases(decodeDistributionLock(lock))).toEqual(lock.packages);
+  expect(lockedReleases(decodeDistributionLock(packaged)).map((row) => [row.id, row.location, row.manifest])).toEqual([
+    ['inventarch/ia-authoring-kit', `sha256:${other}`, hash],
+    ['inventarch/ia-kb-kit', `sha256:${hash}`, other],
+    [common.id, selected.location, selected.manifest],
+  ]);
+});
+it('reaches a release only a packaged kit depends on, as the language base is beside a package row', () => {
+  // `lock` requests common.id; the entry's kit depends on it, so a lock with no request of its own still reaches it.
+  const viaKit = { ...packaged, requests: [], entries: [{ ...kitsPackage, kits: [kitsPackage.kits[1]] }] };
+  expect(decodeDistributionLock(viaKit).packages).toHaveLength(1);
+  // A release nothing requests and no packaged kit depends on is still unreachable.
+  expect(() =>
+    decodeDistributionLock({ ...viaKit, entries: [{ ...kitsPackage, kits: [kitsPackage.kits[0]] }] }),
+  ).toThrow('Unreachable');
+});
+it('refuses a package entry that is malformed, empty, doubly named or under an engine an older reader admits', () => {
+  for (const patch of [
+    { name: 'Public Kits' },
+    { version: 'latest' },
+    { integrity: 'sha1-abc' },
+    { kits: [] },
+    { kits: [...kitsPackage.kits].reverse() },
+    { kits: [{ id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: hash, dependencies: [] }] },
+    { kits: [{ id: 'inventarch/ia-kb-kit', version: '0.9.0', archive: hash, manifest: 'x', dependencies: [] }] },
+    { kits: [{ ...kitsPackage.kits[1], dependencies: ['test/missing'] }] },
+    { extra: true },
+  ])
+    expect(() => decodeDistributionLock({ ...packaged, entries: [{ ...kitsPackage, ...patch }] })).toThrow(
+      /contract-invalid/,
+    );
+  expect(() => decodeDistributionLock({ ...packaged, entries: [] })).toThrow(/omits the entries field/);
+  expect(() => decodeDistributionLock({ ...packaged, entries: [kitsPackage, kitsPackage] })).toThrow(
+    /sorted and unique/,
+  );
+  for (const engine of ['^0.1.0', '^0.1.1', '0.1.1', '>=0.1.0'])
+    expect(() => decodeDistributionLock({ ...packaged, engine })).toThrow(/declares distribution engine >=0\.1\.2/);
+  const vendored = {
+    ...kitsPackage,
+    kits: [{ id: common.id, version: '0.1.0', archive: hash, manifest: hash, dependencies: [] }],
+  };
+  expect(() => decodeDistributionLock({ ...packaged, entries: [vendored] })).toThrow(/named twice/);
+});
+it('refuses a lock an older reader cannot read by naming the ia that reads it, before any field it does not know', () => {
+  // The engine released in ia 3.4.x (0.1.1) has no such gate: its strict decoder refuses an entries lock as
+  // `Distribution contract-invalid: Unknown, missing or accessor field`. From 0.1.2 on, a reader says which ia it needs.
+  expect(() => decodeDistributionLock(packaged, RELEASE_ENGINE_VERSION)).toThrow(
+    'Distribution engine-incompatible: Lock requires distribution engine ^0.1.2; this reader is 0.1.1. It needs ia >= 3.5.0.',
+  );
+  expect(() => decodeDistributionLock({ ...packaged, engine: '^0.2.0' })).toThrow(
+    /engine-incompatible: Lock requires distribution engine \^0\.2\.0; this reader is 0\.1\.2\. It needs a newer IA/,
+  );
+  const future = { ...packaged, engine: '^0.2.0', registry: {} };
+  expect(() => decodeDistributionLock(future)).toThrow(
+    /engine-incompatible: Lock requires distribution engine \^0\.2\.0/,
+  );
+  // An entry kind this engine does not know is refused as an engine it is not, never ignored.
+  expect(() => decodeDistributionLock({ ...packaged, entries: [{ ...kitsPackage, kind: 'container' }] })).toThrow(
+    'Distribution engine-incompatible: Lock entry kind container is unknown to distribution engine 0.1.2',
+  );
+  // A field no engine of the line knows, under an engine this reader admits, is malformed as before.
+  expect(() => decodeDistributionLock({ ...lock, registry: {} })).toThrow(/Unknown, missing or accessor field/);
+  // A lock of the four 0.1.1 fields whose engine this reader does not support still decodes; its reader refuses it.
+  expect(decodeDistributionLock({ ...lock, engine: '^0.2.0' }).engine).toBe('^0.2.0');
 });
 
 it('shapes an installed-implementation catalog once for its reader and its binders', () => {

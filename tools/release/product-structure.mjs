@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { isEntry } from '../entry/is-entry.mjs';
-import { DISTRIBUTION_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
+import { RELEASE_ENGINE_VERSION } from '../../packages/db/src/distribution/index.js';
 
 import { packOptionalDistribution } from './distribution.mjs';
 
@@ -71,7 +71,7 @@ export function productStructure(root) {
     id: 'inventarch/product-structure',
     version: '0.1.0',
     distribution: 'workspace-system/definition/distribution/product-structure',
-    engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
+    engine: `^${RELEASE_ENGINE_VERSION}`,
     language: ['1.0'],
     assets: [...assets.keys()].sort().map((path) => ({
       path,

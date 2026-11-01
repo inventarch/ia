@@ -1,6 +1,7 @@
 // Host generators over authored records. The CLI's projection writer applies generateHostSet's set.
 export { generateAgentProfiles } from './agent-profile.js';
 export { generatePlaybookSkills } from './playbook.js';
+export { generateCapabilitySkills } from './capability.js';
 export { generateDefinitions, generateHostSet } from './definitions.js';
 export type { HostSet } from './definitions.js';
 export {

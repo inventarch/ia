@@ -66,20 +66,28 @@ export function readUpdateCheck(home: string): UpdateCheck | null {
     return null;
   }
 }
-/** `~/.ia/config.json`, or null when it is absent or unreadable. Never throws and never writes. */
-export function readIaConfig(home: string): { readonly updateCheck?: boolean } | null {
+/**
+ * `~/.ia/config.json`, or null when it is absent or unreadable. Never throws and never writes. Its booleans:
+ * `updateCheck` (default true) and `accountOffer` (default true; false suppresses the `ia` plugin's once-per-session
+ * account offer for this IA home).
+ */
+export function readIaConfig(home: string): { readonly updateCheck?: boolean; readonly accountOffer?: boolean } | null {
   try {
     const text = readHomeFile(home, IA_CONFIG),
       value: unknown = text === null ? null : JSON.parse(text);
     return record(value)
-      ? typeof value['updateCheck'] === 'boolean'
-        ? { updateCheck: value['updateCheck'] }
-        : {}
+      ? {
+          ...(typeof value['updateCheck'] === 'boolean' ? { updateCheck: value['updateCheck'] } : {}),
+          ...(typeof value['accountOffer'] === 'boolean' ? { accountOffer: value['accountOffer'] } : {}),
+        }
       : null;
   } catch {
     return null;
   }
 }
+/** The account offer is on unless the IA home's config.json sets `accountOffer` to false. */
+export const accountOfferEnabled = (config: { readonly accountOffer?: boolean } | null): boolean =>
+  config?.accountOffer !== false;
 /** §11: at most once per 24 h. A timestamp that does not parse, or lies in the future, is due. */
 export const refreshDue = (check: Pick<UpdateCheck, 'checkedAt'> | null, now: Date): boolean => {
   if (check === null) return true;

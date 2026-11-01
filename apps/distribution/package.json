@@ -95,6 +95,11 @@
       "types": "./dist/hosts.d.ts",
       "default": "./dist/hosts.js"
     },
+    "./bootstrap": {
+      "development": "./src/bootstrap.ts",
+      "types": "./dist/bootstrap.d.ts",
+      "default": "./dist/bootstrap.js"
+    },
     "./host-modes": {
       "development": "./src/host-modes.ts",
       "types": "./dist/host-modes.d.ts",
@@ -186,6 +191,10 @@
     "./internal/authoring-assets": {
       "types": "./dist/authoring-assets.d.ts",
       "default": "./dist/authoring-assets.js"
+    },
+    "./internal/bootstrap": {
+      "types": "./dist/bootstrap.d.ts",
+      "default": "./dist/bootstrap.js"
     },
     "./internal/bounded-fetch": {
       "types": "./dist/bounded-fetch.d.ts",
@@ -395,6 +404,10 @@
         "types": "./dist/hosts.d.ts",
         "default": "./dist/hosts.js"
       },
+      "./bootstrap": {
+        "types": "./dist/bootstrap.d.ts",
+        "default": "./dist/bootstrap.js"
+      },
       "./host-modes": {
         "types": "./dist/host-modes.d.ts",
         "default": "./dist/host-modes.js"
@@ -470,6 +483,10 @@
       "./internal/authoring-assets": {
         "types": "./dist/authoring-assets.d.ts",
         "default": "./dist/authoring-assets.js"
+      },
+      "./internal/bootstrap": {
+        "types": "./dist/bootstrap.d.ts",
+        "default": "./dist/bootstrap.js"
       },
       "./internal/bounded-fetch": {
         "types": "./dist/bounded-fetch.d.ts",

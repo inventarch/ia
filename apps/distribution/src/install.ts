@@ -20,6 +20,7 @@ import {
   DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   installationWorkspace,
+  lockedReleases,
   INSTALL_PATHS,
   metadataDigest,
   platformDebris,
@@ -100,7 +101,7 @@ export function cacheSelectedArchiveClosure(
 ): ReadonlyMap<string, VerifiedArchive> {
   const root = workspace(rootInput),
     lock = decodeDistributionLock(lockInput);
-  if (!(input instanceof Map) || input.size !== new Set(lock.packages.map((pkg) => pkg.archive)).size)
+  if (!(input instanceof Map) || input.size !== new Set(lockedReleases(lock).map((pkg) => pkg.archive)).size)
     fail('INPUT-INVALID', 'Expected exact selected archive map');
   const archives = new Map<string, Buffer>();
   let total = 0;
@@ -126,7 +127,7 @@ export function cacheSelectedArchiveClosure(
 function cachedArchiveBytes(root: string, lock: DistributionLock): ReadonlyMap<string, Buffer> {
   let total = 0;
   return new Map(
-    lock.packages.map((pkg) => {
+    lockedReleases(lock).map((pkg) => {
       const content = bytes(root, cachePath(pkg.archive), DISTRIBUTION_LIMITS.compressed);
       if (!content) fail('RESTORE-REQUIRED', `Missing cached archive ${pkg.archive}; supply its exact bytes`);
       total += content.length;
@@ -263,7 +264,7 @@ export function applyInstallation(
       fail('STALE-PLAN', 'Installation bindings changed; create a fresh plan');
     const releases = cachedReleases(root, plan.lock),
       checked = candidate(root, plan.lock, plan.operation);
-    for (const pkg of plan.lock.packages) {
+    for (const pkg of lockedReleases(plan.lock)) {
       const artifact = releases.get(pkg.id)!,
         directory = `${INSTALL_PATHS.store}/${pkg.archive}`;
       for (const [path, content] of artifact.files) {
@@ -391,7 +392,7 @@ export function collectInstallationGarbage(
       referenced = new Set<string>(),
       retained: string[] = [];
     const portable = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata);
-    if (portable) decodeDistributionLock(utf8(portable)).packages.forEach((p) => referenced.add(p.archive));
+    if (portable) lockedReleases(decodeDistributionLock(utf8(portable))).forEach((p) => referenced.add(p.archive));
     const generations = contained(root, INSTALL_PATHS.generations);
     if (existsSync(generations)) {
       const entries = readdirSync(generations, { withFileTypes: true });
@@ -406,7 +407,7 @@ export function collectInstallationGarbage(
           previous: null,
           counter: 1,
         })!;
-        generation.lock.packages.forEach((p) => referenced.add(p.archive));
+        lockedReleases(generation.lock).forEach((p) => referenced.add(p.archive));
         retained.push(entry.name);
       }
     }

@@ -219,7 +219,7 @@ export const COMMANDS: readonly CommandSpec[] = [
       next: 'ia init',
     },
     syntax: [
-      'ia validate [<path>...] [--severity error|warning] [--max-findings <n>] [--verify-conformance] [--actor <agent>] [--json]',
+      'ia validate [<path>...] [--severity error|warning] [--max-findings <n>] [--verify-conformance [--require-verified]] [--actor <agent>] [--json]',
     ],
     grammar: grammar(
       [
@@ -235,6 +235,11 @@ export const COMMANDS: readonly CommandSpec[] = [
           name: 'verify-conformance',
           kind: 'boolean',
           summary: 'Verify COMP-KERNEL and COMP-FIXTURES in-process (package-v1 profile)',
+        }),
+        option({
+          name: 'require-verified',
+          kind: 'boolean',
+          summary: 'With --verify-conformance: exit 1 unless COMP-KERNEL and COMP-FIXTURES are verified passes',
         }),
         ACTOR,
       ],
@@ -619,9 +624,19 @@ export const COMMANDS: readonly CommandSpec[] = [
       'ia install <id>[@<range>]... [--requests <file>] [--registry <url|dir>]',
       '           [--catalog <file>] [--offline] [--plan-out <file>]',
       '           [--apply] [--yes] [--json]',
+      'ia install --package <name>[@<version>] [--offline] [--plan-out <file>] [--apply] [--yes] [--json]',
     ],
     grammar: grammar(
       [
+        // Contract C7b (dec-133): an npm package of kits, recorded as one lock entry; npm is transport only.
+        option({
+          name: 'package',
+          kind: 'value',
+          excludesPositionals: true,
+          conflicts: ['requests', 'registry', 'catalog'],
+          placeholder: '<name>[@<version>]',
+          summary: 'An npm package of IA kit archives, such as @inventarch/public-kits, installed as one lock entry',
+        }),
         option({
           name: 'requests',
           kind: 'value',
@@ -775,7 +790,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     summary: "Plan or apply this workspace's host registration",
     syntax: [
       'ia host <claude|codex|cursor> [--remove] [--context <identity>] [--apply] [--actor <agent>] [--json] [--yes]',
-      'ia host claude --user [--remove] [--apply] [--json] [--yes]',
+      'ia host claude --user [--local] [--remove] [--apply] [--json] [--yes]',
+      'ia host <claude|codex|copilot> --commit [--remove] [--apply] [--actor <agent>] [--json] [--yes]',
     ],
     grammar: grammar(
       [
@@ -784,6 +800,19 @@ export const COMMANDS: readonly CommandSpec[] = [
           kind: 'boolean',
           conflicts: ['context'],
           summary: 'Claude only: user-level plugin; needs no workspace',
+        }),
+        option({
+          name: 'local',
+          kind: 'boolean',
+          conflicts: ['context', 'commit'],
+          summary:
+            'With --user: render the plugin into the IA home instead of installing it from inventarch/marketplace',
+        }),
+        option({
+          name: 'commit',
+          kind: 'boolean',
+          conflicts: ['user', 'context'],
+          summary: 'Write the committable bootstrap: the IA instruction block and the published door entry',
         }),
         option({
           name: 'remove',

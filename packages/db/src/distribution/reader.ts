@@ -4,10 +4,12 @@ import type { RevisionSource } from '@inventarch/graph';
 import { lstatNamed, readOpened } from '../named.js';
 import {
   canonicalDistributionJson,
+  DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   InstallationError,
   metadataDigest,
   portablePath,
+  requiredRelease,
   satisfies,
   supportsDistributionLockEngine,
   sha256,
@@ -18,13 +20,14 @@ import {
   decodeDistributionLock,
   decodeGenerationInputs,
   generationDigest,
+  lockedReleases,
 } from './contracts.js';
 import type { ActivationPointer, DistributionLock, GenerationInputs, LockedPackage } from './contracts.js';
 import { deriveGenerationInputs, installationWorkspace } from './membership.js';
 import type { BundleMetadata } from './membership.js';
 import { verifyReleaseControl } from './release-control.js';
 
-export const DISTRIBUTION_ENGINE_VERSION = '0.1.1';
+export { DISTRIBUTION_ENGINE_VERSION } from './codec.js';
 export const INSTALL_PATHS = Object.freeze({
   lock: '.ia/distributions.lock.json',
   active: '.ia/distributions/active.json',
@@ -35,6 +38,10 @@ export const INSTALL_PATHS = Object.freeze({
 function corrupt(message: string): never {
   throw new InstallationError('corrupt-state', message);
 }
+const needs = (declared: string): string => {
+  const release = requiredRelease(declared);
+  return release === null ? '' : `It needs ${release}. `;
+};
 function requireEngine(declared: string, subject: string, lock = false): void {
   const compatible = lock
     ? supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, declared)
@@ -42,7 +49,7 @@ function requireEngine(declared: string, subject: string, lock = false): void {
   if (!compatible)
     throw new InstallationError(
       'engine-incompatible',
-      `${subject} requires distribution engine ${declared}; this reader is ${DISTRIBUTION_ENGINE_VERSION}. Use a compatible IA installation; preserve the lock and archive engine ranges.`,
+      `${subject} requires distribution engine ${declared}; this reader is ${DISTRIBUTION_ENGINE_VERSION}. ${needs(declared)}Use a compatible IA installation; preserve the lock and archive engine ranges.`,
     );
 }
 function safe(root: string, path: string): string {
@@ -284,7 +291,7 @@ export function readInstalledGeneration(root: string, candidate?: ActivationPoin
     corrupt('Extra generation files');
   const bundles = new Map<string, ExpandedBundle>();
   let remaining = DISTRIBUTION_LIMITS.expanded as number;
-  for (const pkg of lock.packages) {
+  for (const pkg of lockedReleases(lock)) {
     const bundle = readExpandedBundle(root, pkg, remaining);
     remaining -= bundle.manifest.files.reduce((sum, file) => sum + file.bytes, 0);
     bundles.set(pkg.id, bundle);

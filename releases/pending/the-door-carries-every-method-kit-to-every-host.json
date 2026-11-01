@@ -1,0 +1,29 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "The door carries every method kit to every host",
+  "summary": "`@inventarch/runtime/method` reads method kits (releases format 1 and 2, bundled and IA home kits), selects a repository binding and resolves the method packet in process: the packet and digest the `ia` plugin prints. `ia-mcp-door` adds `ia_session`, `ia_catalogue` and `ia_method`, reads kits from `--kits` or `IA_KITS_DIR` and the IA home, acts at its root or a root the format 2 `workspace-locations.json` registry lists (both earlier formats are read), and restores a kit in process with the language base it now carries. `ia host <claude|codex|copilot> --commit` writes a committable bootstrap: an instruction block naming `ia_session` and the three lanes, and an `ia` MCP server running `npx -y @inventarch/mcp-door@<version>`. The position packet gains the session line. A GitHub Copilot host row is added and Codex hooks are marked supported. Workspace projections render one skill per invocable `@capability`, not one per `@playbook`. `ia host claude --user` installs `ia@inventarch` from `inventarch/marketplace`; `--local` keeps the rendered plugin. `config.json` names `accountOffer` beside `updateCheck`. An npm package of kits, such as the default `@inventarch/public-kits`, is installed with `ia install --package <name>[@<version>] --apply` (contract C7b): the lock gains one `package` entry naming the package's exact version and npm integrity and, for each kit, its id, version, IA archive and manifest digests and dependencies, and the engine installs the kits as ordinary releases in `.ia/distributions/store/` at band 90, so closure, drift, `ia validate`, the method resolver and the door treat them as any installed kit. npm is transport only: `ia restore` refetches the archives by digest, offline from npm's cache (`_cacache/content-v2/sha512/…` by the integrity) or through `npm cache add`, and no kit is read from an npm package folder. `ia_session` says to run `ia restore` when the lock installs kits the store lacks. `ia host --commit` writes only the instruction block and the door entry. The distribution lock engine moves to 0.1.2, which reads such entries; a lock without one is read and written byte for byte as before, under the 0.1.1 marker, and archives keep declaring `^0.1.1`. An engine from 0.1.2 on refuses a lock it cannot read naming the `ia` that can (`It needs ia >= 3.5.0`), and an unknown entry kind is refused, never ignored; 3.4 and earlier refuse a lock with entries as a contract error. `ia validate --verify-conformance --require-verified` (opt-in) exits 1 unless COMP-KERNEL and COMP-FIXTURES are verified passes.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/distribution",
+    "@inventarch/mcp-door",
+    "@inventarch/runtime",
+    "@inventarch/workspace-runtime"
+  ],
+  "paths": [
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "apps/cli/",
+    "apps/distribution/",
+    "apps/mcp-door/",
+    "docs/",
+    "packages/db/",
+    "packages/runtime/",
+    "packages/workspace-runtime/",
+    "pnpm-lock.yaml",
+    "tools/"
+  ]
+}

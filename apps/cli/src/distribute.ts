@@ -45,6 +45,7 @@ import {
   decodeDistributionRequests,
   DISTRIBUTION_ENGINE_VERSION,
   INSTALL_PATHS,
+  lockedReleases,
 } from '@inventarch/db/distribution';
 import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
 import { ARCHIVE_CACHE, applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
@@ -96,6 +97,17 @@ import {
   SETTINGS,
 } from './host.js';
 import { codeOf } from './session.js';
+import {
+  acquirePackageArchives,
+  lockWithPackage,
+  npmRunner,
+  packageEntry,
+  packageSpec,
+  packageTarball,
+  sameLock,
+  viewPackage,
+} from './kits-package.js';
+import type { Npm } from './kits-package.js';
 import type { AdviceContext, Capabilities, SymbolName } from './render.js';
 import {
   atom,
@@ -181,11 +193,17 @@ const SYMBOL: Readonly<Record<ChangeRow['kind'], SymbolName>> = {
  */
 export function changeRows(plan: InstallationPlan, previous: DistributionLock | undefined): readonly ChangeRow[] {
   const rows: ChangeRow[] = [];
-  const direct = new Set(plan.lock.requests.map((request) => request.id));
+  // A kit a package entry names is a direct release, as a request is (contract C7b).
+  const installed = lockedReleases(plan.lock),
+    before = previous === undefined ? [] : lockedReleases(previous);
+  const direct = new Set([
+    ...plan.lock.requests.map((request) => request.id),
+    ...(plan.lock.entries ?? []).flatMap((entry) => entry.kits.map((kit) => kit.id)),
+  ]);
   for (const kind of ['added', 'removed', 'updated', 'shadowed'] as const)
     for (const id of plan.changes[kind]) {
-      const locked = plan.lock.packages.find((pkg) => pkg.id === id) ?? previous?.packages.find((pkg) => pkg.id === id);
-      const required = plan.lock.packages
+      const locked = installed.find((pkg) => pkg.id === id) ?? before.find((pkg) => pkg.id === id);
+      const required = installed
         .filter((pkg) => pkg.dependencies.includes(id))
         .map((pkg) => pkg.id)
         .sort()[0];
@@ -429,6 +447,13 @@ export interface PlanRequest {
    * online without `--catalog` — and the caller builds it from the host, because this function never reads the process.
    */
   readonly choose?: ((id: string) => RegistryChoice) | undefined;
+  /**
+   * Contract C7b (`dec-133`): `install --package <name>[@<version>]`, an npm package of kit archives recorded as one lock
+   * entry. npm is transport only; `npm` and `env` find it, and a restore refetches its archives by digest through them.
+   */
+  readonly package?: string;
+  readonly npm?: Npm;
+  readonly env?: Readonly<Record<string, string | undefined>>;
 }
 /** A plan that resolves from registries without a chooser is a caller defect, not a user's refusal. */
 function chooserOf(request: PlanRequest): (id: string) => RegistryChoice {
@@ -598,6 +623,7 @@ function requestReruns(request: PlanRequest): Reruns {
     variant: { readonly ids?: readonly string[]; readonly source?: readonly string[]; readonly online?: boolean } = {},
   ): string => {
     const parts = [`ia ${named}`, ...(variant.ids ?? request.ids).map(quote)];
+    if (named === 'install' && request.package !== undefined) parts.push('--package', quote(request.package));
     if (named === 'update' && to !== undefined) parts.push('--to', quote(to));
     if (request.requestsFile !== undefined) parts.push('--requests', quote(request.requestsFile));
     if (variant.source !== undefined) parts.push(...variant.source);
@@ -617,6 +643,45 @@ function requestReruns(request: PlanRequest): Reruns {
     install: spell('install', { ids: request.ids.map((id) => (to === undefined ? id : `${id}@${to}`)) }),
     inspect: `ia inspect${request.rooted === true ? ` --root ${quote(root)}` : ''}`,
   };
+}
+
+/**
+ * Contract C7b: `install --package`. `npm view` names the exact version, its integrity and kits; the tarball comes
+ * from npm's cache (`npm cache add` unless offline); each kit archive is verified and cached in the workspace; the lock
+ * gains the one package entry, and the installation plan installs the kits as ordinary releases.
+ */
+function planPackage(request: PlanRequest, previous: DistributionLock | undefined, again: string): InstallationPlan {
+  const npm = request.npm ?? npmRunner(request.env ?? {}),
+    env = request.env ?? {};
+  const spec = packageSpec(request.package!, again);
+  const recorded = previous?.entries?.find((entry) => entry.name === spec.name);
+  // Offline, only the version the lock already records can be installed: npm view needs the registry.
+  if (request.offline && (recorded === undefined || (spec.version !== 'latest' && spec.version !== recorded.version)))
+    throw new Refusal(
+      'IA-DIST-RESTORE-REQUIRED',
+      `--offline installs a kits package only at the version the lock records; ${spec.name}@${spec.version} needs npm view`,
+      3,
+      null,
+      `Run "${again.replace(/ --offline\b/, '')}" with npm's registry reachable.`,
+    );
+  const viewed =
+    request.offline && recorded !== undefined
+      ? {
+          name: recorded.name,
+          version: recorded.version,
+          integrity: recorded.integrity,
+          kits: recorded.kits.map(({ id, version, archive, manifest }) => ({ id, version, archive, manifest })),
+        }
+      : viewPackage(npm, spec.name, spec.version, again);
+  const tarball = packageTarball(npm, env, viewed, { offline: request.offline, again });
+  const { entry, archives } = packageEntry(viewed, tarball, again);
+  for (const [digest, bytes] of archives) cacheArchive(request.root, bytes, digest);
+  const lock = lockWithPackage(previous, entry);
+  return planInstallation(
+    request.root,
+    sameLock(previous, lock) ? previous! : lock,
+    previous === undefined ? 'install' : 'update',
+  );
 }
 
 export async function collectPlan(request: PlanRequest): Promise<PlanView> {
@@ -652,6 +717,15 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
   if (operation === 'restore') {
     // One lock is read, and the withdrawal check and the plan both use that same object (registry spec §6.3).
     const lock = readWorkspaceLock({ root });
+    // Contract C7b: a package entry's kit archives are refetched by digest into the workspace cache, from npm's cache
+    // (after `npm cache add` unless offline), so the restore below installs them as it installs every release.
+    if (lock.entries !== undefined)
+      acquirePackageArchives(root, lock, {
+        npm: request.npm ?? npmRunner(request.env ?? {}),
+        env: request.env ?? {},
+        offline: request.offline,
+        again: reruns.again,
+      });
     if (request.packageRoot !== undefined) {
       const base = readBase(request.packageRoot);
       const locked = lock.packages.find((row) => row.id === base.pin.id);
@@ -714,6 +788,8 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
       plan = restored.plan;
       withdrawn = restored.withdrawn;
     }
+  } else if (request.package !== undefined) {
+    plan = planPackage(request, previous, reruns.again);
   } else if (operation === 'remove') {
     plan = planInstallation(
       root,
@@ -952,7 +1028,7 @@ const withdrawnBlocks = (view: PlanView, caps: Capabilities): readonly (readonly
 const wouldWriteBlocks = (view: PlanView, caps: Capabilities): readonly (readonly string[])[] => {
   const { plan } = view;
   const paths = [
-    ...plan.lock.packages.map((pkg) => `${INSTALL_PATHS.store}/${pkg.archive}/`),
+    ...lockedReleases(plan.lock).map((pkg) => `${INSTALL_PATHS.store}/${pkg.archive}/`),
     `${INSTALL_PATHS.generations}/${plan.pointer.generation}/`,
     INSTALL_PATHS.lock,
     INSTALL_PATHS.active,
@@ -1116,6 +1192,7 @@ function invocationOf(
     if (given !== undefined) parts.push(`--${name}`, quote(given));
   };
   if (operation === 'update') value('to');
+  if (operation === 'install') value('package');
   value('requests');
   if (variant.source === undefined) {
     value('registry');
@@ -1184,7 +1261,11 @@ export function runDistribute(operation: Operation): (context: Context) => Promi
     // before acquisition, the saved plan and the question too, so nothing is fetched for an apply that cannot finish.
     const refresh = registeredProjections(root, operation);
     if (args.flag('apply')) requireProjectionsClean(root, refresh, rooted);
+    const kitsPackage = operation === 'install' ? args.value('package') : undefined;
     const planned = await collectPlan({
+      ...(kitsPackage === undefined ? {} : { package: kitsPackage }),
+      npm: npmRunner(host.env),
+      env: host.env,
       packageRoot: host.packageRoot,
       signal: host.signal,
       root,

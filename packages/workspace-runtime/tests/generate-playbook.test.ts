@@ -11,6 +11,7 @@ import { copyPublicLanguageFixture } from '../../../tools/native/public-fixture.
 import {
   generateAgentProfiles,
   generateDefinitions,
+  generateCapabilitySkills,
   generateHostSet,
   generateHooks,
   generateHookSet,
@@ -28,6 +29,13 @@ const repository = resolve(import.meta.dirname, '../../..'),
   NATIVE = resolve(repository, 'examples/conformance/native'),
   PLAYBOOK = readFileSync(resolve(FIXTURE, 'playbook.ia'), 'utf8'),
   IDENTITY = 'governance-system/definition/procedure/note-review',
+  CAPABILITY = 'agent-composition-system/definition/capability/note-review',
+  /** The fixture's capability made invocable under the playbook's name: the host set's one skill (C′). */
+  INVOCABLE = {
+    '.ia/src/composition.ia': readFileSync(resolve(FIXTURE, 'composition.ia'), 'utf8')
+      .replaceAll('@capability note-reading', '@capability note-review')
+      .replace('    effects [read]\n', '    effects [read]\n  invocation\n    mode model\n'),
+  },
   temporary = mkdtempSync(join(tmpdir(), 'ia-generate-')),
   handles: Handle[] = [];
 afterEach(() => {
@@ -263,7 +271,7 @@ const HARNESS = 'agent-composition-system/definition/harness/note-workspace',
   HOOK = 'hook-authoring-system/binding/hook/note-edits';
 
 it('renders operation and harness definitions without importing a handler or validator', () => {
-  const { db, within } = fixture();
+  const { db, within } = fixture(INVOCABLE);
   const definitions = generateDefinitions(db, within, 'claude');
   expect(definitions).toEqual([
     {
@@ -290,7 +298,7 @@ it('renders operation and harness definitions without importing a handler or val
         bindings: ['agent-composition-system/binding/execution-binding/notes-hook'],
         registrations: {
           agents: [{ identity: PROFILE, path: '.claude/agents/reviewer.md' }],
-          skills: [{ identity: IDENTITY, path: '.claude/skills/note-review/SKILL.md' }],
+          skills: [{ identity: CAPABILITY, path: '.claude/skills/note-review/SKILL.md' }],
           hooks: [
             {
               identity: HOOK,
@@ -306,7 +314,7 @@ it('renders operation and harness definitions without importing a handler or val
   ]);
   // Codex registers no agent or hook, so its harness selects only the skill.
   expect(harnesses(generateDefinitions(db, within, 'codex')).map((row) => row.definition.registrations)).toEqual([
-    { agents: [], skills: [{ identity: IDENTITY, path: '.agents/skills/note-review/SKILL.md' }], hooks: [] },
+    { agents: [], skills: [{ identity: CAPABILITY, path: '.agents/skills/note-review/SKILL.md' }], hooks: [] },
   ]);
 });
 
@@ -365,6 +373,8 @@ it('selects the skills of included capabilities, and only what its own profiles 
     '    playbooks [@playbook included-review]',
     '  execution',
     '    effects [read]',
+    '  invocation',
+    '    mode model',
     '',
     '@capability outer',
     '  meaning',
@@ -399,10 +409,10 @@ it('selects the skills of included capabilities, and only what its own profiles 
     '    host-profile claude-prose',
     '',
   ].join('\n');
-  const { db, within } = fixture({ '.ia/src/extra.ia': extra });
+  const { db, within } = fixture({ '.ia/src/extra.ia': extra, ...INVOCABLE });
   const scribe = 'agent-composition-system/binding/agent-profile/scribe';
-  // outer includes inner: the scribe selects inner's playbook through outer, and neither the
-  // fixture's reviewer, its playbook and hook, nor the unrelated playbook.
+  // outer includes inner: the scribe selects inner's skill through outer (outer states no invocation, so it has none),
+  // and neither the fixture's reviewer, its capability's skill and hook, nor the unrelated playbook.
   expect(
     harnesses(generateDefinitions(db, within, 'claude')).find((row) => row.definition.name === 'scribe-only')!
       .definition,
@@ -417,8 +427,8 @@ it('selects the skills of included capabilities, and only what its own profiles 
       agents: [{ identity: scribe, path: '.claude/agents/scribe.md' }],
       skills: [
         {
-          identity: 'governance-system/definition/procedure/included-review',
-          path: '.claude/skills/included-review/SKILL.md',
+          identity: 'agent-composition-system/definition/capability/inner',
+          path: '.claude/skills/inner/SKILL.md',
         },
       ],
       hooks: [],
@@ -427,6 +437,7 @@ it('selects the skills of included capabilities, and only what its own profiles 
   // With inner including outer, a cycle the composition compiler refuses, the scribe renders no agent and selects no
   // skill.
   const cycle = fixture({
+    ...INVOCABLE,
     '.ia/src/extra.ia': extra.replace(
       '    playbooks [@playbook included-review]\n',
       '    playbooks [@playbook included-review]\n    includes [@capability outer]\n',
@@ -443,7 +454,7 @@ it('selects the skills of included capabilities, and only what its own profiles 
       .registrations,
   ).toEqual({
     agents: [{ identity: PROFILE, path: '.claude/agents/reviewer.md' }],
-    skills: [{ identity: IDENTITY, path: '.claude/skills/note-review/SKILL.md' }],
+    skills: [{ identity: CAPABILITY, path: '.claude/skills/note-review/SKILL.md' }],
     hooks: [
       {
         identity: HOOK,
@@ -458,13 +469,14 @@ it('selects the skills of included capabilities, and only what its own profiles 
 
 it('computes the host set once, so what it applies is exactly what its harness definitions register', () => {
   const { db, within } = fixture({
+    ...INVOCABLE,
     '.ia/src/extra-hooks.ia':
       '#! ia 1.0\n\n@hook session-start\n  meaning\n    says "Runs at session start."\n    answers "What runs at session start?"\n  hook\n    event Stop\n    tools [Write]\n    paths ["docs/**"]\n    message "Not an edit guard."\n',
   });
   for (const host of ['claude', 'codex'] as const) {
     const set = generateHostSet(db, within, host),
       agents = generateAgentProfiles(db, within, host),
-      skills = generatePlaybookSkills(db, within, host),
+      skills = generateCapabilitySkills(db, within, host),
       hooks = generateHookSet(db, within, host);
     expect(set.files, host).toEqual([...agents.files, ...skills.files]);
     expect(set.hooks, host).toEqual(hooks.hooks);
@@ -636,4 +648,36 @@ it('writes cell text as the packet writes free text, each IA word a code span an
       '- Learning (primary): Record each `@task` the review did not check, not a@b.c. &lt;!-- hidden\n',
     ),
   ).toBe(true);
+});
+
+it('renders one skill per invocable capability, by the plugin product rule, and none per playbook', () => {
+  const extra = (mode: string, more = '') =>
+    `#! ia 1.0\n\n@capability note-filing\n  meaning\n    says "Files a note."\n    answers "Which capability files a note?"\n  composition\n    playbooks [@playbook note-review]\n  execution\n    effects [read]\n  invocation\n    mode ${mode}\n    argument-hint "[note]"\n${more}`;
+  const { db, within } = fixture({ ...INVOCABLE, '.ia/src/extra.ia': extra('user') });
+  const set = generateCapabilitySkills(db, within, 'claude');
+  expect(set.files.map((file) => [file.word, file.identity, file.path])).toEqual([
+    ['capability', 'agent-composition-system/definition/capability/note-filing', '.claude/skills/note-filing/SKILL.md'],
+    ['capability', CAPABILITY, '.claude/skills/note-review/SKILL.md'],
+  ]);
+  const filing = set.files[0]!.text;
+  expect(filing.startsWith('---\nname: "note-filing"\ndescription: "Files a note."\n')).toBe(true);
+  expect(filing).toContain('disable-model-invocation: true\nargument-hint: "[note]"\n---\n');
+  expect(filing).toContain(`- playbook \`${IDENTITY}\``);
+  expect(filing).toContain('- Memory (primary): Recall the findings already reported on the note.');
+  expect(set.files[1]!.text).not.toContain('disable-model-invocation');
+  const none = fixture({ ...INVOCABLE, '.ia/src/extra.ia': extra('none') });
+  expect(generateCapabilitySkills(none.db, none.within, 'codex').files.map((file) => file.path)).toEqual([
+    '.agents/skills/note-review/SKILL.md',
+  ]);
+  const delegated = fixture({ '.ia/src/extra.ia': extra('delegated', '    agent @agent reviewer\n') });
+  expect(generateCapabilitySkills(delegated.db, delegated.within, 'claude')).toEqual({
+    files: [],
+    unsupported: [
+      {
+        identity: 'agent-composition-system/definition/capability/note-filing',
+        word: 'capability',
+        reason: 'delegated skills are not rendered by this version of ia',
+      },
+    ],
+  });
 });

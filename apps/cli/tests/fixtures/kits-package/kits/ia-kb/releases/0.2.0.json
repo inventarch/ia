@@ -1,0 +1,393 @@
+{
+  "format": 2,
+  "kit": "inventarch/ia-kb-kit",
+  "version": "0.2.0",
+  "archive": "96b02dcbd87516a34717854fa3d68cfdc423ce1ad8fcefa919ec6c839ff93ee9",
+  "records": [
+    {
+      "system": "ia-kb",
+      "word": "agent-profile",
+      "name": "kb-curator-profile"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent-profile",
+      "name": "kb-custodian-profile"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent-profile",
+      "name": "kb-gate-runner-profile"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent-profile",
+      "name": "kb-librarian-profile"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent-profile",
+      "name": "kb-reviewer-profile"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent",
+      "name": "ia-kb-steward"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent",
+      "name": "kb-curator"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent",
+      "name": "kb-custodian"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent",
+      "name": "kb-gate-runner"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent",
+      "name": "kb-librarian"
+    },
+    {
+      "system": "ia-kb",
+      "word": "agent",
+      "name": "kb-reviewer"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-bind-document"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-check"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-cross-repository-reference"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-gates"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-knowledge"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-maintain-agents"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-maintain-document"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-migrate"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-place-content"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-propose-vocabulary"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-reconcile"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-retrieve"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-review"
+    },
+    {
+      "system": "ia-kb",
+      "word": "capability",
+      "name": "kb-update-kit"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-01-failure"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-01-success"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-02-failure"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-02-success"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-03-failure"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-03-success"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-04-failure"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-04-success"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-05-failure"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-05-success"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-06-failure"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-06-success"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-07-failure"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-07-success"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-08-failure"
+    },
+    {
+      "system": "ia-kb",
+      "word": "case",
+      "name": "kb-req-08-success"
+    },
+    {
+      "system": "ia-kb",
+      "word": "check",
+      "name": "ia-kb-coverage"
+    },
+    {
+      "system": "ia-kb",
+      "word": "check",
+      "name": "kb-check-locators"
+    },
+    {
+      "system": "ia-kb",
+      "word": "check",
+      "name": "kb-check-validate"
+    },
+    {
+      "system": "ia-kb",
+      "word": "contract",
+      "name": "ia-kb"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-cross-repository-locators"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-document-binding"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-evidence-reporting"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-host-adaptation"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-ia-reads"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-lifecycle"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-maintenance-boundaries"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-placement"
+    },
+    {
+      "system": "ia-kb",
+      "word": "convention",
+      "name": "kb-role-briefs"
+    },
+    {
+      "system": "ia-kb",
+      "word": "distribution",
+      "name": "ia-kb-distribution"
+    },
+    {
+      "system": "ia-kb",
+      "word": "law",
+      "name": "kb-disclosure-boundary"
+    },
+    {
+      "system": "ia-kb",
+      "word": "law",
+      "name": "kb-exact-pins"
+    },
+    {
+      "system": "ia-kb",
+      "word": "law",
+      "name": "kb-not-evaluated-is-not-pass"
+    },
+    {
+      "system": "ia-kb",
+      "word": "law",
+      "name": "kb-one-canonical-writer"
+    },
+    {
+      "system": "ia-kb",
+      "word": "law",
+      "name": "kb-reviewer-independence"
+    },
+    {
+      "system": "ia-kb",
+      "word": "mandate",
+      "name": "ia-kb-checker-mandate"
+    },
+    {
+      "system": "ia-kb",
+      "word": "mandate",
+      "name": "ia-kb-reader-mandate"
+    },
+    {
+      "system": "ia-kb",
+      "word": "mandate",
+      "name": "ia-kb-worker-mandate"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-bind-document"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-check"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-cross-repository-reference"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-knowledge"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-maintain-agents"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-maintain-document"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-migrate"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-place-content"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-propose-vocabulary"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-reconcile"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-retrieval"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-review"
+    },
+    {
+      "system": "ia-kb",
+      "word": "playbook",
+      "name": "kb-update-kit"
+    },
+    {
+      "system": "ia-kb",
+      "word": "system",
+      "name": "ia-kb"
+    }
+  ]
+}
