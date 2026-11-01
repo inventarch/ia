@@ -36,10 +36,13 @@ export interface KnowledgePackage {
   readonly associations: readonly ResourceAssociation[];
   readonly digest: string;
 }
-export function verifySelection(input: unknown): KnowledgeSelection {
+export function verifySelection(input: unknown, capture = false): KnowledgeSelection {
+  const limit = capture
+    ? { records: LIMITS.captureRecords, files: LIMITS.captureFiles, bytes: LIMITS.captureSelectionBytes }
+    : { records: LIMITS.records, files: LIMITS.files, bytes: LIMITS.selectionBytes };
   let parsed: unknown;
   try {
-    parsed = data(input, 64 * 1024);
+    parsed = data(input, limit.bytes);
   } catch (error) {
     if (error instanceof SyntaxError) return fail('Knowledge selection is not valid JSON');
     throw error;
@@ -50,16 +53,16 @@ export function verifySelection(input: unknown): KnowledgeSelection {
   if (
     !Array.isArray(s.records) ||
     !s.records.length ||
-    s.records.length > 1000 ||
     s.records.some((id) => typeof id !== 'string' || !/^[a-z][a-z0-9-]*(\/[a-z][a-z0-9-]*){3}$/.test(id))
   )
     fail('Full native record identities required');
+  if (s.records.length > limit.records) fail('Knowledge selection record limit exceeded');
   if (
     !Array.isArray(s.resources) ||
-    s.resources.length > LIMITS.files ||
     s.resources.some((path) => typeof path !== 'string' || path.startsWith('.ia/') || selectedPath(path) !== path)
   )
     fail('Explicit body resource paths required');
+  if (s.resources.length > limit.files) fail('Knowledge selection resource limit exceeded');
   if (
     new Set(s.records).size !== s.records.length ||
     new Set(s.resources.map((p) => p.toLowerCase())).size !== s.resources.length
@@ -90,7 +93,7 @@ export function verifyPackage(input: unknown): KnowledgePackage {
   verifySelection(p.selection);
   if (p.selection.sourceId !== p.provenance.sourceId) fail('Source selection mismatch');
   verifyFiles(p.files, false, true);
-  if (!Array.isArray(p.associations) || p.associations.length > 1000) fail('Invalid resource associations');
+  if (!Array.isArray(p.associations) || p.associations.length > LIMITS.records) fail('Invalid resource associations');
   const { digest: pin, ...body } = p;
   if (digest(body) !== pin) fail('Knowledge package digest mismatch');
   return frozen(p);

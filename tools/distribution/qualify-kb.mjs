@@ -195,6 +195,84 @@ try {
     windowsHide: true,
     timeout: 120000,
   });
+  // Past the package limits: the local tools read this selection and export refuses it.
+  const wideCount = 1001,
+    wideFiles = 200,
+    wideId = (i) => 'work-system/contract/spec/wide-' + i;
+  mkdirSync(join(workspace, 'docs/wide'));
+  for (let i = 0; i < wideFiles; i++) writeFileSync(join(workspace, 'docs/wide', i + '.md'), 'Wide body ' + i + '\n');
+  writeFileSync(
+    join(workspace, '.ia/src/wide.ia'),
+    '#! ia 1.0\n' +
+      Array.from(
+        { length: wideCount },
+        (_, i) =>
+          '@spec wide-' +
+          i +
+          '\n  meaning\n    says "Wide record."\n  work\n    title "Wide"\n    status draft\n    source "docs/wide/' +
+          (i % wideFiles) +
+          '.md"\n',
+      ).join('\n'),
+  );
+  writeFileSync(
+    join(workspace, '.ia/knowledge.json'),
+    JSON.stringify({
+      format: 'ia.kb.selection.v1',
+      sourceId: 'example',
+      records: Array.from({ length: wideCount }, (_, i) => wideId(i)),
+      resources: Array.from({ length: wideFiles }, (_, i) => 'docs/wide/' + i + '.md'),
+    }),
+  );
+  const wideCheck = kb(['check']);
+  assert.equal(wideCheck.ok, true);
+  assert.equal(wideCheck.value.records, wideCount);
+  const wideRead = kb(['read', wideId(wideCount - 1)]);
+  assert.equal(wideRead.value.body, 'Wide body ' + ((wideCount - 1) % wideFiles) + '\n');
+  const wideRpc = execFileSync(
+    process.execPath,
+    ['--import', pathToFileURL(join(consumer, 'offline.mjs')).href, mcp, '--root', workspace],
+    {
+      cwd: consumer,
+      env,
+      input:
+        [
+          messages[0],
+          messages[1],
+          { ...messages[2], params: { name: 'ia_kb_read', arguments: { locator: wideId(wideCount - 1) } } },
+        ]
+          .map((m) => JSON.stringify(m))
+          .join('\n') + '\n',
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 120000,
+      maxBuffer: 1024 * 1024,
+    },
+  )
+    .trim()
+    .split('\n')
+    .map(JSON.parse);
+  assert.deepEqual(wideRpc.find((m) => m.id === 2).result.structuredContent, wideRead);
+  git('add', '--', '.ia/src', '.ia/knowledge.json', 'docs');
+  git(
+    '-c',
+    'user.name=Qualification',
+    '-c',
+    'user.email=qualification@example.invalid',
+    'commit',
+    '--quiet',
+    '-m',
+    'Wide knowledge',
+  );
+  const widePack = invoke(
+    ['kb', 'pack', '--commit', git('rev-parse', 'HEAD'), '--selection', '.ia/knowledge.json', '--out', output].concat([
+      '--root',
+      workspace,
+      '--json',
+    ]),
+    1,
+  );
+  assert.equal(widePack.code, 'IA-KB-INVALID');
+  assert.equal(widePack.message, 'Knowledge selection record limit exceeded');
   assert.equal(existsSync(join(workspace, '.kb')), false);
   const report = {
     format: 'ia.kb.qualification.v1',
@@ -211,6 +289,8 @@ try {
       'CLI/MCP parity',
       'read immutability',
       'committed pack preview/apply',
+      'capture past the package limits',
+      'pack refuses a selection past them',
       'no overwrite',
       'installed import',
     ],

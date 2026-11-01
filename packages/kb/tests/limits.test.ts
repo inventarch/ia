@@ -4,9 +4,10 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Foundation } from '../src/foundation.js';
-import { digest, LIMITS } from '../src/format.js';
+import { digest, hash, LIMITS } from '../src/format.js';
 import { captureKnowledge } from '../src/local.js';
-import { selectableKnowledgeRecord } from '../src/selection.js';
+import { readKnowledgeSelection, selectableKnowledgeRecord } from '../src/selection.js';
+import { verifySelection } from '../src/package.js';
 import type { KnowledgeSelection } from '../src/package.js';
 import { executeKnowledge } from '../src/protocol.js';
 import { openKnowledgeView } from '../src/view.js';
@@ -52,6 +53,25 @@ const outcome = (root: string, options: { selection?: KnowledgeSelection } = {})
   const snapshot = captureKnowledge(root, { input, ...options });
   return { records: snapshot.records.length, unavailable: snapshot.unavailable.map((u) => u.code) };
 };
+const listing = (count: number): KnowledgeSelection => ({
+  format: 'ia.kb.selection.v1',
+  sourceId: 'example',
+  records: Array.from({ length: count }, (_, i) => identity(i)),
+  resources: [],
+});
+
+it('pins the format limits and the wider capture limits', () => {
+  expect(LIMITS).toMatchObject({
+    records: 1000,
+    files: 100,
+    selectedBytes: 8 * 1024 * 1024,
+    selectionBytes: 64 * 1024,
+    captureRecords: 5000,
+    captureFiles: 1000,
+    captureBytes: 40 * 1024 * 1024,
+    captureSelectionBytes: 512 * 1024,
+  });
+});
 
 it.each([
   ['authored', '.ia/src/notes.ia', identity(0), true],
@@ -102,25 +122,151 @@ it('reads a body of exactly the file byte limit and refuses one byte more', () =
 
 it('reads exactly the file limit across native and body files and refuses the next body', () => {
   const root = workspace();
-  // One native file plus 99 bodies is exactly LIMITS.files.
-  bound(root, LIMITS.files - 1, () => 1);
-  expect(outcome(root)).toEqual({ records: LIMITS.files - 1, unavailable: [] });
-  bound(root, LIMITS.files, () => 1);
-  expect(outcome(root)).toMatchObject({ records: LIMITS.files - 1, unavailable: [expect.any(String)] });
+  // One native file plus 999 bodies is exactly LIMITS.captureFiles.
+  bound(root, LIMITS.captureFiles - 1, () => 1);
+  expect(outcome(root)).toEqual({ records: LIMITS.captureFiles - 1, unavailable: [] });
+  bound(root, LIMITS.captureFiles, () => 1);
+  expect(outcome(root)).toMatchObject({ records: LIMITS.captureFiles - 1, unavailable: [expect.any(String)] });
 });
 
-it('admits exactly LIMITS.files native files and refuses one more before reading bodies', () => {
-  const root = workspace();
-  for (let i = 0; i < LIMITS.files; i++)
+it('admits exactly LIMITS.captureFiles native files and refuses one more before reading bodies', () => {
+  const root = workspace(),
+    limit = LIMITS.captureFiles;
+  for (let i = 0; i < limit; i++)
     writeFileSync(join(root, '.ia/src', name(i) + '.ia'), '#! ia 1.0\n' + record(i, 'Record.'));
-  expect(captureKnowledge(root, { input }).records).toHaveLength(LIMITS.files);
-  writeFileSync(join(root, '.ia/src', name(LIMITS.files) + '.ia'), '#! ia 1.0\n' + record(LIMITS.files, 'Record.'));
+  expect(captureKnowledge(root, { input }).records).toHaveLength(limit);
+  writeFileSync(join(root, '.ia/src', name(limit) + '.ia'), '#! ia 1.0\n' + record(limit, 'Record.'));
   expect(() => captureKnowledge(root, { input })).toThrow('Knowledge selection exceeds capture budget');
 });
 
-it('reads exactly the selected byte budget and refuses one byte more', () => {
+it('admits a capture selection of exactly LIMITS.captureRecords records and refuses one more', () => {
+  expect(verifySelection(listing(LIMITS.captureRecords), true).records).toHaveLength(LIMITS.captureRecords);
+  expect(() => verifySelection(listing(LIMITS.captureRecords + 1), true)).toThrow(
+    'Knowledge selection record limit exceeded',
+  );
+});
+
+it('admits a package selection of exactly LIMITS.records records and refuses one more', () => {
+  expect(verifySelection(listing(LIMITS.records)).records).toHaveLength(LIMITS.records);
+  expect(() => verifySelection(listing(LIMITS.records + 1))).toThrow('Knowledge selection record limit exceeded');
+});
+
+it.each([
+  ['capture', true, LIMITS.captureFiles],
+  ['package', false, LIMITS.files],
+] as const)(
+  'admits a %s selection of exactly its file limit in resources and refuses one more',
+  (_, capture, limit) => {
+    const resources = (count: number) => ({
+      ...listing(1),
+      resources: Array.from({ length: count }, (_, i) => 'bodies/' + name(i) + '.md'),
+    });
+    expect(verifySelection(resources(limit), capture).resources).toHaveLength(limit);
+    expect(() => verifySelection(resources(limit + 1), capture)).toThrow('Knowledge selection resource limit exceeded');
+  },
+);
+
+it('admits a package selection of exactly LIMITS.selectionBytes and refuses one byte more', () => {
+  const json = JSON.stringify(listing(1)),
+    padded = (bytes: number) => json + ' '.repeat(bytes - Buffer.byteLength(json));
+  expect(verifySelection(padded(LIMITS.selectionBytes)).records).toEqual([identity(0)]);
+  expect(() => verifySelection(padded(LIMITS.selectionBytes + 1))).toThrow('JSON byte limit exceeded');
+});
+
+it('reads a selection file listing every capture record, past the package byte limit', () => {
   const root = workspace(),
-    count = LIMITS.selectedBytes / LIMITS.fileBytes;
+    json = JSON.stringify(listing(LIMITS.captureRecords));
+  expect(Buffer.byteLength(json)).toBeGreaterThan(LIMITS.selectionBytes);
+  writeFileSync(join(root, '.ia/knowledge.json'), json);
+  expect(readKnowledgeSelection(root)?.records).toHaveLength(LIMITS.captureRecords);
+});
+
+it('captures a selection file above the package record limit', () => {
+  const root = workspace(),
+    count = LIMITS.records + 1;
+  writeFileSync(
+    join(root, '.ia/src/notes.ia'),
+    '#! ia 1.0\n' + Array.from({ length: count }, (_, i) => record(i, 'Record.')).join('\n'),
+  );
+  writeFileSync(join(root, '.ia/knowledge.json'), JSON.stringify(listing(count)));
+  expect(captureKnowledge(root, { input }).records).toHaveLength(count);
+});
+
+it('reads a selection file of exactly LIMITS.captureSelectionBytes and refuses one byte more', () => {
+  const root = workspace(),
+    json = JSON.stringify(listing(1));
+  const write = (bytes: number) =>
+    writeFileSync(join(root, '.ia/knowledge.json'), json + ' '.repeat(bytes - Buffer.byteLength(json)));
+  write(LIMITS.captureSelectionBytes);
+  expect(readKnowledgeSelection(root)?.records).toEqual([identity(0)]);
+  write(LIMITS.captureSelectionBytes + 1);
+  expect(() => readKnowledgeSelection(root)).toThrow();
+});
+
+it('captures exactly LIMITS.captureRecords records without a selection and refuses one more', () => {
+  const root = workspace(),
+    write = (count: number) =>
+      writeFileSync(
+        join(root, '.ia/src/notes.ia'),
+        '#! ia 1.0\n' + Array.from({ length: count }, (_, i) => record(i, 'Record.')).join('\n'),
+      );
+  write(LIMITS.captureRecords);
+  expect(captureKnowledge(root, { input }).records).toHaveLength(LIMITS.captureRecords);
+  write(LIMITS.captureRecords + 1);
+  expect(() => captureKnowledge(root, { input })).toThrow('Knowledge selection exceeds capture budget');
+});
+
+it('captures every capture record bound to one large document', () => {
+  const root = workspace(),
+    text = 'x'.repeat(128 * 1024);
+  writeFileSync(join(root, 'shared.md'), text);
+  writeFileSync(
+    join(root, '.ia/src/notes.ia'),
+    '#! ia 1.0\n' +
+      Array.from({ length: LIMITS.captureRecords }, (_, i) => record(i, 'Record.', 'shared.md')).join('\n'),
+  );
+  const snapshot = captureKnowledge(root, { input });
+  expect(snapshot.records).toHaveLength(LIMITS.captureRecords);
+  expect(snapshot.records.at(-1)).toMatchObject({ body: text, bodySha256: hash(text) });
+  const changed = 'y'.repeat(text.length);
+  writeFileSync(join(root, 'shared.md'), changed);
+  expect(captureKnowledge(root, { input }).digest).not.toBe(snapshot.digest);
+}, 120000);
+
+it('admits a knowledge scope of exactly LIMITS.captureRecords identities and refuses one more', () => {
+  const root = workspace(),
+    ids = (count: number) => Array.from({ length: count }, (_, i) => identity(i));
+  writeFileSync(join(root, '.ia/src/notes.ia'), '#! ia 1.0\n' + record(0, 'Record.'));
+  expect(captureKnowledge(root, { input, identities: ids(LIMITS.captureRecords) }).records).toHaveLength(1);
+  expect(() => captureKnowledge(root, { input, identities: ids(LIMITS.captureRecords + 1) })).toThrow(
+    'Invalid knowledge scope',
+  );
+});
+
+it('gives each record of one file its own lines and the whole file hash', () => {
+  const root = workspace(),
+    text = '#! ia 1.0\n' + record(0, 'First.') + '\n' + record(1, 'Second.');
+  writeFileSync(join(root, '.ia/src/notes.ia'), text);
+  const { records } = captureKnowledge(root, { input });
+  expect(records.map((r) => [r.identity, r.recordText, r.recordSha256])).toEqual([
+    [identity(0), record(0, 'First.').trimEnd(), hash(text)],
+    [identity(1), record(1, 'Second.').trimEnd(), hash(text)],
+  ]);
+});
+
+it('reads native bytes past the package byte limit', () => {
+  const root = workspace(),
+    // A captured source may not pass the file limit, record syntax included.
+    says = LIMITS.fileBytes - 1024,
+    count = Math.ceil(LIMITS.selectedBytes / says);
+  for (let i = 0; i < count; i++)
+    writeFileSync(join(root, '.ia/src', name(i) + '.ia'), '#! ia 1.0\n' + record(i, 'x'.repeat(says)));
+  expect(captureKnowledge(root, { input }).records).toHaveLength(count);
+});
+
+it('reads exactly the capture byte budget and refuses one byte more', () => {
+  const root = workspace(),
+    count = LIMITS.captureBytes / LIMITS.fileBytes;
   // Native bytes count toward the budget, so the last body takes what the native file left.
   const native = Buffer.byteLength(bound(root, count, () => 1));
   const fill = (extra: number) => (i: number) =>

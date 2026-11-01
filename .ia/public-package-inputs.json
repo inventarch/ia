@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "05e41c67bd25fe82fefe7e8b9b6dfe147ac3d435",
-    "tree": "ea41c24678d98230025c239414a319e45aeb9c96",
+    "commit": "6471f00661d6878cfc3fc6657f3299d122037424",
+    "tree": "b81e0d09ddd5d75b46d628dbf58c4b5fc3732737",
     "dirty": true
   },
   "membership": {
@@ -2316,7 +2316,7 @@
     },
     {
       "path": "apps/mcp-door/src/kb.ts",
-      "sha256": "2ae2cffeb15344492000218d4c20b61f7764d9629f610888be9a5420a690ac2f"
+      "sha256": "966495ceea23938d18def7d43b4f5da194d68750f5208f23a8a1c062fd3dfba0"
     },
     {
       "path": "apps/mcp-door/src/main.ts",
@@ -2340,7 +2340,7 @@
     },
     {
       "path": "apps/mcp-door/tests/kb.test.ts",
-      "sha256": "648c23549830242e86e61d939e3785079fc550e9fc927503f573a96432a4a0ef"
+      "sha256": "da8b60e51276013ae9f4f2402517deecddb77f1866d542b37efe24d2e8637822"
     },
     {
       "path": "apps/mcp-door/tests/protocol.test.ts",
@@ -5716,11 +5716,11 @@
     },
     {
       "path": "packages/kb/README.md",
-      "sha256": "8745ef82f2b45a3c9fe33ccc71a60cf9a0d43d1e0a5a498d839479fba07e353a"
+      "sha256": "a02cf2c40f1778cd8c9a492897bf10edb8c7d4dee8bb1a670265c9b443055ddd"
     },
     {
       "path": "packages/kb/SPEC.md",
-      "sha256": "efae9251a5a044b0b4caa0ddc6c1cfbe62b1c4d32d0459646b27bdb62eece966"
+      "sha256": "65d001f029cb422d9678aaeaa57f43235d6dc2f01253fe86e1ef44c5e18416a6"
     },
     {
       "path": "packages/kb/package.json",
@@ -5732,7 +5732,7 @@
     },
     {
       "path": "packages/kb/src/format.ts",
-      "sha256": "3e12cd8ca534d80ca0f3f8cce0ada0bb236d26095fc99dad4f23152d5a550e5e"
+      "sha256": "26cc5a2e35fc9695e13baaee6e5af22676565ba295ffa1871d7019bdcf22b20a"
     },
     {
       "path": "packages/kb/src/foundation.ts",
@@ -5752,11 +5752,11 @@
     },
     {
       "path": "packages/kb/src/local.ts",
-      "sha256": "0ad433c970b59ce136d39785af33fcf43b0b87e6a41a4614e83d9cbd36adc771"
+      "sha256": "6ad5eb6ab646782004d9c4b4274df6d55aad92834bef0c3a29d3e58a66315523"
     },
     {
       "path": "packages/kb/src/package.ts",
-      "sha256": "1ba71dcc5e0765e9dc17f70c01338661f7148ed2ac2c4653635e6d3c100504bd"
+      "sha256": "21a597109708c8ae17b50442a52e63e7afcfe26aa2d44eb3b83eb0ad68c4afc2"
     },
     {
       "path": "packages/kb/src/protocol.ts",
@@ -5764,7 +5764,7 @@
     },
     {
       "path": "packages/kb/src/selection.ts",
-      "sha256": "1f21972ececef08724d19de934d6535e912586b2814870d5b4a0ac10ecdcf6c6"
+      "sha256": "f922014baf041c99e8ec3fbbd7311e401ea78330660e2ef497dc7fc65fb73b53"
     },
     {
       "path": "packages/kb/src/validate.ts",
@@ -5796,11 +5796,11 @@
     },
     {
       "path": "packages/kb/tests/legacy.test.ts",
-      "sha256": "f166432c00f18247fcd70accd015d68189dccfcaa4e8af4adf7632df066ff6a3"
+      "sha256": "33dcde761ad270a092a44c4bea683ea4d998e167e62977f19e368c0dd55dcb43"
     },
     {
       "path": "packages/kb/tests/limits.test.ts",
-      "sha256": "91d1522827107488185ee003b3ea71c493e04da128d413e95fc02818dc991b8c"
+      "sha256": "7baced0566870dbf3711868dbde5439b41643189b07f1d21ddea6c5cadcf8587"
     },
     {
       "path": "packages/kb/tests/local.test.ts",
@@ -5808,7 +5808,7 @@
     },
     {
       "path": "packages/kb/tests/package.test.ts",
-      "sha256": "bb7230c1715865fb6aee96640b9b8fb48f4ab5fef8f9da23ab8bd88b2836a3d0"
+      "sha256": "6ef57284209d3d252cef74869fdd4c8105e9b210a2c2f08f061539700e51f401"
     },
     {
       "path": "packages/kb/tests/protocol.test.ts",
@@ -7059,6 +7059,10 @@
       "sha256": "09f3bfb89d8c4cab7ac8d1f827e81e60404dc6b5dbc8f139a2f1505e7d9bcc86"
     },
     {
+      "path": "releases/pending/let-the-local-knowledge-tools-read-up-to-5-000-r.json",
+      "sha256": "b16abca3cabc0e11a3d238da11241172df62194847e9697aec85d87102effefa"
+    },
+    {
       "path": "tools/compliance/SPEC.md",
       "sha256": "71e7a9766163f986048861fa7890cf757a8b479283bbe7e25885bd3da43d1d39"
     },
@@ -7276,7 +7280,7 @@
     },
     {
       "path": "tools/distribution/qualify-kb.mjs",
-      "sha256": "d82e700a7d211f744e11ed9d916762a6e4da21f4734f4c2a981b2c833c672d56"
+      "sha256": "8ca6f1ef2325b5be7fb2b04dfb7aa3c6263b5874c4c25ea7628ef77a503dca86"
     },
     {
       "path": "tools/distribution/qualify-packages.mjs",
@@ -8147,5 +8151,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "ecbe6116f2f71361b83b648dc95dcdcac23810dc324cbe70109ba76919b90ccd"
+  "inputDigest": "e29f4847703db5ae28a4ea79841fe7ae6c5f5c449a21dacea9ab1e26bea0f49f"
 }

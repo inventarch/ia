@@ -38,6 +38,8 @@ The `./legacy` entrypoint retains the `iakb.portable.v1` format, bounded decoder
 
 A central service stores immutable packages alongside its own audience, lifecycle, revision and recovery state. It authorizes before constructing a library view. Keep stores for different foundation pins separately configured. The library supplies no tenancy policy, publication, approval, synchronization, automatic foreign graph resolution or external URL fetch.
 
-Local capture without `.ia/knowledge.json` counts every authored native file toward the 100-file selection limit; bound documents share that limit. Large workspaces must provide an explicit selection in `.ia/knowledge.json`. Individual files are limited to 1 MiB and the combined selection to 8 MiB.
+Local capture without `.ia/knowledge.json` counts every authored native file toward the 1,000-file capture limit; bound documents share that limit. Large workspaces must provide an explicit selection in `.ia/knowledge.json`. A selection lists at most 5,000 records and 1,000 resources in at most 512 KiB of JSON. Individual files are limited to 1 MiB and the combined selection to 40 MiB. A record whose body falls past the file or byte limit is reported unavailable and is not served; capturing a whole selection instead refuses when a resource it lists was not read. The workspace's own native sources stay bounded before any selection: 2,000 sources and 16 MiB of text.
+
+Exported packages keep narrower format limits, so `ia kb pack` refuses a selection of more than 1,000 records or 100 resources that the local tools accept. See [SPEC.md](SPEC.md).
 
 Committed exports isolate Git from user/system configuration and `GIT_CONFIG_*` environment settings. In particular, user `safe.directory` exceptions are not inherited; run export from a checkout owned by the executing account.
