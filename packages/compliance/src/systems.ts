@@ -1,4 +1,4 @@
-import { FLOOR_SYSTEM, canonicalPath } from '@inventarch/language';
+import { FLOOR_SYSTEM, canonicalPath, clipped } from '@inventarch/language';
 import type { CompiledRecord, FrozenRegistry, Source } from '@inventarch/language';
 import { assess } from './types.js';
 import type { Assessment, CompCode, Finding } from './types.js';
@@ -16,12 +16,20 @@ export function validateSystems(
   pool: readonly CompiledRecord[],
 ): readonly Assessment[] {
   const results: Assessment[] = [];
+  /** Agents by name, read once: a pool of many records is read for every folder's steward. */
+  const agents = new Map<string, CompiledRecord[]>();
+  for (const record of pool) {
+    if (record.discriminator !== 'agent') continue;
+    const named = agents.get(record.name);
+    if (named === undefined) agents.set(record.name, [record]);
+    else named.push(record);
+  }
   const finding = (code: CompCode, path: string, line: number, message: string, warning = false): Finding => ({
     code,
     path,
     line,
     severity: warning ? 'warning' : 'error',
-    message: `${path}:${line}: ${message}`,
+    message: clipped(`${path}:${line}: ${message}`),
   });
   for (const folder of folders) {
     const expected = `${canonicalPath(folder.path)}/system.ia`;
@@ -71,16 +79,13 @@ export function validateSystems(
     const steward = system.steward;
     const candidates =
       steward?.discriminator === 'agent'
-        ? pool.filter(
-            (r) =>
-              r.discriminator === 'agent' &&
-              r.name === steward.name &&
-              folder.records.some(
-                (local) =>
-                  local.identity === r.identity &&
-                  local.source.path === r.source.path &&
-                  local.source.line === r.source.line,
-              ),
+        ? (agents.get(steward.name) ?? []).filter((r) =>
+            folder.records.some(
+              (local) =>
+                local.identity === r.identity &&
+                local.source.path === r.source.path &&
+                local.source.line === r.source.line,
+            ),
           )
         : [];
     const candidate = candidates.length === 1 ? candidates[0] : undefined;
@@ -111,16 +116,10 @@ export function validateSystems(
       ),
     );
     const consent: Finding[] = [];
+    const everyWord = system.consent.some((r) => r.sources === '*' || r.targets === '*'),
+      words = new Set(system.consent.flatMap((r) => [...r.sources, ...r.targets]));
     for (const entry of system.entries)
-      if (
-        !system.consent.some(
-          (r) =>
-            r.sources === '*' ||
-            r.targets === '*' ||
-            r.sources.includes(entry.keyword) ||
-            r.targets.includes(entry.keyword),
-        )
-      )
+      if (!everyWord && !words.has(entry.keyword))
         consent.push(
           finding(
             'IA-COMP-CONSENT-EMPTY',
@@ -133,24 +132,29 @@ export function validateSystems(
     results.push(assess('COMP-CONSENT-DECLARED', folder.path, consent));
   }
   const enrollment: Finding[] = [];
+  const users = new Map<string, number>();
+  for (const registration of registry.registrations.values())
+    users.set(registration.schema, (users.get(registration.schema) ?? 0) + 1);
   for (const schema of registry.schemas.values()) {
-    const users = [...registry.registrations.values()].filter((r) => r.schema === schema.name);
-    if (users.length !== 1)
+    const enrolled = users.get(schema.name) ?? 0;
+    if (enrolled !== 1)
       enrollment.push(
         finding(
-          users.length === 0 ? 'IA-COMP-SCHEMA-UNREFERENCED' : 'IA-COMP-SCHEMA-MULTIPLE',
+          enrolled === 0 ? 'IA-COMP-SCHEMA-UNREFERENCED' : 'IA-COMP-SCHEMA-MULTIPLE',
           schema.path,
           schema.span.line,
-          `@schema ${schema.name} is enrolled ${users.length} times; expected exactly one registration`,
+          `@schema ${schema.name} is enrolled ${enrolled} times; expected exactly one registration`,
         ),
       );
   }
   results.push(assess('COMP-SCHEMA-ENROLLED', 'registry', enrollment));
   const ordering: Finding[] = [];
+  const places = new Map<string, number>();
+  for (const [place, name] of registry.order.entries()) if (!places.has(name)) places.set(name, place);
   for (const system of registry.systems.values())
     for (const required of system.requires) {
-      const before = registry.order.indexOf(required.name);
-      const after = registry.order.indexOf(system.name);
+      const before = places.get(required.name) ?? -1;
+      const after = places.get(system.name) ?? -1;
       if (before < 0 || after < 0 || before >= after)
         ordering.push(
           finding(

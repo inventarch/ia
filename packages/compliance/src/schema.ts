@@ -1,4 +1,4 @@
-import { DIMENSION_PATHS, indexedResolver, isKind, resolveTarget } from '@inventarch/language';
+import { DIMENSION_PATHS, clipped, indexedResolver, isKind, listed, member, resolveTarget } from '@inventarch/language';
 import type {
   CompiledChild,
   CompiledEdge,
@@ -133,15 +133,31 @@ export function schemaStructure(
   }
   return { findings };
 }
+/** C33: how many entries one record's check lists. A record refused for one of them is refused whole. */
+export const LISTED_FINDINGS = 64;
+const NOT_LISTED = '; later entries of this record are not listed';
+/** What a list of entries holds that decides its outcome, kept so that a check past the limit reads it once. */
+const decided = new WeakMap<Finding[], { error: boolean; undecided: boolean }>();
 export function schemaReporter(record: CompiledRecord, findings: Finding[]): Add {
+  const held = decided.get(findings) ?? { error: false, undecided: false };
+  decided.set(findings, held);
   return (code, span, message, warning = false) => {
+    const undecided = code === 'IA-COMP-EDGE-UNRESOLVED' || code === 'IA-COMP-NOT-EVALUATED';
+    if (findings.length >= LISTED_FINDINGS) {
+      // Past the limit only what would change the outcome is added, and the last entry listed says the list is cut.
+      const last = findings[LISTED_FINDINGS - 1] as { message: string };
+      if (!last.message.endsWith(NOT_LISTED)) last.message += NOT_LISTED;
+      if (warning ? !undecided || held.undecided : held.error) return;
+    }
+    held.error ||= !warning;
+    held.undecided ||= undecided;
     findings.push({
       code,
       severity: warning ? 'warning' : 'error',
       path: record.source.path,
       ...span,
       identity: record.identity,
-      message: `${record.source.path}:${span.line}: ${record.identity}: ${message}`,
+      message: clipped(`${record.source.path}:${span.line}: ${record.identity}: ${message}`, NOT_LISTED.length),
     });
   };
 }
@@ -157,36 +173,76 @@ const DIALECT_WORDS: readonly string[] = ['schema', 'system'];
 const DIMENSION_FIELDS: ReadonlySet<string> = new Set(Object.values(DIMENSION_PATHS));
 const spanKey = (span: Span): string => `${span.line}:${span.endLine}`;
 
+/** A schema's rules by what a record asks of them, read once: a schema of many rules is read for every record. */
+interface RuleIndex {
+  readonly sections: ReadonlySet<string>;
+  readonly optional: ReadonlySet<string>;
+  readonly fields: ReadonlySet<string>;
+}
+const ruleIndexes = new WeakMap<SchemaDeclaration, RuleIndex>();
+const fieldKey = (section: string, key: string): string => JSON.stringify([section, key]);
+function ruleIndex(schema: SchemaDeclaration): RuleIndex {
+  let index = ruleIndexes.get(schema);
+  if (index === undefined) {
+    index = {
+      sections: new Set(schema.sections.map((rule) => rule.name)),
+      optional: new Set(schema.sections.filter((rule) => !rule.must).map((rule) => rule.name)),
+      fields: new Set(schema.fields.map((rule) => fieldKey(rule.section, rule.key))),
+    };
+    ruleIndexes.set(schema, index);
+  }
+  return index;
+}
+
 function validateFields(record: CompiledRecord, schema: SchemaDeclaration, add: Add, exists?: ReferenceLookup): void {
+  const rules = ruleIndex(schema);
+  const sectionsNamed = new Map<string, CompiledSection[]>();
+  for (const section of record.sections) {
+    const named = sectionsNamed.get(section.name);
+    if (named === undefined) sectionsNamed.set(section.name, [section]);
+    else named.push(section);
+  }
   const missingSections = new Set<string>();
   for (const rule of schema.sections) {
-    if (rule.must && rule.name !== 'head' && !record.sections.some((s) => s.name === rule.name)) {
+    if (rule.must && rule.name !== 'head' && !sectionsNamed.has(rule.name)) {
       missingSections.add(rule.name);
       add('IA-COMP-SECTION-MISSING', record.source, `@schema ${schema.name} requires section '${rule.name}'`);
     }
   }
+  const consumed = new Set([...record.variants, ...record.requirements].map((product) => spanKey(product.span)));
   if (schema.closed)
     for (const section of record.sections) {
       if (['cognition', 'activation'].includes(section.name)) continue;
-      if (!schema.sections.some((r) => r.name === section.name))
+      if (!rules.sections.has(section.name))
         add(
           'IA-COMP-SECTION-UNKNOWN',
           section.span,
           `closed @schema ${schema.name} does not admit section '${section.name}'`,
         );
-      else validateKeys(record, schema, section, add);
+      else validateKeys(record, schema, rules, consumed, section, add);
     }
+  // A section's fields by key, each section read once however many rules ask of it.
+  const keyed = new Map<string, Map<string, CompiledField[]>>();
+  const fieldsAt = (section: string): ReadonlyMap<string, readonly CompiledField[]> => {
+    let fields = keyed.get(section);
+    if (fields === undefined) {
+      fields = new Map();
+      const roots =
+        section === 'head' ? record.head : (sectionsNamed.get(section) ?? []).flatMap((s) => fieldsOnly(s.fields));
+      for (const field of roots) {
+        const same = fields.get(field.key);
+        if (same === undefined) fields.set(field.key, [field]);
+        else same.push(field);
+      }
+      keyed.set(section, fields);
+    }
+    return fields;
+  };
   for (const rule of schema.fields) {
     if (missingSections.has(rule.section)) continue;
-    const sections = record.sections.filter((s) => s.name === rule.section);
-    if (
-      rule.section !== 'head' &&
-      sections.length === 0 &&
-      schema.sections.some((s) => s.name === rule.section && !s.must)
-    )
-      continue;
-    const roots = rule.section === 'head' ? record.head : sections.flatMap((s) => fieldsOnly(s.fields));
-    const matches = roots.filter((field) => field.key === rule.key);
+    const sections = sectionsNamed.get(rule.section) ?? [];
+    if (rule.section !== 'head' && sections.length === 0 && rules.optional.has(rule.section)) continue;
+    const matches = fieldsAt(rule.section).get(rule.key) ?? [];
     if (matches.length === 0 && rule.must)
       add(
         'IA-COMP-FIELD-MISSING',
@@ -249,11 +305,17 @@ function validateMandateMoves(record: CompiledRecord, rule: SchemaField, field: 
  * `edges.may`, `closed`) and a `@system` body are the dialect the language reads itself, not fields; `@schema schema`
  * is closed and declares no field. The head is a virtual section and stays open here.
  */
-function validateKeys(record: CompiledRecord, schema: SchemaDeclaration, section: CompiledSection, add: Add): void {
+function validateKeys(
+  record: CompiledRecord,
+  schema: SchemaDeclaration,
+  rules: RuleIndex,
+  consumed: ReadonlySet<string>,
+  section: CompiledSection,
+  add: Add,
+): void {
   if (DIALECT_WORDS.includes(record.discriminator) || GRAMMAR_SECTIONS.includes(section.name)) return;
-  const consumed = new Set([...record.variants, ...record.requirements].map((product) => spanKey(product.span)));
   for (const field of fieldsOnly(section.fields)) {
-    if (schema.fields.some((rule) => rule.section === section.name && rule.key === field.key)) continue;
+    if (rules.fields.has(fieldKey(section.name, field.key))) continue;
     if (DIMENSION_FIELDS.has(`${section.name}.${field.key}`) || consumed.has(spanKey(field.span))) continue;
     add(
       'IA-COMP-FIELD-UNKNOWN',
@@ -263,18 +325,20 @@ function validateKeys(record: CompiledRecord, schema: SchemaDeclaration, section
   }
 }
 
+/** How many of a field's admitted values an entry names; a message states what is admitted, and a list can be long. */
+const NAMED_VALUES = 32;
 /** The W0 narrowings over a value that already matches its type; one finding per field and narrowing, list items included. */
 function validateNarrowing(field: CompiledField, rule: SchemaField, add: Add, exists?: ReferenceLookup): void {
   const path = `'${rule.section}.${rule.key}'`;
   const items = field.value.kind === 'list' ? field.value.items : [field.value];
   const texts = items.filter((item): item is Extract<CompiledValue, { text: string }> => 'text' in item);
   if (rule.values !== undefined) {
-    const outside = texts.filter((item) => !rule.values!.includes(item.text));
+    const outside = texts.filter((item) => !member(rule.values!, item.text));
     if (outside.length > 0)
       add(
         'IA-COMP-FIELD-VALUE',
         field.span,
-        `${path} admits one of ${rule.values.join(', ')}; found ${outside.map((item) => JSON.stringify(item.text)).join(', ')}`,
+        `${path} admits one of ${listed(rule.values, (value) => value, NAMED_VALUES)}; found ${listed(outside, (item) => JSON.stringify(item.text))}`,
       );
   }
   if (rule.target !== undefined) {
@@ -305,7 +369,7 @@ function validateNarrowing(field: CompiledField, rule: SchemaField, add: Add, ex
       add(
         'IA-COMP-FIELD-FORM',
         field.span,
-        `${path} requires text form ${rule.form}; found ${malformed.map((item) => JSON.stringify(item.text)).join(', ')}`,
+        `${path} requires text form ${rule.form}; found ${listed(malformed, (item) => JSON.stringify(item.text))}`,
       );
   }
 }

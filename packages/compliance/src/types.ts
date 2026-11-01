@@ -68,8 +68,10 @@ export const EVIDENCE_CODES = Object.freeze([
   'IA-COMP-RECEIPT-UNTRUSTED',
 ] as const);
 export type EvidenceCode = (typeof EVIDENCE_CODES)[number];
+/** What an admitting host reports for a source it held and did not parse (db D03a); no check here produces it. */
+export type HostCode = 'IA-DB-SOURCE-UNAVAILABLE';
 export interface Finding extends Omit<Diagnostic, 'code'> {
-  readonly code: CompCode | EvidenceCode | Diagnostic['code'] | GraphCode;
+  readonly code: CompCode | EvidenceCode | Diagnostic['code'] | GraphCode | HostCode;
 }
 export interface Assessment {
   readonly check: string;
@@ -85,11 +87,16 @@ export interface Verdict extends Assessment {
    */
   readonly basis?: 'verified' | 'caller-asserted';
 }
+/** What a passing assessment lists: one list, however many records a report passes. */
+const NOTHING_FOUND: readonly Finding[] = Object.freeze([]);
 export function verdict(assessment: Assessment, revision: string): Verdict {
   if (revision.trim() === '') throw new TypeError('A verdict requires an explicit nonempty revision');
   return Object.freeze({
     ...assessment,
-    findings: Object.freeze(assessment.findings.map((f) => Object.freeze({ ...f }))),
+    findings:
+      assessment.findings.length === 0
+        ? NOTHING_FOUND
+        : Object.freeze(assessment.findings.map((f) => Object.freeze({ ...f }))),
     revision,
   });
 }
@@ -102,14 +109,20 @@ export function assess(check: string, scope: string, findings: readonly Finding[
       : unavailable || findings.some((f) => f.code === 'IA-COMP-EDGE-UNRESOLVED' || f.code === 'IA-COMP-NOT-EVALUATED')
         ? 'not-evaluated'
         : 'pass',
-    findings: Object.freeze(
-      findings
-        .map((f) => Object.freeze({ ...f }))
-        .sort(
-          (a, b) =>
-            compare(a.path, b.path) || a.line - b.line || compare(a.code, b.code) || compare(a.message, b.message),
-        ),
-    ),
+    findings:
+      findings.length === 0
+        ? NOTHING_FOUND
+        : Object.freeze(
+            findings
+              .map((f) => Object.freeze({ ...f }))
+              .sort(
+                (a, b) =>
+                  compare(a.path, b.path) ||
+                  a.line - b.line ||
+                  compare(a.code, b.code) ||
+                  compare(a.message, b.message),
+              ),
+          ),
   });
 }
 function compare(a: string, b: string): number {

@@ -660,7 +660,7 @@ export function admitTransition(
     const chosen = valid[0];
     if (chosen === undefined) {
       for (const v of validations)
-        findings.push(...v.findings.map((f) => (obligation.required ? f : { ...f, severity: 'warning' as const })));
+        for (const f of v.findings) findings.push(obligation.required ? f : { ...f, severity: 'warning' as const });
       block(
         'not-evaluated',
         'IA-COMP-OBLIGATION-BLOCKED',

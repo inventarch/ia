@@ -107,6 +107,21 @@ it('runs actual fixture bytes and does not credit a mismatching case toward code
     'fail',
   );
 });
+it('keeps more admission observations than one call can take as arguments', () => {
+  const findings = [
+    {
+      code: 'IA-COMP-FIELD-MISSING' as const,
+      path: 'refused.ia',
+      line: 2,
+      severity: 'error' as const,
+      message: 'Missing required field',
+    },
+  ];
+  const observation = { check: 'COMP-SCHEMA', scope: 'refused', outcome: 'fail' as const, findings };
+  const report = evaluate(graph, { admission: Array.from({ length: 150_000 }, () => observation) });
+  expect(report.outcome).toBe('fail');
+  expect(report.findings.filter((f) => f.path === 'refused.ia')).toHaveLength(1);
+});
 it('retains only failed/unavailable admission observations and coalesces their scopes without duplicates', () => {
   const observation = {
     check: 'COMP-SCHEMA',

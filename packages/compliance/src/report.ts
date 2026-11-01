@@ -1,5 +1,5 @@
 import type { Diagnostic } from '@inventarch/language';
-import type { Coordinate, Graph, Shadow } from '@inventarch/graph';
+import type { Coordinate, Graph, Node, Shadow } from '@inventarch/graph';
 import { stableSerialize } from '@inventarch/graph';
 import { validateAdoption } from './adoption.js';
 import type { AdoptionEvaluators } from './adoption.js';
@@ -55,35 +55,51 @@ const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 function unavailable(check: string, message: string): Assessment {
   return assess(check, 'graph', [{ code: 'IA-COMP-NOT-EVALUATED', severity: 'warning', path: '', line: 1, message }]);
 }
+/** Each folder with the nodes under its roots, in node order, each node's path read once however many folders there are. */
+function withRecords(folders: readonly SystemFolder[], nodes: readonly Node[]): readonly SystemFolder[] {
+  const atRoot = new Map<string, number[]>();
+  for (const [index, folder] of folders.entries())
+    for (const root of folder.roots ?? [folder.path]) {
+      const held = atRoot.get(root);
+      if (held === undefined) atRoot.set(root, [index]);
+      else if (held[held.length - 1] !== index) held.push(index);
+    }
+  const records = folders.map((): Node[] => []);
+  for (const node of nodes) {
+    const path = node.source.path;
+    for (let at = path.indexOf('/'); at >= 0; at = path.indexOf('/', at + 1))
+      for (const index of atRoot.get(path.slice(0, at)) ?? []) {
+        const held = records[index]!;
+        if (held[held.length - 1] !== node) held.push(node);
+      }
+  }
+  return folders.map((folder, index) => ({ ...folder, records: records[index]! }));
+}
 export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
   if (options.catalog !== undefined) assertCatalog(options.catalog);
   if (options.evidence !== undefined && options.conformance !== undefined)
     throw new TypeError('Pass caller-asserted evidence or verified conformance, not both');
   const bound = options.conformance === undefined ? undefined : bindConformance(graph, options.conformance);
   const nodes = [...graph.nodes.values()];
+  let asserted: ReadonlySet<string> | undefined;
+  const assertedAt = (path: string, line: number): boolean => {
+    asserted ??= new Set(
+      graph.edges.flatMap((edge) => edge.assertions.map((a) => `${a.source.line} ${a.source.path}`)),
+    );
+    return asserted.has(`${line} ${path}`);
+  };
   const sourceDiagnostics = options.sourceDiagnostics?.filter(
-    (d) =>
-      d.code !== 'IA-LANG-EDGE-TARGET-MISSING' ||
-      !graph.edges.some((edge) => edge.assertions.some((a) => a.source.path === d.path && a.source.line === d.line)),
+    (d) => d.code !== 'IA-LANG-EDGE-TARGET-MISSING' || !assertedAt(d.path, d.line),
   );
   const assessments: Assessment[] = [
     validateParse(sourceDiagnostics),
     validateConsent(graph),
     validateIdentity(graph),
     validateFragments(graph),
-    ...validateSystems(
-      options.folders?.map((folder) => ({
-        ...folder,
-        records: nodes.filter((node) =>
-          (folder.roots ?? [folder.path]).some((root) => node.source.path.startsWith(root + '/')),
-        ),
-      })) ?? [],
-      graph.registry,
-      nodes,
-    ),
+    ...validateSystems(withRecords(options.folders ?? [], nodes), graph.registry, nodes),
     ...validateAdoption(graph, options.adoptionEvaluators, options.coordinate),
   ];
-  assessments.push(...(options.admission?.filter((a) => a.outcome !== 'pass') ?? []));
+  for (const observation of options.admission ?? []) if (observation.outcome !== 'pass') assessments.push(observation);
   if (options.folders === undefined)
     for (const check of ['COMP-SYSTEM', 'COMP-STEWARD'])
       assessments.push(unavailable(check, 'System folder discovery observations were not supplied'));
@@ -116,21 +132,23 @@ export function evaluate(graph: Graph, options: ReportOptions = {}): Report {
         assessments.push(asserted);
       }
     }
-  const grouped = new Map<string, Assessment>();
+  const groups = new Map<string, Assessment[]>();
   const rank = { pass: 0, 'not-evaluated': 1, fail: 2 } as const;
   for (const assessment of assessments) {
     const key = stableSerialize([assessment.check, assessment.scope]),
-      previous = grouped.get(key);
-    if (previous === undefined) {
-      grouped.set(key, assessment);
-      continue;
-    }
-    const findings = new Map([...previous.findings, ...assessment.findings].map((f) => [stableSerialize(f), f]));
-    const outcome = rank[assessment.outcome] > rank[previous.outcome] ? assessment.outcome : previous.outcome;
-    grouped.set(key, { ...assess(assessment.check, assessment.scope, [...findings.values()]), outcome });
+      group = groups.get(key);
+    if (group === undefined) groups.set(key, [assessment]);
+    else group.push(assessment);
   }
+  const grouped = [...groups.values()].map((group): Assessment => {
+    const [first] = group as [Assessment, ...Assessment[]];
+    if (group.length === 1) return first;
+    const findings = new Map(group.flatMap((a) => a.findings).map((f) => [stableSerialize(f), f]));
+    const outcome = group.reduce((worst, a) => (rank[a.outcome] > rank[worst] ? a.outcome : worst), first.outcome);
+    return { ...assess(first.check, first.scope, [...findings.values()]), outcome };
+  });
   const verdicts = Object.freeze(
-    [...grouped.values()]
+    grouped
       .map((a): Verdict => {
         // Only this assembler labels a result's basis; a `basis` an input carried is dropped.
         const { basis: _carried, ...result } = verdict(a, graph.revision),

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildRegistry, compile, parse } from '@inventarch/language';
+import { MESSAGE_LENGTH, buildRegistry, compile, parse } from '@inventarch/language';
 import type { CompiledRecord, FieldType, Location } from '@inventarch/language';
 import { matchesForm, matchesType, validateSchema, verdict } from '../src/index.js';
+import { LISTED_FINDINGS, schemaReporter } from '../src/schema.js';
+import { assess } from '../src/types.js';
+import type { Finding } from '../src/types.js';
 
 const location: Location = { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };
 function fixture(
@@ -667,5 +670,85 @@ ${laws}
     const dangling = governed('    must governed-by law one', '', '  relationships\n    governed-by @law missing');
     expect(dangling.outcome).toBe('not-evaluated');
     expect(codes(dangling)).toEqual(['IA-COMP-EDGE-UNRESOLVED']);
+  });
+});
+describe('what one record lists', () => {
+  const missing = (count: number) =>
+    fixture(
+      '  data\n    title "valid"',
+      `  sections\n    must have data\n    closed\n  fields\n    must have data.title as text\n${Array.from(
+        { length: count },
+        (_, index) => `    must have data.k${index} as text`,
+      ).join('\n')}`,
+    ).check();
+  it('lists every entry of a record up to its limit', () => {
+    const assessment = missing(LISTED_FINDINGS);
+    expect(assessment.findings).toHaveLength(LISTED_FINDINGS);
+    expect(assessment.findings.some((finding) => finding.message.includes('not listed'))).toBe(false);
+    expect(assessment.outcome).toBe('fail');
+  });
+  it('says so at the last entry when a record holds more', () => {
+    const assessment = missing(LISTED_FINDINGS + 1);
+    expect(assessment.findings).toHaveLength(LISTED_FINDINGS);
+    expect(
+      assessment.findings.filter((finding) => finding.message.endsWith('later entries of this record are not listed')),
+    ).toHaveLength(1);
+    expect(assessment.outcome).toBe('fail');
+  });
+  it('keeps what decides the outcome past its limit', () => {
+    const { record } = fixture(),
+      findings: Finding[] = [],
+      add = schemaReporter(record, findings);
+    for (let index = 0; index < LISTED_FINDINGS + 5; index++)
+      add('IA-COMP-FIELD-REF-MISSING', record.source, 'a warning', true);
+    expect(assess('COMP-SCHEMA', record.identity, findings).outcome).toBe('pass');
+    add('IA-COMP-EDGE-UNRESOLVED', record.source, 'undecided', true);
+    expect(findings).toHaveLength(LISTED_FINDINGS + 1);
+    expect(assess('COMP-SCHEMA', record.identity, findings).outcome).toBe('not-evaluated');
+    add('IA-COMP-FIELD-MISSING', record.source, 'an error');
+    expect(findings).toHaveLength(LISTED_FINDINGS + 2);
+    expect(assess('COMP-SCHEMA', record.identity, findings).outcome).toBe('fail');
+    add('IA-COMP-FIELD-MISSING', record.source, 'another error');
+    expect(findings).toHaveLength(LISTED_FINDINGS + 2);
+  });
+  it('holds a message to its length in all, with what says that later entries are not listed', () => {
+    const { record } = fixture(),
+      findings: Finding[] = [],
+      add = schemaReporter(record, findings);
+    for (let index = 0; index < LISTED_FINDINGS + 1; index++)
+      add('IA-COMP-FIELD-MISSING', record.source, 'x'.repeat(10_000));
+    const last = findings[LISTED_FINDINGS - 1]!.message;
+    expect(last.endsWith('later entries of this record are not listed')).toBe(true);
+    expect(last.length).toBeLessThanOrEqual(MESSAGE_LENGTH);
+  });
+  it('can give stale validation for a schema changed in place; a new schema reads the change', () => {
+    const { record, registry, pool } = fixture(),
+      schema = registry.schemas.get('entry')!;
+    expect(validateSchema(record, registry, pool).outcome).toBe('pass');
+    (schema.fields as unknown[]).length = 0;
+    expect(validateSchema(record, registry, pool).outcome).toBe('pass');
+    const renewed = { ...registry, schemas: new Map(registry.schemas).set('entry', { ...schema }) };
+    expect(validateSchema(record, renewed, pool).outcome).toBe('fail');
+  });
+  it('names at most 32 of the values a field admits', () => {
+    const values = Array.from({ length: 40 }, (_, index) => `v${index}`).join(', ');
+    const { findings } = fixture(
+      '  data\n    title other',
+      `  sections\n    must have data\n    closed\n  fields\n    must have data.title as id in [${values}]`,
+    ).check();
+    expect(findings[0]?.code).toBe('IA-COMP-FIELD-VALUE');
+    expect(findings[0]?.message).toContain('v31 and 8 more');
+  });
+  it('reads a record against its schema once, however many rules and fields each holds', () => {
+    const count = 60_000,
+      row = (index: number) => `    k${index} "v"`,
+      rule = (index: number) => `    may have data.k${index} as text`;
+    const assessment = fixture(
+      Array.from({ length: count }, (_, index) => row(index))
+        .join('\n')
+        .replace(/^/, '  data\n'),
+      `  sections\n    must have data\n    closed\n  fields\n${Array.from({ length: count }, (_, index) => rule(index)).join('\n')}`,
+    ).check();
+    expect(assessment.outcome).toBe('pass');
   });
 });
