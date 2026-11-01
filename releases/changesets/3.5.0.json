@@ -1,0 +1,1090 @@
+{
+  "format": "ia.npm-changeset.v1",
+  "version": "3.5.0",
+  "state": "consumed",
+  "baseline": {
+    "commit": "9f349cd089a69c36e09c5d067e992b344829e475",
+    "version": "3.4.1"
+  },
+  "bump": "minor",
+  "summary": "Coordinated 3.5.0 release of the 24 public npm packages: Close the conformance gaps runtime/local leaves; The door carries every method kit to every host.",
+  "packages": {
+    "@inventarch/agent-composition-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/agent-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/authoring-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/cli": {
+      "previous": "3.4.1",
+      "kind": "changed",
+      "summary": "The door carries every method kit to every host."
+    },
+    "@inventarch/compliance": {
+      "previous": "3.4.1",
+      "kind": "changed",
+      "summary": "Close the conformance gaps runtime/local leaves."
+    },
+    "@inventarch/compliance-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/db": {
+      "previous": "3.4.1",
+      "kind": "changed",
+      "summary": "The door carries every method kit to every host."
+    },
+    "@inventarch/distribution": {
+      "previous": "3.4.1",
+      "kind": "changed",
+      "summary": "The door carries every method kit to every host."
+    },
+    "@inventarch/governance-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/graph": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/hook-authoring-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/kb": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/language": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/learning-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/mcp-door": {
+      "previous": "3.4.1",
+      "kind": "changed",
+      "summary": "The door carries every method kit to every host."
+    },
+    "@inventarch/runner": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/runtime": {
+      "previous": "3.4.1",
+      "kind": "changed",
+      "summary": "The door carries every method kit to every host."
+    },
+    "@inventarch/service-contracts": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/session-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/steward-hook": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/template-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/work-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    },
+    "@inventarch/workspace-runtime": {
+      "previous": "3.4.1",
+      "kind": "changed",
+      "summary": "The door carries every method kit to every host."
+    },
+    "@inventarch/workspace-system": {
+      "previous": "3.4.1",
+      "kind": "cohort",
+      "summary": "Package version metadata aligned with the coordinated cohort; any native artifact version follows its own archive content."
+    }
+  },
+  "changes": [
+    {
+      "id": "close-the-conformance-gaps-runtime-local-leaves",
+      "title": "Close the conformance gaps runtime/local leaves",
+      "summary": "Tests only: compliance tests cover the conformance cases private-marketplace runtime/local carried before it retired. No consumer-facing change.",
+      "packages": [
+        "@inventarch/compliance"
+      ],
+      "paths": [
+        "packages/compliance/"
+      ]
+    },
+    {
+      "id": "the-door-carries-every-method-kit-to-every-host",
+      "title": "The door carries every method kit to every host",
+      "summary": "`@inventarch/runtime/method` reads method kits (releases format 1 and 2, bundled and IA home kits), selects a repository binding and resolves the method packet in process: the packet and digest the `ia` plugin prints. `ia-mcp-door` adds `ia_session`, `ia_catalogue` and `ia_method`, reads kits from `--kits` or `IA_KITS_DIR` and the IA home, acts at its root or a root the format 2 `workspace-locations.json` registry lists (both earlier formats are read), and restores a kit in process with the language base it now carries. `ia host <claude|codex|copilot> --commit` writes a committable bootstrap: an instruction block naming `ia_session` and the three lanes, and an `ia` MCP server running `npx -y @inventarch/mcp-door@<version>`. The position packet gains the session line. A GitHub Copilot host row is added and Codex hooks are marked supported. Workspace projections render one skill per invocable `@capability`, not one per `@playbook`. `ia host claude --user` installs `ia@inventarch` from `inventarch/marketplace`; `--local` keeps the rendered plugin. `config.json` names `accountOffer` beside `updateCheck`. An npm package of kits, such as the default `@inventarch/public-kits`, is installed with `ia install --package <name>[@<version>] --apply` (contract C7b): the lock gains one `package` entry naming the package's exact version and npm integrity and, for each kit, its id, version, IA archive and manifest digests and dependencies, and the engine installs the kits as ordinary releases in `.ia/distributions/store/` at band 90, so closure, drift, `ia validate`, the method resolver and the door treat them as any installed kit. npm is transport only: `ia restore` refetches the archives by digest, offline from npm's cache (`_cacache/content-v2/sha512/…` by the integrity) or through `npm cache add`, and no kit is read from an npm package folder. `ia_session` says to run `ia restore` when the lock installs kits the store lacks. `ia host --commit` writes only the instruction block and the door entry. The distribution lock engine moves to 0.1.2, which reads such entries; a lock without one is read and written byte for byte as before, under the 0.1.1 marker, and archives keep declaring `^0.1.1`. An engine from 0.1.2 on refuses a lock it cannot read naming the `ia` that can (`It needs ia >= 3.5.0`), and an unknown entry kind is refused, never ignored; 3.4 and earlier refuse a lock with entries as a contract error. `ia validate --verify-conformance --require-verified` (opt-in) exits 1 unless COMP-KERNEL and COMP-FIXTURES are verified passes.",
+      "packages": [
+        "@inventarch/cli",
+        "@inventarch/db",
+        "@inventarch/distribution",
+        "@inventarch/mcp-door",
+        "@inventarch/runtime",
+        "@inventarch/workspace-runtime"
+      ],
+      "paths": [
+        ".gitignore",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "README.md",
+        "apps/cli/",
+        "apps/distribution/",
+        "apps/mcp-door/",
+        "docs/",
+        "packages/db/",
+        "packages/runtime/",
+        "packages/workspace-runtime/",
+        "pnpm-lock.yaml",
+        "tools/"
+      ]
+    },
+    {
+      "id": "cohort-alignment",
+      "title": "Coordinated version alignment",
+      "summary": "Package version metadata follows the coordinated 3.5.0 release; each native artifact version follows its own archive content.",
+      "packages": [
+        "@inventarch/agent-composition-system",
+        "@inventarch/agent-system",
+        "@inventarch/authoring-system",
+        "@inventarch/compliance-system",
+        "@inventarch/governance-system",
+        "@inventarch/graph",
+        "@inventarch/hook-authoring-system",
+        "@inventarch/kb",
+        "@inventarch/language",
+        "@inventarch/learning-system",
+        "@inventarch/runner",
+        "@inventarch/service-contracts",
+        "@inventarch/session-system",
+        "@inventarch/steward-hook",
+        "@inventarch/template-system",
+        "@inventarch/work-system",
+        "@inventarch/workspace-system"
+      ],
+      "paths": [
+        ".ia/src/systems/agent-composition-system/package.json",
+        ".ia/src/systems/agent-system/package.json",
+        ".ia/src/systems/authoring-system/package.json",
+        ".ia/src/systems/compliance-system/package.json",
+        ".ia/src/systems/governance-system/package.json",
+        ".ia/src/systems/hook-authoring-system/package.json",
+        ".ia/src/systems/learning-system/package.json",
+        ".ia/src/systems/session-system/package.json",
+        ".ia/src/systems/template-system/package.json",
+        ".ia/src/systems/work-system/package.json",
+        ".ia/src/systems/workspace-system/package.json",
+        "apps/runner/package.json",
+        "apps/steward-hook/package.json",
+        "packages/graph/package.json",
+        "packages/kb/package.json",
+        "packages/language/package.json",
+        "packages/service-contracts/package.json"
+      ]
+    },
+    {
+      "id": "repository-maintenance",
+      "title": "Repository maintenance",
+      "summary": "Tooling, workflow, documentation and release bookkeeping outside the published package contents.",
+      "packages": [],
+      "internal": true,
+      "paths": [
+        "apps/vscode/THIRD_PARTY_NOTICES.txt",
+        "apps/vscode/package.json",
+        "pnpm-workspace.yaml",
+        "releases/"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "path": ".gitignore",
+      "sha256": "82bbe15a9a6e1065519844d7ec83915028c93d1b4373da5c1fa9908b0ce3d9c6",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": ".ia/src/systems/agent-composition-system/package.json",
+      "sha256": "98018137bc89e5ca694acd162a20cc593a3077f6365421cbda35beb763794f01",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/agent-system/package.json",
+      "sha256": "e84e788e3279b31f53206bc0cf738495b7ec13e42ca8cb5b2d980def2fb1cac0",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/authoring-system/package.json",
+      "sha256": "43997ee65a91458e3c37479167b84d1ab8a92cc02bb2d1078faff423aa208f5d",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/compliance-system/package.json",
+      "sha256": "6942b28d7f40d8cb6a5794fd9674c7b0a61bfb4e03570f8531e11dd326a2b66f",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/governance-system/package.json",
+      "sha256": "e8ea181e748ae874da4f9f3aa1acae4480f7dc2b53e50b7ab183fb29123d5a68",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/hook-authoring-system/package.json",
+      "sha256": "759f89ffd159d7e1877fed17fe470460ea948745252c35f4d2534e19ec17d6eb",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/learning-system/package.json",
+      "sha256": "bf03689a9129aed09f770619f7e1aeafafa281a68171fa6dfa3442187ec73f40",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/session-system/package.json",
+      "sha256": "01a608911d2d66120258f360028bc1452a4ad67ccd8b13e4866b89259b677123",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/template-system/package.json",
+      "sha256": "3a1390da041ab84183438595c7ee30f45ea815bccaf91f4e45f32a657078cd80",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/work-system/package.json",
+      "sha256": "8add53ddf046c783b5b2e0bf5a8b871c5616d0f4a1d65635cb7f8db4148cd608",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": ".ia/src/systems/workspace-system/package.json",
+      "sha256": "585fd4bc2a415aeae63b38e927bbf48ce795465dd091212192f9bbc34c39de04",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "9397980dec2f4dffbfe7e32e4738ce35d8f28798848c901185c1781227370f42",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "707f4f7f6aab1b4243c34534a22602aa6eafe824629d83f043c131fe2e57dd4a",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "README.md",
+      "sha256": "f0e46a42483f7e9eebf4455b389f599c26379c687dbb16c221ccf24e641e0821",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/README.md",
+      "sha256": "713f70a64ca523853980135876015bc81321d8999274bb6e988b8454a3ea7c7a",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/SPEC.md",
+      "sha256": "1c0f96ab739ec7773ebddb6650c9cc77a05a1a1705c41010f825c93806471892",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "sha256": "713da4053d0b1b862a50c15972fa32608e6cd3c195211c6d7f5e6c0f803d02be",
+      "cohortOnly": true,
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/briefing.ts",
+      "sha256": "96dfcfb12553e3bf985c0f7b6c55f74da1eaba7f578b4bd1edbc47fe5f7e2b3b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/commands.ts",
+      "sha256": "46b097953430ac82cd484c90d9fe16da53cdbc85e7f541d470c5b19422346ef6",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/committed-host.ts",
+      "sha256": "574685dd52d09bc5ad6799d702639d178302d51ecd897e874ea904c1a49241d0",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/distribute.ts",
+      "sha256": "9ffb9d6a44a98da2fe8ba969419592e8ed9c1932f3b2003dc226c550cfdf0c46",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/doctor-user.ts",
+      "sha256": "298a7b9227ac30d5941ed3fa4e5a9cc4564b58ec3980b1b3064bc28f1a62610a",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/host-projection.ts",
+      "sha256": "ccfb706b92e9604aaf67c1d6d55b5838563b6e2e7f52b727fe015306a2d2415c",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/host.ts",
+      "sha256": "7d9ae116842d4bc32b3897b03ed64a7015499175e44380473ccb8e254e56ad9f",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/init.ts",
+      "sha256": "796f1ba37796f765b7fbe8f92cbdc2e507adb2a7ecd63c90e862f62a71f2b1d7",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/kits-package.ts",
+      "sha256": "a4f52127f5a658cc7356f248d18fb08d9ef836bf3542cc40674d121356457d79",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/marketplace-record.ts",
+      "sha256": "2ce80a82f2edc36878d99971ba81915b42ee3a66056ab289e584226d55c119c5",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/user-host.ts",
+      "sha256": "10dbc379e549ec1521408877043b839ab2d27c2687eb269e379968154a61686b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/src/validate.ts",
+      "sha256": "c54a80d099691c92457085e814fb6ab0f0535f5fa748a9610daef90626742ed2",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fake-npm.mjs",
+      "sha256": "c2c6023269b6467cbe2b038e0de2c6188fcdb92c35dac487909df6c32e2b916d",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/PROVENANCE.json",
+      "sha256": "a026f24bcf9f950d43ea458b693e8a87d15e486dcb10c5b863d105f1db2adb4a",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/archives/3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c.distribution.json",
+      "sha256": "b5d85ef321c0ae5cce4dce66e5b51183661d9cf8f863941436df7c77816f8a43",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/archives/3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c.ia.tgz",
+      "sha256": "3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/generate.mjs",
+      "sha256": "e0caacf66ff4c9cf8402870c42feca67ade318c9b760c7aeb8cccf0d7919d4e0",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/bindings.json",
+      "sha256": "96a57260881eb69714af7ed489255b5b9f4fa2923be80c6eb128f90d0dde7852",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/checks.json",
+      "sha256": "81a6805c8a7fcdae7e2fdd931d9cc358b3b8378790157d1154542111d5e3a526",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/delivery.json",
+      "sha256": "cadba286f381771a0aeb368ed2be203a87f5f91d0de234c34b5fef37799b3376",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases.json",
+      "sha256": "0d3f9902a5b44cb63015e1ec98c2e9ba8bae4c436044809728fe7a20253ecc7b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.1.0.json",
+      "sha256": "cbfa3153d4c2a3b0cb56448f398c70fbf0dd19d426780a3a73d7e428312282fe",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.2.0.json",
+      "sha256": "6187607fc2433c01bc18a34b0488eb77bd92dd7def59bc5430d78a4ee90b80a2",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.3.0.json",
+      "sha256": "de4a1c8711c79ee7d27c1a41fcc09d5ed26123713ff805b3319c75695889d0ff",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.4.0.json",
+      "sha256": "8a7cd97082164ea7cc37fdb39eb7cbc439d9cadd16b0ba350c78057c51dc0cda",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.5.0.json",
+      "sha256": "35f5b22187d143f958d89f0d76fd1b5de9290da73215cd9bb5ad43c7d0323f12",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.6.0.json",
+      "sha256": "dd326935aeacf866f04fccbe86d4321fc77bc848c5f861815dcf5d47efb70c8a",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.7.0.json",
+      "sha256": "22ce135257571285d238b127095e8f333a0d8b5509d94f6fd10df934ebdd54d2",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.8.0.json",
+      "sha256": "bc4249704fcbc113538e491bc3666e8df57d6f8c874db5a5a89a004d532d0e84",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/kits/ia-kb/releases/0.9.0.json",
+      "sha256": "d8f1c5890563da79ef65b3b931e6ae0d32c8f492fc7a83d287aff96437dcb3eb",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/fixtures/kits-package/package.json.txt",
+      "sha256": "806d186b4e1a1d49cf8931c4a7145ae7e3228c7690f953936cb31197c885ceb4",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/host-commit.test.ts",
+      "sha256": "7629ffc6b69cba7103ef7f3b9c12b4a09d5bc4648f03a5ca4f3798da30fea2e3",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/host-generated.test.ts",
+      "sha256": "b6d99689fa5b581e958ce0a92e55b2a0e8e87a485313fa64991b6ead13ea14b7",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/host-projection.test.ts",
+      "sha256": "7f6f6503ba78c8fff82d93e3531849aefc171d4dfcc12747c462e7229c7e3981",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/init.test.ts",
+      "sha256": "34ff2612d9e7aad3ce2f968ba6bfa17fc72d31280701cfbe9aa0dab963aa55d6",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/install-package.test.ts",
+      "sha256": "5b41b71600dc86d1ab4460b1465f5cb3db0129bb46ef77fed4b639df2af89924",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/project.test.ts",
+      "sha256": "c8d46de3caccbc1410e1d90d2a71ab0459310e3507482468ec4a3711cade32d1",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/untrusted-lookups.test.ts",
+      "sha256": "5ac546ac546ef02b7ad853cb692baa05d18ea6e580a5644496c84c13fd5231ec",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/user-host.test.ts",
+      "sha256": "c5bfc0105a61c2fedd3012b2cc3d4d92eafd52bcc0c27f4571dcf91e30bb97ea",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/cli/tests/validate-checks.test.ts",
+      "sha256": "ab839091e5090725accecee0f466a1298f8ec5f0b95c53d0fd468a6d3e69855e",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/README.md",
+      "sha256": "b098e6659dab2a8108264dd841092eb9a718f062e53e6b5c5e9468b6aead5826",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/SPEC.md",
+      "sha256": "fd3178f7cf8617fed017fdaa0b795ab50939abb049e7445e149a03e6cd7989f0",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/package.json",
+      "sha256": "d2b93f4be865cc3e84636caa7425cbc742c53431712d8d8b39000e774b846f29",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/archive.ts",
+      "sha256": "5fd66a06e56a36481e93bc40dfa30f516b9a34f93d478f92e19f5d85038db10c",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/authoring-assets.ts",
+      "sha256": "1629888afe59a556313c1aaff70d8d0c18f61ccc08190ffe9b54ef62a25989b0",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/bootstrap.ts",
+      "sha256": "acc553cc56427a8cee8af67a66f52d3bc255355232f7ea81c676b04715a00b16",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/host-observe.ts",
+      "sha256": "6a6ff593fd28897f210456aa6137461dd1170a659d267271f18ce29c68f52e20",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/hosts.ts",
+      "sha256": "7ad69b76a5bb31cf05a0cd3daa33d66cd8cbae8dd88484efdc135f122f4633c9",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/install.ts",
+      "sha256": "d4a3f2c8a85a8f26b6332408114cc994f0dcc064290331282b7bb803dd488ddb",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/installation-core.ts",
+      "sha256": "03311690a1362b7e71a2dc91d4592e5fccbeb1c10bd780e1e431b9b976c0e648",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/resolve.ts",
+      "sha256": "50f71fc69e195ad3054a9dff0878eedc2d40abc1cc6a8e76c7192c0ce4ace550",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/services.ts",
+      "sha256": "3c2c632dda3ccc3464ff1dedf422ea71b0b2f456bb254648d53c23e430b7f815",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/src/updates.ts",
+      "sha256": "4b4b9d03cf359a11a443a62a03e6aaebf8130ae288ac747225edb09bfa6faac0",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/tests/bootstrap.test.ts",
+      "sha256": "4ffc8e75a1aca941836322de9fc9291795a1dfa235606353e5691d3062ad2be0",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/tests/hosts.test.ts",
+      "sha256": "ef8c2337b0ad6edeab42714a77e27eeb4d3276b1583ac36cec85a4c101b3c614",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/tests/installed.test.ts",
+      "sha256": "52bb2ff91d4a3c9e09c94fd9d16fef0b2cb4fece814aed91dcbef08fa35581da",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/tests/system-partitions.test.ts",
+      "sha256": "8450f733fb094f04c2b825546286e9ef9b862432e07ebc1aa114bdf18270474b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/distribution/tests/updates.test.ts",
+      "sha256": "d5d3f3ab47c8df6f3d3a676db784ba84e8c5921893d63d525fc10d4cfcac0db4",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/README.md",
+      "sha256": "bdb811c994c555c9df51b8175474e88fc27a8f07165943bc545f6c14916a5a6a",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/SPEC.md",
+      "sha256": "96bd4c5af3799243cb80d9e034fc5fb5fc671ca8b8a7afdf6335272d39df8932",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/package.json",
+      "sha256": "9a6c3b1c457c0466f8370d05385f8c82ce2f6480339b5bfa3b4d536fd6c0037a",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/src/main.ts",
+      "sha256": "2cfc63ad1ca6881f30419b850ff19283b1d8b36acb7c716d90fbf713933d4736",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/src/method.ts",
+      "sha256": "f5bef3730f672c73a9e83de0691b4c984aa4683dcf17b7a27e8ecbbd0eda15f1",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/src/protocol.ts",
+      "sha256": "9cd45aec4179f7dc425c411080f7b1a3684bda771303c5ae2dfba2b0ea515c1e",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/src/tools.ts",
+      "sha256": "990ff6256c37c55fec0ba58c0ea982a819c91e187fd64e154126ec5f49e78168",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/PROVENANCE.json",
+      "sha256": "716dcce39b9f6b6c5af55283a6829ecc122f36aa8ef8b2d1ba92615fcf3fbf43",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/bindings.json",
+      "sha256": "b21d0ccc88d1b01c184c90a08a5d6dd19cc899df1faf7033dbdbaeb2920aae7b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/generate.mjs",
+      "sha256": "760a3d2cca24b8434fa6e065238b42f49b94eca5412ab06aba39e48ac284e101",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-check.json",
+      "sha256": "946afaed658b41de1e850a2561a21b5616a4fadbb6c11d4ff5a1a47f85034a9f",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-find.json",
+      "sha256": "e82ed20dee9b64df1ce22eb3395b7fe52838c36da423a41d32ec3c328cdac93e",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/golden-pin.json",
+      "sha256": "6368ab81322cb093a583e821d66d498e95254ec4a65caf0b4c6e98377dd96a50",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/fixtures/method/plugin.json.gz",
+      "sha256": "2c4e95c888d113a9511462502f6b50aeb3c0a37f15e2d2583398a36c1b25ee05",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/kits-package.test.ts",
+      "sha256": "33dc9d2d1b2bd6d04060c3ea03e997fbd0c4a2554407153a3ceee5acd68ca05c",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/method.test.ts",
+      "sha256": "ea611444f25413c1b2071e97ca0424aecf94abd8d4e1022512568bd9d53d6043",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/mcp-door/tests/protocol.test.ts",
+      "sha256": "180d14542d4a5eb245d3ffdc6acd7f12b9b2234ef587b57e19da0cda0d9afea3",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "apps/runner/package.json",
+      "sha256": "911f44328e773f0213e32a468fcb0ebf6fda9084393ed50d5e0b60588f719282",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/steward-hook/package.json",
+      "sha256": "1bbcf4803a48b48abd98789fac4a65bcfed5844d8e41c28f2e1c0b06dd6202ee",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "apps/vscode/THIRD_PARTY_NOTICES.txt",
+      "sha256": "debda0168299e226a8d169c46e455961de3c39546fc72b107535704f847a8ee0",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "ac4424d990d07cbb47225cda97956f760c94383740d5f7354f8aef82efa36220",
+      "cohortOnly": true,
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "docs/catalog.json",
+      "sha256": "ca449968328003bf4d5c12edcbe0cde6880f5443b92b04d23dec04fdc5386ef5",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "docs/specs/consumer-cli-contract/README.md",
+      "sha256": "67c1f240e9ddf991b5fb32f7dd83fd62baf7d5465385499e6de2899422d0f5eb",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "docs/specs/host-plugin-distribution/README.md",
+      "sha256": "fb4395b68991dcb066913c892081c87e5764297b9d9ed20906382e2502d95c94",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "docs/specs/host-registration/README.md",
+      "sha256": "a594fa44a546621103f7a048ded5f74a681f17c33181f3604f3219f3c15ce304",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/compliance/package.json",
+      "sha256": "0440376ef5bf980cea4b889eee385984abb9338923bda847dcfe8581f21f895f",
+      "cohortOnly": true,
+      "change": "close-the-conformance-gaps-runtime-local-leaves"
+    },
+    {
+      "path": "packages/compliance/tests/report.test.ts",
+      "sha256": "ca6bdd7049d143d3357f7efbf81c5e602dd7c9baed5f4fb1bb812b79e8208763",
+      "change": "close-the-conformance-gaps-runtime-local-leaves"
+    },
+    {
+      "path": "packages/db/SPEC.md",
+      "sha256": "81cccd0fd15db5bc7c5e37611f74fe7d60aaa32a34ce40a9ff30cfd2b97e267d",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/package.json",
+      "sha256": "4fee80f3ca6bc70bce2549e36f1d3913def8371a0df148d5e8c387e324e4d41b",
+      "cohortOnly": true,
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/src/distribution/codec.ts",
+      "sha256": "2b2ff9a284c947f18e0cd6f23e082bcee669a9638fc42477ca5be135dd8870a6",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/src/distribution/contracts.ts",
+      "sha256": "39def5fcdc9fbb92732fcf7e75b8f424592e5733cbe8c5143d4185290e152f27",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/src/distribution/index.ts",
+      "sha256": "8a2910c473b25f05695b4f27c6f39e4e01423a1b5dca30e0bb5c9bf69a008c3e",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/src/distribution/membership.ts",
+      "sha256": "7c57f211a1cbc25edb1d7af90838bfdc423e1fa0f9bb7aac3cd2866507eaacb7",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/src/distribution/reader.ts",
+      "sha256": "0ad80f832e39150f0dfa5ac5f3027494200bf3e2e9b48f599ffb73779dc9a477",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/src/inputs.ts",
+      "sha256": "72fca23a578cae681ffbcbfd281e397d4e55d7a78588711cafe2427667cc4d3e",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/tests/distribution-contracts.test.ts",
+      "sha256": "ca65fa2db5e6274fd48e4aefd167318dd4b0723640516ffbac0e36300df24dcf",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/db/tests/editor.test.ts",
+      "sha256": "0aca2eb7f0ba71e7491b8765f7d6320c2e70f00cee36384ad4646a0b3433e07f",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/graph/package.json",
+      "sha256": "38a49e9d1ab3990d8effee74ae8f8e9d6622aab8113ffb9891e93619bfdad646",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/kb/package.json",
+      "sha256": "95054184a0c3a890b9c9eee1e756a77188cf513c5fb09e4a0de030d796a4d1b1",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/language/package.json",
+      "sha256": "6caaa2a7f012a95a963997d9d07e10a2ddcf92a0f4e63e273414a65a527138be",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/runtime/SPEC.md",
+      "sha256": "b2c6943ff626d8ea962d3dcfb068d11ec059f75ac7efc4d92661d5f079bb08dd",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/package.json",
+      "sha256": "3eb179e4dc690bacd03e7ccac265c1d098703d276010ca05738cf7a0184a63e7",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/bindings.ts",
+      "sha256": "10516e75d75ab10b2a0efd5ec76032df9b36ed8408c5e61b80eef2ea3aa45457",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/catalogue.ts",
+      "sha256": "ca555530fcb64da4efd19c8b0ad7202252b3eee23ee59712d04254e51f3d8da3",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/errors.ts",
+      "sha256": "e18793e174bcd3f51e57652b114f161fe7d6416668d7abf5d34e2db56129ec2b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/index.ts",
+      "sha256": "7880e7a51ed81721a9120f5007117c54bee468063215aedc73c1152f244b608f",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/installed-kits.ts",
+      "sha256": "9a95239baf81168ddebf5fce1ffaafff4898da659ad7fa28c4b721f62f24fc4b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/kit-root.ts",
+      "sha256": "e03bf5fe4039ec6b5ac766016dd5ae69ee29deabc7253419174686bac10ce8df",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/kits.ts",
+      "sha256": "75d43a8915f0eb5a931dbc8d669c4cbc2e1bf966641bb6206ba261157a019d96",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/packet.ts",
+      "sha256": "ac7f74c85c19d967155f97f06726c3aec0597a86647a3688ea0df4a9d4860008",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/pin.ts",
+      "sha256": "e99c78dd797916245cfc93ab09adb40641ca4fd5265e9b83fe49bd9a3dc8a575",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/reader.ts",
+      "sha256": "f84992c42663128f83d2a7b9189fef5ec6789e5b3dddbd0ad4833a6e3537138b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/registry.ts",
+      "sha256": "53e839856fa353caf65b83b97700b780330365429331d2e292bb55dca1c9b871",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/releases.ts",
+      "sha256": "6a695b82fcec6e390d66bec2de5cd0973fca985bbbcdd4a560c3d6788a872f78",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/resolve.ts",
+      "sha256": "679ea72359e6ca8f26e0ae29f1ded53f92455be58410aba036b64510ab96885c",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/retained.ts",
+      "sha256": "2c4a33b24d9c0496e811d962afac50e7baf96bfacd8311d718a629d645dd013b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/root.ts",
+      "sha256": "a27bd54bfefea619a9eb89d3bf80fbe3574e828d071c3cd948ce087e7bd750be",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/method/session.ts",
+      "sha256": "7c10e40fdcec2c1f1b53bc90b721f345f4b0f5d00edbd5b0d65bcd92ecdb3a09",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/packet-host.ts",
+      "sha256": "ac6978e7fcdc94a19f35c5cdfad7cb1acc07dc1f2d617ff3c779b62ff8a50189",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/src/packet.ts",
+      "sha256": "d95467ab85d54ea0cf10c336900e711b152f0a56aefb0949e959261f431a9c40",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/tests/golden/packet-fresh-init.json",
+      "sha256": "be6b5a9cdee092d82fd4f4c23559a9ba6443a644fc9750d237c2fc95b1549a36",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/tests/kits-package.test.ts",
+      "sha256": "a61d40fba7e4f784160514a6afe75597235c6760fa000aa1f8a0bd4bcfda9a90",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/tests/mandate-resolution.test.ts",
+      "sha256": "6e2648cac9e2d54cc9762971dcbf17c333862a6cc91cae644d450273e46676b5",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/tests/method.test.ts",
+      "sha256": "68fead453b3711a9cd4b0475da315ed0522b2cae5f584c807c8472e29d0847e6",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/runtime/tests/packet.test.ts",
+      "sha256": "8e4c64f9ec1a999213554eaff6cfa9c8b423151a4bcb58176c7d5a03bf76f6f6",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/service-contracts/package.json",
+      "sha256": "3afac20313e9a97457774753d2fa72eeb81bf341efaec85d2cb33860553a5c48",
+      "cohortOnly": true,
+      "change": "cohort-alignment"
+    },
+    {
+      "path": "packages/workspace-runtime/SPEC.md",
+      "sha256": "76a0f22ddd160d708d743ec746dae7181f1410cfa6f303a8422c33c246ba506c",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/workspace-runtime/package.json",
+      "sha256": "2911dfba3f83805009076a0a790e5934c83f5ab81b6dc97e5d1112f7c85d0e89",
+      "cohortOnly": true,
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/workspace-runtime/src/generate/capability.ts",
+      "sha256": "575b95718df38173087e5c313ed497088676e0e09e7a996531375394924c76b1",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/workspace-runtime/src/generate/definitions.ts",
+      "sha256": "b83effde83afc760f9c64a91945f64eb5fcdd27eb4726e9c8f3dfd0b2b2c7a14",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/workspace-runtime/src/generate/index.ts",
+      "sha256": "a53a8c8d3a0fe1f5be99f1ae1857084c05e04f0e2da55803af4026328cccf543",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/workspace-runtime/src/installed-source-policy.ts",
+      "sha256": "cb7b9fe2f2524d75e90bde7b92f7ee6af9f8eafef9a037724d8ae65615663d02",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "packages/workspace-runtime/tests/generate-playbook.test.ts",
+      "sha256": "9e935227a712a3b143c0ccdeda89626138f4f9a419654dc659a4e638bed0fb16",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "14d67ce755d0a1b8fe4cf555e3f2124feb694ac511cf312f0ff85b9f4456ca48",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "3219126e2657f703e50f594f6545599397336c16fc20b4790a30cc087bbbed24",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/current.json",
+      "sha256": "23b4b15ad10b5db5e4e3da9f8de9ae5f600bbed75a0a052e4a0073b8548e0d2a",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/current.json",
+      "sha256": "6e15462a06848d39e9f8a08ef74aedd13e30739adcf880aaf724c9e0ed04a2c9",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "releases/native/notes.json",
+      "sha256": "3d2d7771fc025ddc9b61e5ec7d7a8abe34ac8eefaef68228beff7e5814a6e217",
+      "change": "repository-maintenance"
+    },
+    {
+      "path": "tools/dependencies/check.ts",
+      "sha256": "7d0a9123ae6ab6272e78a04cd34b9d640bb91ad0d3ac56e6df57e6fea0fd3a7e",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/distribution/npm-release.d.mts",
+      "sha256": "2b94d8efe8bcc35daf59609ef2eaf31356b2ad895465e3ab1b16efa99d681440",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/distribution/npm-release.mjs",
+      "sha256": "3da953e5e723c9aac9f599c9f9d4aa570025b1ad1c2468f010cd492942fedc48",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/distribution/release-refusals.test.ts",
+      "sha256": "7cca517d76a53ed08787297051be8e4abeff8275ada40aa3ce75cb39ea1b00c2",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/distribution/system-package-policy.json",
+      "sha256": "89cd64476ac1b82d952695e72c89ca9792bec555dab5c231aa2e165d3711a1d7",
+      "cohortOnly": true,
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/native/language-base.test.ts",
+      "sha256": "0d79ba4b602c3c6b5736f4e8b726fb0f53f08f9ea02e3d23b14b00793f43212d",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/native/language-base.ts",
+      "sha256": "5dcf58977e9c3914feab9b71c5200ac94a8192cfd52fc008c69d3502d264602f",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/projections/generate.test.ts",
+      "sha256": "ea4965de7f48a46b336800ce7a9bb2b1e52ce2daeade8ef33f7fa9a2f8267169",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/release/distribution.mjs",
+      "sha256": "0782723bd1a90a5f535a521b78f1d8407c5002b38b03d6583afaa9b197c72779",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/release/product-structure.mjs",
+      "sha256": "b8f494ab552e31a0c26a74820dc60f97637fe6029c7ee726c9a3e4ea3c6d69ea",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/release/public-content.test.ts",
+      "sha256": "27c586e355ddf756e786718322f0b8904d5b3b20b543f0a9a00a47b6a9f5c8cb",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/release/system-partitions.ts",
+      "sha256": "8d09b25e68c80301755abcb72a1e824f92b8cb5044592e650ac1f4655ff4986a",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    },
+    {
+      "path": "tools/testing/tasks.json",
+      "sha256": "1a539b3af923abf3265d09088040a8e6792e7c87f19c49e2c328f7b7c75e790b",
+      "change": "the-door-carries-every-method-kit-to-every-host"
+    }
+  ]
+}

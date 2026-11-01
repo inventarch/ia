@@ -2,6 +2,28 @@
 
 Generated from reviewed release changesets. Entries describe intended releases; publication is a separate action.
 
+## 3.5.0
+
+Coordinated 3.5.0 release of the 24 public npm packages: Close the conformance gaps runtime/local leaves; The door carries every method kit to every host.
+
+### Close the conformance gaps runtime/local leaves
+
+Tests only: compliance tests cover the conformance cases private-marketplace runtime/local carried before it retired. No consumer-facing change.
+
+Packages: `@inventarch/compliance`.
+
+### The door carries every method kit to every host
+
+`@inventarch/runtime/method` reads method kits (releases format 1 and 2, bundled and IA home kits), selects a repository binding and resolves the method packet in process: the packet and digest the `ia` plugin prints. `ia-mcp-door` adds `ia_session`, `ia_catalogue` and `ia_method`, reads kits from `--kits` or `IA_KITS_DIR` and the IA home, acts at its root or a root the format 2 `workspace-locations.json` registry lists (both earlier formats are read), and restores a kit in process with the language base it now carries. `ia host <claude|codex|copilot> --commit` writes a committable bootstrap: an instruction block naming `ia_session` and the three lanes, and an `ia` MCP server running `npx -y @inventarch/mcp-door@<version>`. The position packet gains the session line. A GitHub Copilot host row is added and Codex hooks are marked supported. Workspace projections render one skill per invocable `@capability`, not one per `@playbook`. `ia host claude --user` installs `ia@inventarch` from `inventarch/marketplace`; `--local` keeps the rendered plugin. `config.json` names `accountOffer` beside `updateCheck`. An npm package of kits, such as the default `@inventarch/public-kits`, is installed with `ia install --package <name>[@<version>] --apply` (contract C7b): the lock gains one `package` entry naming the package's exact version and npm integrity and, for each kit, its id, version, IA archive and manifest digests and dependencies, and the engine installs the kits as ordinary releases in `.ia/distributions/store/` at band 90, so closure, drift, `ia validate`, the method resolver and the door treat them as any installed kit. npm is transport only: `ia restore` refetches the archives by digest, offline from npm's cache (`_cacache/content-v2/sha512/…` by the integrity) or through `npm cache add`, and no kit is read from an npm package folder. `ia_session` says to run `ia restore` when the lock installs kits the store lacks. `ia host --commit` writes only the instruction block and the door entry. The distribution lock engine moves to 0.1.2, which reads such entries; a lock without one is read and written byte for byte as before, under the 0.1.1 marker, and archives keep declaring `^0.1.1`. An engine from 0.1.2 on refuses a lock it cannot read naming the `ia` that can (`It needs ia >= 3.5.0`), and an unknown entry kind is refused, never ignored; 3.4 and earlier refuse a lock with entries as a contract error. `ia validate --verify-conformance --require-verified` (opt-in) exits 1 unless COMP-KERNEL and COMP-FIXTURES are verified passes.
+
+Packages: `@inventarch/cli`, `@inventarch/db`, `@inventarch/distribution`, `@inventarch/mcp-door`, `@inventarch/runtime`, `@inventarch/workspace-runtime`.
+
+### Coordinated version alignment
+
+Package version metadata follows the coordinated 3.5.0 release; each native artifact version follows its own archive content.
+
+Packages: `@inventarch/agent-composition-system`, `@inventarch/agent-system`, `@inventarch/authoring-system`, `@inventarch/compliance-system`, `@inventarch/governance-system`, `@inventarch/graph`, `@inventarch/hook-authoring-system`, `@inventarch/kb`, `@inventarch/language`, `@inventarch/learning-system`, `@inventarch/runner`, `@inventarch/service-contracts`, `@inventarch/session-system`, `@inventarch/steward-hook`, `@inventarch/template-system`, `@inventarch/work-system`, `@inventarch/workspace-system`.
+
 ## 3.4.1
 
 Coordinated 3.4.1 release of the 24 public npm packages: Stop waiting on a FIFO, or following a link, put in place of a corpus source or capture file; Guide the whole hook-up from /ia:init, and record an fnm shell's Node by a lasting path; Remove a corpus source at its open in the context hook's re-check test; Validate minting against complete selected archive closures.
