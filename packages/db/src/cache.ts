@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { serialize } from '@inventarch/graph';
 import type { Graph } from '@inventarch/graph';
-import { safePath } from './inputs.js';
+import { CACHE_BOUNDS, safePath } from './inputs.js';
 
 export interface CacheObservation {
   readonly code: 'IA-DB-CACHE-UNAVAILABLE';
@@ -19,7 +19,8 @@ export function publishCache(root: string, graph: Graph, enabled: boolean): Cach
   const path = '.ia/.iadb/graph.json';
   let temporary: string | undefined;
   try {
-    const bytes = JSON.stringify({ format: 'ia-graph-1', revision: graph.revision, graph: serialize(graph) }) + '\n';
+    const text = serialize(graph, CACHE_BOUNDS.size);
+    const bytes = JSON.stringify({ format: 'ia-graph-1', revision: graph.revision, graph: text }) + '\n';
     const target = safePath(root, path);
     try {
       if (readFileSync(target, 'utf8') === bytes)

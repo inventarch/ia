@@ -203,6 +203,11 @@ export class Reader {
   #previous(): RetainedSnapshot | undefined {
     return this.#state.retention?.previous();
   }
+  /** While a new state is built the old one holds its root view alone: any other is built again if it is read again. */
+  protected releaseViews(): void {
+    const { rootView, views } = this.#state;
+    for (const [key, view] of views) if (view !== rootView) views.delete(key);
+  }
   protected replaceState(next: State): void {
     this.#assertOpen();
     if (next.inputs.fingerprint !== this.#state.inputs.fingerprint) this.#generation++;
@@ -568,6 +573,7 @@ export class Handle extends Reader {
     Object.freeze(this);
   }
   refresh(): Snapshot {
+    this.releaseViews();
     const held = this.retention,
       next = stableState(() => readInputs(this.root, this.#options), this.#options.cache!, this.#options),
       root = next.inputs.root,

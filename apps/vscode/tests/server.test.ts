@@ -132,6 +132,48 @@ it('initializes beside package links and answers real stdio editor requests', as
   });
 });
 
+it("labels a source the database refused as the database's, over the real transport", async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'ia-vscode-lsp-'));
+  cleanup.push(() => rmSync(root, { recursive: true, force: true }));
+  cpSync(resolve(import.meta.dirname, '../../../examples/conformance/native'), resolve(root, '.ia/src'), {
+    recursive: true,
+    filter: (path) => !/(?:^|[\\/])(node_modules|dist|\.git)(?:[\\/]|$)/.test(path),
+  });
+  writeFileSync(resolve(root, '.ia/src/refused.ia'), `#! ia 1.0\n@schema x\n  k [${','.repeat(1_000_000)}]\n`);
+  const scope = createScope(),
+    process = spawnOwned(
+      scope,
+      'vscode server',
+      globalThis.process.execPath,
+      [resolve(import.meta.dirname, '../dist/server.cjs')],
+      { timeoutMs: 25_000 },
+    );
+  cleanup.push(() => scope.dispose());
+  const connection = createMessageConnection(
+    new StreamMessageReader(process.stdout),
+    new StreamMessageWriter(process.stdin),
+  );
+  cleanup.push(() => connection.dispose());
+  const published = new Promise<{ code: string; source: string }>((found) => {
+    connection.onNotification(
+      'textDocument/publishDiagnostics',
+      (params: { diagnostics: { code: string; source: string }[] }) => {
+        const refusal = params.diagnostics.find((d) => d.code === 'IA-DB-SOURCE-UNAVAILABLE');
+        if (refusal !== undefined) found(refusal);
+      },
+    );
+  });
+  connection.listen();
+  await connection.sendRequest('initialize', {
+    processId: null,
+    capabilities: {},
+    initializationOptions: { protocol: 1, root },
+  });
+  await connection.sendNotification('initialized', {});
+  expect(await published).toMatchObject({ code: 'IA-DB-SOURCE-UNAVAILABLE', source: 'IA database' });
+  await connection.sendRequest('shutdown');
+  await connection.sendNotification('exit');
+});
 it('stays up for a folder whose installation is refused, names it once, and opens it after a restore', async () => {
   const root = mkdtempSync(resolve(tmpdir(), 'ia-vscode-lsp-'));
   cleanup.push(() => rmSync(root, { recursive: true, force: true }));

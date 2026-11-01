@@ -140,4 +140,26 @@ describe('public editor facade', () => {
     expect(editor.validateProposal([{ ...file, text: '#! ia 1.0\n@schema fresh\n' }], stamp).allowed).toBe(false);
     editor.close();
   });
+  it("answers for a source db refused from db's refusal, without parsing it", () => {
+    const root = workspace(),
+      path = '.ia/src/systems/governance-system/records/deep.ia',
+      fields = Array.from({ length: 6_000 }, (_, depth) => `${'  '.repeat(depth + 1)}f x\n`).join(''),
+      editor = new EditorWorkspace(root);
+    try {
+      editor.update([{ path, text: `#! ia 1.0\n@schema x\n${fields}`, version: 1 }]);
+      expect(
+        editor
+          .diagnostics()
+          .filter((f) => f.path === path)
+          .map((f) => f.code),
+      ).toEqual(['IA-DB-SOURCE-UNAVAILABLE']);
+      expect(editor.view().records.some((record) => record.source.path === path)).toBe(false);
+      expect(editor.view().records.length).toBeGreaterThan(0);
+      expect(editor.folding(path)).toEqual([]);
+      expect(editor.formatting(path)).toBeNull();
+      expect(editor.completions(path, { line: 1, character: 2 })).toEqual([]);
+    } finally {
+      editor.close();
+    }
+  }, 60_000);
 });

@@ -1527,6 +1527,38 @@ it('spells the admission report root only when every character is inert unquoted
 });
 
 describe('a file refused whole whose records db cannot all identify', () => {
+  it('fails closed on a mandate past the occurrences db lists of a file', () => {
+    const root = freshInit();
+    put(root, '.ia/src/many.ia', `${'@law x\n'.repeat(1_100)}@mandate past-the-listing\n`);
+    const db = database(root);
+    expect(db.unadmitted.some((entry) => entry.word === 'mandate')).toBe(false);
+    expect(refusedMandates(db)).toEqual([
+      {
+        path: '.ia/src/many.ia',
+        line: 1_025,
+        code: 'IA-DB-SOURCE-UNAVAILABLE',
+        message: '.ia/src/many.ia: occurrences past the first 1024 of this file are not listed',
+        unidentified: true,
+      },
+    ]);
+  });
+
+  it('fails closed on a source db refused without parsing it', () => {
+    const root = freshInit();
+    put(root, '.ia/src/long.ia', `#! ia 1.0\n@mandate behind-the-bound\n  k [${','.repeat(1_000_000)}]\n`);
+    const db = database(root);
+    expect(db.unadmitted.filter((entry) => entry.path === '.ia/src/long.ia')).toHaveLength(1);
+    expect(refusedMandates(db)).toEqual([
+      {
+        path: '.ia/src/long.ia',
+        line: 1,
+        code: 'IA-DB-SOURCE-UNAVAILABLE',
+        message: 'Source capture limit exceeded: .ia/src/long.ia is past 3145728 units of work in all',
+        unidentified: true,
+      },
+    ]);
+  });
+
   const body = '  meaning\n    says "x"\n';
   it('keeps the restrictive profile when an unrelated rejected file contains an attribution comment', () => {
     const root = freshInit(readFileSync(packetFixture, 'utf8').replace(ALL_MOVES, 'moves [Observation]')),

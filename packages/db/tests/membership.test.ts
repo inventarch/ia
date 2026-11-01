@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto';
 import { cpSync, readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
+import type { Node } from '@inventarch/graph';
 import type { Location } from '@inventarch/language';
 import { open, readInputs } from '../src/index.js';
 import type { Snapshot } from '../src/index.js';
 import { EditorDatabase } from '../src/editor/index.js';
+import { membershipOf } from '../src/membership.js';
 import { methodId, methodPath, put, workspace } from './workspace.js';
 
 const workspacePath = '.ia/src/systems/workspace-system/records/foundation-workspace.ia';
@@ -336,4 +338,33 @@ it('lists the roots the capture declares, longest first, pruned with the workspa
   } finally {
     db.close();
   }
+});
+describe('membership of many records under many declared roots', () => {
+  const node = (path: string, kind: 'authored' | 'adopted' = 'authored') =>
+    ({ identity: path, band: 100, digest: 'd', placement: { kind }, source: { path } }) as unknown as Node;
+  const root = (path: string, placement: 'authored' | 'adopted' = 'authored') => ({
+    root: path,
+    placement,
+    workspace: 'w',
+  });
+  it('seats a record at the longest root of its own placement', () => {
+    const declared = [root('a/b/c'), root('a/b', 'adopted'), root('a'), root('', 'adopted')];
+    const rows = membershipOf(
+      [node('a/b/c/d.ia'), node('a/b/x.ia'), node('a/b/x.ia', 'adopted'), node('z/x.ia', 'adopted'), node('a/b/c')],
+      declared,
+    );
+    expect(rows.map((row) => row.root)).toEqual(['a/b/c', 'a', 'a/b', '', 'a/b/c']);
+  });
+  it('does not take a root for a prefix of a longer folder name', () => {
+    expect(membershipOf([node('ab/x.ia')], [root('a')])[0]?.root).toBe('ab');
+  });
+  it('reads a record once however many roots are declared', () => {
+    const count = 60_000,
+      declared = Array.from({ length: count }, (_, index) => root(`roots/r${index}`)),
+      rows = membershipOf(
+        Array.from({ length: count }, (_, index) => node(`roots/r${index}/x.ia`)),
+        declared,
+      );
+    expect(rows[count - 1]?.root).toBe(`roots/r${count - 1}`);
+  });
 });

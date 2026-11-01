@@ -1,6 +1,6 @@
 import { BAND_OF, isPlacementKind } from '@inventarch/language';
 import type { Band, PlacementKind } from '@inventarch/language';
-import { canonicalRoot, reaches } from '@inventarch/graph';
+import { canonicalRoot } from '@inventarch/graph';
 import type { Graph, Node } from '@inventarch/graph';
 import { systemMember } from './inputs.js';
 
@@ -121,13 +121,22 @@ export function inertSources(graph: Graph): readonly InertDeclaration[] {
  * directory. Rows follow `nodes`.
  */
 export function membershipOf(nodes: readonly Node[], declared: readonly DeclaredRoot[]): readonly MembershipRow[] {
+  const roots = new Set(declared.map((d) => `${d.placement} ${d.root}`));
+  /** The longest root declared at `placement` that contains `path`, read from the path, whose length is bounded. */
+  const declaredAt = (placement: string, path: string): string | undefined => {
+    for (let end = path.length; end > 0; end = path.lastIndexOf('/', end - 1)) {
+      const root = path.slice(0, end);
+      if (roots.has(`${placement} ${root}`)) return root;
+    }
+    return roots.has(`${placement} `) ? '' : undefined;
+  };
   return Object.freeze(
     nodes.map((node) => {
       const path = node.source.path;
       return Object.freeze({
         identity: node.identity,
         root:
-          declared.find((d) => d.placement === node.placement.kind && reaches(d.root, path))?.root ??
+          declaredAt(node.placement.kind, path) ??
           systemMember(path)?.root ??
           (path.startsWith('.ia/src/floor/') ? '.ia/src/floor' : path.slice(0, Math.max(0, path.lastIndexOf('/')))),
         band: node.band,
