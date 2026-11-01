@@ -1,3 +1,5 @@
+import { meter } from './bounded.js';
+
 /** Closed diagnostic inventory from spec section 11 and the colocated semantic contract. */
 export const LANG_CODES = [
   'IA-LANG-PRAGMA-MISSING',
@@ -81,6 +83,7 @@ export function diag(
   message: string,
   options: DiagOptions = {},
 ): Diagnostic {
+  meter()?.diagnostic(message.length);
   return {
     code,
     severity: options.severity ?? 'error',

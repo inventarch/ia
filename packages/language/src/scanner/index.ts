@@ -1,3 +1,5 @@
+import { append, meter, metered } from '../bounded.js';
+import type { WorkBudget } from '../bounded.js';
 import type { Diagnostic } from '../diagnostics.js';
 import { logicalLines } from './lines.js';
 import type { Trivia } from './lines.js';
@@ -16,8 +18,12 @@ export interface ScanResult {
   readonly diagnostics: readonly Diagnostic[];
 }
 
-/** One token stream per file. The parser consumes this and nothing else. */
-export function scan(source: string, path: string): ScanResult {
+/** One token stream per file. The parser consumes this and nothing else. `budget` stops it where it is spent. */
+export function scan(source: string, path: string, budget?: WorkBudget): ScanResult {
+  return metered(budget, () => tokenStream(source, path));
+}
+function tokenStream(source: string, path: string): ScanResult {
+  const budget = meter();
   const lines = logicalLines(source, path);
   const diagnostics: Diagnostic[] = [...lines.diagnostics];
   const tokens: StreamToken[] = [];
@@ -53,10 +59,12 @@ export function scan(source: string, path: string): ScanResult {
       dropDeeperThan = undefined;
     }
     while (depth < logical.depth) {
+      budget?.token();
       tokens.push({ kind: 'indent', line: logical.line });
       depth++;
     }
     while (depth > logical.depth) {
+      budget?.token();
       tokens.push({ kind: 'dedent', line: logical.line });
       depth--;
     }
@@ -71,7 +79,7 @@ export function scan(source: string, path: string): ScanResult {
       dropDeeperThan = logical.depth;
       continue;
     }
-    tokens.push(...result.tokens);
+    append(tokens, result.tokens);
     if (logical.trailingComment !== undefined)
       tokens.push({ kind: 'comment', line: logical.endLine, text: logical.trailingComment, trailing: true });
     tokens.push({ kind: 'newline', line: logical.line, endLine: logical.endLine, depth: logical.depth });
