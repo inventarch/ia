@@ -1,23 +1,13 @@
 import { createHash } from 'node:crypto';
-import {
-  closeSync,
-  existsSync,
-  fstatSync,
-  lstatSync,
-  openSync,
-  readdirSync,
-  readFileSync,
-  realpathSync,
-  statSync,
-} from 'node:fs';
-import type { BigIntStats, Stats } from 'node:fs';
+import { existsSync, lstatSync, opendirSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import type { BigIntStats, Dirent, Stats } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { BAND_OF, KERNEL_SOURCES, isPlacementKind, isProvenance } from '@inventarch/language';
 import type { Location } from '@inventarch/language';
 import { canonicalRoot, stableSerialize } from '@inventarch/graph';
 import type { RevisionSource } from '@inventarch/graph';
 import { DbError } from './errors.js';
-import { OPENED_READ_FLAGS, OPENS_THROUGH_LINKS, lstatNamed, readOpened } from './named.js';
+import { OPENS_THROUGH_LINKS, lstatNamed, readOpened } from './named.js';
 import { pathKey, sameFile } from './paths.js';
 import { decodeActivationPointer } from './distribution/contracts.js';
 import type { ActivationPointer, LockedPackage } from './distribution/contracts.js';
@@ -78,6 +68,66 @@ export const EVIDENCE_FILE = /^[0-9a-f]{64}\.ia$/;
 export const RUNNER_EVIDENCE_DIRECTORY = '.ia/work/runner-evidence';
 export const RUNNER_EVIDENCE_FILE = /^[0-9a-f]{64}-[0-9a-f]{64}\.json$/;
 const EVIDENCE_BYTES = 4 * 1024 * 1024;
+/**
+ * D01b: what one capture reads, so that what reading costs is decided before it is paid: package capture's bounds, and
+ * `entries` and `depth` for a tree of folders. A source is held by its exact bytes (D01, and every pin and capture built
+ * on them), so a bound met before reading refuses the capture, as an unreadable source does.
+ */
+export const SOURCE_BOUNDS = Object.freeze({
+  files: 20_000,
+  entries: 100_000,
+  depth: 32,
+  fileBytes: 1_048_576,
+  totalBytes: 67_108_864,
+  reaches: 64,
+});
+/**
+ * D03a, D03b: the units of work (language `WORK_COST`) one capture may spend, which bytes do not measure: a megabyte can
+ * hold no token, or a million diagnostics. `view` is what its sources may produce, in every stage up to compilation,
+ * across every reach: a source that exhausts it is refused alone and gives back what it spent. `admission` is what
+ * rebuilding one view's graph may spend in all.
+ */
+export const WORK_BOUNDS = Object.freeze({
+  view: 3_145_728,
+  admission: 16_777_216,
+});
+/** D03b: how large a graph the cache may serialize, as graph `stableSerialize` counts it. */
+export const CACHE_BOUNDS = Object.freeze({ size: 216_000_000 });
+/**
+ * D01b: a folder's entries as they are read, each told to `spend` first, so that a folder of more than a bound takes is
+ * read no further than the entry past it and never held whole.
+ */
+function readEntries(directory: string, spend: (entry: Dirent) => void): Dirent[] {
+  const folder = opendirSync(directory),
+    entries: Dirent[] = [];
+  try {
+    for (let entry = folder.readSync(); entry !== null; entry = folder.readSync()) {
+      spend(entry);
+      entries.push(entry);
+    }
+  } finally {
+    folder.closeSync();
+  }
+  return entries;
+}
+/** The names in a folder a capture reads for itself, not as sources: at most a capture's entries, or it refuses. */
+function namesIn(directory: string, path: string): string[] {
+  let held = 0;
+  return readEntries(directory, () => {
+    if (++held > SOURCE_BOUNDS.entries) throw overBound(path, `is past ${SOURCE_BOUNDS.entries} entries`);
+  }).map((entry) => entry.name);
+}
+/** D01b: what a bound says of the source or folder that passed it, named from the workspace root. */
+export const pastBound = (path: string, bound: string): string => `Source capture limit exceeded: ${path} ${bound}`;
+/** D01b: a capture's refusal at a bound. */
+export const overBound = (path: string, bound: string): DbError =>
+  new DbError('IA-DB-SOURCE-UNAVAILABLE', pastBound(path, bound), path);
+/** D01b: what one capture has spent so far, across the root walk, every binding walk, the packages and the generation. */
+interface Spent {
+  entries: number;
+  files: number;
+  bytes: number;
+}
 /** One listed evidence file: its path, and the size and modification time the fingerprint covers. */
 export interface EvidenceCandidate {
   readonly path: string;
@@ -112,7 +162,7 @@ function evidenceSources(
     if (stat === undefined || !stat.isDirectory()) return [];
   }
   const found: EvidenceCandidate[] = [];
-  for (const name of readdirSync(safePath(root, directory)).sort(compare)) {
+  for (const name of namesIn(safePath(root, directory), directory).sort(compare)) {
     if (!pattern.test(name)) continue;
     const path = `${directory}/${name}`;
     let stat: Stats | undefined;
@@ -409,7 +459,7 @@ function discovering<T>(root: string, read: () => T): T {
   }
 }
 export function readInputs(root: string, supplied: InputOptions = {}): InputSnapshot {
-  return discovering(root, () => discover(root, supplied));
+  return discovering(root, () => discover(root, supplied, { entries: 0, files: 0, bytes: 0 }));
 }
 export interface AdoptedBinding {
   readonly id: string;
@@ -562,14 +612,14 @@ function bindings<T = Binding>(root: string, each: (binding: Binding) => T = (bi
     });
   });
 }
-function workspaceSources(root: string): readonly AdoptedSource[] {
+function workspaceSources(root: string, spent: Spent): readonly AdoptedSource[] {
   return bindings(root, (binding) => {
     const directory = safePath(root, binding.path),
       sourceRoot = safePath(directory, '.ia/src');
     if (!existsSync(sourceRoot) || !statSync(sourceRoot).isDirectory())
       invalid(`Missing source tree for ${binding.id}`);
     // Bind only this physical source tree; no recursive manifest expansion or extra floor.
-    const sources = discover(directory, { adopted: [], candidateInstallation: null })
+    const sources = discover(directory, { adopted: [], candidateInstallation: null }, spent, binding.path)
       .sources.filter((s) => !s.path.startsWith('.ia/src/floor/'))
       .map(({ path, text }) => ({ path, text }));
     const revision = createHash('sha256').update(stableSerialize(sources)).digest('hex');
@@ -595,57 +645,96 @@ function workspaceRoot(root: string): string {
 }
 /**
  * The bytes of the corpus source the walk listed at `child` as a regular file. Its name is opened before what it names
- * is judged, with `OPENED_READ_FLAGS`, and read through that descriptor as `readFileSync` reads a file, so the bytes are
- * of the file judged: a FIFO put at the name since the listing is not waited on, a terminal there does not become the
- * process's controlling terminal, and a final link is not followed where the platform has the no-follow flag. What
- * opens is read only if it is a regular file; when the open fails, the name is judged instead, a link as the listing
- * refuses one and anything else but a regular file as one that opens. A name that is gone, a regular file that does not
- * open, and a read that fails answer with the filesystem's error, which the walk refuses as before. Where the open
- * follows a final link (`OPENS_THROUGH_LINKS`, Windows), the name must still name the file read once it is read, as
- * package source capture checks: a link there is refused as the listing refuses one, a link to what is not a regular
- * file included, and a name that names nothing or another file is IA-DB-SOURCE-CHANGED.
+ * is judged, with `OPENED_READ_FLAGS`, and read through that descriptor by `readOpened`, so the bytes are of the file
+ * judged: a FIFO put at the name since the listing is not waited on, a terminal there does not become the process's
+ * controlling terminal, and a final link is not followed where the platform has the no-follow flag. What opens is read
+ * only if it is a regular file; when the open fails, the name is judged instead, a link as the listing refuses one and
+ * anything else but a regular file as one that opens. A name that is gone, a regular file that does not open, and a read
+ * that fails answer with the filesystem's error, which the walk refuses as before. `opened` spends the opened file's size
+ * on the capture's bounds (D01b) before any byte of it is read, and at most that size and one byte more is read: a file
+ * that grows, shrinks or changes while it is read is IA-DB-SOURCE-CHANGED, as a package source is. Where the open follows
+ * a final link (`OPENS_THROUGH_LINKS`, Windows), the name must still name the file read once it is read, as package
+ * source capture checks: a link there is refused as the listing refuses one, a link to what is not a regular file
+ * included, and a name that names nothing or another file is IA-DB-SOURCE-CHANGED.
  */
-function readSource(root: string, child: string): Buffer {
+function readSource(root: string, child: string, opened: (size: bigint) => void): Buffer {
   const file = safePath(root, child),
     irregular = () =>
       new DbError('IA-DB-SOURCE-UNAVAILABLE', `Cannot read exact UTF-8 source ${child}: not a regular file`),
-    alias = () => new DbError('IA-DB-PATH-UNSAFE', `Source alias is not admitted: ${child}`);
-  let fd: number;
-  try {
-    fd = openSync(file, OPENED_READ_FLAGS);
-  } catch (error) {
-    let named: Stats | undefined;
-    try {
-      named = lstatSync(file, { throwIfNoEntry: false });
-    } catch {
-      throw error;
-    }
-    if (named?.isSymbolicLink()) throw alias();
-    if (named !== undefined && !named.isFile()) throw irregular();
-    throw error;
-  }
-  try {
-    const opened = fstatSync(fd, { bigint: true });
-    if (!opened.isFile()) {
-      // Where the open follows a final link, what opened may be what a link at the name names: refuse the link.
-      if (OPENS_THROUGH_LINKS && lstatNamed(file)?.isSymbolicLink()) throw alias();
-      throw irregular();
-    }
-    const bytes = readFileSync(fd);
-    if (OPENS_THROUGH_LINKS) {
-      const named = lstatNamed(file);
+    alias = () => new DbError('IA-DB-PATH-UNSAFE', `Source alias is not admitted: ${child}`),
+    changed = () => new DbError('IA-DB-SOURCE-CHANGED', `Source changed during read: ${child}`, child);
+  return readOpened(file, {
+    unopened: (error) => {
+      let named: Stats | undefined;
+      try {
+        named = lstatSync(file, { throwIfNoEntry: false });
+      } catch {
+        throw error;
+      }
       if (named?.isSymbolicLink()) throw alias();
-      if (named?.isFile() !== true || named.dev !== opened.dev || named.ino !== opened.ino)
-        throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
-    }
-    return bytes;
-  } finally {
-    closeSync(fd);
-  }
+      if (named !== undefined && !named.isFile()) throw irregular();
+      throw error;
+    },
+    opened: (stat) => {
+      if (!stat.isFile()) {
+        // Where the open follows a final link, what opened may be what a link at the name names: refuse the link.
+        if (OPENS_THROUGH_LINKS && lstatNamed(file)?.isSymbolicLink()) throw alias();
+        throw irregular();
+      }
+      opened(stat.size);
+    },
+    read: ({ opened: stat, bytes, after }) => {
+      if (
+        BigInt(bytes.length) !== stat.size ||
+        after.size !== stat.size ||
+        after.mtimeNs !== stat.mtimeNs ||
+        after.ctimeNs !== stat.ctimeNs
+      )
+        throw changed();
+      if (OPENS_THROUGH_LINKS) {
+        const named = lstatNamed(file);
+        if (named?.isSymbolicLink()) throw alias();
+        if (named?.isFile() !== true || named.dev !== stat.dev || named.ino !== stat.ino)
+          throw new DbError('IA-DB-SOURCE-CHANGED', `Source replaced during read: ${child}`);
+      }
+      return bytes;
+    },
+  });
 }
-function discover(root: string, supplied: InputOptions): InputSnapshot {
-  const canonical = workspaceRoot(root);
-  const options = inputOptions({ ...supplied, adopted: supplied.adopted ?? workspaceSources(canonical) }),
+/**
+ * The capture of `root`. `mount` is where a binding's own walk stands in its workspace, so that a refusal names a source
+ * from the workspace root; every walk of one capture spends the one `spent`.
+ */
+function discover(root: string, supplied: InputOptions, spent: Spent, mount = ''): InputSnapshot {
+  const canonical = workspaceRoot(root),
+    named = (path: string): string => (mount === '' ? path : `${mount}/${path}`);
+  const spendEntry = (path: string, source: boolean): void => {
+    if (++spent.entries > SOURCE_BOUNDS.entries) throw overBound(path, `is past ${SOURCE_BOUNDS.entries} entries`);
+    if (source && ++spent.files > SOURCE_BOUNDS.files) throw overBound(path, `is past ${SOURCE_BOUNDS.files} sources`);
+  };
+  // D01b: a folder's listing is spent as it is read, and before any source of it is. A listing comes in no fixed order,
+  // so a refusal names the folder: folders are walked in order, and the one that passes a bound is the same on any disk.
+  const spendListed = (folder: string, entry: Dirent): void =>
+    spendEntry(named(folder), entry.isFile() && entry.name.endsWith('.ia'));
+  const spendDepth = (path: string, depth: number): void => {
+    if (depth > SOURCE_BOUNDS.depth) throw overBound(path, `is deeper than ${SOURCE_BOUNDS.depth} folders`);
+  };
+  const spendTotal = (path: string, bytes: number): void => {
+    if ((spent.bytes += bytes) > SOURCE_BOUNDS.totalBytes)
+      throw overBound(path, `is past ${SOURCE_BOUNDS.totalBytes} bytes in all`);
+  };
+  const spendBytes = (path: string, size: bigint): void => {
+    if (size > BigInt(SOURCE_BOUNDS.fileBytes)) throw overBound(path, `is over ${SOURCE_BOUNDS.fileBytes} bytes`);
+    spendTotal(path, Number(size));
+  };
+  // A generation's own reader verifies its whole payload; what of it will be parsed is spent here, from the pinned
+  // sizes, before any of it is read. A source past `fileBytes` is left to the view, which refuses it alone (D03a).
+  const spendInstalled = (path: string, bytes: number): void => {
+    spendEntry(path, true);
+    spendDepth(path, path.slice(path.indexOf('/.ia/src/') + '/.ia/src/'.length).split('/').length - 1);
+    spendTotal(path, bytes);
+  };
+  const options = inputOptions({ ...supplied, adopted: supplied.adopted ?? workspaceSources(canonical, spent) }),
     sourceRoot = safePath(canonical, '.ia/src'),
     floorRoot = safePath(canonical, '.ia/src/floor');
   const floorOrigin = options.floor !== undefined ? 'explicit' : existsSync(floorRoot) ? 'local' : 'embedded';
@@ -662,12 +751,15 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
       : { placement: { kind: 'authored', band: 100, reach: '' }, provenance: 'workspace' };
     sources.push(Object.freeze({ ...source, location: options.locations?.[key] ?? location(fallback) }));
   };
-  const walk = (path: string): void => {
-    for (const entry of readdirSync(safePath(canonical, path), { withFileTypes: true }).sort((a, b) =>
-      compare(a.name, b.name),
-    )) {
-      // Colocated executable systems contain package artifacts, never corpus sources.
-      if (['node_modules', 'dist', '.git'].includes(entry.name.toLowerCase())) continue;
+  const walk = (path: string, depth: number): void => {
+    // Colocated executable systems contain package artifacts, never corpus sources.
+    const skipped = (entry: Dirent): boolean => ['node_modules', 'dist', '.git'].includes(entry.name.toLowerCase());
+    const entries = readEntries(safePath(canonical, path), (entry) => {
+      if (!skipped(entry)) spendListed(path, entry);
+    })
+      .filter((entry) => !skipped(entry))
+      .sort((a, b) => compare(a.name, b.name));
+    for (const entry of entries) {
       // Where the volume opens `.ia/src/systems` as `Systems`, that is the systems folder; its members keep their names.
       const folded = pathKey(entry.name),
         name =
@@ -679,12 +771,16 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
       const child = `${path}/${name}`;
       if (pathKey(child) === '.ia/src/floor' && floorOrigin !== 'local') continue;
       if (entry.isSymbolicLink()) throw new DbError('IA-DB-PATH-UNSAFE', `Source alias is not admitted: ${child}`);
-      if (entry.isDirectory()) walk(child);
-      else if (entry.isFile() && entry.name.endsWith('.ia')) {
+      if (entry.isDirectory()) {
+        spendDepth(named(child), depth + 1);
+        walk(child, depth + 1);
+      } else if (entry.isFile() && entry.name.endsWith('.ia')) {
         try {
           add({
             path: child,
-            text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(readSource(canonical, child)),
+            text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+              readSource(canonical, child, (size) => spendBytes(named(child), size)),
+            ),
           });
         } catch (error) {
           if (error instanceof DbError) throw error;
@@ -696,15 +792,13 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
       }
     }
   };
-  if (existsSync(sourceRoot)) walk('.ia/src');
+  if (existsSync(sourceRoot)) walk('.ia/src', 0);
   // Selected package trees contribute original physical paths at authored precedence.
   // The repository still owns each system declaration and its sole steward/definition closure.
-  let packageFiles = 0,
-    packageBytes = 0;
   for (const packageRoot of options.authoredRoots ?? []) {
     let parent = '';
     for (const segment of packageRoot.split('/')) {
-      const siblings = readdirSync(safePath(canonical, parent));
+      const siblings = namesIn(safePath(canonical, parent), parent);
       if (
         !siblings.includes(segment) ||
         siblings.filter((name) => name.normalize('NFC').toLowerCase() === segment.toLowerCase()).length !== 1
@@ -714,11 +808,11 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
       if (!lstatSync(safePath(canonical, parent)).isDirectory())
         throw new DbError('IA-DB-PATH-UNSAFE', `Authored package root is not a directory: ${parent}`);
     }
-    const packageMembers = readdirSync(safePath(canonical, packageRoot));
+    const packageMembers = namesIn(safePath(canonical, packageRoot), packageRoot);
     if (!packageMembers.includes('.ia') || packageMembers.filter((name) => name.toLowerCase() === '.ia').length !== 1)
       throw new DbError('IA-DB-PATH-UNSAFE', `Package .ia path is missing or aliased: ${packageRoot}`);
     const nativeRoot = `${packageRoot}/.ia`,
-      members = readdirSync(safePath(canonical, nativeRoot));
+      members = namesIn(safePath(canonical, nativeRoot), nativeRoot);
     if (
       !members.includes('src') ||
       members.filter((name) => name.toLowerCase() === 'src').length !== 1 ||
@@ -733,10 +827,10 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
         `Package source has an independent root or legacy authority: ${nativeRoot}`,
       );
     const tree = `${nativeRoot}/src`;
-    if (readdirSync(safePath(canonical, tree)).some((name) => name !== 'systems'))
+    if (namesIn(safePath(canonical, tree), tree).some((name) => name !== 'systems'))
       throw new DbError('IA-DB-PATH-UNSAFE', `Package sources must be instances under root-owned systems: ${tree}`);
-    const visit = (path: string): void => {
-      const entries = readdirSync(safePath(canonical, path), { withFileTypes: true }).sort((a, b) =>
+    const visit = (path: string, depth: number): void => {
+      const entries = readEntries(safePath(canonical, path), (entry) => spendListed(path, entry)).sort((a, b) =>
         compare(a.name, b.name),
       );
       const aliases = new Set<string>();
@@ -756,8 +850,10 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
           file = safePath(canonical, child);
         if (!entry.isDirectory() && !entry.isFile())
           throw new DbError('IA-DB-PATH-UNSAFE', `Nonregular package source: ${child}`);
-        if (entry.isDirectory()) visit(child);
-        else if (entry.isFile() && entry.name.endsWith('.ia')) {
+        if (entry.isDirectory()) {
+          spendDepth(named(child), depth + 1);
+          visit(child, depth + 1);
+        } else if (entry.isFile() && entry.name.endsWith('.ia')) {
           const owner = systemMember(child);
           if (
             !owner ||
@@ -770,8 +866,7 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
           const admit = (stat: BigIntStats): void => {
             if (!stat.isFile()) throw replaced();
             if (stat.nlink !== 1n) throw new DbError('IA-DB-PATH-UNSAFE', `Hard-linked package source: ${child}`);
-            if (++packageFiles > 20000 || stat.size > 1048576n || (packageBytes += Number(stat.size)) > 67108864)
-              throw new DbError('IA-DB-SOURCE-UNAVAILABLE', 'Authored package source capture limit exceeded');
+            spendBytes(child, stat.size);
           };
           // The file is opened before it is judged, so the judgment and the bytes are of one file (CodeQL
           // js/file-system-race), and a link put in place since the listing is refused by the open where the platform
@@ -803,14 +898,14 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
         }
       }
     };
-    visit(tree);
+    visit(tree, 0);
   }
   if (floorOrigin !== 'local') for (const source of options.floor ?? KERNEL_SOURCES) add(source);
   const installed =
     options.candidateInstallation === null
       ? undefined
-      : readInstalledGeneration(canonical, options.candidateInstallation);
-  if (installed) sources.push(...installed.sources);
+      : readInstalledGeneration(canonical, options.candidateInstallation, spendInstalled);
+  if (installed) for (const source of installed.sources) sources.push(source);
   for (const mount of options.adopted ?? [])
     for (const source of mount.sources) {
       const tree =

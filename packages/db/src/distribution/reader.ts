@@ -19,7 +19,13 @@ import {
   decodeGenerationInputs,
   generationDigest,
 } from './contracts.js';
-import type { ActivationPointer, DistributionLock, GenerationInputs, LockedPackage } from './contracts.js';
+import type {
+  ActivationPointer,
+  BundleManifest,
+  DistributionLock,
+  GenerationInputs,
+  LockedPackage,
+} from './contracts.js';
 import { deriveGenerationInputs, installationWorkspace } from './membership.js';
 import type { BundleMetadata } from './membership.js';
 import { verifyReleaseControl } from './release-control.js';
@@ -204,6 +210,7 @@ export function readExpandedBundle(
   root: string,
   pkg: LockedPackage,
   maximumBytes: number = DISTRIBUTION_LIMITS.expanded,
+  verified?: (manifest: BundleManifest) => void,
 ): ExpandedBundle {
   const directory = `${INSTALL_PATHS.store}/${pkg.archive}`,
     manifestBytes = required(root, `${directory}/distribution.json`);
@@ -212,6 +219,7 @@ export function readExpandedBundle(
   if (manifest.id !== pkg.id || manifest.version !== pkg.version) corrupt('Selected release identity differs');
   if (manifest.files.reduce((sum, file) => sum + file.bytes, 0) > maximumBytes)
     corrupt('Combined installation byte limit');
+  verified?.(manifest);
   const expected = new Map(manifest.files.map((f) => [f.path, f])),
     files = new Map<string, Buffer>(),
     aliases = new Set<string>();
@@ -253,7 +261,15 @@ export interface InstalledGeneration {
   readonly sources: readonly RevisionSource[];
   readonly fingerprint: string;
 }
-export function readInstalledGeneration(root: string, candidate?: ActivationPointer): InstalledGeneration | undefined {
+/**
+ * The generation at `root`, verified whole. `spend` is told each source the generation selects, by its path and pinned
+ * size, once its manifest is verified and before any of its payload is read; refusing there reads nothing more.
+ */
+export function readInstalledGeneration(
+  root: string,
+  candidate?: ActivationPointer,
+  spend?: (path: string, bytes: number) => void,
+): InstalledGeneration | undefined {
   if (!candidate && read(root, INSTALL_PATHS.pending))
     throw new InstallationError('recovery-required', 'Run explicit distribution recovery before reading');
   const activeBytes = read(root, INSTALL_PATHS.active),
@@ -285,7 +301,14 @@ export function readInstalledGeneration(root: string, candidate?: ActivationPoin
   const bundles = new Map<string, ExpandedBundle>();
   let remaining = DISTRIBUTION_LIMITS.expanded as number;
   for (const pkg of lock.packages) {
-    const bundle = readExpandedBundle(root, pkg, remaining);
+    const bundle = readExpandedBundle(root, pkg, remaining, (manifest) => {
+      if (spend === undefined) return;
+      const pins = new Map(manifest.files.map((file) => [file.path, file]));
+      const control = `.ia/src/releases/${manifest.distribution.split('/')[3]}.ia`,
+        selected = inputs.systems.filter((system) => system.selected === pkg.id).flatMap((system) => system.files);
+      for (const path of pins.get(control)?.role === 'source' ? [...selected, control] : selected)
+        spend(`${INSTALL_PATHS.store}/${pkg.archive}/${path}`, pins.get(path)?.bytes ?? 0);
+    });
     remaining -= bundle.manifest.files.reduce((sum, file) => sum + file.bytes, 0);
     bundles.set(pkg.id, bundle);
   }

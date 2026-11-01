@@ -1,4 +1,4 @@
-import { closeSync, constants, lstatSync, openSync, readFileSync } from 'node:fs';
+import { closeSync, constants, lstatSync, openSync, readFileSync, readSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { CAPTURE_CURRENT, CAPTURE_FORMAT, open, planCapture, readInputs } from '../src/index.js';
@@ -19,6 +19,7 @@ vi.mock('node:fs', async (importOriginal) => {
     openSync: vi.fn(actual.openSync),
     lstatSync: vi.fn(actual.lstatSync),
     readFileSync: vi.fn(actual.readFileSync),
+    readSync: vi.fn(actual.readSync),
     closeSync: vi.fn(actual.closeSync),
   };
 });
@@ -26,6 +27,7 @@ afterEach(() => {
   vi.mocked(openSync).mockReset();
   vi.mocked(lstatSync).mockReset();
   vi.mocked(readFileSync).mockReset();
+  vi.mocked(readSync).mockReset();
   vi.mocked(closeSync).mockClear();
 });
 
@@ -106,7 +108,7 @@ it.skipIf(process.platform === 'win32')(
     });
     // The open followed the link and read the file it names; the name's identity refused it, and the descriptor closed.
     expect(opened).toHaveLength(1);
-    expect(readFileSync).toHaveBeenCalledWith(opened[0]);
+    expect(vi.mocked(readSync).mock.calls.some(([fd]) => fd === opened[0])).toBe(true);
     expect(closeSync).toHaveBeenCalledWith(opened[0]);
   },
 );

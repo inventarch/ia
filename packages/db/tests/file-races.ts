@@ -88,12 +88,13 @@ export const replacedAtOpen = async (
  * of a name under it fails with ENOTDIR. POSIX only: Windows does not rename a directory that holds an open file, and
  * there a path through a file is missing (ENOENT).
  */
-export const directoryBecomesFile = async (directory: string): Promise<void> => {
-  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+export const directoryBecomesFile = async (directory: string, file?: string): Promise<void> => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs'),
+    opened = file === undefined ? undefined : await descriptors(file);
   let calls = 0;
   vi.mocked(readSync).mockImplementation((...args: Parameters<typeof readSync>) => {
     const count = actual.readSync(...args);
-    if (++calls === 1) {
+    if ((opened === undefined || args[0] === opened.at(-1)) && ++calls === 1) {
       actual.renameSync(directory, `${directory}.moved`);
       actual.writeFileSync(directory, 'not a directory');
     }
