@@ -124,6 +124,106 @@ it('executes one admitted read and completes with exact receipts and usage', asy
   expect(f.reads()).toBe(1);
 });
 
+it.each(
+  ['terminal', 'paused', 'input', 'external-model', 'aborted', 'aborted-ready-wait', 'child-input'].flatMap((stop) =>
+    ['current', 'revoked', 'expired', 'wrong-principal', 'wrong-workspace'].map((authority) => ({ stop, authority })),
+  ),
+)('checks current root authority before returning $stop with a $authority grant', async ({ stop, authority }) => {
+  const clarification: ModelAction = {
+    type: 'outcome',
+    kind: 'clarification',
+    message: 'Choose scope',
+    continuation: 'await-input',
+    questions: [{ prompt: 'Which scope?', choices: ['project', 'personal'], required: true }],
+  };
+  const f = fixture(
+    stop === 'terminal'
+      ? scripted([outcome])
+      : stop === 'input' || stop === 'aborted-ready-wait'
+        ? scripted([clarification])
+        : stop === 'child-input'
+          ? scripted([{ type: 'delegate', profile: 'architect', task: 'Review' }, clarification])
+          : undefined,
+  );
+  try {
+    await start(f.engine);
+    if (stop === 'aborted') await f.engine.advance('session', 'alice', { maxActions: 1 });
+    else await f.engine.advance('session', 'alice');
+    if (stop === 'paused') {
+      await mutation(f.store, {
+        type: 'control.submit',
+        control: { id: 'pause', actor: 'alice', kind: 'pause', runId: 'root', applied: false },
+      });
+      await f.engine.advance('session', 'alice');
+    }
+    if (stop === 'aborted-ready-wait') {
+      const question = Object.values((await f.store.read('session')).questions)[0]!;
+      await mutation(f.store, {
+        type: 'question.reply',
+        questionId: question.id,
+        revision: question.revision,
+        digest: question.digest,
+        answer: 'project',
+      });
+    }
+    const before = await f.store.read('session');
+    expect(before.runs['root']!.status).toBe(
+      stop === 'terminal' ? 'completed' : stop === 'paused' ? 'paused' : stop === 'aborted' ? 'running' : 'waiting',
+    );
+    // Disclosure needs the root profile, even when a child is the waiting run.
+    f.grant.profiles = authority === 'revoked' ? ['architect'] : ['author'];
+    if (authority === 'expired') f.grant.expiresAt = Date.now();
+    if (authority === 'wrong-principal') f.grant.principal = 'mallory';
+    if (authority === 'wrong-workspace') f.grant.workspace = 'other';
+    let checks = 0;
+    f.host.authorize = async () => {
+      checks++;
+      return f.grant;
+    };
+    const options = stop.startsWith('aborted') ? { signal: AbortSignal.abort() } : {};
+    if (authority === 'current') {
+      // Neither a task deadline nor unavailable executable inputs prevent an authorized read.
+      f.host.now = () => before.limits.deadline + 1;
+      f.grant.expiresAt = before.limits.deadline + 60_000;
+      f.host.verifyManifest = async () => false;
+      expect(await f.engine.advance('session', 'alice', options)).toEqual(before);
+    } else {
+      await expect(f.engine.advance('session', 'alice', options)).rejects.toMatchObject({
+        code: 'IA-ENGINE-AUTHORITY-DENIED',
+      });
+    }
+    expect(checks).toBe(1);
+    expect(await f.store.read('session')).toEqual(before);
+    // Both the success and refusal paths release the scheduler lease.
+    const owner = await f.store.acquire('session');
+    await f.store.release(owner);
+  } finally {
+    await f.store.close();
+  }
+});
+
+it.each(['revoked', 'expired'])('rechecks a grant that becomes %s at the final checkpoint', async (authority) => {
+  const f = fixture();
+  try {
+    await start(f.engine);
+    const checkpoint = f.store.checkpoint.bind(f.store);
+    f.store.checkpoint = async (...args) => {
+      const result = await checkpoint(...args);
+      if (authority === 'revoked') f.grant.profiles = [];
+      else f.grant.expiresAt = Date.now();
+      return result;
+    };
+    await expect(f.engine.advance('session', 'alice', { maxActions: 1 })).rejects.toMatchObject({
+      code: 'IA-ENGINE-AUTHORITY-DENIED',
+    });
+    expect((await f.store.read('session')).runs['root']!.status).toBe('running');
+    const owner = await f.store.acquire('session');
+    await f.store.release(owner);
+  } finally {
+    await f.store.close();
+  }
+});
+
 it('gives context generation the remaining complete request allowance while preserving operation history', async () => {
   const actions: ModelAction[] = [
       { type: 'invoke', operation: 'read', input: 'first' },

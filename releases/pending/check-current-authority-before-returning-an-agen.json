@@ -1,0 +1,12 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Check current authority before returning an agent session",
+  "summary": "Engine.advance now checks the current grant for the session root profile before returning session state, including terminal, paused, waiting and cancelled advances. Revoked or expired authority is refused even when no scheduler step runs.",
+  "packages": [
+    "@inventarch/agent-system"
+  ],
+  "paths": [
+    ".ia/src/systems/agent-system/"
+  ]
+}
