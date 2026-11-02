@@ -67,8 +67,8 @@ it('pins the format limits and the wider capture limits', () => {
     selectedBytes: 8 * 1024 * 1024,
     selectionBytes: 64 * 1024,
     captureRecords: 5000,
-    captureFiles: 1000,
-    captureBytes: 40 * 1024 * 1024,
+    captureFiles: 100,
+    captureBytes: 8 * 1024 * 1024,
     captureSelectionBytes: 512 * 1024,
   });
 });
@@ -122,7 +122,7 @@ it('reads a body of exactly the file byte limit and refuses one byte more', () =
 
 it('reads exactly the file limit across native and body files and refuses the next body', () => {
   const root = workspace();
-  // One native file plus 999 bodies is exactly LIMITS.captureFiles.
+  // One native file plus 99 bodies is exactly LIMITS.captureFiles.
   bound(root, LIMITS.captureFiles - 1, () => 1);
   expect(outcome(root)).toEqual({ records: LIMITS.captureFiles - 1, unavailable: [] });
   bound(root, LIMITS.captureFiles, () => 1);
@@ -254,14 +254,21 @@ it('gives each record of one file its own lines and the whole file hash', () => 
   ]);
 });
 
-it('reads native bytes past the package byte limit', () => {
+it('reads native bytes up to the capture byte budget and refuses one byte more', () => {
   const root = workspace(),
-    // A captured source may not pass the file limit, record syntax included.
-    says = LIMITS.fileBytes - 1024,
-    count = Math.ceil(LIMITS.selectedBytes / says);
-  for (let i = 0; i < count; i++)
-    writeFileSync(join(root, '.ia/src', name(i) + '.ia'), '#! ia 1.0\n' + record(i, 'x'.repeat(says)));
-  expect(captureKnowledge(root, { input }).records).toHaveLength(count);
+    size = LIMITS.fileBytes - 1024,
+    count = Math.ceil(LIMITS.captureBytes / size);
+  let remaining = LIMITS.captureBytes;
+  for (let i = 0; i < count; i++) {
+    const bytes = Math.min(size, remaining),
+      prefix = '#! ia 1.0\n' + record(i, '');
+    writeFileSync(join(root, '.ia/src', name(i) + '.ia'), '#! ia 1.0\n' + record(i, 'x'.repeat(bytes - prefix.length)));
+    remaining -= bytes;
+  }
+  expect(outcome(root)).toEqual({ records: count, unavailable: [] });
+  const path = join(root, '.ia/src', name(count - 1) + '.ia');
+  writeFileSync(path, readFileSync(path, 'utf8') + '\n');
+  expect(() => captureKnowledge(root, { input })).toThrow('Knowledge selection exceeds capture budget');
 });
 
 it('reads exactly the capture byte budget and refuses one byte more', () => {

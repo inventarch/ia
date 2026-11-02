@@ -236,7 +236,7 @@ function membership(root: string) {
   }
 }
 it('pins the membership budget', () => {
-  expect(MEMBERSHIP).toEqual({ records: 5000, bytes: 40 * 1024 * 1024 });
+  expect(MEMBERSHIP).toEqual({ records: 5000, bytes: 20 * 1024 * 1024 });
 });
 it('counts only selectable authored records against the membership record budget', () => {
   const { root } = fixture(),

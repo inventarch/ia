@@ -2,8 +2,8 @@
   "format": "ia.public-package-inputs.v2",
   "source": {
     "repository": "https://github.com/inventarch/ia",
-    "commit": "6c3de0080e352aa8b82553a18595c5756947f0f5",
-    "tree": "b5dde536c90d48c9b5d05ed8eaee06675844bb8e",
+    "commit": "fd954d9feb437547cffbce977410854f567b6b55",
+    "tree": "98919c938c5a544df71a53b2307e0a273be08186",
     "dirty": true
   },
   "membership": {
@@ -2488,7 +2488,7 @@
     },
     {
       "path": "apps/mcp-door/tests/kb.test.ts",
-      "sha256": "da8b60e51276013ae9f4f2402517deecddb77f1866d542b37efe24d2e8637822"
+      "sha256": "01a62ee6e2ea7d9d577b2a099c1e3b6fd2b28c907eb191e4e15c43638002ba0e"
     },
     {
       "path": "apps/mcp-door/tests/kits-package.test.ts",
@@ -5872,11 +5872,11 @@
     },
     {
       "path": "packages/kb/README.md",
-      "sha256": "a02cf2c40f1778cd8c9a492897bf10edb8c7d4dee8bb1a670265c9b443055ddd"
+      "sha256": "0e16f858d9217eaf34649a555c7ef21bd9bcef83ca6629c5fc6f166f77949b7f"
     },
     {
       "path": "packages/kb/SPEC.md",
-      "sha256": "65d001f029cb422d9678aaeaa57f43235d6dc2f01253fe86e1ef44c5e18416a6"
+      "sha256": "56714f5333310e78afcb540168920ab34c98b826e233a521246313c6853c3111"
     },
     {
       "path": "packages/kb/package.json",
@@ -5956,7 +5956,7 @@
     },
     {
       "path": "packages/kb/tests/limits.test.ts",
-      "sha256": "7baced0566870dbf3711868dbde5439b41643189b07f1d21ddea6c5cadcf8587"
+      "sha256": "f77880fe06891d515fa5fd3f4047e0db7e5b04bfb57cc4f2c2ecf80fd535daa5"
     },
     {
       "path": "packages/kb/tests/local.test.ts",
@@ -7300,7 +7300,7 @@
     },
     {
       "path": "releases/pending/let-the-local-knowledge-tools-read-up-to-5-000-r.json",
-      "sha256": "b16abca3cabc0e11a3d238da11241172df62194847e9697aec85d87102effefa"
+      "sha256": "f65deb713003b02361ea0089623d57201842c76e53874d37a71a18aee2ff3b47"
     },
     {
       "path": "tools/compliance/SPEC.md",
@@ -7520,7 +7520,7 @@
     },
     {
       "path": "tools/distribution/qualify-kb.mjs",
-      "sha256": "8ca6f1ef2325b5be7fb2b04dfb7aa3c6263b5874c4c25ea7628ef77a503dca86"
+      "sha256": "bab6dded329e1b1f2291b269aa946e5659bf78a00c13318adfcc427f55240e96"
     },
     {
       "path": "tools/distribution/qualify-packages.mjs",
@@ -8391,5 +8391,5 @@
       "sha256": "b7a2070d0de01d78a2f8dbd4e8c646740a4b9f68810cfda96aafe69ffc7a47f4"
     }
   ],
-  "inputDigest": "893a33c895e0a1458cb59810e2c120d043ab06bb9199c857b791792808fc98c2"
+  "inputDigest": "40ae465dcaa3a5a7c15a75394f4f0c00337aa1c92029e725db3dc6cb907ee840"
 }

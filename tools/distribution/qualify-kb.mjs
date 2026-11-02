@@ -197,7 +197,7 @@ try {
   });
   // Past the package limits: the local tools read this selection and export refuses it.
   const wideCount = 1001,
-    wideFiles = 200,
+    wideFiles = 66,
     wideId = (i) => 'work-system/contract/spec/wide-' + i;
   mkdirSync(join(workspace, 'docs/wide'));
   for (let i = 0; i < wideFiles; i++) writeFileSync(join(workspace, 'docs/wide', i + '.md'), 'Wide body ' + i + '\n');
