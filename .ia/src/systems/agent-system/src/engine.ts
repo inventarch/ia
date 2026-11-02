@@ -177,6 +177,23 @@ export class Engine {
       'Current task budget no longer admits dispatch',
     );
   }
+  private async currentGrant(
+    principal: string,
+    state: Session | null,
+    profile: string,
+    signal: AbortSignal,
+  ): Promise<Grant> {
+    const grant = await bounded(() => this.host.authorize(principal, this.manifest, state), signal);
+    check(
+      grant.principal === principal &&
+        grant.workspace === this.manifest.workspace &&
+        grant.expiresAt > this.now() &&
+        grant.profiles.includes(profile),
+      'IA-ENGINE-AUTHORITY-DENIED',
+      'Current grant does not authorize this profile',
+    );
+    return grant;
+  }
   private async grant(
     principal: string,
     state: Session | null,
@@ -195,15 +212,7 @@ export class Engine {
       'IA-ENGINE-SOURCE-CHANGED',
       'Pinned inputs or executable bindings are unavailable',
     );
-    const grant = await bounded(() => this.host.authorize(principal, this.manifest, state), timed);
-    check(
-      grant.principal === principal &&
-        grant.workspace === this.manifest.workspace &&
-        grant.expiresAt > this.now() &&
-        grant.profiles.includes(profile.id),
-      'IA-ENGINE-AUTHORITY-DENIED',
-      'Current grant does not authorize this profile',
-    );
+    const grant = await this.currentGrant(principal, state, profile.id, timed);
     const effective = narrowGrant(grant, run?.authority as unknown as Grant | undefined);
     effective.operations = effective.operations.filter((id) => profile.operations.includes(id));
     if (profile.contract) effective.effects = effective.effects.filter((e) => profile.contract!.effects.includes(e));
@@ -604,7 +613,11 @@ export class Engine {
         await this.infer(state, run, profile, grant, save, owner, options.signal);
       }
       await store.checkpoint(sessionId, owner);
-      return await store.read(sessionId);
+      const state = await store.read(sessionId);
+      // Stopping execution never bypasses disclosure authority. Its check is independent
+      // of task deadlines and caller cancellation, which may have stopped the scheduler.
+      await this.currentGrant(principal, state, state.runs[state.rootId]!.profile, AbortSignal.timeout(60_000));
+      return state;
     } finally {
       await store.release(owner);
     }

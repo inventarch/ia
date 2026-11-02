@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { Report } from '@inventarch/compliance';
@@ -93,6 +93,57 @@ describe('cache-free editor capture', () => {
     ).toThrow('duplicate');
     expect(editor.current.sources[0]).toEqual(floor);
     editor.close();
+  });
+  it('refuses an overlay of a source a location override places outside the workspace', () => {
+    const root = workspace(false),
+      vendored = '.ia/src/vendored.ia';
+    put(root, vendored, '#! ia 1.0\n');
+    const editor = new EditorDatabase(root, {
+      locations: { [vendored]: { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' } },
+    });
+    try {
+      expect(editor.current.sources.find((source) => source.path === vendored)?.writable).toBe(false);
+      expect(() => editor.update([{ path: vendored, text: '#! ia 1.0\n# rewritten\n', version: 1 }])).toThrow(
+        expect.objectContaining({
+          code: 'IA-DB-DRAFT-INVALID',
+          message: 'IA-DB-DRAFT-INVALID: Non-workspace sources are read-only',
+        }),
+      );
+    } finally {
+      editor.close();
+    }
+  });
+  it('refuses an overlay whose path passes through a link', () => {
+    const root = workspace(false),
+      outside = workspace(false);
+    put(root, '.ia/src/kept.ia', '#! ia 1.0\n');
+    const editor = new EditorDatabase(root);
+    try {
+      symlinkSync(outside, resolve(root, '.ia/src/linked'), process.platform === 'win32' ? 'junction' : 'dir');
+      expect(() => editor.update([{ path: '.ia/src/linked/x.ia', text: '#! ia 1.0\n', version: 1 }])).toThrow(
+        expect.objectContaining({
+          code: 'IA-DB-PATH-UNSAFE',
+          message: expect.stringContaining('Symlink/junction traversal is not admitted'),
+          path: '.ia/src/linked',
+        }),
+      );
+    } finally {
+      editor.close();
+    }
+  });
+  it('refuses an overlay whose version is negative or fractional', () => {
+    const editor = new EditorDatabase(workspace(false));
+    try {
+      for (const version of [-1, 1.5])
+        expect(() => editor.update([{ path: '.ia/src/x.ia', text: '#! ia 1.0\n', version }]), String(version)).toThrow(
+          expect.objectContaining({
+            code: 'IA-DB-DRAFT-INVALID',
+            message: 'IA-DB-DRAFT-INVALID: Invalid, duplicate or aliased editor overlay',
+          }),
+        );
+    } finally {
+      editor.close();
+    }
   });
   it('retains location and phase scope enforcement in preview readers', () => {
     const root = workspace(),

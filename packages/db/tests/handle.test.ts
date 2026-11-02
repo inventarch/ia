@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync, readdirSync, renameSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { stableSerialize } from '@inventarch/graph';
@@ -75,6 +75,27 @@ it('keeps fresh reads usable when cache access is obstructed or points outside',
   symlinkSync(outside, resolve(other, '.ia/.iadb'), process.platform === 'win32' ? 'junction' : 'dir');
   expect(open(other).cache.state).toBe('unavailable');
   expect(readFileSync(resolve(outside, 'graph.json'), 'utf8')).toBe('do not touch');
+});
+it('reports the cache unavailable behind a link, though the file there holds the graph it would write', () => {
+  const root = workspace(),
+    elsewhere = workspace(false),
+    state = (): string => {
+      const db = open(root);
+      try {
+        return db.cache.state;
+      } finally {
+        db.close();
+      }
+    };
+  expect(state()).toBe('written');
+  expect(state()).toBe('hit');
+  renameSync(resolve(root, '.ia/.iadb'), resolve(elsewhere, 'iadb'));
+  symlinkSync(
+    resolve(elsewhere, 'iadb'),
+    resolve(root, '.ia/.iadb'),
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+  expect(state()).toBe('unavailable');
 });
 it('publishes a new immutable generation after a byte edit without changing record identity', () => {
   const root = workspace(),
@@ -452,6 +473,21 @@ it('lists a record of no word for every unnamed line opening with an at sign, an
     expect(lines('.ia/src/in-prose.ia')).toEqual([7]);
     expect(db.unadmitted.filter((entry) => entry.path === '.ia/src/comments.ia')).toEqual([]);
     expect(lines('.ia/src/comments-header.ia')).toEqual([2]);
+  } finally {
+    db.close();
+  }
+});
+it('lists a line opened by the small at sign U+FE6B as it lists one opened by the full-width sign (D15)', () => {
+  const root = workspace(),
+    small = String.fromCharCode(0xfe6b);
+  put(root, '.ia/src/in-indented.ia', `#! ia 1.0\n\n@agent other\n  meaning\n    says "x"\n  ${small}mandate extra\n`);
+  put(root, '.ia/src/in-prose.ia', `#! ia 1.0\n\n@agent other\n  meaning\n    says """\n\n${small}mandate extra\n`);
+  const db = open(root, { cache: false }),
+    lines = (path: string) =>
+      db.unadmitted.filter((entry) => entry.path === path && entry.word === undefined).map((entry) => entry.line);
+  try {
+    expect(lines('.ia/src/in-indented.ia')).toEqual([6]);
+    expect(lines('.ia/src/in-prose.ia')).toEqual([7]);
   } finally {
     db.close();
   }

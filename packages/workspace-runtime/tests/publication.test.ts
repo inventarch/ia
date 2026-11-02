@@ -304,8 +304,12 @@ describe.skipIf(process.platform !== 'win32')('managed publication engine recove
       if (change === 'preflight') live.host.preflight = async () => false;
       if (change === 'expiry') f.config.grant.expiresAt = 0;
       if (change === 'quota') f.config.grant.limits.operations = 2;
-      const before = await live.store.read('s'),
-        state = await live.engine().advance('s', 'alice');
+      const before = await live.store.read('s');
+      if (change === 'expiry')
+        await expect(live.engine().advance('s', 'alice')).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+      else await live.engine().advance('s', 'alice');
+      // Recovery evidence remains durable even when current authority denies its return.
+      const state = await live.store.read('s');
       expect(state.runs['root']!.wait?.reason).toBe('reconciliation-unavailable');
       expect(state.budget).toEqual({ ...before.budget, retainedBytes: state.budget.retainedBytes });
       expect(state.budget.retainedBytes).toBeGreaterThan(before.budget.retainedBytes);

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { linkSync, mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { digest } from '@inventarch/graph';
 import {
   bindChecks,
@@ -29,7 +29,12 @@ function using<T>(root: string, evidence: boolean, read: (db: Handle) => T): T {
     db.close();
   }
 }
-function append(events: Event[], mutation: Record<string, unknown>, commandId?: string): void {
+function append(
+  events: Event[],
+  mutation: Record<string, unknown>,
+  commandId?: string,
+  overrides: Record<string, unknown> = {},
+): void {
   const body = {
     version: 1,
     id: commandId ?? `event-${events.length + 1}`,
@@ -40,10 +45,11 @@ function append(events: Event[], mutation: Record<string, unknown>, commandId?: 
     cause: null,
     mutation: structuredClone(mutation),
     previous: events.at(-1)?.hash ?? '',
+    ...overrides,
   };
   events.push({ ...body, hash: digest(body) });
 }
-function journal(root: string): { authoredRevision: string; events: Event[] } {
+function journal(root: string, manifestDigest?: string): { authoredRevision: string; events: Event[] } {
   const input = readInputs(root),
     manifest = {
       sourceDigest: digest({
@@ -64,11 +70,25 @@ function journal(root: string): { authoredRevision: string; events: Event[] } {
     profile: PROFILE,
     agent: AGENT,
     manifest,
-    manifestDigest: digest(manifest),
+    manifestDigest: manifestDigest ?? digest(manifest),
   });
   return { authoredRevision: using(root, false, (db) => db.authoredRevision), events };
 }
 const runtime = (root: string) => using(root, true, (db) => db.records().filter((node) => node.band === 0));
+/** A writer's refusal of a journal, with its exact message. */
+const refused = (message: string) =>
+  expect.objectContaining({
+    code: 'IA-DB-SOURCE-UNAVAILABLE',
+    message: `IA-DB-SOURCE-UNAVAILABLE: Runner evidence: ${message}`,
+  });
+const WAIT = { type: 'run.wait', runId: 'root', wait: { reason: 'limit' } };
+/** The value of the `key` field in `section` of the first observation among `records`. */
+const observationField = (records: ReturnType<typeof runtime>, section: string, key: string) =>
+  records
+    .find((node) => node.discriminator === 'observation')
+    ?.sections.find((candidate) => candidate.name === section)
+    ?.fields.filter((field) => 'key' in field)
+    .find((field) => field.key === key)?.value;
 
 it.each(['current', 'legacy'])('projects journal-only runs without a live phase under the %s schema', (version) => {
   const root = workspace();
@@ -385,6 +405,129 @@ it('bounds receipt reads and ignores hard-linked or junction receipts while refu
   symlinkSync(resolve(root, RUNNER_EVIDENCE_DIRECTORY), path, process.platform === 'win32' ? 'junction' : 'dir');
   expect(runtime(other)).toEqual([]);
   expect(() => writeRunnerEvidence(other, journal(other))).toThrow();
+});
+
+it('refuses a journal event that does not chain to the event before it, though its own hash is valid', () => {
+  const root = workspace(false),
+    input = journal(root);
+  append(input.events, WAIT, undefined, { previous: 'f'.repeat(64) });
+  expect(() => writeRunnerEvidence(root, input)).toThrow(refused('journal chain mismatch'));
+});
+
+it('refuses a creation whose manifest digest is not the digest of its manifest', () => {
+  const root = workspace(false);
+  expect(() => writeRunnerEvidence(root, journal(root, digest({ another: 'manifest' })))).toThrow(
+    refused('journal manifest mismatch'),
+  );
+});
+
+it('takes a journal event stamped exactly five minutes ahead of this clock and refuses one a millisecond later', () => {
+  const root = workspace(false),
+    now = Date.parse('2026-10-12T00:00:00.000Z'),
+    aheadBy = (milliseconds: number) => {
+      const input = journal(root);
+      append(input.events, WAIT, undefined, { at: new Date(now + milliseconds).toISOString() });
+      return input;
+    },
+    atTheBound = aheadBy(300_000),
+    pastTheBound = aheadBy(300_001),
+    clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+  try {
+    expect(() => writeRunnerEvidence(root, pastTheBound)).toThrow(refused('invalid journal time'));
+    expect(writeRunnerEvidence(root, atTheBound)).toMatchObject({ written: true, sequence: 2 });
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+it('takes a journal of 4096 events and refuses one more', () => {
+  const root = workspace(false),
+    input = journal(root);
+  while (input.events.length < 4096) append(input.events, WAIT);
+  expect(writeRunnerEvidence(root, input)).toMatchObject({ written: true, sequence: 4096 });
+  append(input.events, WAIT);
+  expect(() => writeRunnerEvidence(root, input)).toThrow(refused('journal event limit'));
+});
+
+it('reads a valid receipt of 4 MiB and ignores one a byte longer', () => {
+  const root = workspace(),
+    written = writeRunnerEvidence(root, journal(root)),
+    text = readFileSync(resolve(root, written.path), 'utf8'),
+    padded = (bytes: number) => `{${' '.repeat(bytes - Buffer.byteLength(text))}${text.slice(1)}`,
+    bound = 4 * 1024 * 1024;
+  put(root, written.path, padded(bound));
+  expect(runtime(root).map((node) => node.discriminator)).toEqual(['run']);
+  const over = padded(bound + 1);
+  expect(JSON.parse(over)).toEqual(JSON.parse(text));
+  put(root, written.path, over);
+  expect(runtime(root)).toEqual([]);
+});
+
+it('projects a quote in receipt text as a space, so the observation is still admitted', () => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, WAIT, undefined, { actor: 'local "quoted" runner' });
+  writeRunnerEvidence(root, input);
+  const records = runtime(root);
+  expect(records.map((node) => node.discriminator).sort()).toEqual(['observation', 'run']);
+  expect(observationField(records, 'evidence', 'actor')).toMatchObject({ text: 'local  quoted  runner' });
+});
+
+it('projects a control character in receipt text as a space, so no line of it can open a record', () => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, {
+    type: 'outcome.accept',
+    runId: 'root',
+    terminal: 'completed\n@mandate planted',
+    outcome: { kind: 'answer' },
+  });
+  writeRunnerEvidence(root, input);
+  const records = runtime(root);
+  expect(records.map((node) => node.discriminator).sort()).toEqual(['observation', 'run']);
+  expect(records.some((node) => node.name === 'planted')).toBe(false);
+  expect(observationField(records, 'interpretation', 'reason')).toMatchObject({
+    text: 'Journal event outcome.accept records answer with terminal completed @mandate planted.',
+  });
+});
+
+it('keeps an operation observed with a partial effect inconclusive', () => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, {
+    type: 'attempt.prepare',
+    attempt: { id: 'write', kind: 'operation', runId: 'root', target: 'fixture-write' },
+  });
+  append(input.events, { type: 'attempt.observe', attemptId: 'write', effect: 'partial', error: null });
+  writeRunnerEvidence(root, input);
+  expect(observationField(runtime(root), 'evidence', 'verdict')).toMatchObject({ text: 'inconclusive' });
+});
+
+it('admits no runner evidence into a view whose authored admission has an error', () => {
+  const root = workspace();
+  put(
+    root,
+    '.ia/src/systems/governance-system/records/broken.ia',
+    '#! ia 1.0\n@law broken\n  meaning\n    says "A broken law."\n    nonsense "an unknown field"\n',
+  );
+  writeRunnerEvidence(root, journal(root));
+  using(root, true, (db) => {
+    expect(db.report.findings.some((entry) => entry.severity === 'error')).toBe(true);
+    expect(db.records().filter((node) => node.band === 0)).toEqual([]);
+  });
+});
+
+it('makes a scope token stale at a refresh that finds new runner evidence', () => {
+  const root = workspace(),
+    input = journal(root);
+  using(root, true, (db) => {
+    const token = db.resolveScope().token,
+      revision = db.revision;
+    writeRunnerEvidence(root, input);
+    db.refresh();
+    expect(db.revision).not.toBe(revision);
+    expect(() => db.records({ within: token })).toThrow(expect.objectContaining({ code: 'IA-DB-STALE' }));
+  });
 });
 
 it('admits the same runner evidence when conformance verification fails the report (D10a)', () => {
