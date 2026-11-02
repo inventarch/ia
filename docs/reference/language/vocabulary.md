@@ -2,7 +2,7 @@
 
 Generated from the public contract corpus by `pnpm vocabulary:generate`. Required sections and fields are structural obligations; `id` is not an implicit enumeration. See [the language guide](README.md) for shared syntax, allowed values, relationship resolution, domain constraints and evaluator limits. The [JSON catalogue](vocabulary.json) carries the same machine-readable contract.
 
-This catalogue contains 44 words. Source digest: `6b36475d89b787e364c44ad5b8ba479b19787990c9fdb1d93a72af8b825c993a`.
+This catalogue contains 44 words. Source digest: `3d3b778f0c6153b66492a402bb469f84caf76a884b6e7eb0008669f21a1188b7`.
 
 ## @agent
 
@@ -741,6 +741,7 @@ Required sections: meaning, evidence, interpretation, retention. Optional sectio
 | evidence.bundle | text | yes |  |
 | evidence.digest | text | yes |  |
 | evidence.availability | id | yes |  |
+| evidence.label | list of text | no | Opaque host-defined content labels retained from the session; readers must enforce their own current clearance. |
 | evidence.subject | ref | no | The record the evidence is about, as a typed reference; evidence.locator spells the same subject as text. |
 | evidence.subject-revision | text | no | The subject's per-record digest when the evidence was taken; readiness compares it with the subject's current digest. evidence.revision is its free-text form. |
 | evidence.snapshot-revision | text | no | The revision of the snapshot the subject was read from. |
@@ -965,6 +966,7 @@ Required sections: meaning, execution. Optional sections: relationships.
 | execution.status | id | yes |  |
 | execution.phase | id | no | The declared phase, when known; omit it when unknown. Historical id values remain valid. A declaration does not prove engine state. |
 | execution.owner | ref | yes |  |
+| execution.label | list of text | no | Opaque host-defined content labels retained from the session; readers must enforce their own current clearance. |
 
 ## @schema
 

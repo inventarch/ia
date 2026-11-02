@@ -81,6 +81,7 @@ function pathMandate(
 }
 function hostPolicy(overrides: () => Partial<Grant>): EngineHost['authorize'] {
   return async (principal, manifest, state) => ({
+    clearances: [],
     id: 'local-policy',
     principal,
     workspace: manifest.workspace,

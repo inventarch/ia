@@ -1,5 +1,5 @@
 import { copy, digest, identifier, requireValue, SessionError } from './codec.js';
-import { eventFor, replay } from './reducer.js';
+import { eventFor, replay, labels } from './reducer.js';
 import type {
   Admission,
   AdmissionGate,
@@ -68,6 +68,24 @@ export function commitAdmission(command: Command, events: Event[], owner?: Owner
     ),
   );
   return {
+    labels: labels(
+      events.flatMap(({ mutation: m }) => {
+        if (m.type === 'attempt.observe' || m.type === 'attempt.reconcile') return next.attempts[m.attemptId]!.label;
+        if (m.type === 'question.reply') return next.questions[m.questionId]!.label ?? [];
+        if (m.type === 'release.accept') return m.release.label;
+        if (m.type === 'reaction.settle') return next.reactions[m.reactionId]!.label ?? [];
+        if (m.type === 'reaction.queue') return next.reactions[m.reaction.id]!.label ?? [];
+        if (m.type === 'child.create' || m.type === 'child.return') return next.runs[m.childId]!.label;
+        if (m.type === 'attempt.prepare') return next.attempts[m.attempt.id]!.label;
+        if (m.type === 'action.accept' || m.type === 'outcome.accept') return next.runs[m.runId]!.label;
+        if (m.type === 'run.wait') return next.runs[m.runId]!.label;
+        if (m.type === 'attempt.retry' || m.type === 'model.repair')
+          return next.runs[next.attempts[m.attemptId]!.runId]!.label;
+        if (m.type === 'proposal.review') return next.runs[next.proposals[m.proposalId]!.runId]!.label;
+        if (m.type === 'decision.record') return next.runs[m.decision.runId]!.label;
+        return [];
+      }),
+    ),
     kind: 'commit',
     sessionId: command.sessionId,
     principal: next.principal,
@@ -82,6 +100,7 @@ export function commitAdmission(command: Command, events: Event[], owner?: Owner
 export function checkpointAdmission(checkpoint: Checkpoint, owner: Owner): Admission {
   const state = checkpoint.state;
   return {
+    labels: [],
     kind: 'checkpoint',
     sessionId: state.id,
     principal: state.principal,

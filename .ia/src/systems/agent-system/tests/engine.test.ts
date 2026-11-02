@@ -1,6 +1,10 @@
 import { expect, it } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { canonical, digest, JournalStore, MemoryBackend } from '@inventarch/session-system';
-import type { Mutation, SessionStore } from '@inventarch/session-system';
+import { SqliteBackend } from '@inventarch/session-system/sqlite';
+import type { Admission, JournalBackend, Mutation, SessionStore } from '@inventarch/session-system';
 import { Engine, manifestDigest } from '../src/index.js';
 import type { EngineHost, Grant, Manifest, ModelAction, ModelAdapter, Profile } from '../src/index.js';
 
@@ -18,7 +22,7 @@ const profile = (id: string): Profile => ({
   checks: [],
   model: 'test/model',
 });
-function fixture(model?: ModelAdapter, backend = new MemoryBackend()) {
+function fixture(model?: ModelAdapter, backend: JournalBackend = new MemoryBackend()) {
   const body: Omit<Manifest, 'digest'> = {
     version: 1,
     id: 'test',
@@ -43,6 +47,7 @@ function fixture(model?: ModelAdapter, backend = new MemoryBackend()) {
   const manifest: Manifest = { ...body, digest: manifestDigest(body) },
     store = new JournalStore(backend);
   const grant: Grant = {
+    clearances: [],
     id: 'grant',
     principal: 'alice',
     workspace: 'project',
@@ -100,6 +105,347 @@ const outcome: ModelAction = {
 const scripted = (actions: ModelAction[]): ModelAdapter => ({
   id: 'scripted.v1',
   generate: async () => ({ action: actions.shift()!, model: 'test/model', provider: 'scripted', usage: 20 }),
+});
+const privateRead = (f: ReturnType<typeof fixture>) => {
+  f.grant.clearances = ['private'];
+  f.host.operations = {
+    'read.v1': {
+      id: 'read.v1',
+      execute: async () => ({
+        output: 'private-source',
+        effect: 'none',
+        label: ['private', 'private'],
+      }),
+    },
+  };
+};
+function releaseEngine(f: ReturnType<typeof fixture>): Engine {
+  f.manifest.profiles['author']!.contract = {
+    id: 'release-contract',
+    release: { policy: 'public-summary' },
+    mandateContracts: [],
+    inputContracts: [],
+    effects: ['read'],
+    limits: {},
+    delegation: [],
+    checks: [],
+    completionEvaluator: 'ia.completion.v1',
+    repairAttempts: 1,
+    maxAttempts: 2,
+  };
+  f.manifest.digest = manifestDigest(f.manifest);
+  return new Engine(f.manifest, f.host);
+}
+
+it.each(['after-receipt', 'after-fault', 'terminal'])(
+  'refuses labelled session hand-overs %s without current clearance',
+  async (stop) => {
+    const f = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'private' }, outcome]));
+    privateRead(f);
+    await start(f.engine);
+    if (stop === 'after-fault') {
+      const command = f.store.command.bind(f.store);
+      f.store.command = async (...args) => {
+        const result = await command(...args);
+        if (args[0].mutation.type === 'attempt.observe' && args[0].mutation.label?.includes('private')) {
+          f.grant.clearances = [];
+          throw new Error('fault-after-commit');
+        }
+        return result;
+      };
+      await expect(f.engine.advance('session', 'alice')).rejects.toThrow('fault-after-commit');
+    } else {
+      await f.engine.advance('session', 'alice', stop === 'after-receipt' ? { maxActions: 4 } : {});
+      f.grant.clearances = [];
+    }
+    const held = await f.store.read('session');
+    expect(held.label).toEqual(['private']);
+    expect(held.receipts.some((r) => r.output === 'private-source' && r.label.includes('private'))).toBe(true);
+    for (const read of [
+      () => f.engine.advance('session', 'alice'),
+      () => start(f.engine),
+      () => f.engine.view('session', 'alice'),
+    ])
+      await expect(read()).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+    await f.store.close();
+  },
+);
+
+it('inherits receipt labels into later model output, outcomes and child returns', async () => {
+  const f = fixture(
+    scripted([
+      { type: 'delegate', profile: 'architect', task: 'inspect' },
+      { type: 'invoke', operation: 'read', input: 'private' },
+      outcome,
+      outcome,
+    ]),
+  );
+  privateRead(f);
+  await start(f.engine);
+  const state = await f.engine.advance('session', 'alice');
+  expect(state.label).toEqual(['private']);
+  expect(Object.values(state.runs).every((r) => canonical(r.outcome).includes('"label":["private"]'))).toBe(true);
+  expect(state.runs['root']!.label).toEqual(['private']);
+  expect(
+    Object.values(state.attempts)
+      .filter((a) => a.kind === 'model')
+      .slice(-2)
+      .every((a) => a.label.includes('private')),
+  ).toBe(true);
+  expect(state.runs['root']!.transcript.find((row) => (row as { kind?: string }).kind === 'child')).toMatchObject({
+    label: ['private'],
+  });
+  await f.store.close();
+});
+
+it.each(['missing', 'malformed', 'throwing', 'wrong-root', 'expired'])(
+  'redacts %s grants on view and duplicate start',
+  async (kind) => {
+    const f = fixture();
+    await start(f.engine);
+    f.host.authorize = async () => {
+      if (kind === 'throwing') throw new Error('host-private-details');
+      if (kind === 'missing') return undefined as unknown as Grant;
+      if (kind === 'malformed') return { ...f.grant, clearances: null } as unknown as Grant;
+      return { ...f.grant, ...(kind === 'wrong-root' ? { profiles: [] } : { expiresAt: 0 }) };
+    };
+    for (const read of [() => f.engine.view('session', 'alice'), () => start(f.engine)]) {
+      const error = await read().catch((value: unknown) => value);
+      expect(error).toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+      expect(String(error)).not.toContain('host-private-details');
+    }
+    await f.store.close();
+  },
+);
+
+it('offers labels on every observation and labelled reply, even when the session already holds them', async () => {
+  const offers: Admission[] = [];
+  const f = fixture(
+    scripted([
+      { type: 'invoke', operation: 'read', input: 'first' },
+      { type: 'invoke', operation: 'read', input: 'second' },
+      {
+        type: 'outcome',
+        kind: 'clarification',
+        message: 'need answer',
+        continuation: 'await-input',
+        questions: [{ prompt: 'Answer?', choices: [], required: true }],
+      },
+    ]),
+    new MemoryBackend({
+      admit: (offer) => {
+        offers.push(structuredClone(offer));
+        return true;
+      },
+    }),
+  );
+  privateRead(f);
+  await start(f.engine);
+  const state = await f.engine.advance('session', 'alice'),
+    question = Object.values(state.questions)[0]!;
+  const observations = offers.filter((offer) => offer.observed.some((attempt) => attempt.kind === 'operation'));
+  expect(observations).toHaveLength(2);
+  for (const offer of observations) {
+    expect(offer.labels).toEqual(['private']);
+    expect(offer.state.label).toEqual(['private']);
+  }
+  await f.engine.reply('session', 'alice', question.id, question.revision, question.digest, 'reply-private', 'reply', [
+    'private',
+  ]);
+  const reply = offers.find((offer) => offer.command?.mutation.type === 'question.reply')!;
+  expect(reply.labels).toEqual(['private']);
+  expect(reply.state.questions[question.id]!.label).toEqual(['private']);
+  f.grant.clearances = [];
+  await expect(
+    f.engine.reply('session', 'alice', question.id, question.revision, question.digest, 'reply-private', 'reply', [
+      'private',
+    ]),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  await f.store.close();
+});
+
+it('rechecks disclosure after a labelled reply commits, and admission can refuse it atomically', async () => {
+  for (const gate of [false, true]) {
+    const f = fixture(
+      scripted([
+        {
+          type: 'outcome',
+          kind: 'clarification',
+          message: 'ask',
+          continuation: 'await-input',
+          questions: [{ prompt: 'Answer?', choices: [], required: true }],
+        },
+      ]),
+      new MemoryBackend(gate ? { admit: (offer) => offer.labels.length === 0 } : {}),
+    );
+    await start(f.engine);
+    const state = await f.engine.advance('session', 'alice'),
+      q = Object.values(state.questions)[0]!;
+    await expect(
+      f.engine.reply('session', 'alice', q.id, q.revision, q.digest, 'private-answer', 'reply', ['private']),
+    ).rejects.toMatchObject({ code: gate ? 'IA-SESSION-ADMISSION-DENIED' : 'IA-ENGINE-AUTHORITY-DENIED' });
+    expect((await f.store.read('session')).questions[q.id]!.answer).toBe(gate ? null : 'private-answer');
+    await f.store.close();
+  }
+});
+
+it('releases only host-cleared output across sessions and replays labels and release provenance after SQLite reopen', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'ia-engine-labels-'));
+  const f = fixture(
+    scripted([
+      { type: 'invoke', operation: 'read', input: 'private' },
+      { type: 'release', candidate: 'untrusted-candidate' },
+    ]),
+    new SqliteBackend(root),
+  );
+  privateRead(f);
+  let request: Parameters<NonNullable<EngineHost['release']>>[2] | undefined;
+  f.host.release = async (_principal, _grant, value) => {
+    request = value;
+    return { output: 'host-cleared-summary', label: ['public'], policyRevision: 'revision-7' };
+  };
+  f.grant.clearances.push('public');
+  const engine = releaseEngine(f);
+  try {
+    await start(engine);
+    const state = await engine.advance('session', 'alice'),
+      release = state.releases[0]!;
+    expect(release).toMatchObject({ output: 'host-cleared-summary', label: ['public'], policyRevision: 'revision-7' });
+    expect(request!.candidate).toBe('untrusted-candidate');
+    expect(request!.sources).toEqual(release.sources);
+    const journal = await f.store.journal('session');
+    const source = release.sources[0]!;
+    expect(source.label).toEqual(['private']);
+    expect(journal.events.some((e) => e.hash === source.digest && source.id === `session:${e.sequence}`)).toBe(true);
+    expect(canonical(journal)).not.toContain('untrusted-candidate');
+    expect(state.label).toEqual(['private', 'public']);
+    await f.store.close();
+    f.host.store = new JournalStore(new SqliteBackend(root));
+    expect(await f.host.store.read('session')).toEqual(state);
+    f.host.authorize = async (principal) => ({
+      ...f.grant,
+      principal,
+      clearances: principal === 'bob' ? ['public'] : f.grant.clearances,
+    });
+    await expect(engine.boundary('session', 'bob')).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+    const output = await engine.boundary('session', 'bob', release.id);
+    expect(output).toEqual({ output: 'host-cleared-summary', label: ['public'] });
+    await expect(engine.view('session', 'bob')).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+    const caller = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'released' }, outcome]));
+    caller.grant.clearances = ['public'];
+    caller.host.operations = { 'read.v1': { id: 'read.v1', execute: async () => ({ ...output, effect: 'none' }) } };
+    await start(caller.engine);
+    const received = await caller.engine.advance('session', 'alice');
+    expect(received.label).toEqual(['public']);
+    expect(canonical(received)).not.toContain('private-source');
+    await caller.store.close();
+  } finally {
+    await f.host.store.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it.each(['throw', 'malformed', 'forged'])('journals only a redacted release refusal for %s', async (kind) => {
+  const action = {
+    type: 'release',
+    candidate: 'REFUSED_CANDIDATE',
+    ...(kind === 'forged' ? { label: [], sources: [] } : {}),
+  };
+  const f = fixture({
+    id: 'model',
+    generate: async () => ({ action, model: 'test/model', provider: 'test', usage: 1 }),
+  });
+  f.host.release = async () => {
+    if (kind === 'throw') throw new Error('HOST_PRIVATE_DETAILS');
+    return { output: 'HOST_PRIVATE_DETAILS', label: [] } as unknown as Awaited<
+      ReturnType<NonNullable<EngineHost['release']>>
+    >;
+  };
+  const engine = releaseEngine(f);
+  await start(engine);
+  const state = await engine.advance('session', 'alice');
+  expect(state.releases).toEqual([]);
+  expect(Object.values(state.attempts)[0]!.error).toBe('release-refused');
+  const retained = canonical(await f.store.journal('session'));
+  expect(retained).not.toContain('REFUSED_CANDIDATE');
+  expect(retained).not.toContain('HOST_PRIVATE_DETAILS');
+  expect(retained).toContain('release-refused');
+  await f.store.close();
+});
+
+it('releases deferred model candidates before persistence and does not rerun the policy for a duplicate submission', async () => {
+  const f = fixture();
+  let calls = 0;
+  f.host.release = async () => {
+    calls++;
+    return { output: 'approved', label: [], policyRevision: 'one' };
+  };
+  const engine = releaseEngine(f);
+  await start(engine);
+  const state = await engine.advance('session', 'alice'),
+    attempt = Object.values(state.attempts)[0]!;
+  const response = {
+    action: { type: 'release', candidate: 'deferred-candidate' },
+    model: 'test/model',
+    provider: 'test',
+    usage: 1,
+  };
+  const released = await engine.submitModel('session', 'alice', attempt.id, response, 'response');
+  expect(released.releases[0]!.output).toBe('approved');
+  await engine.submitModel('session', 'alice', attempt.id, response, 'response');
+  expect(calls).toBe(1);
+  await expect(
+    engine.submitModel(
+      'session',
+      'alice',
+      attempt.id,
+      { ...response, action: { type: 'release', candidate: 'different' } },
+      'response',
+    ),
+  ).rejects.toMatchObject({ code: 'IA-SESSION-COMMAND-CONFLICT' });
+  expect(canonical(await f.store.journal('session'))).not.toContain('deferred-candidate');
+  await f.store.close();
+});
+
+it('keeps model repair labels and checks current clearance on retry and deferred submissions', async () => {
+  const f = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'private' }]));
+  privateRead(f);
+  await start(f.engine);
+  const failed = await f.engine.advance('session', 'alice'),
+    attempt = Object.values(failed.attempts).at(-1)!;
+  expect(attempt.error).toBe('model-attempt-failed');
+  expect(attempt.label).toEqual(['private']);
+  f.grant.clearances = [];
+  await expect(f.engine.retry('session', 'alice', attempt.id, 'repair')).rejects.toMatchObject({
+    code: 'IA-ENGINE-AUTHORITY-DENIED',
+  });
+  f.grant.clearances = ['private'];
+  expect((await f.engine.retry('session', 'alice', attempt.id, 'repair')).label).toEqual(['private']);
+  f.host.model = { id: 'external', generate: async () => ({ deferred: true }) };
+  const pending = await f.engine.advance('session', 'alice'),
+    external = Object.values(pending.attempts).at(-1)!;
+  f.grant.clearances = [];
+  await expect(
+    f.engine.submitModel(
+      'session',
+      'alice',
+      external.id,
+      { action: outcome, model: 'test/model', provider: 'test', usage: 1 },
+      'external',
+    ),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  f.grant.clearances = ['private'];
+  const submitted = await f.engine.submitModel(
+    'session',
+    'alice',
+    external.id,
+    { action: outcome, model: 'test/model', provider: 'test', usage: 1 },
+    'external',
+  );
+  expect(submitted.attempts[external.id]!.label).toEqual(['private']);
+  const completed = await f.engine.advance('session', 'alice');
+  expect(completed.runs['root']!.outcome).toMatchObject({ label: ['private'] });
+  await f.store.close();
 });
 async function mutation(store: SessionStore, value: Mutation): Promise<void> {
   const state = await store.read('session');

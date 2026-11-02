@@ -62,6 +62,7 @@ const startRequest = {
 function fixture(store: SessionStore = memoryStore()) {
   let writes = 0;
   const grant: Grant = {
+    clearances: [],
     id: 'grant',
     principal: 'alice',
     workspace: 'w',
@@ -779,6 +780,7 @@ it.each(['caller', 'deadline'] as const)(
 );
 
 function independent(f: ReturnType<typeof fixture>) {
+  f.host.authorize = async (principal) => ({ ...f.grant, principal });
   f.manifest.profiles['author']!.contract!.review = {
     rule: 'independent-exact-candidate-v1',
     reviewer: 'bob',
@@ -855,6 +857,17 @@ it('records an independent review without transferring session ownership and app
     },
   });
   expect(state.principal).toBe('alice');
+});
+it('does not treat independent reviewer authority as authority to disclose the session', async () => {
+  const f = fixture();
+  independent(f);
+  const { engine, proposal } = await offered(f);
+  f.host.authorize = async () => f.grant;
+  const before = await f.store.journal('session');
+  await expect(
+    engine.review('session', 'bob', proposal.id, proposal.revision, proposal.digest, true, 'review', 'review-denied'),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  expect(await f.store.journal('session')).toEqual(before);
 });
 it.each([
   'principal',

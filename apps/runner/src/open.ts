@@ -199,6 +199,7 @@ export function openRunner(options: RunnerOptions) {
       }
       return {
         id: `runner-${capture.revision}`,
+        clearances: [],
         principal,
         workspace: manifest.workspace,
         profiles: [profile.id],
@@ -221,7 +222,7 @@ export function openRunner(options: RunnerOptions) {
       const grant = copy(await options.authorize(who, current, state));
       for (const key of Object.keys(ceiling.limits) as (keyof Limits)[])
         grant.limits[key] = Math.min(grant.limits[key], ceiling.limits[key]);
-      for (const key of ['operations', 'effects', 'profiles', 'sources', 'models'] as const)
+      for (const key of ['operations', 'effects', 'profiles', 'sources', 'models', 'clearances'] as const)
         (grant[key] as string[]) = grant[key].filter((value) => (ceiling[key] as string[]).includes(value));
       grant.expiresAt = Math.min(grant.expiresAt, ceiling.expiresAt);
       return grant;

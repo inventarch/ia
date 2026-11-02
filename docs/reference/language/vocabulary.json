@@ -2,7 +2,7 @@
   "version": 1,
   "language": "ia 1.0",
   "status": "public IA 1.0 language contract",
-  "sourceDigest": "6b36475d89b787e364c44ad5b8ba479b19787990c9fdb1d93a72af8b825c993a",
+  "sourceDigest": "3d3b778f0c6153b66492a402bb469f84caf76a884b6e7eb0008669f21a1188b7",
   "words": [
     {
       "word": "agent",
@@ -2558,6 +2558,12 @@
             "required": true
           },
           {
+            "path": "evidence.label",
+            "type": "list of text",
+            "required": false,
+            "description": "Opaque host-defined content labels retained from the session; readers must enforce their own current clearance."
+          },
+          {
             "path": "evidence.subject",
             "type": "ref",
             "required": false,
@@ -3293,6 +3299,12 @@
             "path": "execution.owner",
             "type": "ref",
             "required": true
+          },
+          {
+            "path": "execution.label",
+            "type": "list of text",
+            "required": false,
+            "description": "Opaque host-defined content labels retained from the session; readers must enforce their own current clearance."
           }
         ],
         "edges": []

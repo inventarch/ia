@@ -493,8 +493,8 @@
     },
     {
       "path": ".ia/src/systems/learning-system/SPEC.md",
-      "bytes": 252,
-      "sha256": "c1322307ce22cd3b11a81a4738caaf17c16a777fbff1ded70cbe653e1df30b8c",
+      "bytes": 684,
+      "sha256": "df6784dad83f4019165d2816982fa68466ef0a198b2c8e7db5f9579ffad472ed",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -514,8 +514,8 @@
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md",
-      "bytes": 895,
-      "sha256": "ef6542a9564a3ef0e9e796928eea76caecd740b55b1c361357521ffdccf5ede4",
+      "bytes": 2645,
+      "sha256": "9935ea3f28860946c84e50adff1c29991643920dfd5aadf43fbeba50cc2e8e67",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

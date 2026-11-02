@@ -42,6 +42,7 @@ export interface ReviewGrant {
   destinations: Json[];
 }
 export interface ExecutionContract {
+  release?: { policy: string };
   review?: IndependentReviewPolicy;
   /** Pinned structural request ceiling; cumulative token accounting remains independent. */
   requestBytes?: number;
@@ -116,6 +117,7 @@ export interface Manifest {
   provenance: Json;
 }
 export interface Grant {
+  clearances: string[];
   id: string;
   principal: string;
   workspace: string;
@@ -129,6 +131,7 @@ export interface Grant {
   destinations?: Json[];
 }
 export type ModelAction =
+  | { type: 'release'; candidate: Json }
   | { type: 'continue'; message: string }
   | {
       type: 'invoke';
@@ -186,6 +189,7 @@ export interface OperationContext {
   assertCurrent?: () => Promise<void>;
 }
 export interface OperationResult {
+  label?: string[];
   output: Json;
   effect: Effect;
 }
@@ -195,7 +199,7 @@ export interface OperationAdapter {
   reconcile?(
     input: Json,
     context: OperationContext,
-  ): Promise<{ status: 'absent' | 'applied' | 'partial' | 'unknown'; output: Json | null }>;
+  ): Promise<{ status: 'absent' | 'applied' | 'partial' | 'unknown'; output: Json | null; label?: string[] }>;
 }
 export interface Evaluation {
   status: 'pass' | 'fail' | 'unavailable';
@@ -207,6 +211,18 @@ export interface ContextBudget {
   readonly bytes: number;
 }
 export interface EngineHost {
+  /** Trusted deterministic release policy. Candidate and provenance never confer authority. */
+  release?(
+    principal: string,
+    grant: Grant,
+    request: {
+      sessionId: string;
+      runId: string;
+      policy: string;
+      candidate: Json;
+      sources: { id: string; digest: string; label: string[] }[];
+    },
+  ): Promise<{ output: Json; label: string[]; policyRevision: string }>;
   store: SessionStore;
   /**
    * When set, Engine refuses with IA-ENGINE-ADMISSION-UNAVAILABLE, at construction and at every later use of a store

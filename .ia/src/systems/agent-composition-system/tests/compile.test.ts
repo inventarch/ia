@@ -465,4 +465,19 @@ it('pins explicit independent reviewer policy through mandate composition into t
   refused(captured, 'IA-COMPOSITION-CONFLICT', catalog);
 });
 
+it('pins the deterministic release policy through installed mandate composition', () => {
+  const catalog = sampleCatalog('ide'),
+    base = catalog.mandates['sample-task-v1']!.value;
+  catalog.mandates['sample-task-v1'] = installed({ ...base, release: { policy: 'public-summary' } });
+  const compiled = good(captured, catalog),
+    manifest = executionManifest(compiled, catalog);
+  for (const profile of Object.values(manifest.profiles))
+    expect(profile.contract!.release).toEqual({ policy: 'public-summary' });
+  expect(compiled.provenance.fields['normalized:' + name('author') + ':release']).toContain('mandates:sample-task-v1');
+  catalog.mandates['sample-task-v1'] = installed({ ...base, release: { policy: 'changed' } });
+  expect(() => executionManifest(compiled, catalog)).toThrow('Installed contract changed');
+  catalog.mandates['sample-task-v1'] = installed({ ...base, release: { policy: '' } });
+  refused(captured, 'IA-COMPOSITION-CONFLICT', catalog);
+});
+
 import './sdk-runtime/onboarding-case.js';

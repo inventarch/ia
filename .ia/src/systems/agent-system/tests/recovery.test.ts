@@ -73,6 +73,7 @@ function fixture(actions: ModelAction[] = [answer]) {
   const manifest = { ...body, digest: manifestDigest(body) },
     store = memoryStore();
   const grant: Grant = {
+    clearances: [],
     id: 'grant',
     principal: 'alice',
     workspace: 'w',
@@ -393,7 +394,9 @@ it.each(['verifyManifest', 'authorize'] as const)(
     const work = f.engine().advance('session', 'alice', { signal: control.signal });
     await entered.promise;
     control.abort(new Error('authority-stop'));
-    await expect(promptly(work)).rejects.toThrow('authority-stop');
+    await expect(promptly(work)).rejects.toThrow(
+      callback === 'authorize' ? 'Current authority does not permit disclosure' : 'authority-stop',
+    );
     const stopped = await f.store.read('session');
     expect(Object.values(stopped.attempts)).toHaveLength(0);
     expect(f.calls()).toBe(0);

@@ -4,6 +4,17 @@ import type { Attempt, Budget, Command, Event, Json, Limits, Mutation, Receipt, 
 const invariant = (condition: unknown, message: string): void =>
   requireValue(condition, 'IA-SESSION-TRANSITION-INVALID', message);
 export const terminal = (run: Run): boolean => ['completed', 'failed', 'cancelled'].includes(run.status);
+/** Opaque host labels; absent labels are the legacy unlabelled value. */
+export function labels(value: unknown = []): string[] {
+  invariant(Array.isArray(value) && value.every((id) => typeof id === 'string' && id.length > 0), 'Invalid label');
+  return [...new Set(value as string[])].sort();
+}
+function observeLabel(state: Session, run: Run, value: unknown = []): string[] {
+  const joined = labels([...(run.label ?? []), ...labels(value)]);
+  run.label = joined;
+  state.label = labels([...(state.label ?? []), ...joined]);
+  return joined;
+}
 export function validateLimits(limits: Limits): void {
   const keys = ['steps', 'modelCalls', 'operations', 'tokens', 'children', 'depth', 'bytes', 'deadline'];
   invariant(Object.keys(limits).length === keys.length, 'Unknown or missing limit');
@@ -92,6 +103,7 @@ function newRun(
     'Missing profile/agent',
   );
   return {
+    label: [],
     id,
     parentId,
     profile,
@@ -123,6 +135,7 @@ function receipt(
   reconciles: string | null = null,
 ): Receipt {
   return {
+    label: labels(attempt.label),
     version: 1,
     id: `${attempt.id}-${sequence}`,
     sessionId: state.id,
@@ -202,6 +215,8 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       retainedBytes: 0,
     };
     return {
+      label: [],
+      releases: [],
       version: 1,
       id: mutation.sessionId,
       principal: actor,
@@ -232,6 +247,9 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
   }
   requireValue(previous, 'IA-SESSION-NOT-FOUND', 'Session does not exist');
   const state = previous;
+  state.label ??= [];
+  state.releases ??= [];
+  for (const run of Object.values(state.runs)) run.label ??= [];
   requireValue(
     actor === state.principal ||
       (mutation.type === 'question.reply' && state.questions[mutation.questionId]?.respondent === actor) ||
@@ -323,6 +341,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       state.budget.reservedTokens += value.reservation;
       state.attempts[value.id] = {
         ...copy(value),
+        label: labels(run.label),
         ...(value.cause ? { preparedSequence: sequence } : {}),
         status: 'prepared',
         effect: 'none',
@@ -368,6 +387,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       invariant(['none', 'applied', 'partial', 'unknown'].includes(mutation.effect), 'Invalid effect');
       a.status = 'observed';
       a.output = copy(mutation.output);
+      a.label = observeLabel(state, runOf(state, a.runId), [...(a.label ?? []), ...labels(mutation.label)]);
       a.effect = mutation.effect;
       a.error = mutation.error;
       a.observedAt = at;
@@ -377,6 +397,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         kind: a.kind,
         target: a.target,
         output: a.output,
+        label: a.label,
         error: a.error,
         receipt: state.receipts.at(-1)!.id,
       });
@@ -419,6 +440,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       a.status = 'observed';
       a.effect = mutation.effect;
       a.output = copy(mutation.output);
+      a.label = observeLabel(state, runOf(state, a.runId), [...(a.label ?? []), ...labels(mutation.label)]);
       a.observedAt = at;
       if (mutation.error !== undefined) a.error = mutation.error;
       if (a.kind === 'model' && mutation.output === null) a.error = 'response-unavailable';
@@ -428,6 +450,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         attemptId: a.id,
         evidence: mutation.evidence,
         output: a.output,
+        label: a.label,
         effect: a.effect,
         ...(mutation.error !== undefined ? { target: a.target, receipt: state.receipts.at(-1)!.id } : {}),
       });
@@ -451,7 +474,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       attempt!.actionAccepted = true;
       if (mutation.cause) run.cause = copy(mutation.cause);
       run.pendingAction = copy(mutation.action);
-      run.transcript.push({ kind: 'action', action: copy(mutation.action) });
+      run.transcript.push({ kind: 'action', action: copy(mutation.action), label: labels(run.label) });
       break;
     }
     case 'attempt.retry': {
@@ -546,7 +569,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
               digest({ prompt: q.prompt, respondent: q.respondent, choices: q.choices, revision: q.revision }),
           'Invalid question',
         );
-        state.questions[q.id] = copy(q);
+        state.questions[q.id] = { ...copy(q), label: labels(run.label) };
       }
       const p = mutation.proposal;
       if (p) {
@@ -565,8 +588,10 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         state.proposals[p.id] = copy(p);
       }
       run.outcome = copy(mutation.outcome);
+      if (run.outcome !== null && typeof run.outcome === 'object' && !Array.isArray(run.outcome))
+        run.outcome['label'] = labels(run.label);
       run.pendingAction = null;
-      run.transcript.push({ kind: 'outcome', outcome: copy(mutation.outcome) });
+      run.transcript.push({ kind: 'outcome', outcome: copy(run.outcome), label: labels(run.label) });
       if (mutation.terminal) {
         complete(state, run);
         run.status = mutation.terminal;
@@ -589,13 +614,48 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         'Wrong respondent or answer choice',
       );
       q!.answer = copy(mutation.answer);
+      q!.label = labels(mutation.label);
+      observeLabel(state, runOf(state, q!.runId), q!.label);
       q!.status = 'answered';
       runOf(state, q!.runId).transcript.push({
         kind: 'answer',
         questionId: q!.id,
         actor,
         answer: copy(mutation.answer),
+        label: q!.label!,
       });
+      break;
+    }
+    case 'release.accept': {
+      const release = copy(mutation.release),
+        run = runOf(state, release.runId);
+      identifier(release.id);
+      complete(state, run);
+      invariant(!state.releases.some((r) => r.id === release.id), 'Release already exists');
+      invariant(
+        typeof release.policy === 'string' &&
+          release.policy.length > 0 &&
+          typeof release.policyRevision === 'string' &&
+          release.policyRevision.length > 0 &&
+          release.sources.length > 0 &&
+          release.sources.every(
+            (source) =>
+              typeof source.id === 'string' &&
+              source.id.length > 0 &&
+              typeof source.digest === 'string' &&
+              source.digest.length > 0,
+          ),
+        'Invalid release provenance',
+      );
+      release.label = labels(release.label);
+      for (const source of release.sources) source.label = labels(source.label);
+      observeLabel(state, run, release.label);
+      state.releases.push(release);
+      run.outcome = { type: 'release', releaseId: release.id, output: release.output, label: release.label };
+      run.transcript.push({ kind: 'release', releaseId: release.id, output: release.output, label: release.label });
+      run.pendingAction = null;
+      run.wait = null;
+      run.status = 'completed';
       break;
     }
     case 'proposal.review': {
@@ -665,6 +725,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       );
       state.budget.children++;
       const child = state.runs[mutation.childId]!;
+      child.label = labels(parent.label);
       if (mutation.contract) child.contract = copy(mutation.contract);
       if (mutation.authority) child.authority = copy(mutation.authority);
       if (mutation.limits) {
@@ -689,7 +750,14 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       const parent = runOf(state, child.parentId!);
       invariant(!terminal(parent), 'Parent is terminal');
       child.returned = true;
-      parent.transcript.push({ kind: 'child', childId: child.id, status: child.status, outcome: child.outcome });
+      observeLabel(state, parent, child.label);
+      parent.transcript.push({
+        kind: 'child',
+        childId: child.id,
+        status: child.status,
+        outcome: child.outcome,
+        label: labels(child.label),
+      });
       parent.wait = null;
       parent.status = parent.cancelRequested ? 'cancelling' : parent.pauseRequested ? 'paused' : 'running';
       break;
@@ -830,6 +898,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       invariant(!state.reactions[r.id] && r.status === 'queued', 'Reaction already exists');
       if (r.required) invariant(!terminal(runOf(state, r.runId)), 'Required reaction cannot attach after completion');
       state.reactions[r.id] = copy(r);
+      state.reactions[r.id]!.label = observeLabel(state, runOf(state, r.runId), r.label);
       break;
     }
     case 'reaction.settle': {
@@ -837,6 +906,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       invariant(r?.status === 'queued', 'Reaction already settled or absent');
       r!.status = 'settled';
       r!.result = copy(mutation.result);
+      r!.label = observeLabel(state, runOf(state, r!.runId), [...(r!.label ?? []), ...labels(mutation.label)]);
       break;
     }
     default:

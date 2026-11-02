@@ -65,6 +65,7 @@ function fixture(actions: ModelAction[] = [question, answer]) {
   };
   const manifest: Manifest = { ...body, digest: manifestDigest(body) };
   const grant = (deadline: number): Grant => ({
+    clearances: [],
     id: 'current',
     principal: 'alice',
     workspace: 'workspace',
