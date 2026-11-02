@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isatty } from 'node:tty';
 import type { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { Door, isEntry } from '@inventarch/runtime';
 import type { DoorResponse } from '@inventarch/runtime';
-import { dispatch, HELP_TOKENS } from './consumer.js';
+import { dispatch, HELP_TOKENS, iaHomeOf } from './consumer.js';
 import type { Extension, Host } from './consumer.js';
+import { handOff, handoffTarget } from './handoff.js';
 import { describeOperation, renderOperationHelp, renderOperationSchema, SCHEMA_TOKEN } from './operation-help.js';
 
 const USAGE =
@@ -194,6 +195,30 @@ export function installSignals(
 }
 /** The public CLI has no additional command namespaces; dispatch derives extension help from this empty table. */
 export const EXTENSIONS: readonly Extension[] = [];
+/**
+ * consumer-cli-contract §1.2: the exit code of the workspace's own installed copy when this invocation went to it, or
+ * undefined when this copy answers. A copy that is there but cannot be started is reported on stderr and passed over.
+ */
+function handedOff(argv: readonly string[]): number | undefined {
+  const target = handoffTarget({
+    argv,
+    cwd: process.cwd(),
+    env: process.env,
+    packageRoot,
+    iaHome: iaHomeOf(process.env),
+    extensions: EXTENSIONS.map((extension) => extension.token),
+  });
+  if (target === null) return undefined;
+  try {
+    return handOff(target, argv, process.env, realpathSync(packageRoot));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+      `ia: could not start this workspace's @inventarch/cli ${target.version} (${message}); running ${version()} instead\n`,
+    );
+    return undefined;
+  }
+}
 
 if (isEntry(process.argv[1], import.meta.url)) {
   // A closed stdout is a normal end of output. The three moves are apps/mcp-door/src/main.ts's stdout error handlers.
@@ -202,10 +227,15 @@ if (isEntry(process.argv[1], import.meta.url)) {
     if (error.code !== 'EPIPE') throw error;
   });
   try {
-    const result = await dispatch(process.argv.slice(2), host(new AbortController()), runCli, EXTENSIONS);
-    if (result.stderr !== '') process.stderr.write(result.stderr);
-    process.stdout.write(result.stdout);
-    process.exitCode = result.exitCode;
+    const argv = process.argv.slice(2);
+    const handed = handedOff(argv);
+    if (handed !== undefined) process.exitCode = handed;
+    else {
+      const result = await dispatch(argv, host(new AbortController()), runCli, EXTENSIONS);
+      if (result.stderr !== '') process.stderr.write(result.stderr);
+      process.stdout.write(result.stdout);
+      process.exitCode = result.exitCode;
+    }
   } catch (error) {
     const code =
       error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'string'

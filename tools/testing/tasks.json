@@ -842,6 +842,7 @@
         "tests/args.test.ts",
         "tests/briefing.test.ts",
         "tests/channel.test.ts",
+        "tests/handoff.test.ts",
         "tests/local-cli.test.ts",
         "tests/render.test.ts"
       ],
@@ -1271,6 +1272,7 @@
       "project": "apps/cli",
       "files": [
         "tests/cli.test.ts",
+        "tests/handoff-installed.test.ts",
         "tests/program.test.ts",
         "tests/protocols.test.ts",
         "tests/session-hook.test.ts",

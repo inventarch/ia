@@ -75,7 +75,7 @@ These rows exist with or without a workspace: install channel, IA home, Claude p
 
 ### 8.2 Briefing
 
-The plugin's `SessionStart` hook runs `ia doctor --json --host claude` and gives it five seconds. It runs the CLI entry that rendered the plugin, or, when that file is gone, an `ia` found on a fully qualified `PATH` entry. It turns the `session` field into context lines for the model and at most one notice for the user. The briefing distinguishes:
+The plugin's `SessionStart` hook runs `ia doctor --json --host claude` and gives it five seconds. It runs the CLI entry that rendered the plugin, or, when that file is gone, an `ia` found on a fully qualified `PATH` entry. Every child the hook starts has `IA_NO_HANDOFF=1`, so the `ia` it runs answers itself and never hands off to a copy the repository installed (consumer-cli-contract §1.2). It turns the `session` field into context lines for the model and at most one notice for the user. The briefing distinguishes:
 
 - a directory that is not a workspace, where the model may offer `/ia:init` only when the request involves InventArch, `.ia` records or their governance;
 - a directory inside another workspace, which names that workspace and `ia doctor --root <workspace>` instead of offering initialization;
