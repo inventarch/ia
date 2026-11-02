@@ -1,8 +1,8 @@
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { iaHomeOf } from '../src/consumer.js';
-import { HANDOFF_FROM, handoffTarget, NO_HANDOFF, rootFromArgv } from '../src/handoff.js';
+import { HANDOFF_FROM, handOff, handoffTarget, NO_HANDOFF, rootFromArgv } from '../src/handoff.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -50,6 +50,14 @@ describe('rootFromArgv', () => {
     const cwd = workspace('handoff-root-not-cwd');
     expect(rootFromArgv(['validate', '--root', scratch('handoff-root-not')], cwd, iaHome)).toBeUndefined();
   });
+  it('a --root whose .ia is the IA home gives undefined', () => {
+    const dir = scratch('handoff-root-home');
+    mkdirSync(resolve(dir, '.ia/src'), { recursive: true });
+    expect(
+      rootFromArgv(['validate', '--root', dir], scratch('handoff-root-home-cwd'), resolve(dir, '.ia')),
+    ).toBeUndefined();
+    expect(rootFromArgv(['validate', '--root', dir], scratch('handoff-root-home-cwd'), iaHome)).toBe(dir);
+  });
   it('falls back to discovery from cwd', () => {
     const w = workspace('handoff-root-discover');
     const nested = resolve(w, 'a/b');
@@ -89,10 +97,15 @@ describe('handoffTarget', () => {
     const w = workspace('handoff-junction', { installed: false });
     const self = cliPackage(scratch('handoff-junction-self'));
     mkdirSync(resolve(w, 'node_modules/@inventarch'), { recursive: true });
-    symlinkSync(self, resolve(w, 'node_modules/@inventarch/cli'), 'junction');
+    const link = resolve(w, 'node_modules/@inventarch/cli');
+    symlinkSync(self, link, 'junction');
+    // The running copy is named in spellings other than the real path findLocalCli answers: through the junction, and
+    // with the trailing separator main.ts's `new URL('../', import.meta.url)` gives. Only device and inode match.
+    for (const packageRoot of [link, self + sep])
+      expect(handoffTarget({ argv: ['validate'], cwd: w, env: {}, packageRoot, iaHome, extensions: [] })).toBeNull();
     expect(
-      handoffTarget({ argv: ['validate'], cwd: w, env: {}, packageRoot: self, iaHome, extensions: [] }),
-    ).toBeNull();
+      handoffTarget({ argv: ['validate'], cwd: w, env: {}, packageRoot: running, iaHome, extensions: [] }),
+    ).not.toBeNull();
   });
   it('a malformed IA_HOME does not hand off', () => {
     // The running copy answers and refuses the variable as it already does; a hand-off would hide that refusal.
@@ -114,5 +127,28 @@ describe('handoffTarget', () => {
     expect(target(['validate', '--root', w, '--', '--user'], scratch('handoff-target-cwd'))).toMatchObject({
       version: '9.9.9',
     });
+  });
+});
+
+describe('handOff', () => {
+  const SIGNALS: readonly NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'];
+  const counts = () => SIGNALS.map((signal) => process.listenerCount(signal));
+  const child = (body: string) => {
+    const dir = scratch('handoff-child');
+    put(resolve(dir, 'main.js'), body);
+    return { packageRoot: dir, version: '9.9.9', entry: resolve(dir, 'main.js') };
+  };
+  it("returns the child's exit code and leaves no signal listener behind", () => {
+    const before = counts();
+    const from = scratch('handoff-from');
+    const target = child(`process.exitCode = process.env.${HANDOFF_FROM} === ${JSON.stringify(from)} ? 3 : 4;`);
+    expect(handOff(target, [], { ...process.env }, from)).toBe(3);
+    expect(counts()).toEqual(before);
+  });
+  // POSIX reports a child ended by a signal as a null status; Windows has no such ending to produce.
+  it.skipIf(process.platform === 'win32')('returns 130 when the child ends on a signal', () => {
+    const before = counts();
+    expect(handOff(child("process.kill(process.pid, 'SIGTERM');"), [], { ...process.env }, 'x')).toBe(130);
+    expect(counts()).toEqual(before);
   });
 });

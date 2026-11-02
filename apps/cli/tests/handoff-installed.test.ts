@@ -3,7 +3,16 @@
  * §1.2). The workspace here pins and installs a fake copy that reports what it was given, so each case reads off what
  * the hand-off passed through. Requires a current `apps/cli/dist/main.js`: run `pnpm --filter @inventarch/cli build`.
  */
-import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmdirSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { renderClaudePlugin } from '@inventarch/compliance';
@@ -22,6 +31,11 @@ const FAKE = [
   "const { readFileSync } = require('node:fs');",
   "const { isatty } = require('node:tty');",
   "const stdin = isatty(0) ? null : readFileSync(0, 'utf8');",
+  // FAKE_SIGNAL_PARENT: signal the copy that handed off, as a terminal signals the whole group, then finish a moment later.
+  'if (process.env.FAKE_SIGNAL_PARENT) {',
+  '  process.kill(process.ppid, process.env.FAKE_SIGNAL_PARENT);',
+  '  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);',
+  '}',
   'process.stdout.write(JSON.stringify({ argv: process.argv.slice(2), from: process.env.IA_HANDOFF_FROM, stdin }));',
   "process.stderr.write('fake-stderr');",
   'process.exitCode = Number(process.env.FAKE_EXIT ?? 0);',
@@ -129,4 +143,35 @@ it('a broken local copy is ignored', async () => {
   expect(result.status, result.stderr).toBe(0);
   expect(result.stdout).toBe(`${OWN_VERSION}\n`);
   expect(result.stderr).toBe('');
+});
+// The copy that handed off waits for the child through a group signal and exits with the child's code (§3). POSIX only:
+// on Windows process.kill ends the target unconditionally, so no portable fixture sends a catchable signal there.
+it.skipIf(process.platform === 'win32')(
+  'the copy that handed off outlives a signal the child also receives',
+  async () => {
+    const { root } = workspace('handoff-signal');
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+      const result = await run(['validate'], root, environment({ FAKE_SIGNAL_PARENT: signal }));
+      expect({ signal, status: result.status, killed: result.signal }).toEqual({ signal, status: 0, killed: null });
+      expect(handed(result.stdout).argv).toEqual(['validate']);
+    }
+  },
+);
+it('a workspace whose installed copy is this one, through a junction, runs it without handing off', async () => {
+  const root = scratch('handoff-self');
+  mkdirSync(resolve(root, '.ia/src'), { recursive: true });
+  put(resolve(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': OWN_VERSION } }));
+  mkdirSync(resolve(root, 'node_modules/@inventarch'), { recursive: true });
+  const link = resolve(root, 'node_modules/@inventarch/cli');
+  symlinkSync(cli, link, 'junction');
+  try {
+    const result = await run(['--version'], root, environment());
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe(`${OWN_VERSION}\n`);
+    expect(result.stderr).toBe('');
+  } finally {
+    // The link goes before the scratch directory, so no removal can reach the repository through it.
+    if (process.platform === 'win32') rmdirSync(link);
+    else unlinkSync(link);
+  }
 });

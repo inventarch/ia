@@ -32,7 +32,9 @@ export function rootFromArgv(argv: readonly string[], cwd: string, iaHome: strin
     if (value === null) continue;
     if (value === undefined || value === '') return undefined;
     const root = resolve(cwd, value);
-    return existsSync(resolve(root, '.ia/src')) ? root : undefined;
+    // As discovery does (consumer.ts), a directory whose `.ia` is the IA home is never a workspace.
+    const home = iaHome !== undefined && sameFile(resolve(root, '.ia'), iaHome);
+    return existsSync(resolve(root, '.ia/src')) && !home ? root : undefined;
   }
   return discoverRoot(cwd, iaHome);
 }
@@ -63,13 +65,31 @@ export function handoffTarget(input: {
   return local === null || sameFile(local.packageRoot, input.packageRoot) ? null : local;
 }
 
+/**
+ * The signals a terminal sends the whole foreground group. While the child runs, this copy ignores them: the child
+ * receives each itself and decides, so the prompt does not return while it is still finishing, and Windows does not
+ * end this copy with its own status in place of the child's.
+ */
+const FORWARDED: readonly NodeJS.Signals[] = [
+  'SIGINT',
+  'SIGTERM',
+  'SIGHUP',
+  ...(process.platform === 'win32' ? (['SIGBREAK'] as const) : []),
+];
+const ignore = (): void => {};
+
 /** Runs the target with inherited stdio and returns its exit code; throws when it cannot be started. */
 export function handOff(target: LocalCli, argv: readonly string[], env: NodeJS.ProcessEnv, from: string): number {
-  const result = spawnSync(process.execPath, [target.entry, ...argv], {
-    stdio: 'inherit',
-    env: { ...env, [HANDOFF_FROM]: from },
-  });
-  if (result.error !== undefined) throw result.error;
-  // §5: a child that ended on a signal ends this invocation as an interrupt does.
-  return result.status ?? 130;
+  for (const signal of FORWARDED) process.on(signal, ignore);
+  try {
+    const result = spawnSync(process.execPath, [target.entry, ...argv], {
+      stdio: 'inherit',
+      env: { ...env, [HANDOFF_FROM]: from },
+    });
+    if (result.error !== undefined) throw result.error;
+    // §3: a child that ended on a signal ends this invocation as an interruption, 130.
+    return result.status ?? 130;
+  } finally {
+    for (const signal of FORWARDED) process.off(signal, ignore);
+  }
 }
