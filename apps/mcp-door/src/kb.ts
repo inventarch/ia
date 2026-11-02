@@ -10,7 +10,7 @@ import {
 import { executeKnowledge, knowledgeFailure, parseKnowledgeRequest } from '@inventarch/kb/protocol';
 import type { KnowledgeOperation } from '@inventarch/kb/protocol';
 /** Selectable authored records a Door scope may carry into one knowledge capture. */
-export const MEMBERSHIP = Object.freeze({ records: LIMITS.captureRecords, bytes: 40 * 1024 * 1024 });
+export const MEMBERSHIP = Object.freeze({ records: LIMITS.captureRecords, bytes: 20 * 1024 * 1024 });
 /** Tokens are interpreted only by their issuing Door. Transfer membership and graph revision, never the token. */
 export function knowledgeTool(
   root: string,
