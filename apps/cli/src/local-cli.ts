@@ -1,14 +1,12 @@
 /**
- * The workspace's own installed `@inventarch/cli`, the dependency that pins it, and the package manager that installs
- * it: the facts a global `ia` needs to hand a command to the copy the workspace chose. Only the filesystem and local
- * git are consulted; every read that fails answers `null`.
+ * The workspace's own installed `@inventarch/cli` and the dependency that pins it: the facts an `ia` needs to hand a
+ * command to the copy the workspace chose. Only the filesystem is consulted, so the `ia` bin decides with this module
+ * before any command module loads (bin.ts); every read that fails answers `null`. The package manager that installs
+ * the copy, which only doctor reports, is package-manager.ts.
  */
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { satisfies as satisfiesRange } from '@inventarch/db/distribution';
-import { runGit } from './channel.js';
 
-export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
 export interface LocalCli {
   readonly packageRoot: string;
   readonly version: string;
@@ -20,10 +18,10 @@ export interface CliDependency {
   readonly range: string;
 }
 
-const CLI = '@inventarch/cli';
+export const CLI = '@inventarch/cli';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-interface Manifest {
+export interface Manifest {
   readonly name?: unknown;
   readonly version?: unknown;
   readonly bin?: unknown;
@@ -31,7 +29,8 @@ interface Manifest {
   readonly dependencies?: unknown;
   readonly devDependencies?: unknown;
 }
-const readJson = (path: string): Manifest | null => {
+/** The `package.json` at `path` when it parses to an object, or `null`. */
+export const readManifest = (path: string): Manifest | null => {
   try {
     const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
     return isRecord(value) ? value : null;
@@ -45,7 +44,7 @@ export function readCliDependency(root: string): CliDependency | null {
   for (let current = resolve(root); ; current = dirname(current)) {
     const manifest = resolve(current, 'package.json');
     if (existsSync(manifest)) {
-      const json = readJson(manifest);
+      const json = readManifest(manifest);
       if (json === null) return null;
       for (const field of ['dependencies', 'devDependencies'] as const) {
         const table = json[field];
@@ -70,7 +69,7 @@ export function findLocalCli(root: string, stopAt: string): LocalCli | null {
   for (let current = resolve(root); ; current = dirname(current)) {
     const dir = resolve(current, 'node_modules/@inventarch/cli');
     if (existsSync(resolve(dir, 'package.json'))) {
-      const json = readJson(resolve(dir, 'package.json'));
+      const json = readManifest(resolve(dir, 'package.json'));
       const bin = json === null ? null : binEntry(json.bin);
       if (json === null || json.name !== CLI || typeof json.version !== 'string' || bin === null) return null;
       try {
@@ -84,59 +83,3 @@ export function findLocalCli(root: string, stopAt: string): LocalCli | null {
     if (current === stop || dirname(current) === current) return null;
   }
 }
-
-/** `null` when the version or the range is not one this check evaluates (`workspace:*`, `file:..`, `latest`). */
-export function satisfies(version: string, range: string): boolean | null {
-  try {
-    return satisfiesRange(version, range);
-  } catch {
-    return null;
-  }
-}
-
-const LOCKFILES: readonly (readonly [string, PackageManager])[] = [
-  ['package-lock.json', 'npm'],
-  ['npm-shrinkwrap.json', 'npm'],
-  ['pnpm-lock.yaml', 'pnpm'],
-  ['yarn.lock', 'yarn'],
-  ['bun.lockb', 'bun'],
-  ['bun.lock', 'bun'],
-];
-const MANAGERS: ReadonlySet<string> = new Set(['npm', 'pnpm', 'yarn', 'bun']);
-
-/** The `packageManager` field, then the lockfiles git tracks (outside git, the ones present); never a guess. */
-export function detectPackageManager(directory: string): {
-  readonly manager: PackageManager | null;
-  readonly conflict: readonly string[];
-} {
-  const found = new Set<PackageManager>();
-  const declared = readJson(resolve(directory, 'package.json'))?.packageManager;
-  const name = typeof declared === 'string' ? (declared.split('@')[0] ?? '') : '';
-  if (MANAGERS.has(name)) found.add(name as PackageManager);
-  const names = LOCKFILES.map(([file]) => file);
-  const listed = runGit(directory, ['ls-files', '--', ...names]);
-  const locks =
-    listed === null
-      ? names.filter((file) => existsSync(resolve(directory, file)))
-      : listed.split(/\r?\n/).filter((file) => names.includes(file));
-  for (const [file, manager] of LOCKFILES) if (locks.includes(file)) found.add(manager);
-  const managers = [...found].sort();
-  if (managers.length > 1) return { manager: null, conflict: managers };
-  return { manager: managers[0] ?? null, conflict: [] };
-}
-
-const INSTALL: Readonly<Record<PackageManager, string>> = {
-  npm: 'npm ci',
-  pnpm: 'pnpm install --frozen-lockfile',
-  yarn: 'yarn install --immutable',
-  bun: 'bun install --frozen-lockfile',
-};
-export const installCommand = (manager: PackageManager): string => INSTALL[manager];
-
-const PIN: Readonly<Record<PackageManager, string>> = {
-  npm: 'npm install -D',
-  pnpm: 'pnpm add -D',
-  yarn: 'yarn add -D',
-  bun: 'bun add -d',
-};
-export const pinCommand = (manager: PackageManager, version: string): string => `${PIN[manager]} ${CLI}@${version}`;

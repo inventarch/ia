@@ -2,15 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  detectPackageManager,
-  findLocalCli,
-  installCommand,
-  pinCommand,
-  readCliDependency,
-  satisfies,
-} from '../src/local-cli.js';
-import type { PackageManager } from '../src/local-cli.js';
+import { findLocalCli, readCliDependency } from '../src/local-cli.js';
+import { detectPackageManager, installCommand, pinCommand, satisfies } from '../src/package-manager.js';
+import type { PackageManager } from '../src/package-manager.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);

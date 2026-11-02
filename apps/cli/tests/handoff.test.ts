@@ -1,7 +1,7 @@
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { iaHomeOf } from '../src/consumer.js';
+import { iaHomeOf } from '../src/discovery.js';
 import { HANDOFF_FROM, handOff, handoffTarget, NO_HANDOFF, rootFromArgv } from '../src/handoff.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 

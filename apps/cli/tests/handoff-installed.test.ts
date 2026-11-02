@@ -1,7 +1,8 @@
 /**
  * The built CLI hands a typed command to the workspace's installed `@inventarch/cli` (docs/specs/consumer-cli-contract
  * §1.2). The workspace here pins and installs a fake copy that reports what it was given, so each case reads off what
- * the hand-off passed through. Requires a current `apps/cli/dist/main.js`: run `pnpm --filter @inventarch/cli build`.
+ * the hand-off passed through. The cases run the `ia` bin, `apps/cli/dist/bin.js`, as a typed command does. Requires a current
+ * build: run `pnpm --filter @inventarch/cli build`.
  */
 import {
   mkdirSync,
@@ -14,12 +15,15 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, expect, it } from 'vitest';
 import { renderClaudePlugin } from '@inventarch/compliance';
+import { sameFile } from '@inventarch/db';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { cleanup, cli, scratch } from './workspace-fixture.js';
 
 afterAll(cleanup);
+const CLI_BIN = resolve(cli, 'dist/bin.js');
 const CLI_MAIN = resolve(cli, 'dist/main.js');
 const OWN_VERSION = (JSON.parse(readFileSync(resolve(cli, 'package.json'), 'utf8')) as { version: string }).version;
 const put = (path: string, text: string): void => {
@@ -61,7 +65,7 @@ function environment(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   return env;
 }
 const run = (args: readonly string[], cwd: string, env: NodeJS.ProcessEnv, input?: string) =>
-  runBounded(process.execPath, [CLI_MAIN, ...args], {
+  runBounded(process.execPath, [CLI_BIN, ...args], {
     cwd,
     env,
     timeoutMs: 30_000,
@@ -77,6 +81,49 @@ it("hands the invocation to the workspace's copy", async () => {
   expect(got.argv).toEqual(['validate', '--json']);
   expect(got.from).toBe(realpathSync(cli));
   expect(result.stderr).toBe('fake-stderr');
+});
+it('decides before it loads its command modules', async () => {
+  // A module hook in the copy that hands off records every module it loads; the copy handed to runs without it.
+  const dir = scratch('handoff-light');
+  const log = resolve(dir, 'loaded.txt');
+  const hook = resolve(dir, 'hook.mjs');
+  put(log, '');
+  put(
+    hook,
+    [
+      "import { appendFileSync } from 'node:fs';",
+      "import { registerHooks } from 'node:module';",
+      'registerHooks({ load(url, context, next) { appendFileSync(process.env.LOADED_LOG, url + "\\n"); return next(url, context); } });',
+      '',
+    ].join('\n'),
+  );
+  const { root } = workspace('handoff-light-run');
+  const result = await runBounded(process.execPath, ['--import', pathToFileURL(hook).href, CLI_BIN, 'validate'], {
+    cwd: root,
+    env: environment({ LOADED_LOG: log }),
+    timeoutMs: 30_000,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  expect(handed(result.stdout).argv).toEqual(['validate']);
+  const loaded = readFileSync(log, 'utf8')
+    .split('\n')
+    .filter((url) => url.startsWith('file:'))
+    .map((url) => fileURLToPath(url));
+  const own = (file: string) => loaded.some((path) => sameFile(path, resolve(cli, 'dist', file)));
+  expect(own('bin.js') && own('handoff.js'), loaded.join('\n')).toBe(true);
+  expect(own('main.js') || own('consumer.js'), loaded.join('\n')).toBe(false);
+});
+it('dist/main.js run directly still dispatches, and answers itself', async () => {
+  // The plugin hook's entry and a checkout's `node apps/cli/dist/main.js` reach this module, not the bin.
+  const { root } = workspace('handoff-main');
+  const result = await runBounded(process.execPath, [CLI_MAIN, '--version'], {
+    cwd: root,
+    env: environment(),
+    timeoutMs: 30_000,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout).toBe(`${OWN_VERSION}\n`);
+  expect(result.stderr).toBe('');
 });
 it('propagates the exit code', async () => {
   const { root } = workspace('handoff-exit');

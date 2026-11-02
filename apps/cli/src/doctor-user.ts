@@ -32,16 +32,10 @@ import { describeChannel, detectChannel, updateInstruction } from './channel.js'
 import type { Check, CheckStatus, Section } from './doctor.js';
 import { quote } from './render.js';
 import { HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
-import type { PackageManager } from './local-cli.js';
-import {
-  detectPackageManager,
-  findLocalCli,
-  installCommand,
-  pinCommand,
-  readCliDependency,
-  satisfies,
-} from './local-cli.js';
+import { findLocalCli, readCliDependency } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
+import type { PackageManager } from './package-manager.js';
+import { detectPackageManager, installCommand, pinCommand, satisfies } from './package-manager.js';
 
 export interface UserFacts {
   readonly channel: Channel;

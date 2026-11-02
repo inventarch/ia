@@ -120,7 +120,8 @@ beforeAll(async () => {
   const manifest = JSON.parse(
     readFileSync(resolve(installedRoot, 'node_modules/@inventarch/cli/package.json'), 'utf8'),
   );
-  expect(manifest.bin.ia).toBe('./dist/main.js');
+  expect(manifest.bin.ia).toBe('./dist/bin.js');
+  expect(existsSync(resolve(installedRoot, 'node_modules/@inventarch/cli/dist/bin.js'))).toBe(true);
   expect(existsSync(resolve(installedRoot, 'node_modules/.bin', process.platform === 'win32' ? 'ia.cmd' : 'ia'))).toBe(
     true,
   );

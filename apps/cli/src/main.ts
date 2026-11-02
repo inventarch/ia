@@ -1,14 +1,12 @@
 #!/usr/bin/env node
-import { readFileSync, realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { isatty } from 'node:tty';
 import type { Readable } from 'node:stream';
-import { fileURLToPath } from 'node:url';
 import { Door, isEntry } from '@inventarch/runtime';
 import type { DoorResponse } from '@inventarch/runtime';
-import { dispatch, HELP_TOKENS, iaHomeOf } from './consumer.js';
-import type { Extension, Host } from './consumer.js';
-import { handOff, handoffTarget } from './handoff.js';
+import { dispatch, HELP_TOKENS } from './consumer.js';
+import type { Host } from './consumer.js';
+import { EXTENSIONS, packageRoot, version } from './self.js';
 import { describeOperation, renderOperationHelp, renderOperationSchema, SCHEMA_TOKEN } from './operation-help.js';
 
 const USAGE =
@@ -86,17 +84,6 @@ export function runCli(
   }
 }
 
-const packageRoot = fileURLToPath(new URL('../', import.meta.url));
-const version = (): string => {
-  try {
-    return (
-      (JSON.parse(readFileSync(resolve(packageRoot, 'package.json'), 'utf8')) as { version?: string }).version ??
-      '0.0.0'
-    );
-  } catch {
-    return '0.0.0';
-  }
-};
 /**
  * §2.0's confirmation reader: one line from stdin, or null at EOF, on a closed stdin or on a stdin that errors. No
  * dependency and no prompt library — the question is a line written to stderr and a line read back, and the
@@ -193,49 +180,23 @@ export function installSignals(
     for (const signal of ['SIGINT', 'SIGTERM'] as const) process.off(signal, stop);
   };
 }
-/** The public CLI has no additional command namespaces; dispatch derives extension help from this empty table. */
-export const EXTENSIONS: readonly Extension[] = [];
+/** The public CLI's extension table lives in self.ts, which the `ia` bin reads before this module loads. */
+export { EXTENSIONS };
 /**
- * consumer-cli-contract §1.2: the exit code of the workspace's own installed copy when this invocation went to it, or
- * undefined when this copy answers. A copy that is there but cannot be started is reported on stderr and passed over.
+ * Runs one invocation on this copy and sets the exit code. The `ia` bin (bin.ts) calls it when no hand-off answered;
+ * `node dist/main.js`, the plugin hook's entry, runs it directly and so never hands off (consumer-cli-contract §1.2).
  */
-function handedOff(argv: readonly string[]): number | undefined {
-  const target = handoffTarget({
-    argv,
-    cwd: process.cwd(),
-    env: process.env,
-    packageRoot,
-    iaHome: iaHomeOf(process.env),
-    extensions: EXTENSIONS.map((extension) => extension.token),
-  });
-  if (target === null) return undefined;
-  try {
-    return handOff(target, argv, process.env, realpathSync(packageRoot));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stderr.write(
-      `ia: could not start this workspace's @inventarch/cli ${target.version} (${message}); running ${version()} instead\n`,
-    );
-    return undefined;
-  }
-}
-
-if (isEntry(process.argv[1], import.meta.url)) {
+export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
   // A closed stdout is a normal end of output. The three moves are apps/mcp-door/src/main.ts's stdout error handlers.
   process.stdout.on('error', (error: NodeJS.ErrnoException) => {
     process.stdin.destroy();
     if (error.code !== 'EPIPE') throw error;
   });
   try {
-    const argv = process.argv.slice(2);
-    const handed = handedOff(argv);
-    if (handed !== undefined) process.exitCode = handed;
-    else {
-      const result = await dispatch(argv, host(new AbortController()), runCli, EXTENSIONS);
-      if (result.stderr !== '') process.stderr.write(result.stderr);
-      process.stdout.write(result.stdout);
-      process.exitCode = result.exitCode;
-    }
+    const result = await dispatch(argv, host(new AbortController()), runCli, EXTENSIONS);
+    if (result.stderr !== '') process.stderr.write(result.stderr);
+    process.stdout.write(result.stdout);
+    process.exitCode = result.exitCode;
   } catch (error) {
     const code =
       error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
@@ -247,3 +208,5 @@ if (isEntry(process.argv[1], import.meta.url)) {
     }
   }
 }
+
+if (isEntry(process.argv[1], import.meta.url)) await main();

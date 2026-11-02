@@ -6,8 +6,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { sameFile } from '@inventarch/db';
-import { discoverRoot } from './consumer.js';
+import { sameFile } from '@inventarch/db/internal/paths';
+import { discoverRoot } from './discovery.js';
 import { findLocalCli, readCliDependency } from './local-cli.js';
 import type { LocalCli } from './local-cli.js';
 
@@ -32,7 +32,7 @@ export function rootFromArgv(argv: readonly string[], cwd: string, iaHome: strin
     if (value === null) continue;
     if (value === undefined || value === '') return undefined;
     const root = resolve(cwd, value);
-    // As discovery does (consumer.ts), a directory whose `.ia` is the IA home is never a workspace.
+    // As discovery does (discovery.ts), a directory whose `.ia` is the IA home is never a workspace.
     const home = iaHome !== undefined && sameFile(resolve(root, '.ia'), iaHome);
     return existsSync(resolve(root, '.ia/src')) && !home ? root : undefined;
   }
