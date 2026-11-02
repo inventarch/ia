@@ -1,6 +1,7 @@
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { CORE_TOKENS } from '../src/commands.js';
 import { iaHomeOf } from '../src/discovery.js';
 import { HANDOFF_FROM, handOff, handoffTarget, NO_HANDOFF, rootFromArgv } from '../src/handoff.js';
 import { cleanup, scratch } from './scratch-fixture.js';
@@ -32,7 +33,7 @@ const workspace = (prefix: string, options: { dependency?: boolean; installed?: 
 const running = cliPackage(scratch('handoff-running'), '3.5.1');
 const iaHome = resolve(scratch('handoff-home'), '.ia');
 const target = (argv: readonly string[], cwd: string, env: Record<string, string | undefined> = {}) =>
-  handoffTarget({ argv, cwd, env, packageRoot: running, iaHome, extensions: ['ext'] });
+  handoffTarget({ argv, cwd, env, packageRoot: running, iaHome, extensions: ['ext'], coreTokens: CORE_TOKENS });
 
 describe('rootFromArgv', () => {
   it('reads --root in both spellings', () => {
@@ -88,6 +89,12 @@ describe('handoffTarget', () => {
   it('an extension token never hands off', () => {
     expect(target(['ext', 'run'], workspace('handoff-extension'))).toBeNull();
   });
+  it('an extension token that is a core token still hands off, as dispatch routes it to the core command', () => {
+    const w = workspace('handoff-extension-core');
+    const input = { cwd: w, env: {}, packageRoot: running, iaHome, extensions: ['validate', 'ext'] };
+    expect(handoffTarget({ ...input, argv: ['validate'], coreTokens: CORE_TOKENS })).not.toBeNull();
+    expect(handoffTarget({ ...input, argv: ['ext'], coreTokens: CORE_TOKENS })).toBeNull();
+  });
   it('doctor --host never hands off', () => {
     const w = workspace('handoff-doctor-host');
     expect(target(['doctor', '--json', '--host', 'claude'], w)).toBeNull();
@@ -102,9 +109,27 @@ describe('handoffTarget', () => {
     // The running copy is named in spellings other than the real path findLocalCli answers: through the junction, and
     // with the trailing separator main.ts's `new URL('../', import.meta.url)` gives. Only device and inode match.
     for (const packageRoot of [link, self + sep])
-      expect(handoffTarget({ argv: ['validate'], cwd: w, env: {}, packageRoot, iaHome, extensions: [] })).toBeNull();
+      expect(
+        handoffTarget({
+          argv: ['validate'],
+          cwd: w,
+          env: {},
+          packageRoot,
+          iaHome,
+          extensions: [],
+          coreTokens: CORE_TOKENS,
+        }),
+      ).toBeNull();
     expect(
-      handoffTarget({ argv: ['validate'], cwd: w, env: {}, packageRoot: running, iaHome, extensions: [] }),
+      handoffTarget({
+        argv: ['validate'],
+        cwd: w,
+        env: {},
+        packageRoot: running,
+        iaHome,
+        extensions: [],
+        coreTokens: CORE_TOKENS,
+      }),
     ).not.toBeNull();
   });
   it('a malformed IA_HOME does not hand off', () => {
@@ -114,7 +139,15 @@ describe('handoffTarget', () => {
     const env = { IA_HOME: 'relative/home' };
     const home = iaHomeOf(env);
     expect(home).toBeUndefined();
-    const input = { argv: ['validate'], cwd, env, packageRoot: running, iaHome: home, extensions: [] };
+    const input = {
+      argv: ['validate'],
+      cwd,
+      env,
+      packageRoot: running,
+      iaHome: home,
+      extensions: [],
+      coreTokens: CORE_TOKENS,
+    };
     expect(() => handoffTarget(input)).not.toThrow();
     expect(handoffTarget(input)).toBeNull();
   });

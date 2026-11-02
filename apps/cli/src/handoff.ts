@@ -41,7 +41,8 @@ export function rootFromArgv(argv: readonly string[], cwd: string, iaHome: strin
 
 /**
  * The workspace's installed copy when it is not this one, or `null`. Bare `ia`, `--user`, an extension's commands and
- * `doctor --host` always answer here, as does a malformed IA home (`iaHome` undefined), which this copy refuses.
+ * `doctor --host` always answer here, as does a malformed IA home (`iaHome` undefined), which this copy refuses. As in
+ * dispatch (consumer.ts), an extension never takes a core token: such a token is the core command's, and hands off.
  */
 export function handoffTarget(input: {
   readonly argv: readonly string[];
@@ -50,10 +51,12 @@ export function handoffTarget(input: {
   readonly packageRoot: string;
   readonly iaHome: string | undefined;
   readonly extensions: readonly string[];
+  readonly coreTokens: ReadonlySet<string>;
 }): LocalCli | null {
   const { argv, env } = input;
   const command = argv[0];
-  if (command === undefined || input.extensions.includes(command)) return null;
+  if (command === undefined) return null;
+  if (!input.coreTokens.has(command) && input.extensions.includes(command)) return null;
   if ((env[HANDOFF_FROM] ?? '') !== '' || env[NO_HANDOFF] === '1' || input.iaHome === undefined) return null;
   const tokens = options(argv);
   if (tokens.includes('--user')) return null;
