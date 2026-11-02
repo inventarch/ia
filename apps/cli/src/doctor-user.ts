@@ -281,6 +281,12 @@ export function userRows(input: {
     );
   }
 
+  // dec-007: the plugin and the update cache belong to the copy that renders the one and refreshes the other. Neither
+  // `ia host claude --user` nor the session hook hands off, so after a hand-off that is the copy that handed off, and
+  // both rows are judged against its version whenever its package.json reads.
+  const from = input.env[HANDOFF_FROM] ?? '';
+  const userVersion = (from === '' ? null : versionAt(from)) ?? input.version;
+
   // §6.3 and §7.3 `plugin-<host>`: what the IA home holds. Registration with Claude is Claude's state, never read.
   let plugin: UserFacts['plugin'] = null;
   if (home === null)
@@ -295,7 +301,7 @@ export function userRows(input: {
       // A marketplace install: Claude holds the plugin, and the IA home's record says which and by which ia.
       plugin = { cli: recorded.cli, version: `${recorded.plugin} from ${recorded.marketplace}` };
       checks.push(
-        recorded.cli === input.version
+        recorded.cli === userVersion
           ? row(
               'plugin-claude',
               'Environment',
@@ -308,7 +314,7 @@ export function userRows(input: {
               'Environment',
               'Claude plugin',
               'warn',
-              `${recorded.plugin} was installed from ${recorded.marketplace} by ia ${recorded.cli}; this is ia ${input.version}`,
+              `${recorded.plugin} was installed from ${recorded.marketplace} by ia ${recorded.cli}; this is ia ${userVersion}`,
               USER_APPLY,
             ),
       );
@@ -339,7 +345,7 @@ export function userRows(input: {
     else {
       plugin = { cli: materialized.cli, version: materialized.version };
       checks.push(
-        materialized.cli === input.version
+        materialized.cli === userVersion
           ? row(
               'plugin-claude',
               'Environment',
@@ -352,7 +358,7 @@ export function userRows(input: {
               'Environment',
               'Claude plugin',
               'warn',
-              `${materialized.version} was rendered by ia ${materialized.cli}; this is ia ${input.version}`,
+              `${materialized.version} was rendered by ia ${materialized.cli}; this is ia ${userVersion}`,
               USER_APPLY,
             ),
       );
@@ -364,9 +370,9 @@ export function userRows(input: {
   const disabled = updateCheckDisabled(input.env, home === null ? null : readIaConfig(home));
   const stored = home === null ? null : readUpdateCheck(home);
   const cached: UpdateCheck | null =
-    stored !== null && stored.cli.channel === channel.kind && stored.cli.current === input.version ? stored : null;
+    stored !== null && stored.cli.channel === channel.kind && stored.cli.current === userVersion ? stored : null;
   const latest = cached?.cli.latest ?? null,
-    newer = latest !== null && compareVersions(latest, input.version) > 0 ? latest : null,
+    newer = latest !== null && compareVersions(latest, userVersion) > 0 ? latest : null,
     behind = cached?.cli.behind ?? null,
     checkedOn = cached === null ? '' : localDate(cached.checkedAt);
   const updatesRow = (status: CheckStatus, detail: string, remedy: string | null = null): Check =>
@@ -384,7 +390,7 @@ export function userRows(input: {
     checks.push(
       updatesRow(
         'warn',
-        `ia ${newer} is available; this is ${input.version} (checked ${checkedOn})`,
+        `ia ${newer} is available; this is ${userVersion} (checked ${checkedOn})`,
         updateInstruction(channel),
       ),
     );
@@ -428,7 +434,7 @@ export function userRows(input: {
           '--channel',
           channel.kind,
           '--current',
-          input.version,
+          userVersion,
           ...(channel.kind === 'npm' ? ['--name', channel.name] : []),
           ...(channel.kind === 'checkout' ? ['--checkout', channel.root] : []),
         ];
