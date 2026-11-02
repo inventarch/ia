@@ -175,3 +175,15 @@ it('a workspace whose installed copy is this one, through a junction, runs it wi
     else unlinkSync(link);
   }
 });
+it('doctor reports a CLI dependency that is not installed', async () => {
+  const root = scratch('handoff-doctor');
+  mkdirSync(resolve(root, '.ia/src'), { recursive: true });
+  put(resolve(root, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+  put(resolve(root, 'package-lock.json'), '{}');
+  const result = await run(['doctor', '--json'], root, environment());
+  const checks = (JSON.parse(result.stdout) as { checks: { id: string }[] }).checks;
+  const at = checks.findIndex((check) => check.id === 'cli-version');
+  expect(at, result.stdout).toBeGreaterThan(0);
+  expect(checks[at - 1]?.id).toBe('install-channel');
+  expect(checks[at]).toMatchObject({ status: 'warn', remedy: 'npm ci' });
+});

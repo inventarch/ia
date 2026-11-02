@@ -1263,6 +1263,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
     enclosing,
     now: request.now ?? new Date(),
     channel: request.channel,
+    host: request.host !== undefined,
   });
   checks.push(...user.checks);
   for (let index = 0; index < checks.length; index += 1) {

@@ -11,7 +11,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db';
 import type { Decision } from '@inventarch/distribution/decisions';
 import { decisionFor, DECISIONS, readDecisions } from '@inventarch/distribution/decisions';
@@ -31,6 +31,16 @@ import type { Channel } from './channel.js';
 import { describeChannel, detectChannel, updateInstruction } from './channel.js';
 import type { Check, CheckStatus, Section } from './doctor.js';
 import { quote } from './render.js';
+import { HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
+import type { PackageManager } from './local-cli.js';
+import {
+  detectPackageManager,
+  findLocalCli,
+  installCommand,
+  pinCommand,
+  readCliDependency,
+  satisfies,
+} from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
 
 export interface UserFacts {
@@ -114,6 +124,79 @@ const workspaceLanguages = (root: string): { readonly languages: readonly string
   }
 };
 
+/** The `version` of the `package.json` in `directory`, or null when it cannot be read. */
+const versionAt = (directory: string): string | null => {
+  try {
+    const version = (JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as { version?: unknown })
+      .version;
+    return typeof version === 'string' ? version : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * §7.3 `cli-version`: which `@inventarch/cli` copy runs for the workspace, the CLI dependency its nearest manifest
+ * lists, and whether the installed copy satisfies it (consumer-cli-contract §1.2). Local reads only. The remedy is the
+ * package manager's own command, and none when the manager is undeclared or its lockfiles disagree.
+ */
+export function cliVersionRow(input: {
+  readonly root: string;
+  readonly packageRoot: string;
+  readonly version: string;
+  readonly env: Readonly<Record<string, string | undefined>>;
+  /** `--host` was given: doctor answers itself and never hands off (dec-007). */
+  readonly host: boolean;
+}): Check {
+  const { root, version, env } = input;
+  const dependency = readCliDependency(root);
+  const local = dependency === null ? null : findLocalCli(root, dirname(dependency.manifest));
+  const { manager, conflict } = detectPackageManager(dependency === null ? root : dirname(dependency.manifest));
+  const manage = (command: (manager: PackageManager) => string): string | null =>
+    manager === null ? null : command(manager);
+  const suffix =
+    conflict.length > 0
+      ? `; package managers disagree: ${conflict.join(', ')}`
+      : manager === null
+        ? '; no package manager declared or locked'
+        : '';
+  const cli = (status: CheckStatus, detail: string, remedy: string | null = null): Check =>
+    row('cli-version', 'Environment', 'CLI version', status, detail + suffix, remedy);
+  if (dependency === null)
+    return cli(
+      'info',
+      `no @inventarch/cli dependency; running ${version}`,
+      manage((m) => pinCommand(m, version)),
+    );
+  if (local === null) {
+    const path = relative(root, dependency.manifest);
+    const shown = path === '' || path.startsWith('..') || isAbsolute(path) ? dependency.manifest : path;
+    return cli(
+      'warn',
+      `${shown.replaceAll('\\', '/')} lists @inventarch/cli ${dependency.range}, which is not installed; running ${version}`,
+      manage(installCommand),
+    );
+  }
+  const satisfied = satisfies(local.version, dependency.range);
+  if (satisfied === false)
+    return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, manage(installCommand));
+  if (!sameFile(local.packageRoot, input.packageRoot)) {
+    const why =
+      env[NO_HANDOFF] === '1' ? `${NO_HANDOFF} is set` : input.host ? 'doctor --host does not hand off' : null;
+    return why === null
+      ? cli('warn', `running ${version}; this workspace's copy is ${local.version}`)
+      : cli('info', `running ${version}, not this workspace's ${local.version} (${why})`);
+  }
+  const from = env[HANDOFF_FROM] ?? '';
+  const global = from === '' ? null : versionAt(from);
+  return cli(
+    'ok',
+    `this workspace's copy ${local.version}, CLI dependency ${dependency.range}` +
+      (satisfied === null ? ' (range not evaluated)' : '') +
+      (global === null ? '' : `; global ${global} handed off`),
+  );
+}
+
 export function userRows(input: {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** The user's home directory; the IA home is resolved from it when IA_HOME is unset. */
@@ -131,6 +214,8 @@ export function userRows(input: {
   readonly now: Date;
   /** The channel as observed; detected from `packageRoot` when not supplied. */
   readonly channel?: Channel | undefined;
+  /** doctor's `--host` was given, so the `cli-version` row reports that no hand-off happened. */
+  readonly host?: boolean | undefined;
 }): { readonly checks: readonly Check[]; readonly facts: UserFacts } {
   const checks: Check[] = [];
   // §5: the filesystem and local git only.
@@ -144,6 +229,16 @@ export function userRows(input: {
       describeChannel(channel),
     ),
   );
+  if (input.root !== undefined)
+    checks.push(
+      cliVersionRow({
+        root: input.root,
+        packageRoot: input.packageRoot,
+        version: input.version,
+        env: input.env,
+        host: input.host === true,
+      }),
+    );
 
   // §3: absent is a note, because the first `ia host` or `ia init --decline` creates it; src/ is the one failure.
   let home: string | null = null;
