@@ -10,7 +10,7 @@ export const LIMITS = Object.freeze({
   selectedBytes: 8 * 1024 * 1024,
   selectionBytes: 64 * 1024,
   captureRecords: 5000,
-  captureFiles: 1000,
+  captureFiles: 100,
   captureBytes: 40 * 1024 * 1024,
   captureSelectionBytes: 512 * 1024,
   query: 200,
