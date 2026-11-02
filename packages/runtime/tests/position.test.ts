@@ -7,7 +7,19 @@ import type { Handle } from '@inventarch/db';
 import { stableSerialize } from '@inventarch/graph';
 import { K0, normalizeScopeKey, positionBody, resolveScopeKey } from '../src/index.js';
 import type { LoadedRecord, PositionBody, ScopeKey } from '../src/index.js';
-import { database, declare, law, lawId, lawPath, methodPath, put, workspace, workspacePath } from './workspace.js';
+import {
+  database,
+  declare,
+  freshInit,
+  law,
+  lawId,
+  lawPath,
+  methodPath,
+  packetFixture,
+  put,
+  workspace,
+  workspacePath,
+} from './workspace.js';
 
 // R15: body(K) over the conformance
 // corpus. The golden bodies are regenerated only by `node packages/runtime/tests/golden/write.mjs`, which sets
@@ -333,6 +345,55 @@ it("seats an adopted @system in the repository's workspace though its adopted @w
   expect(ids(body.rules)).toEqual(expect.arrayContaining([local, lawId]));
   expect(body.pointers.some((p) => p.identity === local)).toBe(false);
   expect(body.unknowns.filter((u) => u.kind === 'sources')).toEqual([]);
+});
+
+it('shares explicitly declared rules with a domain while retaining the repository seat and private boundaries', () => {
+  const root = freshInit(
+    readFileSync(packetFixture, 'utf8').replace(
+      'sources [".ia/src @authored"]',
+      'sources [".ia/src @authored", ".ia/src/shared @authored"]',
+    ),
+  );
+  for (const name of ['domain', 'other']) {
+    put(
+      root,
+      `.ia/src/scopes/${name}/workspace.ia`,
+      `#! ia 1.0
+@workspace ${name}
+  meaning
+    says "The ${name} boundary."
+    answers "Which records belong to ${name}?"
+  composition
+    systems [@system governance-system]
+    sources [".ia/src/shared @authored", ".ia/src/scopes/${name} @authored"]
+`,
+    );
+    put(
+      root,
+      `.ia/src/scopes/${name}/law.ia`,
+      law(`${name}-rule`, 'blocking', '  subject\n    subject-word workspace\n'),
+    );
+  }
+  put(root, '.ia/src/shared/law.ia', law('shared-rule', 'blocking', '  subject\n    subject-word workspace\n'));
+  const db = database(root),
+    within = db.resolveScope().token;
+  expect(db.report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+  const repository = bodyOf(db, within);
+  expect(repository.seat).toMatchObject({ identity: 'workspace-system/definition/workspace/demo' });
+  expect(ids(repository.rules)).toContain('governance-system/governance/law/shared-rule');
+  for (const name of ['domain', 'other']) {
+    const body = bodyOf(db, within, { seat: `workspace-system/definition/workspace/${name}`, budget: 0 });
+    expect(ids(body.rules)).toEqual(
+      expect.arrayContaining([
+        'governance-system/governance/law/shared-rule',
+        `governance-system/governance/law/${name}-rule`,
+      ]),
+    );
+    expect(ids(body.rules)).not.toContain(
+      `governance-system/governance/law/${name === 'domain' ? 'other' : 'domain'}-rule`,
+    );
+    expect(body.unknowns.filter((u) => u.kind === 'sources')).toEqual([]);
+  }
 });
 
 it('seeds by the kind or the lane focus: an authority-facet contract seeds governance by lane, context by kind', () => {

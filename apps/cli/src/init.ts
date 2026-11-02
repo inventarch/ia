@@ -1,7 +1,7 @@
 import { registryWorkspace } from './adopt.js';
 import { HostPluginError, lowerPlugin, readPlugin } from '@inventarch/workspace-runtime/internal/host-plugin';
 import { adoptedBindings } from '@inventarch/db';
-import { adoptionId, planAdoption, applyAdoption } from '@inventarch/distribution/registry';
+import { adoptionId, OPEN_ATTRIBUTES, planAdoption, applyAdoption } from '@inventarch/distribution/registry';
 import type { WorkspaceRelease } from '@inventarch/distribution/registry';
 import { readBase, PIN_PATH, PACKAGE_ID, DAMAGED } from './bundled-base.js';
 import { canonical } from './plugin-sources.js';
@@ -85,6 +85,7 @@ import {
   readExpandedBundle,
   DISTRIBUTION_ENGINE_VERSION,
   INSTALL_PATHS,
+  RELEASE_ENGINE_VERSION,
   sha256,
 } from '@inventarch/db/distribution';
 import type { DistributionLock, ReleaseDescriptor } from '@inventarch/db/distribution';
@@ -748,7 +749,7 @@ export function starterDescriptor(
     id,
     version: STARTER_VERSION,
     ...(distribution === undefined ? {} : { distribution }),
-    engine: `^${DISTRIBUTION_ENGINE_VERSION}`,
+    engine: `^${RELEASE_ENGINE_VERSION}`,
     language: ['1.0'],
     dependencies: baseDependencies(base),
     assets,
@@ -882,6 +883,9 @@ export function collectInit(request: InitRequest): InitView {
   if (request.adoption) {
     const source = `.ia/open/${adoptionId(request.adoption.id)}/${request.adoption.release.revision}/.ia/src @open`;
     if (!sources.includes(source)) sources.push(source);
+    // Adoption would refuse this only after the install step.
+    const attributes = lstatSync(resolve(root, OPEN_ATTRIBUTES), { throwIfNoEntry: false });
+    if (attributes && !attributes.isFile()) conflicts.push({ path: OPEN_ATTRIBUTES, reason: 'Not a regular file' });
   }
   // An initialized target keeps init's own conflict report; only a target free of conflicts is lowered.
   const lowered =

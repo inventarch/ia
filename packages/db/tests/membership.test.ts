@@ -54,6 +54,24 @@ it('gives every admitted record one row, parallel to the records, at its system 
   }
 });
 
+it('roots a record outside every system folder at its own directory (D02a)', () => {
+  const root = workspace();
+  put(
+    root,
+    '.ia/src/notes/loose.ia',
+    '#! ia 1.0\n@spec loose-spec\n  meaning\n    says "A specification kept beside the systems rather than inside one."\n  work\n    title "Loose specification"\n    status draft\n',
+  );
+  const db = open(root, { cache: false });
+  try {
+    expect(row(db.snapshot(), 'work-system/contract/spec/loose-spec')).toMatchObject({
+      root: '.ia/src/notes',
+      band: 100,
+    });
+  } finally {
+    db.close();
+  }
+});
+
 it('seats a record under the longest root a workspace declares at its placement', () => {
   const root = workspace();
   declare(root, [

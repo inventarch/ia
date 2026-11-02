@@ -128,6 +128,34 @@ it("resolves a fresh init's participant as the default actor, its mandate as gov
   for (const mode of MODES) expect(profileAt(unstewarded, mode), mode).toEqual({});
 });
 
+it('keeps repository capture authority distinct from a source-declaring domain', () => {
+  const root = freshInit(records.replace(ALL_MOVES, 'moves [Observation, Verification, Delegation]'));
+  put(
+    root,
+    '.ia/src/scopes/domain/workspace.ia',
+    `#! ia 1.0
+@workspace domain
+  meaning
+    says "A domain with explicit shared sources."
+    answers "Where does the domain read?"
+  composition
+    systems [@system governance-system]
+    sources [".ia/src @authored"]
+    steward @agent verifier
+${agent('verifier')}${authorized('verifier-mandate', ['participant @agent verifier', 'moves [Observation, Verification, Execution]', 'scope [@workspace demo, @workspace domain]'])}`,
+  );
+  const db = database(root),
+    within = token(db);
+  expect(errors(db)).toEqual([]);
+  expect(seatedWorkspace(db, within, '')).toBe(demo);
+  expect(defaultActor(db, within, demo).actor).toBe(participant);
+  const rootMandates = governingMandates(db, within, { workspace: demo, actor: participant });
+  expect(profileRefusal(rootMandates, 'effect').refusal).toMatchObject({ code: 'IA-RUNTIME-MANDATE-MOVE' });
+  const verifier = 'agent-system/binding/agent/verifier';
+  const explicit = governingMandates(db, within, { workspace: demo, actor: verifier });
+  expect(profileRefusal(explicit, 'effect')).toEqual({});
+});
+
 it("refuses effect (ia capture) without Execution, naming the mandate's governance position, whose key resolves", () => {
   const db = database(
     freshInit(records.replace(ALL_MOVES, 'moves [Observation, Verification, Synthesis, Delegation]')),
@@ -1106,7 +1134,8 @@ describe('mandate release note evidence', () => {
 it('names the consumers the code has: the CLI mandate profile and the edit guard, and no Door operation (R21)', () => {
   const read = (path: string) => readFileSync(resolve(repository, path), 'utf8');
   const RESOLVER = /\b(?:governingMandates|defaultActor|profileRefusal|evaluateMandateGuard)\(/;
-  // The edit guard calls all three; no other runtime module but the resolver's own does, so no Door operation does.
+  // The edit guard calls all three; besides the resolver's own module only the method tools' per-root check does
+  // (method/root.ts, which the MCP door's ia_session, ia_catalogue and ia_method run), so no Door operation does.
   const guard = read('packages/runtime/src/mandate-guard.ts');
   for (const name of ['governingMandates', 'defaultActor', 'profileRefusal'])
     expect(guard, name).toMatch(new RegExp(`\\b${name}\\(`));
@@ -1116,6 +1145,7 @@ it('names the consumers the code has: the CLI mandate profile and the edit guard
   expect(sources.filter((path) => RESOLVER.test(read(`packages/runtime/src/${path}`))).sort()).toEqual([
     'mandate-guard.ts',
     'mandate-modes.ts',
+    'method/root.ts',
   ]);
   // SPEC R21 and the note, pending or consumed into release history, say so.
   const spec = read('packages/runtime/SPEC.md')

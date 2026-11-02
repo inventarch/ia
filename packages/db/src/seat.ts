@@ -26,13 +26,16 @@ export interface SeatResolution {
 const FLOOR = '.ia/src/floor';
 
 /**
- * D02b: the repository's own @workspace, decided once per capture from the root view: the one admitted @workspace in
- * the repository's `.ia/src` tree that declares a root, else the only @workspace there. None or several leave it unset.
+ * D02b: the repository's own @workspace, decided once per capture from the root view: the sole admitted @workspace at
+ * the init entry point `.ia/src/workspace.ia`; when that file declares none, the one in the repository's `.ia/src`
+ * tree that declares a root, else the only @workspace there. Several candidates at the chosen tier leave it unset.
  */
 export function repositoryWorkspace(graph: Graph, declared: readonly DeclaredRoot[]): string | undefined {
   const own = (graph.byDiscriminator.get('workspace') ?? []).filter((identity) =>
     graph.nodes.get(identity)!.source.path.startsWith('.ia/src/'),
   );
+  const entry = own.filter((identity) => graph.nodes.get(identity)!.source.path === '.ia/src/workspace.ia');
+  if (entry.length > 0) return entry.length === 1 ? entry[0] : undefined;
   const declaring = own.filter((identity) => declared.some((root) => root.workspace === identity));
   const candidates = declaring.length > 0 ? declaring : own;
   return candidates.length === 1 ? candidates[0] : undefined;

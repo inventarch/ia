@@ -1,13 +1,15 @@
-import { existsSync, lstatSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { join, parse, resolve } from 'node:path';
 import type { RevisionSource } from '@inventarch/graph';
 import { lstatNamed, readOpened } from '../named.js';
 import {
   canonicalDistributionJson,
+  DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
   InstallationError,
   metadataDigest,
   portablePath,
+  requiredRelease,
   satisfies,
   supportsDistributionLockEngine,
   sha256,
@@ -18,13 +20,14 @@ import {
   decodeDistributionLock,
   decodeGenerationInputs,
   generationDigest,
+  lockedReleases,
 } from './contracts.js';
 import type { ActivationPointer, DistributionLock, GenerationInputs, LockedPackage } from './contracts.js';
 import { deriveGenerationInputs, installationWorkspace } from './membership.js';
 import type { BundleMetadata } from './membership.js';
 import { verifyReleaseControl } from './release-control.js';
 
-export const DISTRIBUTION_ENGINE_VERSION = '0.1.1';
+export { DISTRIBUTION_ENGINE_VERSION } from './codec.js';
 export const INSTALL_PATHS = Object.freeze({
   lock: '.ia/distributions.lock.json',
   active: '.ia/distributions/active.json',
@@ -35,6 +38,10 @@ export const INSTALL_PATHS = Object.freeze({
 function corrupt(message: string): never {
   throw new InstallationError('corrupt-state', message);
 }
+const needs = (declared: string): string => {
+  const release = requiredRelease(declared);
+  return release === null ? '' : `It needs ${release}. `;
+};
 function requireEngine(declared: string, subject: string, lock = false): void {
   const compatible = lock
     ? supportsDistributionLockEngine(DISTRIBUTION_ENGINE_VERSION, declared)
@@ -42,8 +49,17 @@ function requireEngine(declared: string, subject: string, lock = false): void {
   if (!compatible)
     throw new InstallationError(
       'engine-incompatible',
-      `${subject} requires distribution engine ${declared}; this reader is ${DISTRIBUTION_ENGINE_VERSION}. Use a compatible IA installation; preserve the lock and archive engine ranges.`,
+      `${subject} requires distribution engine ${declared}; this reader is ${DISTRIBUTION_ENGINE_VERSION}. ${needs(declared)}Use a compatible IA installation; preserve the lock and archive engine ranges.`,
     );
+}
+/** The root as `open` takes it: a link above the workspace is not a link inside the installation. */
+function canonical(root: string): string {
+  try {
+    return realpathSync(root);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return resolve(root);
+    throw error;
+  }
 }
 function safe(root: string, path: string): string {
   portablePath(path);
@@ -201,11 +217,12 @@ export function generationSources(
 }
 /** Complete immutable payload verification; no execution, writes or network. */
 export function readExpandedBundle(
-  root: string,
+  workspace: string,
   pkg: LockedPackage,
   maximumBytes: number = DISTRIBUTION_LIMITS.expanded,
 ): ExpandedBundle {
-  const directory = `${INSTALL_PATHS.store}/${pkg.archive}`,
+  const root = canonical(workspace),
+    directory = `${INSTALL_PATHS.store}/${pkg.archive}`,
     manifestBytes = required(root, `${directory}/distribution.json`);
   if (sha256(manifestBytes) !== pkg.manifest) corrupt(`Manifest digest differs for ${pkg.id}`);
   const manifest = decode(manifestBytes, decodeBundleManifest);
@@ -253,7 +270,11 @@ export interface InstalledGeneration {
   readonly sources: readonly RevisionSource[];
   readonly fingerprint: string;
 }
-export function readInstalledGeneration(root: string, candidate?: ActivationPointer): InstalledGeneration | undefined {
+export function readInstalledGeneration(
+  workspace: string,
+  candidate?: ActivationPointer,
+): InstalledGeneration | undefined {
+  const root = canonical(workspace);
   if (!candidate && read(root, INSTALL_PATHS.pending))
     throw new InstallationError('recovery-required', 'Run explicit distribution recovery before reading');
   const activeBytes = read(root, INSTALL_PATHS.active),
@@ -284,7 +305,7 @@ export function readInstalledGeneration(root: string, candidate?: ActivationPoin
     corrupt('Extra generation files');
   const bundles = new Map<string, ExpandedBundle>();
   let remaining = DISTRIBUTION_LIMITS.expanded as number;
-  for (const pkg of lock.packages) {
+  for (const pkg of lockedReleases(lock)) {
     const bundle = readExpandedBundle(root, pkg, remaining);
     remaining -= bundle.manifest.files.reduce((sum, file) => sum + file.bytes, 0);
     bundles.set(pkg.id, bundle);

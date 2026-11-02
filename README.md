@@ -212,9 +212,10 @@ Host registration is optional. Preview it, then rerun the same command with `--a
 | **Claude Code** | `ia host claude` registers the MCP server and writes the position packet (`.claude/rules/ia-workspace.md`), the `ia-authoring` skill, and the agents, skills and edit guards generated from your authored `@agent-profile`, playbook and `@hook` records. |
 | **Codex** | `ia host codex` registers the MCP server in `.codex/config.toml` and writes the position packet (`AGENTS.md`), the `ia-authoring` skill and skills generated from authored records. It reports generated agents and hooks as unsupported. |
 | **Packet files only** | `ia project claude` or `ia project codex` writes the position packet and skill without registering an MCP server. |
-| **Any MCP client** | `ia-mcp-door --root .`, from [`@inventarch/mcp-door`](apps/mcp-door/README.md), serves seventeen read-only tools over stdio, including `ia_position`, `ia_next` and `ia_read`. |
+| **GitHub Copilot** | `ia host copilot --commit` writes the committed bootstrap: `.github/copilot-instructions.md`, `AGENTS.md`, `.vscode/mcp.json` and `.github/mcp.json`. |
+| **Any MCP client** | `ia-mcp-door --root .`, from [`@inventarch/mcp-door`](apps/mcp-door/README.md), serves seventeen read-only tools over stdio, including `ia_position`, `ia_next` and `ia_read`, and the method tools `ia_session`, `ia_catalogue` and `ia_method`. |
 
-Every plan lists the files it will create, update or retire. `ia host` treats the files it writes as machine-local; do not commit them. `ia doctor` compares the installed projection with a fresh render, so an edited record shows up as an outdated projection.
+Every plan lists the files it will create, update or retire. `ia host` treats the files it writes as machine-local; do not commit them. To let a fresh clone or a cloud agent reach IA, commit the bootstrap `ia host <host> --commit` writes instead: an instruction block that names `ia_session` and the lanes `ia:work`, `ia:knowledge` and `ia:delivery`, and an `ia` MCP server that runs `npx -y @inventarch/mcp-door@<this CLI's exact version>` from the project folder, with no machine-local path. `ia doctor` compares the installed projection with a fresh render, so an edited record shows up as an outdated projection.
 
 ### 7. Add the VS Code extension
 

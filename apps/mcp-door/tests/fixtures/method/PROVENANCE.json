@@ -1,0 +1,24 @@
+{
+  "format": "ia.fixture-provenance.v1",
+  "license": "Apache-2.0",
+  "source": {
+    "repository": "https://github.com/inventarch/marketplace",
+    "commit": "63f5d75b57b4218c633b56f85f25db28f0ebd4ba",
+    "paths": ["plugins/ia", "kits/ia-kb"]
+  },
+  "generator": {
+    "script": "generate.mjs",
+    "steps": [
+      "git -C <marketplace> archive 63f5d75b57b4218c633b56f85f25db28f0ebd4ba plugins/ia kits/ia-kb | tar -x -C <folder>",
+      "pnpm build (for apps/cli/dist/main.js)",
+      "node apps/mcp-door/tests/fixtures/method/generate.mjs <folder> apps/cli/dist/main.js"
+    ]
+  },
+  "files": {
+    "plugin.json.gz": "A gzipped JSON object from each path to its UTF-8 text: plugins/ia/scripts/** as scripts/**, plugins/ia/.claude-plugin/plugin.json, plugins/ia/config/qualified-process-tools.json, and kits/ia-kb/** (inventarch/ia-kb-kit 0.9.0, releases format 2) as config/kits/ia-kb/**, unchanged.",
+    "bindings.json": "The consumer workspace's .ia/bindings.json: knowledge.find to kb-retrieve and knowledge.check to kb-check. Written by hand; generate.mjs reads it.",
+    "golden-find.json": "The plugin's resolve.mjs --entry knowledge --activity find --root <ROOT>/consumer --project consumer --task golden --subject sha256:<sha256 of 'the decision records'>, with IA_HOME=<ROOT>/home, IA_CORE_KITS_DIR=<ROOT>/plugin/config/kits and IA_CLI_PATH at the built @inventarch/cli; the temporary root written as <ROOT> with forward slashes, the envelope removed, and the digest recomputed over that content with the plugin's own packetDigest.",
+    "golden-check.json": "As golden-find.json, then --activity check in the same task (pin revision 2).",
+    "golden-pin.json": "<ROOT>/home/work-v1/consumer/golden/binding.json after both runs, without createdAt, the root written as for the packets."
+  }
+}

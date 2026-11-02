@@ -8,6 +8,15 @@ import { bytes, contained, createFile, fail, replace, workspace } from './files.
 import { workspaceFiles, workspaceRevision } from './registry-collections.js';
 import type { WorkspaceFile, WorkspaceRelease } from './registry-collections.js';
 
+/** Pinned bytes must survive checkout: any converted byte changes the revision and refuses the workspace. */
+export const OPEN_ATTRIBUTES = '.ia/open/.gitattributes';
+const OPEN_ATTRIBUTES_TEXT = '* -text -filter -ident -working-tree-encoding\n';
+/** Refuses what adoption could neither keep nor create; a regular file already there stays its owner's. */
+function attributesMissing(root: string): boolean {
+  const stat = lstatSync(contained(root, OPEN_ATTRIBUTES), { throwIfNoEntry: false });
+  if (stat && !stat.isFile()) fail('LOCAL-MODIFICATION', `Expected a regular file: ${OPEN_ATTRIBUTES}`);
+  return !stat;
+}
 export interface AdoptionPlan {
   readonly root: string;
   readonly id: string;
@@ -80,6 +89,7 @@ export function planAdoption(
     bindingId = adoptionId(id),
     tree = `.ia/open/${bindingId}/${release.revision}`;
   verifyAdoptionTree(root, tree, files, false);
+  attributesMissing(root);
   const existing = bindings.find((binding) => binding.id === bindingId);
   if (existing && (existing.revision !== release.revision || existing.placement !== 'open'))
     fail(
@@ -175,6 +185,7 @@ export function applyAdoption(plan: AdoptionPlan): void {
     )
       fail('CONFLICT', 'Workspace changed after adoption was planned');
     verifyAdoptionTree(plan.root, plan.tree, plan.release.files, false);
+    if (attributesMissing(plan.root)) createFile(plan.root, OPEN_ATTRIBUTES, Buffer.from(OPEN_ATTRIBUTES_TEXT));
     for (const file of plan.release.files) {
       const path = `${plan.tree}/${file.path}`,
         content = Buffer.from(file.text),

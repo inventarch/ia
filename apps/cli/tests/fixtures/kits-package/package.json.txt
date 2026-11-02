@@ -1,0 +1,23 @@
+{
+  "name": "@inventarch/public-kits",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "files": [
+    "archives",
+    "kits"
+  ],
+  "ia": {
+    "format": 1,
+    "kits": [
+      {
+        "id": "inventarch/ia-kb-kit",
+        "version": "0.9.0",
+        "archive": "3e9c2330416197b602c3cd5f6dda12a3cfb313959684079ac2bfe8b5a1f7dc8c",
+        "manifest": "b5d85ef321c0ae5cce4dce66e5b51183661d9cf8f863941436df7c77816f8a43",
+        "sources": "e06a6bddabe5a91bb02277c17745cc00a3be49a11e3b04f9bff85c08b94ac07f",
+        "folder": "ia-kb"
+      }
+    ]
+  }
+}

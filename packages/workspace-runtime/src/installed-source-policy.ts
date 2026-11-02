@@ -2,6 +2,7 @@ import {
   decodeActivationPointer,
   decodeBundleManifest,
   decodeDistributionLock,
+  lockedReleases,
   decodeGenerationInputs,
   DISTRIBUTION_ENGINE_VERSION,
   DISTRIBUTION_LIMITS,
@@ -116,7 +117,8 @@ export function readSourceInstallation(value: unknown): SourceInstallation & { r
       files,
     });
   }
-  if (bundles.size !== lock.packages.length || lock.packages.some((pkg) => !bundles.has(pkg.id))) fail();
+  const installed = lockedReleases(lock);
+  if (bundles.size !== installed.length || installed.some((pkg) => !bundles.has(pkg.id))) fail();
   return { pointer, lock, inputs, bundles, sources: generationSources(pointer, lock, inputs, bundles) };
 }
 

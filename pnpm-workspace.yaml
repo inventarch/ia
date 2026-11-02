@@ -16,7 +16,8 @@ nodeLinker: hoisted
 # Pin patched tooling dependencies.
 overrides:
   "vite": "8.3.3"
-  "follow-redirects": "1.16.1"
+  "follow-redirects": "1.16.2"
+  "minimatch": "11.0.3"
   "nx>axios": "1.20.0"
   "nx>brace-expansion": "5.0.12"
   "nx>smol-toml": "1.9.0"

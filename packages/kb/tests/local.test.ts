@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { readWorkspaceBytes } from '@inventarch/db';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Foundation } from '../src/foundation.js';
@@ -103,6 +103,14 @@ function local() {
   writeFileSync(join(root, 'README.md'), '# Alpha\n\n' + 'padding '.repeat(80) + 'document-only needle.\n');
   return root;
 }
+it('captures a workspace through a root reached by a link', () => {
+  const root = local(),
+    parent = mkdtempSync(join(tmpdir(), 'ia knowledge link ')),
+    link = join(parent, 'root');
+  roots.push(parent);
+  symlinkSync(root, link, process.platform === 'win32' ? 'junction' : 'dir');
+  expect(captureKnowledge(link, { input }).records.map((r) => r.identity)).toEqual([ID]);
+});
 it('finds bound document-only text with a match-centered excerpt and creates no .kb folder', () => {
   const root = local(),
     view = openKnowledgeView(captureKnowledge(root, { input }));

@@ -2,6 +2,7 @@ import { EditorSnapshot } from '@inventarch/db/editor';
 import {
   decodeActivationPointer,
   decodeDistributionLock,
+  lockedReleases,
   decodeGenerationInputs,
   deriveGenerationInputs,
   DISTRIBUTION_ENGINE_VERSION,
@@ -87,7 +88,7 @@ function operation(input: unknown): InstallOperation {
   return input as InstallOperation;
 }
 function selectedArchives(input: unknown, lock: DistributionLock): ReadonlyMap<string, VerifiedArchive> {
-  if (!(input instanceof Map) || input.size !== new Set(lock.packages.map((pkg) => pkg.archive)).size)
+  if (!(input instanceof Map) || input.size !== new Set(lockedReleases(lock).map((pkg) => pkg.archive)).size)
     fail('RESTORE-REQUIRED', 'Supply the exact selected archive inventory');
   return verifySelectedArchiveClosure(lock, input);
 }
@@ -141,11 +142,12 @@ export function planInstallationSnapshot(input: NativeInstallationInput): Native
   } finally {
     reader.close();
   }
-  const old = previousLock?.packages ?? [],
+  const old = previousLock === null ? [] : lockedReleases(previousLock),
+    next = lockedReleases(lock),
     changes = {
-      added: lock.packages.filter((pkg) => !old.some((prior) => prior.id === pkg.id)).map((pkg) => pkg.id),
-      removed: old.filter((pkg) => !lock.packages.some((next) => next.id === pkg.id)).map((pkg) => pkg.id),
-      updated: lock.packages
+      added: next.filter((pkg) => !old.some((prior) => prior.id === pkg.id)).map((pkg) => pkg.id),
+      removed: old.filter((pkg) => !next.some((row) => row.id === pkg.id)).map((pkg) => pkg.id),
+      updated: next
         .filter((pkg) => old.some((prior) => prior.id === pkg.id && prior.archive !== pkg.archive))
         .map((pkg) => pkg.id),
       shadowed,

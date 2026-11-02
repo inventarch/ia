@@ -124,9 +124,13 @@ export declare function waitForRegistryCohort(
   plan: (ReleaseArchive & { action: 'publish' | 'skip-identical' })[];
   registryPackages: Record<string, RegistryPackage>;
 }>;
-/** Downloads each verified archive and checks its size and integrity against the release receipt. */
+/**
+ * Downloads each verified archive and checks its size and integrity against the release receipt. With `wait`, a 404,
+ * 429, 5xx or network failure is tried again within its bound; different bytes refuse at once.
+ */
 export declare function verifyRegistryArchives(
   plan: readonly ReleaseArchive[],
   registryPackages: Record<string, RegistryPackage>,
   request?: RegistryRequest,
+  wait?: RegistryWait,
 ): Promise<void>;

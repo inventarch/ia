@@ -1,7 +1,7 @@
 /** Exact public whole-system and teaching partition. This module never loads handlers. */
 import { systemMember } from '@inventarch/db';
 import { EditorSnapshot } from '@inventarch/db/editor';
-import { DISTRIBUTION_ENGINE_VERSION } from '@inventarch/db/distribution';
+import { RELEASE_ENGINE_VERSION } from '@inventarch/db/distribution';
 import type { DistributionSnapshot } from '../../apps/distribution/src/snapshot.js';
 import type { EdgeReference } from '../../packages/language/src/index.js';
 
@@ -183,7 +183,7 @@ export function systemArchivePartitions(
           id: owner.id,
           version: owner.version,
           distribution: owner.distribution,
-          engine: rootControl ? `^${DISTRIBUTION_ENGINE_VERSION}` : '^0.1.0',
+          engine: rootControl ? `^${RELEASE_ENGINE_VERSION}` : '^0.1.0',
           language: ['1.0'],
           dependencies: [...dependencies]
             .sort(order)

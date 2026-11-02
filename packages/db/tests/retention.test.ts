@@ -98,6 +98,27 @@ const tree = (directory: string): Readonly<Record<string, string>> =>
       )
     : {};
 
+it('seeds no previous side from a previous.json at the authored revision of current.json', () => {
+  const root = workspace(false),
+    captured = open(root, { cache: false });
+  writeCapture(root, captureOf(captured));
+  captured.close();
+  put(root, CAPTURE_PREVIOUS, readFileSync(resolve(root, CAPTURE_CURRENT)));
+  const db = open(root, { cache: false });
+  try {
+    expect(db.capturedAuthoredRevision).toBe(db.authoredRevision);
+    expect(db.previousAuthoredRevision).toBeUndefined();
+  } finally {
+    db.close();
+  }
+});
+it.skipIf(process.platform === 'win32')('writes a capture owner-only', () => {
+  const root = workspace(false),
+    db = open(root, { cache: false });
+  writeCapture(root, captureOf(db));
+  db.close();
+  expect(statSync(resolve(root, CAPTURE_CURRENT)).mode & 0o777).toBe(0o600);
+});
 it('reports exactly the edited record as changed after a refresh, and only a revision change rotates', () => {
   const root = workspace(),
     text = readFileSync(resolve(root, methodPath), 'utf8'),
@@ -303,6 +324,32 @@ it('compares the occurrence get reads, and makes no root comparison for one the 
     expect([db.staleness(methodId), db.readiness(methodId, rooted)]).toEqual(['removed', 'previous']);
     expect(db.get(methodId, act)!.digest).toBe(rooted);
     expect([db.staleness(methodId, act), db.readiness(methodId, rooted, act)]).toEqual([undefined, 'current']);
+  } finally {
+    db.close();
+  }
+});
+
+it('answers unknown, not previous, for the root digest through a view of another occurrence, once a previous side exists', () => {
+  const root = workspace(),
+    text = readFileSync(resolve(root, methodPath), 'utf8');
+  put(
+    root,
+    '.ia/src/overlay.ia',
+    text.replace(/ {2}activation\n(?: {4}activate when .*\n)+/, '  activation\n    activate when phase is act\n'),
+  );
+  const db = open(root, {
+    cache: false,
+    locations: { [methodPath]: { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' } },
+  });
+  try {
+    const rooted = db.get(methodId)!.digest;
+    edit(root, text);
+    db.refresh();
+    expect(db.previousRevision).toBeDefined();
+    const orient = { within: db.resolveScope({ phase: 'orient', identities: [methodId] }).token };
+    expect(db.get(methodId)!.digest).toBe(rooted);
+    expect(db.get(methodId, orient)!.digest).not.toBe(rooted);
+    expect(db.readiness(methodId, rooted, orient)).toBe('unknown');
   } finally {
     db.close();
   }

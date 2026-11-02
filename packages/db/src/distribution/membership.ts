@@ -5,7 +5,7 @@ import {
   metadataDigest,
   satisfies,
 } from './codec.js';
-import { decodeGenerationInputs } from './contracts.js';
+import { decodeGenerationInputs, lockedReleases } from './contracts.js';
 import type { BundleManifest, DistributionLock, GenerationInputs } from './contracts.js';
 
 export interface BundleMetadata {
@@ -22,7 +22,8 @@ export function deriveGenerationInputs(
   };
   const systems = new Map<string, GenerationInputs['systems'][number] & { signature: string }>();
   let fileCount = 0;
-  for (const pkg of lock.packages) {
+  const installed = lockedReleases(lock);
+  for (const pkg of installed) {
     const release = releases.get(pkg.id);
     if (
       !release ||
@@ -37,7 +38,7 @@ export function deriveGenerationInputs(
     if (fileCount > DISTRIBUTION_LIMITS.files) fail('Combined installation file limit');
     if (
       canonicalDistributionJson(dependencies.map((d) => d.id)) !== canonicalDistributionJson(pkg.dependencies) ||
-      dependencies.some((d) => !lock.packages.some((p) => p.id === d.id && satisfies(p.version, d.range)))
+      dependencies.some((d) => !installed.some((p) => p.id === d.id && satisfies(p.version, d.range)))
     )
       fail(`Locked dependencies differ: ${pkg.id}`);
     for (const system of release!.manifest.systems) {
@@ -64,7 +65,7 @@ export function deriveGenerationInputs(
   }
   return decodeGenerationInputs({
     formatVersion: 1,
-    bundles: lock.packages.map(({ id, archive }) => ({ id, archive })),
+    bundles: installed.map(({ id, archive }) => ({ id, archive })),
     systems: [...systems.values()]
       .sort((a, b) => (a.name < b.name ? -1 : 1))
       .map(({ signature: _signature, ...row }) => row),
@@ -75,9 +76,11 @@ export function installationWorkspace(
   inputs: GenerationInputs,
   releases: ReadonlyMap<string, BundleMetadata>,
 ): string | null {
-  if (!lock.packages.length) return null;
-  const uses = lock.requests.map((r) => {
-    const release = releases.get(r.id);
+  if (!lockedReleases(lock).length) return null;
+  // The direct distributions: the requests, then each kit a package entry names.
+  const direct = [...lock.requests.map((r) => r.id), ...(lock.entries ?? []).flatMap((e) => e.kits.map((k) => k.id))];
+  const uses = direct.map((id) => {
+    const release = releases.get(id);
     if (!release) throw new InstallationError('conflict', 'Missing direct distribution');
     return `    uses @distribution ${release.manifest.distribution.split('/')[3]}`;
   });

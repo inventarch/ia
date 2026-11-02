@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { Report } from '@inventarch/compliance';
@@ -93,6 +93,57 @@ describe('cache-free editor capture', () => {
     ).toThrow('duplicate');
     expect(editor.current.sources[0]).toEqual(floor);
     editor.close();
+  });
+  it('refuses an overlay of a source a location override places outside the workspace', () => {
+    const root = workspace(false),
+      vendored = '.ia/src/vendored.ia';
+    put(root, vendored, '#! ia 1.0\n');
+    const editor = new EditorDatabase(root, {
+      locations: { [vendored]: { placement: { kind: 'adopted', band: 90, reach: '' }, provenance: 'methodology' } },
+    });
+    try {
+      expect(editor.current.sources.find((source) => source.path === vendored)?.writable).toBe(false);
+      expect(() => editor.update([{ path: vendored, text: '#! ia 1.0\n# rewritten\n', version: 1 }])).toThrow(
+        expect.objectContaining({
+          code: 'IA-DB-DRAFT-INVALID',
+          message: 'IA-DB-DRAFT-INVALID: Non-workspace sources are read-only',
+        }),
+      );
+    } finally {
+      editor.close();
+    }
+  });
+  it('refuses an overlay whose path passes through a link', () => {
+    const root = workspace(false),
+      outside = workspace(false);
+    put(root, '.ia/src/kept.ia', '#! ia 1.0\n');
+    const editor = new EditorDatabase(root);
+    try {
+      symlinkSync(outside, resolve(root, '.ia/src/linked'), process.platform === 'win32' ? 'junction' : 'dir');
+      expect(() => editor.update([{ path: '.ia/src/linked/x.ia', text: '#! ia 1.0\n', version: 1 }])).toThrow(
+        expect.objectContaining({
+          code: 'IA-DB-PATH-UNSAFE',
+          message: expect.stringContaining('Symlink/junction traversal is not admitted'),
+          path: '.ia/src/linked',
+        }),
+      );
+    } finally {
+      editor.close();
+    }
+  });
+  it('refuses an overlay whose version is negative or fractional', () => {
+    const editor = new EditorDatabase(workspace(false));
+    try {
+      for (const version of [-1, 1.5])
+        expect(() => editor.update([{ path: '.ia/src/x.ia', text: '#! ia 1.0\n', version }]), String(version)).toThrow(
+          expect.objectContaining({
+            code: 'IA-DB-DRAFT-INVALID',
+            message: 'IA-DB-DRAFT-INVALID: Invalid, duplicate or aliased editor overlay',
+          }),
+        );
+    } finally {
+      editor.close();
+    }
   });
   it('retains location and phase scope enforcement in preview readers', () => {
     const root = workspace(),
@@ -208,6 +259,54 @@ describe('conformance verification (D10)', () => {
     editor.close();
     embedded.close();
     plain.close();
+  });
+  it('verifies an edited local floor again, so a byte changed after a verified pass fails COMP-KERNEL', () => {
+    // The embedded floor's exact bytes as a local floor, which verifies to a pass.
+    const root = workspace(false);
+    for (const source of KERNEL_SOURCES) put(root, source.path, source.text);
+    const editor = new EditorDatabase(root, { conformance: 'verify' }),
+      disk = open(root, { conformance: 'verify', cache: false });
+    expect(conformance(editor.current.report)).toEqual(verified('pass'));
+    expect(conformance(disk.report)).toEqual(verified('pass'));
+    const passed = editor.current.report.conformance?.kernel?.floorDigest,
+      [changed] = KERNEL_SOURCES.filter((source) => source.text.includes('says "')),
+      at = changed!.text.indexOf('says "') + 'says "'.length,
+      text = changed!.text.slice(0, at) + (changed!.text[at] === 'w' ? 'y' : 'w') + changed!.text.slice(at + 1);
+    // An unsaved edit, then the same edit on disk: neither keeps the evidence the earlier floor earned.
+    editor.update([{ path: changed!.path, text, version: 1 }]);
+    expect(conformance(editor.current.report)).toEqual(verified('fail'));
+    expect(editor.current.report.outcome).toBe('fail');
+    expect(editor.current.report.conformance?.kernel?.floorDigest).not.toBe(passed);
+    put(root, changed!.path, text);
+    disk.refresh();
+    expect(conformance(disk.report)).toEqual(verified('fail'));
+    expect(disk.report.conformance?.kernel?.floorDigest).not.toBe(passed);
+    editor.close();
+    disk.close();
+  });
+  it('leaves COMP-KERNEL not evaluated, and the report short of a pass, for a floor a verifying reader cannot bind', () => {
+    // A source outside .ia/src/floor/ placed at the floor: compliance cannot tell which floor was verified.
+    const root = workspace(false),
+      path = '.ia/src/notes.ia';
+    put(root, path, '#! ia 1.0\n');
+    const editor = new EditorDatabase(root, {
+        conformance: 'verify',
+        locations: { [path]: { placement: { kind: 'floor', band: 10, reach: '' }, provenance: 'bootstrap' } },
+      }),
+      report = editor.current.report;
+    expect(conformance(report)).toEqual([
+      { check: 'COMP-FIXTURES', outcome: 'pass', basis: 'verified' },
+      { check: 'COMP-KERNEL', outcome: 'not-evaluated' },
+    ]);
+    expect(report.outcome).not.toBe('pass');
+    expect(report.conformance?.kernel).toBeUndefined();
+    expect(report.findings).toContainEqual(
+      expect.objectContaining({
+        code: 'IA-COMP-NOT-EVALUATED',
+        message: `COMP-KERNEL: floor source ${path} has a floor path or a floor placement, not both`,
+      }),
+    );
+    editor.close();
   });
   it('runs no producer and changes nothing for a reader that does not ask', () => {
     const before = runs(),

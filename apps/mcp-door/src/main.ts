@@ -5,8 +5,8 @@ import { Protocol, rpcError } from './protocol.js';
 import type { Response } from './protocol.js';
 
 export const MAX_LINE_BYTES = 4 * 1024 * 1024;
-export async function serve(root: string): Promise<void> {
-  const protocol = new Protocol(root),
+export async function serve(root: string, options: { readonly kits?: string } = {}): Promise<void> {
+  const protocol = new Protocol(root, options),
     decoder = new TextDecoder('utf-8', { fatal: true });
   let pending = '';
   const send = async (response: Response | undefined): Promise<void> => {
@@ -62,17 +62,24 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.length === 1 && args[0] === '--help') {
     process.stdout.write(
-      'Usage: ia-mcp-door [--root <workspace>]\nMCP2025-11-25 read tools over UTF-8 JSON-RPC lines on stdin/stdout.\n',
+      'Usage: ia-mcp-door [--root <workspace>] [--kits <folder>]\nMCP2025-11-25 read tools and the method tools over UTF-8 JSON-RPC lines on stdin/stdout.\n',
     );
     return;
   }
-  if (!(args.length === 0 || (args.length === 2 && args[0] === '--root' && args[1] !== undefined))) {
-    process.stderr.write('Usage: ia-mcp-door [--root <workspace>]\n');
-    process.exitCode = 2;
-    return;
+  const options = new Map<string, string>();
+  for (let i = 0; i < args.length; i += 2) {
+    const name = args[i]!,
+      value = args[i + 1];
+    if ((name !== '--root' && name !== '--kits') || value === undefined || options.has(name)) {
+      process.stderr.write('Usage: ia-mcp-door [--root <workspace>] [--kits <folder>]\n');
+      process.exitCode = 2;
+      return;
+    }
+    options.set(name, value);
   }
+  const kits = options.get('--kits');
   try {
-    await serve(args[1] ?? process.cwd());
+    await serve(options.get('--root') ?? process.cwd(), kits === undefined ? {} : { kits });
   } catch (error) {
     if (!process.stdout.destroyed && (error as NodeJS.ErrnoException).code !== 'EPIPE') {
       process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);

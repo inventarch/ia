@@ -885,7 +885,7 @@ export function readReceipt(root: string, host: HostName): PacketReceipt | null 
         !(row.generated as unknown[]).every(
           (item) =>
             typeof (item as { identity?: unknown }).identity === 'string' &&
-            ['agent-profile', 'playbook'].includes(String((item as { word?: unknown }).word)),
+            ['agent-profile', 'capability', 'playbook'].includes(String((item as { word?: unknown }).word)),
         ))) ||
     (row.hooks !== undefined &&
       (!Array.isArray(row.hooks) ||

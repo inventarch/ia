@@ -31,6 +31,7 @@ import type { Channel } from './channel.js';
 import { describeChannel, detectChannel, updateInstruction } from './channel.js';
 import type { Check, CheckStatus, Section } from './doctor.js';
 import { quote } from './render.js';
+import { readMarketplaceRecord } from './marketplace-record.js';
 
 export interface UserFacts {
   readonly channel: Channel;
@@ -200,7 +201,40 @@ export function userRows(input: {
   else {
     const directory = join(home, MARKETPLACE_DIR),
       materialized = inspectMaterializedPlugin(home);
-    if (materialized.state === 'absent')
+    const recorded = materialized.state === 'absent' ? readMarketplaceRecord(home) : { state: 'absent' as const };
+    if (materialized.state === 'absent' && recorded.state === 'present') {
+      // A marketplace install: Claude holds the plugin, and the IA home's record says which and by which ia.
+      plugin = { cli: recorded.cli, version: `${recorded.plugin} from ${recorded.marketplace}` };
+      checks.push(
+        recorded.cli === input.version
+          ? row(
+              'plugin-claude',
+              'Environment',
+              'Claude plugin',
+              'ok',
+              `${recorded.plugin}, installed from ${recorded.marketplace}; registration with Claude is not checked`,
+            )
+          : row(
+              'plugin-claude',
+              'Environment',
+              'Claude plugin',
+              'warn',
+              `${recorded.plugin} was installed from ${recorded.marketplace} by ia ${recorded.cli}; this is ia ${input.version}`,
+              USER_APPLY,
+            ),
+      );
+    } else if (materialized.state === 'absent' && recorded.state === 'invalid')
+      checks.push(
+        row(
+          'plugin-claude',
+          'Environment',
+          'Claude plugin',
+          'warn',
+          `The marketplace install record ${join(home, 'claude', 'marketplace-install.json')} cannot be read (${recorded.reason})`,
+          USER_APPLY,
+        ),
+      );
+    else if (materialized.state === 'absent')
       checks.push(row('plugin-claude', 'Environment', 'Claude plugin', 'info', 'Not installed', USER_APPLY));
     else if (materialized.state === 'invalid')
       checks.push(

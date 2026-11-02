@@ -40,7 +40,7 @@ Every `--apply` (`init`, `adopt`, `install`, `update`, `remove`, `restore`, `pro
 
 `validate` reports language and contract findings, then execution bindings and checks separately. A check with no bound evaluator is `not-evaluated`, never a pass. `validate` records the bound checks that passed or failed as evidence under `.ia/work/evidence/`, keyed to the authored revision it checked. A validation whose admission is refused records and prunes nothing; under `--verify-conformance` that is the admission without verification. `validate` never writes authored records.
 
-`validate --verify-conformance` verifies COMP-KERNEL and COMP-FIXTURES in-process with compliance's `package-v1` profile and reports them with `basis: 'verified'`, plus the profile and the suites it does not run. A floor that differs from the embedded one fails COMP-KERNEL and exits 1. The evidence it records is what `validate` without the flag records, even when verification refuses the report. Without the flag the output is unchanged.
+`validate --verify-conformance --require-verified` (opt-in) exits 1 unless COMP-KERNEL and COMP-FIXTURES are both verified passes; without `--require-verified` the exit is unchanged. `validate --verify-conformance` verifies COMP-KERNEL and COMP-FIXTURES in-process with compliance's `package-v1` profile and reports them with `basis: 'verified'`, plus the profile and the suites it does not run. A floor that differs from the embedded one fails COMP-KERNEL and exits 1. The evidence it records is what `validate` without the flag records, even when verification refuses the report. Without the flag the output is unchanged.
 
 ### 2.6 Inspection and 2.7 packing
 

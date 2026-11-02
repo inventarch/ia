@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -9,6 +9,7 @@ import { planAdoption, applyAdoption } from '../src/adoption.js';
 import * as fileOperations from '../src/files.js';
 import { snapshotFixture } from './snapshot-fixture.js';
 import { adoptedBindings, readInputs } from '@inventarch/db';
+import { runBounded } from '@tools/testing/subprocess.js';
 
 const roots: string[] = [];
 const temporary = () => {
@@ -240,6 +241,81 @@ it.each(['unlisted', 'modified'])('rechecks %s destination bytes written during 
     expect(existsSync(join(fixture.root, '.ia/adoption.lock'))).toBe(false);
   } finally {
     fixture.close();
+  }
+});
+
+const ATTRIBUTES = '.ia/open/.gitattributes';
+it('keeps adopted bytes through a checkout that converts line endings', async () => {
+  const fixture = adoptionFixture();
+  try {
+    const plan = planAdoption(fixture.root, workspace.id, workspace.releases[0]!);
+    applyAdoption(plan);
+    const path = `${plan.tree}/${files[0]!.path}`,
+      pinned = readFileSync(join(fixture.root, path), 'utf8');
+    expect(pinned).toContain('\n');
+    const git = async (...args: string[]) => {
+      const run = await runBounded('git', ['-C', fixture.root, '-c', 'core.autocrlf=true', ...args], {
+        timeoutMs: 30_000,
+      });
+      expect(run.status, run.stderr).toBe(0);
+    };
+    await git('init', '--quiet');
+    fixture.put(fixture.root, '.gitattributes', '* text eol=crlf filter=convert ident working-tree-encoding=UTF-16\n');
+    const attributes = await runBounded('git', ['-C', fixture.root, 'check-attr', '-a', '--', path], {
+      timeoutMs: 30_000,
+    });
+    expect(attributes.stdout).toContain(`${path}: text: unset`);
+    expect(attributes.stdout).toContain(`${path}: filter: unset`);
+    expect(attributes.stdout).toContain(`${path}: ident: unset`);
+    expect(attributes.stdout).toContain(`${path}: working-tree-encoding: unset`);
+    rmSync(join(fixture.root, '.gitattributes'));
+    await git('add', '--', '.ia/open');
+    await git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '--quiet', '-m', 'Adopted');
+    rmSync(join(fixture.root, path));
+    await git('checkout', '--', path);
+    expect(readFileSync(join(fixture.root, path), 'utf8')).toBe(pinned);
+  } finally {
+    fixture.close();
+  }
+});
+
+it('keeps a regular attributes file of any size that is already there', () => {
+  const fixture = adoptionFixture(),
+    owned = '*.ia -text\n' + '# note\n'.repeat(12_000);
+  try {
+    fixture.put(fixture.root, ATTRIBUTES, owned);
+    applyAdoption(planAdoption(fixture.root, workspace.id, workspace.releases[0]!));
+    expect(readFileSync(join(fixture.root, ATTRIBUTES), 'utf8')).toBe(owned);
+  } finally {
+    fixture.close();
+  }
+});
+
+it('refuses an attributes path it could neither keep nor create before writing a mount', () => {
+  const directory = adoptionFixture(),
+    link = adoptionFixture(),
+    late = adoptionFixture();
+  try {
+    directory.put(directory.root, `${ATTRIBUTES}/nested`, 'x');
+    expect(() => planAdoption(directory.root, workspace.id, workspace.releases[0]!)).toThrow(
+      `Expected a regular file: ${ATTRIBUTES}`,
+    );
+    mkdirSync(join(link.root, 'elsewhere'));
+    mkdirSync(join(link.root, '.ia/open'), { recursive: true });
+    symlinkSync(
+      join(link.root, 'elsewhere'),
+      join(link.root, ATTRIBUTES),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    expect(() => planAdoption(link.root, workspace.id, workspace.releases[0]!)).toThrow('Link/junction is not allowed');
+    const plan = planAdoption(late.root, workspace.id, workspace.releases[0]!);
+    late.put(late.root, `${ATTRIBUTES}/nested`, 'x');
+    expect(() => applyAdoption(plan)).toThrow(`Expected a regular file: ${ATTRIBUTES}`);
+    expect(existsSync(join(late.root, plan.tree))).toBe(false);
+  } finally {
+    directory.close();
+    link.close();
+    late.close();
   }
 });
 

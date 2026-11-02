@@ -14,6 +14,7 @@ import type { CheckBinding, CheckCatalog, EvidenceWrite, Handle } from '@inventa
 import {
   decodeDistributionJson,
   decodeDistributionLock,
+  lockedReleases,
   DISTRIBUTION_LIMITS,
   INSTALL_PATHS,
   readInstalledGeneration,
@@ -330,7 +331,8 @@ export async function planRestore(request: RestoreRequest): Promise<RestorePlan>
     );
   const archives = new Map<string, Uint8Array>();
   let total = 0;
-  for (const pkg of lock.packages) {
+  // A packaged kit is located by digest: the workspace cache holds its archive once the CLI fetched it from npm.
+  for (const pkg of lockedReleases(lock)) {
     request.signal?.throwIfAborted();
     const content = pkg.location.startsWith('https:')
       ? await readArtifactBytes({ root, url: pkg.location, digest: pkg.archive, offline, signal: request.signal })

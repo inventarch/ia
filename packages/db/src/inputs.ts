@@ -19,7 +19,7 @@ import type { RevisionSource } from '@inventarch/graph';
 import { DbError } from './errors.js';
 import { OPENED_READ_FLAGS, OPENS_THROUGH_LINKS, lstatNamed, readOpened } from './named.js';
 import { pathKey, sameFile } from './paths.js';
-import { decodeActivationPointer } from './distribution/contracts.js';
+import { decodeActivationPointer, lockedReleases } from './distribution/contracts.js';
 import type { ActivationPointer, LockedPackage } from './distribution/contracts.js';
 import { readInstalledGeneration } from './distribution/reader.js';
 
@@ -562,6 +562,8 @@ function bindings<T = Binding>(root: string, each: (binding: Binding) => T = (bi
     });
   });
 }
+const pinRevision = (sources: readonly { readonly path: string; readonly text: string }[]): string =>
+  createHash('sha256').update(stableSerialize(sources)).digest('hex');
 function workspaceSources(root: string): readonly AdoptedSource[] {
   return bindings(root, (binding) => {
     const directory = safePath(root, binding.path),
@@ -572,9 +574,14 @@ function workspaceSources(root: string): readonly AdoptedSource[] {
     const sources = discover(directory, { adopted: [], candidateInstallation: null })
       .sources.filter((s) => !s.path.startsWith('.ia/src/floor/'))
       .map(({ path, text }) => ({ path, text }));
-    const revision = createHash('sha256').update(stableSerialize(sources)).digest('hex');
+    const revision = pinRevision(sources);
     if (revision !== binding.revision)
-      invalid(`Pinned source revision differs for ${binding.id}; refresh the binding with the intended source bytes`);
+      invalid(
+        pinRevision(sources.map(({ path, text }) => ({ path, text: text.replaceAll('\r\n', '\n') }))) ===
+          binding.revision
+          ? `Pinned source revision differs for ${binding.id}: checkout converted its line endings to CRLF; unset the tree's effective git text and filter attributes and check it out again`
+          : `Pinned source revision differs for ${binding.id}; refresh the binding with the intended source bytes`,
+      );
     return {
       id: binding.id,
       revision,
@@ -863,7 +870,7 @@ function discover(root: string, supplied: InputOptions): InputSnapshot {
     ...activation,
     ...authored,
     ...evidence,
-    ...(installed ? { installed: installed.lock.packages } : {}),
+    ...(installed ? { installed: lockedReleases(installed.lock) } : {}),
     fingerprint: createHash('sha256')
       .update(stableSerialize({ sources, folders, floorOrigin, ...activation, ...authored, ...evidence }))
       .digest('hex'),

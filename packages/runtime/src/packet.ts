@@ -178,11 +178,12 @@ const NO_PARTICIPANT = 'none (no authored @mandate names an @agent)' as const;
 const UNRESOLVED = 'unresolved' as const;
 const INSTALLED = 'unknown (no join checked here)' as const;
 const PHASE_CHANGES = '--phase selects the playbook cell delivered and decides which conditional relation rows apply';
-/** The three SPEC-owned lines, `ia scope` read as `ia position`. */
+/** The three SPEC-owned lines, `ia scope` read as `ia position`, then the session line naming the door's method tools. */
 const LINES: readonly string[] = [
   'run ia position; if it refuses, run the command it names',
   'state intent to the CLI as shape + optional phase + optional primitive + optional seat + optional word; the CLI never receives free text',
   "when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation",
+  "start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key",
 ];
 const LOWERS = /^lowers to ([a-z]+)$/;
 const order = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -400,7 +401,7 @@ export function renderPacket(handle: ReadHandle, within: string, catalog: readon
 
 /**
  * The packet's entries: P participants + M mandates + 1 seat + N system lines + T tallies + 5 intent rows + 4 phase
- * rows + C catalog rows + 1 provenance + 3 SPEC lines; the host note is no entry.
+ * rows + C catalog rows + 1 provenance + 4 SPEC lines; the host note is no entry.
  */
 export function entryCount(packet: PositionPacket): number {
   return (

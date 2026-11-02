@@ -1,0 +1,25 @@
+name: Copilot setup steps
+
+# Prepares the GitHub Copilot cloud agent's environment before it starts work: the pinned Node and pnpm, the
+# dependencies and a build, so `node apps/cli/dist/main.js` and the repository checks run from its first step.
+# Copilot runs only the job named copilot-setup-steps; the triggers below exist so a change to it is validated.
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/copilot-setup-steps.yml]
+  pull_request:
+    paths: [.github/workflows/copilot-setup-steps.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      # The same pinned toolchain and frozen install every other workflow uses.
+      - uses: ./.github/actions/setup
+      - name: Build
+        run: pnpm build

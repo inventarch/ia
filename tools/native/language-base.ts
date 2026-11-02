@@ -6,8 +6,9 @@ import { parseOptions } from '../shared/args.mjs';
  * Packs the language-only source set `languagePackageInputs` returns — floor, the manifest-selected contracts and schemas, and
  * `records/language.ia`, never the public examples (workspace initialization §3 “Bundled language”) — with the same `distributionSnapshot` and
  * `packSnapshot` calls `public-language.test.ts` exercises. `--write` emits the archive bytes at
- * `apps/cli/assets/base/<archive digest>.ia.tgz` and the pin `{ id, version, archive, manifest }` at
- * `apps/cli/assets/base.json`, before retiring obsolete verified archives under `assets/base/`; foreign entries refuse before writing.
+ * `<package>/assets/base/<archive digest>.ia.tgz` and the pin `{ id, version, archive, manifest }` at
+ * `<package>/assets/base.json` for `apps/cli` and `apps/mcp-door`, before retiring obsolete verified archives under
+ * `assets/base/`; foreign entries refuse before writing.
  * Both are gitignored build output: the root `build` runs this before `pnpm -r build`. Public release
  * preparation regenerates the archive from public sources (apply contract §2 “Base artifact”).
  *
@@ -21,7 +22,11 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyArchive } from '../../apps/distribution/src/archive.js';
 import { distributionSnapshot, packSnapshot } from '../../apps/distribution/src/snapshot.js';
-import { DISTRIBUTION_ENGINE_VERSION, satisfies } from '../../packages/db/src/distribution/index.js';
+import {
+  DISTRIBUTION_ENGINE_VERSION,
+  RELEASE_ENGINE_VERSION,
+  satisfies,
+} from '../../packages/db/src/distribution/index.js';
 import { languagePackageInputs } from './public-language.js';
 import { isEntry } from '../entry/is-entry.mjs';
 import { containedFile, readRegular } from '../shared/paths.mjs';
@@ -44,7 +49,7 @@ export interface LanguageBase {
 }
 
 /** The base artifact descriptor. `version` and `engine` are parameters so compatibility refusals can be exercised. */
-export function languageBaseDescriptor(version: string, engine = `^${DISTRIBUTION_ENGINE_VERSION}`) {
+export function languageBaseDescriptor(version: string, engine = `^${RELEASE_ENGINE_VERSION}`) {
   return {
     formatVersion: 1,
     id: BASE_ID,
@@ -134,26 +139,34 @@ export function languageBaseFindings(input: {
   return findings;
 }
 
-/** Preflight the complete output set; publish the archive before its pin, then retire only owned archives. */
+/** The packages that carry the base: the CLI, and the MCP door, which restores a method kit's read root in process. */
+export const BASE_PACKAGES = ['apps/cli', 'apps/mcp-door'] as const;
+
+/** Writes the base into each package that carries it (`BASE_PACKAGES`), in order. */
 export function writeLanguageBase(root: string, base: LanguageBase): void {
+  for (const directory of BASE_PACKAGES) writePackageBase(root, base, directory);
+}
+
+/** Preflight the complete output set; publish the archive before its pin, then retire only owned archives. */
+function writePackageBase(root: string, base: LanguageBase, directory: string): void {
   if (
     !/^[a-f0-9]{64}$/.test(base.pin.archive) ||
     createHash('sha256').update(base.bytes).digest('hex') !== base.pin.archive
   )
     throw new Error('Language base bytes do not match their archive pin');
-  const archive = 'apps/cli/' + archivePath(base.pin.archive),
-    pin = 'apps/cli/' + PIN_PATH;
+  const archive = `${directory}/${archivePath(base.pin.archive)}`,
+    pin = `${directory}/${PIN_PATH}`;
   const outputs = new Map([
     [archive, base.bytes],
     [pin, Buffer.from(JSON.stringify(base.pin, null, 2) + '\n')],
   ]);
   for (const path of outputs.keys()) containedFile(root, path, { allowMissing: true });
-  const directory = resolve(root, 'apps/cli', ARCHIVE_DIRECTORY),
+  const archives = resolve(root, directory, ARCHIVE_DIRECTORY),
     obsolete: string[] = [];
-  if (existsSync(directory))
-    for (const name of readdirSync(directory)) {
+  if (existsSync(archives))
+    for (const name of readdirSync(archives)) {
       if (!/^[a-f0-9]{64}\.ia\.tgz$/.test(name)) throw new Error('Unowned language base output: ' + name);
-      const path = 'apps/cli/' + ARCHIVE_DIRECTORY + '/' + name;
+      const path = `${directory}/${ARCHIVE_DIRECTORY}/${name}`;
       const bytes = readRegular(root, path, 64 * 1024 * 1024);
       if (createHash('sha256').update(bytes).digest('hex') !== name.slice(0, 64))
         throw new Error('Changed language base archive: ' + name);

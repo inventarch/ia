@@ -24,7 +24,13 @@ import { afterAll, expect, it, vi } from 'vitest';
 import { open, readInputs } from '@inventarch/db';
 import { openWorkspaceSession } from '@inventarch/distribution/services';
 import { resolveCapabilities } from '../src/render.js';
-import { checkNames, collectValidation, DEFAULT_OPTIONS, renderValidation } from '../src/validate.js';
+import {
+  checkNames,
+  collectValidation,
+  DEFAULT_OPTIONS,
+  renderValidation,
+  unverifiedConformance,
+} from '../src/validate.js';
 import { doctor, host, initialized, put } from './host-fixture.js';
 import { cleanup, repository, run, scratch } from './workspace-fixture.js';
 
@@ -621,6 +627,36 @@ it('fails a verified COMP-KERNEL for a local floor one byte away, and still reco
   expect(unrecorded.exitCode).toBe(1);
   expect(unrecorded.text).toContain('No evidence recorded: no bound check passed or failed.');
 });
+
+it('fails a verifying run under --require-verified unless COMP-KERNEL and COMP-FIXTURES are verified passes', async () => {
+  const { root, env } = await initialized();
+  const required = await run(['validate', '--root', root, '--verify-conformance', '--require-verified', '--json'], {
+    env,
+  });
+  expect(required.exitCode, required.stdout).toBe(0);
+  expect(JSON.parse(required.stdout).requireVerified).toEqual({ satisfied: true, unverified: [] });
+  const human = await validate(root, env, '--verify-conformance', '--require-verified');
+  expect(human.text).toContain('Required verified: COMP-KERNEL and COMP-FIXTURES are verified passes.');
+  // The default is unchanged: no field, and the exit of a plain verifying run.
+  expect(JSON.parse((await run(['validate', '--root', root, '--json'], { env })).stdout)).not.toHaveProperty(
+    'requireVerified',
+  );
+  expect((await run(['validate', '--root', root, '--require-verified', '--json'], { env })).exitCode).toBe(2);
+  // A verdict that is not a verified pass: not-evaluated, unverified, a failure, or absent.
+  const view = (verdicts: { check: string; outcome: string; basis: string | null }[]) =>
+    ({ conformance: { verdicts } }) as unknown as Parameters<typeof unverifiedConformance>[0];
+  expect(unverifiedConformance(view(verified('pass')))).toEqual([]);
+  expect(unverifiedConformance(view(verified('fail')))).toEqual(['COMP-KERNEL']);
+  expect(
+    unverifiedConformance(
+      view([
+        { check: 'COMP-FIXTURES', outcome: 'pass', basis: null },
+        { check: 'COMP-KERNEL', outcome: 'not-evaluated', basis: null },
+      ]),
+    ),
+  ).toEqual(['COMP-FIXTURES', 'COMP-KERNEL']);
+  expect(unverifiedConformance({})).toEqual(['COMP-FIXTURES', 'COMP-KERNEL']);
+}, 120_000);
 
 it('points a check verification did not evaluate to the Conformance section, not to an evaluator to supply', async () => {
   const { root } = await initialized();

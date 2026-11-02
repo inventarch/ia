@@ -1,19 +1,25 @@
+import semver from 'semver';
 import {
   array,
   canonicalDistributionJson,
   data,
+  DISTRIBUTION_ENGINE_VERSION,
   frozen,
   hash,
   identifier,
   identity,
+  InstallationError,
   integer,
   metadataDigest,
   object,
   packageId,
+  PACKAGE_ENTRY_ENGINE_VERSION,
   portablePath,
   range,
   refuse,
+  requiredRelease,
   satisfies,
+  supportsDistributionLockEngine,
   ROOT_RELEASE_CONTROL_ENGINE_VERSION,
   supportsRootReleaseControls,
   sha256,
@@ -83,11 +89,41 @@ export interface LockedPackage {
   readonly location: string;
   readonly dependencies: readonly string[];
 }
+/**
+ * One kit a package entry names: the IA release the package carries, by id, version, archive and manifest digest, and
+ * the ids its manifest depends on, as a release row names them.
+ */
+export interface PackageKit {
+  readonly id: string;
+  readonly version: string;
+  readonly archive: string;
+  readonly manifest: string;
+  readonly dependencies: readonly string[];
+}
+/**
+ * A lock entry of kind `package` (engine 0.1.2, ia-kb `dec-133`): an npm package of kits, such as
+ * `@inventarch/public-kits`, recorded by its exact version and npm `dist.integrity`, and the IA releases it carries.
+ * npm is transport only: the engine installs each kit as an ordinary release, expanded under
+ * `.ia/distributions/store/<archive>/` at band 90 (`lockedReleases`), and a restore refetches the archives by digest.
+ */
+export interface PackageEntry {
+  readonly kind: 'package';
+  readonly name: string;
+  readonly version: string;
+  readonly integrity: string;
+  readonly kits: readonly PackageKit[];
+}
+/** A lock entry that is not a release: the kinds `LOCK_ENTRY_KINDS` names. */
+export type LockEntry = PackageEntry;
+/** The entry kinds this engine reads; any other kind is an engine this reader is not. */
+export const LOCK_ENTRY_KINDS: readonly LockEntry['kind'][] = Object.freeze(['package']);
 export interface DistributionLock {
   readonly formatVersion: 1;
   readonly engine: string;
   readonly requests: readonly Dependency[];
   readonly packages: readonly LockedPackage[];
+  /** Entries that are not releases, present only when the lock holds one; such a lock declares engine ^0.1.2 or newer. */
+  readonly entries?: readonly LockEntry[];
 }
 export interface GenerationInputs {
   readonly formatVersion: 1;
@@ -273,8 +309,112 @@ export function decodeBundleManifest(input: unknown): BundleManifest {
   // A manifest's keys are exact, `distribution` included, so common() decoded it; it keeps its place among the keys.
   return frozen({ ...body, distribution: body.distribution!, roots, systems, dependencies: deps, files });
 }
-export function decodeDistributionLock(input: unknown): DistributionLock {
-  const row = object(data(input), ['formatVersion', 'engine', 'requests', 'packages']);
+const LOCK_KEYS: readonly string[] = ['formatVersion', 'engine', 'requests', 'packages'];
+/** An npm package name: lowercase, optionally scoped, at most 214 bytes. */
+const NPM_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
+/** npm's `dist.integrity` of a published tarball: SRI SHA-512. */
+const NPM_INTEGRITY = /^sha512-[A-Za-z0-9+/]{86}==$/;
+function incompatible(message: string): never {
+  throw new InstallationError('engine-incompatible', message);
+}
+/**
+ * A lock that holds more than a 0.1.1 lock (`entries`, or a field no engine of this line knows) is judged by its engine
+ * first, so a reader that does not support it says which `ia` does instead of refusing a field it does not know. An
+ * entry kind this reader does not know is refused the same way. A lock of the four 0.1.1 fields is decoded as before.
+ */
+function admitExtension(row: Record<string, unknown>, reader: string): void {
+  const declared = row['engine'];
+  if (
+    typeof declared === 'string' &&
+    semver.validRange(declared) !== null &&
+    !supportsDistributionLockEngine(reader, declared)
+  )
+    incompatible(
+      `Lock requires distribution engine ${declared}; this reader is ${reader}. It needs ${requiredRelease(declared) ?? 'a newer IA'}. Use a compatible IA installation; preserve the lock and its engine range.`,
+    );
+  const entries = row['entries'];
+  if (!Array.isArray(entries)) return;
+  for (const entry of entries) {
+    const kind = entry !== null && typeof entry === 'object' ? (entry as Record<string, unknown>)['kind'] : undefined;
+    if (typeof kind !== 'string' || !(LOCK_ENTRY_KINDS as readonly string[]).includes(kind))
+      incompatible(
+        `Lock entry kind ${typeof kind === 'string' ? kind : '(none)'} is unknown to distribution engine ${reader}; it needs a newer IA. Use a compatible IA installation; preserve the lock.`,
+      );
+  }
+}
+/**
+ * Every release the lock installs: its `packages` and each kit its package entries name, the latter as a release row
+ * located by digest (`sha256:<archive>`), sorted by id. Membership, closures, the store, restore and collection read
+ * this, so a packaged kit is an installed release like any other.
+ */
+export function lockedReleases(lock: DistributionLock): readonly LockedPackage[] {
+  if (lock.entries === undefined) return lock.packages;
+  const kits = lock.entries.flatMap((entry) =>
+    entry.kits.map(
+      (kit): LockedPackage => ({
+        id: kit.id,
+        version: kit.version,
+        archive: kit.archive,
+        manifest: kit.manifest,
+        location: `sha256:${kit.archive}`,
+        dependencies: kit.dependencies,
+      }),
+    ),
+  );
+  return [...lock.packages, ...kits].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+function lockEntries(value: unknown, engine: string, packages: readonly LockedPackage[]): readonly LockEntry[] {
+  const rows = array(value, DISTRIBUTION_LIMITS.bundles);
+  if (!rows.length) refuse('A lock with no entries omits the entries field');
+  if (!semver.subset(engine, `>=${PACKAGE_ENTRY_ENGINE_VERSION}`))
+    refuse(
+      `A lock with entries declares distribution engine >=${PACKAGE_ENTRY_ENGINE_VERSION} (such as ^${PACKAGE_ENTRY_ENGINE_VERSION}), so no earlier engine reads it`,
+    );
+  const entries = sorted(
+    rows.map((v): PackageEntry => {
+      const r = object(v, ['kind', 'name', 'version', 'integrity', 'kits']);
+      if (r['kind'] !== 'package') refuse('Unknown lock entry kind');
+      const name = text(r['name'], 214),
+        integrity = text(r['integrity'], 128);
+      if (!NPM_NAME.test(name)) refuse('Expected an npm package name');
+      if (!NPM_INTEGRITY.test(integrity)) refuse('Expected the npm sha512 integrity of the package');
+      const kits = sorted(
+        array(r['kits'], DISTRIBUTION_LIMITS.bundles).map((k): PackageKit => {
+          const kit = object(k, ['id', 'version', 'archive', 'manifest', 'dependencies']);
+          return {
+            id: packageId(kit['id']),
+            version: version(kit['version']),
+            archive: hash(kit['archive']),
+            manifest: hash(kit['manifest']),
+            dependencies: names(kit['dependencies'], packageId),
+          };
+        }),
+        (kit) => kit.id,
+      );
+      if (!kits.length) refuse('A package entry names at least one kit');
+      return { kind: 'package', name, version: version(r['version']), integrity, kits };
+    }),
+    (entry) => entry.name,
+  );
+  const named = new Set(packages.map((p) => p.id));
+  for (const entry of entries)
+    for (const kit of entry.kits) {
+      if (named.has(kit.id)) refuse(`Kit ${kit.id} is named twice: by package ${entry.name} and by another lock row`);
+      named.add(kit.id);
+    }
+  // A packaged kit's dependencies are installed releases too, as a release row's are.
+  for (const entry of entries)
+    for (const kit of entry.kits)
+      if (kit.dependencies.some((id) => id === kit.id || !named.has(id))) refuse('Missing/self locked dependency');
+  return entries;
+}
+/** The portable lock. `reader` is the engine judging it: this one, unless a test plays an older reader. */
+export function decodeDistributionLock(input: unknown, reader: string = DISTRIBUTION_ENGINE_VERSION): DistributionLock {
+  const value = data(input);
+  const plain = value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (plain && Reflect.ownKeys(value).some((key) => !LOCK_KEYS.includes(key as string)))
+    admitExtension(value as Record<string, unknown>, reader);
+  const row = object(value, plain && Object.hasOwn(value, 'entries') ? [...LOCK_KEYS, 'entries'] : LOCK_KEYS);
   format(row);
   const engine = range(row['engine']),
     requests = dependencies(row['requests']);
@@ -306,15 +446,20 @@ export function decodeDistributionLock(input: unknown): DistributionLock {
   }
   for (const p of packages)
     if (p.dependencies.some((id) => id === p.id || !byId.has(id))) refuse('Missing/self locked dependency');
+  const entries = row['entries'] === undefined ? undefined : lockEntries(row['entries'], engine, packages);
+  // The roots are the direct requests and each kit a package entry names: a release a packaged kit depends on, such as
+  // the language base, is reachable through that kit.
   const reached = new Set<string>();
   const visit = (id: string): void => {
     if (reached.has(id)) return;
     reached.add(id);
-    byId.get(id)!.dependencies.forEach(visit);
+    byId.get(id)?.dependencies.forEach(visit);
   };
   requests.forEach((r) => visit(r.id));
-  if (reached.size !== packages.length) refuse('Unreachable locked package');
-  return frozen({ formatVersion: 1, engine, requests, packages });
+  for (const kit of (entries ?? []).flatMap((entry) => entry.kits)) kit.dependencies.forEach(visit);
+  if ([...reached].filter((id) => byId.has(id)).length !== packages.length) refuse('Unreachable locked package');
+  if (entries === undefined) return frozen({ formatVersion: 1, engine, requests, packages });
+  return frozen({ formatVersion: 1, engine, requests, packages, entries });
 }
 export function decodeGenerationInputs(input: unknown): GenerationInputs {
   const row = object(data(input), ['formatVersion', 'bundles', 'systems']);

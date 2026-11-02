@@ -97,7 +97,7 @@ function formula(db: Handle, catalog: number): number {
       .membership.filter((row) => own.has(row.root) && words.has(row.identity))
       .map((row) => words.get(row.identity)),
   );
-  return participants.size + mandates.length + 1 + systems.length + tallies.size + 5 + 4 + catalog + 1 + 3;
+  return participants.size + mandates.length + 1 + systems.length + tallies.size + 5 + 4 + catalog + 1 + 4;
 }
 
 it('matches the golden packet of a fresh init and pins its entry count, the revision and body asserted apart', () => {
@@ -127,7 +127,7 @@ it('matches the golden packet of a fresh init and pins its entry count, the revi
   expect([packet.participants.length, packet.mandates.length, packet.systems.length, packet.tallies.length]).toEqual([
     1, 1, 11, 3,
   ]);
-  expect(entryCount(packet)).toBe(39);
+  expect(entryCount(packet)).toBe(40);
   expect(entryCount(packet)).toBe(formula(db, CATALOG.length));
   // The output is frozen whole, and its intent rows are copies: the kernel's rows are not the packet's to freeze.
   expect([Object.isFrozen(output), Object.isFrozen(packet), Object.isFrozen(packet.intents[0]!.kinds)]).toEqual([
@@ -150,7 +150,7 @@ it('holds the entry formula on the conformance corpus and on this repository, co
     expect(entryCount(packet), name).toBe(formula(db, CATALOG.length));
     // The pinned counts under the nine-row catalog: the conformance corpus (P = M = T = 0, N = 5) and this repository
     // (P = M = 1, N = 11, T = 17) after separating the neutral examples from the live corpus.
-    expect(entryCount(packet), name).toBe(name === 'conformance' ? 28 : 53);
+    expect(entryCount(packet), name).toBe(name === 'conformance' ? 29 : 54);
     // The host note is no entry, and the formula does not read the catalog's contents.
     expect(entryCount(render(db, []).packet), name).toBe(entryCount(packet) - CATALOG.length);
   }
@@ -196,7 +196,7 @@ it('renders a workspace with no participant with no participant entry and no ref
   const { packet } = render(database(adopted));
   expect([packet.participants, packet.mandates]).toEqual([[], []]);
   expect(packet.seat.participants).toBe(NONE);
-  expect(entryCount(packet)).toBe(37);
+  expect(entryCount(packet)).toBe(38);
   // With one, the seat line names no `none` and the participant is read through the scope.
   const one = render(database(freshInit())).packet;
   expect(one.seat).toEqual({
@@ -244,7 +244,7 @@ it('renders two participants named by three mandates by identity, each agent onc
     },
   ]);
   expect(packet.seat.participants).toBeUndefined();
-  expect(entryCount(packet)).toBe(42);
+  expect(entryCount(packet)).toBe(43);
   expect(entryCount(packet)).toBe(formula(db, CATALOG.length));
 });
 
@@ -514,7 +514,7 @@ it('renders a repository root no admitted @workspace is declared at with no seat
   expect(packet.seat).toEqual({ sources: [], systems: 0, participants: NONE });
   expect([packet.participants, packet.mandates, packet.systems, packet.tallies]).toEqual([[], [], [], []]);
   expect(packet.provenance).toEqual({ revision: db.revision });
-  expect(entryCount(packet)).toBe(1 + 5 + 4 + CATALOG.length + 1 + 3);
+  expect(entryCount(packet)).toBe(1 + 5 + 4 + CATALOG.length + 1 + 4);
 });
 
 it('tables the five shapes and the four phases, each shape with the registered words it seeds', () => {
@@ -550,5 +550,6 @@ it('tables the five shapes and the four phases, each shape with the registered w
     'run ia position; if it refuses, run the command it names',
     'state intent to the CLI as shape + optional phase + optional primitive + optional seat + optional word; the CLI never receives free text',
     "when a word's owner is not this workspace, delegate by re-seating at the owning system; a steward pointer is readable, not an invocation",
+    "start each session with the IA door's ia_session; for a task, use the lane ia:work, ia:knowledge or ia:delivery: ia_catalogue names its keys and ia_method returns the method for one key",
   ]);
 });

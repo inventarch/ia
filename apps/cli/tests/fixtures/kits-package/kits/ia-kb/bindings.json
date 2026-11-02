@@ -1,0 +1,32 @@
+{
+  "format": 1,
+  "recommend": {
+    "knowledge.*": {
+      "capability": "kb-knowledge"
+    },
+    "knowledge.find": {
+      "capability": "kb-retrieve"
+    },
+    "knowledge.explain": {
+      "capability": "kb-retrieve"
+    },
+    "knowledge.maintain": {
+      "capability": "kb-maintain-document"
+    },
+    "knowledge.place": {
+      "capability": "kb-place-content"
+    },
+    "knowledge.bind": {
+      "capability": "kb-bind-document"
+    },
+    "knowledge.check": {
+      "capability": "kb-check"
+    },
+    "knowledge.migrate": {
+      "capability": "kb-migrate"
+    },
+    "knowledge.review": {
+      "capability": "kb-review"
+    }
+  }
+}

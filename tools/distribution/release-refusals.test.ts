@@ -554,6 +554,50 @@ it('refuses an archive download that fails after the wait, naming the package an
   expect(requested).toEqual(['https://registry.npmjs.org/example.tgz', 'https://registry.npmjs.org/example.tgz']);
 });
 
+it('waits for an archive npm lists before its CDN serves it, and refuses different bytes at once', async () => {
+  const bytes = Buffer.from('published archive bytes'),
+    entry = {
+      ...archive(a),
+      bytes: bytes.length,
+      integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}`,
+    };
+  let clock = 0;
+  const logged: string[] = [];
+  const wait = {
+    timeoutMs: 60_000,
+    intervalMs: 20_000,
+    now: () => clock,
+    sleep: async (ms: number) => {
+      clock += ms;
+    },
+    log: (line: string) => logged.push(line),
+  };
+  const answers =
+    (...statuses: number[]) =>
+    async () => {
+      const status = statuses.shift() ?? 404;
+      return new Response(status === 200 ? bytes : null, { status });
+    };
+  await expect(
+    verifyRegistryArchives([entry], { [a]: published() }, answers(404, 503, 200), wait),
+  ).resolves.toBeUndefined();
+  expect(logged).toEqual([
+    `Archive 1 of ${a}@${entry.version}: archive download returned 404; trying again`,
+    `Archive 2 of ${a}@${entry.version}: archive download returned 503; trying again`,
+  ]);
+  clock = 0;
+  await expect(verifyRegistryArchives([entry], { [a]: published() }, answers(), wait)).rejects.toThrow(
+    refusal(`${a}: archive download returned 404`),
+  );
+  clock = 0;
+  await expect(verifyRegistryArchives([entry], { [a]: published() }, answers(403), wait)).rejects.toThrow(
+    refusal(`${a}: archive download returned 403`),
+  );
+  clock = 0;
+  const other = async () => new Response(Buffer.from('other bytes'), { status: 200 });
+  await expect(verifyRegistryArchives([entry], { [a]: published() }, other, wait)).rejects.toThrow();
+});
+
 /** A registry that answers every request with `status`, recording each URL and whether it carried a signal. */
 function registryAnswering(status: number) {
   const requested: string[] = [];

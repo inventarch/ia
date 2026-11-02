@@ -67,7 +67,12 @@ const HOSTS: Readonly<Record<string, readonly string[]>> = {
     '@inventarch/runtime',
     '@inventarch/db',
   ],
-  '@inventarch/mcp-door': ['@inventarch/runtime', '@inventarch/service-contracts', '@inventarch/kb'],
+  '@inventarch/mcp-door': [
+    '@inventarch/runtime',
+    '@inventarch/service-contracts',
+    '@inventarch/kb',
+    '@inventarch/distribution',
+  ],
   '@inventarch/distribution': [
     '@inventarch/language',
     '@inventarch/graph',
