@@ -111,7 +111,7 @@ export interface Attempt {
   reconciliations?: number;
 }
 export interface Question {
-  label?: string[];
+  label: string[];
   id: string;
   revision: number;
   runId: string;
@@ -269,7 +269,7 @@ export type Mutation =
       runId: string;
       outcome: Json;
       terminal: 'completed' | 'failed' | null;
-      questions?: Question[];
+      questions?: (Omit<Question, 'label'> & { label?: string[] })[];
       proposal?: Proposal;
       wait?: Wait;
     }
@@ -322,7 +322,7 @@ export type Mutation =
       error?: string | null;
     };
 export interface Event {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   id: string;
   sequence: number;
   sessionId: string;

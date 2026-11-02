@@ -110,6 +110,16 @@ function contentLabel(mutation: Row): string[] {
   }
   return [];
 }
+function eventVersion(mutation: Row): number {
+  if (
+    mutation['type'] === 'release.accept' ||
+    (['attempt.observe', 'attempt.reconcile', 'question.reply', 'reaction.settle'].includes(String(mutation['type'])) &&
+      Object.hasOwn(mutation, 'label')) ||
+    (mutation['type'] === 'reaction.queue' && Object.hasOwn(row(mutation['reaction']), 'label'))
+  )
+    return 3;
+  return mutation['type'] === 'session.renew' ? 2 : 1;
+}
 /** Copy bounded plain data without evaluating accessors, toJSON or custom instances. */
 function data(value: unknown): unknown {
   let budget = BYTES,
@@ -171,7 +181,7 @@ function receipt(value: unknown): Receipt {
     exact(event, ['version', 'id', 'sequence', 'sessionId', 'actor', 'at', 'cause', 'mutation', 'previous', 'hash']);
     const type = text(mutation['type'], 64),
       id = identifier(event['id']);
-    if (!TYPES.has(type) || event['version'] !== (type === 'session.renew' ? 2 : 1)) fail('unknown event type/version');
+    if (!TYPES.has(type) || event['version'] !== eventVersion(mutation)) fail('unknown event type/version');
     contentLabel(mutation);
     // SessionStore uses the command ID for every event in one atomic command (at most 32).
     if (id !== commandId) {

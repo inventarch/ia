@@ -171,6 +171,27 @@ it.each(['after-receipt', 'after-fault', 'terminal'])(
   },
 );
 
+it('admits newly granted clearance without trusting host mutations of authorization arguments', async () => {
+  const f = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'private' }, outcome]));
+  const initial = await start(f.engine);
+  expect((initial.runs['root']!.authority as { clearances: string[] }).clearances).toEqual([]);
+  privateRead(f);
+  f.host.authorize = async (_principal, manifest, state) => {
+    manifest.workspace = 'mutated-host-copy';
+    if (state) {
+      state.label.push('untrusted-mutation');
+      state.runs['root']!.profile = 'mutated-host-copy';
+    }
+    return f.grant;
+  };
+  const completed = await f.engine.advance('session', 'alice');
+  expect(completed.label).toEqual(['private']);
+  expect(completed.runs['root']!.profile).toBe('author');
+  expect(f.engine.manifest.workspace).toBe('project');
+  expect((completed.runs['root']!.authority as { clearances: string[] }).clearances).toEqual([]);
+  await f.store.close();
+});
+
 it('inherits receipt labels into later model output, outcomes and child returns', async () => {
   const f = fixture(
     scripted([
@@ -198,7 +219,7 @@ it('inherits receipt labels into later model output, outcomes and child returns'
   await f.store.close();
 });
 
-it.each(['missing', 'malformed', 'throwing', 'wrong-root', 'expired'])(
+it.each(['missing', 'malformed', 'unrepresentable', 'throwing', 'wrong-root', 'expired'])(
   'redacts %s grants on view and duplicate start',
   async (kind) => {
     const f = fixture();
@@ -207,6 +228,7 @@ it.each(['missing', 'malformed', 'throwing', 'wrong-root', 'expired'])(
       if (kind === 'throwing') throw new Error('host-private-details');
       if (kind === 'missing') return undefined as unknown as Grant;
       if (kind === 'malformed') return { ...f.grant, clearances: null } as unknown as Grant;
+      if (kind === 'unrepresentable') return { ...f.grant, clearances: ['private\n'] };
       return { ...f.grant, ...(kind === 'wrong-root' ? { profiles: [] } : { expiresAt: 0 }) };
     };
     for (const read of [() => f.engine.view('session', 'alice'), () => start(f.engine)]) {
@@ -314,6 +336,7 @@ it('releases only host-cleared output across sessions and replays labels and rel
     expect(request!.candidate).toBe('untrusted-candidate');
     expect(request!.sources).toEqual(release.sources);
     const journal = await f.store.journal('session');
+    expect(journal.events.find((event) => event.mutation.type === 'release.accept')!.version).toBe(3);
     const source = release.sources[0]!;
     expect(source.label).toEqual(['private']);
     expect(journal.events.some((e) => e.hash === source.digest && source.id === `session:${e.sequence}`)).toBe(true);
@@ -404,6 +427,28 @@ it('releases deferred model candidates before persistence and does not rerun the
     ),
   ).rejects.toMatchObject({ code: 'IA-SESSION-COMMAND-CONFLICT' });
   expect(canonical(await f.store.journal('session'))).not.toContain('deferred-candidate');
+  await engine.start({
+    sessionId: 'forged-session',
+    commandId: 'forged-start',
+    principal: 'alice',
+    profile: 'author',
+    task: 'release',
+  });
+  const forged = await engine.advance('forged-session', 'alice'),
+    pending = Object.values(forged.attempts)[0]!;
+  const refused = await engine.submitModel(
+    'forged-session',
+    'alice',
+    pending.id,
+    {
+      ...response,
+      action: { type: 'release', candidate: 'forged-private-candidate', label: [], sources: [] },
+    },
+    'forged-response',
+  );
+  expect(refused.attempts[pending.id]!.error).toBe('release-refused');
+  expect(calls).toBe(1);
+  expect(canonical(await f.store.journal('forged-session'))).not.toContain('forged-private-candidate');
   await f.store.close();
 });
 

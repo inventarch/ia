@@ -401,11 +401,12 @@ export function openRunner(options: RunnerOptions) {
     });
     let active: string | undefined;
     const persist = async (state: Session) => {
+      const disclosed = await engine.view(state.id, principal);
       writeRunnerEvidence(root, {
         authoredRevision: reader.authoredRevision,
         events: (await store.journal(state.id)).events,
       });
-      return state;
+      return disclosed;
     };
     const step = async () => {
       requireRunner(active, 'IA-RUNNER-NOT-OPEN', 'Open or resume a run first');
@@ -441,6 +442,8 @@ export function openRunner(options: RunnerOptions) {
             !['IA-ENGINE-LIMIT-EXCEEDED', 'IA-ENGINE-AUTHORITY-DENIED'].includes(error.code))
         )
           throw error;
+        // A disclosure refusal is not a resumable execution-policy wait.
+        await engine.view(active, principal);
         // Preserve exact expected refusals. Unexpected Engine/host/storage errors still propagate.
         const owner = await store.acquire(active);
         try {
@@ -526,7 +529,7 @@ export function openRunner(options: RunnerOptions) {
           state = await step();
           if (state.sequence === before || state.runs[state.rootId]!.status === 'waiting') break;
         }
-        return state;
+        return engine.view(active, principal);
       },
       async submit(attempt: string, response: ModelResponse, commandId: string = randomUUID()) {
         requireRunner(active, 'IA-RUNNER-NOT-OPEN', 'Open or resume a run first');

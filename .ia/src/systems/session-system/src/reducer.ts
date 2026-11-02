@@ -6,7 +6,18 @@ const invariant = (condition: unknown, message: string): void =>
 export const terminal = (run: Run): boolean => ['completed', 'failed', 'cancelled'].includes(run.status);
 /** Opaque host labels; absent labels are the legacy unlabelled value. */
 export function labels(value: unknown = []): string[] {
-  invariant(Array.isArray(value) && value.every((id) => typeof id === 'string' && id.length > 0), 'Invalid label');
+  invariant(
+    Array.isArray(value) &&
+      value.every(
+        (id) =>
+          typeof id === 'string' &&
+          id.length > 0 &&
+          Buffer.byteLength(id, 'utf8') <= 1024 &&
+          !/[\p{Cc}\u2028\u2029]/u.test(id) &&
+          Buffer.from(id, 'utf8').toString('utf8') === id,
+      ),
+    'Invalid label',
+  );
   return [...new Set(value as string[])].sort();
 }
 function observeLabel(state: Session, run: Run, value: unknown = []): string[] {
@@ -916,12 +927,23 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
   return state;
 }
 
+function eventVersion(mutation: Mutation): Event['version'] {
+  if (mutation.type === 'session.renew') return 2;
+  if (
+    mutation.type === 'release.accept' ||
+    (['attempt.observe', 'attempt.reconcile', 'question.reply', 'reaction.settle'].includes(mutation.type) &&
+      Object.hasOwn(mutation, 'label')) ||
+    (mutation.type === 'reaction.queue' && Object.hasOwn(mutation.reaction, 'label'))
+  )
+    return 3;
+  return 1;
+}
 export function replay(events: readonly Event[], starting: Session | null = null): Session {
   let state = starting ? copy(starting) : null;
   for (const event of events) {
     const { hash, ...body } = event;
     requireValue(
-      event.version === (event.mutation.type === 'session.renew' ? 2 : 1),
+      event.version === eventVersion(event.mutation),
       'IA-SESSION-VERSION-UNSUPPORTED',
       'Unsupported event version or mutation/version combination',
     );
@@ -962,7 +984,7 @@ export function replay(events: readonly Event[], starting: Session | null = null
 }
 export function eventFor(previous: Session | null, command: Command, at: string): Event {
   const body: Omit<Event, 'hash'> = {
-    version: command.mutation.type === 'session.renew' ? 2 : 1,
+    version: eventVersion(command.mutation),
     id: command.id,
     sequence: command.expected + 1,
     sessionId: command.sessionId,

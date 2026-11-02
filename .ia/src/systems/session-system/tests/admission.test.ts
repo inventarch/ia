@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it } from 'vitest';
-import { digest, JournalStore, MemoryBackend, memoryStore } from '../src/index.js';
+import { digest, JournalStore, MemoryBackend, memoryStore, replay } from '../src/index.js';
 import { SqliteBackend, sqliteStore } from '../src/sqlite.js';
 import type { Admission, AdmissionGate, Command, Json, Mutation, Owner, SessionStore } from '../src/index.js';
 
@@ -183,6 +183,18 @@ it.each(['memory', 'sqlite'])(
     expect(state.label).toEqual(['private', 'reaction', 'reconciled']);
     expect(state.attempts['read']!.label).toEqual(['private', 'reconciled']);
     expect(state.receipts.at(-1)!.label).toEqual(['private', 'reconciled']);
+    const events = (await store.journal('s')).events;
+    const firstLabel = events.findIndex((event) => Object.hasOwn(event.mutation, 'label'));
+    expect(events.slice(0, firstLabel).every((event) => event.version === 1)).toBe(true);
+    expect(events.filter((event) => Object.hasOwn(event.mutation, 'label')).every((event) => event.version === 3)).toBe(
+      true,
+    );
+    const downgraded = structuredClone(events.slice(0, firstLabel + 1));
+    const last = downgraded.at(-1)!;
+    last.version = 1;
+    const { hash: _hash, ...body } = last;
+    last.hash = digest(body);
+    expect(() => replay(downgraded)).toThrow('Unsupported event version');
     expect(offers.find((offer) => offer.command?.mutation.type === 'attempt.reconcile')!.labels).toEqual([
       'private',
       'reconciled',

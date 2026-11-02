@@ -49,6 +49,8 @@ import {
 } from './contracts.js';
 
 const json = (value: unknown): Json => JSON.parse(canonical(value)) as Json;
+const proposesRelease = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value) && 'type' in value && value.type === 'release';
 const modelOutputTokens = 2048;
 async function bounded<T>(work: () => Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
@@ -209,6 +211,7 @@ export class Engine {
       const grant = copy(
         await bounded(() => this.host.authorize(principal, copy(this.manifest), state ? copy(state) : null), signal),
       );
+      const clearances = labels(grant.clearances);
       check(
         grant &&
           typeof grant.id === 'string' &&
@@ -232,7 +235,7 @@ export class Engine {
           grant.effects.every((effect) => ['read', 'local-write', 'external-write'].includes(effect)) &&
           grant.profiles.includes(profile) &&
           (!state || grant.profiles.includes(state.runs[state.rootId]!.profile)) &&
-          labels(label).every((id) => grant.clearances.includes(id)),
+          labels(label).every((id) => clearances.includes(id)),
         'IA-ENGINE-AUTHORITY-DENIED',
         'Current authority does not permit disclosure',
       );
@@ -327,26 +330,32 @@ export class Engine {
       'Independent review identity, mandate or policy differs',
     );
     const timed = this.attemptSignal(state, run, undefined, 60000, signal);
-    const current = await bounded(
-      () => this.host.authorizeReview!(review.reviewer, this.manifest, copy(state), copy(review)),
-      timed,
-    );
-    check(
-      current.principal === review.reviewer &&
-        current.workspace === this.manifest.workspace &&
-        current.mandate === policy.mandate &&
-        current.policyRevision === policy.policyRevision &&
-        current.expiresAt > this.now() &&
-        review.expiresAt > this.now() &&
-        current.operations.includes(review.operation) &&
-        current.effects.includes(review.effect) &&
-        current.sources.includes(this.manifest.sourceDigest) &&
-        current.destinations.some((d) => digest(d) === digest(review.destination)),
-      'IA-ENGINE-AUTHORITY-DENIED',
-      'Current independent reviewer grant does not admit the exact operation, source and destination',
-    );
-    timed.throwIfAborted();
-    return Math.min(current.expiresAt, review.expiresAt);
+    try {
+      const current = copy(
+        await bounded(
+          () => this.host.authorizeReview!(review.reviewer, this.manifest, copy(state), copy(review)),
+          timed,
+        ),
+      );
+      check(
+        current.principal === review.reviewer &&
+          current.workspace === this.manifest.workspace &&
+          current.mandate === policy.mandate &&
+          current.policyRevision === policy.policyRevision &&
+          current.expiresAt > this.now() &&
+          review.expiresAt > this.now() &&
+          current.operations.includes(review.operation) &&
+          current.effects.includes(review.effect) &&
+          current.sources.includes(this.manifest.sourceDigest) &&
+          current.destinations.some((d) => digest(d) === digest(review.destination)),
+        'IA-ENGINE-AUTHORITY-DENIED',
+        'Current independent reviewer grant does not admit the exact operation, source and destination',
+      );
+      timed.throwIfAborted();
+      return Math.min(current.expiresAt, review.expiresAt);
+    } catch {
+      throw new EngineError('IA-ENGINE-AUTHORITY-DENIED', 'Current independent review authority is unavailable');
+    }
   }
   private effectContext(
     state: Session,
@@ -854,16 +863,7 @@ export class Engine {
     } catch {
       error = 'model-attempt-failed';
     }
-    if (
-      !error &&
-      output &&
-      typeof output === 'object' &&
-      !Array.isArray(output) &&
-      output['action'] &&
-      typeof output['action'] === 'object' &&
-      !Array.isArray(output['action']) &&
-      output['action']['type'] === 'release'
-    ) {
+    if (!error && output && typeof output === 'object' && !Array.isArray(output) && proposesRelease(output['action'])) {
       const result = await this.releaseResponse(
         await this.store().read(state.id),
         run,
@@ -1198,6 +1198,7 @@ export class Engine {
       const contract = { prompt: q.prompt, respondent: state.principal, choices: q.choices, revision: 1 };
       return {
         ...contract,
+        label: [],
         id: randomUUID(),
         runId: run.id,
         required: q.required,
@@ -1480,7 +1481,30 @@ export class Engine {
       'IA-ENGINE-SOURCE-CHANGED',
       'Pinned inputs or executable bindings are unavailable',
     );
-    const grant = copy(await bounded(() => this.host.authorizeRenewal!(principal, this.manifest, state), timed));
+    let grant: Grant;
+    try {
+      grant = copy(await bounded(() => this.host.authorizeRenewal!(principal, this.manifest, copy(state)), timed));
+      check(
+        grant &&
+          grant.principal === principal &&
+          grant.workspace === state.workspace &&
+          Number.isFinite(grant.expiresAt) &&
+          grant.expiresAt > this.now() &&
+          grant.limits &&
+          Number.isSafeInteger(grant.limits.deadline) &&
+          ['clearances', 'profiles', 'sources', 'operations', 'effects', 'models'].every(
+            (key) =>
+              Array.isArray(grant[key as keyof Grant]) &&
+              (grant[key as keyof Grant] as unknown[]).every((value) => typeof value === 'string'),
+          ),
+        'IA-ENGINE-AUTHORITY-DENIED',
+        'Current renewal authority is unavailable',
+      );
+      labels(grant.clearances);
+    } catch {
+      signal?.throwIfAborted();
+      throw new EngineError('IA-ENGINE-AUTHORITY-DENIED', 'Current renewal authority is unavailable');
+    }
     check(
       await bounded(
         () => this.host.verifyManifest(this.manifest),
@@ -1493,7 +1517,7 @@ export class Engine {
       grant.principal === principal &&
         grant.workspace === state.workspace &&
         Array.isArray(grant.clearances) &&
-        labels(state.label).every((id) => grant.clearances.includes(id)) &&
+        labels(state.label).every((id) => labels(grant.clearances).includes(id)) &&
         grant.profiles.includes(state.runs[state.rootId]!.profile) &&
         grant.sources.includes(this.manifest.sourceDigest) &&
         grant.expiresAt > this.now() &&
@@ -1822,7 +1846,7 @@ export class Engine {
       'IA-ENGINE-MODEL-INVALID',
       'Invalid model/usage',
     );
-    parseAction(response.action);
+    if (!proposesRelease(response.action)) parseAction(response.action);
     check(Buffer.byteLength(canonical(response)) <= 65_536, 'IA-ENGINE-MODEL-INVALID', 'Response too large');
     const owner = await this.store().acquire(sessionId);
     try {
@@ -1835,8 +1859,7 @@ export class Engine {
         'IA-ENGINE-MODEL-INVALID',
         'No external response is pending',
       );
-      const action = parseAction(response.action);
-      if (action.type === 'release') {
+      if (proposesRelease(response.action)) {
         if (journal.commands[commandId]) {
           const prior = journal.events.find((event) => event.id === commandId)?.mutation;
           check(
@@ -1847,7 +1870,7 @@ export class Engine {
             'Command ID already has different content',
           );
         } else {
-          const result = await this.releaseResponse(state, run, profile, attemptId, action, response.usage);
+          const result = await this.releaseResponse(state, run, profile, attemptId, response.action, response.usage);
           await this.store().command(
             {
               id: commandId,

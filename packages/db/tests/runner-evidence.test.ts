@@ -36,7 +36,12 @@ function append(
   overrides: Record<string, unknown> = {},
 ): void {
   const body = {
-    version: 1,
+    version:
+      Object.hasOwn(mutation, 'label') ||
+      mutation['type'] === 'release.accept' ||
+      (mutation['type'] === 'reaction.queue' && Object.hasOwn(mutation['reaction'] as Record<string, unknown>, 'label'))
+        ? 3
+        : 1,
     id: commandId ?? `event-${events.length + 1}`,
     sequence: events.length + 1,
     sessionId,
@@ -227,6 +232,20 @@ it.each([null, 'private', [''], [1], ['private\npublic']])('rejects malformed ev
     input = journal(root);
   append(input.events, { type: 'question.reply', questionId: 'question', answer: 'private', label });
   expect(() => writeRunnerEvidence(root, input)).toThrow('label');
+});
+
+it.each([
+  { type: 'attempt.observe', label: ['private'] },
+  { type: 'attempt.reconcile', label: ['private'] },
+  { type: 'question.reply', label: ['private'] },
+  { type: 'reaction.settle', label: ['private'] },
+  { type: 'reaction.queue', reaction: { label: ['private'] } },
+  { type: 'release.accept', release: { label: [] } },
+])('refuses label semantics downgraded to a legacy event version: $type', (mutation) => {
+  const root = workspace(),
+    input = journal(root);
+  append(input.events, mutation, undefined, { version: 1 });
+  expect(() => writeRunnerEvidence(root, input)).toThrow('unknown event type/version');
 });
 
 it('admits contiguous atomic command consequences with the same command id', () => {
