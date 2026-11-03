@@ -19,6 +19,7 @@ import { readMarketplaceRecord } from '../marketplace-record.js';
 import { detectPackageManager } from '../package-manager.js';
 import type { Env } from '../program.js';
 import { readTracked, trackedRow } from '../tracked.js';
+import { setupIds } from './offers.js';
 import type { ConsoleFacts, ConsoleState, DoctorReport, DoctorRun } from './state.js';
 import { areaOf, areasOf, assembleRows, DOCTOR_TIMEOUT_MS, readDoctorReport, runningOwner } from './state.js';
 
@@ -135,8 +136,6 @@ export async function loadState(input: {
     refreshNowWhy: view.facts?.refreshNowWhy ?? (view.facts === undefined ? 'doctor reported no update facts' : null),
     facts,
   };
-  const setup =
-    input.setupIds?.(state) ??
-    new Set(checks.filter((row) => row.status === 'info' && row.fix !== null).map((row) => row.id));
+  const setup = (input.setupIds ?? ((loaded) => setupIds(loaded, consoles)))(state);
   return { ...state, areas: areasOf(checks, setup, consoles) };
 }
