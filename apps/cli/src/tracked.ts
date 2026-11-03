@@ -7,12 +7,13 @@
  * Every write goes through `writeHomeFile` (atomic, fsynced) and keeps the keys it does not know, at the top level and
  * on each row, so a hand-edited file survives. A file that does not parse, or names another format, is refused as
  * `IA-CLI-TRACKED-INVALID` and never overwritten. A root is stored as its real path and compared by device and inode
- * (`sameFile`), so a junction, a trailing separator or another case on Windows is the same row. A row whose root is gone
- * stays in the list as `missing` until it is removed by name.
+ * (`sameRoot`), so a junction, a trailing separator or another case on Windows is the same row; where the volume
+ * reports no inode, by exact real path. A row whose root is gone stays in the list as `missing` until it is removed by
+ * name.
  */
 import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
-import { pathKey, sameFile, within } from '@inventarch/db/internal/paths';
+import { pathKey, within } from '@inventarch/db/internal/paths';
 import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
 import { UsageError } from './args.js';
 import { withTrackedLock } from './tracked-lock.js';
@@ -70,14 +71,38 @@ const identity = (path: string): Identity | undefined => {
   }
 };
 /**
- * One root, whichever way it is spelled. While both paths exist the answer is their device and inode and nothing else,
- * so two directories whose names differ only by case (on a volume that keeps them apart) are two roots. Only when one
- * of them is gone is the folded spelling compared, as the volume would fold it.
+ * An identity the volume did not supply: some network and ReFS volumes on Windows report a file id of 0 or all ones
+ * (which Node passes on as the inode), and those values never mean "the same file". An inode of 0 covers a device and
+ * inode that are both 0.
  */
-export function sameRoot(a: string, b: string, stat: (path: string) => Identity | undefined = identity): boolean {
+const ALL_ONES = 2n ** 64n - 1n;
+const unidentified = (id: Identity): boolean => id.ino === 0n || id.ino === ALL_ONES;
+/** The exact real path; the resolved spelling when even that cannot be read. */
+const realOrResolved = (path: string, real: (path: string) => string): string => {
+  try {
+    return real(path);
+  } catch {
+    return resolve(path);
+  }
+};
+/**
+ * One root, whichever way it is spelled. While both paths exist the answer is their device and inode and nothing else,
+ * so two directories whose names differ only by case (on a volume that keeps them apart) are two roots. Where either
+ * side reports no identity, their real paths are compared exactly, never folded, so two directories are never one row.
+ * Only when one of them is gone is the folded spelling compared, as the volume would fold it.
+ */
+export function sameRoot(
+  a: string,
+  b: string,
+  stat: (path: string) => Identity | undefined = identity,
+  real: (path: string) => string = realpathSync.native,
+): boolean {
   const left = stat(a),
     right = stat(b);
-  if (left !== undefined && right !== undefined) return left.dev === right.dev && left.ino === right.ino;
+  if (left !== undefined && right !== undefined) {
+    if (unidentified(left) || unidentified(right)) return realOrResolved(a, real) === realOrResolved(b, real);
+    return left.dev === right.dev && left.ino === right.ino;
+  }
   return pathKey(resolve(a)) === pathKey(resolve(b));
 }
 
@@ -229,7 +254,7 @@ function admit(
   if (input.id !== undefined) checkTrackId(input.id);
   const root = workspaceRoot(input.root);
   // Host plugin distribution spec §3: the IA home holds configuration and state, never a workspace.
-  if (within(home, root) || sameFile(join(root, '.ia'), home))
+  if (within(home, root) || sameRoot(join(root, '.ia'), home))
     throw new Refusal(
       'IA-DIST-PATH-UNSAFE',
       `${root} is inside the IA home ${home}; a workspace there is never tracked`,
@@ -369,7 +394,7 @@ export function findWorkspaces(
       { path: absolute },
       'Run "ia workspaces find <folder>" with a folder that exists.',
     );
-  const home = (path: string): boolean => iaHome !== undefined && sameFile(path, iaHome);
+  const home = (path: string): boolean => iaHome !== undefined && sameRoot(path, iaHome);
   const start = realpathSync(absolute);
   // The folder itself is held to the exclusions its children are: asking to look inside one is not a way around them.
   if ((iaHome !== undefined && within(iaHome, start)) || SKIPPED.has(basename(start)) || isFile(join(start, '.git')))

@@ -267,6 +267,33 @@ it('sameRoot judges two existing roots by device and inode alone, whatever their
   expect(sameRoot('/w/repo', '/w/REPO-gone', stat)).toBe(false);
 });
 
+it('sameRoot compares exact real paths when either side reports no identity (inode 0 or all ones)', () => {
+  const ALL_ONES = 2n ** 64n - 1n;
+  const stats: Record<string, { dev: bigint; ino: bigint }> = {
+    '/w/a': { dev: 1n, ino: 0n },
+    '/w/b': { dev: 1n, ino: 0n },
+    '/w/c': { dev: 1n, ino: ALL_ONES },
+    '/w/d': { dev: 1n, ino: ALL_ONES },
+    '/w/e': { dev: 0n, ino: 0n },
+    '/w/f': { dev: 0n, ino: 0n },
+    '/w/real': { dev: 1n, ino: 7n },
+    '/w/A': { dev: 1n, ino: 0n },
+  };
+  const stat = (path: string) => stats[path];
+  // Each path is its own real path here, except /w/alias, a link to /w/a.
+  const real = (path: string): string => (path === '/w/alias' ? '/w/a' : path);
+  stats['/w/alias'] = { dev: 1n, ino: 0n };
+  expect(sameRoot('/w/a', '/w/b', stat, real)).toBe(false);
+  expect(sameRoot('/w/c', '/w/d', stat, real)).toBe(false);
+  expect(sameRoot('/w/e', '/w/f', stat, real)).toBe(false);
+  // One side unavailable is enough: a valid inode never matches an unavailable one by number.
+  expect(sameRoot('/w/real', '/w/a', stat, real)).toBe(false);
+  // The real paths are compared exactly, never folded.
+  expect(sameRoot('/w/a', '/w/A', stat, real)).toBe(false);
+  expect(sameRoot('/w/a', '/w/a', stat, real)).toBe(true);
+  expect(sameRoot('/w/alias', '/w/a', stat, real)).toBe(true);
+});
+
 it.skipIf(process.platform !== 'linux')('tracks, finds and removes two directories that differ only by case', () => {
   const at = home(),
     parent = scratch('tracked'),
