@@ -61,11 +61,42 @@ export function observeClaude(runner: ClaudeRunner): ClaudeState {
     ),
   };
 }
-/** §6.3: `marketplace add` and `install` are both idempotent, so registration is always the same two commands. */
+/**
+ * §6.3: all four commands are idempotent, so registration is always the same four. `install` leaves an installed plugin
+ * at its version and Claude does not refresh a third-party catalogue by default, so the last two bring an existing
+ * install to the catalogue's current release; both exit 0 when it already is. The update reports its outcome as JSON,
+ * which `updateHeld` reads.
+ */
 export const registrationCommands = (marketplace: string): string[][] => [
   ['plugin', 'marketplace', 'add', marketplace],
   ['plugin', 'install', PLUGIN_ID, '--scope', 'user'],
+  ['plugin', 'marketplace', 'update', CLAUDE_MARKETPLACE],
+  ['plugin', 'update', PLUGIN_ID, '--scope', 'user', '--json'],
 ];
+export const isPluginUpdate = (command: readonly string[]): boolean =>
+  command[0] === 'plugin' && command[1] === 'update';
+/**
+ * Why a `plugin update --json` that exited 0 left the plugin where it was, or null when it reports no such thing. Claude
+ * exits 0 for a plugin another plugin pins to an older range (`updateOutcome` `skipped`, with its message) and for an
+ * update whose catalogue refresh failed (`refreshFailed`). Output that is not a JSON object reports nothing.
+ */
+export function updateHeld(stdout: string): string | null {
+  let row: unknown;
+  try {
+    row = JSON.parse(stdout.trim().split('\n').pop() ?? '');
+  } catch {
+    return null;
+  }
+  if (row === null || typeof row !== 'object') return null;
+  const report = row as Record<string, unknown>,
+    message = typeof report['message'] === 'string' ? report['message'] : '';
+  if (report['updateOutcome'] === 'skipped')
+    return (
+      message || `skipped (${typeof report['skipReason'] === 'string' ? report['skipReason'] : 'no reason given'})`
+    );
+  if (report['refreshFailed'] === true) return message || 'the catalogue could not be refreshed';
+  return null;
+}
 /** §6.3: `uninstall` and `remove` exit 1 when there is nothing to remove, so only what is listed (or unknown) is removed. */
 export function removalCommands(state: ClaudeState): string[][] {
   return [

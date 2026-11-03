@@ -26,7 +26,15 @@ import { UsageError } from './args.js';
 import { detectChannel, updateInstruction } from './channel.js';
 import type { Channel } from './channel.js';
 import type { ClaudeRunner } from './claude-cli.js';
-import { claudeRunner, observeClaude, PLUGIN_ID, registrationCommands, removalCommands } from './claude-cli.js';
+import {
+  claudeRunner,
+  isPluginUpdate,
+  observeClaude,
+  PLUGIN_ID,
+  registrationCommands,
+  removalCommands,
+  updateHeld,
+} from './claude-cli.js';
 import type { Context, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf } from './consumer.js';
 import { homeSrcRemedy, hostHome, located } from './home-remedy.js';
@@ -154,7 +162,7 @@ function marketplaceRefusal(error: unknown, view: UserHostView): unknown {
   const refusal = refusalOf(error);
   if (!refusal.code.startsWith('IA-DIST-')) return error;
   const directory = join(view.home, 'claude'),
-    rerun = rerunOf(view.remove);
+    rerun = rerunOf(view.remove, view.source === 'local' && !view.remove);
   const next =
     refusal.code === 'IA-DIST-INSTALL-BUSY'
       ? // Two causes share the code: files held open during a rename, and another run holding the lock.
@@ -185,8 +193,10 @@ export interface UserHostApplied {
 /**
  * §6.3: materialize, then register through `claude`; removal runs `claude` first and deletes the directory last, so a
  * failed uninstall leaves the marketplace Claude still points at. A failing command refuses naming itself and the
- * rerun, and the commands before it have run. A rerun converges: registration repeats two idempotent commands, and
- * removal asks claude again what is left (the “Registration” contract).
+ * rerun, and the commands before it have run; so does an update Claude reports it held back (`updateHeld`). The public
+ * install is recorded as soon as `install` exits 0, so a refresh that fails after it does not hide the install from
+ * `ia doctor` and workspace plans. A rerun converges: registration repeats four idempotent commands, and removal asks
+ * claude again what is left (the “Registration” contract).
  */
 export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHostApplied {
   if (!view.remove && view.source === 'local')
@@ -195,21 +205,24 @@ export function applyUserHost(view: UserHostView, runner: ClaudeRunner): UserHos
   if (view.claude)
     for (const command of view.commands) {
       const result = runner.run(command);
-      if (result.status !== 0)
+      const held = result.status === 0 && isPluginUpdate(command) ? updateHeld(result.stdout) : null;
+      if (result.status !== 0 || held !== null)
         throw new Refusal(
           'IA-CLI-HOST-COMMAND-FAILED',
-          `${claudeCommand(command)} exited ${result.status ?? 'without a status'}: ${result.output || 'no output'}`,
+          held === null
+            ? `${claudeCommand(command)} exited ${result.status ?? 'without a status'}: ${result.output || 'no output'}`
+            : `${claudeCommand(command)} left ${PLUGIN_ID} where it was: ${held}`,
           3,
           null,
           `Fix what claude reported above, then rerun "${rerunOf(view.remove, view.source === 'local' && !view.remove)}".`,
         );
       ran.push([...command]);
+      if (!view.remove && view.source === 'marketplace' && command[1] === 'install')
+        writeMarketplaceRecord(view.home, PLUGIN_ID, view.plugin.cli);
     }
   if (view.remove) {
     marketplaceStep(view, () => removeMarketplace(view.home));
     removeMarketplaceRecord(view.home);
-  } else if (view.source === 'marketplace' && view.claude) {
-    writeMarketplaceRecord(view.home, PLUGIN_ID, view.plugin.cli);
   }
   const status = view.remove
     ? view.claude
