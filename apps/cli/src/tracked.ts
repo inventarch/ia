@@ -372,11 +372,7 @@ export function findWorkspaces(
   const home = (path: string): boolean => iaHome !== undefined && sameFile(path, iaHome);
   const start = realpathSync(absolute);
   // The folder itself is held to the exclusions its children are: asking to look inside one is not a way around them.
-  if (
-    (iaHome !== undefined && within(iaHome, start)) ||
-    SKIPPED.has(basename(start)) ||
-    isFile(join(start, '.git'))
-  )
+  if ((iaHome !== undefined && within(iaHome, start)) || SKIPPED.has(basename(start)) || isFile(join(start, '.git')))
     return [];
   const found: string[] = [];
   const walk = (directory: string, level: number): void => {

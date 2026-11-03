@@ -32,7 +32,13 @@ const plantLock = (at: string, owner: Record<string, unknown>): string => {
   const lock = resolve(at, TRACKED_LOCK_FILE);
   writeFileSync(
     lock,
-    JSON.stringify({ token: 'planted', start: null, createdAt: '2026-01-01T00:00:00.000Z', host: hostname(), ...owner }),
+    JSON.stringify({
+      token: 'planted',
+      start: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      host: hostname(),
+      ...owner,
+    }),
   );
   return lock;
 };
@@ -55,9 +61,13 @@ it('real processes adding at once lose no row', async () => {
       { length: children },
       (_, c) =>
         new Promise<{ code: number | null; stderr: string }>((done) => {
-          const child = spawn(process.execPath, ['--input-type=module', '-e', script, at, base, String(c), String(each)], {
-            stdio: ['ignore', 'ignore', 'pipe'],
-          });
+          const child = spawn(
+            process.execPath,
+            ['--input-type=module', '-e', script, at, base, String(c), String(each)],
+            {
+              stdio: ['ignore', 'ignore', 'pipe'],
+            },
+          );
           let stderr = '';
           child.stderr.on('data', (chunk) => (stderr += chunk));
           child.on('close', (code) => done({ code, stderr }));

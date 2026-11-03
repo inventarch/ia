@@ -88,7 +88,8 @@ function ensureHome(home: string): void {
     try {
       return ensureIaHome(home);
     } catch (error) {
-      if (attempt >= 40 || !['EPERM', 'EBUSY', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error;
+      if (attempt >= 40 || !['EPERM', 'EBUSY', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? ''))
+        throw error;
       sleep(LOCK_POLL_MS);
     }
   }
