@@ -47,7 +47,7 @@
     "mapped": false,
     "workspace": {
       "root": "<ROOT>/consumer",
-      "revision": "59fce9308817004dd9637c7be4e66dad61005c8491096e24e54178b93ad1c261"
+      "revision": "0ba03680a3138194731be3ec00ab07e743550bf6c13048cfaaa2fd407a032a03"
     }
   },
   "instructions": [
@@ -164,38 +164,7 @@
       "source": "playbook"
     }
   ],
-  "references": [
-    {
-      "identity": "governance-system/governance/law/kb-disclosure-boundary",
-      "digest": "b6c447ac5b298a2061c9beb82eef5f6ef5012cd60258898f543434b99eeb2212",
-      "when": "always"
-    },
-    {
-      "identity": "governance-system/governance/law/kb-exact-pins",
-      "digest": "65a52488ce7d11a6d90468df0e704780cb7bbe4d659ee71f5b2f8f0596ffa6eb",
-      "when": "always"
-    },
-    {
-      "identity": "governance-system/governance/law/kb-not-evaluated-is-not-pass",
-      "digest": "f6907b5eb1d1ee050bda62af3ec2427310aeb9e4df63716a1c1405f6c594af7e",
-      "when": "always"
-    },
-    {
-      "identity": "governance-system/governance/law/kb-one-canonical-writer",
-      "digest": "8b405365a2c4c62aabd6942fcce50a794dd1a938d525b1244a2a10567e49bbdd",
-      "when": "always"
-    },
-    {
-      "identity": "governance-system/governance/law/kb-reviewer-independence",
-      "digest": "3be4c71121188d22cd6c39ef6e96ed7ae2540ba4be385160002fdb714572e522",
-      "when": "always"
-    },
-    {
-      "identity": "agent-system/policy/mandate/ia-kb-kit-mandate",
-      "digest": null,
-      "when": "seat"
-    }
-  ],
+  "references": [],
   "role": {
     "profile": null,
     "brief": "Check a KB: record admission, document-to-spec coverage, the decision lifecycle, navigation and kit evaluator results, without conflating not-evaluated with pass. Run ia position for the task scope, then ia validate (the declared check kb-check-validate, which the kb-gate-runner can run) and the decision lifecycle (the declared check kb-check-decisions: a made @decision names its decider, choice and rationale, and a superseded one keeps them and has a successor; the accepted revision is not required yet), the KB's own index and check workflow and tests when it supplies them, and report the revision, tool provenance, checks run, passed, failed and not-evaluated requirements and missing evaluators. Use for checking the KB or after KB maintenance."
@@ -238,5 +207,5 @@
     ]
   },
   "kitUpdateAvailable": null,
-  "digest": "a12a670a6bb8a98d9d5eacb69d0d924479b8343eee137007e3fbf3ab22672d22"
+  "digest": "4edff6cfc65cd112b443b495573b6c5c2ffabd5090fd07a165d793f2202142d2"
 }
