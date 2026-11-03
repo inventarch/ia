@@ -14,6 +14,7 @@ import {
   kitChecks,
   kitDelivery,
   listKits,
+  requireKitInstalled,
   sourcesDigest,
 } from './kits.js';
 import type { Kit, KitSources } from './kits.js';
@@ -211,6 +212,11 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
       'IA-CORE-REBIND-REQUIRED',
       { key: legacyKey },
     );
+
+  // A bound key runs only a kit the repository's own lock installs, whatever copy of the kit is carried, held in the IA
+  // home or retained by a pin, and whether or not the task rebinds. The refusal comes before anything is retained or
+  // written. The unbound route (outside a workspace) has no lock.
+  if (!unbound) requireKitInstalled(workspaceRoot!, { id: binding.kit });
 
   const keyPin = pin?.keys?.[activityKey] ?? null;
   const savedKit = pin?.kits?.[binding.kit] ?? null;

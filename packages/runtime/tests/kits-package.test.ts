@@ -160,6 +160,6 @@ it('says to run ia restore when the store lacks a kit the lock installs, and ref
     code: 'IA-CORE-KIT-RESTORE-REQUIRED',
     message: expect.stringContaining('run ia restore'),
   });
-  // dec-117: a kit nothing installs, bundles or carries is still refused.
-  expect(refused('check')).toMatchObject({ code: 'IA-CORE-KIT-UNKNOWN' });
+  // A kit the lock does not install is refused, whether or not anything bundles or carries it.
+  expect(refused('check')).toMatchObject({ code: 'IA-CORE-KIT-NOT-INSTALLED' });
 });
