@@ -19,7 +19,9 @@ export type SymbolName =
   | 'step'
   | 'added'
   | 'removed'
-  | 'updated';
+  | 'updated'
+  | 'setup'
+  | 'unreported';
 export type Depth = 0 | 1 | 2;
 
 export interface Terminal {
@@ -104,6 +106,9 @@ const SYMBOLS: Readonly<Record<SymbolName, SymbolDefinition>> = {
   added: { unicode: '+', ascii: '+', role: 'green' },
   removed: { unicode: '-', ascii: '-', role: null },
   updated: { unicode: '~', ascii: '~', role: null },
+  // The console's area states: not set up, and a row a copy does not report.
+  setup: { unicode: '○', ascii: 'o', role: null },
+  unreported: { unicode: '—', ascii: '-', role: 'dim' },
 };
 /** Every symbol is one UTF-16 unit per display column, so length is its display width; no emoji is admitted. */
 export function statusSymbol(name: SymbolName, ascii: boolean): StatusSymbol {

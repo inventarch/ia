@@ -122,11 +122,21 @@ describe('offers from fixes', () => {
   it('a copy that emits no fix gets its install and pin offers built here with the explicit directory', () => {
     const facts = { ...FACTS, manifestDir: '/srv/mono' };
     const at = `${'/srv/mono'}/ws`;
-    const offers = offersFor(state([row('cli-version', 'warn')], { root: at, facts }));
+    // An older copy names the install as advice text and emits no fix; one with no remedy gets no offer.
+    expect(
+      find(offersFor(state([row('cli-version', 'warn')], { root: at, facts })), 'fix:cli-version'),
+    ).toBeUndefined();
+    const offers = offersFor(state([row('cli-version', 'warn', null, { remedy: 'npm install' })], { root: at, facts }));
     expect(find(offers, 'fix:cli-version')?.steps).toEqual([
       { program: 'external', argv: ['npm', 'install', '--prefix', '/srv/mono'], flow: 'confirm', writesTo: 'repo' },
     ]);
-    const pin = offersFor(state([row('cli-version', 'info')], { root: at, facts, repo: null }));
+    const pin = offersFor(
+      state([row('cli-version', 'info', null, { remedy: 'npm install -D @inventarch/cli@3.5.1' })], {
+        root: at,
+        facts,
+        repo: null,
+      }),
+    );
     expect(find(pin, 'fix:cli-version')?.steps).toEqual([
       {
         program: 'external',

@@ -1,0 +1,30 @@
+ CLI     ▲ running 3.5.1; this w… Records     ✔ 257 records · 2 w… Kits ○ no kits installed
+ Updates ▲ ia 3.5.2 is available… Lock        ✔ None installed     Host ○ No host registered
+ Plugin  ▲ ia 3.5.0 rendered the… Marketplace ✔ inventarch · ia ·…
+──────────────────────────────────────────┬─────────────────────────────────────────────────────────
+ NEEDS ATTENTION                          │ DIAGNOSTICS  10 checks
+ › ▲ Upgrade CLI to 3.5.2                 │ ✔ install-channel  running  npm @inventarch/cli 3.5.1
+   ▲ Refresh Claude plugin                │ ▲ cli-version      repo     running 3.5.1; this worksp…
+ SET UP                                   │ ✔ node             repo     v22.23.4 on win32 x64
+   ○ Add a kit…                           │ ✔ records          repo     257 records, 0 errors, 2 w…
+   ○ Register a host: Claude              │ • kits             repo     no kits installed
+   ○ Register a host: Codex               │ ▲ updates          running  ia 3.5.2 is available; thi…
+   ○ Track this workspace                 │ • generation       repo     None installed
+ MORE                                     │ • host             repo     No host registered
+   · Diagnostics                          │ ▲ plugin-claude    running  ia 3.5.0 rendered the plug…
+   · Check for updates now                │ ✔ marketplace      repo     inventarch · ia · installe…
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+                                          │
+──────────────────────────────────────────┴─────────────────────────────────────────────────────────
+ ↑↓ scroll · tab offers · esc back · q quit

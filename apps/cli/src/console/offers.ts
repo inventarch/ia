@@ -178,7 +178,8 @@ export function offersFor(state: ConsoleState, extensions: readonly ExtensionCon
 
   for (const row of reported) {
     if (row.status === 'ok' || row.status === 'unknown') continue;
-    const fix = row.fix ?? (row.id === 'cli-version' ? cliFallback(row, state) : null);
+    // A copy older than fixes still names its install or pin as a remedy; the console builds that command here.
+    const fix = row.fix ?? (row.id === 'cli-version' && row.remedy !== null ? cliFallback(row, state) : null);
     if (fix === null) continue;
     add({
       id: `fix:${row.id}`,
