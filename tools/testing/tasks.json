@@ -843,6 +843,7 @@
         "tests/briefing.test.ts",
         "tests/channel.test.ts",
         "tests/cli-version.test.ts",
+        "tests/console-app.test.ts",
         "tests/console-keys.test.ts",
         "tests/console-layout.test.ts",
         "tests/console-offers.test.ts",
