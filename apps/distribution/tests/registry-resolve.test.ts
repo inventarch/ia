@@ -1073,3 +1073,38 @@ it('two collections upgraded together keep each other’s member constraints, an
     ),
   ).rejects.toMatchObject({ code: 'IA-DIST-CONFLICT', message: 'Kit conflicts with direct request acme/x' });
 });
+
+it('without named ids, the members a collection left stay inherited: it upgrades, and a member it drops leaves', async () => {
+  const { dir } = await registry([
+    { id: 'acme/x', version: '1.0.0' },
+    { id: 'acme/x', version: '2.0.0' },
+    { id: 'acme/y', version: '1.0.0' },
+  ]);
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/kit',
+    releases: [
+      {
+        version: '1.0.0',
+        withdrawn: false,
+        distributions: [
+          { id: 'acme/x', range: '^1.0.0' },
+          { id: 'acme/y', range: '^1.0.0' },
+        ],
+      },
+      { version: '2.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^2.0.0' }] },
+    ],
+  });
+  // `named` is omitted, so every request's index is read; that says nothing about which requests the user gave.
+  const resolved = await resolveWith(
+    workspaceRoot(),
+    dir,
+    [
+      { id: 'acme/kit', range: '2.0.0' },
+      { id: 'acme/x', range: '^1.0.0' },
+      { id: 'acme/y', range: '^1.0.0' },
+    ],
+    { allowKits: true, collectionMembers: new Map([['acme/kit', ['acme/x', 'acme/y']]]) },
+  );
+  expect(resolved.expandedRequests).toEqual([{ id: 'acme/x', range: '^2.0.0' }]);
+});

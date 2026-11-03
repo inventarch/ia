@@ -233,9 +233,10 @@ async function resolveWithPins(
     ...(request.named ?? requests.map((r) => r.id)),
     ...(request.preferredExcept === undefined ? [] : [request.preferredExcept]),
   ]);
-  // The ids the command itself names, before any collection's members join `named`, and the member ids each expansion
-  // in this command introduces: neither is a request an earlier expansion merely left behind.
-  const explicit = new Set(named),
+  // The ids the caller says the command itself names (`request.named` as given, never the index-lookup default above,
+  // which reads every request's index and says nothing about who asked for it), and the member ids each expansion in this
+  // command introduces: neither is a request an earlier expansion merely left behind.
+  const explicit = new Set(request.named ?? []),
     introduced = new Set<string>();
   // §5.2: the closure follows only releases selection could pick for some known constraint: not withdrawn, admitted by the
   // engine, and inside a range a request or a followed release places on the id. A locked version counts as known, so the
