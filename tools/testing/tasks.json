@@ -874,6 +874,13 @@
             "linux",
             "macos"
           ]
+        },
+        {
+          "case": "tests/handoff.test.ts > handOff returns 130 when the child ends on a signal",
+          "reason": "A child ended by a signal reports a null status only on POSIX; Windows has no such ending to produce.",
+          "platforms": [
+            "windows"
+          ]
         }
       ]
     },
@@ -1302,6 +1309,15 @@
       "resourceClass": "subprocess",
       "covers": [
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
+      ],
+      "skips": [
+        {
+          "case": "tests/handoff-installed.test.ts > the copy that handed off outlives a signal the child also receives",
+          "reason": "The fixture needs a catchable signal; on Windows process.kill ends the target unconditionally.",
+          "platforms": [
+            "windows"
+          ]
+        }
       ]
     },
     {
