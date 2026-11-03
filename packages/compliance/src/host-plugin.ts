@@ -178,6 +178,8 @@ const HOOK = [
   '  // qualified entry becomes the system one: /usr/bin:/bin, or the System32 directory that holds cmd.exe.',
   "  env.PATH = entries.length > 0 ? entries.join(delimiter) : process.platform === 'win32' ? systemDirectory() : '/usr/bin:/bin';",
   "  if (process.platform === 'win32') env.NoDefaultCurrentDirectoryInExePath = '1';",
+  '  // The ia the hook found answers itself and never hands off to a copy the repository installed.',
+  "  env.IA_NO_HANDOFF = '1';",
   '  return env;',
   '}',
   'function main() {',

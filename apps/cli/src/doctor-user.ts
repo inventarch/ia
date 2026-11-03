@@ -11,7 +11,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db';
 import type { Decision } from '@inventarch/distribution/decisions';
 import { decisionFor, DECISIONS, readDecisions } from '@inventarch/distribution/decisions';
@@ -31,7 +31,11 @@ import type { Channel } from './channel.js';
 import { describeChannel, detectChannel, updateInstruction } from './channel.js';
 import type { Check, CheckStatus, Section } from './doctor.js';
 import { quote } from './render.js';
+import { committed, HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
+import { findLocalCli, readCliDependency } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
+import type { PackageManager } from './package-manager.js';
+import { detectPackageManager, installCommand, pinCommand, satisfies } from './package-manager.js';
 
 export interface UserFacts {
   readonly channel: Channel;
@@ -114,6 +118,88 @@ const workspaceLanguages = (root: string): { readonly languages: readonly string
   }
 };
 
+/** The `version` of the `package.json` in `directory`, or null when it cannot be read. */
+const versionAt = (directory: string): string | null => {
+  try {
+    const version = (JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as { version?: unknown })
+      .version;
+    return typeof version === 'string' ? version : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * §7.3 `cli-version`: which `@inventarch/cli` copy runs for the workspace, the CLI dependency its nearest manifest
+ * lists, and whether the installed copy satisfies it (consumer-cli-contract §1.2). Local reads only. The remedy is the
+ * package manager's own command, and none when the manager is undeclared or its lockfiles disagree.
+ */
+export function cliVersionRow(input: {
+  readonly root: string;
+  readonly packageRoot: string;
+  readonly version: string;
+  readonly env: Readonly<Record<string, string | undefined>>;
+  /** `--host` was given: doctor answers itself and never hands off (dec-007). */
+  readonly host: boolean;
+  /** Whether git tracks the installed copy (handoff.ts); injected by tests. */
+  readonly committed?: (packageRoot: string) => boolean;
+}): Check {
+  const { root, version, env } = input;
+  const dependency = readCliDependency(root);
+  const local = dependency === null ? null : findLocalCli(root, dirname(dependency.manifest));
+  const managed = dependency === null ? root : dirname(dependency.manifest);
+  const { manager, conflict } = detectPackageManager(managed);
+  const manage = (command: (manager: PackageManager) => string): string | null =>
+    manager === null ? null : command(manager);
+  const suffix =
+    conflict.length > 0
+      ? `; package managers disagree: ${conflict.join(', ')}`
+      : manager === null
+        ? '; no package manager declared or locked'
+        : '';
+  const cli = (status: CheckStatus, detail: string, remedy: string | null = null): Check =>
+    row('cli-version', 'Environment', 'CLI version', status, detail + suffix, remedy);
+  if (dependency === null)
+    return cli(
+      'info',
+      `no @inventarch/cli dependency; running ${version}`,
+      manage((m) => pinCommand(m, version, managed)),
+    );
+  if (local === null) {
+    const path = relative(root, dependency.manifest);
+    const shown = path === '' || path.startsWith('..') || isAbsolute(path) ? dependency.manifest : path;
+    return cli(
+      'warn',
+      `${shown.replaceAll('\\', '/')} lists @inventarch/cli ${dependency.range}, which is not installed between the workspace and it; running ${version}`,
+      manage(installCommand),
+    );
+  }
+  const satisfied = satisfies(local.version, dependency.range);
+  if (satisfied === false)
+    return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, manage(installCommand));
+  if (!sameFile(local.packageRoot, input.packageRoot)) {
+    const why =
+      env[NO_HANDOFF] === '1'
+        ? `${NO_HANDOFF} is set`
+        : input.host
+          ? 'doctor --host does not hand off'
+          : (input.committed ?? committed)(local.packageRoot)
+            ? 'the repository commits that copy, so it never runs on a typed command'
+            : null;
+    return why === null
+      ? cli('warn', `running ${version}; this workspace's copy is ${local.version}`)
+      : cli('info', `running ${version}, not this workspace's ${local.version} (${why})`);
+  }
+  const from = env[HANDOFF_FROM] ?? '';
+  const global = from === '' ? null : versionAt(from);
+  return cli(
+    'ok',
+    `this workspace's copy ${local.version}, CLI dependency ${dependency.range}` +
+      (satisfied === null ? ' (range not evaluated)' : '') +
+      (global === null ? '' : `; global ${global} handed off`),
+  );
+}
+
 export function userRows(input: {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** The user's home directory; the IA home is resolved from it when IA_HOME is unset. */
@@ -131,6 +217,10 @@ export function userRows(input: {
   readonly now: Date;
   /** The channel as observed; detected from `packageRoot` when not supplied. */
   readonly channel?: Channel | undefined;
+  /** doctor's `--host` was given, so the `cli-version` row reports that no hand-off happened. */
+  readonly host?: boolean | undefined;
+  /** The channel of the copy that handed off; detected from `IA_HANDOFF_FROM` when not supplied. */
+  readonly handingChannel?: Channel | undefined;
 }): { readonly checks: readonly Check[]; readonly facts: UserFacts } {
   const checks: Check[] = [];
   // §5: the filesystem and local git only.
@@ -144,6 +234,16 @@ export function userRows(input: {
       describeChannel(channel),
     ),
   );
+  if (input.root !== undefined)
+    checks.push(
+      cliVersionRow({
+        root: input.root,
+        packageRoot: input.packageRoot,
+        version: input.version,
+        env: input.env,
+        host: input.host === true,
+      }),
+    );
 
   // §3: absent is a note, because the first `ia host` or `ia init --decline` creates it; src/ is the one failure.
   let home: string | null = null;
@@ -192,6 +292,15 @@ export function userRows(input: {
     );
   }
 
+  // dec-007: the plugin and the update cache belong to the copy that renders the one and refreshes the other. Neither
+  // `ia host claude --user` nor the session hook hands off, so after a hand-off that is the copy that handed off, and
+  // both rows are judged against its version whenever its package.json reads. The update cache is also keyed by that
+  // copy's channel, so the version and the channel always come from the same copy.
+  const from = input.env[HANDOFF_FROM] ?? '';
+  const handing = from === '' ? null : versionAt(from);
+  const userVersion = handing ?? input.version;
+  const updateChannel = handing === null ? channel : (input.handingChannel ?? detectChannel(from));
+
   // §6.3 and §7.3 `plugin-<host>`: what the IA home holds. Registration with Claude is Claude's state, never read.
   let plugin: UserFacts['plugin'] = null;
   if (home === null)
@@ -206,7 +315,7 @@ export function userRows(input: {
       // A marketplace install: Claude holds the plugin, and the IA home's record says which and by which ia.
       plugin = { cli: recorded.cli, version: `${recorded.plugin} from ${recorded.marketplace}` };
       checks.push(
-        recorded.cli === input.version
+        recorded.cli === userVersion
           ? row(
               'plugin-claude',
               'Environment',
@@ -219,7 +328,7 @@ export function userRows(input: {
               'Environment',
               'Claude plugin',
               'warn',
-              `${recorded.plugin} was installed from ${recorded.marketplace} by ia ${recorded.cli}; this is ia ${input.version}`,
+              `${recorded.plugin} was installed from ${recorded.marketplace} by ia ${recorded.cli}; this is ia ${userVersion}`,
               USER_APPLY,
             ),
       );
@@ -250,7 +359,7 @@ export function userRows(input: {
     else {
       plugin = { cli: materialized.cli, version: materialized.version };
       checks.push(
-        materialized.cli === input.version
+        materialized.cli === userVersion
           ? row(
               'plugin-claude',
               'Environment',
@@ -263,7 +372,7 @@ export function userRows(input: {
               'Environment',
               'Claude plugin',
               'warn',
-              `${materialized.version} was rendered by ia ${materialized.cli}; this is ia ${input.version}`,
+              `${materialized.version} was rendered by ia ${materialized.cli}; this is ia ${userVersion}`,
               USER_APPLY,
             ),
       );
@@ -275,9 +384,9 @@ export function userRows(input: {
   const disabled = updateCheckDisabled(input.env, home === null ? null : readIaConfig(home));
   const stored = home === null ? null : readUpdateCheck(home);
   const cached: UpdateCheck | null =
-    stored !== null && stored.cli.channel === channel.kind && stored.cli.current === input.version ? stored : null;
+    stored !== null && stored.cli.channel === updateChannel.kind && stored.cli.current === userVersion ? stored : null;
   const latest = cached?.cli.latest ?? null,
-    newer = latest !== null && compareVersions(latest, input.version) > 0 ? latest : null,
+    newer = latest !== null && compareVersions(latest, userVersion) > 0 ? latest : null,
     behind = cached?.cli.behind ?? null,
     checkedOn = cached === null ? '' : localDate(cached.checkedAt);
   const updatesRow = (status: CheckStatus, detail: string, remedy: string | null = null): Check =>
@@ -295,8 +404,8 @@ export function userRows(input: {
     checks.push(
       updatesRow(
         'warn',
-        `ia ${newer} is available; this is ${input.version} (checked ${checkedOn})`,
-        updateInstruction(channel),
+        `ia ${newer} is available; this is ${userVersion} (checked ${checkedOn})`,
+        updateInstruction(updateChannel),
       ),
     );
   else if ((behind ?? 0) > 0)
@@ -304,7 +413,7 @@ export function userRows(input: {
       updatesRow(
         'warn',
         `${behind} commits behind upstream as of the last fetch (checked ${checkedOn})`,
-        updateInstruction(channel),
+        updateInstruction(updateChannel),
       ),
     );
   // §11: a check older than a week means the background refresh keeps failing to finish.
@@ -315,7 +424,7 @@ export function userRows(input: {
     checks.push(
       updatesRow(
         'unknown',
-        channel.kind === 'unknown'
+        updateChannel.kind === 'unknown'
           ? 'Not checked; an unknown install has no update source'
           : `Not checked; the last check (${checkedOn}) could not reach its source`,
       ),
@@ -337,11 +446,11 @@ export function userRows(input: {
           '--home',
           home,
           '--channel',
-          channel.kind,
+          updateChannel.kind,
           '--current',
-          input.version,
-          ...(channel.kind === 'npm' ? ['--name', channel.name] : []),
-          ...(channel.kind === 'checkout' ? ['--checkout', channel.root] : []),
+          userVersion,
+          ...(updateChannel.kind === 'npm' ? ['--name', updateChannel.name] : []),
+          ...(updateChannel.kind === 'checkout' ? ['--checkout', updateChannel.root] : []),
         ];
 
   // §7.3: only for a workspace this report describes.

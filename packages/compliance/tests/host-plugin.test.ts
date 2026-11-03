@@ -688,6 +688,7 @@ it('hook: on Windows the ia found runs as cmd.exe /d /v:off /s /c with the quote
           CLAUDE_PROJECT_DIR: 'C:\\project',
           PATH: bin,
           NoDefaultCurrentDirectoryInExePath: '1',
+          IA_NO_HANDOFF: '1',
         },
       },
     ],
@@ -704,7 +705,7 @@ it('hook: on Windows a .com or .exe found starts directly; only a .bat or .cmd g
     encoding: 'utf8',
     timeout: 5000,
     windowsHide: true,
-    env: { ...env, NoDefaultCurrentDirectoryInExePath: '1' },
+    env: { ...env, NoDefaultCurrentDirectoryInExePath: '1', IA_NO_HANDOFF: '1' },
   };
   const launches = ['.com', '.exe', '.bat', '.cmd'].map((type) => launchAsWindows(env, [`${bin}\\ia${type}`]));
   expect(launches.map(({ result }) => result)).toEqual(
@@ -830,6 +831,7 @@ it('hook: the child PATH keeps only qualified entries and, on Windows, skips the
     ComSpec: 'C:\\Windows\\system32\\cmd.exe',
     PATH: 'C:\\a;D:\\b',
     NoDefaultCurrentDirectoryInExePath: '1',
+    IA_NO_HANDOFF: '1',
   });
 });
 
