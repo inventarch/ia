@@ -51,34 +51,89 @@ export function detectPackageManager(directory: string): {
   return { manager: managers[0] ?? null, conflict: [] };
 }
 
-// A plain install, never a frozen one: the row asks for it exactly when the lockfile is missing or no longer matches the
-// manifest, which a frozen install refuses.
-export const installCommand = (manager: PackageManager): string => `${manager} install`;
-
-const PIN: Readonly<Record<PackageManager, string>> = {
-  npm: 'npm install -D',
-  pnpm: 'pnpm add -D',
-  yarn: 'yarn add -D',
-  bun: 'bun add -d',
+/** `directory` and `at` name one directory: resolved, and compared without case on Windows, whose volumes fold it. */
+const sameDirectory = (a: string, b: string): boolean => {
+  const [x, y] = [resolve(a), resolve(b)];
+  return process.platform === 'win32' ? x.toLowerCase() === y.toLowerCase() : x === y;
 };
-/**
- * The command that adds the dependency to the `package.json` in `directory`. At a workspace root pnpm and Yarn 1 refuse
- * an addition without `-w` and `-W`; Yarn 2 and later, which a `.yarnrc.yml` or a `yarn@2+` packageManager marks, take
- * none.
- */
-export function pinCommand(manager: PackageManager, version: string, directory: string): string {
-  const flag =
-    manager === 'pnpm' && existsSync(resolve(directory, 'pnpm-workspace.yaml'))
-      ? ' -w'
-      : manager === 'yarn' && yarnClassicRoot(directory)
-        ? ' -W'
-        : '';
-  return `${PIN[manager]}${flag} ${CLI}@${version}`;
+const packageManagerField = (directory: string): string => {
+  const value = readManifest(resolve(directory, 'package.json'))?.packageManager;
+  return typeof value === 'string' ? value : '';
+};
+/** Yarn 2 and later (Berry) where a `.yarnrc.yml` or a `yarn@2+` packageManager marks it; otherwise Yarn Classic. */
+export function yarnMajor(directory: string): 'classic' | 'berry' {
+  if (existsSync(resolve(directory, '.yarnrc.yml'))) return 'berry';
+  return /^yarn@([2-9]|\d{2,})/.test(packageManagerField(directory)) ? 'berry' : 'classic';
 }
-const yarnClassicRoot = (directory: string): boolean => {
-  const manifest = readManifest(resolve(directory, 'package.json'));
-  if (manifest === null || manifest.workspaces === undefined) return false;
-  if (existsSync(resolve(directory, '.yarnrc.yml'))) return false;
-  const declared = typeof manifest.packageManager === 'string' ? manifest.packageManager : '';
-  return !/^yarn@([2-9]|\d{2,})/.test(declared);
+/**
+ * Whether `directory` is a workspace root for `manager`: pnpm's is its `pnpm-workspace.yaml`; every other manager's is a
+ * `package.json` that declares `workspaces`, as an array or as `{packages}`.
+ */
+export function isWorkspaceRoot(manager: PackageManager, directory: string): boolean {
+  if (manager === 'pnpm') return existsSync(resolve(directory, 'pnpm-workspace.yaml'));
+  const workspaces = readManifest(resolve(directory, 'package.json'))?.workspaces;
+  return (
+    Array.isArray(workspaces) ||
+    (typeof workspaces === 'object' &&
+      workspaces !== null &&
+      Array.isArray((workspaces as { packages?: unknown }).packages))
+  );
+}
+
+/*
+ * Each manager's own flag for acting on another directory, checked against its documentation:
+ * - npm: the `prefix` config, which on the command line "forces non-global commands to run in the specified folder"
+ *   (docs.npmjs.com, config `prefix`): `npm install --prefix <dir>`;
+ * - pnpm: `-C, --dir <dir>`, "run as if pnpm was started in <dir>" (pnpm.io, CLI options; `pnpm --help`);
+ * - Yarn Classic: the global `--cwd <dir>` (classic.yarnpkg.com, CLI docs); Yarn 2 and later read a leading
+ *   `--cwd <dir>` before the command (yarnpkg/berry, packages/yarnpkg-cli/sources/lib.ts);
+ * - Bun: `--cwd <dir>` on `bun install` and `bun add` (bun.sh, docs for both commands).
+ * Where `directory` is `at`, no flag is added, so the command reads exactly as it always has.
+ */
+const DIRECTED_INSTALL: Readonly<Record<PackageManager, (dir: string) => readonly string[]>> = {
+  npm: (dir) => ['npm', 'install', '--prefix', dir],
+  pnpm: (dir) => ['pnpm', '--dir', dir, 'install'],
+  yarn: (dir) => ['yarn', '--cwd', dir, 'install'],
+  bun: (dir) => ['bun', 'install', '--cwd', dir],
 };
+const DIRECTED_ADD: Readonly<Record<PackageManager, (dir: string, flags: readonly string[]) => readonly string[]>> = {
+  npm: (dir, flags) => ['npm', 'install', '-D', ...flags, '--prefix', dir],
+  pnpm: (dir, flags) => ['pnpm', '--dir', dir, 'add', '-D', ...flags],
+  yarn: (dir, flags) => ['yarn', '--cwd', dir, 'add', '-D', ...flags],
+  bun: (dir, flags) => ['bun', 'add', '-d', ...flags, '--cwd', dir],
+};
+const ADD: Readonly<Record<PackageManager, readonly string[]>> = {
+  npm: ['npm', 'install', '-D'],
+  pnpm: ['pnpm', 'add', '-D'],
+  yarn: ['yarn', 'add', '-D'],
+  bun: ['bun', 'add', '-d'],
+};
+
+/**
+ * The install of the manifest in `directory`, run in `at`. A plain install, never a frozen one: the row asks for it
+ * exactly when the lockfile is missing or no longer matches the manifest, which a frozen install refuses.
+ */
+export const installArgv = (manager: PackageManager, directory: string, at: string): readonly string[] =>
+  sameDirectory(directory, at) ? [manager, 'install'] : DIRECTED_INSTALL[manager](directory);
+export const installCommand = (manager: PackageManager): string => installArgv(manager, '.', '.').join(' ');
+
+/**
+ * The addition of the dependency to the `package.json` in `directory`, run in `at`. At a workspace root pnpm and Yarn
+ * Classic refuse an addition without `-w` and `-W`; Yarn 2 and later take none.
+ */
+export function pinArgv(manager: PackageManager, version: string, directory: string, at: string): readonly string[] {
+  const flags =
+    manager === 'pnpm' && isWorkspaceRoot('pnpm', directory)
+      ? ['-w']
+      : manager === 'yarn' && yarnClassicRoot(directory)
+        ? ['-W']
+        : [];
+  const dependency = `${CLI}@${version}`;
+  return sameDirectory(directory, at)
+    ? [...ADD[manager], ...flags, dependency]
+    : [...DIRECTED_ADD[manager](directory, flags), dependency];
+}
+export const pinCommand = (manager: PackageManager, version: string, directory: string): string =>
+  pinArgv(manager, version, directory, directory).join(' ');
+const yarnClassicRoot = (directory: string): boolean =>
+  yarnMajor(directory) === 'classic' && isWorkspaceRoot('yarn', directory);

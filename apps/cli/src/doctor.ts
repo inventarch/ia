@@ -111,6 +111,7 @@ import {
   stateRepair,
 } from './host.js';
 import type { Pinned } from './host.js';
+import type { Fix } from './fix.js';
 import { codeOf } from './session.js';
 import type { Capabilities, Field, SymbolName } from './render.js';
 import { atom, document, entry, fieldRows, safeRootAdvice, sectionLabel, words } from './render.js';
@@ -124,6 +125,8 @@ export interface Check {
   readonly status: CheckStatus;
   readonly detail: string;
   readonly remedy: string | null;
+  /** The runnable form of `remedy` (fix.ts), or null when the remedy is advice or there is none. */
+  readonly fix?: Fix | null;
 }
 export interface DoctorView {
   readonly checks: readonly Check[];

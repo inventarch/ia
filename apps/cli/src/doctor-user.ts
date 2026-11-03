@@ -35,7 +35,16 @@ import { committed, HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
 import { findLocalCli, readCliDependency } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
 import type { PackageManager } from './package-manager.js';
-import { detectPackageManager, installCommand, pinCommand, satisfies } from './package-manager.js';
+import {
+  detectPackageManager,
+  installArgv,
+  installCommand,
+  pinArgv,
+  pinCommand,
+  satisfies,
+} from './package-manager.js';
+import type { Fix } from './fix.js';
+import { externalFix } from './fix.js';
 
 export interface UserFacts {
   readonly channel: Channel;
@@ -149,21 +158,38 @@ export function cliVersionRow(input: {
   const local = dependency === null ? null : findLocalCli(root, dirname(dependency.manifest));
   const managed = dependency === null ? root : dirname(dependency.manifest);
   const { manager, conflict } = detectPackageManager(managed);
-  const manage = (command: (manager: PackageManager) => string): string | null =>
-    manager === null ? null : command(manager);
+  // The remedy keeps the text it has always had; the fix names the manifest's directory explicitly, since the console
+  // runs it at the workspace root, which an ancestor manifest is not (host-plugin-distribution §7.3).
+  const manage = (
+    command: (manager: PackageManager) => string,
+    argv: (manager: PackageManager) => readonly string[],
+  ): { readonly remedy: string | null; readonly fix: Fix | null } =>
+    manager === null
+      ? { remedy: null, fix: null }
+      : { remedy: command(manager), fix: externalFix(argv(manager), 'repo').fix };
+  const install = manage(installCommand, (m) => installArgv(m, managed, root));
   const suffix =
     conflict.length > 0
       ? `; package managers disagree: ${conflict.join(', ')}`
       : manager === null
         ? '; no package manager declared or locked'
         : '';
-  const cli = (status: CheckStatus, detail: string, remedy: string | null = null): Check =>
-    row('cli-version', 'Environment', 'CLI version', status, detail + suffix, remedy);
+  const cli = (
+    status: CheckStatus,
+    detail: string,
+    action: { readonly remedy: string | null; readonly fix: Fix | null } = { remedy: null, fix: null },
+  ): Check => ({
+    ...row('cli-version', 'Environment', 'CLI version', status, detail + suffix, action.remedy),
+    fix: action.fix,
+  });
   if (dependency === null)
     return cli(
       'info',
       `no @inventarch/cli dependency; running ${version}`,
-      manage((m) => pinCommand(m, version, managed)),
+      manage(
+        (m) => pinCommand(m, version, managed),
+        (m) => pinArgv(m, version, managed, root),
+      ),
     );
   if (local === null) {
     const path = relative(root, dependency.manifest);
@@ -171,12 +197,12 @@ export function cliVersionRow(input: {
     return cli(
       'warn',
       `${shown.replaceAll('\\', '/')} lists @inventarch/cli ${dependency.range}, which is not installed between the workspace and it; running ${version}`,
-      manage(installCommand),
+      install,
     );
   }
   const satisfied = satisfies(local.version, dependency.range);
   if (satisfied === false)
-    return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, manage(installCommand));
+    return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, install);
   if (!sameFile(local.packageRoot, input.packageRoot)) {
     const why =
       env[NO_HANDOFF] === '1'
