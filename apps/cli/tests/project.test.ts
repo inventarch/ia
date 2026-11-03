@@ -314,7 +314,13 @@ it('ia project claude plans on a workspace with no descriptor', async () => {
     command: 'project',
     host: 'claude',
     apply: false,
-    plan: { files: [{ path: RULES, action: 'create' }, { path: SKILL, action: 'create' }], conflict: null },
+    plan: {
+      files: [
+        { path: RULES, action: 'create' },
+        { path: SKILL, action: 'create' },
+      ],
+      conflict: null,
+    },
   });
 });
 

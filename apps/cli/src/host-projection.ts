@@ -83,7 +83,6 @@ import { Refusal } from './consumer.js';
 import type { HookRefusal } from './host.js';
 import { refusedPath, SETTINGS, skillFolderOf, STATE } from './host.js';
 import type { SessionGate } from './profile.js';
-import type { Session } from './session.js';
 import { codeOf, openSession } from './session.js';
 import { requireAdmitted } from './workspace-state.js';
 
