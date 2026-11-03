@@ -124,26 +124,57 @@ export function ownsMember(globs: readonly string[], member: string): boolean {
   return owned;
 }
 
-/** One block-list entry's scalar: a quoted string, or plain text up to a `#` that follows whitespace, trimmed. */
-const pnpmScalar = (text: string): string => {
+const AFTER_SCALAR = /^(\s+#.*)?\s*$/;
+/**
+ * One block-list entry's scalar, or `null` when the form is unsupported (and so owns nothing): a single-quoted scalar
+ * (`''` is a quote), a double-quoted one (`\"` and `\` only), or plain text up to a `#` that follows whitespace. An
+ * open quote, text after the closing quote, any other escape or a block scalar or flow collection is unsupported.
+ */
+const pnpmScalar = (text: string): string | null => {
   const quote = text[0];
   if (quote === "'" || quote === '"') {
-    const end = text.indexOf(quote, 1);
-    if (end > 0) return text.slice(1, end);
+    let value = '';
+    for (let i = 1; i < text.length; i++) {
+      const char = text[i] as string;
+      if (char === quote) {
+        if (quote === "'" && text[i + 1] === "'") {
+          value += "'";
+          i++;
+        } else return AFTER_SCALAR.test(text.slice(i + 1)) ? value : null;
+      } else if (char === '\\' && quote === '"') {
+        const next = text[++i];
+        if (next !== '"' && next !== '\\') return null;
+        value += next;
+      } else value += char;
+    }
+    return null;
   }
+  if (/^[|>[{&*]/.test(text)) return null;
   return text.replace(/(^|\s)#.*$/, '').trimEnd();
 };
 
-/** The `packages:` block list of a `pnpm-workspace.yaml`, scanned by line (no YAML parser: bin.ts stays cheap). */
+/**
+ * The `packages:` block list of a `pnpm-workspace.yaml`, scanned by line (no YAML parser: bin.ts stays cheap). An entry
+ * in a form the scanner does not read, such as a plain scalar continued on a more-indented line, is dropped whole.
+ */
 const pnpmPackages = (text: string): string[] => {
   const globs: string[] = [];
   let inside = false;
+  let entry: { indent: number; index: number | null } | null = null;
   for (const line of text.split(/\r?\n/)) {
-    const item = /^\s*-\s+(.*)$/.exec(line);
-    if (inside && item?.[1] !== undefined) {
-      const glob = pnpmScalar(item[1].trimStart());
-      if (glob !== '') globs.push(glob);
-    } else if (/^\S/.test(line) && !line.startsWith('#')) inside = /^packages\s*:\s*(#.*)?$/.test(line);
+    if (line.trim() === '' || /^\s*#/.test(line)) continue;
+    const indent = line.length - line.trimStart().length;
+    if (entry !== null && indent > entry.indent) {
+      if (entry.index !== null) globs.splice(entry.index, 1);
+      entry.index = null;
+      continue;
+    }
+    entry = null;
+    const item = /^(\s*)-\s+(.*)$/.exec(line);
+    if (inside && item?.[2] !== undefined) {
+      const glob = pnpmScalar(item[2].trimStart());
+      entry = { indent: (item[1] as string).length, index: glob === null || glob === '' ? null : globs.push(glob) - 1 };
+    } else if (indent === 0) inside = /^packages\s*:\s*(#.*)?$/.test(line);
   }
   return globs;
 };

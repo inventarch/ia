@@ -155,6 +155,45 @@ describe('installRoot', () => {
     put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - packages/x   # the one\n');
     expect(installRoot(member)).toBe(repo);
   });
+  it('a single-quoted pnpm scalar decodes doubled quotes and never truncates to a prefix', () => {
+    const quoted = layout('root-pnpm-sq', undefined);
+    const apostrophe = resolve(quoted.repo, "packages/x's");
+    putJson(resolve(apostrophe, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+    put(resolve(quoted.repo, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/x''s'\n");
+    expect(installRoot(apostrophe)).toBe(quoted.repo);
+    expect(installRoot(quoted.member)).toBe(quoted.member);
+  });
+  it('a double-quoted pnpm scalar decodes its escaped quote and backslash; other escapes are unsupported', () => {
+    const { repo, member } = layout('root-pnpm-dq', undefined);
+    if (process.platform !== 'win32') {
+      // a quote cannot be a directory name on Windows, so the decoded form is only checked elsewhere
+      const quote = resolve(repo, 'packages/q"x');
+      putJson(resolve(quote, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+      put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/q\\"x"\n');
+      expect(installRoot(quote)).toBe(repo);
+    }
+    // an escaped closing quote leaves the scalar open, so it must not truncate to packages/x
+    put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/x\\"\n');
+    expect(installRoot(member)).toBe(member);
+    put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/\\x78"\n');
+    expect(installRoot(member)).toBe(member);
+  });
+  it('an unsupported pnpm entry owns nothing: continuation lines, block scalars, open quotes, trailing text', () => {
+    const cases: [string, string][] = [
+      ['continuation', 'packages:\n  - packages/x\n    copy\n'],
+      ['block', 'packages:\n  - |\n    packages/x\n'],
+      ['unterminated', "packages:\n  - 'packages/x\n"],
+      ['trailing', "packages:\n  - 'packages/x' tail\n"],
+    ];
+    for (const [name, yaml] of cases) {
+      const { repo, member } = layout(`root-pnpm-bad-${name}`, undefined);
+      const copy = resolve(repo, 'packages/x copy');
+      putJson(resolve(copy, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+      put(resolve(repo, 'pnpm-workspace.yaml'), yaml);
+      expect(installRoot(member)).toBe(member);
+      expect(installRoot(copy)).toBe(copy);
+    }
+  });
   it('an unindented pnpm list parses', () => {
     const { repo, member } = layout('root-pnpm-flush', undefined);
     put(resolve(repo, 'pnpm-workspace.yaml'), "packages:\n- 'packages/*'\n- apps/*\nother:\n- nope\n");
@@ -181,6 +220,13 @@ describe('ownsMember', () => {
   it('answers a pathological glob promptly', () => {
     const glob = [...Array(8).fill('**'), 'missing'].join('/');
     const member = Array.from({ length: 20 }, (_, i) => `s${i}`).join('/');
+    const started = Date.now();
+    expect(ownsMember([glob], member)).toBe(false);
+    expect(Date.now() - started).toBeLessThan(300);
+  });
+  it('answers interleaved globstars promptly, so memoisation is what bounds them', () => {
+    const glob = [...Array(8).fill('**/s'), 'missing'].join('/');
+    const member = Array(20).fill('s').join('/');
     const started = Date.now();
     expect(ownsMember([glob], member)).toBe(false);
     expect(Date.now() - started).toBeLessThan(300);
