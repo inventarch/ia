@@ -58,7 +58,7 @@ After the installed set changes, registered host projections are refreshed. A re
 
 ### 2.12 Doctor
 
-`doctor` reads state and returns `ok`, `info`, `warn`, `fail` or `unknown` rows, one status per row. A check that did not run is `unknown`. Doctor exits 1 when any row is `fail` and 0 otherwise. It does not repair anything or start servers. See [host observations](../host-registration/README.md#7-doctor-and-support).
+`doctor` reads state and returns `ok`, `info`, `warn`, `fail` or `unknown` rows, one status per row. A check that did not run is `unknown`. Doctor exits 1 when any row is `fail` and 0 otherwise. It does not repair anything or start servers. The language `compatibility` row is `unknown` ("not checked") for a workspace with no release descriptor, and that row alone never fails doctor. See [host observations](../host-registration/README.md#7-doctor-and-support).
 
 ### 2.13 Preview and author
 
@@ -70,7 +70,7 @@ After the installed set changes, registered host projections are refreshed. A re
 
 ### 2.14 Projection and host registration
 
-`project <claude|codex>` plans, or with `--apply` writes, the position packet's files for one host and registers nothing. `project <claude|codex> --product plugin --out <directory>` writes the plugin a lowered workspace describes, and `--product plugin --check` compares it in memory, writing nothing. `host <claude|codex>` plans, or with `--apply` applies, the workspace's host registration, and `host --remove` plans removal of the owned host set. `host claude --user` installs a user-level plugin. All of them plan by default. See [host registration](../host-registration/README.md) and [host plugin distribution](../host-plugin-distribution/README.md).
+`project <claude|codex>` plans, or with `--apply` writes, the position packet's files for one host and registers nothing. `project <claude|codex> --product plugin --out <directory>` writes the plugin a lowered workspace describes, and `--product plugin --check` compares it in memory, writing nothing. `host <claude|codex>` plans, or with `--apply` applies, the workspace's host registration, and `host --remove` plans removal of the owned host set. `host claude --user` installs a user-level plugin. All of them plan by default. The target of `project` and `host`, committed bootstrap included, is a directory with `.ia/src` that admits; a release descriptor is not required, so a workspace that ships no package works as one that does. See [host registration](../host-registration/README.md) and [host plugin distribution](../host-plugin-distribution/README.md).
 
 ### 2.15 Mandate checks
 
