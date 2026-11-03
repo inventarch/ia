@@ -4,20 +4,23 @@
  * addition: the mutation holds `<IA home>/tracked-workspaces.json.lock` from before it loads to after it replaces.
  *
  * The lock is a file created whole with its owner in it (`{token, pid, start, host, createdAt}`), staged beside it and
- * hard-linked into place, so no reader ever sees it empty. A holder that is killed leaves it behind, so a lock is taken
- * over only when its owner is provably gone: it names this host and its pid is not running (or is running as a process
- * that started at another time, a reused pid). It is never taken over for its age, and never when it names another
- * host or cannot be read; those wait, then refuse as `IA-CLI-TRACKED-LOCKED` naming the lock path to check.
+ * hard-linked into place, so no reader ever sees it empty. `ia` removes only the lock it published itself. A lock some
+ * other owner holds is never renamed or deleted, whether that owner is running or gone and however old the lock is:
+ * two processes taking over one dead owner's lock at once can each remove the other's, so no takeover is safe with
+ * these file operations alone. A holder that is killed therefore leaves a lock that blocks every mutation until a
+ * person deletes it: the call waits, then refuses as `IA-CLI-TRACKED-LOCKED` naming the lock path and its owner, and
+ * says so when that owner is on this host and its pid is no longer running.
  */
 import { hostname } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { linkSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { linkSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { ensureIaHome } from '@inventarch/distribution/ia-home';
 import { Refusal } from './consumer.js';
 
 export const TRACKED_LOCK_FILE = 'tracked-workspaces.json.lock';
-/** How long a mutation waits for a live holder before it refuses; a hold lasts milliseconds. */
+/** How long a mutation waits for another holder before it refuses; a hold lasts milliseconds. */
 export const LOCK_WAIT_MS = 10_000;
 const LOCK_POLL_MS = 25;
 
@@ -65,19 +68,13 @@ function parseOwner(text: string): LockOwner | null {
     )
       return { token, pid, start, host, createdAt };
   } catch {
-    /* Unreadable: not provably dead. */
+    /* Reported as unreadable. */
   }
   return null;
 }
-/** True only for an owner on this host whose process is gone, or is a different process under a reused pid. */
-export function ownerGone(owner: LockOwner, thisHost: string = hostname()): boolean {
-  if (owner.host !== thisHost) return false;
-  if (!pidRunning(owner.pid)) return true;
-  const now = owner.start === null ? null : processStart(owner.pid);
-  return now !== null && owner.start !== null && now !== owner.start;
-}
 
 const sleep = (ms: number): void => void Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const codeOf = (error: unknown): string => (error as NodeJS.ErrnoException).code ?? '';
 
 /**
  * `ensureIaHome`, again when a process creating the same home at the same moment holds its marker open: Windows then
@@ -88,18 +85,47 @@ function ensureHome(home: string): void {
     try {
       return ensureIaHome(home);
     } catch (error) {
-      if (attempt >= 40 || !['EPERM', 'EBUSY', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? ''))
-        throw error;
+      if (attempt >= 40 || !['EPERM', 'EBUSY', 'EACCES'].includes(codeOf(error))) throw error;
       sleep(LOCK_POLL_MS);
     }
   }
 }
 
+export interface LockOptions {
+  /** How long to wait for another holder before refusing; `LOCK_WAIT_MS` unless a test shortens it. */
+  readonly waitMs?: number;
+  /** Reads the lock file to name its holder in the refusal. */
+  readonly read?: (path: string) => string;
+  /** Removes this call's staging file. */
+  readonly removeStage?: (path: string) => void;
+}
+
+/** Who holds the lock, as the refusal describes them; `gone` when the lock vanished since the link failed. */
+type Holder = { readonly owner: LockOwner } | { readonly unreadable: string } | 'gone';
+function holderOf(lock: string, read: (path: string) => string): Holder {
+  let text: string;
+  try {
+    text = read(lock);
+  } catch (error) {
+    // Only a lock that is no longer there counts as released; any other failure is a lock nobody can describe.
+    return codeOf(error) === 'ENOENT' ? 'gone' : { unreadable: codeOf(error) || (error as Error).message };
+  }
+  const owner = parseOwner(text);
+  return owner === null ? { unreadable: '' } : { owner };
+}
+
 /**
  * Runs `action` holding the store lock under `home`. Creates the home as a write would. Refuses as
- * `IA-CLI-TRACKED-LOCKED` when a live (or unprovable) holder is still there after `waitMs`.
+ * `IA-CLI-TRACKED-LOCKED` when another holder is still there after `waitMs`, measured on a monotonic clock; it never
+ * removes another holder's lock. Once this call's lock is published, everything that follows (removing the staging
+ * file, the action) runs inside the `finally` that releases it.
  */
-export function withTrackedLock<T>(home: string, action: () => T, waitMs: number = LOCK_WAIT_MS): T {
+export function withTrackedLock<T>(home: string, action: () => T, options: LockOptions = {}): T {
+  const {
+    waitMs = LOCK_WAIT_MS,
+    read = (path: string) => readFileSync(path, 'utf8'),
+    removeStage = (path: string) => rmSync(path, { force: true }),
+  } = options;
   ensureHome(home);
   const lock = join(home, TRACKED_LOCK_FILE);
   const owner: LockOwner = {
@@ -112,21 +138,17 @@ export function withTrackedLock<T>(home: string, action: () => T, waitMs: number
   const stage = `${lock}.${owner.token}.tmp`;
   writeFileSync(stage, JSON.stringify(owner) + '\n', { flag: 'wx', mode: 0o600 });
   try {
-    const deadline = Date.now() + waitMs;
-    for (;;) {
-      try {
-        linkSync(stage, lock);
-        break;
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      }
-      if (!reclaim(lock) && Date.now() >= deadline) throw locked(lock);
-      sleep(LOCK_POLL_MS);
+    acquire(stage, lock, waitMs, read);
+  } catch (error) {
+    try {
+      removeStage(stage);
+    } catch {
+      /* A stray staging file holds no lock; the refusal is what the caller needs. */
     }
-  } finally {
-    rmSync(stage, { force: true });
+    throw error;
   }
   try {
+    removeStage(stage);
     return action();
   } finally {
     try {
@@ -137,50 +159,52 @@ export function withTrackedLock<T>(home: string, action: () => T, waitMs: number
   }
 }
 
-/** Takes the lock file away when its owner is provably gone. True when it did, so the caller retries at once. */
-function reclaim(lock: string): boolean {
-  let text: string;
-  try {
-    text = readFileSync(lock, 'utf8');
-  } catch {
-    return true; // Released between the failed link and now.
-  }
-  const owner = parseOwner(text);
-  if (owner === null || !ownerGone(owner)) return false;
-  // Rename it aside first, so two reclaimers cannot both delete a lock a third has since taken: whoever moved a lock
-  // that is not the dead owner's puts it back.
-  const aside = `${lock}.${randomUUID()}.stale`;
-  try {
-    renameSync(lock, aside);
-  } catch {
-    return true;
-  }
-  try {
-    if (parseOwner(readFileSync(aside, 'utf8'))?.token === owner.token) return true;
+/** Publishes `stage` as `lock`, polling while another holder has it; refuses once `waitMs` has passed after a failure. */
+function acquire(stage: string, lock: string, waitMs: number, read: (path: string) => string): void {
+  const started = performance.now();
+  for (let lastLook = false; ; ) {
     try {
-      linkSync(aside, lock);
-    } catch {
-      /* Another holder has already taken it. */
+      linkSync(stage, lock);
+      return;
+    } catch (error) {
+      if (codeOf(error) !== 'EEXIST') throw error;
     }
-    return false;
-  } finally {
-    rmSync(aside, { force: true });
+    if (performance.now() - started < waitMs) {
+      sleep(LOCK_POLL_MS);
+      continue;
+    }
+    const holder = holderOf(lock, read);
+    // A lock released between the failed link and the read earns one more link, never another wait.
+    if (holder === 'gone' && !lastLook) {
+      lastLook = true;
+      continue;
+    }
+    throw locked(lock, holder);
   }
 }
 
-function locked(lock: string): Refusal {
-  let held = 'its owner could not be read';
-  try {
-    const owner = parseOwner(readFileSync(lock, 'utf8'));
-    if (owner !== null) held = `held since ${owner.createdAt} by pid ${owner.pid} on ${owner.host}`;
-  } catch {
-    /* Reported as unreadable. */
+function locked(lock: string, holder: Holder): Refusal {
+  let held: string,
+    host = 'its host';
+  if (holder === 'gone') held = 'its owner could not be read (ENOENT)';
+  else if ('unreadable' in holder)
+    held =
+      holder.unreadable === '' ? 'its owner could not be read' : `its owner could not be read (${holder.unreadable})`;
+  else {
+    const { owner } = holder;
+    host = owner.host;
+    held = `held since ${owner.createdAt} by pid ${owner.pid} on ${owner.host}`;
+    if (owner.host === hostname()) {
+      const now = owner.start === null ? null : processStart(owner.pid);
+      if (!pidRunning(owner.pid)) held += `; pid ${owner.pid} is not running on this host`;
+      else if (now !== null && now !== owner.start) held += `; pid ${owner.pid} is now another process`;
+    }
   }
   return new Refusal(
     'IA-CLI-TRACKED-LOCKED',
     `The tracked list is locked by another ia process (${held}): ${lock}`,
     3,
     { path: lock },
-    `Wait for the other "ia workspaces" command to finish. If no ia process is running on that host, delete ${lock}, then run the command again.`,
+    `Wait for the other "ia workspaces" command to finish. ia never removes this lock itself: if no ia process is running on ${host}, delete ${lock} by hand, then run the command again.`,
   );
 }
