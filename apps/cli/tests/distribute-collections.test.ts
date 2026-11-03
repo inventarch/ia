@@ -167,3 +167,35 @@ it('the collection fix moves every member', async () => {
   expect(pin(lock, 'acme/y')).toEqual(pin(before, 'acme/y'));
   expect(record(root)!.collections.map((row) => `${row.id}@${row.version}`)).toEqual(['acme/kit@2.0.0']);
 });
+
+it("a pinned release's update fix moves the pin to the latest version", async () => {
+  const dir = registry(),
+    root = await workspace(),
+    iaHome = resolve(scratch('collections-home'), '.ia');
+  await ia(root, dir, 'install', 'acme/x@1.0.0');
+  const env = { IA_HOME: iaHome, IA_REGISTRY: dir };
+  mkdirSync(join(iaHome, 'state'), { recursive: true });
+  writeFileSync(
+    join(iaHome, 'state/update-check.json'),
+    JSON.stringify({
+      schema: 'ia.update-check.v1',
+      checkedAt: new Date().toISOString(),
+      cli: { channel: 'unknown', current: '0.0.0', latest: null, behind: null, checked: false },
+      packages: {
+        checked: true,
+        entries: [
+          { registry: dir, kind: 'release', id: 'acme/x', latest: '2.0.0', checkedAt: new Date().toISOString() },
+        ],
+      },
+    }),
+  );
+  const doctor = JSON.parse((await run(['doctor', '--root', root, '--json'], { env })).stdout) as {
+    checks: { id: string; fix: Fix | null }[];
+  };
+  const fix = doctor.checks.find((check) => check.id === 'kit-update:acme/x')!.fix!;
+  // The offered command runs as given, through the console's confirmed form, and the pin moves.
+  const applied = await run([...confirmedArgv(fix)], { cwd: root, env });
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  const lock = decodeDistributionLock(JSON.parse(lockText(root)));
+  expect(lock.packages.find((row) => row.id === 'acme/x')?.version).toBe('2.0.0');
+});

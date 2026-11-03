@@ -151,7 +151,8 @@ export function kitRows(kits: ReturnType<typeof kitUnitKeys> | null, stored: Upd
         ? iaFix(['install', '--package', `${unit.source.name}@${latest}`], 'repo')
         : unit.source.kind === 'collection'
           ? iaFix(['install', `${unit.id}@${latest}`], 'repo')
-          : iaFix(['update', unit.id], 'repo'),
+          : // A release's request keeps its range unless --to replaces it, and a pin's range admits only itself.
+            iaFix(['update', unit.id, '--to', latest!], 'repo'),
     ),
   );
   let summary: Check;

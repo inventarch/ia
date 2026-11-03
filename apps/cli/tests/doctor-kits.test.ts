@@ -251,8 +251,8 @@ it('warn and one kit-update row per unit behind, with the fix for its source', (
     ],
     'kit-update:acme/rel': [
       'acme/rel 1.0.0 → 1.1.0 (release)',
-      'ia update acme/rel',
-      { program: 'ia', argv: ['update', 'acme/rel'], flow: 'preview-apply', writesTo: 'repo' },
+      'ia update acme/rel --to 1.1.0',
+      { program: 'ia', argv: ['update', 'acme/rel', '--to', '1.1.0'], flow: 'preview-apply', writesTo: 'repo' },
     ],
   });
 });
