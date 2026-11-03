@@ -10,7 +10,7 @@ import { existsSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db/internal/paths';
 import { discoverRoot } from './discovery.js';
-import { findLocalCli, readCliDependency } from './local-cli.js';
+import { findLocalCli, installRoot, readCliDependency } from './local-cli.js';
 import type { LocalCli } from './local-cli.js';
 import { findProgram, programEnv, programHome } from './program.js';
 
@@ -96,7 +96,7 @@ export function handoffTarget(input: {
   const root = rootFromArgv(argv, input.cwd, input.iaHome);
   const dependency = root === undefined ? null : readCliDependency(root);
   if (root === undefined || dependency === null) return null;
-  const local = findLocalCli(root, dirname(dependency.manifest));
+  const local = findLocalCli(root, installRoot(dirname(dependency.manifest)));
   if (local === null || sameFile(local.packageRoot, input.packageRoot)) return null;
   return (input.committed ?? committed)(local.packageRoot) ? null : local;
 }

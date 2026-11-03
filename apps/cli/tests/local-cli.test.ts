@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { findLocalCli, readCliDependency } from '../src/local-cli.js';
+import { findLocalCli, installRoot, ownsMember, readCliDependency } from '../src/local-cli.js';
 import { detectPackageManager, installCommand, pinCommand, satisfies } from '../src/package-manager.js';
 import type { PackageManager } from '../src/package-manager.js';
 import { cleanup, scratch } from './scratch-fixture.js';
@@ -73,6 +73,76 @@ describe('findLocalCli', () => {
     const base = scratch('local-stop');
     cliCopy(base);
     expect(findLocalCli(resolve(base, 'pkg'), resolve(base, 'pkg'))).toBeNull();
+  });
+});
+
+describe('installRoot', () => {
+  /** `repo/packages/x` pins the CLI; `repo/node_modules` holds the copy; `repo` declares `workspaces`. */
+  const layout = (name: string, workspaces: unknown): { repo: string; member: string } => {
+    const repo = scratch(name);
+    putJson(resolve(repo, 'package.json'), { workspaces });
+    cliCopy(repo);
+    const member = resolve(repo, 'packages/x');
+    putJson(resolve(member, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+    mkdirSync(resolve(member, '.ia/src'), { recursive: true });
+    return { repo, member };
+  };
+  it('an npm workspaces root that lists the member owns its hoisted copy', () => {
+    const { repo, member } = layout('root-npm', ['packages/*']);
+    expect(installRoot(member)).toBe(repo);
+    expect(findLocalCli(member, installRoot(member))).toMatchObject({ version: '3.5.0' });
+  });
+  it('a parent workspaces root that does not list the member does not own it', () => {
+    const { member } = layout('root-unrelated', ['apps/*']);
+    expect(installRoot(member)).toBe(member);
+    expect(findLocalCli(member, installRoot(member))).toBeNull();
+  });
+  it('a manifest above the IA root still finds its copy', () => {
+    const base = scratch('root-above');
+    putJson(resolve(base, 'packages/x/package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+    cliCopy(resolve(base, 'packages/x'));
+    const project = resolve(base, 'packages/x/project');
+    mkdirSync(resolve(project, '.ia/src'), { recursive: true });
+    const manifest = resolve(base, 'packages/x');
+    expect(installRoot(manifest)).toBe(manifest);
+    expect(findLocalCli(project, installRoot(manifest))).toMatchObject({ version: '3.5.0' });
+  });
+  it('yarn object form and pnpm-workspace.yaml own their members', () => {
+    const yarn = layout('root-yarn', { packages: ['packages/*'], nohoist: [] });
+    expect(installRoot(yarn.member)).toBe(yarn.repo);
+    const pnpm = layout('root-pnpm', undefined);
+    put(
+      resolve(pnpm.repo, 'pnpm-workspace.yaml'),
+      'onlyBuiltDependencies:\n  - esbuild\npackages:\n  - \'apps/*\'\n  # a comment\n  - "packages/*"\n  - tools\nother:\n  - nope\n',
+    );
+    expect(installRoot(pnpm.member)).toBe(pnpm.repo);
+    const outside = layout('root-pnpm-out', undefined);
+    put(resolve(outside.repo, 'pnpm-workspace.yaml'), 'other:\n  - packages/*\npackages:\n  - apps/*\n');
+    expect(installRoot(outside.member)).toBe(outside.member);
+  });
+  it('only the nearest workspace root is consulted', () => {
+    const { repo, member } = layout('root-nearest', ['packages/*']);
+    const inner = resolve(repo, 'packages');
+    putJson(resolve(inner, 'package.json'), { workspaces: ['other/*'] });
+    expect(installRoot(member)).toBe(member);
+  });
+});
+
+describe('ownsMember', () => {
+  it('matches one segment for *, any depth for **, and normalises ./', () => {
+    expect(ownsMember(['packages/*'], 'packages/x')).toBe(true);
+    expect(ownsMember(['packages/*'], 'packages/x/y')).toBe(false);
+    expect(ownsMember(['packages/**'], 'packages/x')).toBe(true);
+    expect(ownsMember(['packages/**'], 'packages/x/y')).toBe(true);
+    expect(ownsMember(['./packages/*'], 'packages/x')).toBe(true);
+    expect(ownsMember(['packages/x/'], 'packages/x')).toBe(true);
+    expect(ownsMember(['apps/*'], 'packages/x')).toBe(false);
+  });
+  it('lets the last matching glob decide, so ! excludes', () => {
+    const globs = ['packages/**', '!packages/private'];
+    expect(ownsMember(globs, 'packages/x')).toBe(true);
+    expect(ownsMember(globs, 'packages/private')).toBe(false);
+    expect(ownsMember(['!packages/private', 'packages/**'], 'packages/private')).toBe(true);
   });
 });
 
