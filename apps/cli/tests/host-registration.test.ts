@@ -568,9 +568,9 @@ it('names the restore remedy for a modified owned entry and removes one the user
   expect(existsSync(resolve(root, '.ia/distributions/hosts/claude-workspace.json'))).toBe(false);
 });
 
-it('refuses an uninitialized root', async () => {
+it('refuses a root with no .ia/src', async () => {
   const root = scratch('host-empty');
-  mkdirSync(resolve(root, '.ia/src'), { recursive: true });
+  mkdirSync(root, { recursive: true });
   const refused = await run(['host', 'claude', '--root', root, '--json'], {
     env: { IA_HOST_HOME: scratch('host-home') },
   });

@@ -85,6 +85,7 @@ import { refusedPath, SETTINGS, skillFolderOf, STATE } from './host.js';
 import type { SessionGate } from './profile.js';
 import type { Session } from './session.js';
 import { codeOf, openSession } from './session.js';
+import { requireAdmitted } from './workspace-state.js';
 
 export type HostName = WorkspaceHost;
 export type Artifact = HostFile;
@@ -93,21 +94,6 @@ export type Artifact = HostFile;
 const CLI = `@inventarch/cli@${
   (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version
 }`;
-
-/**
- * §4: the target must admit — zero error findings — before anything is rendered or registered. The refusal is the
- * CLI's own classification of the target, so it is IA-CLI-CONFLICT and names the command that shows the findings.
- */
-function requireAdmitted(session: Session, root: string): void {
-  if (session.admission().status !== 'admitted')
-    throw new Refusal(
-      'IA-CLI-CONFLICT',
-      'The workspace does not admit; host registration needs a workspace with zero error findings',
-      3,
-      { path: root },
-      'Run "ia validate" and fix the reported errors.',
-    );
-}
 
 /**
  * A host-generation refusal (workspace-runtime's ProjectionError, which carries its code in `diagnostic`) as this CLI's

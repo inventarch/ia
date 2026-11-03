@@ -12,11 +12,12 @@ import type { BootstrapHost } from '@inventarch/distribution/hosts';
 import { UsageError } from './args.js';
 import type { Context, Result } from './consumer.js';
 import { confirm, Refusal, refusalOf, requireRoot } from './consumer.js';
-import { requireInitialized } from './host.js';
+import { requireWorkspace } from './host.js';
 import { sessionGate } from './profile.js';
 import type { Capabilities, SymbolName } from './render.js';
 import { document, entry, quote, words } from './render.js';
 import { openSession } from './session.js';
+import { requireAdmittedWorkspace } from './workspace-state.js';
 
 export const COMMIT_CONFIRMATION = 'Write this committed bootstrap? [y/N] ';
 const SYMBOL: Readonly<Record<BootstrapFile['action'], SymbolName>> = {
@@ -84,7 +85,8 @@ export async function runCommitHost(context: Context): Promise<Result> {
   const supplied = args.value('root'),
     rooted = supplied === undefined ? '' : ` --root ${quote(supplied)}`;
   const root = requireRoot(context);
-  requireInitialized(root);
+  requireWorkspace(root);
+  requireAdmittedWorkspace(root);
   const remove = args.flag('remove');
   let plan: BootstrapPlan;
   try {
