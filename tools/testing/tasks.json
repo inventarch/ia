@@ -1114,6 +1114,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/distribute-collections.test.ts",
         "tests/registry.test.ts"
       ],
       "profile": "installed",
@@ -1382,10 +1383,13 @@
         "tests/hosts.test.ts",
         "tests/ia-home.test.ts",
         "tests/implementations.test.ts",
+        "tests/install-collections.test.ts",
         "tests/installation-core.test.ts",
         "tests/installed.test.ts",
         "tests/inventory.test.ts",
         "tests/json-edit.test.ts",
+        "tests/kit-collections.test.ts",
+        "tests/kit-inventory.test.ts",
         "tests/lifecycle-registration.test.ts",
         "tests/minting.test.ts",
         "tests/optional-pack-files.test.ts",

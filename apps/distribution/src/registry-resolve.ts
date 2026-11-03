@@ -5,6 +5,7 @@ import { inspectArchiveMetadata, verifyArchive } from './archive.js';
 import type { VerifiedArchive } from './archive.js';
 import { bytes, DistributionError, fail, workspace } from './files.js';
 import { cacheArchive, cachePath, cacheSelectedArchiveClosure } from './install.js';
+import type { ExpandedCollection } from './kit-collections.js';
 import type { RegistryChoice } from './registry-config.js';
 import { relabel } from './registry-layout.js';
 import { matchRegistryRelease as matches } from './registry-admission.js';
@@ -40,6 +41,12 @@ export interface RegistryResolveRequest {
   readonly choose: (id: string) => RegistryChoice;
   readonly acquirer?: Acquirer | undefined;
   readonly signal?: AbortSignal | undefined;
+  /**
+   * The member ids the collection record keeps for each installed collection (and, for one whose identity is unknown,
+   * both sides' members). When `allowKits` re-expands such a collection, its recorded members leave the requests first,
+   * so the new members replace them instead of conflicting with them.
+   */
+  readonly collectionMembers?: ReadonlyMap<string, readonly string[]> | undefined;
 }
 /**
  * `candidates` are exactly the selected releases, admitted. A selected cached lock pin retains its manifest-level
@@ -48,6 +55,8 @@ export interface RegistryResolveRequest {
  */
 export interface RegistryResolution {
   readonly expandedRequests?: readonly Dependency[];
+  /** With `allowKits`: each collection the requests named, as it was expanded, for the collection record. */
+  readonly expandedCollections?: readonly ExpandedCollection[];
   readonly candidates: readonly ReleaseCandidate<BundleMetadata>[];
   readonly sources: ReadonlyMap<string, RegistryChoice>;
 }
@@ -229,6 +238,7 @@ async function resolveWithPins(
   // pin stays selectable and preferred. Licensed releases are followed too, so a licensed-only need can be named (§7).
   const known = new Map<string, { readonly ranges: Set<string>; readonly pinned: Set<string> }>(),
     indexed = new Map<string, Indexed>();
+  const expanded: ExpandedCollection[] = [];
   const pending: string[] = [],
     queued = new Set<string>(),
     followed = new Set<RegistryRelease>(),
@@ -294,6 +304,17 @@ async function resolveWithPins(
       if (kitIndex.releases.length) {
         const kit = selectCollectionRelease(kitIndex, requests[direct]!.range);
         requests.splice(direct, 1);
+        // Re-expanding a collection replaces the members it recorded: they leave the requests (one the new release no
+        // longer lists stays locked only while something depends on it), so a changed range is not a conflict. Any
+        // other request still conflicts as it always has.
+        const recorded = new Set(request.collectionMembers?.get(id) ?? []);
+        for (let at = requests.length - 1; at >= 0; at -= 1) if (recorded.has(requests[at]!.id)) requests.splice(at, 1);
+        expanded.push({
+          id,
+          version: kit.version,
+          registry: registryLocation(entry.registry.base),
+          members: kit.distributions.map((member) => member.id),
+        });
         for (const member of kit.distributions) {
           const existing = requests.find((item) => item.id === member.id);
           if (existing && existing.range !== member.range)
@@ -302,6 +323,8 @@ async function resolveWithPins(
           named.add(member.id);
           need(member.id, member.range, null);
         }
+        // A request set is sorted by id, which members appended after other requests would break.
+        requests.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
       }
     }
     for (const release of entry.index.releases)
@@ -469,7 +492,7 @@ async function resolveWithPins(
     signal?.throwIfAborted();
     const admitted = cacheSelectedArchiveClosure(root, resolved.lock, archives);
     return {
-      ...(request.allowKits ? { expandedRequests: requests } : {}),
+      ...(request.allowKits ? { expandedRequests: requests, expandedCollections: expanded } : {}),
       candidates: pending.map((candidate) => ({ ...candidate, release: admitted.get(candidate.release.manifest.id)! })),
       sources,
     };
@@ -507,7 +530,11 @@ async function resolveWithPins(
     candidates.push({ release: matches(id, entry, release), location, withdrawn: entry.withdrawn });
     sources.set(id, source.choice);
   }
-  return { candidates, sources, ...(request.allowKits ? { expandedRequests: requests } : {}) };
+  return {
+    candidates,
+    sources,
+    ...(request.allowKits ? { expandedRequests: requests, expandedCollections: expanded } : {}),
+  };
 }
 /**
  * Registry spec §6.3: reads each locked package's index and returns the `id@version` pins it marks withdrawn. A locked

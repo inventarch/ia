@@ -66,7 +66,7 @@ function parse(argv: readonly string[], commands: readonly CommandSpec[]): Parse
 const present = (args: Arguments, name: string): boolean => args.flag(name) || args.value(name) !== undefined;
 
 /**
- * dec-005's rules over the parsed form; the first that holds decides:
+ * The flow rules over the parsed form (consumer CLI contract §2.12); the first that holds decides:
  * 1. an option given in the form conflicts with `apply` → confirm;
  * 2. the grammar requires `apply` → confirm;
  * 3. the grammar offers an optional `apply` → preview-apply;

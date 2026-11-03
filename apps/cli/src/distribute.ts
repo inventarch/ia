@@ -50,6 +50,8 @@ import {
 import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
 import { ARCHIVE_CACHE, applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
 import type { InstallationPlan } from '@inventarch/distribution/install';
+import type { ExpandedCollection } from '@inventarch/distribution/kit-collections';
+import { intactCollections } from '@inventarch/distribution/kit-collections';
 import type { ProjectionDrift } from '@inventarch/distribution/projection';
 import { legacyProjectionActions, observeProjection } from '@inventarch/distribution/projection';
 import { PACKET_MARKER } from '@inventarch/runtime';
@@ -178,6 +180,8 @@ export interface PlanView {
   readonly retired: readonly HostName[];
   /** Whether `--root` was given, so every `ia host` command printed carries it (`rootedNext`). */
   readonly rooted: boolean;
+  /** The registry collections this plan expanded, which the apply records beside the lock (kit-collections.ts). */
+  readonly collections: readonly ExpandedCollection[];
 }
 
 const SYMBOL: Readonly<Record<ChangeRow['kind'], SymbolName>> = {
@@ -713,6 +717,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
   let plan: InstallationPlan;
   let withdrawn: readonly string[] = [];
   let registries: readonly RegistrySource[] = [];
+  let collections: readonly ExpandedCollection[] = [];
   const withdrawnRefusalPrefix = 'Explicit --allow-withdrawn is required for';
   if (operation === 'restore') {
     // One lock is read, and the withdrawal check and the plan both use that same object (registry spec §6.3).
@@ -837,10 +842,18 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
                 )
                 .map((dependency) => dependency.id);
       const choose = chooserOf(request);
+      // Each installed collection's recorded members (both sides' for one whose identity is unknown), so re-installing
+      // a collection replaces them rather than conflicting with them.
+      const recorded = operation === 'install' ? intactCollections(root) : { collections: [], unknown: [] };
+      const collectionMembers = new Map<string, readonly string[]>([
+        ...recorded.collections.map((row) => [row.id, row.members.map((member) => member.id)] as const),
+        ...recorded.unknown.map((row) => [row.id, row.members] as const),
+      ]);
       const resolution = await acquiring(
         () =>
           resolveFromRegistries({
             allowKits: operation === 'install',
+            collectionMembers,
             root,
             requests,
             engine: DISTRIBUTION_ENGINE_VERSION,
@@ -855,6 +868,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         reruns,
       );
       requests = resolution.expandedRequests ?? requests;
+      collections = resolution.expandedCollections ?? [];
       choices = resolution.candidates;
       registries = registrySources(resolution.sources.values());
     }
@@ -900,6 +914,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     retire: refresh.filter((host) => ownsGuard(root, host)),
     retired: [],
     rooted: request.rooted ?? false,
+    collections,
   };
 }
 
@@ -911,7 +926,10 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
  * refused refresh is class 3 naming the first refusal, and the count when more than one host refused (file comment).
  */
 export function applyPlan(view: PlanView): PlanView {
-  const installed: PlanView = { ...view, applied: applyInstallation(view.plan) as Applied };
+  const installed: PlanView = {
+    ...view,
+    applied: applyInstallation(view.plan, { collections: view.collections }) as Applied,
+  };
   const results = view.refresh.map((host) => [host, refreshed(installed, host)] as const),
     refused = results.flatMap(([, result]) => (result instanceof Refusal ? [result] : []));
   const [first] = refused;

@@ -170,6 +170,16 @@
       "types": "./dist/updates.d.ts",
       "default": "./dist/updates.js"
     },
+    "./kit-collections": {
+      "development": "./src/kit-collections.ts",
+      "types": "./dist/kit-collections.d.ts",
+      "default": "./dist/kit-collections.js"
+    },
+    "./kit-inventory": {
+      "development": "./src/kit-inventory.ts",
+      "types": "./dist/kit-inventory.d.ts",
+      "default": "./dist/kit-inventory.js"
+    },
     "./services": {
       "development": "./src/services.ts",
       "types": "./dist/services.d.ts",
@@ -267,6 +277,14 @@
     "./internal/json-edit": {
       "types": "./dist/json-edit.d.ts",
       "default": "./dist/json-edit.js"
+    },
+    "./internal/kit-collections": {
+      "types": "./dist/kit-collections.d.ts",
+      "default": "./dist/kit-collections.js"
+    },
+    "./internal/kit-inventory": {
+      "types": "./dist/kit-inventory.d.ts",
+      "default": "./dist/kit-inventory.js"
     },
     "./internal/lifecycle-registration": {
       "types": "./dist/lifecycle-registration.d.ts",
