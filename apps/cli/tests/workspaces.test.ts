@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync,
 import { resolve, sep } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { TRACKED_FILE } from '../src/tracked.js';
+import { stacked } from '../src/workspaces.js';
 import { cleanup, run, scratch } from './workspace-fixture.js';
 
 afterAll(cleanup);
@@ -244,6 +245,40 @@ it('below the table width, list and find stack each row as its id, then its root
   // Wide enough for the table, the same rows keep its columns.
   const wide = await run(['workspaces', 'list'], { ...narrow, columns: 80 });
   expect(wide.stdout).toMatch(/ {2}id {2,}state {2,}root/);
+});
+
+it('at 16 columns every stacked line of a missing row fits, in ASCII and Unicode', async () => {
+  const { env } = home(),
+    id = `w${'x'.repeat(127)}`,
+    root = workspaceAt(resolve(scratch('workspaces'), 'repo'));
+  expect((await run(['workspaces', 'add', root, '--id', id], { env })).exitCode).toBe(0);
+  rmSync(root, { recursive: true });
+  for (const ascii of [[], ['--ascii']]) {
+    const result = await run(['workspaces', 'list', ...ascii], {
+      env: { ...env, NO_COLOR: '1' },
+      isTTY: true,
+      columns: 16,
+    });
+    expect(result.exitCode, result.stderr).toBe(0);
+    const lines = result.stdout.split('\n'),
+      at = lines.findIndex((text) => /^ *wx/.test(text));
+    expect(at, result.stdout).toBeGreaterThan(-1);
+    const block = lines.slice(at, at + 3);
+    for (const text of block) expect(text.length, `${ascii.join('')}: ${text}`).toBeLessThanOrEqual(16);
+    expect(block[2]).toMatch(/miss/);
+  }
+});
+
+it('stacked rows fit every width capabilities accept, from 1 to 80 columns', () => {
+  const rows = [
+    { id: `w${'x'.repeat(127)}`, state: 'present', root: `${sep}${'r'.repeat(60)}${sep}repo` },
+    { id: 'gone', state: 'missing', root: `${sep}old` },
+    { id: 'n', state: 'new', root: `${sep}n` },
+  ] as const;
+  for (const ascii of [false, true])
+    for (let width = 1; width <= 80; width += 1)
+      for (const text of stacked(rows, { color: false, ascii, width }))
+        expect(text.length, `${ascii ? 'ascii' : 'unicode'} ${width}: ${text}`).toBeLessThanOrEqual(width);
 });
 
 it('list keeps to 80 columns with a 128-character id, and --json keeps it whole', async () => {

@@ -12,7 +12,7 @@ import { UsageError } from './args.js';
 import type { Context, Result } from './consumer.js';
 import { confirm, discoverRoot, iaHomeOf, Refusal } from './consumer.js';
 import { homeSrcRemedy } from './home-remedy.js';
-import type { Capabilities, Token } from './render.js';
+import type { Capabilities, StatusSymbol, Token } from './render.js';
 import { atom, document, entry, quote, sectionLabel, statusSymbol, style, words } from './render.js';
 import type { TrackedState, TrackedWorkspace } from './tracked.js';
 import {
@@ -49,12 +49,23 @@ const human = (blocks: readonly (readonly string[])[]): Result => ({
 
 const ROOT_MIN = 20,
   ID_MIN = 8;
-/** Shortened in the middle, so both the volume and the folder name stay readable. */
+const markOf = (ascii: boolean): string => (ascii ? '...' : '…');
+/**
+ * Shortened in the middle, so both the volume and the folder name stay readable. Never longer than `width`: below room
+ * for the mark and a character either side, the text is cut at the width instead.
+ */
 function middle(text: string, width: number, ascii: boolean): string {
   if (text.length <= width) return text;
-  const mark = ascii ? '...' : '…',
-    keep = Math.max(width - mark.length, 2);
+  const mark = markOf(ascii);
+  if (width < mark.length + 2) return text.slice(0, Math.max(width, 0));
+  const keep = width - mark.length;
   return text.slice(0, Math.ceil(keep / 2)) + mark + text.slice(text.length - Math.floor(keep / 2));
+}
+/** Shortened at the end, for a word whose start is what identifies it; never longer than `width`. */
+function head(text: string, width: number, ascii: boolean): string {
+  if (text.length <= width) return text;
+  const mark = markOf(ascii);
+  return width < mark.length + 1 ? text.slice(0, Math.max(width, 0)) : text.slice(0, width - mark.length) + mark;
 }
 type Row = { readonly id: string; readonly state: TrackedState | 'tracked' | 'new'; readonly root: string };
 const SYMBOLS = { present: 'success', missing: 'warning', tracked: 'success', new: 'added' } as const;
@@ -81,17 +92,30 @@ function table(rows: readonly Row[], caps: Capabilities): readonly string[] {
     }),
   ];
 }
-/** One block per row, a blank line apart: the id, then the root and the state indented below it, each to the width. */
-function stacked(rows: readonly Row[], caps: Capabilities): readonly string[] {
-  return rows.flatMap((row, index) => {
-    const symbol = statusSymbol(SYMBOLS[row.state], caps.ascii);
-    return [
-      ...(index === 0 ? [] : ['']),
-      `  ${middle(row.id, caps.width - 2, caps.ascii)}`,
-      `    ${middle(row.root, caps.width - 4, caps.ascii)}`,
-      `    ${style(symbol.text, symbol.role, caps.color)} ${row.state}`,
-    ];
-  });
+/**
+ * One block per row, a blank line apart: the id, then the root and the state indented below it. Every line keeps to
+ * the width, down to one column. The indents (2, then 4) give way first, so the widest state line stays whole while it
+ * can; below that the state word is shortened at its end after the symbol, and without room for the symbol it stands
+ * alone. The id and the root are shortened in the middle.
+ */
+export function stacked(rows: readonly Row[], caps: Capabilities): readonly string[] {
+  const { width, ascii } = caps;
+  const symbols = rows.map((row) => statusSymbol(SYMBOLS[row.state], ascii));
+  const stateWidth = Math.max(...rows.map((row, index) => symbols[index]!.width + 1 + row.state.length));
+  const inner = Math.max(Math.min(4, width - stateWidth), 0),
+    outer = inner >= 4 ? 2 : 0;
+  const state = (row: Row, symbol: StatusSymbol): string => {
+    const budget = width - inner;
+    if (budget >= symbol.width + 2)
+      return `${style(symbol.text, symbol.role, caps.color)} ${head(row.state, budget - symbol.width - 1, ascii)}`;
+    return style(head(row.state, budget, ascii), symbol.role, caps.color);
+  };
+  return rows.flatMap((row, index) => [
+    ...(index === 0 ? [] : ['']),
+    ' '.repeat(outer) + middle(row.id, width - outer, ascii),
+    ' '.repeat(inner) + middle(row.root, width - inner, ascii),
+    ' '.repeat(inner) + state(row, symbols[index]!),
+  ]);
 }
 const line = (tokens: readonly Token[], symbol: 'success' | 'info' | 'warning', caps: Capabilities) =>
   entry([tokens], { depth: 0, symbol }, caps);
