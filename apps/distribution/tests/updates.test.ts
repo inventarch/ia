@@ -557,6 +557,51 @@ it('IA_NO_UPDATE_CHECK=1 stops every lookup, forced or not, and writes nothing',
   }
 });
 
+it('IA_NO_UPDATE_CHECK=1 still counts a checkout against its upstream, which needs no network', async () => {
+  const fetched: string[] = [];
+  vi.stubGlobal('fetch', async (input: string | URL) => {
+    fetched.push(String(input));
+    return new Response('no', { status: 404 });
+  });
+  try {
+    const home = join(temp(), '.ia'),
+      root = kitWorkspace(['acme/a']);
+    const counted: string[][] = [];
+    const check = await refreshUpdates(
+      {
+        home,
+        channel: 'checkout',
+        current: '0.2.0',
+        name: null,
+        checkout: '/src',
+        now: new Date(),
+        root,
+        force: true,
+        env: { IA_NO_UPDATE_CHECK: '1' },
+      },
+      {
+        npm: () => {
+          throw new Error('npm must not be asked');
+        },
+        git: (_cwd, args) => {
+          counted.push([...args]);
+          return '3';
+        },
+        kit: async () => {
+          throw new Error('no kit source may be asked');
+        },
+      },
+    );
+    expect(counted).toEqual([['rev-list', '--count', 'HEAD..@{upstream}']]);
+    expect(check.cli).toMatchObject({ channel: 'checkout', behind: 3, checked: true });
+    expect(readUpdateCheck(home)?.cli).toMatchObject({ behind: 3, checked: true });
+    expect(readUpdateCheck(home)?.packages.entries).toBeUndefined();
+    expect(fetched).toEqual([]);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 // crowncodes/ia#436: refresh-updates run by hand from a directory the repository controls never starts an npm or git planted there,
 // through a relative or empty PATH entry or, on Windows, the search of the working directory. The built CLI runs from
 // such a directory, so `pnpm --filter @inventarch/distribution build` first.

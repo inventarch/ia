@@ -333,9 +333,11 @@ async function bounded(lookup: () => Promise<string | null>): Promise<string | n
 export async function refreshUpdates(input: RefreshInput, sources: Sources = liveSources): Promise<UpdateCheck> {
   if (input.force === true && input.root === undefined)
     fail('INPUT-INVALID', 'Forcing a refresh needs a workspace root');
-  // §11: `IA_NO_UPDATE_CHECK=1` is the offline signal, so even a forced refresh asks no source and writes nothing; the
-  // cache is returned as it stands.
-  if ((input.env ?? process.env)['IA_NO_UPDATE_CHECK'] === '1')
+  // §11: `IA_NO_UPDATE_CHECK=1` is the offline signal: even a forced refresh makes no network lookup, npm's or a
+  // registry's. A checkout's count against its upstream is local (it fetches nothing), so it still runs; any other
+  // refresh has nothing left to do, writes nothing and returns the cache as it stands.
+  const offline = (input.env ?? process.env)['IA_NO_UPDATE_CHECK'] === '1';
+  if (offline && !(input.channel === 'checkout' && input.checkout !== null))
     return (
       readUpdateCheck(input.home) ?? {
         schema: 'ia.update-check.v1',
@@ -346,14 +348,14 @@ export async function refreshUpdates(input: RefreshInput, sources: Sources = liv
     );
   let latest: string | null = null,
     behind: number | null = null;
-  if (input.channel === 'npm' && input.name !== null) latest = sources.npm(input.name);
+  if (!offline && input.channel === 'npm' && input.name !== null) latest = sources.npm(input.name);
   if (input.channel === 'checkout' && input.checkout !== null) {
     const count = sources.git(input.checkout, ['rev-list', '--count', 'HEAD..@{upstream}']);
     behind = count !== null && /^\d+$/.test(count) ? Number(count) : null;
   }
   const checkedAt = input.now.toISOString();
   const fetched: KitUpdateEntry[] = [];
-  if (input.root !== undefined) {
+  if (!offline && input.root !== undefined) {
     const stored = readUpdateCheck(input.home),
       kit = sources.kit ?? liveKitSource(sources);
     const keys = kitUnitKeys(input.root, { env: input.env ?? process.env, userHome: input.userHome })
