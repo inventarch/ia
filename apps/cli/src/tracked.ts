@@ -61,8 +61,25 @@ const isFile = (path: string): boolean => {
     return false;
   }
 };
-/** One root, whichever way it is spelled: by device and inode while it exists, by its folded spelling once it is gone. */
-const sameRoot = (a: string, b: string): boolean => sameFile(a, b) || pathKey(resolve(a)) === pathKey(resolve(b));
+type Identity = { readonly dev: bigint; readonly ino: bigint };
+const identity = (path: string): Identity | undefined => {
+  try {
+    return statSync(path, { bigint: true, throwIfNoEntry: false });
+  } catch {
+    return undefined;
+  }
+};
+/**
+ * One root, whichever way it is spelled. While both paths exist the answer is their device and inode and nothing else,
+ * so two directories whose names differ only by case (on a volume that keeps them apart) are two roots. Only when one
+ * of them is gone is the folded spelling compared, as the volume would fold it.
+ */
+export function sameRoot(a: string, b: string, stat: (path: string) => Identity | undefined = identity): boolean {
+  const left = stat(a),
+    right = stat(b);
+  if (left !== undefined && right !== undefined) return left.dev === right.dev && left.ino === right.ino;
+  return pathKey(resolve(a)) === pathKey(resolve(b));
+}
 
 function load(home: string): Loaded {
   const path = join(home, TRACKED_FILE),
@@ -329,7 +346,8 @@ const SKIPPED: ReadonlySet<string> = new Set(['node_modules', '.git', '.ia-workt
  * The workspace roots under `folder`, real paths sorted, to `depth` levels below it (default 4). The walk skips the
  * names in `SKIPPED`, every folder whose name starts with `.`, the IA home, a link or junction, and a folder whose
  * `.git` is a file (a linked worktree or a submodule). It does not descend into a workspace it found, so fixtures
- * inside a repository are not listed. Refuses a folder that is not a directory as `IA-DB-ROOT-INVALID`.
+ * inside a repository are not listed. The folder itself is skipped the same way: inside the IA home, named in `SKIPPED`,
+ * or a linked worktree, it yields nothing. Refuses a folder that is not a directory as `IA-DB-ROOT-INVALID`.
  */
 export function findWorkspaces(
   folder: string,
@@ -347,6 +365,14 @@ export function findWorkspaces(
       'Run "ia workspaces find <folder>" with a folder that exists.',
     );
   const home = (path: string): boolean => iaHome !== undefined && sameFile(path, iaHome);
+  const start = realpathSync(absolute);
+  // The folder itself is held to the exclusions its children are: asking to look inside one is not a way around them.
+  if (
+    (iaHome !== undefined && within(iaHome, start)) ||
+    SKIPPED.has(basename(start)) ||
+    isFile(join(start, '.git'))
+  )
+    return [];
   const found: string[] = [];
   const walk = (directory: string, level: number): void => {
     if (isDirectory(join(directory, '.ia/src')) && !home(join(directory, '.ia'))) {
@@ -368,6 +394,6 @@ export function findWorkspaces(
       walk(child, level + 1);
     }
   };
-  walk(realpathSync(absolute), 0);
+  walk(start, 0);
   return found.sort();
 }

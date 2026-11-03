@@ -10,6 +10,7 @@ import { Refusal } from '../src/consumer.js';
 import {
   defaultTrackId,
   findWorkspaces,
+  sameRoot,
   readTracked,
   TRACKED_FILE,
   TRACKED_FORMAT,
@@ -248,4 +249,43 @@ it('does not descend into a workspace it found', () => {
   expect(findWorkspaces(folder, {})).toEqual([realpathSync(outer)]);
   // The folder itself is a workspace: it is the one result.
   expect(findWorkspaces(outer, {})).toEqual([realpathSync(outer)]);
+});
+
+it('sameRoot judges two existing roots by device and inode alone, whatever their spelling', () => {
+  const stats: Record<string, { dev: bigint; ino: bigint }> = {
+    '/w/repo': { dev: 1n, ino: 10n },
+    '/w/REPO': { dev: 1n, ino: 11n },
+    '/w/alias': { dev: 1n, ino: 10n },
+  };
+  const stat = (path: string) => stats[path];
+  // Two distinct directories whose names differ only by case are two roots, even where paths fold case.
+  expect(sameRoot('/w/repo', '/w/REPO', stat)).toBe(false);
+  expect(sameRoot('/w/repo', '/w/alias', stat)).toBe(true);
+  // The spelling counts only for a path that no longer exists.
+  expect(sameRoot('/w/gone', '/w/GONE', stat)).toBe(process.platform === 'win32' || process.platform === 'darwin');
+  expect(sameRoot('/w/gone', '/w/gone', stat)).toBe(true);
+  expect(sameRoot('/w/repo', '/w/REPO-gone', stat)).toBe(false);
+});
+
+it.skipIf(process.platform !== 'linux')('tracks, finds and removes two directories that differ only by case', () => {
+  const at = home(),
+    parent = scratch('tracked'),
+    lower = workspaceAt(resolve(parent, 'repo'), 'lower'),
+    upper = workspaceAt(resolve(parent, 'REPO'), 'upper');
+  trackWorkspace(at, { root: lower }, NOW);
+  expect(trackWorkspace(at, { root: upper }, NOW).status).toBe('added');
+  expect(untrackWorkspace(at, upper, parent).id).toBe('upper');
+  expect(readTracked(at).map((row) => row.id)).toEqual(['lower']);
+});
+
+it('find applies the exclusions to the starting folder itself', () => {
+  const at = home(),
+    parent = scratch('tracked'),
+    inHome = workspaceAt(resolve(at, 'nested')),
+    worktree = workspaceAt(resolve(parent, 'worktree')),
+    modules = workspaceAt(resolve(parent, 'node_modules')),
+    ordinary = workspaceAt(resolve(parent, 'ordinary'));
+  writeFileSync(resolve(worktree, '.git'), 'gitdir: ../elsewhere\n');
+  for (const start of [at, inHome, worktree, modules]) expect(findWorkspaces(start, { iaHome: at }), start).toEqual([]);
+  expect(findWorkspaces(ordinary, { iaHome: at })).toEqual([realpathSync(ordinary)]);
 });

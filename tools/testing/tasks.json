@@ -877,6 +877,14 @@
           ]
         },
         {
+          "case": "tests/tracked.test.ts > tracks, finds and removes two directories that differ only by case",
+          "reason": "Windows and macOS volumes fold case by default, so two directories differing only by case cannot be created there; the identity rule is covered by the injected-stat sameRoot case on every platform.",
+          "platforms": [
+            "windows",
+            "macos"
+          ]
+        },
+        {
           "case": "tests/handoff.test.ts > handOff returns 130 when the child ends on a signal",
           "reason": "A child ended by a signal reports a null status only on POSIX; Windows has no such ending to produce.",
           "platforms": [
