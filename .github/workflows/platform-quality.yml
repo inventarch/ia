@@ -33,6 +33,12 @@ env:
   NX_CACHE_EPOCH: '2'
   # Scheduled and dispatched full runs execute everything; ordinary runs may reuse task results.
   IA_FULL: ${{ (github.event_name == 'schedule' || inputs.full) && 'true' || '' }}
+  # Main pushes and pull requests from this repository's branches may also reuse results through the remote cache.
+  # The server keeps each token's entries apart but has no read-only token, so main's token is a secret of the
+  # nx-cache-main environment, which only main may use: a pull request cannot obtain it even by editing this file.
+  # Every other run takes its token from nx-cache-pr, whose entries main never reads. Fork pull requests receive no
+  # secrets, and a run without a token or server URL reuses only the Actions cache.
+  IA_REMOTE: ${{ !(github.event_name == 'schedule' || inputs.full) && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || '' }}
 
 jobs:
   plan:
@@ -96,6 +102,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.build) }}
+    # Selects the remote cache token (see IA_REMOTE) and records no deployment.
+    environment:
+      name: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'nx-cache-main' || 'nx-cache-pr' }}
+      deployment: false
     steps:
       - uses: actions/checkout@v7
         with:
@@ -110,7 +120,10 @@ jobs:
           key: public-build-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: public-build-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
       - name: Run assigned tasks
-        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+        env:
+          NX_SELF_HOSTED_REMOTE_CACHE_SERVER: ${{ env.IA_REMOTE == 'true' && secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN != '' && vars.NX_SELF_HOSTED_REMOTE_CACHE_SERVER || '' }}
+          NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN: ${{ env.IA_REMOTE == 'true' && secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN || '' }}
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }} ${{ env.IA_REMOTE == 'true' && '--remote' || '' }}
       - uses: actions/cache/save@v6
         if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
@@ -135,6 +148,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.static) }}
+    # Selects the remote cache token (see IA_REMOTE) and records no deployment.
+    environment:
+      name: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'nx-cache-main' || 'nx-cache-pr' }}
+      deployment: false
     steps:
       - uses: actions/checkout@v7
         with:
@@ -149,7 +166,10 @@ jobs:
           key: public-static-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: public-static-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
       - name: Run assigned tasks
-        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+        env:
+          NX_SELF_HOSTED_REMOTE_CACHE_SERVER: ${{ env.IA_REMOTE == 'true' && secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN != '' && vars.NX_SELF_HOSTED_REMOTE_CACHE_SERVER || '' }}
+          NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN: ${{ env.IA_REMOTE == 'true' && secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN || '' }}
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }} ${{ env.IA_REMOTE == 'true' && '--remote' || '' }}
       - uses: actions/cache/save@v6
         if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
@@ -174,6 +194,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.tests) }}
+    # Selects the remote cache token (see IA_REMOTE) and records no deployment.
+    environment:
+      name: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'nx-cache-main' || 'nx-cache-pr' }}
+      deployment: false
     steps:
       - uses: actions/checkout@v7
         with:
@@ -189,7 +213,10 @@ jobs:
           key: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: public-tests-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
       - name: Run assigned tasks
-        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+        env:
+          NX_SELF_HOSTED_REMOTE_CACHE_SERVER: ${{ env.IA_REMOTE == 'true' && secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN != '' && vars.NX_SELF_HOSTED_REMOTE_CACHE_SERVER || '' }}
+          NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN: ${{ env.IA_REMOTE == 'true' && secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN || '' }}
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }} ${{ env.IA_REMOTE == 'true' && '--remote' || '' }}
       - uses: actions/cache/save@v6
         if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
@@ -214,6 +241,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.emitted) }}
+    # Selects the remote cache token (see IA_REMOTE) and records no deployment.
+    environment:
+      name: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'nx-cache-main' || 'nx-cache-pr' }}
+      deployment: false
     steps:
       - uses: actions/checkout@v7
         with:
@@ -228,7 +259,10 @@ jobs:
           key: public-emitted-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: public-emitted-${{ runner.os }}-${{ runner.arch }}-${{ env.NX_CACHE_EPOCH }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
       - name: Run assigned tasks
-        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }}
+        env:
+          NX_SELF_HOSTED_REMOTE_CACHE_SERVER: ${{ env.IA_REMOTE == 'true' && secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN != '' && vars.NX_SELF_HOSTED_REMOTE_CACHE_SERVER || '' }}
+          NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN: ${{ env.IA_REMOTE == 'true' && secrets.NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN || '' }}
+        run: pnpm tests:orchestrate --tasks "${{ matrix.tasks }}" --evidence-out artifacts/evidence ${{ env.IA_FULL && '--full' || '' }} ${{ env.IA_REMOTE == 'true' && '--remote' || '' }}
       - uses: actions/cache/save@v6
         if: env.IA_FULL == '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:

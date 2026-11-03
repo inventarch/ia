@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { KERNEL_DIGEST, LANGUAGE_VERSION } from '@inventarch/language';
+import { KERNEL_DIGEST, LANGUAGE_VERSION, valuesFor } from '@inventarch/language';
 import {
+  GraphUsageError,
   authoredRevisionOf,
   canonicalRoot,
   dimensionsOf,
@@ -204,20 +205,99 @@ describe('coordinate and authored dimensions', () => {
     });
     expect(validateCoordinate({})).toEqual({});
   });
-  it.each<Readonly<Record<string, unknown>>>([
-    { phase: 'bad' },
-    { missing: 'act' },
-    { Phase: 'act' },
-    { phase: 1 },
-    { phase: null },
-    { constructor: 'toString' },
-  ])('refuses invalid coordinate %j with admitted values', (coordinate) => {
-    expect(() => validateCoordinate(coordinate)).toThrow(
-      expect.objectContaining({
+  const axes = 'shape, category, phase, primitive, move, kind, lane, predicate, artifact-set, severity, provenance';
+  const phases = 'orient, plan, act, learn';
+  /** The GraphUsageError validateCoordinate throws for `input`, as its code and message. */
+  const refusalOf = (input: Readonly<Record<string, unknown>>): { code: string; message: string } => {
+    try {
+      validateCoordinate(input);
+    } catch (error) {
+      expect(error).toBeInstanceOf(GraphUsageError);
+      return { code: (error as GraphUsageError).code, message: (error as GraphUsageError).message };
+    }
+    throw new Error('validateCoordinate admitted the coordinate');
+  };
+  it('admits each of the eleven condition axes', () => {
+    for (const axis of axes.split(', ')) {
+      const value = valuesFor(axis)![0]!;
+      expect(validateCoordinate({ [axis]: value })).toEqual({ [axis]: value });
+    }
+  });
+  // A coordinate read from JSON text, as the MCP door reads it from stdin, carries these names as own keys.
+  it.each(['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf', 'Phase', 'missing'])(
+    'refuses the parsed own key %s as an unknown axis with the exact message',
+    (name) => {
+      const input = JSON.parse(`{${JSON.stringify(name)}:"act"}`) as Record<string, unknown>;
+      expect(Object.keys(input)).toEqual([name]);
+      expect(refusalOf(input)).toEqual({
         code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
-        message: expect.stringContaining('admitted:'),
-      }),
-    );
+        message: `Unknown coordinate axis '${name}'; admitted: ${axes}`,
+      });
+    },
+  );
+  it('refuses an own constructor key even when its value names a prototype method', () => {
+    expect(refusalOf({ constructor: 'toString' })).toEqual({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: `Unknown coordinate axis 'constructor'; admitted: ${axes}`,
+    });
+  });
+  it('checks entries in input order, each axis before its value is skipped or read', () => {
+    expect(refusalOf(JSON.parse('{"phase":"bad","invented":"act"}'))).toEqual({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: `Unknown phase value 'bad'; admitted: ${phases}`,
+    });
+    expect(refusalOf(JSON.parse('{"invented":"act","phase":"bad"}'))).toEqual({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: `Unknown coordinate axis 'invented'; admitted: ${axes}`,
+    });
+    expect(refusalOf({ invented: undefined })).toEqual({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: `Unknown coordinate axis 'invented'; admitted: ${axes}`,
+    });
+  });
+  it('writes canonical values in input order, skips undefined values and freezes the result', () => {
+    const got = validateCoordinate({ severity: 'BLOCKING', move: undefined, shape: 'Context', phase: 'ACT' });
+    expect(JSON.stringify(got)).toBe('{"severity":"blocking","shape":"context","phase":"act"}');
+    expect(Object.hasOwn(got, 'move')).toBe(false);
+    expect(Object.isFrozen(got)).toBe(true);
+    expect(Object.getPrototypeOf(got)).toBe(Object.prototype);
+  });
+  it.each<[string, unknown, string]>([
+    ['string', 'bad', 'bad'],
+    ['number', 1, '1'],
+    ['boolean', true, 'true'],
+    ['null', null, 'null'],
+    ['array', ['act'], 'act'],
+    ['empty array', [], ''],
+    ['nested array', [1, [2, 3]], '1,2,3'],
+    ['plain object', {}, '[object Object]'],
+    ['symbol', Symbol('x'), 'Symbol(x)'],
+    ['object with a callable toString', { toString: () => 'custom' }, 'custom'],
+  ])('renders a refused value (%s) as String() does', (_label, value, shown) => {
+    expect(refusalOf({ phase: value })).toEqual({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: `Unknown phase value '${shown}'; admitted: ${phases}`,
+    });
+  });
+  it.each<[string, unknown]>([
+    ['the parsed object {"toString":1}', JSON.parse('{"toString":1}')],
+    ['the parsed object {"toString":{},"valueOf":{}}', JSON.parse('{"toString":{},"valueOf":{}}')],
+    ['a deeply nested array', JSON.parse('['.repeat(1e5) + ']'.repeat(1e5))],
+    ['an object without a prototype', Object.create(null)],
+    [
+      'an object whose toString throws',
+      {
+        toString: () => {
+          throw new Error('no text');
+        },
+      },
+    ],
+  ])('refuses %s, which String() cannot render, as an unknown value', (_label, value) => {
+    expect(() => String(value)).toThrow();
+    expect(refusalOf({ phase: value })).toEqual({
+      code: 'IA-GRAPH-COORDINATE-VALUE-UNKNOWN',
+      message: `Unknown phase value '<unprintable>'; admitted: ${phases}`,
+    });
   });
   it('reads actual severity and explicit classification without interpreting glosses', () => {
     const law = records.find((r) => r.name === 'sample-rule')!;
