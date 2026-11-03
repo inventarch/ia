@@ -252,9 +252,16 @@ const lockDigest = (root: string): string | null => {
 export interface CurrentCollections {
   /** The record that counts, or null: none, unreadable, or an interrupted operation. */
   readonly record: KitCollections | null;
-  /** Where it came from: the file, a journal's side, a journal undecided between them, or nothing. */
-  readonly source: 'none' | 'file' | 'before' | 'after' | 'undecided' | 'interrupted';
+  /**
+   * Where it came from: the file, a journal's side, a journal undecided between them, nothing, or, when the
+   * installation state kept changing while it was read, a record of unknown identities (`unstable`).
+   */
+  readonly source: 'none' | 'file' | 'before' | 'after' | 'undecided' | 'interrupted' | 'unstable';
   readonly problems: readonly string[];
+}
+/** Test seam: `afterJournal` runs between reading the journal and reading the record it decides on. */
+export interface CollectionReadHooks {
+  readonly afterJournal?: () => void;
 }
 /**
  * Which record counts, read only:
@@ -263,9 +270,10 @@ export interface CurrentCollections {
  *    while exactly `beforeActive`, and otherwise the collections both sides agree on, the rest unknown;
  * 3. no journal: the record file.
  */
-export function currentCollections(rootInput: string): CurrentCollections {
+export function currentCollections(rootInput: string, hooks: CollectionReadHooks = {}): CurrentCollections {
   const root = workspace(rootInput);
   const journal = readCollectionsJournal(root);
+  hooks.afterJournal?.();
   if (journal.state === 'invalid') return { record: null, source: 'none', problems: [journal.problem] };
   if (journal.state === 'present') {
     if (bytes(root, INSTALL_PATHS.pending, 4 * DISTRIBUTION_LIMITS.metadata) !== null)
@@ -414,15 +422,78 @@ export { writeRecord as writeKitCollections };
  * `currentCollections` matched against the portable lock now on disk. Never throws: a lock that cannot be read leaves
  * no collection intact, with the reason.
  */
-export function intactCollections(rootInput: string): IntactCollections {
+export function intactCollections(rootInput: string, hooks: CollectionReadHooks = {}): IntactCollections {
   const root = workspace(rootInput);
-  let content: Buffer | null, lock: DistributionLock | null;
+  const { current, lock: content } = stableCollections(root, hooks);
+  let lock: DistributionLock | null;
   try {
-    content = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata);
     lock = content === null ? null : decodeDistributionLock(decodeDistributionJson(utf8(content)));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return { collections: [], unknown: [], problems: [`${INSTALL_PATHS.lock}: ${reason}`] };
   }
-  return intactAgainst(currentCollections(root), lock, content === null ? null : sha256(content));
+  return intactAgainst(current, lock, content === null ? null : sha256(content));
+}
+
+/** The files a collection read depends on, by content: pending marker, journal, activation pointer, lock and record. */
+function probe(root: string): string {
+  return [
+    bytes(root, INSTALL_PATHS.pending, 4 * DISTRIBUTION_LIMITS.metadata),
+    bytes(root, KIT_COLLECTIONS_JOURNAL, 4 * DISTRIBUTION_LIMITS.metadata),
+    bytes(root, INSTALL_PATHS.active),
+    bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata),
+    bytes(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata),
+  ]
+    .map((content) => (content === null ? '-' : sha256(content)))
+    .join(':');
+}
+/**
+ * The record that counts and the lock bytes it is judged against, read between two probes of the installation state:
+ * a reader never sees a record from before an operation began beside a pointer from after (or the reverse), because
+ * another process changing the files in between makes the probes differ. The read is tried once more, and when the
+ * state changes again it fails closed: every collection the record or journal names is reported with an unknown
+ * identity, never as intact.
+ */
+export function stableCollections(
+  rootInput: string,
+  hooks: CollectionReadHooks = {},
+): { readonly current: CurrentCollections; readonly lock: Buffer | null } {
+  const root = workspace(rootInput);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const before = probe(root);
+    const current = currentCollections(root, hooks);
+    const lock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata);
+    if (probe(root) === before) return { current, lock };
+  }
+  const lock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata);
+  return { current: unstableCollections(root, lock === null ? null : sha256(lock)), lock };
+}
+/** Every collection the record file or a journal side names, as unknown, with the member ids any of them recorded. */
+function unstableCollections(root: string, lockSha: string | null): CurrentCollections {
+  const journal = readCollectionsJournal(root),
+    file = readKitCollections(root);
+  const sides = [
+    file.state === 'present' ? file.record : null,
+    journal.state === 'present' ? decodeOrNull(journal.journal.before) : null,
+    journal.state === 'present' ? decodeOrNull(journal.journal.after) : null,
+  ].filter((side): side is KitCollections => side !== null);
+  const members = new Map<string, Set<string>>();
+  for (const side of sides) {
+    for (const row of side.collections)
+      for (const member of row.members) members.set(row.id, (members.get(row.id) ?? new Set()).add(member.id));
+    for (const row of side.unknown)
+      for (const member of row.members) members.set(row.id, (members.get(row.id) ?? new Set()).add(member));
+  }
+  const problems = ['the installation changed while it was read; collection identity unknown'];
+  if (members.size === 0 || lockSha === null) return { record: null, source: 'unstable', problems };
+  return {
+    record: {
+      format: KIT_COLLECTIONS_FORMAT,
+      lock: lockSha,
+      collections: [],
+      unknown: [...members].map(([id, ids]) => ({ id, members: [...ids].sort() })).sort(byId),
+    },
+    source: 'unstable',
+    problems,
+  };
 }

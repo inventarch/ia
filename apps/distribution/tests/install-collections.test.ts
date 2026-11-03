@@ -22,6 +22,7 @@ import {
 import { registryAddCollection } from '../src/registry-build.js';
 import { registryChooser } from '../src/registry-config.js';
 import { resolveFromRegistries } from '../src/registry-resolve.js';
+import { installedUnits } from '../src/kit-inventory.js';
 import { resolveReleases } from '../src/resolve.js';
 import { readWorkspaceLock } from '../src/services.js';
 import { buildFixtureRegistry } from './registry-fixture.js';
@@ -293,4 +294,43 @@ it('a restore of an unchanged lock does not rewrite the record', async () => {
   expect(statSync(join(root, KIT_COLLECTIONS)).mtimeMs).toBe(stamp);
   expect(stages).not.toContain('collections-journal');
   expect(existsSync(join(root, KIT_COLLECTIONS_JOURNAL))).toBe(false);
+});
+
+it('a reader racing an identical-lock upgrade between its journal and record reads never reports the staged version', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  await install(root, dir, ['acme/same@1.0.0']);
+  const upgrade = await plan(root, dir, ['acme/same@2.0.0']);
+  let raced = 0;
+  // After the reader found no journal and before it reads the record, another install of this CLI writes pending.json,
+  // the journal and 2.0.0's record, and stops before activating.
+  const afterJournal = (): void => {
+    if (raced++ > 0) return;
+    expect(() =>
+      applyInstallation(upgrade.plan, { collections: upgrade.collections, checkpoint: stopAt('collections') }),
+    ).toThrow('stopped at collections');
+  };
+  const read = intactCollections(root, { afterJournal });
+  expect(raced).toBeGreaterThan(0);
+  expect(read.collections).toEqual([]);
+  expect(read.problems).toEqual(['installation interrupted; run ia recover']);
+  // Inventory reads the same way: no unit claims 2.0.0.
+  const units = installedUnits(root).units;
+  expect(units.some((unit) => unit.source.kind === 'collection')).toBe(false);
+});
+it('a reader whose installation state keeps changing fails closed to an unknown identity', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  await install(root, dir, ['acme/same@1.0.0']);
+  const active = join(root, INSTALL_PATHS.active),
+    pointer = readFileSync(active, 'utf8');
+  let reads = 0;
+  // Each attempt sees the activation pointer move under it.
+  const afterJournal = (): void => writeFileSync(active, `${pointer}${' '.repeat(++reads)}`);
+  const read = intactCollections(root, { afterJournal });
+  expect(reads).toBe(2);
+  expect(read.collections).toEqual([]);
+  expect(read.unknown).toEqual([{ id: 'acme/same', members: ['acme/x'] }]);
+  writeFileSync(active, pointer);
+  expect(versions(root)).toEqual(['acme/same@1.0.0']);
 });

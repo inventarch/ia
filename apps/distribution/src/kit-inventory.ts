@@ -6,16 +6,11 @@
  * owns. A release that is only a dependency is not a unit. Never throws: a lock or record that cannot be read is a
  * problem, and its members are never reported under a guessed source.
  */
-import {
-  decodeDistributionJson,
-  decodeDistributionLock,
-  DISTRIBUTION_LIMITS,
-  INSTALL_PATHS,
-} from '@inventarch/db/distribution';
+import { decodeDistributionJson, decodeDistributionLock, INSTALL_PATHS } from '@inventarch/db/distribution';
 import type { DistributionLock } from '@inventarch/db/distribution';
-import { bytes, sha256, utf8, workspace } from './files.js';
-import { currentCollections, intactAgainst } from './kit-collections.js';
-import type { UnknownCollection } from './kit-collections.js';
+import { sha256, utf8, workspace } from './files.js';
+import { intactAgainst, stableCollections } from './kit-collections.js';
+import type { CollectionReadHooks, CurrentCollections, UnknownCollection } from './kit-collections.js';
 
 export type KitSource =
   /** An npm package entry in the lock. */
@@ -40,11 +35,11 @@ export interface InstalledUnits {
   readonly problems: readonly string[];
 }
 
-export function installedUnits(rootInput: string): InstalledUnits {
-  let root: string, content: Buffer | null, lock: DistributionLock;
+export function installedUnits(rootInput: string, hooks: CollectionReadHooks = {}): InstalledUnits {
+  let content: Buffer | null, lock: DistributionLock, current: CurrentCollections;
   try {
-    root = workspace(rootInput);
-    content = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata);
+    // The lock and the collection record are read together between two probes of the installation state.
+    ({ current, lock: content } = stableCollections(workspace(rootInput), hooks));
     if (content === null) return { units: [], unknownCollections: [], problems: [] };
     lock = decodeDistributionLock(decodeDistributionJson(utf8(content)));
   } catch (error) {
@@ -56,7 +51,7 @@ export function installedUnits(rootInput: string): InstalledUnits {
   }
   let intact: ReturnType<typeof intactAgainst>;
   try {
-    intact = intactAgainst(currentCollections(root), lock, sha256(content));
+    intact = intactAgainst(current, lock, sha256(content));
   } catch (error) {
     intact = { collections: [], unknown: [], problems: [error instanceof Error ? error.message : String(error)] };
   }
