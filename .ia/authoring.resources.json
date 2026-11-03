@@ -290,8 +290,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/observation.md",
-      "bytes": 2899,
-      "sha256": "bc3d27a6bc6336b6fde4bbd3fa73d8de7872f7ac6cdd7c328fd5b3cad24b9c28",
+      "bytes": 3057,
+      "sha256": "b35500bf2d2c3b464825b7f401c1935fe53e13554da3887d95369c7c8a66d501",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },
@@ -353,8 +353,8 @@
     },
     {
       "path": ".ia/src/systems/authoring-system/reference/run.md",
-      "bytes": 1320,
-      "sha256": "3f4637d3b6f1e94ef5f2ffaf818b959bb4496ffd233c289f232ebad59ebb9e26",
+      "bytes": 1479,
+      "sha256": "28ad93640aac7acbc6909c8812561b78e33074be9974c6426f45d58fcfe854ed",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

@@ -32,6 +32,7 @@ Section relationships: optional.
 - evidence.bundle: text; required.
 - evidence.digest: text; required.
 - evidence.availability: id; required.
+- evidence.label: list of text; optional. — Opaque host-defined content labels retained from the session; readers must enforce their own current clearance.
 - evidence.subject: ref; optional. — The record the evidence is about, as a typed reference; evidence.locator spells the same subject as text.
 - evidence.subject-revision: text; optional. — The subject's per-record digest when the evidence was taken; readiness compares it with the subject's current digest. evidence.revision is its free-text form.
 - evidence.snapshot-revision: text; optional. — The revision of the snapshot the subject was read from.
