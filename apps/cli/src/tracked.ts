@@ -209,6 +209,14 @@ function freeId(taken: ReadonlySet<string>, id: string, root: string): string {
 export const trackedRow = (rows: readonly TrackedWorkspace[], root: string): TrackedWorkspace | undefined =>
   rows.find((row) => sameRoot(row.root, root));
 
+/** `--id` against the id rule, as usage (§1.2): the handler runs it before any state is read, the store again as a guard. */
+export function checkTrackId(id: string): void {
+  if (!TRACK_ID.test(id))
+    throw new UsageError(
+      `--id must start with a letter or digit and hold only letters, digits, ".", "_" or "-" (at most 128); got ${id}`,
+    );
+}
+
 type Input = { readonly root: string; readonly id?: string | undefined; readonly label?: string | undefined };
 /** One root checked against `rows` and given its row; nothing is written here. */
 function admit(
@@ -218,10 +226,7 @@ function admit(
   input: Input,
   now: Date,
 ): { readonly status: 'added' | 'already'; readonly row: TrackedWorkspace } {
-  if (input.id !== undefined && !TRACK_ID.test(input.id))
-    throw new UsageError(
-      `--id must start with a letter or digit and hold only letters, digits, ".", "_" or "-" (at most 128); got ${input.id}`,
-    );
+  if (input.id !== undefined) checkTrackId(input.id);
   const root = workspaceRoot(input.root);
   // Host plugin distribution spec §3: the IA home holds configuration and state, never a workspace.
   if (within(home, root) || sameFile(join(root, '.ia'), home))

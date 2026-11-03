@@ -16,6 +16,7 @@ import type { Capabilities, Token } from './render.js';
 import { atom, document, entry, quote, sectionLabel, statusSymbol, style, words } from './render.js';
 import type { TrackedState, TrackedWorkspace } from './tracked.js';
 import {
+  checkTrackId,
   defaultTrackId,
   FIND_DEPTH,
   findWorkspaces,
@@ -46,6 +47,8 @@ const human = (blocks: readonly (readonly string[])[]): Result => ({
   stderr: '',
 });
 
+const ROOT_MIN = 20,
+  ID_MIN = 8;
 /** Shortened in the middle, so both the volume and the folder name stay readable. */
 function middle(text: string, width: number, ascii: boolean): string {
   if (text.length <= width) return text;
@@ -53,23 +56,27 @@ function middle(text: string, width: number, ascii: boolean): string {
     keep = Math.max(width - mark.length, 2);
   return text.slice(0, Math.ceil(keep / 2)) + mark + text.slice(text.length - Math.floor(keep / 2));
 }
-/** `id  state  root`, two spaces apart; the root takes what the width leaves, at least 20 columns. */
+/**
+ * `id  state  root`, two spaces apart. The id and the root share the width the state leaves: the root keeps at least 20
+ * columns and the id, shortened in the middle, at most what remains, so a long id never pushes a row past the terminal.
+ */
 function table(
   rows: readonly { readonly id: string; readonly state: TrackedState | 'tracked' | 'new'; readonly root: string }[],
   caps: Capabilities,
 ): readonly string[] {
   const symbols = { present: 'success', missing: 'warning', tracked: 'success', new: 'added' } as const;
   const symbolWidth = Math.max(...rows.map((row) => statusSymbol(symbols[row.state], caps.ascii).width));
-  const idWidth = Math.max(2, ...rows.map((row) => row.id.length)),
-    stateWidth = symbolWidth + 1 + Math.max(...rows.map((row) => row.state.length));
-  const rootWidth = Math.max(caps.width - (2 + idWidth + 2 + stateWidth + 2), 20);
+  const stateWidth = symbolWidth + 1 + Math.max(...rows.map((row) => row.state.length));
+  const idBudget = Math.max(caps.width - (2 + 2 + stateWidth + 2 + ROOT_MIN), ID_MIN),
+    idWidth = Math.min(Math.max(2, ...rows.map((row) => row.id.length)), idBudget);
+  const rootWidth = Math.max(caps.width - (2 + idWidth + 2 + stateWidth + 2), ROOT_MIN);
   const header = style(`  ${'id'.padEnd(idWidth)}  ${'state'.padEnd(stateWidth)}  root`, 'dim', caps.color);
   return [
     header,
     ...rows.map((row) => {
       const symbol = statusSymbol(symbols[row.state], caps.ascii);
       const state = style(symbol.text, symbol.role, caps.color) + ` ${row.state}`.padEnd(stateWidth - symbol.width);
-      return `  ${row.id.padEnd(idWidth)}  ${state}  ${middle(row.root, rootWidth, caps.ascii)}`;
+      return `  ${middle(row.id, idWidth, caps.ascii).padEnd(idWidth)}  ${state}  ${middle(row.root, rootWidth, caps.ascii)}`;
     }),
   ];
 }
@@ -207,6 +214,8 @@ export async function runWorkspaces(context: Context): Promise<Result> {
     throw new UsageError(`Unexpected argument ${extra ?? target}`);
   if ((action === 'find' || action === 'remove') && target === undefined)
     throw new UsageError(`Expected ${action === 'find' ? '<folder>' : '<id|directory>'}`);
+  // Arguments are judged before any state is read or a root discovered (§1.2), a malformed tracked file included.
+  if (action === 'add' && args.value('id') !== undefined) checkTrackId(args.value('id')!);
   const home = iaHomeOf(host.env);
   if (home === undefined)
     throw new Refusal(

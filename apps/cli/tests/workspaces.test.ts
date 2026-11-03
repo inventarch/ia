@@ -180,3 +180,30 @@ it('ia workspaces --help lists the four forms', async () => {
   ])
     expect(help.stdout).toContain(form);
 });
+
+it('an invalid --id is a usage error before any state is read or root discovered', async () => {
+  const { home: at, env } = home(),
+    root = workspaceAt(resolve(scratch('workspaces'), 'repo'));
+  mkdirSync(at, { recursive: true });
+  writeFileSync(resolve(at, TRACKED_FILE), '{ not json');
+  // Malformed tracked file, valid root: the id is still the first thing refused.
+  const withRoot = await run(['workspaces', 'add', root, '--id', '.bad'], { env });
+  expect(withRoot.exitCode, withRoot.stderr).toBe(2);
+  expect(flat(withRoot.stderr)).toContain('--id must start with a letter or digit');
+  // No directory given and none holding the cwd: the id still comes before root discovery.
+  const noRoot = await run(['workspaces', 'add', '--id', '.bad'], { env, cwd: scratch('workspaces') });
+  expect(noRoot.exitCode, noRoot.stderr).toBe(2);
+  expect(readFileSync(resolve(at, TRACKED_FILE), 'utf8')).toBe('{ not json');
+});
+
+it('list keeps to 80 columns with a 128-character id, and --json keeps it whole', async () => {
+  const { env } = home(),
+    id = `w${'x'.repeat(127)}`,
+    root = workspaceAt(resolve(scratch('workspaces'), 'repo'));
+  expect((await run(['workspaces', 'add', root, '--id', id], { env })).exitCode).toBe(0);
+  const listed = await run(['workspaces', 'list'], { env, columns: 80 });
+  expect(listed.exitCode, listed.stderr).toBe(0);
+  for (const text of listed.stdout.split('\n')) expect(text.length, text).toBeLessThanOrEqual(80);
+  expect(listed.stdout).toContain(id.slice(0, 8));
+  expect(JSON.parse((await run(['workspaces', 'list', '--json'], { env })).stdout).workspaces[0].id).toBe(id);
+});
