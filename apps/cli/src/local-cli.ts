@@ -157,7 +157,7 @@ const pnpmScalar = (text: string): string | null => {
  * The `packages:` block list of a `pnpm-workspace.yaml`, scanned by line (no YAML parser: bin.ts stays cheap). An entry
  * in a form the scanner does not read, such as a plain scalar continued on a more-indented line, is dropped whole.
  */
-const pnpmPackages = (text: string): string[] => {
+export const pnpmPackages = (text: string): string[] => {
   const globs: string[] = [];
   let inside = false;
   let entry: { indent: number; index: number | null } | null = null;

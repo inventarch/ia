@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { findLocalCli, installRoot, ownsMember, readCliDependency } from '../src/local-cli.js';
+import { findLocalCli, installRoot, ownsMember, pnpmPackages, readCliDependency } from '../src/local-cli.js';
 import { detectPackageManager, installCommand, pinCommand, satisfies } from '../src/package-manager.js';
 import type { PackageManager } from '../src/package-manager.js';
 import { cleanup, scratch } from './scratch-fixture.js';
@@ -207,6 +207,26 @@ describe('installRoot', () => {
   });
 });
 
+describe('pnpmPackages', () => {
+  const list = (...lines: string[]): string[] => pnpmPackages(`packages:\n${lines.map((l) => `  ${l}\n`).join('')}`);
+  it('decodes quoted scalars', () => {
+    expect(list("- 'packages/x''s'")).toEqual(["packages/x's"]);
+    expect(list('- "packages/q\\"x"')).toEqual(['packages/q"x']);
+    expect(list('- "packages/a\\\\b"')).toEqual(['packages/a\\b']);
+    expect(list("- 'a' # note", '- plain # note', '- "b"')).toEqual(['a', 'plain', 'b']);
+  });
+  it('drops unsupported entries whole, keeping the supported ones', () => {
+    expect(list("- 'packages/x", '- ok')).toEqual(['ok']);
+    expect(list('- "packages/x\\"', '- ok')).toEqual(['ok']);
+    expect(list('- "packages/\\x78"', '- ok')).toEqual(['ok']);
+    expect(list("- 'packages/x' tail", '- ok')).toEqual(['ok']);
+    expect(list('- packages/x', '    copy', '- ok')).toEqual(['ok']);
+    expect(list('- |', '    packages/x', '- ok')).toEqual(['ok']);
+    expect(list('- >', '    packages/x', '- ok')).toEqual(['ok']);
+    expect(list('- [packages/x]', '- ok')).toEqual(['ok']);
+  });
+});
+
 describe('ownsMember', () => {
   it('matches one segment for *, any depth for **, and normalises ./', () => {
     expect(ownsMember(['packages/*'], 'packages/x')).toBe(true);
@@ -225,8 +245,8 @@ describe('ownsMember', () => {
     expect(Date.now() - started).toBeLessThan(300);
   });
   it('answers interleaved globstars promptly, so memoisation is what bounds them', () => {
-    const glob = [...Array(8).fill('**/s'), 'missing'].join('/');
-    const member = Array(20).fill('s').join('/');
+    const glob = [...Array(9).fill('**/s'), 'missing'].join('/');
+    const member = Array(30).fill('s').join('/');
     const started = Date.now();
     expect(ownsMember([glob], member)).toBe(false);
     expect(Date.now() - started).toBeLessThan(300);
