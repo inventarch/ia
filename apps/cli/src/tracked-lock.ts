@@ -98,6 +98,8 @@ export interface LockOptions {
   readonly read?: (path: string) => string;
   /** Removes this call's staging file. */
   readonly removeStage?: (path: string) => void;
+  /** Called after each attempt that found the lock held, before the wait; tests use it to observe real contention. */
+  readonly onBlocked?: () => void;
 }
 
 /** Who holds the lock, as the refusal describes them; `gone` when the lock vanished since the link failed. */
@@ -125,6 +127,7 @@ export function withTrackedLock<T>(home: string, action: () => T, options: LockO
     waitMs = LOCK_WAIT_MS,
     read = (path: string) => readFileSync(path, 'utf8'),
     removeStage = (path: string) => rmSync(path, { force: true }),
+    onBlocked = () => {},
   } = options;
   ensureHome(home);
   const lock = join(home, TRACKED_LOCK_FILE);
@@ -138,7 +141,7 @@ export function withTrackedLock<T>(home: string, action: () => T, options: LockO
   const stage = `${lock}.${owner.token}.tmp`;
   writeFileSync(stage, JSON.stringify(owner) + '\n', { flag: 'wx', mode: 0o600 });
   try {
-    acquire(stage, lock, waitMs, read);
+    acquire(stage, lock, waitMs, read, onBlocked);
   } catch (error) {
     try {
       removeStage(stage);
@@ -160,7 +163,13 @@ export function withTrackedLock<T>(home: string, action: () => T, options: LockO
 }
 
 /** Publishes `stage` as `lock`, polling while another holder has it; refuses once `waitMs` has passed after a failure. */
-function acquire(stage: string, lock: string, waitMs: number, read: (path: string) => string): void {
+function acquire(
+  stage: string,
+  lock: string,
+  waitMs: number,
+  read: (path: string) => string,
+  onBlocked: () => void,
+): void {
   const started = performance.now();
   for (let lastLook = false; ; ) {
     try {
@@ -169,6 +178,7 @@ function acquire(stage: string, lock: string, waitMs: number, read: (path: strin
     } catch (error) {
       if (codeOf(error) !== 'EEXIST') throw error;
     }
+    onBlocked();
     if (performance.now() - started < waitMs) {
       sleep(LOCK_POLL_MS);
       continue;
@@ -205,6 +215,6 @@ function locked(lock: string, holder: Holder): Refusal {
     `The tracked list is locked by another ia process (${held}): ${lock}`,
     3,
     { path: lock },
-    `Wait for the other "ia workspaces" command to finish. ia never removes this lock itself: if no ia process is running on ${host}, delete ${lock} by hand, then run the command again.`,
+    `Wait for the other "ia workspaces" command to finish. ia never removes another owner's lock automatically: if no ia process is running on ${host}, delete ${lock} by hand, then run the command again.`,
   );
 }
