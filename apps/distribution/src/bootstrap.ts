@@ -42,13 +42,34 @@ export const doorLaunch = (version: string): { readonly command: 'npx'; readonly
   args: ['-y', `${DOOR_PACKAGE}@${version}`],
 });
 
-/** The instruction block, the same text for every host. */
-export function instructionBlock(): string {
+/**
+ * The marker line every bootstrap carries, in the committed block and in the plugin's session context: one line that
+ * says, in a form a program can read, that contributing needs no binding and which operations do. Parse it with
+ * `^ia-bootstrap v1( [a-z-]+=\S+)+$`; a key a reader does not know is ignored.
+ */
+export const BOOTSTRAP_MARKER =
+  'ia-bootstrap v1 public-contribution=available needs-method=ia:work,ia:knowledge,ia:delivery needs-authority=declared-operations';
+/** The one prose sentence, on a single line, that names what needs a bound method or private authority. */
+export const BOOTSTRAP_SENTENCE =
+  'Operations that need a bound method or private authority refuse alone, naming it; everything else continues.';
+
+/**
+ * The instruction block, the same text for every host. Reading, building, testing, editing and submitting need no
+ * binding, plugin, door or private access; routing through the lanes applies only when a task needs a method.
+ */
+export function instructionBlock(options: { readonly contributing: boolean } = { contributing: false }): string {
+  const guide = options.contributing ? 'follow `CONTRIBUTING.md`' : "follow the repository's own contributing guide";
   return [
     BLOCK_BEGIN,
     '## IA',
     '',
-    `This repository is an IA workspace. Start each session by calling \`ia_session\` on the \`${BOOTSTRAP_SERVER}\` MCP server. For any task, use one lane: \`ia:work\`, \`ia:knowledge\` or \`ia:delivery\`. Call \`ia_catalogue {lane}\`, map the request to one item's \`key\`, then call \`ia_method {key}\` and follow the packet it returns. If context was lost, call \`ia_method\` again with the key and task the session briefing names.`,
+    `This repository is an IA workspace. Reading, building, testing, editing and submitting a change need no binding, plugin, door or private access; ${guide}.`,
+    '',
+    `When a task needs a method (a plan, a decision, a record, a delivery step), start the session by calling \`ia_session\` on the \`${BOOTSTRAP_SERVER}\` MCP server, then use one lane: \`ia:work\`, \`ia:knowledge\` or \`ia:delivery\`. Call \`ia_catalogue {lane}\`, map the request to one item's \`key\`, then call \`ia_method {key}\` and follow the packet it returns. If context was lost, call \`ia_method\` again with the key and task the session briefing names.`,
+    '',
+    `${BOOTSTRAP_SENTENCE} If the \`${BOOTSTRAP_SERVER}\` MCP server is unavailable, continue on the public path and run \`ia doctor\`.`,
+    '',
+    BOOTSTRAP_MARKER,
     BLOCK_END,
     '',
   ].join('\n');
@@ -76,7 +97,7 @@ function isDoorLaunch(value: unknown): boolean {
   );
 }
 
-function markdown(path: string, current: string | null, remove: boolean): string | null {
+function markdown(path: string, current: string | null, remove: boolean, contributing: boolean): string | null {
   const text = current ?? '';
   if (GENERATED.test(text))
     fail(
@@ -85,7 +106,7 @@ function markdown(path: string, current: string | null, remove: boolean): string
     );
   const start = text.indexOf(BLOCK_BEGIN),
     endAt = text.indexOf(BLOCK_END);
-  const block = instructionBlock();
+  const block = instructionBlock({ contributing });
   if (start < 0 && endAt < 0) {
     if (remove) return current;
     if (text === '') return block;
@@ -163,10 +184,11 @@ export function planBootstrap(rootInput: string, host: BootstrapHost, version: s
   };
   const action = (before: string | null, after: string | null): BootstrapFile['action'] =>
     before === after ? 'unchanged' : before === null ? 'create' : after === null ? 'remove' : 'update';
+  const contributing = bytes(root, 'CONTRIBUTING.md') !== null;
   const files: BootstrapFile[] = [];
   for (const path of row.bootstrap.instructions) {
     const before = read(path),
-      after = markdown(path, before, remove);
+      after = markdown(path, before, remove, contributing);
     files.push({ path, kind: 'instructions', action: action(before, after), after });
   }
   for (const { file, format } of row.bootstrap.mcp) {

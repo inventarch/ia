@@ -74,3 +74,85 @@ it('refuses a foreign ia server, a repeated block and a version that is not exac
   expect(() => planBootstrap(root, 'claude', '3.5.0')).toThrow(/repeated/);
   expect(() => planBootstrap(root, 'copilot', 'latest')).toThrow(/exact door version/);
 });
+
+/** The marker line both bootstraps carry, and the one parse rule that reads it. */
+const MARKER_LINE =
+  'ia-bootstrap v1 public-contribution=available needs-method=ia:work,ia:knowledge,ia:delivery needs-authority=declared-operations';
+const MARKER = /^ia-bootstrap v1( [a-z-]+=\S+)+$/m;
+/** The two halves of the loose detector a consumer of the text may apply: availability, and what needs a binding. */
+const AVAILABLE = /public[- ]contribution[^\n]{0,80}available|available[^\n]{0,80}public[- ]contribution/i;
+const NEEDS_BINDING = /(need|require)s?[^\n]{0,60}(bound method|binding|private authority)/i;
+const claudeBlock = (): string => {
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  return read('CLAUDE.md');
+};
+
+it('the block states public contribution needs no binding, in a parseable marker line', () => {
+  const block = claudeBlock();
+  const marker = block.match(MARKER);
+  expect(marker?.[0]).toBe(MARKER_LINE);
+  expect(block).toMatch(AVAILABLE);
+  expect(block).toMatch(
+    /Reading, building, testing, editing and submitting a change need no binding, plugin, door or private access/,
+  );
+});
+
+it('the block carries the required sentence on one line, apart from the marker', () => {
+  const block = claudeBlock();
+  const lines = block.split('\n');
+  expect(
+    lines.some((line) =>
+      /^Operations that need a bound method or private authority refuse alone, naming it; everything else continues\./.test(
+        line,
+      ),
+    ),
+  ).toBe(true);
+  const withoutMarker = lines.filter((line) => !MARKER.test(line)).join('\n');
+  expect(withoutMarker).toMatch(NEEDS_BINDING);
+  // The marker alone does not state it: the sentence has to be there in prose.
+  expect(MARKER_LINE).not.toMatch(NEEDS_BINDING);
+});
+
+it('the block does not order routing unconditionally', () => {
+  const block = claudeBlock();
+  expect(block).not.toContain('For any task, use one lane');
+  expect(block).not.toMatch(/before any other skill, plan or action/i);
+  expect(block).toContain('When a task needs a method');
+  expect(block).toContain('`ia_session`');
+  expect(block).toContain('`ia:work`, `ia:knowledge` or `ia:delivery`');
+  expect(block).toContain('If the `ia` MCP server is unavailable, continue on the public path and run `ia doctor`.');
+});
+
+it('the block names CONTRIBUTING.md when the repository has one and says so generically when not', () => {
+  expect(claudeBlock()).toContain("the repository's own contributing guide");
+  expect(read('CLAUDE.md')).not.toContain('CONTRIBUTING.md');
+  put('CONTRIBUTING.md', '# Contributing\n');
+  const plan = planBootstrap(root, 'claude', '3.5.0');
+  const after = plan.files[0]!.after!;
+  expect(plan.files[0]!.action).toBe('update');
+  expect(after).toContain('follow `CONTRIBUTING.md`');
+  expect(after).not.toContain("the repository's own contributing guide");
+});
+
+it('a block written by the previous text is updated in place, and every other byte of the file is kept', () => {
+  const previous = [
+    BLOCK_BEGIN,
+    '## IA',
+    '',
+    'This repository is an IA workspace. Start each session by calling `ia_session` on the `ia` MCP server. For any task, use one lane: `ia:work`, `ia:knowledge` or `ia:delivery`.',
+    BLOCK_END,
+    '',
+  ].join('\n');
+  const head = '# Project\n\nOur notes.\n\n',
+    tail = '\n## Later\n\nMore notes.\n';
+  put('CLAUDE.md', head + previous + tail);
+  const plan = planBootstrap(root, 'claude', '3.5.0');
+  expect(plan.files[0]!.action).toBe('update');
+  const after = plan.files[0]!.after!;
+  expect(after.startsWith(head + BLOCK_BEGIN)).toBe(true);
+  expect(after.endsWith(BLOCK_END + '\n' + tail)).toBe(true);
+  expect(after).not.toContain('For any task, use one lane');
+  expect(after).toMatch(MARKER);
+  applyBootstrap(plan);
+  expect(planBootstrap(root, 'claude', '3.5.0').files[0]!.action).toBe('unchanged');
+});
