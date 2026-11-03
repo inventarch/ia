@@ -2,7 +2,8 @@
 // `--version` probe and the lists included, is appended to $IA_CLAUDE_CALLS when that is set. `--version` prints a
 // version and exits 0. `plugin list --json` and `plugin marketplace list --json` print $FAKE_CLAUDE_PLUGINS /
 // $FAKE_CLAUDE_MARKETPLACES (default []). Those three are not written to $IA_CLAUDE_LOG; every other call is, and exits
-// $IA_CLAUDE_EXIT (default 0), or 1 when its space-joined argv starts with $IA_CLAUDE_FAIL_ON.
+// $IA_CLAUDE_EXIT (default 0), or 1 when its space-joined argv starts with $IA_CLAUDE_FAIL_ON. A `plugin update` that
+// succeeds prints $FAKE_CLAUDE_UPDATE (default an up-to-date report) as its `--json` line.
 import { appendFileSync } from 'node:fs';
 const args = process.argv.slice(2),
   line = args.join(' ');
@@ -25,4 +26,11 @@ if (failOn !== undefined && failOn !== '' && line.startsWith(failOn)) {
   process.stderr.write(`fake claude: failing ${line}\n`);
   process.exit(1);
 }
-process.exit(Number(process.env.IA_CLAUDE_EXIT ?? 0));
+const exit = Number(process.env.IA_CLAUDE_EXIT ?? 0);
+if (exit === 0 && line.startsWith('plugin update'))
+  process.stdout.write(
+    (process.env.FAKE_CLAUDE_UPDATE ??
+      JSON.stringify({ command: 'update', outcome: 'ok', updateOutcome: 'up_to_date', message: 'already current' })) +
+      '\n',
+  );
+process.exit(exit);
