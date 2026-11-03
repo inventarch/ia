@@ -11,7 +11,7 @@
  * reports no inode, by exact real path. A row whose root is gone stays in the list as `missing` until it is removed by
  * name.
  */
-import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
 import { pathKey, within } from '@inventarch/db/internal/paths';
 import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
@@ -51,6 +51,14 @@ const isObject = (value: unknown): value is Raw => value !== null && typeof valu
 const isDirectory = (path: string): boolean => {
   try {
     return statSync(path, { throwIfNoEntry: false })?.isDirectory() === true;
+  } catch {
+    return false;
+  }
+};
+/** The entry itself is a symbolic link or a junction (Node reports both as links), whatever it points at. */
+const isLink = (path: string): boolean => {
+  try {
+    return lstatSync(path, { throwIfNoEntry: false })?.isSymbolicLink() === true;
   } catch {
     return false;
   }
@@ -376,8 +384,9 @@ const SKIPPED: ReadonlySet<string> = new Set(['node_modules', '.git', '.ia-workt
  * The workspace roots under `folder`, real paths sorted, to `depth` levels below it (default 4). The walk skips the
  * names in `SKIPPED`, every folder whose name starts with `.`, the IA home, a link or junction, and a folder whose
  * `.git` is a file (a linked worktree or a submodule). It does not descend into a workspace it found, so fixtures
- * inside a repository are not listed. The folder itself is skipped the same way: inside the IA home, named in `SKIPPED`,
- * or a linked worktree, it yields nothing. Refuses a folder that is not a directory as `IA-DB-ROOT-INVALID`.
+ * inside a repository are not listed. The folder itself is skipped the same way: a link or junction (judged before it
+ * is resolved), named with a leading `.` or in `SKIPPED`, inside the IA home, or a linked worktree, it yields nothing.
+ * Refuses a folder that is not a directory as `IA-DB-ROOT-INVALID`.
  */
 export function findWorkspaces(
   folder: string,
@@ -395,8 +404,10 @@ export function findWorkspaces(
       'Run "ia workspaces find <folder>" with a folder that exists.',
     );
   const home = (path: string): boolean => iaHome !== undefined && sameRoot(path, iaHome);
-  const start = realpathSync(absolute);
   // The folder itself is held to the exclusions its children are: asking to look inside one is not a way around them.
+  // Its own name and entry are judged before any link is followed, as the walk judges each entry it reads.
+  if (isLink(absolute) || basename(absolute).startsWith('.')) return [];
+  const start = realpathSync(absolute);
   if ((iaHome !== undefined && within(iaHome, start)) || SKIPPED.has(basename(start)) || isFile(join(start, '.git')))
     return [];
   const found: string[] = [];

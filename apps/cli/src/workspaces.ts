@@ -6,7 +6,7 @@
  * print exactly what changed; `find` previews and writes only with `--apply`, confirmed as every `--apply` is (§2.0).
  * Nothing here reads or writes the MCP door's `workspace-locations.json`.
  */
-import { realpathSync } from 'node:fs';
+import { lstatSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { UsageError } from './args.js';
 import type { Context, Result } from './consumer.js';
@@ -134,9 +134,11 @@ function add(context: Context, home: string, directory: string | undefined): Res
 async function find(context: Context, home: string, folder: string): Promise<Result> {
   const { args, host, caps } = context;
   const depth = args.integer('depth', FIND_DEPTH);
-  const roots = findWorkspaces(resolve(host.cwd, folder), { depth, iaHome: home });
-  // The folder as the walk read it, at its real path: findWorkspaces has refused one that is not a directory.
-  const walked = realpathSync(resolve(host.cwd, folder));
+  const given = resolve(host.cwd, folder);
+  const roots = findWorkspaces(given, { depth, iaHome: home });
+  // The folder as the walk read it, at its real path, or as given when it is a link the walk does not follow;
+  // findWorkspaces has refused one that is not a directory.
+  const walked = lstatSync(given).isSymbolicLink() ? given : realpathSync(given);
   const tracked = readTracked(home);
   const found = roots.map((root) => {
     const row = trackedRow(tracked, root);

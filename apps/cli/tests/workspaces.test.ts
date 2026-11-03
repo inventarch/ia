@@ -2,7 +2,7 @@
  * `ia workspaces list | add | find | remove` (consumer CLI contract §2.16), in process. Every run points IA_HOME at a
  * scratch home, so no test reads or writes the real tracked list.
  */
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { TRACKED_FILE } from '../src/tracked.js';
@@ -194,6 +194,26 @@ it('an invalid --id is a usage error before any state is read or root discovered
   const noRoot = await run(['workspaces', 'add', '--id', '.bad'], { env, cwd: scratch('workspaces') });
   expect(noRoot.exitCode, noRoot.stderr).toBe(2);
   expect(readFileSync(resolve(at, TRACKED_FILE), 'utf8')).toBe('{ not json');
+});
+
+it('find given a link or a dot folder walks nothing and reports the folder as given', async () => {
+  const { env } = home(),
+    parent = scratch('workspaces'),
+    target = workspaceAt(resolve(parent, 'target'), 'target'),
+    link = resolve(parent, 'link'),
+    dotted = workspaceAt(resolve(parent, '.private'), 'private');
+  symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
+  for (const folder of [link, dotted]) {
+    const result = await run(['workspaces', 'find', folder, '--json'], { env });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      version: 1,
+      folder: folder === link ? link : realpathSync(folder),
+      found: [],
+      applied: false,
+      added: [],
+    });
+  }
 });
 
 it('list keeps to 80 columns with a 128-character id, and --json keeps it whole', async () => {

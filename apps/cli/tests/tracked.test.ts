@@ -313,6 +313,15 @@ it('find applies the exclusions to the starting folder itself', () => {
     modules = workspaceAt(resolve(parent, 'node_modules')),
     ordinary = workspaceAt(resolve(parent, 'ordinary'));
   writeFileSync(resolve(worktree, '.git'), 'gitdir: ../elsewhere\n');
-  for (const start of [at, inHome, worktree, modules]) expect(findWorkspaces(start, { iaHome: at }), start).toEqual([]);
+  // A dot folder and a link or junction are skipped as the walk skips them, even when they are the folder given.
+  const dotted = workspaceAt(resolve(parent, '.private')),
+    above = workspaceAt(resolve(parent, '.above')),
+    link = resolve(parent, 'link');
+  workspaceAt(resolve(above, 'inner'));
+  symlinkSync(ordinary, link, process.platform === 'win32' ? 'junction' : 'dir');
+  for (const start of [at, inHome, worktree, modules, dotted, above, link])
+    expect(findWorkspaces(start, { iaHome: at }), start).toEqual([]);
   expect(findWorkspaces(ordinary, { iaHome: at })).toEqual([realpathSync(ordinary)]);
+  // Only the folder given is judged: one below a dot folder is walked as usual.
+  expect(findWorkspaces(resolve(above, 'inner'), { iaHome: at })).toEqual([realpathSync(resolve(above, 'inner'))]);
 });
