@@ -6,6 +6,7 @@
   "packages": [
     "@inventarch/agent-composition-system",
     "@inventarch/agent-system",
+    "@inventarch/authoring-system",
     "@inventarch/cli",
     "@inventarch/db",
     "@inventarch/learning-system",
@@ -18,6 +19,7 @@
     ".ia/authoring.resources.json",
     ".ia/src/systems/agent-composition-system/",
     ".ia/src/systems/agent-system/",
+    ".ia/src/systems/authoring-system/reference/",
     ".ia/src/systems/learning-system/",
     ".ia/src/systems/session-system/",
     "CLAUDE.md",
