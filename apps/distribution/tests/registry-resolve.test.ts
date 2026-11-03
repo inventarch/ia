@@ -1007,3 +1007,69 @@ it('a direct request that is not a recorded member still conflicts', async () =>
     }),
   ).rejects.toMatchObject({ code: 'IA-DIST-CONFLICT', message: 'Kit conflicts with direct request acme/w' });
 });
+
+it('re-expanding a collection keeps a request this command names explicitly, and refuses the conflict', async () => {
+  const dir = await collectionRegistry(),
+    root = workspaceRoot();
+  // `install acme/kit@2.0.0 acme/x@1.0.0` over K@1, which recorded x and y: x is the user's own request now.
+  await expect(
+    resolveWith(
+      root,
+      dir,
+      [
+        { id: 'acme/kit', range: '2.0.0' },
+        { id: 'acme/x', range: '1.0.0' },
+        { id: 'acme/y', range: '^1.0.0' },
+      ],
+      {
+        allowKits: true,
+        named: ['acme/kit', 'acme/x'],
+        collectionMembers: new Map([['acme/kit', ['acme/x', 'acme/y']]]),
+      },
+    ),
+  ).rejects.toMatchObject({ code: 'IA-DIST-CONFLICT', message: 'Kit conflicts with direct request acme/x' });
+});
+it('two collections upgraded together keep each other’s member constraints, and refuse when they conflict', async () => {
+  const { dir } = await registry([
+    { id: 'acme/x', version: '1.0.0' },
+    { id: 'acme/x', version: '2.0.0' },
+    { id: 'acme/y', version: '1.0.0' },
+  ]);
+  // acme/base sorts first, so it is expanded first: 2.0.0 now needs x ^1, which acme/kit 2.0.0 moves to ^2.
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/base',
+    releases: [
+      { version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/y', range: '^1.0.0' }] },
+      { version: '2.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.0.0' }] },
+    ],
+  });
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/kit',
+    releases: [
+      { version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.0.0' }] },
+      { version: '2.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^2.0.0' }] },
+    ],
+  });
+  await expect(
+    resolveWith(
+      workspaceRoot(),
+      dir,
+      [
+        { id: 'acme/base', range: '2.0.0' },
+        { id: 'acme/kit', range: '2.0.0' },
+        { id: 'acme/x', range: '^1.0.0' },
+        { id: 'acme/y', range: '^1.0.0' },
+      ],
+      {
+        allowKits: true,
+        named: ['acme/base', 'acme/kit'],
+        collectionMembers: new Map([
+          ['acme/base', ['acme/y']],
+          ['acme/kit', ['acme/x']],
+        ]),
+      },
+    ),
+  ).rejects.toMatchObject({ code: 'IA-DIST-CONFLICT', message: 'Kit conflicts with direct request acme/x' });
+});

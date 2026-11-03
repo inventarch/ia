@@ -233,6 +233,10 @@ async function resolveWithPins(
     ...(request.named ?? requests.map((r) => r.id)),
     ...(request.preferredExcept === undefined ? [] : [request.preferredExcept]),
   ]);
+  // The ids the command itself names, before any collection's members join `named`, and the member ids each expansion
+  // in this command introduces: neither is a request an earlier expansion merely left behind.
+  const explicit = new Set(named),
+    introduced = new Set<string>();
   // §5.2: the closure follows only releases selection could pick for some known constraint: not withdrawn, admitted by the
   // engine, and inside a range a request or a followed release places on the id. A locked version counts as known, so the
   // pin stays selectable and preferred. Licensed releases are followed too, so a licensed-only need can be named (§7).
@@ -304,11 +308,16 @@ async function resolveWithPins(
       if (kitIndex.releases.length) {
         const kit = selectCollectionRelease(kitIndex, requests[direct]!.range);
         requests.splice(direct, 1);
-        // Re-expanding a collection replaces the members it recorded: they leave the requests (one the new release no
-        // longer lists stays locked only while something depends on it), so a changed range is not a conflict. Any
-        // other request still conflicts as it always has.
+        // Re-expanding a collection replaces the member requests its earlier expansion left: they leave the requests
+        // (one the new release no longer lists stays locked only while something depends on it), so a changed range is
+        // not a conflict. A request this command names itself, or one another collection's expansion in this command
+        // introduced, is not inherited and stays, so it still conflicts as it always has.
         const recorded = new Set(request.collectionMembers?.get(id) ?? []);
-        for (let at = requests.length - 1; at >= 0; at -= 1) if (recorded.has(requests[at]!.id)) requests.splice(at, 1);
+        for (let at = requests.length - 1; at >= 0; at -= 1) {
+          const member = requests[at]!.id;
+          if (recorded.has(member) && !explicit.has(member) && !introduced.has(member)) requests.splice(at, 1);
+        }
+        for (const member of kit.distributions) introduced.add(member.id);
         expanded.push({
           id,
           version: kit.version,
