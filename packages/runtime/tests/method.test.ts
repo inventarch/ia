@@ -1,4 +1,13 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -21,6 +30,7 @@ import {
   readReleases,
   registerWorkspace,
   releaseRecords,
+  resolveMethod,
   samePath,
   scopeKey,
   selectBinding,
@@ -216,5 +226,37 @@ describe('names and briefing', () => {
   });
   it('serializes canonically, keys sorted and undefined members dropped', () => {
     expect(canonical({ b: 1, a: [undefined, { d: undefined, c: 'x' }] })).toBe('{"a":[null,{"c":"x"}],"b":1}');
+  });
+});
+
+describe('a missing binding refuses only the method it names', () => {
+  it('refuses IA-CORE-NO-METHOD for the activity, writes nothing, and names only the missing binding', () => {
+    const repo = join(dir, 'repo');
+    write(
+      join(repo, '.ia', 'src', 'workspace.ia'),
+      '#! ia 1.0\n\n@workspace repo\n  meaning\n    says "A repository."\n',
+    );
+    const files = (): string[] => readdirSync(repo, { recursive: true }).map(String).sort();
+    const before = files();
+    const store = join(dir, 'closures');
+    const refusal = catching(() =>
+      resolveMethod(
+        { entry: 'work', activity: 'task', root: repo },
+        {
+          kits: { bundled: join(dir, 'no-kits'), home: null },
+          restore: () => {
+            throw new Error('a refused resolve restores nothing');
+          },
+          env: { IA_HOME: join(dir, 'home') },
+          store,
+        },
+      ),
+    );
+    expect(refusal).toBeInstanceOf(MethodError);
+    expect(methodRefusal(refusal)).toMatchObject({ error: { code: 'IA-CORE-NO-METHOD', key: 'work.task' } });
+    expect((refusal as MethodError).message).toMatch(/^no method is bound for work\.task in this repository: /);
+    expect((refusal as MethodError).message).not.toMatch(/private|plugin is required/i);
+    expect(files()).toEqual(before);
+    expect(existsSync(store)).toBe(false);
   });
 });
