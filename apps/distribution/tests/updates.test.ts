@@ -294,7 +294,7 @@ const refresh = (home: string, root: string | undefined, sources: Sources, extra
   );
 const entriesOf = (home: string) =>
   (readUpdateCheck(home)?.packages.entries ?? []).map((entry) => `${entry.kind} ${entry.id} ${entry.latest}`).sort();
-function seed(home: string, entries: readonly Record<string, unknown>[]): void {
+function seed(home: string, entries: readonly object[]): void {
   mkdirSync(join(home, 'state'), { recursive: true });
   writeFileSync(
     join(home, UPDATE_CHECK),

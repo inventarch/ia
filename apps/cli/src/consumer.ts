@@ -37,6 +37,7 @@ import { runPreview } from './preview.js';
 import { runAuthor } from './author.js';
 import { gatedNext, inertNext } from './profile.js';
 import type { Gate } from './profile.js';
+import type { ExtensionConsole } from './doctor-extensions.js';
 import { runProject } from './project.js';
 import { runRead } from './read.js';
 import { runKnowledge } from './kb.js';
@@ -120,6 +121,8 @@ export interface Context {
    * command raises later names a next command the same actor may run. Absent where no dispatcher made one.
    */
   readonly gate?: Gate;
+  /** The extension table dispatch was given; doctor reads each extension's console checks from it. */
+  readonly extensions?: readonly Extension[];
 }
 
 /**
@@ -546,7 +549,12 @@ function parsedInvocation(command: CommandSpec, args: Arguments): string {
 }
 
 /** §1.2. Parse, then run; every class-2 check has already happened when a handler is entered. */
-export async function runCommand(command: CommandSpec, argv: readonly string[], host: Host): Promise<Result> {
+export async function runCommand(
+  command: CommandSpec,
+  argv: readonly string[],
+  host: Host,
+  extensions: readonly Extension[] = [],
+): Promise<Result> {
   const nested = command.name === 'kb' ? selectKnowledgeCommand(command, argv[0]) : undefined;
   if (nested) command = nested;
   const preliminary = resolveCapabilities(host.stdout, {});
@@ -574,7 +582,7 @@ export async function runCommand(command: CommandSpec, argv: readonly string[], 
       // §5: `--json` stdout is one parseable value with no prompt in it, so a terminal does not make it askable.
       if (json) throw new UsageError('--apply --json requires --yes; a --json run is never asked to confirm');
     }
-    const context: Context = { host, command, args, caps, json, gate };
+    const context: Context = { host, command, args, caps, json, gate, extensions };
     const handler = HANDLERS[command.name];
     if (handler === undefined)
       throw new Refusal(
@@ -660,6 +668,11 @@ function machineOptions(rest: readonly string[]): readonly string[] {
 
 export interface Extension extends Namespace {
   readonly run: (args: readonly string[]) => Promise<{ readonly exitCode: number; readonly stdout: string }>;
+  /**
+   * What the extension contributes to the console, as data only (doctor-extensions.ts): areas, offers whose steps are
+   * its own commands, and the state file its doctor checks are read from. The public build declares none.
+   */
+  readonly console?: ExtensionConsole;
 }
 export interface Legacy {
   (args: readonly string[]): { readonly exitCode: number; readonly stdout: string };
@@ -691,7 +704,7 @@ export async function dispatch(
   if (command !== undefined) {
     const dispose = host.onConsumerRoute?.();
     try {
-      return await runCommand(command, argv.slice(1), host);
+      return await runCommand(command, argv.slice(1), host, extensions);
     } finally {
       dispose?.();
     }

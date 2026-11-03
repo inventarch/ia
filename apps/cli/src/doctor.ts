@@ -86,7 +86,8 @@ import type { PacketReceipt } from '@inventarch/runtime';
 import { brief } from './briefing.js';
 import type { BriefInput } from './briefing.js';
 import type { Channel } from './channel.js';
-import type { Context, Result } from './consumer.js';
+import type { Context, Extension, Result } from './consumer.js';
+import { extensionChecks } from './doctor-extensions.js';
 import { discoverRoot, iaHomeOf } from './consumer.js';
 import { UNMAPPED } from './distribute.js';
 import { userRows } from './doctor-user.js';
@@ -161,6 +162,8 @@ export interface DoctorRequest {
   readonly channel?: Channel | undefined;
   /** Root-discovery observation; defaults to the real filesystem walk. Documentation fixtures supply an absent workspace. */
   readonly discover?: typeof discoverRoot;
+  /** The extensions whose console state contributes checks (doctor-extensions.ts); none by default. */
+  readonly extensions?: readonly Extension[];
 }
 
 /** The supported targets: Linux and Windows on x64 and macOS on arm64, on Node 22 with 22.22.0 the initial minimum; pnpm is contributor-only. */
@@ -1301,6 +1304,8 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
     host: request.host !== undefined,
   });
   checks.push(...user.checks);
+  // Extension rows follow the user rows; ids are an open set, but none replaces a row doctor already reports.
+  checks.push(...extensionChecks(request.extensions ?? [], user.facts.home, new Set(checks.map((check) => check.id))));
   // One root rewrite for the remedy and its fix, so the console runs the command doctor prints.
   const roots = [root, supplied, request.root];
   for (let index = 0; index < checks.length; index += 1) {
@@ -1458,6 +1463,7 @@ export function runDoctor(context: Context): Result {
     home: homedir(),
     version: host.version,
     host: args.value('host'),
+    extensions: context.extensions ?? [],
   });
   const exitCode = doctorExit(view);
   return json

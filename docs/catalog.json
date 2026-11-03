@@ -9,7 +9,7 @@
       "genre": "spec",
       "title": "Consumer CLI contract",
       "status": "implemented",
-      "sourceDigest": "10c18562b6f0f5b981a100d17405c42bdc993fbda0de39ea2899e43ebb3be613"
+      "sourceDigest": "02247ebe1263be91537f012ff6ca842e5c4803dba630555cb8e4d51071aa4294"
     },
     {
       "id": "spec-host-plugin-distribution",
@@ -18,7 +18,7 @@
       "genre": "spec",
       "title": "Host plugin distribution",
       "status": "implemented",
-      "sourceDigest": "6d6ccc5e783da3fa2d7762ebfb4e111a26f7da87014738fdff7204f22dfede12"
+      "sourceDigest": "77944884b54e162b5dadb08d4a91bc8a1ba14f98d9475ace067e2bc4eddfeeb3"
     },
     {
       "id": "spec-host-registration",
@@ -36,7 +36,7 @@
       "genre": "spec",
       "title": "Distribution registry",
       "status": "implemented",
-      "sourceDigest": "0449fec30e387bfb97fe233d8b7d6cfa2b8e618a5c5174c243c2ec05a8373e46"
+      "sourceDigest": "b9b925739d7c2914f4afb2de11fbae3d55828e20debb2af13088b41cc184a43e"
     },
     {
       "id": "spec-workspace-initialization-apply",
