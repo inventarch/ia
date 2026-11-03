@@ -460,6 +460,48 @@ export function installedKit(root: string, kitId: string): LockedPackage | undef
   return undefined;
 }
 
+export interface KitInstallation {
+  readonly via: 'package' | 'entry';
+  readonly version: string;
+  readonly archive: string | null;
+}
+/** The lock's row for the kit and where it came from, or null when no row names it; version and archive are as locked. */
+export function kitInstallation(root: string, kitId: string): KitInstallation | null {
+  const lock = readLock(root);
+  const row = (lock?.packages ?? []).find((pkg) => pkg.id === kitId);
+  if (row !== undefined) return { via: 'package', version: row.version, archive: row.archive ?? null };
+  for (const entry of Array.isArray(lock?.entries) ? lock.entries : []) {
+    const kits = (entry as { kind?: unknown; kits?: unknown }).kits;
+    if ((entry as { kind?: unknown }).kind !== 'package' || !Array.isArray(kits)) continue;
+    const kit = (kits as LockedPackage[]).find((candidate) => candidate?.id === kitId);
+    if (kit !== undefined) return { via: 'entry', version: kit.version, archive: kit.archive ?? null };
+  }
+  return null;
+}
+
+/**
+ * Presence: a repository-bound method runs a kit only while the repository's own lock installs it. Any row naming the
+ * kit counts, at any version and archive: a task pin runs its own retained bytes, which may be older than the version
+ * the lock now installs. A kit no row names refuses before anything is retained or run, and nothing answers for it from
+ * another copy.
+ */
+export function requireKitInstalled(root: string, kit: { readonly id: string }): void {
+  if (kitInstallation(root, kit.id) === null)
+    throw new MethodError(
+      `kit ${kit.id} is bound by this repository but its lock does not install it; run ia install ${kit.id} (or kit.mjs add ${kit.id}), then resolve again`,
+      'IA-CORE-KIT-NOT-INSTALLED',
+    );
+}
+
+/** Identity: true only when the lock's row for the kit carries exactly this version and archive. Never throws on a mismatch. */
+export function kitInstallMatches(
+  root: string,
+  kit: { readonly id: string; readonly version: string; readonly archive: string | null },
+): boolean {
+  const row = kitInstallation(root, kit.id);
+  return row !== null && row.version === kit.version && row.archive === kit.archive;
+}
+
 /**
  * A pin is usable only while the kit's release, source digest and implementation still match it; historical release
  * metadata is not historical bytes, so drift refuses rather than relabelling current instructions.
