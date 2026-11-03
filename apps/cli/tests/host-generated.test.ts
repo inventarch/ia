@@ -23,7 +23,7 @@ import { runBounded } from '@tools/testing/subprocess.js';
 import { ProjectionError } from '@inventarch/workspace-runtime/projections';
 import { applyHostProjection, HOOK_KEPT, renderProjectionFor } from '../src/host-projection.js';
 
-import { quoteCommandRoot as quote, cleanup, cli, nextArgv, run, scratch } from './workspace-fixture.js';
+import { quoteCommandRoot as quote, cleanup, cli, commandRoots, nextArgv, run, scratch } from './workspace-fixture.js';
 import {
   doctor,
   GUARD_STATE,
@@ -419,6 +419,12 @@ it('reports drift in a generated file and in a hook group, and names the way bac
       status: 'fail',
       detail: `${SKILL} changed since the projection apply wrote it; move or delete it, then run the remedy`,
       remedy: `ia host claude --root ${quote(root)} --apply`,
+      fix: {
+        program: 'ia',
+        argv: commandRoots(['host', 'claude', '--root', root, '--apply']),
+        flow: 'preview-apply',
+        writesTo: 'repo',
+      },
     },
   ]);
   writeFileSync(resolve(root, SKILL), original);
