@@ -844,6 +844,7 @@
         "tests/channel.test.ts",
         "tests/cli-version.test.ts",
         "tests/console-keys.test.ts",
+        "tests/console-state.test.ts",
         "tests/console-terminal.test.ts",
         "tests/console-width.test.ts",
         "tests/doctor-extensions.test.ts",

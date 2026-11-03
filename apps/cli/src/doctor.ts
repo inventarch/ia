@@ -91,6 +91,7 @@ import { extensionChecks } from './doctor-extensions.js';
 import { discoverRoot, iaHomeOf } from './consumer.js';
 import { UNMAPPED } from './distribute.js';
 import { userRows } from './doctor-user.js';
+import type { UserFacts } from './doctor-user.js';
 import { sourceProtectionCheck } from './doctor-authority.js';
 import type { HostName } from './host-projection.js';
 import { HOOK_KEPT, planRetirement, readReceipt, renderProjectionFor } from './host-projection.js';
@@ -137,6 +138,8 @@ export interface DoctorView {
   readonly counts: Readonly<Record<CheckStatus, number>>;
   /** Host plugin distribution spec §7.3 and §8.2: present only when `--host` was given. */
   readonly briefing?: ReturnType<typeof brief>;
+  /** What the user rows observed (doctor-user.ts), for an in-process caller such as the console; never printed. */
+  readonly facts?: UserFacts;
 }
 export interface Runtime {
   readonly version: string;
@@ -1330,7 +1333,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
           { root: workspaceRoot, supplied, enclosing: enclosing ?? null, advice: request },
           version,
         );
-  return { checks, counts: count(checks), ...(briefing === undefined ? {} : { briefing }) };
+  return { checks, counts: count(checks), facts: user.facts, ...(briefing === undefined ? {} : { briefing }) };
 }
 
 /**
@@ -1452,19 +1455,42 @@ export function renderDoctor(view: DoctorView, caps: Capabilities): string {
   return document([...blocks, entry([words(totals, 'dim')], { depth: 0 }, caps)], { leadingBlank: true });
 }
 
+/** The request `ia doctor` collects with, from what an invocation supplies; the console builds its own the same way. */
+export function doctorRequest(input: {
+  readonly cwd: string;
+  readonly root?: string | undefined;
+  readonly packageRoot: string;
+  readonly env: Readonly<Record<string, string | undefined>>;
+  readonly version: string;
+  readonly host?: string | undefined;
+  readonly extensions?: readonly Extension[];
+}): DoctorRequest {
+  return {
+    cwd: input.cwd,
+    root: input.root,
+    packageRoot: input.packageRoot,
+    runtime: { version: process.version, platform: process.platform, arch: process.arch },
+    env: input.env,
+    home: homedir(),
+    version: input.version,
+    host: input.host,
+    extensions: input.extensions ?? [],
+  };
+}
+
 export function runDoctor(context: Context): Result {
   const { host, args, caps, json } = context;
-  const view = collectDoctor({
-    cwd: host.cwd,
-    root: args.value('root'),
-    packageRoot: host.packageRoot,
-    runtime: { version: process.version, platform: process.platform, arch: process.arch },
-    env: host.env,
-    home: homedir(),
-    version: host.version,
-    host: args.value('host'),
-    extensions: context.extensions ?? [],
-  });
+  const view = collectDoctor(
+    doctorRequest({
+      cwd: host.cwd,
+      root: args.value('root'),
+      packageRoot: host.packageRoot,
+      env: host.env,
+      version: host.version,
+      host: args.value('host'),
+      extensions: context.extensions ?? [],
+    }),
+  );
   const exitCode = doctorExit(view);
   return json
     ? { exitCode, stdout: JSON.stringify(doctorEnvelope(view)) + '\n', stderr: '' }

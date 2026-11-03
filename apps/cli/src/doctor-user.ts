@@ -61,6 +61,8 @@ export interface UserFacts {
   readonly updates: { readonly latest: string | null; readonly behind: number | null } | null;
   /** The refresh argument vector when one is due, else null. Doctor never runs it. */
   readonly refresh: readonly string[] | null;
+  /** The newest version the cache names for this copy's channel, whether or not it is newer than this copy. */
+  readonly cachedLatest: string | null;
   /** The explicit "Check for updates now" argv, forced for a workspace, whatever the cache's age; null with `refreshNowWhy`. */
   readonly refreshNow: readonly string[] | null;
   readonly refreshNowWhy: string | null;
@@ -719,6 +721,7 @@ export function userRows(input: {
       decision,
       frameworkSource,
       updates,
+      cachedLatest: cached?.cli.latest ?? null,
       refresh,
       refreshNow,
       refreshNowWhy: refreshNow === null ? (refreshNowWhy ?? 'the update mechanism could not be found') : null,
