@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
-import { claudeRunner } from '../src/claude-cli.js';
+import { claudeRunner, updateHeld } from '../src/claude-cli.js';
 import { USER_PLUGIN_MISSING } from '../src/host.js';
 import { quote } from '../src/render.js';
 import { cleanup, run, scratch } from './workspace-fixture.js';
@@ -36,6 +36,8 @@ const calls = (log: string): string[][] =>
 const registration = (home: string): string[][] => [
   ['plugin', 'marketplace', 'add', resolve(home, 'claude/marketplace')],
   ['plugin', 'install', 'ia@inventarch', '--scope', 'user'],
+  ['plugin', 'marketplace', 'update', 'inventarch'],
+  ['plugin', 'update', 'ia@inventarch', '--scope', 'user', '--json'],
 ];
 
 it('plans without writing, then materializes and registers through claude', async () => {
@@ -61,7 +63,7 @@ it('plans without writing, then materializes and registers through claude', asyn
   const again = JSON.parse((await run(['host', 'claude', '--user', '--local', '--json'], { env })).stdout);
   expect(again.plan.installed).toEqual({ version: planned.plan.plugin.version });
 });
-it('registers with the same two idempotent commands when already installed (registration contract)', async () => {
+it('registers with the same four idempotent commands when already installed (registration contract)', async () => {
   const { env } = setup(INSTALLED);
   const planned = JSON.parse((await run(['host', 'claude', '--user', '--local', '--json'], { env })).stdout);
   expect(planned.plan.commands).toEqual(registration(env.IA_HOME));
@@ -119,8 +121,55 @@ it('refuses an install that fails after the marketplace was added, keeping the d
   expect(refusal).toMatchObject({ ok: false, code: 'IA-CLI-HOST-COMMAND-FAILED' });
   expect(refusal.message).toContain('claude plugin install ia@inventarch --scope user exited 1');
   expect(refusal.next).toBe('Fix what claude reported above, then rerun "ia host claude --user --local --apply".');
-  expect(calls(log)).toEqual(registration(env.IA_HOME));
+  // The failed install stops the apply: the updates after it never run.
+  expect(calls(log)).toEqual(registration(env.IA_HOME).slice(0, 2));
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace/plugins/ia/.claude-plugin/plugin.json'))).toBe(true);
+});
+it('records a public install before the refresh, so a failed update leaves it visible', async () => {
+  for (const [failOn, ran] of [
+    ['plugin marketplace update', 3],
+    ['plugin update', 4],
+  ] as const) {
+    const { log, env } = setup({ IA_CLAUDE_FAIL_ON: failOn });
+    const result = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
+    expect(result.exitCode, result.stdout).toBe(3);
+    const refusal = JSON.parse(result.stdout);
+    expect(refusal).toMatchObject({ ok: false, code: 'IA-CLI-HOST-COMMAND-FAILED' });
+    expect(refusal.message).toContain(`claude ${failOn} `);
+    expect(refusal.next).toBe('Fix what claude reported above, then rerun "ia host claude --user --apply".');
+    expect(calls(log)).toHaveLength(ran);
+    expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace-install.json'))).toBe(true);
+  }
+});
+it('refuses an update Claude held back, naming why, and keeps the install record', async () => {
+  const message = 'Skipped — kit@acme requires ia@inventarch at a version range that 1.4.0 does not satisfy';
+  const { log, env } = setup({
+    FAKE_CLAUDE_UPDATE: JSON.stringify({
+      command: 'update',
+      outcome: 'ok',
+      updateOutcome: 'skipped',
+      skipReason: 'pinner_blocked',
+      message,
+    }),
+  });
+  const result = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
+  expect(result.exitCode, result.stdout).toBe(3);
+  const refusal = JSON.parse(result.stdout);
+  expect(refusal).toMatchObject({ ok: false, code: 'IA-CLI-HOST-COMMAND-FAILED' });
+  expect(refusal.message).toContain(`left ia@inventarch where it was: ${message}`);
+  expect(calls(log)).toHaveLength(4);
+  expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace-install.json'))).toBe(true);
+});
+it('reads a held update only from an update report that says so', () => {
+  expect(updateHeld('{"outcome":"ok","updateOutcome":"up_to_date"}\n')).toBeNull();
+  expect(updateHeld('{"outcome":"ok","updateOutcome":"skipped","skipReason":"pinner_blocked"}')).toBe(
+    'skipped (pinner_blocked)',
+  );
+  expect(updateHeld('{"outcome":"ok","updateOutcome":"up_to_date","refreshFailed":true}')).toBe(
+    'the catalogue could not be refreshed',
+  );
+  expect(updateHeld('Checking for updates…\n✔ ia is already at the latest version (1.3.0).')).toBeNull();
+  expect(updateHeld('')).toBeNull();
 });
 it('refuses an uninstall that fails during removal, keeping the directory', async () => {
   const { log, env } = setup();
@@ -277,7 +326,7 @@ it('refuses a marketplace held by another run as IA-DIST-INSTALL-BUSY, naming wh
   expect(refusal.message).toContain(resolve(env.IA_HOME, 'claude/.lock'));
   expect(refusal.next).toBe(
     `Wait for any other user-level host registration to finish and close Claude Code sessions, editors or terminals using ${resolve(env.IA_HOME, 'claude')}; ` +
-      `if no run is active, delete ${resolve(env.IA_HOME, 'claude/.lock')}; then rerun "ia host claude --user --apply".`,
+      `if no run is active, delete ${resolve(env.IA_HOME, 'claude/.lock')}; then rerun "ia host claude --user --local --apply".`,
   );
   expect(calls(log)).toEqual([]);
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace'))).toBe(false);
@@ -403,6 +452,8 @@ it('installs ia@inventarch from the public marketplace by default, writing no pl
   expect(planned.plan.commands).toEqual([
     ['plugin', 'marketplace', 'add', 'inventarch/marketplace'],
     ['plugin', 'install', 'ia@inventarch', '--scope', 'user'],
+    ['plugin', 'marketplace', 'update', 'inventarch'],
+    ['plugin', 'update', 'ia@inventarch', '--scope', 'user', '--json'],
   ]);
   const applied = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
   expect(applied.exitCode, applied.stdout).toBe(0);
