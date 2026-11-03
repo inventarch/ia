@@ -151,8 +151,12 @@ export function kitRows(kits: ReturnType<typeof kitUnitKeys> | null, stored: Upd
         ? iaFix(['install', '--package', `${unit.source.name}@${latest}`], 'repo')
         : unit.source.kind === 'collection'
           ? iaFix(['install', `${unit.id}@${latest}`], 'repo')
-          : // A release's request keeps its range unless --to replaces it, and a pin's range admits only itself.
-            iaFix(['update', unit.id, '--to', latest!], 'repo'),
+          : // The remedy keeps the `ia update <id>` form. A release's request keeps its range unless --to replaces
+            // it, and a pin's range admits only itself, so the fix the console runs names the version.
+            {
+              remedy: iaFix(['update', unit.id], 'repo').remedy,
+              fix: iaFix(['update', unit.id, '--to', latest!], 'repo').fix,
+            },
     ),
   );
   let summary: Check;
