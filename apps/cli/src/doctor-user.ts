@@ -31,7 +31,7 @@ import type { Channel } from './channel.js';
 import { describeChannel, detectChannel, updateInstruction } from './channel.js';
 import type { Check, CheckStatus, Section } from './doctor.js';
 import { quote } from './render.js';
-import { HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
+import { committed, HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
 import { findLocalCli, readCliDependency } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
 import type { PackageManager } from './package-manager.js';
@@ -141,11 +141,14 @@ export function cliVersionRow(input: {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** `--host` was given: doctor answers itself and never hands off (dec-007). */
   readonly host: boolean;
+  /** Whether git tracks the installed copy (handoff.ts); injected by tests. */
+  readonly committed?: (packageRoot: string) => boolean;
 }): Check {
   const { root, version, env } = input;
   const dependency = readCliDependency(root);
   const local = dependency === null ? null : findLocalCli(root, dirname(dependency.manifest));
-  const { manager, conflict } = detectPackageManager(dependency === null ? root : dirname(dependency.manifest));
+  const managed = dependency === null ? root : dirname(dependency.manifest);
+  const { manager, conflict } = detectPackageManager(managed);
   const manage = (command: (manager: PackageManager) => string): string | null =>
     manager === null ? null : command(manager);
   const suffix =
@@ -160,14 +163,14 @@ export function cliVersionRow(input: {
     return cli(
       'info',
       `no @inventarch/cli dependency; running ${version}`,
-      manage((m) => pinCommand(m, version)),
+      manage((m) => pinCommand(m, version, managed)),
     );
   if (local === null) {
     const path = relative(root, dependency.manifest);
     const shown = path === '' || path.startsWith('..') || isAbsolute(path) ? dependency.manifest : path;
     return cli(
       'warn',
-      `${shown.replaceAll('\\', '/')} lists @inventarch/cli ${dependency.range}, which is not installed; running ${version}`,
+      `${shown.replaceAll('\\', '/')} lists @inventarch/cli ${dependency.range}, which is not installed between the workspace and it; running ${version}`,
       manage(installCommand),
     );
   }
@@ -176,7 +179,13 @@ export function cliVersionRow(input: {
     return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, manage(installCommand));
   if (!sameFile(local.packageRoot, input.packageRoot)) {
     const why =
-      env[NO_HANDOFF] === '1' ? `${NO_HANDOFF} is set` : input.host ? 'doctor --host does not hand off' : null;
+      env[NO_HANDOFF] === '1'
+        ? `${NO_HANDOFF} is set`
+        : input.host
+          ? 'doctor --host does not hand off'
+          : (input.committed ?? committed)(local.packageRoot)
+            ? 'the repository commits that copy, so it never runs on a typed command'
+            : null;
     return why === null
       ? cli('warn', `running ${version}; this workspace's copy is ${local.version}`)
       : cli('info', `running ${version}, not this workspace's ${local.version} (${why})`);
@@ -210,6 +219,8 @@ export function userRows(input: {
   readonly channel?: Channel | undefined;
   /** doctor's `--host` was given, so the `cli-version` row reports that no hand-off happened. */
   readonly host?: boolean | undefined;
+  /** The channel of the copy that handed off; detected from `IA_HANDOFF_FROM` when not supplied. */
+  readonly handingChannel?: Channel | undefined;
 }): { readonly checks: readonly Check[]; readonly facts: UserFacts } {
   const checks: Check[] = [];
   // §5: the filesystem and local git only.
@@ -283,9 +294,12 @@ export function userRows(input: {
 
   // dec-007: the plugin and the update cache belong to the copy that renders the one and refreshes the other. Neither
   // `ia host claude --user` nor the session hook hands off, so after a hand-off that is the copy that handed off, and
-  // both rows are judged against its version whenever its package.json reads.
+  // both rows are judged against its version whenever its package.json reads. The update cache is also keyed by that
+  // copy's channel, so the version and the channel always come from the same copy.
   const from = input.env[HANDOFF_FROM] ?? '';
-  const userVersion = (from === '' ? null : versionAt(from)) ?? input.version;
+  const handing = from === '' ? null : versionAt(from);
+  const userVersion = handing ?? input.version;
+  const updateChannel = handing === null ? channel : (input.handingChannel ?? detectChannel(from));
 
   // §6.3 and §7.3 `plugin-<host>`: what the IA home holds. Registration with Claude is Claude's state, never read.
   let plugin: UserFacts['plugin'] = null;
@@ -370,7 +384,7 @@ export function userRows(input: {
   const disabled = updateCheckDisabled(input.env, home === null ? null : readIaConfig(home));
   const stored = home === null ? null : readUpdateCheck(home);
   const cached: UpdateCheck | null =
-    stored !== null && stored.cli.channel === channel.kind && stored.cli.current === userVersion ? stored : null;
+    stored !== null && stored.cli.channel === updateChannel.kind && stored.cli.current === userVersion ? stored : null;
   const latest = cached?.cli.latest ?? null,
     newer = latest !== null && compareVersions(latest, userVersion) > 0 ? latest : null,
     behind = cached?.cli.behind ?? null,
@@ -391,7 +405,7 @@ export function userRows(input: {
       updatesRow(
         'warn',
         `ia ${newer} is available; this is ${userVersion} (checked ${checkedOn})`,
-        updateInstruction(channel),
+        updateInstruction(updateChannel),
       ),
     );
   else if ((behind ?? 0) > 0)
@@ -399,7 +413,7 @@ export function userRows(input: {
       updatesRow(
         'warn',
         `${behind} commits behind upstream as of the last fetch (checked ${checkedOn})`,
-        updateInstruction(channel),
+        updateInstruction(updateChannel),
       ),
     );
   // §11: a check older than a week means the background refresh keeps failing to finish.
@@ -410,7 +424,7 @@ export function userRows(input: {
     checks.push(
       updatesRow(
         'unknown',
-        channel.kind === 'unknown'
+        updateChannel.kind === 'unknown'
           ? 'Not checked; an unknown install has no update source'
           : `Not checked; the last check (${checkedOn}) could not reach its source`,
       ),
@@ -432,11 +446,11 @@ export function userRows(input: {
           '--home',
           home,
           '--channel',
-          channel.kind,
+          updateChannel.kind,
           '--current',
           userVersion,
-          ...(channel.kind === 'npm' ? ['--name', channel.name] : []),
-          ...(channel.kind === 'checkout' ? ['--checkout', channel.root] : []),
+          ...(updateChannel.kind === 'npm' ? ['--name', updateChannel.name] : []),
+          ...(updateChannel.kind === 'checkout' ? ['--checkout', updateChannel.root] : []),
         ];
 
   // §7.3: only for a workspace this report describes.

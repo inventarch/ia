@@ -1,15 +1,18 @@
 /**
  * consumer-cli-contract §1.2's first step: a command typed into another `ia` runs on the `@inventarch/cli` the
- * workspace pins and has installed. Deciding reads only directories and `package.json` files; nothing is parsed yet, so
- * an argument the workspace's copy accepts and this copy does not still reaches it.
+ * workspace pins and has installed. Deciding reads only directories and `package.json` files, and asks git once whether
+ * the copy is committed; nothing is parsed yet, so an argument the workspace's copy accepts and this copy does not still
+ * reaches it. The tokens are not parsed either: a value spelled like `--user` or `--root` (`--search --user`) routes as
+ * the flag, and this copy answers, as it does for any typed command it cannot place.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db/internal/paths';
 import { discoverRoot } from './discovery.js';
 import { findLocalCli, readCliDependency } from './local-cli.js';
 import type { LocalCli } from './local-cli.js';
+import { findProgram, programEnv, programHome } from './program.js';
 
 /** Set only by the copy that hands off, to its package root's real path; any non-empty value stops a second hand-off. */
 export const HANDOFF_FROM = 'IA_HANDOFF_FROM';
@@ -22,6 +25,32 @@ const options = (argv: readonly string[]): readonly string[] => {
   return end === -1 ? argv : argv.slice(0, end);
 };
 
+const real = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
+
+/**
+ * Whether git tracks any file of the installed copy at `packageRoot`. A copy committed to the repository is the
+ * repository's code, not an install the user ran, so a typed command never runs it. Asked only when a hand-off is about
+ * to happen; git is found as program.ts finds it, and without git or a repository nothing is tracked.
+ */
+export function committed(packageRoot: string): boolean {
+  const git = findProgram('git', process.env);
+  if (git === null) return false;
+  const result = spawnSync(git, ['--no-optional-locks', '-C', packageRoot, 'ls-files', '--', '.'], {
+    cwd: programHome(),
+    env: programEnv(process.env),
+    encoding: 'utf8',
+    timeout: 2000,
+    windowsHide: true,
+  });
+  return result.status === 0 && result.stdout.trim() !== '';
+}
+
 const ROOT = '--root=';
 /** The first `--root` before `--`, when it names a workspace; without one, the workspace discovered from `cwd`. */
 export function rootFromArgv(argv: readonly string[], cwd: string, iaHome: string | undefined): string | undefined {
@@ -31,7 +60,9 @@ export function rootFromArgv(argv: readonly string[], cwd: string, iaHome: strin
     const value = token === '--root' ? tokens[index + 1] : token.startsWith(ROOT) ? token.slice(ROOT.length) : null;
     if (value === null) continue;
     if (value === undefined || value === '') return undefined;
-    const root = resolve(cwd, value);
+    // At its real path, as the command opens it (consumer.ts): a root reached through a link takes the CLI its real
+    // parents pin, which is the workspace the command then acts on.
+    const root = real(resolve(cwd, value));
     // As discovery does (discovery.ts), a directory whose `.ia` is the IA home is never a workspace.
     const home = iaHome !== undefined && sameFile(resolve(root, '.ia'), iaHome);
     return existsSync(resolve(root, '.ia/src')) && !home ? root : undefined;
@@ -52,6 +83,7 @@ export function handoffTarget(input: {
   readonly iaHome: string | undefined;
   readonly extensions: readonly string[];
   readonly coreTokens: ReadonlySet<string>;
+  readonly committed?: (packageRoot: string) => boolean;
 }): LocalCli | null {
   const { argv, env } = input;
   const command = argv[0];
@@ -65,7 +97,8 @@ export function handoffTarget(input: {
   const dependency = root === undefined ? null : readCliDependency(root);
   if (root === undefined || dependency === null) return null;
   const local = findLocalCli(root, dirname(dependency.manifest));
-  return local === null || sameFile(local.packageRoot, input.packageRoot) ? null : local;
+  if (local === null || sameFile(local.packageRoot, input.packageRoot)) return null;
+  return (input.committed ?? committed)(local.packageRoot) ? null : local;
 }
 
 /**

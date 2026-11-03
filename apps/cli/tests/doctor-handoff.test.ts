@@ -6,6 +6,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import type { Channel } from '../src/channel.js';
 import { userRows } from '../src/doctor-user.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
@@ -18,6 +19,7 @@ const put = (path: string, value: unknown): void => {
 const PINNED = '3.5.0',
   GLOBAL = '3.5.1';
 const channel = { kind: 'npm', name: '@inventarch/cli', version: PINNED } as const;
+const npmGlobal: Channel = { kind: 'npm', name: '@inventarch/cli', version: GLOBAL };
 /** An IA home holding the plugin by one of its two routes and a fresh update cache, both written by the global copy. */
 function home(prefix: string, plugin: 'materialized' | 'marketplace'): string {
   const home = resolve(scratch(prefix), '.ia');
@@ -44,7 +46,7 @@ const global = (version: string | null): string => {
   if (version !== null) put(resolve(root, 'package.json'), { name: '@inventarch/cli', version });
   return root;
 };
-const rows = (iaHome: string, env: Record<string, string>) => {
+const rows = (iaHome: string, env: Record<string, string>, handingChannel: Channel = npmGlobal) => {
   const { checks } = userRows({
     env: { IA_HOME: iaHome, ...env },
     home: scratch('doctor-handoff-user'),
@@ -56,6 +58,7 @@ const rows = (iaHome: string, env: Record<string, string>) => {
     enclosing: undefined,
     now: new Date(),
     channel,
+    handingChannel,
   });
   const of = (id: string) => checks.find((check) => check.id === id);
   return { plugin: of('plugin-claude'), updates: of('updates') };
@@ -94,4 +97,28 @@ it('after a hand-off, a newer release is measured from the copy that handed off'
     status: 'warn',
     detail: expect.stringContaining(`ia 3.6.0 is available; this is ${GLOBAL}`),
   });
+});
+it('after a hand-off from a checkout, the updates row reads the checkout cache and gives the checkout remedy', () => {
+  const iaHome = home('doctor-handoff-checkout', 'marketplace');
+  put(resolve(iaHome, 'state/update-check.json'), {
+    schema: 'ia.update-check.v1',
+    checkedAt: new Date().toISOString(),
+    cli: { channel: 'checkout', current: GLOBAL, latest: null, behind: 4, checked: true },
+    packages: { checked: false },
+  });
+  const checkout: Channel = { kind: 'checkout', root: '/src/ia', commit: null, dirty: false, origin: null };
+  const { updates } = rows(iaHome, { IA_HANDOFF_FROM: global(GLOBAL) }, checkout);
+  expect(updates).toMatchObject({
+    status: 'warn',
+    detail: expect.stringContaining('4 commits behind upstream'),
+    remedy: expect.stringContaining('In /src/ia: git pull'),
+  });
+  // An npm cache left from before the switch belongs to another channel: it is not this copy's, so no npm advice.
+  put(resolve(iaHome, 'state/update-check.json'), {
+    schema: 'ia.update-check.v1',
+    checkedAt: new Date().toISOString(),
+    cli: { channel: 'npm', current: GLOBAL, latest: '3.6.0', behind: null, checked: true },
+    packages: { checked: false },
+  });
+  expect(rows(iaHome, { IA_HANDOFF_FROM: global(GLOBAL) }, checkout).updates).toMatchObject({ status: 'unknown' });
 });

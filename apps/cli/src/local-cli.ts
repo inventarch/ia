@@ -26,6 +26,7 @@ export interface Manifest {
   readonly version?: unknown;
   readonly bin?: unknown;
   readonly packageManager?: unknown;
+  readonly workspaces?: unknown;
   readonly dependencies?: unknown;
   readonly devDependencies?: unknown;
 }

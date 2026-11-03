@@ -1,9 +1,10 @@
-import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CORE_TOKENS } from '../src/commands.js';
 import { iaHomeOf } from '../src/discovery.js';
-import { HANDOFF_FROM, handOff, handoffTarget, NO_HANDOFF, rootFromArgv } from '../src/handoff.js';
+import { committed, HANDOFF_FROM, handOff, handoffTarget, NO_HANDOFF, rootFromArgv } from '../src/handoff.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -39,8 +40,14 @@ describe('rootFromArgv', () => {
   it('reads --root in both spellings', () => {
     const w = workspace('handoff-root');
     const elsewhere = scratch('handoff-root-cwd');
-    expect(rootFromArgv(['validate', '--root', w], elsewhere, iaHome)).toBe(w);
-    expect(rootFromArgv(['validate', `--root=${w}`], elsewhere, iaHome)).toBe(w);
+    expect(rootFromArgv(['validate', '--root', w], elsewhere, iaHome)).toBe(realpathSync(w));
+    expect(rootFromArgv(['validate', `--root=${w}`], elsewhere, iaHome)).toBe(realpathSync(w));
+  });
+  it('a --root reached through a link is the workspace at its real path', () => {
+    const w = workspace('handoff-root-real');
+    const link = resolve(scratch('handoff-root-link'), 'ws');
+    symlinkSync(w, link, 'junction');
+    expect(rootFromArgv(['validate', '--root', link], scratch('handoff-root-link-cwd'), iaHome)).toBe(realpathSync(w));
   });
   it('ignores --root after --', () => {
     const w = workspace('handoff-root-after');
@@ -57,7 +64,7 @@ describe('rootFromArgv', () => {
     expect(
       rootFromArgv(['validate', '--root', dir], scratch('handoff-root-home-cwd'), resolve(dir, '.ia')),
     ).toBeUndefined();
-    expect(rootFromArgv(['validate', '--root', dir], scratch('handoff-root-home-cwd'), iaHome)).toBe(dir);
+    expect(rootFromArgv(['validate', '--root', dir], scratch('handoff-root-home-cwd'), iaHome)).toBe(realpathSync(dir));
   });
   it('falls back to discovery from cwd', () => {
     const w = workspace('handoff-root-discover');
@@ -160,6 +167,39 @@ describe('handoffTarget', () => {
     expect(target(['validate', '--root', w, '--', '--user'], scratch('handoff-target-cwd'))).toMatchObject({
       version: '9.9.9',
     });
+  });
+  it('never targets a copy the repository commits', () => {
+    const w = workspace('handoff-committed');
+    const asked: string[] = [];
+    const input = {
+      argv: ['validate'],
+      cwd: w,
+      env: {},
+      packageRoot: running,
+      iaHome,
+      extensions: [],
+      coreTokens: CORE_TOKENS,
+    };
+    const isCommitted = (root: string) => {
+      asked.push(root);
+      return true;
+    };
+    expect(handoffTarget({ ...input, committed: isCommitted })).toBeNull();
+    expect(asked).toEqual([realpathSync(resolve(w, 'node_modules/@inventarch/cli'))]);
+    expect(handoffTarget({ ...input, committed: () => false })).toMatchObject({ version: '9.9.9' });
+  });
+});
+
+describe('committed', () => {
+  const git = (cwd: string, ...args: string[]) => spawnSync('git', args, { cwd, encoding: 'utf8' });
+  it('is true once git tracks a file of the copy, and false outside a repository or for an untracked copy', () => {
+    const w = workspace('handoff-git');
+    const copy = resolve(w, 'node_modules/@inventarch/cli');
+    expect(committed(copy)).toBe(false);
+    expect(git(w, 'init', '-q').status).toBe(0);
+    expect(committed(copy)).toBe(false);
+    expect(git(w, 'add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    expect(committed(copy)).toBe(true);
   });
 });
 

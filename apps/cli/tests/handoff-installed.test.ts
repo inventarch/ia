@@ -148,6 +148,17 @@ it('IA_NO_HANDOFF=1 runs this copy', async () => {
   expect(result.status, result.stderr).toBe(0);
   expect(result.stdout).toBe(`${OWN_VERSION}\n`);
 });
+it('a copy the repository commits is never run', async () => {
+  // An untrusted clone that commits node_modules/@inventarch/cli: a typed command answers from this copy instead.
+  const { root } = workspace('handoff-committed');
+  const git = (...args: string[]) => runBounded('git', args, { cwd: root, env: process.env, timeoutMs: 30_000 });
+  expect((await git('init', '-q')).status).toBe(0);
+  expect((await git('add', '-f', 'node_modules/@inventarch/cli/dist/main.js')).status).toBe(0);
+  const result = await run(['--version'], root, environment());
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout).toBe(`${OWN_VERSION}\n`);
+  expect(result.stderr).not.toContain('fake-stderr');
+});
 it('bare ia does not hand off', async () => {
   const { root } = workspace('handoff-bare');
   const result = await run([], root, environment());
@@ -232,5 +243,5 @@ it('doctor reports a CLI dependency that is not installed', async () => {
   const at = checks.findIndex((check) => check.id === 'cli-version');
   expect(at, result.stdout).toBeGreaterThan(0);
   expect(checks[at - 1]?.id).toBe('install-channel');
-  expect(checks[at]).toMatchObject({ status: 'warn', remedy: 'npm ci' });
+  expect(checks[at]).toMatchObject({ status: 'warn', remedy: 'npm install' });
 });

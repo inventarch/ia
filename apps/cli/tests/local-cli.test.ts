@@ -165,12 +165,32 @@ it('satisfies: exact true and false, caret, and null for an unevaluated range', 
   expect(satisfies('not a version', '3.5.0')).toBeNull();
 });
 it('spells install and pin commands', () => {
-  expect(installCommand('npm')).toBe('npm ci');
-  expect(installCommand('pnpm')).toBe('pnpm install --frozen-lockfile');
-  expect(installCommand('yarn')).toBe('yarn install --immutable');
-  expect(installCommand('bun')).toBe('bun install --frozen-lockfile');
-  expect(pinCommand('npm', '3.5.1')).toBe('npm install -D @inventarch/cli@3.5.1');
-  expect(pinCommand('pnpm', '3.5.1')).toBe('pnpm add -D @inventarch/cli@3.5.1');
-  expect(pinCommand('yarn', '3.5.1')).toBe('yarn add -D @inventarch/cli@3.5.1');
-  expect(pinCommand('bun', '3.5.1')).toBe('bun add -d @inventarch/cli@3.5.1');
+  // Plain installs: the row asks for one when the lockfile is missing or behind the manifest, which a frozen one refuses.
+  expect(installCommand('npm')).toBe('npm install');
+  expect(installCommand('pnpm')).toBe('pnpm install');
+  expect(installCommand('yarn')).toBe('yarn install');
+  expect(installCommand('bun')).toBe('bun install');
+  const plain = scratch('pin-plain');
+  expect(pinCommand('npm', '3.5.1', plain)).toBe('npm install -D @inventarch/cli@3.5.1');
+  expect(pinCommand('pnpm', '3.5.1', plain)).toBe('pnpm add -D @inventarch/cli@3.5.1');
+  expect(pinCommand('yarn', '3.5.1', plain)).toBe('yarn add -D @inventarch/cli@3.5.1');
+  expect(pinCommand('bun', '3.5.1', plain)).toBe('bun add -d @inventarch/cli@3.5.1');
+});
+it('adds the workspace-root flag only where the manager refuses without it', () => {
+  const pnpmRoot = scratch('pin-pnpm-root');
+  writeFileSync(resolve(pnpmRoot, 'pnpm-workspace.yaml'), 'packages: []');
+  expect(pinCommand('pnpm', '3.5.1', pnpmRoot)).toBe('pnpm add -D -w @inventarch/cli@3.5.1');
+  const classic = scratch('pin-yarn-classic');
+  writeFileSync(resolve(classic, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }));
+  expect(pinCommand('yarn', '3.5.1', classic)).toBe('yarn add -D -W @inventarch/cli@3.5.1');
+  const berry = scratch('pin-yarn-berry');
+  writeFileSync(
+    resolve(berry, 'package.json'),
+    JSON.stringify({ workspaces: ['packages/*'], packageManager: 'yarn@4.5.0' }),
+  );
+  expect(pinCommand('yarn', '3.5.1', berry)).toBe('yarn add -D @inventarch/cli@3.5.1');
+  const rc = scratch('pin-yarn-rc');
+  writeFileSync(resolve(rc, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }));
+  writeFileSync(resolve(rc, '.yarnrc.yml'), '');
+  expect(pinCommand('yarn', '3.5.1', rc)).toBe('yarn add -D @inventarch/cli@3.5.1');
 });

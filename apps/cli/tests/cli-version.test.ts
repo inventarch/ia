@@ -75,7 +75,7 @@ it('warn: the installed copy does not satisfy the range', () => {
     ...ID,
     status: 'warn',
     detail: 'installed 3.4.1 does not satisfy ^3.5.0',
-    remedy: 'npm ci',
+    remedy: 'npm install',
   });
 });
 it('info: IA_NO_HANDOFF=1 runs a copy that is not the workspace one', () => {
@@ -96,6 +96,21 @@ it('info: doctor --host does not hand off', () => {
     remedy: null,
   });
 });
+it('info: a committed copy is never handed to', () => {
+  const { root, copy } = fixture('cv-committed', { range: '^3.4.0', installed: '3.4.1' });
+  const asked: string[] = [];
+  const committed = (packageRoot: string) => (asked.push(packageRoot), true);
+  expect(
+    cliVersionRow({ root, packageRoot: scratch('cv-other'), version: '3.5.0', env: {}, host: false, committed }),
+  ).toEqual({
+    ...ID,
+    status: 'info',
+    detail:
+      "running 3.5.0, not this workspace's 3.4.1 (the repository commits that copy, so it never runs on a typed command)",
+    remedy: null,
+  });
+  expect(asked).toEqual([copy]);
+});
 it('warn: the copy differs and no hand-off was set aside', () => {
   const { root } = fixture('cv-differs', { range: '^3.4.0', installed: '3.4.1' });
   expect(row(root, scratch('cv-other'), '3.5.0')).toEqual({
@@ -110,8 +125,9 @@ it('warn: the dependency is listed but not installed', () => {
   expect(row(root, scratch('cv-other'), '3.5.0')).toEqual({
     ...ID,
     status: 'warn',
-    detail: 'package.json lists @inventarch/cli 3.5.0, which is not installed; running 3.5.0',
-    remedy: 'npm ci',
+    detail:
+      'package.json lists @inventarch/cli 3.5.0, which is not installed between the workspace and it; running 3.5.0',
+    remedy: 'npm install',
   });
 });
 it('info: no CLI dependency', () => {
@@ -130,7 +146,7 @@ it('names a package-manager conflict and gives no remedy', () => {
     ...ID,
     status: 'warn',
     detail:
-      'package.json lists @inventarch/cli 3.5.0, which is not installed; running 3.5.0; package managers disagree: npm, pnpm',
+      'package.json lists @inventarch/cli 3.5.0, which is not installed between the workspace and it; running 3.5.0; package managers disagree: npm, pnpm',
     remedy: null,
   });
 });
@@ -140,7 +156,12 @@ it('names an absent package manager and gives no remedy', () => {
     ...ID,
     status: 'warn',
     detail:
-      'package.json lists @inventarch/cli 3.5.0, which is not installed; running 3.5.0; no package manager declared or locked',
+      'package.json lists @inventarch/cli 3.5.0, which is not installed between the workspace and it; running 3.5.0; no package manager declared or locked',
     remedy: null,
   });
+});
+it('pins at a pnpm workspace root with -w', () => {
+  const { root } = fixture('cv-pnpm-root', { range: null, installed: null, manager: 'pnpm@10.0.0' });
+  put(resolve(root, 'pnpm-workspace.yaml'), 'packages: []');
+  expect(row(root, scratch('cv-other'), '3.5.0').remedy).toBe('pnpm add -D -w @inventarch/cli@3.5.0');
 });

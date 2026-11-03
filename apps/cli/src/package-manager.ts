@@ -51,13 +51,9 @@ export function detectPackageManager(directory: string): {
   return { manager: managers[0] ?? null, conflict: [] };
 }
 
-const INSTALL: Readonly<Record<PackageManager, string>> = {
-  npm: 'npm ci',
-  pnpm: 'pnpm install --frozen-lockfile',
-  yarn: 'yarn install --immutable',
-  bun: 'bun install --frozen-lockfile',
-};
-export const installCommand = (manager: PackageManager): string => INSTALL[manager];
+// A plain install, never a frozen one: the row asks for it exactly when the lockfile is missing or no longer matches the
+// manifest, which a frozen install refuses.
+export const installCommand = (manager: PackageManager): string => `${manager} install`;
 
 const PIN: Readonly<Record<PackageManager, string>> = {
   npm: 'npm install -D',
@@ -65,4 +61,24 @@ const PIN: Readonly<Record<PackageManager, string>> = {
   yarn: 'yarn add -D',
   bun: 'bun add -d',
 };
-export const pinCommand = (manager: PackageManager, version: string): string => `${PIN[manager]} ${CLI}@${version}`;
+/**
+ * The command that adds the dependency to the `package.json` in `directory`. At a workspace root pnpm and Yarn 1 refuse
+ * an addition without `-w` and `-W`; Yarn 2 and later, which a `.yarnrc.yml` or a `yarn@2+` packageManager marks, take
+ * none.
+ */
+export function pinCommand(manager: PackageManager, version: string, directory: string): string {
+  const flag =
+    manager === 'pnpm' && existsSync(resolve(directory, 'pnpm-workspace.yaml'))
+      ? ' -w'
+      : manager === 'yarn' && yarnClassicRoot(directory)
+        ? ' -W'
+        : '';
+  return `${PIN[manager]}${flag} ${CLI}@${version}`;
+}
+const yarnClassicRoot = (directory: string): boolean => {
+  const manifest = readManifest(resolve(directory, 'package.json'));
+  if (manifest === null || manifest.workspaces === undefined) return false;
+  if (existsSync(resolve(directory, '.yarnrc.yml'))) return false;
+  const declared = typeof manifest.packageManager === 'string' ? manifest.packageManager : '';
+  return !/^yarn@([2-9]|\d{2,})/.test(declared);
+};
