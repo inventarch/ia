@@ -43,6 +43,7 @@ import { runKnowledge } from './kb.js';
 import { selectKnowledgeCommand } from './kb-commands.js';
 import { runValidate } from './validate.js';
 import { runVocabulary } from './vocabulary.js';
+import { runWorkspaces } from './workspaces.js';
 import type { AdviceContext, Capabilities, Terminal, Token } from './render.js';
 import {
   atom,
@@ -513,6 +514,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   remove: runDistribute('remove'),
   restore: runDistribute('restore'),
   recover: runRecovery,
+  workspaces: runWorkspaces,
   doctor: runDoctor,
   host: runHost,
 };

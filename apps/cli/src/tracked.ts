@@ -187,15 +187,18 @@ function freeId(taken: ReadonlySet<string>, id: string, root: string): string {
   }
 }
 
-/**
- * Adds one workspace, or reports it `already` tracked with its row unchanged. The root is its real path and must hold
- * `.ia/src` outside the IA home. The id defaults to `defaultTrackId`. A root already tracked under another id or label
- * refuses as `IA-CLI-TRACKED-EXISTS`, and an id another root holds as `IA-CLI-TRACKED-ID`, naming both roots.
- */
-export function trackWorkspace(
+/** The tracked row for `root`, whichever way it is spelled. */
+export const trackedRow = (rows: readonly TrackedWorkspace[], root: string): TrackedWorkspace | undefined =>
+  rows.find((row) => sameRoot(row.root, root));
+
+type Input = { readonly root: string; readonly id?: string | undefined; readonly label?: string | undefined };
+/** One root checked against `rows` and given its row; nothing is written here. */
+function admit(
   home: string,
-  input: { readonly root: string; readonly id?: string | undefined; readonly label?: string | undefined },
-  now: Date = new Date(),
+  path: string,
+  rows: readonly TrackedWorkspace[],
+  input: Input,
+  now: Date,
 ): { readonly status: 'added' | 'already'; readonly row: TrackedWorkspace } {
   if (input.id !== undefined && !TRACK_ID.test(input.id))
     throw new UsageError(
@@ -211,39 +214,78 @@ export function trackWorkspace(
       { path: root },
       `Move the workspace out of the IA home, then run "ia workspaces add <directory>" with its new location.`,
     );
-  const loaded = load(home);
-  const held = loaded.rows.find((entry) => sameRoot(entry.row.root, root))?.row;
+  const held = trackedRow(rows, root);
   if (held !== undefined) {
     if ((input.id !== undefined && input.id !== held.id) || (input.label !== undefined && input.label !== held.label))
       throw new Refusal(
         'IA-CLI-TRACKED-EXISTS',
         `${root} is already tracked as ${held.id}; its id and label are changed only by removing it and adding it again`,
         3,
-        { path: loaded.path },
+        { path },
         `Run "ia workspaces remove ${held.id}" first, then add the workspace again with the id or label you want.`,
       );
     return { status: 'already', row: held };
   }
   const id = input.id ?? defaultTrackId(root);
-  const other = loaded.rows.find((entry) => entry.row.id === id)?.row;
+  const other = rows.find((row) => row.id === id);
   if (other !== undefined) {
-    const suggestion = freeId(new Set(loaded.rows.map((entry) => entry.row.id)), id, root);
+    const suggestion = freeId(new Set(rows.map((row) => row.id)), id, root);
     throw new Refusal(
       'IA-CLI-TRACKED-ID',
       `The id ${id} is already tracked for ${other.root}, so ${root} needs another id, given with --id`,
       3,
-      { path: loaded.path },
+      { path },
       `Run "ia workspaces add ${quote(root)} --id ${suggestion}" to track it under another id.`,
     );
   }
-  const row: TrackedWorkspace = {
-    id,
-    root,
-    ...(input.label === undefined ? {} : { label: input.label }),
-    added: now.toISOString(),
+  return {
+    status: 'added',
+    row: { id, root, ...(input.label === undefined ? {} : { label: input.label }), added: now.toISOString() },
   };
-  save(home, loaded, [...loaded.rows.map((entry) => entry.raw), row]);
-  return { status: 'added', row };
+}
+
+/**
+ * Adds one workspace, or reports it `already` tracked with its row unchanged. The root is its real path and must hold
+ * `.ia/src` outside the IA home. The id defaults to `defaultTrackId`. A root already tracked under another id or label
+ * refuses as `IA-CLI-TRACKED-EXISTS`, and an id another root holds as `IA-CLI-TRACKED-ID`, naming both roots.
+ */
+export function trackWorkspace(
+  home: string,
+  input: Input,
+  now: Date = new Date(),
+): { readonly status: 'added' | 'already'; readonly row: TrackedWorkspace } {
+  const loaded = load(home);
+  const result = admit(
+    home,
+    loaded.path,
+    loaded.rows.map((entry) => entry.row),
+    input,
+    now,
+  );
+  if (result.status === 'added') save(home, loaded, [...loaded.rows.map((entry) => entry.raw), result.row]);
+  return result;
+}
+/**
+ * `ia workspaces find --apply`: every root not yet tracked, under its default id, in one write. Each root is checked as
+ * `trackWorkspace` checks it, against the rows before it too, so an id two of them would share refuses before anything
+ * is written. Returns the rows added.
+ */
+export function trackWorkspaces(
+  home: string,
+  roots: readonly string[],
+  now: Date = new Date(),
+): readonly TrackedWorkspace[] {
+  const loaded = load(home);
+  const rows = loaded.rows.map((entry) => entry.row),
+    added: TrackedWorkspace[] = [];
+  for (const root of roots) {
+    const result = admit(home, loaded.path, rows, { root }, now);
+    if (result.status === 'already') continue;
+    rows.push(result.row);
+    added.push(result.row);
+  }
+  if (added.length > 0) save(home, loaded, [...loaded.rows.map((entry) => entry.raw), ...added]);
+  return added;
 }
 
 /**
