@@ -844,6 +844,7 @@
         "tests/channel.test.ts",
         "tests/cli-version.test.ts",
         "tests/doctor-handoff.test.ts",
+        "tests/fix.test.ts",
         "tests/handoff.test.ts",
         "tests/local-cli.test.ts",
         "tests/render.test.ts",

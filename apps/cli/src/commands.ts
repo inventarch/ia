@@ -7,6 +7,7 @@
 import type { MODE_MOVES, Mode, PacketCatalogRow } from '@inventarch/runtime';
 import type { Grammar, OptionSpec, PositionalSpec } from './args.js';
 import { none, positionals } from './args.js';
+import type { Flow } from './fix.js';
 import { knowledgeCommand, knowledgeCatalog } from './kb-commands.js';
 
 /** The frozen machine routes admitted by `packages/runtime/src/door.ts`; see the contract’s “Exit classes and protocol boundaries”. */
@@ -49,7 +50,26 @@ export interface CommandSpec {
    * them.
    */
   readonly catalog?: CatalogTag;
+  /**
+   * The flow a fix of this command takes when its grammar decides none (consumer CLI contract §2.12, rule 5); the
+   * command declares it because neither `--apply` nor `--preview` describes how it writes.
+   */
+  readonly flow?: Flow;
+  /**
+   * A command whose first positional is an action: the options only that action accepts (`owns`; any other action
+   * refuses them as usage) and the action's own declared flow. A fix's flow reads the grammar of the action it names.
+   */
+  readonly actions?: Readonly<Record<string, CommandAction>>;
 }
+export interface CommandAction {
+  readonly owns?: readonly string[];
+  readonly flow?: Flow;
+}
+/** Each option an action owns, mapped to that action: the one table a command's refusal and a fix's flow both read. */
+export const ownedOptions = (spec: CommandSpec): Readonly<Record<string, string>> =>
+  Object.fromEntries(
+    Object.entries(spec.actions ?? {}).flatMap(([action, entry]) => (entry.owns ?? []).map((name) => [name, action])),
+  );
 
 const option = (spec: OptionSpec): OptionSpec => spec;
 export const ROOT: OptionSpec = option({
@@ -757,6 +777,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     group: 'distribution',
     summary: 'Recover an interrupted installation or host transaction',
     syntax: ['ia recover [installation|host|guard|lifecycle] --root <directory> [--json]'],
+    // It writes without a preview, so a fix that runs it is confirmed first.
+    flow: 'confirm',
     grammar: {
       options: COMMON_OPTIONS.map((entry) =>
         entry.name === 'root'
@@ -778,6 +800,13 @@ export const COMMANDS: readonly CommandSpec[] = [
       'ia workspaces find <folder> [--depth <n>] [--apply] [--yes] [--json]',
       'ia workspaces remove <id|directory> [--json]',
     ],
+    // `add` and `remove` write at once; `find` previews unless --apply.
+    actions: {
+      list: {},
+      add: { owns: ['id', 'label'], flow: 'confirm' },
+      find: { owns: ['depth', 'apply'] },
+      remove: { flow: 'confirm' },
+    },
     grammar: {
       options: [
         ...COMMON_OPTIONS.filter((entry) => entry.name !== 'root'),
