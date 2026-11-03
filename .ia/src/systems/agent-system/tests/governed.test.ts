@@ -858,6 +858,27 @@ it('records an independent review without transferring session ownership and app
   });
   expect(state.principal).toBe('alice');
 });
+it('rechecks disclosure after an owner review commits', async () => {
+  const f = fixture();
+  const { engine, proposal } = await offered(f);
+  let committed = false;
+  const authorize = f.host.authorize;
+  f.host.authorize = async (...args) => {
+    if (committed) throw new Error('withdrawn after the review');
+    return authorize(...args);
+  };
+  const command = f.store.command.bind(f.store);
+  f.store.command = async (...args) => {
+    const result = await command(...args);
+    if (args[0].mutation.type === 'proposal.review') committed = true;
+    return result;
+  };
+  await expect(
+    engine.review('session', 'alice', proposal.id, proposal.revision, proposal.digest, true, 'Reviewed', 'approve'),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+  const events = (await f.store.journal('session')).events;
+  expect(events.some((event) => event.mutation.type === 'proposal.review')).toBe(true);
+});
 it('does not treat independent reviewer authority as authority to disclose the session', async () => {
   const f = fixture();
   independent(f);

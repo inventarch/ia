@@ -9,6 +9,7 @@ import type {
   Event,
   Journal,
   JournalBackend,
+  Mutation,
   Owner,
   Session,
   SessionStore,
@@ -60,6 +61,55 @@ function freeze<T>(value: T): T {
   return value;
 }
 const outputs = new Set(['attempt.observe', 'attempt.reconcile']);
+/** The labels of the content a mutation adds. Exhaustive, so a new mutation must be classified before it compiles. */
+function addedLabels(m: Mutation, next: Session): string[] {
+  switch (m.type) {
+    case 'attempt.observe':
+    case 'attempt.reconcile':
+      return next.attempts[m.attemptId]!.label;
+    case 'question.reply':
+      return next.questions[m.questionId]!.label ?? [];
+    case 'release.accept':
+      return m.release.label;
+    case 'reaction.settle':
+      return next.reactions[m.reactionId]!.label ?? [];
+    case 'reaction.queue':
+      return next.reactions[m.reaction.id]!.label ?? [];
+    case 'child.create':
+    case 'child.return':
+      return next.runs[m.childId]!.label;
+    case 'attempt.prepare':
+      return next.attempts[m.attempt.id]!.label;
+    case 'action.accept':
+    case 'outcome.accept':
+    case 'run.wait':
+      return next.runs[m.runId]!.label;
+    case 'attempt.retry':
+    case 'model.repair':
+      return next.runs[next.attempts[m.attemptId]!.runId]!.label;
+    case 'proposal.review':
+      return next.runs[next.proposals[m.proposalId]!.runId]!.label;
+    case 'decision.record':
+      return next.runs[m.decision.runId]!.label;
+    // These add no content: they create, schedule, bound or control what already exists.
+    case 'session.create':
+    case 'session.rebind':
+    case 'session.renew':
+    case 'run.ready':
+    case 'attempt.dispatch':
+    case 'attempt.abandon':
+    case 'attempt.reconcile.start':
+    case 'action.clear':
+    case 'control.submit':
+    case 'control.apply':
+    case 'budget.extend':
+      return [];
+    default: {
+      const unclassified: never = m;
+      return unclassified;
+    }
+  }
+}
 export function commitAdmission(command: Command, events: Event[], owner?: Owner, next?: Session): Admission {
   requireValue(next, 'IA-SESSION-ADMISSION-DENIED', 'Commit offered without its resulting session');
   const observed = new Set(
@@ -68,24 +118,7 @@ export function commitAdmission(command: Command, events: Event[], owner?: Owner
     ),
   );
   return {
-    labels: labels(
-      events.flatMap(({ mutation: m }) => {
-        if (m.type === 'attempt.observe' || m.type === 'attempt.reconcile') return next.attempts[m.attemptId]!.label;
-        if (m.type === 'question.reply') return next.questions[m.questionId]!.label ?? [];
-        if (m.type === 'release.accept') return m.release.label;
-        if (m.type === 'reaction.settle') return next.reactions[m.reactionId]!.label ?? [];
-        if (m.type === 'reaction.queue') return next.reactions[m.reaction.id]!.label ?? [];
-        if (m.type === 'child.create' || m.type === 'child.return') return next.runs[m.childId]!.label;
-        if (m.type === 'attempt.prepare') return next.attempts[m.attempt.id]!.label;
-        if (m.type === 'action.accept' || m.type === 'outcome.accept') return next.runs[m.runId]!.label;
-        if (m.type === 'run.wait') return next.runs[m.runId]!.label;
-        if (m.type === 'attempt.retry' || m.type === 'model.repair')
-          return next.runs[next.attempts[m.attemptId]!.runId]!.label;
-        if (m.type === 'proposal.review') return next.runs[next.proposals[m.proposalId]!.runId]!.label;
-        if (m.type === 'decision.record') return next.runs[m.decision.runId]!.label;
-        return [];
-      }),
-    ),
+    labels: labels(events.flatMap(({ mutation }) => addedLabels(mutation, next))),
     kind: 'commit',
     sessionId: command.sessionId,
     principal: next.principal,

@@ -86,11 +86,17 @@ function identifier(value: unknown): string {
     fail('invalid journal identifier');
   return result;
 }
+/** session-system's label rule: 1\u20131024 UTF-8 bytes, single-line, no C0/C1 controls, no unpaired surrogates. */
 function label(value: unknown): string[] {
   if (
     !Array.isArray(value) ||
     value.some(
-      (id) => typeof id !== 'string' || !id || id.length > 1024 || /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(id),
+      (id) =>
+        typeof id !== 'string' ||
+        !id ||
+        Buffer.byteLength(id, 'utf8') > 1024 ||
+        /[\p{Cc}\u2028\u2029]/u.test(id) ||
+        Buffer.from(id, 'utf8').toString('utf8') !== id,
     )
   )
     fail('invalid content label');

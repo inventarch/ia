@@ -182,6 +182,53 @@ it('keeps unlabelled operation results on the legacy event version', async () =>
   await f.store.close();
 });
 
+it('adds no label keys to the model history, outcomes or journal of an unlabelled session', async () => {
+  const actions: ModelAction[] = [
+    { type: 'invoke', operation: 'read', input: 'public' },
+    {
+      type: 'outcome',
+      kind: 'clarification',
+      message: 'ask',
+      continuation: 'await-input',
+      questions: [{ prompt: 'Answer?', choices: [], required: true }],
+    },
+    outcome,
+  ];
+  const histories: string[] = [];
+  const f = fixture({
+    id: 'recording.v1',
+    generate: async (request) => {
+      histories.push(canonical(request.history));
+      return { action: actions.shift()!, model: 'test/model', provider: 'scripted', usage: 20 };
+    },
+  });
+  await start(f.engine);
+  const asked = await f.engine.advance('session', 'alice'),
+    q = Object.values(asked.questions)[0]!;
+  await f.engine.reply('session', 'alice', q.id, q.revision, q.digest, 'answer', 'reply');
+  const done = await f.engine.advance('session', 'alice');
+  expect(done.runs['root']!.status).toBe('completed');
+  expect(histories.length).toBe(3);
+  for (const history of histories) expect(history).not.toContain('"label"');
+  expect(canonical(done.runs['root']!.outcome)).not.toContain('"label"');
+  expect(canonical(done.runs['root']!.transcript)).not.toContain('"label"');
+  expect(canonical((await f.store.journal('session')).events)).not.toContain('"label"');
+  await f.store.close();
+});
+
+it('still discloses a finished session to its owner after the manifest changes', async () => {
+  const f = fixture(scripted([outcome]));
+  await start(f.engine);
+  const finished = await f.engine.advance('session', 'alice');
+  expect(finished.runs['root']!.status).toBe('completed');
+  const { digest: _old, ...body } = f.manifest;
+  const changed = { ...body, sourceDigest: 'capture-2' };
+  const next = new Engine({ ...changed, digest: manifestDigest(changed) }, f.host);
+  expect((await next.view('session', 'alice')).hash).toBe(finished.hash);
+  expect((await next.advance('session', 'alice')).hash).toBe(finished.hash);
+  await f.store.close();
+});
+
 it('reads a grant without clearances as clearing no labels', async () => {
   const f = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'public' }, outcome]));
   const { clearances: _omitted, ...legacy } = f.grant;
@@ -245,6 +292,50 @@ it('inherits receipt labels into later model output, outcomes and child returns'
   expect(state.runs['root']!.transcript.find((row) => (row as { kind?: string }).kind === 'child')).toMatchObject({
     label: ['private'],
   });
+  await f.store.close();
+});
+
+it('starts a child delegated after labelled content with its parent label', async () => {
+  const f = fixture(
+    scripted([
+      { type: 'invoke', operation: 'read', input: 'private' },
+      { type: 'delegate', profile: 'architect', task: 'summarise' },
+      outcome,
+      outcome,
+    ]),
+  );
+  privateRead(f);
+  await start(f.engine);
+  const state = await f.engine.advance('session', 'alice'),
+    child = Object.values(state.runs).find((run) => run.parentId === 'root')!;
+  expect(child.label).toEqual(['private']);
+  const childModel = Object.values(state.attempts).filter((a) => a.runId === child.id && a.kind === 'model');
+  expect(childModel.length).toBeGreaterThan(0);
+  for (const attempt of childModel) expect(attempt.label).toEqual(['private']);
+  expect(child.outcome).toMatchObject({ label: ['private'] });
+  await f.store.close();
+});
+
+it('keeps the label a question inherited when an unlabelled reply answers it', async () => {
+  const f = fixture(
+    scripted([
+      { type: 'invoke', operation: 'read', input: 'private' },
+      {
+        type: 'outcome',
+        kind: 'clarification',
+        message: 'ask about the private source',
+        continuation: 'await-input',
+        questions: [{ prompt: 'Which private part?', choices: [], required: true }],
+      },
+    ]),
+  );
+  privateRead(f);
+  await start(f.engine);
+  const asked = await f.engine.advance('session', 'alice'),
+    q = Object.values(asked.questions)[0]!;
+  expect(q.label).toEqual(['private']);
+  const replied = await f.engine.reply('session', 'alice', q.id, q.revision, q.digest, 'the first', 'reply');
+  expect(replied.questions[q.id]!.label).toEqual(['private']);
   await f.store.close();
 });
 
@@ -397,33 +488,111 @@ it('releases only host-cleared output across sessions and replays labels and rel
   }
 });
 
-it.each(['throw', 'malformed', 'forged'])('journals only a redacted release refusal for %s', async (kind) => {
-  const action = {
-    type: 'release',
-    candidate: 'REFUSED_CANDIDATE',
-    ...(kind === 'forged' ? { label: [], sources: [] } : {}),
-  };
-  const f = fixture({
-    id: 'model',
-    generate: async () => ({ action, model: 'test/model', provider: 'test', usage: 1 }),
-  });
+it('keeps no fingerprint of a refused external release candidate', async () => {
+  const f = fixture();
+  let calls = 0;
   f.host.release = async () => {
-    if (kind === 'throw') throw new Error('HOST_PRIVATE_DETAILS');
-    return { output: 'HOST_PRIVATE_DETAILS', label: [] } as unknown as Awaited<
-      ReturnType<NonNullable<EngineHost['release']>>
-    >;
+    calls++;
+    throw new Error('policy refuses');
   };
   const engine = releaseEngine(f);
   await start(engine);
-  const state = await engine.advance('session', 'alice');
-  expect(state.releases).toEqual([]);
-  expect(Object.values(state.attempts)[0]!.error).toBe('release-refused');
-  const retained = canonical(await f.store.journal('session'));
-  expect(retained).not.toContain('REFUSED_CANDIDATE');
-  expect(retained).not.toContain('HOST_PRIVATE_DETAILS');
-  expect(retained).toContain('release-refused');
+  const pending = Object.values((await engine.advance('session', 'alice')).attempts)[0]!;
+  const response = {
+    action: { type: 'release', candidate: 'yes' },
+    model: 'test/model',
+    provider: 'test',
+    usage: 1,
+  };
+  const refused = await engine.submitModel('session', 'alice', pending.id, response, 'response');
+  expect(refused.attempts[pending.id]!.error).toBe('release-refused');
+  const events = canonical((await f.store.journal('session')).events);
+  expect(events).not.toContain(digest(response));
+  expect(events).not.toContain('submissionDigest');
+  expect((await engine.submitModel('session', 'alice', pending.id, response, 'response')).sequence).toBe(
+    refused.sequence,
+  );
+  expect(calls).toBe(1);
   await f.store.close();
 });
+
+it('treats a release action as an invalid model action when the profile has no release policy', async () => {
+  const f = fixture(scripted([{ type: 'release', candidate: 'no-policy-candidate' }]));
+  let calls = 0;
+  f.host.release = async () => {
+    calls++;
+    return { output: 'unexpected', label: [], policyRevision: 'one' };
+  };
+  await start(f.engine);
+  const state = await f.engine.advance('session', 'alice');
+  expect(state.runs['root']!.wait).toMatchObject({ reason: 'invalid-model-action', continuation: 'repair' });
+  expect(state.releases).toEqual([]);
+  const deferred = fixture();
+  deferred.host.release = f.host.release;
+  await start(deferred.engine);
+  const pending = Object.values((await deferred.engine.advance('session', 'alice')).attempts)[0]!;
+  await expect(
+    deferred.engine.submitModel(
+      'session',
+      'alice',
+      pending.id,
+      {
+        action: { type: 'release', candidate: 'no-policy-candidate' },
+        model: 'test/model',
+        provider: 'test',
+        usage: 1,
+      },
+      'response',
+    ),
+  ).rejects.toMatchObject({ code: 'IA-ENGINE-ACTION-INVALID' });
+  expect((await deferred.store.read('session')).attempts[pending.id]!.status).toBe(pending.status);
+  expect(calls).toBe(0);
+  await f.store.close();
+  await deferred.store.close();
+});
+
+it.each(['throw', 'malformed', 'forged', 'extra-key', 'oversize', 'expired-during-policy'])(
+  'journals only a redacted release refusal for %s',
+  async (kind) => {
+    const action = {
+      type: 'release',
+      candidate: 'REFUSED_CANDIDATE',
+      ...(kind === 'forged' ? { label: [], sources: [] } : {}),
+    };
+    const f = fixture({
+      id: 'model',
+      generate: async () => ({ action, model: 'test/model', provider: 'test', usage: 1 }),
+    });
+    // The grant expires while the policy runs: only the engine's next clock read sees it.
+    let expired = false;
+    f.host.now = () => {
+      if (!expired) return Date.now();
+      expired = false;
+      return f.grant.expiresAt + 1;
+    };
+    f.host.release = async () => {
+      if (kind === 'throw') throw new Error('HOST_PRIVATE_DETAILS');
+      const valid = { output: 'HOST_PRIVATE_DETAILS', label: [], policyRevision: 'one' };
+      if (kind === 'extra-key') return { ...valid, extra: true } as typeof valid;
+      if (kind === 'oversize') return { ...valid, output: 'HOST_PRIVATE_DETAILS'.padEnd(70_000, 'x') };
+      if (kind === 'expired-during-policy') {
+        expired = true;
+        return valid;
+      }
+      return { output: 'HOST_PRIVATE_DETAILS', label: [] } as unknown as typeof valid;
+    };
+    const engine = releaseEngine(f);
+    await start(engine);
+    const state = await engine.advance('session', 'alice');
+    expect(state.releases).toEqual([]);
+    expect(Object.values(state.attempts)[0]!.error).toBe('release-refused');
+    const retained = canonical(await f.store.journal('session'));
+    expect(retained).not.toContain('REFUSED_CANDIDATE');
+    expect(retained).not.toContain('HOST_PRIVATE_DETAILS');
+    expect(retained).toContain('release-refused');
+    await f.store.close();
+  },
+);
 
 it('releases deferred model candidates before persistence and does not rerun the policy for a duplicate submission', async () => {
   const f = fixture();

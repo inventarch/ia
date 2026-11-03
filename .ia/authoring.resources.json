@@ -514,8 +514,8 @@
     },
     {
       "path": ".ia/src/systems/session-system/SPEC.md",
-      "bytes": 3259,
-      "sha256": "3e6a18b16beccc106b7d852bef772245e4e83015ec923fdb76cdf36fcb7973af",
+      "bytes": 3393,
+      "sha256": "2ea752349bbc86df8b8657116da3e62591d83fdb024b5f87590a556ad6537e75",
       "mediaType": "text/markdown",
       "encoding": "utf8"
     },

@@ -377,3 +377,41 @@ it('refuses binding changes during renewal grant lookup before appending any eve
   ).rejects.toMatchObject({ code: 'IA-ENGINE-SOURCE-CHANGED' });
   expect(await f.store.read('session')).toEqual(before);
 });
+
+it.each(['clearance', 'root profile'])(
+  'refuses to renew a labelled session when the renewal grant lacks its %s',
+  async (missing) => {
+    const f = fixture([question, question, answer]);
+    const cleared = (deadline: number): Grant => ({ ...f.grant(deadline), clearances: ['private'] });
+    f.host.authorize = async (_actor, _manifest, state) => cleared(state?.limits.deadline ?? f.now() + 100);
+    f.host.authorizeRenewal = async () => cleared(f.now() + 1000);
+    await f.start();
+    const q = Object.values((await f.store.read('session')).questions)[0]!;
+    await f.engine().reply('session', 'alice', q.id, q.revision, q.digest, 'yes', 'reply', ['private']);
+    const before = await f.engine().advance('session', 'alice');
+    expect(before.label).toEqual(['private']);
+    f.expire();
+    const offer = await f.engine().renewal('session', 'alice'),
+      request = { commandId: 'renew', expectedSequence: before.sequence, deadline: offer.deadline },
+      events = (await f.store.journal('session')).events.length;
+    f.host.authorizeRenewal = async () =>
+      missing === 'clearance' ? f.grant(f.now() + 1000) : { ...cleared(f.now() + 1000), profiles: ['child'] };
+    await expect(f.engine().renew('session', 'alice', request)).rejects.toMatchObject({
+      code: 'IA-ENGINE-AUTHORITY-DENIED',
+    });
+    expect((await f.store.journal('session')).events).toHaveLength(events);
+    f.host.authorizeRenewal = async () => cleared(f.now() + 1000);
+    expect((await f.engine().renew('session', 'alice', request)).label).toEqual(['private']);
+  },
+);
+
+it('refuses a renewal grant that the disclosure grant check would refuse', async () => {
+  const f = fixture();
+  await f.start();
+  f.expire();
+  f.host.authorizeRenewal = async () => ({
+    ...f.grant(f.now() + 1000),
+    effects: ['bogus'] as unknown as Grant['effects'],
+  });
+  await expect(f.engine().renewal('session', 'alice')).rejects.toMatchObject({ code: 'IA-ENGINE-AUTHORITY-DENIED' });
+});

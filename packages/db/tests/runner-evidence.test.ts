@@ -227,7 +227,9 @@ it('withholds a legacy projection when only a queued reaction adds a private lab
   expect(runtime(root)).toEqual([]);
 });
 
-it.each([null, 'private', [''], [1], ['private\npublic']])('rejects malformed evidence labels: %j', (label) => {
+// 600 two-byte characters: within 1024 UTF-16 units but over the 1024-byte label bound.
+const wide = String.fromCharCode(0xe9).repeat(600);
+it.each([null, 'private', [''], [1], ['private\npublic'], [wide]])('rejects malformed evidence labels: %j', (label) => {
   const root = workspace(),
     input = journal(root);
   append(input.events, { type: 'question.reply', questionId: 'question', answer: 'private', label });

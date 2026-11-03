@@ -298,7 +298,7 @@ describe.each(['memory', 'sqlite'] as const)('%s atomic store conformance', (kin
       agent: 'architect-agent',
       task: {},
       contract: { id: 'bounded' },
-      limits: { ...creation().mutation.limits, bytes: 4000 },
+      limits: { ...(creation().mutation as Extract<Mutation, { type: 'session.create' }>).limits, bytes: 4000 },
     } as Mutation);
     await send(store, owner, { type: 'run.ready', runId: 'child' });
     const release = (output: string): Mutation => ({

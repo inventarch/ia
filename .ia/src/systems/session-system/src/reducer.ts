@@ -26,6 +26,8 @@ function observeLabel(state: Session, run: Run, value: unknown = []): string[] {
   state.label = labels([...(state.label ?? []), ...joined]);
   return joined;
 }
+/** Rows carry a label only when it is nonempty, so unlabelled sessions keep their legacy shape. */
+const tagged = (label: string[] | undefined): { label?: string[] } => (label?.length ? { label } : {});
 /** A state written before labels existed holds no labelled content. */
 function unlabelled(state: Session): Session {
   state.label ??= [];
@@ -412,7 +414,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         kind: a.kind,
         target: a.target,
         output: a.output,
-        label: a.label,
+        ...tagged(a.label),
         error: a.error,
         receipt: state.receipts.at(-1)!.id,
       });
@@ -465,7 +467,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         attemptId: a.id,
         evidence: mutation.evidence,
         output: a.output,
-        label: a.label,
+        ...tagged(a.label),
         effect: a.effect,
         ...(mutation.error !== undefined ? { target: a.target, receipt: state.receipts.at(-1)!.id } : {}),
       });
@@ -489,7 +491,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       attempt!.actionAccepted = true;
       if (mutation.cause) run.cause = copy(mutation.cause);
       run.pendingAction = copy(mutation.action);
-      run.transcript.push({ kind: 'action', action: copy(mutation.action), label: labels(run.label) });
+      run.transcript.push({ kind: 'action', action: copy(mutation.action), ...tagged(run.label) });
       break;
     }
     case 'attempt.retry': {
@@ -604,9 +606,9 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       }
       run.outcome = copy(mutation.outcome);
       if (run.outcome !== null && typeof run.outcome === 'object' && !Array.isArray(run.outcome))
-        run.outcome['label'] = labels(run.label);
+        Object.assign(run.outcome, tagged(run.label));
       run.pendingAction = null;
-      run.transcript.push({ kind: 'outcome', outcome: copy(run.outcome), label: labels(run.label) });
+      run.transcript.push({ kind: 'outcome', outcome: copy(run.outcome), ...tagged(run.label) });
       if (mutation.terminal) {
         complete(state, run);
         run.status = mutation.terminal;
@@ -629,7 +631,8 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         'Wrong respondent or answer choice',
       );
       q!.answer = copy(mutation.answer);
-      q!.label = labels(mutation.label);
+      // The question keeps what its prompt inherited; the answer only adds to it.
+      q!.label = labels([...(q!.label ?? []), ...labels(mutation.label)]);
       observeLabel(state, runOf(state, q!.runId), q!.label);
       q!.status = 'answered';
       runOf(state, q!.runId).transcript.push({
@@ -637,7 +640,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         questionId: q!.id,
         actor,
         answer: copy(mutation.answer),
-        label: q!.label!,
+        ...tagged(q!.label),
       });
       break;
     }
@@ -666,8 +669,8 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
       for (const source of release.sources) source.label = labels(source.label);
       observeLabel(state, run, release.label);
       state.releases.push(release);
-      run.outcome = { type: 'release', releaseId: release.id, output: release.output, label: release.label };
-      run.transcript.push({ kind: 'release', releaseId: release.id, output: release.output, label: release.label });
+      run.outcome = { type: 'release', releaseId: release.id, output: release.output, ...tagged(release.label) };
+      run.transcript.push({ kind: 'release', releaseId: release.id, output: release.output, ...tagged(release.label) });
       run.pendingAction = null;
       run.wait = null;
       run.status = 'completed';
@@ -771,7 +774,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
         childId: child.id,
         status: child.status,
         outcome: child.outcome,
-        label: labels(child.label),
+        ...tagged(child.label),
       });
       parent.wait = null;
       parent.status = parent.cancelRequested ? 'cancelling' : parent.pauseRequested ? 'paused' : 'running';

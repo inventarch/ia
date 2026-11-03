@@ -58,6 +58,41 @@ function unlabelledGrant(grant: Grant): Grant {
 }
 const proposesRelease = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value) && 'type' in value && value.type === 'release';
+/** The shape every current grant must have before any rule reads it; malformed clearances throw. */
+function wellFormedGrant(grant: Grant, principal: string, workspace: string, now: number): boolean {
+  return Boolean(
+    grant &&
+      typeof grant.id === 'string' &&
+      grant.id.length > 0 &&
+      grant.principal === principal &&
+      grant.workspace === workspace &&
+      Number.isFinite(grant.expiresAt) &&
+      grant.expiresAt > now &&
+      ['profiles', 'operations', 'effects', 'sources', 'models', 'clearances'].every(
+        (key) =>
+          Array.isArray(grant[key as keyof Grant]) &&
+          (grant[key as keyof Grant] as unknown[]).every((value) => typeof value === 'string'),
+      ) &&
+      labels(grant.clearances) &&
+      grant.limits &&
+      ['steps', 'modelCalls', 'operations', 'tokens', 'children', 'depth', 'bytes', 'deadline'].every(
+        (key) =>
+          Number.isSafeInteger(grant.limits[key as keyof Limits]) &&
+          grant.limits[key as keyof Limits] >= (key === 'deadline' ? 1 : 0),
+      ) &&
+      grant.effects.every((effect) => ['read', 'local-write', 'external-write'].includes(effect)),
+  );
+}
+/** Whether a grant's clearances cover every label. */
+function clears(grant: Grant, label: string[]): boolean {
+  const clearances = labels(grant.clearances);
+  return labels(label).every((id) => clearances.includes(id));
+}
+/** A release action that reaches ordinary parsing has no release policy to answer it. */
+function unreleased(action: ModelAction): ModelAction {
+  check(action.type !== 'release', 'IA-ENGINE-ACTION-INVALID', 'Release is unavailable for this profile');
+  return action;
+}
 const modelOutputTokens = 2048;
 async function bounded<T>(work: () => Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
@@ -220,36 +255,20 @@ export class Engine {
           await bounded(() => this.host.authorize(principal, copy(this.manifest), state ? copy(state) : null), signal),
         ),
       );
-      const clearances = labels(grant.clearances);
       check(
-        grant &&
-          typeof grant.id === 'string' &&
-          grant.id.length > 0 &&
-          grant.principal === principal &&
-          grant.workspace === this.manifest.workspace &&
-          (!state || (state.workspace === this.manifest.workspace && state.manifestDigest === digest(this.manifest))) &&
-          Number.isFinite(grant.expiresAt) &&
-          grant.expiresAt > this.now() &&
-          ['profiles', 'operations', 'effects', 'sources', 'models', 'clearances'].every(
-            (key) =>
-              Array.isArray(grant[key as keyof Grant]) &&
-              (grant[key as keyof Grant] as unknown[]).every((value) => typeof value === 'string'),
-          ) &&
-          grant.limits &&
-          ['steps', 'modelCalls', 'operations', 'tokens', 'children', 'depth', 'bytes', 'deadline'].every(
-            (key) =>
-              Number.isSafeInteger(grant.limits[key as keyof Limits]) &&
-              grant.limits[key as keyof Limits] >= (key === 'deadline' ? 1 : 0),
-          ) &&
-          grant.effects.every((effect) => ['read', 'local-write', 'external-write'].includes(effect)) &&
+        wellFormedGrant(grant, principal, this.manifest.workspace, this.now()) &&
+          // Disclosure follows the workspace; only execution (grant) pins the manifest digest.
+          (!state || state.workspace === this.manifest.workspace) &&
           grant.profiles.includes(profile) &&
           (!state || grant.profiles.includes(state.runs[state.rootId]!.profile)) &&
-          labels(label).every((id) => clearances.includes(id)),
+          clears(grant, label),
         'IA-ENGINE-AUTHORITY-DENIED',
         'Current authority does not permit disclosure',
       );
       return grant;
     } catch {
+      // A caller's cancellation is not a withdrawn grant.
+      signal.throwIfAborted();
       throw new EngineError('IA-ENGINE-AUTHORITY-DENIED', 'Current authority does not permit disclosure');
     }
   }
@@ -363,6 +382,7 @@ export class Engine {
       timed.throwIfAborted();
       return Math.min(current.expiresAt, review.expiresAt);
     } catch {
+      signal?.throwIfAborted();
       throw new EngineError('IA-ENGINE-AUTHORITY-DENIED', 'Current independent review authority is unavailable');
     }
   }
@@ -677,7 +697,7 @@ export class Engine {
         );
         if (response) {
           try {
-            const action = parseAction((response.output as { action: unknown }).action);
+            const action = unreleased(parseAction((response.output as { action: unknown }).action));
             this.limits(state, grant, 'action', 0, run);
             await save({
               type: 'action.accept',
@@ -872,7 +892,13 @@ export class Engine {
     } catch {
       error = 'model-attempt-failed';
     }
-    if (!error && output && typeof output === 'object' && !Array.isArray(output) && proposesRelease(output['action'])) {
+    if (
+      !error &&
+      output &&
+      typeof output === 'object' &&
+      !Array.isArray(output) &&
+      this.releasing(profile, output['action'])
+    ) {
       const result = await this.releaseResponse(
         await this.store().read(state.id),
         run,
@@ -892,6 +918,10 @@ export class Engine {
         runId: run.id,
         wait: { id, reason: 'model-error', objectIds: [id], continuation: 'retry-authorized', details: null },
       });
+  }
+  /** Only a profile with a release policy, on a host that can release, sends a release action to the host. */
+  private releasing(profile: Profile, action: unknown): boolean {
+    return proposesRelease(action) && profile.contract?.release !== undefined && this.host.release !== undefined;
   }
   /** Candidate stays in memory until the deterministic host policy has answered. */
   private async releaseResponse(
@@ -952,6 +982,8 @@ export class Engine {
         label: labels(result.label),
       };
     } catch {
+      // A cancelled release is not a refusal: recovery decides what the dispatched attempt became.
+      signal?.throwIfAborted();
       // Never retain candidates, host exceptions or diagnostics on a refused release.
     }
     return {
@@ -1203,11 +1235,10 @@ export class Engine {
       'IA-ENGINE-EVIDENCE-INVALID',
       'Outcome cites evidence not observed by this session',
     );
-    const questions: Question[] = (action.questions ?? []).map((q) => {
+    const questions: Omit<Question, 'label'>[] = (action.questions ?? []).map((q) => {
       const contract = { prompt: q.prompt, respondent: state.principal, choices: q.choices, revision: 1 };
       return {
         ...contract,
-        label: [],
         id: randomUUID(),
         runId: run.id,
         required: q.required,
@@ -1496,22 +1527,10 @@ export class Engine {
         copy(await bounded(() => this.host.authorizeRenewal!(principal, this.manifest, copy(state)), timed)),
       );
       check(
-        grant &&
-          grant.principal === principal &&
-          grant.workspace === state.workspace &&
-          Number.isFinite(grant.expiresAt) &&
-          grant.expiresAt > this.now() &&
-          grant.limits &&
-          Number.isSafeInteger(grant.limits.deadline) &&
-          ['clearances', 'profiles', 'sources', 'operations', 'effects', 'models'].every(
-            (key) =>
-              Array.isArray(grant[key as keyof Grant]) &&
-              (grant[key as keyof Grant] as unknown[]).every((value) => typeof value === 'string'),
-          ),
+        wellFormedGrant(grant, principal, state.workspace, this.now()),
         'IA-ENGINE-AUTHORITY-DENIED',
         'Current renewal authority is unavailable',
       );
-      labels(grant.clearances);
     } catch {
       signal?.throwIfAborted();
       throw new EngineError('IA-ENGINE-AUTHORITY-DENIED', 'Current renewal authority is unavailable');
@@ -1527,8 +1546,7 @@ export class Engine {
     check(
       grant.principal === principal &&
         grant.workspace === state.workspace &&
-        Array.isArray(grant.clearances) &&
-        labels(state.label).every((id) => labels(grant.clearances).includes(id)) &&
+        clears(grant, state.label) &&
         grant.profiles.includes(state.runs[state.rootId]!.profile) &&
         grant.sources.includes(this.manifest.sourceDigest) &&
         grant.expiresAt > this.now() &&
@@ -1857,7 +1875,8 @@ export class Engine {
       'IA-ENGINE-MODEL-INVALID',
       'Invalid model/usage',
     );
-    if (!proposesRelease(response.action)) parseAction(response.action);
+    const releasing = this.releasing(profile, response.action);
+    if (!releasing) unreleased(parseAction(response.action));
     check(Buffer.byteLength(canonical(response)) <= 65_536, 'IA-ENGINE-MODEL-INVALID', 'Response too large');
     const owner = await this.store().acquire(sessionId);
     try {
@@ -1870,13 +1889,16 @@ export class Engine {
         'IA-ENGINE-MODEL-INVALID',
         'No external response is pending',
       );
-      if (proposesRelease(response.action)) {
+      if (releasing) {
         if (journal.commands[commandId]) {
           const prior = journal.events.find((event) => event.id === commandId)?.mutation;
           check(
             prior?.type === 'attempt.observe' &&
               prior.attemptId === attemptId &&
-              prior.submissionDigest === digest(response),
+              // A refusal keeps no fingerprint, so its command id answers with the recorded refusal.
+              (prior.submissionDigest === undefined
+                ? prior.error === 'release-refused'
+                : prior.submissionDigest === digest(response)),
             'IA-SESSION-COMMAND-CONFLICT',
             'Command ID already has different content',
           );
@@ -1888,7 +1910,10 @@ export class Engine {
               sessionId,
               actor: principal,
               expected: state.sequence,
-              mutation: { ...result.mutation, submissionDigest: digest(response) },
+              // Only an accepted release keeps the response fingerprint: a refused candidate leaves no trace to guess against.
+              mutation: result.mutation.error
+                ? result.mutation
+                : { ...result.mutation, submissionDigest: digest(response) },
               following: result.following,
             },
             owner,
