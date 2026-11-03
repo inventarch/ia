@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "A bound method refuses a kit the lock does not install",
+  "summary": "A method bound by a repository now runs only a kit the repository's own lock installs. A bound kit that no lock row names (a packages row, or a kit row of a package carrier in entries) refuses with IA-CORE-KIT-NOT-INSTALLED before anything is retained, restored, written or run, and no bundled, IA-home or retained copy stands in for it; a task pin older than the installed version keeps running. The runtime exports kitInstallation, requireKitInstalled and kitInstallMatches for the lock's row and its identity.",
+  "packages": [
+    "@inventarch/mcp-door",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/mcp-door/",
+    "packages/runtime/",
+    "tools/"
+  ]
+}
