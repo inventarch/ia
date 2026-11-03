@@ -87,12 +87,26 @@ export function findLocalCli(root: string, stopAt: string): LocalCli | null {
 
 const segment = (glob: string, name: string): boolean =>
   glob === name || new RegExp(`^${glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '[^/]*')}$`).test(name);
+/** Whether `glob` lists `member` segment by segment; adjacent `**` collapse and each (glob, member) pair is solved once. */
 const matches = (glob: readonly string[], member: readonly string[]): boolean => {
-  const [head, ...rest] = glob;
-  if (head === undefined) return member.length === 0;
-  if (head === '**') return matches(rest, member) || (member.length > 0 && matches(glob, member.slice(1)));
-  const [first, ...others] = member;
-  return first !== undefined && segment(head, first) && matches(rest, others);
+  const globs = glob.filter((part, index) => part !== '**' || glob[index - 1] !== '**');
+  const seen = new Map<number, boolean>();
+  const from = (g: number, m: number): boolean => {
+    const key = g * (member.length + 1) + m;
+    const known = seen.get(key);
+    if (known !== undefined) return known;
+    const head = globs[g];
+    let answer: boolean;
+    if (head === undefined) answer = m === member.length;
+    else if (head === '**') answer = from(g + 1, m) || (m < member.length && from(g, m + 1));
+    else {
+      const name = member[m];
+      answer = name !== undefined && segment(head, name) && from(g + 1, m + 1);
+    }
+    seen.set(key, answer);
+    return answer;
+  };
+  return from(0, 0);
 };
 
 /**
@@ -110,29 +124,41 @@ export function ownsMember(globs: readonly string[], member: string): boolean {
   return owned;
 }
 
+/** One block-list entry's scalar: a quoted string, or plain text up to a `#` that follows whitespace, trimmed. */
+const pnpmScalar = (text: string): string => {
+  const quote = text[0];
+  if (quote === "'" || quote === '"') {
+    const end = text.indexOf(quote, 1);
+    if (end > 0) return text.slice(1, end);
+  }
+  return text.replace(/(^|\s)#.*$/, '').trimEnd();
+};
+
 /** The `packages:` block list of a `pnpm-workspace.yaml`, scanned by line (no YAML parser: bin.ts stays cheap). */
 const pnpmPackages = (text: string): string[] => {
   const globs: string[] = [];
   let inside = false;
   for (const line of text.split(/\r?\n/)) {
-    if (/^\S/.test(line) && !line.startsWith('#')) inside = /^packages\s*:\s*(#.*)?$/.test(line);
-    else if (inside) {
-      const item = /^\s+-\s+(?:'([^']*)'|"([^"]*)"|([^\s#]+))/.exec(line);
-      const glob = item?.[1] ?? item?.[2] ?? item?.[3];
-      if (glob !== undefined) globs.push(glob);
-    }
+    const item = /^\s*-\s+(.*)$/.exec(line);
+    if (inside && item?.[1] !== undefined) {
+      const glob = pnpmScalar(item[1].trimStart());
+      if (glob !== '') globs.push(glob);
+    } else if (/^\S/.test(line) && !line.startsWith('#')) inside = /^packages\s*:\s*(#.*)?$/.test(line);
   }
   return globs;
 };
 
-/** The workspace globs `directory` declares, or `null` when it is not a package-manager workspace root. */
+/**
+ * The workspace globs `directory` declares, or `null` when it is not a package-manager workspace root. A
+ * `pnpm-workspace.yaml` that exists but cannot be read still marks a root, one that lists nothing.
+ */
 const workspaceGlobs = (directory: string): string[] | null => {
   const pnpm = resolve(directory, 'pnpm-workspace.yaml');
   if (existsSync(pnpm)) {
     try {
       return pnpmPackages(readFileSync(pnpm, 'utf8'));
     } catch {
-      return null;
+      return [];
     }
   }
   const declared = readManifest(resolve(directory, 'package.json'))?.workspaces;
@@ -141,17 +167,21 @@ const workspaceGlobs = (directory: string): string[] | null => {
 };
 
 /**
- * The directory that owns the install for the package at `manifestDirectory`: the nearest ancestor that is a
- * package-manager workspace root (`pnpm-workspace.yaml` or `package.json` `workspaces`) when its globs list the
- * package, since npm, Yarn and Bun hoist the copy there; otherwise `manifestDirectory`. Only that nearest root is
- * consulted, and nothing above it is the repository's.
+ * The directory that owns the install for the package at `manifestDirectory`: the nearest directory, itself included,
+ * that is a package-manager workspace root (`pnpm-workspace.yaml` or `package.json` `workspaces`). A package that is
+ * itself a root owns its install; an ancestor root owns it when its globs list the package, since npm, Yarn and Bun
+ * hoist the copy there; otherwise `manifestDirectory`. Only that nearest root is consulted, and nothing above it is the
+ * repository's.
  */
 export function installRoot(manifestDirectory: string): string {
   const member = resolve(manifestDirectory);
-  for (let current = dirname(member); current !== dirname(current); current = dirname(current)) {
+  for (let current = member; ; current = dirname(current)) {
     const globs = workspaceGlobs(current);
-    if (globs === null) continue;
-    return ownsMember(globs, relative(current, member).replaceAll('\\', '/')) ? current : member;
+    if (globs !== null) {
+      return current === member || !ownsMember(globs, relative(current, member).replaceAll('\\', '/'))
+        ? member
+        : current;
+    }
+    if (dirname(current) === current) return member;
   }
-  return member;
 }

@@ -9,7 +9,7 @@
       "genre": "spec",
       "title": "Consumer CLI contract",
       "status": "implemented",
-      "sourceDigest": "8df0eb52e4dc6130e849b1734150a179b3bf1815684e8609b5466728883bf1fe"
+      "sourceDigest": "5dc92b3fcb8aae8389b0e5ba3762a769bf6c87e8998f0d9efcdfd8f6be2e7866"
     },
     {
       "id": "spec-host-plugin-distribution",

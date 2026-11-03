@@ -120,6 +120,46 @@ describe('installRoot', () => {
     put(resolve(outside.repo, 'pnpm-workspace.yaml'), 'other:\n  - packages/*\npackages:\n  - apps/*\n');
     expect(installRoot(outside.member)).toBe(outside.member);
   });
+  it('a pinning directory that is itself a workspace root keeps its own boundary', () => {
+    const outer = scratch('root-self');
+    putJson(resolve(outer, 'package.json'), { workspaces: ['repos/*'] });
+    cliCopy(outer);
+    const inner = resolve(outer, 'repos/inner');
+    putJson(resolve(inner, 'package.json'), {
+      workspaces: ['packages/*'],
+      devDependencies: { '@inventarch/cli': '3.5.0' },
+    });
+    expect(installRoot(inner)).toBe(inner);
+    expect(findLocalCli(inner, installRoot(inner))).toBeNull();
+  });
+  it('an unreadable pnpm-workspace.yaml keeps the boundary instead of letting discovery continue', () => {
+    const { repo, member } = layout('root-pnpm-unreadable', ['**']);
+    const nested = resolve(repo, 'repo');
+    // a directory named pnpm-workspace.yaml exists but cannot be read as a file
+    mkdirSync(resolve(nested, 'pnpm-workspace.yaml'), { recursive: true });
+    const deep = resolve(nested, 'packages/x');
+    putJson(resolve(deep, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+    expect(installRoot(deep)).toBe(deep);
+    expect(installRoot(member)).toBe(repo);
+  });
+  it('a plain pnpm scalar keeps its whole text, so a copy or an archive suffix is another path', () => {
+    for (const [name, line] of [
+      ['copy', '  - packages/x copy'],
+      ['hash', '  - packages/x#archive'],
+    ] as const) {
+      const { repo, member } = layout(`root-pnpm-scalar-${name}`, undefined);
+      put(resolve(repo, 'pnpm-workspace.yaml'), `packages:\n${line}\n`);
+      expect(installRoot(member)).toBe(member);
+    }
+    const { repo, member } = layout('root-pnpm-comment', undefined);
+    put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - packages/x   # the one\n');
+    expect(installRoot(member)).toBe(repo);
+  });
+  it('an unindented pnpm list parses', () => {
+    const { repo, member } = layout('root-pnpm-flush', undefined);
+    put(resolve(repo, 'pnpm-workspace.yaml'), "packages:\n- 'packages/*'\n- apps/*\nother:\n- nope\n");
+    expect(installRoot(member)).toBe(repo);
+  });
   it('only the nearest workspace root is consulted', () => {
     const { repo, member } = layout('root-nearest', ['packages/*']);
     const inner = resolve(repo, 'packages');
@@ -137,6 +177,13 @@ describe('ownsMember', () => {
     expect(ownsMember(['./packages/*'], 'packages/x')).toBe(true);
     expect(ownsMember(['packages/x/'], 'packages/x')).toBe(true);
     expect(ownsMember(['apps/*'], 'packages/x')).toBe(false);
+  });
+  it('answers a pathological glob promptly', () => {
+    const glob = [...Array(8).fill('**'), 'missing'].join('/');
+    const member = Array.from({ length: 20 }, (_, i) => `s${i}`).join('/');
+    const started = Date.now();
+    expect(ownsMember([glob], member)).toBe(false);
+    expect(Date.now() - started).toBeLessThan(300);
   });
   it('lets the last matching glob decide, so ! excludes', () => {
     const globs = ['packages/**', '!packages/private'];

@@ -1,6 +1,6 @@
 /**
  * consumer-cli-contract §1.2's first step: a command typed into another `ia` runs on the `@inventarch/cli` the
- * workspace pins and has installed. Deciding reads only directories and `package.json` files, and asks git once whether
+ * workspace pins and has installed. Deciding reads only directories, `package.json` files and a `pnpm-workspace.yaml`, and asks git once whether
  * the copy is committed; nothing is parsed yet, so an argument the workspace's copy accepts and this copy does not still
  * reaches it. The tokens are not parsed either: a value spelled like `--user` or `--root` (`--search --user`) routes as
  * the flag, and this copy answers, as it does for any typed command it cannot place.
