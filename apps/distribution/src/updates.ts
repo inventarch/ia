@@ -333,6 +333,17 @@ async function bounded(lookup: () => Promise<string | null>): Promise<string | n
 export async function refreshUpdates(input: RefreshInput, sources: Sources = liveSources): Promise<UpdateCheck> {
   if (input.force === true && input.root === undefined)
     fail('INPUT-INVALID', 'Forcing a refresh needs a workspace root');
+  // §11: `IA_NO_UPDATE_CHECK=1` is the offline signal, so even a forced refresh asks no source and writes nothing; the
+  // cache is returned as it stands.
+  if ((input.env ?? process.env)['IA_NO_UPDATE_CHECK'] === '1')
+    return (
+      readUpdateCheck(input.home) ?? {
+        schema: 'ia.update-check.v1',
+        checkedAt: input.now.toISOString(),
+        cli: { channel: input.channel, current: input.current, latest: null, behind: null, checked: false },
+        packages: { checked: false },
+      }
+    );
   let latest: string | null = null,
     behind: number | null = null;
   if (input.channel === 'npm' && input.name !== null) latest = sources.npm(input.name);

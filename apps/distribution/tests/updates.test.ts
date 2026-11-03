@@ -16,7 +16,7 @@ import {
 } from 'node:fs';
 import { homedir, hostname, tmpdir } from 'node:os';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { runBounded } from '@tools/testing/subprocess.js';
 import { HOME_MARKER } from '../src/ia-home.js';
 import { runNative } from '../src/native-command.js';
@@ -480,6 +480,81 @@ it('refresh-updates --root rejects a relative path, --force without --root is re
     await expect(runNative(argv), argv.join(' ')).rejects.toMatchObject({ code: 'IA-DIST-INPUT-INVALID' });
   expect(await runNative([...base, '--root', root, '--force'])).toMatchObject({ exitCode: 0 });
   expect(existsSync(join(home, UPDATE_CHECK))).toBe(true);
+});
+
+it('IA_NO_UPDATE_CHECK=1 stops every lookup, forced or not, and writes nothing', async () => {
+  const fetched: string[] = [];
+  vi.stubGlobal('fetch', async (input: string | URL) => {
+    fetched.push(String(input));
+    return new Response('no', { status: 404 });
+  });
+  try {
+    const home = join(temp(), '.ia'),
+      root = kitWorkspace(['acme/a']);
+    const throwing: Sources = {
+      npm: () => {
+        throw new Error('npm must not be asked');
+      },
+      git: () => {
+        throw new Error('git must not run');
+      },
+      kit: async () => {
+        throw new Error('no kit source may be asked');
+      },
+    };
+    const offline = { IA_NO_UPDATE_CHECK: '1' };
+    await refreshUpdates(
+      {
+        home,
+        channel: 'npm',
+        current: '0.2.0',
+        name: '@inventarch/cli',
+        checkout: null,
+        now: new Date(),
+        root,
+        force: true,
+        env: offline,
+      },
+      throwing,
+    );
+    // The live kit source, which opens the workspace's registry over fetch, is not reached either.
+    await refreshUpdates(
+      {
+        home,
+        channel: 'unknown',
+        current: '0.2.0',
+        name: null,
+        checkout: null,
+        now: new Date(),
+        root,
+        force: true,
+        env: offline,
+      },
+      { npm: throwing.npm, git: throwing.git },
+    );
+    expect(fetched).toEqual([]);
+    expect(existsSync(join(home, UPDATE_CHECK))).toBe(false);
+    // The command line reads the process environment.
+    vi.stubEnv('IA_NO_UPDATE_CHECK', '1');
+    const result = await runNative([
+      'refresh-updates',
+      '--home',
+      home,
+      '--channel',
+      'unknown',
+      '--current',
+      '0.2.0',
+      '--root',
+      root,
+      '--force',
+    ]);
+    expect(result).toMatchObject({ exitCode: 0 });
+    expect(fetched).toEqual([]);
+    expect(existsSync(join(home, UPDATE_CHECK))).toBe(false);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
 });
 
 // crowncodes/ia#436: refresh-updates run by hand from a directory the repository controls never starts an npm or git planted there,
