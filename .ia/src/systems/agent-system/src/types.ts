@@ -117,7 +117,8 @@ export interface Manifest {
   provenance: Json;
 }
 export interface Grant {
-  clearances: string[];
+  /** Labels this grant clears for disclosure; absent clears none. */
+  clearances?: string[];
   id: string;
   principal: string;
   workspace: string;

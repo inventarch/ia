@@ -46,7 +46,7 @@ function fixture(model?: ModelAdapter, backend: JournalBackend = new MemoryBacke
   };
   const manifest: Manifest = { ...body, digest: manifestDigest(body) },
     store = new JournalStore(backend);
-  const grant: Grant = {
+  const grant: Grant & { clearances: string[] } = {
     clearances: [],
     id: 'grant',
     principal: 'alice',
@@ -170,6 +170,35 @@ it.each(['after-receipt', 'after-fault', 'terminal'])(
     await f.store.close();
   },
 );
+
+it('keeps unlabelled operation results on the legacy event version', async () => {
+  const f = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'public' }, outcome]));
+  await start(f.engine);
+  const state = await f.engine.advance('session', 'alice');
+  expect(state.receipts.some((r) => r.output === 'Pinned source content')).toBe(true);
+  const observed = (await f.store.journal('session')).events.filter((e) => e.mutation.type === 'attempt.observe');
+  expect(observed.length).toBeGreaterThan(1);
+  expect(observed.map((e) => e.version)).toEqual(observed.map(() => 1));
+  await f.store.close();
+});
+
+it('reads a grant without clearances as clearing no labels', async () => {
+  const f = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'public' }, outcome]));
+  const { clearances: _omitted, ...legacy } = f.grant;
+  f.host.authorize = async () => legacy as Grant;
+  await start(f.engine);
+  expect((await f.engine.advance('session', 'alice')).runs['root']!.status).toBe('completed');
+  expect((await f.engine.view('session', 'alice')).label).toEqual([]);
+  const labelled = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'private' }, outcome]));
+  privateRead(labelled);
+  labelled.host.authorize = async () => legacy as Grant;
+  await start(labelled.engine);
+  await expect(labelled.engine.advance('session', 'alice')).rejects.toMatchObject({
+    code: 'IA-ENGINE-AUTHORITY-DENIED',
+  });
+  await f.store.close();
+  await labelled.store.close();
+});
 
 it('admits newly granted clearance without trusting host mutations of authorization arguments', async () => {
   const f = fixture(scripted([{ type: 'invoke', operation: 'read', input: 'private' }, outcome]));

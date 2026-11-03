@@ -49,6 +49,13 @@ import {
 } from './contracts.js';
 
 const json = (value: unknown): Json => JSON.parse(canonical(value)) as Json;
+// Unlabelled content keeps its legacy event version, so label-blind readers still replay it.
+const labelled = (label: string[]): { label?: string[] } => (label.length ? { label } : {});
+// A grant from a host that predates labels clears none; a present but malformed value still refuses.
+function unlabelledGrant(grant: Grant): Grant {
+  if (grant && typeof grant === 'object' && grant.clearances === undefined) grant.clearances = [];
+  return grant;
+}
 const proposesRelease = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value) && 'type' in value && value.type === 'release';
 const modelOutputTokens = 2048;
@@ -208,8 +215,10 @@ export class Engine {
     label: string[] = state?.label ?? [],
   ): Promise<Grant> {
     try {
-      const grant = copy(
-        await bounded(() => this.host.authorize(principal, copy(this.manifest), state ? copy(state) : null), signal),
+      const grant = unlabelledGrant(
+        copy(
+          await bounded(() => this.host.authorize(principal, copy(this.manifest), state ? copy(state) : null), signal),
+        ),
       );
       const clearances = labels(grant.clearances);
       check(
@@ -1161,7 +1170,7 @@ export class Engine {
       } catch {
         error = 'operation-attempt-failed';
       }
-      await save({ type: 'attempt.observe', attemptId: id, output, label, error, effect, usage: 0 });
+      await save({ type: 'attempt.observe', attemptId: id, output, ...labelled(label), error, effect, usage: 0 });
       if (error && effect === 'none')
         await save({
           type: 'run.wait',
@@ -1429,7 +1438,7 @@ export class Engine {
         attemptId: attempt.id,
         effect,
         output,
-        label,
+        ...labelled(label),
         error,
         evidence: `Installed ${attempt.target} reconciliation: ${effect}`,
       });
@@ -1483,7 +1492,9 @@ export class Engine {
     );
     let grant: Grant;
     try {
-      grant = copy(await bounded(() => this.host.authorizeRenewal!(principal, this.manifest, copy(state)), timed));
+      grant = unlabelledGrant(
+        copy(await bounded(() => this.host.authorizeRenewal!(principal, this.manifest, copy(state)), timed)),
+      );
       check(
         grant &&
           grant.principal === principal &&

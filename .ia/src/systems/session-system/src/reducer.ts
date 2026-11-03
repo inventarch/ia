@@ -26,6 +26,13 @@ function observeLabel(state: Session, run: Run, value: unknown = []): string[] {
   state.label = labels([...(state.label ?? []), ...joined]);
   return joined;
 }
+/** A state written before labels existed holds no labelled content. */
+function unlabelled(state: Session): Session {
+  state.label ??= [];
+  state.releases ??= [];
+  for (const run of Object.values(state.runs)) run.label ??= [];
+  return state;
+}
 export function validateLimits(limits: Limits): void {
   const keys = ['steps', 'modelCalls', 'operations', 'tokens', 'children', 'depth', 'bytes', 'deadline'];
   invariant(Object.keys(limits).length === keys.length, 'Unknown or missing limit');
@@ -257,10 +264,7 @@ function apply(previous: Session | null, mutation: Mutation, actor: string, at: 
     };
   }
   requireValue(previous, 'IA-SESSION-NOT-FOUND', 'Session does not exist');
-  const state = previous;
-  state.label ??= [];
-  state.releases ??= [];
-  for (const run of Object.values(state.runs)) run.label ??= [];
+  const state = unlabelled(previous);
   requireValue(
     actor === state.principal ||
       (mutation.type === 'question.reply' && state.questions[mutation.questionId]?.respondent === actor) ||
@@ -939,7 +943,7 @@ function eventVersion(mutation: Mutation): Event['version'] {
   return 1;
 }
 export function replay(events: readonly Event[], starting: Session | null = null): Session {
-  let state = starting ? copy(starting) : null;
+  let state = starting ? unlabelled(copy(starting)) : null;
   for (const event of events) {
     const { hash, ...body } = event;
     requireValue(
@@ -967,15 +971,17 @@ export function replay(events: readonly Event[], starting: Session | null = null
         ? m.runId
         : m.type === 'attempt.prepare'
           ? m.attempt.runId
-          : 'attemptId' in m
-            ? state.attempts[m.attemptId]?.runId
-            : 'childId' in m
-              ? m.childId
-              : 'questionId' in m
-                ? state.questions[m.questionId]?.runId
-                : 'proposalId' in m
-                  ? state.proposals[m.proposalId]?.runId
-                  : state.rootId;
+          : m.type === 'release.accept'
+            ? m.release.runId
+            : 'attemptId' in m
+              ? state.attempts[m.attemptId]?.runId
+              : 'childId' in m
+                ? m.childId
+                : 'questionId' in m
+                  ? state.questions[m.questionId]?.runId
+                  : 'proposalId' in m
+                    ? state.proposals[m.proposalId]?.runId
+                    : state.rootId;
     for (let run = state.runs[runId ?? state.rootId]; run; run = run.parentId ? state.runs[run.parentId] : undefined)
       if (run.contract) run.retainedBytes = (run.retainedBytes ?? 0) + bytes;
   }
