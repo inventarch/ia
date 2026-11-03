@@ -227,3 +227,13 @@ it("at the manifest's own directory remedy === displayFix(fix)", () => {
   expect(pin.fix?.argv).toEqual(['pnpm', 'add', '-D', '-w', '@inventarch/cli@3.5.0']);
   expect(displayFix(pin.fix!)).toBe(pin.remedy);
 });
+it('a Yarn Classic manifest declaring only nohoist workspaces keeps the -W remedy it always had', () => {
+  const { root } = fixture('cv-nohoist', { range: null, installed: null, manager: 'yarn@1.22.22' });
+  put(
+    resolve(root, 'package.json'),
+    JSON.stringify({ packageManager: 'yarn@1.22.22', workspaces: { nohoist: ['**/foo'] } }),
+  );
+  const check = row(root, scratch('cv-other'), '3.5.0');
+  expect(check.remedy).toBe('yarn add -D -W @inventarch/cli@3.5.0');
+  expect(check.fix?.argv).toEqual(['yarn', 'add', '-D', '@inventarch/cli@3.5.0']);
+});

@@ -133,7 +133,21 @@ export function pinArgv(manager: PackageManager, version: string, directory: str
     ? [...ADD[manager], ...flags, dependency]
     : [...DIRECTED_ADD[manager](directory, flags), dependency];
 }
-export const pinCommand = (manager: PackageManager, version: string, directory: string): string =>
-  pinArgv(manager, version, directory, directory).join(' ');
+/**
+ * The pin as the cli-version remedy has always printed it. Its `-W` keeps the earlier rule, independent of `pinArgv`:
+ * any declared `workspaces` in a Yarn Classic manifest, so the remedy text never changes; where the two differ (a
+ * `workspaces` that lists no packages) the fix shows its own text.
+ */
+export function pinCommand(manager: PackageManager, version: string, directory: string): string {
+  const flag =
+    manager === 'pnpm' && isWorkspaceRoot('pnpm', directory)
+      ? ['-w']
+      : manager === 'yarn' && legacyYarnClassicRoot(directory)
+        ? ['-W']
+        : [];
+  return [...ADD[manager], ...flag, `${CLI}@${version}`].join(' ');
+}
+const legacyYarnClassicRoot = (directory: string): boolean =>
+  readManifest(resolve(directory, 'package.json'))?.workspaces !== undefined && yarnMajor(directory) === 'classic';
 const yarnClassicRoot = (directory: string): boolean =>
   yarnMajor(directory) === 'classic' && isWorkspaceRoot('yarn', directory);
