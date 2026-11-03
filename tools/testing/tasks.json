@@ -846,7 +846,8 @@
         "tests/doctor-handoff.test.ts",
         "tests/handoff.test.ts",
         "tests/local-cli.test.ts",
-        "tests/render.test.ts"
+        "tests/render.test.ts",
+        "tests/tracked.test.ts"
       ],
       "profile": "unit",
       "platforms": [
