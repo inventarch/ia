@@ -180,6 +180,11 @@
       "types": "./dist/kit-inventory.d.ts",
       "default": "./dist/kit-inventory.js"
     },
+    "./home-lock": {
+      "development": "./src/home-lock.ts",
+      "types": "./dist/home-lock.d.ts",
+      "default": "./dist/home-lock.js"
+    },
     "./services": {
       "development": "./src/services.ts",
       "types": "./dist/services.d.ts",
@@ -233,6 +238,10 @@
     "./internal/guard-registration": {
       "types": "./dist/guard-registration.d.ts",
       "default": "./dist/guard-registration.js"
+    },
+    "./internal/home-lock": {
+      "types": "./dist/home-lock.d.ts",
+      "default": "./dist/home-lock.js"
     },
     "./internal/host-home": {
       "types": "./dist/host-home.d.ts",

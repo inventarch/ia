@@ -21,6 +21,9 @@ import type { UpdateCheck } from '@inventarch/distribution/updates';
 import {
   compareVersions,
   compatibility,
+  kitEntry,
+  kitEntryFresh,
+  kitUnitKeys,
   readIaConfig,
   readUpdateCheck,
   refreshDue,
@@ -58,6 +61,55 @@ export interface UserFacts {
   readonly updates: { readonly latest: string | null; readonly behind: number | null } | null;
   /** The refresh argument vector when one is due, else null. Doctor never runs it. */
   readonly refresh: readonly string[] | null;
+  /** The explicit "Check for updates now" argv, forced for a workspace, whatever the cache's age; null with `refreshNowWhy`. */
+  readonly refreshNow: readonly string[] | null;
+  readonly refreshNowWhy: string | null;
+}
+/**
+ * §11: the `ia-distribution refresh-updates` argv for this IA home and install channel, with `--root` for a workspace and
+ * `--force` when asked. Null only when the IA home is unresolved or unusable, or the mechanism cannot be found.
+ */
+export function refreshCommand(
+  input: {
+    readonly home: string | null;
+    readonly unusable: boolean;
+    readonly channel: Channel;
+    readonly current: string;
+    readonly root: string | undefined;
+  },
+  options: { readonly force: boolean },
+): readonly string[] | null {
+  if (input.home === null || input.unusable) return null;
+  const bin = distributionBin();
+  if (bin === null) return null;
+  const { channel } = input;
+  return [
+    process.execPath,
+    bin,
+    'refresh-updates',
+    '--home',
+    input.home,
+    '--channel',
+    channel.kind,
+    '--current',
+    input.current,
+    ...(channel.kind === 'npm' ? ['--name', channel.name] : []),
+    ...(channel.kind === 'checkout' ? ['--checkout', channel.root] : []),
+    ...(input.root === undefined ? [] : ['--root', input.root]),
+    ...(options.force && input.root !== undefined ? ['--force'] : []),
+  ];
+}
+/** The installed units' cache keys, or null when they cannot be read; local configuration only, never thrown. */
+function unitKeys(
+  root: string,
+  env: Readonly<Record<string, string | undefined>>,
+  userHome: string,
+): ReturnType<typeof kitUnitKeys> | null {
+  try {
+    return kitUnitKeys(root, { env, userHome });
+  } catch {
+    return null;
+  }
 }
 /** A row whose remedy is advice text has no fix; one given as a `Remedy` carries its own. */
 const row = (
@@ -470,23 +522,25 @@ export function userRows(input: {
       checks.push(row('updates-account', 'Environment', 'Account', 'info', notice));
   // A home holding src/ fails the ia-home row, and refresh-updates would refuse to write it, so nothing is started.
   const unusable = home !== null && existsSync(join(home, 'src'));
-  const bin = disabled || home === null || unusable || !refreshDue(cached, input.now) ? null : distributionBin();
-  const refresh =
-    bin === null || home === null
-      ? null
-      : [
-          process.execPath,
-          bin,
-          'refresh-updates',
-          '--home',
-          home,
-          '--channel',
-          updateChannel.kind,
-          '--current',
-          userVersion,
-          ...(updateChannel.kind === 'npm' ? ['--name', updateChannel.name] : []),
-          ...(updateChannel.kind === 'checkout' ? ['--checkout', updateChannel.root] : []),
-        ];
+  const command = (force: boolean): readonly string[] | null =>
+    refreshCommand({ home, unusable, channel: updateChannel, current: userVersion, root: input.root }, { force });
+  // §11: due when the global stamp is a day old, or when an installed unit's own entry is missing or a day old.
+  const kits = input.root === undefined ? null : unitKeys(input.root, input.env, input.home);
+  const kitsDue =
+    kits !== null &&
+    kits.units.some((unit) => unit.key !== null && !kitEntryFresh(kitEntry(stored, unit.key), input.now));
+  const refresh = disabled || !(refreshDue(cached, input.now) || kitsDue) ? null : command(false);
+  // "Check for updates now": an explicit request outranks `updateCheck: false` and the day's freshness, but not the
+  // offline signal, and it refetches every installed unit.
+  const refreshNowWhy =
+    input.env['IA_NO_UPDATE_CHECK'] === '1'
+      ? 'IA_NO_UPDATE_CHECK=1 is set'
+      : home === null
+        ? 'the IA home could not be resolved'
+        : unusable
+          ? `${join(home, 'src')} makes the IA home unusable`
+          : null;
+  const refreshNow = refreshNowWhy === null ? command(input.root !== undefined) : null;
 
   // §7.3: only for a workspace this report describes.
   if (input.root !== undefined) {
@@ -544,5 +598,18 @@ export function userRows(input: {
   // The same directory on disk, however either path is spelled.
   const frameworkSource = channel.kind === 'checkout' && input.root !== undefined && sameFile(input.root, channel.root);
   const updates = disabled || cached === null ? null : { latest: newer, behind };
-  return { checks, facts: { channel, home, plugin, decision, frameworkSource, updates, refresh } };
+  return {
+    checks,
+    facts: {
+      channel,
+      home,
+      plugin,
+      decision,
+      frameworkSource,
+      updates,
+      refresh,
+      refreshNow,
+      refreshNowWhy: refreshNow === null ? (refreshNowWhy ?? 'the update mechanism could not be found') : null,
+    },
+  };
 }
