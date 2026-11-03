@@ -353,7 +353,7 @@ The [language floor](.ia/src/floor/README.md) supplies the kernel. These systems
 | Work with | Commands |
 | --- | --- |
 | **Authoring and checking** | `init`, `preview`, `author`, `validate`, `capture`, `format` |
-| **Reading and navigating** | `position`, `next`, `read`, `inspect`, `vocabulary` |
+| **Reading and navigating** | `position`, `next`, `read`, `inspect`, `vocabulary`, `workspaces` |
 | **Knowledge** | `kb check`, `kb search`, `kb read`, `kb resolve`, `kb traverse`, `kb pack` |
 | **Hosts** | `project`, `host`, `doctor` |
 | **Distributions** | `pack`, `install`, `adopt`, `update`, `remove`, `restore`, `recover` |

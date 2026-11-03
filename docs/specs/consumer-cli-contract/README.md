@@ -28,7 +28,7 @@ Every `--apply` (`init`, `adopt`, `install`, `update`, `remove`, `restore`, `pro
 
 ### 2.1 Initialization
 
-`init [directory]` previews. `--apply` installs the bundled language base, writes the three starter records and the release descriptor, and captures the workspace. The target is positional, so `--root` is refused. `--host claude` or `--host codex` also runs the host registration path, and `--host none` skips it. `--id` sets the package id, and `--system` also authors a local `@system` and `@distribution`. `--from <plugin-directory>` lowers a host plugin as a kit, `--migrate` rewrites a 1.1.0 starter, and `--adopt <id>` mounts a registry workspace. `--decline` and `--forget-decline` record or clear, in the IA home, that a repository should not be initialized; they write nothing in the repository. See [initialization](../workspace-initialization/README.md) and [apply](../workspace-initialization-apply/README.md).
+`init [directory]` previews. `--apply` installs the bundled language base, writes the three starter records and the release descriptor, and captures the workspace. The target is positional, so `--root` is refused. `--host claude` or `--host codex` also runs the host registration path, and `--host none` skips it. `--id` sets the package id, and `--system` also authors a local `@system` and `@distribution`. `--from <plugin-directory>` lowers a host plugin as a kit, `--migrate` rewrites a 1.1.0 starter, and `--adopt <id>` mounts a registry workspace. `--decline` and `--forget-decline` record or clear, in the IA home, that a repository should not be initialized; they write nothing in the repository. Once `--apply` has initialized the target, `init` offers to add it to the tracked list (§2.16). See [initialization](../workspace-initialization/README.md) and [apply](../workspace-initialization-apply/README.md).
 
 ### 2.2 Vocabulary and 2.3 formatting
 
@@ -86,6 +86,31 @@ These commands are judged against the acting participant's governing mandates be
 A capture or project plan is judged as the effect it plans. No other command is judged, including `position`, `inspect`, `init`, `doctor`, the distribution commands, the machine protocol, and a `host` plan, `--remove` or `--user`. Each judged command takes `--actor <agent>` to name which authored participant is acting.
 
 A refusal is `IA-RUNTIME-MANDATE-MOVE`, `IA-RUNTIME-MANDATE-WORD` or `IA-RUNTIME-MANDATE-ACTOR` at exit 1, and its next command is usually an `ia position` command for the mandates that govern there. `ia position` is never judged, so that command always runs. While an authored `@mandate` fails admission, including one stating `authority.moves []`, every judged command refuses with `IA-RUNTIME-REQUEST-INVALID` and names `ia report`, which shows the admission findings. A mandate is a cooperative restriction on these commands. It is not authentication or a sandbox, and it grants no host permission.
+
+### 2.16 Workspace tracking
+
+`workspaces` keeps one person's list of the workspaces they keep current in the IA home, at `<IA home>/tracked-workspaces.json`. The file is `{"format": "ia-tracked-workspaces-1", "workspaces": [{id, root, label?, added}]}`: `root` is an absolute real path and `added` an ISO-8601 UTC time. A rewrite keeps every top-level key and row key it does not know. A file that does not parse, or names another format, is refused as `IA-CLI-TRACKED-INVALID` at exit 3 and is never overwritten. Tracking is not admission: it never reads or writes the MCP door's `workspace-locations.json` and admits no workspace to the door.
+
+The command opens no workspace, so `--root` is refused. It has four actions:
+
+| Action | Writes | `--json` |
+| --- | --- | --- |
+| `list` | nothing | `{version: 1, workspaces: [{id, root, label, added, state}]}` |
+| `add [directory] [--id <id>] [--label <text>]` | at once | `{version: 1, status: 'added' \| 'already', workspace: {id, root, label, added, state}}` |
+| `find <folder> [--depth <n>] [--apply]` | only with `--apply` | `{version: 1, folder, found: [{root, tracked, id}], applied, added: [id]}` |
+| `remove <id\|directory>` | at once | `{version: 1, removed: {id, root, label, added}}` |
+
+`label` is `null` when a row has none. `state` is `present`, or `missing` when the root is gone or holds no `.ia/src`; a missing row stays in the list until it is removed by name. `add` and `remove` change only the user's own list and print exactly what changed. `find --apply` confirms as §2.0 describes, and tracks every untracked workspace it found in one write. An action that does not read an option refuses it as `IA-CLI-USAGE`.
+
+`add` without a directory tracks the workspace that holds the working directory. The root must hold `.ia/src` (`IA-DB-ROOT-INVALID`) and lie outside the IA home (`IA-DIST-PATH-UNSAFE`). Roots are compared by device and inode, so a junction, a trailing separator or a different case on Windows is the same row, and adding a tracked root again reports `already`. A row's id follows `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`, the door's own rule; another `--id` is usage. The default is the `@workspace` name when the workspace's `.ia/src` declares exactly one at column 0, found by a lexical scan of at most 200 `.ia` files, or else the folder name, lower-cased, with every other character a `-`. The following refuse at exit 3 and write nothing:
+
+- `IA-CLI-TRACKED-ID`: the id is already tracked for another root. The message names both roots, and the next command adds the root under a free `--id`.
+- `IA-CLI-TRACKED-EXISTS`: a new `--id` or `--label` is given for a root already tracked. The next command removes the row first.
+- `IA-CLI-TRACKED-UNKNOWN`: `remove` names no tracked id or root.
+
+`find` walks the folder to `--depth` levels below it (default 4, at most 8). It skips `node_modules`, `.git`, `.ia-worktrees`, every folder whose name starts with `.`, the IA home, links and junctions, and a folder whose `.git` is a file, such as a linked worktree or submodule. It does not descend into a workspace it found, so fixtures inside a repository are not listed.
+
+After `init --apply` initializes a target that is not yet tracked, `init` offers to track it. On a terminal without `--yes`, it asks `Track <root> in your workspace list? [y/N]` and tracks on yes. Otherwise it prints one stderr line, `Track it with: ia workspaces add <root>`, and writes nothing. Under `--json` it says nothing. A root already tracked, or an IA home that cannot hold the list, gets no offer. A tracking failure is one stderr line and never changes `init`'s exit code.
 
 ## 3 Exit classes and protocol boundaries
 
