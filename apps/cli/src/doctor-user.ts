@@ -32,7 +32,7 @@ import { describeChannel, detectChannel, updateInstruction } from './channel.js'
 import type { Check, CheckStatus, Section } from './doctor.js';
 import { quote } from './render.js';
 import { committed, HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
-import { findLocalCli, readCliDependency } from './local-cli.js';
+import { findLocalCli, installRoot, readCliDependency } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
 import type { PackageManager } from './package-manager.js';
 import { detectPackageManager, installCommand, pinCommand, satisfies } from './package-manager.js';
@@ -131,8 +131,9 @@ const versionAt = (directory: string): string | null => {
 
 /**
  * §7.3 `cli-version`: which `@inventarch/cli` copy runs for the workspace, the CLI dependency its nearest manifest
- * lists, and whether the installed copy satisfies it (consumer-cli-contract §1.2). Local reads only. The remedy is the
- * package manager's own command, and none when the manager is undeclared or its lockfiles disagree.
+ * lists, and whether the installed copy satisfies it (consumer-cli-contract §1.2). Local reads only. The manager is the
+ * one the install's owning directory declares (the workspaces root that hoists the copy, else the manifest's own), and
+ * the remedy is its own command, run there; none when the manager is undeclared or its lockfiles disagree.
  */
 export function cliVersionRow(input: {
   readonly root: string;
@@ -146,11 +147,21 @@ export function cliVersionRow(input: {
 }): Check {
   const { root, version, env } = input;
   const dependency = readCliDependency(root);
-  const local = dependency === null ? null : findLocalCli(root, dirname(dependency.manifest));
   const managed = dependency === null ? root : dirname(dependency.manifest);
-  const { manager, conflict } = detectPackageManager(managed);
+  const owner = dependency === null ? root : installRoot(managed);
+  const local = dependency === null ? null : findLocalCli(root, owner);
+  const { manager, conflict } = detectPackageManager(owner);
   const manage = (command: (manager: PackageManager) => string): string | null =>
     manager === null ? null : command(manager);
+  const shown = (path: string): string => {
+    const from = relative(root, path);
+    return (from === '' || from.startsWith('..') || isAbsolute(from) ? path : from).replaceAll('\\', '/');
+  };
+  // An install runs where the owner is; it is named when that is not the workspace itself.
+  const install = (): string | null => {
+    const command = manage(installCommand);
+    return command === null || owner === root ? command : `In ${owner}: ${command}`;
+  };
   const suffix =
     conflict.length > 0
       ? `; package managers disagree: ${conflict.join(', ')}`
@@ -166,17 +177,16 @@ export function cliVersionRow(input: {
       manage((m) => pinCommand(m, version, managed)),
     );
   if (local === null) {
-    const path = relative(root, dependency.manifest);
-    const shown = path === '' || path.startsWith('..') || isAbsolute(path) ? dependency.manifest : path;
+    const between = owner === managed ? 'it' : shown(owner);
     return cli(
       'warn',
-      `${shown.replaceAll('\\', '/')} lists @inventarch/cli ${dependency.range}, which is not installed between the workspace and it; running ${version}`,
-      manage(installCommand),
+      `${shown(dependency.manifest)} lists @inventarch/cli ${dependency.range}, which is not installed between the workspace and ${between}; running ${version}`,
+      install(),
     );
   }
   const satisfied = satisfies(local.version, dependency.range);
   if (satisfied === false)
-    return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, manage(installCommand));
+    return cli('warn', `installed ${local.version} does not satisfy ${dependency.range}`, install());
   if (!sameFile(local.packageRoot, input.packageRoot)) {
     const why =
       env[NO_HANDOFF] === '1'

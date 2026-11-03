@@ -165,3 +165,43 @@ it('pins at a pnpm workspace root with -w', () => {
   put(resolve(root, 'pnpm-workspace.yaml'), 'packages: []');
   expect(row(root, scratch('cv-other'), '3.5.0').remedy).toBe('pnpm add -D -w @inventarch/cli@3.5.0');
 });
+
+/** `repo` is a workspaces root listing `packages/*`; `packages/x` pins the CLI and holds the IA root. */
+function hoisted(prefix: string, options: { installed: string | null; lock?: string; workspaces?: string[] }) {
+  const repo = scratch(prefix);
+  put(resolve(repo, 'package.json'), JSON.stringify({ workspaces: options.workspaces ?? ['packages/*'] }));
+  if (options.lock !== undefined) put(resolve(repo, options.lock), '');
+  const member = resolve(repo, 'packages/x');
+  put(resolve(member, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+  mkdirSync(resolve(member, '.ia/src'), { recursive: true });
+  const copy = resolve(repo, 'node_modules/@inventarch/cli');
+  if (options.installed !== null) {
+    put(
+      resolve(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: options.installed, bin: { ia: 'dist/main.js' } }),
+    );
+    put(resolve(copy, 'dist/main.js'), '');
+  }
+  return { repo, member, copy: options.installed === null ? copy : realpathSync(copy) };
+}
+it("a hoisted copy is reported as this workspace's copy", () => {
+  const { member, copy } = hoisted('cv-hoisted', { installed: '3.5.0' });
+  expect(row(member, copy, '3.5.0')).toMatchObject({
+    status: 'ok',
+    detail: "this workspace's copy 3.5.0, CLI dependency 3.5.0; no package manager declared or locked",
+  });
+});
+it('the manager is detected at the workspaces root', () => {
+  const { repo, member } = hoisted('cv-hoisted-pm', { installed: null, lock: 'package-lock.json' });
+  const check = row(member, scratch('cv-other'), '3.5.0');
+  expect(check.status).toBe('warn');
+  expect(check.remedy).toBe(`In ${repo}: npm install`);
+  expect(check.detail).toContain(`between the workspace and ${repo.replaceAll('\\', '/')}`);
+});
+it('an unrelated parent root does not lend its manager', () => {
+  const { member } = hoisted('cv-unrelated', { installed: null, lock: 'package-lock.json', workspaces: ['apps/*'] });
+  const check = row(member, scratch('cv-other'), '3.5.0');
+  expect(check.remedy).toBeNull();
+  expect(check.detail).toContain('no package manager declared or locked');
+  expect(check.detail).toContain('package.json lists @inventarch/cli 3.5.0');
+});
