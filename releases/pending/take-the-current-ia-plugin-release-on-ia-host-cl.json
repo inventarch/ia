@@ -1,0 +1,13 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Take the current ia plugin release on ia host claude --user",
+  "summary": "Rerunning ia host claude --user --apply now brings an installed ia plugin to the public catalogue's current release: after the marketplace add and install it runs claude plugin marketplace update inventarch and claude plugin update ia@inventarch --scope user. Both do nothing when the plugin is already current. Restart Claude Code, or run /reload-plugins, to load an update.",
+  "packages": [
+    "@inventarch/cli"
+  ],
+  "paths": [
+    "apps/cli/",
+    "docs/"
+  ]
+}
