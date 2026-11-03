@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "The committed bootstrap no longer routes every task through a lane",
+  "summary": "The block ia host --commit writes says reading, building, testing, editing and submitting a change need no binding, plugin, door or private access, routes through the lanes only when a task needs a method, and says an operation that needs a bound method or private authority refuses alone. It ends with a one-line ia-bootstrap marker, and names CONTRIBUTING.md when the repository has one. A block written by the earlier text is updated in place.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/distribution"
+  ],
+  "paths": [
+    "apps/cli/",
+    "apps/distribution/",
+    "docs/"
+  ]
+}
