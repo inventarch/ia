@@ -183,3 +183,13 @@ it('confirmedArgv is idempotent', () => {
     expect(confirmedArgv({ ...fix, argv: once })).toEqual(once);
   }
 });
+it("an extension's preview-apply fix previews as given and confirms with --apply exactly once", () => {
+  // An extension's own command, which the core grammar does not know.
+  const fix = ia(['acme', 'repair'], 'preview-apply', 'user');
+  expect(previewArgv(fix)).toEqual(['acme', 'repair']);
+  expect(confirmedArgv(fix)).toEqual(['acme', 'repair', '--apply']);
+  expect(confirmedArgv({ ...fix, argv: ['acme', 'repair', '--apply'] })).toEqual(['acme', 'repair', '--apply']);
+  expect(confirmedArgv({ ...fix, argv: confirmedArgv(fix) }).filter((token) => token === '--apply')).toHaveLength(1);
+  // Its other flows run as given.
+  expect(confirmedArgv(ia(['acme', 'login'], 'confirm', 'user'))).toEqual(['acme', 'login']);
+});

@@ -147,6 +147,10 @@ export function previewArgv(fix: Fix): readonly string[] | null {
  */
 export function confirmedArgv(fix: Fix): readonly string[] {
   if (fix.program !== 'ia') return fix.argv;
+  // An extension's own command has no core grammar to read: its declared flow decides, and a preview-apply form
+  // applies with `--apply`, added once. `--yes` is not added, since the extension's grammar may not take it.
+  if (!COMMANDS.some((command) => command.name === fix.argv[0]))
+    return fix.flow === 'preview-apply' && !fix.argv.includes(APPLY) ? [...fix.argv, APPLY] : fix.argv;
   const parsed = parse(fix.argv, COMMANDS);
   if (parsed === null) return fix.argv;
   const applies = fix.flow === 'preview-apply' || parsed.args.flag('apply');
