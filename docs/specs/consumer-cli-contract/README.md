@@ -107,6 +107,9 @@ The command opens no workspace, so `--root` is refused. It has four actions:
 - `IA-CLI-TRACKED-ID`: the id is already tracked for another root. The message names both roots, and the next command adds the root under a free `--id`.
 - `IA-CLI-TRACKED-EXISTS`: a new `--id` or `--label` is given for a root already tracked. The next command removes the row first.
 - `IA-CLI-TRACKED-UNKNOWN`: `remove` names no tracked id or root.
+- `IA-CLI-TRACKED-LOCKED`: another `ia` process holds the list's store lock and did not release it within 10 seconds. The message names the lock path, `<IA home>/tracked-workspaces.json.lock`, which the next command says to delete only when no `ia` process is running on that host.
+
+Every mutation (`add`, `remove`, `find --apply` and the `init` offer) takes that lock before it reads the list and holds it through validation and replacement, so processes running at once each keep their rows. The lock records its owner (pid, process start time where the platform reports one, host and creation time). A lock is taken over only when its owner is on this host and that process no longer exists, or is a different process under a reused pid; it is never taken over for its age, and never when it names another host or cannot be read.
 
 `find` walks the folder to `--depth` levels below it (default 4, at most 8). It skips `node_modules`, `.git`, `.ia-worktrees`, every folder whose name starts with `.`, the IA home, links and junctions, and a folder whose `.git` is a file, such as a linked worktree or submodule. It does not descend into a workspace it found, so fixtures inside a repository are not listed.
 

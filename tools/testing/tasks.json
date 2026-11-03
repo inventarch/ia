@@ -1139,6 +1139,7 @@
         "tests/project.test.ts",
         "tests/read.test.ts",
         "tests/refusal-next.test.ts",
+        "tests/tracked-concurrency.test.ts",
         "tests/validate-checks.test.ts",
         "tests/workspace-verbs.test.ts",
         "tests/workspaces.test.ts"

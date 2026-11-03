@@ -15,6 +15,7 @@ import { basename, isAbsolute, join, resolve } from 'node:path';
 import { pathKey, sameFile, within } from '@inventarch/db/internal/paths';
 import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
 import { UsageError } from './args.js';
+import { withTrackedLock } from './tracked-lock.js';
 import { Refusal } from './consumer.js';
 import { quote } from './render.js';
 
@@ -254,16 +255,18 @@ export function trackWorkspace(
   input: Input,
   now: Date = new Date(),
 ): { readonly status: 'added' | 'already'; readonly row: TrackedWorkspace } {
-  const loaded = load(home);
-  const result = admit(
-    home,
-    loaded.path,
-    loaded.rows.map((entry) => entry.row),
-    input,
-    now,
-  );
-  if (result.status === 'added') save(home, loaded, [...loaded.rows.map((entry) => entry.raw), result.row]);
-  return result;
+  return withTrackedLock(home, () => {
+    const loaded = load(home);
+    const result = admit(
+      home,
+      loaded.path,
+      loaded.rows.map((entry) => entry.row),
+      input,
+      now,
+    );
+    if (result.status === 'added') save(home, loaded, [...loaded.rows.map((entry) => entry.raw), result.row]);
+    return result;
+  });
 }
 /**
  * `ia workspaces find --apply`: every root not yet tracked, under its default id, in one write. Each root is checked as
@@ -275,17 +278,19 @@ export function trackWorkspaces(
   roots: readonly string[],
   now: Date = new Date(),
 ): readonly TrackedWorkspace[] {
-  const loaded = load(home);
-  const rows = loaded.rows.map((entry) => entry.row),
-    added: TrackedWorkspace[] = [];
-  for (const root of roots) {
-    const result = admit(home, loaded.path, rows, { root }, now);
-    if (result.status === 'already') continue;
-    rows.push(result.row);
-    added.push(result.row);
-  }
-  if (added.length > 0) save(home, loaded, [...loaded.rows.map((entry) => entry.raw), ...added]);
-  return added;
+  return withTrackedLock(home, () => {
+    const loaded = load(home);
+    const rows = loaded.rows.map((entry) => entry.row),
+      added: TrackedWorkspace[] = [];
+    for (const root of roots) {
+      const result = admit(home, loaded.path, rows, { root }, now);
+      if (result.status === 'already') continue;
+      rows.push(result.row);
+      added.push(result.row);
+    }
+    if (added.length > 0) save(home, loaded, [...loaded.rows.map((entry) => entry.raw), ...added]);
+    return added;
+  });
 }
 
 /**
@@ -293,27 +298,29 @@ export function trackWorkspaces(
  * its spelling. Refuses as `IA-CLI-TRACKED-UNKNOWN` when no row matches.
  */
 export function untrackWorkspace(home: string, idOrRoot: string, cwd: string): TrackedWorkspace {
-  const loaded = load(home);
-  let index = loaded.rows.findIndex((entry) => entry.row.id === idOrRoot);
-  if (index === -1) {
-    const root = resolve(cwd, idOrRoot);
-    index = loaded.rows.findIndex((entry) => sameRoot(entry.row.root, root));
-  }
-  if (index === -1)
-    throw new Refusal(
-      'IA-CLI-TRACKED-UNKNOWN',
-      `No tracked workspace has the id or root ${idOrRoot}`,
-      3,
-      null,
-      'Run "ia workspaces list" for the tracked ids and roots.',
+  return withTrackedLock(home, () => {
+    const loaded = load(home);
+    let index = loaded.rows.findIndex((entry) => entry.row.id === idOrRoot);
+    if (index === -1) {
+      const root = resolve(cwd, idOrRoot);
+      index = loaded.rows.findIndex((entry) => sameRoot(entry.row.root, root));
+    }
+    if (index === -1)
+      throw new Refusal(
+        'IA-CLI-TRACKED-UNKNOWN',
+        `No tracked workspace has the id or root ${idOrRoot}`,
+        3,
+        null,
+        'Run "ia workspaces list" for the tracked ids and roots.',
+      );
+    const removed = loaded.rows[index]!.row;
+    save(
+      home,
+      loaded,
+      loaded.rows.filter((_, at) => at !== index).map((entry) => entry.raw),
     );
-  const removed = loaded.rows[index]!.row;
-  save(
-    home,
-    loaded,
-    loaded.rows.filter((_, at) => at !== index).map((entry) => entry.raw),
-  );
-  return removed;
+    return removed;
+  });
 }
 
 /** Never walked into: package installs, git's own folder, and the worktrees `ia` keeps beside a repository. */
