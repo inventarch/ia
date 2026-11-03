@@ -334,3 +334,34 @@ it('a reader whose installation state keeps changing fails closed to an unknown 
   writeFileSync(active, pointer);
   expect(versions(root)).toEqual(['acme/same@1.0.0']);
 });
+
+it('a reader whose staged upgrade is rolled back to identical bytes before its second probe never reports the staged version', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  await install(root, dir, ['acme/same@1.0.0']);
+  const before = read(root, KIT_COLLECTIONS);
+  const upgrade = await plan(root, dir, ['acme/same@2.0.0']);
+  let staged = 0,
+    recovered = 0;
+  // The first probe sees 1.0.0. After the reader finds no journal, another install of this CLI stages the identical-lock
+  // 2.0.0 (pending.json, journal, 2.0.0's record); the reader reads that record; then a recovery rolls back, putting the
+  // same lock and record bytes back, before the reader's second probe.
+  const read2 = intactCollections(root, {
+    afterJournal: () => {
+      if (staged++ > 0) return;
+      expect(() =>
+        applyInstallation(upgrade.plan, { collections: upgrade.collections, checkpoint: stopAt('collections') }),
+      ).toThrow('stopped at collections');
+    },
+    afterRecord: () => {
+      if (recovered++ > 0) return;
+      expect(recoverInstallation(root)).toMatchObject({ status: 'recovered', committed: false });
+    },
+  });
+  expect(staged).toBeGreaterThan(0);
+  expect(recovered).toBeGreaterThan(0);
+  // The rollback restored identical bytes, but under new files: the reader read again and names what holds now.
+  expect(read(root, KIT_COLLECTIONS)).toBe(before);
+  expect(read2.collections.map((row) => `${row.id}@${row.version}`)).not.toContain('acme/same@2.0.0');
+  expect(read2.collections.map((row) => `${row.id}@${row.version}`)).toEqual(['acme/same@1.0.0']);
+});

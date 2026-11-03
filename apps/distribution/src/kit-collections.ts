@@ -19,6 +19,8 @@ import {
   INSTALL_PATHS,
 } from '@inventarch/db/distribution';
 import type { DistributionLock } from '@inventarch/db/distribution';
+import { lstatSync } from 'node:fs';
+import { join } from 'node:path';
 import { bytes, fail, replace, sha256, utf8, workspace } from './files.js';
 
 export const KIT_COLLECTIONS = '.ia/kit-collections.json';
@@ -259,9 +261,13 @@ export interface CurrentCollections {
   readonly source: 'none' | 'file' | 'before' | 'after' | 'undecided' | 'interrupted' | 'unstable';
   readonly problems: readonly string[];
 }
-/** Test seam: `afterJournal` runs between reading the journal and reading the record it decides on. */
+/**
+ * Test seams: `afterJournal` runs between reading the journal and reading the record it decides on, `afterRecord` after
+ * the record file is read.
+ */
 export interface CollectionReadHooks {
   readonly afterJournal?: () => void;
+  readonly afterRecord?: () => void;
 }
 /**
  * Which record counts, read only:
@@ -285,6 +291,7 @@ export function currentCollections(rootInput: string, hooks: CollectionReadHooks
     return { record: undecidedRecord(entry, lockDigest(root)), source: 'undecided', problems: [] };
   }
   const read = readKitCollections(root);
+  hooks.afterRecord?.();
   if (read.state === 'absent') return { record: null, source: 'none', problems: [] };
   if (read.state === 'invalid') return { record: null, source: 'none', problems: [read.problem] };
   return { record: read.record, source: 'file', problems: [] };
@@ -435,17 +442,32 @@ export function intactCollections(rootInput: string, hooks: CollectionReadHooks 
   return intactAgainst(current, lock, content === null ? null : sha256(content));
 }
 
-/** The files a collection read depends on, by content: pending marker, journal, activation pointer, lock and record. */
+/** An inode the platform could not report: Node gives 0, and some file systems all ones. */
+const NO_INODE = new Set([0n, 2n ** 64n - 1n, 2n ** 32n - 1n]);
+/**
+ * One file's identity: its content hash with its inode, modification time in nanoseconds and size. Every writer here
+ * replaces a file by renaming a new one into place, so a file put back with identical bytes still reads as another
+ * file. Where no inode is reported, the modification time, size and hash stand alone.
+ */
+function identity(root: string, path: string, limit: number): string {
+  const content = bytes(root, path, limit);
+  if (content === null) return '-';
+  const stat = lstatSync(join(root, path), { bigint: true, throwIfNoEntry: false });
+  const inode = stat === undefined || NO_INODE.has(stat.ino) ? '-' : String(stat.ino);
+  return `${sha256(content)}/${inode}/${stat?.mtimeNs ?? '-'}/${stat?.size ?? '-'}`;
+}
+/**
+ * The files a collection read depends on: pending marker, journal, activation pointer, lock and record, each by
+ * content and file identity.
+ */
 function probe(root: string): string {
   return [
-    bytes(root, INSTALL_PATHS.pending, 4 * DISTRIBUTION_LIMITS.metadata),
-    bytes(root, KIT_COLLECTIONS_JOURNAL, 4 * DISTRIBUTION_LIMITS.metadata),
-    bytes(root, INSTALL_PATHS.active),
-    bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata),
-    bytes(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata),
-  ]
-    .map((content) => (content === null ? '-' : sha256(content)))
-    .join(':');
+    identity(root, INSTALL_PATHS.pending, 4 * DISTRIBUTION_LIMITS.metadata),
+    identity(root, KIT_COLLECTIONS_JOURNAL, 4 * DISTRIBUTION_LIMITS.metadata),
+    identity(root, INSTALL_PATHS.active, 1024 * 1024),
+    identity(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata),
+    identity(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata),
+  ].join(':');
 }
 /**
  * The record that counts and the lock bytes it is judged against, read between two probes of the installation state:
