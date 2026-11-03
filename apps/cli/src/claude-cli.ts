@@ -61,10 +61,16 @@ export function observeClaude(runner: ClaudeRunner): ClaudeState {
     ),
   };
 }
-/** §6.3: `marketplace add` and `install` are both idempotent, so registration is always the same two commands. */
+/**
+ * §6.3: all four commands are idempotent, so registration is always the same four. `install` leaves an installed plugin
+ * at its version and Claude does not refresh a third-party catalogue by default, so the last two bring an existing
+ * install to the catalogue's current release; both exit 0 when it already is.
+ */
 export const registrationCommands = (marketplace: string): string[][] => [
   ['plugin', 'marketplace', 'add', marketplace],
   ['plugin', 'install', PLUGIN_ID, '--scope', 'user'],
+  ['plugin', 'marketplace', 'update', CLAUDE_MARKETPLACE],
+  ['plugin', 'update', PLUGIN_ID, '--scope', 'user'],
 ];
 /** §6.3: `uninstall` and `remove` exit 1 when there is nothing to remove, so only what is listed (or unknown) is removed. */
 export function removalCommands(state: ClaudeState): string[][] {

@@ -36,6 +36,8 @@ const calls = (log: string): string[][] =>
 const registration = (home: string): string[][] => [
   ['plugin', 'marketplace', 'add', resolve(home, 'claude/marketplace')],
   ['plugin', 'install', 'ia@inventarch', '--scope', 'user'],
+  ['plugin', 'marketplace', 'update', 'inventarch'],
+  ['plugin', 'update', 'ia@inventarch', '--scope', 'user'],
 ];
 
 it('plans without writing, then materializes and registers through claude', async () => {
@@ -119,7 +121,8 @@ it('refuses an install that fails after the marketplace was added, keeping the d
   expect(refusal).toMatchObject({ ok: false, code: 'IA-CLI-HOST-COMMAND-FAILED' });
   expect(refusal.message).toContain('claude plugin install ia@inventarch --scope user exited 1');
   expect(refusal.next).toBe('Fix what claude reported above, then rerun "ia host claude --user --local --apply".');
-  expect(calls(log)).toEqual(registration(env.IA_HOME));
+  // The failed install stops the apply: the updates after it never run.
+  expect(calls(log)).toEqual(registration(env.IA_HOME).slice(0, 2));
   expect(existsSync(resolve(env.IA_HOME, 'claude/marketplace/plugins/ia/.claude-plugin/plugin.json'))).toBe(true);
 });
 it('refuses an uninstall that fails during removal, keeping the directory', async () => {
@@ -403,6 +406,8 @@ it('installs ia@inventarch from the public marketplace by default, writing no pl
   expect(planned.plan.commands).toEqual([
     ['plugin', 'marketplace', 'add', 'inventarch/marketplace'],
     ['plugin', 'install', 'ia@inventarch', '--scope', 'user'],
+    ['plugin', 'marketplace', 'update', 'inventarch'],
+    ['plugin', 'update', 'ia@inventarch', '--scope', 'user'],
   ]);
   const applied = await run(['host', 'claude', '--user', '--apply', '--yes', '--json'], { env });
   expect(applied.exitCode, applied.stdout).toBe(0);
