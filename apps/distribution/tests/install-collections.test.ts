@@ -365,3 +365,38 @@ it('a reader whose staged upgrade is rolled back to identical bytes before its s
   expect(read2.collections.map((row) => `${row.id}@${row.version}`)).not.toContain('acme/same@2.0.0');
   expect(read2.collections.map((row) => `${row.id}@${row.version}`)).toEqual(['acme/same@1.0.0']);
 });
+
+/*
+ * The accepted residual of the probes (registry collections reference, "Collection record"): on a volume that reports
+ * no inode and whose timestamps do not move between the probes, a rollback that restores identical bytes between them
+ * is invisible, and the staged version may be reported for that one read. It is display only and passes: the next read
+ * is correct. A change that closes this updates the test.
+ */
+it('the accepted residual: without inodes or moving timestamps, an identical-bytes rollback between the probes is reported once', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  await install(root, dir, ['acme/same@1.0.0']);
+  const upgrade = await plan(root, dir, ['acme/same@2.0.0']);
+  let staged = 0,
+    recovered = 0;
+  const read2 = intactCollections(root, {
+    afterJournal: () => {
+      if (staged++ > 0) return;
+      expect(() =>
+        applyInstallation(upgrade.plan, { collections: upgrade.collections, checkpoint: stopAt('collections') }),
+      ).toThrow('stopped at collections');
+    },
+    afterRecord: () => {
+      if (recovered++ > 0) return;
+      recoverInstallation(root);
+    },
+    // No inode, and a timestamp frozen at one value: only content and size remain.
+    stat: (path) => {
+      const size = statSync(path, { bigint: true }).size;
+      return { ino: 0n, mtimeNs: 0n, size };
+    },
+  });
+  expect(read2.collections.map((row) => `${row.id}@${row.version}`)).toEqual(['acme/same@2.0.0']);
+  // The next read sees what holds.
+  expect(versions(root)).toEqual(['acme/same@1.0.0']);
+});

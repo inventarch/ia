@@ -263,11 +263,18 @@ export interface CurrentCollections {
 }
 /**
  * Test seams: `afterJournal` runs between reading the journal and reading the record it decides on, `afterRecord` after
- * the record file is read.
+ * the record file is read, and `stat` stands in for the file identity the probes read (a volume that reports no
+ * inode, or timestamps too coarse to move).
  */
 export interface CollectionReadHooks {
   readonly afterJournal?: () => void;
   readonly afterRecord?: () => void;
+  readonly stat?: (path: string) => FileIdentity | undefined;
+}
+export interface FileIdentity {
+  readonly ino: bigint;
+  readonly mtimeNs: bigint;
+  readonly size: bigint;
 }
 /**
  * Which record counts, read only:
@@ -449,10 +456,10 @@ const NO_INODE = new Set([0n, 2n ** 64n - 1n, 2n ** 32n - 1n]);
  * replaces a file by renaming a new one into place, so a file put back with identical bytes still reads as another
  * file. Where no inode is reported, the modification time, size and hash stand alone.
  */
-function identity(root: string, path: string, limit: number): string {
+function identity(root: string, path: string, limit: number, read: (path: string) => FileIdentity | undefined): string {
   const content = bytes(root, path, limit);
   if (content === null) return '-';
-  const stat = lstatSync(join(root, path), { bigint: true, throwIfNoEntry: false });
+  const stat = read(join(root, path));
   const inode = stat === undefined || NO_INODE.has(stat.ino) ? '-' : String(stat.ino);
   return `${sha256(content)}/${inode}/${stat?.mtimeNs ?? '-'}/${stat?.size ?? '-'}`;
 }
@@ -460,13 +467,15 @@ function identity(root: string, path: string, limit: number): string {
  * The files a collection read depends on: pending marker, journal, activation pointer, lock and record, each by
  * content and file identity.
  */
-function probe(root: string): string {
+const lstatIdentity = (path: string): FileIdentity | undefined =>
+  lstatSync(path, { bigint: true, throwIfNoEntry: false });
+function probe(root: string, read: (path: string) => FileIdentity | undefined = lstatIdentity): string {
   return [
-    identity(root, INSTALL_PATHS.pending, 4 * DISTRIBUTION_LIMITS.metadata),
-    identity(root, KIT_COLLECTIONS_JOURNAL, 4 * DISTRIBUTION_LIMITS.metadata),
-    identity(root, INSTALL_PATHS.active, 1024 * 1024),
-    identity(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata),
-    identity(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata),
+    identity(root, INSTALL_PATHS.pending, 4 * DISTRIBUTION_LIMITS.metadata, read),
+    identity(root, KIT_COLLECTIONS_JOURNAL, 4 * DISTRIBUTION_LIMITS.metadata, read),
+    identity(root, INSTALL_PATHS.active, 1024 * 1024, read),
+    identity(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata, read),
+    identity(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata, read),
   ].join(':');
 }
 /**
@@ -482,10 +491,10 @@ export function stableCollections(
 ): { readonly current: CurrentCollections; readonly lock: Buffer | null } {
   const root = workspace(rootInput);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const before = probe(root);
+    const before = probe(root, hooks.stat);
     const current = currentCollections(root, hooks);
     const lock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata);
-    if (probe(root) === before) return { current, lock };
+    if (probe(root, hooks.stat) === before) return { current, lock };
   }
   const lock = bytes(root, INSTALL_PATHS.lock, DISTRIBUTION_LIMITS.metadata);
   return { current: unstableCollections(root, lock === null ? null : sha256(lock)), lock };
