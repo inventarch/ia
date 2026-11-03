@@ -11,6 +11,9 @@ import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
 import { claudeRunner, updateHeld } from '../src/claude-cli.js';
 import { USER_PLUGIN_MISSING } from '../src/host.js';
+import { readMarketplaceRecord, writeMarketplaceRecord } from '../src/marketplace-record.js';
+import { applyUserHost } from '../src/user-host.js';
+import type { UserHostView } from '../src/user-host.js';
 import { quote } from '../src/render.js';
 import { cleanup, run, scratch } from './workspace-fixture.js';
 
@@ -497,4 +500,73 @@ it('reports a marketplace install in ia doctor, with the ia that recorded it and
   expect(stale.text).toContain('the plugin was installed by ia 0.0.1');
   writeFileSync(record, '{');
   expect((await plugin()).row).toMatchObject({ status: 'warn', detail: expect.stringContaining('(it is not JSON)') });
+});
+
+// host-plugin-distribution §7.3 `marketplace`: the record says when the marketplace was last consulted successfully.
+const MARKETPLACE_COMMANDS: readonly (readonly string[])[] = [
+  ['plugin', 'marketplace', 'add', 'inventarch/marketplace'],
+  ['plugin', 'install', 'ia@inventarch', '--scope', 'user'],
+  ['plugin', 'marketplace', 'update', 'inventarch'],
+  ['plugin', 'update', 'ia@inventarch', '--scope', 'user', '--json'],
+];
+const marketplaceView = (home: string, remove = false): UserHostView => ({
+  host: 'claude',
+  remove,
+  source: 'marketplace',
+  home,
+  marketplace: 'inventarch/marketplace',
+  plugin: { version: '0.1.0+3.5.1', cli: '3.5.1', channel: 'npm' },
+  installed: null,
+  claude: true,
+  commands: remove ? [['plugin', 'uninstall', 'ia@inventarch', '--scope', 'user']] : MARKETPLACE_COMMANDS,
+  files: [],
+});
+/** A runner whose command `failAt` (an index into the commands) exits 1; every other exits 0. */
+const runnerFailing = (failAt: number | null) => {
+  let at = 0;
+  return {
+    available: true,
+    run: () => ({ status: at++ === failAt ? 1 : 0, stdout: '', output: '' }),
+  };
+};
+/** A clock that counts its calls and answers `when`. */
+const clock = (when: string) => {
+  const calls = { count: 0 };
+  return { calls, now: () => (calls.count++, new Date(when)) };
+};
+const T0 = '2026-10-01T08:00:00.000Z',
+  T1 = '2026-11-03T12:30:00.000Z';
+it('a successful registration stamps checkedAt from the injected clock', () => {
+  const home = resolve(scratch('user-host-checked'), '.ia'),
+    { now } = clock(T1);
+  applyUserHost(marketplaceView(home), runnerFailing(null), now);
+  expect(readMarketplaceRecord(home)).toEqual({
+    state: 'present',
+    marketplace: 'inventarch/marketplace',
+    plugin: 'ia@inventarch',
+    cli: '3.5.1',
+    checkedAt: T1,
+  });
+});
+it('a registration that fails after install keeps the previous checkedAt, and the intermediate write never stamps the clock', () => {
+  const home = resolve(scratch('user-host-checked'), '.ia');
+  writeMarketplaceRecord(home, 'ia@inventarch', '3.4.0', T0);
+  const { calls, now } = clock(T1);
+  expect(() => applyUserHost(marketplaceView(home), runnerFailing(2), now)).toThrow(
+    expect.objectContaining({ code: 'IA-CLI-HOST-COMMAND-FAILED' }),
+  );
+  expect(readMarketplaceRecord(home)).toMatchObject({ state: 'present', cli: '3.5.1', checkedAt: T0 });
+  expect(calls.count).toBe(0);
+});
+it('a first install that fails after install records no checkedAt', () => {
+  const home = resolve(scratch('user-host-checked'), '.ia');
+  expect(() => applyUserHost(marketplaceView(home), runnerFailing(3), clock(T1).now)).toThrow();
+  expect(readMarketplaceRecord(home)).toMatchObject({ state: 'present', cli: '3.5.1', checkedAt: null });
+  expect(readFileSync(resolve(home, 'claude/marketplace-install.json'), 'utf8')).not.toContain('checkedAt');
+});
+it('removal removes the record as before', () => {
+  const home = resolve(scratch('user-host-checked'), '.ia');
+  writeMarketplaceRecord(home, 'ia@inventarch', '3.5.1', T0);
+  applyUserHost(marketplaceView(home, true), runnerFailing(null), clock(T1).now);
+  expect(readMarketplaceRecord(home)).toEqual({ state: 'absent' });
 });

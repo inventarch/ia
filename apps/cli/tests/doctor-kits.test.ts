@@ -2,12 +2,16 @@
  * host-plugin-distribution §7.3 and §11: doctor's kit rows and the refresh it schedules, read from the per-registry
  * update cache and local configuration only.
  */
-import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { canonicalDistributionJson } from '@inventarch/db/distribution';
 import type { Channel } from '../src/channel.js';
+import { KIT_COLLECTIONS, serializeKitCollections } from '@inventarch/distribution/kit-collections';
+import { readUpdateCheck, refreshUpdates } from '@inventarch/distribution/updates';
 import { userRows } from '../src/doctor-user.js';
+import { MARKETPLACE_RECORD, readMarketplaceRecord, writeMarketplaceRecord } from '../src/marketplace-record.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -126,4 +130,234 @@ it('the refresh argv carries --root for a workspace and not without one', () => 
   const bare = facts(at, undefined);
   expect(bare.refresh).not.toContain('--root');
   expect(bare.refreshNow).not.toContain('--force');
+});
+
+// §7.3 rows. A workspace with a package entry, an intact collection and a plain release, each a unit.
+const PACKAGE_ENTRY = {
+  kind: 'package',
+  name: '@acme/kits',
+  version: '1.0.0',
+  integrity: `sha512-${'A'.repeat(86)}==`,
+  kits: [{ id: 'acme/kit-one', version: '1.0.0', archive: HEX('e'), manifest: HEX('f'), dependencies: [] }],
+};
+const locked = (id: string, archive: string) => ({
+  id,
+  version: '1.0.0',
+  archive: HEX(archive),
+  manifest: HEX('f'),
+  location: `sha256:${HEX(archive)}`,
+  dependencies: [],
+});
+function mixed(): { readonly root: string; readonly registry: string } {
+  const { root, registry } = workspace([]);
+  const lock = canonicalDistributionJson({
+    formatVersion: 1,
+    engine: '^0.1.2',
+    requests: [
+      { id: 'acme/rel', range: '1.0.0' },
+      { id: 'acme/x', range: '1.0.0' },
+    ],
+    packages: [locked('acme/rel', 'a'), locked('acme/x', 'b')],
+    entries: [PACKAGE_ENTRY],
+  });
+  put(join(root, '.ia/distributions.lock.json'), lock);
+  put(
+    join(root, KIT_COLLECTIONS),
+    serializeKitCollections({
+      format: 'ia-kit-collections-1',
+      lock: createHash('sha256').update(lock).digest('hex'),
+      collections: [
+        {
+          id: 'acme/kit',
+          version: '1.0.0',
+          registry,
+          members: [{ id: 'acme/x', version: '1.0.0', archive: HEX('b') }],
+        },
+      ],
+      unknown: [],
+    }),
+  );
+  return { root, registry };
+}
+const rows = (iaHome: string, root: string, env: Record<string, string> = {}) =>
+  userRows({
+    env: { IA_HOME: iaHome, ...env },
+    home: scratch('doctor-kits-user'),
+    packageRoot: scratch('doctor-kits-package'),
+    version: VERSION,
+    directory: root,
+    supplied: root,
+    root,
+    enclosing: undefined,
+    now: NOW,
+    channel: CHANNEL,
+  }).checks;
+const kitsOf = (checks: ReturnType<typeof rows>) => checks.filter((check) => check.id.startsWith('kit'));
+const pkg = (latest: string | null, checkedAt = NOW.toISOString()) => ({
+  registry: 'npm',
+  kind: 'package',
+  id: '@acme/kits',
+  latest,
+  checkedAt,
+});
+const coll = (registry: string, latest: string | null) => ({
+  ...entry(registry, 'acme/kit', latest),
+  kind: 'collection',
+});
+
+it('kits info when none installed', () => {
+  const { root } = workspace([]);
+  expect(kitsOf(rows(home([]), root))).toEqual([
+    expect.objectContaining({ id: 'kits', status: 'info', detail: 'no kits installed', remedy: null, fix: null }),
+  ]);
+});
+it("kits ok when every unit's key is current, and it states the oldest check time", () => {
+  const { root, registry } = mixed();
+  const at = home([
+    pkg('1.0.0', '2026-11-03T09:30:00Z'),
+    coll(registry, '1.0.0'),
+    entry(registry, 'acme/rel', '0.9.0', '2026-11-02T08:15:00Z'),
+  ]);
+  expect(kitsOf(rows(at, root))).toEqual([
+    expect.objectContaining({
+      id: 'kits',
+      status: 'ok',
+      detail: '3 kits, all current · checked 2026-11-02 08:15 UTC',
+      fix: null,
+    }),
+  ]);
+});
+it('warn and one kit-update row per unit behind, with the fix for its source', () => {
+  const { root, registry } = mixed();
+  const checks = kitsOf(
+    rows(home([pkg('1.2.0'), coll(registry, '2.0.0'), entry(registry, 'acme/rel', '1.1.0')]), root),
+  );
+  expect(checks[0]).toMatchObject({
+    id: 'kits',
+    status: 'warn',
+    detail: expect.stringMatching(/^3 of 3 kits have updates · checked /),
+  });
+  const fixes = Object.fromEntries(checks.slice(1).map((check) => [check.id, [check.detail, check.remedy, check.fix]]));
+  expect(fixes).toEqual({
+    'kit-update:@acme/kits': [
+      '@acme/kits 1.0.0 → 1.2.0 (package)',
+      'ia install --package @acme/kits@1.2.0',
+      { program: 'ia', argv: ['install', '--package', '@acme/kits@1.2.0'], flow: 'preview-apply', writesTo: 'repo' },
+    ],
+    'kit-update:acme/kit': [
+      'acme/kit 1.0.0 → 2.0.0 (collection)',
+      'ia install acme/kit@2.0.0',
+      { program: 'ia', argv: ['install', 'acme/kit@2.0.0'], flow: 'preview-apply', writesTo: 'repo' },
+    ],
+    'kit-update:acme/rel': [
+      'acme/rel 1.0.0 → 1.1.0 (release)',
+      'ia update acme/rel',
+      { program: 'ia', argv: ['update', 'acme/rel'], flow: 'preview-apply', writesTo: 'repo' },
+    ],
+  });
+});
+it('an unknown collection identity is warn with a reinstall fix', () => {
+  const { root } = workspace(['acme/x']);
+  const lock = readFileSync(join(root, '.ia/distributions.lock.json'), 'utf8');
+  put(
+    join(root, KIT_COLLECTIONS),
+    serializeKitCollections({
+      format: 'ia-kit-collections-1',
+      lock: createHash('sha256').update(lock).digest('hex'),
+      collections: [],
+      unknown: [{ id: 'acme/kit', members: ['acme/x'] }],
+    }),
+  );
+  expect(kitsOf(rows(home([]), root))[0]).toMatchObject({
+    id: 'kits',
+    status: 'warn',
+    detail: expect.stringMatching(/^collection identity unknown: acme\/kit/),
+    remedy: 'ia install acme/kit',
+    fix: { program: 'ia', argv: ['install', 'acme/kit'], flow: 'preview-apply', writesTo: 'repo' },
+  });
+});
+it('unknown for a unit missing from the cache, or cached under another registry', () => {
+  const { root } = workspace(['acme/a']);
+  expect(kitsOf(rows(home([]), root))[0]).toMatchObject({ status: 'unknown', detail: 'not checked: 1 of 1 kit' });
+  expect(kitsOf(rows(home([entry('/elsewhere', 'acme/a', '1.0.0')]), root))[0]).toMatchObject({ status: 'unknown' });
+  // Or a week old, which the detail dates.
+  const { root: old, registry } = workspace(['acme/a']);
+  expect(kitsOf(rows(home([entry(registry, 'acme/a', '1.0.0', '2026-10-20T00:00:00Z')]), old))[0]).toMatchObject({
+    status: 'unknown',
+    detail: 'not checked: 1 of 1 kit (oldest check 2026-10-20 00:00 UTC)',
+  });
+});
+it('a known update outranks an unknown unit', () => {
+  const { root, registry } = workspace(['acme/a', 'acme/b']);
+  const checks = kitsOf(rows(home([entry(registry, 'acme/a', '2.0.0')]), root));
+  expect(checks.map((check) => [check.id, check.status])).toEqual([
+    ['kits', 'warn'],
+    ['kit-update:acme/a', 'warn'],
+  ]);
+});
+it('an unmapped registry is unknown with its reason, not a throw', () => {
+  const { root } = workspace(['acme/a']);
+  writeFileSync(join(root, '.ia/registries.json'), JSON.stringify({ format: 'ia.registries.v1', registries: {} }));
+  expect(kitsOf(rows(home([]), root))[0]).toMatchObject({
+    status: 'unknown',
+    detail: expect.stringContaining('acme/a: IA-DIST-REGISTRY-UNMAPPED'),
+  });
+});
+it('an install by npm package is never asked of the kit index', async () => {
+  const { root } = workspace([]);
+  put(
+    join(root, '.ia/distributions.lock.json'),
+    canonicalDistributionJson({
+      formatVersion: 1,
+      engine: '^0.1.2',
+      requests: [],
+      packages: [],
+      entries: [PACKAGE_ENTRY],
+    }),
+  );
+  const at = resolve(scratch('doctor-kits-home'), '.ia');
+  const npm: string[] = [];
+  await refreshUpdates(
+    { home: at, channel: 'unknown', current: VERSION, name: null, checkout: null, now: NOW, root, env: {} },
+    {
+      npm: (name) => {
+        npm.push(name);
+        return '1.3.0';
+      },
+      git: () => null,
+    },
+  );
+  expect(npm).toEqual(['@acme/kits']);
+  expect(readUpdateCheck(at)?.packages.entries).toEqual([pkg('1.3.0')]);
+});
+
+it('marketplace absent, invalid and present', () => {
+  const { root } = workspace([]);
+  const at = home([]);
+  const marketplace = () => rows(at, root).find((check) => check.id === 'marketplace');
+  expect(marketplace()).toMatchObject({
+    status: 'info',
+    detail: 'no plugin installed from a marketplace',
+    remedy: 'ia host claude --user --apply',
+    fix: { program: 'ia', argv: ['host', 'claude', '--user', '--apply'], flow: 'preview-apply', writesTo: 'user' },
+  });
+  put(join(at, MARKETPLACE_RECORD), '{');
+  expect(marketplace()).toMatchObject({ status: 'warn', remedy: 'ia host claude --user --apply' });
+  writeMarketplaceRecord(at, 'ia@inventarch', '3.5.0', '2026-11-02T21:07:45.123Z');
+  expect(marketplace()).toMatchObject({
+    status: 'ok',
+    detail: 'inventarch/marketplace · ia@inventarch · installed by ia 3.5.0 · last checked 2026-11-02 21:07 UTC',
+    remedy: null,
+    fix: null,
+  });
+});
+it('a record without checkedAt says not recorded, stays valid, and reads the same whatever its mtime', () => {
+  const { root } = workspace([]);
+  const at = home([]);
+  writeMarketplaceRecord(at, 'ia@inventarch', '3.5.0', null);
+  expect(readMarketplaceRecord(at)).toMatchObject({ state: 'present', checkedAt: null });
+  const first = rows(at, root).find((check) => check.id === 'marketplace');
+  expect(first).toMatchObject({ status: 'ok', detail: expect.stringMatching(/ · last checked: not recorded$/) });
+  utimesSync(join(at, MARKETPLACE_RECORD), new Date('2020-01-01'), new Date('2020-01-01'));
+  expect(rows(at, root).find((check) => check.id === 'marketplace')).toEqual(first);
 });

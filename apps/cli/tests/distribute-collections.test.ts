@@ -3,12 +3,14 @@
  * "Collection record"), without changing the lock: the record names the collection and its members' exact pins, a
  * member removed or moved removes the row whole, and re-installing the collection replaces its members.
  */
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
 import { canonicalDistributionJson, decodeDistributionLock, INSTALL_PATHS } from '@inventarch/db/distribution';
 import { KIT_COLLECTIONS } from '@inventarch/distribution/kit-collections';
 import { registryAddCollection } from '@inventarch/distribution/registry-build';
+import type { Fix } from '../src/fix.js';
+import { confirmedArgv } from '../src/fix.js';
 import { buildFixtureRegistry } from './registry-fixture.js';
 import { cleanup, run, scratch } from './workspace-fixture.js';
 
@@ -125,4 +127,43 @@ it('installing the collection again at 2.0.0 replaces its members', async () => 
     expect.objectContaining({ id: 'acme/kit', version: '2.0.0', members: expect.any(Array) }),
   ]);
   expect(record(root)!.collections[0]!.members.map((member) => member.id)).toEqual(['acme/x', 'acme/y', 'acme/z']);
+});
+
+it('the collection fix moves every member', async () => {
+  const dir = registry(),
+    root = await workspace(),
+    iaHome = resolve(scratch('collections-home'), '.ia');
+  await ia(root, dir, 'install', 'acme/kit@1.0.0');
+  const before = decodeDistributionLock(JSON.parse(lockText(root)));
+  // The registry the workspace chooses for acme (here from IA_REGISTRY) last reported 2.0.0 for the collection.
+  const env = { IA_HOME: iaHome, IA_REGISTRY: dir };
+  mkdirSync(join(iaHome, 'state'), { recursive: true });
+  writeFileSync(
+    join(iaHome, 'state/update-check.json'),
+    JSON.stringify({
+      schema: 'ia.update-check.v1',
+      checkedAt: new Date().toISOString(),
+      cli: { channel: 'unknown', current: '0.0.0', latest: null, behind: null, checked: false },
+      packages: {
+        checked: true,
+        entries: [
+          { registry: dir, kind: 'collection', id: 'acme/kit', latest: '2.0.0', checkedAt: new Date().toISOString() },
+        ],
+      },
+    }),
+  );
+  const doctor = JSON.parse((await run(['doctor', '--root', root, '--json'], { env })).stdout) as {
+    checks: { id: string; fix: Fix | null }[];
+  };
+  const fix = doctor.checks.find((check) => check.id === 'kit-update:acme/kit')!.fix!;
+  expect(fix).toEqual({ program: 'ia', argv: ['install', 'acme/kit@2.0.0'], flow: 'preview-apply', writesTo: 'repo' });
+  const applied = await run([...confirmedArgv(fix)], { cwd: root, env });
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  const lock = decodeDistributionLock(JSON.parse(lockText(root)));
+  const pin = (from: typeof lock, id: string) => from.packages.find((row) => row.id === id);
+  expect(pin(lock, 'acme/x')?.version).toBe('2.0.0');
+  expect(pin(lock, 'acme/z')?.version).toBe('1.0.0');
+  // The member whose range did not change keeps its pin.
+  expect(pin(lock, 'acme/y')).toEqual(pin(before, 'acme/y'));
+  expect(record(root)!.collections.map((row) => `${row.id}@${row.version}`)).toEqual(['acme/kit@2.0.0']);
 });

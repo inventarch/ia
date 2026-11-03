@@ -9,7 +9,7 @@
  * detached, so doctor stays read-only. §7.3's `compatibility` row is local: the workspace's
  * `.ia/release.json` language versions against the versions this ia's parser reads.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { sameFile } from '@inventarch/db';
@@ -99,6 +99,105 @@ export function refreshCommand(
     ...(options.force && input.root !== undefined ? ['--force'] : []),
   ];
 }
+/** A recorded time as the rows print it: `YYYY-MM-DD HH:MM UTC`, the same on every machine. */
+export const utcMinute = (iso: string): string => `${new Date(iso).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
+/**
+ * §7.3 `kits` and one `kit-update:<id>` row per unit behind. A unit is current when its key's entry is under a week
+ * old and names a version no newer than the installed one; behind when it names a newer one; unknown when it has no
+ * key (an unmapped registry, say), no entry, no version or an entry a week old. A known update outranks an unknown
+ * unit, and a collection whose identity is unknown outranks both, with a reinstall as its fix.
+ */
+export function kitRows(kits: ReturnType<typeof kitUnitKeys> | null, stored: UpdateCheck | null, now: Date): Check[] {
+  const kitsRow = (status: CheckStatus, detail: string, remedy: Remedy | null = null): Check =>
+    row('kits', 'Environment', 'Kits', status, detail, remedy);
+  if (kits === null) return [kitsRow('unknown', 'Not checked; the installed kits could not be read')];
+  const problems = kits.problems.length === 0 ? '' : `; ${kits.problems.join('; ')}`;
+  const unknownIds = kits.unknownCollections.map((collection) => collection.id);
+  if (kits.units.length === 0 && unknownIds.length === 0)
+    return [
+      kits.problems.length > 0
+        ? kitsRow('unknown', `Not checked; ${kits.problems.join('; ')}`)
+        : kitsRow('info', 'no kits installed'),
+    ];
+  const read = kits.units.map(({ unit, key, why }) => {
+    const entry = key === null ? undefined : kitEntry(stored, key);
+    const age = entry === undefined ? Number.NaN : now.getTime() - Date.parse(entry.checkedAt);
+    const latest = entry?.latest ?? null;
+    const state =
+      latest !== null && compareVersions(latest, unit.version) > 0
+        ? 'behind'
+        : entry === undefined || latest === null || !(age < WEEK)
+          ? 'unknown'
+          : 'current';
+    return { unit, entry, latest, state, why };
+  });
+  const behind = read.filter((row) => row.state === 'behind'),
+    unread = read.filter((row) => row.state === 'unknown');
+  const times = read.flatMap((row) => (row.entry === undefined ? [] : [row.entry.checkedAt])).sort();
+  const checked = times.length === 0 ? '' : ` · checked ${utcMinute(times[0]!)}`;
+  const total = plural(read.length, 'kit');
+  const reasons = unread.flatMap((row) => (row.why === null ? [] : [`${row.unit.id}: ${row.why}`]));
+  const updates =
+    behind.length === 0 ? '' : `${behind.length} of ${total} ${behind.length === 1 ? 'has an update' : 'have updates'}`;
+  const updateRows = behind.map(({ unit, latest }) =>
+    row(
+      `kit-update:${unit.id}`,
+      'Environment',
+      'Kit update',
+      'warn',
+      `${unit.id} ${unit.version} → ${latest} (${unit.source.kind})`,
+      unit.source.kind === 'package'
+        ? iaFix(['install', '--package', `${unit.source.name}@${latest}`], 'repo')
+        : unit.source.kind === 'collection'
+          ? iaFix(['install', `${unit.id}@${latest}`], 'repo')
+          : iaFix(['update', unit.id], 'repo'),
+    ),
+  );
+  let summary: Check;
+  if (unknownIds.length > 0)
+    summary = kitsRow(
+      'warn',
+      `collection identity unknown: ${unknownIds.join(', ')}${updates === '' ? '' : `; ${updates}`}${checked}${problems}`,
+      iaFix(['install', ...unknownIds], 'repo'),
+    );
+  else if (behind.length > 0) summary = kitsRow('warn', `${updates}${checked}${problems}`);
+  else if (unread.length > 0)
+    summary = kitsRow(
+      'unknown',
+      `not checked: ${unread.length} of ${total}${times.length === 0 ? '' : ` (oldest check ${utcMinute(times[0]!)})`}${reasons.length === 0 ? '' : `; ${reasons.join('; ')}`}${problems}`,
+    );
+  else summary = kitsRow('ok', `${total}, all current${checked}${problems}`);
+  return [summary, ...updateRows];
+}
+/**
+ * §7.3 `marketplace`: which marketplace and plugin the IA home's record names, the ia that installed it and when the
+ * marketplace was last consulted, as recorded; it repeats nothing the plugin row judges.
+ */
+export function marketplaceRow(home: string | null): Check {
+  const marketplace = (status: CheckStatus, detail: string, remedy: Remedy | null = null): Check =>
+    row('marketplace', 'Environment', 'Marketplace', status, detail, remedy);
+  if (home === null) return marketplace('unknown', 'Not checked; the IA home could not be resolved');
+  const recorded = readMarketplaceRecord(home);
+  if (recorded.state === 'absent') return marketplace('info', 'no plugin installed from a marketplace', USER_APPLY);
+  if (recorded.state === 'invalid')
+    return marketplace(
+      'warn',
+      `The marketplace install record ${join(home, 'claude', 'marketplace-install.json')} cannot be read (${recorded.reason})`,
+      USER_APPLY,
+    );
+  return marketplace(
+    'ok',
+    `${recorded.marketplace} · ${recorded.plugin} · installed by ia ${recorded.cli} · last checked${recorded.checkedAt === null ? ': not recorded' : ` ${utcMinute(recorded.checkedAt)}`}`,
+  );
+}
+const realOrGiven = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
 /** The installed units' cache keys, or null when they cannot be read; local configuration only, never thrown. */
 function unitKeys(
   root: string,
@@ -522,10 +621,12 @@ export function userRows(input: {
       checks.push(row('updates-account', 'Environment', 'Account', 'info', notice));
   // A home holding src/ fails the ia-home row, and refresh-updates would refuse to write it, so nothing is started.
   const unusable = home !== null && existsSync(join(home, 'src'));
+  // The workspace at its real path, as the mechanism opens it: a root reached through a link reads the same.
+  const realRoot = input.root === undefined ? undefined : realOrGiven(input.root);
   const command = (force: boolean): readonly string[] | null =>
-    refreshCommand({ home, unusable, channel: updateChannel, current: userVersion, root: input.root }, { force });
+    refreshCommand({ home, unusable, channel: updateChannel, current: userVersion, root: realRoot }, { force });
   // §11: due when the global stamp is a day old, or when an installed unit's own entry is missing or a day old.
-  const kits = input.root === undefined ? null : unitKeys(input.root, input.env, input.home);
+  const kits = realRoot === undefined ? null : unitKeys(realRoot, input.env, input.home);
   const kitsDue =
     kits !== null &&
     kits.units.some((unit) => unit.key !== null && !kitEntryFresh(kitEntry(stored, unit.key), input.now));
@@ -541,6 +642,12 @@ export function userRows(input: {
           ? `${join(home, 'src')} makes the IA home unusable`
           : null;
   const refreshNow = refreshNowWhy === null ? command(input.root !== undefined) : null;
+
+  // §7.3: the installed kits against the per-registry cache, and the marketplace the plugin came from; local reads only.
+  if (input.root !== undefined) {
+    checks.push(...kitRows(kits, stored, input.now));
+    checks.push(marketplaceRow(home));
+  }
 
   // §7.3: only for a workspace this report describes.
   if (input.root !== undefined) {

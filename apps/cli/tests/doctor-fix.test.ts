@@ -207,7 +207,21 @@ it('--json carries fix on every check and nothing else changes', () => {
       ]);
       expect(check['fix']).toEqual(view.checks[index]!.fix);
     }
-    expect(normalized(withoutFix(view), fixtures.get(name)!), name).toEqual(BEFORE[name]);
+    // Rows are an open set, so a row added since (kits, marketplace) is checked by its own tests; every row that was
+    // there keeps its place, keys and values, and the counts change only by the added rows.
+    const before = BEFORE[name] as { checks: { id: string }[]; counts: Record<string, number> };
+    const known = new Set(before.checks.map((check) => check.id));
+    const now = normalized(withoutFix(view), fixtures.get(name)!) as {
+      checks: { id: string; status: string }[];
+      counts: Record<string, number>;
+    };
+    expect({ ...now, checks: now.checks.filter((check) => known.has(check.id)) }, name).toEqual({
+      ...before,
+      counts: now.counts,
+    });
+    const added = { ...before.counts };
+    for (const check of now.checks) if (!known.has(check.id)) added[check.status] = (added[check.status] ?? 0) + 1;
+    expect(now.counts, name).toEqual(added);
   }
 });
 
