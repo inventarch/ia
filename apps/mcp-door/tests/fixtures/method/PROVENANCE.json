@@ -19,6 +19,7 @@
     "bindings.json": "The consumer workspace's .ia/bindings.json: knowledge.find to kb-retrieve and knowledge.check to kb-check. Written by hand; generate.mjs reads it.",
     "golden-find.json": "The plugin's resolve.mjs --entry knowledge --activity find --root <ROOT>/consumer --project consumer --task golden --subject sha256:<sha256 of 'the decision records'>, with IA_HOME=<ROOT>/home, IA_CORE_KITS_DIR=<ROOT>/plugin/config/kits and IA_CLI_PATH at the built @inventarch/cli; the temporary root written as <ROOT> with forward slashes, the envelope removed, and the digest recomputed over that content with the plugin's own packetDigest.",
     "golden-check.json": "As golden-find.json, then --activity check in the same task (pin revision 2).",
-    "golden-pin.json": "<ROOT>/home/work-v1/consumer/golden/binding.json after both runs, without createdAt, the root written as for the packets."
+    "golden-pin.json": "<ROOT>/home/work-v1/consumer/golden/binding.json after both runs, without createdAt, the root written as for the packets.",
+    "language/": "The published inventarch/language 3.2.0 base the ia-kb kit locks: base.json and base/7b36e4b4959a7bead1c57906cd346b419f32570dac0ac764af805ad20cd63b16.ia.tgz, unchanged from the @inventarch/mcp-door 3.5.0 package's assets (sha256 equal to the archive digest). Not made by generate.mjs."
   }
 }

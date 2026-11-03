@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { packetDigest, projectOf, registerWorkspace } from '@inventarch/runtime/method';
@@ -25,6 +26,8 @@ import { Protocol } from '../src/protocol.js';
  * covers, left out.
  */
 const fixture = new URL('./fixtures/method/', import.meta.url);
+// The published language base the fixture kit locks; this package's own base follows the source and may differ.
+const base = fileURLToPath(new URL('language/', fixture));
 const golden = (name: string): unknown => JSON.parse(readFileSync(new URL(name, fixture), 'utf8'));
 let root: string, consumer: string, kits: string, env: NodeJS.ProcessEnv;
 
@@ -59,7 +62,7 @@ const normalized = (value: unknown): unknown => {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalized(item)]));
   return value;
 };
-const tools = (): MethodTools => new MethodTools({ root: consumer, kits, env, cache: join(root, 'cache') });
+const tools = (): MethodTools => new MethodTools({ root: consumer, kits, env, base, cache: join(root, 'cache') });
 
 it('resolves the packet resolve.mjs prints, field for field, and writes the same pin', () => {
   // The lanes pass a task and no project: the pin folder's project is the workspace folder's name, the one the golden
@@ -161,7 +164,7 @@ it('acts only at its own root or a registered one', () => {
 });
 
 it('serves the three method tools after the seventeen read tools', () => {
-  const protocol = new Protocol(consumer, { kits, env });
+  const protocol = new Protocol(consumer, { kits, env, base });
   protocol.request({
     jsonrpc: '2.0',
     id: 1,
@@ -189,11 +192,28 @@ it('serves the three method tools after the seventeen read tools', () => {
 });
 
 it('restores a kit read root under the IA home when the host names no cache', () => {
-  const answer = new MethodTools({ root: consumer, kits, env }).call('method:method', { key: 'knowledge.find' });
+  const answer = new MethodTools({ root: consumer, kits, env, base }).call('method:method', { key: 'knowledge.find' });
   expect(answer.ok, JSON.stringify(answer.value)).toBe(true);
   const roots = join(realpathSync(join(root, 'home')), 'kit-roots-v1');
   const [user, ...others] = readdirSync(roots);
   expect(others).toEqual([]);
   expect(user).toMatch(/^inventarch-core-/);
   expect(readdirSync(join(roots, user!)).filter((name) => name.startsWith('kit-'))).toHaveLength(1);
+}, 120_000);
+
+it('refuses a kit locked on another language base, and a door that carries none', () => {
+  const other = join(root, 'other-base');
+  mkdirSync(other);
+  const restore = (folder: string, cache: string) =>
+    new MethodTools({ root: consumer, kits, env, base: folder, cache: join(root, cache) }).call('method:method', {
+      key: 'knowledge.find',
+    });
+  mkdirSync(join(root, 'cache-missing'));
+  expect(restore(other, 'cache-missing').value).toMatchObject({ error: { code: 'IA-CORE-CLI-MISSING' } });
+  const pin = JSON.parse(readFileSync(join(base, 'base.json'), 'utf8')) as Record<string, string>;
+  writeFileSync(join(other, 'base.json'), JSON.stringify({ ...pin, version: '3.3.0', archive: '0'.repeat(64) }));
+  mkdirSync(join(root, 'cache-other'));
+  expect(restore(other, 'cache-other').value).toMatchObject({
+    error: { code: 'IA-CORE-CLI-UNSUPPORTED', message: expect.stringContaining('this door carries 3.3.0') },
+  });
 }, 120_000);
