@@ -1108,3 +1108,45 @@ it('without named ids, the members a collection left stay inherited: it upgrades
   );
   expect(resolved.expandedRequests).toEqual([{ id: 'acme/x', range: '^2.0.0' }]);
 });
+
+it('the id preferredExcept names is named, so a re-expansion keeps its request', async () => {
+  const { dir } = await registry([
+    { id: 'acme/x', version: '1.0.0' },
+    { id: 'acme/y', version: '1.0.0' },
+  ]);
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/kit',
+    releases: [
+      {
+        version: '1.0.0',
+        withdrawn: false,
+        distributions: [
+          { id: 'acme/x', range: '^1.0.0' },
+          { id: 'acme/y', range: '^1.0.0' },
+        ],
+      },
+      // The replacement drops x.
+      { version: '2.0.0', withdrawn: false, distributions: [{ id: 'acme/y', range: '^1.0.0' }] },
+    ],
+  });
+  const resolved = await resolveWith(
+    workspaceRoot(),
+    dir,
+    [
+      { id: 'acme/kit', range: '2.0.0' },
+      { id: 'acme/x', range: '^1.0.0' },
+      { id: 'acme/y', range: '^1.0.0' },
+    ],
+    {
+      allowKits: true,
+      named: ['acme/kit'],
+      preferredExcept: 'acme/x',
+      collectionMembers: new Map([['acme/kit', ['acme/x', 'acme/y']]]),
+    },
+  );
+  expect(resolved.expandedRequests).toEqual([
+    { id: 'acme/x', range: '^1.0.0' },
+    { id: 'acme/y', range: '^1.0.0' },
+  ]);
+});
