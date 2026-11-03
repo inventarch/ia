@@ -56,29 +56,42 @@ function middle(text: string, width: number, ascii: boolean): string {
     keep = Math.max(width - mark.length, 2);
   return text.slice(0, Math.ceil(keep / 2)) + mark + text.slice(text.length - Math.floor(keep / 2));
 }
+type Row = { readonly id: string; readonly state: TrackedState | 'tracked' | 'new'; readonly root: string };
+const SYMBOLS = { present: 'success', missing: 'warning', tracked: 'success', new: 'added' } as const;
 /**
  * `id  state  root`, two spaces apart. The id and the root share the width the state leaves: the root keeps at least 20
- * columns and the id, shortened in the middle, at most what remains, so a long id never pushes a row past the terminal.
+ * columns (or its whole length when shorter) and the id, shortened in the middle, at most what remains, so a long id
+ * never pushes a row past the terminal. Where even those minimums do not fit, the rows are stacked instead.
  */
-function table(
-  rows: readonly { readonly id: string; readonly state: TrackedState | 'tracked' | 'new'; readonly root: string }[],
-  caps: Capabilities,
-): readonly string[] {
-  const symbols = { present: 'success', missing: 'warning', tracked: 'success', new: 'added' } as const;
-  const symbolWidth = Math.max(...rows.map((row) => statusSymbol(symbols[row.state], caps.ascii).width));
+function table(rows: readonly Row[], caps: Capabilities): readonly string[] {
+  const symbolWidth = Math.max(...rows.map((row) => statusSymbol(SYMBOLS[row.state], caps.ascii).width));
   const stateWidth = symbolWidth + 1 + Math.max(...rows.map((row) => row.state.length));
   const idBudget = Math.max(caps.width - (2 + 2 + stateWidth + 2 + ROOT_MIN), ID_MIN),
     idWidth = Math.min(Math.max(2, ...rows.map((row) => row.id.length)), idBudget);
+  const rootNeed = Math.min(ROOT_MIN, Math.max(...rows.map((row) => row.root.length)));
+  if (2 + idWidth + 2 + stateWidth + 2 + rootNeed > caps.width) return stacked(rows, caps);
   const rootWidth = Math.max(caps.width - (2 + idWidth + 2 + stateWidth + 2), ROOT_MIN);
   const header = style(`  ${'id'.padEnd(idWidth)}  ${'state'.padEnd(stateWidth)}  root`, 'dim', caps.color);
   return [
     header,
     ...rows.map((row) => {
-      const symbol = statusSymbol(symbols[row.state], caps.ascii);
+      const symbol = statusSymbol(SYMBOLS[row.state], caps.ascii);
       const state = style(symbol.text, symbol.role, caps.color) + ` ${row.state}`.padEnd(stateWidth - symbol.width);
       return `  ${middle(row.id, idWidth, caps.ascii).padEnd(idWidth)}  ${state}  ${middle(row.root, rootWidth, caps.ascii)}`;
     }),
   ];
+}
+/** One block per row, a blank line apart: the id, then the root and the state indented below it, each to the width. */
+function stacked(rows: readonly Row[], caps: Capabilities): readonly string[] {
+  return rows.flatMap((row, index) => {
+    const symbol = statusSymbol(SYMBOLS[row.state], caps.ascii);
+    return [
+      ...(index === 0 ? [] : ['']),
+      `  ${middle(row.id, caps.width - 2, caps.ascii)}`,
+      `    ${middle(row.root, caps.width - 4, caps.ascii)}`,
+      `    ${style(symbol.text, symbol.role, caps.color)} ${row.state}`,
+    ];
+  });
 }
 const line = (tokens: readonly Token[], symbol: 'success' | 'info' | 'warning', caps: Capabilities) =>
   entry([tokens], { depth: 0, symbol }, caps);

@@ -216,6 +216,36 @@ it('find given a link or a dot folder walks nothing and reports the folder as gi
   }
 });
 
+it('below the table width, list and find stack each row as its id, then its root, then its state', async () => {
+  const { env } = home(),
+    parent = scratch('workspaces'),
+    id = `w${'x'.repeat(127)}`,
+    root = workspaceAt(resolve(parent, 'repo'));
+  expect((await run(['workspaces', 'add', root, '--id', id], { env })).exitCode).toBe(0);
+  const narrow = { env: { ...env, NO_COLOR: '1' }, isTTY: true, columns: 40 };
+  for (const ascii of [[], ['--ascii']]) {
+    for (const argv of [
+      ['workspaces', 'list', ...ascii],
+      ['workspaces', 'find', parent, ...ascii],
+    ]) {
+      const result = await run(argv, narrow);
+      expect(result.exitCode, result.stderr).toBe(0);
+      const lines = result.stdout.split('\n');
+      for (const text of lines) expect(text.length, `${argv.join(' ')}: ${text}`).toBeLessThanOrEqual(40);
+      // No table header: each row is a block of its own.
+      expect(result.stdout).not.toMatch(/ {2}id {2,}state {2}root/);
+      const at = lines.findIndex((text) => text.startsWith(`  ${id.slice(0, 8)}`));
+      expect(at, result.stdout).toBeGreaterThan(-1);
+      expect(lines[at + 1]).toMatch(/^ {4}\S/);
+      expect(lines[at + 1]!.endsWith(`${sep}repo`)).toBe(true);
+      expect(lines[at + 2]).toMatch(argv[1] === 'list' ? /^ {4}\S+ present$/ : /^ {4}\S+ tracked$/);
+    }
+  }
+  // Wide enough for the table, the same rows keep its columns.
+  const wide = await run(['workspaces', 'list'], { ...narrow, columns: 80 });
+  expect(wide.stdout).toMatch(/ {2}id {2,}state {2,}root/);
+});
+
 it('list keeps to 80 columns with a 128-character id, and --json keeps it whole', async () => {
   const { env } = home(),
     id = `w${'x'.repeat(127)}`,
