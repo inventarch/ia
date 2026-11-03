@@ -992,6 +992,7 @@
       "kind": "vitest",
       "project": "apps/cli",
       "files": [
+        "tests/doctor-fix.test.ts",
         "tests/host-doctor.test.ts"
       ],
       "profile": "installed",

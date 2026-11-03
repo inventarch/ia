@@ -104,6 +104,8 @@ import {
   projectionFailure,
   projectionRepair,
   projectionRerun,
+  projectionRerunArgv,
+  recoverArgv,
   recoverCommand,
   rootedNext,
   SETTINGS,
@@ -111,10 +113,11 @@ import {
   stateRepair,
 } from './host.js';
 import type { Pinned } from './host.js';
-import type { Fix } from './fix.js';
+import type { Fix, Remedy } from './fix.js';
+import { iaFix } from './fix.js';
 import { codeOf } from './session.js';
 import type { Capabilities, Field, SymbolName } from './render.js';
-import { atom, document, entry, fieldRows, safeRootAdvice, sectionLabel, words } from './render.js';
+import { atom, document, entry, fieldRows, safeRootAdvice, safeRootArgv, sectionLabel, words } from './render.js';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'unknown' | 'info';
 export type Section = 'Environment' | 'Workspace' | 'Installation';
@@ -126,7 +129,7 @@ export interface Check {
   readonly detail: string;
   readonly remedy: string | null;
   /** The runnable form of `remedy` (fix.ts), or null when the remedy is advice or there is none. */
-  readonly fix?: Fix | null;
+  readonly fix: Fix | null;
 }
 export interface DoctorView {
   readonly checks: readonly Check[];
@@ -213,6 +216,7 @@ const environment = (request: DoctorRequest): readonly Check[] => {
       status: major >= SUPPORTED_MAJOR ? 'ok' : 'fail',
       detail: `${version} on ${platform} ${arch}`,
       remedy: major >= SUPPORTED_MAJOR ? null : `Install Node ${SUPPORTED_MAJOR} (${MINIMUM_NODE} or later)`,
+      fix: null,
     },
     {
       id: 'support-target',
@@ -226,6 +230,7 @@ const environment = (request: DoctorRequest): readonly Check[] => {
         !supported && platform === 'darwin' && arch === 'x64'
           ? 'If this Mac has Apple silicon, this x64 build of Node runs under Rosetta: install the arm64 build. Intel Macs are outside the declared target.'
           : null,
+      fix: null,
     },
   ];
   try {
@@ -240,6 +245,7 @@ const environment = (request: DoctorRequest): readonly Check[] => {
       status: 'ok',
       detail: `${catalogue.words.length} words, source digest ${catalogue.sourceDigest.slice(0, 12)}`,
       remedy: null,
+      fix: null,
     });
   } catch {
     checks.push({
@@ -249,6 +255,7 @@ const environment = (request: DoctorRequest): readonly Check[] => {
       status: 'unknown',
       detail: 'The shipped catalogue could not be read from this installation',
       remedy: 'Reinstall the package so assets/vocabulary.json travels with it',
+      fix: null,
     });
   }
   // pnpm is a contributor requirement, not a consumer one, so its absence is never a verdict about this run.
@@ -264,6 +271,7 @@ const environment = (request: DoctorRequest): readonly Check[] => {
         ? 'Not reported by this invocation; pnpm is a contributor requirement, not a consumer one'
         : `pnpm ${pnpm} invoked this command`,
     remedy: null,
+    fix: null,
   });
   return checks;
 };
@@ -274,20 +282,29 @@ const directory = (path: string): boolean => statSync(path, { throwIfNoEntry: fa
 
 const PAYLOAD = /^[a-f0-9]{64}$/;
 const short = (digest: string | null): string => (digest === null ? 'unknown' : digest.slice(0, 12));
-/** An installation-section row; every host and projection row is one. */
+/**
+ * An installation-section row; every host and projection row is one. A remedy given as text is advice (no fix); one
+ * given as a `Remedy` carries its fix.
+ */
 const installation = (
   id: string,
   title: string,
   status: CheckStatus,
   detail: string,
-  remedy: string | null,
+  remedy: string | Remedy | null,
 ): Check => ({
   id,
   section: 'Installation',
   title,
   status,
   detail,
-  remedy,
+  remedy: typeof remedy === 'object' && remedy !== null ? remedy.remedy : remedy,
+  fix: typeof remedy === 'object' && remedy !== null ? remedy.fix : null,
+});
+/** A recovery on the other binary's mechanism, which always carries its root: it writes without a preview. */
+const recovery = (command: string, root: string): Remedy => ({
+  remedy: recoverCommand(command, root),
+  fix: iaFix(recoverArgv(command, root), 'repo').fix,
 });
 
 /**
@@ -295,14 +312,25 @@ const installation = (
  * `ia init --host` uses (`rootedNext`), so a remedy runs from any cwd; with a discovered root it is left out.
  */
 interface Commands {
-  /** A remedy: the bare apply command, `ia host <host> --apply` unless `command` names another (`projectionRerun`). */
-  readonly apply: (host: HostName, command?: string) => string;
+  /**
+   * A remedy and its fix: the bare apply command, `ia host <host> --apply` unless `argv` (after `ia`) names another
+   * (`projectionRerunArgv`).
+   */
+  readonly apply: (host: HostName, argv?: readonly string[]) => Remedy;
   /** Prose that quotes `"ia host <host> ..."` and `"ia project <host> ..."` commands. */
   readonly prose: (host: HostName, text: string) => string;
 }
 const commandsFor = (root: string | undefined): Commands => {
   const prose = (host: HostName, text: string): string => (root === undefined ? text : rootedNext(text, host, root));
-  return { prose, apply: (host, command = `ia host ${host} --apply`) => prose(host, `"${command}"`).slice(1, -1) };
+  return {
+    prose,
+    apply: (host, argv = ['host', host, '--apply']) => {
+      // The remedy is worded as it always was; the fix carries the root where `rootedNext` puts it, after the host.
+      const remedy = prose(host, `"ia ${argv.join(' ')}"`).slice(1, -1);
+      const rooted = root === undefined ? argv : [...argv.slice(0, 2), '--root', root, ...argv.slice(2)];
+      return { remedy, fix: iaFix(rooted, 'repo').fix };
+    },
+  };
 };
 
 /**
@@ -368,7 +396,7 @@ function hostTransactionRows(root: string): readonly Check[] {
       held
         ? `${HOST_LOCK} is held by another ia host run or was left by a killed one; the remedy clears a dead holder's lock and refuses a live one`
         : 'Not held',
-      held ? recoverCommand('recover-host', root) : null,
+      held ? recovery('recover-host', root) : null,
     ),
     ...JOURNALS.filter(([path]) => existsSync(resolve(root, path))).map(([path, command]) =>
       installation(
@@ -376,7 +404,7 @@ function hostTransactionRows(root: string): readonly Check[] {
         'Host journal',
         'fail',
         `${path} exists; an ia host transaction was interrupted`,
-        recoverCommand(command, root),
+        recovery(command, root),
       ),
     ),
   ];
@@ -528,7 +556,7 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
   const title = `Projection ${host}`,
     checks: Check[] = [],
     rerun = projectionRerun(root, host),
-    apply = commands.apply(host, rerun);
+    apply = commands.apply(host, projectionRerunArgv(root, host));
   // A file the mechanism cannot read: the ownership state, a managed file, or the receipt, located at that file.
   const unreadable = (error: unknown, fallback: string): Check => {
     const failure = projectionFailure(error, root, host, rerun);
@@ -603,7 +631,7 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
   }
   // A group deleted, changed or duplicated by hand is one apply refuses to put back on its own: the remedy removes the
   // registration, and the next apply registers the workspace's hooks again.
-  const reregister = commands.apply(host, `ia host ${host} --remove --apply`),
+  const reregister = commands.apply(host, ['host', host, '--remove', '--apply']),
     again = `"ia host ${host} --apply" then registers the workspace's hooks again`;
   for (const { hook, drift } of hookDrift)
     checks.push(
@@ -651,7 +679,7 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
               title,
               'warn',
               commands.prose(host, `the authored @hook ${row.identity} guards nothing: ${row.reason}`),
-              row.reason.includes('disableAllHooks') ? null : commands.apply(host, `ia host ${host} --apply`),
+              row.reason.includes('disableAllHooks') ? null : commands.apply(host, ['host', host, '--apply']),
             ),
       );
   try {
@@ -692,7 +720,7 @@ function projectionRows(root: string, host: HostName, commands: Commands): reado
         title,
         'unknown',
         `Not compared with the current records; ${why}`,
-        'ia validate',
+        iaFix(['validate'], 'none'),
       ),
     );
   }
@@ -946,14 +974,14 @@ function joinRows(
       joined = `${join.implementation} ${join.version} (catalog ${short(join.digest)}, release ${short(join.release)}) at consumer revision ${short(join.consumerRevision)}`;
     const host = observed.find((row) => row.host === join.consumer);
     if (host === undefined) {
-      const remove = `ia host ${join.consumer} --remove --apply`;
+      const remove = ['host', join.consumer, '--remove', '--apply'];
       return installation(
         id,
         title,
         'warn',
         commands.prose(
           join.consumer,
-          `drifted: joined ${joined}, but host ${join.consumer} is not registered; "${remove}" drops the join`,
+          `drifted: joined ${joined}, but host ${join.consumer} is not registered; "ia ${remove.join(' ')}" drops the join`,
         ),
         commands.apply(join.consumer, remove),
       );
@@ -1094,7 +1122,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
       : supplied === undefined
         ? 'No .ia/src directory here or in any parent'
         : `${supplied} is not an existing directory`,
-    remedy: usable ? null : 'ia init',
+    ...(usable ? { remedy: null, fix: null } : iaFix(['init'], 'repo')),
   });
   if (usable) checks.push(...sourceBindingRows(root));
   const pending = usable && existsSync(resolve(root, INSTALL_PATHS.pending));
@@ -1110,6 +1138,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
     status: 'unknown',
     detail: `Not checked; ${why}`,
     remedy: null,
+    fix: null,
   });
   if (!usable) checks.push(unchecked('records', 'Workspace', 'Records', 'no workspace'));
   else if (pending)
@@ -1125,7 +1154,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
         title: 'Records',
         status: errors === 0 ? 'ok' : 'fail',
         detail: `${admission.records} records, ${errors} errors, ${warnings} warnings at revision ${admission.revision.slice(0, 12)}`,
-        remedy: errors === 0 ? null : 'ia validate',
+        ...(errors === 0 ? { remedy: null, fix: null } : iaFix(['validate'], 'none')),
       });
     } catch (error) {
       checks.push({
@@ -1135,6 +1164,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
         status: 'unknown',
         detail: `Not checked; ${codeOf(error, 'the workspace could not be read')}`,
         remedy: null,
+        fix: null,
       });
     }
   }
@@ -1176,6 +1206,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
               ? 'None installed'
               : `${installed.pointer.generation.slice(0, 12)}, counter ${installed.pointer.counter}`,
           remedy: null,
+          fix: null,
         });
       } catch (error) {
         observed = codeOf(error, 'the installed state could not be read');
@@ -1185,7 +1216,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
           title: 'Generation',
           status: 'unknown',
           detail: `Not checked; ${observed}`,
-          remedy: recoverCommand('recover', root),
+          ...recovery('recover', root),
         });
       }
       // Registry spec §4: after the generation row, the registry each provider in the workspace's lock routes to. An
@@ -1199,7 +1230,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
       title: 'Pending state',
       status: pending ? 'fail' : 'ok',
       detail: pending ? `${INSTALL_PATHS.pending} exists; an apply was interrupted` : 'No interrupted transaction',
-      remedy: pending ? recoverCommand('recover', root) : null,
+      ...(pending ? recovery('recover', root) : { remedy: null, fix: null }),
     });
     const held = existsSync(resolve(root, INSTALL_LOCK));
     checks.push({
@@ -1208,7 +1239,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
       title: 'Install lock',
       status: held ? 'warn' : 'info',
       detail: held ? `${INSTALL_LOCK} is held by another installer or was left behind` : 'Not held',
-      remedy: held ? recoverCommand('recover', root) : null,
+      ...(held ? recovery('recover', root) : { remedy: null, fix: null }),
     });
     const cache = resolve(root, CACHE);
     const archives = directory(cache) ? readdirSync(cache).filter((name) => ARCHIVE.test(name)).length : 0;
@@ -1219,6 +1250,7 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
       status: 'info',
       detail: `${archives} ${archives === 1 ? 'archive' : 'archives'} in ${CACHE}`,
       remedy: null,
+      fix: null,
     });
   }
   // Spec §7. Host state is relative to a workspace and is read with the installed state, so it waits on both.
@@ -1269,12 +1301,18 @@ export function collectDoctor(request: DoctorRequest): DoctorView {
     host: request.host !== undefined,
   });
   checks.push(...user.checks);
+  // One root rewrite for the remedy and its fix, so the console runs the command doctor prints.
+  const roots = [root, supplied, request.root];
   for (let index = 0; index < checks.length; index += 1) {
     const check = checks[index]!;
     checks[index] = {
       ...check,
-      detail: safeRootAdvice(check.detail, [root, supplied, request.root], request),
-      remedy: check.remedy === null ? null : safeRootAdvice(check.remedy, [root, supplied, request.root], request),
+      detail: safeRootAdvice(check.detail, roots, request),
+      remedy: check.remedy === null ? null : safeRootAdvice(check.remedy, roots, request),
+      fix:
+        check.fix === null || check.fix.program !== 'ia'
+          ? check.fix
+          : { ...check.fix, argv: safeRootArgv(check.fix.argv, roots) },
     };
   }
   const briefing =
@@ -1374,6 +1412,7 @@ export function doctorEnvelope(view: DoctorView): unknown {
       status: check.status,
       detail: check.detail,
       remedy: check.remedy,
+      fix: check.fix,
     })),
     counts: view.counts,
     ...(view.briefing === undefined ? {} : { session: view.briefing.session, nextActions: view.briefing.nextActions }),

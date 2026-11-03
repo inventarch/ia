@@ -30,7 +30,6 @@ import { localDate } from './briefing.js';
 import type { Channel } from './channel.js';
 import { describeChannel, detectChannel, updateInstruction } from './channel.js';
 import type { Check, CheckStatus, Section } from './doctor.js';
-import { quote } from './render.js';
 import { committed, HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
 import { findLocalCli, readCliDependency } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
@@ -43,8 +42,8 @@ import {
   pinCommand,
   satisfies,
 } from './package-manager.js';
-import type { Fix } from './fix.js';
-import { externalFix } from './fix.js';
+import type { Fix, Remedy } from './fix.js';
+import { externalFix, iaFix } from './fix.js';
 
 export interface UserFacts {
   readonly channel: Channel;
@@ -60,15 +59,25 @@ export interface UserFacts {
   /** The refresh argument vector when one is due, else null. Doctor never runs it. */
   readonly refresh: readonly string[] | null;
 }
+/** A row whose remedy is advice text has no fix; one given as a `Remedy` carries its own. */
 const row = (
   id: string,
   section: Section,
   title: string,
   status: CheckStatus,
   detail: string,
-  remedy: string | null = null,
-): Check => ({ id, section, title, status, detail, remedy });
-const USER_APPLY = 'ia host claude --user --apply';
+  remedy: string | Remedy | null = null,
+): Check => ({
+  id,
+  section,
+  title,
+  status,
+  detail,
+  remedy: typeof remedy === 'object' && remedy !== null ? remedy.remedy : remedy,
+  fix: typeof remedy === 'object' && remedy !== null ? remedy.fix : null,
+});
+/** The user-level plugin needs no workspace; it writes to the user's Claude configuration and the IA home. */
+const USER_APPLY = iaFix(['host', 'claude', '--user', '--apply'], 'user');
 const WEEK = 7 * 24 * 3600 * 1000;
 /**
  * The installed mechanism binary: `@inventarch/distribution`'s own `bin` entry, read from its package.json. Resolving the
@@ -525,9 +534,10 @@ export function userRows(input: {
               : decision.decision === 'declined-forever'
                 ? `Declined permanently on ${localDate(decision.at)}`
                 : 'Declined for today',
+            // Forgetting a decline writes only the IA home, never the repository.
             decision === null
               ? null
-              : `ia init ${input.supplied === undefined ? '' : `${quote(input.supplied)} `}--forget-decline`,
+              : iaFix(['init', ...(input.supplied === undefined ? [] : [input.supplied]), '--forget-decline'], 'user'),
           ),
     );
   }

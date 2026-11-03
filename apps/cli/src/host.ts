@@ -247,6 +247,13 @@ export const HOST_LOCK = `${HOSTS_AREA}/lock.json`;
  * instead of such a remedy.
  */
 export const THEN_RERUN = ', then rerun.';
+/** The recovery `command` (`recover`, `recover-host`, …) of `root`, as argv after `ia`. */
+export const recoverArgv = (command: string, root: string): readonly string[] => [
+  'recover',
+  command === 'recover' ? 'installation' : command.replace(/^recover-/, ''),
+  '--root',
+  root,
+];
 /** An installed CLI recovery, delegating the named distribution mechanism with an explicit root. */
 export const recoverCommand = (command: string, root: string): string =>
   `ia recover ${command === 'recover' ? 'installation' : command.replace(/^recover-/, '')} --root ${quote(root)}`;
@@ -477,8 +484,10 @@ export const projectedHosts = (root: string): readonly HostName[] =>
  * `ia host <host> --apply` for a registered host, and `ia project <host> --apply` for a projection `ia project` wrote
  * without a registration, which `ia host` would also register an MCP server for.
  */
+export const projectionRerunArgv = (root: string, host: HostName): readonly string[] =>
+  existsSync(resolve(root, STATE.mcp(host))) ? ['host', host, '--apply'] : ['project', host, '--apply'];
 export const projectionRerun = (root: string, host: HostName): string =>
-  existsSync(resolve(root, STATE.mcp(host))) ? `ia host ${host} --apply` : `ia project ${host} --apply`;
+  `ia ${projectionRerunArgv(root, host).join(' ')}`;
 /** §6: a pending journal refuses the whole verb and names the recovery that clears it. `ia project` shares it. */
 export function requireIdle(root: string, supplied: string): void {
   try {

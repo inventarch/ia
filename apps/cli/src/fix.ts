@@ -14,6 +14,11 @@ import { quote } from './render.js';
 
 export type Flow = 'preview-apply' | 'preview-flag' | 'confirm' | 'immediate';
 export type WritesTo = 'none' | 'repo' | 'user' | 'machine';
+/** A remedy as doctor prints it, with its runnable form; `fix` is null when no flow derives for it. */
+export interface Remedy {
+  readonly remedy: string;
+  readonly fix: Fix | null;
+}
 export interface Fix {
   readonly program: 'ia' | 'external';
   /** For `ia`, the arguments after `ia`; for `external`, `argv[0]` is the executable (`npm`, `pnpm`, `yarn`, `bun`, `git`). */
@@ -100,11 +105,7 @@ export const displayFix = (fix: Fix): string => (fix.program === 'ia' ? `ia ${jo
  * form lacks one; the remedy is then that same argv displayed, so the two never differ. A form no flow derives for
  * keeps its remedy and has no fix.
  */
-export function iaFix(
-  argv: readonly string[],
-  writesTo: WritesTo,
-  root?: string,
-): { readonly remedy: string; readonly fix: Fix | null } {
+export function iaFix(argv: readonly string[], writesTo: WritesTo, root?: string): Remedy {
   const spec = COMMANDS.find((command) => command.name === argv[0]);
   const needsRoot =
     root !== undefined &&
