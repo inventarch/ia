@@ -263,7 +263,7 @@ describe('ownsMember', () => {
     expect(ownsMember([`${'*'.repeat(30)}t`], 'my-repo-project')).toBe(true);
     expect(Date.now() - started).toBeLessThan(300);
   });
-  it('answers stars between literals promptly, so matching one segment is linear', () => {
+  it('answers stars between literals promptly', () => {
     const started = Date.now();
     expect(ownsMember([`${'*a'.repeat(15)}b`], 'a'.repeat(40))).toBe(false);
     expect(ownsMember([`${'*a'.repeat(15)}*`], 'a'.repeat(40))).toBe(true);
@@ -287,10 +287,20 @@ describe('ownsMember', () => {
       expect(ownsMember([glob, 'packages/*'], 'packages/x')).toBe(true);
     }
   });
-  it('an excluding entry in an unsupported form may exclude any member, so it owns none', () => {
+  it('an excluding entry in an unsupported form ends ownership at its position, and a later matching glob decides', () => {
     expect(ownsMember(['packages/*', '!packages/{y,z}'], 'packages/x')).toBe(false);
     expect(ownsMember(['packages/*', '!packages/[yz]'], 'packages/x')).toBe(false);
     expect(ownsMember(['!packages/{y,z}', 'packages/*'], 'packages/x')).toBe(true);
+  });
+  it('reads an extglob or an escape as unsupported, so such an exclusion ends ownership at its position', () => {
+    for (const glob of ['!packages/+(x|y)', '!packages/@(x|y)', '!packages/!(a)', '!packages/\\x', '!(a)']) {
+      expect(ownsMember(['packages/*', glob], 'packages/x'), glob).toBe(false);
+      expect(ownsMember([glob, 'packages/*'], 'packages/x'), glob).toBe(true);
+    }
+    for (const glob of ['packages/+(x|y)', 'packages/@(x|y)', 'packages/\\x']) {
+      expect(ownsMember([glob], glob), glob).toBe(false);
+      expect(ownsMember([glob], 'packages/x'), glob).toBe(false);
+    }
   });
   it('lets the last matching glob decide, so ! excludes', () => {
     const globs = ['packages/**', '!packages/private'];
