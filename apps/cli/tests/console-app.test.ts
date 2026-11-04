@@ -321,6 +321,8 @@ describe('runOffer', () => {
       '\x85',
       '\x9b',
       '\u2028',
+      '\uD800',
+      '\uDC00',
       "'",
     ];
     const samples = new Set<string>(['', '""', '"x"', 'x"', '\\"', 'C:\\w^s\\', '\\\\server\\share\\']);
@@ -329,7 +331,12 @@ describe('runOffer', () => {
       const shown = shownArgument(sample);
       expect([sample, decode(shown)]).toEqual([sample, sample]);
       expect(shown).not.toMatch(/[\x00-\x1f\x7f-\x9f]/);
+      // A lone surrogate would print as U+FFFD in UTF-8 output, so it is never shown raw.
+      expect(shown).not.toMatch(/\p{Cs}/u);
     }
+    expect(shownArgument('a\uD800 b')).toBe('"a\\ud800 b"');
+    expect(shownArgument('a\uD800b')).toBe('"a\\ud800b"');
+    expect(shownArgument('🚀')).toBe('🚀');
   });
   it('cmd.exe arguments: plain ones pass as typed, everything cmd would read is quoted or refused', () => {
     expect(cmdArgument('install')).toBe('install');
@@ -339,8 +346,10 @@ describe('runOffer', () => {
     for (const value of ['a&b', 'a|b', 'a<b', 'a>b', 'a!b', 'a b', 'a(b)'])
       expect(cmdArgument(value)).toBe(`"${value}"`);
     expect(cmdArgument('a%PATH%b')).toBeNull();
-    // A quote inside an argument would toggle cmd.exe's own quoting, so it is taken only where nothing after it is live.
-    expect(cmdArgument('a"b&c')).toBeNull();
+    // cmd.exe has no escape for a quote: any quote toggles its quoting for the rest of the line, so every one is refused.
+    for (const value of ['a"b&c', 'a"b', '"', 'a\\"b', 'x"']) expect(cmdArgument(value)).toBeNull();
+    // cmd.exe ends the command at a line break, so a control character could never pass unchanged.
+    for (const value of ['a\nb', 'a\rb', 'a\tb', '\x1b']) expect(cmdArgument(value)).toBeNull();
     const args = ['--cwd', 'C:\\w^s', 'add', '-D', '@inventarch/cli@3.6.0'].map((value) => cmdArgument(value)!);
     expect(windowsShellArgs('C:\\Program Files\\nodejs\\yarn.cmd', args)).toEqual([
       '/d',
@@ -351,12 +360,27 @@ describe('runOffer', () => {
     ]);
   });
   it('a quoted cmd.exe argument reads back exactly through the Windows argv rules', () => {
-    for (const value of ['C:\\w=s\\', 'C:\\w^s', 'a b\\', 'a"b', '\\server\\share\\', '', 'a\\"b', 'x\\\\']) {
+    for (const value of ['C:\\w=s\\', 'C:\\w^s', 'a b\\', '\\server\\share\\', '', 'x\\\\', 'a&b\\', '!x!']) {
       const encoded = cmdArgument(value);
       expect([value, encoded]).not.toEqual([value, null]);
       const line = windowsShellArgs('C:\\tools\\npm.cmd', [encoded!, 'next'])[4]!.slice(1, -1);
       expect([value, commandLineToArgv(line).slice(1)]).toEqual([value, [value, 'next']]);
     }
+  });
+  it('no accepted argument list leaves a character cmd.exe acts on outside its quotes', () => {
+    // The re-review's probe: a quote in one argument used to leave a later argument's & live.
+    expect(['a"b', 'a&echo REVIEW_SENTINEL'].map(cmdArgument)).toContain(null);
+    const pieces = ['a', ' ', '&', '|', '<', '>', '^', '(', ')', '!', '\\', '"', '%', '=', ';', ',', '\n'];
+    const values = new Set<string>();
+    for (const a of pieces) for (const b of pieces) values.add(a + b);
+    const accepted = [...values].map(cmdArgument).filter((value): value is string => value !== null);
+    expect(accepted.length).toBeGreaterThan(100);
+    for (const first of accepted)
+      for (const second of accepted) {
+        // /s strips the outer quotes; what is left is the line cmd.exe parses.
+        const line = windowsShellArgs('C:\\tools\\npm.cmd', [first, second])[4]!.slice(1, -1);
+        if (liveCharacters(line).length > 0) expect([first, second, liveCharacters(line)]).toEqual([first, second, []]);
+      }
   });
   it('an input offer prompts first, and a cancel runs nothing', async () => {
     const run = harness();
@@ -366,6 +390,16 @@ describe('runOffer', () => {
     expect(run.events).toEqual([]);
   });
 });
+/** The characters cmd.exe acts on (&, |, <, >, ^, parentheses) that its own quote state leaves outside quotes. */
+function liveCharacters(line: string): string[] {
+  const live: string[] = [];
+  let quoted = false;
+  for (const character of line) {
+    if (character === '"') quoted = !quoted;
+    else if (!quoted && /[&|<>^()]/.test(character)) live.push(character);
+  }
+  return live;
+}
 /** The Windows argv split (CommandLineToArgvW and the C runtime): what a program receives from the line cmd.exe hands it. */
 function commandLineToArgv(line: string): string[] {
   const args: string[] = [];
