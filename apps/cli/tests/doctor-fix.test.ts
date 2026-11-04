@@ -113,7 +113,7 @@ const EXPECTED: readonly Expected[] = [
       display: 'remedy',
     },
   },
-  // The manifest is the workspace's ancestor: the remedy keeps its text, and the fix names that directory.
+  // The manifest is the workspace's ancestor, which owns the install: the remedy and the fix both name it.
   {
     fixture: 'ancestor',
     id: 'cli-version',
@@ -148,8 +148,8 @@ it('each listed row carries the expected fix, and displays as its remedy or as i
     if (row.fix.display === 'remedy') expect(displayFix(fix), `${row.fixture} ${row.id}`).toBe(check!.remedy);
     else expect(displayFix(fix), `${row.fixture} ${row.id}`).toBe(row.fix.display(row.fixture));
   }
-  // The ancestor's remedy is today's text exactly.
-  expect(checkOf('ancestor', 'cli-version')!.remedy).toBe('npm install');
+  // The ancestor's remedy is main's text exactly.
+  expect(checkOf('ancestor', 'cli-version')!.remedy).toBe(`In ${fixtures.get('ancestor')!.repo!}: npm install`);
 });
 
 it('every runnable remedy has a fix, whatever its check id', () => {
@@ -247,7 +247,8 @@ it('the declined row reads the same whatever day the decline is made on', async 
 
 /**
  * Each fixture's `--json` envelope as the code before `fix` produced it, normalized (doctor-fix-fixture.ts): captured
- * once by value, so a change to any existing key or value, a remedy above all, fails here.
+ * once by value, so a change to any existing key or value, a remedy above all, fails here. The ancestor's cli-version
+ * remedy is main's since the install-owner change: `In <repo>: npm install`.
  */
 const BEFORE: Readonly<Record<FixtureName, unknown>> = {
   none: {
@@ -1230,7 +1231,7 @@ const BEFORE: Readonly<Record<FixtureName, unknown>> = {
         status: 'warn',
         detail:
           '<repo>/package.json lists @inventarch/cli <version>, which is not installed between the workspace and it; running <version>',
-        remedy: 'npm install',
+        remedy: 'In <repo>: npm install',
       },
       {
         id: 'ia-home',

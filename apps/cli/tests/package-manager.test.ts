@@ -6,15 +6,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 import { displayFix, externalFix } from '../src/fix.js';
+import { isWorkspaceRoot } from '../src/local-cli.js';
 import type { PackageManager } from '../src/package-manager.js';
-import {
-  installArgv,
-  installCommand,
-  isWorkspaceRoot,
-  pinArgv,
-  pinCommand,
-  yarnMajor,
-} from '../src/package-manager.js';
+import { installArgv, installCommand, pinArgv, pinCommand, yarnMajor } from '../src/package-manager.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -100,24 +94,25 @@ it('detects the Yarn major apart from workspace roots', () => {
   expect(yarnMajor(project('pm-yarn-nofile', null))).toBe('classic');
   // Yarn Classic without workspaces is no workspace root, so it takes no -W.
   const plain = project('pm-classic-plain', { packageManager: 'yarn@1.22.22' });
-  expect(isWorkspaceRoot('yarn', plain)).toBe(false);
+  expect(isWorkspaceRoot(plain)).toBe(false);
   expect(pinArgv('yarn', '3.5.0', plain, plain)).toEqual(['yarn', 'add', '-D', CLI]);
   // A Yarn 2+ workspace root is a workspace root, but takes no -W.
   const berry = project('pm-berry-root', { workspaces: ['a'] }, '.yarnrc.yml');
-  expect(isWorkspaceRoot('yarn', berry)).toBe(true);
+  expect(isWorkspaceRoot(berry)).toBe(true);
   expect(pinArgv('yarn', '3.5.0', berry, berry)).toEqual(['yarn', 'add', '-D', CLI]);
   // A Yarn Classic workspace root takes -W.
   const classic = project('pm-classic-root', { workspaces: ['a'], packageManager: 'yarn@1.22.22' });
   expect(pinArgv('yarn', '3.5.0', classic, classic)).toEqual(['yarn', 'add', '-D', '-W', CLI]);
-  // pnpm's workspace root is its pnpm-workspace.yaml.
-  expect(isWorkspaceRoot('pnpm', project('pm-pnpm-yaml', {}, 'pnpm-workspace.yaml'))).toBe(true);
-  expect(isWorkspaceRoot('pnpm', project('pm-pnpm-plain', { workspaces: ['a'] }))).toBe(false);
+  // pnpm's -w reads only its pnpm-workspace.yaml.
+  const yaml = project('pm-pnpm-yaml', {}, 'pnpm-workspace.yaml');
+  expect(pinArgv('pnpm', '3.5.0', yaml, yaml)).toEqual(['pnpm', 'add', '-D', '-w', CLI]);
+  const listed = project('pm-pnpm-plain', { workspaces: ['a'] });
+  expect(pinArgv('pnpm', '3.5.0', listed, listed)).toEqual(['pnpm', 'add', '-D', CLI]);
 });
 
-it('the displayed pin keeps the earlier -W rule for any declared workspaces, whatever the structured argv takes', () => {
-  // Yarn Classic with `workspaces: {nohoist}` and no packages: the remedy before structured fixes printed -W.
+it('the displayed pin and the structured argv take one -W rule, the root installRoot sees', () => {
+  // Yarn Classic with `workspaces: {nohoist}` and no packages is no workspace root, so neither takes -W.
   const nohoist = project('pm-nohoist', { workspaces: { nohoist: ['**/foo'] }, packageManager: 'yarn@1.22.22' });
-  expect(pinCommand('yarn', '3.5.0', nohoist)).toBe(`yarn add -D -W ${CLI}`);
-  // The structured argv reads a workspace root as an array or {packages} only.
+  expect(pinCommand('yarn', '3.5.0', nohoist)).toBe(`yarn add -D ${CLI}`);
   expect(pinArgv('yarn', '3.5.0', nohoist, nohoist)).toEqual(['yarn', 'add', '-D', CLI]);
 });
