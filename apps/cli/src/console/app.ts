@@ -699,19 +699,36 @@ export async function runConsole(input: {
         }
         render();
       });
+    /** Set while a tracking waits on the store lock: keys other than quit do nothing until it settles. */
+    let tracking = false;
     const trackFound = (found: FoundList): void => {
       const dir = homeDir();
       const roots = found.roots.filter((_, index) => found.selected.has(index));
       all.found = null;
-      if (dir === null) all.message = 'The IA home cannot be found.';
-      else
+      if (dir === null) {
+        all.message = 'The IA home cannot be found.';
+        loadRows();
+        return;
+      }
+      // The lock wait is async and yields to the event loop, so a quit during it aborts the wait through `loads`.
+      const controller = new AbortController();
+      loads.add(controller);
+      tracking = true;
+      guard(async () => {
         try {
-          const added = trackWorkspaces(dir, roots);
+          const added = await trackWorkspaces(dir, roots, new Date(), { signal: controller.signal });
+          if (finished) return;
           all.message = `Tracked ${added.length} ${added.length === 1 ? 'workspace' : 'workspaces'}.`;
         } catch (error) {
+          if (finished) return;
           all.message = error instanceof Error ? error.message : String(error);
+        } finally {
+          loads.delete(controller);
+          tracking = false;
         }
-      loadRows();
+        loadRows();
+        render();
+      });
     };
 
     const toAll = (): void => {
@@ -727,6 +744,7 @@ export async function runConsole(input: {
       const count = itemCount(all.rows.length, choices().length);
       const name = key.key;
       if (name === 'quit' || name === 'interrupt') return finish(0);
+      if (tracking) return;
       if (name === 'escape') {
         if (found !== null) all.found = null;
         else if (all.preview !== null) all.preview = null;
