@@ -54,11 +54,19 @@ export function sameFile(a: string, b: string): boolean {
   }
 }
 
+const ALL_ONES = 2n ** 64n - 1n;
+/**
+ * An inode the volume did not supply: some network and ReFS volumes on Windows report a file id of 0 or all ones, which
+ * Node passes on as the inode, and those values never mean "the same file".
+ */
+export const unidentified = (ino: bigint): boolean => ino === 0n || ino === ALL_ONES;
+
 /**
  * `child` is `parent`, or lies under it on disk. Where `parent` exists, the child's deepest existing ancestor is resolved and its
  * real ancestors are compared with `parent` by device and inode, so another spelling of the same directory, or a path through a
- * link, is judged by where it really is. Where `parent` does not exist yet, the two settled paths are compared as strings,
- * folded as the volume folds names.
+ * link, is judged by where it really is. Where either of a pair reports no inode (`unidentified`), that ancestor is compared
+ * with the parent's exact real path instead, one whole ancestor at a time, never as a string prefix and never folded. Where
+ * `parent` does not exist yet, the two settled paths are compared as strings, folded as the volume folds names.
  */
 export function within(parent: string, child: string): boolean {
   const target = statSync(parent, { bigint: true, throwIfNoEntry: false });
@@ -72,9 +80,13 @@ export function within(parent: string, child: string): boolean {
     if (up === existing) return false;
     existing = up;
   }
+  let real: string | undefined;
   for (let entry = realpathSync.native(existing); ; entry = dirname(entry)) {
     const stat = statSync(entry, { bigint: true });
-    if (stat.dev === target.dev && stat.ino === target.ino) return true;
+    if (unidentified(stat.ino) || unidentified(target.ino)) {
+      real ??= realpathSync.native(parent);
+      if (entry === real) return true;
+    } else if (stat.dev === target.dev && stat.ino === target.ino) return true;
     if (dirname(entry) === entry) return false;
   }
 }

@@ -7,7 +7,7 @@
 import { mkdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, expect, it, vi } from 'vitest';
-import { readTracked, trackWorkspace, untrackWorkspace } from '../src/tracked.js';
+import { findWorkspaces, readTracked, trackWorkspace, untrackWorkspace } from '../src/tracked.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 const unavailable = vi.hoisted(() => new Set<string>());
@@ -44,5 +44,24 @@ it('two directories whose volume reports inode 0 are two rows, and remove touche
   // The same directory is still one row: its real path is compared exactly.
   expect(trackWorkspace(at, { root: beta }, NOW).status).toBe('already');
   expect(untrackWorkspace(at, beta, parent).id).toBe('beta');
+  expect(readTracked(at).map((row) => row.id)).toEqual(['alpha']);
+});
+
+it('an IA home whose volume reports inode 0 holds only what lies inside it by real path', () => {
+  const at = resolve(scratch('tracked-identity-home'), '.ia'),
+    parent = scratch('tracked-identity'),
+    alpha = workspaceAt(resolve(parent, 'alpha'), 'alpha'),
+    inside = workspaceAt(resolve(at, 'inside'), 'inside');
+  mkdirSync(at, { recursive: true });
+  for (const path of [at, parent, alpha, inside]) unavailable.add(realpathSync.native(path));
+  expect(statSync(at, { bigint: true }).ino).toBe(0n);
+  // Raw device and inode would call alpha's own directory, and the folder holding it, the home: each reports inode 0.
+  expect(findWorkspaces(parent, { iaHome: at })).toEqual([realpathSync(alpha)]);
+  expect(trackWorkspace(at, { root: alpha }, NOW).status).toBe('added');
+  expect(readTracked(at).map((row) => row.id)).toEqual(['alpha']);
+  // A root that really lies inside the home is still refused.
+  expect(() => trackWorkspace(at, { root: inside }, NOW)).toThrow(
+    expect.objectContaining({ code: 'IA-DIST-PATH-UNSAFE' }),
+  );
   expect(readTracked(at).map((row) => row.id)).toEqual(['alpha']);
 });

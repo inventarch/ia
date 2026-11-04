@@ -109,7 +109,7 @@ import { parseArguments, UsageError } from './args.js';
 import { captureFailure, collectCapture, CURRENT } from './capture.js';
 import { findCommand } from './commands.js';
 import type { Context, Result } from './consumer.js';
-import { confirm, iaHomeOf, Interrupted, Refusal, refusalOf, respell } from './consumer.js';
+import { answeredInterruption, confirm, iaHomeOf, Interrupted, Refusal, refusalOf, respell } from './consumer.js';
 import { clearDecline, runDecline } from './decline.js';
 import { CONFIRMATION, registeredProjections } from './distribute.js';
 import type { HostApplied } from './host.js';
@@ -1706,7 +1706,8 @@ export const trackQuestion = (root: string): string => `Track ${root} in your wo
  * terminal without `--yes` it asks, and tracks on yes; otherwise it prints the one `ia workspaces add` line on stderr
  * and writes nothing. `--json` says nothing, so its stderr stays as empty as its stdout is single. A root already
  * tracked, or an IA home that cannot hold the list (a malformed variable, a home holding src/, an invalid list), is
- * passed over in silence. Tracking is the user's own list, so a failure is one stderr line and never init's exit code.
+ * passed over in silence. Tracking is the user's own list, so a failure is one stderr line and never init's exit code,
+ * and a signal at the question declines it (`answeredInterruption`).
  */
 async function offerTracking(context: Context, root: string, result: Result): Promise<Result> {
   const { args, json, host } = context;
@@ -1723,7 +1724,22 @@ async function offerTracking(context: Context, root: string, result: Result): Pr
   const said = (line: string): Result => ({ ...result, stderr: `${result.stderr}${line}\n` });
   // `--yes` answered init's one question; it never stands for a second one, so a --yes run is shown the command.
   if (!host.interaction.interactive || args.flag('yes')) return said(`Track it with: ia workspaces add ${quote(real)}`);
-  if (!(await confirm(host.interaction, '', trackQuestion(real)))) return result;
+  // A signal that came before the question is not an answer to it, so §3's interruption stands.
+  if (host.signal?.aborted) return result;
+  let yes: boolean;
+  try {
+    yes = await confirm(host.interaction, '', trackQuestion(real));
+  } catch (error) {
+    if (!host.signal?.aborted) throw error;
+    yes = false;
+  }
+  // A signal at the question declines it. The workspace is initialized, so init's report and exit code stand, and the
+  // rerun §3 would name refuses as already initialized. The line break ends the question the signal cut short.
+  if (host.signal?.aborted) {
+    host.interaction.write('\n');
+    return answeredInterruption(result);
+  }
+  if (!yes) return result;
   try {
     const { row } = trackWorkspace(home, { root: real });
     return said(`Tracked ${row.id} in your workspace list.`);

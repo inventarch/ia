@@ -13,8 +13,9 @@
  */
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
-import { pathKey, within } from '@inventarch/db/internal/paths';
+import { pathKey, unidentified, within } from '@inventarch/db/internal/paths';
 import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
+import { inertCommandRoot } from '@inventarch/runtime';
 import { UsageError } from './args.js';
 import { withTrackedLock } from './tracked-lock.js';
 import { Refusal } from './consumer.js';
@@ -78,13 +79,6 @@ const identity = (path: string): Identity | undefined => {
     return undefined;
   }
 };
-/**
- * An identity the volume did not supply: some network and ReFS volumes on Windows report a file id of 0 or all ones
- * (which Node passes on as the inode), and those values never mean "the same file". An inode of 0 covers a device and
- * inode that are both 0.
- */
-const ALL_ONES = 2n ** 64n - 1n;
-const unidentified = (id: Identity): boolean => id.ino === 0n || id.ino === ALL_ONES;
 /** The exact real path; the resolved spelling when even that cannot be read. */
 const realOrResolved = (path: string, real: (path: string) => string): string => {
   try {
@@ -108,7 +102,9 @@ export function sameRoot(
   const left = stat(a),
     right = stat(b);
   if (left !== undefined && right !== undefined) {
-    if (unidentified(left) || unidentified(right)) return realOrResolved(a, real) === realOrResolved(b, real);
+    // An identity the volume did not supply (`unidentified`: an inode of 0, which covers a device and inode both 0, or
+    // all ones) never means "the same file".
+    if (unidentified(left.ino) || unidentified(right.ino)) return realOrResolved(a, real) === realOrResolved(b, real);
     return left.dev === right.dev && left.ino === right.ino;
   }
   return pathKey(resolve(a)) === pathKey(resolve(b));
@@ -238,6 +234,75 @@ function freeId(taken: ReadonlySet<string>, id: string, root: string): string {
   }
 }
 
+/**
+ * A root `trackWorkspaces` refuses for its id: `other` is the root that holds the id, a tracked row's, or, when `queued`,
+ * another root found in the same `find --apply` that would take it first. `suggestion` is the first id left free.
+ */
+export interface IdClash {
+  readonly root: string;
+  readonly id: string;
+  readonly other: string;
+  readonly queued: boolean;
+  readonly suggestion: string;
+}
+/** `IA-CLI-TRACKED-ID` for a clash, worded for a tracked row or a found root; its next command adds the root under another id. */
+export function idTaken(home: string, clash: IdClash): Refusal {
+  const { root, id, other, queued } = clash,
+    remedy = clashRemedy(clash);
+  return new Refusal(
+    'IA-CLI-TRACKED-ID',
+    queued
+      ? `Two found workspaces would both take the id ${id}: ${other} and ${root}`
+      : `The id ${id} is already tracked for ${other}, so ${root} needs another id, given with --id`,
+    3,
+    { path: join(home, TRACKED_FILE) },
+    `${remedy.before} "${remedy.command}" ${remedy.after}`,
+  );
+}
+/**
+ * A clash's remedy, `ia workspaces add` for its root under the suggested id, split around the command so a renderer
+ * keeps the command whole. As apps/cli/SPEC.md has every suggested command do, a root is printed only when no shell
+ * acts on any character of it (`inertCommandRoot`), with forward slashes on win32 so every shell there reads it alike.
+ * Otherwise the command names `.`, run from that workspace's directory, and the root stays in the message as data.
+ */
+export function clashRemedy(clash: IdClash): {
+  readonly before: string;
+  readonly command: string;
+  readonly after: string;
+} {
+  const { root, queued, suggestion } = clash;
+  if (inertCommandRoot(root))
+    return {
+      before: 'Run',
+      command: `ia workspaces add ${quote(process.platform === 'win32' ? root.replaceAll('\\', '/') : root)} --id ${suggestion}`,
+      after: `to track ${queued ? 'one of them' : 'it'} under another id.`,
+    };
+  return {
+    before: `From ${queued ? "the second workspace's directory" : 'the directory of the workspace that needs another id'}, run`,
+    command: `ia workspaces add . --id ${suggestion}`,
+    after: 'to track it under another id; its path is left out because it contains shell syntax.',
+  };
+}
+/**
+ * The found roots `trackWorkspaces` would refuse, in its order: each root whose id a tracked row holds, or an earlier
+ * found root would take. Each suggestion is an id that neither `rows`, any found root nor an earlier suggestion takes, so
+ * following every remedy leaves no clash.
+ */
+export function idClashes(
+  rows: readonly TrackedWorkspace[],
+  found: readonly { readonly root: string; readonly id: string }[],
+): readonly IdClash[] {
+  const taken = new Set([...rows, ...found].map((row) => row.id));
+  return found.flatMap(({ root, id }, index) => {
+    const held = rows.find((row) => row.id === id),
+      other = held ?? found.slice(0, index).find((row) => row.id === id);
+    if (other === undefined) return [];
+    const suggestion = freeId(taken, id, root);
+    taken.add(suggestion);
+    return [{ root, id, other: other.root, queued: held === undefined, suggestion }];
+  });
+}
+
 /** The tracked row for `root`, whichever way it is spelled. */
 export const trackedRow = (rows: readonly TrackedWorkspace[], root: string): TrackedWorkspace | undefined =>
   rows.find((row) => sameRoot(row.root, root));
@@ -258,6 +323,7 @@ function admit(
   rows: readonly TrackedWorkspace[],
   input: Input,
   now: Date,
+  queued: readonly TrackedWorkspace[] = [],
 ): { readonly status: 'added' | 'already'; readonly row: TrackedWorkspace } {
   if (input.id !== undefined) checkTrackId(input.id);
   const root = workspaceRoot(input.root);
@@ -284,16 +350,14 @@ function admit(
   }
   const id = input.id ?? defaultTrackId(root);
   const other = rows.find((row) => row.id === id);
-  if (other !== undefined) {
-    const suggestion = freeId(new Set(rows.map((row) => row.id)), id, root);
-    throw new Refusal(
-      'IA-CLI-TRACKED-ID',
-      `The id ${id} is already tracked for ${other.root}, so ${root} needs another id, given with --id`,
-      3,
-      { path },
-      `Run "ia workspaces add ${quote(root)} --id ${suggestion}" to track it under another id.`,
-    );
-  }
+  if (other !== undefined)
+    throw idTaken(home, {
+      root,
+      id,
+      other: other.root,
+      queued: queued.includes(other),
+      suggestion: freeId(new Set(rows.map((row) => row.id)), id, root),
+    });
   return {
     status: 'added',
     row: { id, root, ...(input.label === undefined ? {} : { label: input.label }), added: now.toISOString() },
@@ -326,7 +390,7 @@ export function trackWorkspace(
 /**
  * `ia workspaces find --apply`: every root not yet tracked, under its default id, in one write. Each root is checked as
  * `trackWorkspace` checks it, against the rows before it too, so an id two of them would share refuses before anything
- * is written. Returns the rows added.
+ * is written, naming both as found rather than tracked. Returns the rows added.
  */
 export function trackWorkspaces(
   home: string,
@@ -338,7 +402,7 @@ export function trackWorkspaces(
     const rows = loaded.rows.map((entry) => entry.row),
       added: TrackedWorkspace[] = [];
     for (const root of roots) {
-      const result = admit(home, loaded.path, rows, { root }, now);
+      const result = admit(home, loaded.path, rows, { root }, now, added);
       if (result.status === 'already') continue;
       rows.push(result.row);
       added.push(result.row);
