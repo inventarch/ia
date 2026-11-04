@@ -92,7 +92,8 @@ export function batchEnv(env: Env, platform: NodeJS.Platform = process.platform)
 export const BATCH_COMMAND_TIMEOUT_MS = 10 * 60_000;
 /**
  * Ends `child` and, on Windows, every process it started (a `.cmd` runs its program as cmd.exe's child). On POSIX only
- * the child itself is killed, so a grandchild (an install's own scripts) can outlive it: killing the whole group would
+ * the child itself is killed, so a grandchild (an install's own scripts) can outlive it and keep writing into the
+ * worktree while later steps run there, or as the worktree is removed: killing the whole group would
  * need the child spawned `detached`, in a process group of its own, and the terminal's Ctrl-C would then no longer
  * reach the command in flight, which is how a stopped batch ends it (app.ts).
  */
@@ -712,9 +713,12 @@ async function runRepo(
     const { manager, conflict } = detectPackageManager(manifest, listing);
     if (conflict.length > 0) return refuse(`package managers disagree: ${conflict.join(', ')}`);
     if (manager === null) return refuse(`no package manager is declared or locked in ${manifest}`);
-    // An offer that begins with this manager's own install installs by that step (checked and run like every step,
-    // below), as the preview says; any other gets the batch's install first.
-    if (!installsFirst(repo.steps) || repo.steps[0]!.argv[0] !== manager) {
+    // An offer that begins with an install or a pin installs by that step (checked and run like every step, below), as
+    // the preview says, only with the manager the base declares or locks; any other offer gets the batch's install.
+    const first = installsFirst(repo.steps);
+    if (first !== null && first !== manager)
+      return refuse(`the first step installs with ${first}, but the base is locked by ${manager}`);
+    if (first === null) {
       // No lifecycle script runs, and a tracked lockfile is never rewritten: the install is frozen to it.
       const install: Step = {
         program: 'external',

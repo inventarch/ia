@@ -59,7 +59,7 @@ export function previewLines(preview: BatchPreview): readonly string[] {
       `  worktree ${shown(plan.worktree)}`,
       `  branch   ${shown(plan.branch)}`,
       `  base     ${BASE}`,
-      installsFirst(plan.steps)
+      installsFirst(plan.steps) !== null
         ? "  install  by the first step, the package manager's own install"
         : "  install  the package manager's install, first, where the worktree holds a package.json",
     );

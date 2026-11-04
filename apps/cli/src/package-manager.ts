@@ -115,17 +115,26 @@ export const installArgv = (manager: PackageManager, directory: string, at: stri
   sameDirectory(directory, at) ? [manager, 'install'] : DIRECTED_INSTALL[manager](directory);
 export const installCommand = (manager: PackageManager): string => installArgv(manager, '.', '.').join(' ');
 /**
- * `argv` is a plain install exactly as `installArgv` builds it (in its own directory, or directed at another), the
- * manager named first: the step doctor's `cli-version` row and the console's fallback offer for it run.
+ * `argv` installs every dependency of its manifest and may rewrite the lockfile: a plain install as `installArgv` builds
+ * it, or a pin as `pinArgv` does (`-w`/`-W` included), in its own directory or directed at another, the manager named
+ * first. These are the steps doctor's `cli-version` row, the console's fallback for it and the upgrade recipe begin
+ * with. Matched by argv rather than a mark on the step, since a workspace's own, older copy reports its fixes as JSON.
  */
-export function isInstallArgv(argv: readonly string[]): argv is readonly [PackageManager, ...string[]] {
+export function installsDependencies(argv: readonly string[]): argv is readonly [PackageManager, ...string[]] {
   const [manager] = argv;
   if (manager === undefined || !MANAGERS.has(manager)) return false;
+  const named = manager as PackageManager;
   const same = (form: readonly string[]): boolean =>
     form.length === argv.length && form.every((token, index) => token === argv[index]);
-  const named = manager as PackageManager;
-  const directory = argv[named === 'npm' || named === 'bun' ? 3 : 2];
-  return same([named, 'install']) || (directory !== undefined && same(DIRECTED_INSTALL[named](directory)));
+  const spec = argv.at(-1) ?? '';
+  const pin = spec !== '' && !spec.startsWith('-');
+  // Any token may be the directory a directed form names; every form is rebuilt and compared whole.
+  return [undefined, ...argv].some((directory) =>
+    directory === undefined
+      ? same([named, 'install']) || (pin && [[], ['-w'], ['-W']].some((flags) => same([...ADD[named], ...flags, spec])))
+      : same(DIRECTED_INSTALL[named](directory)) ||
+        (pin && [[], ['-w'], ['-W']].some((flags) => same([...DIRECTED_ADD[named](directory, flags), spec]))),
+  );
 }
 
 /**

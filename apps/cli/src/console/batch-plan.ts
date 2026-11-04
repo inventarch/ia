@@ -17,7 +17,7 @@ import { basename, dirname, isAbsolute, join, posix, relative, win32 } from 'nod
 import { fileURLToPath } from 'node:url';
 import type { OptionSpec } from '../args.js';
 import { COMMANDS } from '../commands.js';
-import { isInstallArgv } from '../package-manager.js';
+import { installsDependencies } from '../package-manager.js';
 import { displayFix } from '../fix.js';
 import type { Offer, Step } from './offers.js';
 import type { RepoRow } from './workspaces-state.js';
@@ -54,11 +54,15 @@ export function selectNeeding(rows: readonly RepoRow[]): ReadonlySet<number> {
 }
 
 /**
- * The offer's first step is the package manager's own plain install (doctor's `cli-version` remedy), so the batch's
- * frozen install is left out: on the lockfile drift that step exists to repair, a frozen install would fail first.
+ * The manager whose own install or pin is the offer's first step (doctor's `cli-version` remedy, the upgrade recipe),
+ * or null. The batch's frozen install is then left out: on the lockfile drift those steps exist to repair, a frozen
+ * install would fail first. The preview reads it as the run does (batch-run.ts), the run then holding it to the
+ * manager the base declares or locks.
  */
-export const installsFirst = (steps: readonly Step[]): boolean =>
-  steps[0]?.program === 'external' && isInstallArgv(steps[0].argv);
+export const installsFirst = (steps: readonly Step[]): string | null => {
+  const first = steps[0];
+  return first?.program === 'external' && installsDependencies(first.argv) ? first.argv[0] : null;
+};
 
 /** `chore/<slug>`: `ia-<version>` for the upgrade, with dots as dashes; otherwise the offer id, prefixed `ia-` once. */
 export function branchFor(offer: Offer): string {

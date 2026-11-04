@@ -22,7 +22,7 @@ import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from 'n
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { iaFix } from '../src/fix.js';
-import { batchInstallArgv, installArgv, pinArgv } from '../src/package-manager.js';
+import { batchInstallArgv, installArgv, installsDependencies, pinArgv } from '../src/package-manager.js';
 import { resolveRepo } from '../src/console/app.js';
 import type { Step } from '../src/console/offers.js';
 import type { RepoPlan } from '../src/console/batch-plan.js';
@@ -745,10 +745,8 @@ describe('the copy each ia step runs', () => {
     const { top } = repo(fx, 'unpinned', { 'package.json': unpinned, 'pnpm-lock.yaml': '' });
     const { results, calls } = await batch(fx, [rowOf(top, [upgrade('pnpm', top, top)])], 'upgrade');
     const worktree = only(results).worktree;
-    expect(pmCalls(fx).map((call) => call.argv)).toEqual([
-      ['install', '--frozen-lockfile', '--ignore-scripts'],
-      ['add', '-D', '@inventarch/cli@3.5.1'],
-    ]);
+    // The upgrade's first step is the pin, which installs every dependency itself: no batch install before it.
+    expect(pmCalls(fx).map((call) => call.argv)).toEqual([['add', '-D', '@inventarch/cli@3.5.1']]);
     const entry = realpathSync.native(join(worktree, 'node_modules/@inventarch/cli/dist/bin.js'));
     expect(iaSpawns(calls).map((call) => [call.args[0], call.args[1]])).toEqual([
       [entry, 'restore'],
@@ -871,6 +869,52 @@ describe('an offer whose first step is the install', () => {
     expect(only(results)).toMatchObject({ ok: true, refused: null });
     expect(pmCalls(fx)).toEqual([{ manager: 'npm', argv: ['install'], cwd: only(results).worktree }]);
     expect(iaCalls(fx).map((call) => call.version)).toEqual(['3.5.0']);
+  });
+  it('the same drift with the upgrade recipe: the batch install is left to its pin step', async () => {
+    const fx = fixture('batch-run-drift-pin');
+    const env = { ...fx.env, FAKE_PM_FROZEN: 'fail' };
+    const { top } = repo(fx, 'drift', { 'package.json': pinned('3.5.0'), ...LOCKED });
+    const offer = offerOf('upgrade', 'Upgrade CLI to 3.5.1', [
+      external(pinArgv('npm', '3.5.1', top, top)),
+      { ...ia(['restore', '--apply']), requires: 'repo-copy' },
+    ]);
+    const { results } = await batch({ ...fx, env }, [rowOf(top, [offer])], 'upgrade');
+    expect(only(results)).toMatchObject({ ok: true, refused: null });
+    expect(pmCalls(fx).map((call) => call.argv)).toEqual([['install', '-D', '@inventarch/cli@3.5.1']]);
+    expect(iaCalls(fx).map((call) => call.version)).toEqual(['3.5.1']);
+  });
+  it('a first step that installs with another manager than the base locks is refused before it runs', async () => {
+    const fx = fixture('batch-run-drift-manager');
+    const { top } = repo(fx, 'moved', { 'package.json': pinned('3.5.0'), 'pnpm-lock.yaml': '' });
+    const offer = offerOf('fix:cli-version', 'Install', [external(installArgv('npm', top, top))]);
+    const { results } = await batch(fx, [rowOf(top, [offer])], 'fix:cli-version');
+    expect(only(results)).toMatchObject({
+      ok: false,
+      refused: 'the first step installs with npm, but the base is locked by pnpm',
+    });
+    expect(pmCalls(fx)).toEqual([]);
+  });
+  it('installsDependencies: every install and pin form the builders make, and nothing else', () => {
+    const dir = base('batch-installs-argv');
+    const at = join(dir, 'app');
+    for (const manager of ['npm', 'pnpm', 'yarn', 'bun'] as const) {
+      expect(installsDependencies(installArgv(manager, dir, dir))).toBe(true);
+      expect(installsDependencies(installArgv(manager, dir, at))).toBe(true);
+      expect(installsDependencies(pinArgv(manager, '3.5.1', dir, dir))).toBe(true);
+      expect(installsDependencies(pinArgv(manager, '3.5.1', dir, at))).toBe(true);
+    }
+    expect(installsDependencies(['pnpm', 'add', '-D', '-w', '@inventarch/cli@3.5.1'])).toBe(true);
+    expect(installsDependencies(['yarn', '--cwd', dir, 'add', '-D', '-W', '@inventarch/cli@3.5.1'])).toBe(true);
+    for (const other of [
+      ['npm', 'ci'],
+      ['npm', 'install', '-D'],
+      ['npm', 'install', '--force'],
+      ['npm', 'run', 'build'],
+      ['pnpm', 'add', '-D', '--', 'x'],
+      ['npx', 'install'],
+      [],
+    ])
+      expect(installsDependencies(other)).toBe(false);
   });
   it('any other offer still gets the frozen install first, which fails on that drift', async () => {
     const fx = fixture('batch-run-drift-other');
