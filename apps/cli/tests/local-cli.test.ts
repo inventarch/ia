@@ -263,7 +263,7 @@ describe('ownsMember', () => {
     expect(ownsMember([`${'*'.repeat(30)}t`], 'my-repo-project')).toBe(true);
     expect(Date.now() - started).toBeLessThan(300);
   });
-  it('answers stars between literals promptly, so matching one segment is linear', () => {
+  it('answers stars between literals promptly', () => {
     const started = Date.now();
     expect(ownsMember([`${'*a'.repeat(15)}b`], 'a'.repeat(40))).toBe(false);
     expect(ownsMember([`${'*a'.repeat(15)}*`], 'a'.repeat(40))).toBe(true);
