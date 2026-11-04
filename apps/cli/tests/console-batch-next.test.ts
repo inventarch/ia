@@ -6,7 +6,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { delimiter, join, resolve } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { displayFix, iaFix } from '../src/fix.js';
 import { resolveRepo } from '../src/console/app.js';
 import type { Step } from '../src/console/offers.js';
@@ -19,6 +19,9 @@ import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Fixture } from './batch-fixture.js';
 import { fixture, git, offerOf, plant, readLog, recorder, repo, rowOf, shim } from './batch-fixture.js';
 import { cleanup } from './scratch-fixture.js';
+
+// Every case here drives real git repositories, worktrees and installs; on a loaded machine one takes far over the default.
+vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
 
 afterAll(cleanup);
 

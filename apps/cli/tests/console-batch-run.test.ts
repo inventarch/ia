@@ -20,7 +20,7 @@ import {
 } from 'node:fs';
 import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { iaFix } from '../src/fix.js';
 import { installArgv, pinArgv } from '../src/package-manager.js';
 import { resolveRepo } from '../src/console/app.js';
@@ -46,6 +46,9 @@ import {
   shim,
 } from './batch-fixture.js';
 import { cleanup } from './scratch-fixture.js';
+
+// Every case here drives real git repositories, worktrees and installs; on a loaded machine one takes far over the default.
+vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
 
 afterAll(cleanup);
 
