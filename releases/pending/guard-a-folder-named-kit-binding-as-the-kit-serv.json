@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Guard a folder-named kit binding as the kit served and keep its pin",
+  "summary": "A method binding written with a kit's folder is now guarded as the kit the resolver serves when kits share that folder: an exact id first, then a bundled kit, the lock's package entries and the IA home, so a bundled kit with no lock row of its own refuses with IA-CORE-KIT-NOT-INSTALLED instead of passing on another kit's row. A task's retained pin is found for such a binding.",
+  "packages": [
+    "@inventarch/mcp-door",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/mcp-door/",
+    "packages/runtime/",
+    "tools/"
+  ]
+}
