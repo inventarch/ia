@@ -27,8 +27,8 @@ export type SpawnDoctor = (entry: string, root: string, signal?: AbortSignal) =>
 /** What decides which `info` rows count as "not set up": the ids a set-up offer answers. */
 export type SetupIds = (state: Omit<ConsoleState, 'areas'>) => ReadonlySet<string>;
 
-/** `<entry> doctor --json --root <root>` under `IA_NO_HANDOFF=1`, bounded at 20 s; never throws. */
-export function doctorProcess(env: Env): SpawnDoctor {
+/** `<entry> doctor --json --root <root>` under `IA_NO_HANDOFF=1`, bounded at 20 s unless told otherwise; never throws. */
+export function doctorProcess(env: Env, timeoutMs: number = DOCTOR_TIMEOUT_MS): SpawnDoctor {
   return (entry, root, signal) =>
     new Promise((settle) => {
       execFile(
@@ -37,7 +37,7 @@ export function doctorProcess(env: Env): SpawnDoctor {
         {
           cwd: root,
           env: { ...env, [NO_HANDOFF]: '1' },
-          timeout: DOCTOR_TIMEOUT_MS,
+          timeout: timeoutMs,
           maxBuffer: 16 * 1024 * 1024,
           windowsHide: true,
           encoding: 'utf8',
@@ -72,6 +72,8 @@ export async function loadState(input: {
   readonly extensions?: readonly Extension[];
   readonly setupIds?: SetupIds;
   readonly signal?: AbortSignal;
+  /** The bound on the workspace copy's doctor run; 20 s by default. */
+  readonly timeoutMs?: number;
 }): Promise<ConsoleState> {
   const { env, packageRoot, version } = input;
   const extensions = input.extensions ?? [];
@@ -87,7 +89,10 @@ export async function loadState(input: {
   const other = copy !== null && !sameFile(copy.packageRoot, packageRoot) ? copy : null;
   let report: DoctorReport | null = null;
   if (other !== null && root !== null)
-    report = readDoctorReport(await (input.spawnDoctor ?? doctorProcess(env))(other.entry, root, input.signal));
+    report = readDoctorReport(
+      await (input.spawnDoctor ?? doctorProcess(env, input.timeoutMs))(other.entry, root, input.signal),
+      input.timeoutMs,
+    );
   const running = view.checks.filter((row) => owned(row.id));
   const inProcess = view.checks.filter((row) => !owned(row.id));
   const assembled = assembleRows({

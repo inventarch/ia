@@ -159,9 +159,12 @@ function readFix(value: unknown): Fix | null {
  * when a check fails, so exit 0 or 1 with JSON of the version 1 shape is a report; anything else is a failure, never
  * mistaken for "no local copy".
  */
-export function readDoctorReport(run: DoctorRun): DoctorReport {
+export function readDoctorReport(run: DoctorRun, timeoutMs: number = DOCTOR_TIMEOUT_MS): DoctorReport {
   if (run.status === null)
-    return { ok: false, why: run.timedOut === true ? 'timed out after 20 s' : 'ended by a signal' };
+    return {
+      ok: false,
+      why: run.timedOut === true ? `timed out after ${Math.round(timeoutMs / 1000)} s` : 'ended by a signal',
+    };
   if (run.status !== 0 && run.status !== 1) return { ok: false, why: `exit ${run.status}` };
   let value: unknown;
   try {

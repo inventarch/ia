@@ -852,6 +852,7 @@
         "tests/console-state.test.ts",
         "tests/console-terminal.test.ts",
         "tests/console-width.test.ts",
+        "tests/console-workspaces.test.ts",
         "tests/doctor-extensions.test.ts",
         "tests/doctor-handoff.test.ts",
         "tests/doctor-kits.test.ts",
