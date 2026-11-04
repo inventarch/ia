@@ -1,5 +1,5 @@
 import { open } from '@inventarch/db';
-import { defaultActor, governingMandates, profileRefusal } from '../mandate-modes.js';
+import { defaultActor, governingMandates, profileRefusal, rootWorkspace } from '../mandate-modes.js';
 import type { Mode } from '../mandate-modes.js';
 import { MethodError } from './errors.js';
 
@@ -30,8 +30,7 @@ export function checkRoot(root: string, mode: Mode): RootCheck {
   }
   try {
     const within = handle.resolveScope().token;
-    const seat = handle.resolveSeat('', { within }).seat;
-    const workspace = seat !== undefined && handle.get(seat, { within })?.discriminator === 'workspace' ? seat : null;
+    const workspace = rootWorkspace(handle, { within }) ?? null;
     let verdict: ReturnType<typeof profileRefusal>, governed: boolean;
     try {
       const actor = workspace === null ? undefined : defaultActor(handle, within, workspace);

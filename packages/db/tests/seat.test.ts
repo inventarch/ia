@@ -265,6 +265,40 @@ it('seats a root three workspaces declare as shared, and as a root once a scope 
   }
 });
 
+it('names the repository workspace however the location seat of its root resolves', () => {
+  const root = workspace();
+  put(
+    root,
+    '.ia/src/workspace.ia',
+    [
+      '#! ia 1.0',
+      '@workspace org',
+      '  meaning',
+      '    says "The organisation."',
+      '    answers "Which workspace owns this repository?"',
+      '  composition',
+      '    systems [@system governance-system]',
+      '    sources [". @authored"]',
+      '',
+    ].join('\n'),
+  );
+  const product = second(root, 'product', ['. @authored']);
+  const org = 'workspace-system/definition/workspace/org';
+  const db = open(root, { cache: false });
+  try {
+    expect(db.resolveSeat('')).toMatchObject({ by: 'shared', declarers: [org, product] });
+    expect(db.repositoryWorkspace()).toBe(org);
+    // A scope prunes it as it prunes a seat, and never substitutes another.
+    const without = db.resolveScope({ identities: [product] }).token;
+    expect(db.repositoryWorkspace({ within: without })).toBeUndefined();
+    expect(db.resolveSeat('', { within: without })).toMatchObject({ seat: product, by: 'root' });
+    db.close();
+    expect(() => db.repositoryWorkspace()).toThrow();
+  } finally {
+    db.close();
+  }
+});
+
 it('falls back to the repository workspace only for a path in no .ia tree', () => {
   const root = workspace();
   const db = open(root, { cache: false });

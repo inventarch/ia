@@ -5,6 +5,7 @@ import type { ClaimMatch, DirectedEdgeRow, DirectedRow, Node } from '@inventarch
 import type { ReadHandle } from '@inventarch/db';
 import { RuntimeError } from './errors.js';
 import { fragmentText } from './locator.js';
+import { rootWorkspace } from './mandate-modes.js';
 import { statedText } from './render.js';
 import { SCOPE_KEY_CAPS, normalizeScopeKey, resolveScopeKey } from './scope-key.js';
 import type { ResolvedScopeKey, ResolvedSeat, ScopeKey } from './scope-key.js';
@@ -413,7 +414,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   // records and the repository's own roots). When neither closure holds the record, no workspace holds the seat: the
   // seat is never outside its own closure.
   const repository = (): string | undefined => {
-    const at = handle.resolveSeat('', read).seat;
+    const at = rootWorkspace(handle, read);
     return at !== undefined && nodes.get(at)?.discriminator === 'workspace' ? at : undefined;
   };
   const workspaceOf = (identity: string | undefined): string | undefined => {
@@ -449,7 +450,9 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       for (const record of records)
         if (record.system === node.name) compose(record.identity, { by: 'word', system: node.name });
   }
-  if (seat.kind === 'location' && resolution !== undefined) {
+  // A workspace seat whose root `''` is shared is that location: no record, its declarers and claimants its composition.
+  const placed = seat.kind === 'location' || declarers !== undefined;
+  if (placed && resolution !== undefined) {
     if (resolution.seat !== undefined) compose(resolution.seat, { by: 'declared-at', rule: resolution.by! });
     for (const declarer of declarers ?? []) compose(declarer, { by: 'declared-at', rule: 'shared' });
     for (const claimant of resolution.claimants) compose(claimant.identity, { by: 'claim', matches: claimant.matches });
@@ -691,14 +694,16 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     if (nodes.get(identity)?.discriminator === 'mandate' && inside(identity) && !governing.has(identity))
       governing.set(identity, via);
   };
-  if (seat.kind === 'location' && resolution !== undefined)
+  if (placed && resolution !== undefined)
     for (const claimant of resolution.claimants) govern(claimant.identity, { by: 'claim', matches: claimant.matches });
   if (home !== undefined)
     for (const row of rowsOf(home))
       if (row.kind === 'field-ref' && row.direction === 'in' && row.field === 'authority.scope')
         govern(row.counterpart, viaRow(home, row));
-  // Under a shared root, a scope governs only when it names every declarer: one naming some of them does not.
-  if (declarers !== undefined) {
+  // Under a shared root, a scope governs only when it names every declarer: one naming some of them does not. A declarer
+  // at runtime placement is no part of the body, so none is asked for by it, as mandate resolution reads it.
+  const admittedDeclarers = declarers?.filter((declarer) => nodes.has(declarer)) ?? [];
+  if (admittedDeclarers.length > 0) {
     const scopes = (declarer: string, identity: string): boolean =>
       rowsOf(declarer).some(
         (row) =>
@@ -707,10 +712,10 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
           row.field === 'authority.scope' &&
           row.counterpart === identity,
       );
-    for (const row of rowsOf(declarers[0]!))
+    for (const row of rowsOf(admittedDeclarers[0]!))
       if (row.kind === 'field-ref' && row.direction === 'in' && row.field === 'authority.scope')
-        if (declarers.every((declarer) => scopes(declarer, row.counterpart)))
-          govern(row.counterpart, viaRow(declarers[0]!, row));
+        if (admittedDeclarers.every((declarer) => scopes(declarer, row.counterpart)))
+          govern(row.counterpart, viaRow(admittedDeclarers[0]!, row));
   }
   const mandates = [...governing.keys()].sort(byBand);
 

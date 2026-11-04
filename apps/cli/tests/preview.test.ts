@@ -262,6 +262,56 @@ describe('the four forms', () => {
   });
 });
 
+describe('a repository root the workspace shares with another', () => {
+  const second = 'workspace-system/definition/workspace/second';
+  /** `demo` and `second` both list `.`, and the workspace's mandates only observe, scoped to both. */
+  const shared = (): string =>
+    workspace((root) => {
+      rewrite(root, '.ia/src/workspace.ia', (text) =>
+        text
+          .replace('sources [".ia/src @authored"]', 'sources [". @authored"]')
+          .replace('moves [Observation, Verification, Synthesis, Delegation, Execution]', 'moves [Observation]')
+          .replace('scope [@workspace demo]', 'scope [@workspace demo, @workspace second]'),
+      );
+      mkdirSync(resolve(root, '.ia/src/second'), { recursive: true });
+      writeFileSync(
+        resolve(root, '.ia/src/second/workspace.ia'),
+        '#! ia 1.0\n\n@workspace second\n  meaning\n    says "A department."\n    answers "Which sources make up the department?"\n  composition\n    systems [@system work-system]\n    sources [". @authored"]\n',
+      );
+    });
+  it('keeps the root governed: ia validate and ia capture --preview refuse', async () => {
+    const root = shared();
+    const db = open(root, { cache: false });
+    try {
+      expect(db.resolveSeat('')).toMatchObject({ by: 'shared', declarers: [demo, second] });
+    } finally {
+      db.close();
+    }
+    for (const argv of [
+      ['validate', '--root', root, '--json'],
+      ['capture', '--preview', '--root', root, '--json'],
+    ]) {
+      const result = await run(argv);
+      expect(result.exitCode, argv[0]).toBe(1);
+      expect(result.stdout + result.stderr, argv[0]).toContain('IA-RUNTIME-MANDATE-MOVE');
+    }
+  });
+  it('owns its authored path as a declarer, and refuses what the mandate does not allow', async () => {
+    const refusal = await refused(shared(), ['law', 'probe', '--at', '.ia/src/probe.ia'], 'IA-RUNTIME-MANDATE-MOVE');
+    expect(refusal['message']).toContain('allows Observation');
+  });
+  it('composes a default position of each declarer', async () => {
+    const root = shared();
+    const composition = async (seat: readonly string[]) => {
+      const json = await run(['position', ...seat, '--root', root, '--json']);
+      expect(json.exitCode, json.stdout).toBe(0);
+      return (JSON.parse(json.stdout) as { body: { counts: { composition: number } } }).body.counts.composition;
+    };
+    expect(await composition([])).toBe(2);
+    expect(await composition(['--seat', '.'])).toBe(2);
+  });
+});
+
 describe('a root the workspace shares with another', () => {
   // `alpha` sorts before `demo` and declares `.ia/src/shared` too: the root seats as shared (db D02b), so the
   // repository's workspace owns it as one of its declarers, not by sorting first.

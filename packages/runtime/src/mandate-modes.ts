@@ -536,6 +536,18 @@ const order = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const governance = (seat: string): string => `ia position --seat ${seat} --shape governance`;
 
 /**
+ * The `@workspace` that speaks for the repository root through `read`: the record its root seats at, when it is one. A
+ * root several workspaces share (db D02b `shared`) seats at none, so there it is the repository's own `@workspace`
+ * when that is a declarer, and otherwise none: a workspace that declares no part of the root cannot answer for it.
+ */
+export function rootWorkspace(reader: ReadHandle, read: { readonly within: string }): string | undefined {
+  const resolution = reader.resolveSeat('', read),
+    own = resolution.by === 'shared' ? reader.repositoryWorkspace(read) : resolution.seat;
+  if (own === undefined || (resolution.by === 'shared' && !resolution.declarers!.includes(own))) return undefined;
+  return reader.get(own, read)?.discriminator === 'workspace' ? own : undefined;
+}
+
+/**
  * The records the scope token admits, runtime placement left out, and the reads of them that go through it; first,
  * IA-RUNTIME-REQUEST-INVALID when an authored `@mandate` failed admission (`failClosed`, runtime R23).
  */
@@ -559,7 +571,7 @@ function admitted(reader: ReadHandle, within: string) {
     return band === 10 || band === 90 || (own.size > 0 ? own.has(root) : !declared.has(root));
   };
   const repository = (): string | undefined => {
-    const at = reader.resolveSeat('', read).seat;
+    const at = rootWorkspace(reader, read);
     return at !== undefined && nodes.get(at)?.discriminator === 'workspace' ? at : undefined;
   };
   return {
@@ -616,7 +628,8 @@ function admitted(reader: ReadHandle, within: string) {
 /**
  * The authored `@mandate` records that govern through the scope token `within`, by identity (each of band 100, so
  * in band-then-identity order). Only the closure of `workspace` is read, or without it that of the workspace
- * position seats `path` in, or with neither the repository's own `@workspace`'s: another workspace's mandate never
+ * position seats `path` in, or with neither the repository's own `@workspace`'s (every declarer's, for a repository
+ * root several workspaces share): another workspace's mandate never
  * governs here. Only that closure is position's: for a path alone, the mandates that govern are those that claim it,
  * not every mandate scoped to the seated workspace that position's location-seat governance also lists. With `workspace` or `path`, a mandate governs when its
  * `authority.scope` names the workspace or its `authority.covers` selects the path (db D02b claimants), either one
@@ -639,11 +652,13 @@ export function governingMandates(
   if (actor !== undefined) admit(actor, 'agent');
   if (workspace !== undefined) admit(workspace, 'workspace');
   if (fold !== undefined && typeof fold !== 'function') invalid('fold must be a function');
-  // Without `workspace`, the closure is the one position reads for the path's location seat, or for no seat. A path
-  // under a root several workspaces share (db D02b `shared`) belongs to each equally: the closure is every declarer's,
-  // whatever `workspace` names, and a scope governs there only when it names every declarer.
-  const resolution = path === undefined ? undefined : reader.resolveSeat(path, read),
-    shared = resolution?.by === 'shared' ? resolution.declarers! : undefined,
+  // Without `workspace`, the closure is the one position reads for the path's location seat, or with no path too, for
+  // the repository root's. A path under a root several workspaces share (db D02b `shared`) belongs to each equally: the
+  // closure is every declarer's, whatever `workspace` names, and a scope governs there only when it names every
+  // declarer. A declarer at runtime placement is no part of the read, so none is asked for by it.
+  const resolution = path === undefined && workspace !== undefined ? undefined : reader.resolveSeat(path ?? '', read),
+    declarers = resolution?.by === 'shared' ? resolution.declarers!.filter((declarer) => nodes.has(declarer)) : [],
+    shared = declarers.length > 0 ? declarers : undefined,
     inside = shared !== undefined ? closures(shared) : closure(workspace ?? workspaceOf(resolution?.seat)),
     located = workspace !== undefined || path !== undefined;
   const scoped = (identity: string): boolean => {
@@ -700,11 +715,24 @@ export function governingMandates(
  * there, and undefined otherwise. Reads through the scope token `within`, as `governingMandates` does.
  */
 export function seatedWorkspace(reader: ReadHandle, within: string, path: string): string | undefined {
-  const { read, workspaceOf, repository } = admitted(reader, within),
+  const { read, nodes, workspaceOf } = admitted(reader, within),
     resolution = reader.resolveSeat(path, read);
   if (resolution.by !== 'shared') return workspaceOf(resolution.seat);
-  const own = repository();
-  return own !== undefined && resolution.declarers!.includes(own) ? own : undefined;
+  const own = reader.repositoryWorkspace(read);
+  return own !== undefined && nodes.has(own) && resolution.declarers!.includes(own) ? own : undefined;
+}
+
+/**
+ * The workspace to read the mandates of a `path` for: `seatedWorkspace`, or under a root several workspaces share, where
+ * that may be none, one of the declarers. A scope that names every declarer then governs whoever acts, the default actor
+ * remaining `seatedWorkspace`'s to name. Undefined when no admitted `@workspace` holds the path.
+ */
+export function governingWorkspace(reader: ReadHandle, within: string, path: string): string | undefined {
+  const { read, nodes } = admitted(reader, within);
+  return (
+    seatedWorkspace(reader, within, path) ??
+    reader.resolveSeat(path, read).declarers?.find((declarer) => nodes.has(declarer))
+  );
 }
 
 /**
