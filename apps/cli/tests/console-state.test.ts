@@ -310,6 +310,27 @@ describe('areas', () => {
     expect(area(areas, 'lock')?.status).toBe('ok');
     expect(area(areas, 'cli')).toMatchObject({ status: 'fail', summary: 'vocabulary detail' });
   });
+  it('a settled area is summarised from its representative row, a troubled one from its worst row', () => {
+    const records = (detail: string, status: CheckStatus = 'ok'): ConsoleCheck => ({
+      ...check('records', status),
+      detail,
+      from: 'repo',
+      reported: true,
+    });
+    const root: ConsoleCheck = { ...check('root'), detail: '/srv/ws', from: 'repo', reported: true };
+    const settled = areasOf([root, records('257 records, 0 errors, 2 warnings at revision a1b2c3d4e5f6')], new Set());
+    expect(area(settled, 'records')?.summary).toBe('257 records · 2 warn');
+    const failing = areasOf([root, records('257 records, 3 errors, 0 warnings at revision a1', 'fail')], new Set());
+    expect(area(failing, 'records')?.summary).toBe('257 records · 3 errors');
+    const cli: ConsoleCheck = {
+      ...check('cli-version'),
+      detail: "this workspace's copy 3.5.1, CLI dependency ^3.5.0",
+      from: 'repo',
+      reported: true,
+    };
+    const node: ConsoleCheck = { ...check('node'), detail: 'v22', from: 'repo', reported: true };
+    expect(area(areasOf([node, cli], new Set()), 'cli')?.summary).toBe('3.5.1 repo');
+  });
   it('an absent provider leaves no area', () => {
     // No repo copy reported and nothing in-process for these areas (outside a workspace): no Kits, Lock or Host cell,
     // and no Account cell without an extension that declares it.

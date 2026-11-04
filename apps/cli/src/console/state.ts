@@ -245,24 +245,51 @@ export function assembleRows(input: {
 const RANK: Readonly<Record<Exclude<AreaStatus, 'absent'>, number>> = { fail: 0, warn: 1, unknown: 2, setup: 3, ok: 4 };
 const statusOf = (row: ConsoleCheck, setupIds: ReadonlySet<string>): Exclude<AreaStatus, 'absent'> =>
   row.status === 'info' ? (setupIds.has(row.id) ? 'setup' : 'ok') : row.status;
-/** A short summary for an area's worst row; the row's detail when no summariser applies. */
-const SUMMARISERS: Readonly<Record<string, (row: ConsoleCheck) => string | null>> = {
-  records: (row) => {
-    const counts = /^(\d+) records, (\d+) errors, (\d+) warnings/.exec(row.detail);
-    if (row.id !== 'records' || counts === null) return null;
-    const [, records, errors, warnings] = counts;
-    return [
-      `${records} records`,
-      ...(errors === '0' ? [] : [`${errors} errors`]),
-      ...(warnings === '0' ? [] : [`${warnings} warn`]),
-    ].join(' · ');
-  },
-  cli: (row) => {
-    const copy = /^this workspace's copy (\S+), CLI dependency/.exec(row.detail);
-    return row.id === 'cli-version' && copy !== null ? `${copy[1]} repo` : null;
-  },
-};
+/**
+ * Short summaries: an area's representative row, shortened. A settled area (its worst row ok or not set up) is summarised
+ * from that row; a troubled one from its worst row, shortened when it is the representative. Otherwise the worst row's
+ * detail.
+ */
+const SUMMARISERS: Readonly<Record<string, { readonly id: string; readonly text: (detail: string) => string | null }>> =
+  {
+    records: {
+      id: 'records',
+      text: (detail) => {
+        const counts = /^(\d+) records, (\d+) errors, (\d+) warnings/.exec(detail);
+        if (counts === null) return null;
+        const [, records, errors, warnings] = counts;
+        return [
+          `${records} records`,
+          ...(errors === '0' ? [] : [`${errors} errors`]),
+          ...(warnings === '0' ? [] : [`${warnings} warn`]),
+        ].join(' · ');
+      },
+    },
+    cli: {
+      id: 'cli-version',
+      text: (detail) => {
+        const copy = /^this workspace's copy (\S+), CLI dependency/.exec(detail);
+        return copy === null ? null : `${copy[1]} repo`;
+      },
+    },
+  };
 export const UNREPORTED = 'not reported';
+function summarise(
+  area: string,
+  worst: ConsoleCheck,
+  counted: readonly ConsoleCheck[],
+  status: Exclude<AreaStatus, 'absent'>,
+): string {
+  const summariser = SUMMARISERS[area];
+  if (summariser === undefined) return worst.detail;
+  const subject =
+    worst.id === summariser.id
+      ? worst
+      : RANK[status] >= RANK.setup
+        ? counted.find((row) => row.id === summariser.id)
+        : undefined;
+  return (subject === undefined ? null : summariser.text(subject.detail)) ?? worst.detail;
+}
 
 /**
  * The areas, in the table's order, then Other, then each extension area. A table area is shown when a row maps to it,
@@ -293,7 +320,7 @@ export function areasOf(
       id,
       title,
       status: statusOf(worst, setupIds),
-      summary: SUMMARISERS[id]?.(worst) ?? worst.detail,
+      summary: summarise(id, worst, counted, statusOf(worst, setupIds)),
       checks: rows,
     };
   };
