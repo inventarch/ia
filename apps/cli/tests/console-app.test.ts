@@ -391,6 +391,22 @@ describe('runOffer', () => {
     expect(result).toEqual({ completed: 0, exitCode: null });
     expect(run.events).toEqual([]);
   });
+  it('a step whose program cannot start stops the recipe as a failed step, and the console goes on', async () => {
+    const run = harness({
+      onSpawn: () => {
+        throw Object.assign(new Error('spawn /srv/bin/npm ENOENT'), { code: 'ENOENT' });
+      },
+    });
+    const result = await runOffer(
+      offer([iaFix(['validate'], 'none').fix!, iaFix(['validate'], 'none').fix!]),
+      state(),
+      run.io,
+    );
+    expect(result).toEqual({ completed: 0, exitCode: null });
+    expect(run.spawned).toHaveLength(1);
+    expect(run.printed).toContain('Stopped at step 1: could not start: spawn /srv/bin/npm ENOENT.');
+    expect(run.events.slice(-3)).toEqual(['waitKey', 'enter', 'invalidate']);
+  });
 });
 
 describe('resolveRepo', () => {
