@@ -860,6 +860,7 @@
         "tests/doctor-kits.test.ts",
         "tests/fix.test.ts",
         "tests/handoff.test.ts",
+        "tests/local-cli-fs-root.test.ts",
         "tests/local-cli.test.ts",
         "tests/package-manager.test.ts",
         "tests/render.test.ts",

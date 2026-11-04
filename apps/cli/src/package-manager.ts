@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { satisfies as satisfiesRange } from '@inventarch/db/distribution';
 import type { Git } from './channel.js';
 import { runGit } from './channel.js';
-import { CLI, readManifest } from './local-cli.js';
+import { CLI, isWorkspaceRoot, readManifest } from './local-cli.js';
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
 
@@ -69,20 +69,6 @@ export function yarnMajor(directory: string): 'classic' | 'berry' {
   if (existsSync(resolve(directory, '.yarnrc.yml'))) return 'berry';
   return /^yarn@([2-9]|\d{2,})/.test(packageManagerField(directory)) ? 'berry' : 'classic';
 }
-/**
- * Whether `directory` is a workspace root for `manager`: pnpm's is its `pnpm-workspace.yaml`; every other manager's is a
- * `package.json` that declares `workspaces`, as an array or as `{packages}`.
- */
-export function isWorkspaceRoot(manager: PackageManager, directory: string): boolean {
-  if (manager === 'pnpm') return existsSync(resolve(directory, 'pnpm-workspace.yaml'));
-  const workspaces = readManifest(resolve(directory, 'package.json'))?.workspaces;
-  return (
-    Array.isArray(workspaces) ||
-    (typeof workspaces === 'object' &&
-      workspaces !== null &&
-      Array.isArray((workspaces as { packages?: unknown }).packages))
-  );
-}
 
 /*
  * Each manager's own flag for acting on another directory, checked against its documentation:
@@ -122,12 +108,13 @@ export const installArgv = (manager: PackageManager, directory: string, at: stri
 export const installCommand = (manager: PackageManager): string => installArgv(manager, '.', '.').join(' ');
 
 /**
- * The addition of the dependency to the `package.json` in `directory`, run in `at`. At a workspace root pnpm and Yarn
- * Classic refuse an addition without `-w` and `-W`; Yarn 2 and later take none.
+ * The addition of the dependency to the `package.json` in `directory`, run in `at`. At a workspace root pnpm and Yarn 1
+ * refuse an addition without `-w` and `-W`; Yarn 2 and later, which a `.yarnrc.yml` or a `yarn@2+` packageManager marks,
+ * take none. pnpm reads only a `pnpm-workspace.yaml`; for Yarn 1 the root is the one installRoot sees (isWorkspaceRoot).
  */
 export function pinArgv(manager: PackageManager, version: string, directory: string, at: string): readonly string[] {
   const flags =
-    manager === 'pnpm' && isWorkspaceRoot('pnpm', directory)
+    manager === 'pnpm' && existsSync(resolve(directory, 'pnpm-workspace.yaml'))
       ? ['-w']
       : manager === 'yarn' && yarnClassicRoot(directory)
         ? ['-W']
@@ -137,21 +124,11 @@ export function pinArgv(manager: PackageManager, version: string, directory: str
     ? [...ADD[manager], ...flags, dependency]
     : [...DIRECTED_ADD[manager](directory, flags), dependency];
 }
-/**
- * The pin as the cli-version remedy has always printed it. Its `-W` keeps the earlier rule, independent of `pinArgv`:
- * any declared `workspaces` in a Yarn Classic manifest, so the remedy text never changes; where the two differ (a
- * `workspaces` that lists no packages) the fix shows its own text.
- */
-export function pinCommand(manager: PackageManager, version: string, directory: string): string {
-  const flag =
-    manager === 'pnpm' && isWorkspaceRoot('pnpm', directory)
-      ? ['-w']
-      : manager === 'yarn' && legacyYarnClassicRoot(directory)
-        ? ['-W']
-        : [];
-  return [...ADD[manager], ...flag, `${CLI}@${version}`].join(' ');
-}
-const legacyYarnClassicRoot = (directory: string): boolean =>
-  readManifest(resolve(directory, 'package.json'))?.workspaces !== undefined && yarnMajor(directory) === 'classic';
+/** The pin as the cli-version remedy prints it: pinArgv run in `directory` itself, so the two never differ in flags. */
+export const pinCommand = (manager: PackageManager, version: string, directory: string): string =>
+  pinArgv(manager, version, directory, directory).join(' ');
+/** A Yarn Classic workspace root, by the test installRoot applies (isWorkspaceRoot): `{"workspaces":{}}` is none. */
 const yarnClassicRoot = (directory: string): boolean =>
-  yarnMajor(directory) === 'classic' && isWorkspaceRoot('yarn', directory);
+  isWorkspaceRoot(directory) &&
+  readManifest(resolve(directory, 'package.json')) !== null &&
+  yarnMajor(directory) === 'classic';
