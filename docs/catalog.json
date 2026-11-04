@@ -27,7 +27,7 @@
       "genre": "spec",
       "title": "Host registration",
       "status": "implemented",
-      "sourceDigest": "1716547b0d94c9028c67dc8654d43a312e6a323ef1c911ce79e39711f2bbcfd2"
+      "sourceDigest": "e6f8b0bc4902524bb53bf56305dc78ace3cc91ca8c2f068dcbd26dd11aefa3aa"
     },
     {
       "id": "spec-registry",
