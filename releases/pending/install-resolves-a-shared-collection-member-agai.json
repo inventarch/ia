@@ -1,0 +1,19 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Install resolves a shared collection member against both ranges",
+  "summary": "Re-installing a collection whose member another installed collection lists at a different range no longer refuses when one release satisfies both, such as ^1.2.0 and ^1.4.0. The request becomes the range both accept, the lock pins a release every holder accepts, and each holder's collection row follows a pin that moves. Ranges no release can satisfy together still refuse with IA-DIST-CONFLICT, naming the holders.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/distribution"
+  ],
+  "paths": [
+    "README.md",
+    "apps/cli/",
+    "apps/distribution/",
+    "docs/",
+    "packages/db/",
+    "tools/"
+  ]
+}

@@ -363,7 +363,7 @@ async function acquiring<T>(run: () => Promise<T>, where: string | null, route: 
         message,
         3,
         at,
-        `Install them together with "${reruns.together(error.holders)}"; that succeeds only when their releases list ${error.member} with the same range.`,
+        `Install them together with "${reruns.together(error.holders)}"; that succeeds only when one release of ${error.member} satisfies every range their releases list.`,
       );
     // A service refusal the service located keeps its code and class 3, and gains its location (§4) and the
     // rerun after the file it names is repaired.
@@ -889,7 +889,21 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
         reruns,
       );
       requests = resolution.expandedRequests ?? requests;
-      collections = resolution.expandedCollections ?? [];
+      // A holder whose shared member this install narrowed still accepts where it lands, so its row is recorded again at
+      // the new pin, with its own version and registry; left alone, the record merge would drop it as re-pinned, and the
+      // next install would no longer see its constraint.
+      const holders = new Set(resolution.sharedHolders ?? []);
+      collections = [
+        ...(resolution.expandedCollections ?? []),
+        ...recorded.collections
+          .filter((row) => holders.has(row.id))
+          .map(({ id, version, registry, members }) => ({
+            id,
+            version,
+            registry,
+            members: members.map((member) => member.id),
+          })),
+      ];
       choices = resolution.candidates;
       registries = registrySources(resolution.sources.values());
     }

@@ -1,4 +1,4 @@
-import { decodeDistributionRequests, DISTRIBUTION_LIMITS, satisfies } from '@inventarch/db/distribution';
+import { commonRange, decodeDistributionRequests, DISTRIBUTION_LIMITS, satisfies } from '@inventarch/db/distribution';
 import type { BundleMetadata, Dependency, DistributionLock } from '@inventarch/db/distribution';
 import { acquireArtifact, readArtifactBytes } from './acquire.js';
 import { inspectArchiveMetadata, verifyArchive } from './archive.js';
@@ -58,13 +58,18 @@ export interface RegistryResolution {
   readonly expandedRequests?: readonly Dependency[];
   /** With `allowKits`: each collection the requests named, as it was expanded, for the collection record. */
   readonly expandedCollections?: readonly ExpandedCollection[];
+  /**
+   * With `allowKits`: the installed collections, not expanded here, whose member's range this command narrowed. Each
+   * still accepts the member wherever it lands, so its row should be recorded again at the new pin rather than dropped.
+   */
+  readonly sharedHolders?: readonly string[];
   readonly candidates: readonly ReleaseCandidate<BundleMetadata>[];
   readonly sources: ReadonlyMap<string, RegistryChoice>;
 }
 /**
- * A kit's member range differs, as a string, from the range another installed collection left for that member: the
- * install refuses rather than move a member the other collection still lists. `holders` are those collections, which
- * re-expanding together with the kit replaces, when their releases list the member with the same range.
+ * A kit's member range cannot be satisfied together with the range another installed collection left for that member:
+ * no release both accept exists. The install refuses rather than move a member the other collection still lists.
+ * `holders` are those collections, whose ranges re-expanding them together with the kit replaces.
  */
 export class CollectionConflictError extends DistributionError {
   constructor(
@@ -268,6 +273,8 @@ async function resolveWithPins(
   // A kit that is a member of a kit this command expands is expanded in its turn; its members are recorded on that
   // outer collection in its place, so a row names only ids the lock holds.
   const nestedIn = new Map<string, (typeof expanded)[number]>();
+  // Installed collections whose member this command narrowed, for `sharedHolders`.
+  const narrowed = new Set<string>();
   const pending: string[] = [],
     queued = new Set<string>(),
     followed = new Set<RegistryRelease>(),
@@ -314,6 +321,29 @@ async function resolveWithPins(
       (entry.pinned.has(release.version) || [...entry.ranges].some((r) => satisfies(release.version, r)))
     );
   };
+  // The range that says what two collections sharing a member both accept, or null when no release both accept exists:
+  // a real release that selection could pick (or a pin it could keep) has to answer, since ranges that merely overlap
+  // would otherwise reach the search and refuse without naming a holder. The index read here is the one the command's
+  // naming of this member reads anyway, and it is queued so its releases are followed.
+  const sharedRange = async (id: string, left: string, right: string): Promise<string | null> => {
+    const common = commonRange(left, right);
+    if (common === null) return null;
+    const source = indexed.get(id) ?? (await read(id));
+    indexed.set(id, source);
+    if (!queued.has(id)) {
+      queued.add(id);
+      pending.push(id);
+    }
+    const { releases } = source.index,
+      both = (version: string): boolean => satisfies(version, left) && satisfies(version, right),
+      pin = pins.get(id);
+    const answered =
+      releases.some((r) => !r.withdrawn && satisfies(engine, r.engine) && both(r.version)) ||
+      (pin !== undefined &&
+        both(pin.locked.version) &&
+        !releases.some((r) => r.archive === pin.locked.archive && r.withdrawn));
+    return answered ? common : null;
+  };
   for (const r of requests) need(r.id, r.range, null);
   for (const p of previous?.packages ?? []) need(p.id, null, p.version);
   while (pending.length) {
@@ -336,9 +366,10 @@ async function resolveWithPins(
         // Re-expanding a collection replaces the member requests its earlier expansion left: they leave the requests
         // (one the new release no longer lists stays locked only while something depends on it), so a changed range is
         // not a conflict. A request this command names itself, or one another collection's expansion in this command
-        // introduced, is not inherited and stays, so it still conflicts as it always has. So does a member another
-        // installed collection still lists, unless this command expands that collection too (it is expanded already,
-        // or its id is still a request waiting to be): one collection's install never drops another's constraint.
+        // introduced, is not inherited and stays. So does a member another installed collection still lists, unless this
+        // command expands that collection too (it is expanded already, or its id is still a request waiting to be): one
+        // collection's install never drops another's constraint. A request the user named conflicts on any other range;
+        // a member a collection left takes the range both accept, and conflicts only when no release satisfies both.
         const recorded = new Set(request.collectionMembers?.get(id) ?? []);
         const held = new Map<string, string[]>();
         for (const [other, members] of request.collectionMembers ?? [])
@@ -353,7 +384,6 @@ async function resolveWithPins(
           if (recorded.has(member) && !explicit.has(member) && !introduced.has(member) && !held.has(member))
             requests.splice(at, 1);
         }
-        for (const member of kit.distributions) introduced.add(member.id);
         const outer = explicit.has(id) ? undefined : nestedIn.get(id),
           ids = kit.distributions.map((member) => member.id);
         const row = outer ?? { id, version: kit.version, registry: registryLocation(entry.registry.base), members: [] };
@@ -363,18 +393,25 @@ async function resolveWithPins(
         for (const member of kit.distributions) {
           const existing = requests.find((item) => item.id === member.id);
           const holders = held.get(member.id);
-          if (existing && existing.range !== member.range && holders !== undefined && !explicit.has(member.id))
-            throw new CollectionConflictError(
-              `Kit ${id} ${kit.version} lists ${member.id} ${member.range}, but installed ${holders.length === 1 ? 'collection' : 'collections'} ${holders.join(', ')} ${holders.length === 1 ? 'lists' : 'list'} it at ${existing.range}`,
-              member.id,
-              holders,
-            );
-          if (existing && existing.range !== member.range)
-            fail('CONFLICT', `Kit conflicts with direct request ${member.id}`);
+          if (existing && existing.range !== member.range) {
+            const left = !explicit.has(member.id) && (holders !== undefined || introduced.has(member.id)),
+              common = left ? await sharedRange(member.id, existing.range, member.range) : null;
+            if (common === null && holders !== undefined && !explicit.has(member.id))
+              throw new CollectionConflictError(
+                `Kit ${id} ${kit.version} lists ${member.id} ${member.range}, but installed ${holders.length === 1 ? 'collection' : 'collections'} ${holders.join(', ')} ${holders.length === 1 ? 'lists' : 'list'} it at ${existing.range}`,
+                member.id,
+                holders,
+              );
+            if (common === null) fail('CONFLICT', `Kit conflicts with direct request ${member.id}`);
+            requests[requests.indexOf(existing)] = { id: member.id, range: common };
+            for (const holder of holders ?? []) narrowed.add(holder);
+          }
           if (!existing) requests.push(member);
           named.add(member.id);
           need(member.id, member.range, null);
         }
+        // Only after the loop: `introduced` asks whether an earlier expansion left a member, not this kit.
+        for (const member of kit.distributions) introduced.add(member.id);
         // A request set is sorted by id, which members appended after other requests would break.
         requests.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
       }
@@ -392,6 +429,14 @@ async function resolveWithPins(
     const release = indexed.get(locked.id)?.index.releases.find((r) => r.version === locked.version);
     if (release) unchanged(locked.id, release, locked);
   }
+  const expandedResult = (): Pick<RegistryResolution, 'expandedRequests' | 'expandedCollections' | 'sharedHolders'> =>
+    request.allowKits
+      ? {
+          expandedRequests: requests,
+          expandedCollections: expanded,
+          sharedHolders: [...narrowed].filter((id) => !expanded.some((row) => row.id === id)).sort(),
+        }
+      : {};
   // §5.2: only admissible releases reach the search, which would drop the rest anyway, so its 1,000-candidate bound counts real options.
   type Origin =
     | { readonly kind: 'registry'; readonly entry: RegistryRelease; readonly source: Indexed }
@@ -544,7 +589,7 @@ async function resolveWithPins(
     signal?.throwIfAborted();
     const admitted = cacheSelectedArchiveClosure(root, resolved.lock, archives);
     return {
-      ...(request.allowKits ? { expandedRequests: requests, expandedCollections: expanded } : {}),
+      ...expandedResult(),
       candidates: pending.map((candidate) => ({ ...candidate, release: admitted.get(candidate.release.manifest.id)! })),
       sources,
     };
@@ -585,7 +630,7 @@ async function resolveWithPins(
   return {
     candidates,
     sources,
-    ...(request.allowKits ? { expandedRequests: requests, expandedCollections: expanded } : {}),
+    ...expandedResult(),
   };
 }
 /**
