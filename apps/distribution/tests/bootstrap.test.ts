@@ -167,6 +167,40 @@ it('a block written by the previous text is updated in place, and every other by
   expect(planBootstrap(root, 'claude', '3.5.0').files[0]!.action).toBe('unchanged');
 });
 
+const bareLf = /(?<!\r)\n/;
+
+it('a CRLF instruction file keeps CRLF through install, update and remove, with no bare LF in the block', () => {
+  const original = '# Project\r\n\r\nOur notes.\r\n';
+  put('CLAUDE.md', original);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  const installed = read('CLAUDE.md');
+  expect(installed.startsWith(original)).toBe(true);
+  expect(installed).toContain(BLOCK_END + '\r\n');
+  expect(installed).not.toMatch(bareLf);
+  // An older block with a different body is replaced in place, the file's own endings kept on both sides.
+  const old = [BLOCK_BEGIN, '## IA', 'old', BLOCK_END];
+  const head = '# Project\r\n\r\n',
+    tail = '\r\n## Later\r\n';
+  put('CLAUDE.md', head + old.join('\r\n') + '\r\n' + tail);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0'));
+  const updated = read('CLAUDE.md');
+  expect(updated).not.toContain('\r\nold\r\n');
+  expect(updated.startsWith(head + BLOCK_BEGIN + '\r\n')).toBe(true);
+  expect(updated.endsWith(BLOCK_END + '\r\n' + tail)).toBe(true);
+  expect(updated).not.toMatch(bareLf);
+  // Removing what install appended restores the original bytes.
+  put('CLAUDE.md', installed);
+  applyBootstrap(planBootstrap(root, 'claude', '3.5.0', true));
+  expect(read('CLAUDE.md')).toBe(original);
+});
+
+it('a lowercase contributing.md is not CONTRIBUTING.md, on a case-insensitive volume too', () => {
+  put('contributing.md', '# Contributing\n');
+  const plan = planBootstrap(root, 'claude', '3.5.0');
+  expect(plan.files[0]!.after).toContain("the repository's own contributing guide");
+  expect(plan.files[0]!.after).not.toContain('follow `CONTRIBUTING.md`');
+});
+
 const GENERIC = "follow the repository's own contributing guide";
 const kinds: ReadonlyArray<readonly [string, () => void]> = [
   ['a directory', () => mkdirSync(join(root, 'CONTRIBUTING.md'))],
