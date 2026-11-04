@@ -49,7 +49,8 @@ const lastLine = (text: string): string => {
 
 /**
  * `git add -A` and `git commit -m "chore: <title>"` in each worktree that passed. A repository whose commit fails (or
- * has nothing to commit) is no longer ok, with the reason as its last line; one that commits says `committed <sha>`.
+ * has nothing to commit) is no longer ok, with the reason as its last line; one that commits says `committed <sha>`, and
+ * one that already did is left as it is.
  */
 export async function commitPassed(
   results: readonly RepoResult[],
@@ -59,7 +60,7 @@ export async function commitPassed(
 ): Promise<readonly RepoResult[]> {
   const out: RepoResult[] = [];
   for (const result of results) {
-    if (!result.ok) {
+    if (!result.ok || result.last.startsWith('committed ')) {
       out.push(result);
       continue;
     }

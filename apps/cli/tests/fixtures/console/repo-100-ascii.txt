@@ -21,4 +21,4 @@
                                           |
                                           |
 ------------------------------------------+---------------------------------------------------------
- j/k move | enter run | tab diagnostics | r refresh | ? help | q quit
+ j/k move | enter run | tab workspaces | r refresh | ? help | q quit

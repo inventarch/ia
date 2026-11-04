@@ -180,7 +180,7 @@ describe('golden frames', () => {
     expect(lines.at(-1)).toBe(' Kit id: acme/k▌  enter accept · esc cancel');
     const refused = frame({ prompt: { label: 'Kit id', value: '-x', error: 'A kit id cannot start with a dash.' } });
     expect(refused.at(-1)).toBe(' Kit id: -x▌  A kit id cannot start with a dash.');
-    expect(frame().at(-1)).toBe(' ↑↓ move · enter run · tab diagnostics · r refresh · ? help · q quit');
+    expect(frame().at(-1)).toBe(' ↑↓ move · enter run · tab workspaces · r refresh · ? help · q quit');
   });
   it('a message shows on the lower divider', () => {
     const lines = frame({ message: 'ia validate exited 1' });

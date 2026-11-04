@@ -848,6 +848,7 @@
         "tests/console-batch-plan.test.ts",
         "tests/console-entry.test.ts",
         "tests/console-keys.test.ts",
+        "tests/console-layout-all.test.ts",
         "tests/console-layout.test.ts",
         "tests/console-offers.test.ts",
         "tests/console-state.test.ts",

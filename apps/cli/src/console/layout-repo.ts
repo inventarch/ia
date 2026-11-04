@@ -30,6 +30,8 @@ export interface LayoutInput {
   readonly caps: Capabilities;
   readonly columns: number;
   readonly rows: number;
+  /** Opened from the all-workspaces table, to which Escape returns. */
+  readonly drilled?: boolean;
 }
 export const MIN_COLUMNS = 80;
 export const MIN_ROWS = 20;
@@ -181,7 +183,7 @@ function diagnosticsPane(state: ConsoleState, ascii: boolean): PaneLine[] {
 const HELP: readonly (readonly [string, string, string])[] = [
   ['↑↓ j k', 'j k', 'move, or scroll the diagnostics'],
   ['enter', 'enter', 'run the selected offer: preview, confirm, apply'],
-  ['tab', 'tab', 'switch between offers and diagnostics'],
+  ['tab', 'tab', 'switch to all workspaces, or back from the diagnostics'],
   ['r', 'r', 'reload the state'],
   ['?', '?', 'this help'],
   ['esc', 'esc', 'back'],
@@ -193,12 +195,14 @@ function helpPane(ascii: boolean): PaneLine[] {
     ...HELP.map(([unicode, plain, what]) => ({ text: `${(ascii ? plain : unicode).padEnd(8)} ${what}`, role: null })),
   ];
 }
-function keys(view: View, ascii: boolean): string {
+function keys(view: View, ascii: boolean, drilled: boolean): string {
   const sep = ascii ? ' | ' : ' · ',
     move = ascii ? 'j/k move' : '↑↓ move';
   if (view === 'diagnostics') return [ascii ? 'j/k scroll' : '↑↓ scroll', 'tab offers', 'esc back', 'q quit'].join(sep);
   if (view === 'help') return ['esc back', 'q quit'].join(sep);
-  return [move, 'enter run', 'tab diagnostics', 'r refresh', '? help', 'q quit'].join(sep);
+  // A workspace opened from the all-workspaces table goes back to it; the console's own workspace switches to it.
+  if (drilled) return [move, 'enter run', 'r refresh', '? help', 'esc back'].join(sep);
+  return [move, 'enter run', 'tab workspaces', 'r refresh', '? help', 'q quit'].join(sep);
 }
 
 /** In ASCII mode the console's own punctuation is spelled in ASCII, in data as in its own words. */
@@ -209,7 +213,7 @@ const ASCII_FORMS: readonly (readonly [string, string])[] = [
   ['—', '-'],
 ];
 /** A grid whose text is spelled for the terminal: unchanged with Unicode, ASCII punctuation with --ascii. */
-function canvas(columns: number, rows: number, ascii: boolean): Grid {
+export function canvas(columns: number, rows: number, ascii: boolean): Grid {
   const grid = new Grid(columns, rows);
   if (!ascii) return grid;
   const put = grid.put.bind(grid);
@@ -303,7 +307,8 @@ export function layoutRepo(input: LayoutInput): Grid {
   });
 
   if (input.message !== null) grid.put(2, rows - 2, ` ${input.message} `, 'yellow', columns - 4, ascii);
-  if (input.prompt === null) grid.put(1, rows - 1, keys(input.view, ascii), 'dim', columns - 2, ascii);
+  if (input.prompt === null)
+    grid.put(1, rows - 1, keys(input.view, ascii, input.drilled === true), 'dim', columns - 2, ascii);
   else {
     const { label, value, error } = input.prompt;
     const used = grid.put(1, rows - 1, `${label}: ${value}${ascii ? '_' : '▌'}`, 'bold', columns - 2, ascii);

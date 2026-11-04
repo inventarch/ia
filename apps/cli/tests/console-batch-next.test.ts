@@ -14,6 +14,7 @@ import { planBatch } from '../src/console/batch-plan.js';
 import type { RepoResult } from '../src/console/batch-run.js';
 import { defaultRunner, gitTop, runBatch } from '../src/console/batch-run.js';
 import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from '../src/console/batch-next.js';
+import { batchScreen } from '../src/console/batch-screen.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Fixture } from './batch-fixture.js';
 import { fixture, git, offerOf, readLog, repo, rowOf, shim } from './batch-fixture.js';
@@ -187,5 +188,62 @@ describe('after the run', () => {
     const kept = await removeWorktrees(second.results, run, fx.env);
     expect(kept).toEqual([{ root: dirty.top, error: expect.stringMatching(/.+/) }]);
     expect(existsSync(second.results[0]!.worktree)).toBe(true);
+  });
+});
+
+describe('the batch screen', () => {
+  const screen = async (fx: Fixture, top: string, answers: readonly (string | null)[]) => {
+    const rows = [rowOf(top, [relock(top)])];
+    const plan = planBatch(
+      'fix:generation',
+      rows,
+      new Set([0]),
+      { iaHome: join(fx.dir, 'home') },
+      { top: (root) => gitTop(root, fx.env) },
+    );
+    const printed: string[] = [];
+    const asked: string[] = [];
+    const left = [...answers];
+    const outcome = await batchScreen(
+      { choice: { offerId: 'fix:generation', title: 'Re-lock', repos: 1 }, ...plan },
+      { packageRoot: fx.running, version: '3.5.1' },
+      {
+        print: (text) => printed.push(text),
+        line: async (question) => {
+          asked.push(question);
+          return left.shift() ?? null;
+        },
+        run: defaultRunner(fx.env),
+        resolveRepo,
+        env: fx.env,
+        signal: new AbortController().signal,
+      },
+    );
+    return { plan, printed, asked, outcome };
+  };
+  it('a decline runs nothing; a yes runs the batch, shows the results and runs the chosen next step', async () => {
+    const fx = fixture('batch-next-screen');
+    // The install writes node_modules into the worktree, which gives the commit something to hold.
+    const { top } = repo(fx, 'alpha', {
+      'package.json': JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }),
+      'package-lock.json': '{}',
+    });
+    const declined = await screen(fx, top, ['n']);
+    expect(declined.outcome).toEqual({ next: 'return' });
+    expect(declined.printed).toContain('Declined; nothing ran.');
+    expect(declined.printed).toContain(`  worktree ${declined.plan.repos[0]!.worktree}`);
+    expect(existsSync(declined.plan.repos[0]!.worktree)).toBe(false);
+    const ran = await screen(fx, top, ['y', '1', '']);
+    const worktree = ran.plan.repos[0]!.worktree;
+    expect(ran.outcome).toEqual({ next: 'return' });
+    expect(ran.printed.some((line) => line.startsWith('ok     chore/ia-fix-generation'))).toBe(true);
+    // The commit was the first choice; it then leaves the list.
+    expect(ran.printed.some((line) => /^ok {5}chore\/ia-fix-generation .* committed [0-9a-f]+$/.test(line))).toBe(true);
+    expect(git(worktree, ['log', '-1', '--format=%s'], fx.env).trim()).toBe('chore: Re-lock');
+    expect(ran.asked).toEqual([
+      'Run this batch? [y/N] ',
+      'Choose a number, or press enter to return: ',
+      'Choose a number, or press enter to return: ',
+    ]);
   });
 });

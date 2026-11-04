@@ -3,7 +3,7 @@
  * and a recording spawner: the argv each flow spawns, which copy's entry runs each step (resolved at that step, from
  * the disk), that a decline spawns nothing, and that the terminal is restored on quit, on a throw and on a signal.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -20,6 +20,7 @@ import { cmdArgument, runOffer, runningEntry, shownArgument } from '../src/conso
 import { windowsShellArgs } from '../src/program.js';
 import type { ConsoleCheck, ConsoleState } from '../src/console/state.js';
 import type { TerminalIO } from '../src/console/terminal.js';
+import { readTracked, trackWorkspaces } from '../src/tracked.js';
 import { cleanup, scratch } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -867,6 +868,160 @@ describe('runConsole', () => {
     expect(after).toContain('\x1b[2J');
     expect(run.terminal.raw.at(-1)).toBe(true);
     expect(run.spawned).toEqual([[runningEntry(RUNNING), 'validate']]);
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+});
+
+/** The end of a long value, which the folder line always shows. */
+const tail = (text: string): string => text.slice(-12);
+/** The console started outside any workspace, with `tracked` workspaces in its IA home's tracked list. */
+function launchAll(tracked = 0) {
+  const base = scratch('console-all');
+  const cwd = join(base, 'outside'),
+    home = join(base, 'home');
+  mkdirSync(cwd, { recursive: true });
+  mkdirSync(home, { recursive: true });
+  const roots = Array.from({ length: tracked }, (_, index) => join(base, `ws${index}`));
+  for (const root of roots) mkdirSync(join(root, '.ia/src'), { recursive: true });
+  if (roots.length > 0) trackWorkspaces(home, roots);
+  const terminal = new FakeTerminal();
+  const stdin = new PassThrough();
+  const timers: (() => void)[] = [];
+  const hooks = fakeHooks(terminal);
+  const exit = runConsole({
+    io: terminal,
+    input: stdin,
+    env: { IA_HOME: home, NO_COLOR: '1' },
+    cwd,
+    packageRoot: RUNNING,
+    version: '3.5.1',
+    collect: () => view([check('node', 'ok'), check('records', 'ok'), check('root', 'ok')]),
+    spawn: async () => 0,
+    setTimer: ((callback: () => void) => {
+      timers.push(callback);
+      return timers.length as unknown as ReturnType<typeof setTimeout>;
+    }) as unknown as typeof setTimeout,
+    clearTimer: (() => {}) as typeof clearTimeout,
+    hooks,
+  });
+  const shows = (text: string) => () => terminal.out.includes(text);
+  return { base, cwd, home, roots, terminal, stdin, timers, hooks, exit, shows };
+}
+
+describe('the all-workspaces view', () => {
+  it('outside a workspace lands on all workspaces', async () => {
+    const run = launchAll();
+    await until(run.shows('Tracked 0'), 'the all-workspaces view');
+    expect(run.terminal.out).toContain('› Find workspaces in a folder…');
+    expect(run.terminal.out).toContain('No workspaces are tracked yet.');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('enter on a row opens its repo view and esc returns', async () => {
+    const run = launchAll(1);
+    await until(run.shows('Healthy 1'), 'the row to load');
+    run.stdin.write('\r');
+    await until(run.shows('esc back'), 'the repo view');
+    expect(run.terminal.out).toContain('Diagnostics');
+    const mark = run.terminal.out.length;
+    run.stdin.write('\x1b');
+    await until(() => run.timers.length > 0, 'the escape timer');
+    run.timers.at(-1)!();
+    await until(() => run.terminal.out.slice(mark).includes('space select'), 'the table again');
+    expect(run.hooks.exits).toEqual([]);
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('f opens the folder line in text mode: b, q and j are typed, not commands', async () => {
+    const run = launchAll(1);
+    await until(run.shows('Healthy 1'), 'the row to load');
+    run.stdin.write('f');
+    await until(run.shows(`${tail(run.base)}▌`), 'the folder line');
+    run.stdin.write('bqj');
+    await until(run.shows(`${tail(run.base)}bqj▌`), 'the typed text');
+    expect(run.hooks.exits).toEqual([]);
+    // Nothing was selected, and the cursor did not move to the batch list.
+    expect(run.terminal.out).not.toContain('[x]');
+    run.stdin.write('\x03');
+    await until(run.shows('space select'), 'the key bar');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('an arrow key split across chunks inside the folder line is not Escape', async () => {
+    const run = launchAll();
+    await until(run.shows('Tracked 0'), 'the view');
+    run.stdin.write('f');
+    await until(run.shows('Folder: '), 'the folder line');
+    run.stdin.write('\x1b');
+    await until(() => run.timers.length > 0, 'the escape timer');
+    run.stdin.write('[A');
+    await settle();
+    run.stdin.write('x');
+    await until(run.shows(`${tail(run.base)}x▌`), 'the line still open');
+    run.stdin.write('\x03');
+    await until(run.shows('space select'), 'the key bar');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('a lone Esc cancels the folder line after the timer', async () => {
+    const run = launchAll();
+    await until(run.shows('Tracked 0'), 'the view');
+    run.stdin.write('f');
+    await until(run.shows('Folder: '), 'the folder line');
+    run.stdin.write('x');
+    await until(run.shows(`${tail(run.base)}x▌`), 'the typed text');
+    const mark = run.terminal.out.length;
+    run.stdin.write('\x1b');
+    await until(() => run.timers.length > 0, 'the escape timer');
+    run.timers.at(-1)!();
+    await until(() => run.terminal.out.slice(mark).includes('space select'), 'the key bar');
+    expect(readTracked(run.home)).toEqual([]);
+    expect(run.hooks.exits).toEqual([]);
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('paste and backspace edit the line; enter submits', async () => {
+    const run = launchAll(1);
+    mkdirSync(join(run.base, 'fresh', '.ia/src'), { recursive: true });
+    await until(run.shows('Healthy 1'), 'the row to load');
+    run.stdin.write('f');
+    await until(run.shows('Folder: '), 'the folder line');
+    run.stdin.write('\x1b[200~zz\x1b[201~');
+    await until(run.shows(`${tail(run.base)}zz▌`), 'the pasted text');
+    run.stdin.write('\x7f\x7f');
+    await until(
+      () => run.terminal.out.lastIndexOf(`${tail(run.base)}▌`) > run.terminal.out.lastIndexOf('zz▌'),
+      'the backspaces',
+    );
+    run.stdin.write('\r');
+    await until(run.shows('FOUND IN'), 'the found list');
+    expect(run.terminal.out).toContain('[=]');
+    expect(run.terminal.out).toContain('[x]');
+    run.stdin.write('\r');
+    await until(run.shows('Tracked 1 workspace.'), 'the tracking');
+    expect(
+      readTracked(run.home)
+        .map((row) => row.root)
+        .sort(),
+    ).toEqual([join(run.base, 'fresh'), run.roots[0]!].map((root) => realpathSync(root)).sort());
+    await until(run.shows('Tracked 2'), 'the reloaded list');
+    run.stdin.write('q');
+    expect(await run.exit).toBe(0);
+  });
+  it('b focuses the batch list only in keys mode', async () => {
+    const run = launchAll(1);
+    await until(run.shows('Healthy 1'), 'the row to load');
+    expect(run.terminal.out).toContain('› [ ]');
+    run.stdin.write('b');
+    await until(run.shows('FIND WORKSPACES'), 'the batch list');
+    expect(run.terminal.out).toContain('› Find workspaces in a folder…');
+    run.stdin.write('f');
+    await until(run.shows('Folder: '), 'the folder line');
+    run.stdin.write('b');
+    await until(run.shows(`${tail(run.base)}b▌`), 'b typed');
+    run.stdin.write('\x03');
+    await until(run.shows('space select'), 'the key bar');
     run.stdin.write('q');
     expect(await run.exit).toBe(0);
   });
