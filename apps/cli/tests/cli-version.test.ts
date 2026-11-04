@@ -1,7 +1,8 @@
-import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CORE_TOKENS } from '../src/commands.js';
+import { collectDoctor } from '../src/doctor.js';
 import { cliVersionRow } from '../src/doctor-user.js';
 import { handoffTarget } from '../src/handoff.js';
 import { resolveWorkspaceCli } from '../src/local-cli.js';
@@ -251,6 +252,41 @@ describe('doctor names the copy hand-off runs', () => {
       },
     ],
   ];
+  it('through a linked --root, doctor reads the workspace at its real path, as hand-off does', () => {
+    // The pin and the copy sit above the link's real target, not above the link. A junction needs no privilege on
+    // Windows; elsewhere the type is ignored and a directory symlink is made.
+    const repo = scratch('cv-tie-link');
+    put(resolve(repo, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.5.0' } }));
+    const copy = copyAt(repo);
+    const real = resolve(repo, 'ws');
+    mkdirSync(resolve(real, '.ia/src'), { recursive: true });
+    const link = resolve(scratch('cv-tie-link-alias'), 'ws');
+    symlinkSync(real, link, 'junction');
+    const handedTo = handoffTarget({
+      argv: ['validate', '--root', link],
+      cwd: scratch('cv-tie-link-cwd'),
+      env: {},
+      packageRoot: running,
+      iaHome,
+      extensions: [],
+      coreTokens: CORE_TOKENS,
+      committed: () => false,
+    });
+    expect(handedTo?.packageRoot).toBe(copy);
+    const view = collectDoctor({
+      cwd: scratch('cv-tie-link-cwd'),
+      root: link,
+      packageRoot: running,
+      version: '3.6.0',
+      runtime: { version: '22.22.0', platform: process.platform, arch: process.arch },
+      env: { IA_HOME: iaHome },
+      home: scratch('cv-tie-link-home'),
+    });
+    expect(view.checks.find((check) => check.id === 'cli-version')).toMatchObject({
+      status: 'warn',
+      detail: expect.stringContaining("running 3.6.0; this workspace's copy is 3.5.0"),
+    });
+  });
   it.each(layouts)('%s', (_name, layout) => {
     const { root, expected } = layout();
     expect(resolveWorkspaceCli(root).local?.packageRoot ?? null).toBe(expected);

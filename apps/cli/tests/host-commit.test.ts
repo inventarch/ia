@@ -188,3 +188,18 @@ it('ia host claude --commit still refuses a generated CLAUDE.md', async () => {
   expect(readFileSync(resolve(root, 'CLAUDE.md'), 'utf8')).toBe(packet);
   expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
 });
+
+it('the committed block says contribution needs no binding, carries the marker, and reruns update it in place', async () => {
+  const { root, env } = await initialized();
+  const apply = ['host', 'claude', '--commit', '--apply', '--yes', '--root', root, '--json'];
+  expect((await run(apply, { env })).exitCode).toBe(0);
+  const text = readFileSync(resolve(root, 'CLAUDE.md'), 'utf8');
+  expect(text).toMatch(/^ia-bootstrap v1 public-contribution=available needs-method=\S+ needs-authority=\S+$/m);
+  expect(text).toContain('need no binding, plugin, door or private access');
+  expect(text).toMatch(/Operations that need a bound method or private authority refuse alone, naming it/);
+  expect(text).not.toContain('For any task, use one lane');
+  const again = await run(['host', 'claude', '--commit', '--root', root, '--json'], { env });
+  expect(
+    (JSON.parse(again.stdout) as { files: { action: string }[] }).files.every((f) => f.action === 'unchanged'),
+  ).toBe(true);
+});
