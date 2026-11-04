@@ -167,8 +167,23 @@ describe('after the run', () => {
     const run = defaultRunner(fx.env);
     const opened = await pushAndOpenPrs(await commitPassed(results, 'Re-lock', run, fx.env), run, fx.env);
     expect(opened).toEqual([
-      { root: top, url: null, error: expect.stringMatching(/rejected|fetch first|non-fast-forward/) },
+      { root: top, url: null, error: 'the branch chore/ia-fix-generation already exists on origin' },
     ]);
+    expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
+  });
+  it('a remote branch at the base commit is a collision too, and stays where it was', async () => {
+    const fx = withGh('batch-next-ancestor');
+    const { top } = repo(fx, 'behind');
+    // The remote already has the batch's branch, at the commit the batch will start from: a plain push would fast-forward it.
+    git(top, ['push', '--quiet', 'origin', 'main:refs/heads/chore/ia-fix-generation'], fx.env);
+    const before = git(top, ['ls-remote', 'origin', 'refs/heads/chore/ia-fix-generation'], fx.env);
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const run = defaultRunner(fx.env);
+    const opened = await pushAndOpenPrs(await commitPassed(results, 'Re-lock', run, fx.env), run, fx.env);
+    expect(opened).toEqual([
+      { root: top, url: null, error: 'the branch chore/ia-fix-generation already exists on origin' },
+    ]);
+    expect(git(top, ['ls-remote', 'origin', 'refs/heads/chore/ia-fix-generation'], fx.env)).toBe(before);
     expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
   });
   it('remove keeps the branch', async () => {

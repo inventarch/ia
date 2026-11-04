@@ -80,8 +80,40 @@ export async function commitPassed(
 }
 
 /**
- * For each repository that passed (and committed): `git push -u origin <branch>`, then `gh pr create --fill --head
- * <branch>`. A failure is reported for that repository and the others continue.
+ * Creates the branch on origin, and only creates it: the lease's empty expected value requires the remote ref not to
+ * exist, so a branch already there, even one the push would only fast-forward, is a collision and is left where it
+ * was. `--atomic` where the remote supports it; one that does not is asked again without it.
+ */
+async function createBranch(
+  worktree: string,
+  branch: string,
+  run: Runner,
+  options: { readonly cwd: string; readonly env: Env },
+) {
+  const ref = `refs/heads/${branch}`;
+  const push = (atomic: boolean) =>
+    run(
+      'git',
+      [
+        '-C',
+        worktree,
+        'push',
+        ...(atomic ? ['--atomic'] : []),
+        `--force-with-lease=${ref}:`,
+        '-u',
+        'origin',
+        `${branch}:${ref}`,
+      ],
+      options,
+    );
+  const first = await push(true);
+  return first.status !== 0 && /does not support --atomic/.test(first.stderr) ? push(false) : first;
+}
+
+/**
+ * For each repository that passed (and committed): a create-only `git push -u origin <branch>:refs/heads/<branch>`,
+ * then `gh pr create --fill --head <branch>`. A branch already on origin is reported as a collision; any failure is
+ * reported for that repository and the others continue.
  */
 export async function pushAndOpenPrs(
   results: readonly RepoResult[],
@@ -92,9 +124,16 @@ export async function pushAndOpenPrs(
   for (const result of results) {
     if (!result.ok) continue;
     const options = { cwd: result.worktree, env };
-    const pushed = await run('git', ['-C', result.worktree, 'push', '-u', 'origin', result.branch], options);
+    const pushed = await createBranch(result.worktree, result.branch, run, options);
     if (pushed.status !== 0) {
-      out.push({ root: result.root, url: null, error: lastLine(pushed.stderr) || `git push exited ${pushed.status}` });
+      const collision = /\(stale info\)|already exists/.test(pushed.stderr);
+      out.push({
+        root: result.root,
+        url: null,
+        error: collision
+          ? `the branch ${result.branch} already exists on origin`
+          : lastLine(pushed.stderr) || `git push exited ${pushed.status}`,
+      });
       continue;
     }
     const opened = await run('gh', ['pr', 'create', '--fill', '--head', result.branch], options);
