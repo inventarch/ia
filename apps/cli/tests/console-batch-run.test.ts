@@ -692,6 +692,39 @@ it.skipIf(process.platform === 'win32')(
   },
 );
 
+describe('a copy the batch may not run', () => {
+  it('a copy the base commits, or any copy under the user\u2019s IA_NO_HANDOFF=1, never runs: the running copy does', async () => {
+    const fx = fixture('batch-run-committed');
+    const copy = 'node_modules/@inventarch/cli';
+    const manifest = JSON.stringify({
+      name: '@inventarch/cli',
+      version: '3.5.0',
+      type: 'module',
+      bin: { ia: 'dist/bin.js' },
+    });
+    // The installed copy is committed in the base, so every worktree made from it holds that copy, tracked.
+    const committed = repo(fx, 'committed', {
+      'package.json': pinned('3.5.0'),
+      ...LOCKED,
+      [`${copy}/package.json`]: manifest,
+      [`${copy}/dist/bin.js`]: loggingCopy('committed'),
+      [`${copy}/dist/main.js`]: loggingCopy('committed'),
+    });
+    expect(git(committed.top, ['ls-files', '--', `${copy}/package.json`], fx.env).trim()).toBe(`${copy}/package.json`);
+    const first = await batch(fx, [rowOf(committed.top, [relock(committed.top)])], 'fix:generation');
+    expect(only(first.results).ok).toBe(true);
+    // Not committed, but the user's own environment says no hand-off: the installed copy is not run either.
+    const plain = repo(fx, 'plain', { 'package.json': pinned('3.5.0'), ...LOCKED });
+    const noHandoff = { ...fx, env: { ...fx.env, IA_NO_HANDOFF: '1' } };
+    const second = await batch(noHandoff, [rowOf(plain.top, [relock(plain.top)])], 'fix:generation');
+    expect(only(second.results).ok).toBe(true);
+    expect(existsSync(join(only(second.results).worktree, copy, 'dist', 'bin.js'))).toBe(true);
+    for (const { calls } of [first, second])
+      expect(iaSpawns(calls).map((call) => call.args[0])).toEqual([join(fx.running, 'dist', 'main.js')]);
+    expect(iaCalls(fx).map((call) => call.version)).toEqual(['running', 'running']);
+  });
+});
+
 describe('the copy each ia step runs', () => {
   const upgrade = (manager: 'npm' | 'pnpm', dir: string, at: string) =>
     offerOf('upgrade', 'Upgrade CLI to 3.5.1', [
