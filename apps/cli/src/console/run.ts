@@ -42,7 +42,7 @@ export interface RunIO {
   readonly prompt: (label: string, accept: (value: string) => string | null) => Promise<string | null>;
   readonly waitKey: () => Promise<void>;
   readonly print: (text: string) => void;
-  /** The workspace's own copy as the disk has it now: readCliDependency, then findLocalCli. */
+  /** The workspace's own copy as the disk has it now, by hand-off's rule (handoff.ts `runnableCopy`), or null. */
   readonly resolveRepo: (root: string) => LocalCli | null;
   readonly env: Env;
   /** The working directory outside a workspace. */

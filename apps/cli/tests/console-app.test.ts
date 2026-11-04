@@ -3,7 +3,8 @@
  * and a recording spawner: the argv each flow spawns, which copy's entry runs each step (resolved at that step, from
  * the disk), that a decline spawns nothing, and that the terminal is restored on quit, on a throw and on a signal.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -12,7 +13,7 @@ import type { Fix } from '../src/fix.js';
 import { iaFix } from '../src/fix.js';
 import type { LocalCli } from '../src/local-cli.js';
 import type { ProcessHooks } from '../src/console/app.js';
-import { consoleSignals, runConsole } from '../src/console/app.js';
+import { consoleSignals, resolveRepo, runConsole } from '../src/console/app.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
 import type { RunIO, SpawnOptions } from '../src/console/run.js';
@@ -388,6 +389,45 @@ describe('runOffer', () => {
     const result = await runOffer(add, state(), run.io);
     expect(result).toEqual({ completed: 0, exitCode: null });
     expect(run.events).toEqual([]);
+  });
+});
+
+describe('resolveRepo', () => {
+  /** A workspace at `member` pinning the CLI, with a copy installed in `root`'s `node_modules`; its real path. */
+  const pinnedAt = (root: string, member = root): string => {
+    mkdirSync(join(member, '.ia/src'), { recursive: true });
+    writeFileSync(join(member, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '3.6.0' } }));
+    const copy = join(root, 'node_modules/@inventarch/cli');
+    mkdirSync(join(copy, 'dist'), { recursive: true });
+    writeFileSync(
+      join(copy, 'package.json'),
+      JSON.stringify({ name: '@inventarch/cli', version: '3.6.0', bin: { ia: './dist/main.js' } }),
+    );
+    writeFileSync(join(copy, 'dist/main.js'), '');
+    return realpathSync(copy);
+  };
+  it('an ordinary installed copy is the one steps run on', () => {
+    const root = scratch('console-resolve-installed');
+    const copy = pinnedAt(root);
+    expect(resolveRepo(root, {}, RUNNING)?.packageRoot).toBe(copy);
+  });
+  it('a committed copy, or any other copy under IA_NO_HANDOFF=1, is not: steps run on the running copy', () => {
+    const committedRoot = scratch('console-resolve-committed');
+    pinnedAt(committedRoot);
+    const git = (...args: string[]) => spawnSync('git', args, { cwd: committedRoot, encoding: 'utf8' });
+    expect(git('init', '-q').status).toBe(0);
+    expect(git('add', '-f', 'node_modules/@inventarch/cli/package.json').status).toBe(0);
+    expect(resolveRepo(committedRoot, {}, RUNNING)).toBeNull();
+    const off = scratch('console-resolve-no-handoff');
+    pinnedAt(off);
+    expect(resolveRepo(off, { IA_NO_HANDOFF: '1' }, RUNNING)).toBeNull();
+  });
+  it('a copy hoisted to the workspaces root is found, as hand-off finds it', () => {
+    const repo = scratch('console-resolve-hoisted');
+    writeFileSync(join(repo, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }));
+    const member = join(repo, 'packages/app');
+    const copy = pinnedAt(repo, member);
+    expect(resolveRepo(member, {}, RUNNING)?.packageRoot).toBe(copy);
   });
 });
 /** The characters cmd.exe acts on (&, |, <, >, ^, parentheses) that its own quote state leaves outside quotes. */

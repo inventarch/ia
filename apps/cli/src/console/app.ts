@@ -16,13 +16,12 @@
  * console runs. A signal while a step's child runs is the child's to handle; Ctrl-C at the console's own confirmation
  * declines it.
  */
-import { dirname } from 'node:path';
 import type { Extension } from '../consumer.js';
 import { consents } from '../consumer.js';
 import type { DoctorRequest, DoctorView } from '../doctor.js';
 import { collectDoctor } from '../doctor.js';
+import { runnableCopy } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
-import { findLocalCli, readCliDependency } from '../local-cli.js';
 import type { Env } from '../program.js';
 import type { Capabilities } from '../render.js';
 import { resolveCapabilities } from '../render.js';
@@ -70,10 +69,13 @@ const PROCESS: ProcessHooks = {
   exit: (code) => process.exit(code),
   platform: process.platform,
 };
-/** The workspace's own copy as the disk has it now. */
-export function resolveRepo(root: string): LocalCli | null {
-  const dependency = readCliDependency(root);
-  return dependency === null ? null : findLocalCli(root, dirname(dependency.manifest));
+/**
+ * The workspace's own copy as the disk has it now, by the rule hand-off applies (handoff.ts `runnableCopy`): found up to
+ * the workspaces root that hoists it, and none when the repository commits it or the user set `IA_NO_HANDOFF=1`. Then
+ * every `ia` step runs on the running copy (`running`), as when no copy is installed.
+ */
+export function resolveRepo(root: string, env: Env, running: string): LocalCli | null {
+  return runnableCopy(root, { env, running });
 }
 
 export async function runConsole(input: {
@@ -356,7 +358,7 @@ export async function runConsole(input: {
             await wait<void>((settle) => () => settle(), undefined);
           },
           print,
-          resolveRepo: input.resolveRepo ?? resolveRepo,
+          resolveRepo: input.resolveRepo ?? ((root) => resolveRepo(root, env, input.packageRoot)),
           env,
           cwd: input.cwd,
         });
