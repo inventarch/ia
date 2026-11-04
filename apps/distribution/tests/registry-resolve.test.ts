@@ -1240,3 +1240,40 @@ it('two collections re-expanded together still replace a member they share', asy
     { id: 'acme/y', range: '^1.0.0' },
   ]);
 });
+
+it('a kit whose member is a kit records the members it expanded to, on the kit the command named', async () => {
+  const { dir } = await registry([
+    { id: 'acme/w', version: '1.0.0' },
+    { id: 'acme/x', version: '1.0.0' },
+  ]);
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/outer',
+    releases: [
+      {
+        version: '1.0.0',
+        withdrawn: false,
+        distributions: [
+          { id: 'acme/inner', range: '^1.0.0' },
+          { id: 'acme/w', range: '^1.0.0' },
+        ],
+      },
+    ],
+  });
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/inner',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.0.0' }] }],
+  });
+  const resolved = await resolveWith(workspaceRoot(), dir, [{ id: 'acme/outer', range: '*' }], {
+    allowKits: true,
+    named: ['acme/outer'],
+  });
+  expect(resolved.expandedRequests).toEqual([
+    { id: 'acme/w', range: '^1.0.0' },
+    { id: 'acme/x', range: '^1.0.0' },
+  ]);
+  expect(resolved.expandedCollections).toEqual([
+    { id: 'acme/outer', version: '1.0.0', registry: dir, members: ['acme/w', 'acme/x'] },
+  ]);
+});

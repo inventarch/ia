@@ -248,7 +248,11 @@ async function resolveWithPins(
   // pin stays selectable and preferred. Licensed releases are followed too, so a licensed-only need can be named (§7).
   const known = new Map<string, { readonly ranges: Set<string>; readonly pinned: Set<string> }>(),
     indexed = new Map<string, Indexed>();
-  const expanded: ExpandedCollection[] = [];
+  const expanded: { readonly id: string; readonly version: string; readonly registry: string; members: string[] }[] =
+    [];
+  // A kit that is a member of a kit this command expands is expanded in its turn; its members are recorded on that
+  // outer collection in its place, so a row names only ids the lock holds.
+  const nestedIn = new Map<string, (typeof expanded)[number]>();
   const pending: string[] = [],
     queued = new Set<string>(),
     followed = new Set<RegistryRelease>(),
@@ -337,12 +341,12 @@ async function resolveWithPins(
             requests.splice(at, 1);
         }
         for (const member of kit.distributions) introduced.add(member.id);
-        expanded.push({
-          id,
-          version: kit.version,
-          registry: registryLocation(entry.registry.base),
-          members: kit.distributions.map((member) => member.id),
-        });
+        const outer = explicit.has(id) ? undefined : nestedIn.get(id),
+          ids = kit.distributions.map((member) => member.id);
+        const row = outer ?? { id, version: kit.version, registry: registryLocation(entry.registry.base), members: [] };
+        if (outer === undefined) expanded.push(row);
+        row.members = [...new Set([...row.members.filter((member) => member !== id), ...ids])].sort();
+        for (const member of ids) nestedIn.set(member, row);
         for (const member of kit.distributions) {
           const existing = requests.find((item) => item.id === member.id);
           if (existing && existing.range !== member.range)

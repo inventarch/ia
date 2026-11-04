@@ -268,3 +268,30 @@ it("re-installing a collection that moves a shared member's range refuses, at pr
   }
   expect(readFileSync(join(root, KIT_COLLECTIONS), 'utf8')).toBe(recorded);
 });
+
+it('a kit whose member is a kit previews and applies, recording the members it expanded to', async () => {
+  const dir = buildFixtureRegistry([{ id: 'acme/x', version: '1.0.0' }]),
+    root = await workspace();
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/outer',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/inner', range: '^1.0.0' }] }],
+  });
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/inner',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.0.0' }] }],
+  });
+  const preview = await run(['install', 'acme/outer', '--root', root, '--registry', dir, '--json']);
+  expect(preview.exitCode, preview.stdout).toBe(0);
+  await ia(root, dir, 'install', 'acme/outer');
+  const lock = decodeDistributionLock(JSON.parse(lockText(root)));
+  expect(record(root)!.collections).toEqual([
+    {
+      id: 'acme/outer',
+      version: '1.0.0',
+      registry: dir,
+      members: [{ id: 'acme/x', version: '1.0.0', archive: lock.packages.find((row) => row.id === 'acme/x')!.archive }],
+    },
+  ]);
+});
