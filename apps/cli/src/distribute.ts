@@ -48,10 +48,16 @@ import {
   lockedReleases,
 } from '@inventarch/db/distribution';
 import type { Dependency, DistributionLock } from '@inventarch/db/distribution';
-import { ARCHIVE_CACHE, applyInstallation, cacheArchive, planInstallation } from '@inventarch/distribution/install';
+import {
+  ARCHIVE_CACHE,
+  applyInstallation,
+  cacheArchive,
+  collectionsWouldChange,
+  planInstallation,
+} from '@inventarch/distribution/install';
 import type { InstallationPlan } from '@inventarch/distribution/install';
 import type { ExpandedCollection } from '@inventarch/distribution/kit-collections';
-import { intactCollections } from '@inventarch/distribution/kit-collections';
+import { intactCollections, KIT_COLLECTIONS } from '@inventarch/distribution/kit-collections';
 import type { ProjectionDrift } from '@inventarch/distribution/projection';
 import { legacyProjectionActions, observeProjection } from '@inventarch/distribution/projection';
 import { PACKET_MARKER } from '@inventarch/runtime';
@@ -182,6 +188,8 @@ export interface PlanView {
   readonly rooted: boolean;
   /** The registry collections this plan expanded, which the apply records beside the lock (kit-collections.ts). */
   readonly collections: readonly ExpandedCollection[];
+  /** Whether the apply would write the collection record, `.ia/kit-collections.json`, which "Would write" then names. */
+  readonly writesCollections: boolean;
 }
 
 const SYMBOL: Readonly<Record<ChangeRow['kind'], SymbolName>> = {
@@ -915,6 +923,7 @@ export async function collectPlan(request: PlanRequest): Promise<PlanView> {
     retired: [],
     rooted: request.rooted ?? false,
     collections,
+    writesCollections: collectionsWouldChange(plan, collections),
   };
 }
 
@@ -1050,6 +1059,7 @@ const wouldWriteBlocks = (view: PlanView, caps: Capabilities): readonly (readonl
     `${INSTALL_PATHS.generations}/${plan.pointer.generation}/`,
     INSTALL_PATHS.lock,
     INSTALL_PATHS.active,
+    ...(view.writesCollections ? [KIT_COLLECTIONS] : []),
   ];
   return [
     [

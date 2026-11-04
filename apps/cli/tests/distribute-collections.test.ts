@@ -295,3 +295,26 @@ it('a kit whose member is a kit previews and applies, recording the members it e
     },
   ]);
 });
+
+it("the preview's Would write names the collection record exactly when the apply writes it", async () => {
+  const dir = registry(),
+    root = await workspace();
+  const recordBytes = () =>
+    existsSync(join(root, KIT_COLLECTIONS)) ? readFileSync(join(root, KIT_COLLECTIONS), 'utf8') : null;
+  // Each step previews, then applies, and the preview names the record exactly when the apply changed it.
+  const step = async (argv: string[], registered = true): Promise<boolean> => {
+    const source = registered ? ['--registry', dir] : [];
+    const preview = await run([...argv, '--root', root, ...source]);
+    expect(preview.exitCode, preview.stdout).toBe(0);
+    const named = preview.stdout.slice(preview.stdout.indexOf('Would write')).includes(KIT_COLLECTIONS),
+      before = recordBytes();
+    const applied = await run([...argv, '--root', root, ...source, '--apply', '--yes', '--json']);
+    expect(applied.exitCode, applied.stdout).toBe(0);
+    expect(named).toBe(recordBytes() !== before);
+    return named;
+  };
+  expect(await step(['install', 'acme/w'])).toBe(false);
+  expect(await step(['install', 'acme/kit@1.0.0'])).toBe(true);
+  expect(await step(['remove', 'acme/y'], false)).toBe(true);
+  expect(await step(['install', 'acme/x@^1.0.0'])).toBe(false);
+});
