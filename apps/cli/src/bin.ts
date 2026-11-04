@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * The `ia` executable. consumer-cli-contract §1.2's hand-off is decided here, before any command module loads: deciding
- * reads only directories and `package.json` files, and asks git once whether the copy is committed, so a command the
+ * reads only directories, `package.json` files and a `pnpm-workspace.yaml`, and asks git once whether the copy is committed, so a command the
  * workspace's own copy answers never pays for loading this copy's. When this copy answers, main.js runs the invocation.
  */
 import { realpathSync } from 'node:fs';

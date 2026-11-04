@@ -82,6 +82,18 @@ it("hands the invocation to the workspace's copy", async () => {
   expect(got.from).toBe(realpathSync(cli));
   expect(result.stderr).toBe('fake-stderr');
 });
+it('a copy hoisted to the workspaces root is handed to', async () => {
+  // The member pins the CLI; the package manager hoisted the copy to the root that lists it.
+  const { root } = workspace('handoff-hoisted');
+  const member = resolve(root, 'packages/x');
+  put(resolve(root, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }));
+  put(resolve(member, 'package.json'), JSON.stringify({ devDependencies: { '@inventarch/cli': '9.9.9' } }));
+  mkdirSync(resolve(member, '.ia/src'), { recursive: true });
+  const result = await run(['--version'], member, environment());
+  expect(result.status, result.stderr).toBe(0);
+  expect(handed(result.stdout).argv).toEqual(['--version']);
+  expect(handed(result.stdout).from).toBe(realpathSync(cli));
+});
 it('decides before it loads its command modules', async () => {
   // A module hook in the copy that hands off records every module it loads; the copy handed to runs without it.
   const dir = scratch('handoff-light');
