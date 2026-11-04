@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { findLocalCli, readCliDependency } from '../src/local-cli.js';
+import { findLocalCli, installRoot, ownsMember, pnpmPackages, readCliDependency } from '../src/local-cli.js';
 import { detectPackageManager, installCommand, pinCommand, satisfies } from '../src/package-manager.js';
 import type { PackageManager } from '../src/package-manager.js';
 import { cleanup, scratch } from './scratch-fixture.js';
@@ -73,6 +73,230 @@ describe('findLocalCli', () => {
     const base = scratch('local-stop');
     cliCopy(base);
     expect(findLocalCli(resolve(base, 'pkg'), resolve(base, 'pkg'))).toBeNull();
+  });
+});
+
+describe('installRoot', () => {
+  /** `repo/packages/x` pins the CLI; `repo/node_modules` holds the copy; `repo` declares `workspaces`. */
+  const layout = (name: string, workspaces: unknown): { repo: string; member: string } => {
+    const repo = scratch(name);
+    putJson(resolve(repo, 'package.json'), { workspaces });
+    cliCopy(repo);
+    const member = resolve(repo, 'packages/x');
+    putJson(resolve(member, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+    mkdirSync(resolve(member, '.ia/src'), { recursive: true });
+    return { repo, member };
+  };
+  it('an npm workspaces root that lists the member owns its hoisted copy', () => {
+    const { repo, member } = layout('root-npm', ['packages/*']);
+    expect(installRoot(member)).toBe(repo);
+    expect(findLocalCli(member, installRoot(member))).toMatchObject({ version: '3.5.0' });
+  });
+  it('a parent workspaces root that does not list the member does not own it', () => {
+    const { member } = layout('root-unrelated', ['apps/*']);
+    expect(installRoot(member)).toBe(member);
+    expect(findLocalCli(member, installRoot(member))).toBeNull();
+  });
+  it('a manifest above the IA root still finds its copy', () => {
+    const base = scratch('root-above');
+    putJson(resolve(base, 'packages/x/package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+    cliCopy(resolve(base, 'packages/x'));
+    const project = resolve(base, 'packages/x/project');
+    mkdirSync(resolve(project, '.ia/src'), { recursive: true });
+    const manifest = resolve(base, 'packages/x');
+    expect(installRoot(manifest)).toBe(manifest);
+    expect(findLocalCli(project, installRoot(manifest))).toMatchObject({ version: '3.5.0' });
+  });
+  it('yarn object form and pnpm-workspace.yaml own their members', () => {
+    const yarn = layout('root-yarn', { packages: ['packages/*'], nohoist: [] });
+    expect(installRoot(yarn.member)).toBe(yarn.repo);
+    const pnpm = layout('root-pnpm', undefined);
+    put(
+      resolve(pnpm.repo, 'pnpm-workspace.yaml'),
+      'onlyBuiltDependencies:\n  - esbuild\npackages:\n  - \'apps/*\'\n  # a comment\n  - "packages/*"\n  - tools\nother:\n  - nope\n',
+    );
+    expect(installRoot(pnpm.member)).toBe(pnpm.repo);
+    const outside = layout('root-pnpm-out', undefined);
+    put(resolve(outside.repo, 'pnpm-workspace.yaml'), 'other:\n  - packages/*\npackages:\n  - apps/*\n');
+    expect(installRoot(outside.member)).toBe(outside.member);
+  });
+  it('a pinning directory that is itself a workspace root keeps its own boundary', () => {
+    const outer = scratch('root-self');
+    putJson(resolve(outer, 'package.json'), { workspaces: ['repos/*'] });
+    cliCopy(outer);
+    const inner = resolve(outer, 'repos/inner');
+    putJson(resolve(inner, 'package.json'), {
+      workspaces: ['packages/*'],
+      devDependencies: { '@inventarch/cli': '3.5.0' },
+    });
+    expect(installRoot(inner)).toBe(inner);
+    expect(findLocalCli(inner, installRoot(inner))).toBeNull();
+  });
+  it('an unreadable pnpm-workspace.yaml keeps the boundary instead of letting discovery continue', () => {
+    const { repo, member } = layout('root-pnpm-unreadable', ['**']);
+    const nested = resolve(repo, 'repo');
+    // a directory named pnpm-workspace.yaml exists but cannot be read as a file
+    mkdirSync(resolve(nested, 'pnpm-workspace.yaml'), { recursive: true });
+    const deep = resolve(nested, 'packages/x');
+    putJson(resolve(deep, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+    expect(installRoot(deep)).toBe(deep);
+    expect(installRoot(member)).toBe(repo);
+  });
+  it('a plain pnpm scalar keeps its whole text, so a copy or an archive suffix is another path', () => {
+    for (const [name, line] of [
+      ['copy', '  - packages/x copy'],
+      ['hash', '  - packages/x#archive'],
+    ] as const) {
+      const { repo, member } = layout(`root-pnpm-scalar-${name}`, undefined);
+      put(resolve(repo, 'pnpm-workspace.yaml'), `packages:\n${line}\n`);
+      expect(installRoot(member)).toBe(member);
+    }
+    const { repo, member } = layout('root-pnpm-comment', undefined);
+    put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - packages/x   # the one\n');
+    expect(installRoot(member)).toBe(repo);
+  });
+  it('a single-quoted pnpm scalar decodes doubled quotes and never truncates to a prefix', () => {
+    const quoted = layout('root-pnpm-sq', undefined);
+    const apostrophe = resolve(quoted.repo, "packages/x's");
+    putJson(resolve(apostrophe, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+    put(resolve(quoted.repo, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/x''s'\n");
+    expect(installRoot(apostrophe)).toBe(quoted.repo);
+    expect(installRoot(quoted.member)).toBe(quoted.member);
+  });
+  it('a double-quoted pnpm scalar decodes its escaped quote and backslash; other escapes are unsupported', () => {
+    const { repo, member } = layout('root-pnpm-dq', undefined);
+    if (process.platform !== 'win32') {
+      // a quote cannot be a directory name on Windows, so the decoded form is only checked elsewhere
+      const quote = resolve(repo, 'packages/q"x');
+      putJson(resolve(quote, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+      put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/q\\"x"\n');
+      expect(installRoot(quote)).toBe(repo);
+    }
+    // an escaped closing quote leaves the scalar open, so it must not truncate to packages/x
+    put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/x\\"\n');
+    expect(installRoot(member)).toBe(member);
+    put(resolve(repo, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/\\x78"\n');
+    expect(installRoot(member)).toBe(member);
+  });
+  it('an unsupported pnpm entry owns nothing: continuation lines, block scalars, open quotes, trailing text', () => {
+    const cases: [string, string][] = [
+      ['continuation', 'packages:\n  - packages/x\n    copy\n'],
+      ['block', 'packages:\n  - |\n    packages/x\n'],
+      ['unterminated', "packages:\n  - 'packages/x\n"],
+      ['trailing', "packages:\n  - 'packages/x' tail\n"],
+    ];
+    for (const [name, yaml] of cases) {
+      const { repo, member } = layout(`root-pnpm-bad-${name}`, undefined);
+      const copy = resolve(repo, 'packages/x copy');
+      putJson(resolve(copy, 'package.json'), { devDependencies: { '@inventarch/cli': '3.5.0' } });
+      put(resolve(repo, 'pnpm-workspace.yaml'), yaml);
+      expect(installRoot(member)).toBe(member);
+      expect(installRoot(copy)).toBe(copy);
+    }
+  });
+  it('an unindented pnpm list parses', () => {
+    const { repo, member } = layout('root-pnpm-flush', undefined);
+    put(resolve(repo, 'pnpm-workspace.yaml'), "packages:\n- 'packages/*'\n- apps/*\nother:\n- nope\n");
+    expect(installRoot(member)).toBe(repo);
+  });
+  it('a root that lists the member only through braces does not own it, so the walk stays at the member', () => {
+    const { member } = layout('root-braces', ['packages/{x,y}']);
+    expect(installRoot(member)).toBe(member);
+    expect(findLocalCli(member, installRoot(member))).toBeNull();
+  });
+  it('only the nearest workspace root is consulted', () => {
+    const { repo, member } = layout('root-nearest', ['packages/*']);
+    const inner = resolve(repo, 'packages');
+    putJson(resolve(inner, 'package.json'), { workspaces: ['other/*'] });
+    expect(installRoot(member)).toBe(member);
+  });
+});
+
+describe('pnpmPackages', () => {
+  const list = (...lines: string[]): string[] => pnpmPackages(`packages:\n${lines.map((l) => `  ${l}\n`).join('')}`);
+  it('decodes quoted scalars', () => {
+    expect(list("- 'packages/x''s'")).toEqual(["packages/x's"]);
+    expect(list('- "packages/q\\"x"')).toEqual(['packages/q"x']);
+    expect(list('- "packages/a\\\\b"')).toEqual(['packages/a\\b']);
+    expect(list("- 'a' # note", '- plain # note', '- "b"')).toEqual(['a', 'plain', 'b']);
+  });
+  it('drops unsupported entries whole, keeping the supported ones', () => {
+    expect(list("- 'packages/x", '- ok')).toEqual(['ok']);
+    expect(list('- "packages/x\\"', '- ok')).toEqual(['ok']);
+    expect(list('- "packages/\\x78"', '- ok')).toEqual(['ok']);
+    expect(list("- 'packages/x' tail", '- ok')).toEqual(['ok']);
+    expect(list('- packages/x', '    copy', '- ok')).toEqual(['ok']);
+    expect(list('- |', '    packages/x', '- ok')).toEqual(['ok']);
+    expect(list('- >', '    packages/x', '- ok')).toEqual(['ok']);
+    expect(list('- [packages/x]', '- ok')).toEqual(['ok']);
+  });
+});
+
+describe('ownsMember', () => {
+  it('matches one segment for *, any depth for **, and normalises ./', () => {
+    expect(ownsMember(['packages/*'], 'packages/x')).toBe(true);
+    expect(ownsMember(['packages/*'], 'packages/x/y')).toBe(false);
+    expect(ownsMember(['packages/**'], 'packages/x')).toBe(true);
+    expect(ownsMember(['packages/**'], 'packages/x/y')).toBe(true);
+    expect(ownsMember(['./packages/*'], 'packages/x')).toBe(true);
+    expect(ownsMember(['packages/x/'], 'packages/x')).toBe(true);
+    expect(ownsMember(['apps/*'], 'packages/x')).toBe(false);
+  });
+  it('answers a pathological glob promptly', () => {
+    const glob = [...Array(8).fill('**'), 'missing'].join('/');
+    const member = Array.from({ length: 20 }, (_, i) => `s${i}`).join('/');
+    const started = Date.now();
+    expect(ownsMember([glob], member)).toBe(false);
+    expect(Date.now() - started).toBeLessThan(300);
+  });
+  it('answers interleaved globstars promptly, so memoisation is what bounds them', () => {
+    const glob = [...Array(9).fill('**/s'), 'missing'].join('/');
+    const member = Array(30).fill('s').join('/');
+    const started = Date.now();
+    expect(ownsMember([glob], member)).toBe(false);
+    expect(Date.now() - started).toBeLessThan(300);
+  });
+  it('answers a run of stars inside one segment promptly', () => {
+    const started = Date.now();
+    expect(ownsMember([`${'*'.repeat(30)}z`], 'my-repo-project')).toBe(false);
+    expect(ownsMember([`packages/${'*'.repeat(30)}z`], 'packages/my-repo-project')).toBe(false);
+    expect(ownsMember([`${'*'.repeat(30)}t`], 'my-repo-project')).toBe(true);
+    expect(Date.now() - started).toBeLessThan(300);
+  });
+  it('answers stars between literals promptly, so matching one segment is linear', () => {
+    const started = Date.now();
+    expect(ownsMember([`${'*a'.repeat(15)}b`], 'a'.repeat(40))).toBe(false);
+    expect(ownsMember([`${'*a'.repeat(15)}*`], 'a'.repeat(40))).toBe(true);
+    expect(ownsMember([`**/${'*'.repeat(30)}z/**/${'*a'.repeat(15)}b`], Array(20).fill('a'.repeat(30)).join('/'))).toBe(
+      false,
+    );
+    expect(Date.now() - started).toBeLessThan(300);
+  });
+  it('matches * within a segment as any run of characters', () => {
+    expect(ownsMember(['packages/x*'], 'packages/x')).toBe(true);
+    expect(ownsMember(['packages/*-cli'], 'packages/ia-cli')).toBe(true);
+    expect(ownsMember(['packages/*-cli'], 'packages/ia-cli2')).toBe(false);
+    expect(ownsMember(['packages/a*b*c'], 'packages/abbc')).toBe(true);
+    expect(ownsMember(['packages/a*b*c'], 'packages/acb')).toBe(false);
+    expect(ownsMember(['packages/x.y'], 'packages/xzy')).toBe(false);
+  });
+  it('drops an entry that uses {, }, ?, [ or ], so it owns nothing, even a member spelled like it', () => {
+    for (const glob of ['packages/{x,y}', 'packages/?', 'packages/[x]', 'packages/x}', 'packages/x]']) {
+      expect(ownsMember([glob], glob)).toBe(false);
+      expect(ownsMember([glob], 'packages/x')).toBe(false);
+      expect(ownsMember([glob, 'packages/*'], 'packages/x')).toBe(true);
+    }
+  });
+  it('an excluding entry in an unsupported form may exclude any member, so it owns none', () => {
+    expect(ownsMember(['packages/*', '!packages/{y,z}'], 'packages/x')).toBe(false);
+    expect(ownsMember(['packages/*', '!packages/[yz]'], 'packages/x')).toBe(false);
+    expect(ownsMember(['!packages/{y,z}', 'packages/*'], 'packages/x')).toBe(true);
+  });
+  it('lets the last matching glob decide, so ! excludes', () => {
+    const globs = ['packages/**', '!packages/private'];
+    expect(ownsMember(globs, 'packages/x')).toBe(true);
+    expect(ownsMember(globs, 'packages/private')).toBe(false);
+    expect(ownsMember(['!packages/private', 'packages/**'], 'packages/private')).toBe(true);
   });
 });
 
@@ -193,4 +417,21 @@ it('adds the workspace-root flag only where the manager refuses without it', () 
   writeFileSync(resolve(rc, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }));
   writeFileSync(resolve(rc, '.yarnrc.yml'), '');
   expect(pinCommand('yarn', '3.5.1', rc)).toBe('yarn add -D @inventarch/cli@3.5.1');
+});
+it('takes Yarn 1 -W exactly where installRoot sees a workspaces root', () => {
+  const forms: [string, unknown, boolean][] = [
+    ['list', ['packages/*'], true],
+    ['packages object', { packages: ['packages/*'] }, true],
+    ['empty object', {}, false],
+    ['nohoist only', { nohoist: ['**'] }, false],
+    ['string', 'packages/*', false],
+  ];
+  for (const [name, workspaces, root] of forms) {
+    const repo = scratch(`pin-yarn-${name.replaceAll(' ', '-')}`);
+    putJson(resolve(repo, 'package.json'), { workspaces });
+    const member = resolve(repo, 'packages/x');
+    putJson(resolve(member, 'package.json'), {});
+    expect(installRoot(member) === repo, name).toBe(root);
+    expect(pinCommand('yarn', '3.5.1', repo), name).toBe(`yarn add -D${root ? ' -W' : ''} @inventarch/cli@3.5.1`);
+  }
 });
