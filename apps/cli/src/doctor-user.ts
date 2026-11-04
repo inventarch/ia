@@ -34,7 +34,7 @@ import type { Channel } from './channel.js';
 import { describeChannel, detectChannel, updateInstruction } from './channel.js';
 import type { Check, CheckStatus, Section } from './doctor.js';
 import { committed, HANDOFF_FROM, NO_HANDOFF } from './handoff.js';
-import { findLocalCli, readCliDependency } from './local-cli.js';
+import { resolveWorkspaceCli } from './local-cli.js';
 import { readMarketplaceRecord } from './marketplace-record.js';
 import type { PackageManager } from './package-manager.js';
 import {
@@ -305,8 +305,9 @@ const versionAt = (directory: string): string | null => {
 
 /**
  * §7.3 `cli-version`: which `@inventarch/cli` copy runs for the workspace, the CLI dependency its nearest manifest
- * lists, and whether the installed copy satisfies it (consumer-cli-contract §1.2). Local reads only. The remedy is the
- * package manager's own command, and none when the manager is undeclared or its lockfiles disagree.
+ * lists, and whether the installed copy satisfies it (consumer-cli-contract §1.2). Local reads only. The manager is the
+ * one the install's owning directory declares (the workspaces root that hoists the copy, else the manifest's own), and
+ * the remedy is its own command, run there; none when the manager is undeclared or its lockfiles disagree.
  */
 export function cliVersionRow(input: {
   readonly root: string;
@@ -319,12 +320,12 @@ export function cliVersionRow(input: {
   readonly committed?: (packageRoot: string) => boolean;
 }): Check {
   const { root, version, env } = input;
-  const dependency = readCliDependency(root);
-  const local = dependency === null ? null : findLocalCli(root, dirname(dependency.manifest));
+  // The same resolution hand-off acts on, so the row names the copy a typed command runs.
+  const { dependency, owner, local } = resolveWorkspaceCli(root);
   const managed = dependency === null ? root : dirname(dependency.manifest);
-  const { manager, conflict } = detectPackageManager(managed);
-  // The remedy keeps the text it has always had; the fix names the manifest's directory explicitly, since the console
-  // runs it at the workspace root, which an ancestor manifest is not (host-plugin-distribution §7.3).
+  const { manager, conflict } = detectPackageManager(owner);
+  // The remedy is the text a person types; the fix names its directory explicitly, since the console runs it at the
+  // workspace root, which the owner or an ancestor manifest is not (host-plugin-distribution §7.3).
   const manage = (
     command: (manager: PackageManager) => string,
     argv: (manager: PackageManager) => readonly string[],
@@ -332,7 +333,15 @@ export function cliVersionRow(input: {
     manager === null
       ? { remedy: null, fix: null }
       : { remedy: command(manager), fix: externalFix(argv(manager), 'repo').fix };
-  const install = manage(installCommand, (m) => installArgv(m, managed, root));
+  const shown = (path: string): string => {
+    const from = relative(root, path);
+    return (from === '' || from.startsWith('..') || isAbsolute(from) ? path : from).replaceAll('\\', '/');
+  };
+  // An install runs where the owner is; it is named when that is not the workspace itself.
+  const install = manage(
+    (m) => (owner === root ? installCommand(m) : `In ${owner}: ${installCommand(m)}`),
+    (m) => installArgv(m, owner, root),
+  );
   const suffix =
     conflict.length > 0
       ? `; package managers disagree: ${conflict.join(', ')}`
@@ -357,11 +366,10 @@ export function cliVersionRow(input: {
       ),
     );
   if (local === null) {
-    const path = relative(root, dependency.manifest);
-    const shown = path === '' || path.startsWith('..') || isAbsolute(path) ? dependency.manifest : path;
+    const between = owner === managed ? 'it' : shown(owner);
     return cli(
       'warn',
-      `${shown.replaceAll('\\', '/')} lists @inventarch/cli ${dependency.range}, which is not installed between the workspace and it; running ${version}`,
+      `${shown(dependency.manifest)} lists @inventarch/cli ${dependency.range}, which is not installed between the workspace and ${between}; running ${version}`,
       install,
     );
   }
