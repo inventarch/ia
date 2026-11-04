@@ -132,16 +132,25 @@ const matches = (glob: readonly string[], member: readonly string[]): boolean =>
   return from(0, 0);
 };
 
+/** Glob syntax beyond `*`, `**` and `!` (braces, `?` and character classes), which this module does not read. */
+const UNSUPPORTED = /[{}?[\]]/;
 /**
- * Whether workspace `globs` list `member`, a `/`-separated path relative to the workspace root. `*` is one segment,
- * `**` any number, a leading `!` excludes, and the last matching glob decides, as in npm.
+ * Whether workspace `globs` list `member`, a `/`-separated path relative to the workspace root. Only `*` (any run of
+ * characters within one segment), `**` (any number of segments) and a leading `!` (excludes) are read, and the last
+ * matching glob decides, as in npm. An entry that uses `{`, `}`, `?`, `[` or `]` is not read: it owns nothing, and an
+ * excluding one may exclude any member, so it ends ownership. Either way hand-off falls back to the member's directory.
  */
 export function ownsMember(globs: readonly string[], member: string): boolean {
   const path = member.split('/').filter((part) => part !== '' && part !== '.');
   let owned = false;
   for (const raw of globs) {
     const negated = raw.startsWith('!');
-    const parts = (negated ? raw.slice(1) : raw).split('/').filter((part) => part !== '' && part !== '.');
+    const body = negated ? raw.slice(1) : raw;
+    if (UNSUPPORTED.test(body)) {
+      if (negated) owned = false;
+      continue;
+    }
+    const parts = body.split('/').filter((part) => part !== '' && part !== '.');
     if (matches(parts, path)) owned = !negated;
   }
   return owned;

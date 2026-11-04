@@ -199,6 +199,11 @@ describe('installRoot', () => {
     put(resolve(repo, 'pnpm-workspace.yaml'), "packages:\n- 'packages/*'\n- apps/*\nother:\n- nope\n");
     expect(installRoot(member)).toBe(repo);
   });
+  it('a root that lists the member only through braces does not own it, so the walk stays at the member', () => {
+    const { member } = layout('root-braces', ['packages/{x,y}']);
+    expect(installRoot(member)).toBe(member);
+    expect(findLocalCli(member, installRoot(member))).toBeNull();
+  });
   it('only the nearest workspace root is consulted', () => {
     const { repo, member } = layout('root-nearest', ['packages/*']);
     const inner = resolve(repo, 'packages');
@@ -274,6 +279,18 @@ describe('ownsMember', () => {
     expect(ownsMember(['packages/a*b*c'], 'packages/abbc')).toBe(true);
     expect(ownsMember(['packages/a*b*c'], 'packages/acb')).toBe(false);
     expect(ownsMember(['packages/x.y'], 'packages/xzy')).toBe(false);
+  });
+  it('drops an entry that uses {, }, ?, [ or ], so it owns nothing, even a member spelled like it', () => {
+    for (const glob of ['packages/{x,y}', 'packages/?', 'packages/[x]', 'packages/x}', 'packages/x]']) {
+      expect(ownsMember([glob], glob)).toBe(false);
+      expect(ownsMember([glob], 'packages/x')).toBe(false);
+      expect(ownsMember([glob, 'packages/*'], 'packages/x')).toBe(true);
+    }
+  });
+  it('an excluding entry in an unsupported form may exclude any member, so it owns none', () => {
+    expect(ownsMember(['packages/*', '!packages/{y,z}'], 'packages/x')).toBe(false);
+    expect(ownsMember(['packages/*', '!packages/[yz]'], 'packages/x')).toBe(false);
+    expect(ownsMember(['!packages/{y,z}', 'packages/*'], 'packages/x')).toBe(true);
   });
   it('lets the last matching glob decide, so ! excludes', () => {
     const globs = ['packages/**', '!packages/private'];
