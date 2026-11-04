@@ -1,0 +1,16 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "minor",
+  "title": "Seat a root several workspaces declare as shared",
+  "summary": "A path under a root several workspaces declare in composition.sources now resolves as shared (resolveSeat returns by: 'shared' with every declarer in declarers, and no seat) instead of seating at whichever declarer's identity sorts first. Mandate resolution reads every declarer's closure there and lets a mandate's authority.scope govern only when it names every declarer; ia position names the declarers; and ia preview and ia author accept an edit there when the repository's workspace is any declarer, so they no longer refuse it as IA-CLI-EDIT-UNOWNED.",
+  "packages": [
+    "@inventarch/cli",
+    "@inventarch/db",
+    "@inventarch/runtime"
+  ],
+  "paths": [
+    "apps/cli/",
+    "packages/db/",
+    "packages/runtime/"
+  ]
+}

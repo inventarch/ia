@@ -262,6 +262,89 @@ describe('the four forms', () => {
   });
 });
 
+describe('a root the workspace shares with another', () => {
+  // `alpha` sorts before `demo` and declares `.ia/src/shared` too: the root seats as shared (db D02b), so the
+  // repository's workspace owns it as one of its declarers, not by sorting first.
+  const alpha = 'workspace-system/definition/workspace/alpha';
+  const shared = (): string =>
+    workspace((root) => {
+      rewrite(root, '.ia/src/workspace.ia', (text) =>
+        text.replace('sources [".ia/src @authored"]', 'sources [".ia/src @authored", ".ia/src/shared @authored"]'),
+      );
+      mkdirSync(resolve(root, '.ia/src/alpha'), { recursive: true });
+      writeFileSync(
+        resolve(root, '.ia/src/alpha/workspace.ia'),
+        '#! ia 1.0\n\n@workspace alpha\n  meaning\n    says "A department."\n    answers "Which sources make up the department?"\n  composition\n    systems [@system work-system]\n    sources [".ia/src/alpha @authored", ".ia/src/shared @authored"]\n',
+      );
+      mkdirSync(resolve(root, '.ia/src/shared'), { recursive: true });
+      writeFileSync(
+        resolve(root, '.ia/src/shared/work.ia'),
+        '#! ia 1.0\n\n@mandate shared-mandate\n  meaning\n    says "The authority both declarers grant over the shared records."\n    answers "Who may change the shared records?"\n  governance\n    requires "Claim no host permission or execution from this mandate."\n  authority\n    participant @agent demo\n    moves [Observation, Verification, Synthesis]\n    scope [@workspace alpha, @workspace demo]\n\n@milestone m5\n  meaning\n    says "A shared milestone."\n  work\n    title "Shared"\n    status open\n    plan @plan p1\n    exit "Done."\n',
+      );
+    });
+  it('previews a new record and a --set under the shared root, governed by the mandate scoped to every declarer', async () => {
+    const root = shared();
+    const db = open(root, { cache: false });
+    try {
+      expect(db.resolveSeat('.ia/src/shared/work.ia')).toMatchObject({ by: 'shared', declarers: [alpha, demo] });
+    } finally {
+      db.close();
+    }
+    const created = await preview(root, [
+      'task',
+      't1',
+      'meaning.says=A shared task',
+      'work.title=Shared',
+      'work.status=open',
+      'milestone=@milestone m5',
+      '--at',
+      '.ia/src/shared/task.ia',
+    ]);
+    expect(created.exitCode, created.stdout).toBe(0);
+    expect(body(created)).toMatchObject({
+      path: '.ia/src/shared/task.ia',
+      exists: false,
+      clean: true,
+      profile: { actor: participant, mandates: [mandate('shared-mandate')] },
+    });
+    const set = await preview(root, ['--set', '@milestone m5', 'work.owner=Tom']);
+    expect(set.exitCode, set.stdout).toBe(0);
+    expect(body(set)).toMatchObject({
+      path: '.ia/src/shared/work.ia',
+      identity: 'work-system/definition/milestone/m5',
+      clean: true,
+      profile: { mandates: [mandate('shared-mandate')] },
+    });
+    // ia position names both declarers, seats at neither, and lists the mandate scoped to every declarer.
+    const seated = await run(['position', '--seat', '.ia/src/shared/work.ia', '--shape', 'governance', '--root', root]);
+    expect(seated.exitCode, seated.stdout).toBe(0);
+    expect(seated.stdout).toMatch(new RegExp(`shared by\\s+${alpha}\\s+${demo}`));
+    expect(seated.stdout).toMatch(/one of the workspaces that\s+declare the shared root it lies under/);
+    const json = await run([
+      'position',
+      '--seat',
+      '.ia/src/shared/work.ia',
+      '--shape',
+      'governance',
+      '--root',
+      root,
+      '--json',
+    ]);
+    const positioned = JSON.parse(json.stdout) as {
+      body: { seat: unknown; mandates: readonly { identity: string }[] };
+    };
+    expect(positioned.body.seat).toEqual({
+      kind: 'location',
+      path: '.ia/src/shared/work.ia',
+      declarers: [alpha, demo],
+    });
+    expect(positioned.body.mandates.map((entry) => entry.identity)).toEqual([mandate('shared-mandate')]);
+    // A root only the other workspace declares stays unowned.
+    const theirs = await refused(root, ['task', 't2', '--at', '.ia/src/alpha/task.ia'], 'IA-CLI-EDIT-UNOWNED');
+    expect(theirs['message']).toContain(`${demo} declares in composition.sources`);
+  });
+});
+
 describe('what counts against a candidate', () => {
   /** An error already in the workspace, at `path`: a milestone missing its required exit, which admission refuses. */
   const BROKEN =

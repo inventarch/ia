@@ -75,6 +75,12 @@ export interface ResolvedSeat {
   /** A location's canonical workspace-relative path. */
   readonly path?: string;
   /**
+   * For a location, or the repository root of a workspace seat, under a root several `@workspace` records in the scope
+   * share (the database resolution's `shared`): every declarer, in identity order. It belongs to each, is seated at
+   * none of them and has no identity.
+   */
+  readonly declarers?: readonly string[];
+  /**
    * `undeclared` exactly when no admitted record in the scope is declared at a workspace or location seat (the
    * database resolution's `unknown`); a workspace seat then has no identity.
    */
@@ -242,6 +248,7 @@ export function resolveScopeKey(handle: ReadHandle, within: string, key: ScopeKe
       seat: {
         kind: 'workspace',
         ...(resolution.seat === undefined ? {} : { identity: resolution.seat }),
+        ...(resolution.declarers === undefined ? {} : { declarers: resolution.declarers }),
         ...unknown(resolution),
       },
       resolution,
@@ -257,7 +264,12 @@ export function resolveScopeKey(handle: ReadHandle, within: string, key: ScopeKe
     );
   return freeze({
     key: { ...valid, seat: { path: resolution.path } },
-    seat: { kind: 'location', path: resolution.path, ...unknown(resolution) },
+    seat: {
+      kind: 'location',
+      path: resolution.path,
+      ...(resolution.declarers === undefined ? {} : { declarers: resolution.declarers }),
+      ...unknown(resolution),
+    },
     resolution,
     coordinate,
   });

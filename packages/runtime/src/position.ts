@@ -47,8 +47,11 @@ export type PositionVia =
   | { readonly by: 'word'; readonly system: string }
   /** A claimant of a location seat, with each of its selections that selects the path (graph G06c). */
   | { readonly by: 'claim'; readonly matches: readonly ClaimMatch[] }
-  /** The record a location seat is declared at, and the rule that declares it (db D02b). */
-  | { readonly by: 'declared-at'; readonly rule: 'system' | 'root' | 'repository' }
+  /**
+   * The record a location seat is declared at, and the rule that declares it (db D02b); for a root several workspaces
+   * share, `shared`, each of its declarers.
+   */
+  | { readonly by: 'declared-at'; readonly rule: 'system' | 'root' | 'shared' | 'repository' }
   /**
    * A field match, not a row: the entry's `subject.subject-word` names the word, or its
    * `subject.subject-kind` the kind, of a record. It costs no hop and claims no relation or consent (R17).
@@ -92,6 +95,8 @@ export interface LoadedRecord extends PositionRecord {
 /** The loaded entry of a seat that is no record: a location, or a workspace seat no record declares (`''`). */
 export interface LoadedPlace {
   readonly path: string;
+  /** Under a root several workspaces share (db D02b `shared`): every declarer, in identity order. */
+  readonly declarers?: readonly string[];
 }
 export type LoadedEntry = LoadedRecord | LoadedPlace;
 export interface PositionPointer extends PositionRecord {
@@ -419,9 +424,13 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     const holder = roots.find((r) => reaches(r.root, root))?.workspace;
     return [repository(), holder].find((at) => at !== undefined && holds(ownOf(at), identity));
   };
-  const home = workspaceOf(seat.kind === 'location' ? resolution?.seat : seatId),
-    own = ownOf(home);
-  const inside = (identity: string): boolean => holds(own, identity);
+  // A seat under a root several workspaces share (db D02b `shared`) belongs to each equally, so no one of them is its
+  // home: its closure is the union of every declarer's.
+  const declarers = seat.kind !== 'record' && resolution?.by === 'shared' ? resolution.declarers! : undefined;
+  const home = declarers !== undefined ? undefined : workspaceOf(seat.kind === 'location' ? resolution?.seat : seatId),
+    own = declarers !== undefined ? new Set(declarers.flatMap((declarer) => [...ownOf(declarer)])) : ownOf(home);
+  const inside = (identity: string): boolean =>
+    declarers !== undefined ? declarers.some((declarer) => holds(ownOf(declarer), identity)) : holds(own, identity);
 
   // C0, at cost 0 and one level from the seat: its field references both ways; a workspace seat's capture members; a
   // @system seat's word members; a location's declared-at record and claimants. The first class to reach one names it.
@@ -442,6 +451,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   }
   if (seat.kind === 'location' && resolution !== undefined) {
     if (resolution.seat !== undefined) compose(resolution.seat, { by: 'declared-at', rule: resolution.by! });
+    for (const declarer of declarers ?? []) compose(declarer, { by: 'declared-at', rule: 'shared' });
     for (const claimant of resolution.claimants) compose(claimant.identity, { by: 'claim', matches: claimant.matches });
   }
   /**
@@ -687,6 +697,21 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     for (const row of rowsOf(home))
       if (row.kind === 'field-ref' && row.direction === 'in' && row.field === 'authority.scope')
         govern(row.counterpart, viaRow(home, row));
+  // Under a shared root, a scope governs only when it names every declarer: one naming some of them does not.
+  if (declarers !== undefined) {
+    const scopes = (declarer: string, identity: string): boolean =>
+      rowsOf(declarer).some(
+        (row) =>
+          row.kind === 'field-ref' &&
+          row.direction === 'in' &&
+          row.field === 'authority.scope' &&
+          row.counterpart === identity,
+      );
+    for (const row of rowsOf(declarers[0]!))
+      if (row.kind === 'field-ref' && row.direction === 'in' && row.field === 'authority.scope')
+        if (declarers.every((declarer) => scopes(declarer, row.counterpart)))
+          govern(row.counterpart, viaRow(declarers[0]!, row));
+  }
   const mandates = [...governing.keys()].sort(byBand);
 
   /** The steward the @system `system` names in `head.steward`, when the scope admits that @system. */
@@ -752,7 +777,9 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
   const unknowns: PositionUnknown[] = [];
   if (seat.kind === 'location') {
     const path = seat.path!,
-      declaredAt = resolution?.seat !== undefined && nodes.has(resolution.seat);
+      declaredAt =
+        (resolution?.seat !== undefined && nodes.has(resolution.seat)) ||
+        (declarers?.some((declarer) => nodes.has(declarer)) ?? false);
     // A narrowed scope prunes the claimants it does not admit (db D09), so it can say only that none in it claims.
     if (!declaredAt && !resolution?.claimants.some((claimant) => nodes.has(claimant.identity)))
       unknowns.push({
@@ -777,7 +804,7 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
       subject: home,
       message: `workspace declares no sources: ${home} has no capture members, and ${fallback}`,
     });
-  else if (home === undefined && seat.kind !== 'workspace')
+  else if (home === undefined && declarers === undefined && seat.kind !== 'workspace')
     unknowns.push({ kind: 'sources', message: `no @workspace holds the seat, and ${fallback}` });
   if (handle.isCompleteScope(within)) {
     const spans = entered.map((identity) => nodes.get(identity)!);
@@ -813,7 +840,9 @@ export function positionBody(handle: ReadHandle, within: string, resolved: Resol
     key,
     seat,
     loaded: [
-      seatId === undefined ? { path: seat.path ?? '' } : loadedRecord(seatId, reachOf(seatId)),
+      seatId === undefined
+        ? { path: seat.path ?? '', ...(declarers === undefined ? {} : { declarers }) }
+        : loadedRecord(seatId, reachOf(seatId)),
       ...chosen.map((identity) => loadedRecord(identity, reachOf(identity))),
     ],
     rules: rules.map((identity) => loadedRecord(identity, ruleReach(identity))),

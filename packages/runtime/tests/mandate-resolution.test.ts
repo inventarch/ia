@@ -386,6 +386,76 @@ it('reads for a path alone the closure of the workspace position seats it in, th
   expect(identities(db, { path: own, workspace: demo })).toEqual([mandate('demo-mandate')]);
 });
 
+it('reads at a root several workspaces share every declarer closure, and a scope there names every declarer', () => {
+  const root = freshInit(
+    `${records.replace('sources [".ia/src @authored"]', 'sources [".ia/src @authored", ".ia/src/shared @authored"]')}`,
+  );
+  const dept = 'workspace-system/definition/workspace/dept';
+  put(
+    root,
+    '.ia/src/dept/workspace.ia',
+    `#! ia 1.0\n\n@workspace dept\n  meaning\n    says "A department."\n    answers "Which sources make up the department?"\n  composition\n    systems [@system agent-system]\n    sources [".ia/src/dept @authored", ".ia/src/shared @authored"]\n${agent('zed')}${authorized(
+      'dept-mandate',
+      ['participant @agent zed', 'moves [Observation]', 'scope [@workspace dept]'],
+    )}`,
+  );
+  put(
+    root,
+    '.ia/src/shared/rules.ia',
+    `#! ia 1.0\n${authorized('shared-mandate', [
+      'participant @agent demo',
+      'moves [Observation, Synthesis]',
+      'scope [@workspace demo, @workspace dept]',
+    ])}${authorized('partial-mandate', ['participant @agent demo', 'moves [Execution]', 'scope [@workspace dept]'])}${authorized(
+      'covering-mandate',
+      ['participant @agent zed', 'moves [Observation]', 'covers [".ia/src/shared/"]'],
+    )}`,
+  );
+  const db = database(root),
+    within = token(db),
+    path = '.ia/src/shared/rules.ia';
+  expect(errors(db)).toEqual([]);
+  expect(db.resolveSeat(path, { within })).toMatchObject({ by: 'shared', declarers: [demo, dept] });
+  // For a path alone, the claimants govern, read in every declarer's closure.
+  expect(identities(db, { path })).toEqual([mandate('covering-mandate')]);
+  // With a workspace, the scope governs only when it names every declarer: neither the repository's own mandate nor a
+  // department's governs the records they share, whichever of them is asked.
+  for (const workspace of [demo, dept])
+    expect(identities(db, { path, workspace }), workspace).toEqual([
+      mandate('covering-mandate'),
+      mandate('shared-mandate'),
+    ]);
+  // Away from the shared root each workspace keeps its own.
+  expect(identities(db, { workspace: dept })).toEqual([
+    mandate('dept-mandate'),
+    mandate('partial-mandate'),
+    mandate('shared-mandate'),
+  ]);
+  // The edit guard's workspace for the shared path is the repository's own, a declarer, so its default actor acts.
+  expect(seatedWorkspace(db, within, path)).toBe(demo);
+  expect(
+    profileRefusal(governingMandates(db, within, { actor: participant, workspace: demo, path }), 'author'),
+  ).toEqual({});
+  expect(
+    profileRefusal(governingMandates(db, within, { actor: participant, workspace: demo, path }), 'effect').refusal,
+  ).toMatchObject({ code: 'IA-RUNTIME-MANDATE-MOVE' });
+  // Position names the declarers, not one of them, and lists the same mandates.
+  const body = position(db, within, { seat: { path }, shape: 'governance' }).body;
+  expect(body.seat).toEqual({ kind: 'location', path, declarers: [demo, dept] });
+  expect(body.loaded[0]).toEqual({ path, declarers: [demo, dept] });
+  expect(body.mandates.map((entry) => entry.identity)).toEqual([
+    mandate('covering-mandate'),
+    mandate('shared-mandate'),
+  ]);
+  expect(body.unknowns.filter((unknown) => unknown.kind === 'seat' || unknown.kind === 'sources')).toEqual([]);
+  // A department alone in the scope seats the root by `root` at it, its own mandates governing.
+  const narrow = db.resolveScope({
+    identities: [dept, mandate('dept-mandate'), mandate('shared-mandate'), mandate('partial-mandate')],
+  }).token;
+  expect(db.resolveSeat(path, { within: narrow })).toMatchObject({ seat: dept, by: 'root' });
+  expect(seatedWorkspace(db, narrow, path)).toBe(dept);
+});
+
 it('folds a path and each covers selection with `fold`, as the edit guard does where the volume folds names', () => {
   const db = database(
     freshInit(

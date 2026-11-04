@@ -565,6 +565,7 @@ function admitted(reader: ReadHandle, within: string) {
   return {
     read,
     nodes,
+    repository,
     /** The admitted `@<word>` records the typed field references `identity` states at `field` resolve to. */
     targets: (identity: string, field: string, word: string): readonly string[] =>
       reader
@@ -591,6 +592,11 @@ function admitted(reader: ReadHandle, within: string) {
       const own = ownOf(workspace);
       return (identity: string): boolean => holds(own, identity);
     },
+    /** The union of the closures of `workspaces`, the declarers of a shared root (db D02b `shared`). */
+    closures: (workspaces: readonly string[]) => {
+      const owns = workspaces.map(ownOf);
+      return (identity: string): boolean => owns.some((own) => holds(own, identity));
+    },
     /**
      * The workspace position seats a record in (its workspaceOf): the record itself when it is a `@workspace`; else, of
      * the repository's own `@workspace` and the one whose declared root holds the record's membership root, the first
@@ -614,7 +620,8 @@ function admitted(reader: ReadHandle, within: string) {
  * governs here. Only that closure is position's: for a path alone, the mandates that govern are those that claim it,
  * not every mandate scoped to the seated workspace that position's location-seat governance also lists. With `workspace` or `path`, a mandate governs when its
  * `authority.scope` names the workspace or its `authority.covers` selects the path (db D02b claimants), either one
- * sufficing. One that states neither key with a value (a declared empty list locates nothing) is located by its participant alone and governs wherever that participant
+ * sufficing; for a path under a root several workspaces share (db D02b `shared`), the closure is every declarer's and
+ * the scope must name every declarer. One that states neither key with a value (a declared empty list locates nothing) is located by its participant alone and governs wherever that participant
  * acts: with `actor`, when its participant is the actor; without one, whenever it names a participant. With neither
  * `workspace` nor `path`, every one governs. `actor` drops no mandate that governs the workspace or path: each states
  * whether it `binds` the actor, so profileRefusal judges the actor's own and those naming no participant, and refuses an
@@ -627,15 +634,23 @@ export function governingMandates(
   within: string,
   options: GoverningOptions = {},
 ): readonly GoverningMandate[] {
-  const { read, nodes, targets, admit, closure, workspaceOf } = admitted(reader, within),
+  const { read, nodes, targets, admit, closure, closures, workspaceOf } = admitted(reader, within),
     { actor, path, workspace, fold } = options;
   if (actor !== undefined) admit(actor, 'agent');
   if (workspace !== undefined) admit(workspace, 'workspace');
   if (fold !== undefined && typeof fold !== 'function') invalid('fold must be a function');
-  // Without `workspace`, the closure is the one position reads for the path's location seat, or for no seat.
+  // Without `workspace`, the closure is the one position reads for the path's location seat, or for no seat. A path
+  // under a root several workspaces share (db D02b `shared`) belongs to each equally: the closure is every declarer's,
+  // whatever `workspace` names, and a scope governs there only when it names every declarer.
   const resolution = path === undefined ? undefined : reader.resolveSeat(path, read),
-    inside = closure(workspace ?? workspaceOf(resolution?.seat)),
+    shared = resolution?.by === 'shared' ? resolution.declarers! : undefined,
+    inside = shared !== undefined ? closures(shared) : closure(workspace ?? workspaceOf(resolution?.seat)),
     located = workspace !== undefined || path !== undefined;
+  const scoped = (identity: string): boolean => {
+    if (workspace === undefined) return false;
+    const named = targets(identity, 'authority.scope', 'workspace');
+    return shared === undefined ? named.includes(workspace) : shared.every((declarer) => named.includes(declarer));
+  };
   const claiming = new Set(resolution?.claimants.map((claimant) => claimant.identity));
   // With `fold`, a claim is read from the record as db's claimant index reads it (each text value of `authority.covers`)
   // and matched on both sides folded.
@@ -647,10 +662,7 @@ export function governingMandates(
   const governs = (node: CompiledRecord): boolean => {
     if (!located) return true;
     if (statesValue(node, 'authority', 'scope') || statesValue(node, 'authority', 'covers'))
-      return (
-        (workspace !== undefined && targets(node.identity, 'authority.scope', 'workspace').includes(workspace)) ||
-        claims(node)
-      );
+      return scoped(node.identity) || claims(node);
     return actor === undefined
       ? states(node, 'authority', 'participant')
       : targets(node.identity, 'authority.participant', 'agent')[0] === actor;
@@ -683,11 +695,16 @@ export function governingMandates(
 /**
  * The workspace position seats a workspace-relative `path` in (the closure read for a path): the workspace whose
  * declared root holds the seat's records, else the repository's own `@workspace`; undefined when no admitted
- * `@workspace` holds it. Reads through the scope token `within`, as `governingMandates` does.
+ * `@workspace` holds it. A path under a root several workspaces share (db D02b `shared`) seats in none of them: it
+ * gives the repository's own `@workspace` when that is a declarer, so the main session acts as its default actor
+ * there, and undefined otherwise. Reads through the scope token `within`, as `governingMandates` does.
  */
 export function seatedWorkspace(reader: ReadHandle, within: string, path: string): string | undefined {
-  const { read, workspaceOf } = admitted(reader, within);
-  return workspaceOf(reader.resolveSeat(path, read).seat);
+  const { read, workspaceOf, repository } = admitted(reader, within),
+    resolution = reader.resolveSeat(path, read);
+  if (resolution.by !== 'shared') return workspaceOf(resolution.seat);
+  const own = repository();
+  return own !== undefined && resolution.declarers!.includes(own) ? own : undefined;
 }
 
 /**
