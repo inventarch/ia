@@ -1318,6 +1318,7 @@
       "project": "apps/cli",
       "files": [
         "tests/cli.test.ts",
+        "tests/console-batch-run.test.ts",
         "tests/console-entry-installed.test.ts",
         "tests/handoff-installed.test.ts",
         "tests/program.test.ts",
@@ -1349,6 +1350,28 @@
         "pnpm --workspace-concurrency=1 -r test --maxWorkers=1"
       ],
       "skips": [
+        {
+          "case": "tests/console-batch-run.test.ts > a workspace subfolder committed as a link out of the worktree refuses the repo before the install",
+          "reason": "Git checks a committed symbolic link out as a link only where the platform lets it create one; on Windows the same run-time check is covered by the junction cases, which run everywhere.",
+          "platforms": [
+            "windows"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > the .cmd route passes cmd.exe’s own characters through intact",
+          "reason": "Only Windows runs a package manager's .cmd shim through cmd.exe; the POSIX twin passes shell characters through a shell-script shim.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
+          "case": "tests/console-batch-run.test.ts > a POSIX shim passes shell characters through intact",
+          "reason": "The shim is a POSIX shell script; Windows runs its .cmd twin through cmd.exe instead.",
+          "platforms": [
+            "windows"
+          ]
+        },
         {
           "case": "tests/handoff-installed.test.ts > the copy that handed off outlives a signal the child also receives",
           "reason": "The fixture needs a catchable signal; on Windows process.kill ends the target unconditionally.",
