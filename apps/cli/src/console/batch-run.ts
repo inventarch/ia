@@ -14,7 +14,7 @@
  * preview was the confirmation, so it runs in its confirmed form.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { confirmedArgv, displayFix } from '../fix.js';
@@ -73,12 +73,10 @@ export function batchEnv(env: Env, platform: NodeJS.Platform = process.platform)
   }
   return out;
 }
-/** A synchronous `git -C <cwd> …` under `env` without git's routing variables, for the package manager's lockfile probe. */
+/** A synchronous `git -C <cwd> …` by the checked `git`, without git's routing variables, for the lockfile probe. */
 const gitWith =
-  (env: Env): Git =>
+  (env: Env, git: string): Git =>
   (cwd, args) => {
-    const git = findProgram('git', env);
-    if (git === null) return null;
     const result = spawnSync(git, ['--no-optional-locks', '-C', cwd, ...args], {
       env: programEnv(batchEnv(env)) as NodeJS.ProcessEnv,
       encoding: 'utf8',
@@ -98,12 +96,13 @@ export function defaultRunner(env: Env): Runner {
       const fail = (why: string): void => settle({ status: null, stdout: '', stderr: why });
       const childEnv = batchEnv(options.env);
       let target: { file: string; args: readonly string[]; env: Env; verbatim: boolean };
-      if (isAbsolute(file)) target = { file, args, env: childEnv, verbatim: false };
+      const script = (path: string) => process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(path);
+      if (isAbsolute(file) && !script(file)) target = { file, args, env: childEnv, verbatim: false };
       else {
-        const program = findProgram(file, env, 'program');
+        const program = isAbsolute(file) ? null : findProgram(file, env, 'program');
         if (program !== null) target = { file: program, args, env: programEnv(childEnv), verbatim: false };
         else {
-          const script = findProgram(file, env, 'script');
+          const script = isAbsolute(file) ? file : findProgram(file, env, 'script');
           if (script === null) return fail(`${file} was not found on a qualified PATH entry`);
           const quoted = args.map(cmdArgument);
           if (quoted.some((value) => value === null))
@@ -148,10 +147,17 @@ export const METADATA_OPS: readonly string[] = [
   'worktree add --no-track -b',
 ];
 
-/** The top level of the git repository holding `root`, by its real path, or null when it is in none. */
-export function gitTop(root: string, env: Env): string | null {
-  const git = findProgram('git', env);
-  if (git === null) return null;
+/**
+ * The top level of the git repository holding `root`, by its real path; null when it is in none; a refusal when the
+ * `git` on PATH lies inside the repository (judged against `root` and the nearest folder above it that holds a `.git`,
+ * before it runs, and against the top level it reports).
+ */
+export function gitTop(root: string, env: Env): string | null | { readonly refused: string } {
+  let holder = resolve(root);
+  while (!existsSync(join(holder, '.git')) && dirname(holder) !== holder) holder = dirname(holder);
+  const checked = programIn('git', env, [root, holder]);
+  if ('refused' in checked) return checked.path === null ? null : { refused: checked.refused };
+  const git = checked.path;
   const result = spawnSync(git, ['-C', root, 'rev-parse', '--show-toplevel'], {
     env: programEnv(batchEnv(env)) as NodeJS.ProcessEnv,
     encoding: 'utf8',
@@ -159,11 +165,14 @@ export function gitTop(root: string, env: Env): string | null {
   });
   const top = result.status === 0 ? result.stdout.trim() : '';
   if (top === '') return null;
+  let real: string;
   try {
-    return realpathSync.native(resolve(top));
+    real = realpathSync.native(resolve(top));
   } catch {
     return null;
   }
+  const again = programIn('git', env, [real]);
+  return 'refused' in again ? { refused: again.refused } : real;
 }
 
 const lastLine = (text: string): string =>
@@ -174,8 +183,13 @@ const lastLine = (text: string): string =>
     .at(-1) ?? '';
 
 /** The base after `git fetch origin`: `origin/HEAD`'s branch, then `origin/main`, then `origin/master`; or why none. */
-async function findBase(top: string, run: Runner, env: Env): Promise<{ base: string } | { why: string }> {
-  const git = (args: readonly string[]) => run('git', ['-C', top, ...args], { cwd: top, env });
+async function findBase(
+  top: string,
+  run: Runner,
+  env: Env,
+  gitPath: string,
+): Promise<{ base: string } | { why: string }> {
+  const git = (args: readonly string[]) => run(gitPath, ['-C', top, ...args], { cwd: top, env });
   const fetched = await git(['fetch', 'origin']);
   if (fetched.status !== 0) return { why: `git fetch origin failed: ${lastLine(fetched.stderr)}` };
   const head = await git(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']);
@@ -194,7 +208,9 @@ async function findBase(top: string, run: Runner, env: Env): Promise<{ base: str
 }
 /** `git fetch origin`, then the first of `origin/HEAD`, `origin/main` and `origin/master` that resolves; null otherwise. */
 export async function chooseBase(top: string, run: Runner, env: Env = process.env): Promise<string | null> {
-  const found = await findBase(top, run, env);
+  const git = programIn('git', batchEnv(env), [top]);
+  if ('refused' in git) return null;
+  const found = await findBase(top, run, batchEnv(env), git.path);
   return 'base' in found ? found.base : null;
 }
 
@@ -230,14 +246,66 @@ function leadsTo(path: string): string | null {
 }
 
 /**
+ * The one rule for every program a batch starts (git, gh, the package manager, a step's program): found as `findProgram`
+ * finds it (or as given when absolute), its real path must not lie inside any of `checkouts`, so a program the user's
+ * repository holds is never run. `path` is what to spawn; null with a refusal when nothing was found.
+ */
+export function programIn(
+  name: string,
+  env: Env,
+  checkouts: readonly string[],
+): { readonly path: string } | { readonly path: string | null; readonly refused: string } {
+  const found = isAbsolute(name) ? name : (findProgram(name, env, 'program') ?? findProgram(name, env, 'script'));
+  if (found === null) return { path: null, refused: `${name} was not found on a qualified PATH entry` };
+  const real = leadsTo(found) ?? found;
+  for (const checkout of checkouts)
+    if (within(leadsTo(checkout) ?? checkout, real))
+      return { path: found, refused: `${name} resolves to ${real}, inside the repository` };
+  return { path: found };
+}
+
+/** What a created worktree is: its real path, and its device and inode where the volume reports them. */
+export interface Pinned {
+  readonly real: string;
+  readonly dev: bigint;
+  readonly ino: bigint;
+}
+const ALL_ONES = 2n ** 64n - 1n;
+/** The worktree's identity now, or null when it cannot be read. */
+export function pinWorktree(path: string): Pinned | null {
+  try {
+    const real = realpathSync.native(path);
+    const stat = statSync(real, { bigint: true });
+    return { real, dev: stat.dev, ino: stat.ino };
+  } catch {
+    return null;
+  }
+}
+/**
+ * Null when the worktree is still the folder that was created: the same real path and, where the volume reports an
+ * identity (an inode that is neither 0 nor all ones), the same device and inode. A new real path is never adopted.
+ */
+export function checkPinned(path: string, pinned: Pinned | undefined | null): string | null {
+  const now = pinWorktree(path);
+  const unidentified = (id: bigint): boolean => id === 0n || id === ALL_ONES;
+  const same =
+    pinned !== undefined &&
+    pinned !== null &&
+    now !== null &&
+    fold(now.real) === fold(pinned.real) &&
+    (unidentified(pinned.ino) || unidentified(now.ino) || (now.dev === pinned.dev && now.ino === pinned.ino));
+  return same ? null : `the worktree ${path} was replaced or moved since the batch created it`;
+}
+
+/**
  * The run-time check, on the real filesystem, immediately before a step runs: the step's `cwd`, each path-bearing value
  * (resolved against `cwd`) and each mixed-domain value kept as a name that names an existing entry under `cwd` must
  * lead, through any link, into the worktree's real path. Null when they do; otherwise why the repository is refused.
  */
-export function containedStep(step: Step, cwd: string, worktree: string): string | null {
+export function containedStep(step: Step, cwd: string, worktree: string, pinned?: string): string | null {
   let tree: string;
   try {
-    tree = realpathSync.native(worktree);
+    tree = pinned ?? realpathSync.native(worktree);
   } catch {
     return `the worktree ${worktree} cannot be read`;
   }
@@ -284,8 +352,17 @@ export interface RepoResult {
   readonly refused: string | null;
   /** The worktree and branch were made, so they can be opened, committed or removed. */
   readonly created: boolean;
+  /** What the created worktree was, checked before every later command in it. */
+  readonly pinned?: Pinned | null;
 }
 
+const repoResult = (repo: RepoPlan) => ({
+  root: repo.root,
+  top: repo.top,
+  worktree: repo.worktree,
+  workspace: repo.workspace,
+  branch: repo.branch,
+});
 /** The `package.json` nearest the workspace, at or above it and inside the worktree, or null. */
 function manifestDirectory(workspace: string, worktree: string): string | null {
   for (let current = workspace; ; current = dirname(current)) {
@@ -308,9 +385,23 @@ export async function runBatch(
   const results: RepoResult[] = [];
   // Every child of the batch, on the original or in a worktree, runs without git's routing variables.
   const scoped = { ...io, env: batchEnv(io.env) };
+  // git is found once and judged against every repository of the batch, then always run by that absolute path.
+  const git = programIn(
+    'git',
+    scoped.env,
+    plan.repos.map((repo) => repo.top),
+  );
+  // Where each worktree really leads, fixed now, before anything is awaited.
+  const destinations = plan.repos.map((repo) => leadsTo(repo.worktree));
   for (const [index, repo] of plan.repos.entries()) {
     if (io.signal.aborted) break;
-    results.push(await runRepo(repo, state, scoped, (line) => io.progress(index, line)));
+    const say = (line: string) => io.progress(index, line);
+    if ('refused' in git) {
+      say(`refused: ${git.refused}`);
+      results.push({ ...repoResult(repo), ok: false, last: git.refused, refused: git.refused, created: false });
+      continue;
+    }
+    results.push(await runRepo(repo, state, scoped, say, git.path, destinations[index] ?? null));
   }
   return results;
 }
@@ -320,51 +411,64 @@ async function runRepo(
   state: Pick<ConsoleState, 'running'>,
   io: Parameters<typeof runBatch>[2],
   say: (line: string) => void,
+  gitPath: string,
+  destination: string | null,
 ): Promise<RepoResult> {
   const { top, worktree, workspace, branch } = repo;
   let created = false;
+  let pinned: Pinned | null = null;
   const done = (ok: boolean, last: string, refused: string | null = null): RepoResult => {
     say(refused === null ? last : `refused: ${refused}`);
-    return { root: repo.root, top, worktree, workspace, branch, ok, last: refused ?? last, refused, created };
+    return { ...repoResult(repo), ok, last: refused ?? last, refused, created, pinned };
   };
   const refuse = (why: string): RepoResult => done(false, why, why);
   if (repo.refused !== null) return refuse(repo.refused);
-  const git = (args: readonly string[]) => io.run('git', ['-C', top, ...args], { cwd: top, env: io.env });
+  const git = (args: readonly string[]) => io.run(gitPath, ['-C', top, ...args], { cwd: top, env: io.env });
   // Planning judged the path by its spelling; a link on the way (a configured root, or `.ia-worktrees` itself) could
   // still lead it into the checkout or the IA home, where git would then write. Judged by where it really leads.
   const checkout = leadsTo(top) ?? top;
-  const destination = leadsTo(worktree);
-  if (destination === null) return refuse(`the worktree path ${worktree} passes through a link that leads nowhere`);
-  if (within(checkout, destination))
-    return refuse(`the worktree path ${worktree} leads inside the repository, to ${destination}`);
   const home = repo.iaHome === undefined ? null : leadsTo(repo.iaHome);
-  if (home !== null && within(home, destination))
-    return refuse(`the worktree path ${worktree} leads inside the IA home, to ${destination}`);
+  const judge = (real: string | null): string | null => {
+    if (real === null) return `the worktree path ${worktree} passes through a link that leads nowhere`;
+    if (within(checkout, real)) return `the worktree path ${worktree} leads inside the repository, to ${real}`;
+    if (home !== null && within(home, real))
+      return `the worktree path ${worktree} leads inside the IA home, to ${real}`;
+    return null;
+  };
+  const first = judge(destination);
+  if (first !== null) return refuse(first);
 
   say('fetching origin');
-  const base = await findBase(top, io.run, io.env);
+  const base = await findBase(top, io.run, io.env, gitPath);
   if ('why' in base) return refuse(base.why);
   if (existsSync(worktree)) return refuse(`the worktree path already exists: ${worktree}`);
   if ((await git(['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`])).status === 0)
     return refuse(`the branch already exists: ${branch}`);
+  // The awaits above leave time for a link on the way to be retargeted: judged again, it must lead where it did.
+  const now = leadsTo(worktree);
+  if (now === null || fold(now) !== fold(destination!))
+    return refuse(`the worktree path ${worktree} changed while the batch ran: it now leads to ${now ?? 'nowhere'}`);
+  const again = judge(now);
+  if (again !== null) return refuse(again);
   say(`creating ${worktree} on ${branch} from ${base.base}`);
   const added = await git(['worktree', 'add', '--no-track', '-b', branch, worktree, base.base]);
   if (added.status !== 0) return done(false, `git worktree add failed: ${lastLine(added.stderr)}`);
   created = true;
+  // What was created is pinned: its real path must be the destination, and it is checked before every later command.
+  pinned = pinWorktree(worktree);
+  if (pinned === null || fold(pinned.real) !== fold(now))
+    return refuse(`the worktree ${worktree} was replaced or moved since the batch created it`);
+  const tree = pinned.real;
 
   const run = async (step: Step, label: string): Promise<string | null> => {
-    const outside = containedStep(step, workspace, worktree);
+    const replaced = checkPinned(worktree, pinned);
+    if (replaced !== null) return `refused:${label}: ${replaced}`;
+    const outside = containedStep(step, workspace, worktree, tree);
     if (outside !== null) return `refused:${label}: ${outside}`;
     let file: string, args: readonly string[], env: Env;
     if (step.program === 'ia') {
       // The copy is found again before every step, in the worktree only: an earlier step may have installed it.
       const found = io.resolveRepo(workspace);
-      let tree = worktree;
-      try {
-        tree = realpathSync.native(worktree);
-      } catch {
-        // containedStep has just read it.
-      }
       const copy = found !== null && within(tree, found.packageRoot) ? found : null;
       if (copy === null && step.requires === 'repo-copy') return `refused:${label}: the repo copy is not installed`;
       // The file Node will run, by its real path, now: a package folder inside the worktree can still name an entry,
@@ -380,14 +484,12 @@ async function runRepo(
     } else {
       const [name, ...rest] = step.argv;
       if (name === undefined) return `refused:${label}: the step names no program`;
-      // The program the runner will start, judged by its real path: never one the user's checkout holds.
-      const program = isAbsolute(name)
-        ? name
-        : (findProgram(name, io.env, 'program') ?? findProgram(name, io.env, 'script'));
-      const real = program === null ? null : leadsTo(program);
-      if (real !== null && within(checkout, real))
-        return `refused:${label}: ${name} resolves to ${real}, inside the repository`;
-      file = name;
+      // The program the runner will start, judged by its real path and then run by it: never one the checkout holds.
+      const program = programIn(name, io.env, [top]);
+      if ('refused' in program) {
+        if (program.path !== null) return `refused:${label}: ${program.refused}`;
+        file = name;
+      } else file = program.path;
       args = rest;
       env = io.env;
     }
@@ -404,7 +506,9 @@ async function runRepo(
 
   const manifest = manifestDirectory(workspace, worktree);
   if (manifest !== null) {
-    const { manager, conflict } = detectPackageManager(manifest, gitWith(io.env));
+    const probe = checkPinned(worktree, pinned);
+    if (probe !== null) return refuse(probe);
+    const { manager, conflict } = detectPackageManager(manifest, gitWith(io.env, gitPath));
     if (conflict.length > 0) return refuse(`package managers disagree: ${conflict.join(', ')}`);
     if (manager === null) return refuse(`no package manager is declared or locked in ${manifest}`);
     const install: Step = {
@@ -416,11 +520,14 @@ async function runRepo(
     const why = await run(install, 'install');
     if (why !== null) return failed(why);
   } else {
-    const outside = containedStep(
-      { program: 'external', argv: ['none'], flow: 'confirm', writesTo: 'none' },
-      workspace,
-      worktree,
-    );
+    const outside =
+      checkPinned(worktree, pinned) ??
+      containedStep(
+        { program: 'external', argv: ['none'], flow: 'confirm', writesTo: 'none' },
+        workspace,
+        worktree,
+        tree,
+      );
     if (outside !== null) return refuse(outside);
   }
   for (const [index, step] of repo.steps.entries()) {

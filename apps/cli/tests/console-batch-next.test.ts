@@ -4,8 +4,8 @@
  * and `gh auth status` exits 0), and removing the worktrees while keeping their branches; real git repositories with
  * bare origins and a fake `gh` on a PATH of its own.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { delimiter, join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { displayFix, iaFix } from '../src/fix.js';
 import { resolveRepo } from '../src/console/app.js';
@@ -17,7 +17,7 @@ import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } f
 import { batchScreen } from '../src/console/batch-screen.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Fixture } from './batch-fixture.js';
-import { fixture, git, offerOf, readLog, recorder, repo, rowOf, shim } from './batch-fixture.js';
+import { fixture, git, offerOf, plant, readLog, recorder, repo, rowOf, shim } from './batch-fixture.js';
 import { cleanup } from './scratch-fixture.js';
 
 afterAll(cleanup);
@@ -203,6 +203,92 @@ describe('after the run', () => {
     const kept = await removeWorktrees(second.results, run, fx.env);
     expect(kept).toEqual([{ root: dirty.top, error: expect.stringMatching(/.+/) }]);
     expect(existsSync(second.results[0]!.worktree)).toBe(true);
+  });
+});
+
+describe('after the run, guarded', () => {
+  it('a remote branch already at the batch commit is a collision, and no PR opens', async () => {
+    const fx = withGh('batch-next-same-tip');
+    const { top } = repo(fx, 'same');
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const run = defaultRunner(fx.env);
+    const committed = await commitPassed(results, 'Re-lock', run, fx.env);
+    // Someone already pushed this very commit under the batch's branch name.
+    git(committed[0]!.worktree, ['push', '--quiet', 'origin', 'HEAD:refs/heads/chore/ia-fix-generation'], fx.env);
+    const before = git(top, ['ls-remote', 'origin', 'refs/heads/chore/ia-fix-generation'], fx.env);
+    const opened = await pushAndOpenPrs(committed, run, fx.env);
+    expect(opened).toEqual([
+      { root: top, url: null, error: 'the branch chore/ia-fix-generation already exists on origin' },
+    ]);
+    expect(git(top, ['ls-remote', 'origin', 'refs/heads/chore/ia-fix-generation'], fx.env)).toBe(before);
+    expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
+  });
+  it('a worktree replaced by a link to the checkout after the run is never committed in', async () => {
+    const fx = withGh('batch-next-replaced');
+    const { top } = repo(fx, 'swapped');
+    const head = git(top, ['rev-parse', 'HEAD'], fx.env);
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const worktree = results[0]!.worktree;
+    renameSync(worktree, `${worktree}-moved`);
+    symlinkSync(top, worktree, process.platform === 'win32' ? 'junction' : 'dir');
+    writeFileSync(join(top, 'bait.txt'), 'bait');
+    const run = defaultRunner(fx.env);
+    const committed = await commitPassed(results, 'Re-lock', run, fx.env);
+    expect(committed[0]).toMatchObject({
+      ok: false,
+      last: expect.stringMatching(/^the worktree .* was replaced or moved/),
+    });
+    expect(git(top, ['rev-parse', 'HEAD'], fx.env)).toBe(head);
+    expect(git(top, ['status', '--porcelain'], fx.env)).toBe('?? bait.txt\n');
+    expect(await pushAndOpenPrs(results, run, fx.env)).toEqual([
+      { root: top, url: null, error: expect.stringMatching(/^the worktree .* was replaced or moved/) },
+    ]);
+    expect(await removeWorktrees(results, run, fx.env)).toEqual([
+      { root: top, error: expect.stringMatching(/^the worktree .* was replaced or moved/) },
+    ]);
+    expect(existsSync(join(top, 'bait.txt'))).toBe(true);
+  });
+  it('a git or gh planted inside the checkout, first on PATH, is never run', async () => {
+    const fx = withGh('batch-next-planted');
+    const { top } = repo(fx, 'planted');
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const planted = join(top, 'tools-bin');
+    mkdirSync(planted, { recursive: true });
+    plant(planted, 'git');
+    plant(planted, 'gh');
+    const log = join(fx.dir, 'planted.log');
+    const env = { ...fx.env, PATH: [planted, fx.env['PATH']].join(delimiter), FAKE_GIT_LOG: log };
+    const run = defaultRunner(env);
+    expect(await ghReady(run, env, [top])).toEqual({ found: false, authed: false });
+    const committed = await commitPassed(results, 'Re-lock', run, env);
+    expect(committed[0]).toMatchObject({
+      ok: false,
+      last: expect.stringMatching(/^git resolves to .*, inside the repository$/),
+    });
+    expect(await pushAndOpenPrs(results, run, env)).toEqual([
+      { root: top, url: null, error: expect.stringMatching(/^git resolves to .*, inside the repository$/) },
+    ]);
+    expect(await removeWorktrees(results, run, env)).toEqual([
+      { root: top, error: expect.stringMatching(/^git resolves to .*, inside the repository$/) },
+    ]);
+    // With git clean again, a gh planted in the checkout still never runs.
+    const ghEnv = {
+      ...fx.env,
+      PATH: [planted.replace('tools-bin', 'tools-gh'), fx.env['PATH']].join(delimiter),
+      FAKE_GIT_LOG: log,
+    };
+    mkdirSync(join(top, 'tools-gh'), { recursive: true });
+    plant(join(top, 'tools-gh'), 'gh');
+    const pushed = await pushAndOpenPrs(
+      await commitPassed(results, 'Re-lock', defaultRunner(ghEnv), ghEnv),
+      defaultRunner(ghEnv),
+      ghEnv,
+    );
+    expect(pushed).toEqual([
+      { root: top, url: null, error: expect.stringMatching(/^gh resolves to .*, inside the repository$/) },
+    ]);
+    expect(readLog(log)).toEqual([]);
+    expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
   });
 });
 

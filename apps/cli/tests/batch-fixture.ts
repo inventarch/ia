@@ -6,7 +6,17 @@
  * fixed identity, so the user's own settings never reach a fixture.
  */
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  linkSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Offer, Step } from '../src/console/offers.js';
@@ -17,6 +27,7 @@ import { findProgram } from '../src/program.js';
 import { scratch } from './scratch-fixture.js';
 
 export const FAKE_PM = resolve(import.meta.dirname, 'fake-pm.mjs');
+export const FAKE_GIT = resolve(import.meta.dirname, 'fake-git.mjs');
 export const MANAGERS = ['npm', 'pnpm', 'yarn', 'bun'] as const;
 
 /** A scratch directory by its real path, so 8.3 and linked spellings never differ from what git reports. */
@@ -96,6 +107,21 @@ export function shim(dir: string, name: string, script: string, lead: readonly s
     const quoted = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
     writeFileSync(file, `#!/bin/sh\nexec ${[process.execPath, script, ...lead].map(quoted).join(' ')} "$@"\n`);
     chmodSync(file, 0o755);
+  }
+}
+
+/**
+ * A program `name` planted in `dir`, of the kind the platform's lookup prefers: on Windows a `.exe` (this node, linked
+ * or copied), which a lookup takes before any `.cmd`; elsewhere a shell script that runs fake-git.mjs. Either way the
+ * batch must never run it.
+ */
+export function plant(dir: string, name: string): void {
+  if (process.platform !== 'win32') return shim(dir, name, FAKE_GIT);
+  const file = join(dir, `${name}.exe`);
+  try {
+    linkSync(process.execPath, file);
+  } catch {
+    copyFileSync(process.execPath, file);
   }
 }
 

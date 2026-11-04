@@ -84,7 +84,11 @@ export async function batchScreen(
   );
   io.print('');
   for (const text of table(results)) io.print(text);
-  const gh = await ghReady(io.run, io.env);
+  const gh = await ghReady(
+    io.run,
+    io.env,
+    preview.repos.map((repo) => repo.top),
+  );
   const done = new Set<string>();
   for (;;) {
     const choices = nextChoices(results, preview.deferred, gh).filter((choice) => !done.has(choice.id));

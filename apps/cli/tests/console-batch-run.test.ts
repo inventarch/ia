@@ -11,11 +11,14 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
+  rmdirSync,
   rmSync,
   symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import { iaFix } from '../src/fix.js';
@@ -24,12 +27,13 @@ import { resolveRepo } from '../src/console/app.js';
 import type { Step } from '../src/console/offers.js';
 import type { RepoPlan } from '../src/console/batch-plan.js';
 import { planBatch } from '../src/console/batch-plan.js';
-import type { RepoResult } from '../src/console/batch-run.js';
+import type { RepoResult, Runner } from '../src/console/batch-run.js';
 import { chooseBase, containedStep, defaultRunner, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Call, Fixture } from './batch-fixture.js';
 import {
   base,
+  plant,
   FAKE_PM,
   fixture,
   git,
@@ -58,6 +62,7 @@ async function batch(
   rows: readonly RepoRow[],
   offerId: string,
   plan?: { readonly repos: readonly RepoPlan[]; readonly deferred?: readonly Step[] },
+  wrap: (run: Runner) => Runner = (run) => run,
 ) {
   const made =
     plan ??
@@ -68,7 +73,7 @@ async function batch(
       { iaHome: join(fx.dir, 'home') },
       { top: (root) => gitTop(root, fx.env) },
     );
-  const recorded = recorder(defaultRunner(fx.env));
+  const recorded = recorder(wrap(defaultRunner(fx.env)));
   const progress: string[] = [];
   const results = await runBatch(
     made,
@@ -186,6 +191,81 @@ describe('worktree, branch and base', () => {
     for (const top of [configured.top, nested.top])
       expect(() => git(top, ['rev-parse', '--verify', 'refs/heads/chore/ia-fix-generation'], fx.env)).toThrow();
     expect(git(configured.top, ['worktree', 'list', '--porcelain'], fx.env).match(/^worktree /gm)).toHaveLength(1);
+  });
+  it('a worktree path retargeted between the probes and the creation is refused, creating nothing', async () => {
+    const fx = fixture('batch-run-retarget');
+    const kind = process.platform === 'win32' ? 'junction' : 'dir';
+    const parent = base('batch-run-retarget-parent');
+    const moving = repo({ ...fx, dir: parent }, 'moving', { 'inside/keep.txt': '' });
+    const safe = join(fx.dir, 'safe');
+    mkdirSync(safe, { recursive: true });
+    const link = join(parent, '.ia-worktrees');
+    symlinkSync(safe, link, kind);
+    // The last probe before the creation retargets the folder's link into the user's checkout.
+    const retarget: (run: Runner) => Runner = (run) => async (file, args, options) => {
+      const result = await run(file, args, options);
+      if (args.includes('--verify') && args.some((token) => token.startsWith('refs/heads/'))) {
+        if (process.platform === 'win32') rmdirSync(link);
+        else unlinkSync(link);
+        symlinkSync(join(moving.top, 'inside'), link, kind);
+      }
+      return result;
+    };
+    const { results, calls } = await batch(
+      fx,
+      [rowOf(moving.top, [relock(moving.top)])],
+      'fix:generation',
+      undefined,
+      retarget,
+    );
+    expect(only(results).refused).toMatch(/^the worktree path .* changed while the batch ran/);
+    expect(calls.some((call) => call.args.includes('worktree'))).toBe(false);
+    expect(readdirSync(join(moving.top, 'inside'))).toEqual(['keep.txt']);
+    expect(readdirSync(safe)).toEqual([]);
+    expect(() => git(moving.top, ['rev-parse', '--verify', 'refs/heads/chore/ia-fix-generation'], fx.env)).toThrow();
+  });
+  it('a worktree replaced between steps refuses the next step', async () => {
+    const fx = fixture('batch-run-replaced');
+    const { top } = repo(fx, 'replaced');
+    const offer = offerOf('fix:two', 'Two', [ia(['validate'], 'none'), ia(['restore', '--apply', '--root', top])]);
+    let replaced = false;
+    // Once the first step has run, the worktree folder is moved away and a new, empty one takes its place.
+    const swap: (run: Runner) => Runner = (run) => async (file, args, options) => {
+      const result = await run(file, args, options);
+      if (!replaced && file === process.execPath && args.includes('validate')) {
+        replaced = true;
+        renameSync(options.cwd, `${options.cwd}-moved`);
+        mkdirSync(options.cwd);
+      }
+      return result;
+    };
+    const { results, calls } = await batch(fx, [rowOf(top, [offer])], 'fix:two', undefined, swap);
+    expect(replaced).toBe(true);
+    expect(only(results).refused).toMatch(/^step 2: the worktree .* was replaced or moved/);
+    expect(iaSpawns(calls).map((call) => call.args[1])).toEqual(['validate']);
+  });
+  it('a git planted inside the checkout, first on PATH, is never run', async () => {
+    const fx = fixture('batch-run-planted-git');
+    const { top } = repo(fx, 'planted');
+    const planted = join(top, 'tools-bin');
+    mkdirSync(planted, { recursive: true });
+    plant(planted, 'git');
+    const log = join(fx.dir, 'git.log');
+    const env = { ...fx.env, PATH: [planted, fx.env['PATH']].join(delimiter), FAKE_GIT_LOG: log };
+    // The probe that finds the top level refuses it, and so do the base probes and the batch itself.
+    expect(gitTop(top, env)).toEqual({ refused: expect.stringMatching(/^git resolves to .*, inside the repository$/) });
+    expect(await chooseBase(top, defaultRunner(env), env)).toBeNull();
+    const plan = planBatch(
+      'fix:generation',
+      [rowOf(top, [relock(top)])],
+      new Set([0]),
+      { iaHome: join(fx.dir, 'home') },
+      { top: (root) => gitTop(root, fx.env) },
+    );
+    const { results, calls } = await batch({ ...fx, env }, [], 'fix:generation', plan);
+    expect(only(results).refused).toMatch(/^git resolves to .*, inside the repository$/);
+    expect(calls).toEqual([]);
+    expect(readLog(log)).toEqual([]);
   });
   it('an existing path or branch is refused', async () => {
     const fx = fixture('batch-run-exists');
@@ -320,7 +400,8 @@ describe('isolation', () => {
     const touching = calls.filter((call) => inside(top, call.cwd) || call.args.some((token) => inside(top, token)));
     expect(touching.length).toBeGreaterThan(0);
     for (const call of touching) {
-      expect(call.file).toBe('git');
+      expect(basename(call.file).replace(/\.exe$/i, '')).toBe('git');
+      expect(isAbsolute(call.file)).toBe(true);
       expect(call.args.slice(0, 2)).toEqual(['-C', top]);
       const op = call.args.slice(2).join(' ');
       expect(METADATA_OPS.some((allowed) => op === allowed || op.startsWith(`${allowed} `))).toBe(true);

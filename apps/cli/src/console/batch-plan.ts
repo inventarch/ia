@@ -122,7 +122,8 @@ export function planBatch(
   rows: readonly RepoRow[],
   selected: ReadonlySet<number>,
   config: BatchConfig,
-  git: { readonly top: (root: string) => string | null },
+  /** The top level holding a root; null when it is in none; a refusal when its probe may not run. */
+  git: { readonly top: (root: string) => string | null | { readonly refused: string } },
 ): { readonly repos: readonly RepoPlan[]; readonly deferred: readonly Step[] } {
   const repos: RepoPlan[] = [];
   const deferred = new Map<string, Step>();
@@ -148,8 +149,10 @@ export function planBatch(
         iaHome: config.iaHome,
       });
     };
-    const top = git.top(root);
-    if (top === null) return refuse(`${root} is not inside a git repository`);
+    const found = git.top(root);
+    if (found === null) return refuse(`${root} is not inside a git repository`);
+    if (typeof found !== 'string') return refuse(found.refused);
+    const top = found;
     const made = worktreeFor(top, branch, config);
     if ('refused' in made) return refuse(made.refused, top);
     const workspace = join(made.path, relative(top, root));
