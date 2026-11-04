@@ -1,16 +1,16 @@
 /**
  * consumer-cli-contract §1.2's first step: a command typed into another `ia` runs on the `@inventarch/cli` the
- * workspace pins and has installed. Deciding reads only directories and `package.json` files, and asks git once whether
+ * workspace pins and has installed. Deciding reads only directories, `package.json` files and a `pnpm-workspace.yaml`, and asks git once whether
  * the copy is committed; nothing is parsed yet, so an argument the workspace's copy accepts and this copy does not still
  * reaches it. The tokens are not parsed either: a value spelled like `--user` or `--root` (`--search --user`) routes as
  * the flag, and this copy answers, as it does for any typed command it cannot place.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { sameFile } from '@inventarch/db/internal/paths';
 import { discoverRoot } from './discovery.js';
-import { findLocalCli, readCliDependency } from './local-cli.js';
+import { resolveWorkspaceCli } from './local-cli.js';
 import type { LocalCli } from './local-cli.js';
 import { findProgram, programEnv, programHome } from './program.js';
 
@@ -94,9 +94,7 @@ export function handoffTarget(input: {
   if (tokens.includes('--user')) return null;
   if (command === 'doctor' && tokens.some((token) => token === '--host' || token.startsWith('--host='))) return null;
   const root = rootFromArgv(argv, input.cwd, input.iaHome);
-  const dependency = root === undefined ? null : readCliDependency(root);
-  if (root === undefined || dependency === null) return null;
-  const local = findLocalCli(root, dirname(dependency.manifest));
+  const local = root === undefined ? null : resolveWorkspaceCli(root).local;
   if (local === null || sameFile(local.packageRoot, input.packageRoot)) return null;
   return (input.committed ?? committed)(local.packageRoot) ? null : local;
 }

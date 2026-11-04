@@ -845,6 +845,7 @@
         "tests/cli-version.test.ts",
         "tests/doctor-handoff.test.ts",
         "tests/handoff.test.ts",
+        "tests/local-cli-fs-root.test.ts",
         "tests/local-cli.test.ts",
         "tests/render.test.ts"
       ],
