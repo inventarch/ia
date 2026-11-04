@@ -717,7 +717,9 @@ async function runRepo(
     // the preview says, only with the manager the base declares or locks; any other offer gets the batch's install.
     const first = installsFirst(repo.steps);
     if (first !== null && first !== manager)
-      return refuse(`the first step installs with ${first}, but the base is locked by ${manager}`);
+      return refuse(
+        `the first step installs with ${first}, but the base is locked by ${manager}; run this offer from that workspace's own view instead`,
+      );
     if (first === null) {
       // No lifecycle script runs, and a tracked lockfile is never rewritten: the install is frozen to it.
       const install: Step = {

@@ -127,7 +127,8 @@ export function installsDependencies(argv: readonly string[]): argv is readonly 
   const same = (form: readonly string[]): boolean =>
     form.length === argv.length && form.every((token, index) => token === argv[index]);
   const spec = argv.at(-1) ?? '';
-  const pin = spec !== '' && !spec.startsWith('-');
+  // Only the pin pinArgv makes, of this CLI at a version: another package pinned first is not this install.
+  const pin = spec.startsWith(`${CLI}@`) && spec.length > CLI.length + 1;
   // Any token may be the directory a directed form names; every form is rebuilt and compared whole.
   return [undefined, ...argv].some((directory) =>
     directory === undefined

@@ -923,7 +923,8 @@ describe('an offer whose first step is the install', () => {
     const { results } = await batch(fx, [rowOf(top, [offer])], 'fix:cli-version');
     expect(only(results)).toMatchObject({
       ok: false,
-      refused: 'the first step installs with npm, but the base is locked by pnpm',
+      refused:
+        "the first step installs with npm, but the base is locked by pnpm; run this offer from that workspace's own view instead",
     });
     expect(pmCalls(fx)).toEqual([]);
   });
@@ -945,6 +946,9 @@ describe('an offer whose first step is the install', () => {
       ['npm', 'run', 'build'],
       ['pnpm', 'add', '-D', '--', 'x'],
       ['npx', 'install'],
+      // Only the CLI pin the recipes make counts: another package pinned first is not the install.
+      ['npm', 'install', '-D', 'other-package'],
+      ['npm', 'install', '-D', '@inventarch/cli'],
       [],
     ])
       expect(installsDependencies(other)).toBe(false);
