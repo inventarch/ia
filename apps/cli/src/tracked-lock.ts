@@ -43,7 +43,7 @@ export function withTrackedLock<T>(home: string, action: () => T, options: LockO
         `The change was made, but its lock could not be removed: ${error.message}`,
         3,
         { path: error.lock },
-        `Once no other ia process is running on this host, delete ${error.lock} by hand; until then every change to the tracked list waits for it and refuses.`,
+        `Once no other ia process is running on this host, delete ${error.lock} by hand (until then every change to the tracked list waits for it and refuses), then run "ia workspaces list" to see the change.`,
       );
     if (!(error instanceof HomeLockedError)) throw error;
     throw new Refusal(

@@ -291,6 +291,7 @@ it('a lock it cannot remove after the list was written refuses saying the change
   expect(refusal.message).toContain('The change was made');
   expect(refusal.message).toContain(lock);
   expect(refusal.next).toContain(`delete ${lock}`);
+  expect(refusal.next).toContain('"ia workspaces list"');
   expect(readTracked(at).map((row) => row.id)).toEqual(['demo']);
   expect(existsSync(lock)).toBe(true);
 });
