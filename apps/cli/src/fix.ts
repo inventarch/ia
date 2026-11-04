@@ -4,7 +4,8 @@
  * A fix is the runnable form of a check's `remedy`: `{program, argv, flow, writesTo}`, or `null` when the remedy is
  * advice. The flow is derived from the parsed form under the grammar of the action it names, never from a hand table,
  * so a later command or check id needs no change here. The display text is always derived from `argv` (`displayFix`),
- * never stored, and it equals the remedy wherever the remedy is a single runnable command.
+ * never stored, and it equals the remedy wherever the remedy is a single runnable command, except a release's kit-update
+ * fix, which adds `--to <latest>` to its `ia update <id>` remedy (host-plugin-distribution §7.3).
  */
 import type { Arguments, Grammar } from './args.js';
 import { parseArguments } from './args.js';

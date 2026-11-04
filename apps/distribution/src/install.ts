@@ -356,7 +356,8 @@ export function applyInstallation(
       afterActive: json(plan.pointer),
       afterLock: json(plan.lock),
     };
-    // Built before anything is written, so a collection whose member the lock lacks refuses with nothing to recover.
+    // Built before pending.json is written, so a collection whose member the lock lacks refuses with nothing to recover
+    // (the immutable store and generation files already written change nothing that counts).
     const collections = collectionsChange(root, plan, options.collections ?? [], pending);
     replace(root, INSTALL_PATHS.pending, Buffer.from(json(pending)));
     checkpoint('pending');
