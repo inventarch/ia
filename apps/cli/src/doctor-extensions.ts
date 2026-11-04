@@ -6,7 +6,8 @@
  * The state file is `{"format": "ia-extension-checks-1", "checks": [{id, title, status, detail, remedy, fix?}]}`. Its
  * checks join doctor's Environment section after the user rows. Every id must start with `<token>-` and name no core
  * row; a row that does not is dropped and named in one `unknown` row, `<token>-state`, which also stands for a file
- * that cannot be read. A fix must run the extension's own token through `ia`; any other is dropped.
+ * that cannot be read. A fix must run the extension's own token through `ia`; any other is dropped. A fix takes its flow
+ * and target from the console's declared step with the same argv; a fix no step declares is always `confirm`.
  */
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join, normalize, sep } from 'node:path';
@@ -48,8 +49,12 @@ const WRITES: readonly WritesTo[] = ['none', 'repo', 'user', 'machine'];
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
-/** The fix as given, when it runs `ia <token> …` with a known flow and target; null otherwise. */
-function ownFix(value: unknown, token: string): Fix | null {
+/**
+ * The fix as given, when it runs `ia <token> …` with a known flow and target; null otherwise. The state file is data an
+ * extension writes at run time, so its flow and target are a claim, not a grant: the flow and target come from the
+ * console's own declared step with the same argv, and a fix no declared step names always asks first (`confirm`).
+ */
+function ownFix(value: unknown, token: string, declared: readonly ConsoleStep[]): Fix | null {
   if (!isRecord(value)) return null;
   const { program, argv, flow, writesTo } = value;
   if (
@@ -61,7 +66,10 @@ function ownFix(value: unknown, token: string): Fix | null {
     !WRITES.includes(writesTo as WritesTo)
   )
     return null;
-  return { program, argv: [...(argv as string[])], flow: flow as Flow, writesTo: writesTo as WritesTo };
+  const step = declared.find((candidate) => JSON.stringify(candidate.argv) === JSON.stringify(argv));
+  return step === undefined
+    ? { program, argv: [...(argv as string[])], flow: 'confirm', writesTo: writesTo as WritesTo }
+    : { program, argv: [...(argv as string[])], flow: step.flow, writesTo: step.writesTo };
 }
 type Row = Omit<Check, 'section' | 'fix'> & { readonly fix: unknown };
 function decodeRows(text: string): readonly Row[] {
@@ -131,9 +139,10 @@ export function extensionChecks(
     }
     const kept: Check[] = [],
       dropped: string[] = [];
+    const steps = console.offers.flatMap((offer) => offer.steps);
     for (const row of rows) {
       if (!row.id.startsWith(`${token}-`) || row.id === stateId || reserved.has(row.id)) dropped.push(row.id);
-      else kept.push({ ...row, section: 'Environment', fix: ownFix(row.fix, token) });
+      else kept.push({ ...row, section: 'Environment', fix: ownFix(row.fix, token, steps) });
     }
     return dropped.length === 0
       ? kept

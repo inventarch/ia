@@ -56,7 +56,7 @@ export function pidRunning(pid: number): boolean {
   }
 }
 
-function parseOwner(text: string): LockOwner | null {
+export function parseOwner(text: string): LockOwner | null {
   try {
     const value = JSON.parse(text) as Record<string, unknown>;
     const { token, pid, start, host, createdAt } = value;

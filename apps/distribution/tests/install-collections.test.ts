@@ -282,6 +282,25 @@ it('the accepted residual: an older-CLI restore after a rolled-back upgrade recr
   expect(versions(root)).toEqual(['acme/same@2.0.0']);
 });
 
+it('an unreadable collection record refuses the install and is left as it was', async () => {
+  const dir = await registry(),
+    root = workspaceRoot();
+  await install(root, dir, ['acme/kit@^1.0.0']);
+  const good = JSON.parse(read(root, KIT_COLLECTIONS)!) as { collections: { members: { id: string }[] }[] };
+  // A member id that is not a package id, the shape the record's own decoder refuses.
+  good.collections[0]!.members[0]!.id = '--root=/other';
+  const damaged = JSON.stringify(good);
+  writeFileSync(join(root, KIT_COLLECTIONS), damaged);
+  const lockBefore = read(root, INSTALL_PATHS.lock);
+  await expect(install(root, dir, ['acme/other@^1.0.0'])).rejects.toMatchObject({
+    code: 'IA-DIST-COLLECTIONS-UNREADABLE',
+    message: expect.stringContaining(`${KIT_COLLECTIONS}`),
+  });
+  await expect(install(root, dir, ['acme/other@^1.0.0'])).rejects.toThrow(/move .*kit-collections\.json aside/);
+  expect(read(root, KIT_COLLECTIONS)).toBe(damaged);
+  expect(read(root, INSTALL_PATHS.lock)).toBe(lockBefore);
+  expect(existsSync(join(root, INSTALL_PATHS.pending))).toBe(false);
+});
 it('a restore of an unchanged lock does not rewrite the record', async () => {
   const dir = await registry(),
     root = workspaceRoot();

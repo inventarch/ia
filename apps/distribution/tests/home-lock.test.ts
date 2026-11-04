@@ -162,3 +162,24 @@ it('a lock already gone at release (ENOENT) is released', () => {
   };
   expect(withHomeLock(at, NAME, () => 'done', { removeLock })).toBe('done');
 });
+
+it('never removes a lock another owner swapped in during the action', () => {
+  const at = home(),
+    lock = join(at, NAME);
+  const other = JSON.stringify({
+    token: 'swapped-in',
+    pid: process.pid,
+    start: null,
+    host: hostname(),
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+  const result = withHomeLock(at, NAME, () => {
+    // The lock this call published is replaced by another owner's, as after a takeover this module never makes itself.
+    rmSync(lock);
+    writeFileSync(lock, other);
+    return 'done';
+  });
+  expect(result).toBe('done');
+  expect(readFileSync(lock, 'utf8')).toBe(other);
+  expect(leftovers(at)).toEqual([]);
+});

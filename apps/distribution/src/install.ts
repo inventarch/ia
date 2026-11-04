@@ -269,7 +269,8 @@ function acquire(root: string, recovering = false): () => void {
 /**
  * The collections journal this apply writes, or null when the record does not change. The merge starts from the record
  * that describes the lock before the operation, or from none when it describes another (an older CLI changed the lock).
- * A record left with no collection and no unknown entry is removed rather than written empty.
+ * A record left with no collection and no unknown entry is removed rather than written empty. A record that cannot be
+ * decoded refuses (`IA-DIST-COLLECTIONS-UNREADABLE`) rather than being replaced.
  */
 function collectionsChange(
   root: string,
@@ -278,6 +279,13 @@ function collectionsChange(
   pending: { readonly beforeActive: string | null; readonly beforeLock: string | null; readonly afterLock: string },
 ): CollectionsJournal | null {
   const read = readKitCollections(root);
+  // A record this build cannot decode is not an absent one: the merge would replace it and lose its collection rows.
+  if (read.state === 'invalid')
+    fail(
+      'COLLECTIONS-UNREADABLE',
+      `${read.problem}; ia install would replace it and lose the collection rows it holds (the installed packages stay). ` +
+        `Restore the file from version control or a backup, or move ${KIT_COLLECTIONS} aside if its collections may be forgotten, then run ia install again`,
+    );
   // The file's own bytes, readable or not, so a rollback puts back exactly what was there.
   const before = bytes(root, KIT_COLLECTIONS, DISTRIBUTION_LIMITS.metadata)?.toString('utf8') ?? null;
   const current =
