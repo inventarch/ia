@@ -5,7 +5,7 @@
  */
 import { cpSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import type { Channel } from '../src/channel.js';
 import type { DoctorView } from '../src/doctor.js';
 import { collectDoctor, doctorEnvelope } from '../src/doctor.js';
@@ -15,6 +15,12 @@ export const VERSION = '3.5.1';
 const RUNTIME = { version: 'v22.22.0', platform: 'linux', arch: 'x64' } as const;
 const CHANNEL: Channel = { kind: 'npm', name: '@inventarch/cli', version: VERSION };
 const NOW = new Date('2026-11-03T12:00:00Z');
+/**
+ * The day the declined fixture's decision is recorded on, at local noon, so its local date reads 2026-11-03 in every
+ * time zone. `ia init --decline` stamps the machine's clock; the fixture puts this time in its place, so no row depends
+ * on the day the test runs.
+ */
+export const DECLINED_AT = new Date(2026, 10, 3, 12).toISOString();
 const RECEIPT = '.ia/distributions/hosts/claude-receipt.json';
 
 export interface Fixture {
@@ -62,13 +68,26 @@ export type FixtureName =
   | 'shell-root'
   | 'projected'
   | 'registered';
-export async function fixture(name: FixtureName): Promise<Fixture> {
+/** `declineClock`: the system time the decline is made at, before its recorded time is set to `DECLINED_AT`. */
+export async function fixture(name: FixtureName, options: { readonly declineClock?: Date } = {}): Promise<Fixture> {
   const { home, user, env } = homes(`df-${name}`);
   if (name === 'none' || name === 'declined') {
     const cwd = scratch(`df-${name}-cwd`);
     if (name === 'declined') {
-      const declined = await run(['init', cwd, '--decline', 'forever', '--json'], { env });
-      expect(declined.exitCode, declined.stdout).toBe(0);
+      if (options.declineClock !== undefined) vi.useFakeTimers({ toFake: ['Date'], now: options.declineClock });
+      try {
+        const declined = await run(['init', cwd, '--decline', 'forever', '--json'], { env });
+        expect(declined.exitCode, declined.stdout).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+      // The decision as the command recorded it, with only its time replaced.
+      const decisions = resolve(home, 'state/decisions.json');
+      const file = JSON.parse(readFileSync(decisions, 'utf8')) as {
+        repositories: Record<string, { at: string }>;
+      };
+      for (const decision of Object.values(file.repositories)) decision.at = DECLINED_AT;
+      writeFileSync(decisions, JSON.stringify(file, null, 2));
     }
     return { root: cwd, cwd, home, user, env, supplied: false };
   }
