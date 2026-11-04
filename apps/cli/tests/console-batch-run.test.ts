@@ -692,6 +692,36 @@ it.skipIf(process.platform === 'win32')(
   },
 );
 
+it.skipIf(process.platform === 'win32')(
+  'a workspace subfolder committed as a relative link that stays inside the worktree is accepted',
+  async () => {
+    const fx = fixture('batch-run-inside-link');
+    const { top } = repo(fx, 'inside', {
+      'package.json': pinned('3.5.0'),
+      ...LOCKED,
+      'real/.ia/src/workspace.ia': '',
+    });
+    // Relative, so in every worktree it leads to that worktree's own `real`.
+    symlinkSync('real', join(top, 'notes'), 'dir');
+    git(top, ['add', '-A'], fx.env);
+    git(top, ['commit', '--quiet', '-m', 'link'], fx.env);
+    git(top, ['push', '--quiet', 'origin', 'main'], fx.env);
+    const root = join(top, 'notes');
+    const plan = planBatch(
+      'fix:generation',
+      [rowOf(root, [relock(root)])],
+      new Set([0]),
+      { iaHome: join(fx.dir, 'home') },
+      { top: () => top },
+    );
+    const { results, calls } = await batch(fx, [], 'fix:generation', plan);
+    expect(only(results)).toMatchObject({ ok: true, refused: null });
+    // The base was asked about the link, by a listed metadata operation.
+    expect(calls.some((call) => call.args[2] === 'ls-tree')).toBe(true);
+    expect(iaCalls(fx).map((call) => call.argv[0])).toEqual(['restore']);
+  },
+);
+
 describe('a copy the batch may not run', () => {
   it('a copy the base commits, or any copy under the user\u2019s IA_NO_HANDOFF=1, never runs: the running copy does', async () => {
     const fx = fixture('batch-run-committed');

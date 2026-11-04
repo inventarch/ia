@@ -24,7 +24,7 @@ import type { LocalCli } from '../local-cli.js';
 import { batchInstallArgv, detectPackageManager, lockTracked } from '../package-manager.js';
 import type { Git } from '../channel.js';
 import type { Env } from '../program.js';
-import { findProgram, programEnv, windowsShell, windowsShellArgs } from '../program.js';
+import { findProgram, programEnv, windowsShell, windowsShellArgs, windowsSystemProgram } from '../program.js';
 import type { RepoPlan } from './batch-plan.js';
 import { installsFirst, pathArguments } from './batch-plan.js';
 import type { Step } from './offers.js';
@@ -99,8 +99,7 @@ export const BATCH_COMMAND_TIMEOUT_MS = 10 * 60_000;
  */
 function stopTree(child: ReturnType<typeof spawn>, env: Env): void {
   if (process.platform === 'win32' && child.pid !== undefined) {
-    const root = Object.entries(env).find(([name]) => name.toUpperCase() === 'SYSTEMROOT')?.[1] ?? 'C:\\Windows';
-    const taskkill = join(root, 'System32', 'taskkill.exe');
+    const taskkill = windowsSystemProgram(env, 'taskkill.exe');
     if (existsSync(taskkill))
       spawnSync(taskkill, ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
   }
@@ -197,6 +196,7 @@ export const METADATA_OPS: readonly string[] = [
   'symbolic-ref --quiet refs/remotes/origin/HEAD',
   'rev-parse --verify --quiet',
   'worktree add --no-track -b',
+  'ls-tree',
   'worktree remove',
 ];
 
@@ -633,7 +633,17 @@ async function runRepo(
     `${base.base}:${inRepo === '' ? '' : `${inRepo}/`}.ia/src`,
   ]);
   if (held.refused !== undefined) return refuse(held.refused);
-  if (held.status !== 0)
+  // git does not follow a link inside a tree path, so a workspace reached through a committed link (`notes -> real`)
+  // is not found that way: one whose path has a link on it is left to the worktree-time check, which accepts a link
+  // that stays inside the worktree and refuses one that leads out, with that reason.
+  const prefixes = `${inRepo === '' ? '' : `${inRepo}/`}.ia/src`
+    .split('/')
+    .map((_, index, parts) => parts.slice(0, index + 1).join('/'));
+  const linked = held.status === 0 ? null : await git(['ls-tree', base.base, '--', ...prefixes.slice(0, -1)]);
+  if (linked?.refused !== undefined) return refuse(linked.refused);
+  const throughLink =
+    linked !== null && linked.status === 0 && linked.stdout.split(/\r?\n/).some((line) => line.startsWith('120000 '));
+  if (held.status !== 0 && !throughLink)
     return refuse(
       `the workspace ${inRepo === '' ? '.' : inRepo} has no .ia/src in ${base.base}, which the worktree would start from`,
     );
