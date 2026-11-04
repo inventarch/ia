@@ -182,7 +182,8 @@ export function defaultRunner(env: Env, limits: { readonly timeoutMs?: number } 
 
 /**
  * The git commands that may run against the user's own repository, each as `git -C <its top level> <command> …`. They
- * read refs or add metadata (a remote-tracking update, a worktree and a branch); none reads or writes the working tree.
+ * read refs or change metadata (a remote-tracking update, a worktree and a branch added, and afterwards, when chosen,
+ * the batch's own worktree removed, batch-next.ts); none reads or writes the user's working tree.
  */
 export const METADATA_OPS: readonly string[] = [
   'rev-parse --show-toplevel',
@@ -190,6 +191,7 @@ export const METADATA_OPS: readonly string[] = [
   'symbolic-ref --quiet refs/remotes/origin/HEAD',
   'rev-parse --verify --quiet',
   'worktree add --no-track -b',
+  'worktree remove',
 ];
 
 /**

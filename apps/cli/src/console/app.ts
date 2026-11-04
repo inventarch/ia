@@ -597,7 +597,9 @@ export async function runConsole(input: {
           print: (text) => print(sanitize(text)),
           line: readLine,
           run: (file, args, options) => {
-            // Ctrl-C while a batch command runs stops the batch after it; the command itself finishes.
+            // Ctrl-C while a batch command runs stops the batch: the terminal's signal reaches that command too (it shares
+            // the console's process group, or its console on Windows), which acts on it and usually ends, and nothing
+            // further starts.
             waiting = { cancel: () => controller.abort() };
             return (input.runner ?? defaultRunner(env))(file, args, options).finally(() => {
               waiting = null;

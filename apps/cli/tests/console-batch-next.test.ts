@@ -12,7 +12,7 @@ import { resolveRepo } from '../src/console/app.js';
 import type { Step } from '../src/console/offers.js';
 import { planBatch } from '../src/console/batch-plan.js';
 import type { RepoResult, Runner } from '../src/console/batch-run.js';
-import { defaultRunner, gitTop, runBatch } from '../src/console/batch-run.js';
+import { defaultRunner, gitTop, METADATA_OPS, runBatch } from '../src/console/batch-run.js';
 import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from '../src/console/batch-next.js';
 import { batchScreen, previewLines } from '../src/console/batch-screen.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
@@ -252,8 +252,15 @@ describe('after the run', () => {
     const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
     const run = defaultRunner(fx.env);
     await commitPassed(results, 'Re-lock', run, fx.env);
-    const removed = await removeWorktrees(results, run, fx.env);
+    const recorded = recorder(run);
+    const removed = await removeWorktrees(results, recorded.run, fx.env);
     expect(removed).toEqual([{ root: top, error: null }]);
+    // The removal names the checkout, so it is one of the listed metadata operations.
+    for (const call of recorded.calls) {
+      expect(call.args.slice(0, 2)).toEqual(['-C', top]);
+      const op = call.args.slice(2).join(' ');
+      expect(METADATA_OPS.some((allowed) => op.startsWith(`${allowed} `))).toBe(true);
+    }
     expect(existsSync(results[0]!.worktree)).toBe(false);
     expect(git(top, ['rev-parse', '--verify', 'refs/heads/chore/ia-fix-generation'], fx.env).trim()).not.toBe('');
     // An uncommitted worktree is not removed: its changes would be lost.
