@@ -61,6 +61,21 @@ export interface RegistryResolution {
   readonly candidates: readonly ReleaseCandidate<BundleMetadata>[];
   readonly sources: ReadonlyMap<string, RegistryChoice>;
 }
+/**
+ * A kit's member range differs, as a string, from the range another installed collection left for that member: the
+ * install refuses rather than move a member the other collection still lists. `holders` are those collections, which
+ * re-expanding together with the kit replaces, when their releases list the member with the same range.
+ */
+export class CollectionConflictError extends DistributionError {
+  constructor(
+    message: string,
+    readonly member: string,
+    readonly holders: readonly string[],
+  ) {
+    super('IA-DIST-CONFLICT', message);
+    this.name = 'CollectionConflictError';
+  }
+}
 type LockedPackage = DistributionLock['packages'][number];
 /**
  * Registry spec §5.1: a locked package whose exact archive is in the workspace cache, passes byte-integrity checks against its digest, and
@@ -325,16 +340,14 @@ async function resolveWithPins(
         // installed collection still lists, unless this command expands that collection too (it is expanded already,
         // or its id is still a request waiting to be): one collection's install never drops another's constraint.
         const recorded = new Set(request.collectionMembers?.get(id) ?? []);
-        const held = new Set(
-          [...(request.collectionMembers ?? [])]
-            .filter(
-              ([other]) =>
-                other !== id &&
-                !expanded.some((collection) => collection.id === other) &&
-                !requests.some((item) => item.id === other),
-            )
-            .flatMap(([, members]) => members),
-        );
+        const held = new Map<string, string[]>();
+        for (const [other, members] of request.collectionMembers ?? [])
+          if (
+            other !== id &&
+            !expanded.some((collection) => collection.id === other) &&
+            !requests.some((item) => item.id === other)
+          )
+            for (const member of members) held.set(member, [...(held.get(member) ?? []), other].sort());
         for (let at = requests.length - 1; at >= 0; at -= 1) {
           const member = requests[at]!.id;
           if (recorded.has(member) && !explicit.has(member) && !introduced.has(member) && !held.has(member))
@@ -349,6 +362,13 @@ async function resolveWithPins(
         for (const member of ids) nestedIn.set(member, row);
         for (const member of kit.distributions) {
           const existing = requests.find((item) => item.id === member.id);
+          const holders = held.get(member.id);
+          if (existing && existing.range !== member.range && holders !== undefined && !explicit.has(member.id))
+            throw new CollectionConflictError(
+              `Kit ${id} ${kit.version} lists ${member.id} ${member.range}, but installed ${holders.length === 1 ? 'collection' : 'collections'} ${holders.join(', ')} ${holders.length === 1 ? 'lists' : 'list'} it at ${existing.range}`,
+              member.id,
+              holders,
+            );
           if (existing && existing.range !== member.range)
             fail('CONFLICT', `Kit conflicts with direct request ${member.id}`);
           if (!existing) requests.push(member);

@@ -263,8 +263,17 @@ it("re-installing a collection that moves a shared member's range refuses, at pr
   const recorded = readFileSync(join(root, KIT_COLLECTIONS), 'utf8');
   for (const apply of [[], ['--apply', '--yes']]) {
     const result = await run(['install', 'acme/a@2.0.0', '--root', root, '--registry', dir, ...apply, '--json']);
-    expect(result.exitCode, result.stdout).not.toBe(0);
-    expect(result.stdout + result.stderr).toContain('IA-DIST-CONFLICT');
+    expect(result.exitCode, result.stdout).toBe(3);
+    // The refusal names the collection that holds the member, and the one command that re-expands both together.
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      code: 'IA-DIST-CONFLICT',
+      message: 'Kit acme/a 2.0.0 lists acme/x ^2.0.0, but installed collection acme/b lists it at ^1.0.0',
+      // The root is spelled as the CLI's advice spells every root (forward slashes on Windows).
+      next: expect.stringMatching(/^Install them together with "ia install acme\/a@2\.0\.0 acme\/b --registry /),
+    });
+    expect(JSON.parse(result.stdout).next).toContain(
+      ` --root ${root.replaceAll('\\', '/')}"; that succeeds only when their releases list acme/x with the same range.`,
+    );
   }
   expect(readFileSync(join(root, KIT_COLLECTIONS), 'utf8')).toBe(recorded);
 });

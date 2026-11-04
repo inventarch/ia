@@ -1201,7 +1201,12 @@ it('re-expanding one collection keeps a member another installed collection stil
       ],
       { allowKits: true, named: ['acme/a'], collectionMembers: SHARED },
     ),
-  ).rejects.toMatchObject({ code: 'IA-DIST-CONFLICT', message: 'Kit conflicts with direct request acme/x' });
+  ).rejects.toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit acme/a 2.0.0 lists acme/x ^2.0.0, but installed collection acme/b lists it at ^1.0.0',
+    member: 'acme/x',
+    holders: ['acme/b'],
+  });
 });
 it('a release that drops a shared member leaves it requested while another installed collection lists it', async () => {
   const dir = await sharedRegistry();
