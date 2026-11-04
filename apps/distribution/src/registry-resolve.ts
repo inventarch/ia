@@ -44,7 +44,8 @@ export interface RegistryResolveRequest {
   /**
    * The member ids the collection record keeps for each installed collection (and, for one whose identity is unknown,
    * both sides' members). When `allowKits` re-expands such a collection, its recorded members leave the requests first,
-   * so the new members replace them instead of conflicting with them.
+   * so the new members replace them instead of conflicting with them; a member another collection here still lists
+   * stays, unless the same command expands that collection too.
    */
   readonly collectionMembers?: ReadonlyMap<string, readonly string[]> | undefined;
 }
@@ -316,11 +317,24 @@ async function resolveWithPins(
         // Re-expanding a collection replaces the member requests its earlier expansion left: they leave the requests
         // (one the new release no longer lists stays locked only while something depends on it), so a changed range is
         // not a conflict. A request this command names itself, or one another collection's expansion in this command
-        // introduced, is not inherited and stays, so it still conflicts as it always has.
+        // introduced, is not inherited and stays, so it still conflicts as it always has. So does a member another
+        // installed collection still lists, unless this command expands that collection too (it is expanded already,
+        // or its id is still a request waiting to be): one collection's install never drops another's constraint.
         const recorded = new Set(request.collectionMembers?.get(id) ?? []);
+        const held = new Set(
+          [...(request.collectionMembers ?? [])]
+            .filter(
+              ([other]) =>
+                other !== id &&
+                !expanded.some((collection) => collection.id === other) &&
+                !requests.some((item) => item.id === other),
+            )
+            .flatMap(([, members]) => members),
+        );
         for (let at = requests.length - 1; at >= 0; at -= 1) {
           const member = requests[at]!.id;
-          if (recorded.has(member) && !explicit.has(member) && !introduced.has(member)) requests.splice(at, 1);
+          if (recorded.has(member) && !explicit.has(member) && !introduced.has(member) && !held.has(member))
+            requests.splice(at, 1);
         }
         for (const member of kit.distributions) introduced.add(member.id);
         expanded.push({
