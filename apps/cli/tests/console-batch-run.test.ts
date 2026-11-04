@@ -857,6 +857,27 @@ it.skipIf(process.platform === 'win32')('a POSIX shim passes shell characters th
   expect(pmCalls(fx)[0]?.argv).toEqual(args);
 });
 
+describe('the base', () => {
+  it('a workspace the base does not hold is refused before anything is created', async () => {
+    const fx = fixture('batch-run-absent');
+    const { top } = repo(fx, 'mono');
+    // The workspace exists only in the local checkout: committed, never pushed.
+    mkdirSync(join(top, 'apps', 'notes', '.ia', 'src'), { recursive: true });
+    writeFileSync(join(top, 'apps', 'notes', '.ia', 'src', 'workspace.ia'), '');
+    git(top, ['add', '-A'], fx.env);
+    git(top, ['commit', '--quiet', '-m', 'local only'], fx.env);
+    const root = join(top, 'apps', 'notes');
+    const { results, calls } = await batch(fx, [rowOf(root, [relock(root)])], 'fix:generation');
+    expect(only(results)).toMatchObject({
+      ok: false,
+      created: false,
+      refused: 'the workspace apps/notes has no .ia/src in origin/main, which the worktree would start from',
+    });
+    expect(calls.some((call) => call.args.includes('worktree'))).toBe(false);
+    expect(existsSync(only(results).worktree)).toBe(false);
+  });
+});
+
 describe('no prompt, and no command without an end', () => {
   it('every batch child gets GIT_TERMINAL_PROMPT=0 and GCM_INTERACTIVE=never, whatever the console inherited', async () => {
     expect(batchEnv({ PATH: 'x', GIT_TERMINAL_PROMPT: '1', GCM_INTERACTIVE: 'always' }, 'linux')).toEqual({

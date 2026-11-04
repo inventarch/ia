@@ -36,6 +36,11 @@ export type BatchOutcome =
 
 const shown = (text: string): string => shownArgument(text);
 
+/** The base every worktree starts from (batch-run.ts `findBase`), named before anything runs. */
+const BASE = "origin's default branch after git fetch origin (origin/HEAD, else origin/main, else origin/master)";
+/** Why the base matters: the offers were read from the local checkout, which the worktree does not start from. */
+export const BASE_NOTE =
+  'The offers were read from each local checkout, but each worktree starts from that base: a change the checkout has and the base lacks is not in it, and a repository whose workspace the base does not hold is refused.';
 /** How the batch's install runs (package-manager.ts `batchInstallArgv`), said once under the repositories. */
 export const INSTALL_NOTE =
   'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A commit afterwards holds what it and the steps write.';
@@ -52,11 +57,12 @@ export function previewLines(preview: BatchPreview): readonly string[] {
     out.push(
       `  worktree ${shown(plan.worktree)}`,
       `  branch   ${shown(plan.branch)}`,
+      `  base     ${BASE}`,
       "  install  the package manager's install, first, where the worktree holds a package.json",
     );
     plan.steps.forEach((step, index) => out.push(`  ${index + 1}. ${shown(displayFix(step))}`));
   }
-  if (preview.repos.some((plan) => plan.refused === null)) out.push('', INSTALL_NOTE);
+  if (preview.repos.some((plan) => plan.refused === null)) out.push('', BASE_NOTE, INSTALL_NOTE);
   if (preview.deferred.length > 0) {
     out.push('', 'Left out of every repository, offered once afterwards:');
     for (const step of preview.deferred) out.push(`  ${shown(displayFix(step))}`);

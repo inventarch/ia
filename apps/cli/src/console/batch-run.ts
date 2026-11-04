@@ -6,7 +6,7 @@
  * worktree, on arguments planning rebuilt for it (batch-plan.ts).
  *
  * Per repository: refuse when planning did; `git fetch origin` and the base (`origin/HEAD`, then `origin/main`, then
- * `origin/master`); refuse an existing worktree path or branch; `git worktree add --no-track -b <branch> <path> <base>`
+ * `origin/master`); refuse a workspace whose `.ia/src` the base does not hold; refuse an existing worktree path or branch; `git worktree add --no-track -b <branch> <path> <base>`
  * (no upstream, ever); the package manager's install when the worktree holds a `package.json`, built for the worktree,
  * with no lifecycle script and frozen to a tracked lockfile (`batchInstallArgv`);
  * then each step. Before the install and before every step the real filesystem is checked (`containedStep`): the
@@ -615,6 +615,20 @@ async function runRepo(
   say('fetching origin');
   const base = await findBase(top, io.run, io.env, gitPath, guard);
   if ('why' in base) return refuse(base.why);
+  // The offers were read from the local checkout, but the worktree starts from the base: a workspace the base does not
+  // hold (added on a local branch, or not pushed) would leave the steps nothing to act on, so it is refused here.
+  const inRepo = relative(top, repo.root).split(sep).join('/');
+  const held = await git([
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    `${base.base}:${inRepo === '' ? '' : `${inRepo}/`}.ia/src`,
+  ]);
+  if (held.refused !== undefined) return refuse(held.refused);
+  if (held.status !== 0)
+    return refuse(
+      `the workspace ${inRepo === '' ? '.' : inRepo} has no .ia/src in ${base.base}, which the worktree would start from`,
+    );
   if (existsSync(worktree)) return refuse(`the worktree path already exists: ${worktree}`);
   const branchProbe = await git(['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`]);
   if (branchProbe.refused !== undefined) return refuse(branchProbe.refused);

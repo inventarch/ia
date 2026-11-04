@@ -142,6 +142,14 @@ describe('the preview', () => {
     expect(lines[install + 1]).toMatch(/^ {2}1\. ia restore --apply/);
     // Once, for every repository: no lifecycle script, frozen to a tracked lockfile.
     expect(lines.filter((line) => line.startsWith('  install  '))).toHaveLength(1);
+    // The base is named, before the install, and the preview says the offers came from the local checkout instead.
+    const base = lines.indexOf(
+      "  base     origin's default branch after git fetch origin (origin/HEAD, else origin/main, else origin/master)",
+    );
+    expect(base).toBe(install - 1);
+    expect(lines).toContain(
+      'The offers were read from each local checkout, but each worktree starts from that base: a change the checkout has and the base lacks is not in it, and a repository whose workspace the base does not hold is refused.',
+    );
     expect(lines).toContain(
       'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A commit afterwards holds what it and the steps write.',
     );
