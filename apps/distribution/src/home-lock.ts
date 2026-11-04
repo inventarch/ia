@@ -13,14 +13,19 @@
  */
 import { hostname } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { DistributionError } from './files.js';
 import { ensureIaHome } from './ia-home.js';
 
 /** How long a change waits for another holder before it refuses; a hold lasts milliseconds. */
 export const HOME_LOCK_WAIT_MS = 10_000;
 const LOCK_POLL_MS = 25;
+/** What Windows reports for a moment while another process (an indexer, antivirus) holds a file open. */
+const TRANSIENT = ['EPERM', 'EBUSY', 'EACCES'];
+/** How many times a release is tried, `LOCK_POLL_MS` apart, before the lock is reported left behind. */
+const RELEASE_ATTEMPTS = 40;
 
 export interface LockOwner {
   readonly token: string;
@@ -83,7 +88,7 @@ function ensureHome(home: string): void {
     try {
       return ensureIaHome(home);
     } catch (error) {
-      if (attempt >= 40 || !['EPERM', 'EBUSY', 'EACCES'].includes(codeOf(error))) throw error;
+      if (attempt >= 40 || !TRANSIENT.includes(codeOf(error))) throw error;
       sleep(LOCK_POLL_MS);
     }
   }
@@ -98,6 +103,8 @@ export interface HomeLockOptions {
   readonly removeStage?: (path: string) => void;
   /** Called after each attempt that found the lock held, before the wait; tests use it to observe real contention. */
   readonly onBlocked?: () => void;
+  /** Removes this call's own lock at release. */
+  readonly removeLock?: (path: string) => void;
 }
 
 /** Who holds the lock, as the refusal describes them; `gone` when the lock vanished since the link failed. */
@@ -131,10 +138,29 @@ export class HomeLockedError extends Error {
 }
 
 /**
+ * This call's own lock could not be removed after its action completed: the action's change was made, and the lock it
+ * leaves blocks every later change to that store until it is deleted.
+ */
+export class HomeLockLeftError extends DistributionError {
+  constructor(
+    readonly lock: string,
+    reason: string,
+  ) {
+    super(
+      'IA-DIST-HOME-LOCK-LEFT',
+      `${lock} could not be removed (${reason}); this process no longer holds it, so delete it`,
+      lock,
+    );
+    this.name = 'HomeLockLeftError';
+  }
+}
+
+/**
  * Runs `action` holding the lock `<home>/<name>`. Creates the home as a write would. Throws `HomeLockedError` when
  * another holder is still there after `waitMs`, measured on a monotonic clock; it never removes another holder's lock.
  * Once this call's lock is published, everything that follows (removing the staging file, the action) runs inside the
- * `finally` that releases it.
+ * `finally` that releases it. A release Windows refuses for a moment is retried; one that still fails leaves the lock
+ * and throws `IA-DIST-HOME-LOCK-LEFT` naming it, unless the action threw, whose error then stands.
  */
 export function withHomeLock<T>(home: string, name: string, action: () => T, options: HomeLockOptions = {}): T {
   const {
@@ -142,6 +168,7 @@ export function withHomeLock<T>(home: string, name: string, action: () => T, opt
     read = (path: string) => readFileSync(path, 'utf8'),
     removeStage = (path: string) => rmSync(path, { force: true }),
     onBlocked = () => {},
+    removeLock = unlinkSync,
   } = options;
   ensureHome(home);
   const lock = join(home, name);
@@ -165,14 +192,37 @@ export function withHomeLock<T>(home: string, name: string, action: () => T, opt
     }
     throw error;
   }
+  let failed = false;
   try {
     removeStage(stage);
     return action();
+  } catch (error) {
+    failed = true;
+    throw error;
   } finally {
+    const left = release(lock, owner.token, removeLock);
+    if (left !== null && !failed) throw left;
+  }
+}
+
+/**
+ * Removes `lock` when it is still this call's (`token`). A lock already gone is released; Windows refusing the read or
+ * the removal for a moment (EPERM, EBUSY, EACCES) is retried. Returns the refusal to report when the lock is left
+ * behind, which would otherwise block every later change until its pid is found dead by hand, or null.
+ */
+function release(lock: string, token: string, remove: (path: string) => void): HomeLockLeftError | null {
+  for (let attempt = 1; ; attempt += 1) {
     try {
-      if (parseOwner(readFileSync(lock, 'utf8'))?.token === owner.token) rmSync(lock, { force: true });
-    } catch {
-      /* Already gone. */
+      if (parseOwner(readFileSync(lock, 'utf8'))?.token === token) remove(lock);
+      return null;
+    } catch (error) {
+      const code = codeOf(error);
+      if (code === 'ENOENT') return null;
+      if (attempt < RELEASE_ATTEMPTS && TRANSIENT.includes(code)) {
+        sleep(LOCK_POLL_MS);
+        continue;
+      }
+      return new HomeLockLeftError(lock, code || (error as Error).message);
     }
   }
 }

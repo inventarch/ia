@@ -199,3 +199,131 @@ it("a pinned release's update fix moves the pin to the latest version", async ()
   const lock = decodeDistributionLock(JSON.parse(lockText(root)));
   expect(lock.packages.find((row) => row.id === 'acme/x')?.version).toBe('2.0.0');
 });
+
+/** Collections `acme/a` and `acme/b` share `acme/x`; `acme/a` 2.0.0 moves x to ^2, and 3.0.0 lists w instead of x. */
+function sharedRegistry(): string {
+  const dir = buildFixtureRegistry([
+    { id: 'acme/w', version: '1.0.0' },
+    { id: 'acme/x', version: '1.0.0' },
+    { id: 'acme/x', version: '2.0.0' },
+    { id: 'acme/y', version: '1.0.0' },
+  ]);
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/a',
+    releases: [
+      { version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.0.0' }] },
+      { version: '2.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^2.0.0' }] },
+      { version: '3.0.0', withdrawn: false, distributions: [{ id: 'acme/w', range: '^1.0.0' }] },
+    ],
+  });
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/b',
+    releases: [
+      {
+        version: '1.0.0',
+        withdrawn: false,
+        distributions: [
+          { id: 'acme/x', range: '^1.0.0' },
+          { id: 'acme/y', range: '^1.0.0' },
+        ],
+      },
+    ],
+  });
+  return dir;
+}
+const shared = async (): Promise<{ dir: string; root: string }> => {
+  const dir = sharedRegistry(),
+    root = await workspace();
+  await ia(root, dir, 'install', 'acme/a@1.0.0');
+  await ia(root, dir, 'install', 'acme/b@1.0.0');
+  expect(record(root)!.collections.map((row) => row.id)).toEqual(['acme/a', 'acme/b']);
+  return { dir, root };
+};
+type Planned = { plan: { changes: { removed: string[] }; lock: { packages: { id: string }[] } } };
+
+it('re-installing a collection that drops a shared member keeps the member and the other collection', async () => {
+  const { dir, root } = await shared();
+  const before = decodeDistributionLock(JSON.parse(lockText(root)));
+  const preview = await run(['install', 'acme/a@3.0.0', '--root', root, '--registry', dir, '--json']);
+  expect(preview.exitCode, preview.stdout).toBe(0);
+  const planned = (JSON.parse(preview.stdout) as Planned).plan;
+  expect(planned.changes.removed).not.toContain('acme/x');
+  expect(planned.lock.packages.map((row) => row.id)).toContain('acme/x');
+  await ia(root, dir, 'install', 'acme/a@3.0.0');
+  const lock = decodeDistributionLock(JSON.parse(lockText(root)));
+  const pin = (from: typeof lock, id: string) => from.packages.find((row) => row.id === id);
+  expect(pin(lock, 'acme/x')).toEqual(pin(before, 'acme/x'));
+  expect(record(root)!.collections.map((row) => `${row.id}@${row.version}`)).toEqual(['acme/a@3.0.0', 'acme/b@1.0.0']);
+});
+
+it("re-installing a collection that moves a shared member's range refuses, at preview and at apply", async () => {
+  const { dir, root } = await shared();
+  const recorded = readFileSync(join(root, KIT_COLLECTIONS), 'utf8');
+  for (const apply of [[], ['--apply', '--yes']]) {
+    const result = await run(['install', 'acme/a@2.0.0', '--root', root, '--registry', dir, ...apply, '--json']);
+    expect(result.exitCode, result.stdout).toBe(3);
+    // The refusal names the collection that holds the member, and the one command that re-expands both together.
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      code: 'IA-DIST-CONFLICT',
+      message: 'Kit acme/a 2.0.0 lists acme/x ^2.0.0, but installed collection acme/b lists it at ^1.0.0',
+      // The root is spelled as the CLI's advice spells every root (forward slashes on Windows).
+      next: expect.stringMatching(/^Install them together with "ia install acme\/a@2\.0\.0 acme\/b --registry /),
+    });
+    expect(JSON.parse(result.stdout).next).toContain(
+      ` --root ${root.replaceAll('\\', '/')}"; that succeeds only when their releases list acme/x with the same range.`,
+    );
+  }
+  expect(readFileSync(join(root, KIT_COLLECTIONS), 'utf8')).toBe(recorded);
+});
+
+it('a kit whose member is a kit previews and applies, recording the members it expanded to', async () => {
+  const dir = buildFixtureRegistry([{ id: 'acme/x', version: '1.0.0' }]),
+    root = await workspace();
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/outer',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/inner', range: '^1.0.0' }] }],
+  });
+  registryAddCollection(dir, 'kit', {
+    format: 'ia.registry-kit.v1',
+    id: 'acme/inner',
+    releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range: '^1.0.0' }] }],
+  });
+  const preview = await run(['install', 'acme/outer', '--root', root, '--registry', dir, '--json']);
+  expect(preview.exitCode, preview.stdout).toBe(0);
+  await ia(root, dir, 'install', 'acme/outer');
+  const lock = decodeDistributionLock(JSON.parse(lockText(root)));
+  expect(record(root)!.collections).toEqual([
+    {
+      id: 'acme/outer',
+      version: '1.0.0',
+      registry: dir,
+      members: [{ id: 'acme/x', version: '1.0.0', archive: lock.packages.find((row) => row.id === 'acme/x')!.archive }],
+    },
+  ]);
+});
+
+it("the preview's Would write names the collection record exactly when the apply writes it", async () => {
+  const dir = registry(),
+    root = await workspace();
+  const recordBytes = () =>
+    existsSync(join(root, KIT_COLLECTIONS)) ? readFileSync(join(root, KIT_COLLECTIONS), 'utf8') : null;
+  // Each step previews, then applies, and the preview names the record exactly when the apply changed it.
+  const step = async (argv: string[], registered = true): Promise<boolean> => {
+    const source = registered ? ['--registry', dir] : [];
+    const preview = await run([...argv, '--root', root, ...source]);
+    expect(preview.exitCode, preview.stdout).toBe(0);
+    const named = preview.stdout.slice(preview.stdout.indexOf('Would write')).includes(KIT_COLLECTIONS),
+      before = recordBytes();
+    const applied = await run([...argv, '--root', root, ...source, '--apply', '--yes', '--json']);
+    expect(applied.exitCode, applied.stdout).toBe(0);
+    expect(named).toBe(recordBytes() !== before);
+    return named;
+  };
+  expect(await step(['install', 'acme/w'])).toBe(false);
+  expect(await step(['install', 'acme/kit@1.0.0'])).toBe(true);
+  expect(await step(['remove', 'acme/y'], false)).toBe(true);
+  expect(await step(['install', 'acme/x@^1.0.0'])).toBe(false);
+});

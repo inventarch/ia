@@ -236,3 +236,20 @@ it('an unrelated collection is preserved across another collection’s install a
     'acme/other',
   ]);
 });
+
+it('an id that is not a distribution id refuses, so a committed record cannot pass an option for an id', () => {
+  const lock = '0'.repeat(64),
+    member = { id: 'acme/x', version: '1.0.0', archive: lock };
+  const decode = (record: object) => () =>
+    decodeKitCollections(JSON.stringify({ format: 'ia-kit-collections-1', lock, ...record }));
+  for (const id of ['--root=/other', '-x', 'acme/../x', 'Acme/X'])
+    for (const record of [
+      { collections: [], unknown: [{ id, members: ['acme/x'] }] },
+      { collections: [], unknown: [{ id: 'acme/kit', members: [id] }] },
+      { collections: [{ id, version: '1.0.0', registry: 'r', members: [member] }], unknown: [] },
+      { collections: [{ id: 'acme/kit', version: '1.0.0', registry: 'r', members: [{ ...member, id }] }], unknown: [] },
+    ])
+      expect(decode(record), `${id} ${JSON.stringify(record)}`).toThrow(
+        expect.objectContaining({ code: 'IA-DIST-INPUT-INVALID' }),
+      );
+});

@@ -42,7 +42,7 @@ import {
 } from './services.js';
 import { bytes, fail, utf8, workspace } from './files.js';
 import { registryAdd, registryWithdraw } from './registry-build.js';
-import { HomeLockedError } from './home-lock.js';
+import { HomeLockedError, HomeLockLeftError } from './home-lock.js';
 import { refreshUpdates, UPDATE_CHANNELS } from './updates.js';
 import type { UpdateChannel } from './updates.js';
 
@@ -201,6 +201,13 @@ export async function runNative(argv: readonly string[]): Promise<{ result: unkn
         exitCode: 0,
       };
     } catch (error) {
+      // The cache was written, but this refresh's own lock is left: an explicit refresh says so, the detached one exits
+      // quietly as it does for a held lock.
+      if (error instanceof HomeLockLeftError) {
+        if (force)
+          fail('HOME-LOCK-LEFT', `The update cache was refreshed, but its lock could not be removed: ${error.message}`);
+        return { result: { refreshed: true, lockLeft: error.lock }, exitCode: 0 };
+      }
       if (!(error instanceof HomeLockedError)) throw error;
       // The detached refresh leaves a cache another refresh is writing alone; an explicit one says which lock held it.
       if (force) fail('HOME-LOCKED', `The update cache is locked by another refresh (${error.held}): ${error.lock}`);

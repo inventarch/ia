@@ -17,6 +17,7 @@ import {
   decodeDistributionLock,
   DISTRIBUTION_LIMITS,
   INSTALL_PATHS,
+  packageId,
 } from '@inventarch/db/distribution';
 import type { DistributionLock } from '@inventarch/db/distribution';
 import { lstatSync } from 'node:fs';
@@ -73,11 +74,28 @@ export interface CollectionsJournal {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = (value: unknown): value is string => typeof value === 'string' && value !== '';
+/**
+ * A distribution id (`provider/name`, the lock's own rule). The record is committed, and its ids reach the argument
+ * vectors doctor offers as fixes, so an id such as `--root=/other` must never decode.
+ */
+const distributionId = (value: unknown): value is string => {
+  try {
+    packageId(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
 const HEX = /^[a-f0-9]{64}$/;
 const byId = <T extends { readonly id: string }>(a: T, b: T): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 function decodeMember(value: unknown): CollectionMember {
-  if (!isRecord(value) || !text(value['id']) || !text(value['version']) || !HEX.test(String(value['archive'])))
+  if (
+    !isRecord(value) ||
+    !distributionId(value['id']) ||
+    !text(value['version']) ||
+    !HEX.test(String(value['archive']))
+  )
     fail('INPUT-INVALID', 'A collection member needs its id, version and archive digest');
   return { id: value['id'] as string, version: value['version'] as string, archive: value['archive'] as string };
 }
@@ -100,7 +118,7 @@ export function decodeKitCollections(input: string): KitCollections {
     format: KIT_COLLECTIONS_FORMAT,
     lock: value['lock'] as string,
     collections: collections.map((row): CollectionRow => {
-      if (!isRecord(row) || !text(row['id']) || !text(row['version']) || !text(row['registry']))
+      if (!isRecord(row) || !distributionId(row['id']) || !text(row['version']) || !text(row['registry']))
         return fail('INPUT-INVALID', 'A collection needs its id, version and registry');
       if (!Array.isArray(row['members'])) return fail('INPUT-INVALID', 'A collection needs its members');
       return {
@@ -111,7 +129,12 @@ export function decodeKitCollections(input: string): KitCollections {
       };
     }),
     unknown: unknown.map((row): UnknownCollection => {
-      if (!isRecord(row) || !text(row['id']) || !Array.isArray(row['members']) || !row['members'].every(text))
+      if (
+        !isRecord(row) ||
+        !distributionId(row['id']) ||
+        !Array.isArray(row['members']) ||
+        !row['members'].every(distributionId)
+      )
         return fail('INPUT-INVALID', 'An unknown collection needs its id and member ids');
       return { id: row['id'] as string, members: row['members'] as string[] };
     }),

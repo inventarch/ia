@@ -377,15 +377,22 @@ export async function refreshUpdates(input: RefreshInput, sources: Sources = liv
     UPDATE_CHECK_LOCK,
     () => {
       const previous = readUpdateCheck(input.home);
+      // A stamp later than the clock at this merge was not written by a refresh that finished meanwhile: it lies in
+      // the future (the clock stepped back after it was written), so it is replaced or dropped, never kept.
+      const start = input.now.getTime(),
+        merged = Math.max(start, Date.now());
+      const future = (stamp: string): boolean => Date.parse(stamp) > merged;
       // The CLI fields and the global stamp are this run's unless a refresh that finished meanwhile is newer.
-      const newer = previous !== null && Date.parse(previous.checkedAt) > input.now.getTime();
+      const newer = previous !== null && Date.parse(previous.checkedAt) > start && !future(previous.checkedAt);
       const entries = [...(previous?.packages.entries ?? [])];
       for (const entry of fetched) {
         const at = entries.findIndex((stored) => sameKey(stored, entry));
         if (at === -1) entries.push(entry);
-        else if (Date.parse(entries[at]!.checkedAt) < input.now.getTime()) entries[at] = entry;
+        else if (Date.parse(entries[at]!.checkedAt) < start || future(entries[at]!.checkedAt)) entries[at] = entry;
       }
-      const kept = entries.filter((entry) => input.now.getTime() - Date.parse(entry.checkedAt) < ENTRY_TTL);
+      const kept = entries.filter(
+        (entry) => start - Date.parse(entry.checkedAt) < ENTRY_TTL && !future(entry.checkedAt),
+      );
       const check: UpdateCheck = {
         schema: 'ia.update-check.v1',
         checkedAt: newer ? previous.checkedAt : checkedAt,
