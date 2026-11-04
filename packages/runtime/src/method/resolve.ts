@@ -19,7 +19,7 @@ import {
   sourcesDigest,
 } from './kits.js';
 import type { Kit, KitSources } from './kits.js';
-import { restoreRefusal, workspaceKits } from './installed-kits.js';
+import { lockedPackageKits, restoreRefusal, workspaceKits } from './installed-kits.js';
 import type { LockedKit } from './installed-kits.js';
 import { assemblePacket } from './packet.js';
 import type { MethodPacket } from './packet.js';
@@ -217,22 +217,34 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
   // A bound key runs only a kit the repository's own lock installs, whatever copy of the kit is carried, held in the IA
   // home or retained by a pin, and whether or not the task rebinds. The refusal comes before anything is retained or
   // written. The unbound route (outside a workspace) has no lock.
-  // A binding may name a kit by its folder, as findKit reads it: the lock is asked about the kit's canonical id.
-  if (!unbound) {
+  // A binding may name a kit by its folder, as findKit reads it: the lock is asked about the kit's canonical id. A kit
+  // only the lock's package entries install is named, as its store copy is, by its id's last segment. Both lookups only
+  // read, so the refusal still comes before anything is written.
+  const canonicalId = (ref: string): string => {
     let carried: Kit[] = [];
     try {
       carried = listKits(context.kits);
     } catch {
       carried = [];
     }
-    requireKitInstalled(workspaceRoot!, { id: canonicalKitId(binding.kit, carried) });
-  }
+    const id = canonicalKitId(ref, carried);
+    if (id !== ref || workspaceRoot === null) return id;
+    let locked: readonly LockedKit[] = [];
+    try {
+      locked = lockedPackageKits(workspaceRoot);
+    } catch {
+      locked = [];
+    }
+    return locked.find((row) => row.id === ref || row.id.slice(row.id.indexOf('/') + 1) === ref)?.id ?? ref;
+  };
+  const kitId = unbound ? binding.kit : canonicalId(binding.kit);
+  if (!unbound) requireKitInstalled(workspaceRoot!, { id: kitId });
 
   const keyPin = pin?.keys?.[activityKey] ?? null;
   const savedKit = pin?.kits?.[binding.kit] ?? null;
   let carried: Kit | undefined;
   // A kit a package entry installs is read from the store: one the store lacks refuses, never read from another copy.
-  const unrestored = workspaceRoot === null ? undefined : at().missing.find((row) => row.id === binding.kit);
+  const unrestored = workspaceRoot === null ? undefined : at().missing.find((row) => row.id === kitId);
   try {
     if (unrestored !== undefined) throw restoreRefusal(unrestored);
     carried = findKit(binding.kit, kits());

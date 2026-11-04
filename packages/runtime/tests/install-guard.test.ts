@@ -300,6 +300,40 @@ describe('resolveMethod with a bound kit', () => {
     writeLock(lockWith({ packages: [{ id: KIT, version: '0.9.0', archive: ARCHIVE }] }));
     expect(resolve()).toMatchObject({ code: REACHED });
   });
+  describe('a binding written with the folder of a kit only the lock entries install', () => {
+    // The store's copy is named by its id's last segment (ia-kb-kit); no bundled or home kit has that folder.
+    const record = '#! ia 1.0\n\n@workspace kb\n';
+    const manifest = JSON.stringify({
+      id: KIT,
+      version: '0.9.0',
+      dependencies: [],
+      files: [{ path: '.ia/src/workspace.ia', bytes: record.length, sha256: sha(record), role: 'source' }],
+    });
+    const archive = 'c'.repeat(64);
+    const bindFolder = (): void =>
+      write(join(dir, '.ia', 'bindings.json'), {
+        format: 1,
+        bindings: { 'knowledge.find': { kit: 'ia-kb-kit', capability: 'kb-retrieve' } },
+      });
+    it('is guarded as the canonical kit and reaches the restore when the store holds it', () => {
+      write(join(dir, '.ia', 'distributions', 'store', archive, 'distribution.json'), manifest);
+      write(join(dir, '.ia', 'distributions', 'store', archive, '.ia', 'src', 'workspace.ia'), record);
+      writeLock(lockWith({ entries: [carrier([{ id: KIT, version: '0.9.0', archive, manifest: sha(manifest) }])] }));
+      bindFolder();
+      expect(resolve()).toMatchObject({ code: REACHED });
+      expect(restoredKit).toMatchObject({ id: KIT, folder: 'ia-kb-kit' });
+    });
+    it('refuses with the restore its store lacks, not as an unknown kit', () => {
+      writeLock(lockWith({ entries: [carrier([{ id: KIT, version: '0.9.0', archive, manifest: sha(manifest) }])] }));
+      bindFolder();
+      const before = snapshot();
+      expect(resolve()).toMatchObject({ code: 'IA-CORE-KIT-RESTORE-REQUIRED', message: expect.stringContaining(KIT) });
+      // Reading the store's kits makes the IA home folder, empty; nothing is retained, pinned or restored.
+      expect({ ...snapshot(), [home]: 'absent' }).toEqual(before);
+      expect(readdirSync(home)).toEqual([]);
+      expect(restored).toBe(0);
+    });
+  });
   describe('a task that already pins the kit', () => {
     const pin = (version: string, extra: Record<string, unknown> = {}): void =>
       write(join(runRoot, 'binding.json'), {
