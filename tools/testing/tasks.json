@@ -882,6 +882,14 @@
           ]
         },
         {
+          "case": "tests/package-manager.test.ts > names a drive path on Windows",
+          "reason": "The case builds Windows drive paths and compares them case-insensitively as Windows does, so it runs only on win32.",
+          "platforms": [
+            "linux",
+            "macos"
+          ]
+        },
+        {
           "case": "tests/tracked.test.ts > tracks, finds and removes two directories that differ only by case",
           "reason": "Windows and macOS volumes fold case by default, so two directories differing only by case cannot be created there; the identity rule is covered by the injected-stat sameRoot case on every platform.",
           "platforms": [
