@@ -847,7 +847,8 @@
         "tests/handoff.test.ts",
         "tests/local-cli-fs-root.test.ts",
         "tests/local-cli.test.ts",
-        "tests/render.test.ts"
+        "tests/render.test.ts",
+        "tests/workspace-state.test.ts"
       ],
       "profile": "unit",
       "platforms": [

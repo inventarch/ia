@@ -821,6 +821,21 @@ it('doctor compares the workspace language with what this ia reads, only for a w
   expect(rowOf(none, 'compatibility')).toBeUndefined();
 });
 
+it('doctor reports compatibility as not checked when the descriptor is absent, and fails nothing from it', async () => {
+  const root = workspace(),
+    env = { IA_HOME: resolve(scratch('doctor-home'), '.ia'), IA_NO_UPDATE_CHECK: '1' };
+  expect(existsSync(resolve(root, '.ia/release.json'))).toBe(false);
+  const result = await run(['doctor', '--root', root, '--json'], { env });
+  const report = JSON.parse(result.stdout) as Report;
+  expect(rowOf(report, 'compatibility')).toMatchObject({
+    status: 'unknown',
+    detail: 'Not checked; .ia/release.json is absent',
+  });
+  expect(report.checks.filter((check) => check.status === 'fail').map((check) => check.id)).not.toContain(
+    'compatibility',
+  );
+});
+
 it('doctor --root <workspace subdirectory> stays literal and only names the enclosing workspace', async () => {
   const root = workspace(),
     env = { IA_HOME: resolve(scratch('doctor-home'), '.ia') };

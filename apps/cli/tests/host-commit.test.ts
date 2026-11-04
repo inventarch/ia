@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { COPILOT_FOLDER } from '@inventarch/distribution/hosts';
-import { initialized } from './host-fixture.js';
-import { run } from './workspace-fixture.js';
+import { host, initialized, put } from './host-fixture.js';
+import { quoteCommandRoot as quote, run, scratch } from './workspace-fixture.js';
 
 it('plans, writes and removes the committed bootstrap for Copilot, with no machine-local path', async () => {
   const { root, env } = await initialized();
@@ -63,6 +63,130 @@ it('sends Copilot without --commit to the committed bootstrap, and refuses --com
   });
   expect((await run(['host', 'cursor', '--commit', '--root', root, '--json'], { env })).exitCode).toBe(2);
   expect((await run(['host', 'claude', '--commit', '--user', '--json'], { env })).exitCode).toBe(2);
+});
+
+/** A workspace that admits and ships no package: the starter, with its release descriptor removed. */
+async function withoutDescriptor() {
+  const made = await initialized();
+  rmSync(resolve(made.root, '.ia/release.json'));
+  return made;
+}
+
+it('ia host claude --commit previews on a workspace with no descriptor', async () => {
+  const { root, env } = await withoutDescriptor();
+  const planned = await run(['host', 'claude', '--commit', '--root', root, '--json'], { env });
+  expect(planned.exitCode, planned.stdout).toBe(0);
+  const files = (JSON.parse(planned.stdout) as { files: { path: string }[] }).files.map((file) => file.path);
+  expect(files).toContain('CLAUDE.md');
+  expect(files).toContain('.mcp.json');
+  expect(existsSync(resolve(root, 'CLAUDE.md'))).toBe(false);
+});
+
+it('ia host claude on a workspace with no descriptor plans the registration', async () => {
+  const { root, env } = await withoutDescriptor();
+  const planned = await host(root, env, 'claude');
+  expect(planned.exitCode, planned.stdout).toBe(0);
+  expect(JSON.parse(planned.stdout)).toMatchObject({ command: 'host', host: 'claude', apply: false });
+});
+
+it('refuses a directory with no .ia/src, naming ia init, through the committed and the registration paths', async () => {
+  const { env } = await initialized();
+  const bare = scratch('host-no-source');
+  for (const argv of [
+    ['host', 'claude', '--commit', '--root', bare, '--json'],
+    ['host', 'claude', '--root', bare, '--json'],
+  ]) {
+    const refused = await run(argv, { env });
+    expect(refused.exitCode, argv.join(' ')).toBe(3);
+    expect(JSON.parse(refused.stdout)).toMatchObject({
+      code: 'IA-CLI-CONFLICT',
+      message: expect.stringContaining('.ia/src is absent'),
+      next: `Run "ia init ${quote(realpathSync(bare))}" first.`,
+    });
+  }
+});
+
+it('a descriptor without .ia/src names restoring the sources, not ia init, through both routes', async () => {
+  const { root, env } = await initialized();
+  rmSync(resolve(root, '.ia/src'), { recursive: true, force: true });
+  for (const argv of [
+    ['host', 'claude', '--commit', '--root', root, '--json'],
+    ['host', 'claude', '--root', root, '--json'],
+  ]) {
+    const refused = await run(argv, { env });
+    expect(refused.exitCode, argv.join(' ')).toBe(3);
+    expect(JSON.parse(refused.stdout), argv.join(' ')).toMatchObject({
+      code: 'IA-CLI-CONFLICT',
+      message: expect.stringContaining('.ia/src is absent'),
+      next: `Restore the authored sources under .ia/src from source control, then run "ia validate --root ${quote(realpathSync(root))}".`,
+    });
+  }
+});
+
+it('a workspace that does not admit names the rooted ia validate and writes nothing, through both routes', async () => {
+  const { root, env } = await withoutDescriptor();
+  put(root, '.ia/src/broken.ia', '@@@ this is not a record\n');
+  const next = `Run "ia validate --root ${quote(realpathSync(root))}" and fix the reported errors.`;
+  for (const mode of [[], ['--apply', '--yes']])
+    for (const committed of [true, false]) {
+      const argv = ['host', 'claude', ...(committed ? ['--commit'] : []), ...mode, '--root', root, '--json'];
+      const refused = await run(argv, { env });
+      // The ordinary route's --apply is first stopped by the mandate profile, which cannot be read from a broken source:
+      // the gate judges the session before admission is checked, and fails closed (host registration §4).
+      if (mode.length > 0 && !committed) {
+        expect(refused.exitCode, argv.join(' ')).toBe(1);
+        expect(JSON.parse(refused.stdout), argv.join(' ')).toMatchObject({
+          code: 'IA-RUNTIME-REQUEST-INVALID',
+          next: expect.stringContaining('ia report --root'),
+        });
+      } else {
+        expect(refused.exitCode, argv.join(' ')).toBe(3);
+        expect(JSON.parse(refused.stdout), argv.join(' ')).toMatchObject({ code: 'IA-CLI-CONFLICT', next });
+        expect(JSON.parse(refused.stdout).message).not.toContain('initialized');
+      }
+      expect(existsSync(resolve(root, 'CLAUDE.md')), argv.join(' ')).toBe(false);
+      expect(existsSync(resolve(root, '.mcp.json')), argv.join(' ')).toBe(false);
+    }
+});
+
+it('the committed refusal names the target root when run from another workspace', async () => {
+  const { root: other, env } = await withoutDescriptor();
+  const { root } = await initialized(env);
+  put(root, '.ia/src/broken.ia', '@@@ this is not a record\n');
+  const refused = await run(['host', 'claude', '--commit', '--root', root, '--json'], { env, cwd: other });
+  expect(refused.exitCode).toBe(3);
+  expect(JSON.parse(refused.stdout).next).toBe(
+    `Run "ia validate --root ${quote(realpathSync(root))}" and fix the reported errors.`,
+  );
+});
+
+it('ia host claude --commit --remove runs on sources that do not admit and leaves them untouched', async () => {
+  const { root, env } = await withoutDescriptor();
+  const applied = await run(['host', 'claude', '--commit', '--apply', '--yes', '--root', root, '--json'], { env });
+  expect(applied.exitCode, applied.stdout).toBe(0);
+  expect(existsSync(resolve(root, '.mcp.json'))).toBe(true);
+  put(root, '.ia/src/broken.ia', '@@@ this is not a record\n');
+  const before = readFileSync(resolve(root, '.ia/src/broken.ia'), 'utf8');
+  const removed = await run(['host', 'claude', '--commit', '--remove', '--apply', '--yes', '--root', root, '--json'], {
+    env,
+  });
+  expect(removed.exitCode, removed.stdout).toBe(0);
+  expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
+  expect(readFileSync(resolve(root, '.ia/src/broken.ia'), 'utf8')).toBe(before);
+});
+
+it('ia host claude --commit still refuses a generated CLAUDE.md', async () => {
+  const { root, env } = await withoutDescriptor();
+  const packet = `# packet\n\nia-generated ${'a'.repeat(64)} ${'b'.repeat(64)} ia-claude\n`;
+  put(root, 'CLAUDE.md', packet);
+  const refused = await run(['host', 'claude', '--commit', '--apply', '--yes', '--root', root, '--json'], { env });
+  expect(refused.exitCode).toBe(3);
+  expect(JSON.parse(refused.stdout)).toMatchObject({
+    code: expect.stringContaining('LOCAL-MODIFICATION'),
+    message: expect.stringContaining('generated position packet'),
+  });
+  expect(readFileSync(resolve(root, 'CLAUDE.md'), 'utf8')).toBe(packet);
+  expect(existsSync(resolve(root, '.mcp.json'))).toBe(false);
 });
 
 it('the committed block says contribution needs no binding, carries the marker, and reruns update it in place', async () => {
