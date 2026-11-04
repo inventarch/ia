@@ -66,15 +66,39 @@ export const GIT_LOCAL_ENV: readonly string[] = [
   'GIT_SHALLOW_FILE',
   'GIT_COMMON_DIR',
 ];
-/** `env` without git's repository-local variables; Windows compares names without case, as its environment does. */
+/**
+ * What every batch child gets set, whatever the console inherited: git never asks on the terminal for a credential
+ * (stdin is ignored, but git opens the terminal itself) and Git Credential Manager never opens a dialog, either of which
+ * would hold the sequential batch with no one answering. A remote that needs a credential then fails for its repository.
+ */
+export const NO_PROMPT: Readonly<Record<string, string>> = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' };
+/**
+ * `env` without git's repository-local variables and with `NO_PROMPT` set; Windows compares names without case, as its
+ * environment does.
+ */
 export function batchEnv(env: Env, platform: NodeJS.Platform = process.platform): Env {
   const out: Record<string, string | undefined> = {};
   for (const [name, value] of Object.entries(env)) {
     const key = platform === 'win32' ? name.toUpperCase() : name;
-    if (GIT_LOCAL_ENV.includes(key) || /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(key)) continue;
+    if (GIT_LOCAL_ENV.includes(key) || /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(key) || key in NO_PROMPT) continue;
     out[name] = value;
   }
-  return out;
+  return { ...out, ...NO_PROMPT };
+}
+/**
+ * How long one batch command may run before it is stopped and counted as failed: long enough for a cold install, short
+ * enough that a command waiting on something no one will give (a credential, a lock) never holds the batch for good.
+ */
+export const BATCH_COMMAND_TIMEOUT_MS = 10 * 60_000;
+/** Ends `child` and, on Windows, every process it started (a `.cmd` runs its program as cmd.exe's child). */
+function stopTree(child: ReturnType<typeof spawn>, env: Env): void {
+  if (process.platform === 'win32' && child.pid !== undefined) {
+    const root = Object.entries(env).find(([name]) => name.toUpperCase() === 'SYSTEMROOT')?.[1] ?? 'C:\\Windows';
+    const taskkill = join(root, 'System32', 'taskkill.exe');
+    if (existsSync(taskkill))
+      spawnSync(taskkill, ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+  }
+  child.kill('SIGKILL');
 }
 /** A synchronous `git -C <cwd> …` by the checked `git`, through the guarded spawn, for the lockfile probe. */
 const gitWith =
@@ -89,9 +113,18 @@ const gitWith =
  * PATH entry, with `programEnv`, and a Windows `.cmd` through cmd.exe named by its path, each argument quoted for it
  * (`cmdArgument`; one it cannot pass refuses the call).
  */
-export function defaultRunner(env: Env): Runner {
+export function defaultRunner(env: Env, limits: { readonly timeoutMs?: number } = {}): Runner {
+  const timeoutMs = limits.timeoutMs ?? BATCH_COMMAND_TIMEOUT_MS;
   return (file, args, options) =>
-    new Promise((settle) => {
+    new Promise((resolved) => {
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const settle = (result: RunResult): void => {
+        if (settled) return;
+        settled = true;
+        if (timer !== undefined) clearTimeout(timer);
+        resolved(result);
+      };
       const fail = (why: string): void => settle({ status: null, stdout: '', stderr: why });
       const childEnv = batchEnv(options.env);
       let target: { file: string; args: readonly string[]; env: Env; verbatim: boolean };
@@ -131,6 +164,19 @@ export function defaultRunner(env: Env): Runner {
       });
       child.once('error', (error) => settle({ status: null, stdout, stderr: `${stderr}${error.message}` }));
       child.once('close', (code) => settle({ status: code, stdout, stderr }));
+      // A command with no end is stopped and settles at once as a failure: a grandchild still holding the pipes would
+      // otherwise keep `close` from ever coming.
+      timer = setTimeout(() => {
+        stopTree(child, target.env);
+        child.stdout.destroy();
+        child.stderr.destroy();
+        const end = stderr === '' || stderr.endsWith('\n') ? '' : '\n';
+        settle({
+          status: null,
+          stdout,
+          stderr: `${stderr}${end}timed out after ${Math.round(timeoutMs / 1000)} s and was stopped`,
+        });
+      }, timeoutMs);
     });
 }
 
@@ -339,7 +385,14 @@ export function spawnGuardedSync(
   const why = admit(program, args, options.cwd, guard);
   if (why !== null) return { status: null, stdout: '', stderr: why, refused: why };
   const env = programEnv(batchEnv(options.env)) as NodeJS.ProcessEnv;
-  const common = { cwd: options.cwd, env, encoding: 'utf8' as const, windowsHide: true };
+  const common = {
+    cwd: options.cwd,
+    env,
+    encoding: 'utf8' as const,
+    windowsHide: true,
+    timeout: BATCH_COMMAND_TIMEOUT_MS,
+    killSignal: 'SIGKILL' as const,
+  };
   let result: ReturnType<typeof spawnSync>;
   if (process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(program)) {
     const quoted = args.map(cmdArgument);

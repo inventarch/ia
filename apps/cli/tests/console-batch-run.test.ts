@@ -29,6 +29,7 @@ import type { RepoPlan } from '../src/console/batch-plan.js';
 import { planBatch } from '../src/console/batch-plan.js';
 import type { RepoResult, Runner } from '../src/console/batch-run.js';
 import {
+  batchEnv,
   chooseBase,
   containedStep,
   defaultRunner,
@@ -854,6 +855,50 @@ it.skipIf(process.platform === 'win32')('a POSIX shim passes shell characters th
   const args = ['a&b', '$HOME', '"q"', "it's", 'x;y', '100%'];
   expect((await run('npm', args, { cwd: fx.dir, env: fx.env })).status).toBe(0);
   expect(pmCalls(fx)[0]?.argv).toEqual(args);
+});
+
+describe('no prompt, and no command without an end', () => {
+  it('every batch child gets GIT_TERMINAL_PROMPT=0 and GCM_INTERACTIVE=never, whatever the console inherited', async () => {
+    expect(batchEnv({ PATH: 'x', GIT_TERMINAL_PROMPT: '1', GCM_INTERACTIVE: 'always' }, 'linux')).toEqual({
+      PATH: 'x',
+      GIT_TERMINAL_PROMPT: '0',
+      GCM_INTERACTIVE: 'never',
+    });
+    // Windows reads the names without case: an inherited spelling never survives beside the batch's own.
+    expect(batchEnv({ Path: 'x', git_terminal_prompt: '1', Gcm_Interactive: 'always' }, 'win32')).toEqual({
+      Path: 'x',
+      GIT_TERMINAL_PROMPT: '0',
+      GCM_INTERACTIVE: 'never',
+    });
+    const fx = fixture('batch-run-prompt');
+    const { top } = repo(fx, 'alpha');
+    const inherited = { ...fx.env, GIT_TERMINAL_PROMPT: '1', GCM_INTERACTIVE: 'always' };
+    const { calls } = await batch({ ...fx, env: inherited }, [rowOf(top, [relock(top)])], 'fix:generation');
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect(call.env['GIT_TERMINAL_PROMPT']).toBe('0');
+      expect(call.env['GCM_INTERACTIVE']).toBe('never');
+    }
+  });
+  it('a command that hangs is stopped at its timeout and settles as a failure, through a shim too', async () => {
+    const fx = fixture('batch-run-hang');
+    const hang = join(fx.dir, 'hang.mjs');
+    writeFileSync(hang, 'setInterval(() => {}, 1000);');
+    shim(fx.shims, 'hang', hang);
+    const run = defaultRunner(fx.env, { timeoutMs: 1_000 });
+    for (const [file, args] of [
+      [process.execPath, [hang]],
+      ['hang', []],
+    ] as const) {
+      const started = Date.now();
+      const result = await run(file, args, { cwd: fx.dir, env: fx.env });
+      expect(result).toMatchObject({
+        status: null,
+        stderr: expect.stringMatching(/timed out after 1 s and was stopped$/),
+      });
+      expect(Date.now() - started).toBeLessThan(30_000);
+    }
+  });
 });
 
 describe('Ctrl-C during the run', () => {
