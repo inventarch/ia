@@ -138,8 +138,8 @@ const UNSUPPORTED = /[{}?[\]()\\]/;
  * Whether workspace `globs` list `member`, a `/`-separated path relative to the workspace root. Only `*` (any run of
  * characters within one segment), `**` (any number of segments) and a leading `!` (excludes) are read, and the last
  * matching glob decides, as in npm. An entry that uses `{`, `}`, `?`, `[`, `]`, `(`, `)` or `\` is not read: it owns
- * nothing, and an excluding one may exclude any member, so it ends ownership. Either way hand-off falls back to the
- * member's directory.
+ * nothing, and an excluding one, which may exclude any member, ends ownership at its own position; a later glob that
+ * matches still decides.
  */
 export function ownsMember(globs: readonly string[], member: string): boolean {
   const path = member.split('/').filter((part) => part !== '' && part !== '.');
