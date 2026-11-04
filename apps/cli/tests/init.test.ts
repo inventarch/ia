@@ -1285,9 +1285,27 @@ it('init --apply --yes without a terminal prints the hint and tracks nothing', a
     home = resolve(scratch('init-track-home'), '.ia');
   const result = await run(['init', root, '--apply', '--yes'], { env: { IA_HOME: home } });
   expect(result.exitCode, result.stderr).toBe(0);
-  expect(result.stderr).toBe(`Track it with: ia workspaces add ${serviceQuote(realpathSync(root))}\n`);
+  // An inert root is printed with forward slashes on Windows, so every shell there reads it alike.
+  const real = realpathSync(root);
+  expect(result.stderr).toBe(
+    `Track it with: ia workspaces add ${serviceQuote(process.platform === 'win32' ? real.replaceAll('\\', '/') : real)}\n`,
+  );
   expect(existsSync(trackedFile(home))).toBe(false);
 });
+
+it.each(['$(touch PWNED)', '`touch PWNED`', 'semi;colon'])(
+  'init --apply --yes never prints a root holding %s in its track hint',
+  async (name) => {
+    const root = target(`b${name}`),
+      home = resolve(scratch('init-track-home'), '.ia');
+    const result = await run(['init', root, '--apply', '--yes', '--host', 'none'], { env: { IA_HOME: home } });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stderr).toBe(
+      'Track it from the workspace root with: ia workspaces add . (its path is omitted because it contains shell syntax)\n',
+    );
+    expect(existsSync(trackedFile(home))).toBe(false);
+  },
+);
 
 it('init --apply --json never asks and never prints the hint on stdout', async () => {
   const root = target(),

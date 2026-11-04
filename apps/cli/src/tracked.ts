@@ -214,15 +214,32 @@ function workspaceRoot(directory: string): string {
   } catch {
     real = undefined;
   }
-  if (real === undefined || !isDirectory(join(real, '.ia/src')))
+  if (real === undefined || !isDirectory(join(real, '.ia/src'))) {
+    const path = commandPath(absolute),
+      preview = 'to see what a new workspace there would contain';
     throw new Refusal(
       'IA-DB-ROOT-INVALID',
       `${absolute} is not a workspace: it holds no .ia/src`,
       3,
       { path: absolute },
-      `Run "ia init ${quote(absolute)}" to see what a new workspace there would contain.`,
+      path !== undefined
+        ? `Run "ia init ${path}" ${preview}.`
+        : `${isDirectory(absolute) ? 'From that directory, run' : 'Create that directory without pasting its path into a shell, enter it, then run'} "ia init ." ${preview}; ${PATH_OMITTED}.`,
     );
+  }
   return real;
+}
+
+/** Said beside a suggested command that names `.` in place of a path a shell would act on. */
+export const PATH_OMITTED = 'its path is omitted because it contains shell syntax';
+/**
+ * `path` as a suggested command prints it, or undefined when the command must name `.` instead (apps/cli/SPEC.md): a
+ * path is printed only when no shell acts on any character of it (`inertCommandRoot`), since double quotes leave `$(…)`
+ * and backticks live, and then with forward slashes on win32, so every shell there reads it alike.
+ */
+export function commandPath(path: string): string | undefined {
+  if (!inertCommandRoot(path)) return undefined;
+  return quote(process.platform === 'win32' ? path.replaceAll('\\', '/') : path);
 }
 /** The first `<id>-<n>` no row holds, preferring the folder name when that is free. */
 function freeId(taken: ReadonlySet<string>, id: string, root: string): string {
@@ -270,17 +287,18 @@ export function clashRemedy(clash: IdClash): {
   readonly command: string;
   readonly after: string;
 } {
-  const { root, queued, suggestion } = clash;
-  if (inertCommandRoot(root))
+  const { root, queued, suggestion } = clash,
+    path = commandPath(root);
+  if (path !== undefined)
     return {
       before: 'Run',
-      command: `ia workspaces add ${quote(process.platform === 'win32' ? root.replaceAll('\\', '/') : root)} --id ${suggestion}`,
+      command: `ia workspaces add ${path} --id ${suggestion}`,
       after: `to track ${queued ? 'one of them' : 'it'} under another id.`,
     };
   return {
     before: `From ${queued ? "the second workspace's directory" : 'the directory of the workspace that needs another id'}, run`,
     command: `ia workspaces add . --id ${suggestion}`,
-    after: 'to track it under another id; its path is left out because it contains shell syntax.',
+    after: `to track it under another id; ${PATH_OMITTED}.`,
   };
 }
 /**
