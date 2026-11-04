@@ -166,6 +166,17 @@ export class Interrupted extends Error {
   }
 }
 
+/**
+ * Results whose handler answered an interruption itself, so §3's 130 does not replace them. Only §2.16's offer to track
+ * does this: it is asked after `init` has initialized the target, and a signal at its question declines it, so the
+ * completed `init` keeps its own report and exit code.
+ */
+const answered = new WeakSet<Result>();
+export function answeredInterruption(result: Result): Result {
+  answered.add(result);
+  return result;
+}
+
 const IA_CODE = /^IA-[A-Z]+-[A-Z-]+$/;
 const codeOf = (error: unknown): string | undefined => {
   if (error === null || typeof error !== 'object' || !('code' in error)) return undefined;
@@ -586,7 +597,7 @@ export async function runCommand(command: CommandSpec, argv: readonly string[], 
       );
     host.signal?.throwIfAborted();
     const result = await handler(context);
-    host.signal?.throwIfAborted();
+    if (!answered.has(result)) host.signal?.throwIfAborted();
     return result;
   } catch (error) {
     const suppliedRoot = args?.value('root') ?? (command.name === 'init' ? args?.positionals[0] : undefined);

@@ -1235,6 +1235,51 @@ it('init --apply on a terminal asks to track and tracks on yes', async () => {
   expect(JSON.parse(readFileSync(trackedFile(home), 'utf8')).workspaces).toHaveLength(1);
 });
 
+it('a signal at the question to track declines it: init keeps its receipt and its exit code', async () => {
+  // As the real prompt does, the read rejects when the signal fires; the second variant answers yes as it fires.
+  for (const answer of [null, 'y']) {
+    const root = target(),
+      home = resolve(scratch('init-track-home'), '.ia'),
+      controller = new AbortController(),
+      prompts: string[] = [];
+    const host = makeHost({ env: { IA_HOME: home }, interactive: true, prompts });
+    let asked = 0;
+    const result = await dispatch(
+      ['init', root, '--apply'],
+      {
+        ...host,
+        signal: controller.signal,
+        interaction: {
+          ...host.interaction,
+          read: async () => {
+            asked += 1;
+            if (asked === 1) return 'y';
+            controller.abort(new Error('Interrupted.'));
+            if (answer === null) throw controller.signal.reason;
+            return answer;
+          },
+        },
+      },
+      () => {
+        throw new Error('Unexpected machine route');
+      },
+      [],
+    );
+    expect(prompts.filter((text) => text.endsWith('[y/N] '))).toEqual([
+      'Apply these changes? [y/N] ',
+      trackQuestion(realpathSync(root)),
+    ]);
+    // The line break ends the question the signal cut short, so the report starts on its own line.
+    expect(prompts.at(-1)).toBe('\n');
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stdout).toContain('Initialized local/demo; release descriptor .ia/release.json.');
+    expect(result.stderr).not.toContain('Interrupted.');
+    expect(result.stderr).not.toContain('again');
+    expect(existsSync(resolve(root, '.ia/release.json'))).toBe(true);
+    expect(existsSync(trackedFile(home))).toBe(false);
+  }
+});
+
 it('init --apply --yes without a terminal prints the hint and tracks nothing', async () => {
   const root = target(),
     home = resolve(scratch('init-track-home'), '.ia');
