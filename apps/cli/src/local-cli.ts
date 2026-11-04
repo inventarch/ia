@@ -228,6 +228,11 @@ const workspaceGlobs = (directory: string): string[] | null => {
   const list = Array.isArray(declared) ? declared : isRecord(declared) ? declared['packages'] : undefined;
   return Array.isArray(list) ? list.filter((glob): glob is string => typeof glob === 'string') : null;
 };
+/**
+ * Whether `directory` is a package-manager workspace root, by the test installRoot applies: a `pnpm-workspace.yaml`, or
+ * a `package.json` whose `workspaces` is a list or an object with a `packages` list (as Yarn 1 reads it).
+ */
+export const isWorkspaceRoot = (directory: string): boolean => workspaceGlobs(directory) !== null;
 
 /**
  * The directory that owns the install for the package at `manifestDirectory`: the nearest directory, itself included,

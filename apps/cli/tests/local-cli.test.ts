@@ -418,3 +418,20 @@ it('adds the workspace-root flag only where the manager refuses without it', () 
   writeFileSync(resolve(rc, '.yarnrc.yml'), '');
   expect(pinCommand('yarn', '3.5.1', rc)).toBe('yarn add -D @inventarch/cli@3.5.1');
 });
+it('takes Yarn 1 -W exactly where installRoot sees a workspaces root', () => {
+  const forms: [string, unknown, boolean][] = [
+    ['list', ['packages/*'], true],
+    ['packages object', { packages: ['packages/*'] }, true],
+    ['empty object', {}, false],
+    ['nohoist only', { nohoist: ['**'] }, false],
+    ['string', 'packages/*', false],
+  ];
+  for (const [name, workspaces, root] of forms) {
+    const repo = scratch(`pin-yarn-${name.replaceAll(' ', '-')}`);
+    putJson(resolve(repo, 'package.json'), { workspaces });
+    const member = resolve(repo, 'packages/x');
+    putJson(resolve(member, 'package.json'), {});
+    expect(installRoot(member) === repo, name).toBe(root);
+    expect(pinCommand('yarn', '3.5.1', repo), name).toBe(`yarn add -D${root ? ' -W' : ''} @inventarch/cli@3.5.1`);
+  }
+});
