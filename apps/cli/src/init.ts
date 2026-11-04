@@ -140,7 +140,7 @@ import { located } from './home-remedy.js';
 import { findProgram, programEnv, programHome } from './program.js';
 import type { Session } from './session.js';
 import { codeOf, openSession } from './session.js';
-import { readTracked, trackedRow, trackWorkspace } from './tracked.js';
+import { commandPath, PATH_OMITTED, readTracked, trackedRow, trackWorkspace } from './tracked.js';
 import type { AdviceContext, Capabilities, Field, SymbolName } from './render.js';
 import {
   atom,
@@ -1723,7 +1723,15 @@ async function offerTracking(context: Context, root: string, result: Result): Pr
   }
   const said = (line: string): Result => ({ ...result, stderr: `${result.stderr}${line}\n` });
   // `--yes` answered init's one question; it never stands for a second one, so a --yes run is shown the command.
-  if (!host.interaction.interactive || args.flag('yes')) return said(`Track it with: ia workspaces add ${quote(real)}`);
+  if (!host.interaction.interactive || args.flag('yes')) {
+    // apps/cli/SPEC.md: a root a shell would act on is never printed in a suggested command.
+    const path = commandPath(real);
+    return said(
+      path !== undefined
+        ? `Track it with: ia workspaces add ${path}`
+        : `Track it from the workspace root with: ia workspaces add . (${PATH_OMITTED})`,
+    );
+  }
   // A signal that came before the question is not an answer to it, so §3's interruption stands.
   if (host.signal?.aborted) return result;
   let yes: boolean;

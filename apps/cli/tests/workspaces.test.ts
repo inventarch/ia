@@ -12,6 +12,10 @@ import { cleanup, run, scratch } from './workspace-fixture.js';
 afterAll(cleanup);
 
 const flat = (text: string): string => text.replace(/\s+/g, ' ').trim();
+/** An inert path as a suggested command prints it: with forward slashes on Windows (apps/cli/SPEC.md). */
+const spelled = (path: string): string => (process.platform === 'win32' ? path.replaceAll('\\', '/') : path);
+/** The quoted `ia …` commands a text suggests. */
+const commands = (text: string): readonly string[] => [...flat(text).matchAll(/"(ia [^"]*)"/g)].map((m) => m[1]!);
 const home = (): { readonly home: string; readonly env: { readonly IA_HOME: string } } => {
   const at = resolve(scratch('workspaces-home'), '.ia');
   return { home: at, env: { IA_HOME: at } };
@@ -107,7 +111,7 @@ it('find previews without writing; --apply --yes tracks the untracked ones', asy
   });
   expect(rows(at)).toHaveLength(1);
   const human = await run(['workspaces', 'find', folder], { env });
-  expect(flat(human.stdout)).toContain(`ia workspaces find ${realpathSync(folder)} --apply`);
+  expect(flat(human.stdout)).toContain(`ia workspaces find ${spelled(realpathSync(folder))} --apply`);
   expect(rows(at)).toHaveLength(1);
   // Depth 1 does not reach b/c.
   expect(
@@ -142,9 +146,7 @@ it('find flags two found workspaces that would take one id, and --apply refuses 
   expect(clashing).toHaveLength(2);
   for (const text of clashing) expect(text).toMatch(/\[warn\] clash/);
   expect(flat(preview.stdout)).toContain(`Two found workspaces would both take the id app: ${first} and ${second}.`);
-  expect(flat(preview.stdout)).toContain(
-    `ia workspaces add ${process.platform === 'win32' ? second.replaceAll('\\', '/') : second} --id`,
-  );
+  expect(flat(preview.stdout)).toContain(`ia workspaces add ${spelled(second)} --id`);
   for (const apply of [
     { argv: ['--apply', '--yes', '--json'], interactive: false },
     { argv: ['--apply'], interactive: true },
@@ -179,7 +181,6 @@ it.each(['$(printf PWNED)', '`printf PWNED`', 'bang!', '%cd%'])(
       folder = scratch('workspaces-find'),
       first = realpathSync(workspaceAt(resolve(folder, 'a', 'repo'), 'app')),
       second = realpathSync(workspaceAt(resolve(folder, `b${name}`, 'repo'), 'app'));
-    const commands = (text: string): readonly string[] => [...flat(text).matchAll(/"(ia [^"]*)"/g)].map((m) => m[1]!);
     const preview = await run(['workspaces', 'find', folder], { env });
     expect(preview.exitCode, preview.stdout).toBe(0);
     expect(flat(preview.stdout)).toContain(
@@ -204,6 +205,30 @@ it.each(['$(printf PWNED)', '`printf PWNED`', 'bang!', '%cd%'])(
     const remedy = await run(['workspaces', 'add', '.', '--id', 'repo'], { env, cwd: second });
     expect(remedy.exitCode, remedy.stdout).toBe(0);
     expect(rows(at).map((row) => row.id)).toEqual(['app', 'repo']);
+  },
+);
+
+it.each(['$(touch PWNED)', '`touch PWNED`', 'semi;colon'])(
+  'add and find never print a folder holding %s in a suggested command',
+  async (name) => {
+    const { env } = home(),
+      folder = resolve(scratch('workspaces-find'), `b${name}`),
+      plain = resolve(folder, 'plain');
+    mkdirSync(plain, { recursive: true });
+    workspaceAt(resolve(folder, 'repo'), 'repo');
+    // add on a folder that is not a workspace names `ia init .`, run from that folder.
+    const refused = JSON.parse((await run(['workspaces', 'add', plain, '--json'], { env })).stdout);
+    expect(refused.code).toBe('IA-DB-ROOT-INVALID');
+    expect(refused.next).toBe(
+      'From that directory, run "ia init ." to see what a new workspace there would contain; its path is omitted because it contains shell syntax.',
+    );
+    // find's preview names `ia workspaces find . --apply`, run from the folder it walked.
+    const preview = await run(['workspaces', 'find', folder], { env });
+    expect(preview.exitCode, preview.stdout).toBe(0);
+    expect(flat(preview.stdout)).toContain(
+      'From that folder, run "ia workspaces find . --apply" to track them; its path is omitted because it contains shell syntax.',
+    );
+    for (const command of [...commands(preview.stdout), ...commands(refused.next)]) expect(command).not.toContain(name);
   },
 );
 
