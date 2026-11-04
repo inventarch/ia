@@ -1318,6 +1318,7 @@
       "project": "apps/cli",
       "files": [
         "tests/cli.test.ts",
+        "tests/console-batch-next.test.ts",
         "tests/console-batch-run.test.ts",
         "tests/console-entry-installed.test.ts",
         "tests/handoff-installed.test.ts",
