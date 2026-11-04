@@ -10,6 +10,7 @@ import { Refusal } from '../src/consumer.js';
 import {
   defaultTrackId,
   findWorkspaces,
+  idClashes,
   sameRoot,
   readTracked,
   TRACKED_FILE,
@@ -25,6 +26,7 @@ afterAll(cleanup);
 
 const NOW = new Date('2026-11-03T12:00:00.000Z');
 const home = (): string => resolve(scratch('tracked-home'), '.ia');
+const spelled = (path: string): string => (process.platform === 'win32' ? path.replaceAll('\\', '/') : path);
 /** A directory holding `.ia/src`, with each `@workspace` name declared in its own file. */
 function workspaceAt(root: string, ...names: readonly string[]): string {
   mkdirSync(resolve(root, '.ia/src'), { recursive: true });
@@ -111,13 +113,28 @@ it('refuses two found roots that would take one id in the same write, naming bot
     `Two found workspaces would both take the id app: ${realpathSync(first)} and ${realpathSync(second)}`,
   );
   expect(refusal.message).not.toContain('already tracked');
-  expect(refusal.next).toContain(`ia workspaces add ${realpathSync(second)} --id`);
+  // An inert root is printed whole, with forward slashes on Windows so every shell there reads it alike.
+  expect(refusal.next).toContain(`ia workspaces add ${spelled(realpathSync(second))} --id`);
   expect(readTracked(at)).toEqual([]);
   // The next command it names succeeds, and the same write then tracks the other root under the id.
   const suggested = /--id (\S+)"/.exec(refusal.next!)![1]!;
   expect(trackWorkspace(at, { root: second, id: suggested }, NOW).row.id).toBe(suggested);
   expect(trackWorkspaces(at, [first, second], NOW).map((row) => row.id)).toEqual(['app']);
   expect(readTracked(at).map((row) => row.id)).toEqual([suggested, 'app']);
+});
+
+it('suggests a different free id for each found root that clashes, so every remedy succeeds', () => {
+  const at = home(),
+    parent = scratch('tracked'),
+    roots = ['one', 'two', 'three'].map((name) => realpathSync(workspaceAt(resolve(parent, name, 'app')))),
+    found = roots.map((root) => ({ root, id: defaultTrackId(root) }));
+  expect(found.map((row) => row.id)).toEqual(['app', 'app', 'app']);
+  const clashes = idClashes([], found);
+  expect(clashes.map((clash) => clash.suggestion)).toEqual(['app-2', 'app-3']);
+  // Following both remedies leaves the first root its id, and the same write then tracks it.
+  for (const clash of clashes) trackWorkspace(at, { root: clash.root, id: clash.suggestion }, NOW);
+  expect(trackWorkspaces(at, roots, NOW).map((row) => row.id)).toEqual(['app']);
+  expect(readTracked(at)).toHaveLength(3);
 });
 
 it('refuses a new id or label for a root already tracked', () => {

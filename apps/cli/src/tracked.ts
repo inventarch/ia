@@ -15,6 +15,7 @@ import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'no
 import { basename, isAbsolute, join, resolve } from 'node:path';
 import { pathKey, unidentified, within } from '@inventarch/db/internal/paths';
 import { readHomeFile, writeHomeFile } from '@inventarch/distribution/ia-home';
+import { inertCommandRoot } from '@inventarch/runtime';
 import { UsageError } from './args.js';
 import { withTrackedLock } from './tracked-lock.js';
 import { Refusal } from './consumer.js';
@@ -246,7 +247,8 @@ export interface IdClash {
 }
 /** `IA-CLI-TRACKED-ID` for a clash, worded for a tracked row or a found root; its next command adds the root under another id. */
 export function idTaken(home: string, clash: IdClash): Refusal {
-  const { root, id, other, queued, suggestion } = clash;
+  const { root, id, other, queued } = clash,
+    remedy = clashRemedy(clash);
   return new Refusal(
     'IA-CLI-TRACKED-ID',
     queued
@@ -254,12 +256,37 @@ export function idTaken(home: string, clash: IdClash): Refusal {
       : `The id ${id} is already tracked for ${other}, so ${root} needs another id, given with --id`,
     3,
     { path: join(home, TRACKED_FILE) },
-    `Run "ia workspaces add ${quote(root)} --id ${suggestion}" to track ${queued ? 'one of them' : 'it'} under another id.`,
+    `${remedy.before} "${remedy.command}" ${remedy.after}`,
   );
 }
 /**
+ * A clash's remedy, `ia workspaces add` for its root under the suggested id, split around the command so a renderer
+ * keeps the command whole. As apps/cli/SPEC.md has every suggested command do, a root is printed only when no shell
+ * acts on any character of it (`inertCommandRoot`), with forward slashes on win32 so every shell there reads it alike.
+ * Otherwise the command names `.`, run from that workspace's directory, and the root stays in the message as data.
+ */
+export function clashRemedy(clash: IdClash): {
+  readonly before: string;
+  readonly command: string;
+  readonly after: string;
+} {
+  const { root, queued, suggestion } = clash;
+  if (inertCommandRoot(root))
+    return {
+      before: 'Run',
+      command: `ia workspaces add ${quote(process.platform === 'win32' ? root.replaceAll('\\', '/') : root)} --id ${suggestion}`,
+      after: `to track ${queued ? 'one of them' : 'it'} under another id.`,
+    };
+  return {
+    before: `From ${queued ? "the second workspace's directory" : 'the directory of the workspace that needs another id'}, run`,
+    command: `ia workspaces add . --id ${suggestion}`,
+    after: 'to track it under another id; its path is left out because it contains shell syntax.',
+  };
+}
+/**
  * The found roots `trackWorkspaces` would refuse, in its order: each root whose id a tracked row holds, or an earlier
- * found root would take. Each suggestion is an id that neither `rows` nor any found root takes.
+ * found root would take. Each suggestion is an id that neither `rows`, any found root nor an earlier suggestion takes, so
+ * following every remedy leaves no clash.
  */
 export function idClashes(
   rows: readonly TrackedWorkspace[],
@@ -270,7 +297,9 @@ export function idClashes(
     const held = rows.find((row) => row.id === id),
       other = held ?? found.slice(0, index).find((row) => row.id === id);
     if (other === undefined) return [];
-    return [{ root, id, other: other.root, queued: held === undefined, suggestion: freeId(taken, id, root) }];
+    const suggestion = freeId(taken, id, root);
+    taken.add(suggestion);
+    return [{ root, id, other: other.root, queued: held === undefined, suggestion }];
   });
 }
 

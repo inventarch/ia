@@ -18,6 +18,7 @@ import type { TrackedState, TrackedWorkspace } from './tracked.js';
 import {
   checkTrackId,
   defaultTrackId,
+  clashRemedy,
   FIND_DEPTH,
   findWorkspaces,
   idClashes,
@@ -225,8 +226,9 @@ async function find(context: Context, home: string, folder: string): Promise<Res
   const pending = rows.filter((row) => row.state !== 'tracked').length;
   return human([
     [sectionLabel(`Workspaces under ${middle(walked, caps.width - 17, caps.ascii)}`, caps), ...table(rows, caps)],
-    ...clashes.map((clash) =>
-      line(
+    ...clashes.map((clash) => {
+      const remedy = clashRemedy(clash);
+      return line(
         [
           ...(clash.queued
             ? [
@@ -234,21 +236,22 @@ async function find(context: Context, home: string, folder: string): Promise<Res
                 atom(clash.other),
                 ...words('and'),
                 atom(`${clash.root}.`),
-                ...words('Track one of them under another id with'),
               ]
             : [
                 ...words(`The id ${clash.id} is already tracked for`),
                 atom(`${clash.other},`),
                 ...words('so'),
                 atom(clash.root),
-                ...words('needs another id. Track it with'),
+                ...words('needs another id.'),
               ]),
-          atom(`"ia workspaces add ${quote(clash.root)} --id ${clash.suggestion}".`),
+          ...words(remedy.before),
+          atom(`"${remedy.command}"`),
+          ...words(remedy.after),
         ],
         'warning',
         caps,
-      ),
-    ),
+      );
+    }),
     added.length > 0
       ? line(words(`Tracked ${added.length} of ${found.length} found.`), 'success', caps)
       : pending === 0
