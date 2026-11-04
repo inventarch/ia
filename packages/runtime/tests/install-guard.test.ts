@@ -323,6 +323,112 @@ describe('resolveMethod with a bound kit', () => {
       expect(resolve()).toMatchObject({ code: REACHED });
       expect(restoredKit).toMatchObject({ id: KIT, folder: 'ia-kb-kit' });
     });
+    it('is guarded as the entries kit when an IA-home kit with another id shares its folder', () => {
+      write(join(dir, '.ia', 'distributions', 'store', archive, 'distribution.json'), manifest);
+      write(join(dir, '.ia', 'distributions', 'store', archive, '.ia', 'src', 'workspace.ia'), record);
+      const other = join(home, 'kits', 'ia-kb-kit', '0.9.0');
+      write(join(other, '.ia', 'release.json'), { id: 'other/ia-kb-kit', version: '0.9.0' });
+      write(join(other, 'releases.json'), {
+        kit: 'other/ia-kb-kit',
+        releases: [{ version: '0.9.0', archive: OTHER, records: [] }],
+      });
+      writeLock(lockWith({ entries: [carrier([{ id: KIT, version: '0.9.0', archive, manifest: sha(manifest) }])] }));
+      bindFolder();
+      // The resolver serves the installed kit before the home one, so the guard must ask about the same kit.
+      expect(resolve({}, { home: join(home, 'kits') })).toMatchObject({ code: REACHED });
+      expect(restoredKit).toMatchObject({ id: KIT, folder: 'ia-kb-kit' });
+    });
+    const kitWithFolder = (at: string, id: string): void => {
+      write(join(at, '.ia', 'release.json'), { id, version: '0.9.0' });
+      write(join(at, 'releases.json'), {
+        kit: id,
+        releases: [{ version: '0.9.0', archive: OTHER, records: [] }],
+      });
+    };
+    const holdInStore = (): void => {
+      write(join(dir, '.ia', 'distributions', 'store', archive, 'distribution.json'), manifest);
+      write(join(dir, '.ia', 'distributions', 'store', archive, '.ia', 'src', 'workspace.ia'), record);
+    };
+    const entryRow = { id: KIT, version: '0.9.0', archive, manifest: sha(manifest) };
+    it('is guarded as the bundled kit that shares its folder, which is the one served, so no row refuses it', () => {
+      const BUNDLED = 'a/ia-kb-kit';
+      holdInStore();
+      kitWithFolder(join(bundled, 'ia-kb-kit'), BUNDLED);
+      writeLock(lockWith({ entries: [carrier([entryRow])] }));
+      bindFolder();
+      const before = snapshot();
+      expect(resolve()).toMatchObject({ code: NOT_INSTALLED, kit: BUNDLED });
+      expect(restored).toBe(0);
+      expect(snapshot()).toEqual(before);
+      // With its own row the same binding passes the guard and runs that bundled kit, not the entries kit.
+      writeLock(
+        lockWith({
+          packages: [{ id: BUNDLED, version: '0.9.0', archive: OTHER }],
+          entries: [carrier([entryRow])],
+        }),
+      );
+      expect(resolve()).toMatchObject({ code: REACHED });
+      expect(restoredKit).toMatchObject({ id: BUNDLED });
+    });
+    it('a bundled kit the entries also install does not take the folder from another entries kit', () => {
+      // workspaceKits drops the carried copy of a kit the entries name, so its folder belongs to the entries row.
+      const SHADOWED = 'a/shadowed';
+      holdInStore();
+      kitWithFolder(join(bundled, 'ia-kb-kit'), SHADOWED);
+      // That row's store copy is absent, so asking about it instead would refuse as a restore.
+      const shadowedRow = { id: SHADOWED, version: '0.9.0', archive: 'b'.repeat(64), manifest: 'b'.repeat(64) };
+      writeLock(lockWith({ entries: [carrier([entryRow, shadowedRow])] }));
+      bindFolder();
+      expect(resolve()).toMatchObject({ code: REACHED });
+      expect(restoredKit).toMatchObject({ id: KIT, folder: 'ia-kb-kit' });
+    });
+    it('an exact id beats a folder that spells the same reference', () => {
+      // findKit tries every id before any folder: a home kit whose id is the reference beats an earlier folder match.
+      const EXACT = 'ia-kb-kit';
+      holdInStore();
+      kitWithFolder(join(home, 'kits', 'elsewhere', '0.9.0'), EXACT);
+      writeLock(lockWith({ entries: [carrier([entryRow])] }));
+      bindFolder();
+      expect(resolve({}, { home: join(home, 'kits') })).toMatchObject({ code: NOT_INSTALLED, kit: EXACT });
+      expect(restored).toBe(0);
+    });
+    it('an entries row the store lacks refuses as a restore, not answered by the IA-home kit sharing its folder', () => {
+      kitWithFolder(join(home, 'kits', 'ia-kb-kit', '0.9.0'), 'other/ia-kb-kit');
+      writeLock(lockWith({ entries: [carrier([entryRow])] }));
+      bindFolder();
+      expect(resolve({}, { home: join(home, 'kits') })).toMatchObject({
+        code: 'IA-CORE-KIT-RESTORE-REQUIRED',
+        message: expect.stringContaining(KIT),
+      });
+      expect(restored).toBe(0);
+    });
+    it('the folder of a carried copy of an entries kit still names that kit when nothing else has the folder', () => {
+      writeLock(lockWith({ entries: [carrier([entryRow])] }));
+      write(join(dir, '.ia', 'bindings.json'), {
+        format: 1,
+        bindings: { 'knowledge.find': { kit: 'ia-kb', capability: 'kb-retrieve' } },
+      });
+      expect(resolve()).toMatchObject({
+        code: 'IA-CORE-KIT-RESTORE-REQUIRED',
+        message: expect.stringContaining(KIT),
+      });
+      // An IA-home kit with that folder is served ahead of it, because workspaceKits drops the carried copy.
+      kitWithFolder(join(home, 'kits', 'ia-kb', '0.9.0'), 'other/ia-kb');
+      expect(resolve({}, { home: join(home, 'kits') })).toMatchObject({ code: NOT_INSTALLED, kit: 'other/ia-kb' });
+    });
+    it('the first entries row with the folder wins, whether or not the store holds it', () => {
+      const missingRow = { id: 'z/ia-kb-kit', version: '0.9.0', archive: 'b'.repeat(64), manifest: 'b'.repeat(64) };
+      holdInStore();
+      bindFolder();
+      writeLock(lockWith({ entries: [carrier([entryRow, missingRow])] }));
+      expect(resolve()).toMatchObject({ code: REACHED });
+      expect(restoredKit).toMatchObject({ id: KIT });
+      writeLock(lockWith({ entries: [carrier([missingRow, entryRow])] }));
+      expect(resolve()).toMatchObject({
+        code: 'IA-CORE-KIT-RESTORE-REQUIRED',
+        message: expect.stringContaining('z/ia-kb-kit'),
+      });
+    });
     it('refuses with the restore its store lacks, not as an unknown kit', () => {
       writeLock(lockWith({ entries: [carrier([{ id: KIT, version: '0.9.0', archive, manifest: sha(manifest) }])] }));
       bindFolder();
@@ -379,6 +485,25 @@ describe('resolveMethod with a bound kit', () => {
         sources: sourcesDigest(kept.dir),
         implementation: implementationDigest(kept),
         retained: kept.retained,
+      });
+      writeLock(lockWith({ packages: [{ id: KIT, version: '9.9.9', archive: ARCHIVE }] }));
+      expect(resolve()).toMatchObject({ code: REACHED });
+      expect(restoredKit).toMatchObject({ id: KIT, version: '0.1.0', retained: kept.retained });
+    });
+    it('a folder-named binding finds the pin keyed by the kit id and runs from its retained bytes', () => {
+      const old = join(dir, 'old', 'ia-kb');
+      write(join(old, '.ia', 'release.json'), { id: KIT, version: '0.1.0' });
+      write(join(old, 'releases.json'), { kit: KIT, releases: [{ version: '0.1.0', archive: OTHER, records: [] }] });
+      const kept = retainKit(folderKits(join(dir, 'old'), 'bundled')[0]!, store);
+      pin('0.1.0', {
+        archive: OTHER,
+        sources: sourcesDigest(kept.dir),
+        implementation: implementationDigest(kept),
+        retained: kept.retained,
+      });
+      write(join(dir, '.ia', 'bindings.json'), {
+        format: 1,
+        bindings: { 'knowledge.find': { kit: 'ia-kb', capability: 'kb-retrieve' } },
       });
       writeLock(lockWith({ packages: [{ id: KIT, version: '9.9.9', archive: ARCHIVE }] }));
       expect(resolve()).toMatchObject({ code: REACHED });
