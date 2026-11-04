@@ -15,7 +15,7 @@ No pnpm entry. Run the generator with Node:
 
 - `node tools/unicode/generate-width-table.mjs` writes the table from the vendored sources.
 - `node tools/unicode/generate-width-table.mjs --check` regenerates in memory and exits 1 when the committed table differs by one byte.
-- `--from <dir>` reads the sources from another directory; `--download` first fetches them from `https://www.unicode.org/Public/16.0.0/` into the vendored directory.
+- `--from <dir>` reads the sources from another directory; `--download` first fetches them from `https://www.unicode.org/Public/16.0.0/` into the vendored directory, writing nothing unless every fetched file has its pinned byte count and SHA-256.
 
 Exit 0 is success; exit 1 is a difference, a source whose byte count or SHA-256 is not the pinned one, or a table over 32 KiB.
 
