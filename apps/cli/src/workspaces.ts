@@ -20,6 +20,8 @@ import {
   defaultTrackId,
   FIND_DEPTH,
   findWorkspaces,
+  idClashes,
+  idTaken,
   readTracked,
   trackedRow,
   trackedState,
@@ -67,8 +69,9 @@ function head(text: string, width: number, ascii: boolean): string {
   const mark = markOf(ascii);
   return width < mark.length + 1 ? text.slice(0, Math.max(width, 0)) : text.slice(0, width - mark.length) + mark;
 }
-type Row = { readonly id: string; readonly state: TrackedState | 'tracked' | 'new'; readonly root: string };
-const SYMBOLS = { present: 'success', missing: 'warning', tracked: 'success', new: 'added' } as const;
+/** `clash`: a found workspace `find --apply` would refuse, as its id is tracked already or another found one takes it. */
+type Row = { readonly id: string; readonly state: TrackedState | 'tracked' | 'new' | 'clash'; readonly root: string };
+const SYMBOLS = { present: 'success', missing: 'warning', tracked: 'success', new: 'added', clash: 'warning' } as const;
 /**
  * `id  state  root`, two spaces apart. The id and the root share the width the state leaves: the root keeps at least 20
  * columns (or its whole length when shorter) and the id, shortened in the middle, at most what remains, so a long id
@@ -182,6 +185,10 @@ async function find(context: Context, home: string, folder: string): Promise<Res
     return { root, tracked: row !== undefined, id: row?.id ?? defaultTrackId(root) };
   });
   const untracked = found.filter((row) => !row.tracked);
+  // The roots --apply would refuse for their id; --apply refuses the first before it asks.
+  const clashes = idClashes(tracked, untracked);
+  const clashing = new Set(clashes.flatMap((clash) => (clash.queued ? [clash.root, clash.other] : [clash.root])));
+  if (args.flag('apply') && clashes.length > 0) throw idTaken(home, clashes[0]!);
   let applied = false,
     added: readonly TrackedWorkspace[] = [];
   if (args.flag('apply')) {
@@ -208,25 +215,60 @@ async function find(context: Context, home: string, folder: string): Promise<Res
     ]);
   const now = new Set(added.map((row) => row.id));
   const rows = found.map(
-    (row) => ({ id: row.id, root: row.root, state: row.tracked || now.has(row.id) ? 'tracked' : 'new' }) as const,
+    (row) =>
+      ({
+        id: row.id,
+        root: row.root,
+        state: row.tracked || now.has(row.id) ? 'tracked' : clashing.has(row.root) ? 'clash' : 'new',
+      }) as const,
   );
-  const pending = rows.filter((row) => row.state === 'new').length;
+  const pending = rows.filter((row) => row.state !== 'tracked').length;
   return human([
     [sectionLabel(`Workspaces under ${middle(walked, caps.width - 17, caps.ascii)}`, caps), ...table(rows, caps)],
+    ...clashes.map((clash) =>
+      line(
+        [
+          ...(clash.queued
+            ? [
+                ...words(`Two found workspaces would both take the id ${clash.id}:`),
+                atom(clash.other),
+                ...words('and'),
+                atom(`${clash.root}.`),
+                ...words('Track one of them under another id with'),
+              ]
+            : [
+                ...words(`The id ${clash.id} is already tracked for`),
+                atom(`${clash.other},`),
+                ...words('so'),
+                atom(clash.root),
+                ...words('needs another id. Track it with'),
+              ]),
+          atom(`"ia workspaces add ${quote(clash.root)} --id ${clash.suggestion}".`),
+        ],
+        'warning',
+        caps,
+      ),
+    ),
     added.length > 0
       ? line(words(`Tracked ${added.length} of ${found.length} found.`), 'success', caps)
       : pending === 0
         ? line(words(`All ${found.length} found are tracked.`), 'success', caps)
-        : line(
-            [
-              ...words(
-                `${pending} of ${found.length} found ${pending === 1 ? 'is' : 'are'} not tracked. Track them with`,
-              ),
-              atom(`"ia workspaces find ${quote(walked)} --apply".`),
-            ],
-            'info',
-            caps,
-          ),
+        : clashes.length > 0
+          ? line(
+              words(`${pending} of ${found.length} found ${pending === 1 ? 'is' : 'are'} not tracked.`),
+              'info',
+              caps,
+            )
+          : line(
+              [
+                ...words(
+                  `${pending} of ${found.length} found ${pending === 1 ? 'is' : 'are'} not tracked. Track them with`,
+                ),
+                atom(`"ia workspaces find ${quote(walked)} --apply".`),
+              ],
+              'info',
+              caps,
+            ),
   ]);
 }
 

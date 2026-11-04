@@ -233,6 +233,47 @@ function freeId(taken: ReadonlySet<string>, id: string, root: string): string {
   }
 }
 
+/**
+ * A root `trackWorkspaces` refuses for its id: `other` is the root that holds the id, a tracked row's, or, when `queued`,
+ * another root found in the same `find --apply` that would take it first. `suggestion` is the first id left free.
+ */
+export interface IdClash {
+  readonly root: string;
+  readonly id: string;
+  readonly other: string;
+  readonly queued: boolean;
+  readonly suggestion: string;
+}
+/** `IA-CLI-TRACKED-ID` for a clash, worded for a tracked row or a found root; its next command adds the root under another id. */
+export function idTaken(home: string, clash: IdClash): Refusal {
+  const { root, id, other, queued, suggestion } = clash;
+  return new Refusal(
+    'IA-CLI-TRACKED-ID',
+    queued
+      ? `Two found workspaces would both take the id ${id}: ${other} and ${root}`
+      : `The id ${id} is already tracked for ${other}, so ${root} needs another id, given with --id`,
+    3,
+    { path: join(home, TRACKED_FILE) },
+    `Run "ia workspaces add ${quote(root)} --id ${suggestion}" to track ${queued ? 'one of them' : 'it'} under another id.`,
+  );
+}
+/**
+ * The found roots `trackWorkspaces` would refuse, in its order: each root whose id a tracked row holds, or an earlier
+ * found root would take. Each suggestion is an id that neither `rows` nor any found root takes.
+ */
+export function idClashes(
+  rows: readonly TrackedWorkspace[],
+  found: readonly { readonly root: string; readonly id: string }[],
+): readonly IdClash[] {
+  const taken = new Set([...rows, ...found].map((row) => row.id));
+  return found.flatMap(({ root, id }, index) => {
+    const held = rows.find((row) => row.id === id),
+      other = held ?? found.slice(0, index).find((row) => row.id === id);
+    if (other === undefined) return [];
+    return [{ root, id, other: other.root, queued: held === undefined, suggestion: freeId(taken, id, root) }];
+  });
+}
+
 /** The tracked row for `root`, whichever way it is spelled. */
 export const trackedRow = (rows: readonly TrackedWorkspace[], root: string): TrackedWorkspace | undefined =>
   rows.find((row) => sameRoot(row.root, root));
@@ -253,6 +294,7 @@ function admit(
   rows: readonly TrackedWorkspace[],
   input: Input,
   now: Date,
+  queued: readonly TrackedWorkspace[] = [],
 ): { readonly status: 'added' | 'already'; readonly row: TrackedWorkspace } {
   if (input.id !== undefined) checkTrackId(input.id);
   const root = workspaceRoot(input.root);
@@ -279,16 +321,14 @@ function admit(
   }
   const id = input.id ?? defaultTrackId(root);
   const other = rows.find((row) => row.id === id);
-  if (other !== undefined) {
-    const suggestion = freeId(new Set(rows.map((row) => row.id)), id, root);
-    throw new Refusal(
-      'IA-CLI-TRACKED-ID',
-      `The id ${id} is already tracked for ${other.root}, so ${root} needs another id, given with --id`,
-      3,
-      { path },
-      `Run "ia workspaces add ${quote(root)} --id ${suggestion}" to track it under another id.`,
-    );
-  }
+  if (other !== undefined)
+    throw idTaken(home, {
+      root,
+      id,
+      other: other.root,
+      queued: queued.includes(other),
+      suggestion: freeId(new Set(rows.map((row) => row.id)), id, root),
+    });
   return {
     status: 'added',
     row: { id, root, ...(input.label === undefined ? {} : { label: input.label }), added: now.toISOString() },
@@ -321,7 +361,7 @@ export function trackWorkspace(
 /**
  * `ia workspaces find --apply`: every root not yet tracked, under its default id, in one write. Each root is checked as
  * `trackWorkspace` checks it, against the rows before it too, so an id two of them would share refuses before anything
- * is written. Returns the rows added.
+ * is written, naming both as found rather than tracked. Returns the rows added.
  */
 export function trackWorkspaces(
   home: string,
@@ -333,7 +373,7 @@ export function trackWorkspaces(
     const rows = loaded.rows.map((entry) => entry.row),
       added: TrackedWorkspace[] = [];
     for (const root of roots) {
-      const result = admit(home, loaded.path, rows, { root }, now);
+      const result = admit(home, loaded.path, rows, { root }, now, added);
       if (result.status === 'already') continue;
       rows.push(result.row);
       added.push(result.row);

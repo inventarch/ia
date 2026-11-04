@@ -131,6 +131,41 @@ it('find previews without writing; --apply --yes tracks the untracked ones', asy
   expect(rows(at)).toHaveLength(2);
 });
 
+it('find flags two found workspaces that would take one id, and --apply refuses them before it asks', async () => {
+  const { home: at, env } = home(),
+    folder = scratch('workspaces-find'),
+    first = realpathSync(workspaceAt(resolve(folder, 'one'), 'app')),
+    second = realpathSync(workspaceAt(resolve(folder, 'two'), 'app'));
+  const preview = await run(['workspaces', 'find', folder, '--ascii'], { env, columns: 200 });
+  expect(preview.exitCode, preview.stdout).toBe(0);
+  const clashing = preview.stdout.split('\n').filter((text) => / {2}app {2}/.test(text));
+  expect(clashing).toHaveLength(2);
+  for (const text of clashing) expect(text).toMatch(/\[warn\] clash/);
+  expect(flat(preview.stdout)).toContain(`Two found workspaces would both take the id app: ${first} and ${second}.`);
+  expect(flat(preview.stdout)).toContain(`ia workspaces add ${second} --id`);
+  for (const apply of [
+    { argv: ['--apply', '--yes', '--json'], interactive: false },
+    { argv: ['--apply'], interactive: true },
+  ]) {
+    const prompts: string[] = [];
+    const refused = await run(['workspaces', 'find', folder, ...apply.argv], {
+      env,
+      interactive: apply.interactive,
+      answers: ['y'],
+      prompts,
+    });
+    expect(refused.exitCode, refused.stdout).toBe(3);
+    const text = apply.interactive
+      ? flat(refused.stdout + refused.stderr)
+      : (({ code, message }) => `${code} ${message}`)(JSON.parse(refused.stdout) as { code: string; message: string });
+    expect(text).toContain('IA-CLI-TRACKED-ID');
+    expect(text).toContain(`Two found workspaces would both take the id app: ${first} and ${second}`);
+    expect(text).not.toContain('already tracked');
+    expect(prompts).toEqual([]);
+    expect(rows(at)).toEqual([]);
+  }
+});
+
 it('remove by id', async () => {
   const { home: at, env } = home(),
     root = workspaceAt(resolve(scratch('workspaces'), 'repo'), 'demo');

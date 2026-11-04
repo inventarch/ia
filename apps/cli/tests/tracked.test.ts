@@ -16,6 +16,7 @@ import {
   TRACKED_FORMAT,
   trackedState,
   trackWorkspace,
+  trackWorkspaces,
   untrackWorkspace,
 } from '../src/tracked.js';
 import { cleanup, scratch } from './scratch-fixture.js';
@@ -96,6 +97,27 @@ it('refuses an id another root holds', () => {
   // The suggested id is free, so the next command it names succeeds.
   const suggested = /--id (\S+)"/.exec(refusal.next!)![1]!;
   expect(trackWorkspace(at, { root: second, id: suggested }, NOW).row.id).toBe(suggested);
+});
+
+it('refuses two found roots that would take one id in the same write, naming both as found, not tracked', () => {
+  const at = home(),
+    parent = scratch('tracked'),
+    first = workspaceAt(resolve(parent, 'one'), 'app'),
+    second = workspaceAt(resolve(parent, 'two'), 'app');
+  const refusal = refusalOf(() => trackWorkspaces(at, [first, second], NOW));
+  expect(refusal.code).toBe('IA-CLI-TRACKED-ID');
+  expect(refusal.exit).toBe(3);
+  expect(refusal.message).toBe(
+    `Two found workspaces would both take the id app: ${realpathSync(first)} and ${realpathSync(second)}`,
+  );
+  expect(refusal.message).not.toContain('already tracked');
+  expect(refusal.next).toContain(`ia workspaces add ${realpathSync(second)} --id`);
+  expect(readTracked(at)).toEqual([]);
+  // The next command it names succeeds, and the same write then tracks the other root under the id.
+  const suggested = /--id (\S+)"/.exec(refusal.next!)![1]!;
+  expect(trackWorkspace(at, { root: second, id: suggested }, NOW).row.id).toBe(suggested);
+  expect(trackWorkspaces(at, [first, second], NOW).map((row) => row.id)).toEqual(['app']);
+  expect(readTracked(at).map((row) => row.id)).toEqual([suggested, 'app']);
 });
 
 it('refuses a new id or label for a root already tracked', () => {
