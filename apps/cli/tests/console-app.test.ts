@@ -16,7 +16,7 @@ import { consoleSignals, runConsole } from '../src/console/app.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
 import type { RunIO, SpawnOptions } from '../src/console/run.js';
-import { cmdArgument, runOffer, runningEntry, visible } from '../src/console/run.js';
+import { cmdArgument, runOffer, runningEntry, shownArgument } from '../src/console/run.js';
 import { windowsShellArgs } from '../src/program.js';
 import type { ConsoleCheck, ConsoleState } from '../src/console/state.js';
 import type { TerminalIO } from '../src/console/terminal.js';
@@ -267,15 +267,18 @@ describe('runOffer', () => {
       expect(text).not.toMatch(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/);
       expect(text).not.toContain('\x1b');
     }
-    expect(questions[0]).toContain('/srv/ws\\e[?1000h\\x9b2J');
-    expect(run.printed.join('\n')).toContain('Track\\e]0;forged\\x07 this');
+    expect(questions[0]).toContain('"/srv/ws\\u001b[?1000h\\u009b2J"');
+    expect(run.printed.join('\n')).toContain('"Track\\u001b]0;forged\\u0007 this"');
     expect(argvOf(run.spawned[0]!)).toEqual(['workspaces', 'add', root]);
   });
-  it('a confirmation shows each control character as its own visible escape, so it reads back exactly', async () => {
+  it('a confirmation shows ordinary arguments verbatim and any other as a JSON string, so it reads back exactly', async () => {
     for (const [root, shown] of [
-      ['/srv/a\tb', '/srv/a\\tb'],
-      ['/srv/a\nb', '/srv/a\\nb'],
-      ['/srv/a\rb', '/srv/a\\rb'],
+      ['C:\\ws', 'C:\\ws'],
+      ['C:\\Program Files\\app', 'C:\\Program Files\\app'],
+      ['/srv/a\tb', '"/srv/a\\tb"'],
+      ['/srv/a\nb', '"/srv/a\\nb"'],
+      ['/srv/a\rb', '"/srv/a\\rb"'],
+      ['"x"', '"\\"x\\""'],
     ] as const) {
       const track = offersFor(state({ root, tracked: false })).find((entry) => entry.id === 'track')!;
       const questions: string[] = [];
@@ -289,17 +292,44 @@ describe('runOffer', () => {
       });
       expect(questions[0]).toBe(`Run: ia workspaces add ${shown}?`);
     }
-    expect(visible('a\\tb')).toBe('a\\\\tb');
-    expect(visible('C:\\ws')).toBe('C:\\\\ws');
+    // Two different control characters never render the same, and none reaches the terminal raw.
     const controls = [...Array(0x20).keys(), ...Array.from({ length: 0x21 }, (_, at) => 0x7f + at)].map((code) =>
       String.fromCharCode(code),
     );
-    const rendered = controls.map((character) => visible(`x${character}y`));
+    const rendered = controls.map((character) => shownArgument(`x${character}y`));
     expect(new Set(rendered).size).toBe(controls.length);
     for (const text of rendered) expect(text).not.toMatch(/[\x00-\x1f\x7f-\x9f]/);
-    expect(visible('\x1b')).toBe('\\e');
-    expect(visible('\x9b')).toBe('\\x9b');
-    expect(visible('\x00')).toBe('\\x00');
+    expect(shownArgument('\x1b')).toBe('"\\u001b"');
+    expect(shownArgument('\x9b')).toBe('"\\u009b"');
+    expect(shownArgument('a\\"b')).toBe('a\\"b');
+  });
+  it('every shown argument decodes back to the argument: JSON when it starts with a quote, else as written', () => {
+    const decode = (shown: string): string => (shown.startsWith('"') ? (JSON.parse(shown) as string) : shown);
+    const pieces = [
+      '',
+      'a',
+      ' ',
+      '"',
+      '\\',
+      'C:',
+      '用户',
+      '🚀',
+      '\t',
+      '\n',
+      '\x1b',
+      '\x7f',
+      '\x85',
+      '\x9b',
+      '\u2028',
+      "'",
+    ];
+    const samples = new Set<string>(['', '""', '"x"', 'x"', '\\"', 'C:\\w^s\\', '\\\\server\\share\\']);
+    for (const a of pieces) for (const b of pieces) for (const c of pieces) samples.add(a + b + c);
+    for (const sample of samples) {
+      const shown = shownArgument(sample);
+      expect([sample, decode(shown)]).toEqual([sample, sample]);
+      expect(shown).not.toMatch(/[\x00-\x1f\x7f-\x9f]/);
+    }
   });
   it('cmd.exe arguments: plain ones pass as typed, everything cmd would read is quoted or refused', () => {
     expect(cmdArgument('install')).toBe('install');

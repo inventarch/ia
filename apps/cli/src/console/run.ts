@@ -78,25 +78,22 @@ export function cmdArgument(value: string): string | null {
   return `${out}${'\\'.repeat(slashes * 2)}"`;
 }
 
-const CONTROL_NAMES: Readonly<Record<string, string>> = { '\t': 't', '\n': 'n', '\r': 'r', '\x1b': 'e' };
 /**
- * Text as the normal screen shows it: every control character as its own visible escape (`\t`, `\n`, `\r`, `\e`,
- * else `\xNN`) and a backslash as `\\`, so no escape sequence reaches the terminal and what is shown reads back
- * exactly; two different texts never show the same.
+ * One argument, or one piece of text, as the normal screen shows it: as written, so a path reads as typed, unless it
+ * holds a control character (C0, DEL or C1), starts with a double quote or is empty; then as a JSON string literal,
+ * with DEL and C1 escaped too. So no control character reaches the terminal, and what is shown reads back exactly:
+ * `JSON.parse` when it starts with a quote, as written otherwise.
  */
-export function visible(text: string): string {
-  return text.replace(/[\\\x00-\x1f\x7f-\x9f]/g, (character) => {
-    if (character === '\\') return '\\\\';
-    const name = CONTROL_NAMES[character];
-    return name === undefined ? `\\x${character.charCodeAt(0).toString(16).padStart(2, '0')}` : `\\${name}`;
-  });
+export function shownArgument(text: string): string {
+  if (text !== '' && !text.startsWith('"') && !/[\x00-\x1f\x7f-\x9f]/.test(text)) return text;
+  return JSON.stringify(text).replace(
+    /[\x7f-\x9f]/g,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
 }
-/** A command as a confirmation shows it: each argument made visible, one holding a space or a quote quoted. */
+/** A command as a confirmation shows it: each argument by `shownArgument`. */
 function shownArgv(program: Fix['program'], argv: readonly string[]): string {
-  const parts = argv.map((part) => {
-    const shown = visible(part);
-    return /[ "]/.test(part) || part === '' ? `"${shown.replace(/"/g, '\\"')}"` : shown;
-  });
+  const parts = argv.map(shownArgument);
   return (program === 'ia' ? ['ia', ...parts] : parts).join(' ');
 }
 
@@ -180,7 +177,7 @@ export async function runOffer(
   io: RunIO,
 ): Promise<{ readonly completed: number; readonly exitCode: number | null }> {
   if (offer.disabled !== undefined) return { completed: 0, exitCode: null };
-  // What the normal screen shows is made visible (`visible`, `shownArgv`); the argv that runs is untouched. The grid's
+  // What the normal screen shows goes through `shownArgument` and `shownArgv`; the argv that runs is untouched. The grid's
   // replacement stays as a last net for anything that was not.
   const say = (text: string): void => io.print(sanitize(text));
   const confirm = (question: string): Promise<boolean> => io.ask(sanitize(question));
@@ -218,7 +215,7 @@ export async function runOffer(
     const preview = previewArgv(step);
     if (step.flow === 'immediate') result = await run(step.argv);
     else {
-      say(`${label}${visible(offer.title)}`);
+      say(`${label}${shownArgument(offer.title)}`);
       if (preview !== null) {
         const previewed = await run(preview);
         if (typeof previewed === 'string' || previewed.code !== 0) result = previewed;
@@ -233,7 +230,7 @@ export async function runOffer(
       }
     }
     if (typeof result === 'string') {
-      outcome = `Stopped at step ${index + 1}: ${visible(result)}.`;
+      outcome = `Stopped at step ${index + 1}: ${shownArgument(result)}.`;
       break;
     }
     if (result.code !== 0) {
@@ -241,7 +238,7 @@ export async function runOffer(
       const how = result.code === null ? 'ended by a signal' : `exited ${result.code}`;
       outcome =
         result.code === 2 && result.copy === 'repo'
-          ? `Stopped at step ${index + 1}: this workspace's ia ${visible(repo?.version ?? '')} refused the command as usage (exit 2); it may be older than the command this console runs.`
+          ? `Stopped at step ${index + 1}: this workspace's ia ${shownArgument(repo?.version ?? '')} refused the command as usage (exit 2); it may be older than the command this console runs.`
           : `Stopped at step ${index + 1}: ${shown(step, step.argv)} ${how}.`;
       break;
     }
