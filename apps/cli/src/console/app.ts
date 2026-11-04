@@ -186,7 +186,8 @@ export async function runConsole(input: {
       if (error !== undefined) {
         const text = error instanceof Error ? (error.stack ?? error.message) : String(error);
         try {
-          for (const line of `ia: the console stopped: ${text}`.split(/\r?\n/)) print(sanitize(line));
+          const say = sync && io.writeSync !== undefined ? io.writeSync.bind(io) : io.write.bind(io);
+          for (const line of `ia: the console stopped: ${text}`.split(/\r?\n/)) say(`${sanitize(line)}\n`);
         } catch {
           // The terminal itself failed; there is nowhere left to say so.
         }
@@ -194,7 +195,8 @@ export async function runConsole(input: {
       resolve(code);
     };
     const crash = (error: unknown): void => {
-      finish(1, error);
+      // The process ends right after: restore synchronously, since an ordinary write may still be queued then.
+      finish(1, error, true);
       hooks.exit(1);
     };
     const onSignal = (name: ConsoleSignal) => (): void => {
@@ -204,7 +206,7 @@ export async function runConsole(input: {
         waiting.cancel();
         return;
       }
-      finish(SIGNAL_EXIT[name]);
+      finish(SIGNAL_EXIT[name], undefined, true);
       hooks.exit(SIGNAL_EXIT[name]);
     };
     const handlers: [HookEvent, (value?: unknown) => void][] = [
@@ -214,7 +216,8 @@ export async function runConsole(input: {
       ...signals.map((name): [HookEvent, () => void] => [name, onSignal(name)]),
     ];
     for (const [event, listener] of handlers) hooks.on(event, listener);
-    unsubscribeError = io.onError?.((error) => finish(1, error)) ?? null;
+    // The failed stream is not trusted with the restoration: it is written synchronously, through what survives.
+    unsubscribeError = io.onError?.((error) => finish(1, error, true)) ?? null;
 
     const render = (): void => {
       if (finished) return;

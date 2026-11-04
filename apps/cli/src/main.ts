@@ -215,20 +215,39 @@ export async function enter(argv: readonly string[], deps: EntryDeps): Promise<'
 export interface ConsoleStreams {
   readonly stdout: Pick<NodeJS.WriteStream, 'write' | 'on' | 'off' | 'columns' | 'rows'> & { readonly fd: number };
   readonly stdin: { readonly isTTY?: boolean; setRawMode?(on: boolean): unknown };
-  /** A write that completes before it returns: `fs.writeSync` on the stdout descriptor. */
+  /** The terminal handle that may survive a failed stdout: written to only when it is a terminal. */
+  readonly stderr: { readonly isTTY?: boolean; readonly fd: number };
+  /** A write that completes before it returns: `fs.writeSync` on a descriptor. */
   readonly writeSync: (fd: number, data: string) => void;
 }
 /**
  * The console's terminal over the process streams. An output failure (a closed pipe) reaches the console's own
  * teardown through `onError`, so the terminal is restored and the console ends, rather than being swallowed with stdin
- * destroyed and raw mode left on.
+ * destroyed and raw mode left on. The synchronous write the teardown uses goes to stdout's descriptor; once stdout has
+ * failed, by an `error` event or a synchronous write that throws, it goes to stderr's when stderr is a terminal, and
+ * nowhere otherwise. It never throws.
  */
-export function consoleTerminal({ stdout, stdin, writeSync }: ConsoleStreams): TerminalIO {
+export function consoleTerminal({ stdout, stdin, stderr, writeSync }: ConsoleStreams): TerminalIO {
+  let failed = false;
   return {
     write: (data) => {
       stdout.write(data);
     },
-    writeSync: (data) => writeSync(stdout.fd, data),
+    writeSync: (data) => {
+      if (!failed)
+        try {
+          writeSync(stdout.fd, data);
+          return;
+        } catch {
+          failed = true;
+        }
+      if (stderr.isTTY !== true) return;
+      try {
+        writeSync(stderr.fd, data);
+      } catch {
+        // No terminal handle survives; raw mode, restored separately, is what outlives it.
+      }
+    },
     columns: () => stdout.columns ?? 80,
     rows: () => stdout.rows ?? 24,
     setRawMode: (on) => {
@@ -241,9 +260,13 @@ export function consoleTerminal({ stdout, stdin, writeSync }: ConsoleStreams): T
       };
     },
     onError: (listener) => {
-      stdout.on('error', listener);
+      const failure = (error: Error): void => {
+        failed = true;
+        listener(error);
+      };
+      stdout.on('error', failure);
       return () => {
-        stdout.off('error', listener);
+        stdout.off('error', failure);
       };
     },
   };
@@ -252,7 +275,12 @@ export function consoleTerminal({ stdout, stdin, writeSync }: ConsoleStreams): T
 async function startConsole(): Promise<number> {
   const { runConsole } = await import('./console/app.js');
   const code = await runConsole({
-    io: consoleTerminal({ stdout: process.stdout, stdin: process.stdin, writeSync: (fd, data) => writeSync(fd, data) }),
+    io: consoleTerminal({
+      stdout: process.stdout,
+      stdin: process.stdin,
+      stderr: process.stderr,
+      writeSync: (fd, data) => writeSync(fd, data),
+    }),
     input: process.stdin,
     env: process.env,
     cwd: process.cwd(),

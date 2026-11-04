@@ -13,7 +13,7 @@
 import { spawn as spawnChild } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
 import type { Fix } from '../fix.js';
-import { confirmedArgv, displayFix, previewArgv } from '../fix.js';
+import { confirmedArgv, previewArgv } from '../fix.js';
 import { NO_HANDOFF } from '../handoff.js';
 import type { LocalCli } from '../local-cli.js';
 import type { Env } from '../program.js';
@@ -53,12 +53,52 @@ export interface RunIO {
 export const runningEntry = (packageRoot: string): string => join(packageRoot, 'dist', 'main.js');
 
 /**
- * A cmd.exe argument: passed unchanged when it holds only characters cmd.exe reads as themselves, quoted otherwise, so
- * a caret, an ampersand, a pipe, a redirection, a bang or an argument delimiter stays literal; null for `%` and `"`,
- * which cmd.exe rewrites even inside quotes.
+ * One argument on the line cmd.exe runs a `.cmd` program with, which forwards it (`%*`) to a program that splits its
+ * line by the Windows argv rules (CommandLineToArgvW and the C runtime). Plain text passes as typed. Anything else is
+ * quoted by those rules: inside the quotes a run of backslashes before a quote, or before the closing quote, is
+ * doubled and an embedded quote is escaped, so the program reads back exactly this argument; and cmd.exe, which sees
+ * it inside quotes, leaves a caret, an ampersand, a pipe, a redirection or a bang alone. Null, refused, for `%`, which
+ * cmd.exe expands even inside quotes, and for an embedded quote beside a character cmd.exe would act on, since the
+ * quote toggles cmd.exe's own quoting.
  */
-export const cmdArgument = (value: string): string | null =>
-  /[%"]/.test(value) ? null : /^[\w\-.:\\/@+~]+$/.test(value) ? value : `"${value}"`;
+export function cmdArgument(value: string): string | null {
+  if (value.includes('%')) return null;
+  if (/^[\w\-.:\\/@+~]+$/.test(value)) return value;
+  if (value.includes('"') && /[&|<>^()!]/.test(value)) return null;
+  let out = '"',
+    slashes = 0;
+  for (const character of value) {
+    if (character === '\\') {
+      slashes += 1;
+      continue;
+    }
+    out += character === '"' ? `${'\\'.repeat(slashes * 2 + 1)}"` : `${'\\'.repeat(slashes)}${character}`;
+    slashes = 0;
+  }
+  return `${out}${'\\'.repeat(slashes * 2)}"`;
+}
+
+const CONTROL_NAMES: Readonly<Record<string, string>> = { '\t': 't', '\n': 'n', '\r': 'r', '\x1b': 'e' };
+/**
+ * Text as the normal screen shows it: every control character as its own visible escape (`\t`, `\n`, `\r`, `\e`,
+ * else `\xNN`) and a backslash as `\\`, so no escape sequence reaches the terminal and what is shown reads back
+ * exactly; two different texts never show the same.
+ */
+export function visible(text: string): string {
+  return text.replace(/[\\\x00-\x1f\x7f-\x9f]/g, (character) => {
+    if (character === '\\') return '\\\\';
+    const name = CONTROL_NAMES[character];
+    return name === undefined ? `\\x${character.charCodeAt(0).toString(16).padStart(2, '0')}` : `\\${name}`;
+  });
+}
+/** A command as a confirmation shows it: each argument made visible, one holding a space or a quote quoted. */
+function shownArgv(program: Fix['program'], argv: readonly string[]): string {
+  const parts = argv.map((part) => {
+    const shown = visible(part);
+    return /[ "]/.test(part) || part === '' ? `"${shown.replace(/"/g, '\\"')}"` : shown;
+  });
+  return (program === 'ia' ? ['ia', ...parts] : parts).join(' ');
+}
 
 /** The default spawner: inherited stdio, and this process deaf to the terminal's signals while the child decides. */
 export const spawnInherited: Spawner = (file, args, options) =>
@@ -132,7 +172,7 @@ function target(
     copy: 'external',
   };
 }
-const shown = (step: Fix, argv: readonly string[]): string => displayFix({ ...step, argv });
+const shown = (step: Fix, argv: readonly string[]): string => shownArgv(step.program, argv);
 
 export async function runOffer(
   offer: Offer,
@@ -140,7 +180,8 @@ export async function runOffer(
   io: RunIO,
 ): Promise<{ readonly completed: number; readonly exitCode: number | null }> {
   if (offer.disabled !== undefined) return { completed: 0, exitCode: null };
-  // What the normal screen shows is cut free of control characters, as the grid is; the argv that runs is untouched.
+  // What the normal screen shows is made visible (`visible`, `shownArgv`); the argv that runs is untouched. The grid's
+  // replacement stays as a last net for anything that was not.
   const say = (text: string): void => io.print(sanitize(text));
   const confirm = (question: string): Promise<boolean> => io.ask(sanitize(question));
   let steps: readonly Step[] = offer.steps;
@@ -177,7 +218,7 @@ export async function runOffer(
     const preview = previewArgv(step);
     if (step.flow === 'immediate') result = await run(step.argv);
     else {
-      say(`${label}${offer.title}`);
+      say(`${label}${visible(offer.title)}`);
       if (preview !== null) {
         const previewed = await run(preview);
         if (typeof previewed === 'string' || previewed.code !== 0) result = previewed;
@@ -192,7 +233,7 @@ export async function runOffer(
       }
     }
     if (typeof result === 'string') {
-      outcome = `Stopped at step ${index + 1}: ${result}.`;
+      outcome = `Stopped at step ${index + 1}: ${visible(result)}.`;
       break;
     }
     if (result.code !== 0) {
@@ -200,7 +241,7 @@ export async function runOffer(
       const how = result.code === null ? 'ended by a signal' : `exited ${result.code}`;
       outcome =
         result.code === 2 && result.copy === 'repo'
-          ? `Stopped at step ${index + 1}: this workspace's ia ${repo?.version ?? ''} refused the command as usage (exit 2); it may be older than the command this console runs.`
+          ? `Stopped at step ${index + 1}: this workspace's ia ${visible(repo?.version ?? '')} refused the command as usage (exit 2); it may be older than the command this console runs.`
           : `Stopped at step ${index + 1}: ${shown(step, step.argv)} ${how}.`;
       break;
     }

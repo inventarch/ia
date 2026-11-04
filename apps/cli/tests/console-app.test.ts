@@ -16,7 +16,7 @@ import { consoleSignals, runConsole } from '../src/console/app.js';
 import type { Offer, Step } from '../src/console/offers.js';
 import { offersFor } from '../src/console/offers.js';
 import type { RunIO, SpawnOptions } from '../src/console/run.js';
-import { cmdArgument, runOffer, runningEntry } from '../src/console/run.js';
+import { cmdArgument, runOffer, runningEntry, visible } from '../src/console/run.js';
 import { windowsShellArgs } from '../src/program.js';
 import type { ConsoleCheck, ConsoleState } from '../src/console/state.js';
 import type { TerminalIO } from '../src/console/terminal.js';
@@ -267,8 +267,39 @@ describe('runOffer', () => {
       expect(text).not.toMatch(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/);
       expect(text).not.toContain('\x1b');
     }
-    expect(questions[0]).toContain('/srv/ws\uFFFD[?1000h\uFFFD2J');
+    expect(questions[0]).toContain('/srv/ws\\e[?1000h\\x9b2J');
+    expect(run.printed.join('\n')).toContain('Track\\e]0;forged\\x07 this');
     expect(argvOf(run.spawned[0]!)).toEqual(['workspaces', 'add', root]);
+  });
+  it('a confirmation shows each control character as its own visible escape, so it reads back exactly', async () => {
+    for (const [root, shown] of [
+      ['/srv/a\tb', '/srv/a\\tb'],
+      ['/srv/a\nb', '/srv/a\\nb'],
+      ['/srv/a\rb', '/srv/a\\rb'],
+    ] as const) {
+      const track = offersFor(state({ root, tracked: false })).find((entry) => entry.id === 'track')!;
+      const questions: string[] = [];
+      const run = harness();
+      await runOffer(track, state({ root, tracked: false }), {
+        ...run.io,
+        ask: async (question) => {
+          questions.push(question);
+          return false;
+        },
+      });
+      expect(questions[0]).toBe(`Run: ia workspaces add ${shown}?`);
+    }
+    expect(visible('a\\tb')).toBe('a\\\\tb');
+    expect(visible('C:\\ws')).toBe('C:\\\\ws');
+    const controls = [...Array(0x20).keys(), ...Array.from({ length: 0x21 }, (_, at) => 0x7f + at)].map((code) =>
+      String.fromCharCode(code),
+    );
+    const rendered = controls.map((character) => visible(`x${character}y`));
+    expect(new Set(rendered).size).toBe(controls.length);
+    for (const text of rendered) expect(text).not.toMatch(/[\x00-\x1f\x7f-\x9f]/);
+    expect(visible('\x1b')).toBe('\\e');
+    expect(visible('\x9b')).toBe('\\x9b');
+    expect(visible('\x00')).toBe('\\x00');
   });
   it('cmd.exe arguments: plain ones pass as typed, everything cmd would read is quoted or refused', () => {
     expect(cmdArgument('install')).toBe('install');
@@ -278,7 +309,8 @@ describe('runOffer', () => {
     for (const value of ['a&b', 'a|b', 'a<b', 'a>b', 'a!b', 'a b', 'a(b)'])
       expect(cmdArgument(value)).toBe(`"${value}"`);
     expect(cmdArgument('a%PATH%b')).toBeNull();
-    expect(cmdArgument('a"b')).toBeNull();
+    // A quote inside an argument would toggle cmd.exe's own quoting, so it is taken only where nothing after it is live.
+    expect(cmdArgument('a"b&c')).toBeNull();
     const args = ['--cwd', 'C:\\w^s', 'add', '-D', '@inventarch/cli@3.6.0'].map((value) => cmdArgument(value)!);
     expect(windowsShellArgs('C:\\Program Files\\nodejs\\yarn.cmd', args)).toEqual([
       '/d',
@@ -288,6 +320,14 @@ describe('runOffer', () => {
       '""C:\\Program Files\\nodejs\\yarn.cmd" --cwd "C:\\w^s" add -D @inventarch/cli@3.6.0"',
     ]);
   });
+  it('a quoted cmd.exe argument reads back exactly through the Windows argv rules', () => {
+    for (const value of ['C:\\w=s\\', 'C:\\w^s', 'a b\\', 'a"b', '\\server\\share\\', '', 'a\\"b', 'x\\\\']) {
+      const encoded = cmdArgument(value);
+      expect([value, encoded]).not.toEqual([value, null]);
+      const line = windowsShellArgs('C:\\tools\\npm.cmd', [encoded!, 'next'])[4]!.slice(1, -1);
+      expect([value, commandLineToArgv(line).slice(1)]).toEqual([value, [value, 'next']]);
+    }
+  });
   it('an input offer prompts first, and a cancel runs nothing', async () => {
     const run = harness();
     const add = offersFor(state({ checks: [kitsInfo] })).find((entry) => entry.id === 'add-kit')!;
@@ -296,6 +336,50 @@ describe('runOffer', () => {
     expect(run.events).toEqual([]);
   });
 });
+/** The Windows argv split (CommandLineToArgvW and the C runtime): what a program receives from the line cmd.exe hands it. */
+function commandLineToArgv(line: string): string[] {
+  const args: string[] = [];
+  let at = 0;
+  while (at < line.length) {
+    while (line[at] === ' ' || line[at] === '\t') at += 1;
+    if (at >= line.length) break;
+    let arg = '',
+      quoted = false;
+    while (at < line.length) {
+      const character = line[at]!;
+      if (character === '\\') {
+        let slashes = 0;
+        while (line[at] === '\\') {
+          slashes += 1;
+          at += 1;
+        }
+        if (line[at] === '"') {
+          arg += '\\'.repeat(Math.floor(slashes / 2));
+          if (slashes % 2 === 1) {
+            arg += '"';
+            at += 1;
+          }
+        } else arg += '\\'.repeat(slashes);
+        continue;
+      }
+      if (character === '"') {
+        if (quoted && line[at + 1] === '"') {
+          arg += '"';
+          at += 2;
+          continue;
+        }
+        quoted = !quoted;
+        at += 1;
+        continue;
+      }
+      if (!quoted && (character === ' ' || character === '\t')) break;
+      arg += character;
+      at += 1;
+    }
+    args.push(arg);
+  }
+  return args;
+}
 const kitsInfo: ConsoleCheck = {
   id: 'kits',
   section: 'Environment',
@@ -369,16 +453,23 @@ async function until(condition: () => boolean, what: string): Promise<void> {
 interface Hooks extends ProcessHooks {
   listeners: Map<string, (error?: unknown) => void>;
   exits: number[];
+  /** What the terminal had received synchronously when each exit was called. */
+  syncedAtExit: string[];
 }
-const fakeHooks = (): Hooks => {
+const fakeHooks = (terminal: FakeTerminal): Hooks => {
   const listeners = new Map<string, (error?: unknown) => void>();
   const exits: number[] = [];
+  const syncedAtExit: string[] = [];
   return {
     listeners,
     exits,
+    syncedAtExit,
     on: (event, listener) => listeners.set(event, listener),
     off: (event) => listeners.delete(event),
-    exit: (code) => exits.push(code),
+    exit: (code) => {
+      exits.push(code);
+      syncedAtExit.push(terminal.synced);
+    },
   };
 };
 function launch(extra: { collect?: () => DoctorView; spawn?: RunIO['spawn'] } = {}) {
@@ -387,7 +478,7 @@ function launch(extra: { collect?: () => DoctorView; spawn?: RunIO['spawn'] } = 
   const terminal = new FakeTerminal();
   const stdin = new PassThrough();
   const timers: (() => void)[] = [];
-  const hooks = fakeHooks();
+  const hooks = fakeHooks(terminal);
   const spawned: string[][] = [];
   const exit = runConsole({
     io: terminal,
@@ -410,7 +501,9 @@ function launch(extra: { collect?: () => DoctorView; spawn?: RunIO['spawn'] } = 
     clearTimer: (() => {}) as typeof clearTimeout,
     hooks,
   });
-  const restored = (): boolean => terminal.out.includes('\x1b[?25h\x1b[?1049l') && terminal.raw.at(-1) === false;
+  // Restored by an ordinary write, or synchronously on the paths that exit right after.
+  const restored = (): boolean =>
+    (terminal.out + terminal.synced).includes('\x1b[?25h\x1b[?1049l') && terminal.raw.at(-1) === false;
   return {
     root,
     terminal,
@@ -481,6 +574,14 @@ describe('runConsole', () => {
     expect(await hung.exit).toBe(129);
     expect(hung.hooks.exits).toEqual([129]);
     expect(hung.restored()).toBe(true);
+    // Written synchronously, before the exit: an ordinary write could still be queued when the process ends.
+    expect(hung.hooks.syncedAtExit[0]).toContain('\x1b[?25h\x1b[?1049l');
+    expect(hung.hooks.syncedAtExit[0]).toContain('\x1b[?2004l');
+    const broken = launch();
+    await until(broken.entered, 'the console');
+    broken.hooks.listeners.get('uncaughtException')!(new Error('boom'));
+    expect(await broken.exit).toBe(1);
+    expect(broken.hooks.syncedAtExit[0]).toContain('\x1b[?1049l');
     const exiting = launch();
     await until(exiting.entered, 'the console');
     exiting.hooks.listeners.get('exit')!(0);
@@ -496,6 +597,8 @@ describe('runConsole', () => {
     const error = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' });
     for (const listener of run.terminal.errors) listener(error);
     expect(await run.exit).toBe(1);
+    // The failed stream is not trusted with the restoration: it goes out synchronously, through what survives.
+    expect(run.terminal.synced).toContain('\x1b[?25h\x1b[?1049l');
     expect(run.terminal.raw.at(-1)).toBe(false);
     expect(run.stdin.listenerCount('data')).toBe(0);
     expect(run.stdin.destroyed).toBe(false);

@@ -116,8 +116,10 @@ describe('consoleTerminal', () => {
     const io = consoleTerminal({
       stdout: stdout as never,
       stdin,
+      stderr: { isTTY: true, fd: 2 },
       writeSync: (fd, data) => synced.push([fd, data]),
     });
+    io.writeSync!('before');
     const errors: Error[] = [];
     const stop = io.onError!((error) => errors.push(error));
     const failure = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' });
@@ -126,10 +128,52 @@ describe('consoleTerminal', () => {
     expect(destroyed).toBe(false);
     stop();
     expect(stdout.listenerCount('error')).toBe(0);
+    // After stdout failed, restoration goes to a stderr that is a terminal.
     io.writeSync!('bye');
-    expect(synced).toEqual([[7, 'bye']]);
+    expect(synced).toEqual([
+      [7, 'before'],
+      [2, 'bye'],
+    ]);
     io.setRawMode(true);
     io.write('x');
     expect([raw, stdout.written, io.columns(), io.rows()]).toEqual([[true], 'x', 120, 40]);
+  });
+  it('with stdout failed and stderr not a terminal, restoration writes nothing and never throws', () => {
+    const stdout = Object.assign(new EventEmitter(), { fd: 1, columns: 80, rows: 24, write: () => true });
+    const synced: [number, string][] = [];
+    const io = consoleTerminal({
+      stdout: stdout as never,
+      stdin: { isTTY: true, setRawMode: () => {} },
+      stderr: { isTTY: false, fd: 2 },
+      writeSync: (fd, data) => synced.push([fd, data]),
+    });
+    io.onError!(() => {});
+    stdout.emit('error', new Error('write EPIPE'));
+    expect(() => io.writeSync!('restore')).not.toThrow();
+    expect(synced).toEqual([]);
+  });
+  it('a synchronous write that fails on stdout falls back to a terminal stderr, and never throws', () => {
+    const stdout = Object.assign(new EventEmitter(), { fd: 1, columns: 80, rows: 24, write: () => true });
+    const synced: [number, string][] = [];
+    const io = consoleTerminal({
+      stdout: stdout as never,
+      stdin: { isTTY: true, setRawMode: () => {} },
+      stderr: { isTTY: true, fd: 2 },
+      writeSync: (fd, data) => {
+        if (fd === 1) throw Object.assign(new Error('EPIPE'), { code: 'EPIPE' });
+        synced.push([fd, data]);
+      },
+    });
+    expect(() => io.writeSync!('restore')).not.toThrow();
+    expect(synced).toEqual([[2, 'restore']]);
+    const neither = consoleTerminal({
+      stdout: stdout as never,
+      stdin: { isTTY: true, setRawMode: () => {} },
+      stderr: { isTTY: true, fd: 2 },
+      writeSync: () => {
+        throw new Error('EIO');
+      },
+    });
+    expect(() => neither.writeSync!('restore')).not.toThrow();
   });
 });
