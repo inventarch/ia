@@ -2185,6 +2185,7 @@
         "tests/inputs.test.ts",
         "tests/membership.test.ts",
         "tests/open-follows-links.test.ts",
+        "tests/paths.test.ts",
         "tests/preview.test.ts",
         "tests/retention.test.ts",
         "tests/runner-evidence.test.ts",
