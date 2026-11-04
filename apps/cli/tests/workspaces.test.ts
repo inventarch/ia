@@ -131,6 +131,82 @@ it('find previews without writing; --apply --yes tracks the untracked ones', asy
   expect(rows(at)).toHaveLength(2);
 });
 
+it('find flags two found workspaces that would take one id, and --apply refuses them before it asks', async () => {
+  const { home: at, env } = home(),
+    folder = scratch('workspaces-find'),
+    first = realpathSync(workspaceAt(resolve(folder, 'one'), 'app')),
+    second = realpathSync(workspaceAt(resolve(folder, 'two'), 'app'));
+  const preview = await run(['workspaces', 'find', folder, '--ascii'], { env, columns: 200 });
+  expect(preview.exitCode, preview.stdout).toBe(0);
+  const clashing = preview.stdout.split('\n').filter((text) => / {2}app {2}/.test(text));
+  expect(clashing).toHaveLength(2);
+  for (const text of clashing) expect(text).toMatch(/\[warn\] clash/);
+  expect(flat(preview.stdout)).toContain(`Two found workspaces would both take the id app: ${first} and ${second}.`);
+  expect(flat(preview.stdout)).toContain(
+    `ia workspaces add ${process.platform === 'win32' ? second.replaceAll('\\', '/') : second} --id`,
+  );
+  for (const apply of [
+    { argv: ['--apply', '--yes', '--json'], interactive: false },
+    { argv: ['--apply'], interactive: true },
+  ]) {
+    const prompts: string[] = [];
+    const refused = await run(['workspaces', 'find', folder, ...apply.argv], {
+      env,
+      interactive: apply.interactive,
+      answers: ['y'],
+      prompts,
+    });
+    expect(refused.exitCode, refused.stdout).toBe(3);
+    const text = apply.interactive
+      ? flat(refused.stdout + refused.stderr)
+      : (({ code, message }) => `${code} ${message}`)(JSON.parse(refused.stdout) as { code: string; message: string });
+    expect(text).toContain('IA-CLI-TRACKED-ID');
+    expect(text).toContain(`Two found workspaces would both take the id app: ${first} and ${second}`);
+    expect(text).not.toContain('already tracked');
+    expect(prompts).toEqual([]);
+    expect(rows(at)).toEqual([]);
+  }
+});
+
+/*
+ * Suggested commands never print a root a shell would act on (apps/cli/SPEC.md): such a root's remedy is `.`, run from
+ * that workspace's directory, and the path stays in the message as data only.
+ */
+it.each(['$(printf PWNED)', '`printf PWNED`', 'bang!', '%cd%'])(
+  'a clash remedy for a root holding %s names "." and the directory to run it from',
+  async (name) => {
+    const { home: at, env } = home(),
+      folder = scratch('workspaces-find'),
+      first = realpathSync(workspaceAt(resolve(folder, 'a', 'repo'), 'app')),
+      second = realpathSync(workspaceAt(resolve(folder, `b${name}`, 'repo'), 'app'));
+    const commands = (text: string): readonly string[] => [...flat(text).matchAll(/"(ia [^"]*)"/g)].map((m) => m[1]!);
+    const preview = await run(['workspaces', 'find', folder], { env });
+    expect(preview.exitCode, preview.stdout).toBe(0);
+    expect(flat(preview.stdout)).toContain(
+      `From the second workspace's directory, run "ia workspaces add . --id repo" to track it under another id;`,
+    );
+    for (const command of commands(preview.stdout)) expect(command).not.toContain(name);
+    // --apply refuses with the same remedy; the root stays in the message only.
+    const refused = JSON.parse(
+      (await run(['workspaces', 'find', folder, '--apply', '--yes', '--json'], { env })).stdout,
+    );
+    expect(refused.code).toBe('IA-CLI-TRACKED-ID');
+    expect(refused.message).toContain(second);
+    expect(refused.next).toContain('"ia workspaces add . --id repo"');
+    expect(refused.next).not.toContain(name);
+    // A plain add of the root, its id already tracked, is told the same.
+    expect((await run(['workspaces', 'add', first], { env })).exitCode).toBe(0);
+    const added = JSON.parse((await run(['workspaces', 'add', second, '--json'], { env })).stdout);
+    expect(added.code).toBe('IA-CLI-TRACKED-ID');
+    expect(added.next).toContain('"ia workspaces add . --id repo"');
+    expect(added.next).not.toContain(name);
+    // Run from that directory, the remedy tracks it.
+    const remedy = await run(['workspaces', 'add', '.', '--id', 'repo'], { env, cwd: second });
+    expect(remedy.exitCode, remedy.stdout).toBe(0);
+    expect(rows(at).map((row) => row.id)).toEqual(['app', 'repo']);
+  },
+);
+
 it('remove by id', async () => {
   const { home: at, env } = home(),
     root = workspaceAt(resolve(scratch('workspaces'), 'repo'), 'demo');
