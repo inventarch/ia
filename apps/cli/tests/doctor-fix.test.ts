@@ -237,6 +237,14 @@ it('the check with id "host" appears only when no host is registered', () => {
   expect(checkOf('registered', 'host-claude')).toBeDefined();
 });
 
+it('the declined row reads the same whatever day the decline is made on', async () => {
+  // Made on another day entirely: the fixture still records DECLINED_AT, so the row matches the captured envelope.
+  const elsewhere = await fixture('declined', { declineClock: new Date('2027-01-15T09:00:00Z') });
+  const row = report(elsewhere).checks.find((check) => check.id === 'workspace-decision')!;
+  expect(row).toMatchObject({ detail: 'Declined permanently on 2026-11-03', remedy: 'ia init --forget-decline' });
+  expect(row).toEqual(checkOf('declined', 'workspace-decision'));
+});
+
 /**
  * Each fixture's `--json` envelope as the code before `fix` produced it, normalized (doctor-fix-fixture.ts): captured
  * once by value, so a change to any existing key or value, a remedy above all, fails here.
