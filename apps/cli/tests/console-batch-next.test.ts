@@ -14,7 +14,7 @@ import { planBatch } from '../src/console/batch-plan.js';
 import type { RepoResult, Runner } from '../src/console/batch-run.js';
 import { defaultRunner, gitTop, runBatch } from '../src/console/batch-run.js';
 import { commitPassed, ghReady, nextChoices, pushAndOpenPrs, removeWorktrees } from '../src/console/batch-next.js';
-import { batchScreen } from '../src/console/batch-screen.js';
+import { batchScreen, previewLines } from '../src/console/batch-screen.js';
 import type { RepoRow } from '../src/console/workspaces-state.js';
 import type { Fixture } from './batch-fixture.js';
 import { fixture, git, offerOf, plant, readLog, recorder, repo, rowOf, shim } from './batch-fixture.js';
@@ -118,6 +118,33 @@ describe('nextChoices', () => {
     );
     const deferred = choices.filter((choice) => choice.id === 'deferred');
     expect(deferred).toEqual([{ id: 'deferred', title: `Run once on this machine: ${displayFix(host)}` }]);
+  });
+});
+
+describe('the preview', () => {
+  const preview = () => {
+    const root = resolve('/srv/repos/alpha');
+    const plan = planBatch(
+      'fix:generation',
+      [rowOf(root, [relock(root)]), rowOf(resolve('/srv/repos/beta'), [relock(resolve('/srv/repos/beta'))])],
+      new Set([0, 1]),
+      { iaHome: resolve('/srv/ia-home') },
+      { top: (path) => (path.endsWith('beta') ? null : path) },
+    );
+    return previewLines({ choice: { offerId: 'fix:generation', title: 'Re-lock', repos: 2 }, ...plan });
+  };
+  it('lists the install before the steps, with its flags, since what it writes is committed with them', () => {
+    const lines = preview();
+    const install = lines.indexOf(
+      "  install  the package manager's install, first, where the worktree holds a package.json",
+    );
+    expect(install).toBeGreaterThan(lines.indexOf('  branch   chore/ia-fix-generation'));
+    expect(lines[install + 1]).toMatch(/^ {2}1\. ia restore --apply/);
+    // Once, for every repository: no lifecycle script, frozen to a tracked lockfile.
+    expect(lines.filter((line) => line.startsWith('  install  '))).toHaveLength(1);
+    expect(lines).toContain(
+      'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A commit afterwards holds what it and the steps write.',
+    );
   });
 });
 

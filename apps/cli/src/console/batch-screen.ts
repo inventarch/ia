@@ -1,6 +1,6 @@
 /**
  * A batch in the normal screen (consumer CLI contract §1.2): the preview printed in full (each repository's worktree,
- * branch and rebuilt commands, and the steps left for afterwards), one confirmation, the per-repository progress, the
+ * branch, install and rebuilt commands, and the steps left for afterwards), one confirmation, the per-repository progress, the
  * results table, then the "next" list, each choice explicit and run when picked. Everything printed goes through
  * `shownArgument`, so a path or a program's output never reaches the terminal as a control sequence.
  */
@@ -33,7 +33,11 @@ export type BatchOutcome =
 
 const shown = (text: string): string => shownArgument(text);
 
-/** The preview as the confirmation shows it: nothing cut. */
+/** How the batch's install runs (package-manager.ts `batchInstallArgv`), said once under the repositories. */
+export const INSTALL_NOTE =
+  'The install runs no lifecycle script and, where git tracks the lockfile, is frozen to it: npm ci --ignore-scripts, pnpm install --frozen-lockfile --ignore-scripts, yarn install --frozen-lockfile --ignore-scripts (Yarn 2 and later: --immutable --mode=skip-build) or bun install --frozen-lockfile --ignore-scripts. A commit afterwards holds what it and the steps write.';
+
+/** The preview as the confirmation shows it: nothing cut, the install included, since its output is committed too. */
 export function previewLines(preview: BatchPreview): readonly string[] {
   const out = [`Batch: ${shown(preview.choice.title)}, each repository in a new worktree on a new branch.`];
   for (const plan of preview.repos) {
@@ -42,9 +46,14 @@ export function previewLines(preview: BatchPreview): readonly string[] {
       out.push(`  refused: ${shown(plan.refused)}`);
       continue;
     }
-    out.push(`  worktree ${shown(plan.worktree)}`, `  branch   ${shown(plan.branch)}`);
+    out.push(
+      `  worktree ${shown(plan.worktree)}`,
+      `  branch   ${shown(plan.branch)}`,
+      "  install  the package manager's install, first, where the worktree holds a package.json",
+    );
     plan.steps.forEach((step, index) => out.push(`  ${index + 1}. ${shown(displayFix(step))}`));
   }
+  if (preview.repos.some((plan) => plan.refused === null)) out.push('', INSTALL_NOTE);
   if (preview.deferred.length > 0) {
     out.push('', 'Left out of every repository, offered once afterwards:');
     for (const step of preview.deferred) out.push(`  ${shown(displayFix(step))}`);
