@@ -292,6 +292,16 @@ describe('ownsMember', () => {
     expect(ownsMember(['packages/*', '!packages/[yz]'], 'packages/x')).toBe(false);
     expect(ownsMember(['!packages/{y,z}', 'packages/*'], 'packages/x')).toBe(true);
   });
+  it('reads an extglob or an escape as unsupported, so such an exclusion ends ownership too', () => {
+    for (const glob of ['!packages/+(x|y)', '!packages/@(x|y)', '!packages/!(a)', '!packages/\\x', '!(a)']) {
+      expect(ownsMember(['packages/*', glob], 'packages/x'), glob).toBe(false);
+      expect(ownsMember([glob, 'packages/*'], 'packages/x'), glob).toBe(true);
+    }
+    for (const glob of ['packages/+(x|y)', 'packages/@(x|y)', 'packages/\\x']) {
+      expect(ownsMember([glob], glob), glob).toBe(false);
+      expect(ownsMember([glob], 'packages/x'), glob).toBe(false);
+    }
+  });
   it('lets the last matching glob decide, so ! excludes', () => {
     const globs = ['packages/**', '!packages/private'];
     expect(ownsMember(globs, 'packages/x')).toBe(true);
