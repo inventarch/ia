@@ -265,7 +265,8 @@ export interface WorkspaceCli {
 }
 /**
  * The workspace at `root`'s CLI dependency, the directory that owns its install and the copy found up to there: the one
- * answer hand-off acts on (handoff.ts) and doctor's `cli-version` row reports (doctor-user.ts), so the two never differ.
+ * answer hand-off acts on (handoff.ts) and doctor's `cli-version` row reports (doctor-user.ts). Both callers pass the
+ * workspace at its real path, so the two agree even through a linked `--root`.
  */
 export function resolveWorkspaceCli(root: string): WorkspaceCli {
   const dependency = readCliDependency(root);
