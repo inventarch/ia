@@ -67,7 +67,10 @@ function sequenceLength(text: string): number {
 
 export const PASTE_START = '\x1b[200~';
 export const PASTE_END = '\x1b[201~';
-/** The most a bracketed paste may hold; past it the paste is discarded, never run, up to its end marker. */
+/**
+ * The most a bracketed paste may hold, in UTF-16 code units (so up to 64 Ki characters, up to 256 KiB of UTF-8); past
+ * it the paste is discarded, never run, up to its end marker.
+ */
 export const PASTE_LIMIT = 64 * 1024;
 /** A pasted payload as text: control characters (line breaks included) dropped, so a paste never submits. */
 const pastedText = (payload: string): string => payload.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
@@ -86,11 +89,16 @@ export class KeyDecoder {
   /** The open paste outgrew `PASTE_LIMIT`: its payload is dropped up to its end marker. */
   private overflow = false;
   /**
+   * A paste the escape timer abandoned: everything is dropped up to its end marker, since a delayed payload cannot be
+   * told from typing, except Ctrl-C, which is still `interrupt` (it quits or cancels; it never runs anything).
+   */
+  private abandoned = false;
+  /**
    * Every complete key in the buffer and this chunk; an incomplete escape sequence stays buffered. A bracketed paste
    * (the console turns the mode on) is never a key: its payload is text in text mode and ignored in keys mode, so a
    * pasted `q` or line break neither quits nor runs anything. A paste is bounded: past `PASTE_LIMIT` its payload is
-   * discarded, and one still open when the escape timer flushes is abandoned, so a paste that never ends cannot hold
-   * the console's input.
+   * discarded, and one still open when the escape timer flushes is abandoned and discarded up to its end marker, with
+   * only Ctrl-C read meanwhile, so a paste that never ends cannot run anything and can always be left by Ctrl-C.
    */
   push(chunk: string): readonly Input[] {
     this.buffer += chunk;
@@ -102,6 +110,23 @@ export class KeyDecoder {
       out.push(input);
     };
     while (this.buffer.length > 0) {
+      if (this.abandoned) {
+        const end = this.buffer.indexOf(PASTE_END);
+        const interrupt = this.buffer.indexOf('\x03');
+        if (interrupt !== -1 && (end === -1 || interrupt < end)) {
+          emit(key('interrupt'));
+          this.buffer = this.buffer.slice(interrupt + 1);
+          continue;
+        }
+        if (end === -1) {
+          // Hold what could be the start of the end marker; the rest is dropped.
+          this.buffer = this.buffer.slice(this.buffer.length - partialMarker(this.buffer, PASTE_END));
+          break;
+        }
+        this.abandoned = false;
+        this.buffer = this.buffer.slice(end + PASTE_END.length);
+        continue;
+      }
       if (this.paste !== null) {
         const end = this.buffer.indexOf(PASTE_END);
         if (end === -1) {
@@ -154,11 +179,14 @@ export class KeyDecoder {
   }
   /** Called when the escape timer fires: a held lone ESC is Escape, a partial sequence is dropped as `other`. */
   flush(): readonly Input[] {
-    // A paste still open when the timer fires is abandoned: its payload is dropped, never run, and decoding resumes.
+    // An abandoned paste waits for its end marker; a held partial marker stays held.
+    if (this.abandoned) return [];
+    // A paste still open when the timer fires is abandoned: its payload is dropped, never run, up to its end marker.
     if (this.paste !== null) {
       this.paste = null;
       this.overflow = false;
-      this.buffer = '';
+      this.abandoned = true;
+      this.buffer = this.buffer.slice(this.buffer.length - partialMarker(this.buffer, PASTE_END));
       return [];
     }
     if (this.buffer === '') return [];
@@ -166,9 +194,12 @@ export class KeyDecoder {
     this.buffer = '';
     return [key(held === '\x1b' ? 'escape' : 'other')];
   }
-  /** True while a buffered ESC could still start a sequence, or a paste is open: either way the escape timer runs. */
+  /**
+   * True while a buffered ESC could still start a sequence, or a paste is open: either way the escape timer runs. An
+   * abandoned paste needs no timer: only its end marker or Ctrl-C ends it.
+   */
   pending(): boolean {
-    return this.buffer !== '' || this.paste !== null;
+    return !this.abandoned && (this.buffer !== '' || this.paste !== null);
   }
   /** Payload of the open paste, kept up to `PASTE_LIMIT`; past it the paste only waits for its end. */
   private take(part: string): void {

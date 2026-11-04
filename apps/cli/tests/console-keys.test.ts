@@ -121,20 +121,34 @@ describe('bracketed paste', () => {
     expect(keys.push(`${START}q`)).toEqual([]);
     expect(keys.push(`\r${END}q`)).toEqual([key('quit')]);
   });
-  it('an unterminated paste is abandoned by the idle flush, its payload discarded, and decoding resumes', () => {
+  it('a paste abandoned by the idle flush stays discarded up to its end marker; a late payload never acts', () => {
     const keys = new KeyDecoder();
     expect(keys.push(`${START}q\r`)).toEqual([]);
-    // The console arms its escape timer while a paste is open, so a paste that never ends cannot hold input.
+    // The console arms its escape timer while a paste is open, so a paste that never ends cannot run anything.
     expect(keys.pending()).toBe(true);
     expect(keys.flush()).toEqual([]);
+    // The re-review's case: the rest of the payload arrives after the flush. It is dropped, never Enter or Quit.
+    expect(keys.push('\rq')).toEqual([]);
     expect(keys.pending()).toBe(false);
-    expect(keys.push('q')).toEqual([key('quit')]);
-    expect(keys.push('\x03')).toEqual([key('interrupt')]);
+    expect(keys.flush()).toEqual([]);
+    // A partial end marker survives a flush and completes in the next chunk.
+    expect(keys.push('j\x1b[20')).toEqual([]);
+    expect(keys.flush()).toEqual([]);
+    expect(keys.push('1~q')).toEqual([key('quit')]);
     const typed = new KeyDecoder();
     typed.mode = 'text';
     expect(typed.push(`${START}abc`)).toEqual([]);
     expect(typed.flush()).toEqual([]);
-    expect(typed.push('x\r')).toEqual([text('x'), key('enter')]);
+    expect(typed.push('x\r')).toEqual([]);
+    expect(typed.push(`${END}x\r`)).toEqual([text('x'), key('enter')]);
+  });
+  it('Ctrl-C is the one key read while an abandoned paste waits for its end', () => {
+    const keys = new KeyDecoder();
+    expect(keys.push(`${START}q`)).toEqual([]);
+    expect(keys.flush()).toEqual([]);
+    expect(keys.push('q\x03\r')).toEqual([key('interrupt')]);
+    expect(keys.push('q')).toEqual([]);
+    expect(keys.push(`${END}\x03q`)).toEqual([key('interrupt'), key('quit')]);
   });
   it('an oversized paste is discarded, never executed, and keys resume after it', () => {
     expect(PASTE_LIMIT).toBe(64 * 1024);
@@ -148,7 +162,8 @@ describe('bracketed paste', () => {
     expect(endless.push(`${START}${'q'.repeat(PASTE_LIMIT + 10)}`)).toEqual([]);
     expect(endless.push('q\r'.repeat(10))).toEqual([]);
     expect(endless.flush()).toEqual([]);
-    expect(endless.push('q')).toEqual([key('quit')]);
+    expect(endless.push('q')).toEqual([]);
+    expect(endless.push(`${END}q`)).toEqual([key('quit')]);
   });
   it('the paste markers split across chunks still open and close a paste', () => {
     expect(decode(['\x1b[20', '0~q\r', END])).toEqual([]);
