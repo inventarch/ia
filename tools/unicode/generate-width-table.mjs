@@ -149,13 +149,27 @@ export function readSources(directory) {
   return texts;
 }
 
+/**
+ * Fetches every source, and writes them only once each has its pinned byte count and SHA-256, so nothing unverified
+ * from the network ever reaches the disk.
+ */
 async function download(directory) {
-  for (const { path } of SOURCES) {
+  const verified = [];
+  for (const { path, bytes, sha256: pinned } of SOURCES) {
     const response = await fetch(BASE_URL + path);
     if (!response.ok) throw new Error(`${BASE_URL}${path}: HTTP ${response.status}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const digest = createHash('sha256').update(buffer).digest('hex');
+    if (buffer.length !== bytes || digest !== pinned)
+      throw new Error(
+        `${BASE_URL}${path}: ${buffer.length} bytes, sha256 ${digest}; pinned ${bytes} bytes, sha256 ${pinned}; nothing was written`,
+      );
+    verified.push({ path, buffer });
+  }
+  for (const { path, buffer } of verified) {
     const file = resolve(directory, path);
     mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, Buffer.from(await response.arrayBuffer()));
+    writeFileSync(file, buffer);
   }
 }
 

@@ -1,0 +1,15 @@
+{
+  "format": "ia.npm-change-note.v1",
+  "bump": "patch",
+  "title": "Judge containment by real path where a volume reports no inode",
+  "summary": "Where a volume reports an inode of 0 or all ones, as some network and ReFS volumes on Windows do, a path is inside a directory only when that directory's exact real path is one of its real ancestors, instead of every directory on the volume counting as the same one; volumes that report inodes are judged by device and inode as before.",
+  "packages": [
+    "@inventarch/db"
+  ],
+  "paths": [
+    "README.md",
+    "docs/",
+    "packages/db/",
+    "tools/"
+  ]
+}
