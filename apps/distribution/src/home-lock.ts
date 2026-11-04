@@ -138,6 +138,24 @@ export class HomeLockedError extends Error {
 }
 
 /**
+ * This call's own lock could not be removed after its action completed: the action's change was made, and the lock it
+ * leaves blocks every later change to that store until it is deleted.
+ */
+export class HomeLockLeftError extends DistributionError {
+  constructor(
+    readonly lock: string,
+    reason: string,
+  ) {
+    super(
+      'IA-DIST-HOME-LOCK-LEFT',
+      `${lock} could not be removed (${reason}); this process no longer holds it, so delete it`,
+      lock,
+    );
+    this.name = 'HomeLockLeftError';
+  }
+}
+
+/**
  * Runs `action` holding the lock `<home>/<name>`. Creates the home as a write would. Throws `HomeLockedError` when
  * another holder is still there after `waitMs`, measured on a monotonic clock; it never removes another holder's lock.
  * Once this call's lock is published, everything that follows (removing the staging file, the action) runs inside the
@@ -192,7 +210,7 @@ export function withHomeLock<T>(home: string, name: string, action: () => T, opt
  * the removal for a moment (EPERM, EBUSY, EACCES) is retried. Returns the refusal to report when the lock is left
  * behind, which would otherwise block every later change until its pid is found dead by hand, or null.
  */
-function release(lock: string, token: string, remove: (path: string) => void): DistributionError | null {
+function release(lock: string, token: string, remove: (path: string) => void): HomeLockLeftError | null {
   for (let attempt = 1; ; attempt += 1) {
     try {
       if (parseOwner(readFileSync(lock, 'utf8'))?.token === token) remove(lock);
@@ -204,11 +222,7 @@ function release(lock: string, token: string, remove: (path: string) => void): D
         sleep(LOCK_POLL_MS);
         continue;
       }
-      return new DistributionError(
-        'IA-DIST-HOME-LOCK-LEFT',
-        `${lock} could not be removed (${code || (error as Error).message}); this process no longer holds it, so delete it`,
-        lock,
-      );
+      return new HomeLockLeftError(lock, code || (error as Error).message);
     }
   }
 }
