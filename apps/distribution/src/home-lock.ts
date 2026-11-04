@@ -9,13 +9,15 @@
  * is: two processes taking over one dead owner's lock at once can each remove the other's, so no takeover is safe with
  * these file operations alone. A holder that is killed therefore leaves a lock that blocks every change until a person
  * deletes it: the call waits, then throws `HomeLockedError` naming the lock path and its owner, and says when that
- * owner is on this host and its pid is no longer running.
+ * owner is on this host and its pid is no longer running. The wait runs on a timer, so a signal handler gets to run during
+ * it: a call given an `AbortSignal` stops waiting as soon as that signal fires, removing only its own staging file.
  */
 import { hostname } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { linkSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { setTimeout as delay } from 'node:timers/promises';
 import { DistributionError } from './files.js';
 import { ensureIaHome } from './ia-home.js';
 
@@ -76,6 +78,7 @@ function parseOwner(text: string): LockOwner | null {
   return null;
 }
 
+/** Blocks the thread: only for the retries of a refusal Windows gives for a moment, never the wait for a holder. */
 const sleep = (ms: number): void => void Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const codeOf = (error: unknown): string => (error as NodeJS.ErrnoException).code ?? '';
 
@@ -105,6 +108,8 @@ export interface HomeLockOptions {
   readonly onBlocked?: () => void;
   /** Removes this call's own lock at release. */
   readonly removeLock?: (path: string) => void;
+  /** Stops the wait for another holder: the call then rejects with the signal's reason, having published no lock. */
+  readonly signal?: AbortSignal | undefined;
 }
 
 /** Who holds the lock, as the refusal describes them; `gone` when the lock vanished since the link failed. */
@@ -156,19 +161,27 @@ export class HomeLockLeftError extends DistributionError {
 }
 
 /**
- * Runs `action` holding the lock `<home>/<name>`. Creates the home as a write would. Throws `HomeLockedError` when
- * another holder is still there after `waitMs`, measured on a monotonic clock; it never removes another holder's lock.
+ * Runs `action` holding the lock `<home>/<name>`. Creates the home as a write would. Rejects with `HomeLockedError` when
+ * another holder is still there after `waitMs`, measured on a monotonic clock, or with `signal`'s reason as soon as that
+ * fires while no lock is published; it never removes another holder's lock. `action` is synchronous, so this call never
+ * yields while it holds the lock.
  * Once this call's lock is published, everything that follows (removing the staging file, the action) runs inside the
  * `finally` that releases it. A release Windows refuses for a moment is retried; one that still fails leaves the lock
  * and throws `IA-DIST-HOME-LOCK-LEFT` naming it, unless the action threw, whose error then stands.
  */
-export function withHomeLock<T>(home: string, name: string, action: () => T, options: HomeLockOptions = {}): T {
+export async function withHomeLock<T>(
+  home: string,
+  name: string,
+  action: () => T,
+  options: HomeLockOptions = {},
+): Promise<T> {
   const {
     waitMs = HOME_LOCK_WAIT_MS,
     read = (path: string) => readFileSync(path, 'utf8'),
     removeStage = (path: string) => rmSync(path, { force: true }),
     onBlocked = () => {},
     removeLock = unlinkSync,
+    signal,
   } = options;
   ensureHome(home);
   const lock = join(home, name);
@@ -183,7 +196,7 @@ export function withHomeLock<T>(home: string, name: string, action: () => T, opt
   const stage = `${lock}.${owner.token}.tmp`;
   writeFileSync(stage, JSON.stringify(owner) + '\n', { flag: 'wx', mode: 0o600 });
   try {
-    acquire(stage, lock, waitMs, read, onBlocked);
+    await acquire(stage, lock, waitMs, read, onBlocked, signal);
   } catch (error) {
     try {
       removeStage(stage);
@@ -227,16 +240,21 @@ function release(lock: string, token: string, remove: (path: string) => void): H
   }
 }
 
-/** Publishes `stage` as `lock`, polling while another holder has it; refuses once `waitMs` has passed after a failure. */
-function acquire(
+/**
+ * Publishes `stage` as `lock`, polling on a timer while another holder has it; refuses once `waitMs` has passed after a
+ * failure, and stops with `signal`'s reason before any attempt once that has fired.
+ */
+async function acquire(
   stage: string,
   lock: string,
   waitMs: number,
   read: (path: string) => string,
   onBlocked: () => void,
-): void {
+  signal: AbortSignal | undefined,
+): Promise<void> {
   const started = performance.now();
   for (let lastLook = false; ; ) {
+    signal?.throwIfAborted();
     try {
       linkSync(stage, lock);
       return;
@@ -245,7 +263,8 @@ function acquire(
     }
     onBlocked();
     if (performance.now() - started < waitMs) {
-      sleep(LOCK_POLL_MS);
+      // The timer rejects only for the signal, which the top of the loop reports.
+      await delay(LOCK_POLL_MS, undefined, signal === undefined ? {} : { signal }).catch(() => {});
       continue;
     }
     const holder = holderOf(lock, read);
