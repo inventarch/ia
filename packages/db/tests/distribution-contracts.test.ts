@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import {
   canonicalDistributionJson,
   checkInstalledImplementations,
+  commonRange,
   compareVersions,
   decodeActivationPointer,
   decodeBundleManifest,
@@ -539,4 +540,61 @@ it('shapes an installed-implementation catalog once for its reader and its binde
     ok: false,
     reason: 'The installed-implementation catalog is not plain, acyclic, bounded data',
   });
+});
+
+it('commonRange accepts exactly what both ranges accept, or refuses to say', () => {
+  const ranges = [
+    '*',
+    '^1.2.0',
+    '^1.4.0',
+    '~1.2.3',
+    '^1.2.5',
+    '>=1.2.0 <1.5.0',
+    '1.x',
+    '1.2.3 - 1.6',
+    '1.2.3',
+    '^1.2.0 || ^2.0.0',
+    '^2.1.0 || ~1.3.0',
+    '^2.0.0',
+    '^0.2.0',
+    '^1.2.0-rc.1',
+    '^1.2.0-rc.2',
+    '>=1.2.0-0',
+    '<1.2.0-rc.2',
+  ];
+  const versions = [
+    '0.2.5',
+    '1.0.0',
+    '1.2.0-rc.1',
+    '1.2.0-rc.2',
+    '1.2.0',
+    '1.2.3',
+    '1.2.4',
+    '1.2.6',
+    '1.3.0-beta',
+    '1.3.5',
+    '1.4.0',
+    '1.5.0',
+    '1.6.9',
+    '2.0.0-rc.1',
+    '2.0.0',
+    '2.1.0',
+  ];
+  for (const a of ranges)
+    for (const b of ranges) {
+      const common = commonRange(a, b);
+      // Either order writes the same string, so what a lock holds does not depend on which collection came first.
+      expect(commonRange(b, a), `${a} and ${b}`).toBe(common);
+      if (common === null) continue;
+      for (const v of versions)
+        expect(satisfies(v, common), `${v} in ${common} from ${a} and ${b}`).toBe(satisfies(v, a) && satisfies(v, b));
+      // What it wrote is a fixed point against either side.
+      expect(commonRange(common, a), `${common} and ${a}`).toBe(common);
+      expect(commonRange(common, b), `${common} and ${b}`).toBe(common);
+    }
+  expect(commonRange('^1.2.0', '^1.4.0')).toBe('^1.4.0');
+  expect(commonRange('^1.0.0', '^2.0.0')).toBeNull();
+  expect(commonRange('^1.2.0-rc.1', '^1.0.0')).toBeNull();
+  expect(commonRange('^1.2.0', '>=1.2.0 <2.0.0-0')).toBe('^1.2.0');
+  expect(() => commonRange('not a range', '^1.0.0')).toThrow();
 });

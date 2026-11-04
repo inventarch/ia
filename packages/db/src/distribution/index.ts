@@ -2,6 +2,7 @@ export {
   DISTRIBUTION_LIMITS,
   InstallationError,
   canonicalDistributionJson,
+  commonRange,
   decodeDistributionJson,
   metadataDigest,
   packageId,

@@ -1246,6 +1246,137 @@ it('two collections re-expanded together still replace a member they share', asy
   ]);
 });
 
+/** Collections `acme/a` and `acme/b` (and `acme/c`, when ranged) sharing `acme/x` at the given ranges, over these x versions. */
+async function overlapRegistry(versions: readonly string[], ranges: Readonly<Record<string, string>>): Promise<string> {
+  const { dir } = await registry(versions.map((version) => ({ id: 'acme/x', version })));
+  for (const [id, range] of Object.entries(ranges))
+    registryAddCollection(dir, 'kit', {
+      format: 'ia.registry-kit.v1',
+      id,
+      releases: [{ version: '1.0.0', withdrawn: false, distributions: [{ id: 'acme/x', range }] }],
+    });
+  return dir;
+}
+const HOLD_X = new Map([
+  ['acme/a', ['acme/x']],
+  ['acme/b', ['acme/x']],
+]);
+const installOverHolder = (
+  dir: string,
+  left: string,
+  collectionMembers: ReadonlyMap<string, readonly string[]> = HOLD_X,
+) =>
+  resolveWith(
+    workspaceRoot(),
+    dir,
+    [
+      { id: 'acme/a', range: '1.0.0' },
+      { id: 'acme/x', range: left },
+    ],
+    { allowKits: true, named: ['acme/a'], collectionMembers },
+  );
+const selectedX = (resolved: Awaited<ReturnType<typeof resolveWith>>) =>
+  resolved.candidates.find((candidate) => candidate.release.manifest.id === 'acme/x')?.release.manifest.version;
+
+it('a member whose ranges intersect resolves against both, and names the holder its row must follow', async () => {
+  const dir = await overlapRegistry(['1.3.0', '1.5.0'], { 'acme/a': '^1.4.0', 'acme/b': '^1.2.0' });
+  const resolved = await installOverHolder(dir, '^1.2.0');
+  expect(resolved.expandedRequests).toEqual([{ id: 'acme/x', range: '^1.4.0' }]);
+  expect(selectedX(resolved)).toBe('1.5.0');
+  expect(resolved.sharedHolders).toEqual(['acme/b']);
+});
+it('a wider range never loosens the narrower one a holder left', async () => {
+  const dir = await overlapRegistry(['1.3.0', '1.5.0'], { 'acme/a': '^1.2.0', 'acme/b': '^1.4.0' });
+  const resolved = await installOverHolder(dir, '^1.4.0');
+  expect(resolved.expandedRequests).toEqual([{ id: 'acme/x', range: '^1.4.0' }]);
+  expect(selectedX(resolved)).toBe('1.5.0');
+});
+it('ranges neither of which holds the other are written as their exact conjunction', async () => {
+  const dir = await overlapRegistry(['1.2.2', '1.2.6', '1.3.0'], { 'acme/a': '^1.2.5', 'acme/b': '~1.2.3' });
+  const resolved = await installOverHolder(dir, '~1.2.3');
+  const written = resolved.expandedRequests![0]!.range;
+  expect(written).toBe('<1.3.0-0 <2.0.0-0 >=1.2.3 >=1.2.5');
+  expect(selectedX(resolved)).toBe('1.2.6');
+  // Re-expanding over what was written changes nothing, whichever collection is installed again.
+  expect((await installOverHolder(dir, written)).expandedRequests).toEqual([{ id: 'acme/x', range: written }]);
+});
+it('ranges that intersect refuse, naming the holders, when no release satisfies both', async () => {
+  const dir = await overlapRegistry(['1.3.0'], { 'acme/a': '^1.4.0', 'acme/b': '^1.2.0' });
+  await expect(installOverHolder(dir, '^1.2.0')).rejects.toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit acme/a 1.0.0 lists acme/x ^1.4.0, but installed collection acme/b lists it at ^1.2.0',
+    member: 'acme/x',
+    holders: ['acme/b'],
+  });
+});
+it('a withdrawn release does not make two ranges satisfiable', async () => {
+  const dir = await overlapRegistry(['1.3.0', '1.5.0'], { 'acme/a': '^1.4.0', 'acme/b': '^1.2.0' });
+  editIndex(dir, 'acme/x', (releases) =>
+    releases.map((release) => (release.version === '1.5.0' ? { ...release, withdrawn: true } : release)),
+  );
+  await expect(installOverHolder(dir, '^1.2.0')).rejects.toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    holders: ['acme/b'],
+  });
+});
+it('a prerelease only one holder accepts does not satisfy both', async () => {
+  const dir = await overlapRegistry(['1.2.0-rc.1'], { 'acme/a': '^1.2.0-rc.1', 'acme/b': '^1.0.0' });
+  await expect(installOverHolder(dir, '^1.0.0')).rejects.toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit acme/a 1.0.0 lists acme/x ^1.2.0-rc.1, but installed collection acme/b lists it at ^1.0.0',
+    holders: ['acme/b'],
+  });
+  // Even with a final release both accept, no range can say "not that prerelease", so it refuses rather than risk it.
+  const final = await overlapRegistry(['1.2.0-rc.1', '1.2.0'], { 'acme/a': '^1.2.0-rc.1', 'acme/b': '^1.0.0' });
+  await expect(installOverHolder(final, '^1.0.0')).rejects.toMatchObject({ code: 'IA-DIST-CONFLICT' });
+});
+it('a prerelease both holders accept resolves', async () => {
+  const dir = await overlapRegistry(['1.2.0-rc.2'], { 'acme/a': '^1.2.0-rc.2', 'acme/b': '^1.2.0-rc.1' });
+  const resolved = await installOverHolder(dir, '^1.2.0-rc.1');
+  expect(resolved.expandedRequests).toEqual([{ id: 'acme/x', range: '^1.2.0-rc.2' }]);
+  expect(selectedX(resolved)).toBe('1.2.0-rc.2');
+});
+it('disjoint ranges refuse, naming every holder, and three holders resolve when all intersect', async () => {
+  const three = new Map([...HOLD_X, ['acme/c', ['acme/x']]]);
+  const dir = await overlapRegistry(['1.5.0', '2.0.0'], { 'acme/a': '^2.0.0', 'acme/b': '^1.2.0', 'acme/c': '^1.4.0' });
+  await expect(installOverHolder(dir, '^1.4.0', three)).rejects.toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit acme/a 1.0.0 lists acme/x ^2.0.0, but installed collections acme/b, acme/c list it at ^1.4.0',
+    holders: ['acme/b', 'acme/c'],
+  });
+  const fits = await overlapRegistry(['1.3.0', '1.5.0', '1.7.0'], {
+    'acme/a': '^1.5.0',
+    'acme/b': '^1.2.0',
+    'acme/c': '^1.4.0',
+  });
+  const resolved = await installOverHolder(fits, '^1.4.0', three);
+  expect(resolved.expandedRequests).toEqual([{ id: 'acme/x', range: '^1.5.0' }]);
+  expect(selectedX(resolved)).toBe('1.7.0');
+  expect(resolved.sharedHolders).toEqual(['acme/b', 'acme/c']);
+});
+it('two collections expanded together resolve a member at ranges that intersect', async () => {
+  const dir = await overlapRegistry(['1.3.0', '1.5.0'], { 'acme/a': '^1.2.0', 'acme/b': '^1.4.0' });
+  const resolved = await resolveWith(
+    workspaceRoot(),
+    dir,
+    [
+      { id: 'acme/a', range: '1.0.0' },
+      { id: 'acme/b', range: '1.0.0' },
+    ],
+    { allowKits: true, named: ['acme/a', 'acme/b'] },
+  );
+  expect(resolved.expandedRequests).toEqual([{ id: 'acme/x', range: '^1.4.0' }]);
+  expect(selectedX(resolved)).toBe('1.5.0');
+  expect(resolved.sharedHolders).toEqual([]);
+});
+it('a request nobody holds still compares as a string', async () => {
+  const dir = await overlapRegistry(['1.5.0'], { 'acme/a': '^1.4.0' });
+  await expect(installOverHolder(dir, '^1.2.0', new Map())).rejects.toMatchObject({
+    code: 'IA-DIST-CONFLICT',
+    message: 'Kit conflicts with direct request acme/x',
+  });
+});
+
 it('a kit whose member is a kit records the members it expanded to, on the kit the command named', async () => {
   const { dir } = await registry([
     { id: 'acme/w', version: '1.0.0' },
