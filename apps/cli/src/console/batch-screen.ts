@@ -23,7 +23,10 @@ export interface BatchScreenIO {
   readonly run: Runner;
   readonly resolveRepo: (root: string) => LocalCli | null;
   readonly env: Env;
+  /** The run's signal, which Ctrl-C aborts. */
   readonly signal: AbortSignal;
+  /** A fresh signal for one choice after the run, which Ctrl-C aborts; by default the run's own. */
+  readonly nextSignal?: () => AbortSignal;
 }
 /** What the console does once the batch screen ends. */
 export type BatchOutcome =
@@ -65,7 +68,7 @@ export function previewLines(preview: BatchPreview): readonly string[] {
 function table(results: readonly RepoResult[]): readonly string[] {
   return results.map(
     (result) =>
-      `${result.ok ? 'ok    ' : result.refused !== null ? 'refused' : 'failed'} ${shown(result.branch)}  ${shown(result.worktree || result.root)}  ${shown(result.last)}`,
+      `${result.ok ? 'ok    ' : result.stopped === true ? 'stopped' : result.refused !== null ? 'refused' : 'failed'} ${shown(result.branch)}  ${shown(result.worktree || result.root)}  ${shown(result.last)}`,
   );
 }
 
@@ -99,6 +102,7 @@ export async function batchScreen(
     preview.repos.map((repo) => repo.top),
   );
   const done = new Set<string>();
+  const nextSignal = io.nextSignal ?? (() => io.signal);
   for (;;) {
     const choices = nextChoices(results, preview.deferred, gh).filter((choice) => !done.has(choice.id));
     if (choices.length === 0) return { next: 'return' };
@@ -115,11 +119,12 @@ export async function batchScreen(
     switch (choice.id) {
       case 'commit':
       case 'pr': {
-        results = await commitPassed(results, preview.choice.title, io.run, io.env);
+        const signal = nextSignal();
+        results = await commitPassed(results, preview.choice.title, io.run, io.env, signal);
         for (const text of table(results)) io.print(text);
         done.add('commit');
         if (choice.id === 'pr') {
-          for (const opened of await pushAndOpenPrs(results, io.run, io.env))
+          for (const opened of await pushAndOpenPrs(results, io.run, io.env, signal))
             io.print(`${shown(opened.root)}: ${shown(opened.url ?? `not opened: ${opened.error ?? ''}`)}`);
           done.add('pr');
         }
@@ -131,7 +136,7 @@ export async function batchScreen(
         break;
       }
       case 'remove': {
-        const removed = await removeWorktrees(results, io.run, io.env);
+        const removed = await removeWorktrees(results, io.run, io.env, nextSignal());
         for (const entry of removed)
           io.print(
             `${shown(entry.root)}: ${entry.error === null ? 'worktree removed, branch kept' : shown(entry.error)}`,

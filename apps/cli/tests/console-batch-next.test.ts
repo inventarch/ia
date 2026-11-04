@@ -196,7 +196,8 @@ describe('after the run', () => {
       ['pr', 'create', '--fill', '--head', 'chore/ia-fix-generation', '--base', 'master'],
     ]);
     // A result that does not say its base gets no PR, and nothing is pushed for it.
-    const unknown = { ...results[0]!, base: undefined, branch: 'chore/ia-other' };
+    const { base: _base, ...rest } = results[0]!;
+    const unknown = { ...rest, branch: 'chore/ia-other' };
     expect(await pushAndOpenPrs([unknown], run, fx.env)).toEqual([
       { root: top, url: null, error: 'the branch the worktree was made from is not known, so no PR is opened' },
     ]);
@@ -340,6 +341,88 @@ describe('after the run, guarded', () => {
     ]);
     expect(readLog(log)).toEqual([]);
     expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
+  });
+});
+
+describe('Ctrl-C after the run', () => {
+  const stopped = (): AbortSignal => {
+    const controller = new AbortController();
+    controller.abort();
+    return controller.signal;
+  };
+  it('an aborted controller before the commit runs no git at all, and nothing is committed', async () => {
+    const fx = fixture('batch-next-stop-commit');
+    const { top } = repo(fx, 'alpha');
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const head = git(results[0]!.worktree, ['rev-parse', 'HEAD'], fx.env);
+    const recorded = recorder(defaultRunner(fx.env));
+    const committed = await commitPassed(results, 'Re-lock', recorded.run, fx.env, stopped());
+    expect(recorded.calls).toEqual([]);
+    expect(committed[0]).toMatchObject({ ok: true, last: 'not committed: stopped' });
+    expect(git(results[0]!.worktree, ['rev-parse', 'HEAD'], fx.env)).toBe(head);
+    // Not committed, so a later choice commits it.
+    const again = await commitPassed(committed, 'Re-lock', defaultRunner(fx.env), fx.env);
+    expect(again[0]!.last).toMatch(/^committed [0-9a-f]{7,}$/);
+  });
+  it('aborted between the commit and the push: nothing is pushed, no PR opens, and no git or gh runs', async () => {
+    const fx = withGh('batch-next-stop-push');
+    const { top } = repo(fx, 'alpha');
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const committed = await commitPassed(results, 'Re-lock', defaultRunner(fx.env), fx.env);
+    const recorded = recorder(defaultRunner(fx.env));
+    expect(await pushAndOpenPrs(committed, recorded.run, fx.env, stopped())).toEqual([
+      { root: top, url: null, error: 'not pushed: stopped' },
+    ]);
+    expect(recorded.calls).toEqual([]);
+    expect(git(top, ['ls-remote', 'origin', 'chore/ia-fix-generation'], fx.env)).toBe('');
+    expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
+  });
+  it('aborted during the first push: that one opens no PR, and no later repository is pushed or opened', async () => {
+    const fx = withGh('batch-next-stop-mid');
+    const tops = ['alpha', 'beta', 'gamma'].map((name) => repo(fx, name).top);
+    const { results } = await batch(
+      fx,
+      tops.map((top) => rowOf(top, [relock(top)])),
+    );
+    const committed = await commitPassed(results, 'Re-lock', defaultRunner(fx.env), fx.env);
+    const controller = new AbortController();
+    const real = defaultRunner(fx.env);
+    // Ctrl-C while the first push runs: the push itself finishes, then the controller is aborted.
+    const recorded = recorder(async (file, args, options) => {
+      const settled = await real(file, args, options);
+      if (args.includes('push')) controller.abort();
+      return settled;
+    });
+    const opened = await pushAndOpenPrs(committed, recorded.run, fx.env, controller.signal);
+    expect(opened).toEqual([
+      { root: tops[0], url: null, error: 'pushed, but stopped before the PR was opened' },
+      { root: tops[1], url: null, error: 'not pushed: stopped' },
+      { root: tops[2], url: null, error: 'not pushed: stopped' },
+    ]);
+    expect(recorded.calls).toHaveLength(1);
+    expect(recorded.calls[0]!.args).toContain('push');
+    expect(readLog(join(fx.dir, 'gh.log'))).toEqual([]);
+    for (const top of tops.slice(1))
+      expect(git(top, ['ls-remote', 'origin', 'chore/ia-fix-generation'], fx.env)).toBe('');
+  });
+  it('an aborted controller before the removal removes nothing', async () => {
+    const fx = fixture('batch-next-stop-remove');
+    const { top } = repo(fx, 'alpha');
+    const { results } = await batch(fx, [rowOf(top, [relock(top)])]);
+    const recorded = recorder(defaultRunner(fx.env));
+    expect(await removeWorktrees(results, recorded.run, fx.env, stopped())).toEqual([
+      { root: top, error: 'not removed: stopped' },
+    ]);
+    expect(recorded.calls).toEqual([]);
+    expect(existsSync(results[0]!.worktree)).toBe(true);
+  });
+  it('the repositories a stopped batch never ran are listed, and offer no commit or PR', () => {
+    const ran = result({ ok: false, last: 'stopped: the batch was stopped', stopped: true });
+    const unrun = result({ ok: false, last: 'not run: batch stopped', created: false, stopped: true });
+    expect(nextChoices([ran, unrun], [], { found: true, authed: true }).map((choice) => choice.id)).toEqual([
+      'open',
+      'remove',
+    ]);
   });
 });
 

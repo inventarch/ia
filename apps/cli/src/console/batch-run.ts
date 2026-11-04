@@ -449,6 +449,8 @@ export interface RepoResult {
   readonly created: boolean;
   /** What the created worktree was, checked before every later command in it. */
   readonly pinned?: Pinned | null;
+  /** Ctrl-C stopped the batch before this repository finished, or before it started (`not run: batch stopped`). */
+  readonly stopped?: boolean;
   /** The remote-tracking branch the worktree was made from (`origin/main`), which its PR is opened against. */
   readonly base?: string;
 }
@@ -467,6 +469,11 @@ function manifestDirectory(workspace: string, worktree: string): string | null {
     if (resolve(current) === resolve(worktree) || dirname(current) === current) return null;
   }
 }
+
+/** The last line of a repository a stopped batch never started. */
+export const NOT_RUN = 'not run: batch stopped';
+/** The last line of a repository the batch was stopped in. */
+export const STOPPED = 'stopped: the batch was stopped';
 
 export async function runBatch(
   plan: { readonly repos: readonly RepoPlan[] },
@@ -491,8 +498,13 @@ export async function runBatch(
   // Where each worktree really leads, fixed now, before anything is awaited.
   const destinations = plan.repos.map((repo) => leadsTo(repo.worktree));
   for (const [index, repo] of plan.repos.entries()) {
-    if (io.signal.aborted) break;
     const say = (line: string) => io.progress(index, line);
+    // A stopped batch still lists every repository it did not run, so none drops out of the results.
+    if (io.signal.aborted) {
+      say(NOT_RUN);
+      results.push({ ...repoResult(repo), ok: false, last: NOT_RUN, refused: null, created: false, stopped: true });
+      continue;
+    }
     if ('refused' in git) {
       say(`refused: ${git.refused}`);
       results.push({ ...repoResult(repo), ok: false, last: git.refused, refused: git.refused, created: false });
@@ -528,6 +540,7 @@ async function runRepo(
     };
   };
   const refuse = (why: string): RepoResult => done(false, why, why);
+  const stop = (): RepoResult => ({ ...done(false, STOPPED), stopped: true });
   if (repo.refused !== null) return refuse(repo.refused);
   let guard: SpawnGuard = { checkouts: [top] };
   const git = (args: readonly string[]) =>
@@ -559,6 +572,7 @@ async function runRepo(
     return refuse(`the worktree path ${worktree} changed while the batch ran: it now leads to ${now ?? 'nowhere'}`);
   const again = judge(now);
   if (again !== null) return refuse(again);
+  if (io.signal.aborted) return stop();
   say(`creating ${worktree} on ${branch} from ${base.base}`);
   const added = await git(['worktree', 'add', '--no-track', '-b', branch, worktree, base.base]);
   if (added.refused !== undefined) return refuse(added.refused);
@@ -615,6 +629,7 @@ async function runRepo(
   const failed = (why: string): RepoResult =>
     why.startsWith('refused:') ? refuse(why.slice('refused:'.length).replace(/^install: /, '')) : done(false, why);
 
+  if (io.signal.aborted) return stop();
   const manifest = manifestDirectory(workspace, worktree);
   if (manifest !== null) {
     const probe = checkPinned(worktree, pinned);
@@ -644,7 +659,7 @@ async function runRepo(
     if (outside !== null) return refuse(outside);
   }
   for (const [index, step] of repo.steps.entries()) {
-    if (io.signal.aborted) return refuse('the batch was stopped');
+    if (io.signal.aborted) return stop();
     const why = await run(step, `step ${index + 1}`);
     if (why !== null) return failed(why);
   }

@@ -587,7 +587,7 @@ export async function runConsole(input: {
     const runBatchFlow = async (preview: BatchPreview): Promise<void> => {
       running = true;
       epoch += 1;
-      const controller = new AbortController();
+      let controller = new AbortController();
       batchController = controller;
       let outcome: Awaited<ReturnType<typeof batchScreen>> = { next: 'return' };
       try {
@@ -606,6 +606,12 @@ export async function runConsole(input: {
           resolveRepo: repoOf,
           env,
           signal: controller.signal,
+          // Each choice after the run gets its own controller, so a Ctrl-C during the run leaves them choosable.
+          nextSignal: () => {
+            controller = new AbortController();
+            batchController = controller;
+            return controller.signal;
+          },
         });
         print('Press any key to return to the console.');
         await waitKey();

@@ -78,6 +78,7 @@ async function batch(
   offerId: string,
   plan?: { readonly repos: readonly RepoPlan[]; readonly deferred?: readonly Step[] },
   wrap: (run: Runner) => Runner = (run) => run,
+  signal: AbortSignal = new AbortController().signal,
 ) {
   const made =
     plan ??
@@ -97,7 +98,7 @@ async function batch(
       run: recorded.run,
       resolveRepo,
       progress: (_index, line) => progress.push(line),
-      signal: new AbortController().signal,
+      signal,
       env: fx.env,
     },
   );
@@ -853,6 +854,57 @@ it.skipIf(process.platform === 'win32')('a POSIX shim passes shell characters th
   const args = ['a&b', '$HOME', '"q"', "it's", 'x;y', '100%'];
   expect((await run('npm', args, { cwd: fx.dir, env: fx.env })).status).toBe(0);
   expect(pmCalls(fx)[0]?.argv).toEqual(args);
+});
+
+describe('Ctrl-C during the run', () => {
+  /** A wrapper that aborts `controller` once a call whose arguments hold `word` settles. */
+  const abortAfter =
+    (controller: AbortController, word: string) =>
+    (run: Runner): Runner =>
+    async (file, args, options) => {
+      const settled = await run(file, args, options);
+      if (args.includes(word)) controller.abort();
+      return settled;
+    };
+  it('aborted once a worktree is made: its install never runs, and the repositories after it are listed as not run', async () => {
+    const fx = fixture('batch-run-stop');
+    const first = repo(fx, 'first', { 'package.json': pinned('3.5.0'), ...LOCKED });
+    const second = repo(fx, 'second', { 'package.json': pinned('3.5.0'), ...LOCKED });
+    const controller = new AbortController();
+    const rows = [first, second].map(({ top }) => rowOf(top, [relock(top)]));
+    const { results, calls } = await batch(
+      fx,
+      rows,
+      'fix:generation',
+      undefined,
+      abortAfter(controller, 'worktree'),
+      controller.signal,
+    );
+    expect(results.map((entry) => [entry.root, entry.ok, entry.stopped, entry.created, entry.last])).toEqual([
+      [first.top, false, true, true, 'stopped: the batch was stopped'],
+      [second.top, false, true, false, 'not run: batch stopped'],
+    ]);
+    expect(calls.at(-1)!.args).toContain('worktree');
+    expect(pmCalls(fx)).toEqual([]);
+    expect(iaCalls(fx)).toEqual([]);
+    expect(git(second.top, ['branch', '--list', 'chore/*'], fx.env)).toBe('');
+  });
+  it('aborted during the fetch: no worktree is added', async () => {
+    const fx = fixture('batch-run-stop-fetch');
+    const { top } = repo(fx, 'alpha');
+    const controller = new AbortController();
+    const { results, calls } = await batch(
+      fx,
+      [rowOf(top, [relock(top)])],
+      'fix:generation',
+      undefined,
+      abortAfter(controller, 'fetch'),
+      controller.signal,
+    );
+    expect(only(results)).toMatchObject({ ok: false, stopped: true, created: false });
+    expect(calls.some((call) => call.args.includes('worktree'))).toBe(false);
+    expect(existsSync(only(results).worktree)).toBe(false);
+  });
 });
 
 describe('the batch install', () => {

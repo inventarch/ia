@@ -25,7 +25,8 @@ export function nextChoices(
   deferred: readonly Step[],
   gh: { readonly found: boolean; readonly authed: boolean },
 ): readonly NextChoice[] {
-  const passed = results.filter((result) => result.ok).length;
+  // A repository a stopped batch never ran, or stopped in, is never committed or pushed.
+  const passed = results.filter((result) => result.ok && result.stopped !== true).length;
   const failed = results.some((result) => !result.ok && result.created);
   const created = results.some((result) => result.created);
   const steps = [...new Set(deferred.map(displayFix))];
@@ -66,6 +67,11 @@ function programFor(name: string, env: Env, results: readonly RepoResult[]): { p
   return 'refused' in found ? { refused: found.refused } : { path: found.path };
 }
 
+/** Ctrl-C has stopped the choice; read afresh at every check, since it can change during any await. */
+const halted = (signal: AbortSignal | undefined): boolean => signal?.aborted === true;
+/** The last line of a repository whose commit Ctrl-C stopped before it ran; a later choice commits it. */
+const NOT_COMMITTED = 'not committed: stopped';
+
 /**
  * `git add -A` and `git commit -m "chore: <title>"` in each worktree that passed. A repository whose commit fails (or
  * has nothing to commit) is no longer ok, with the reason as its last line; one that commits says `committed <sha>`, and
@@ -76,6 +82,8 @@ export async function commitPassed(
   title: string,
   run: Runner,
   given: Env = process.env,
+  /** Ctrl-C: once aborted, no further git runs, and a repository not yet committed says so. */
+  signal?: AbortSignal,
 ): Promise<readonly RepoResult[]> {
   const out: RepoResult[] = [];
   // No git routing variable inherited by the console reaches these children.
@@ -84,6 +92,10 @@ export async function commitPassed(
   for (const result of results) {
     if (!result.ok || result.last.startsWith('committed ')) {
       out.push(result);
+      continue;
+    }
+    if (halted(signal)) {
+      out.push({ ...result, last: NOT_COMMITTED });
       continue;
     }
     const refused = 'refused' in program ? program.refused : checkPinned(result.worktree, result.pinned);
@@ -96,11 +108,20 @@ export async function commitPassed(
     const git = (args: readonly string[]) =>
       spawnGuarded(run, program.path, ['-C', result.worktree, ...args], { cwd: result.worktree, env }, guard);
     const added = await git(['add', '-A']);
+    if (halted(signal)) {
+      out.push({ ...result, last: NOT_COMMITTED });
+      continue;
+    }
     const committed = added.status === 0 ? await git(['commit', '--quiet', '-m', `chore: ${title}`]) : added;
     if (committed.status !== 0) {
       const why =
         committed.refused ?? (lastLine(committed.stderr) || lastLine(committed.stdout) || 'git commit failed');
       out.push({ ...result, ok: false, last: why });
+      continue;
+    }
+    // Committed: still counted as committed, so a later choice never commits it twice.
+    if (halted(signal)) {
+      out.push({ ...result, last: 'committed (stopped before reading its SHA)' });
       continue;
     }
     const sha = await git(['rev-parse', '--short', 'HEAD']);
@@ -126,6 +147,7 @@ async function createBranch(
   run: Runner,
   options: { readonly cwd: string; readonly env: Env },
   guard: SpawnGuard,
+  signal?: AbortSignal,
 ): Promise<{ readonly created: boolean; readonly why: string }> {
   const ref = `refs/heads/${branch}`;
   const push = (atomic: boolean) =>
@@ -147,7 +169,9 @@ async function createBranch(
       guard,
     );
   const first = await push(true);
-  const pushed = first.status !== 0 && /does not support --atomic/.test(first.stderr) ? await push(false) : first;
+  const retry = first.status !== 0 && /does not support --atomic/.test(first.stderr);
+  if (retry && halted(signal)) return { created: false, why: 'not pushed: stopped' };
+  const pushed = retry ? await push(false) : first;
   if (pushed.refused !== undefined) return { created: false, why: pushed.refused };
   const line = pushed.stdout
     .split(/\r?\n/)
@@ -176,6 +200,8 @@ export async function pushAndOpenPrs(
   results: readonly RepoResult[],
   run: Runner,
   given: Env = process.env,
+  /** Ctrl-C: once aborted, nothing further is pushed or opened. */
+  signal?: AbortSignal,
 ): Promise<readonly { readonly root: string; readonly url: string | null; readonly error: string | null }[]> {
   const out: { root: string; url: string | null; error: string | null }[] = [];
   // No git routing variable inherited by the console reaches these children.
@@ -184,6 +210,10 @@ export async function pushAndOpenPrs(
   const gh = programFor('gh', env, results);
   for (const result of results) {
     if (!result.ok) continue;
+    if (halted(signal)) {
+      out.push({ root: result.root, url: null, error: 'not pushed: stopped' });
+      continue;
+    }
     const refused =
       'refused' in git ? git.refused : 'refused' in gh ? gh.refused : checkPinned(result.worktree, result.pinned);
     if (refused !== null || 'refused' in git || 'refused' in gh) {
@@ -202,9 +232,13 @@ export async function pushAndOpenPrs(
     const base = result.base.slice('origin/'.length);
     const options = { cwd: result.worktree, env };
     const guard = guardOf(results, result);
-    const pushed = await createBranch(git.path, result.worktree, result.branch, run, options, guard);
+    const pushed = await createBranch(git.path, result.worktree, result.branch, run, options, guard, signal);
     if (!pushed.created) {
       out.push({ root: result.root, url: null, error: pushed.why });
+      continue;
+    }
+    if (halted(signal)) {
+      out.push({ root: result.root, url: null, error: 'pushed, but stopped before the PR was opened' });
       continue;
     }
     const opened = await spawnGuarded(
@@ -236,6 +270,8 @@ export async function removeWorktrees(
   results: readonly RepoResult[],
   run: Runner,
   given: Env = process.env,
+  /** Ctrl-C: once aborted, no further worktree is removed. */
+  signal?: AbortSignal,
 ): Promise<readonly { readonly root: string; readonly error: string | null }[]> {
   const out: { root: string; error: string | null }[] = [];
   // No git routing variable inherited by the console reaches these children.
@@ -243,6 +279,10 @@ export async function removeWorktrees(
   const git = programFor('git', env, results);
   for (const result of results) {
     if (!result.created) continue;
+    if (halted(signal)) {
+      out.push({ root: result.root, error: 'not removed: stopped' });
+      continue;
+    }
     const refused = 'refused' in git ? git.refused : checkPinned(result.worktree, result.pinned);
     if (refused !== null || 'refused' in git) {
       out.push({ root: result.root, error: refused ?? 'git may not run' });
