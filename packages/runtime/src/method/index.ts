@@ -15,6 +15,7 @@ export type { ReleaseIndex, ReleaseRow } from './releases.js';
 export {
   SIDECARS,
   assertPinnedKit,
+  canonicalKitId,
   carrierOf,
   declaredAssets,
   findKit,

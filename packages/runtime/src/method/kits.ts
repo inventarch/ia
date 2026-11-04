@@ -236,6 +236,11 @@ export function findKit(ref: string, kits: readonly Kit[]): Kit {
   return kit;
 }
 
+/** The canonical id of a kit reference (an id or a folder alias) among the kits given, as `findKit` reads it; an unknown reference stays as given. */
+export function canonicalKitId(ref: string, kits: readonly Kit[]): string {
+  return (kits.find((k) => k.id === ref) ?? kits.find((k) => k.folder === ref))?.id ?? ref;
+}
+
 export interface KitRecordName {
   readonly system: string;
   readonly word: string;
@@ -490,16 +495,24 @@ export function requireKitInstalled(root: string, kit: { readonly id: string }):
     throw new MethodError(
       `kit ${kit.id} is bound by this repository but its lock does not install it; run ia install ${kit.id} (or kit.mjs add ${kit.id}), then resolve again`,
       'IA-CORE-KIT-NOT-INSTALLED',
+      { kit: kit.id },
     );
 }
 
-/** Identity: true only when the lock's row for the kit carries exactly this version and archive. Never throws on a mismatch. */
+/**
+ * Identity: true only when the lock's row for the kit carries exactly this version and archive. Never throws: a lock
+ * that cannot be read or parsed matches nothing (`requireKitInstalled` still propagates that error as its own).
+ */
 export function kitInstallMatches(
   root: string,
   kit: { readonly id: string; readonly version: string; readonly archive: string | null },
 ): boolean {
-  const row = kitInstallation(root, kit.id);
-  return row !== null && row.version === kit.version && row.archive === kit.archive;
+  try {
+    const row = kitInstallation(root, kit.id);
+    return row !== null && row.version === kit.version && row.archive === kit.archive;
+  } catch {
+    return false;
+  }
 }
 
 /**

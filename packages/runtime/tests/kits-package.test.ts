@@ -17,7 +17,7 @@ import {
 } from '../src/method/index.js';
 
 /**
- * Kits a workspace lock installs from an npm package of kits (contract C7b, ia-kb `dec-133`): the engine expands them
+ * Kits a workspace lock installs from an npm package of kits (contract C7b): the engine expands them
  * into `.ia/distributions/store/<archive>/` as ordinary releases, and the runtime reads them from there, materialized
  * once under the IA home; a kit the store lacks needs `ia restore`, and is never answered by another copy.
  */

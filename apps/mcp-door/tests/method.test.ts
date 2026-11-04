@@ -138,6 +138,7 @@ it('refuses a bound kit the lock does not install, with the payload resolve.mjs 
         code: 'IA-CORE-KIT-NOT-INSTALLED',
         message:
           'kit inventarch/ia-kb-kit is bound by this repository but its lock does not install it; run ia install inventarch/ia-kb-kit (or kit.mjs add inventarch/ia-kb-kit), then resolve again',
+        kit: 'inventarch/ia-kb-kit',
       },
     });
   }

@@ -6,6 +6,7 @@ import { assertReadable, kitReadRoot } from './kit-root.js';
 import type { KitRestore } from './kit-root.js';
 import {
   assertPinnedKit,
+  canonicalKitId,
   findKit,
   identityOf,
   implementationDigest,
@@ -216,7 +217,16 @@ export function resolveMethod(request: MethodRequest, context: MethodContext): M
   // A bound key runs only a kit the repository's own lock installs, whatever copy of the kit is carried, held in the IA
   // home or retained by a pin, and whether or not the task rebinds. The refusal comes before anything is retained or
   // written. The unbound route (outside a workspace) has no lock.
-  if (!unbound) requireKitInstalled(workspaceRoot!, { id: binding.kit });
+  // A binding may name a kit by its folder, as findKit reads it: the lock is asked about the kit's canonical id.
+  if (!unbound) {
+    let carried: Kit[] = [];
+    try {
+      carried = listKits(context.kits);
+    } catch {
+      carried = [];
+    }
+    requireKitInstalled(workspaceRoot!, { id: canonicalKitId(binding.kit, carried) });
+  }
 
   const keyPin = pin?.keys?.[activityKey] ?? null;
   const savedKit = pin?.kits?.[binding.kit] ?? null;
